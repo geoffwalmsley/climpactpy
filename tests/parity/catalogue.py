@@ -12,6 +12,8 @@ REFERENCE_DIR = Path(__file__).parents[2] / "reference" / "output"
 STATION = "sydney_observatory_hill_1936-2015"
 RUNS = ("lat0", "sydney")
 FOLDERS = ("indices", "thres", "trend")
+# Individual QC files that have a tabular format comparable with the reader.
+QC_FILES = ("nastatistics",)
 
 STANDARDISED = "standardised values (using all years)"
 
@@ -45,7 +47,7 @@ class ReferenceFile:
     def tier(self) -> Tier:
         if _FITTED.match(self.name):
             return Tier.FITTED
-        if _EXACT.match(self.name):
+        if self.folder == "qc" or _EXACT.match(self.name):
             return Tier.EXACT
         return Tier.CLOSE
 
@@ -65,4 +67,6 @@ def reference_files() -> list[ReferenceFile]:
             for path in sorted((REFERENCE_DIR / run / STATION / folder).glob("*.csv")):
                 name = path.stem.removeprefix(f"{STATION}_")
                 files.append(ReferenceFile(run=run, folder=folder, name=name))
+        for name in QC_FILES:
+            files.append(ReferenceFile(run=run, folder="qc", name=name))
     return files

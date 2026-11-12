@@ -32,8 +32,16 @@ def register(*keys: str) -> Callable[[Builder], Builder]:
     return decorator
 
 
+def load_builtin_builders() -> dict[str, Builder]:
+    """Import the built-in builders so they register themselves; returns the registry."""
+    import climpact.products  # noqa: F401
+
+    return BUILDERS
+
+
 def build(key: str, run: Any) -> pd.DataFrame:
     """Build the output table for ``key``."""
+    load_builtin_builders()
     try:
         builder = BUILDERS[key]
     except KeyError:

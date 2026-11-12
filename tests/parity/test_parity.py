@@ -16,6 +16,7 @@ from climpact.io.climpact_csv import read_climpact_csv
 from .catalogue import reference_files
 
 FILES = reference_files()
+outputs.load_builtin_builders()
 
 
 @pytest.mark.parity

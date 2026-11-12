@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "climpactpy"
+description = "Python port of Climpact: indices of daily climate extremes for station and gridded data"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+dynamic = ["version"]
+dependencies = [
+    "xclim>=1.0,<1.1",
+    "xarray>=2025.1",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scipy>=1.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.8",
+]
+
+[project.urls]
+Repository = "https://github.com/geoffwalmsley/climpactpy"
+"Original R Climpact" = "https://github.com/ARCCSS-extremes/climpact"
+
+[tool.hatch.version]
+path = "src/climpact/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/climpact"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    # cf_xarray warns when matplotlib is not installed; plotting is not used by the core
+    "ignore:Import\\(s\\) unavailable to set up matplotlib support:UserWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "NPY"]

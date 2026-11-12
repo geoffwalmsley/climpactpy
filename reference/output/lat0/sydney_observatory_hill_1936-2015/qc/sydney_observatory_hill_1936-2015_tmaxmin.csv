@@ -1,0 +1,9 @@
+"Description: ","Dates where TN>TX"
+"Station: ","sydney_observatory_hill_1936-2015"
+"Latitude: ","0"
+"Longitude: ","0"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-12"
+Date,Prec,TX,TN
+1988-11-16,42.8,12.6,12.6

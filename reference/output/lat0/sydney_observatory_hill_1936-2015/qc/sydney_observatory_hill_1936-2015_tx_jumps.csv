@@ -1,0 +1,12 @@
+"Description: ","Dates where the change in TX is > 20 degrees."
+"Station: ","sydney_observatory_hill_1936-2015"
+"Latitude: ","0"
+"Longitude: ","0"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-12"
+Date,TX
+1946-11-6,21.1
+1973-2-6,20.8
+2006-1-1,22
+2013-1-18,21

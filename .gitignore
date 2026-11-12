@@ -1,0 +1,3 @@
+# Plots from the R reference runs; the CSVs are committed
+reference/output/**/*.png
+reference/output/**/*.pdf

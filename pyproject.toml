@@ -35,7 +35,10 @@ packages = ["src/climpact"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-rfE --strict-markers"
+markers = [
+    "parity: comparison against the R reference outputs",
+]
 filterwarnings = [
     # cf_xarray warns when matplotlib is not installed; plotting is not used by the core
     "ignore:Import\\(s\\) unavailable to set up matplotlib support:UserWarning",

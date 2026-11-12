@@ -52,3 +52,18 @@ def station_run():
         return cache[run]
 
     return get
+
+
+@pytest.fixture(scope="session")
+def station_outputs(station_run):
+    """Factory returning the (cached) dict of Python output tables for a run."""
+    from climpact.outputs import build_all
+
+    cache = {}
+
+    def get(run: str):
+        if run not in cache:
+            cache[run] = build_all(station_run(run))
+        return cache[run]
+
+    return get

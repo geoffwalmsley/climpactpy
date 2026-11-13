@@ -23,9 +23,14 @@ dependencies = [
 climpact = "climpact.cli:main"
 
 [project.optional-dependencies]
+# Index plots, the combined PDF (climpact.plots; `climpact run --plots`)
+plots = [
+    "matplotlib>=3.8",
+]
 dev = [
     "pytest>=8",
     "ruff>=0.8",
+    "matplotlib>=3.8",
 ]
 
 [project.urls]
@@ -45,7 +50,7 @@ markers = [
     "parity: comparison against the R reference outputs",
 ]
 filterwarnings = [
-    # cf_xarray warns when matplotlib is not installed; plotting is not used by the core
+    # cf_xarray warns when matplotlib is not installed (it is optional: the plots extra)
     "ignore:Import\\(s\\) unavailable to set up matplotlib support:UserWarning",
 ]
 

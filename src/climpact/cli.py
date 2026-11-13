@@ -5,7 +5,9 @@ and writes them as Climpact CSV files to ``<dir>/<station>/{indices,qc,thres}/``
 app does. ``climpact batch <metadata file> <data dir> --out <dir>`` does the same for every
 station of an R batch metadata file (see :mod:`climpact.batch`). Both take ``--qc``,
 ``--homogeneity`` and ``--indices`` to select the modules a run uses, and
-``climpact modules`` lists the modules available (see :mod:`climpact.modules`).
+``climpact modules`` lists the modules available (see :mod:`climpact.modules`). Both
+take ``--plots`` to draw R's index plots and combined PDF and ``--zip`` to zip the
+outputs, as R's download does (see :mod:`climpact.plots`).
 ``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
 (see :mod:`climpact.gridded`).
@@ -62,6 +64,27 @@ def _module_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="NAMES",
         help="comma-separated index modules, run in order (default: %(default)s)",
     )
+
+
+def _output_arguments(parser: argparse.ArgumentParser, zip_help: str) -> None:
+    group = parser.add_argument_group("plots and archive")
+    group.add_argument(
+        "--plots",
+        action="store_true",
+        help="also draw a PNG of every index and the combined PDF in NAME/plots/, as R "
+        "does (needs matplotlib: pip install climpactpy[plots])",
+    )
+    group.add_argument("--zip", action="store_true", help=zip_help)
+
+
+def _plots_available(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.plots:
+        from climpact.plots import require_matplotlib
+
+        try:
+            require_matplotlib()
+        except ImportError as exc:
+            parser.error(f"--plots: {exc}")
 
 
 def _names(text: str) -> tuple[str, ...]:
@@ -129,6 +152,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     custom.add_argument("--no-custom", action="store_true", help="skip the custom index")
     _module_arguments(run)
+    _output_arguments(run, "also zip the station folder to OUT/NAME.zip, as R's download")
     run.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     batch = commands.add_parser(
@@ -169,6 +193,7 @@ def _parser() -> argparse.ArgumentParser:
         "or <= (default: none, as in R's batch mode)",
     )
     _module_arguments(batch)
+    _output_arguments(batch, "also zip the whole output folder to OUT.zip next to it, as R does")
     batch.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     grid = commands.add_parser(
@@ -254,6 +279,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         custom=_custom(args, parser),
     )
     modules = _modules(args, parser)
+    _plots_available(args, parser)
     progress = None
     if args.progress:
 
@@ -261,9 +287,19 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
             _print_stage("", stage, step, total)
 
     written, skipped = run_station(
-        args.station_file, metadata, params, args.out, modules=modules, progress=progress
+        args.station_file,
+        metadata,
+        params,
+        args.out,
+        modules=modules,
+        progress=progress,
+        plots=args.plots,
+        zip=args.zip,
     )
+    archive = written.pop("zip", None)
     print(f"Wrote {len(written)} files to {args.out / metadata.name}")
+    if archive is not None:
+        print(f"Zipped them to {archive}")
     if skipped:
         print(f"Not written (no data in any period): {', '.join(skipped)}")
     return 0
@@ -280,6 +316,7 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         parser.error("--workers must be at least 1")
     custom = _custom(args, parser)
     modules = _modules(args, parser)
+    _plots_available(args, parser)
     try:
         stations = read_batch_metadata(args.metadata_file)
     except BatchMetadataError as exc:
@@ -314,9 +351,13 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         on_result=report,
         modules=modules,
         progress=progress,
+        plots=args.plots,
+        zip=args.zip,
     )
     failed = [r for r in results if not r.ok]
     print(f"Done: {total - len(failed)} of {total} stations processed, {len(failed)} failed")
+    if args.zip:
+        print(f"Zipped the output folder to {args.out.parent / (args.out.name + '.zip')}")
     for result in failed:
         print(f"  {result.name}: see {result.error_file}")
     return 1 if failed else 0

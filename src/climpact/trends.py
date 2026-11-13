@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -166,3 +167,119 @@ def sen_trend(values: Sequence[float], x0: int = 0) -> tuple[float, float, float
     except ValueError:
         return NA_TREND
     return lower, slope, upper
+
+
+def _alnorm(x: float, upper: bool) -> float:
+    """Kendall's ``ALNORM`` (algorithm AS 66): the normal tail area below ``x``, or above
+    it when ``upper``. Evaluated in double precision (the Fortran uses ``REAL``)."""
+    if abs(x) >= 10.0:
+        lower = 0.0 if x < 0 else 1.0
+        return 1.0 - lower if upper else lower
+    up, z = upper, x
+    if z < 0:
+        up, z = not up, -z
+    if z <= 7.0 or (up and z <= 18.66):
+        y = 0.5 * z * z
+        if z > 1.28:
+            p = (
+                0.398942280385
+                * math.exp(-y)
+                / (
+                    z
+                    - 3.8052e-8
+                    + 1.00000615302
+                    / (
+                        z
+                        + 3.98064794e-4
+                        + 1.98615381364
+                        / (
+                            z
+                            - 0.151679116635
+                            + 5.29330324926
+                            / (
+                                z
+                                + 4.8385912808
+                                - 15.1508972451
+                                / (z + 0.742380924027 + 30.789933034 / (z + 3.99019417011))
+                            )
+                        )
+                    )
+                )
+            )
+        else:
+            p = 0.5 - z * (
+                0.398942280444
+                - 0.399903438504
+                * y
+                / (
+                    y
+                    + 5.75885480458
+                    - 29.8213557808 / (y + 2.62433121679 + 48.6959930692 / (y + 5.92885724438))
+                )
+            )
+    else:
+        p = 0.0
+    return p if up else 1.0 - p
+
+
+def mann_kendall_p(values: Sequence[float]) -> float:
+    """Two-sided p-value of ``MannKendall(y)$sl`` (Kendall 2.2.2, Fortran ``TAUK2``).
+
+    Missing values are dropped and ``x`` is ``1, 2, ...``. ``TAUK2``'s exact method is
+    never reached (its flag for "no ties" is true only for a constant series, which
+    returns before it), so the p-value is always the normal approximation with a
+    continuity correction: ``z = (S -+ 1) / sqrt(Var(S))``, ``p = 2 min(Phi(z), 1 - Phi(z))``.
+    A constant series, or one too short or too tied for ``Var(S)``, gives 1, as
+    ``TAUK2`` leaves its p-value at 1 then. ``S`` and ``Var(S)`` are computed in single
+    precision, as the Fortran does.
+    """
+    y = np.asarray(values, dtype=float)
+    y = y[~np.isnan(y)].astype(np.float32)
+    n = len(y)
+    if n < 4 or (y == y[0]).all():
+        return 1.0
+    # S: +1 for each later value above, -1 for each below (x has no ties).
+    diff = y[None, :] - y[:, None]
+    s = int(np.sign(diff[np.triu_indices(n, 1)]).sum())
+    var_s = kendall_var_s(np.arange(1, n + 1), y)
+    if var_s <= 0:
+        return 1.0
+    score = s - 1 if s > 0 else s + 1 if s < 0 else 0
+    z = float(np.float32(np.float32(score) / np.sqrt(np.float32(var_s))))
+    prob = _alnorm(z, upper=False)
+    return 2.0 * (1.0 - prob) if prob >= 0.5 else 2.0 * prob
+
+
+@dataclass(frozen=True)
+class PlotTrend:
+    """The trend R draws and prints on an index plot (``plot.call``, ``plot.precindex``).
+
+    ``slope``, ``lower`` and ``upper`` are those of the trend file (:func:`sen_trend`);
+    ``intercept`` is ``zyp.sen``'s (the median of ``y - slope x``) with ``x`` counted from
+    0 at the first value of the series; ``p_value`` is :func:`mann_kendall_p`.
+    """
+
+    lower: float
+    slope: float
+    upper: float
+    intercept: float
+    p_value: float
+
+    @property
+    def valid(self) -> bool:
+        return not math.isnan(self.slope)
+
+
+def plot_trend(values: Sequence[float]) -> PlotTrend:
+    """Sen's slope, its bounds, intercept and Mann-Kendall p-value of a plotted series.
+
+    All are missing when ``min_trend_data`` fails, as R prints "NO LINEAR TREND" then.
+    """
+    y1 = np.asarray(values, dtype=float)
+    lower, slope, upper = sen_trend(y1)
+    if math.isnan(slope):
+        return PlotTrend(math.nan, math.nan, math.nan, math.nan, math.nan)
+    keep = ~np.isnan(y1)
+    x = np.arange(len(y1), dtype=float)[keep]
+    intercept = r_median(y1[keep] - slope * x)
+    return PlotTrend(lower, slope, upper, intercept, mann_kendall_p(y1))

@@ -2135,6 +2135,26 @@ Input files chunked by time step over the whole grid (common in model output) ar
 again for every block, since each block needs every day; R's stripes have the same
 pattern. Rechunking such files first is #67.
 
+### Gridded indices
+
+The same kind of synthetic grid (float32 in K, 1961-2020, base 1971-2000), the 84 ported
+files (R run with `hw`, `hwEHF`, `spi` and `spei` left out, so both compute the same
+indices), default block and batch:
+
+| Grid | Python, 1 thread | Python, 4 threads | R (`climpact.ncdf.wrapper.r`, `cores = FALSE`, Docker amd64 under emulation) |
+| --- | --- | --- | --- |
+| 8 x 8 (64 cells) | 46 s (0.7 s per cell), 0.82 GB | 37 s, 1.23 GB | 196 s (3.1 s per cell) |
+| 16 x 16 (256 cells) | 172 s (0.67 s per cell), 0.95 GB | 123 s, 1.31 GB | not timed (over 30 minutes on a loaded machine) |
+
+On the 64-cell grid all 196 index variables of R's 84 files were identical to Python's,
+with 1 and 4 threads. A cell's time is mostly the in-base bootstrap (about 0.28 s per
+variable, TX and TN), then R's exact running sums for Rx{n}day, the spell indices and
+the exact sums, which run in Python one series at a time and hold the GIL; so threads
+help less than for the thresholds. Before the float32 means (see
+[Numerical precision](#numerical-precision)) a 60-year cell took 1.76 s, half of it in
+`r_mean`. The batched bootstrap was tried (all cells of a batch per day) and was slower
+than one cell at a time; computing a variable's in-base quantiles together is kept.
+
 ## Development
 
 ```sh

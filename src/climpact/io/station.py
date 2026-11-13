@@ -98,5 +98,9 @@ def station_dataset(df: pd.DataFrame, metadata: StationMetadata) -> xr.Dataset:
             "latitude": metadata.latitude,
             "longitude": metadata.longitude,
             "base_period": f"{metadata.base_start}-{metadata.base_end}",
+            # First and last dates in the file (before padding to whole years); climdex
+            # uses them to decide whether the base period has enough data.
+            "first_date": str(df["date"].min().date()),
+            "last_date": str(df["date"].max().date()),
         },
     )

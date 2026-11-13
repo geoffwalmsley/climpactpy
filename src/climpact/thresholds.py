@@ -21,8 +21,9 @@ The R behaviour reproduced here, all of which affects results:
 
 The results are computed once per station and cached on the
 :class:`~climpact.station.StationRun` (``run.thresholds``). Index code looks up the
-threshold for each day of a series with :meth:`Thresholds.daily`. The base-period
-matrices and :func:`window_values` are kept for the in-base bootstrap.
+threshold for each day of a series with :meth:`Thresholds.daily`. Inside the base
+period, the percentile indices use the bootstrapped thresholds of
+:meth:`Thresholds.inbase` (climdex.pcic ``running_quantile_windowed_bootstrap``).
 """
 
 from __future__ import annotations
@@ -58,6 +59,32 @@ def quantile_name(q: float) -> str:
 # --- quantile definitions ------------------------------------------------------------
 
 
+def _c_quantile_positions(n: np.ndarray, q: float):
+    """Positions of the two values ``c_quantile`` interpolates between, and the weight.
+
+    ``n`` is the number of values. Returns ``(left, right, h)`` with 0-based positions
+    clipped to the values, as the C++ does.
+    """
+    a = b = _TYPE8
+    # C++: a + quantile * (n + 1 - a - b) - 1, with n + 1 an integer
+    nppm = a + q * ((n + 1).astype(float) - a - b) - 1
+    j = np.floor(nppm + _FUZZ)
+    h = np.where(np.abs(nppm - j) <= _FUZZ, 0.0, nppm - j)
+    last = np.maximum(n - 1, 0)
+    ji = j.astype(np.int64)
+    return np.clip(ji, 0, last), np.clip(ji + 1, 0, last), h
+
+
+def _c_quantile_combine(n, left, right, first, h) -> np.ndarray:
+    """``c_quantile``'s result from the values at its two positions (``first`` is the
+    smallest value, returned when ``n == 1``)."""
+    with np.errstate(invalid="ignore"):
+        interp = (1 - h) * left + h * right
+    out = np.where(h == 1, right, np.where(h == 0, left, interp))
+    out = np.where(n == 1, first, out)
+    return np.where(n == 0, np.nan, out)
+
+
 def climdex_quantile_sorted(rows: np.ndarray, counts: np.ndarray, q: float) -> np.ndarray:
     """climdex.pcic's C++ ``c_quantile`` for each row of ``rows``.
 
@@ -69,23 +96,9 @@ def climdex_quantile_sorted(rows: np.ndarray, counts: np.ndarray, q: float) -> n
     n = np.asarray(counts, dtype=np.int64).reshape(-1)
     if not 0 <= q <= 1:
         return np.full(n.shape, np.nan)
-    a = b = _TYPE8
-    # C++: a + quantile * (n + 1 - a - b) - 1, with n + 1 an integer
-    nppm = a + q * ((n + 1).astype(float) - a - b) - 1
-    j = np.floor(nppm + _FUZZ)
-    h = np.where(np.abs(nppm - j) <= _FUZZ, 0.0, nppm - j)
-    last = np.maximum(n - 1, 0)
-    ji = j.astype(np.int64)
-    left_idx = np.clip(ji, 0, last)
-    right_idx = np.clip(ji + 1, 0, last)
+    left_idx, right_idx, h = _c_quantile_positions(n, q)
     r = np.arange(rows.shape[0])
-    left = rows[r, left_idx]
-    right = rows[r, right_idx]
-    with np.errstate(invalid="ignore"):
-        interp = (1 - h) * left + h * right
-    out = np.where(h == 1, right, np.where(h == 0, left, interp))
-    out = np.where(n == 1, rows[:, 0], out)
-    return np.where(n == 0, np.nan, out)
+    return _c_quantile_combine(n, rows[r, left_idx], rows[r, right_idx], rows[:, 0], h)
 
 
 def climdex_quantile(values, q: float) -> float:
@@ -189,6 +202,60 @@ def running_quantiles(
     return out
 
 
+def bootstrap_quantiles(
+    base: np.ndarray,
+    window: int,
+    quantiles,
+    min_fraction: float = MIN_BASE_FRACTION,
+) -> dict[float, np.ndarray]:
+    """climdex.pcic ``running_quantile_windowed_bootstrap``: in-base thresholds.
+
+    The Zhang et al. (2005) bootstrap. For each calendar day, base year ``rm`` and
+    other base year ``dup``, the window values of year ``rm`` are replaced by a second
+    copy of year ``dup``'s, and the quantile is taken of the result. Returns
+    ``{q: array (365, years, years - 1)}``, indexed ``[day, rm, k]`` where ``k`` runs
+    over the other years in increasing order (as R's ``dim(d) <- c(dpy, nyears,
+    nyears - 1, nq)``). A threshold is missing when fewer than ``min_fraction`` of the
+    window's ``years * window`` values remain.
+
+    The replaced sample is never built. The C++ sorts the window values once and then
+    drops or duplicates elements in place, so the replaced sample is the sorted values
+    with weights 0 (year ``rm``), 2 (year ``dup``) or 1. The value at position ``p`` of
+    the replaced sample is the first sorted value whose cumulative weight exceeds ``p``.
+    """
+    nyears = base.shape[0]
+    slab = window * nyears
+    pairs = [(rm, dup) for rm in range(nyears) for dup in range(nyears) if dup != rm]
+    rm_idx = np.array([p[0] for p in pairs])
+    dup_idx = np.array([p[1] for p in pairs])
+    out = {q: np.full((DAYS_PER_YEAR, len(pairs)), np.nan) for q in quantiles}
+
+    windows = window_values(base, window)  # (365, years, window)
+    year_of = np.repeat(np.arange(nyears), window)
+    for day in range(DAYS_PER_YEAR):
+        values = windows[day].reshape(-1)
+        present = ~np.isnan(values)
+        order = np.argsort(values[present], kind="stable")
+        data = values[present][order]
+        years = year_of[present][order]
+        size = data.size
+        if size == 0:
+            continue
+        # cum[y, i]: values of year y among the first i + 1 sorted values
+        cum = np.cumsum(years[None, :] == np.arange(nyears)[:, None], axis=1, dtype=np.int32)
+        weight = np.arange(1, size + 1, dtype=np.int32)[None, :] - cum[rm_idx] + cum[dup_idx]
+        n = size - cum[rm_idx, -1] + cum[dup_idx, -1]
+        enough = n / slab >= min_fraction
+        for q in quantiles:
+            left_pos, right_pos, h = _c_quantile_positions(n, q)
+            left = data[np.minimum((weight <= left_pos[:, None]).sum(axis=1), size - 1)]
+            right = data[np.minimum((weight <= right_pos[:, None]).sum(axis=1), size - 1)]
+            first = data[np.minimum((weight <= 0).sum(axis=1), size - 1)]
+            result = _c_quantile_combine(n, left, right, first, h)
+            out[q][day] = np.where(enough, result, np.nan)
+    return {q: v.reshape(DAYS_PER_YEAR, nyears, nyears - 1) for q, v in out.items()}
+
+
 # --- thresholds for a station ------------------------------------------------------------
 
 
@@ -203,7 +270,7 @@ class Thresholds:
     ``temperature[var][q]`` and ``heatwave[var]`` are arrays of 365 day-of-year values
     for ``var`` in ``tasmax``, ``tasmin``, ``tas``; ``precipitation[q]`` is a number.
     ``base[var]`` holds the ``(years, 365)`` base-period data the temperature
-    thresholds were computed from, for the in-base bootstrap.
+    thresholds were computed from; :meth:`inbase` bootstraps it for the in-base years.
     """
 
     base_start: int
@@ -213,10 +280,19 @@ class Thresholds:
     heatwave: dict[str, np.ndarray]
     base: dict[str, np.ndarray] = field(repr=False)
     window: int = TEMPERATURE_WINDOW
+    _inbase: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def outbase(self, var: str, q: float) -> np.ndarray:
         """Day-of-year thresholds used outside the base period (365 values)."""
         return self.temperature[var][q]
+
+    def inbase(self, var: str, q: float) -> np.ndarray:
+        """Bootstrapped thresholds used inside the base period, ``(365, years, years - 1)``
+        (see :func:`bootstrap_quantiles`). Computed on first use and cached."""
+        key = (var, q)
+        if key not in self._inbase:
+            self._inbase[key] = bootstrap_quantiles(self.base[var], self.window, [q])[q]
+        return self._inbase[key]
 
     def daily(self, var: str, q: float, time) -> xr.DataArray:
         """The threshold for each date of ``time`` (climdex ``thresholds[jdays]``)."""
@@ -275,6 +351,7 @@ __all__ = [
     "InsufficientBaseData",
     "Thresholds",
     "base_period_matrix",
+    "bootstrap_quantiles",
     "climdex_quantile",
     "climdex_quantile_sorted",
     "compute_thresholds",

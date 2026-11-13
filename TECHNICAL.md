@@ -8,7 +8,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **71 of the 117** R reference files for Sydney (`lat0` and
+The Python port reproduces **81 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)). Every ported file is also written text-identical
 to R's on all 15 runs, apart from the `Date_of_calculation` line:
@@ -20,7 +20,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Extremes (with dates) | txx, tnn, tnx, txn, rx1day, rx3day (rxdday), rx5day | |
 | Spells (with dates) | cdd, cwd | gsl |
 | Degree days | hddheat, cddcold, gddgrow | |
-| Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd |
+| Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot, tx90p, tx10p, tn90p, tn10p, txgt50p (with the in-base bootstrap) | wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd |
 | Heatwaves | | Tx90/Tn90 (5 aspects each), EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
 | Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
@@ -57,7 +57,7 @@ src/climpact/
 tests/
   parity/            one test per R reference file, plus progress reporting
   test_*.py          unit tests
-  data/              unit-test fixtures (quantiles printed by R)
+  data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
 reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
@@ -202,6 +202,7 @@ station. `StationRun.thresholds` computes them on first use and caches them
 | Threshold | R source | Python |
 | --- | --- | --- |
 | TX, TN, TM q5, q10, q50, q90, q95, 5-day window | climdex.pcic `get.outofbase.quantiles` / `zhang.running.qtile`, C++ `running_quantile_windowed` | `Thresholds.temperature[var][q]` (365 values) |
+| TX, TN q10, q50, q90 inside the base period (Zhang et al. 2005 bootstrap) | climdex.pcic `zhang.running.qtile(get.bootstrap.data = TRUE)`, C++ `running_quantile_windowed_bootstrap` | `Thresholds.inbase(var, q)` (365 × years × (years − 1) values) |
 | TX, TN, TM q90, 15-day window (`HW_TX90`, `HW_TN90`, `HW_TAVG90`) | Climpact `quality_control_checks.R`, `get.outofbase.quantiles(n = 15)` | `Thresholds.heatwave[var]` |
 | Wet-day (≥ 1 mm) precipitation q5, q10, q50, q90, q95, q99 | climdex.pcic `get.prec.var.quantiles`, R `quantile(type = 8)` | `Thresholds.precipitation[q]` (a number) |
 
@@ -212,7 +213,10 @@ station. `StationRun.thresholds` computes them on first use and caches them
   threshold, later days of a leap year shift back by one).
 - `Thresholds.base[var]` is the `(years, 365)` base-period matrix the temperature
   thresholds came from, and `window_values` returns the `(365, years, window)` window
-  values. These are the inputs to the in-base bootstrap.
+  values.
+- `Thresholds.inbase(var, q)` gives the bootstrapped thresholds used inside the base
+  period, a `(365, years, years - 1)` array, computed on first use and cached (see
+  [In-base bootstrap](#in-base-bootstrap)).
 - `climdex_quantile_sorted` is climdex's C++ quantile, vectorised over the rows of a
   sorted matrix.
 - When the station's dates cover 359 days of the base period or fewer,
@@ -239,6 +243,7 @@ data-validation warnings.
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
 | | r95p, r99p, r95ptot, r99ptot: one threshold per station, not per day of year, and R's extended-precision `sum` is needed for the 15th digit (see below) |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
+| | tx90p, tn90p, tx10p, tn10p, txgt50p: xclim's bootstrapping (`xclim.core.bootstrapping`) recomputes `percentile_doy`, which already differs from climdex's thresholds (see below), so it cannot match R exactly; the bootstrap and R's in-base averaging are ported directly |
 | | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
 
 ## Parity testing
@@ -253,12 +258,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 71/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 71/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 71/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 71/115 and 71/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 71/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 53/83 and 46/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 81/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 81/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 81/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 81/115 and 81/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 81/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 61/83 and 51/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -305,36 +310,36 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-beijing: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-darwin: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-dublin: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-lat0: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-madrid: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-minneapolis: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-nairobi: 46/60 reference files reproduced, 0 failing, 14 not yet ported
-new_delhi: 53/83 reference files reproduced, 0 failing, 30 not yet ported
-oxford: 71/115 reference files reproduced, 0 failing, 44 not yet ported
-perth: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-phoenix: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-potsdam: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-sydney: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-yakutsk: 71/117 reference files reproduced, 0 failing, 50 not yet ported
-alice_springs: 71/117 written CSV files text-identical to R, 0 differing
-beijing: 71/117 written CSV files text-identical to R, 0 differing
-darwin: 71/117 written CSV files text-identical to R, 0 differing
-dublin: 71/117 written CSV files text-identical to R, 0 differing
-lat0: 71/117 written CSV files text-identical to R, 0 differing
-madrid: 71/117 written CSV files text-identical to R, 0 differing
-minneapolis: 71/117 written CSV files text-identical to R, 0 differing
-nairobi: 46/60 written CSV files text-identical to R, 0 differing
-new_delhi: 53/83 written CSV files text-identical to R, 0 differing
-oxford: 71/115 written CSV files text-identical to R, 0 differing
-perth: 71/117 written CSV files text-identical to R, 0 differing
-phoenix: 71/117 written CSV files text-identical to R, 0 differing
-potsdam: 71/117 written CSV files text-identical to R, 0 differing
-sydney: 71/117 written CSV files text-identical to R, 0 differing
-yakutsk: 71/117 written CSV files text-identical to R, 0 differing
+alice_springs: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+beijing: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+darwin: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+dublin: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+lat0: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+madrid: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+minneapolis: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+nairobi: 51/60 reference files reproduced, 0 failing, 9 not yet ported
+new_delhi: 61/83 reference files reproduced, 0 failing, 22 not yet ported
+oxford: 81/115 reference files reproduced, 0 failing, 34 not yet ported
+perth: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+phoenix: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+potsdam: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+sydney: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+yakutsk: 81/117 reference files reproduced, 0 failing, 36 not yet ported
+alice_springs: 81/117 written CSV files text-identical to R, 0 differing
+beijing: 81/117 written CSV files text-identical to R, 0 differing
+darwin: 81/117 written CSV files text-identical to R, 0 differing
+dublin: 81/117 written CSV files text-identical to R, 0 differing
+lat0: 81/117 written CSV files text-identical to R, 0 differing
+madrid: 81/117 written CSV files text-identical to R, 0 differing
+minneapolis: 81/117 written CSV files text-identical to R, 0 differing
+nairobi: 51/60 written CSV files text-identical to R, 0 differing
+new_delhi: 61/83 written CSV files text-identical to R, 0 differing
+oxford: 81/115 written CSV files text-identical to R, 0 differing
+perth: 81/117 written CSV files text-identical to R, 0 differing
+phoenix: 81/117 written CSV files text-identical to R, 0 differing
+potsdam: 81/117 written CSV files text-identical to R, 0 differing
+sydney: 81/117 written CSV files text-identical to R, 0 differing
+yakutsk: 81/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -432,8 +437,11 @@ flips threshold ties and changes tx10p, tn10p, tx90p and csdi in some base-perio
 - *Handling:* the R reference is always generated as `linux/amd64` (emulated on Apple
   Silicon). This matches the original repo's stored reference exactly.
 - *Implication for the port:* percentile indices are sensitive to exact ties between data
-  (0.1 °C resolution) and thresholds. Expect to need the same care as the Rx ties when
-  porting them.
+  (0.1 °C resolution) and thresholds. Across the 14 distinct stations, 178,283 of the
+  21.4 million in-base comparisons of tx90p, tn90p, tx10p, tn10p and txgt50p are exact
+  ties, as are 5,319 out-of-base days. The thresholds are therefore computed bit for bit
+  as climdex's C++ does (`climdex_quantile_sorted`, `bootstrap_quantiles`), with no fused
+  multiply-add, which matches the amd64 reference.
 
 ### Index definitions
 
@@ -551,13 +559,67 @@ days or fewer of the base period lie between the station's first and last dates;
 counts dates, not valid values. Python applies the same rule using the `first_date` and
 `last_date` Dataset attributes and raises `InsufficientBaseData`. What Climpact then
 writes for the percentile indices has not been checked; Python writes no threshold
-tables and none of the percentile indices (tx95t, r95p, r99p, r95ptot, r99ptot).
+tables and none of the percentile indices (tx95t, r95p, r99p, r95ptot, r99ptot, tx90p,
+tn90p, tx10p, tn10p, txgt50p).
 
 **Result.** `thres/thres` and `indices/tx95t_DAY` pass at `CLOSE` for both runs. Every
 threshold value is identical to R's file after formatting to the 15 significant digits R
 writes; `EXACT` cannot be used because the file holds rounded values. The tx95t
 standardised column differs by up to 1.4e-13 relative (mean and standard deviation
 arithmetic).
+
+### In-base bootstrap
+
+**Zhang et al. (2005) in-base thresholds.** Inside the base period climdex.pcic does not
+compare a day with the plain threshold, which would be biased because the day's own year
+helped set it. For each calendar day and base year `rm`, it builds `years - 1` samples:
+the 5-day window values of all base years, with year `rm` replaced by a second copy of
+another year `dup`, and takes the quantile of each (`zhang.running.qtile` with
+`get.bootstrap.data = TRUE`, C++ `running_quantile_windowed_bootstrap`). A sample with
+fewer than 10% of the `years * 5` window values present gives a missing threshold.
+
+- *Handling:* `bootstrap_quantiles` in `thresholds.py`, used through `Thresholds.inbase`.
+  The C++ sorts the window values once and drops or duplicates elements in place, so the
+  replaced sample is the sorted values with weights 0, 1 or 2. Python finds the values at
+  the two quantile positions from the cumulative weights, without building each sample,
+  and applies `c_quantile`'s arithmetic (shared with `climdex_quantile_sorted`). Results
+  are bit-identical to building every sample (`tests/test_temperature_percentiles.py`).
+  Only the quantiles the indices use are computed: TX q10, q50, q90 and TN q10, q90
+  (R computes all five for TX, TN; the others are unused).
+
+**Averaging in-base comparisons.** Climpact replaces climdex.pcic's
+`percent.days.op.threshold` (`climpact.etsci-functions.r`, line 259) with a version that
+returns a missing day only when all comparisons are missing. Outside the base period a
+day scores 1 if `value > threshold` (`<` for tx10p, tn10p), else 0. Inside it, the day is
+compared with each of the `years - 1` bootstrapped thresholds for its year and day of
+year, and scores `hits / (byrs - 1)`. Comparisons with a missing threshold count as no
+hit. The period value is `mean(scores, na.rm = TRUE) * 100`, missing if more than 3
+(monthly) or 15 (annual) days' scores are missing, then multiplied by the variable's
+climdex mask. The in-base part is skipped for series shorter than 720 days.
+
+- *Handling:* ported in `days_op_threshold` and `percent_days` (`products/indices.py`).
+  The comparisons are strict, as in R. The mean uses `r_mean`: with numpy's mean, 269 of
+  the 54,207 values of the 14 stations would be written with a different last digit.
+
+**`byrs` counts the years of the series, not of the base period.** In R, `byrs` is the
+number of base-period years between the series' first and last dates, while the
+bootstrap always has `base_end - base_start + 1` years. For a station that starts or
+ends inside the base period, the hits are divided by fewer than the number of
+comparisons, so a value can exceed 100%. For a station starting in 2002 with base period
+2001-2003, R gives 200% for 2003.
+
+- *Handling:* reproduced, because the reference is R's output. Checked against R itself
+  on a synthetic station (`tests/data/r_percent_days.R`, used by
+  `test_station_starting_inside_the_base_period_matches_r`). No reference run exercises
+  it: every run starts before 1971 and ends after 2000. This looks like a bug in R;
+  whether to keep it is a project decision, recorded here until made.
+- *Not reproduced:* with exactly one base year in the series (and at least 720 days),
+  R stops with an error (`byrs - 1 = 0`). Python uses the out-of-base thresholds for that
+  year instead.
+
+**Result.** All 10 files (`tx90p`, `tn90p`, `tx10p`, `tn10p`, `txgt50p`, ANN and MON)
+pass at `CLOSE` on all 15 runs (8 files for `new_delhi` and 5 for `nairobi`, where R wrote
+fewer), and are text-identical to R's.
 
 ### Station input
 
@@ -593,17 +655,34 @@ output is ported.
 - QC `flatline_tn` labels its report "TX".
 - QC checks re-read the data from a temporary file with `-99.9` sentinels rather than using
   the cleaned data.
+- `percent.days.op.threshold` stops with an error when the series has exactly one
+  base-period year and at least 720 days (`byrs - 1 = 0`). Python uses the out-of-base
+  thresholds for that year (see [In-base bootstrap](#in-base-bootstrap)).
 
 ## Performance
 
-A full station run (80 years, all ported indices) takes about 10 seconds to build (7 s for
+A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
 a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
-with 15 runs, including the text comparison, takes about 130 seconds. The extra runs are not
+with 15 runs, including the text comparison, takes about 170 seconds. The extra runs are not
 marked `slow`; #23 tracks speed-ups. Most of the time is per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
 directly, are the obvious improvements. The R-precision emulation takes about 30 ms per
 80-year series for a sum, and about 0.2 s for a series of monthly means.
+
+The temperature percentile indices (tx90p, tn90p, tx10p, tn10p, txgt50p, ANN and MON)
+take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
+
+| Run | Bootstrap (5 variable/quantile pairs) | Indices | Total |
+| --- | --- | --- | --- |
+| `lat0`, `sydney` (80 years) | 0.8 s | 1.3 s | 2.1-2.2 s |
+| other GHCN runs (60 years) | 0.7-0.8 s | 1.0 s | 1.7-1.9 s |
+| `new_delhi`, `nairobi` (patchy) | 0.7 s | 0.9 s | 1.5-1.6 s |
+
+The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
+at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550
+quantiles. Most of the rest is the per-period R-precision mean (`r_mean`) and the
+missing-data masks.
 
 ## Development
 

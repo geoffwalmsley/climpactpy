@@ -23,7 +23,7 @@ from climpact.outputs import product
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
-from climpact.thresholds import InsufficientBaseData
+from climpact.thresholds import InsufficientBaseData, day_of_year
 
 OPERATORS: dict[str, Callable] = {
     ">": operator.gt,
@@ -381,4 +381,90 @@ def precipitation_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
             share = 100 * total / prcptot
         out[f"indices/{name}_ANN"] = index_table(name, total, "ANN")
         out[f"indices/{name}tot_ANN"] = index_table(f"{name}tot", share, "ANN")
+    return out
+
+
+# --- temperature percentile indices ------------------------------------------------
+
+MAX_MISSING_DAYS = {"ANN": 15, "MON": 3}  # climdex.pcic max.missing.days
+
+
+def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr.DataArray:
+    """Daily share of thresholds exceeded: Climpact's ``percent.days.op.threshold``
+    (``climpact.etsci-functions.r``, which replaces climdex.pcic's) before averaging.
+
+    Outside the base period a day is 1 or 0: ``value <condition> threshold``, with the
+    out-of-base threshold for its day of year. Inside the base period it is compared
+    with each of the ``years - 1`` bootstrapped thresholds for its year and day, and
+    the number of hits is divided by ``byrs - 1``, where ``byrs`` is the number of
+    base-period years the series covers. A day is missing when every comparison is.
+    """
+    th = run.thresholds
+    da = run.data[var]
+    x = da.values
+    time = pd.DatetimeIndex(da.time.values)
+    op = OPERATORS[condition]
+    thr = th.daily(var, q, time).values
+    with np.errstate(invalid="ignore"):
+        dat = np.where(np.isnan(x) | np.isnan(thr), np.nan, op(x, thr).astype(float))
+
+    inset = (time >= pd.Timestamp(f"{th.base_start}-01-01")) & (
+        time <= pd.Timestamp(f"{th.base_end}-12-31")
+    )
+    years = time.year.to_numpy()[inset]
+    # R skips the bootstrap for series shorter than two years. With one base year,
+    # R fails (no years to replace with); the out-of-base thresholds are kept then.
+    if inset.any() and time.size >= 360 * 2 and years.max() > years.min():
+        byrs = int(years.max() - years.min() + 1)
+        doy = day_of_year(time[inset]) - 1
+        base_thr = th.inbase(var, q)[doy, years - th.base_start, :]  # (days, years - 1)
+        xb = x[inset][:, None]
+        valid = ~np.isnan(xb) & ~np.isnan(base_thr)
+        with np.errstate(invalid="ignore"):
+            hits = (op(xb, base_thr) & valid).sum(axis=1)
+        dat[inset] = np.where(valid.any(axis=1), hits / (byrs - 1), np.nan)
+    return xr.DataArray(dat, dims="time", coords={"time": da.time.values})
+
+
+def percent_days(dat: xr.DataArray, freq: str, mask: xr.DataArray) -> xr.DataArray:
+    """Percentage of days per period: R ``tapply(dat, f, mean, na.rm = TRUE) * 100``,
+    missing when more than ``max.missing.days`` days of ``dat`` are, then multiplied
+    by the variable's climdex missing-data ``mask``."""
+    rule = FREQS[freq]
+    n_missing = dat.isnull().resample(time=rule).sum()
+    values = period_reduce(dat, rule, r_mean) * 100
+    values = values.where(n_missing <= MAX_MISSING_DAYS[freq])
+    return values.where(mask)
+
+
+# name -> (variable, quantile, condition)
+TEMPERATURE_PERCENTILES = {
+    "tx90p": ("tasmax", 0.9, ">"),
+    "tn90p": ("tasmin", 0.9, ">"),
+    "tx10p": ("tasmax", 0.1, "<"),
+    "tn10p": ("tasmin", 0.1, "<"),
+    "txgt50p": ("tasmax", 0.5, ">"),
+}
+
+
+@product
+def temperature_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
+    """tx90p, tn90p, tx10p, tn10p and txgt50p: the percentage of days above (below) the
+    base-period percentile for the day of year, bootstrapped inside the base period
+    (Climpact's ``climdex.tx90p`` ... ``climdex.txgt50p``)."""
+    try:
+        run.thresholds  # noqa: B018 - raises when the base period has too little data
+    except InsufficientBaseData:
+        return {}
+    masks = {
+        (var, freq): valid_mask(run.data[var], freq=rule)
+        for var in ("tasmax", "tasmin")
+        for freq, rule in FREQS.items()
+    }
+    out = {}
+    for name, (var, q, condition) in TEMPERATURE_PERCENTILES.items():
+        dat = days_op_threshold(run, var, q, condition)
+        for freq in FREQS:
+            values = percent_days(dat, freq, masks[var, freq])
+            out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
     return out

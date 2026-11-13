@@ -314,11 +314,19 @@ class GriddedInput:
         steps = Steps(progress, len(slabs) + blocks)
         fd, name = tempfile.mkstemp(prefix="climpact-rechunk-", suffix=".bin", dir=self.tmp_dir)
         try:
+            # Removed from the directory at once where the system allows it (not Windows),
+            # so that the space is freed however the process ends, even when killed.
+            os.unlink(name)
+            unlinked = True
+        except OSError:
+            unlinked = False
+        try:
             with os.fdopen(fd, "w+b", buffering=0) as f:
                 tiles = _TileFile.write(self, f, slabs, steps)
                 yield BlockReader(self, steps, tiles)
         finally:
-            Path(name).unlink(missing_ok=True)
+            if not unlinked:
+                Path(name).unlink(missing_ok=True)
 
     def cell_latitude(self) -> xr.DataArray:
         """The latitude of every cell, ``(y_dim, x_dim)``.

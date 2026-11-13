@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import tracemalloc
+from pathlib import Path
 
 import netCDF4
 import numpy as np
@@ -121,15 +123,25 @@ def test_rechunked_blocks_are_identical(tmp_path):
     assert np.isnan(a[(0, 1, 0, 3)]["tasmin"]).any()
 
 
-def test_progress_and_temporary_file(tmp_path):
+def test_progress_and_temporary_file(tmp_path, monkeypatch):
     files = write_mixed_grid(tmp_path)
     tmp = tmp_path / "tmp"
     tmp.mkdir()
+    made = []
+    mkstemp = io.tempfile.mkstemp
+
+    def recording_mkstemp(*args, **kwargs):
+        made.append(mkstemp(*args, **kwargs))
+        return made[-1]
+
+    monkeypatch.setattr(io.tempfile, "mkstemp", recording_mkstemp)
     inp = open_grid(files, max_values=3 * 3 * 3653, rechunk=True, tmp_dir=tmp)
     calls = []
     blocks = list(inp.blocks())
     with inp.block_reader(lambda *c: calls.append(c), len(blocks)) as reader:
-        assert len(list(tmp.iterdir())) == 1
+        assert len(made) == 1 and Path(made[0][1]).parent == tmp
+        # Already removed from the directory (POSIX): freed even if the process is killed.
+        assert not list(tmp.iterdir()) or os.name == "nt"
         for block in blocks:
             reader.load(block)
             reader.steps.done("indices")

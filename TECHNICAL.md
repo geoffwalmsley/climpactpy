@@ -8,10 +8,11 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **108 of the 117** R reference files for Sydney (`lat0` and
-`sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
-[Reference outputs](#reference-outputs)). Every ported file is also written text-identical
-to R's on all 15 runs, apart from the `Date_of_calculation` line:
+The Python port reproduces **all 117** R reference files for Sydney (`lat0` and `sydney`),
+and every file R wrote for all 13 GHCN stations, with none failing (see
+[Reference outputs](#reference-outputs)). Every file is also written text-identical to R's
+on all 15 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
+x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
 | Area | Ported | Not yet ported |
 | --- | --- | --- |
@@ -24,7 +25,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
-| Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
+| Other outputs | qc/nastatistics, thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | other QC outputs, plots, zip archive |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -58,9 +59,11 @@ src/climpact/
     ehf.py           EHF heatwave products and the daily EHF/ECF series (climdex.hwEHF)
     thresholds.py    thresholds file and tx95t products
     qc.py            QC products
+    trends.py        trend file (trend/trend), built from the other products' tables
   compare.py         tiered comparison of tables against the R reference
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var
   rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
+  trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S))
 tests/
   parity/            one test per R reference file, plus progress reporting
   libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
@@ -83,6 +86,7 @@ station text file
   -> StationRun(data, metadata, params)
        run.thresholds               base-period thresholds, computed on first use and cached
   -> outputs.build_all(run)         {"indices/fd_ANN": DataFrame, ...}
+       derived products             the trend file, from the tables above
   -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
 ```
 
@@ -133,7 +137,9 @@ Parameter values in output names are formatted as R's `paste` does (`30`, not `3
 ### Output products
 
 Every output file is built by a *product*: a function registered with `@outputs.product`
-that takes a `StationRun` and returns `{output key: DataFrame}`. Keys follow the R output
+that takes a `StationRun` and returns `{output key: DataFrame}`. A *derived* product
+(`@outputs.derived`) takes the run and the tables of all other products and runs after
+them; the trend file is the only one. Keys follow the R output
 paths, for example `indices/fd_ANN` or `qc/nastatistics`. Products return several tables
 because names can depend on parameters (`r30mm`, `rx3day`, `hddheat18`).
 
@@ -150,6 +156,7 @@ Table layouts follow R's `write.index.csv`:
 | EHF heatwave aspect (`EHF-HWPS_ANN` ...) | `time`, `<aspect>` (`HWPS`, `HWPI`, `HWLS`, `HWLI`, `HWD`, `HWMD`, `HWN` or `HWF`); no standardised column (`write.hwEHF.csv`) |
 | SPI, SPEI (`3month_spi_MON` ...) | `time` (`"YYYY-MM"`), `spi` or `spei`; no standardised column (`write.precindex.csv`) |
 | Daily EHF/ECF (`EHFdaily`, `ECFdaily`) | `date` (`YYYY-MM-DD`, every day including 29 February), `Excess Heat Factor` or `Excess Cold Factor`; fields joined by `","` |
+| Trend file (`trend/trend`) | `Index`, `Frequency`, `StartYear`, `EndYear`, `Lower bound`, `Slope`, `Upper bound`; one row per trend R writes (see [Trend file](#trend-file)); fields joined by `","`, missing as `NA` |
 
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
 The standardised column is `(x - mean) / sd` over all non-missing periods, using the sample
@@ -163,7 +170,7 @@ extended-precision `mean` and `sd` (see [Numerical precision](#numerical-precisi
 tables returned by `build_all` the way R does:
 
 - **Paths:** `<out_dir>/<station>/<folder>/<station>_<name>.csv` for key `<folder>/<name>`,
-  as in R's `models/outputFolders.R` (`indices/`, `qc/`, `thres/`; `trend/` when ported).
+  as in R's `models/outputFolders.R` (`indices/`, `qc/`, `thres/`, `trend/`).
 - **Header:** the 7 quoted metadata lines of R's `write_header`
   (`server/climpact.GUI-functions.r`): Description, Station, Latitude, Longitude,
   Base_period, Climpact_version, Date_of_calculation. `Climpact_version` is `3.4.3`
@@ -178,9 +185,11 @@ tables returned by `build_all` the way R does:
   descriptions (`_EHF_DESCRIPTIONS`). The SPI and SPEI files use the headers
   `calculate.spi` and `calculate.spei` pass, `Standardised Precipitation Index` and
   `Standardised Precipitation-Evapotranspiration Index` (`_PRECINDEX_DESCRIPTIONS`).
-  `qc/nastatistics` has an empty description.
+  `qc/nastatistics` has an empty description, and the trend file
+  `Linear trend statistics` (`index.calc`).
 - **Body:** a header row and data rows, unquoted, joined by `", "` (`write.index.csv`) or
-  `","` (`write.NA.statistics`, and the daily EHF/ECF files). Missing values (NaN or None) are written as `-99.9`.
+  `","` (`write.NA.statistics`, the daily EHF/ECF files and the trend file). Missing values
+  (NaN or None) are written as `-99.9`, except in the trend file (`NA`, from `paste`).
   Numbers are formatted by `format_r_number`, a port of R's `formatReal`/`scientific`
   (`src/main/format.c`) with 15 significant digits.
 - **All-missing indices:** an index table whose values are missing in every period is not
@@ -317,8 +326,9 @@ data-validation warnings.
 | Uses xclim | Computed directly, and why |
 | --- | --- |
 | Threshold counts (`tn_days_below`, `tx_days_above`, `tg_days_*`, `wetdays`, ...) | Temperature max/min/mean (txx, tnn, tnx, txn, tmm, txm, tnm): xclim's kelvin round trip changes values (see below) |
-| `wet_precip_accumulation` (prcptot) | dtr, sdii, and the means tmm/txm/tnm: R's extended-precision `mean`/`sum` is needed for the 15th digit written to the CSV files (see below) |
-| `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
+| | dtr, sdii, and the means tmm/txm/tnm: R's extended-precision `mean`/`sum` is needed for the 15th digit written to the CSV files (see below) |
+| | prcptot, hddheat, cddcold, gddgrow: xclim's sums (`wet_precip_accumulation`, `heating_degree_days`, ...) give the same 15 digits in the CSV files but differ from R's extended-precision `sum` in the last bits, which changes the trend file's slopes (see [Trend file](#trend-file)) |
+| | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
 | | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
 | | gsl: xclim's `growing_season_length` ends the season on TM ≤ 5 °C when it starts on TM > 5 °C (or starts on ≥ 5 °C when it ends on < 5 °C), where R uses > 5 and < 5; it returns no dates, and its Southern Hemisphere mask differs (see [Growing season length](#growing-season-length-gsl)) |
@@ -343,12 +353,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 116/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 116/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 116/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 114/115 and 116/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 116/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 82/83 and 59/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 117/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 117/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 117/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 115/115 and 117/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 117/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 83/83 and 60/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -375,7 +385,7 @@ test of that run fails at once instead of rebuilding the station for each file.
 | Tier | Applies to | Pass condition |
 | --- | --- | --- |
 | `EXACT` | counts, extremes, event lengths, QC counts | identical values |
-| `CLOSE` | means, sums, percentages, degree days, standardised anomalies | `abs(py - r) <= 1e-6 * abs(r) + 1e-9` |
+| `CLOSE` | means, sums, percentages, degree days, standardised anomalies, trend slopes and bounds | `abs(py - r) <= 1e-6 * abs(r) + 1e-9` |
 | `FITTED` | fitted distributions (no file uses it: SPI and SPEI pass at `CLOSE`) | at least 99% of values within 0.01 |
 
 In every tier the pattern of missing values must be identical, and string columns (dates)
@@ -400,45 +410,46 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-beijing: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-darwin: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-dublin: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-lat0: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-madrid: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-minneapolis: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-nairobi: 59/60 reference files reproduced, 0 failing, 1 not yet ported
-new_delhi: 82/83 reference files reproduced, 0 failing, 1 not yet ported
-oxford: 114/115 reference files reproduced, 0 failing, 1 not yet ported
-perth: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-phoenix: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-potsdam: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-sydney: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-yakutsk: 116/117 reference files reproduced, 0 failing, 1 not yet ported
-alice_springs: 116/117 written CSV files text-identical to R, 0 differing
-beijing: 116/117 written CSV files text-identical to R, 0 differing
-darwin: 116/117 written CSV files text-identical to R, 0 differing
-dublin: 116/117 written CSV files text-identical to R, 0 differing
-lat0: 116/117 written CSV files text-identical to R, 0 differing
-madrid: 116/117 written CSV files text-identical to R, 0 differing
-minneapolis: 116/117 written CSV files text-identical to R, 0 differing
-nairobi: 59/60 written CSV files text-identical to R, 0 differing
-new_delhi: 82/83 written CSV files text-identical to R, 0 differing
-oxford: 114/115 written CSV files text-identical to R, 0 differing
-perth: 116/117 written CSV files text-identical to R, 0 differing
-phoenix: 116/117 written CSV files text-identical to R, 0 differing
-potsdam: 116/117 written CSV files text-identical to R, 0 differing
-sydney: 116/117 written CSV files text-identical to R, 0 differing
-yakutsk: 116/117 written CSV files text-identical to R, 0 differing
+alice_springs: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+beijing: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+darwin: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+dublin: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+lat0: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+madrid: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+minneapolis: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+nairobi: 60/60 reference files reproduced, 0 failing, 0 not yet ported
+new_delhi: 83/83 reference files reproduced, 0 failing, 0 not yet ported
+oxford: 115/115 reference files reproduced, 0 failing, 0 not yet ported
+perth: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+phoenix: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+potsdam: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+sydney: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+yakutsk: 117/117 reference files reproduced, 0 failing, 0 not yet ported
+alice_springs: 117/117 written CSV files text-identical to R, 0 differing
+beijing: 117/117 written CSV files text-identical to R, 0 differing
+darwin: 117/117 written CSV files text-identical to R, 0 differing
+dublin: 117/117 written CSV files text-identical to R, 0 differing
+lat0: 117/117 written CSV files text-identical to R, 0 differing
+madrid: 117/117 written CSV files text-identical to R, 0 differing
+minneapolis: 117/117 written CSV files text-identical to R, 0 differing
+nairobi: 60/60 written CSV files text-identical to R, 0 differing
+new_delhi: 83/83 written CSV files text-identical to R, 0 differing
+oxford: 115/115 written CSV files text-identical to R, 0 differing
+perth: 117/117 written CSV files text-identical to R, 0 differing
+phoenix: 117/117 written CSV files text-identical to R, 0 differing
+potsdam: 117/117 written CSV files text-identical to R, 0 differing
+sydney: 117/117 written CSV files text-identical to R, 0 differing
+yakutsk: 117/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
 compares tables with the tolerance tiers. The "text-identical" lines come from
 `tests/parity/test_csv_text.py`, which writes every built table with `write_outputs` and
 requires the file to equal R's line for line, ignoring only the `Date_of_calculation` line.
-The SPI and SPEI files are compared as text only on glibc x86_64; on other platforms
-their numeric fields may differ within 1e-10 relative (see
-[SPI and SPEI](#spi-and-spei)), so a macOS run also prints "text-identical" for them.
+The SPI and SPEI files, and the SPI and SPEI rows of the trend file (`spi3,FEB,...`),
+are compared as text only on glibc x86_64; on other platforms their numeric fields may
+differ within 1e-10 relative (see [SPI and SPEI](#spi-and-spei) and
+[Trend file](#trend-file)), so a macOS run also prints "text-identical" for them.
 It also checks that no file is written that R does not write: on `oxford`, `new_delhi` and
 `nairobi` this exercises the rule that all-missing index tables are skipped, on
 `new_delhi` the exception for heatwave files, and on both that no EHF file is written
@@ -489,8 +500,9 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   (`summary.c`: extended-precision sum, divide, then add the mean of the residuals) and
   `rnumerics.r_var` emulates `var` (`cov.c`: the same mean rounded to a double, then
   squared deviations summed in extended precision). They are used for tmm, txm, tnm, dtr
-  (`period_stat`) and the standardised column (`standardise`); sdii and the r95p, r99p,
-  r95ptot and r99ptot totals use `r_sum`. All written files are then text-identical to
+  (`period_stat`) and the standardised column (`standardise`); sdii, prcptot, the degree
+  days and the r95p, r99p, r95ptot and r99ptot totals use `r_sum` (prcptot and the
+  degree days only for the trend file: xclim's sums gave the same 15 digits). All written files are then text-identical to
   R's. With numpy sums, 34 of the 3,752 r95p/r99p/r95ptot/r99ptot values of the 15 runs
   would be written with a different last digit.
 - The emulation is only used where it changes a result. It should be considered for
@@ -1184,6 +1196,147 @@ returns no parameters (`L1 <= L2`) or `are.parglo.valid` fails, R stops with an 
 Python leaves that calendar month missing. When the base period lies wholly outside the
 series, R's `window` stops with an error; Python writes no SPI/SPEI files.
 
+### Trend file
+
+**Which R code runs.** R writes `trend/<station>_trend.csv` as a side effect of plotting.
+`index.calc` (`services/calculate_indices.R`, lines 25-28) writes the header block
+(`Linear trend statistics`) and the column row; `plot.call` (`services/plot_indices.R`)
+computes the trend of each plotted series into the global `mktrend` (and `DJFtrend` ...
+`SONtrend` for monthly series), and `index.calc` appends a row per index when `mktrend`
+exists, then removes it. `plot.precindex` (`services/plot_prec_index.R`) writes the SPI and
+SPEI rows itself, and `calculate.custom.index` the custom-index rows. The trend is zyp
+0.11-1's `zyp.sen(y ~ x)` (slope) and `confint.zyp(zsen, level = 0.95)` (bounds), which
+calls Kendall 2.2.2's `Kendall(x, y)` for `Var(S)` (the versions in
+`r-package-versions.csv`). Ported directly: the algorithms in `climpact.trends`
+(`sen_slope`, `kendall_var_s`, `confint_zyp`, `min_trend_data`, `sen_trend`), and R's
+row sequence, globals included, in `products/trends.py` (`trend_file`, a derived product
+built from the other products' tables).
+
+**The calculation.**
+
+- `x` is `0, 1, 2, ...` over the whole series (years, months, or days of year for
+  `tx95t`), with the missing values and their `x` left out, so the slope is per year for
+  annual series and per month for monthly ones.
+- **Slope:** the median of the pairwise slopes `(y[j] - y[j+i]) / (x[j] - x[j+i])`; R's
+  `median` of an even count is R's extended-precision `mean` of the two middle values
+  (`r_mean`).
+- **Bounds:** `c = sqrt(Var(S)) * qnorm(0.975)` (R's `qnorm`, `climpact.rdist.qnorm`),
+  and the bounds are the sorted slopes at positions `round((n' - c) / 2)` and
+  `round((n' + c) / 2)` (1-based, round half to even), `n'` the number of slopes.
+- **`Var(S)`** comes from Kendall's Fortran `TAUK2`, which receives `x` and `y` as
+  single-precision `REAL`s and computes `Var(S) = (n(n-1)(2n+5) - sum t(t-1)(2t+5)) / 18 + ...`
+  in float32. Ties are therefore decided in float32 (values equal as floats tie), and
+  for a monthly series (`n = 960`) `n(n-1)(2n+5)` is about 1.8e9, above float32's exact
+  integer range, so `Var(S)` is rounded. `kendall_var_s` reproduces this with numpy
+  float32 in the Fortran's order. `TAUK2` computes `Var(S)` only when neither series is
+  constant (its `SW` flag is true when every value is equal, though its comment says
+  "has no ties"); for a constant series `Var(S)` stays 0 and both bounds equal the
+  median slope (0), as R prints (`IFAULT = 12`).
+- **`min_trend_data`:** a trend needs at least 10 values and at least 70% of the series
+  (`min_trend`, `min_trend_proportion`, `server/global_variables.r`); otherwise the row
+  is written with `NA` bounds and slope.
+- Numbers are written by `paste`, which formats them as `as.character` (15 significant
+  digits, `format_r_number`); missing ones as `NA`.
+
+**Which rows R writes, in order** (all reproduced):
+
+- One row per index file of `climate.indices.csv`, in its order, with frequency `annual`
+  or `monthly`; `tx95t` has frequency `NA` (its `Annual.flag` is empty) and is a "trend"
+  over the 365 days of the year. There is no row when the plotted series is missing
+  throughout (`plot.call` returns before `mktrend` is set): this matches the index files
+  R does not write. The series is the index column, or `val`, `duration` or `sl` for the
+  indices with dates (`exact_date_indices`).
+- After the row of a monthly index, `DJF`, `MAM`, `JJA` and `SON` rows. `plot.call` builds
+  the seasons with zoo: each month is shifted forward one month (`as.yearqtr(yearmon +
+  1/12)`), the last month of the series is dropped, and months are grouped by quarter, so
+  **December counts towards the next year's DJF** and DJF of year Y is December Y-1,
+  January Y and February Y. A season needs all three months; the first DJF (no previous
+  December) is therefore always missing, and the final December is in no season. A
+  season's value is `max` for `txx`, `tnx`, `rx1day`, `rx5day`, `min` for `tnn`, `txn`,
+  `sum` (`r_sum`) for `su`, `tr`, `txge30`, `txge35`, `r10mm`, `r20mm`, `prcptot`, and
+  `mean` (`r_mean`) for every other index (`seasonal_series`, `season_function`). Each
+  season has its own `min_trend_data` check.
+- Tx90/Tn90 heatwaves: none (`plot.hw`'s trend line is commented out).
+- EHF heatwaves: none (`calculate.hwEHF` calls `plot.call` but writes no row).
+- SPEI, then SPI (`plot.precindex`): no row for the whole series. For each scale that is
+  not missing throughout: for 3 months, the February, May, August and November values
+  labelled `FEB`, `MAY`, `AUG`, `NOV`; for 6 months, the August and October values
+  labelled `APR` and `OCT`; for 12 months, the January and December values labelled
+  `JUN` and `DEC` (January first). The index is `spi3`, `spei12` and so on. The custom
+  scale (`spei_months`, 24) writes no rows.
+- The custom index, `annual` then `monthly` with its seasons, as an index.
+- `StartYear` and `EndYear` are the first and last years of the series.
+
+**R quirks reproduced that look like bugs.** Numbers are the rows of the 15 reference
+trend files that fixing each would change.
+
+1. **SPI/SPEI season labels.** The 6-month rows labelled `APR` hold the August values,
+   and the 12-month rows labelled `JUN` hold the January values. Fixing the labels (or the
+   months) would change the 4 rows `spi6`/`spei6` `APR` and `spi12`/`spei12` `JUN` on
+   every run: 60 rows.
+2. **The seasonal function is chosen by output name.** `plot.call` tests for `rxnday` and
+   `rnnmm`, but the names it is given are `rx3day` and `r30mm`, so their seasons are
+   means rather than a maximum and a sum. Fixing it would change 63
+   rows: rx3day's seasons on the 13 runs with rx3day files, and r30mm's on `lat0`,
+   `sydney`, `minneapolis`, `darwin` and `beijing` (elsewhere its seasonal slopes and
+   bounds are 0 or `NA` either way).
+3. **Counts are summed or averaged inconsistently.** `su`, `tr`, `txge30`, `txge35`,
+   `r10mm`, `r20mm` seasons are sums, but `fd`, `id`, `tnlt2`, `tnltm2`, `tnltm20`,
+   `tmge5`, `tmlt5`, `tmge10`, `tmlt10` and the custom index are averaged, which divides
+   their seasonal slopes by 3. Summing them would change
+   177 rows on 12 runs (none on `darwin`, `new_delhi` and `nairobi`, where these seasonal
+   trends are 0 or `NA`).
+4. **The custom SPI/SPEI scale.** Only the scales 3, 6 and 12 have rows, so the custom
+   scale has none, and a custom scale of 3, 6 or 12 repeats that scale's rows. No
+   reference output changes (all use 24), unless the custom scale got its own rows
+   (then 8 more rows per run with SPI and SPEI).
+5. **`mktrend` left behind by the EHF heatwaves.** `calculate.hwEHF` never removes
+   `mktrend`, so the trend of the last EHF aspect with a value stays in the global. It is
+   removed by the first SPEI or SPI scale with a value; if there is none and `tmm` is
+   missing in every year, `index.calc` writes the EHF trend as `tmm`'s annual row.
+   Reproduced; no reference run reaches it (unit test `test_ehf_trend_left_in_mktrend`).
+6. **`tx95t` gets a trend** across the days of the year of a threshold climatology,
+   which is not a trend in time. Dropping it would remove 1 row per run (15 rows).
+
+**R behaviour not reproduced** (none is reachable on the reference runs or with a
+successful R run):
+
+- `plot.call` runs inside `tryCatch(..., warning = ...)` in `index.calc`. A warning or
+  error after `mktrend` is set and before the seasons are computed would leave the
+  previous monthly index's `DJFtrend` ... `SONtrend` to be written with this index's
+  row. Python computes every season. No warning or error occurs on any reference run
+  (the trend files match), and none is expected for valid series.
+- `plot.precindex` builds its seasonal table from the global `monthsGLOB`/`yearsGLOB`
+  set by the last monthly `plot.call`; if no monthly index had a value, R stops with an
+  error and writes no SPI/SPEI rows or later rows. Python takes the months from the
+  SPI/SPEI table.
+
+**Exact inputs.** The trend of a series depends on every bit of its values, not just the
+15 digits written to the index files. prcptot and the degree days (hddheat, cddcold,
+gddgrow) were computed with xclim, whose sums gave text-identical index files but
+differed from R's extended-precision `sum` in the last bits, which changed 6 rows of the
+`lat0` trend file (for example `prcptot,DJF` slope `0.02` against R's
+`0.0199999999999989`). They are now summed with `r_sum` like sdii (`wet_day_total`,
+`degree_days` in `products/indices.py`), and every index file stays text-identical.
+
+**Result.** `trend/trend` passes at `CLOSE` and is text-identical to R's on all 15 runs
+(on glibc x86_64; see below). `tests/test_trends.py` checks `sen_slope`,
+`kendall_var_s` and `confint_zyp` bit for bit against zyp and Kendall on synthetic series
+(`tests/data/r_trends.R`: few values, many ties, a 960-value tied series where float32
+rounding matters, a constant series, values tied only in float32, missing values, and
+three values, where `confint.zyp`'s lower index is 0 and R recycles the upper bound into
+both bounds), `seasonal_series` against `plot.call`'s zoo code, hand-computed slopes,
+and the row rules no reference run exercises.
+
+**Platform.** The SPI and SPEI rows are computed from the SPI and SPEI values, which on
+platforms other than glibc x86_64 differ from R's in the last bits (see
+[SPI and SPEI](#spi-and-spei)). On macOS, 0 to 8 SPEI rows per run differ from R's in the
+last one or two digits (relative differences below 1e-13); SPI rows and all other
+rows are identical. `test_csv_text` therefore applies the libm tolerance (1e-10 relative)
+to the lines of the trend file that start with `spi` or `spei`
+(`LIBM_SENSITIVE_LINES`), and only on those platforms; on glibc x86_64 (CI) the whole
+file must be text-identical.
+
 ### Station input
 
 | R behaviour | Python |
@@ -1208,6 +1361,7 @@ series, R's `window` stops with an error; Python writes no SPI/SPEI files.
 | `write.hwEHF.csv` writes the eight EHF files and `EHFdaily`/`ECFdaily` unless HWF is missing in every year; the daily files are joined by `","`, and their description says 29 February is omitted, though it is not | reproduced (`_HEATWAVE_FILE`, `_SEPARATORS`, `_EHF_DESCRIPTIONS`) |
 | `write.hw.csv` writes the ten Tx90/Tn90 heatwave files with `time, <aspect>` columns (no standardised column) and writes them even when one is missing in every year | reproduced (`_HEATWAVE_FILE` in `io/output_files.py`). Exercised by `new_delhi` |
 | `write.precindex.csv` writes the four SPI (SPEI) files with `time, spi` columns and no standardised column, all four unless every value is missing | reproduced (`_PRECINDEX_FILE`, `_PRECINDEX_DESCRIPTIONS`) |
+| The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
 | `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
 ### R behaviour not to be copied
@@ -1246,12 +1400,17 @@ output is ported.
   logistic parameters are invalid, and `window` stops when the base period is outside the
   series. Python leaves the calendar month missing, or writes no SPI/SPEI files. No
   reference run is affected (see [SPI and SPEI](#spi-and-spei)).
+- A warning or error inside `plot.call` (caught by `index.calc`) can leave the previous
+  index's seasonal trends to be written, and `plot.precindex` stops when no monthly index
+  had a value (`monthsGLOB` unset). Python computes every season and takes the SPI/SPEI
+  months from their own table. No reference run is affected (see
+  [Trend file](#trend-file)).
 
 ## Performance
 
 A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
 a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
-with 15 runs, including the text comparison and the batch test, takes about 190 seconds.
+with 15 runs, including the text comparison and the batch test, takes about 220 seconds.
 A batch runs one station per process: Climpact's two sample stations (80 years each) take
 about 19 seconds with `--workers 2`, against about 12 seconds for one station alone (each
 spawned worker also imports xclim). The extra runs are not
@@ -1274,7 +1433,9 @@ take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
 
 The spell-duration indices (6 files) take about 0.2-0.25 s per station, and gsl about
 0.03-0.1 s. SPI and SPEI (8 files) take 0.1-0.3 s per station, mostly the
-extended-precision accumulations and the scalar R ports.
+extended-precision accumulations and the scalar R ports. The trend file takes about
+0.7 s for an 80-year station, mostly sorting the 460,000 pairwise slopes of each monthly
+series.
 
 The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
 at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550

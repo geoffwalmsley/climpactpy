@@ -17,13 +17,23 @@ from typing import Any
 import pandas as pd
 
 Product = Callable[[Any], Mapping[str, pd.DataFrame]]
+# A product built from the other products' tables (the trend file).
+DerivedProduct = Callable[[Any, Mapping[str, pd.DataFrame]], Mapping[str, pd.DataFrame]]
 
 PRODUCTS: list[Product] = []
+DERIVED: list[DerivedProduct] = []
 
 
 def product(func: Product) -> Product:
     """Register a function returning ``{output key: table}`` for a run."""
     PRODUCTS.append(func)
+    return func
+
+
+def derived(func: DerivedProduct) -> DerivedProduct:
+    """Register a function of ``(run, tables)`` run after every other product, where
+    ``tables`` holds all the tables those products built."""
+    DERIVED.append(func)
     return func
 
 
@@ -55,6 +65,11 @@ def build_all(run: Any) -> dict[str, pd.DataFrame]:
     tables: dict[str, pd.DataFrame] = {}
     for make in PRODUCTS:
         for key, table in make(run).items():
+            if key in tables:
+                raise ValueError(f"output {key!r} produced twice")
+            tables[key] = table
+    for make in DERIVED:
+        for key, table in make(run, dict(tables)).items():
             if key in tables:
                 raise ValueError(f"output {key!r} produced twice")
             tables[key] = table

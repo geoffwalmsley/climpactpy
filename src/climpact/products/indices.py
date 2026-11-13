@@ -154,6 +154,12 @@ def precipitation_intensity(pr: np.ndarray) -> float:
     return r_sum(wet) / wet.size if wet.size else 0.0
 
 
+def wet_day_total(pr: np.ndarray) -> float:
+    """climdex.pcic ``total.precip.op.threshold(prec, 1, ">=")``: the total of days with at
+    least 1 mm, with R's extended-precision ``sum`` (prcptot)."""
+    return r_sum(pr[pr >= 1])
+
+
 @product
 def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
     ds = run.data
@@ -166,7 +172,9 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
             "tmm": period_stat(ds.tas, freq, "mean", ds.tasmin, ds.tasmax),
             "txm": period_stat(ds.tasmax, freq, "mean", ds.tasmax),
             "tnm": period_stat(ds.tasmin, freq, "mean", ds.tasmin),
-            "prcptot": run_xclim(atmos.wet_precip_accumulation, freq, pr=ds.pr, thresh="1 mm/d"),
+            "prcptot": period_reduce(ds.pr, FREQS[freq], wet_day_total).where(
+                valid_mask(ds.pr, freq=FREQS[freq])
+            ),
         }
         for name, values in tables.items():
             out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
@@ -179,15 +187,20 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
 @product
 def degree_days(run: StationRun) -> dict[str, pd.DataFrame]:
     ds, p = run.data, run.params
+    # Climpact's climdex.hddheatn, cddcoldn, gddgrown: the annual sum of Tb - TM over days
+    # with TM < Tb (heating), or of TM - Tb over days with TM > Tb, with R's
+    # extended-precision sum, masked by the annual TM mask.
     specs = {
-        f"hddheat{format_number(p.hdd_base)}": (atmos.heating_degree_days, p.hdd_base),
-        f"cddcold{format_number(p.cdd_base)}": (atmos.cooling_degree_days, p.cdd_base),
-        f"gddgrow{format_number(p.gdd_base)}": (atmos.growing_degree_days, p.gdd_base),
+        f"hddheat{format_number(p.hdd_base)}": (p.hdd_base - ds.tas).where(ds.tas < p.hdd_base),
+        f"cddcold{format_number(p.cdd_base)}": (ds.tas - p.cdd_base).where(ds.tas > p.cdd_base),
+        f"gddgrow{format_number(p.gdd_base)}": (ds.tas - p.gdd_base).where(ds.tas > p.gdd_base),
     }
+    mask = valid_mask(ds.tas, freq=FREQS["ANN"])
     out = {}
-    for name, (indicator, base) in specs.items():
-        values = run_xclim(indicator, "ANN", tas=ds.tas, thresh=f"{base} degC")
-        out[f"indices/{name}_ANN"] = index_table(name, values, "ANN")
+    for name, excess in specs.items():
+        # A year whose days all fall outside the condition sums to 0 (sum(na.rm = TRUE)).
+        values = period_reduce(excess.fillna(0).where(ds.tas.notnull()), FREQS["ANN"], r_sum)
+        out[f"indices/{name}_ANN"] = index_table(name, values.where(mask), "ANN")
     return out
 
 

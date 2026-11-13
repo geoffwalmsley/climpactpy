@@ -80,14 +80,24 @@ _EHF_DESCRIPTIONS = {
 # Separator between fields of the header row and data rows, by output key.
 # write.index.csv uses ", "; write.NA.statistics uses ",".
 # write.hwEHF.csv writes the daily EHF and ECF files with ",".
-_SEPARATORS = {"qc/nastatistics": ",", "indices/EHFdaily": ",", "indices/ECFdaily": ","}
+# The trend file is written with cat(paste(..., sep = ",")).
+_SEPARATORS = {
+    "qc/nastatistics": ",",
+    "indices/EHFdaily": ",",
+    "indices/ECFdaily": ",",
+    "trend/trend": ",",
+}
 
 # Description line of files not written by write.index.csv. ``None``: no header block.
-_DESCRIPTIONS: dict[str, str | None] = {"qc/nastatistics": "", "thres/thres": None}
+_DESCRIPTIONS: dict[str, str | None] = {
+    "qc/nastatistics": "",
+    "thres/thres": None,
+    "trend/trend": "Linear trend statistics",
+}
 
 # Missing-value token where it isn't write.index.csv's -99.9. quality_control_checks.R
-# writes thres.csv with a plain write.table(na = "NA").
-_NA_TOKENS = {"thres/thres": "NA"}
+# writes thres.csv with a plain write.table(na = "NA"); the trend file pastes NA as "NA".
+_NA_TOKENS = {"thres/thres": "NA", "trend/trend": "NA"}
 
 
 @cache
@@ -96,21 +106,30 @@ def _index_definitions() -> tuple[dict[str, str], ...]:
     return tuple(csv.DictReader(text.splitlines(), delimiter="\t"))
 
 
-def index_descriptions(params: IndexParams) -> dict[str, str]:
-    """``Description`` line of each index file, keyed by file name (e.g. ``fd_ANN``).
+def index_files(
+    params: IndexParams, special: bool = False
+) -> list[tuple[str, str, str, str | None, str]]:
+    """The index files ``index.calc`` writes, in the order of ``climate.indices.csv``.
 
-    Follows ``index.calc``: the definition column of ``climate.indices.csv``, replaced
-    for parameterised indices by a definition that includes the parameter value.
+    One ``(short name, output name, file suffix, frequency, definition)`` per row, apart
+    from the rows written by their own functions (``hw``, ``hwEHF``, ``spei``, ``spi``),
+    which are included as they are in the file when ``special`` is true.
+    The output name and definition include the parameter value for parameterised
+    indices (``r30mm``, ``rx3day``, ...); ``frequency`` is ``"annual"``, ``"monthly"`` or
+    ``None`` (``tx95t``).
     """
     n = format_r_number
-    out = {}
+    out = []
     for row in _index_definitions():
-        name, definition = row["Short.name"], row["Definition"]
-        if name in _NOT_INDEX_FILES:
-            continue
+        short = name = row["Short.name"]
+        definition = row["Definition"]
         flag = row["Annual.flag"]
         frequency = {"T": "annual", "F": "monthly"}.get(flag)
         suffix = "DAY" if name == "tx95t" else {"T": "ANN", "F": "MON"}.get(flag, "NA")
+        if name in _NOT_INDEX_FILES:
+            if special:
+                out.append((short, name, suffix, frequency, definition))
+            continue
         match name:
             case "rnnmm":
                 name = f"r{n(params.rnnmm)}mm"
@@ -153,7 +172,18 @@ def index_descriptions(params: IndexParams) -> dict[str, str]:
             case "gddgrown":
                 name = f"gddgrow{n(params.gdd_base)}"
                 definition = f"Annual sum of TM - {n(params.gdd_base)}"
-        out[f"{name}_{suffix}"] = definition
+        out.append((short, name, suffix, frequency, definition))
+    return out
+
+
+def index_descriptions(params: IndexParams) -> dict[str, str]:
+    """``Description`` line of each index file, keyed by file name (e.g. ``fd_ANN``).
+
+    Follows ``index.calc``: the definition column of ``climate.indices.csv``, replaced
+    for parameterised indices by a definition that includes the parameter value.
+    """
+    n = format_r_number
+    out = {f"{name}_{suffix}": definition for _, name, suffix, _, definition in index_files(params)}
 
     # write.hw.csv: "TX90 heatwave magnitude (HWM)".
     for definition in ("TX90", "TN90"):

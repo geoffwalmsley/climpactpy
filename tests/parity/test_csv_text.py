@@ -11,6 +11,9 @@ last bit for some inputs on other platforms (see ``tests/libm.py``). There a lin
 these files may differ from R's only in numeric fields that agree within ``LIBM_RTOL``
 relative (plus ``LIBM_ATOL``); missing values (``-99.9``) and every other field must
 still be identical.
+The same applies to the SPI and SPEI rows of the trend file (``spi3,FEB,...``,
+``spei12,DEC,...``), whose slopes and bounds are computed from those values; every other
+row of the trend file must be identical on every platform.
 On glibc x86_64 (CI) they must be text-identical like every other file.
 """
 
@@ -29,6 +32,10 @@ FILES = reference_files()
 DATE_LINE = '"Date_of_calculation: "'
 # Files whose last digit depends on the platform's C maths library (see the module docstring).
 LIBM_SENSITIVE = re.compile(r"^indices/\d+month_(spi|spei)_MON$")
+# Files where only some lines depend on it: key -> pattern on the line.
+LIBM_SENSITIVE_LINES = {"trend/trend": re.compile(r"^(spi|spei)\d+,")}
+# Field separator of files not written with ", ".
+SEPARATORS = {"trend/trend": ","}
 
 
 @pytest.fixture(scope="session")
@@ -50,9 +57,10 @@ def lines_without_date(path) -> list[str]:
     return [line for line in path.read_text().splitlines() if not line.startswith(DATE_LINE)]
 
 
-def same_within_libm_tolerance(expected: str, actual: str) -> bool:
-    """Lines equal apart from numeric fields within the libm tolerance (never ``-99.9``)."""
-    e_fields, a_fields = expected.split(", "), actual.split(", ")
+def same_within_libm_tolerance(expected: str, actual: str, sep: str = ", ") -> bool:
+    """Lines equal apart from numeric fields within the libm tolerance (never ``-99.9``
+    or ``NA``)."""
+    e_fields, a_fields = expected.split(sep), actual.split(sep)
     if len(e_fields) != len(a_fields):
         return False
     for e, a in zip(e_fields, a_fields, strict=True):
@@ -79,11 +87,20 @@ def test_csv_text(ref, station_outputs, written_files, request):
 
     expected = lines_without_date(ref.path)
     actual = lines_without_date(written[ref.key])
-    relaxed = not GLIBC_X86_64 and LIBM_SENSITIVE.match(ref.key)
+    sep = SEPARATORS.get(ref.key, ", ")
+
+    def relaxed(line: str) -> bool:
+        if GLIBC_X86_64:
+            return False
+        if LIBM_SENSITIVE.match(ref.key):
+            return True
+        pattern = LIBM_SENSITIVE_LINES.get(ref.key)
+        return bool(pattern and pattern.match(line))
+
     mismatches = [
         (number, e, a)
         for number, (e, a) in enumerate(zip(expected, actual, strict=False), start=1)
-        if e != a and not (relaxed and same_within_libm_tolerance(e, a))
+        if e != a and not (relaxed(e) and same_within_libm_tolerance(e, a, sep))
     ]
     assert len(expected) == len(actual) and not mismatches, (
         f"{ref.id}: {len(mismatches)} lines differ ({len(expected)} lines in R, "

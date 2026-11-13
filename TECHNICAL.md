@@ -1294,13 +1294,12 @@ python3 -m venv .venv
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 on Ubuntu 24.04 (x86_64,
-  glibc 2.39), pinned to match the R reference image: the exact SPI/SPEI text checks depend on
-  the C maths library, and newer glibc releases (e.g. Ubuntu 26.04) differ in the last bit of
-  `lgamma`.
-  Its glibc is the C maths library the R reference was made with, so CI checks the SPI
-  and SPEI files for text identity; on macOS they are checked to 1e-10 relative
-  (`tests/libm.py`).
+- Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
+  (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
+  the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
+  macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:
+  Ubuntu 26.04's `lgamma` differs from glibc 2.39 in the last bit on some inputs, so
+  `test_libm_lgamma_matches_glibc_2_39` checks against fixed values printed in the R image.
 - Always work inside `.venv`.
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import climpact
 
-REFERENCE_DIR = Path(__file__).parents[1] / "reference" / "output"
+REFERENCE_DIR = Path(__file__).parents[3] / "reference" / "output"
 STATION = "sydney_observatory_hill_1936-2015"
 
 

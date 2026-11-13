@@ -10,7 +10,8 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 The Python port reproduces **67 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
-[Reference outputs](#reference-outputs)):
+[Reference outputs](#reference-outputs)). Every ported file is also written text-identical
+to R's on all 15 runs, apart from the `Date_of_calculation` line:
 
 | Area | Ported | Not yet ported |
 | --- | --- | --- |
@@ -22,23 +23,28 @@ The Python port reproduces **67 of the 117** R reference files for Sydney (`lat0
 | Percentile indices | tx95t | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd, r95p, r99p, r95ptot, r99ptot |
 | Heatwaves | | Tx90/Tn90 (5 aspects each), EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
-| Other outputs | qc/nastatistics, thresholds file (`thres/thres`) | trend file, other QC outputs, plots |
+| Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
-The Python port computes output **tables in memory**; it does not yet write Climpact-format
-CSV files, plots or zip archives.
+The Python port writes every ported output as a Climpact-format CSV file, text-identical
+to R's apart from the `Date_of_calculation` line (see [Writing output files](#writing-output-files)).
+It does not yet write plots or zip archives.
 
 ## Repository layout
 
 ```
 src/climpact/
+  cli.py             command line: `climpact run <station file> --out <dir>`
   config.py          StationMetadata, IndexParams, CustomIndex (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
+  data/
+    climate.indices.csv  index definitions, copied unchanged from Climpact R (file headers)
   io/
     station.py       read Climpact/RClimDex station text files; build the xarray Dataset
-    climpact_csv.py  read Climpact (R) output CSV files
+    climpact_csv.py  read and write Climpact (R) output CSV files; R number formatting
+    output_files.py  file names, folders and metadata headers; write_outputs()
   missing.py         climdex.pcic missing-data rules; registered with xclim as "climdex"
   outputs.py         registry of products that build Climpact-format output tables
   products/
@@ -47,7 +53,7 @@ src/climpact/
     thresholds.py    thresholds file and tx95t products
     qc.py            QC products
   compare.py         tiered comparison of tables against the R reference
-  rnumerics.py       exact emulation of R's extended-precision sum/cumsum
+  rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var
 tests/
   parity/            one test per R reference file, plus progress reporting
   test_*.py          unit tests
@@ -69,7 +75,12 @@ station text file
   -> StationRun(data, metadata, params)
        run.thresholds               base-period thresholds, computed on first use and cached
   -> outputs.build_all(run)         {"indices/fd_ANN": DataFrame, ...}
+  -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
 ```
+
+`climpact run` (`climpact.cli`) runs the whole chain for one station file. Station
+settings and every `IndexParams` value are options; defaults are the Climpact app
+defaults, and the station name defaults to the file name without its suffix.
 
 ### Station data model
 
@@ -128,6 +139,40 @@ Table layouts follow R's `write.index.csv`:
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
 The standardised column is `(x - mean) / sd` over all non-missing periods, using the sample
 standard deviation; it is missing where the series is constant or has fewer than two values.
+As in R, it is computed from the values rounded to 15 significant digits, with R's
+extended-precision `mean` and `sd` (see [Numerical precision](#numerical-precision)).
+
+### Writing output files
+
+`climpact.io.output_files.write_outputs(tables, metadata, params, out_dir)` writes the
+tables returned by `build_all` the way R does:
+
+- **Paths:** `<out_dir>/<station>/<folder>/<station>_<name>.csv` for key `<folder>/<name>`,
+  as in R's `models/outputFolders.R` (`indices/`, `qc/`, `thres/`; `trend/` when ported).
+- **Header:** the 7 quoted metadata lines of R's `write_header`
+  (`server/climpact.GUI-functions.r`): Description, Station, Latitude, Longitude,
+  Base_period, Climpact_version, Date_of_calculation. `Climpact_version` is `3.4.3`
+  (`CLIMPACT_VERSION`), the R version whose files are reproduced. `Date_of_calculation` is
+  the run date.
+- **Descriptions:** index files use the `Definition` column of `climate.indices.csv`
+  (copied unchanged into `src/climpact/data/`), and the parameterised definitions that
+  `index.calc` builds (`services/calculate_indices.R`) for `r30mm`, `rx3day`, `hddheat18`,
+  `wsdi1` and so on, all in `index_descriptions`. The custom index uses `TN > 0`, as in
+  `calculate.custom.index`. `qc/nastatistics` has an empty description.
+- **Body:** a header row and data rows, unquoted, joined by `", "` (`write.index.csv`) or
+  `","` (`write.NA.statistics`). Missing values (NaN or None) are written as `-99.9`.
+  Numbers are formatted by `format_r_number`, a port of R's `formatReal`/`scientific`
+  (`src/main/format.c`) with 15 significant digits.
+- **All-missing indices:** an index table whose values are missing in every period is not
+  written, as in `write.index.csv` (`services/write_indices.R`, line 11). `climpact run`
+  lists the files it skipped.
+- **`thres/thres`:** R writes it with a plain `write.table` in `quality_control_checks.R`,
+  so it has no metadata header and writes missing values as `NA`. A `None` description in
+  `_DESCRIPTIONS` means no header, and `_NA_TOKENS` holds the `NA` token.
+
+`write_climpact_csv` (in `climpact.io.climpact_csv`) writes one file and is the inverse of
+`read_climpact_csv`. An output key with no description or file format is an error, so a new
+product must add its format in `output_files.py` before its files can be written.
 
 ## Missing data
 
@@ -187,8 +232,9 @@ data-validation warnings.
 | Uses xclim | Computed directly, and why |
 | --- | --- |
 | Threshold counts (`tn_days_below`, `tx_days_above`, `tg_days_*`, `wetdays`, ...) | Temperature max/min/mean (txx, tnn, tnx, txn, tmm, txm, tnm): xclim's kelvin round trip changes values (see below) |
-| `daily_temperature_range`, `wet_precip_accumulation`, `daily_pr_intensity` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
-| `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
+| `wet_precip_accumulation` (prcptot) | dtr, sdii, and the means tmm/txm/tnm: R's extended-precision `mean`/`sum` is needed for the 15th digit written to the CSV files (see below) |
+| `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
+| | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
 | | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
@@ -272,13 +318,35 @@ phoenix: 67/117 reference files reproduced, 0 failing, 50 not yet ported
 potsdam: 67/117 reference files reproduced, 0 failing, 50 not yet ported
 sydney: 67/117 reference files reproduced, 0 failing, 50 not yet ported
 yakutsk: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+alice_springs: 67/117 written CSV files text-identical to R, 0 differing
+beijing: 67/117 written CSV files text-identical to R, 0 differing
+darwin: 67/117 written CSV files text-identical to R, 0 differing
+dublin: 67/117 written CSV files text-identical to R, 0 differing
+lat0: 67/117 written CSV files text-identical to R, 0 differing
+madrid: 67/117 written CSV files text-identical to R, 0 differing
+minneapolis: 67/117 written CSV files text-identical to R, 0 differing
+nairobi: 42/60 written CSV files text-identical to R, 0 differing
+new_delhi: 49/83 written CSV files text-identical to R, 0 differing
+oxford: 67/115 written CSV files text-identical to R, 0 differing
+perth: 67/117 written CSV files text-identical to R, 0 differing
+phoenix: 67/117 written CSV files text-identical to R, 0 differing
+potsdam: 67/117 written CSV files text-identical to R, 0 differing
+sydney: 67/117 written CSV files text-identical to R, 0 differing
+yakutsk: 67/117 written CSV files text-identical to R, 0 differing
 ```
 
+The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
+compares tables with the tolerance tiers. The "text-identical" lines come from
+`tests/parity/test_csv_text.py`, which writes every built table with `write_outputs` and
+requires the file to equal R's line for line, ignoring only the `Date_of_calculation` line.
+It also checks that no file is written that R does not write: on `oxford`, `new_delhi` and
+`nairobi` this exercises the rule that all-missing index tables are skipped.
+
 Files that fail because of a filed bug are listed in `KNOWN_BUGS` in
-`tests/parity/catalogue.py` (a pattern on the test id and the ticket). They are strict xfails,
-counted as "known bugs" in the summary: when the bug is fixed the test passes, which fails the
-run, so the entry has to be removed. If a whole run's build fails, every file of that run
-counts as a known bug, including files not yet ported. The list is currently empty.
+`tests/parity/catalogue.py` (a pattern on the test id and the ticket). They are strict xfails
+in both tests, counted as "known bugs" in the summary: when the bug is fixed the test passes,
+which fails the run, so the entry has to be removed. If a whole run's build fails, every file
+of that run counts as a known bug, including files not yet ported. The list is currently empty.
 
 A failure reports, per column, the number of missing-value and value mismatches, the
 largest difference and the first mismatching row.
@@ -304,7 +372,8 @@ accumulate in a C `long double`, which on x86_64 is the x87 80-bit format (64-bi
 significand). numpy accumulates in 64-bit doubles (pairwise summation).
 
 - *Effect:* differences of about 1e-14 in sums and means. These are within the `CLOSE`
-  tier and need no special handling.
+  tier, but R writes 15 significant digits, so they change the last digit of some values
+  in the CSV files (see below).
 - *Exception, Rx3day/Rx5day dates:* when two windows have the same true precipitation
   total, R's rounding noise decides which window's date is reported (3 of 1,920 monthly
   dates differed with plain numpy). `climpact.rnumerics` emulates R's extended-precision
@@ -312,15 +381,43 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   platform. numpy's `longdouble` is not used because it is only 80-bit on x86 (on Apple
   Silicon it is a plain double). `tests/test_rnumerics.py` checks the emulation against
   native x87 `longdouble` on the x86 CI runners.
-- The emulation is only used where it changes a result (the Rx running sums). It should be
-  considered for other index calculations if new tie-related mismatches appear.
+- *Means and the standardised column:* with numpy, 19 of the 65 written files of the `lat0` run
+  differed from R's in the last digit (mostly the standardised column, plus a few values
+  of dtr, tmm, txm, tnm and sdii). `rnumerics.r_mean` emulates R's two-pass mean
+  (`summary.c`: extended-precision sum, divide, then add the mean of the residuals) and
+  `rnumerics.r_var` emulates `var` (`cov.c`: the same mean rounded to a double, then
+  squared deviations summed in extended precision). They are used for tmm, txm, tnm, dtr
+  (`period_stat`) and the standardised column (`standardise`); sdii uses `r_sum`. All
+  written files are then text-identical to R's.
+- The emulation is only used where it changes a result. It should be considered for
+  other index calculations if new tie-related or last-digit mismatches appear.
+
+**R's `write.index.csv` standardises the text, not the values.** It prepends the column
+name to the index vector, which turns the numbers into strings (`as.character`, 15
+significant digits), and then computes the mean and sd of `as.numeric` of those strings.
+
+- *Handling:* `standardise` rounds the values through `format_r_number` and back before
+  computing the anomalies. Without this, standardised values of means differ in the last
+  digit.
+
+**R's choice of significant digits is not correct rounding.** `formatReal` decides how many
+significant digits to print by scaling the value by a power of ten in long double,
+rounding to a 15-digit integer and dropping trailing zeros; the digits are then printed by
+`sprintf`. A value just below a rounding boundary can round up to a trailing zero in
+long double and then be printed with 14 digits: R writes `-0.8707237491215295` as
+`-0.87072374912153`, where correct rounding to 15 digits gives `-0.870723749121529`.
+
+- *Handling:* `format_r_number` ports `scientific()` with exact long-double rounding, and
+  R's choice between fixed and scientific notation (`1e+05`, not `100000`). Tested in
+  `tests/test_climpact_csv.py`; the reference files have this case in `r10mm_ANN`.
 
 **xclim converts temperatures to kelvin internally.** Indicators such as `tx_max` and
 `tg_mean` return kelvin, and converting °C → K → °C changes the last bits of about 84% of
 values.
 
-- *Handling:* temperature maxima, minima and means are computed directly with xarray
-  (`period_stat`), which is the same arithmetic as R's `tapply`. Results are identical to R.
+- *Handling:* temperature maxima, minima and means are computed directly (`period_stat`):
+  maxima and minima with xarray, means with `r_mean`, the same arithmetic as R's `tapply`
+  with `mean`. Results are identical to R.
 - Threshold counts are unaffected: xclim converts the threshold into the data's units, so
   comparisons are made on the original values.
 
@@ -356,6 +453,8 @@ CDD/CWD use the annual precipitation mask.
 skipping missing days (`which.max`/`which.min`), and no date when the value is missing.
 
 - *Handling:* same rule via pandas `idxmax`/`idxmin`, which also return the first occurrence.
+  Missing days are filled with -inf/+inf first, so a period with no data at all does not
+  raise an error (its date is dropped because its value is missing).
 
 **Custom index masks.** In R's `calculate.custom.index`, TM uses only the TN missing mask
 (not TX), and DTR uses both TX and TN masks.
@@ -457,11 +556,12 @@ arithmetic).
 
 | R behaviour | Python |
 | --- | --- |
-| Values are written with 15 significant digits and `-99.9` for missing | tables hold full-precision floats; comparisons parse R's text, so the 15-digit rounding is covered by the `CLOSE` tier (and is exact for `EXACT` values) |
-| No file is written when an index is missing for every period | not yet handled: Python returns an all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi`; the parity suite only compares files R wrote, so this does not fail a test yet |
-| A 7-line metadata header (version, date of calculation, ...) | not yet written; ignored when comparing |
+| Values are written with 15 significant digits and `-99.9` for missing | same, including R's digit-count quirk (`format_r_number`); tables in memory hold full-precision floats |
+| No file is written when an index is missing for every period | same (`write_outputs`); `build_all` still returns the all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi` |
+| A 7-line metadata header (version, date of calculation, ...) | same; `Climpact_version` is `3.4.3`. Ignored by the table comparison; only `Date_of_calculation` is ignored by the text comparison |
 | `tx95t_DAY`: `write.index.csv` writes the row names of an unnamed vector as `time`, so every `time` is `-99.9` | reproduced: `time` is missing on every row |
-| `thres.csv` has no metadata header, writes missing values as `NA` (not `-99.9`), and repeats each precipitation threshold on all 365 rows (`as.data.frame` recycling) | values and layout reproduced; the `NA` spelling will matter only when the CSV writer is ported |
+| `thres.csv` is written by a plain `write.table`: no metadata header, missing values as `NA` (not `-99.9`), and each precipitation threshold repeated on all 365 rows (`as.data.frame` recycling) | reproduced; `write_outputs` writes it with no header and `NA` (`_DESCRIPTIONS`/`_NA_TOKENS` in `io/output_files.py`) |
+| `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
 ### R behaviour not to be copied
 
@@ -477,12 +577,14 @@ output is ported.
 
 ## Performance
 
-A full station run (80 years, all ported indices) takes about 9 seconds (7 s for a 60-year
-GHCN station). The whole test suite with 15 runs takes about 95 seconds. The extra runs are not marked `slow`; #23 tracks speed-ups. The time goes mostly on per-call
+A full station run (80 years, all ported indices) takes about 10 seconds to build (7 s for
+a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
+with 15 runs, including the text comparison, takes about 130 seconds. The extra runs are not
+marked `slow`; #23 tracks speed-ups. Most of the time is per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
 directly, are the obvious improvements. The R-precision emulation takes about 30 ms per
-80-year series.
+80-year series for a sum, and about 0.2 s for a series of monthly means.
 
 ## Development
 
@@ -493,6 +595,9 @@ python3 -m venv .venv
 .venv/bin/pytest
 ```
 
+- Run a station from the command line with
+  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
+  (`climpact run --help` lists the options).
 - Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 (x86_64 Linux).
 - Always work inside `.venv`.
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the

@@ -21,7 +21,7 @@ from xclim.indicators import atmos
 from climpact.missing import valid_mask
 from climpact.outputs import product
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
-from climpact.rnumerics import r_cumsum, r_sum
+from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
 
 OPERATORS: dict[str, Callable] = {
@@ -125,8 +125,32 @@ def period_stat(da: xr.DataArray, freq: str, stat: str, *mask_vars: xr.DataArray
     extremes would no longer be identical to R.
     """
     rule = FREQS[freq]
-    values = getattr(da.resample(time=rule), stat)(skipna=True)
+    if stat == "mean":
+        values = period_reduce(da, rule, r_mean)
+    else:
+        values = getattr(da.resample(time=rule), stat)(skipna=True)
     return values.where(valid_mask(*mask_vars, freq=rule))
+
+
+def period_reduce(da: xr.DataArray, rule: str, func: Callable) -> xr.DataArray:
+    """Apply ``func`` to the non-missing values of each period (NaN if there are none).
+
+    Used with the R-precision :func:`~climpact.rnumerics.r_mean` so that means are
+    identical to R's, whose ``mean`` accumulates in extended precision.
+    """
+    series = (
+        da.to_series()
+        .resample(rule)
+        .apply(lambda g: func(g.dropna().to_numpy()) if g.notna().any() else np.nan)
+    )
+    return xr.DataArray(series.to_numpy(dtype=float), dims="time", coords={"time": series.index})
+
+
+def precipitation_intensity(pr: np.ndarray) -> float:
+    """climdex.pcic ``simple.precipitation.intensity``: wet-day total / wet days (0 if
+    there are none), with R's extended-precision ``sum``."""
+    wet = pr[pr >= 1]
+    return r_sum(wet) / wet.size if wet.size else 0.0
 
 
 @product
@@ -135,11 +159,9 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
     out = {}
     for freq in FREQS:
         tables = {
-            # climdex.dtr masks with the TM mask (a day is missing if TX or TN is missing);
-            # xclim applies the climdex rule to TX and TN separately, which is looser.
-            "dtr": run_xclim(
-                atmos.daily_temperature_range, freq, tasmin=ds.tasmin, tasmax=ds.tasmax
-            ).where(valid_mask(ds.tas, freq=FREQS[freq])),
+            # climdex.dtr masks with the TM mask (a day is missing if TX or TN is missing),
+            # which is stricter than masking TX and TN separately (#40).
+            "dtr": period_stat(ds.tasmax - ds.tasmin, freq, "mean", ds.tas),
             "tmm": period_stat(ds.tas, freq, "mean", ds.tasmin, ds.tasmax),
             "txm": period_stat(ds.tasmax, freq, "mean", ds.tasmax),
             "tnm": period_stat(ds.tasmin, freq, "mean", ds.tasmin),
@@ -148,7 +170,7 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
         for name, values in tables.items():
             out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
 
-    sdii = run_xclim(atmos.daily_pr_intensity, "ANN", pr=ds.pr, thresh="1 mm/d", condition=">=")
+    sdii = period_reduce(ds.pr, "YS", precipitation_intensity).where(valid_mask(ds.pr, freq="YS"))
     out["indices/sdii_ANN"] = index_table("sdii", sdii, "ANN")
     return out
 

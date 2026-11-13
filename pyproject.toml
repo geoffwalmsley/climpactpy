@@ -17,6 +17,9 @@ dependencies = [
     "scipy>=1.13",
 ]
 
+[project.scripts]
+climpact = "climpact.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",

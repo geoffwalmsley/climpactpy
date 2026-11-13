@@ -6,7 +6,9 @@ format with a 64-bit significand: each partial sum is rounded to 64 bits, and th
 result is rounded to a double at the end (``sum``) or after every step (``cumsum``).
 
 Usually the difference from numpy's double accumulation is around 1e-14 and does not
-matter. It does matter for climdex.pcic's running sums (Rx3day, Rx5day): when two
+matter for the comparison tiers, but it changes the 15th significant digit that R writes
+to its CSV files, so means and standardised anomalies use :func:`r_mean` and
+:func:`r_var`. It also decides results in climdex.pcic's running sums (Rx3day, Rx5day): when two
 windows have the same true total, R's rounding noise decides which date is reported.
 numpy's ``longdouble`` only has this precision on x86, so the accumulation is emulated
 exactly with integer arithmetic, giving the same answer on any platform.
@@ -75,3 +77,80 @@ def r_sum(x: np.ndarray) -> float:
     for v in np.asarray(x, dtype=float).tolist():
         acc = _round_bits(acc + _to_fixed(v), EXTENDED_BITS)
     return _to_float(acc)
+
+
+def _round_sticky(q: int, sticky: bool, bits: int) -> int:
+    """Round non-negative ``q`` to ``bits`` significant bits, ties to even.
+
+    ``sticky`` says whether ``q`` was truncated (a non-zero remainder below its last bit).
+    """
+    excess = q.bit_length() - bits
+    if excess <= 0:
+        return q
+    low = q & ((1 << excess) - 1)
+    q >>= excess
+    half = 1 << (excess - 1)
+    if low > half or (low == half and (sticky or q & 1)):
+        q += 1
+    return q << excess
+
+
+def _div(a: int, n: int, bits: int = EXTENDED_BITS) -> int:
+    """``a / n`` rounded to ``bits`` significant bits (``n`` a positive integer)."""
+    q, r = divmod(abs(a), n)
+    q = _round_sticky(q, r != 0, bits)
+    return -q if a < 0 else q
+
+
+def _mul(a: int, b: int, bits: int) -> int:
+    """``a * b`` rounded to ``bits`` significant bits, in fixed units.
+
+    Exact for results far above the subnormal range, which is all that is needed here.
+    """
+    p = _round_sticky(abs(a * b), False, bits) >> -_UNIT_EXP  # from units of 2**-2148
+    return -p if (a < 0) != (b < 0) else p
+
+
+def _ext(n: int) -> int:
+    return _round_bits(n, EXTENDED_BITS)
+
+
+def _mean_fixed(values: list[int]) -> int:
+    """R's two-pass extended-precision mean (``summary.c`` ``rmean``, ``cov.c`` ``MEAN``)."""
+    n = len(values)
+    s = 0
+    for v in values:
+        s = _ext(s + v)
+    s = _div(s, n)
+    t = 0
+    for v in values:
+        t = _ext(t + _ext(v - s))
+    return _ext(s + _div(t, n))
+
+
+def r_mean(x: np.ndarray) -> float:
+    """R ``mean`` for doubles (no missing values): accumulated in extended precision,
+    with R's second pass that adds the mean of the residuals."""
+    values = [_to_fixed(v) for v in np.asarray(x, dtype=float).tolist()]
+    if not values:
+        return math.nan
+    return _to_float(_mean_fixed(values))
+
+
+def r_var(x: np.ndarray) -> float:
+    """R ``var`` for a vector without missing values (``cov.c``, Pearson).
+
+    The mean is R's two-pass mean rounded to a double (``MEAN``); deviations from it,
+    their squares and their sum are all formed in extended precision
+    (``sum += (LDOUBLE)(xx[k] - xxm) * (xx[k] - xxm)`` with ``xxm`` a ``LDOUBLE``).
+    """
+    values = [_to_fixed(v) for v in np.asarray(x, dtype=float).tolist()]
+    n = len(values)
+    if n < 2:
+        return math.nan
+    mean = _to_fixed(_to_float(_mean_fixed(values)))
+    total = 0
+    for v in values:
+        d = _ext(v - mean)
+        total = _ext(total + _mul(d, d, EXTENDED_BITS))
+    return _to_float(_div(total, n - 1))

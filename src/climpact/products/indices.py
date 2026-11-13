@@ -23,6 +23,7 @@ from climpact.outputs import product
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
+from climpact.thresholds import InsufficientBaseData
 
 OPERATORS: dict[str, Callable] = {
     ">": operator.gt,
@@ -341,3 +342,43 @@ def spells(run: StationRun) -> dict[str, pd.DataFrame]:
         "indices/cdd_ANN": spell_length_max(run, "<"),
         "indices/cwd_ANN": spell_length_max(run, ">="),
     }
+
+
+# --- precipitation percentile indices ---------------------------------------------
+
+
+def annual_total_above(pr: xr.DataArray, threshold: float, condition: str) -> xr.DataArray:
+    """Annual sum of the days where ``pr <condition> threshold``, skipping missing days
+    (climdex.pcic ``total.precip.op.threshold``), with R's extended-precision ``sum``.
+
+    Not masked: the caller applies the annual missing-data mask.
+    """
+    op = OPERATORS[condition]
+    return period_reduce(pr, "YS", lambda x: r_sum(x[op(x, threshold)]))
+
+
+@product
+def precipitation_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
+    """r95p, r99p, r95ptot and r99ptot (Climpact's ``climdex.r95p`` ... ``climdex.r99ptot``
+    in ``climpact.etsci-functions.r``).
+
+    rNNp is the annual total on days above the base-period wet-day (>= 1 mm) percentile;
+    rNNptot is ``100 * rNNp / prcptot``, with prcptot recomputed in the same way, as R
+    does. A year with no wet days gives 0 / 0, which R writes as missing.
+    """
+    try:
+        quantiles = run.thresholds.precipitation
+    except InsufficientBaseData:
+        return {}
+    pr = run.data.pr
+    mask = valid_mask(pr, freq="YS")
+    prcptot = annual_total_above(pr, 1.0, ">=").where(mask)
+    out = {}
+    for q in (0.95, 0.99):
+        name = f"r{round(q * 100)}p"
+        total = annual_total_above(pr, quantiles[q], ">").where(mask)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            share = 100 * total / prcptot
+        out[f"indices/{name}_ANN"] = index_table(name, total, "ANN")
+        out[f"indices/{name}tot_ANN"] = index_table(f"{name}tot", share, "ANN")
+    return out

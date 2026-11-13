@@ -74,3 +74,49 @@ def test_extreme_dates_with_an_empty_month():
     assert pd.isna(dmax[1]) and pd.isna(dmin[1])
     assert dmax[2] == pd.Timestamp("2001-03-01")
     assert dmin[2] == pd.Timestamp("2001-03-20")
+
+
+def _precip_run(prcp):
+    import pandas as pd
+
+    from climpact.config import StationMetadata
+    from climpact.io.station import station_dataset
+    from climpact.station import StationRun
+
+    time = pd.date_range("1990-01-01", periods=len(prcp), freq="D")
+    df = pd.DataFrame({"date": time, "prcp": prcp, "tmax": 20.0, "tmin": 10.0})
+    meta = StationMetadata(name="test", base_start=1990, base_end=1991)
+    return StationRun(station_dataset(df, meta), meta)
+
+
+def test_precipitation_percentile_indices():
+    """rNNp sums days strictly above the wet-day percentile; rNNptot divides by
+    prcptot; a year with no wet days gives 0 / 0, written as missing."""
+    from climpact.products.indices import precipitation_percentiles
+
+    rng = np.random.default_rng(1)
+    wet_years = np.round(rng.exponential(5, 730) * (rng.random(730) < 0.5), 1)
+    run = _precip_run(np.concatenate([wet_years, np.zeros(365)]))  # 1990-1992
+    q95 = run.thresholds.precipitation[0.95]
+    out = precipitation_percentiles(run)
+
+    pr = run.data.pr.sel(time="1990").values
+    r95p = out["indices/r95p_ANN"]["r95p"].to_numpy()
+    assert r95p[0] == pr[pr > q95].sum()
+    assert r95p[2] == 0
+    r95ptot = out["indices/r95ptot_ANN"]["r95ptot"].to_numpy()
+    np.testing.assert_allclose(r95ptot[0], 100 * r95p[0] / pr[pr >= 1].sum())
+    assert np.isnan(r95ptot[2])
+    assert set(out) == {f"indices/{n}_ANN" for n in ("r95p", "r99p", "r95ptot", "r99ptot")}
+
+
+def test_annual_total_above_is_strict():
+    import pandas as pd
+    import xarray as xr
+
+    from climpact.products.indices import annual_total_above
+
+    time = pd.date_range("2000-01-01", periods=4, freq="D")
+    pr = xr.DataArray([5.0, 10.0, np.nan, 12.5], dims="time", coords={"time": time})
+    assert annual_total_above(pr, 10.0, ">").item() == 12.5
+    assert annual_total_above(pr, 10.0, ">=").item() == 22.5

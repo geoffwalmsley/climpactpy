@@ -8,7 +8,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **67 of the 117** R reference files for Sydney (`lat0` and
+The Python port reproduces **71 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)). Every ported file is also written text-identical
 to R's on all 15 runs, apart from the `Date_of_calculation` line:
@@ -20,7 +20,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Extremes (with dates) | txx, tnn, tnx, txn, rx1day, rx3day (rxdday), rx5day | |
 | Spells (with dates) | cdd, cwd | gsl |
 | Degree days | hddheat, cddcold, gddgrow | |
-| Percentile indices | tx95t | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd, r95p, r99p, r95ptot, r99ptot |
+| Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd |
 | Heatwaves | | Tx90/Tn90 (5 aspects each), EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
 | Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
@@ -217,7 +217,8 @@ station. `StationRun.thresholds` computes them on first use and caches them
   sorted matrix.
 - When the station's dates cover 359 days of the base period or fewer,
   `compute_thresholds` raises `InsufficientBaseData` (climdex.pcic refuses to compute
-  thresholds in that case), and the threshold products produce no tables.
+  thresholds in that case), and the threshold and percentile index products produce no
+  tables.
 
 Both quantile functions are checked bit for bit against values printed by R 4.6.1 and
 climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker image).
@@ -236,6 +237,7 @@ data-validation warnings.
 | `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
 | | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
+| | r95p, r99p, r95ptot, r99ptot: one threshold per station, not per day of year, and R's extended-precision `sum` is needed for the 15th digit (see below) |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
 | | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
 
@@ -251,12 +253,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 67/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 67/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 67/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 67/115 and 67/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 67/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 49/83 and 42/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 71/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 71/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 71/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 71/115 and 71/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 71/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 53/83 and 46/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -303,36 +305,36 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-beijing: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-darwin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-dublin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-lat0: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-madrid: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-minneapolis: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-nairobi: 42/60 reference files reproduced, 0 failing, 18 not yet ported
-new_delhi: 49/83 reference files reproduced, 0 failing, 34 not yet ported
-oxford: 67/115 reference files reproduced, 0 failing, 48 not yet ported
-perth: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-phoenix: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-potsdam: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-sydney: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-yakutsk: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-alice_springs: 67/117 written CSV files text-identical to R, 0 differing
-beijing: 67/117 written CSV files text-identical to R, 0 differing
-darwin: 67/117 written CSV files text-identical to R, 0 differing
-dublin: 67/117 written CSV files text-identical to R, 0 differing
-lat0: 67/117 written CSV files text-identical to R, 0 differing
-madrid: 67/117 written CSV files text-identical to R, 0 differing
-minneapolis: 67/117 written CSV files text-identical to R, 0 differing
-nairobi: 42/60 written CSV files text-identical to R, 0 differing
-new_delhi: 49/83 written CSV files text-identical to R, 0 differing
-oxford: 67/115 written CSV files text-identical to R, 0 differing
-perth: 67/117 written CSV files text-identical to R, 0 differing
-phoenix: 67/117 written CSV files text-identical to R, 0 differing
-potsdam: 67/117 written CSV files text-identical to R, 0 differing
-sydney: 67/117 written CSV files text-identical to R, 0 differing
-yakutsk: 67/117 written CSV files text-identical to R, 0 differing
+alice_springs: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+beijing: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+darwin: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+dublin: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+lat0: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+madrid: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+minneapolis: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+nairobi: 46/60 reference files reproduced, 0 failing, 14 not yet ported
+new_delhi: 53/83 reference files reproduced, 0 failing, 30 not yet ported
+oxford: 71/115 reference files reproduced, 0 failing, 44 not yet ported
+perth: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+phoenix: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+potsdam: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+sydney: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+yakutsk: 71/117 reference files reproduced, 0 failing, 50 not yet ported
+alice_springs: 71/117 written CSV files text-identical to R, 0 differing
+beijing: 71/117 written CSV files text-identical to R, 0 differing
+darwin: 71/117 written CSV files text-identical to R, 0 differing
+dublin: 71/117 written CSV files text-identical to R, 0 differing
+lat0: 71/117 written CSV files text-identical to R, 0 differing
+madrid: 71/117 written CSV files text-identical to R, 0 differing
+minneapolis: 71/117 written CSV files text-identical to R, 0 differing
+nairobi: 46/60 written CSV files text-identical to R, 0 differing
+new_delhi: 53/83 written CSV files text-identical to R, 0 differing
+oxford: 71/115 written CSV files text-identical to R, 0 differing
+perth: 71/117 written CSV files text-identical to R, 0 differing
+phoenix: 71/117 written CSV files text-identical to R, 0 differing
+potsdam: 71/117 written CSV files text-identical to R, 0 differing
+sydney: 71/117 written CSV files text-identical to R, 0 differing
+yakutsk: 71/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -387,8 +389,10 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   (`summary.c`: extended-precision sum, divide, then add the mean of the residuals) and
   `rnumerics.r_var` emulates `var` (`cov.c`: the same mean rounded to a double, then
   squared deviations summed in extended precision). They are used for tmm, txm, tnm, dtr
-  (`period_stat`) and the standardised column (`standardise`); sdii uses `r_sum`. All
-  written files are then text-identical to R's.
+  (`period_stat`) and the standardised column (`standardise`); sdii and the r95p, r99p,
+  r95ptot and r99ptot totals use `r_sum`. All written files are then text-identical to
+  R's. With numpy sums, 34 of the 3,752 r95p/r99p/r95ptot/r99ptot values of the 15 runs
+  would be written with a different last digit.
 - The emulation is only used where it changes a result. It should be considered for
   other index calculations if new tie-related or last-digit mismatches appear.
 
@@ -480,6 +484,21 @@ period with no data, and Climpact writes `-99.9`.
   period with data, and sets the date to NaT for periods with no data. Exercised by
   `yakutsk`, `beijing`, `nairobi` and `new_delhi` (#39).
 
+**r95p, r99p, r95ptot, r99ptot.** climdex.pcic's `climdex.r95ptot` returns the total
+precipitation above the percentile, which is r95p in Donat et al. (2013). Climpact
+redefines all four in `climpact.etsci-functions.r`: `climdex.r95p` and `climdex.r99p` are
+the annual totals on days with precipitation **>** the base-period wet-day (≥ 1 mm)
+95th/99th percentile, and `climdex.r95ptot` and `climdex.r99ptot` are `100 * rNNp /
+prcptot`, with prcptot recomputed as the annual total on days ≥ 1 mm. All four use the
+annual precipitation mask. A year with no wet days gives `0 / 0`; R's `write.index.csv`
+turns the resulting `NaN` into `-99.9` and leaves it out of the standardised column.
+
+- *Handling:* Climpact's definitions are ported (`precipitation_percentiles`,
+  `annual_total_above` in `products/indices.py`), using `Thresholds.precipitation` and
+  `r_sum`. The `0 / 0` year is `NaN`, so it is missing in the table and the file, as in R.
+  All four files are text-identical to R's on all 15 runs. No reference run has a valid
+  year without wet days; `tests/test_index_helpers.py` covers it.
+
 **SU threshold.** Climpact's code counts TX **>** 25 °C, although a code comment says
 `>=`. Python follows the code.
 
@@ -532,7 +551,7 @@ days or fewer of the base period lie between the station's first and last dates;
 counts dates, not valid values. Python applies the same rule using the `first_date` and
 `last_date` Dataset attributes and raises `InsufficientBaseData`. What Climpact then
 writes for the percentile indices has not been checked; Python writes no threshold
-tables.
+tables and none of the percentile indices (tx95t, r95p, r99p, r95ptot, r99ptot).
 
 **Result.** `thres/thres` and `indices/tx95t_DAY` pass at `CLOSE` for both runs. Every
 threshold value is identical to R's file after formatting to the 15 significant digits R

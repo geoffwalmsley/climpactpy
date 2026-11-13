@@ -141,3 +141,44 @@ def reference_files() -> list[ReferenceFile]:
             if (run.output_dir / "qc" / f"{run.station}_{name}.csv").exists():
                 files.append(ReferenceFile(run=run.name, folder="qc", name=name))
     return files
+
+
+# --- gridded runs ------------------------------------------------------------------------
+
+GRIDDED_DIR = REFERENCE_DIR.parent / "gridded"
+
+
+@dataclass(frozen=True)
+class GridRun:
+    """One gridded R reference run: a row of reference/gridded/runs.csv."""
+
+    name: str
+    files: tuple[str, ...]  # input files in reference/gridded/input/
+    names: dict  # tasmax, tasmin, pr -> netCDF variable name
+    base_start: int
+    base_end: int
+
+    @property
+    def input_paths(self) -> list[Path]:
+        return [GRIDDED_DIR / "input" / f for f in self.files]
+
+    @property
+    def thresholds_path(self) -> Path:
+        return GRIDDED_DIR / "output" / self.name / "thresholds.nc"
+
+
+def _read_grid_runs() -> dict[str, GridRun]:
+    with (GRIDDED_DIR / "runs.csv").open(newline="") as f:
+        return {
+            row["run"]: GridRun(
+                name=row["run"],
+                files=tuple(row["files"].split(";")),
+                names={"tasmax": row["tmax"], "tasmin": row["tmin"], "pr": row["prec"]},
+                base_start=int(row["base_start"]),
+                base_end=int(row["base_end"]),
+            )
+            for row in csv.DictReader(f)
+        }
+
+
+GRID_RUNS = _read_grid_runs()

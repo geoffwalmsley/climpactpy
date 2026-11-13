@@ -28,7 +28,6 @@ period, the percentile indices use the bootstrapped thresholds of
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -111,48 +110,75 @@ def climdex_quantile(values, q: float) -> float:
     return float(climdex_quantile_sorted(x[np.newaxis, :], np.array([x.size]), q)[0])
 
 
-def r_quantile_type8(values, probs) -> np.ndarray:
-    """R ``quantile(x, probs, type = 8)`` of the non-missing values of ``x``.
+def _sorted_rows(values) -> tuple[np.ndarray, np.ndarray]:
+    """Each row of ``values`` (the last axis) sorted with missing values last, and the
+    number of non-missing values in each row."""
+    x = np.sort(np.asarray(values, dtype=float), axis=-1)  # NaN sorts last
+    return x, np.count_nonzero(~np.isnan(x), axis=-1)
+
+
+def _take_rows(x: np.ndarray, index: np.ndarray) -> np.ndarray:
+    return np.take_along_axis(x, index[..., np.newaxis], axis=-1)[..., 0]
+
+
+def r_quantile_type8_rows(values, prob: float) -> np.ndarray:
+    """R ``quantile(x, prob, type = 8, na.rm = TRUE)`` along the last axis of ``values``.
 
     Follows ``quantile.default`` in R 4.6.1 (the reference version), including its
     fuzz tests and its use of the lower value (without interpolating) when both
-    neighbours are equal.
+    neighbours are equal. Rows with no values give NaN.
     """
-    x = np.sort(np.asarray(values, dtype=float).ravel())
-    x = x[~np.isnan(x)]
-    n = x.size
-    probs = np.atleast_1d(np.asarray(probs, dtype=float))
-    if n == 0:
-        return np.full(probs.shape, np.nan)
+    x, n = _sorted_rows(values)
+    if x.shape[-1] == 0:
+        return np.full(n.shape, np.nan)
     a = b = _TYPE8
-    nppm = a + probs * (float(n + 1) - a - b)
+    nppm = a + prob * ((n + 1).astype(float) - a - b)
     j = np.floor(nppm * (1 + _FUZZ))  # R >= 4.4 floorF(); climdex's C++ adds the fuzz
     h = nppm - j
     h = np.where(np.abs(h) < _FUZZ, 0.0, h)
     ji = j.astype(np.int64)
     # R pads x as c(x[1], x[1], x, x[n], x[n]) and takes x[j + 2] and x[j + 3] (1-based)
-    lo = x[np.clip(ji - 1, 0, n - 1)]
-    hi = x[np.clip(ji, 0, n - 1)]
+    last = np.maximum(n - 1, 0)
+    lo = _take_rows(x, np.clip(ji - 1, 0, last))
+    hi = _take_rows(x, np.clip(ji, 0, last))
     out = np.where(h == 1, hi, lo)
     other = (h > 0) & (h < 1) & (lo != hi)
-    return np.where(other, (1 - h) * lo + h * hi, out)
+    with np.errstate(invalid="ignore"):
+        out = np.where(other, (1 - h) * lo + h * hi, out)
+    return np.where(n == 0, np.nan, out)
+
+
+def r_quantile_type8(values, probs) -> np.ndarray:
+    """R ``quantile(x, probs, type = 8)`` of the non-missing values of ``x`` (see
+    :func:`r_quantile_type8_rows`)."""
+    x = np.asarray(values, dtype=float).ravel()
+    probs = np.atleast_1d(np.asarray(probs, dtype=float))
+    return np.array([float(r_quantile_type8_rows(x, p)) for p in probs])
+
+
+def r_quantile_type7_rows(values, prob: float) -> np.ndarray:
+    """R ``quantile(x, prob, na.rm = TRUE)`` (type 7) along the last axis of ``values``,
+    as ``quantile.default`` computes it: ``(1 - h) * x[lo] + h * x[hi]``, and ``x[lo]``
+    when the neighbours are equal. Rows with no values give NaN."""
+    x, n = _sorted_rows(values)
+    if x.shape[-1] == 0:
+        return np.full(n.shape, np.nan)
+    index = 1 + (np.maximum(n, 1) - 1) * prob
+    lo = np.floor(index).astype(np.int64)
+    hi = np.ceil(index).astype(np.int64)
+    qs = _take_rows(x, lo - 1)
+    upper = _take_rows(x, hi - 1)
+    h = index - lo
+    interpolate = (index > lo) & (upper != qs)
+    with np.errstate(invalid="ignore"):
+        qs = np.where(interpolate, (1 - h) * qs + h * upper, qs)
+    return np.where(n == 0, np.nan, qs)
 
 
 def r_quantile_type7(values: np.ndarray, prob: float) -> float:
-    """R ``quantile(x, prob, na.rm = TRUE)`` (type 7), as ``quantile.default`` computes
-    it: ``(1 - h) * x[lo] + h * x[hi]``, and ``x[lo]`` when the neighbours are equal."""
-    x = np.sort(np.asarray(values, dtype=float).ravel())
-    x = x[~np.isnan(x)]
-    n = x.size
-    if n == 0:
-        return float("nan")
-    index = 1 + (n - 1) * prob
-    lo, hi = math.floor(index), math.ceil(index)
-    qs = float(x[lo - 1])
-    if index > lo and x[hi - 1] != qs:
-        h = index - lo
-        qs = (1 - h) * qs + h * float(x[hi - 1])
-    return qs
+    """R ``quantile(x, prob, na.rm = TRUE)`` (type 7) of the values (see
+    :func:`r_quantile_type7_rows`)."""
+    return float(r_quantile_type7_rows(np.asarray(values, dtype=float).ravel(), prob))
 
 
 # --- base period and day of year -------------------------------------------------------
@@ -171,29 +197,49 @@ def day_of_year(time) -> np.ndarray:
     return doy
 
 
+def base_period_dates(base_start: int, base_end: int) -> pd.DatetimeIndex:
+    """The days of the base period without 29 February (``get.bootstrap.set``)."""
+    dates = pd.date_range(f"{base_start}-01-01", f"{base_end}-12-31", freq="D")
+    return dates[~((dates.month == 2) & (dates.day == 29))]
+
+
+def take_dates(values: np.ndarray, time, dates: pd.DatetimeIndex) -> np.ndarray:
+    """The values on ``dates`` (last axis of ``values`` runs along ``time``), missing
+    where a date is not in ``time`` (``create.filled.series``)."""
+    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
+    pos = index.get_indexer(dates)
+    out = np.take(np.asarray(values, dtype=float), np.maximum(pos, 0), axis=-1)
+    out[..., pos < 0] = np.nan
+    return out
+
+
 def base_period_matrix(da: xr.DataArray, base_start: int, base_end: int) -> np.ndarray:
     """Base-period values as a ``(years, 365)`` array, without 29 February.
 
     Days of the base period outside the data are missing (``create.filled.series``).
     """
-    dates = pd.date_range(f"{base_start}-01-01", f"{base_end}-12-31", freq="D")
-    dates = dates[~((dates.month == 2) & (dates.day == 29))]
-    series = da.to_series().reindex(dates)
-    return series.to_numpy(dtype=float).reshape(-1, DAYS_PER_YEAR)
+    return base_period_array(da.values, da.time, base_start, base_end)
+
+
+def base_period_array(values: np.ndarray, time, base_start: int, base_end: int) -> np.ndarray:
+    """:func:`base_period_matrix` for an array whose last axis runs along ``time``:
+    returns ``(..., years, 365)``."""
+    out = take_dates(values, time, base_period_dates(base_start, base_end))
+    return out.reshape(*out.shape[:-1], -1, DAYS_PER_YEAR)
 
 
 def window_values(base: np.ndarray, window: int) -> np.ndarray:
     """Values in the ``window``-day window around each calendar day, for each year.
 
-    Returns an array of shape ``(365, years, window)``. As in climdex.pcic's C++, the
-    window wraps around within the same year: day 1's window includes days 364 and 365
-    of the same year.
+    ``base`` is ``(..., years, 365)``; returns ``(..., 365, years, window)``. As in
+    climdex.pcic's C++, the window wraps around within the same year: day 1's window
+    includes days 364 and 365 of the same year.
     """
     half = window // 2
     days = (np.arange(DAYS_PER_YEAR)[:, None] + np.arange(-half, half + 1)[None, :]) % (
         DAYS_PER_YEAR
     )
-    return np.transpose(base[:, days], (1, 0, 2))  # base[:, days] is (years, 365, window)
+    return np.swapaxes(base[..., days], -3, -2)  # base[..., days] is (..., years, 365, window)
 
 
 def running_quantiles(
@@ -204,20 +250,33 @@ def running_quantiles(
 ) -> dict[float, np.ndarray]:
     """climdex.pcic ``running_quantile_windowed``: each quantile for each calendar day.
 
-    ``base`` is a ``(years, 365)`` matrix from :func:`base_period_matrix`. Returns
-    ``{q: array of 365}``; a day is missing when fewer than ``min_fraction`` of its
+    ``base`` is a ``(..., years, 365)`` matrix from :func:`base_period_matrix` or
+    :func:`base_period_array` (any leading dimensions, for example grid cells). Returns
+    ``{q: array (..., 365)}``; a day is missing when fewer than ``min_fraction`` of its
     ``years * window`` values are present.
     """
-    values = window_values(base, window).reshape(DAYS_PER_YEAR, -1)
-    slab = values.shape[1]
-    rows = np.sort(values, axis=1)  # NaN sorts last
-    counts = np.count_nonzero(~np.isnan(values), axis=1)
+    values = window_values(base, window)
+    lead = values.shape[:-3]
+    slab = values.shape[-2] * values.shape[-1]
+    rows, counts = _sorted_rows(values.reshape(-1, slab))
     enough = counts / slab >= min_fraction
     out = {}
     for q in quantiles:
         result = climdex_quantile_sorted(rows, counts, q)
-        out[q] = np.where(enough, result, np.nan)
+        out[q] = np.where(enough, result, np.nan).reshape(*lead, DAYS_PER_YEAR)
     return out
+
+
+def wet_day_quantiles(pr: np.ndarray, time, base_start: int, base_end: int, quantiles):
+    """climdex.pcic ``get.prec.var.quantiles``: R ``quantile(type = 8)`` of the wet days
+    (>= 1 mm) of the base-period years, 29 February included. ``pr``'s last axis runs
+    along ``time``; returns ``{q: array (...)}``."""
+    years = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time).year
+    in_base = (years >= base_start) & (years <= base_end)
+    values = np.asarray(pr, dtype=float)[..., in_base]
+    with np.errstate(invalid="ignore"):
+        wet = np.where(values >= WET_DAY, values, np.nan)
+    return {q: r_quantile_type8_rows(wet, q) for q in quantiles}
 
 
 def bootstrap_quantiles(
@@ -348,12 +407,8 @@ def compute_thresholds(ds: xr.Dataset, base_start: int, base_end: int) -> Thresh
         for v in TEMPERATURE_VARIABLES
     }
 
-    pr = ds.pr
-    years = pr.time.dt.year
-    in_base = (years >= base_start) & (years <= base_end) & (pr >= WET_DAY)
-    wet = pr.values[in_base.values]
-    prec = r_quantile_type8(wet, PRECIPITATION_QUANTILES)
-    precipitation = dict(zip(PRECIPITATION_QUANTILES, (float(v) for v in prec), strict=True))
+    prec = wet_day_quantiles(ds.pr.values, ds.time, base_start, base_end, PRECIPITATION_QUANTILES)
+    precipitation = {q: float(v) for q, v in prec.items()}
 
     return Thresholds(
         base_start=base_start,
@@ -368,6 +423,8 @@ def compute_thresholds(ds: xr.Dataset, base_start: int, base_end: int) -> Thresh
 __all__ = [
     "InsufficientBaseData",
     "Thresholds",
+    "base_period_array",
+    "base_period_dates",
     "base_period_matrix",
     "bootstrap_quantiles",
     "climdex_quantile",
@@ -375,7 +432,12 @@ __all__ = [
     "compute_thresholds",
     "day_of_year",
     "quantile_name",
+    "r_quantile_type7",
+    "r_quantile_type7_rows",
     "r_quantile_type8",
+    "r_quantile_type8_rows",
     "running_quantiles",
+    "take_dates",
+    "wet_day_quantiles",
     "window_values",
 ]

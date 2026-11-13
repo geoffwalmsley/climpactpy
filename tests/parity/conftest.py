@@ -16,7 +16,7 @@ def pytest_terminal_summary(terminalreporter):
     counts: dict[tuple[str, str], Counter] = {}
     for outcome in ("passed", "failed", "xfailed"):
         for report in terminalreporter.stats.get(outcome, []):
-            for test in ("test_parity", "test_csv_text"):
+            for test in ("test_parity", "test_csv_text", "test_gridded"):
                 if f"{test}[" not in report.nodeid:
                     continue
                 run = report.nodeid.split(f"{test}[", 1)[1].split("/", 1)[0]
@@ -27,9 +27,8 @@ def pytest_terminal_summary(terminalreporter):
     if not counts:
         return
     terminalreporter.section("R parity")
-    for (test, run), c in sorted(
-        counts.items(), key=lambda item: (item[0][0] != "test_parity", item[0][1])
-    ):
+    order = {"test_parity": 0, "test_csv_text": 1, "test_gridded": 2}
+    for (test, run), c in sorted(counts.items(), key=lambda item: (order[item[0][0]], item[0][1])):
         total = sum(c.values())
         known = f", {c['known bug']} known bugs" if c["known bug"] else ""
         if test == "test_parity":
@@ -37,9 +36,14 @@ def pytest_terminal_summary(terminalreporter):
                 f"{run}: {c['passed']}/{total} reference files reproduced, "
                 f"{c['failed']} failing{known}, {c['xfailed']} not yet ported"
             )
-        else:
+        elif test == "test_csv_text":
             terminalreporter.write_line(
                 f"{run}: {c['passed']}/{total} written CSV files text-identical to R, "
+                f"{c['failed']} differing{known}"
+            )
+        else:
+            terminalreporter.write_line(
+                f"{run}: {c['passed']}/{total} thresholds netCDF variables identical to R, "
                 f"{c['failed']} differing{known}"
             )
 

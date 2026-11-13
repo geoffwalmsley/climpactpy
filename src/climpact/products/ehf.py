@@ -40,7 +40,7 @@ import pandas as pd
 from climpact.missing import valid_mask
 from climpact.outputs import product
 from climpact.products.heatwaves import aspect_table
-from climpact.rnumerics import r_mean, r_sum
+from climpact.rnumerics import r_mean, r_sum, r_window_sums
 from climpact.station import StationRun
 from climpact.thresholds import r_quantile_type7
 
@@ -53,30 +53,35 @@ ASPECTS = ("HWPS", "HWPI", "HWLS", "HWLI", "HWD", "HWMD", "HWN", "HWF")
 DAILY = {"EHFdaily": "Excess Heat Factor", "ECFdaily": "Excess Cold Factor"}
 
 
-def excess_factors(tavg: np.ndarray, t95: float, t05: float) -> tuple[np.ndarray, np.ndarray]:
+def excess_factors(tavg: np.ndarray, t95, t05) -> tuple[np.ndarray, np.ndarray]:
     """Daily EHF and ECF, as the loop in ``climdex.hwEHF``; missing before day 33.
 
-    The three-day sum is R ``sum(a, b, c)`` of three arguments, accumulated in double
-    precision; the 30-day sum is one ``sum(..., na.rm = TRUE)``, accumulated in extended
-    precision (:func:`~climpact.rnumerics.r_sum`).
+    ``tavg``'s last axis is time (any leading dimensions, for example grid cells, with
+    ``t95`` and ``t05`` one per series). The three-day sum is R ``sum(a, b, c)`` of three
+    arguments, accumulated in double precision; the 30-day sum is one
+    ``sum(..., na.rm = TRUE)``, accumulated in extended precision
+    (:func:`~climpact.rnumerics.r_window_sums`).
     """
-    n = tavg.size
-    ehf = np.full(n, np.nan)
-    ecf = np.full(n, np.nan)
+    tavg = np.asarray(tavg, dtype=float)
+    n = tavg.shape[-1]
+    ehf = np.full(tavg.shape, np.nan)
+    ecf = np.full(tavg.shape, np.nan)
     if n <= FIRST_DAY:
         return ehf, ecf
-    a = np.arange(FIRST_DAY, n)
+    t95 = np.asarray(t95, dtype=float)[..., np.newaxis]
+    t05 = np.asarray(t05, dtype=float)[..., np.newaxis]
     with np.errstate(invalid="ignore"):
-        t3 = ((tavg[a] + tavg[a - 1]) + tavg[a - 2]) / 3
-    t30 = np.empty(a.size)
-    present = ~np.isnan(tavg)
-    for k, day in enumerate(a.tolist()):
-        window = slice(day - 32, day - 2)
-        t30[k] = r_sum(tavg[window][present[window]])
+        # days a, a - 1 and a - 2 for a = 32 ... n - 1
+        t3 = (
+            (tavg[..., FIRST_DAY:] + tavg[..., FIRST_DAY - 1 : -1]) + tavg[..., FIRST_DAY - 2 : -2]
+        ) / 3
+    # the 30 days before the three: days a - 32 ... a - 3 for a = 32 ... n - 1
+    t30 = r_window_sums(tavg, ACCLIMATISATION_DAYS)[..., : n - FIRST_DAY]
     accl = t3 - t30 / ACCLIMATISATION_DAYS
     # R max(1, NA) and min(-1, NA) are NA; accl is missing only where t3 is.
-    ehf[a] = np.maximum(1.0, accl) * (t3 - t95)
-    ecf[a] = np.minimum(-1.0, accl) * (-1 * (t3 - t05))
+    with np.errstate(invalid="ignore"):
+        ehf[..., FIRST_DAY:] = np.maximum(1.0, accl) * (t3 - t95)
+        ecf[..., FIRST_DAY:] = np.minimum(-1.0, accl) * (-1 * (t3 - t05))
     return ehf, ecf
 
 

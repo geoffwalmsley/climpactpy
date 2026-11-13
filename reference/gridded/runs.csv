@@ -1,0 +1,3 @@
+run,files,tmax,tmin,prec,base_start,base_end
+grid_stations,grid_stations_tas.nc;grid_stations_pr.nc,tasmax,tasmin,pr,1971,2000
+grid_sample,grid_sample.nc,tmax,tmin,precip,1991,2010

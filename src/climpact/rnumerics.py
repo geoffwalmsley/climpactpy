@@ -275,3 +275,53 @@ def r_round(x: np.ndarray, digits: int) -> np.ndarray:
     unchanged = (np.log10(2.0) * (0.5 + logb) + digits > 15) | (a == 0)
     unchanged |= ~np.isfinite(x)
     return np.where(unchanged, x, sign * rounded)
+
+
+def _element_scales(v: np.ndarray) -> np.ndarray:
+    """For each value, the smallest ``scale >= 0`` such that it is an integer multiple of
+    ``2**-scale`` (0 for zero); :func:`_scale` element by element."""
+    mantissa, exponent = np.frexp(v)
+    significand = np.abs(mantissa * 2.0**DOUBLE_BITS).astype(np.int64)  # exact
+    lowest_bit = significand & -significand
+    trailing_zeros = np.frexp(lowest_bit.astype(float))[1] - 1
+    return np.where(v != 0, np.maximum(DOUBLE_BITS - exponent - trailing_zeros, 0), 0)
+
+
+def r_window_sums(x: np.ndarray, window: int) -> np.ndarray:
+    """R ``sum(x[k:(k + window - 1)], na.rm = TRUE)`` for every window along the last axis.
+
+    Returns ``(..., n - window + 1)``. Each sum is :func:`r_sum` of the window's
+    non-missing values, but computed for all windows at once where that is exact: when a
+    window's values are multiples of ``2**-s`` and their absolute values add up to less
+    than ``2**(62 - s)`` (the condition of :func:`r_sum`'s fast path), no partial sum is
+    rounded and R's result is the exact sum rounded to a double, which is formed here
+    in 64-bit integers. Other windows go through :func:`r_sum` one by one. Data stored as
+    float, or converted from kelvin, always take the fast path.
+    """
+    x = np.asarray(x, dtype=float)
+    n = x.shape[-1]
+    m = n - window + 1
+    if m <= 0:
+        return np.empty((*x.shape[:-1], 0))
+    present = ~np.isnan(x)
+    v = np.where(present, x, 0.0)
+    if not np.isfinite(v).all():
+        raise ValueError("only finite values are supported")
+    windows = np.lib.stride_tricks.sliding_window_view
+    scale = windows(_element_scales(v), window, axis=-1).max(axis=-1)
+    absolute = np.abs(v)
+    bound = np.zeros(scale.shape)
+    for k in range(window):
+        bound += absolute[..., k : k + m]
+    fast = (scale <= 1000) & (bound < np.ldexp(1.0, _FAST_SUM_BITS - np.minimum(scale, 1000)))
+    shift = np.where(fast, scale, 0)
+    total = np.zeros(scale.shape, dtype=np.int64)
+    for k in range(window):
+        term = np.ldexp(v[..., k : k + m], shift)
+        total += np.where(fast, term, 0.0).astype(np.int64)  # integers below 2**62: exact
+    out = np.ldexp(total.astype(float), -shift)  # int -> double rounds half to even
+    for index in zip(*np.nonzero(~fast), strict=True):
+        *row, k = index
+        values = x[(*row, slice(k, k + window))]
+        out[index] = r_sum(values[~np.isnan(values)])
+    return out

@@ -190,3 +190,41 @@ def test_insufficient_base_data():
     with pytest.raises(InsufficientBaseData):
         compute_thresholds(ds, 1985, 1990)
     compute_thresholds(_station("1990-01-06", "1991-12-31"), 1985, 1990)
+
+
+def test_row_quantiles_match_scalar_versions():
+    """The batched quantiles (used for grids) agree with the per-series ones."""
+    from climpact.thresholds import (
+        r_quantile_type7,
+        r_quantile_type7_rows,
+        r_quantile_type8,
+        r_quantile_type8_rows,
+    )
+
+    rng = np.random.default_rng(3)
+    x = np.round(rng.gamma(0.6, 5, (40, 60)), 1)
+    x[rng.random(x.shape) < 0.3] = np.nan
+    x[0] = np.nan  # a row with no values
+    x[1, 1:] = np.nan  # one value
+    for q in (0.05, 0.5, 0.85, 0.95, 0.99):
+        rows7, rows8 = r_quantile_type7_rows(x, q), r_quantile_type8_rows(x, q)
+        for i, row in enumerate(x):
+            row = row[~np.isnan(row)]
+            if row.size == 0:
+                assert np.isnan(rows7[i]) and np.isnan(rows8[i])
+                continue
+            assert rows7[i] == r_quantile_type7(row, q)
+            assert rows8[i] == r_quantile_type8(row, [q])[0]
+
+
+def test_running_quantiles_over_cells():
+    """Leading dimensions (grid cells) give the same thresholds as one series at a time."""
+    rng = np.random.default_rng(4)
+    base = np.round(rng.normal(15, 6, (2, 3, 10, DAYS_PER_YEAR)), 1)
+    base[rng.random(base.shape) < 0.5] = np.nan
+    together = running_quantiles(base, 5, [0.1, 0.9])
+    for i in range(2):
+        for j in range(3):
+            single = running_quantiles(base[i, j], 5, [0.1, 0.9])
+            for q in (0.1, 0.9):
+                assert np.array_equal(together[q][i, j], single[q], equal_nan=True)

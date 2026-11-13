@@ -10,6 +10,9 @@ The heatwave files are written by ``write.hw.csv`` (``services/write_indices.R``
 the same header block and missing-value token but no standardised-anomaly column. It
 writes all ten Tx90/Tn90 files whenever any of them has a value, so a heatwave file
 can be missing for every year; the products leave out the whole group otherwise.
+``write.hwEHF.csv`` does the same for the eight EHF heatwave files and the daily EHF and
+ECF series (``EHFdaily``, ``ECFdaily``, separated by ``","``), unless HWF is missing in
+every year.
 """
 
 from __future__ import annotations
@@ -32,8 +35,10 @@ CLIMPACT_VERSION = "3.4.3"
 # Rows of climate.indices.csv written by their own functions rather than write.index.csv.
 _NOT_INDEX_FILES = {"hw", "hwEHF", "spei", "spi"}
 
-# Heatwave files (write.hw.csv): written even when missing for every year.
-_HEATWAVE_FILE = re.compile(r"^(TX90|TN90)-HW[MANDF]_ANN$")
+# Heatwave files (write.hw.csv, write.hwEHF.csv): written even when missing for every year.
+_HEATWAVE_FILE = re.compile(
+    r"^((TX90|TN90)-HW[MANDF]|EHF-HW(PS|PI|LS|LI|D|MD|N|F))_ANN$|^(EHF|ECF)daily$"
+)
 _HEATWAVE_ASPECTS = {
     "HWM": "magnitude",
     "HWA": "amplitude",
@@ -42,9 +47,27 @@ _HEATWAVE_ASPECTS = {
     "HWF": "frequency",
 }
 
+# Descriptions written by write.hwEHF.csv (the daily ones say 29 February is omitted;
+# it is not).
+_EHF_DESCRIPTIONS = {
+    "EHF-HWPS_ANN": "Heatwave peak severity (HWPS): Mean of the maximum severity of each EHF"
+    " heatwave.",
+    "EHF-HWPI_ANN": "Heatwave peak intensity (HWPI): Mean of the maximum intensity of each EHF"
+    " heatwave.",
+    "EHF-HWLS_ANN": "Heatwave load severity (HWLS): Sum of daily EHF heatwave severities.",
+    "EHF-HWLI_ANN": "Heatwave load intensity (HWLI): Sum of daily EHF heatwave intensities.",
+    "EHF-HWD_ANN": "Heatwave duration (HWD): Duration of the longest EHF heatwave.",
+    "EHF-HWMD_ANN": "Heatwave mean duration (HWMD): Mean EHF heatwave duration.",
+    "EHF-HWN_ANN": "Heatwave number (HWN): Number of EHF heatwaves.",
+    "EHF-HWF_ANN": "Heatwave frequency (HWF): Number of days contributing to EHF heatwaves.",
+    "EHFdaily": "EHF daily values. Note that 29th February is omitted from this calculation.",
+    "ECFdaily": "ECF daily values. Note that 29th February is omitted from this calculation.",
+}
+
 # Separator between fields of the header row and data rows, by output key.
 # write.index.csv uses ", "; write.NA.statistics uses ",".
-_SEPARATORS = {"qc/nastatistics": ","}
+# write.hwEHF.csv writes the daily EHF and ECF files with ",".
+_SEPARATORS = {"qc/nastatistics": ",", "indices/EHFdaily": ",", "indices/ECFdaily": ","}
 
 # Description line of files not written by write.index.csv. ``None``: no header block.
 _DESCRIPTIONS: dict[str, str | None] = {"qc/nastatistics": "", "thres/thres": None}
@@ -123,6 +146,8 @@ def index_descriptions(params: IndexParams) -> dict[str, str]:
     for definition in ("TX90", "TN90"):
         for short, aspect in _HEATWAVE_ASPECTS.items():
             out[f"{definition}-{short}_ANN"] = f"{definition} heatwave {aspect} ({short})"
+
+    out.update(_EHF_DESCRIPTIONS)
 
     # calculate.custom.index: header "TN > 0", for both frequencies.
     if (spec := params.custom) is not None:

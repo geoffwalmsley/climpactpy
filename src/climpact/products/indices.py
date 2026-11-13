@@ -173,10 +173,18 @@ def degree_days(run: StationRun) -> dict[str, pd.DataFrame]:
 
 def first_extreme_dates(da: xr.DataArray, rule: str, stat: str) -> xr.DataArray:
     """Date of the first maximum/minimum in each period, skipping missing days
-    (R ``which.max`` / ``which.min``)."""
+    (R ``which.max`` / ``which.min``).
+
+    A period with no data gets no date (NaT). pandas' ``idxmax`` raises on an all-missing
+    group, so missing days are filled with -inf (max) or +inf (min) first: they never win
+    in a period that has data, and the first occurrence is unchanged.
+    """
     s = da.to_series()
-    grouped = s.groupby(pd.Grouper(freq=rule))
+    fill = -np.inf if stat == "max" else np.inf
+    grouped = s.fillna(fill).groupby(pd.Grouper(freq=rule))
     idx = grouped.idxmax() if stat == "max" else grouped.idxmin()
+    empty = s.groupby(pd.Grouper(freq=rule)).count() == 0
+    idx[empty] = pd.NaT
     return xr.DataArray(idx.values, dims="time", coords={"time": idx.index.values})
 
 

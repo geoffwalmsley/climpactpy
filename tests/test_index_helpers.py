@@ -51,3 +51,26 @@ def test_dtr_uses_tm_mask_when_tx_and_tn_gaps_differ():
     dtr = means_and_totals(run)["indices/dtr_MON"]["dtr"]
     assert np.isnan(dtr.iloc[0])  # January: 6 days missing TX or TN
     assert dtr.iloc[1:].tolist() == [10.0] * 11
+
+
+def test_extreme_dates_with_an_empty_month():
+    """A month with no data gets no date; other months keep the first extreme."""
+    import pandas as pd
+    import xarray as xr
+
+    from climpact.products.indices import first_extreme_dates
+
+    time = pd.date_range("2001-01-01", "2001-03-31", freq="D")
+    values = np.full(time.size, 5.0)
+    values[time.month == 2] = np.nan  # February: no data at all
+    values[[3, 7]] = 9.0  # January maximum on the 4th and 8th: the first wins
+    values[time == "2001-03-10"] = np.nan
+    values[time == "2001-03-20"] = 1.0
+    da = xr.DataArray(values, dims="time", coords={"time": time})
+
+    dmax = pd.DatetimeIndex(first_extreme_dates(da, "MS", "max").values)
+    dmin = pd.DatetimeIndex(first_extreme_dates(da, "MS", "min").values)
+    assert dmax[0] == pd.Timestamp("2001-01-04")
+    assert pd.isna(dmax[1]) and pd.isna(dmin[1])
+    assert dmax[2] == pd.Timestamp("2001-03-01")
+    assert dmin[2] == pd.Timestamp("2001-03-20")

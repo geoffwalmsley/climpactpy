@@ -9,8 +9,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 ## Status
 
 The Python port reproduces **65 of the 117** R reference files for Sydney (`lat0` and
-`sydney`) and for 9 of the 13 GHCN stations, with none failing. The other four fail because of
-an open bug found by the GHCN stations (#39), recorded as a known bug (see
+`sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)):
 
 | Area | Ported | Not yet ported |
@@ -173,7 +172,8 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 | `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 65/117 |
 | `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 65/117 each |
 | `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 65/115 and 65/117 |
-| `yakutsk`, `beijing`, `nairobi`, `new_delhi` | Extreme cold; missing-data rules; patchy base periods | GHCN-Daily | 0: `build_all` raises on a month with no data, so the whole run is a known bug (#39) |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 65/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 47/83 and 40/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -221,27 +221,27 @@ printed at the end:
 ```
 =================================== R parity ===================================
 alice_springs: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-beijing: 0/117 reference files reproduced, 0 failing, 117 known bugs, 0 not yet ported
+beijing: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 darwin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 dublin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 lat0: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 madrid: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 minneapolis: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-nairobi: 0/60 reference files reproduced, 0 failing, 60 known bugs, 0 not yet ported
-new_delhi: 0/83 reference files reproduced, 0 failing, 83 known bugs, 0 not yet ported
+nairobi: 40/60 reference files reproduced, 0 failing, 20 not yet ported
+new_delhi: 47/83 reference files reproduced, 0 failing, 36 not yet ported
 oxford: 65/115 reference files reproduced, 0 failing, 50 not yet ported
 perth: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 phoenix: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 potsdam: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 sydney: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-yakutsk: 0/117 reference files reproduced, 0 failing, 117 known bugs, 0 not yet ported
+yakutsk: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 ```
 
 Files that fail because of a filed bug are listed in `KNOWN_BUGS` in
 `tests/parity/catalogue.py` (a pattern on the test id and the ticket). They are strict xfails,
 counted as "known bugs" in the summary: when the bug is fixed the test passes, which fails the
-run, so the entry has to be removed. When a whole run's build fails (#39), every file of that
-run counts as a known bug, including files not yet ported.
+run, so the entry has to be removed. If a whole run's build fails, every file of that run
+counts as a known bug, including files not yet ported. The list is currently empty.
 
 A failure reports, per column, the number of missing-value and value mismatches, the
 largest difference and the first mismatching row.
@@ -339,9 +339,10 @@ with 3 missing TX days and 3 missing TN days on different dates is missing.
 **Dates of extremes in empty periods.** R's `which.max`/`which.min` return no index for a
 period with no data, and Climpact writes `-99.9`.
 
-- *Open bug (#39):* `first_extreme_dates` uses pandas `idxmax`/`idxmin`, which raise on an
-  all-missing period, so `build_all` fails for any station with a month with no data in one
-  variable (`yakutsk`, `beijing`, `nairobi`, `new_delhi`).
+- *Handling:* pandas `idxmax`/`idxmin` raise on an all-missing group, so
+  `first_extreme_dates` fills missing days with -inf (max) or +inf (min), which never win in a
+  period with data, and sets the date to NaT for periods with no data. Exercised by
+  `yakutsk`, `beijing`, `nairobi` and `new_delhi` (#39).
 
 **SU threshold.** Climpact's code counts TX **>** 25 °C, although a code comment says
 `>=`. Python follows the code.
@@ -381,8 +382,7 @@ output is ported.
 ## Performance
 
 A full station run (80 years, all ported indices) takes about 9 seconds (7 s for a 60-year
-GHCN station). The whole test suite with 15 runs takes about 90-100 seconds while four runs fail
-early (#39). The extra runs are not marked `slow`; #23 tracks speed-ups. The time goes mostly on per-call
+GHCN station). The whole test suite with 15 runs takes about 95 seconds. The extra runs are not marked `slow`; #23 tracks speed-ups. The time goes mostly on per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
 directly, are the obvious improvements. The R-precision emulation takes about 30 ms per

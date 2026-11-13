@@ -72,10 +72,8 @@ _FITTED = re.compile(r"^\d+month_(spi|spei)_MON$")
 
 # Reference files that fail because of a filed bug, keyed by a pattern on ``ReferenceFile.id``.
 # They are strict xfails: once the bug is fixed the test XPASSes, which fails, so remove the entry.
-KNOWN_BUGS = {
-    re.compile(r"^(yakutsk|beijing|nairobi|new_delhi)/"): (
-        "known bug #39: extremes crash on a month with no data"
-    ),
+KNOWN_BUGS: dict[re.Pattern[str], str] = {
+    # re.compile(r"^oxford/indices/dtr_(ANN|MON)$"): "known bug #40: ...",
 }
 
 

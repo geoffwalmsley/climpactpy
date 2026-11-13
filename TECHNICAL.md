@@ -28,6 +28,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | plots, zip archive |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
+| Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -39,7 +40,10 @@ It does not yet write plots or zip archives.
 
 ```
 src/climpact/
-  cli.py             command line: `climpact run` (one station) and `climpact batch` (many)
+  cli.py             command line: `climpact run` (one station), `climpact batch` (many),
+                     `climpact modules` (list the modules available)
+  modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
+                     points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
@@ -53,7 +57,8 @@ src/climpact/
     climpact_csv.py  read and write Climpact (R) output CSV files; R number formatting
     output_files.py  file names, folders and metadata headers; write_outputs()
   missing.py         climdex.pcic missing-data rules; registered with xclim as "climdex"
-  outputs.py         registry of products that build Climpact-format output tables
+  outputs.py         registry of the index products; the built-in index module
+                     (CLIMPACT_INDICES); build_all()
   periods.py         monthly and annual counts, max, min and per-period functions (fast resample)
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
@@ -62,7 +67,8 @@ src/climpact/
     heatwaves.py     Tx90/Tn90 heatwave products; hw_aspects(), get.hw.aspects
     ehf.py           EHF heatwave products and the daily EHF/ECF series (climdex.hwEHF)
     thresholds.py    thresholds file and tx95t products
-    qc.py            QC products: QC_REPORTS, the one list of QC files, and qc/nastatistics
+    qc.py            QC files: QC_REPORTS, the one list of QC files, qc/nastatistics and the
+                     built-in QC module (CLIMPACT_QC)
     trends.py        trend file (trend/trend), built from the other products' tables
   compare.py         tiered comparison of tables against the R reference
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var,
@@ -76,6 +82,7 @@ tests/
                      reference the faster versions are tested against
   test_*.py          unit tests
   data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
+  plugins/           climpact_example_plugin: an example third-party plugin package
 reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
@@ -95,8 +102,12 @@ station text file
   -> StationRun(data, metadata, params, qc, qc_rows)
        run.thresholds               base-period thresholds, computed on first use and cached
        run.rows                     the merged rows the QC checks run on
-  -> outputs.build_all(run)         {"indices/fd_ANN": DataFrame, ...}
-       derived products             the trend file, from the tables above
+  -> outputs.build_all(run)         modules.run_pipeline: {"indices/fd_ANN": DataFrame, ...}
+       QC modules                   built-in "climpact": the qc/ files, on the input data
+       homogeneity module           built-in "none": no tables, data unchanged
+       index modules                built-in "climpact": the products below, then the
+                                    derived products (the trend file), on the data
+                                    the homogeneity module returned
   -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
 ```
 
@@ -166,12 +177,15 @@ The command line and batch mode use the defaults, as R's batch mode does.
 
 ### Output products
 
-Every output file is built by a *product*: a function registered with `@outputs.product`
+Every index, threshold and trend file is built by a *product*: a function registered with `@outputs.product`
 that takes a `StationRun` and returns `{output key: DataFrame}`. A *derived* product
 (`@outputs.derived`) takes the run and the tables of all other products and runs after
 them; the trend file is the only one. Keys follow the R output
-paths, for example `indices/fd_ANN` or `qc/nastatistics`. Products return several tables
-because names can depend on parameters (`r30mm`, `rx3day`, `hddheat18`).
+paths, for example `indices/fd_ANN` or `thres/thres`. Products return several tables
+because names can depend on parameters (`r30mm`, `rx3day`, `hddheat18`). The registered
+products make up the built-in index module, `CLIMPACT_INDICES`. The QC files are not
+products: the built-in QC module, `CLIMPACT_QC` (`products/qc.py`), builds them from
+`QC_REPORTS` and `na_statistics` (see [Modules and plugins](#modules-and-plugins)).
 
 Table layouts follow R's `write.index.csv`:
 
@@ -251,14 +265,76 @@ quoted string (`"NO DUPLICATE DATES FOUND"`, or a section title such as `"TX up"
 `ClimpactTable.messages`. `FileFormat.sections` (`(title, number of rows)` pairs) writes
 each title as a quoted line before its rows, also when it has none, as `qc/outliers` does. An output key with
 no description or file format is an error, so a new product must add its format in
-`output_files.py`, or attach a `FileFormat`, before its files can be written.
+`output_files.py`, or attach a `FileFormat`, before its files can be written. Tables from
+third-party modules must attach a `FileFormat`; the pipeline checks this when the module
+returns them.
+
+## Modules and plugins
+
+A run is a pipeline of modules (`climpact.modules`, #28):
+
+```
+input (StationRun) -> QC modules -> homogeneity module -> index modules -> write_outputs
+```
+
+| Kind | Interface | Built in | Entry point group |
+| --- | --- | --- | --- |
+| QC | `QCModule.build(run, tables) -> {key: table}` | `climpact`: R's `qc/` files | `climpact.qc` |
+| Homogeneity | `HomogeneityModule.homogenise(run, tables) -> HomogeneityResult` | `none`: pass-through | `climpact.homogeneity` |
+| Index | `IndexModule.build(run, tables) -> {key: table}` | `climpact`: R's `indices/`, `thres/` and `trend/` files | `climpact.indices` |
+
+The interfaces are `typing.Protocol` classes: a module is any object with a `name` and
+the method. `tables` holds the tables of the modules that ran before it, so a homogeneity
+module can use the QC results and an index module the earlier indices.
+
+- **QC modules** run on the input data, in the order selected, and must not change it.
+- **One homogeneity module** runs. `HomogeneityResult` has `tables` (written like any
+  output, for example `homogeneity/breaks` for #34) and `data`: `None`, or the adjusted
+  series (#35), a copy of `run.data` with the same time axis and variables. The pipeline
+  checks both, restores the station attributes (`first_date`, `last_date`, ...) if the
+  module dropped them, and builds a new `StationRun` from the adjusted data, so the
+  base-period thresholds are computed from it too. QC tables are never recomputed.
+- **Index modules** run on the adjusted run when there is one, else on the input run.
+- `run_pipeline` returns a `PipelineResult`: `tables`, `input_run` (the original data, for
+  reporting next to adjusted results) and `indices_run`; `adjusted` says whether they
+  differ. `build_all(run, modules)` returns the tables only.
+- Output keys are `<folder>/<name>`, written to `<out>/<station>/<folder>/` (a module may
+  use its own folder, for example `homogeneity/`). A key produced twice is an error.
+  Tables from modules other than the built-in ones must carry a `FileFormat`.
+
+**Discovery and selection.** Built-in modules are always available. Third-party modules
+are installed packages that declare entry points in the three groups; an entry point
+names a module object, or a class called with no arguments, and its name is the module
+name. `climpact modules` lists what is available. A run uses the modules in a
+`ModuleSelection` (names only, so batch workers can receive it and load the modules
+themselves); the default is `qc=("climpact",)`, `homogeneity="none"`,
+`indices=("climpact",)`, which writes exactly R's files. Installed plugins run only when
+selected, with `--qc NAMES`, `--homogeneity NAME` and `--indices NAMES` on `climpact run`
+and `climpact batch` (comma-separated, run in order; leaving out `climpact` drops the
+built-in files). An unknown name, or a name installed twice, is an error before any
+station runs.
+
+**Example plugin.** `tests/plugins/climpact_example_plugin` is a separate package with its
+own `pyproject.toml` and one module of each kind: `example_qc` (`qc/example_hot_days`),
+`example_shift` (a break in TX in the middle year, `homogeneity/example_breaks`, and TX
+before it raised by 1 °C) and `example_indices` (`indices/example_txmean_ANN`).
+`tests/test_modules.py` installs it into a temporary folder on `sys.path` by writing its
+`.dist-info` (entry points from its `pyproject.toml`; no build step or network), then
+checks that it is discovered, runs through `run_pipeline`, the command line and a
+two-process batch, that QC tables come from the original data and the built-in indices
+from the adjusted data.
+
+Not yet supported: module options (a module reads `run.params` and `run.qc` or its own
+defaults), and trend rows for plugin indices (the trend file covers the built-in indices
+only).
 
 ## Batch processing
 
 `climpact batch <metadata file> <data dir> --out <dir>` ports Climpact's batch mode
 (`climpact.batch.stations.r`, `server/batch_stations.R`). Options: `--base-start`,
 `--base-end` (default 1971-2000, applied to every station, as R's command-line
-arguments), `--workers` (processes; R's `cores_to_use`) and `--custom VAR OP VALUE`.
+arguments), `--workers` (processes; R's `cores_to_use`), `--custom VAR OP VALUE`, and
+`--qc`, `--homogeneity`, `--indices` (see [Modules and plugins](#modules-and-plugins)).
 
 - **Metadata file** (`read_batch_metadata`): R's format, read unchanged, for example
   Climpact's `www/sample_data/climpact.sample.batch.metadata.txt` (copied to
@@ -558,7 +634,8 @@ largest difference and the first mismatching row.
    takes precedence over climdex.pcic's, because Climpact sources its file after loading
    the package.
 2. Add or extend a product in `src/climpact/products/` returning the table under the key
-   matching the R file name.
+   matching the R file name. (An index that R does not have can instead be a separate
+   index module; see [Modules and plugins](#modules-and-plugins).)
 3. Run `pytest tests/parity -k <name>`. Fix mismatches, or, if the difference comes from
    R behaviour that should not be copied, record it in the differences section below.
 

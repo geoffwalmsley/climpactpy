@@ -2,13 +2,14 @@
 
 Every QC file is declared once, in :data:`QC_REPORTS`: its name, the check that builds
 its table (:mod:`climpact.qc`) and the layout R writes it with. :func:`qc_reports`
-registers them all as one product. ``qc/nastatistics`` is separate: R computes it from
-the climdex input object, not from the QC rows.
+builds them all. ``qc/nastatistics`` is separate: R computes it from the climdex input
+object, not from the QC rows. :data:`CLIMPACT_QC`, the built-in QC module
+(:mod:`climpact.modules`), writes both.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 import pandas as pd
@@ -17,7 +18,6 @@ from climpact import qc
 from climpact.config import QCParams
 from climpact.io.climpact_csv import NA_TOKEN, format_r_number
 from climpact.io.output_files import FileFormat, with_file_format
-from climpact.outputs import product, register
 from climpact.station import StationRun
 
 
@@ -128,14 +128,12 @@ QC_REPORTS: list[QCReport] = [
 ]
 
 
-@product
 def qc_reports(run: StationRun) -> dict[str, pd.DataFrame]:
     """Every file in :data:`QC_REPORTS`."""
     rows = run.rows
     return {f"qc/{report.name}": report.table(rows, run.qc) for report in QC_REPORTS}
 
 
-@register("qc/nastatistics")
 def na_statistics(run: StationRun) -> pd.DataFrame:
     """Missing days per year for each variable (R ``write.NA.statistics``)."""
     ds = run.data
@@ -148,3 +146,15 @@ def na_statistics(run: StationRun) -> pd.DataFrame:
             "TN": missing["tasmin"].to_numpy().astype(float),
         }
     )
+
+
+class ClimpactQC:
+    """The built-in QC module: R's ``qc/`` files."""
+
+    name = "climpact"
+
+    def build(self, run: StationRun, tables: Mapping[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+        return {**qc_reports(run), "qc/nastatistics": na_statistics(run)}
+
+
+CLIMPACT_QC = ClimpactQC()

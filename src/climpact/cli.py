@@ -3,7 +3,9 @@
 ``climpact run <station file> --out <dir>`` computes every ported output for one station
 and writes them as Climpact CSV files to ``<dir>/<station>/{indices,qc,thres}/``, as the R
 app does. ``climpact batch <metadata file> <data dir> --out <dir>`` does the same for every
-station of an R batch metadata file (see :mod:`climpact.batch`).
+station of an R batch metadata file (see :mod:`climpact.batch`). Both take ``--qc``,
+``--homogeneity`` and ``--indices`` to select the modules a run uses, and
+``climpact modules`` lists the modules available (see :mod:`climpact.modules`).
 """
 
 from __future__ import annotations
@@ -15,10 +17,61 @@ from pathlib import Path
 
 from climpact import __version__
 from climpact.config import CustomIndex, IndexParams, StationMetadata
+from climpact.modules import (
+    DEFAULT_HOMOGENEITY,
+    DEFAULT_INDICES,
+    DEFAULT_QC,
+    KINDS,
+    ModuleSelection,
+    UnknownModuleError,
+)
 
 DEFAULTS = IndexParams()
 _DEFAULT = "default: %(default)s"
 CUSTOM = CustomIndex()
+
+
+def _module_arguments(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_argument_group(
+        "modules", "Select the modules a run uses; `climpact modules` lists them."
+    )
+    group.add_argument(
+        "--qc",
+        default=",".join(DEFAULT_QC),
+        metavar="NAMES",
+        help="comma-separated QC modules, run in order (default: %(default)s)",
+    )
+    group.add_argument(
+        "--homogeneity",
+        default=DEFAULT_HOMOGENEITY,
+        metavar="NAME",
+        help="homogeneity module; its adjusted data, if any, is used for the indices "
+        "(default: %(default)s)",
+    )
+    group.add_argument(
+        "--indices",
+        default=",".join(DEFAULT_INDICES),
+        metavar="NAMES",
+        help="comma-separated index modules, run in order (default: %(default)s)",
+    )
+
+
+def _names(text: str) -> tuple[str, ...]:
+    return tuple(name.strip() for name in text.split(",") if name.strip())
+
+
+def _modules(args: argparse.Namespace, parser: argparse.ArgumentParser) -> ModuleSelection:
+    """The selected modules, checked to be available."""
+    from climpact.modules import resolve
+
+    selection = ModuleSelection(
+        qc=_names(args.qc), homogeneity=args.homogeneity, indices=_names(args.indices)
+    )
+    try:
+        resolve(selection)
+    except (UnknownModuleError, TypeError) as exc:
+        parser.error(str(exc))
+    return selection
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -67,6 +120,7 @@ def _parser() -> argparse.ArgumentParser:
         help="custom index: VAR is TX, TN, TM, PR or DTR; OP is >, >=, < or <= (default: TN > 0)",
     )
     custom.add_argument("--no-custom", action="store_true", help="skip the custom index")
+    _module_arguments(run)
 
     batch = commands.add_parser(
         "batch",
@@ -104,6 +158,14 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="custom index for every station: VAR is TX, TN, TM, PR or DTR; OP is >, >=, < "
         "or <= (default: none, as in R's batch mode)",
+    )
+    _module_arguments(batch)
+
+    commands.add_parser(
+        "modules",
+        help="list the QC, homogeneity and index modules available",
+        description="List the built-in modules and the plugins installed through the "
+        "climpact.qc, climpact.homogeneity and climpact.indices entry points.",
     )
     return parser
 
@@ -147,7 +209,8 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         spei_months=args.spei_months,
         custom=_custom(args, parser),
     )
-    written, skipped = run_station(args.station_file, metadata, params, args.out)
+    modules = _modules(args, parser)
+    written, skipped = run_station(args.station_file, metadata, params, args.out, modules=modules)
     print(f"Wrote {len(written)} files to {args.out / metadata.name}")
     if skipped:
         print(f"Not written (no data in any period): {', '.join(skipped)}")
@@ -164,6 +227,7 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
     if args.workers is not None and args.workers < 1:
         parser.error("--workers must be at least 1")
     custom = _custom(args, parser)
+    modules = _modules(args, parser)
     try:
         stations = read_batch_metadata(args.metadata_file)
     except BatchMetadataError as exc:
@@ -190,12 +254,23 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         custom=custom,
         workers=args.workers,
         on_result=report,
+        modules=modules,
     )
     failed = [r for r in results if not r.ok]
     print(f"Done: {total - len(failed)} of {total} stations processed, {len(failed)} failed")
     for result in failed:
         print(f"  {result.name}: see {result.error_file}")
     return 1 if failed else 0
+
+
+def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from climpact.modules import available
+
+    for kind in KINDS:
+        print(f"{kind}:")
+        for name, source in available(kind).items():
+            print(f"  {name} ({source})")
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -205,6 +280,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_command(args, parser)
     if args.command == "batch":
         return batch_command(args, parser)
+    if args.command == "modules":
+        return modules_command(args, parser)
     parser.error(f"unknown command {args.command!r}")  # pragma: no cover
     return 2
 

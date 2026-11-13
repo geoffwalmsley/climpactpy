@@ -26,6 +26,10 @@ a station that fails is reported in `outputs/<station>.errors.txt`):
 .venv/bin/climpact batch metadata.txt station_files/ --out outputs
 ```
 
+QC, homogeneity and index calculation are separate modules, and other packages can add
+their own as plugins. `climpact modules` lists the modules installed; `--qc`,
+`--homogeneity` and `--indices` select them (see "Modules and plugins" in TECHNICAL.md).
+
 The R reference outputs used for parity testing are in `reference/` (see `reference/README.md`).
 
 See [TECHNICAL.md](TECHNICAL.md) for the architecture, parity testing and the differences between the Python and R implementations.

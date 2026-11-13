@@ -1,4 +1,4 @@
-"""Registry of builders for Climpact-format output tables.
+"""Registry of builders for Climpact-format index tables, and the built-in index module.
 
 Each Climpact output file (for example ``indices/fd_ANN``) is produced by a builder
 that takes a station run and returns a :class:`pandas.DataFrame` with the same
@@ -7,6 +7,10 @@ example ``r30mm`` or ``rx3day``), so builders are *products*: functions returnin
 mapping of output key to table. The parity tests compare every produced table
 against the R reference outputs; files no product produces are reported as not yet
 ported.
+
+The registered products make up the built-in index module, :data:`CLIMPACT_INDICES`
+(see :mod:`climpact.modules`). The QC files are built by the built-in QC module,
+:data:`climpact.products.qc.CLIMPACT_QC`.
 """
 
 from __future__ import annotations
@@ -59,21 +63,40 @@ def load_builtin_builders() -> list[Product]:
     return PRODUCTS
 
 
-def build_all(run: Any) -> dict[str, pd.DataFrame]:
-    """Build every registered output table for a run."""
-    load_builtin_builders()
-    tables: dict[str, pd.DataFrame] = {}
-    for make in PRODUCTS:
-        for key, table in make(run).items():
-            if key in tables:
-                raise ValueError(f"output {key!r} produced twice")
-            tables[key] = table
-    for make in DERIVED:
-        for key, table in make(run, dict(tables)).items():
-            if key in tables:
-                raise ValueError(f"output {key!r} produced twice")
-            tables[key] = table
-    return tables
+class ClimpactIndices:
+    """The built-in index module: every registered product, then the derived ones."""
+
+    name = "climpact"
+
+    def build(self, run: Any, tables: Mapping[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+        load_builtin_builders()
+        out: dict[str, pd.DataFrame] = {}
+        for make in PRODUCTS:
+            _add(out, make(run))
+        for make in DERIVED:
+            _add(out, make(run, {**tables, **out}))
+        return out
+
+
+def _add(tables: dict[str, pd.DataFrame], new: Mapping[str, pd.DataFrame]) -> None:
+    for key, table in new.items():
+        if key in tables:
+            raise ValueError(f"output {key!r} produced twice")
+        tables[key] = table
+
+
+CLIMPACT_INDICES = ClimpactIndices()
+
+
+def build_all(run: Any, modules: Any = None) -> dict[str, pd.DataFrame]:
+    """Build every output table for a run: QC, homogeneity and index modules.
+
+    ``modules`` is a :class:`climpact.modules.ModuleSelection` (default: the built-in
+    modules, which write R's files).
+    """
+    from climpact.modules import run_pipeline
+
+    return run_pipeline(run, modules).tables
 
 
 def build(key: str, run: Any) -> pd.DataFrame:

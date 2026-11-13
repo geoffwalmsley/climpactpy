@@ -8,7 +8,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **97 of the 117** R reference files for Sydney (`lat0` and
+The Python port reproduces **98 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)). Every ported file is also written text-identical
 to R's on all 15 runs, apart from the `Date_of_calculation` line:
@@ -18,7 +18,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Threshold counts | fd, tnlt2, tnltm2, tnltm20, id, su, tr, txge30, txge35, tmge5, tmge10, tmlt5, tmlt10, r10mm, r20mm, rNNmm, custom index | |
 | Means and totals | dtr, tmm, txm, tnm, prcptot, sdii | |
 | Extremes (with dates) | txx, tnn, tnx, txn, rx1day, rx3day (rxdday), rx5day | |
-| Spells (with dates) | cdd, cwd | gsl |
+| Spells (with dates) | cdd, cwd, gsl | |
 | Degree days | hddheat, cddcold, gddgrow | |
 | Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot, tx90p, tx10p, tn90p, tn10p, txgt50p (with the in-base bootstrap) | |
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
@@ -306,6 +306,7 @@ data-validation warnings.
 | `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
 | | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
+| | gsl: xclim's `growing_season_length` ends the season on TM ≤ 5 °C when it starts on TM > 5 °C (or starts on ≥ 5 °C when it ends on < 5 °C), where R uses > 5 and < 5; it returns no dates, and its Southern Hemisphere mask differs (see [Growing season length](#growing-season-length-gsl)) |
 | | r95p, r99p, r95ptot, r99ptot: one threshold per station, not per day of year, and R's extended-precision `sum` is needed for the 15th digit (see below) |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
 | | tx90p, tn90p, tx10p, tn10p, txgt50p: xclim's bootstrapping (`xclim.core.bootstrapping`) recomputes `percentile_doy`, which already differs from climdex's thresholds (see below), so it cannot match R exactly; the bootstrap and R's in-base averaging are ported directly |
@@ -325,11 +326,11 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 97/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 97/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 97/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 95/115 and 97/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 97/117 each |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 98/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 98/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 98/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 96/115 and 98/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 98/117 each |
 | `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 74/83 and 51/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
@@ -380,36 +381,36 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-beijing: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-darwin: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-dublin: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-lat0: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-madrid: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-minneapolis: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+alice_springs: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+beijing: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+darwin: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+dublin: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+lat0: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+madrid: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+minneapolis: 98/117 reference files reproduced, 0 failing, 19 not yet ported
 nairobi: 51/60 reference files reproduced, 0 failing, 9 not yet ported
 new_delhi: 74/83 reference files reproduced, 0 failing, 9 not yet ported
-oxford: 95/115 reference files reproduced, 0 failing, 20 not yet ported
-perth: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-phoenix: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-potsdam: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-sydney: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-yakutsk: 97/117 reference files reproduced, 0 failing, 20 not yet ported
-alice_springs: 97/117 written CSV files text-identical to R, 0 differing
-beijing: 97/117 written CSV files text-identical to R, 0 differing
-darwin: 97/117 written CSV files text-identical to R, 0 differing
-dublin: 97/117 written CSV files text-identical to R, 0 differing
-lat0: 97/117 written CSV files text-identical to R, 0 differing
-madrid: 97/117 written CSV files text-identical to R, 0 differing
-minneapolis: 97/117 written CSV files text-identical to R, 0 differing
+oxford: 96/115 reference files reproduced, 0 failing, 19 not yet ported
+perth: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+phoenix: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+potsdam: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+sydney: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+yakutsk: 98/117 reference files reproduced, 0 failing, 19 not yet ported
+alice_springs: 98/117 written CSV files text-identical to R, 0 differing
+beijing: 98/117 written CSV files text-identical to R, 0 differing
+darwin: 98/117 written CSV files text-identical to R, 0 differing
+dublin: 98/117 written CSV files text-identical to R, 0 differing
+lat0: 98/117 written CSV files text-identical to R, 0 differing
+madrid: 98/117 written CSV files text-identical to R, 0 differing
+minneapolis: 98/117 written CSV files text-identical to R, 0 differing
 nairobi: 51/60 written CSV files text-identical to R, 0 differing
 new_delhi: 74/83 written CSV files text-identical to R, 0 differing
-oxford: 95/115 written CSV files text-identical to R, 0 differing
-perth: 97/117 written CSV files text-identical to R, 0 differing
-phoenix: 97/117 written CSV files text-identical to R, 0 differing
-potsdam: 97/117 written CSV files text-identical to R, 0 differing
-sydney: 97/117 written CSV files text-identical to R, 0 differing
-yakutsk: 97/117 written CSV files text-identical to R, 0 differing
+oxford: 96/115 written CSV files text-identical to R, 0 differing
+perth: 98/117 written CSV files text-identical to R, 0 differing
+phoenix: 98/117 written CSV files text-identical to R, 0 differing
+potsdam: 98/117 written CSV files text-identical to R, 0 differing
+sydney: 98/117 written CSV files text-identical to R, 0 differing
+yakutsk: 98/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -860,6 +861,76 @@ R behaviour not copied (also #51) is described above: the whole-season heatwave 
 all-missing HWN/HWF; both are listed under
 [R behaviour not to be copied](#r-behaviour-not-to-be-copied).
 
+### Growing season length (gsl)
+
+climdex.pcic's `climdex.gsl` and `growing.season.length` (`R/threshold_indices.R`), which
+Climpact does not override. `index.calc` calls it with the default `gsl.mode = "GSL"` and
+`include.exact.dates = TRUE` (gsl is in `exact_date_indices`, `server/global_variables.r`),
+so the file has the columns `time, start, sl, end` and no standardised column. TM is
+`(TX + TN) / 2`, computed by `climdexInput.raw`. Ported directly in `products/indices.py`
+(`growing_season_length`, `season_length`, `southern_gsl_mask`).
+
+**Season.** In the Northern Hemisphere (`lat > 0`) a season is a calendar year. The start
+is the first day of the first run of at least 6 days with TM **>** 5 °C that lies before
+1 July; the end is the first run of at least 6 days with TM **<** 5 °C from 1 July. In the
+Southern Hemisphere (latitude 0 included) the season runs from 1 July of the labelled year
+to 30 June of the next (`years.gsl <- years - floor((12 - months) / 6)`), the start is
+searched in July-December and the end from 1 January. January-June of the first year are
+not used. Reproduced, including:
+
+- runs are found within each half separately (`select.blocks.gt.length` on the two halves),
+  so a warm run crossing the transition date needs 6 days before it, and a cold run 6 days
+  after it;
+- a missing day breaks a run (NA counts as FALSE);
+- a day of exactly 5 °C is neither warm nor cold;
+- with no start the length is 0 and the dates are missing; with a start but no end the
+  season ends on its last day;
+- a season without a day in the transition month is missing; in the south this is always
+  the last season (July-December only), so the last year is missing.
+
+**Dates.** The start date is the first day of the warm run. The end date is computed from
+`end`, a 1-based day number, as `origin + end` days, so it is one day later than the day
+`end` numbers. When a cold run is found, `end` is the day before the cold run and the
+reported end date is the **first day of the cold run** (`end - start = sl`); when none is
+found, `end <- ts.len - 1` and the end date is the season's last day (`end - start = sl - 1`).
+Reproduced (see the quirks below).
+
+**Missing data.** The north uses the climdex annual TM mask (`namasks$annual$tavg`, our
+`valid_mask(ds.tas, freq="YS")`). The south builds its own mask for July-June seasons, with
+`max.missing.days["annual"]` (15 days) applied both to the season and to each of its
+months, and the last season set missing. A month with 4-15 missing days therefore does not
+make a southern season missing, where it makes a northern year missing. Reproduced. Where
+the length is missing, so are both dates; as for cdd/cwd, the file is written unless every
+value is missing (R wrote none for `new_delhi` and `nairobi`, nor does Python).
+
+**Not using xclim.** xclim's `growing_season_length` (`xclim.compute`) uses a start
+condition and its complement for the end: with `op=">"` the season ends on TM ≤ 5 °C.
+It differs from R in 8 of 60 years on `minneapolis` (2 on `potsdam` and `madrid`, 4 on
+`yakutsk`, 1 on `beijing`). These are all days of exactly 5.0 °C: with the end test changed
+to ≤ 5, the port agrees with xclim in every year where both have a value. xclim also
+returns no dates, and in the south (`freq="YS-JUL"`) adds a partial first season starting
+in the July before the data and applies the climdex mask, not `climdex.gsl`'s.
+
+**Result.** `gsl_ANN` passes at `EXACT` and is text-identical to R on all 13 runs where R
+wrote it, 8 of them northern (`minneapolis`, `yakutsk`, `phoenix`, `madrid`, `potsdam`,
+`oxford`, `dublin`, `beijing`). No reference run has a season with length 0, a southern
+season ending in a cold run, or a cold run starting on the transition day.
+`tests/test_gsl.py` covers these and the other rules above with values printed by R
+(`tests/data/r_gsl.R` on `tests/data/gsl_synthetic.txt`) at latitudes 45, 0 and -30.
+
+**R quirks that look like bugs, reproduced for parity (decision pending).**
+
+1. **End date is the first day of the cold run.** When a cold run ends the season, the
+   reported end date is one day after the season's last growing day, while a season with
+   no cold run reports its last day. Correcting it (end = start + sl - 1 in both cases)
+   would change the `end` column of 295 rows across the 7 northern runs with a cold-run
+   end (`minneapolis` 60, `potsdam` 60, `yakutsk` 57, `beijing` 52, `dublin` 27, `oxford`
+   23, `madrid` 16); `sl` would not change, and no southern reference row is affected.
+2. **Southern months checked with the annual 15-day limit.** `climdex.gsl` passes
+   `max.missing.days["annual"]` to the monthly `get.na.mask` of a southern season. With the
+   climdex monthly limit of 3 days, season 1996 of `lat0` and `sydney` would become missing;
+   no other reference row changes.
+
 ### Station input
 
 | R behaviour | Python |
@@ -935,7 +1006,8 @@ take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
 | other GHCN runs (60 years) | 0.7-0.8 s | 1.0 s | 1.7-1.9 s |
 | `new_delhi`, `nairobi` (patchy) | 0.7 s | 0.9 s | 1.5-1.6 s |
 
-The spell-duration indices (6 files) take about 0.2-0.25 s per station.
+The spell-duration indices (6 files) take about 0.2-0.25 s per station, and gsl about
+0.03-0.1 s.
 
 The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
 at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550

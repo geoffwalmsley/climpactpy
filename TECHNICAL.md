@@ -29,7 +29,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF | plots, zip archive |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`) | gridded indices (#30) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
@@ -37,7 +37,8 @@ Progress is printed at the end of every test run (see [Parity testing](#parity-t
 
 The Python port writes every ported output as a Climpact-format CSV file, text-identical
 to R's apart from the `Date_of_calculation` line (see [Writing output files](#writing-output-files)).
-It does not yet write plots or zip archives.
+With `--plots` it also draws R's index plots and combined PDF, under R's file names, and
+with `--zip` zips the outputs as R's download does (see [Plots and zip archive](#plots-and-zip-archive)).
 
 ## Repository layout
 
@@ -49,6 +50,8 @@ src/climpact/
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
+  plots.py           index plots (PNG), the combined PDF and the zip archives (matplotlib,
+                     optional: the `plots` extra)
   progress.py        progress callbacks: Progress, BatchProgress, Steps (see Progress reporting)
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
@@ -86,7 +89,8 @@ src/climpact/
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var,
                      the sums of moving windows (r_window_sums), and of R's round()
   rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
-  trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S))
+  trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S)),
+                     and the plots' trend: zyp.sen's intercept, Mann-Kendall p-value
 tests/
   parity/            one test per R reference file and per gridded netCDF variable, plus
                      progress reporting
@@ -101,7 +105,8 @@ reference/
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
   make_qc_stress.py  make the synthetic QC stress station from Potsdam
   input/             station input data used by the tests
-  output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored)
+  output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored,
+                     their names are in output/<run>/plot-files.txt)
   gridded/           gridded runs (runs.csv), make_grids.py, input grids and R's thresholds
                      netCDF files (output/<run>/thresholds.nc)
   r/, run_r_reference.sh, run_r_gridded.sh
@@ -351,7 +356,10 @@ only).
 (`climpact.batch.stations.r`, `server/batch_stations.R`). Options: `--base-start`,
 `--base-end` (default 1971-2000, applied to every station, as R's command-line
 arguments), `--workers` (processes; R's `cores_to_use`), `--custom VAR OP VALUE`, and
-`--qc`, `--homogeneity`, `--indices` (see [Modules and plugins](#modules-and-plugins)).
+`--qc`, `--homogeneity`, `--indices` (see [Modules and plugins](#modules-and-plugins)),
+`--plots` (each station's plots, as `climpact run --plots`) and `--zip` (the whole output
+folder to `<out>.zip` once every station has finished; see
+[Plots and zip archive](#plots-and-zip-archive)).
 
 - **Metadata file** (`read_batch_metadata`): R's format, read unchanged, for example
   Climpact's `www/sample_data/climpact.sample.batch.metadata.txt` (copied to
@@ -415,7 +423,7 @@ stops calling it.
 | Function | Stages, in order |
 | --- | --- |
 | `modules.run_pipeline(run, modules, progress)`, `outputs.build_all(run, modules, progress)` | `qc:<module>` for each QC module, `homogeneity:<module>`, then `indices:<module>` for each index module. A module with a `progress_steps()` method reports its own steps instead (`<kind>:<module>:<step>`); the built-in index module reports each product (`indices:climpact:spi`, ..., `indices:climpact:trend_file`). `modules.pipeline_stages(modules)` lists them. The built-in modules give 20 stages. |
-| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules |
+| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules. With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
 | `gridded.write_grid_thresholds(..., progress=)` | `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
 
@@ -451,6 +459,95 @@ standard output and the files written are unchanged. `climpact gridded-threshold
 process and in two worker processes (stages before each station's result), the gridded
 thresholds and the command line, and that the files written with and without a callback
 are byte-identical.
+
+## Plots and zip archive
+
+`climpact.plots` draws the plots R draws in `index.calc` (`services/calculate_indices.R`,
+`plot.call` and `plot.hw` in `services/plot_indices.R`, `plot.precindex` in
+`services/plot_prec_index.R`) and zips the outputs as `services/zipFiles.R`. matplotlib is
+an optional dependency (`pip install climpactpy[plots]`; it is in `dev` too). It is imported
+only when plots are drawn, on an Agg canvas without `pyplot`, so a caller's matplotlib
+backend is never changed. `climpact run --plots --zip` and `climpact batch --plots --zip`
+use it; `run_station(..., plots=True, zip=True)` and `run_batch(...)` take the same flags,
+and `--plots` without matplotlib is a command-line error before the run starts.
+
+**Files.** `write_plots(tables, metadata, params, out_dir)` writes, from a run's tables:
+
+- `<out>/<station>/plots/<station>_<name>.png`, one per plotted series. `<name>` is the
+  index file's (`fd_ANN`, `txx_MON`, `tx95t_DAY`, `TX90-HWM_ANN`, `EHF-HWLI_ANN`,
+  `3month_spi_MON`, `TNgt0_ANN`, ...), or `day_of_<name>` for the calendar day of the
+  indices with dates (`exact_date_indices`) other than cwd, cdd and gsl: day of the year
+  for annual values, of the month for monthly ones, from the `ymd` column.
+- `<out>/<station>/plots/<station>_all_plots.pdf`, every plot as a page, in R's order (the
+  rows of `climate.indices.csv`, a series' `day_of_` plot after it, the custom index last).
+
+A series is plotted when its table exists and the plotted column (`val`, `duration` or
+`sl` for the indices with dates, otherwise the index; the trend file's `_value_column`) is
+not missing throughout, as `plot.call` skips such a series. This gives exactly R's file
+list: for `sydney` and `lat0`, the only reference runs whose plots are kept, R's 127
+names (126 PNGs and the PDF) are committed in `reference/output/<run>/plot-files.txt`
+(written by `run_r_reference.sh`), and `tests/parity/test_plots.py` checks the plots
+Python draws, and the files `write_plots` writes for Sydney, against them. The other runs'
+R plots are not kept locally, so their names are not checked. The plots are compared with
+R's by eye, not pixel by pixel. `tests/test_plots.py` covers the p-value (`ALNORM` against
+the normal distribution, ties, missing values, the cases `TAUK2` leaves at 1), the
+intercept, which plots a set of tables gives, the text under a plot, the progress stages,
+the zip layouts and the command-line flags.
+
+**What each plot shows** is what R's show: the station name and coordinates, the index
+definition (R's subtitle: `<name>: <definition>`, the heatwave and EHF descriptions of
+`plot.hw` and `calculate.hwEHF`, `<scale>-month spi: <definition>`, `Number of days where
+TN > 0` for the custom index), the units, the values, the missing periods, the Sen's slope
+trend line, and the slope with its 95% bounds and the Mann-Kendall p-value, or R's "no
+linear trend" message when `min_trend_data` fails. tx95t and the `day_of_` plots have no
+trend, as R passes `opt = 0` or `calculate_trends = FALSE` for them. SPI and SPEI are bars,
+blue above zero and orange below (R: blue and red); the others are lines with markers
+(R's `type = "b"`).
+
+**The trend** is `trends.plot_trend`: the slope and bounds are the trend file's
+(`sen_trend`), so the plot and `trend/trend` agree. The intercept is `zyp.sen`'s, the
+median of `y - slope x` over the values present, with `x` counted from 0 at the first
+period. The p-value is `MannKendall(y)$sl` (Kendall 2.2.2), `trends.mann_kendall_p`: the
+values present, `x = 1, 2, ...`, `S` and `Var(S)` in single precision as Fortran `TAUK2`,
+and the normal approximation with a continuity correction, `z = (S -+ 1) / sqrt(Var(S))`,
+`p = 2 min(Phi(z), 1 - Phi(z))`, with `Phi` from algorithm AS 66 (`ALNORM`) evaluated in
+double precision. `TAUK2`'s exact method for small untied samples is never reached: its
+"no ties" flag is true only for a constant series, which returns earlier with p = 1. The
+Sydney plots show the p-values R prints (txx_ANN 0.819, txx_MON 0.282, 3-month SPEI
+0.873).
+
+**Zip archives.** `zip_station(out, station)` writes `<out>/<station>.zip` from the
+station folder, as R's single-station download (`singleStationStep3.R`: the station folder
+zipped into its parent as `<station>.zip`, leaving out `*.zip`): entries `indices/...`,
+`plots/...`, `qc/...` relative to the station folder, with folder entries, as `zip -r`
+writes them. `zip_batch(out)` writes `<out>.zip` next to the batch folder, with entries
+`<station>/...` and the error files, as R's batch download (`batchStep1.R`). Entries are
+sorted; CSV files are deflated at level 9 (R's `zip -9`), PNG and PDF files, compressed
+already, are stored.
+
+**Differences from R's plots** (deliberate; the information is the same):
+
+| R | Python |
+| --- | --- |
+| 800 x 600 PNG; title `Station: <name> [-33.86°S, 151.21°E]`, the definition in small type | 1200 x 750 PNG (a 128-colour palette); the station line `<name>  ·  33.86°S, 151.21°E` (no minus sign before S or W), the definition as the bold title, wrapped |
+| y label is the raw unit (`degrees_C`) | `°C`, `°C²`; `unitless` is left blank |
+| Missing values: blue triangles at the bottom of the plot; the line is broken | a grey tick at the bottom of the axes per missing period, and a legend entry with the count; the line is broken |
+| `Sen's slope = 0.001 lower bound = -0.001, upper bound = 0.002, p-value = 0.282`, rounded to 3 decimals (so small slopes print as 0) | `Sen's slope 0.001 °C per month (95% CI -0.001 to 0.002), Mann-Kendall p = 0.282`: the unit and time step, 3 decimals, or 3 significant digits below 0.0005 (`2.09e-5`), `p < 0.001` |
+| The trend line is `abline(intercept, slope)` on axis positions that are not the fit's `x`: periods are at 1, 2, ... on the axis but 0, 1, ... in the fit, so the line is one period early; SPI/SPEI bars are centred at 0.5, 1.5, ... but fitted on 1, 2, ..., so half a period late | the line passes through `intercept + slope x` at each period's own position |
+| When `min_trend_data` passes but `confint.zyp` fails, R prints `Sen's slope = NA ...` | the "no linear trend" message |
+| No legend, no gridlines, a box around the plot | a legend (trend line, missing count, wet/dry for SPI/SPEI), light gridlines, no top or right axis line |
+| PDF pages 11.5 x 8 in, with R's fonts embedded | 10 x 6.25 in pages (the PNG layout) in Helvetica, one of the standard PDF fonts, not embedded |
+| A warning while plotting (`tryCatch(..., warning = ...)` in `index.calc`) skips the rest of that index's plots | every plot is drawn |
+| `plot.precindex` loops over `c(3, 6, 12, custom)`, so a custom SPI/SPEI scale of 3, 6 or 12 months draws that PNG twice (the second overwrites the first) and adds a second PDF page | drawn once |
+
+**Speed.** One figure is reused for every PNG and one for every PDF page: their artists
+are created once and each plot only updates data and text. Measured on the Sydney tables
+(Apple M-series): 126 PNGs and the 126-page PDF in 5.4-5.7 s, PNGs about 60% of it. A
+figure per plot took 13 s. Unhinted text (PNG), the 128-colour PNG palette and the
+standard PDF font (no embedding) each saved about 1 s. The PNGs total 6.8 MB (R's 13 MB),
+the PDF 0.8 MB. Zipping the Sydney folder takes about 0.5 s. Plots are drawn in the
+station's own process: a worker process would cost more than it saves, as importing
+`climpact` imports xclim (about 2 s).
 
 ## Missing data
 
@@ -1723,7 +1820,7 @@ file must be text-identical.
 | `write.hw.csv` writes the ten Tx90/Tn90 heatwave files with `time, <aspect>` columns (no standardised column) and writes them even when one is missing in every year | reproduced (`_HEATWAVE_FILE` in `io/output_files.py`). Exercised by `new_delhi` |
 | `write.precindex.csv` writes the four SPI (SPEI) files with `time, spi` columns and no standardised column, all four unless every value is missing | reproduced (`_PRECINDEX_FILE`, `_PRECINDEX_DESCRIPTIONS`) |
 | The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
-| `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
+| `index.calc` writes a PNG per plotted series and `<station>_all_plots.pdf`; the app zips the station folder | written with `--plots` and `--zip`, under R's names; drawn differently (see [Plots and zip archive](#plots-and-zip-archive)) |
 
 ### Gridded data
 
@@ -1906,10 +2003,11 @@ python3 -m venv .venv
 - Compute gridded thresholds with
   `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
 - Run a station from the command line with
-  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
+  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip]`
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
+- Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the
+  plots (the optional `plots` extra, also in `dev`). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
   (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
   the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
   macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:

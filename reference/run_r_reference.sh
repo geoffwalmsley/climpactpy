@@ -49,5 +49,10 @@ for run in "${runs[@]}"; do
     "$IMAGE" "$cmd" --lat "$lat" --lon "$lon" --station "/input/$station.txt" --name "$station" \
     || { echo "=== $run: R run failed" >&2; status=1; }
   git -C "$CLIMPACT_DIR" rev-parse HEAD > "$OUT/$run/climpact-commit.txt"
+  # The plots are gitignored; their names (without the station prefix) are committed, for
+  # the plot file-list test.
+  if [[ -d "$OUT/$run/$station/plots" ]]; then
+    ls "$OUT/$run/$station/plots" | sed "s/^${station}_//" > "$OUT/$run/plot-files.txt"
+  fi
 done
 exit $status

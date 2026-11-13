@@ -28,7 +28,7 @@ from queue import Empty
 
 from climpact.config import CustomIndex, IndexParams, StationMetadata
 from climpact.modules import ModuleSelection
-from climpact.progress import BatchProgress, Progress
+from climpact.progress import BatchProgress, Progress, Steps
 
 # R's read.file.list.metadata col.names. The header row's own names are not checked.
 COLUMNS = (
@@ -188,35 +188,58 @@ def run_station(
     date: dt.date | None = None,
     modules: ModuleSelection | None = None,
     progress: Progress | None = None,
+    plots: bool = False,
+    zip: bool = False,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
     ``modules`` selects the QC, homogeneity and index modules (default: the built-in
-    ones). ``progress(stage, step, total)`` is called after each stage: ``read``, the
-    stages of :func:`~climpact.modules.pipeline_stages`, then ``write`` (see
-    :mod:`climpact.progress`). Returns the files written and the output keys not written
-    (missing in every period).
+    ones). ``plots`` also draws R's index plots and combined PDF
+    (:func:`climpact.plots.write_plots`, needs matplotlib), and ``zip`` then zips the
+    station folder to ``<out_dir>/<station>.zip`` (:func:`climpact.plots.zip_station`).
+    ``progress(stage, step, total)`` is called after each stage: ``read``, the stages of
+    :func:`~climpact.modules.pipeline_stages`, ``write``, then with ``plots`` the stages of
+    :func:`~climpact.plots.plot_steps` and with ``zip`` a last ``zip`` (see
+    :mod:`climpact.progress`). Returns the files written, keyed by output key (plots as
+    ``plots/<name>``, the zip file as ``zip``), and the output keys not written (missing
+    in every period).
     """
     from climpact.io.output_files import write_outputs
     from climpact.modules import pipeline_stages, resolve, run_pipeline
     from climpact.station import load_station
 
+    if plots:
+        from climpact.plots import plot_steps, require_matplotlib
+
+        require_matplotlib()  # fail before the run, not after it
     loaded = resolve(modules)
+    steps = Steps(progress, 0)
     pipeline_progress = None
     if progress is not None:
-        total = len(pipeline_stages(loaded)) + 2
+        steps.total = len(pipeline_stages(loaded)) + 2
+        steps.total += len(plot_steps(params)) if plots else 0
+        steps.total += 1 if zip else 0
 
         def pipeline_progress(stage: str, step: int, _total: int) -> None:
-            progress(stage, step + 1, total)
+            steps.done(stage)
 
     run = load_station(station_file, metadata, params)
-    if progress is not None:
-        progress("read", 1, total)
+    steps.done("read")
     tables = run_pipeline(run, loaded, pipeline_progress).tables
     written = write_outputs(tables, metadata, params, out_dir, date)
-    if progress is not None:
-        progress("write", total, total)
-    return written, sorted(set(tables) - set(written))
+    skipped = sorted(set(tables) - set(written))
+    steps.done("write")
+    if plots:
+        from climpact.plots import write_plots
+
+        drawn = write_plots(tables, metadata, params, out_dir, steps.done)
+        written.update({f"plots/{name}": path for name, path in drawn.items()})
+    if zip:
+        from climpact.plots import zip_station
+
+        written["zip"] = zip_station(out_dir, metadata.name)
+        steps.done("zip")
+    return written, skipped
 
 
 def _process(
@@ -227,6 +250,7 @@ def _process(
     base_end: int,
     date: dt.date | None,
     modules: ModuleSelection | None,
+    plots: bool = False,
     progress: BatchProgress | None = None,
 ) -> StationResult:
     """Run one station, turning any exception into a failed result."""
@@ -250,6 +274,7 @@ def _process(
             date,
             modules,
             station_progress,
+            plots=plots,
         )
     except Exception as exc:  # noqa: BLE001 - reported per station, the batch carries on
         detail = "".join(traceback.format_exception_only(exc)).strip()
@@ -297,6 +322,8 @@ def run_batch(
     on_result: Callable[[StationResult], None] | None = None,
     modules: ModuleSelection | None = None,
     progress: BatchProgress | None = None,
+    plots: bool = False,
+    zip: bool = False,
 ) -> list[StationResult]:
     """Run every station and write its outputs to ``<out_dir>/<station>/``.
 
@@ -315,14 +342,23 @@ def run_batch(
     several workers the stages are sent back from the worker processes on a queue and the
     callback runs in this process and thread; a station's stages always come before its
     ``on_result``, and stages of different stations interleave.
+
+    ``plots`` draws each station's plots and combined PDF, as :func:`run_station` does.
+    ``zip`` zips the whole batch folder once every station has finished, to
+    ``<out_dir>.zip`` next to it (:func:`climpact.plots.zip_batch`), as R's batch
+    download does.
     """
+    if plots:
+        from climpact.plots import require_matplotlib
+
+        require_matplotlib()  # fail before the batch, not in every station
     stations = [replace(s, params=replace(s.params, custom=custom)) for s in stations]
     data_dir, out_dir = Path(data_dir), Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     for station in stations:
         _error_file(out_dir, station.name).unlink(missing_ok=True)
 
-    args = [(s, data_dir, out_dir, base_start, base_end, date, modules) for s in stations]
+    args = [(s, data_dir, out_dir, base_start, base_end, date, modules, plots) for s in stations]
     workers = min(workers or multiprocessing.cpu_count(), max(len(stations), 1))
     results: dict[str, StationResult] = {}
 
@@ -338,7 +374,7 @@ def run_batch(
     if workers <= 1:
         for a in args:
             finish(_process(*a, progress=progress))
-        return [results[s.name] for s in stations]
+        return _batch_done(stations, results, out_dir, zip)
 
     # spawn: the same start method on every platform, and no fork of a process whose
     # numerical libraries may be running threads.
@@ -381,6 +417,16 @@ def run_batch(
                     except Empty:  # never expected: the marker was sent before returning
                         pass
                 finish(result)
+    return _batch_done(stations, results, out_dir, zip)
+
+
+def _batch_done(
+    stations: list[BatchStation], results: dict[str, StationResult], out_dir: Path, zip: bool
+) -> list[StationResult]:
+    if zip:
+        from climpact.plots import zip_batch
+
+        zip_batch(out_dir)
     return [results[s.name] for s in stations]
 
 

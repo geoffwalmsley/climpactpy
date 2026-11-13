@@ -1,7 +1,7 @@
 # Prints climdex.pcic's climdex.gsl (gsl.mode "GSL", include.exact.dates = TRUE, as Climpact
 # calls it) for tests/data/gsl_synthetic.txt, one growing-season scenario per year 2001-2008,
 # for tests/test_gsl.py. Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_gsl.R
 # Latitude 45 is northern; latitudes 0 and -30 are southern (climdex: lat > 0 is northern).
 suppressMessages(library(climdex.pcic))

@@ -4,7 +4,7 @@ TAVG follows a small seasonal cycle (below 19 degC), with 60 days at exactly 25 
 2002 base year, so that the base-period T95 is exactly 25, and hot days at 40 degC that
 make the EHF heatwaves listed below. TX and TN are TAVG + 5 and TAVG - 5.
 
-    .venv/bin/python tests/data/make_ehf_synthetic.py
+    .venv/bin/python packages/climpact/tests/data/make_ehf_synthetic.py
 """
 
 import datetime as dt

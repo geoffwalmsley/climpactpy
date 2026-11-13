@@ -7,6 +7,13 @@ architecture, parity testing and the differences between the Python and R implem
 
 - Run all Python through the project virtualenv: `.venv/bin/python`, `.venv/bin/pytest`,
   `.venv/bin/ruff`. Never install packages globally.
+- The repository holds two packages: the core in `packages/climpact` (`src/climpact`, its
+  tests and the R parity suite) and the web front end in `packages/climpact-web`
+  (`climpact_web`). The core must never import `climpact_web`. One venv has both,
+  installed editable: `python3 -m venv .venv && .venv/bin/python -m pip install -e
+  "packages/climpact[dev]" -e "packages/climpact-web[dev]"`.
+- `.venv/bin/pytest` from the root runs both packages' tests; `.venv/bin/pytest
+  packages/climpact` runs the core alone (as CI does, without the web package installed).
 - Changes go through pull requests; do not commit to `main`.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
   `pytest`, and report the R parity summary printed at the end of the test run.

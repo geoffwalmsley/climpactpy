@@ -3,9 +3,9 @@
 # on synthetic series, for tests/test_trends.py; the output is stored in
 # tests/data/r_trends.txt (C99 hex floats, NA for missing).
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_trends.R \
-#     | grep -v '^WARNING' > tests/data/r_trends.txt
+#     | grep -v '^WARNING' > packages/climpact/tests/data/r_trends.txt
 # (Kendall prints "WARNING: Error exit, tauk2. IFAULT = 12" with cat for the constant series.)
 # Cases (y values; x = 0, 1, ... with the missing values left out, as plot.call does):
 #   short:    12 values, two missing (a slope count small enough to check by hand);

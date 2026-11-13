@@ -2,8 +2,8 @@
 # SPEI 1.8.1's hargreaves() on synthetic monthly series, for tests/test_drought.py; the
 # output is stored in tests/data/r_drought.txt (C99 hex floats, NA for missing).
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
-#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_drought.R > tests/data/r_drought.txt
+#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/packages/climpact/tests/data:/probe:ro \
+#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_drought.R > packages/climpact/tests/data/r_drought.txt
 # Monthly series 1961-2010 (600 months), base period 1971-2000. Cases:
 #   - January has no precipitation in any base year: L2 = 0, so January is never fitted;
 #   - April has only 4 base-period values: pwm.ub gives NaN, April is never fitted;

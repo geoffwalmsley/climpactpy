@@ -2,15 +2,29 @@
 
 A Python port of [Climpact](https://github.com/ARCCSS-extremes/climpact), the R software for calculating indices of daily climate extremes.
 
+## Repository layout
+
+The repository holds two Python packages:
+
+- `packages/climpact`: the core package (distribution `climpactpy`, imported as
+  `climpact`), with its tests and the R parity suite. It has no web dependencies:
+  `pip install ./packages/climpact` installs only the core.
+- `packages/climpact-web`: the web front end (`climpact_web`), which depends on the core.
+  A stub for now.
+
+`reference/` (the R reference outputs) is shared at the root.
+
 ## Development
 
-Requires Python 3.11+. Work inside a virtual environment:
+Requires Python 3.11+. Work inside one virtual environment with both packages installed
+in editable mode:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
-.venv/bin/pytest
+.venv/bin/pytest                      # both packages' tests, including R parity
+.venv/bin/pytest packages/climpact    # the core only
 ```
 
 To calculate the indices for a station and write them as Climpact CSV files:

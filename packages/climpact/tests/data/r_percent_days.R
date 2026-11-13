@@ -1,6 +1,6 @@
 # Prints Climpact's txgt50p for two small synthetic stations, for tests/test_temperature_percentiles.py.
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_percent_days.R
 # Output (climdex.pcic 1.2-0 with Climpact's percent.days.op.threshold):
 #   2001 2002 2003 2004

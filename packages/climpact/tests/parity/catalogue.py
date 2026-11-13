@@ -10,7 +10,7 @@ from pathlib import Path
 from climpact.compare import Tier
 from climpact.config import StationMetadata
 
-REFERENCE_DIR = Path(__file__).parents[2] / "reference" / "output"
+REFERENCE_DIR = Path(__file__).parents[4] / "reference" / "output"
 STATIONS_CSV = REFERENCE_DIR.parent / "stations.csv"
 
 

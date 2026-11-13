@@ -29,7 +29,7 @@ from climpact.sector import (
     write_r_csv,
 )
 
-REFERENCE = Path(__file__).parents[1] / "reference"
+REFERENCE = Path(__file__).parents[3] / "reference"
 STATION = "sydney_observatory_hill_1936-2015"
 STATION_FILE = REFERENCE / "input" / f"{STATION}.txt"
 SECTOR_FILE = REFERENCE / "input" / "sector" / "wheat_yield_nsw_1922-1999.csv"

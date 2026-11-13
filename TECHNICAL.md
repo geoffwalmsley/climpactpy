@@ -48,6 +48,31 @@ with `--zip` zips the outputs as R's download does (see [Plots and zip archive](
 
 ## Repository layout
 
+The repository holds two Python packages, each with its own `pyproject.toml` (hatchling)
+and tests, developed in one virtualenv with both installed editable (see
+[Development](#development)). There is no uv workspace or lock file: a uv workspace could
+be added later without moving files (#68).
+
+```
+packages/
+  climpact/          the core package: distribution `climpactpy`, imported as `climpact`.
+                     Its dependencies are the scientific stack only (xclim, xarray, numpy,
+                     pandas, scipy, dask, netCDF4); extras `plots` and `dev`
+  climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/);
+                     depends on the core. A stub until the web app (#11)
+reference/           the R reference outputs and the scripts that make them, shared at the root
+ruff.toml            ruff settings for the whole repository (each package's pyproject.toml
+                     extends it)
+pytest.ini           `pytest` from the root runs both packages' tests; each package's
+                     pyproject.toml has the same settings for running it alone
+```
+
+The core never imports `climpact_web`: `tests/test_layout.py` checks every Python file in
+`packages/climpact`, and CI runs the core suite with only the core installed.
+
+Paths in the rest of this document (`src/climpact/...`, `tests/...`) are relative to
+`packages/climpact/`; `reference/...` is at the repository root.
+
 ```
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
@@ -110,7 +135,7 @@ tests/
   libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
   rreference.py      the original, plain R-precision and number-formatting code: the
                      reference the faster versions are tested against
-  test_*.py          unit tests
+  test_*.py          unit tests; test_layout.py: the core does not import climpact_web
   data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
   plugins/           climpact_example_plugin: an example third-party plugin package
 reference/
@@ -1043,8 +1068,9 @@ for fitted distributions.
 ### Running
 
 ```sh
-.venv/bin/pytest                 # everything
-.venv/bin/pytest tests/parity    # parity only
+.venv/bin/pytest                                   # everything (both packages)
+.venv/bin/pytest packages/climpact                 # the core only
+.venv/bin/pytest packages/climpact/tests/parity    # parity only
 ```
 
 Files that no product builds are reported as `xfail` ("not yet ported"); there are none
@@ -1122,7 +1148,7 @@ largest difference and the first mismatching row.
 2. Add or extend a product in `src/climpact/products/` returning the table under the key
    matching the R file name. (An index that R does not have can instead be a separate
    index module; see [Modules and plugins](#modules-and-plugins).)
-3. Run `pytest tests/parity -k <name>`. Fix mismatches, or, if the difference comes from
+3. Run `pytest packages/climpact/tests/parity -k <name>`. Fix mismatches, or, if the difference comes from
    R behaviour that should not be copied, record it in the differences section below.
 
 ## Differences between Python and R, and how they are handled
@@ -2259,10 +2285,18 @@ than one cell at a time; computing a variable's in-base quantiles together is ke
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/pytest
 ```
+
+- One venv holds both packages, installed editable with pip (no uv). New T3 worktrees get
+  it from the project's "Set up venv" script, which runs the commands above.
+- CI has two jobs, each on Python 3.11, 3.12 and 3.13: `core` installs only
+  `packages/climpact[dev]`, runs ruff, checks that `climpact_web` is neither installed nor
+  imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
+  suite, parity included); `web` installs both packages and runs
+  `pytest packages/climpact-web`.
 
 - Compute gridded thresholds with
   `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.

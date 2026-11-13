@@ -1,0 +1,11 @@
+# Ruff settings shared by the whole repository: reference/ scripts and both packages
+# (packages/*/pyproject.toml extend this file, so each package is its own ruff project).
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "NPY"]
+
+[lint.isort]
+# Both packages are first-party wherever they are imported (reference/ scripts, either package).
+known-first-party = ["climpact", "climpact_web"]

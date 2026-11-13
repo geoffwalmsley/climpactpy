@@ -2,7 +2,7 @@
 # (made by tests/data/make_ehf_synthetic.py), base period 2001-2003, for tests/test_ehf.py; its output is
 # stored in tests/data/r_ehf.txt.
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_ehf.R
 # Prints the eight annual aspects (2001-2007), EHF85, and EHF/ECF for the days of
 # 2004-11-15 to 2005-01-10. Then runs it again with 28 December 2004 missing, where the

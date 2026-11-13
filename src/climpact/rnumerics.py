@@ -15,6 +15,14 @@ exactly with integer arithmetic, giving the same answer on any platform.
 
 Every finite double is an integer multiple of 2**-1074, so values are held as Python
 integers in units of 2**-1074 and rounded explicitly (round half to even).
+
+Rounding to 64 significant bits does not depend on the unit, so :func:`r_sum`,
+:func:`r_cumsum` and :func:`r_mean` use the coarsest unit that holds every input value
+exactly (2**-scale, see :func:`_scale`) instead, which keeps the integers small, and only
+round when an accumulator reaches 2**64 units. When the absolute values add up to less
+than 2**62 units no partial sum can need rounding, so :func:`r_sum` is the exact sum
+rounded once, which is :func:`math.fsum`. The results are identical to the plain
+emulation (``tests/rreference.py``), which ``tests/test_rnumerics.py`` checks.
 """
 
 from __future__ import annotations
@@ -60,23 +68,86 @@ def _to_float(n: int) -> float:
     return -value if r < 0 else value
 
 
+_EXT_LIMIT = 1 << EXTENDED_BITS  # integers below this need no rounding to 64 bits
+_FAST_SUM_BITS = 62  # margin below 2**64 units for the float estimate of sum(|x|)
+
+
+def _finite(x: np.ndarray) -> np.ndarray:
+    arr = np.asarray(x, dtype=float).ravel()
+    if not np.isfinite(arr).all():
+        raise ValueError("only finite values are supported")
+    return arr
+
+
+def _scale(arr: np.ndarray) -> int:
+    """The smallest ``scale >= 0`` such that every value is an integer multiple of
+    ``2**-scale``."""
+    nonzero = arr[arr != 0]
+    if nonzero.size == 0:
+        return 0
+    mantissa, exponent = np.frexp(nonzero)  # value = mantissa * 2**exponent
+    significand = np.abs(mantissa * 2.0**DOUBLE_BITS).astype(np.int64)  # exact
+    lowest_bit = significand & -significand
+    trailing_zeros = np.frexp(lowest_bit.astype(float))[1] - 1  # exact: powers of two
+    return max(int((DOUBLE_BITS - exponent - trailing_zeros).max()), 0)
+
+
+def _scaled_ints(arr: np.ndarray, scale: int) -> list[int]:
+    """The values as integers in units of ``2**-scale`` (exact)."""
+    out = []
+    for v in arr.tolist():
+        n, d = v.as_integer_ratio()  # d is a power of two no larger than 2**scale
+        out.append(n << (scale - d.bit_length() + 1))
+    return out
+
+
+def _scaled_float(n: int, scale: int) -> float:
+    """``n * 2**-scale`` rounded to the nearest double (ties to even)."""
+    if n.bit_length() <= 1000:
+        return math.ldexp(float(n), -scale)  # int -> float rounds half to even
+    r = abs(_round_bits(n, DOUBLE_BITS))
+    excess = r.bit_length() - DOUBLE_BITS  # trailing zero bits, exact shift
+    value = math.ldexp(float(r >> excess), excess - scale)
+    return -value if n < 0 else value
+
+
+def _ext_sum(values: list[int]) -> int:
+    """Sum with every partial sum rounded to 64 significant bits."""
+    acc = 0
+    for v in values:
+        acc += v
+        if not -_EXT_LIMIT < acc < _EXT_LIMIT:
+            acc = _round_bits(acc, EXTENDED_BITS)
+    return acc
+
+
 def r_cumsum(x: np.ndarray) -> np.ndarray:
     """R ``cumsum`` for doubles: extended-precision running sum, each output a double."""
+    arr = _finite(x)
+    scale = _scale(arr)
+    out = np.empty(arr.size, dtype=float)
     acc = 0
-    values = np.asarray(x, dtype=float).tolist()
-    out = np.empty(len(values), dtype=float)
-    for i, v in enumerate(values):
-        acc = _round_bits(acc + _to_fixed(v), EXTENDED_BITS)
-        out[i] = _to_float(acc)
+    for i, v in enumerate(_scaled_ints(arr, scale)):
+        acc += v
+        if not -_EXT_LIMIT < acc < _EXT_LIMIT:
+            acc = _round_bits(acc, EXTENDED_BITS)
+        out[i] = _scaled_float(acc, scale)
     return out
 
 
 def r_sum(x: np.ndarray) -> float:
     """R ``sum`` for doubles: extended-precision accumulation, rounded to a double."""
-    acc = 0
-    for v in np.asarray(x, dtype=float).tolist():
-        acc = _round_bits(acc + _to_fixed(v), EXTENDED_BITS)
-    return _to_float(acc)
+    arr = _finite(x)
+    if arr.size == 0:
+        return 0.0
+    scale = _scale(arr)
+    with np.errstate(over="ignore"):
+        bound = np.abs(arr).sum()  # within a relative 1e-12 of the exact sum of |x|
+    if scale <= 1000 and bound < math.ldexp(1.0, _FAST_SUM_BITS - scale):
+        # No partial sum reaches 2**64 units, so none is rounded: R's result is the
+        # exact sum rounded to a double (+ 0.0 turns fsum's -0.0 into R's 0).
+        return math.fsum(arr.tolist()) + 0.0
+    return _scaled_float(_ext_sum(_scaled_ints(arr, scale)), scale)
 
 
 def _round_sticky(q: int, sticky: bool, bits: int) -> int:
@@ -128,13 +199,34 @@ def _mean_fixed(values: list[int]) -> int:
     return _ext(s + _div(t, n))
 
 
+def _div_scaled(a: int, scale: int, n: int) -> tuple[int, int]:
+    """``a * 2**-scale / n`` rounded to 64 significant bits, as ``(integer, scale)``.
+
+    The numerator is shifted left until the quotient has more than 64 bits, so the
+    rounding is correct, as it is in units of 2**-1074 for any value climate data has.
+    """
+    if a == 0:
+        return 0, scale
+    shift = max(EXTENDED_BITS + 2 + n.bit_length() - abs(a).bit_length(), 0)
+    return _div(a << shift, n), scale + shift
+
+
 def r_mean(x: np.ndarray) -> float:
     """R ``mean`` for doubles (no missing values): accumulated in extended precision,
     with R's second pass that adds the mean of the residuals."""
-    values = [_to_fixed(v) for v in np.asarray(x, dtype=float).tolist()]
-    if not values:
+    arr = _finite(x)
+    n = arr.size
+    if n == 0:
         return math.nan
-    return _to_float(_mean_fixed(values))
+    scale = _scale(arr)
+    values = _scaled_ints(arr, scale)
+    s, s_scale = _div_scaled(_ext_sum(values), scale, n)
+    shift = s_scale - scale
+    t = 0
+    for v in values:
+        t = _ext(t + _ext((v << shift) - s))
+    q, q_scale = _div_scaled(t, s_scale, n)
+    return _scaled_float(_ext((s << (q_scale - s_scale)) + q), q_scale)
 
 
 def r_var(x: np.ndarray) -> float:

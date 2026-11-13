@@ -1,10 +1,10 @@
-"""Climpact indices that map directly onto xclim, plus the date-of-occurrence and
-spell indices whose R definitions need a direct port.
+"""Climpact's day-count, mean, extreme, spell, percentile and growing-season indices.
 
-Missing data follows the climdex.pcic rules (``check_missing="climdex"``, see
-:mod:`climpact.missing`). Index definitions follow ``climpact.etsci-functions.r``
-and climdex.pcic 1.2-0; where the two differ, Climpact's definition is used because
-it is the one that runs.
+Missing data follows the climdex.pcic rules (:func:`climpact.missing.valid_mask`).
+Index definitions follow ``climpact.etsci-functions.r`` and climdex.pcic 1.2-0; where
+the two differ, Climpact's definition is used because it is the one that runs.
+Monthly and annual reductions use :mod:`climpact.periods`, not xarray's ``resample``,
+for speed.
 """
 
 from __future__ import annotations
@@ -15,11 +15,10 @@ from collections.abc import Callable
 import numpy as np
 import pandas as pd
 import xarray as xr
-import xclim
-from xclim.indicators import atmos
 
 from climpact.missing import valid_mask
 from climpact.outputs import product
+from climpact.periods import periods
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
@@ -33,53 +32,54 @@ OPERATORS: dict[str, Callable] = {
 }
 
 
-def run_xclim(indicator, freq: str, **kwargs) -> xr.DataArray:
-    """Run an xclim indicator with the climdex missing-data rules."""
-    with xclim.set_options(
-        check_missing="climdex",
-        as_dataset=False,
-        cf_compliance="log",
-        data_validation="log",
-    ):
-        return indicator(freq=FREQS[freq], **kwargs)
-
-
 # --- threshold counts -------------------------------------------------------------
 
-# name -> (xclim indicator, input variable, threshold, condition)
-COUNTS: dict[str, tuple] = {
-    "fd": (atmos.tn_days_below, "tasmin", "0 degC", "<"),
-    "tnlt2": (atmos.tn_days_below, "tasmin", "2 degC", "<"),
-    "tnltm2": (atmos.tn_days_below, "tasmin", "-2 degC", "<"),
-    "tnltm20": (atmos.tn_days_below, "tasmin", "-20 degC", "<"),
-    "id": (atmos.tx_days_below, "tasmax", "0 degC", "<"),
-    "su": (atmos.tx_days_above, "tasmax", "25 degC", ">"),
-    "tr": (atmos.tn_days_above, "tasmin", "20 degC", ">"),
-    "txge30": (atmos.tx_days_above, "tasmax", "30 degC", ">="),
-    "txge35": (atmos.tx_days_above, "tasmax", "35 degC", ">="),
-    "tmge5": (atmos.tg_days_above, "tas", "5 degC", ">="),
-    "tmge10": (atmos.tg_days_above, "tas", "10 degC", ">="),
-    "tmlt5": (atmos.tg_days_below, "tas", "5 degC", "<"),
-    "tmlt10": (atmos.tg_days_below, "tas", "10 degC", "<"),
-    "r10mm": (atmos.wetdays, "pr", "10 mm/d", ">="),
-    "r20mm": (atmos.wetdays, "pr", "20 mm/d", ">="),
+# name -> (input variable, threshold in the variable's units (degC, mm/d), condition)
+COUNTS: dict[str, tuple[str, float, str]] = {
+    "fd": ("tasmin", 0.0, "<"),
+    "tnlt2": ("tasmin", 2.0, "<"),
+    "tnltm2": ("tasmin", -2.0, "<"),
+    "tnltm20": ("tasmin", -20.0, "<"),
+    "id": ("tasmax", 0.0, "<"),
+    "su": ("tasmax", 25.0, ">"),
+    "tr": ("tasmin", 20.0, ">"),
+    "txge30": ("tasmax", 30.0, ">="),
+    "txge35": ("tasmax", 35.0, ">="),
+    "tmge5": ("tas", 5.0, ">="),
+    "tmge10": ("tas", 10.0, ">="),
+    "tmlt5": ("tas", 5.0, "<"),
+    "tmlt10": ("tas", 10.0, "<"),
+    "r10mm": ("pr", 10.0, ">="),
+    "r20mm": ("pr", 20.0, ">="),
 }
 
 
-def count_days(run: StationRun, indicator, var: str, thresh: str, condition: str, freq: str):
-    ds = run.data
-    return run_xclim(indicator, freq, **{var: ds[var]}, thresh=thresh, condition=condition)
+def count_days(da: xr.DataArray, threshold: float, condition: str, freq: str) -> xr.DataArray:
+    """Number of days per period with ``da <condition> threshold`` (missing days do not
+    count), masked by the climdex rules for ``da``.
+
+    The same as xclim's ``tn_days_below``, ``tx_days_above``, ``wetdays`` and so on with
+    ``check_missing="climdex"``, which compare in the data's units and count with
+    ``resample(...).sum()``; done directly because xarray's resampling took most of a
+    station run's time (``tests/test_index_helpers.py`` checks the two agree).
+    """
+    rule = FREQS[freq]
+    with np.errstate(invalid="ignore"):
+        hits = OPERATORS[condition](da.values, threshold)
+    p = periods(da.time, rule)
+    counts = p.wrap(p.count(hits).astype(float))
+    return counts.where(valid_mask(da, freq=rule))
 
 
 @product
 def threshold_counts(run: StationRun) -> dict[str, pd.DataFrame]:
     p = run.params
     counts = dict(COUNTS)
-    counts[f"r{format_number(p.rnnmm)}mm"] = (atmos.wetdays, "pr", f"{p.rnnmm} mm/d", ">=")
+    counts[f"r{format_number(p.rnnmm)}mm"] = ("pr", float(p.rnnmm), ">=")
     out = {}
-    for name, (indicator, var, thresh, condition) in counts.items():
+    for name, (var, threshold, condition) in counts.items():
         for freq in FREQS:
-            values = count_days(run, indicator, var, thresh, condition, freq)
+            values = count_days(run.data[var], threshold, condition, freq)
             out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
     return out
 
@@ -108,7 +108,8 @@ def custom_index(run: StationRun) -> dict[str, pd.DataFrame]:
 
     out = {}
     for freq, rule in FREQS.items():
-        counts = hits.resample(time=rule).sum().astype(float)
+        p = periods(hits.time, rule)
+        counts = p.wrap(p.count(hits.values).astype(float))
         values = counts.where(valid_mask(*mask_vars, freq=rule))
         out[f"indices/{spec.name}_{freq}"] = index_table(spec.name, values, freq)
     return out
@@ -129,7 +130,8 @@ def period_stat(da: xr.DataArray, freq: str, stat: str, *mask_vars: xr.DataArray
     if stat == "mean":
         values = period_reduce(da, rule, r_mean)
     else:
-        values = getattr(da.resample(time=rule), stat)(skipna=True)
+        p = periods(da.time, rule)
+        values = p.wrap(p.reduce(da.values, stat))
     return values.where(valid_mask(*mask_vars, freq=rule))
 
 
@@ -139,12 +141,8 @@ def period_reduce(da: xr.DataArray, rule: str, func: Callable) -> xr.DataArray:
     Used with the R-precision :func:`~climpact.rnumerics.r_mean` so that means are
     identical to R's, whose ``mean`` accumulates in extended precision.
     """
-    series = (
-        da.to_series()
-        .resample(rule)
-        .apply(lambda g: func(g.dropna().to_numpy()) if g.notna().any() else np.nan)
-    )
-    return xr.DataArray(series.to_numpy(dtype=float), dims="time", coords={"time": series.index})
+    p = periods(da.time, rule)
+    return p.wrap(p.apply(da.values, func))
 
 
 def precipitation_intensity(pr: np.ndarray) -> float:
@@ -272,7 +270,8 @@ def rxnday(run: StationRun, ndays: int, freq: str) -> pd.DataFrame:
     runsum = xr.DataArray(
         running_sum_centred(ds.pr.values, ndays), dims="time", coords={"time": ds.time}
     )
-    values = runsum.resample(time=rule).max() * ndays
+    p = periods(runsum.time, rule)
+    values = p.wrap(p.reduce(runsum.values, "max")) * ndays
     values = values.where(valid_mask(ds.pr, freq=rule))
     dates = first_extreme_dates(runsum, rule, "max")
     return dated_table(values, dates, freq)
@@ -450,7 +449,8 @@ def percent_days(dat: xr.DataArray, freq: str, mask: xr.DataArray) -> xr.DataArr
     missing when more than ``max.missing.days`` days of ``dat`` are, then multiplied
     by the variable's climdex missing-data ``mask``."""
     rule = FREQS[freq]
-    n_missing = dat.isnull().resample(time=rule).sum()
+    p = periods(dat.time, rule)
+    n_missing = p.wrap(p.count(np.isnan(dat.values)))
     values = period_reduce(dat, rule, r_mean) * 100
     values = values.where(n_missing <= MAX_MISSING_DAYS[freq])
     return values.where(mask)

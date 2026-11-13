@@ -87,3 +87,54 @@ def test_mean_var_match_native_x87_long_double():
     for _ in range(20):
         x = np.round(rng.normal(15, 6, 365), 1) / 7
         assert (r_mean(x), r_var(x)) == native_mean_var(x)
+
+
+def bits(values) -> list[str]:
+    return [float(v).hex() for v in np.atleast_1d(np.asarray(values, dtype=float))]
+
+
+def random_series(rng, count):
+    """Climate-like and adversarial series: decimals, mixed magnitudes, cancellation."""
+    for _ in range(count):
+        n = int(rng.choice([1, 2, 3, 30, 31, 365]))
+        kind = rng.integers(0, 7)
+        if kind == 0:
+            yield np.round(rng.normal(15, 10, n), 1)
+        elif kind == 1:
+            yield np.round(rng.gamma(0.3, 8.0, n), 1)
+        elif kind == 2:
+            yield np.round(rng.normal(15, 6, n), 1) / 7
+        elif kind == 3:
+            yield rng.normal(0, 1, n) * 10.0 ** rng.integers(-20, 20, n)
+        elif kind == 4:
+            yield rng.choice([1.0, -1.0, 2.0**-60, 2.0**-70, 3.0, 1e16, -1e16, 0.1, -0.0], n)
+        elif kind == 5:
+            yield rng.integers(0, 30, n) / 29.0
+        else:
+            yield rng.uniform(-1, 1, n) * 2.0 ** rng.integers(-300, 300, n)
+
+
+@pytest.mark.parametrize("name", ["r_sum", "r_cumsum", "r_mean"])
+def test_matches_plain_emulation(name):
+    """The scaled and fsum fast paths give the same bits as the plain emulation in units
+    of 2**-1074 (tests/rreference.py, the original implementation)."""
+    import climpact.rnumerics as fast
+
+    from . import rreference
+
+    rng = np.random.default_rng(42)
+    for x in random_series(rng, 400):
+        assert bits(getattr(fast, name)(x)) == bits(getattr(rreference, name)(x)), x
+
+
+def test_sum_at_the_fast_path_limit():
+    """Partial sums just below and above 2**64 units of the finest value."""
+    from . import rreference
+
+    unit = 2.0**-52
+    for total in (2.0**11, 2.0**12, 2.0**13):
+        x = np.array([total / 2, total / 2 - unit, unit, unit / 2, -unit / 4])
+        assert bits(r_sum(x)) == bits(rreference.r_sum(x))
+    assert bits(r_sum(np.array([-0.0]))) == bits(rreference.r_sum(np.array([-0.0])))
+    with pytest.raises(ValueError):
+        r_sum(np.array([1.0, np.inf]))

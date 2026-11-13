@@ -339,3 +339,8 @@ python3 -m venv .venv
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are
   meant to change.
+- Work is tracked as GitHub issues on the
+  [climpactpy Kanban](https://github.com/users/geoffwalmsley/projects/2), grouped under
+  epics (#8 station parity, #9 QC, #10 gridded, #11 web, #12 deployment). Branches are
+  named `<issue>-<slug>` and PRs say `Closes #N`. Each ticket names the reference files it
+  should make pass. The full workflow is in `.claude/skills/ticket/SKILL.md`.

@@ -11,6 +11,14 @@ architecture, parity testing and the differences between the Python and R implem
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
   `pytest`, and report the R parity summary printed at the end of the test run.
 
+## Tickets
+
+All work is tracked as GitHub issues on the **[climpactpy Kanban](https://github.com/users/geoffwalmsley/projects/2)**. **Always use the `ticket` skill** to add a ticket, pick what to work on, and move cards through the workflow. The columns are Backlog → Ready → In progress → In review → Done.
+
+- Don't start work that has no issue. File one first, unless the user asks for something quick and one-off.
+- Name branches `<issue>-<slug>`. PRs say `Closes #N`, so the issue closes and the card moves to Done on merge.
+- Every ticket has a **Parity coverage** section naming the R reference files it should make pass, and the PR reports the parity summary before and after.
+
 ## Keep TECHNICAL.md up to date
 
 `TECHNICAL.md` must describe the code as it is on the branch. Update it **in the same pull

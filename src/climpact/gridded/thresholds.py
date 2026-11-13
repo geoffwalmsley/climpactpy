@@ -28,7 +28,7 @@ import datetime as dt
 import getpass
 import os
 import time as time_module
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +41,7 @@ from climpact import __version__
 from climpact.gridded.io import GriddedInput
 from climpact.io.output_files import CLIMPACT_VERSION
 from climpact.products.ehf import excess_factors
+from climpact.progress import Progress
 from climpact.thresholds import (
     DAYS_PER_YEAR,
     HEATWAVE_QUANTILE,
@@ -384,7 +385,7 @@ def write_grid_thresholds(
     base_end: int = 2000,
     author: Mapping[str, str] | None = None,
     workers: int = 1,
-    progress: Callable[[int, int], None] | None = None,
+    progress: Progress | None = None,
     cells_per_batch: int = DEFAULT_CELLS_PER_BATCH,
 ) -> Path:
     """Compute the thresholds of every cell of ``inp`` and write them to ``path`` in the
@@ -395,7 +396,8 @@ def write_grid_thresholds(
     block is read, so memory is bounded by one block and ``workers`` batches whatever
     the size of the grid. ``author`` may give ``institution``, ``institution_id``,
     ``indices_archive``, ``contact`` and ``references`` (R's ``author.data``).
-    ``progress(done, total)`` is called after each block. The file is written under a
+    ``progress("thresholds", done, total)`` is called after each block (see
+    :mod:`climpact.progress`). The file is written under a
     temporary name and renamed when complete.
     """
     time = inp.time
@@ -420,7 +422,7 @@ def write_grid_thresholds(
                 _write_block(nc, block, result)
                 del result
                 if progress:
-                    progress(done, len(blocks))
+                    progress("thresholds", done, len(blocks))
         nc.close()
     except BaseException:
         nc.close()

@@ -14,6 +14,13 @@ A station run goes through three stages::
 - An **index module** (:class:`IndexModule`) calculates indices. The built-in one,
   ``climpact``, writes R's ``indices/``, ``thres/`` and ``trend/`` files.
 
+``run_pipeline`` takes an optional progress callback (see :mod:`climpact.progress`),
+called after each module. A module may report finer steps: it then has a method
+``progress_steps()`` returning the names of its steps, and its ``build`` (or
+``homogenise``) takes a keyword argument ``progress``, a callable it calls with the name
+of each step as the step finishes. The built-in index module reports each index product
+this way. The protocols below do not require either.
+
 Every module returns ``{output key: DataFrame}``, as the products in
 :mod:`climpact.outputs` do. Keys are ``<folder>/<name>`` and are written to
 ``<out>/<station>/<folder>/<station>_<name>.csv``. A key may be produced once per run.
@@ -40,6 +47,7 @@ import pandas as pd
 import xarray as xr
 
 from climpact.io.output_files import FILE_FORMAT_ATTR
+from climpact.progress import Progress, Steps
 from climpact.station import StationRun
 
 Kind = Literal["qc", "homogeneity", "indices"]
@@ -255,22 +263,67 @@ def _adjusted_run(run: StationRun, data: xr.Dataset, module: HomogeneityModule) 
     return replace(run, data=data, qc_rows=None)
 
 
-def run_pipeline(
-    run: StationRun, modules: Modules | ModuleSelection | None = None
-) -> PipelineResult:
-    """Run QC, homogeneity and index modules on ``run`` and collect their tables."""
+def _steps(kind: Kind, module: object) -> list[str]:
+    """The progress stages of ``module``: its own steps if it reports them, else one."""
+    prefix = f"{kind}:{module.name}"
+    own = getattr(module, "progress_steps", None)
+    if callable(own):
+        return [f"{prefix}:{step}" for step in own()]
+    return [prefix]
+
+
+def pipeline_stages(modules: Modules | ModuleSelection | None = None) -> list[str]:
+    """The stages ``run_pipeline`` reports to its progress callback, in order."""
     if not isinstance(modules, Modules):
         modules = resolve(modules)
+    return [
+        *(stage for module in modules.qc for stage in _steps("qc", module)),
+        *_steps("homogeneity", modules.homogeneity),
+        *(stage for module in modules.indices for stage in _steps("indices", module)),
+    ]
+
+
+def _call(method, kind: Kind, module: object, steps: Steps, *args):
+    """Call ``module``'s ``method`` and report its progress stages."""
+    prefix = f"{kind}:{module.name}"
+    if steps.progress is not None and callable(getattr(module, "progress_steps", None)):
+        return method(*args, progress=lambda step: steps.done(f"{prefix}:{step}"))
+    result = method(*args)
+    steps.done(prefix)
+    return result
+
+
+def run_pipeline(
+    run: StationRun,
+    modules: Modules | ModuleSelection | None = None,
+    progress: Progress | None = None,
+) -> PipelineResult:
+    """Run QC, homogeneity and index modules on ``run`` and collect their tables.
+
+    ``progress(stage, step, total)`` is called as each stage of :func:`pipeline_stages`
+    finishes (see :mod:`climpact.progress`).
+    """
+    if not isinstance(modules, Modules):
+        modules = resolve(modules)
+    steps = Steps(progress, len(pipeline_stages(modules)) if progress else 0)
     tables: dict[str, pd.DataFrame] = {}
     for module in modules.qc:
-        _add(tables, module.build(run, dict(tables)), "qc", module)
+        _add(tables, _call(module.build, "qc", module, steps, run, dict(tables)), "qc", module)
 
-    homogeneity = modules.homogeneity.homogenise(run, dict(tables))
+    homogeneity = _call(
+        modules.homogeneity.homogenise,
+        "homogeneity",
+        modules.homogeneity,
+        steps,
+        run,
+        dict(tables),
+    )
     _add(tables, homogeneity.tables, "homogeneity", modules.homogeneity)
     indices_run = run
     if homogeneity.data is not None:
         indices_run = _adjusted_run(run, homogeneity.data, modules.homogeneity)
 
     for module in modules.indices:
-        _add(tables, module.build(indices_run, dict(tables)), "indices", module)
+        new = _call(module.build, "indices", module, steps, indices_run, dict(tables))
+        _add(tables, new, "indices", module)
     return PipelineResult(tables, run, indices_run)

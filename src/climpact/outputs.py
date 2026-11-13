@@ -64,17 +64,34 @@ def load_builtin_builders() -> list[Product]:
 
 
 class ClimpactIndices:
-    """The built-in index module: every registered product, then the derived ones."""
+    """The built-in index module: every registered product, then the derived ones.
+
+    It reports each product as a progress step (see :mod:`climpact.modules`).
+    """
 
     name = "climpact"
 
-    def build(self, run: Any, tables: Mapping[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    def progress_steps(self) -> list[str]:
+        """The products, in the order ``build`` runs them."""
+        load_builtin_builders()
+        return [make.__name__ for make in (*PRODUCTS, *DERIVED)]
+
+    def build(
+        self,
+        run: Any,
+        tables: Mapping[str, pd.DataFrame],
+        progress: Callable[[str], None] | None = None,
+    ) -> dict[str, pd.DataFrame]:
         load_builtin_builders()
         out: dict[str, pd.DataFrame] = {}
         for make in PRODUCTS:
             _add(out, make(run))
+            if progress:
+                progress(make.__name__)
         for make in DERIVED:
             _add(out, make(run, {**tables, **out}))
+            if progress:
+                progress(make.__name__)
         return out
 
 
@@ -88,15 +105,16 @@ def _add(tables: dict[str, pd.DataFrame], new: Mapping[str, pd.DataFrame]) -> No
 CLIMPACT_INDICES = ClimpactIndices()
 
 
-def build_all(run: Any, modules: Any = None) -> dict[str, pd.DataFrame]:
+def build_all(run: Any, modules: Any = None, progress: Any = None) -> dict[str, pd.DataFrame]:
     """Build every output table for a run: QC, homogeneity and index modules.
 
     ``modules`` is a :class:`climpact.modules.ModuleSelection` (default: the built-in
-    modules, which write R's files).
+    modules, which write R's files). ``progress(stage, step, total)`` is called after
+    each module and each index product (see :mod:`climpact.progress`).
     """
     from climpact.modules import run_pipeline
 
-    return run_pipeline(run, modules).tables
+    return run_pipeline(run, modules, progress).tables
 
 
 def build(key: str, run: Any) -> pd.DataFrame:

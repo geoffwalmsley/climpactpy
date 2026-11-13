@@ -32,6 +32,11 @@ from climpact.modules import (
 DEFAULTS = IndexParams()
 _DEFAULT = "default: %(default)s"
 CUSTOM = CustomIndex()
+_PROGRESS_HELP = "print each stage to standard error as it finishes"
+
+
+def _print_stage(prefix: str, stage: str, step: int, total: int) -> None:
+    print(f"{prefix}[{step}/{total}] {stage}", file=sys.stderr, flush=True)
 
 
 def _module_arguments(parser: argparse.ArgumentParser) -> None:
@@ -124,6 +129,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     custom.add_argument("--no-custom", action="store_true", help="skip the custom index")
     _module_arguments(run)
+    run.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     batch = commands.add_parser(
         "batch",
@@ -163,6 +169,7 @@ def _parser() -> argparse.ArgumentParser:
         "or <= (default: none, as in R's batch mode)",
     )
     _module_arguments(batch)
+    batch.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     grid = commands.add_parser(
         "gridded-thresholds",
@@ -247,7 +254,15 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         custom=_custom(args, parser),
     )
     modules = _modules(args, parser)
-    written, skipped = run_station(args.station_file, metadata, params, args.out, modules=modules)
+    progress = None
+    if args.progress:
+
+        def progress(stage: str, step: int, total: int) -> None:
+            _print_stage("", stage, step, total)
+
+    written, skipped = run_station(
+        args.station_file, metadata, params, args.out, modules=modules, progress=progress
+    )
     print(f"Wrote {len(written)} files to {args.out / metadata.name}")
     if skipped:
         print(f"Not written (no data in any period): {', '.join(skipped)}")
@@ -282,6 +297,12 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
             first_line = result.error.splitlines()[0]
             print(f"[{done}/{total}] {result.name}: FAILED: {first_line}")
 
+    progress = None
+    if args.progress:
+
+        def progress(station: str, stage: str, step: int, steps: int) -> None:
+            _print_stage(f"{station} ", stage, step, steps)
+
     results = run_batch(
         stations,
         args.data_dir,
@@ -292,6 +313,7 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         workers=args.workers,
         on_result=report,
         modules=modules,
+        progress=progress,
     )
     failed = [r for r in results if not r.ok]
     print(f"Done: {total - len(failed)} of {total} stations processed, {len(failed)} failed")
@@ -319,7 +341,7 @@ def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.Argume
     author = {"institution": args.institution, "institution_id": args.institution_id}
     ny, nx = inp.shape
 
-    def progress(done: int, total: int) -> None:
+    def progress(stage: str, done: int, total: int) -> None:
         if not args.quiet:
             print(f"[{done}/{total}] blocks done", flush=True)
 

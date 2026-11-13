@@ -49,6 +49,7 @@ src/climpact/
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
+  progress.py        progress callbacks: Progress, BatchProgress, Steps (see Progress reporting)
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-7/8 quantiles,
@@ -370,6 +371,8 @@ arguments), `--workers` (processes; R's `cores_to_use`), `--custom VAR OP VALUE`
   method, one process per CPU by default, at most one per station; `--workers 1` runs in
   the main process). Each worker runs `run_station`, the same function as `climpact run`.
   Progress is printed as each station finishes; results are returned in metadata order.
+  `--progress` also prints each stage of each station to standard error (see
+  [Progress reporting](#progress-reporting)).
 - **Failures:** any exception in a station (unreadable file, invalid parameters, a
   calculation error, a crashed worker) is caught and written to
   `<out>/<station>.errors.txt`, R's error log name, and the batch carries on. An error file
@@ -397,6 +400,57 @@ reference station is byte-identical to the file `write_outputs` writes for its s
 file while the others succeed. The single-run files are the ones `test_csv_text` checks
 against R. `tests/test_batch.py` covers the metadata format, R's sample file, the error
 cases and the command line.
+
+## Progress reporting
+
+Station, batch and gridded runs take an optional progress callback (`climpact.progress`,
+#72), for the web app's progress pages (#11, #73) and the command line. The default is no
+callback: no output changes, and the cost is a counter per stage.
+
+A callback is `progress(stage, step, total)`, called as each step *finishes*: `stage`
+names the step just done, `step` counts the steps done (1 to `total`), and `total` is known
+before the first call. A run that succeeds ends with `step == total`; a run that fails
+stops calling it.
+
+| Function | Stages, in order |
+| --- | --- |
+| `modules.run_pipeline(run, modules, progress)`, `outputs.build_all(run, modules, progress)` | `qc:<module>` for each QC module, `homogeneity:<module>`, then `indices:<module>` for each index module. A module with a `progress_steps()` method reports its own steps instead (`<kind>:<module>:<step>`); the built-in index module reports each product (`indices:climpact:spi`, ..., `indices:climpact:trend_file`). `modules.pipeline_stages(modules)` lists them. The built-in modules give 20 stages. |
+| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules |
+| `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
+| `gridded.write_grid_thresholds(..., progress=)` | `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
+
+**Batch with several workers.** Callbacks are called only in the process that passed
+them, so they need not be picklable. Each worker process gets a `multiprocessing` queue
+when it starts (the pool's `initializer`, since a queue cannot be sent with a task) and
+puts `(station, stage, step, total)` tuples on it, then an end marker when the station is
+done. The parent reads the queue every 0.1 s, in the thread that called `run_batch`, and
+handles a finished station's result only after its end marker has arrived, so a station's
+stages always reach the callback before its `on_result`; stages of different stations
+interleave. Without a callback no queue is made. A station that fails before it is read
+(missing file, invalid parameters) reports no stage.
+
+**Cost.** Measured as in [Performance](#performance): the Sydney build (`build_all`, 5
+runs each) took 2.50 s median without a callback and 2.46 s with one (20 calls), and
+`climpact batch` on Climpact's two sample stations with `--workers 2` took 7.4 s with or
+without `--progress` (3 runs each). A first version used a `multiprocessing` manager queue,
+which added about 1.7 s to that batch: the manager is one more spawned process, which
+imports the command line's modules again.
+
+**Plugin modules** need not report progress: one stage per module. To report finer
+steps, a module adds `progress_steps()` (the names of its steps) and accepts a keyword
+argument `progress` in `build` (or `homogenise`), a callable it calls with each step's name
+as it finishes. The pipeline passes it only when a callback was given.
+
+**Command line.** `climpact run --progress` and `climpact batch --progress` print
+`[step/total] stage` (prefixed by the station name in a batch) to standard error, so
+standard output and the files written are unchanged. `climpact gridded-thresholds` prints
+`[done/total] blocks done` as before, unless `--quiet`.
+
+`tests/test_progress.py` checks that every stage arrives once, in order, numbered 1 to
+`total`, for the pipeline (built-in and plugin modules), a single station, a batch in one
+process and in two worker processes (stages before each station's result), the gridded
+thresholds and the command line, and that the files written with and without a callback
+are byte-identical.
 
 ## Missing data
 

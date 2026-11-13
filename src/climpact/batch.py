@@ -21,12 +21,14 @@ import datetime as dt
 import multiprocessing
 import traceback
 from collections.abc import Callable, Iterable
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from dataclasses import dataclass, replace
 from pathlib import Path
+from queue import Empty
 
 from climpact.config import CustomIndex, IndexParams, StationMetadata
 from climpact.modules import ModuleSelection
+from climpact.progress import BatchProgress, Progress
 
 # R's read.file.list.metadata col.names. The header row's own names are not checked.
 COLUMNS = (
@@ -185,20 +187,35 @@ def run_station(
     out_dir: str | Path,
     date: dt.date | None = None,
     modules: ModuleSelection | None = None,
+    progress: Progress | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
     ``modules`` selects the QC, homogeneity and index modules (default: the built-in
-    ones). Returns the files written and the output keys not written (missing in every
-    period).
+    ones). ``progress(stage, step, total)`` is called after each stage: ``read``, the
+    stages of :func:`~climpact.modules.pipeline_stages`, then ``write`` (see
+    :mod:`climpact.progress`). Returns the files written and the output keys not written
+    (missing in every period).
     """
     from climpact.io.output_files import write_outputs
-    from climpact.outputs import build_all
+    from climpact.modules import pipeline_stages, resolve, run_pipeline
     from climpact.station import load_station
 
+    loaded = resolve(modules)
+    pipeline_progress = None
+    if progress is not None:
+        total = len(pipeline_stages(loaded)) + 2
+
+        def pipeline_progress(stage: str, step: int, _total: int) -> None:
+            progress(stage, step + 1, total)
+
     run = load_station(station_file, metadata, params)
-    tables = build_all(run, modules)
+    if progress is not None:
+        progress("read", 1, total)
+    tables = run_pipeline(run, loaded, pipeline_progress).tables
     written = write_outputs(tables, metadata, params, out_dir, date)
+    if progress is not None:
+        progress("write", total, total)
     return written, sorted(set(tables) - set(written))
 
 
@@ -210,21 +227,62 @@ def _process(
     base_end: int,
     date: dt.date | None,
     modules: ModuleSelection | None,
+    progress: BatchProgress | None = None,
 ) -> StationResult:
     """Run one station, turning any exception into a failed result."""
     result = StationResult(station.name, station.station_file)
+    station_progress = None
+    if progress is not None:
+
+        def station_progress(stage: str, step: int, total: int) -> None:
+            progress(station.name, stage, step, total)
+
     try:
         validate_params(station.params)
         path = data_dir / station.station_file
         if not path.is_file():
             raise FileNotFoundError(f"station file not found: {path}")
         written, skipped = run_station(
-            path, station.metadata(base_start, base_end), station.params, out_dir, date, modules
+            path,
+            station.metadata(base_start, base_end),
+            station.params,
+            out_dir,
+            date,
+            modules,
+            station_progress,
         )
     except Exception as exc:  # noqa: BLE001 - reported per station, the batch carries on
         detail = "".join(traceback.format_exception_only(exc)).strip()
         return replace(result, error=detail)
     return replace(result, written=len(written), skipped=tuple(skipped))
+
+
+# Seconds to wait for the end of a finished station's progress, which is already sent.
+_QUEUE_TIMEOUT = 60
+
+# The progress queue of a worker process (set by _init_worker), or None.
+_QUEUE = None
+# The stage that marks the end of a station's progress on the queue.
+_END = None
+
+
+def _init_worker(queue) -> None:
+    global _QUEUE
+    _QUEUE = queue
+
+
+def _send(station: str, stage: str | None, step: int, total: int) -> None:
+    _QUEUE.put((station, stage, step, total))
+
+
+def _process_in_worker(station: BatchStation, *args) -> StationResult:
+    """``_process`` in a worker process, sending its progress to the parent's queue."""
+    if _QUEUE is None:
+        return _process(station, *args)
+    try:
+        return _process(station, *args, progress=_send)
+    finally:
+        _send(station.name, _END, 0, 0)
 
 
 def run_batch(
@@ -238,6 +296,7 @@ def run_batch(
     date: dt.date | None = None,
     on_result: Callable[[StationResult], None] | None = None,
     modules: ModuleSelection | None = None,
+    progress: BatchProgress | None = None,
 ) -> list[StationResult]:
     """Run every station and write its outputs to ``<out_dir>/<station>/``.
 
@@ -250,6 +309,12 @@ def run_batch(
     ones); each worker process loads them itself.
     ``on_result`` is called as each station finishes. Results are returned in metadata
     order.
+
+    ``progress(station, stage, step, total)`` is called after each stage of each
+    station, as :func:`run_station` reports them (see :mod:`climpact.progress`). With
+    several workers the stages are sent back from the worker processes on a queue and the
+    callback runs in this process and thread; a station's stages always come before its
+    ``on_result``, and stages of different stations interleave.
     """
     stations = [replace(s, params=replace(s.params, custom=custom)) for s in stations]
     data_dir, out_dir = Path(data_dir), Path(out_dir)
@@ -272,20 +337,49 @@ def run_batch(
 
     if workers <= 1:
         for a in args:
-            finish(_process(*a))
-    else:
-        # spawn: the same start method on every platform, and no fork of a process
-        # whose numerical libraries may be running threads.
-        context = multiprocessing.get_context("spawn")
-        with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
-            futures = {pool.submit(_process, *a): a[0] for a in args}
-            for future in as_completed(futures):
+            finish(_process(*a, progress=progress))
+        return [results[s.name] for s in stations]
+
+    # spawn: the same start method on every platform, and no fork of a process whose
+    # numerical libraries may be running threads.
+    context = multiprocessing.get_context("spawn")
+    # Progress comes back on a queue given to each worker when it starts. Each station's
+    # stages end with an _END marker, and its result is handled only once the marker has
+    # arrived, so its stages reach ``progress`` before its ``on_result``.
+    queue = context.Queue() if progress is not None else None
+    ended: set[str] = set()
+
+    def receive(item: tuple) -> None:
+        if item[1] is _END:
+            ended.add(item[0])
+        else:
+            progress(*item)
+
+    with ProcessPoolExecutor(
+        max_workers=workers, mp_context=context, initializer=_init_worker, initargs=(queue,)
+    ) as pool:
+        futures = {pool.submit(_process_in_worker, *a): a[0] for a in args}
+        pending = set(futures)
+        while pending:
+            done, pending = wait(
+                pending, timeout=0.1 if queue else None, return_when=FIRST_COMPLETED
+            )
+            while queue is not None and not queue.empty():
+                receive(queue.get())
+            for future in done:
                 station = futures[future]
                 try:
                     result = future.result()
                 except Exception as exc:  # noqa: BLE001 - e.g. a worker killed by the OS
                     detail = "".join(traceback.format_exception_only(exc)).strip()
                     result = StationResult(station.name, station.station_file, error=detail)
+                else:
+                    # The worker sent the marker before returning; wait for it to arrive.
+                    try:
+                        while queue is not None and station.name not in ended:
+                            receive(queue.get(timeout=_QUEUE_TIMEOUT))
+                    except Empty:  # never expected: the marker was sent before returning
+                        pass
                 finish(result)
     return [results[s.name] for s in stations]
 

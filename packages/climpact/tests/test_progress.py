@@ -140,7 +140,7 @@ def test_batch_reports_each_station_from_the_workers(station_file, tmp_path, wor
 
 def test_gridded_thresholds_report_each_block(tmp_path):
     path = write_grid(tmp_path / "g.nc", ny=3, nx=5)
-    inp = open_grid([path], max_values=2 * 3 * 3653)
+    inp = open_grid([path], max_values=2 * 3 * 3653, rechunk=False)
     events = []
     write_grid_thresholds(inp, tmp_path / "t.nc", 1972, 1979, progress=lambda *e: events.append(e))
     blocks = len(list(inp.blocks()))

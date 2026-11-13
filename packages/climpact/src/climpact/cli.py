@@ -40,6 +40,52 @@ CUSTOM = CustomIndex()
 _PROGRESS_HELP = "print each stage to standard error as it finishes"
 
 
+def _add_grid_input_args(parser: argparse.ArgumentParser) -> None:
+    """The options of the gridded commands for reading the input in blocks."""
+    parser.add_argument(
+        "--max-values",
+        type=float,
+        default=5.0,
+        metavar="MILLIONS",
+        help="millions of input values read at once, which bounds memory "
+        "(R's max.vals.millions; " + _DEFAULT + ")",
+    )
+    parser.add_argument(
+        "--rechunk",
+        choices=("auto", "yes", "no"),
+        default="auto",
+        help="copy the input to a temporary file chunked by block before reading it; auto "
+        "does so for files chunked by time step over the grid, which every block would "
+        "otherwise read in full (" + _DEFAULT + ")",
+    )
+    parser.add_argument(
+        "--tmp-dir",
+        type=Path,
+        default=None,
+        help="directory for the rechunked copy, about the size of the uncompressed input "
+        "(default: the system's temporary directory)",
+    )
+    parser.add_argument("--quiet", action="store_true", help="do not print progress")
+
+
+def _open_grid_args(args: argparse.Namespace) -> dict:
+    return {
+        "names": {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec},
+        "max_values": int(args.max_values * 1e6),
+        "rechunk": {"auto": None, "yes": True, "no": False}[args.rechunk],
+        "tmp_dir": args.tmp_dir,
+    }
+
+
+def _grid_progress(args: argparse.Namespace):
+    def progress(stage: str, done: int, total: int) -> None:
+        if not args.quiet:
+            what = "time slabs rechunked" if stage == "rechunk" else "blocks done"
+            print(f"[{done}/{total}] {what}", flush=True)
+
+    return progress
+
+
 def _print_stage(prefix: str, stage: str, step: int, total: int) -> None:
     print(f"{prefix}[{step}/{total}] {stage}", file=sys.stderr, flush=True)
 
@@ -223,15 +269,7 @@ def _parser() -> argparse.ArgumentParser:
     grid.add_argument(
         "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
     )
-    grid.add_argument(
-        "--max-values",
-        type=float,
-        default=5.0,
-        metavar="MILLIONS",
-        help="millions of input values read at once, which bounds memory "
-        "(R's max.vals.millions; " + _DEFAULT + ")",
-    )
-    grid.add_argument("--quiet", action="store_true", help="do not print progress")
+    _add_grid_input_args(grid)
 
     gi = commands.add_parser(
         "gridded-indices",
@@ -294,15 +332,7 @@ def _parser() -> argparse.ArgumentParser:
     gi.add_argument(
         "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
     )
-    gi.add_argument(
-        "--max-values",
-        type=float,
-        default=5.0,
-        metavar="MILLIONS",
-        help="millions of input values read at once, which bounds memory "
-        "(R's max.vals.millions; " + _DEFAULT + ")",
-    )
-    gi.add_argument("--quiet", action="store_true", help="do not print progress")
+    _add_grid_input_args(gi)
 
     sector = commands.add_parser(
         "sector-correlation",
@@ -484,17 +514,15 @@ def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.Argume
         parser.error("--workers must be at least 1")
     if args.base_end < args.base_start:
         parser.error("--base-end is before --base-start")
-    names = {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec}
+    if args.tmp_dir is not None and not args.tmp_dir.is_dir():
+        parser.error(f"--tmp-dir is not a directory: {args.tmp_dir}")
     try:
-        inp = open_grid(args.input_files, names, max_values=int(args.max_values * 1e6))
+        inp = open_grid(args.input_files, **_open_grid_args(args))
     except (ValueError, NotImplementedError) as exc:
         parser.error(str(exc))
     author = {"institution": args.institution, "institution_id": args.institution_id}
     ny, nx = inp.shape
-
-    def progress(stage: str, done: int, total: int) -> None:
-        if not args.quiet:
-            print(f"[{done}/{total}] blocks done", flush=True)
+    progress = _grid_progress(args)
 
     if not args.quiet:
         print(
@@ -542,17 +570,15 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
         unknown = sorted(set(args.indices) - known)
         if unknown:
             parser.error(f"unknown indices {unknown}; known: {' '.join(sorted(known))}")
-    names = {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec}
+    if args.tmp_dir is not None and not args.tmp_dir.is_dir():
+        parser.error(f"--tmp-dir is not a directory: {args.tmp_dir}")
     try:
-        inp = open_grid(args.input_files, names, max_values=int(args.max_values * 1e6))
+        inp = open_grid(args.input_files, **_open_grid_args(args))
     except (ValueError, NotImplementedError) as exc:
         parser.error(str(exc))
     author = {"institution": args.institution, "institution_id": args.institution_id}
     ny, nx = inp.shape
-
-    def progress(stage: str, done: int, total: int) -> None:
-        if not args.quiet:
-            print(f"[{done}/{total}] blocks done", flush=True)
+    progress = _grid_progress(args)
 
     if not args.quiet:
         print(

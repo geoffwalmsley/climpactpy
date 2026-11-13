@@ -93,7 +93,8 @@ src/climpact/
   gridded/
     io.py            read CF netCDF tasmax/tasmin/pr as climdex.pcic.ncdf does (ncdf4
                      masking, udunits conversion); GriddedInput: dask blocks of cells,
-                     load(), cell_latitude()
+                     load(), cell_latitude(), block_reader() (rechunks inputs chunked by
+                     time step to a temporary file first, #67)
     thresholds.py    thresholds of every cell (cell_thresholds) and the thresholds netCDF
                      in R's layout (write_grid_thresholds)
     indices.py       indices of every cell (cell_indices, block_indices) and the index
@@ -473,8 +474,8 @@ stops calling it.
 | `modules.run_pipeline(run, modules, progress)`, `outputs.build_all(run, modules, progress)` | `qc:<module>` for each QC module, `homogeneity:<module>`, then `indices:<module>` for each index module. A module with a `progress_steps()` method reports its own steps instead (`<kind>:<module>:<step>`); the built-in index module reports each product (`indices:climpact:spi`, ..., `indices:climpact:trend_file`). `modules.pipeline_stages(modules)` lists them. The built-in modules give 20 stages. |
 | `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules. With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
-| `gridded.write_grid_thresholds(..., progress=)` | `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
-| `gridded.write_grid_indices(..., progress=)` | `indices` once per block |
+| `gridded.write_grid_thresholds(..., progress=)` | `rechunk` once per time slab if the input is rechunked first (see [Rechunking](#rechunking-inputs-chunked-by-time-step)), then `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
+| `gridded.write_grid_indices(..., progress=)` | `rechunk` once per time slab if rechunked, then `indices` once per block |
 | `sector.run_sector_correlation(..., progress=)` | `read`, `correlate`, `write:tmin`, `write:tmax`, `write:t`, `write:above30`, `write:index-sector`, and with `zip=True` a last `zip` (`sector.sector_steps(zip)`): 7 or 8 |
 
 **Batch with several workers.** Callbacks are called only in the process that passed
@@ -502,8 +503,8 @@ as it finishes. The pipeline passes it only when a callback was given.
 **Command line.** `climpact run --progress` and `climpact batch --progress` print
 `[step/total] stage` (prefixed by the station name in a batch) to standard error, so
 standard output and the files written are unchanged, as does `climpact sector-correlation
---progress`. `climpact gridded-thresholds` prints
-`[done/total] blocks done` as before, unless `--quiet`.
+--progress`. `climpact gridded-thresholds` and `climpact gridded-indices` print
+`[done/total] time slabs rechunked` and `[done/total] blocks done`, unless `--quiet`.
 
 `tests/test_progress.py` checks that every stage arrives once, in order, numbered 1 to
 `total`, for the pipeline (built-in and plugin modules), a single station, a batch in one
@@ -758,8 +759,10 @@ climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker i
 Climpact's own modified climdex.pcic.ncdf 0.5-4 (`server/pcic_packages/climdex.pcic.ncdf/R/ncdf.R`).
 Options follow the wrapper's settings: input files (one to three), `--tmax`, `--tmin`,
 `--prec` (variable names, default `tasmax`, `tasmin`, `pr`), `--base-start`, `--base-end`,
-`--institution`, `--institution-id` (R's `author.data`), `--workers` (R's `cores`) and
-`--max-values` (R's `max.vals.millions`, default 5). R's wrapper always uses
+`--institution`, `--institution-id` (R's `author.data`), `--workers` (R's `cores`),
+`--max-values` (R's `max.vals.millions`, default 5), and `--rechunk` (`auto`, `yes`,
+`no`) and `--tmp-dir`, which R does not have (see
+[Rechunking](#rechunking-inputs-chunked-by-time-step)). R's wrapper always uses
 `fclimdex.compatible = FALSE`, which only affects the in-base bootstrap, not used here.
 
 ```
@@ -788,6 +791,9 @@ netCDF files
 - Blocks are whole Y rows (or parts of a row) with at most `max_values` values of the
   three variables, like R's stripes (`axis.to.split.on = "Y"`). They are the dask chunks of
   `GriddedInput.data`, opened with those chunks so that a block reads only its cells.
+- Files chunked by time step over the whole grid are rechunked to a temporary file first
+  (see [Rechunking](#rechunking-inputs-chunked-by-time-step)); `--rechunk` and
+  `--tmp-dir` control it.
 - `GriddedInput.cell_latitude()` gives each cell's latitude, from the Y coordinate or a
   two-dimensional latitude variable, for the hemisphere rules of the gridded indices (see
   [Gridded indices](#gridded-indices)).
@@ -839,7 +845,8 @@ follow the wrapper's settings: input files and variable names as for the thresho
 `--base-end`, `--indices` (R's `indices`, by short name: `fd`, `rxdday`, `wsdid`, ...),
 `--thresholds` (R's `thresholds.files`, a file from `climpact gridded-thresholds`),
 `--institution`, `--institution-id`, `--workers` (`cores`), `--max-values`
-(`maxvals`) and the wrapper's "esoteric" index parameters with its values
+(`maxvals`), `--rechunk`, `--tmp-dir` (as for the thresholds) and the wrapper's
+"esoteric" index parameters with its values
 (`WRAPPER_PARAMS`: `--wsdi-days`, `--csdi-days` 5, `--rx-days` 7, `--txtn-days` 3,
 `--hdd-base`, `--cdd-base` 18, `--gdd-base` 10, `--rnnmm` 30). `EHF_DEF` is always
 `NF13`, the only definition `climdex.hwEHF` accepts.
@@ -960,6 +967,51 @@ accumulation, and uses `climpact.rdist`'s `qnorm` and `pgamma`; every SPI and SP
 of the five reference grids is identical to R's after rounding to float32. Not reachable
 with precipitation sums, and not reproduced: when `PELGAM` fails (`L1 <= L2`) R falls back
 to lmomco's `pargam`, gets `NULL` and stops; Python leaves the month missing.
+
+### Rechunking inputs chunked by time step
+
+A block needs every day of its cells, so it reads every netCDF chunk its cells are in.
+Model output is usually chunked by one time step (or a few) over the whole grid; then
+every block decompresses the whole file, and reading grows with the square of the grid
+size (R's stripes read the same way). `GriddedInput.block_reader()`, which both
+`write_grid_thresholds` and `write_grid_indices` read their blocks through, first copies
+such an input to a temporary file laid out by block, and reads the blocks from it:
+
+- **When.** `open_grid(..., rechunk=None)` (the default, `--rechunk auto`) rechunks when
+  `GriddedInput.read_amplification()` is at least `RECHUNK_AMPLIFICATION` (4): the area
+  of the files' chunks the blocks touch, summed over the blocks, divided by the grid's
+  area, for the worst of the three variables. Files chunked by time step give the number
+  of blocks; files chunked by cell or by block give 1, as do contiguous and netCDF-3
+  variables (not rechunked automatically; `--rechunk yes` forces it). A single block is
+  never worth it. `rechunk=True` / `False` (`--rechunk yes` / `no`) force it on or off.
+- **Where.** `tmp_dir` (`--tmp-dir`, default the system's temporary directory). The copy
+  is the raw values of the three variables in their file types, uncompressed
+  (`GriddedInput.rechunk_bytes()`; 2.7 GB for 60 years of float32 on a 2.5-degree global
+  grid). In automatic mode it is skipped, with a warning, when it would take more than
+  90% of the free space; forced, too little space raises `OSError`. The file is deleted
+  when the run ends, also on error or interrupt.
+- **How.** One pass over the input in time slabs of the whole grid, each holding at most
+  `max_values` values of one variable and a whole number of the files' time chunks
+  (so each chunk is decompressed once). Each slab of each variable is written as one
+  tile per block, sequentially; a block is then read back with one read per slab and
+  variable (`_TileFile`). The raw values are decoded and converted exactly as
+  `GriddedInput.load` does (`_to_climpact_units`, the same `decode_ncdf4` and unit
+  conversion), so the values of every block, and every output, are identical.
+- **Progress.** The run's `total` counts the slabs and the blocks; each slab reports
+  `rechunk` (see [Progress reporting](#progress-reporting)).
+- **Memory.** A slab holds at most `max_values` values in the file's type (20 MB for the
+  default and float32), less than a block as float64. netCDF-C's read cache (up to 64 MB
+  per variable, as for reading blocks directly) adds to the resident memory; it cannot be
+  reduced for the copy, because `open_grid`'s open handles share HDF5's per-variable
+  cache.
+
+`tests/test_gridded_rechunk.py` checks every block of a grid with float32 data with a
+fill value, packed int16 data with a `missing_value` and float64 precipitation stored
+`(time, lon, lat)` in a second file is identical rechunked and read directly; that the
+thresholds and index files are identical; the automatic decision, the progress stages,
+that the temporary file is in `tmp_dir` and deleted (also on error), and that the memory
+numpy allocates while rechunking does not grow with the grid. See
+[Performance](#performance) for timings.
 
 ## Use of xclim
 
@@ -2162,6 +2214,7 @@ exercise only those said to be):
 | `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
 | Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |
 | R writes an uncompressed file with one chunk per day | compressed (zlib), chunked by block; the content is the same |
+| R reads each stripe straight from the input files, however they are chunked: with files chunked by time step, every stripe decompresses the whole file | inputs chunked by time step are copied once to a temporary file laid out by block (`GriddedInput.block_reader`, see [Rechunking](#rechunking-inputs-chunked-by-time-step)); the values read are identical |
 | Gridded indices: R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an all-missing cell (`climdex.results[[i]][[ind]][[2]]` of the cell's `NA`), after writing part of the files | **Not copied** (decided 2026-11-14, #87): Python writes every file, with missing values (the fill value) for the all-missing cell, as for every other index. The `grid_stations` and `grid_future` R references leave `hw` and `hwEHF` out for this reason; `grid_filled` has no all-missing cell. `test_r_missing_values` checks the all-missing cell |
 | Gridded indices: for a cell with TAVG on less than half of the base period, `climdex.hwEHF` prints "NOT CALCULATING EHF HEATWAVES, LESS THAN 50% OF BASE PERIOD DATA AVAILABLE..." and returns `NULL`; `write.climdex.results` then stops on `hwEHF` ("subscript out of bounds": it turns the `NULL` into a one-element list and takes its second element). The first `grid_filled` run hit this on its sparse cell, which is why that cell was changed | **Not copied** (#87, same decision): the cell's eight EHF variables are missing (`hwehf_values`), as the station product writes no EHF files then. With a thresholds file R makes no such check, and neither does Python. `test_ehf_needs_half_of_the_base_period_unless_thresholds_are_given` |
 | Gridded indices: EHF85 missing from a thresholds file (a cell without positive base-period EHF) makes every severity `NA`; R's `max(na.rm = TRUE)` and `sum(na.rm = TRUE)` then give EHF-HWPS `-Inf` and EHF-HWLS 0 in years with heatwaves, written as such | reproduced (`annual_aspects` drops missing severities; `_write_block` keeps infinite values). The station product had raised an error in this case (possible only with no positive base-period EHF); it now gives R's values too. No reference grid has such a cell; the unit test above checks it |
@@ -2319,9 +2372,8 @@ two reference grids take under 0.5 s each. Decimal doubles in degrees C are slow
 EHF, where some 30-day sums need R's rounding emulation one window at a time (see
 [Numerical precision](#numerical-precision)).
 
-Input files chunked by time step over the whole grid (common in model output) are read
-again for every block, since each block needs every day; R's stripes have the same
-pattern. Rechunking such files first is #67.
+Input files chunked by time step over the whole grid (common in model output) are
+rechunked first; see [Rechunked inputs](#rechunked-inputs).
 
 ### Gridded indices
 

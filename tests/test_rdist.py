@@ -84,19 +84,39 @@ def test_pgamma_edge_cases():
     assert pgamma(3.0, 200.0) == float.fromhex("0x1.3c66273a72bdap-933")
 
 
-def test_libm_lgamma_matches_glibc_on_linux():
-    """glibc's lgamma, as R's stirlerr calls it (CPython's math.lgamma differs)."""
-    xs = [0.3, 0.7, 0.95, 1.1, 1.5, 1.9, 2.5, 3.3, 5.0, 7.99, 8.5, 42.0, 1e20]
-    ours = [libm_lgamma(x) for x in xs]
-    assert ours == pytest.approx([math.lgamma(x) for x in xs], rel=1e-14, abs=LIBM_ATOL)
-    if GLIBC_X86_64:
-        import ctypes
-        import ctypes.util
+# glibc 2.39's lgamma, the C library of the R reference image (rocker/r-ver:4.6.1 on Ubuntu
+# 24.04), printed there with `printf("%a", lgamma(x))`. Newer glibc releases differ in the last
+# bit for some inputs (e.g. Ubuntu 26.04), so the port is checked against these fixed values
+# rather than against whatever libm the test machine has.
+GLIBC_2_39_LGAMMA = {
+    0.3: "0x1.188637a6c4196p+0",
+    0.7: "0x1.0b20c891cde74p-2",
+    0.95: "0x1.fb648aaf97604p-6",
+    1.1: "-0x1.988e1705d89eap-5",
+    1.5: "-0x1.eeb95b094c191p-4",
+    1.9: "-0x1.3f5bf3c4bb75ap-5",
+    2.5: "0x1.2383e809a67e8p-2",
+    3.3: "0x1.f964fc1bf8d4p-1",
+    5.0: "0x1.96ca77c922cf9p+1",
+    7.99: "0x1.10290e198803cp+3",
+    8.5: "0x1.319398ed5be28p+3",
+    42.0: "0x1.c8230869ca105p+6",
+    1e20: "0x1.e873977d7ba97p+71",
+}
 
-        libm = ctypes.CDLL(ctypes.util.find_library("m"))
-        libm.lgamma.restype = ctypes.c_double
-        libm.lgamma.argtypes = [ctypes.c_double]
-        assert ours == [libm.lgamma(x) for x in xs]
+
+def test_libm_lgamma_matches_glibc_2_39():
+    """glibc's lgamma, as R's stirlerr calls it (CPython's math.lgamma differs).
+
+    Exact on glibc x86_64, where the port's own exp/log calls match R's platform; within
+    the documented libm tolerance elsewhere.
+    """
+    xs = list(GLIBC_2_39_LGAMMA)
+    ours = [libm_lgamma(x) for x in xs]
+    expected = [float.fromhex(h) for h in GLIBC_2_39_LGAMMA.values()]
+    assert ours == pytest.approx(expected, rel=1e-14, abs=LIBM_ATOL)
+    if GLIBC_X86_64:
+        assert ours == expected
 
 
 def test_lgamma1p_small_argument():

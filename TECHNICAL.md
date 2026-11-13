@@ -1294,7 +1294,10 @@ python3 -m venv .venv
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 (x86_64 Linux).
+- Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 on Ubuntu 24.04 (x86_64,
+  glibc 2.39), pinned to match the R reference image: the exact SPI/SPEI text checks depend on
+  the C maths library, and newer glibc releases (e.g. Ubuntu 26.04) differ in the last bit of
+  `lgamma`.
   Its glibc is the C maths library the R reference was made with, so CI checks the SPI
   and SPEI files for text identity; on macOS they are checked to 1e-10 relative
   (`tests/libm.py`).

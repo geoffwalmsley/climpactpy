@@ -25,6 +25,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each) | EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
 | Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
+| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -36,7 +37,8 @@ It does not yet write plots or zip archives.
 
 ```
 src/climpact/
-  cli.py             command line: `climpact run <station file> --out <dir>`
+  cli.py             command line: `climpact run` (one station) and `climpact batch` (many)
+  batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   config.py          StationMetadata, IndexParams, CustomIndex (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
@@ -80,9 +82,11 @@ station text file
   -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
 ```
 
-`climpact run` (`climpact.cli`) runs the whole chain for one station file. Station
-settings and every `IndexParams` value are options; defaults are the Climpact app
-defaults, and the station name defaults to the file name without its suffix.
+`climpact run` (`climpact.cli`) runs the whole chain for one station file
+(`batch.run_station`). Station settings and every `IndexParams` value are options;
+defaults are the Climpact app defaults, and the station name defaults to the file name
+without its suffix. `climpact batch` runs the same chain for every station of an R batch
+metadata file (see [Batch processing](#batch-processing)).
 
 ### Station data model
 
@@ -101,9 +105,10 @@ Station metadata (name, latitude, longitude, base period) is kept in the `Statio
 copied into the Dataset attributes, together with `first_date` and `last_date`, the first
 and last dates in the file before padding (used for climdex's base-period data check).
 
-The Dataset is currently one-dimensional in time. A `station` dimension for batch runs and
-`(lat, lon)` dimensions for gridded data are planned; the index code operates along `time`
-and should not need to change.
+The Dataset is one-dimensional in time. Batch runs do not add a `station` dimension: each
+station is a separate `StationRun` in its own process, because stations have their own
+time axes, coordinates and parameters. `(lat, lon)` dimensions for gridded data are
+planned; the index code operates along `time` and should not need to change.
 
 ### Index parameters
 
@@ -180,6 +185,59 @@ tables returned by `build_all` the way R does:
 `write_climpact_csv` (in `climpact.io.climpact_csv`) writes one file and is the inverse of
 `read_climpact_csv`. An output key with no description or file format is an error, so a new
 product must add its format in `output_files.py` before its files can be written.
+
+## Batch processing
+
+`climpact batch <metadata file> <data dir> --out <dir>` ports Climpact's batch mode
+(`climpact.batch.stations.r`, `server/batch_stations.R`). Options: `--base-start`,
+`--base-end` (default 1971-2000, applied to every station, as R's command-line
+arguments), `--workers` (processes; R's `cores_to_use`) and `--custom VAR OP VALUE`.
+
+- **Metadata file** (`read_batch_metadata`): R's format, read unchanged, for example
+  Climpact's `www/sample_data/climpact.sample.batch.metadata.txt` (copied to
+  `tests/data/`). As R's `read.file.list.metadata` (`read.table(header = TRUE)`): a header
+  row (its names are not checked), then one whitespace-separated row per station with 12
+  fields: `station_file latitude longitude wsdin csdin Tb_HDD Tb_CDD Tb_GDD rxnday rnnmm
+  txtn SPEI`. Blank lines and `#` comments are skipped. The columns map to `wsdi_days`,
+  `csdi_days`, `hdd_base`, `cdd_base`, `gdd_base`, `rx_days`, `rnnmm`, `txtn_days` and
+  `spei_months`. A row with the wrong number of fields or a non-numeric value stops the
+  batch before any station runs, as `read.table` does.
+- **Station name:** the file name without its last extension (`strip_file_extension`,
+  as R's), so outputs go to `<out>/<station>/` exactly as `climpact run` writes them.
+- **Custom index:** R's batch mode calls `climdexInputParams` with empty `var.choice` and
+  `op.choice`, so `calculate.custom.index` writes nothing. Python calculates none either,
+  unless `--custom` is given (then for every station).
+- **Running:** `run_batch` runs each station in a `ProcessPoolExecutor` (spawn start
+  method, one process per CPU by default, at most one per station; `--workers 1` runs in
+  the main process). Each worker runs `run_station`, the same function as `climpact run`.
+  Progress is printed as each station finishes; results are returned in metadata order.
+- **Failures:** any exception in a station (unreadable file, invalid parameters, a
+  calculation error, a crashed worker) is caught and written to
+  `<out>/<station>.errors.txt`, R's error log name, and the batch carries on. An error file
+  left by an earlier run is removed first, as R does. The command ends with a summary of
+  failed stations and their error files.
+
+R behaviour not copied, and why:
+
+| R behaviour | Python |
+| --- | --- |
+| Outputs go to a folder named after the metadata file without its extension | outputs go to `--out` |
+| A station listed in the metadata but not in the data folder is skipped silently | reported as a failure (`station file not found`) with an error file |
+| Parameters failing `validate_climdexInputParams` (e.g. `wsdin` outside 1-10) stop the whole batch: the check runs outside the `tryCatch` | the same checks (`validate_params`) fail only that station |
+| An index calculation error leaves the files already written for that station | a station is built in full before anything is written, so a failed station has no output folder |
+| Two rows with the same station name (e.g. `a.txt`, `a.csv`) both write to the same folder, the last overwriting | rejected when the metadata file is read, since parallel workers would write the same files |
+| A file name without an extension gives an empty station name (`strip_file_extension`) | the whole file name is used |
+| Exit status 0 even when stations fail | exit status 1 when any station fails |
+| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | QC beyond `qc/nastatistics` is not yet ported (#9) |
+| Values are read with `colClasses` `integer` for `wsdin`, `csdin`, `rxnday`, `SPEI`, and `real` for `txtn` | `txtn` must also be a whole number (it is a day count; `IndexParams.txtn_days` is an `int`) |
+
+**Parity.** `tests/parity/test_batch.py` runs a batch of `sydney`, `nairobi` and a
+malformed file through a two-process pool, and checks that every file written for each
+reference station is byte-identical to the file `write_outputs` writes for its single run
+(same date), with the same set of files, and that the malformed file fails with an error
+file while the others succeed. The single-run files are the ones `test_csv_text` checks
+against R. `tests/test_batch.py` covers the metadata format, R's sample file, the error
+cases and the command line.
 
 ## Missing data
 
@@ -821,7 +879,10 @@ output is ported.
 
 A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
 a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
-with 15 runs, including the text comparison, takes about 170 seconds. The extra runs are not
+with 15 runs, including the text comparison and the batch test, takes about 190 seconds.
+A batch runs one station per process: Climpact's two sample stations (80 years each) take
+about 19 seconds with `--workers 2`, against about 12 seconds for one station alone (each
+spawned worker also imports xclim). The extra runs are not
 marked `slow`; #23 tracks speed-ups. Most of the time is per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
@@ -855,7 +916,8 @@ python3 -m venv .venv
 
 - Run a station from the command line with
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
-  (`climpact run --help` lists the options).
+  (`climpact run --help` lists the options), or a batch with
+  `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
 - Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 (x86_64 Linux).
 - Always work inside `.venv`.
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the

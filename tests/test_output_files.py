@@ -89,3 +89,22 @@ def test_nastatistics_uses_comma_separator(tmp_path):
     lines = written["qc/nastatistics"].read_text().splitlines()
     assert lines[0] == '"Description: ",""'
     assert lines[-2:] == ["Year,Prec,TX,TN", "2000,0,2,1"]
+
+
+def test_heatwave_files_follow_write_hw_csv(tmp_path):
+    d = index_descriptions(IndexParams())
+    assert d["TX90-HWM_ANN"] == "TX90 heatwave magnitude (HWM)"
+    assert d["TN90-HWF_ANN"] == "TN90 heatwave frequency (HWF)"
+
+    # Written even when missing for every year, with no standardised-anomaly column.
+    tables = {
+        "indices/TX90-HWN_ANN": pd.DataFrame({"time": [2000.0, 2001.0], "HWN": [2.0, np.nan]}),
+        "indices/TN90-HWN_ANN": pd.DataFrame({"time": [2000.0, 2001.0], "HWN": [np.nan] * 2}),
+    }
+    written = write_outputs(tables, META, IndexParams(), tmp_path)
+    assert set(written) == set(tables)
+    assert written["indices/TX90-HWN_ANN"].read_text().splitlines()[-3:] == [
+        "time, HWN",
+        "2000, 2",
+        "2001, -99.9",
+    ]

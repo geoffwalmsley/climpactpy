@@ -5,12 +5,18 @@ R writes each station's outputs to ``<out>/<station>/{indices,qc,thres,trend}/``
 definition from ``server/climate.indices.csv`` as their ``Description`` line, with the
 parameterised definitions ``index.calc`` builds (``services/calculate_indices.R``).
 ``write.index.csv`` writes no file when an index is missing for every period.
+
+The heatwave files are written by ``write.hw.csv`` (``services/write_indices.R``) with
+the same header block and missing-value token but no standardised-anomaly column. It
+writes all ten Tx90/Tn90 files whenever any of them has a value, so a heatwave file
+can be missing for every year; the products leave out the whole group otherwise.
 """
 
 from __future__ import annotations
 
 import csv
 import datetime as dt
+import re
 from functools import cache
 from importlib import resources
 from pathlib import Path
@@ -25,6 +31,16 @@ CLIMPACT_VERSION = "3.4.3"
 
 # Rows of climate.indices.csv written by their own functions rather than write.index.csv.
 _NOT_INDEX_FILES = {"hw", "hwEHF", "spei", "spi"}
+
+# Heatwave files (write.hw.csv): written even when missing for every year.
+_HEATWAVE_FILE = re.compile(r"^(TX90|TN90)-HW[MANDF]_ANN$")
+_HEATWAVE_ASPECTS = {
+    "HWM": "magnitude",
+    "HWA": "amplitude",
+    "HWN": "number",
+    "HWD": "duration",
+    "HWF": "frequency",
+}
 
 # Separator between fields of the header row and data rows, by output key.
 # write.index.csv uses ", "; write.NA.statistics uses ",".
@@ -103,6 +119,11 @@ def index_descriptions(params: IndexParams) -> dict[str, str]:
                 definition = f"Annual sum of TM - {n(params.gdd_base)}"
         out[f"{name}_{suffix}"] = definition
 
+    # write.hw.csv: "TX90 heatwave magnitude (HWM)".
+    for definition in ("TX90", "TN90"):
+        for short, aspect in _HEATWAVE_ASPECTS.items():
+            out[f"{definition}-{short}_ANN"] = f"{definition} heatwave {aspect} ({short})"
+
     # calculate.custom.index: header "TN > 0", for both frequencies.
     if (spec := params.custom) is not None:
         for suffix in ("ANN", "MON"):
@@ -146,15 +167,16 @@ def write_outputs(
 ) -> dict[str, Path]:
     """Write output tables (as returned by ``build_all``) as Climpact CSV files.
 
-    Index tables that are missing for every period are skipped, as R does. Returns the
-    path written for each key.
+    Index tables that are missing for every period are skipped, as R's
+    ``write.index.csv`` does, apart from the heatwave files (see the module docstring).
+    Returns the path written for each key.
     """
     descriptions = index_descriptions(params)
     written = {}
     for key, table in tables.items():
         folder, name = key.split("/", 1)
         if folder == "indices":
-            if is_all_missing(table):
+            if is_all_missing(table) and not _HEATWAVE_FILE.match(name):
                 continue
             try:
                 description = descriptions[name]

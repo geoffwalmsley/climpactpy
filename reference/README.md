@@ -110,6 +110,28 @@ from the pinned Climpact commit) is installed in layers after the station packag
 unchanged: the rebuilt image reproduces the committed `sydney` outputs (every CSV identical apart
 from `Date_of_calculation`).
 
+## Sector correlation reference
+
+Climpact's step 4, sector correlation (`server/sector_correlation.R`), is run on the
+committed `sydney` outputs by
+
+```sh
+./reference/run_r_sector.sh
+```
+
+`r/run_sector_correlation.R` calls `draw.correlation` as the app's
+`modules/singleStationStep4.R` does, with the app's defaults: title the station name, y-axis
+label `wheat` (the file name up to its first `_` or `.`). Inputs: the raw station file
+`input/sydney_observatory_hill_1936-2015.txt` (R re-reads it at this step), the index CSVs in
+`output/sydney/<station>/indices/`, and `input/sector/wheat_yield_nsw_1922-1999.csv`, a copy
+of Climpact's `www/sample_data` file. It runs twice, detrended (the app's default) and not,
+into `output/sydney/sector/detrended/` and `output/sydney/sector/raw/` (R's `corr/` folder),
+with `r-package-versions.csv` and `climpact-commit.txt`. The CSVs are committed; the PNGs are
+gitignored. The R files carry no date, so a re-run with the same inputs reproduces them.
+
+The scatter plots need ggplot2, which the image installs from the same CRAN snapshot in a
+layer after the station and gridded packages, so those are unchanged.
+
 ## Synthetic QC station
 
 `qc_stress_1961-2020.txt` is Potsdam's input with faults planted for every per-value QC
@@ -182,6 +204,8 @@ commercially should check the national source's terms.
 
 - `rocker/r-ver:4.6.1`, CRAN from the Posit snapshot of 2026-09-18
 - PCICt 0.5-4.4 from the CRAN archive; climdex.pcic 1.2-0 from GitHub commit `011cb78`
+- For sector correlation: ggplot2 from the same snapshot (`r-package-versions.csv` in
+  `output/sydney/sector/` lists the version)
 - For gridded runs: ncdf4 1.24, udunits2 0.13.2.2 and the other CRAN packages from the same
   snapshot; ncdf4.helpers 0.3-3 and climdex.pcic.ncdf 0.5-4 (Climpact's modified version) from
   Climpact's `server/pcic_packages` at commit `5ee0cfe` (checked by SHA-256)

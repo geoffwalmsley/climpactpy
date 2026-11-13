@@ -12,6 +12,8 @@ outputs, as R's download does (see :mod:`climpact.plots`).
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
 (see :mod:`climpact.gridded`). ``climpact gridded-indices <netCDF files> --out <dir>``
 computes the indices of every cell, as ``climpact.ncdf.wrapper.r``.
+``climpact sector-correlation <station file> <sector file> --out <dir>`` correlates annual
+sector data with a station already run, as the app's step 4 (see :mod:`climpact.sector`).
 """
 
 from __future__ import annotations
@@ -302,6 +304,42 @@ def _parser() -> argparse.ArgumentParser:
     )
     gi.add_argument("--quiet", action="store_true", help="do not print progress")
 
+    sector = commands.add_parser(
+        "sector-correlation",
+        help="correlate annual sector data with a station's temperatures and indices",
+        description="Correlate annual sector data (for example crop yields) with the "
+        "yearly temperatures and indices of a station already run with `climpact run`, as "
+        "step 4 of the Climpact app, and write R's correlation files to OUT/NAME/corr/. "
+        "The indices are read from OUT/NAME/indices/.",
+    )
+    sector.add_argument("station_file", type=Path, help="the station's input text file")
+    sector.add_argument(
+        "sector_file", type=Path, help="CSV file with a header row, then Year,value per year"
+    )
+    sector.add_argument("--out", type=Path, required=True, help="output folder of the run")
+    sector.add_argument("--name", help="station name (default: the file name without suffix)")
+    sector.add_argument(
+        "--no-detrend",
+        action="store_true",
+        help="correlate the sector data as given (default: detrended, as the app)",
+    )
+    sector.add_argument("--title", help="plot title (default: the station name)")
+    sector.add_argument(
+        "--y-label",
+        help="y-axis label of the scatter plots (default: the sector file name up to its "
+        "first '_' or '.')",
+    )
+    sector_out = sector.add_argument_group("plots and archive")
+    sector_out.add_argument(
+        "--plots",
+        action="store_true",
+        help="also draw the scatter and bar plots as PNGs, as R does (needs matplotlib)",
+    )
+    sector_out.add_argument(
+        "--zip", action="store_true", help="also zip OUT/NAME/corr/ to OUT/NAME_corr.zip, as R"
+    )
+    sector.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
+
     commands.add_parser(
         "modules",
         help="list the QC, homogeneity and index modules available",
@@ -545,6 +583,45 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     return 0
 
 
+def sector_correlation_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from climpact.sector import SectorCorrelationError, corr_dir, run_sector_correlation
+
+    for path in (args.station_file, args.sector_file):
+        if not path.is_file():
+            parser.error(f"file not found: {path}")
+    name = args.name or args.station_file.stem
+    if not (args.out / name / "indices").is_dir():
+        parser.error(f"no indices in {args.out / name}: run `climpact run` first")
+    _plots_available(args, parser)
+    progress = None
+    if args.progress:
+
+        def progress(stage: str, step: int, total: int) -> None:
+            _print_stage("", stage, step, total)
+
+    try:
+        written = run_sector_correlation(
+            args.station_file,
+            args.sector_file,
+            args.out,
+            name,
+            detrend_sector=not args.no_detrend,
+            title=args.title,
+            y_label=args.y_label,
+            plots=args.plots,
+            zip=args.zip,
+            progress=progress,
+        )
+    except SectorCorrelationError as exc:
+        print(f"climpact sector-correlation: error: {exc}", file=sys.stderr)
+        return 1
+    archive = written.pop("zip", None)
+    print(f"Wrote {len(written)} files to {corr_dir(args.out, name)}")
+    if archive is not None:
+        print(f"Zipped them to {archive}")
+    return 0
+
+
 def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     from climpact.modules import available
 
@@ -568,6 +645,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return gridded_thresholds_command(args, parser)
     if args.command == "gridded-indices":
         return gridded_indices_command(args, parser)
+    if args.command == "sector-correlation":
+        return sector_correlation_command(args, parser)
     parser.error(f"unknown command {args.command!r}")  # pragma: no cover
     return 2
 

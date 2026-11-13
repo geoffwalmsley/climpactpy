@@ -16,7 +16,13 @@ def pytest_terminal_summary(terminalreporter):
     counts: dict[tuple[str, str], Counter] = {}
     for outcome in ("passed", "failed", "xfailed"):
         for report in terminalreporter.stats.get(outcome, []):
-            for test in ("test_parity", "test_csv_text", "test_gridded", "test_gridded_indices"):
+            for test in (
+                "test_parity",
+                "test_csv_text",
+                "test_gridded",
+                "test_gridded_indices",
+                "test_sector",
+            ):
                 if f"{test}[" not in report.nodeid:
                     continue
                 run = report.nodeid.split(f"{test}[", 1)[1].split("/", 1)[0]
@@ -27,7 +33,13 @@ def pytest_terminal_summary(terminalreporter):
     if not counts:
         return
     terminalreporter.section("R parity")
-    order = {"test_parity": 0, "test_csv_text": 1, "test_gridded": 2, "test_gridded_indices": 3}
+    order = {
+        "test_parity": 0,
+        "test_csv_text": 1,
+        "test_gridded": 2,
+        "test_gridded_indices": 3,
+        "test_sector": 4,
+    }
     for (test, run), c in sorted(counts.items(), key=lambda item: (order[item[0][0]], item[0][1])):
         total = sum(c.values())
         known = f", {c['known bug']} known bugs" if c["known bug"] else ""
@@ -39,6 +51,11 @@ def pytest_terminal_summary(terminalreporter):
         elif test == "test_csv_text":
             terminalreporter.write_line(
                 f"{run}: {c['passed']}/{total} written CSV files text-identical to R, "
+                f"{c['failed']} differing{known}"
+            )
+        elif test == "test_sector":
+            terminalreporter.write_line(
+                f"{run}: {c['passed']}/{total} sector correlation CSV files matching R, "
                 f"{c['failed']} differing{known}"
             )
         elif test == "test_gridded":

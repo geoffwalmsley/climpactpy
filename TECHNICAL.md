@@ -11,6 +11,9 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 The Python port reproduces **all 125** R reference files for Sydney (`lat0` and
 `sydney`), and every file R wrote for all 13 GHCN stations and the synthetic QC station,
 with none failing and none left to port (see [Reference outputs](#reference-outputs)).
+Sector correlation (the app's step 4, `climpact sector-correlation`, #84) reproduces R's
+ten files for Sydney with Climpact's sample wheat data, detrended and not (see
+[Sector correlation](#sector-correlation)).
 Gridded base-period thresholds (`climpact gridded-thresholds`, #29) reproduce every
 variable of R's thresholds netCDF bit for bit on both gridded reference grids, and the
 gridded indices (`climpact gridded-indices`, #30) reproduce every variable of the 84 index
@@ -32,8 +35,8 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files (all but four), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)) | gridded `hw`, `hwEHF`, `spi`, `spei` files (#87) |
-| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`) | |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files (all but four), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | gridded `hw`, `hwEHF`, `spi`, `spei` files (#87); web step 4 for sector correlation (#90) |
+| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -49,13 +52,16 @@ with `--zip` zips the outputs as R's download does (see [Plots and zip archive](
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
                      `climpact gridded-thresholds` and `climpact gridded-indices` (a netCDF
-                     grid), `climpact modules` (list the modules available)
+                     grid), `climpact modules` (list the modules available),
+                     `climpact sector-correlation` (sector data against a station already run)
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   plots.py           index plots (PNG), the combined PDF and the zip archives (matplotlib,
                      optional: the `plots` extra)
   progress.py        progress callbacks: Progress, BatchProgress, Steps (see Progress reporting)
+  sector.py          sector correlation (R's step 4): sector_correlation(),
+                     write_sector_correlation(), run_sector_correlation()
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-7/8 quantiles,
@@ -111,13 +117,16 @@ reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
   make_qc_stress.py  make the synthetic QC stress station from Potsdam
-  input/             station input data used by the tests
+  input/             station input data used by the tests; input/sector/ Climpact's sample
+                     sector file
   output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored,
-                     their names are in output/<run>/plot-files.txt)
+                     their names are in output/<run>/plot-files.txt); output/sydney/sector/
+                     R's sector correlation files, detrended/ and raw/
   gridded/           gridded runs (runs.csv), make_grids.py, input grids and R's thresholds
                      and index netCDF files (output/<run>/thresholds.nc, output/<run>/indices/)
-  r/, run_r_reference.sh, run_r_gridded.sh
-                     Docker setup that produces reference/output and reference/gridded/output
+  r/, run_r_reference.sh, run_r_gridded.sh, run_r_sector.sh
+                     Docker setup that produces reference/output (and its sydney/sector/) and
+                     reference/gridded/output
                      (see reference/README.md)
 ```
 
@@ -145,6 +154,8 @@ station text file
 defaults are the Climpact app defaults, and the station name defaults to the file name
 without its suffix. `climpact batch` runs the same chain for every station of an R batch
 metadata file (see [Batch processing](#batch-processing)).
+`climpact sector-correlation` then correlates annual sector data with a station already
+run, reading the index files the run wrote (see [Sector correlation](#sector-correlation)).
 
 ### Station data model
 
@@ -435,6 +446,7 @@ stops calling it.
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
 | `gridded.write_grid_thresholds(..., progress=)` | `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
 | `gridded.write_grid_indices(..., progress=)` | `indices` once per block |
+| `sector.run_sector_correlation(..., progress=)` | `read`, `correlate`, `write:tmin`, `write:tmax`, `write:t`, `write:above30`, `write:index-sector`, and with `zip=True` a last `zip` (`sector.sector_steps(zip)`): 7 or 8 |
 
 **Batch with several workers.** Callbacks are called only in the process that passed
 them, so they need not be picklable. Each worker process gets a `multiprocessing` queue
@@ -460,7 +472,8 @@ as it finishes. The pipeline passes it only when a callback was given.
 
 **Command line.** `climpact run --progress` and `climpact batch --progress` print
 `[step/total] stage` (prefixed by the station name in a batch) to standard error, so
-standard output and the files written are unchanged. `climpact gridded-thresholds` prints
+standard output and the files written are unchanged, as does `climpact sector-correlation
+--progress`. `climpact gridded-thresholds` prints
 `[done/total] blocks done` as before, unless `--quiet`.
 
 `tests/test_progress.py` checks that every stage arrives once, in order, numbered 1 to
@@ -557,6 +570,65 @@ standard PDF font (no embedding) each saved about 1 s. The PNGs total 6.8 MB (R'
 the PDF 0.8 MB. Zipping the Sydney folder takes about 0.5 s. Plots are drawn in the
 station's own process: a worker process would cost more than it saves, as importing
 `climpact` imports xclim (about 2 s).
+
+## Sector correlation
+
+`climpact.sector` ports step 4 of the R app: `draw.correlation` and
+`create.correlation.plots` in `server/sector_correlation.R`, called by
+`modules/singleStationStep4.R` after the indices are calculated (#84; the web step is #90).
+The user gives a CSV file of annual sector data, a header row and then `Year,<value>` per
+year (Climpact's sample is `www/sample_data/wheat_yield_nsw_1922-1999.csv`, copied to
+`reference/input/sector/`), a plot title (default: the station name), a y-axis label
+(default: the file name up to its first `_` or `.`) and whether to detrend (default: yes).
+
+| Function | Does |
+| --- | --- |
+| `read_sector_file(path)` | reads the file as `read.csv`: the header through `make.names` (`r_make_names`: `Wheat yield (t/ha)` becomes `Wheat.yield..t.ha.`), `-99.9`, `NA` and empty as missing. Returns a `SectorData` (`years`, `values`, `column`) |
+| `sector_correlation(rows, index_tables, sector, station, detrend_sector)` | the calculation, in memory. `rows` are the station's daily rows as R's `read_user_file` reads them (`io.station.read_station_rows`), `index_tables` a run's tables keyed `indices/<name>_ANN` (from `build_all`, or read back by `read_index_tables`). Returns a `SectorCorrelation`: the four scatter tables with their regressions and the correlation table |
+| `write_sector_correlation(result, folder, title, y_label, plots)` | writes the files below to `folder` (R's `corr/`), with `write_r_csv` (R's `write.csv`) |
+| `run_sector_correlation(station_file, sector_file, out_dir, station, ..., index_tables=None, plots, zip, progress)` | the hook called after a run, by `climpact sector-correlation` and the web app: reads the station file and the index CSV files in `<out_dir>/<station>/indices/` (or uses `index_tables`, a run's tables in memory), writes to `<out_dir>/<station>/corr/` and, with `zip`, zips that folder to `<out_dir>/<station>_corr.zip`, as R's `zipFiles(corrdir, destinationFolder = baseFolder)` |
+
+Files, with `<part>` the sector column name lower-cased and cut at its first `..`
+(`wheat.yield`, or `detrended.wheat.yield` when detrended), as R's `sector.data.fileparts`:
+
+| File | Content |
+| --- | --- |
+| `<station>_corr_{tmin,tmax,t,above30}_<part>.csv` | `"year"`, the temperature summary (`avg_tmin`, `avg_tmax`, `avg_t`, `above30`) and the sector series, per year the station and the sector data have in common |
+| `<station>_index-sector_correlation_<part>.csv` | `"indice","cor","category"`: the correlation of the sector series with each index found, rounded to 2 decimals |
+| the same names with `.png` | with `plots=True` (`--plots`): the four scatter plots with their regression line, equation and R², and the bar chart, drawn in the style of [Plots and zip archive](#plots-and-zip-archive) (R draws them with ggplot2; content the same, look different) |
+
+R's behaviour reproduced (each covered by `tests/test_sector.py` where the reference run
+does not show it):
+
+- The temperature summaries come from the **raw station file**, not the QC'd data:
+  `avg_tmax`, `avg_tmin` are yearly means of the values present, `avg_t` is the mean of
+  every TX and TN value of the year pooled (`mean(c(tmax, tmin))`, not the mean of the
+  two means), `above30` counts days with TX > 30. Means use R's `mean` (`r_mean`).
+- At least 10 years in common between the station file and the sector data, counting
+  years whose sector value is missing, or R's error "not able to make a correlation,
+  since there is no data in common!" (`SectorCorrelationError`). The same error when an
+  index has no year in common.
+- **Detrending** (`detrend`, R's `calculateDeTrendValues`) is done on the whole sector
+  file before it is cut to the station's years: each value minus the `lm` slope times its
+  distance from the middle row, counted in **rows, not years**, from row `(n + 1) / 2`
+  when `n` is odd and `(n + 2) / 2` when even. Rows with a missing value are left out of
+  the slope and stay missing.
+- The indices correlated are R's fixed list of 42 file names (`SECTOR_INDICES`), in its
+  order, with its categories. A file R did not write (all missing) is skipped, and so is
+  an index written under another name: with base temperatures other than 18/18/10 the
+  degree-day indices (`hddheat18` ...), and `tx2tn2`/`txb2tnb2` with another `txtn_days`,
+  are left out; `wsdi` and `csdi` are the plain ones, not `wsdi<d>`. The value column is
+  `val`, `duration` or `sl` for the indices with dates (`exact_date_indices`).
+- R reads the indices back from their CSV files, so the values are the 15-digit written
+  ones and **a missing value is correlated as the number -99.9**. On Sydney this
+  dominates many correlations (fd, which is 0 in every year it has, correlates at -0.25
+  through its missing years). `_as_written` reproduces this for tables in memory.
+- `cor` without `use =`: missing values give `NA`, as does an index with no variation.
+  Which correlation is taken, and the `<part>` of the file names, depend on whether the
+  column name contains `Detrended`, as R's `grepl("Detrended", sectorCol)`.
+
+Differences from R are listed under [Sector correlation](#sector-correlation-1) in the
+differences section.
 
 ## Missing data
 
@@ -863,7 +935,7 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
 | `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 125/125 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 125/125 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 125/125, and 10/10 sector correlation files |
 | `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 125/125 each |
 | `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 123/123 and 125/125 |
 | `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 125/125 each |
@@ -901,6 +973,18 @@ type (float32), fill-value positions, NaN positions and values (`EXACT`: both si
 the same doubles to float32). `test_gridded_indices_layout` checks each file's dimensions,
 variable order, coordinate values and types, and every attribute, with the same
 exceptions as the thresholds file.
+
+**Sector correlation.** `reference/run_r_sector.sh` runs R's step 4
+(`reference/r/run_sector_correlation.R`, which calls `draw.correlation` as
+`singleStationStep4.R` does) on the `sydney` run's committed index files and its raw input
+file, with Climpact's sample `wheat_yield_nsw_1922-1999.csv`, detrended and not; the files
+are in `reference/output/sydney/sector/{detrended,raw}/` (CSV committed, PNG gitignored).
+The image installs ggplot2 from the same snapshot, in a layer after the others.
+`tests/parity/test_sector.py` builds the correlation from the Python `sydney` run's tables
+in memory and requires each file to equal R's line for line, apart from the detrended
+sector column, compared at `CLOSE` (see [Sector correlation](#sector-correlation-1)): 6 of
+the 10 files are text-identical, and the four detrended scatter files differ in one value
+(1994) in the 15th significant digit.
 
 `qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
 has a duplicated date and several QC checks fire at only a few of them.
@@ -947,8 +1031,9 @@ test of that run fails at once instead of rebuilding the station for each file.
 In every tier the pattern of missing values must be identical, and string columns (dates)
 must match exactly. Metadata header lines (including `Date_of_calculation`) are not compared.
 Tiers are assigned by file name in `tests/parity/catalogue.py`; the standardised column of
-an `EXACT` file uses `CLOSE`. Every variable of the gridded thresholds and index netCDF
-files is compared at `EXACT`.
+an `EXACT` file uses `CLOSE`. The sector correlation files (`tests/parity/test_sector.py`)
+are compared as text, apart from the detrended sector column at `CLOSE`. Every variable of
+the gridded thresholds and index netCDF files is compared at `EXACT`.
 
 **These tiers are the project's acceptance criteria** (decided 2026-11-13, #31). WMO could
 not be consulted, so the project set them itself. A file may be moved to a looser tier only
@@ -1001,6 +1086,10 @@ sydney: 125/125 written CSV files text-identical to R, 0 differing
 yakutsk: 125/125 written CSV files text-identical to R, 0 differing
 grid_sample: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_stations: 26/26 thresholds netCDF variables identical to R, 0 differing
+grid_future: 98/100 index netCDF variables identical to R, 0 differing, 2 not yet ported
+grid_sample: 98/118 index netCDF variables identical to R, 0 differing, 20 not yet ported
+grid_stations: 98/100 index netCDF variables identical to R, 0 differing, 2 not yet ported
+sydney: 10/10 sector correlation CSV files matching R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -1960,6 +2049,17 @@ file must be text-identical.
 | The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
 | `index.calc` writes a PNG per plotted series and `<station>_all_plots.pdf`; the app zips the station folder | written with `--plots` and `--zip`, under R's names; drawn differently (see [Plots and zip archive](#plots-and-zip-archive)) |
 
+### Sector correlation
+
+| R behaviour | Python | Effect |
+| --- | --- | --- |
+| `calculateDeTrendValues` takes the slope from `lm`, whose QR decomposition runs in the image's OpenBLAS (`dnrm2`, `ddot` in SIMD order) | `detrend` uses the exact least-squares slope, rounded once to a double (`fractions`), the same on every platform | R's slope for the sample wheat file is 1 ulp above the exact one (0.016154604888782106 against ...103). One detrended value of 64 (1994) differs in the 15th significant digit; the detrended column is compared at `CLOSE`. Correlations, rounded to 2 decimals, are identical |
+| `cbind` pairs the station's years (sorted) with the sector rows **by position**, so a sector file not in year order, or with a year twice, silently pairs values with the wrong years (or stops on a row-count mismatch) | `SectorData` refuses years that do not increase from row to row (`SectorCorrelationError`) | an error instead of wrong numbers; files in year order, as the sample, are unaffected |
+| With more than two columns, R's detrended column is the file's third column and the file names take its name (`[2:3]`) | `read_sector_file` refuses a file without exactly two columns | an error instead of wrong numbers |
+| `Year` must be the first column's name (`filter(Year %in% ...)` fails otherwise, with an R error) | same requirement, with a clear message | none |
+| When an index has no year in common with the sector data, R stops after writing the four scatter files | the error is raised before anything is written | no partial `corr/` folder |
+| The plots are drawn with ggplot2 (red points, black line, equation in the plot) | drawn with matplotlib in the style of the index plots, under R's file names; the equation and R² (rounded to 2 decimals, as R) under the plot | look only |
+
 ### Gridded data
 
 The gridded thresholds match R's file exactly on both reference grids, and every ported
@@ -2168,6 +2268,8 @@ python3 -m venv .venv
   `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
 - Compute gridded indices with
   `.venv/bin/climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N]`.
+- Correlate sector data with a station already run with
+  `.venv/bin/climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
 - Run a station from the command line with
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip]`
   (`climpact run --help` lists the options), or a batch with
@@ -2180,7 +2282,7 @@ python3 -m venv .venv
   Ubuntu 26.04's `lgamma` differs from glibc 2.39 in the last bit on some inputs, so
   `test_libm_lgamma_matches_glibc_2_39` checks against fixed values printed in the R image.
 - Always work inside `.venv`.
-- To regenerate the R reference outputs, station or gridded, see `reference/README.md`. Re-running changes the
+- To regenerate the R reference outputs, station, sector correlation or gridded, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are
   meant to change.
 - Work is tracked as GitHub issues on the

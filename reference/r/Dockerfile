@@ -52,10 +52,14 @@ RUN base=https://github.com/ARCCSS-extremes/climpact/raw/${CLIMPACT_SHA}/server/
     && rm /tmp/*.tar.gz \
     && R -q -e "library(climdex.pcic.ncdf); print(packageVersion('climdex.pcic.ncdf'))"
 
+# ggplot2, for the sector correlation plots (server/sector_correlation.R), from the same
+# snapshot. Added after the layers above so the packages they installed are unchanged.
+RUN R -q -e "install.packages('ggplot2')" && R -q -e "library(ggplot2); print(packageVersion('ggplot2'))"
+
 # Record the exact package versions in the image.
 RUN R -q -e "ip <- installed.packages()[, c('Package', 'Version')]; write.csv(ip, '/opt/r-package-versions.csv', row.names = FALSE)"
 
-COPY run_reference.R run_gridded_thresholds.R run_gridded_indices.R compare_summary.R entrypoint.sh /opt/climpact-ref/
+COPY run_reference.R run_gridded_thresholds.R run_gridded_indices.R run_sector_correlation.R compare_summary.R entrypoint.sh /opt/climpact-ref/
 RUN chmod +x /opt/climpact-ref/entrypoint.sh
 
 ENTRYPOINT ["/opt/climpact-ref/entrypoint.sh"]

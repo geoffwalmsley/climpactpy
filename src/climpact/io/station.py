@@ -38,11 +38,11 @@ COLUMNS = ["year", "month", "day", "prcp", "tmax", "tmin"]
 _INTEGER = re.compile(r"^[+-]?\d+$")
 
 
-def read_station_file(path: str | Path) -> pd.DataFrame:
-    """Read a station text file into a DataFrame with a ``date`` column.
+def read_station_rows(path: str | Path) -> pd.DataFrame:
+    """Read a station text file as R's ``read_user_file`` does: every row, in file order.
 
-    Returns columns ``date``, ``prcp``, ``tmax``, ``tmin`` (floats, NaN for missing),
-    in file order, with invalid dates removed.
+    Returns the six columns ``year``, ``month``, ``day``, ``prcp``, ``tmax``, ``tmin`` as
+    floats, with ``-99.9`` in the last three as NaN. Invalid dates are kept.
     """
     lines = [line.replace(",", "\t") for line in Path(path).read_text().splitlines()]
     lines = [line for line in lines if line.strip()]
@@ -54,10 +54,19 @@ def read_station_file(path: str | Path) -> pd.DataFrame:
         if len(row) != len(COLUMNS):
             raise ValueError(f"{path}: data row {number} has {len(row)} fields, expected 6")
 
-    df = pd.DataFrame(np.array(rows, dtype=float), columns=COLUMNS)
+    df = pd.DataFrame(np.array(rows, dtype=float).reshape(-1, len(COLUMNS)), columns=COLUMNS)
     for column in ("prcp", "tmax", "tmin"):
         df.loc[df[column] == MISSING_VALUE, column] = np.nan
+    return df
 
+
+def read_station_file(path: str | Path) -> pd.DataFrame:
+    """Read a station text file into a DataFrame with a ``date`` column.
+
+    Returns columns ``date``, ``prcp``, ``tmax``, ``tmin`` (floats, NaN for missing),
+    in file order, with invalid dates removed.
+    """
+    df = read_station_rows(path)
     dates = pd.to_datetime(
         {"year": df["year"], "month": df["month"], "day": df["day"]}, errors="coerce"
     )

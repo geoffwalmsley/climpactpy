@@ -26,6 +26,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from climpact.config import CustomIndex, IndexParams, StationMetadata
+from climpact.modules import ModuleSelection
 
 # R's read.file.list.metadata col.names. The header row's own names are not checked.
 COLUMNS = (
@@ -183,17 +184,20 @@ def run_station(
     params: IndexParams,
     out_dir: str | Path,
     date: dt.date | None = None,
+    modules: ModuleSelection | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
-    Returns the files written and the output keys not written (missing in every period).
+    ``modules`` selects the QC, homogeneity and index modules (default: the built-in
+    ones). Returns the files written and the output keys not written (missing in every
+    period).
     """
     from climpact.io.output_files import write_outputs
     from climpact.outputs import build_all
     from climpact.station import load_station
 
     run = load_station(station_file, metadata, params)
-    tables = build_all(run)
+    tables = build_all(run, modules)
     written = write_outputs(tables, metadata, params, out_dir, date)
     return written, sorted(set(tables) - set(written))
 
@@ -205,6 +209,7 @@ def _process(
     base_start: int,
     base_end: int,
     date: dt.date | None,
+    modules: ModuleSelection | None,
 ) -> StationResult:
     """Run one station, turning any exception into a failed result."""
     result = StationResult(station.name, station.station_file)
@@ -214,7 +219,7 @@ def _process(
         if not path.is_file():
             raise FileNotFoundError(f"station file not found: {path}")
         written, skipped = run_station(
-            path, station.metadata(base_start, base_end), station.params, out_dir, date
+            path, station.metadata(base_start, base_end), station.params, out_dir, date, modules
         )
     except Exception as exc:  # noqa: BLE001 - reported per station, the batch carries on
         detail = "".join(traceback.format_exception_only(exc)).strip()
@@ -232,6 +237,7 @@ def run_batch(
     workers: int | None = None,
     date: dt.date | None = None,
     on_result: Callable[[StationResult], None] | None = None,
+    modules: ModuleSelection | None = None,
 ) -> list[StationResult]:
     """Run every station and write its outputs to ``<out_dir>/<station>/``.
 
@@ -240,6 +246,8 @@ def run_batch(
     stop the others: its error is written to ``<out_dir>/<station>.errors.txt``, and an
     error file left by an earlier run is removed first, as R does. ``custom`` is the
     custom index calculated for every station (R calculates none in batch mode).
+    ``modules`` selects the QC, homogeneity and index modules (default: the built-in
+    ones); each worker process loads them itself.
     ``on_result`` is called as each station finishes. Results are returned in metadata
     order.
     """
@@ -249,7 +257,7 @@ def run_batch(
     for station in stations:
         _error_file(out_dir, station.name).unlink(missing_ok=True)
 
-    args = [(s, data_dir, out_dir, base_start, base_end, date) for s in stations]
+    args = [(s, data_dir, out_dir, base_start, base_end, date, modules) for s in stations]
     workers = min(workers or multiprocessing.cpu_count(), max(len(stations), 1))
     results: dict[str, StationResult] = {}
 

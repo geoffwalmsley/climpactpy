@@ -1,0 +1,12 @@
+"Description: ","Outliers shown in *boxes.png. IQR thresholds of 5 and 3 were used for precipitation and temperature variables, respectively."
+"Station: ","dry"
+"Latitude: ","0"
+"Longitude: ","0"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN,DTR
+"TX up"
+2001-4-24,0,45,NA,NA
+"TX low"
+2001-6-23,0,-3,NA,NA

@@ -23,6 +23,13 @@ class Run:
     station: str  # input file stem and R output folder, e.g. "phoenix_1961-2020"
     latitude: float
     longitude: float
+    source: str  # "ghcn", "climpact" (Climpact's sample file) or "synthetic"
+
+    @property
+    def qc_only(self) -> bool:
+        """Synthetic stations exist to exercise the QC checks: only their ``qc/`` files
+        are compared with R."""
+        return self.source == "synthetic"
 
     @property
     def input_path(self) -> Path:
@@ -46,6 +53,7 @@ def _read_runs() -> dict[str, Run]:
                 station=f"{row['name']}_{row['start']}-{row['end']}",
                 latitude=float(row["lat"]),
                 longitude=float(row["lon"]),
+                source=row["source"],
             )
             for row in csv.DictReader(f)
         }
@@ -55,8 +63,18 @@ RUNS = _read_runs()
 # The Climpact sample station, used by the lat0 and sydney runs and by unit tests.
 STATION = RUNS["sydney"].station
 FOLDERS = ("indices", "thres", "trend")
-# Individual QC files that have a tabular format comparable with the reader.
-QC_FILES = ("nastatistics",)
+# QC files compared with R.
+QC_FILES = (
+    "nastatistics",
+    "tmaxmin",
+    "toolarge",
+    "duplicates",
+    "tx_jumps",
+    "tn_jumps",
+    "tx_flatline",
+    "tn_flatline",
+    "outliers",
+)
 
 STANDARDISED = "standardised values (using all years)"
 
@@ -115,7 +133,7 @@ class ReferenceFile:
 def reference_files() -> list[ReferenceFile]:
     files = []
     for run in RUNS.values():
-        for folder in FOLDERS:
+        for folder in () if run.qc_only else FOLDERS:
             for path in sorted((run.output_dir / folder).glob("*.csv")):
                 name = path.stem.removeprefix(f"{run.station}_")
                 files.append(ReferenceFile(run=run.name, folder=folder, name=name))

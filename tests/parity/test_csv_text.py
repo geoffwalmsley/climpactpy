@@ -111,6 +111,11 @@ def test_csv_text(ref, station_outputs, written_files, request):
 @pytest.mark.parity
 @pytest.mark.parametrize("run", RUNS)
 def test_only_reference_files_written(run, written_files):
-    """Every written file has an R reference (no extra or misnamed files)."""
+    """Every written file has an R reference (no extra or misnamed files).
+
+    Only the ``qc/`` files of a QC-only (synthetic) run are compared."""
     keys = {f.key for f in FILES if f.run == run}
-    assert set(written_files(run)) <= keys
+    written = set(written_files(run))
+    if RUNS[run].qc_only:
+        written = {key for key in written if key.startswith("qc/")}
+    assert written <= keys

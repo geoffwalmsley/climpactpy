@@ -1,0 +1,18 @@
+"Description: ","Dates where the change in TX is > 20 degrees."
+"Station: ","qc_stress_1961-2020"
+"Latitude: ","52.38"
+"Longitude: ","13.06"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TX
+1963-7-3,22.5
+1963-7-5,25.8
+1963-12-2,59.8
+1966-5-1,20
+1966-5-19,20.9
+1966-5-21,20
+1966-6-3,20
+1966-6-4,20.3
+1966-6-10,20
+1966-6-20,20

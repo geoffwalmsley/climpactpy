@@ -17,7 +17,7 @@ Each row of [`stations.csv`](stations.csv) is one run:
 | `id` | GHCN-Daily station id |
 | `name`, `start`, `end` | The input file is `input/<name>_<start>-<end>.txt` |
 | `lat`, `lon` | Coordinates passed to Climpact (the station's GHCN coordinates rounded to 2 dp), so the hemisphere rules and Hargreaves PET follow the real station |
-| `source` | `ghcn`: converted from GHCN-Daily by `fetch_ghcn.py`; `climpact`: Climpact's own sample file |
+| `source` | `ghcn`: converted from GHCN-Daily by `fetch_ghcn.py`; `climpact`: Climpact's own sample file; `synthetic`: made by a script here (only its `qc/` files are compared) |
 
 Each run writes indices, thres, trend, qc and plots, plus `r-package-versions.csv` and
 `climpact-commit.txt`. The `lat0` run also runs Climpact's own CSV test
@@ -52,6 +52,20 @@ R30mm, SPEI 24, custom TN > 0).
 | `dublin` | Dublin Phoenix Park (EI000003969) | 53.36 | 1961-2020 | Missing-data rules (8 bad years) | 114 |
 | `new_delhi` | New Delhi Safdarjung (IN022021900) | 28.58 | 1961-2020 | Stress: patchy base period (71-86 %) | 80 |
 | `nairobi` | Nairobi JKIA (KE000063740) | -1.32 | 1961-2020 | Stress: near-equator SH, patchy temperature base (65-68 %), 1,624 m | 57 |
+| `qc_stress` | Synthetic, from Potsdam (GM000003342) | 52.38 | 1961-2020 | QC checks: planted duplicate dates, TN >= TX, too-large values, jumps, flat lines, missing values (see below) | 114 (not compared) |
+
+## Synthetic QC station
+
+`qc_stress_1961-2020.txt` is Potsdam's input with faults planted for every per-value QC
+check, made by
+
+```sh
+.venv/bin/python reference/make_qc_stress.py
+```
+
+None of the real stations has a duplicated date, and several checks fire at only a few of
+them. The script's docstring lists the faults. The parity tests compare only this run's
+`qc/` files; its index, threshold and trend files are committed but not compared.
 
 ## Station data: GHCN-Daily
 

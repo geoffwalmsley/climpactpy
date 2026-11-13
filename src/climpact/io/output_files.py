@@ -25,6 +25,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import re
+from dataclasses import dataclass
 from functools import cache
 from importlib import resources
 from pathlib import Path
@@ -33,6 +34,36 @@ import pandas as pd
 
 from climpact.config import IndexParams, StationMetadata
 from climpact.io.climpact_csv import MISSING_TOKEN, format_r_number, write_climpact_csv
+
+# ``DataFrame.attrs`` key under which a product attaches the table's FileFormat.
+FILE_FORMAT_ATTR = "climpact_file_format"
+
+
+@dataclass(frozen=True)
+class FileFormat:
+    """How a product's table is written, for files laid out unlike ``write.index.csv``.
+
+    A product attaches one to its table with :func:`with_file_format`; ``write_outputs``
+    then uses it instead of the per-key rules below. It is used by the QC files, whose
+    description depends on the run's QC thresholds.
+    """
+
+    description: str | None  # None: no metadata header block
+    sep: str = ", "
+    na: str = MISSING_TOKEN
+    quote_header: bool = False
+    # Quoted line written after the header row when the table has no rows.
+    empty_message: str | None = None
+    # Rows in titled sections: (title, number of rows) in order. Each title is written as
+    # a quoted line before its rows, also when it has none (qc/outliers: "TX up").
+    sections: tuple[tuple[str, int], ...] | None = None
+
+
+def with_file_format(table: pd.DataFrame, file_format: FileFormat) -> pd.DataFrame:
+    """Attach the format ``write_outputs`` writes ``table`` with, and return the table."""
+    table.attrs[FILE_FORMAT_ATTR] = file_format
+    return table
+
 
 # Climpact R version whose output files this port reproduces (``software_id``).
 CLIMPACT_VERSION = "3.4.3"
@@ -249,6 +280,23 @@ def write_outputs(
     written = {}
     for key, table in tables.items():
         folder, name = key.split("/", 1)
+        path = output_path(out_dir, metadata.name, key)
+        if (fmt := table.attrs.get(FILE_FORMAT_ATTR)) is not None:
+            header = (
+                None if fmt.description is None else file_metadata(metadata, fmt.description, date)
+            )
+            write_climpact_csv(
+                path,
+                table,
+                header,
+                sep=fmt.sep,
+                na=fmt.na,
+                quote_header=fmt.quote_header,
+                empty_message=fmt.empty_message,
+                sections=fmt.sections,
+            )
+            written[key] = path
+            continue
         if folder == "indices":
             always_written = _HEATWAVE_FILE.match(name) or _PRECINDEX_FILE.match(name)
             if is_all_missing(table) and not always_written:
@@ -262,7 +310,6 @@ def write_outputs(
                 description = _DESCRIPTIONS[key]
             except KeyError:
                 raise KeyError(f"no file format defined for output {key!r}") from None
-        path = output_path(out_dir, metadata.name, key)
         write_climpact_csv(
             path,
             table,

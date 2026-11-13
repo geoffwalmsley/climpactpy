@@ -10,8 +10,13 @@ follows the R code path used by Climpact v3.4.3:
 - ``read_user_file``: commas are treated as separators, a header row is skipped when
   the first field is not an integer, and values equal to ``-99.9`` become missing.
 - ``create_user_data_ts``: rows whose year/month/day is not a valid date are dropped.
-- ``climdexInput.raw``: the series is placed on a daily axis running from 1 January of
-  the first year to 31 December of the last year; days without data are missing. If a
+- ``qualityControlCheck``: the rows are merged onto the daily dates from the date of the
+  **first row** to the date of the **last row** of the file (:func:`merged_rows`). Rows
+  outside that range are dropped (only possible when the file is not in date order),
+  days without a row are added as missing, and a date that appears more than once keeps
+  every row, in file order. The QC checks run on these rows.
+- ``climdexInput.raw``: the merged series is placed on a daily axis running from 1 January
+  of the first year to 31 December of the last year; days without data are missing. If a
   date appears more than once, the last row wins.
 - ``tavg`` (``tas``) is ``(tmax + tmin) / 2``.
 """
@@ -60,14 +65,40 @@ def read_station_file(path: str | Path) -> pd.DataFrame:
     return df[["date", "prcp", "tmax", "tmin"]].reset_index(drop=True)
 
 
-def station_dataset(df: pd.DataFrame, metadata: StationMetadata) -> xr.Dataset:
-    """Place station data on a full-year daily time axis as an xarray Dataset.
+def merged_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """The rows R's ``qualityControlCheck`` makes from the file (``merge(dffull,
+    user_data, by = "dates", all.x = TRUE)``).
 
-    Variables use CF-style names: ``pr`` (mm/d), ``tasmax``, ``tasmin`` and ``tas``
-    (degC), where ``tas = (tasmax + tasmin) / 2``.
+    Every date from the first row's date to the last row's date, in date order. A date
+    missing from the file gets one row of missing values; a duplicated date keeps all
+    its rows, in file order. Rows dated before the first row or after the last row are
+    dropped. Returns the columns of :func:`read_station_file`.
     """
     if df.empty:
         raise ValueError("station file contains no valid dates")
+    first, last = df["date"].iloc[0], df["date"].iloc[-1]
+    if last < first:
+        # R's seq(first.date, last.date, "day") fails ("wrong sign in 'by' argument").
+        raise ValueError(
+            f"the last row of the station file ({last.date()}) is dated before the first "
+            f"({first.date()})"
+        )
+    rows = df[(df["date"] >= first) & (df["date"] <= last)]
+    days = pd.date_range(first, last, freq="D")
+    absent = days[~days.isin(rows["date"])]
+    filler = pd.DataFrame({"date": absent}).reindex(columns=rows.columns)
+    merged = pd.concat([rows, filler], ignore_index=True) if len(absent) else rows
+    return merged.sort_values("date", kind="stable").reset_index(drop=True)
+
+
+def station_dataset(df: pd.DataFrame, metadata: StationMetadata) -> xr.Dataset:
+    """Place station data on a full-year daily time axis as an xarray Dataset.
+
+    ``df`` is the file's rows (:func:`read_station_file`); they are first merged as R
+    does (:func:`merged_rows`). Variables use CF-style names: ``pr`` (mm/d), ``tasmax``,
+    ``tasmin`` and ``tas`` (degC), where ``tas = (tasmax + tasmin) / 2``.
+    """
+    df = merged_rows(df)
     first = df["date"].min().year
     last = df["date"].max().year
     time = pd.date_range(f"{first}-01-01", f"{last}-12-31", freq="D")
@@ -98,7 +129,7 @@ def station_dataset(df: pd.DataFrame, metadata: StationMetadata) -> xr.Dataset:
             "latitude": metadata.latitude,
             "longitude": metadata.longitude,
             "base_period": f"{metadata.base_start}-{metadata.base_end}",
-            # First and last dates in the file (before padding to whole years); climdex
+            # First and last dates of the merged series (before padding to whole years); climdex
             # uses them to decide whether the base period has enough data.
             "first_date": str(df["date"].min().date()),
             "last_date": str(df["date"].max().date()),

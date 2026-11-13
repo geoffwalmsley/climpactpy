@@ -54,3 +54,23 @@ class IndexParams:
     rnnmm: float = 30.0
     spei_months: int = 24
     custom: CustomIndex | None = field(default_factory=CustomIndex)
+
+
+@dataclass(frozen=True)
+class QCParams:
+    """Quality-control thresholds, as entered in step 2 of the Climpact R app.
+
+    The defaults are the R app's (``load_data_qc``), also used by the reference runs.
+    """
+
+    # fourboxes (qc/outliers): boxplot whisker length, in interquartile ranges.
+    iqr_temp: float = 3.0
+    iqr_prec: float = 5.0
+    # humongous (qc/toolarge): precipitation above prec_max mm or below 0, or a
+    # temperature whose absolute value is above temp_max degC.
+    prec_max: float = 200.0
+    temp_max: float = 50.0
+    # flatline_tx/tn (qc/*_flatline): runs of at least this many zero day-to-day changes.
+    flatline_days: int = 5
+    # jumps_tx/tn (qc/*_jumps): day-to-day changes of at least this many degC.
+    jump: float = 20.0

@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 
 from climpact.config import QCParams
+from climpact.io.climpact_csv import format_r_number
 from climpact.rnumerics import r_round
 
 
@@ -128,5 +129,116 @@ def flatline(rows: pd.DataFrame, variable: str, params: QCParams) -> pd.DataFram
             "Date": r_dates(rows["date"].iloc[at]),
             label: values.to_numpy(dtype=float)[at],
             "Number of duplicates": (lengths[keep] + 1).astype(float),
+        }
+    )
+
+
+def fivenum(x: np.ndarray) -> np.ndarray:
+    """R ``fivenum``: Tukey's five-number summary (minimum, lower hinge, median, upper
+    hinge, maximum), ignoring missing values. All missing when there are no values.
+
+    The hinges are medians of the lower and upper halves (each including the median
+    when ``n`` is odd), not the quantiles ``numpy.percentile`` gives.
+    """
+    x = np.sort(np.asarray(x, dtype=float)[~np.isnan(np.asarray(x, dtype=float))])
+    n = len(x)
+    if n == 0:
+        return np.full(5, np.nan)
+    n4 = np.floor((n + 3) / 2) / 2
+    d = np.array([1, n4, (n + 1) / 2, n + 1 - n4, n]) - 1  # 0-based
+    return 0.5 * (x[np.floor(d).astype(int)] + x[np.ceil(d).astype(int)])
+
+
+def boxplot_stats(x: np.ndarray, coef: float) -> np.ndarray:
+    """``boxplot.stats(x, coef)$stats``: the five numbers a box is drawn with.
+
+    As :func:`fivenum`, except that when a value lies more than ``coef`` interquartile
+    ranges beyond a hinge, the ends become the range of the values that do not
+    (the whiskers). ``coef = 0`` keeps the minimum and maximum.
+    """
+    x = np.asarray(x, dtype=float)
+    x = x[~np.isnan(x)]
+    stats = fivenum(x)
+    if coef == 0 or len(x) == 0:
+        return stats
+    iqr = stats[3] - stats[1]
+    out = (x < stats[1] - coef * iqr) | (x > stats[3] + coef * iqr)
+    if out.any():
+        inside = x[~out]
+        stats[[0, 4]] = inside.min(), inside.max()
+    return stats
+
+
+def _as_character(x: np.ndarray) -> np.ndarray:
+    """The values ``cbind`` with a character column leaves: R's ``as.character``, at
+    most 15 significant digits (``tx - tn`` can differ from the written DTR in the 16th)."""
+    return np.array([float(format_r_number(v)) if not np.isnan(v) else np.nan for v in x])
+
+
+# fourboxes: (column of the file, rows column, box drawn from non-zero values only,
+# lower outliers listed).
+_OUTLIER_BOXES = (
+    ("Prec", "prcp", True, False),
+    ("TX", "tmax", False, True),
+    ("TN", "tmin", False, True),
+    ("DTR", "dtr", False, True),
+)
+
+
+def outliers(rows: pd.DataFrame, params: QCParams) -> pd.DataFrame:
+    """``fourboxes``: values beyond the whiskers of monthly box plots.
+
+    One box per calendar month for non-zero precipitation (whiskers at ``iqr_prec``
+    interquartile ranges), TX, TN and DTR (``iqr_temp``). The file has a section per
+    variable and direction, in the order ``Prec up``, ``TX up``, ``TX low``, ``TN up``,
+    ``TN low``, ``DTR up``, ``DTR low``, each listing month by month (in row order
+    within a month) the days above the upper whisker (``up``) or below the lower one
+    (``low``), with all four values of the day. Precipitation has no ``low`` section.
+    A variable that is missing throughout has no sections; for precipitation, one with
+    no non-zero value.
+
+    The values are those R writes: ``cbind`` with the dates turns them into text with
+    at most 15 significant digits.
+
+    Returns the rows with a categorical ``Section`` column whose categories are the
+    sections written, in order, including the empty ones.
+    """
+    values = {
+        "prcp": rows["prcp"].to_numpy(dtype=float),
+        "tmax": rows["tmax"].to_numpy(dtype=float),
+        "tmin": rows["tmin"].to_numpy(dtype=float),
+    }
+    values["dtr"] = values["tmax"] - values["tmin"]
+    month = pd.DatetimeIndex(rows["date"]).month.to_numpy()
+
+    sections: list[str] = []
+    picked: list[np.ndarray] = []
+    labels: list[str] = []
+    for label, column, positive_only, lower in _OUTLIER_BOXES:
+        x = values[column]
+        with np.errstate(invalid="ignore"):
+            in_box = x > 0 if positive_only else ~np.isnan(x)
+        if not in_box.any():
+            continue
+        coef = params.iqr_prec if positive_only else params.iqr_temp
+        whiskers = {m: boxplot_stats(x[in_box & (month == m)], coef) for m in range(1, 13)}
+        for name, end, beyond in (("up", 4, np.greater), ("low", 0, np.less))[: 1 + lower]:
+            section = f"{label} {name}"
+            sections.append(section)
+            for m in range(1, 13):
+                with np.errstate(invalid="ignore"):
+                    hit = np.flatnonzero((month == m) & beyond(x, whiskers[m][end]))
+                picked.append(hit)
+                labels.extend([section] * len(hit))
+
+    at = np.concatenate(picked) if picked else np.array([], dtype=int)
+    return pd.DataFrame(
+        {
+            "Date": r_dates(rows["date"].iloc[at]),
+            "Prec": _as_character(values["prcp"][at]),
+            "TX": _as_character(values["tmax"][at]),
+            "TN": _as_character(values["tmin"][at]),
+            "DTR": _as_character(values["dtr"][at]),
+            "Section": pd.Categorical(labels, categories=sections, ordered=True),
         }
     )

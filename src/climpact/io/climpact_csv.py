@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -246,6 +247,7 @@ def write_climpact_csv(
     na: str = MISSING_TOKEN,
     quote_header: bool = False,
     empty_message: str | None = None,
+    sections: Sequence[tuple[str, int]] | None = None,
 ) -> Path:
     """Write a table as a Climpact output CSV, the inverse of :func:`read_climpact_csv`.
 
@@ -258,12 +260,24 @@ def write_climpact_csv(
     for files R writes with a plain ``write.table`` (``thres.csv``: no header, ``NA``).
     ``quote_header`` quotes the column names, and ``empty_message`` is written as a quoted
     line when the table has no rows, as some QC files do (``"NO REPEATED TX FOUND"``).
+    ``sections`` splits the rows into titled sections, ``(title, number of rows)`` in
+    order: each title is written as a quoted line before its rows (``qc/outliers``).
     """
     lines = climpact_header(metadata) if metadata is not None else []
     names = [_quote(str(name)) if quote_header else str(name) for name in data.columns]
     lines.append(sep.join(names))
     columns = [[_format_value(v, na) for v in data[name].tolist()] for name in data.columns]
-    lines.extend(sep.join(row) for row in zip(*columns, strict=True))
+    rows = [sep.join(row) for row in zip(*columns, strict=True)]
+    if sections is None:
+        lines.extend(rows)
+    else:
+        if sum(count for _, count in sections) != len(rows):
+            raise ValueError("sections do not add up to the number of rows")
+        start = 0
+        for title, count in sections:
+            lines.append(_quote(title))
+            lines.extend(rows[start : start + count])
+            start += count
     if empty_message is not None and data.empty:
         lines.append(_quote(empty_message))
     path = Path(path)

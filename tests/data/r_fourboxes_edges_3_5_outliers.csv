@@ -1,0 +1,23 @@
+"Description: ","Outliers shown in *boxes.png. IQR thresholds of 5 and 3 were used for precipitation and temperature variables, respectively."
+"Station: ","edges"
+"Latitude: ","0"
+"Longitude: ","0"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN,DTR
+"Prec up"
+2001-1-15,150,13.6,5.5,8.1
+2003-7-2,95.5,25.7,16.9,8.8
+2003-7-3,120.2,24.7,14.6,10.1
+"TX up"
+2002-4-10,0,26,12.6,13.4
+"TX low"
+2002-4-20,1.5,14.6,16.5,-1.9
+2003-4-20,0,14.6,18.8,-4.2
+"TN up"
+2002-5-5,0,25.2,10.1,15.1
+"TN low"
+2003-5-6,0,21.4,9.9,11.5
+"DTR up"
+"DTR low"

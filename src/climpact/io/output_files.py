@@ -54,6 +54,9 @@ class FileFormat:
     quote_header: bool = False
     # Quoted line written after the header row when the table has no rows.
     empty_message: str | None = None
+    # Rows in titled sections: (title, number of rows) in order. Each title is written as
+    # a quoted line before its rows, also when it has none (qc/outliers: "TX up").
+    sections: tuple[tuple[str, int], ...] | None = None
 
 
 def with_file_format(table: pd.DataFrame, file_format: FileFormat) -> pd.DataFrame:
@@ -290,6 +293,7 @@ def write_outputs(
                 na=fmt.na,
                 quote_header=fmt.quote_header,
                 empty_message=fmt.empty_message,
+                sections=fmt.sections,
             )
             written[key] = path
             continue

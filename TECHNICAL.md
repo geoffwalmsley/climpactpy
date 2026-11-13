@@ -8,11 +8,10 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **all 124** ported R reference files for Sydney (`lat0` and
-`sydney`), and every ported file R wrote for all 13 GHCN stations and the synthetic QC
-station, with none failing (see [Reference outputs](#reference-outputs)). The only R file
-not yet ported is `qc/outliers` (#26). Every file is also written text-identical to R's
-on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
+The Python port reproduces **all 125** R reference files for Sydney (`lat0` and
+`sydney`), and every file R wrote for all 13 GHCN stations and the synthetic QC station,
+with none failing and none left to port (see [Reference outputs](#reference-outputs)).
+Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
 | Area | Ported | Not yet ported |
@@ -26,7 +25,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
-| Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline (see [Quality control](#quality-control)) | qc/outliers (#26); QC plots are out of scope (#9) |
+| Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | plots, zip archive |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
@@ -45,7 +44,8 @@ src/climpact/
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
-  qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline)
+  qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
+                     outliers with R's fivenum and boxplot.stats)
   data/
     climate.indices.csv  index definitions, copied unchanged from Climpact R (file headers)
   io/
@@ -157,7 +157,7 @@ reference runs use (`reference/r/run_reference.R`):
 
 | Parameter | Default | Used by |
 | --- | --- | --- |
-| `iqr_temp`, `iqr_prec` | 3, 5 | qc/outliers (not yet ported, #26) |
+| `iqr_temp`, `iqr_prec` | 3, 5 | qc/outliers |
 | `prec_max`, `temp_max` | 200 mm, 50 °C | qc/toolarge |
 | `flatline_days` | 5 | qc/tx_flatline, qc/tn_flatline |
 | `jump` | 20 °C | qc/tx_jumps, qc/tn_jumps |
@@ -241,13 +241,15 @@ tables returned by `build_all` the way R does:
 
 - **Formats attached by products:** a product can attach a `FileFormat` (description or no
   header, separator, missing-value token, quoted column names, a message for an empty
-  table) to a table with `with_file_format`; `write_outputs` then uses it instead of the
+  table, titled sections) to a table with `with_file_format`; `write_outputs` then uses it instead of the
   rules above. The QC files use it, because their descriptions depend on `QCParams`
   (see [Quality control](#quality-control)).
 
 `write_climpact_csv` (in `climpact.io.climpact_csv`) writes one file and is the inverse of
 `read_climpact_csv`, which unquotes quoted column names and returns a line that is a single
-quoted string (`"NO DUPLICATE DATES FOUND"`) in `ClimpactTable.messages`. An output key with
+quoted string (`"NO DUPLICATE DATES FOUND"`, or a section title such as `"TX up"`) in
+`ClimpactTable.messages`. `FileFormat.sections` (`(title, number of rows)` pairs) writes
+each title as a quoted line before its rows, also when it has none, as `qc/outliers` does. An output key with
 no description or file format is an error, so a new product must add its format in
 `output_files.py`, or attach a `FileFormat`, before its files can be written.
 
@@ -293,7 +295,7 @@ R behaviour not copied, and why:
 | Two rows with the same station name (e.g. `a.txt`, `a.csv`) both write to the same folder, the last overwriting | rejected when the metadata file is read, since parallel workers would write the same files |
 | A file name without an extension gives an empty station name (`strip_file_extension`) | the whole file name is used |
 | Exit status 0 even when stations fail | exit status 1 when any station fails |
-| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | the ported QC files are written with the default `QCParams`; QC plots, warnings and `qc/outliers` (#26) are not yet |
+| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | the QC files are written with the default `QCParams`; QC plots and warnings are not |
 | Values are read with `colClasses` `integer` for `wsdin`, `csdin`, `rxnday`, `SPEI`, and `real` for `txtn` | `txtn` must also be a whole number (it is a day count; `IndexParams.txtn_days` is an `int`) |
 
 **Parity.** `tests/parity/test_batch.py` runs a batch of `sydney`, `nairobi` and a
@@ -422,16 +424,13 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 124/124 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 124/124 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 124/124 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 122/122 and 124/124 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 124/124 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 90/90 and 67/67 |
-| `qc_stress` | Synthetic: Potsdam with planted QC faults (see below). Only its `qc/` files are compared | `reference/make_qc_stress.py` | 8/8 |
-
-Each run also has `qc/outliers`, listed as not yet ported (#26); the counts above leave it
-out.
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 125/125 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 125/125 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 125/125 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 123/123 and 125/125 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 125/125 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 91/91 and 68/68 |
+| `qc_stress` | Synthetic: Potsdam with planted QC faults (see below). Only its `qc/` files are compared | `reference/make_qc_stress.py` | 9/9 |
 
 `qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
 has a duplicated date and several QC checks fire at only a few of them.
@@ -492,44 +491,43 @@ for fitted distributions.
 .venv/bin/pytest tests/parity    # parity only
 ```
 
-Files that no product builds are reported as `xfail` ("not yet ported"); currently only
-`qc/outliers` (#26). A summary is
-printed at the end:
+Files that no product builds are reported as `xfail` ("not yet ported"); there are none
+now. A summary is printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-beijing: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-darwin: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-dublin: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-lat0: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-madrid: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-minneapolis: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-nairobi: 67/68 reference files reproduced, 0 failing, 1 not yet ported
-new_delhi: 90/91 reference files reproduced, 0 failing, 1 not yet ported
-oxford: 122/123 reference files reproduced, 0 failing, 1 not yet ported
-perth: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-phoenix: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-potsdam: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-qc_stress: 8/9 reference files reproduced, 0 failing, 1 not yet ported
-sydney: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-yakutsk: 124/125 reference files reproduced, 0 failing, 1 not yet ported
-alice_springs: 124/125 written CSV files text-identical to R, 0 differing
-beijing: 124/125 written CSV files text-identical to R, 0 differing
-darwin: 124/125 written CSV files text-identical to R, 0 differing
-dublin: 124/125 written CSV files text-identical to R, 0 differing
-lat0: 124/125 written CSV files text-identical to R, 0 differing
-madrid: 124/125 written CSV files text-identical to R, 0 differing
-minneapolis: 124/125 written CSV files text-identical to R, 0 differing
-nairobi: 67/68 written CSV files text-identical to R, 0 differing
-new_delhi: 90/91 written CSV files text-identical to R, 0 differing
-oxford: 122/123 written CSV files text-identical to R, 0 differing
-perth: 124/125 written CSV files text-identical to R, 0 differing
-phoenix: 124/125 written CSV files text-identical to R, 0 differing
-potsdam: 124/125 written CSV files text-identical to R, 0 differing
-qc_stress: 8/9 written CSV files text-identical to R, 0 differing
-sydney: 124/125 written CSV files text-identical to R, 0 differing
-yakutsk: 124/125 written CSV files text-identical to R, 0 differing
+alice_springs: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+beijing: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+darwin: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+dublin: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+lat0: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+madrid: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+minneapolis: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+nairobi: 68/68 reference files reproduced, 0 failing, 0 not yet ported
+new_delhi: 91/91 reference files reproduced, 0 failing, 0 not yet ported
+oxford: 123/123 reference files reproduced, 0 failing, 0 not yet ported
+perth: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+phoenix: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+potsdam: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+qc_stress: 9/9 reference files reproduced, 0 failing, 0 not yet ported
+sydney: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+yakutsk: 125/125 reference files reproduced, 0 failing, 0 not yet ported
+alice_springs: 125/125 written CSV files text-identical to R, 0 differing
+beijing: 125/125 written CSV files text-identical to R, 0 differing
+darwin: 125/125 written CSV files text-identical to R, 0 differing
+dublin: 125/125 written CSV files text-identical to R, 0 differing
+lat0: 125/125 written CSV files text-identical to R, 0 differing
+madrid: 125/125 written CSV files text-identical to R, 0 differing
+minneapolis: 125/125 written CSV files text-identical to R, 0 differing
+nairobi: 68/68 written CSV files text-identical to R, 0 differing
+new_delhi: 91/91 written CSV files text-identical to R, 0 differing
+oxford: 123/123 written CSV files text-identical to R, 0 differing
+perth: 125/125 written CSV files text-identical to R, 0 differing
+phoenix: 125/125 written CSV files text-identical to R, 0 differing
+potsdam: 125/125 written CSV files text-identical to R, 0 differing
+qc_stress: 9/9 written CSV files text-identical to R, 0 differing
+sydney: 125/125 written CSV files text-identical to R, 0 differing
+yakutsk: 125/125 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -1489,6 +1487,10 @@ behaviour is reproduced, and every QC file is text-identical to R's on all 16 ru
 | `flatline_tn`'s description says "TX" | reproduced |
 | `duplivals`, `jumps_*` and `flatline_*` write a quoted "NO ... FOUND" line when nothing is found; `tmaxmin` and `humongous` test `length(data.frame) == 0`, which counts columns, so they never do | reproduced (`QCReport.empty_message`) |
 | `flatline_*` quote their column names (`write.table` default); the others do not. Missing values are written `NA` and numbers with `as.character` | reproduced (`QCReport.quote_header`, `FileFormat.na`); `format_r_number` gives the same text as `as.character` |
+| `fourboxes` (`qc/outliers`) draws one box per calendar month with `boxplot`, whose `boxplot.stats` uses Tukey's hinges (`fivenum`: medians of the lower and upper halves, each including the median when n is odd), not the quartiles `numpy.percentile` gives | `qc.fivenum`, `qc.boxplot_stats`, checked against values printed by R (`tests/data/r_boxplot.R`), n = 0 to 12 and longer samples, ties, IQR 0, missing values and values on a fence |
+| Boxes are drawn from non-zero precipitation (whiskers at `iqr_threshold_prec` IQRs) and from TX, TN and DTR = TX - TN (`iqr_threshold_temp`). The file lists the days above each month's upper whisker (`up`) and, for the temperatures, below its lower one (`low`), so values beyond the fences `hinge ± coef × IQR`, compared in doubles: a value on a fence is listed or not depending on its last bit | `qc.outliers`, with the same arithmetic |
+| Sections in the order `Prec up`, `TX up`, `TX low`, `TN up`, `TN low`, `DTR up`, `DTR low`, each a quoted title line followed by its rows month by month (merged-row order within a month), each row with all four values. A section is written even when empty; a variable missing throughout (for precipitation, with no non-zero value) has no sections. A month without values has no box and lists nothing | reproduced (`FileFormat.sections`, from the categorical `Section` column `qc.outliers` returns) |
+| The rows are `cbind`ed with the dates, so the values go through `as.character` (15 significant digits): DTR is written as, say, `8.2` although `tx - tn` is 8.200000000000001 | the table holds the values as written, so `qc/outliers` passes the `EXACT` tier as well as the text comparison |
 
 R's `round(x, 1)` (`nmath/fround.c`, R >= 4.0.0) is not Python's: it picks the nearer of
 `floor(x * 10) / 10` and `ceil(x * 10) / 10` computed in doubles (ties to even), so
@@ -1496,6 +1498,12 @@ R's `round(x, 1)` (`nmath/fround.c`, R >= 4.0.0) is not Python's: it picks the n
 by R (`tests/data/r_round.R`), numpy's `round` differs from R's on 11 and `r_round` on none.
 On the reference stations, whose values have one decimal, the two agree; on `qc_stress`,
 30.05 - 10.1 (19.950000000000003) rounds to 20 and is reported as a jump.
+
+The outlier edges no reference run has (a month with no TX, a month with no rain, a
+station with no rain and no TN, TX values on the fences, an IQR of 0, non-default
+thresholds) are checked against R's own `fourboxes` run on synthetic stations
+(`tests/data/make_fourboxes_synthetic.py`, `tests/data/r_fourboxes.R`): the files are
+text-identical.
 
 ### R behaviour not to be copied
 

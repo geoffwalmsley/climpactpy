@@ -15,7 +15,7 @@ import pytest
 
 from climpact import qc
 from climpact.config import QCParams, StationMetadata
-from climpact.io.climpact_csv import read_climpact_csv
+from climpact.io.climpact_csv import read_climpact_csv, write_climpact_csv
 from climpact.io.output_files import write_outputs
 from climpact.io.station import merged_rows, read_station_file, station_dataset
 from climpact.products.qc import QC_REPORTS, qc_reports
@@ -269,8 +269,9 @@ def test_missing_values_are_written_as_na(tmp_path):
 
 
 def test_qc_report_order():
-    """allqc's order: tmaxmin, humongous, duplivals, jumps, flatline."""
+    """allqc's order: fourboxes, tmaxmin, humongous, duplivals, jumps, flatline."""
     assert [r.name for r in QC_REPORTS] == [
+        "outliers",
         "tmaxmin",
         "toolarge",
         "duplicates",
@@ -279,3 +280,116 @@ def test_qc_report_order():
         "tx_flatline",
         "tn_flatline",
     ]
+
+
+# --- outliers (fourboxes) --------------------------------------------------------------
+
+
+def _hex(text: str) -> np.ndarray:
+    return np.array([np.nan if v == "NA" else float.fromhex(v) for v in text.split()])
+
+
+def _boxplot_cases() -> list[tuple[float, np.ndarray, np.ndarray, np.ndarray]]:
+    lines = (DATA / "r_boxplot.txt").read_text().splitlines()
+    return [
+        (float(coef), _hex(x), _hex(five), _hex(stats))
+        for coef, x, five, stats in (line.split(";") for line in lines)
+    ]
+
+
+def test_fivenum_and_boxplot_stats_match_r():
+    """fivenum and boxplot.stats(x, coef)$stats from R 4.6.1 (tests/data/r_boxplot.R):
+    n = 1 to 12, longer samples with outliers, ties, IQR 0, missing values, values on a
+    fence, coef 0 and no values."""
+    cases = _boxplot_cases()
+    sizes = {int((~np.isnan(x)).sum()) for _, x, _, _ in cases}
+    assert {0, 1, 2, 3, 4, 5, 30, 31, 90, 93} <= sizes  # even and odd n
+    for coef, x, five, stats in cases:
+        np.testing.assert_array_equal(qc.fivenum(x), five, err_msg=f"fivenum {x}")
+        np.testing.assert_array_equal(qc.boxplot_stats(x, coef), stats, err_msg=f"{coef} {x}")
+    # numpy's default quartiles are not Tukey's hinges: the port is needed.
+    assert any(
+        not np.allclose(np.percentile(x[~np.isnan(x)], [25, 75]), five[[1, 3]])
+        for _, x, five, _ in cases
+        if (~np.isnan(x)).sum() > 1
+    )
+
+
+def test_tukey_hinges_even_and_odd():
+    # n = 4: hinges are means of the middle pairs of each half; n = 5: they include the median.
+    np.testing.assert_array_equal(qc.fivenum([4.0, 1.0, 3.0, 2.0]), [1, 1.5, 2.5, 3.5, 4])
+    np.testing.assert_array_equal(qc.fivenum([5.0, 1.0, NA, 3.0, 2.0, 4.0]), [1, 2, 3, 4, 5])
+
+
+def test_outliers_sections_and_order():
+    """Sections in R's order; within one, months in calendar order and rows in the
+    given order within a month. Precipitation is only "up", boxed from non-zero values."""
+    feb = pd.date_range("2001-02-01", periods=5)
+    jan = pd.date_range("2001-01-01", periods=5)
+    r = pd.DataFrame(
+        {
+            "date": feb.append(jan),
+            # Feb: zeros are not in the box, so 50 is beyond 5 IQR of [1, 1, 1, 1, 50].
+            "prcp": [1, 1, 1, 1, 50, 0, 0, 0, 0, 0],
+            "tmax": [10, 10, 10, 10, 99, 10, 99, 10, 10, 10],
+            "tmin": [0, 0, 0, -40, 0, 0, 0, 0, 0, -9],
+        }
+    ).astype({"prcp": float, "tmax": float, "tmin": float})
+    table = qc.outliers(r, P)
+    assert list(table["Section"].cat.categories) == [
+        "Prec up",
+        "TX up",
+        "TX low",
+        "TN up",
+        "TN low",
+        "DTR up",
+        "DTR low",
+    ]
+    assert as_records(table) == [
+        ("2001-2-5", 50, 99, 0, 99, "Prec up"),
+        ("2001-1-2", 0, 99, 0, 99, "TX up"),
+        ("2001-2-5", 50, 99, 0, 99, "TX up"),
+        ("2001-1-5", 0, 10, -9, 19, "TN low"),
+        ("2001-2-4", 1, 10, -40, 50, "TN low"),
+        ("2001-1-2", 0, 99, 0, 99, "DTR up"),  # Jan DTR hinges 10 and 19: 19 is inside
+    ]
+
+
+def test_outliers_missing_variable_has_no_sections():
+    r = rows(tx=[10.0, 11, 12], tn=[NA, NA, NA], prcp=[0.0, 0, NA])
+    assert list(qc.outliers(r, P)["Section"].cat.categories) == ["TX up", "TX low"]
+
+
+@pytest.mark.parametrize(
+    ("station", "iqr_temp", "iqr_prec"),
+    [("edges", 3.0, 5.0), ("edges", 1.5, 2.0), ("dry", 3.0, 5.0)],
+)
+def test_outliers_file_matches_r(tmp_path, station, iqr_temp, iqr_prec):
+    """R's fourboxes on the synthetic stations (tests/data/make_fourboxes_synthetic.py,
+    tests/data/r_fourboxes.R): months without a box, no rain, no TN, values on the
+    fences, IQR 0 and non-default thresholds."""
+    meta = StationMetadata(station)
+    params = QCParams(iqr_temp=iqr_temp, iqr_prec=iqr_prec)
+    run = load_station(DATA / f"fourboxes_{station}.txt", meta, qc=params)
+    tables = {"qc/outliers": qc_reports(run)["qc/outliers"]}
+    written = write_outputs(tables, meta, run.params, tmp_path)["qc/outliers"]
+    expected = DATA / f"r_fourboxes_{station}_{iqr_temp:g}_{iqr_prec:g}_outliers.csv"
+
+    def lines(path):
+        return [x for x in path.read_text().splitlines() if "Date_of_calculation" not in x]
+
+    assert lines(written) == lines(expected)
+    # The reader returns the section titles as messages.
+    assert read_climpact_csv(written).messages == [
+        x[1:-1] for x in lines(expected)[7:] if x.startswith('"')
+    ]
+
+
+def test_sections_must_cover_the_rows(tmp_path):
+    table = pd.DataFrame({"a": [1.0, 2.0]})
+    with pytest.raises(ValueError, match="sections"):
+        write_climpact_csv(tmp_path / "x.csv", table, None, sections=[("A", 1)])
+    path = write_climpact_csv(
+        tmp_path / "y.csv", table, None, sep=",", sections=[("A", 0), ("B", 2)]
+    )
+    assert path.read_text().splitlines() == ["a", '"A"', '"B"', "1", "2"]

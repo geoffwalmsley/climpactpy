@@ -35,23 +35,51 @@ class QCReport:
     # R writes the column names with write.table(quote = TRUE).
     quote_header: bool = False
 
-    def file_format(self, params: QCParams) -> FileFormat:
+    def table(self, rows: pd.DataFrame, params: QCParams) -> pd.DataFrame:
+        """The check's table with the file format attached.
+
+        A check whose table has a categorical ``Section`` column (``outliers``) is
+        written in sections: the column gives the section titles, empty ones included.
+        """
+        table = self.check(rows, params)
+        sections = None
+        if SECTION in table.columns:
+            counts = table[SECTION].value_counts(sort=False)
+            sections = tuple((str(title), int(counts[title])) for title in counts.index)
+            table = table.drop(columns=SECTION)
         # The checks use write.table(sep = ",", quote = FALSE): missing values are "NA".
-        return FileFormat(
-            description=self.description(params),
-            sep=",",
-            na=NA_TOKEN,
-            quote_header=self.quote_header,
-            empty_message=self.empty_message,
+        return with_file_format(
+            table,
+            FileFormat(
+                description=self.description(params),
+                sep=",",
+                na=NA_TOKEN,
+                quote_header=self.quote_header,
+                empty_message=self.empty_message,
+                sections=sections,
+            ),
         )
+
+
+# Column of a check's table naming the section each row is written in.
+SECTION = "Section"
 
 
 n = format_r_number
 
-# In the order allqc runs them. tmaxmin and humongous test length(data.frame) == 0, which
-# counts columns, so their "NO ... FOUND" line is never written. flatline_tn's description
-# says TX.
+# In the order allqc runs them. outliers (fourboxes) is written in sections. tmaxmin and
+# humongous test length(data.frame) == 0, which counts columns, so their "NO ... FOUND"
+# line is never written. flatline_tn's description says TX.
 QC_REPORTS: list[QCReport] = [
+    QCReport(
+        "outliers",
+        qc.outliers,
+        lambda p: (
+            f"Outliers shown in *boxes.png. IQR thresholds of {n(p.iqr_prec)} and "
+            f"{n(p.iqr_temp)} were used for precipitation and temperature variables, "
+            "respectively."
+        ),
+    ),
     QCReport(
         "tmaxmin",
         lambda rows, p: qc.tmax_le_tmin(rows),
@@ -104,12 +132,7 @@ QC_REPORTS: list[QCReport] = [
 def qc_reports(run: StationRun) -> dict[str, pd.DataFrame]:
     """Every file in :data:`QC_REPORTS`."""
     rows = run.rows
-    return {
-        f"qc/{report.name}": with_file_format(
-            report.check(rows, run.qc), report.file_format(run.qc)
-        )
-        for report in QC_REPORTS
-    }
+    return {f"qc/{report.name}": report.table(rows, run.qc) for report in QC_REPORTS}
 
 
 @register("qc/nastatistics")

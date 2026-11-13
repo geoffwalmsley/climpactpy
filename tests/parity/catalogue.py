@@ -63,7 +63,7 @@ RUNS = _read_runs()
 # The Climpact sample station, used by the lat0 and sydney runs and by unit tests.
 STATION = RUNS["sydney"].station
 FOLDERS = ("indices", "thres", "trend")
-# QC files compared with R (qc/outliers is listed but not yet ported: #26).
+# QC files compared with R.
 QC_FILES = (
     "nastatistics",
     "tmaxmin",

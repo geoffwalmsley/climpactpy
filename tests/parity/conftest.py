@@ -13,26 +13,35 @@ from .catalogue import RUNS
 
 def pytest_terminal_summary(terminalreporter):
     """Print how many R reference files the Python port reproduces, per run."""
-    counts: dict[str, Counter] = {}
+    counts: dict[tuple[str, str], Counter] = {}
     for outcome in ("passed", "failed", "xfailed"):
         for report in terminalreporter.stats.get(outcome, []):
-            if "test_parity[" not in report.nodeid:
-                continue
-            run = report.nodeid.split("test_parity[", 1)[1].split("/", 1)[0]
-            kind = outcome
-            if outcome == "xfailed" and getattr(report, "wasxfail", "").startswith("known bug"):
-                kind = "known bug"
-            counts.setdefault(run, Counter())[kind] += 1
+            for test in ("test_parity", "test_csv_text"):
+                if f"{test}[" not in report.nodeid:
+                    continue
+                run = report.nodeid.split(f"{test}[", 1)[1].split("/", 1)[0]
+                kind = outcome
+                if outcome == "xfailed" and getattr(report, "wasxfail", "").startswith("known bug"):
+                    kind = "known bug"
+                counts.setdefault((test, run), Counter())[kind] += 1
     if not counts:
         return
     terminalreporter.section("R parity")
-    for run, c in sorted(counts.items()):
+    for (test, run), c in sorted(
+        counts.items(), key=lambda item: (item[0][0] != "test_parity", item[0][1])
+    ):
         total = sum(c.values())
         known = f", {c['known bug']} known bugs" if c["known bug"] else ""
-        terminalreporter.write_line(
-            f"{run}: {c['passed']}/{total} reference files reproduced, "
-            f"{c['failed']} failing{known}, {c['xfailed']} not yet ported"
-        )
+        if test == "test_parity":
+            terminalreporter.write_line(
+                f"{run}: {c['passed']}/{total} reference files reproduced, "
+                f"{c['failed']} failing{known}, {c['xfailed']} not yet ported"
+            )
+        else:
+            terminalreporter.write_line(
+                f"{run}: {c['passed']}/{total} written CSV files text-identical to R, "
+                f"{c['failed']} differing{known}"
+            )
 
 
 @pytest.fixture(scope="session")

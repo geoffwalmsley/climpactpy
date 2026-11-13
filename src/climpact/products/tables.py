@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+from climpact.io.climpact_csv import MISSING_VALUE, format_r_number
+from climpact.rnumerics import r_mean, r_var
 
 STANDARDISED = "standardised values (using all years)"
 
@@ -23,16 +28,19 @@ def period_labels(time: xr.DataArray | pd.DatetimeIndex, freq: str) -> pd.Series
 def standardise(values: np.ndarray) -> np.ndarray:
     """``(x - mean) / sd`` over all non-missing periods, as R ``write.index.csv`` does.
 
-    Uses the sample standard deviation (``ddof=1``). Constant or single-value series
-    give missing values, like R's ``0/0``.
+    R first converts the values to text (15 significant digits) and back, then uses
+    its extended-precision ``mean`` and ``sd`` (sample standard deviation); the same
+    steps are reproduced so the result is identical to R's. Constant or single-value
+    series give missing values, like R's ``0/0``.
     """
-    values = np.asarray(values, dtype=float)
+    values = np.array([float(format_r_number(v)) for v in np.asarray(values, dtype=float)])
+    values[values == MISSING_VALUE] = np.nan
     valid = values[~np.isnan(values)]
     if valid.size < 2:
         return np.full(values.shape, np.nan)
-    sd = valid.std(ddof=1)
+    mean, sd = r_mean(valid), math.sqrt(r_var(valid))
     with np.errstate(invalid="ignore", divide="ignore"):
-        out = (values - valid.mean()) / sd
+        out = (values - mean) / sd
     out[~np.isfinite(out)] = np.nan
     return out
 

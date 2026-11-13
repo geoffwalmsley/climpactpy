@@ -8,7 +8,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **65 of the 117** R reference files for Sydney (`lat0` and
+The Python port reproduces **67 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)):
 
@@ -19,10 +19,10 @@ The Python port reproduces **65 of the 117** R reference files for Sydney (`lat0
 | Extremes (with dates) | txx, tnn, tnx, txn, rx1day, rx3day (rxdday), rx5day | |
 | Spells (with dates) | cdd, cwd | gsl |
 | Degree days | hddheat, cddcold, gddgrow | |
-| Percentile indices | | tx90p, tx10p, tn90p, tn10p, txgt50p, tx95t, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd, r95p, r99p, r95ptot, r99ptot |
+| Percentile indices | tx95t | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd, r95p, r99p, r95ptot, r99ptot |
 | Heatwaves | | Tx90/Tn90 (5 aspects each), EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
-| Other outputs | qc/nastatistics | thresholds file, trend file, other QC outputs, plots |
+| Other outputs | qc/nastatistics, thresholds file (`thres/thres`) | trend file, other QC outputs, plots |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -34,7 +34,8 @@ CSV files, plots or zip archives.
 ```
 src/climpact/
   config.py          StationMetadata, IndexParams, CustomIndex (Climpact app defaults)
-  station.py         StationRun and load_station()
+  station.py         StationRun (with cached base-period thresholds) and load_station()
+  thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
   io/
     station.py       read Climpact/RClimDex station text files; build the xarray Dataset
     climpact_csv.py  read Climpact (R) output CSV files
@@ -43,12 +44,14 @@ src/climpact/
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
     indices.py       index products
+    thresholds.py    thresholds file and tx95t products
     qc.py            QC products
   compare.py         tiered comparison of tables against the R reference
   rnumerics.py       exact emulation of R's extended-precision sum/cumsum
 tests/
   parity/            one test per R reference file, plus progress reporting
   test_*.py          unit tests
+  data/              unit-test fixtures (quantiles printed by R)
 reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
@@ -64,6 +67,7 @@ station text file
   -> io.station.read_station_file   DataFrame(date, prcp, tmax, tmin), invalid dates dropped
   -> io.station.station_dataset     xarray Dataset on a full-year daily axis
   -> StationRun(data, metadata, params)
+       run.thresholds               base-period thresholds, computed on first use and cached
   -> outputs.build_all(run)         {"indices/fd_ANN": DataFrame, ...}
 ```
 
@@ -81,7 +85,8 @@ station text file
 The time axis always runs from 1 January of the first year to 31 December of the last
 year in the file, as climdex.pcic's `climdexInput.raw` does. Days with no data are NaN.
 Station metadata (name, latitude, longitude, base period) is kept in the `StationRun` and
-copied into the Dataset attributes.
+copied into the Dataset attributes, together with `first_date` and `last_date`, the first
+and last dates in the file before padding (used for climdex's base-period data check).
 
 The Dataset is currently one-dimensional in time. A `station` dimension for batch runs and
 `(lat, lon)` dimensions for gridded data are planned; the index code operates along `time`
@@ -117,6 +122,8 @@ Table layouts follow R's `write.index.csv`:
 | Standard index | `time`, `<index>`, `standardised values (using all years)` |
 | Extreme with date | `time`, `val`, `ymd` |
 | Spell with dates | `time`, `start`, `duration`, `end` |
+| Thresholds (`thres/thres`) | 365 rows, one per day of year: `tmax_q5` ... `tavg_q95`, `prec_q5` ... `prec_q99`, `HW_TN90`, `HW_TX90`, `HW_TAVG90` |
+| Day of year (`tx95t_DAY`) | `time` (always missing, see below), `tx95t`, standardised anomaly; 365 rows |
 
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
 The standardised column is `(x - mean) / sd` over all non-missing periods, using the sample
@@ -141,6 +148,35 @@ with xclim.set_options(check_missing="climdex"):
 `valid_mask(*arrays, freq=...)` combines several variables, like climdex's per-variable
 `namask` multiplied together.
 
+## Base-period thresholds
+
+`climpact.thresholds` computes every base-period threshold Climpact uses, once per
+station. `StationRun.thresholds` computes them on first use and caches them
+(`compute_thresholds`), so all percentile indices share one computation (about 20 ms).
+
+| Threshold | R source | Python |
+| --- | --- | --- |
+| TX, TN, TM q5, q10, q50, q90, q95, 5-day window | climdex.pcic `get.outofbase.quantiles` / `zhang.running.qtile`, C++ `running_quantile_windowed` | `Thresholds.temperature[var][q]` (365 values) |
+| TX, TN, TM q90, 15-day window (`HW_TX90`, `HW_TN90`, `HW_TAVG90`) | Climpact `quality_control_checks.R`, `get.outofbase.quantiles(n = 15)` | `Thresholds.heatwave[var]` |
+| Wet-day (≥ 1 mm) precipitation q5, q10, q50, q90, q95, q99 | climdex.pcic `get.prec.var.quantiles`, R `quantile(type = 8)` | `Thresholds.precipitation[q]` (a number) |
+
+`var` is `tasmax`, `tasmin` or `tas`. For index code:
+
+- `Thresholds.daily(var, q, time)` gives the threshold for each date of a series, using
+  climdex's day-of-year mapping (`day_of_year`: 29 February takes 28 February's
+  threshold, later days of a leap year shift back by one).
+- `Thresholds.base[var]` is the `(years, 365)` base-period matrix the temperature
+  thresholds came from, and `window_values` returns the `(365, years, window)` window
+  values. These are the inputs to the in-base bootstrap.
+- `climdex_quantile_sorted` is climdex's C++ quantile, vectorised over the rows of a
+  sorted matrix.
+- When the station's dates cover 359 days of the base period or fewer,
+  `compute_thresholds` raises `InsufficientBaseData` (climdex.pcic refuses to compute
+  thresholds in that case), and the threshold products produce no tables.
+
+Both quantile functions are checked bit for bit against values printed by R 4.6.1 and
+climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker image).
+
 ## Use of xclim
 
 xclim 1.0 is used where its result is identical to R's or within tolerance. All calls go
@@ -155,6 +191,7 @@ data-validation warnings.
 | `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
+| | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
 
 ## Parity testing
 
@@ -168,12 +205,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 65/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 65/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 65/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 65/115 and 65/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 65/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 47/83 and 40/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 67/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 67/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 67/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 67/115 and 67/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 67/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 49/83 and 42/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -220,21 +257,21 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-beijing: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-darwin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-dublin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-lat0: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-madrid: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-minneapolis: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-nairobi: 40/60 reference files reproduced, 0 failing, 20 not yet ported
-new_delhi: 47/83 reference files reproduced, 0 failing, 36 not yet ported
-oxford: 65/115 reference files reproduced, 0 failing, 50 not yet ported
-perth: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-phoenix: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-potsdam: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-sydney: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-yakutsk: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+alice_springs: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+beijing: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+darwin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+dublin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+lat0: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+madrid: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+minneapolis: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+nairobi: 42/60 reference files reproduced, 0 failing, 18 not yet ported
+new_delhi: 49/83 reference files reproduced, 0 failing, 34 not yet ported
+oxford: 67/115 reference files reproduced, 0 failing, 48 not yet ported
+perth: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+phoenix: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+potsdam: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+sydney: 67/117 reference files reproduced, 0 failing, 50 not yet ported
+yakutsk: 67/117 reference files reproduced, 0 failing, 50 not yet ported
 ```
 
 Files that fail because of a filed bug are listed in `KNOWN_BUGS` in
@@ -347,6 +384,63 @@ period with no data, and Climpact writes `-99.9`.
 **SU threshold.** Climpact's code counts TX **>** 25 °C, although a code comment says
 `>=`. Python follows the code.
 
+### Base-period thresholds
+
+**Window wraps around within the same year.** In climdex.pcic's C++
+`running_quantile_windowed`, the window day index is `(day + dpy) % dpy` within the same
+year's block, so the 5-day window for 1 January takes 30-31 December of the *same* year,
+not the previous one (the 15-day heatwave window likewise for its first and last 7 days).
+
+- *Handling:* reproduced (`window_values`). Needed for parity on the first and last days
+  of the year.
+
+**29 February is left out of the base period.** climdex.pcic `get.bootstrap.set` drops
+29 February, so the base period is 30 × 365 days and there are 365 thresholds. In a
+series, 29 February uses 28 February's threshold (`get.jdays.replaced.feb29`).
+
+- *Handling:* reproduced (`base_period_matrix`, `day_of_year`). Precipitation thresholds
+  keep 29 February, as `get.prec.var.quantiles` does.
+
+**Two quantile definitions.** Temperature thresholds use climdex's C++ `c_quantile`;
+precipitation thresholds use R's `quantile(type = 8)`. Both are "type 8", but they are
+not bit-identical: the C++ works in 0-based positions with `floor(nppm + fuzz)` and always
+interpolates, while R 4.6.1 uses `floor(nppm * (1 + fuzz))` and takes the lower value
+without interpolating when both neighbours are equal. They differ in the last bits for
+some inputs (in 46 of 2,400 R test cases, for example `n = 135, q = 0.5`, where climdex
+gives 4.999999999999998 and R gives 5).
+
+- *Handling:* both are ported exactly (`climdex_quantile_sorted`, `r_quantile_type8`) and
+  match R bit for bit on all 2,400 cases. numpy's `method="median_unbiased"` is the
+  same definition but differs from climdex in the last bits on 209 of 365 tx95t days, so
+  it is not used. These last-bit differences matter for percentile indices, where data at
+  0.1 °C resolution can tie with a threshold.
+
+**xclim's `percentile_doy` is not used.** It groups by a 366-day day of year, uses windows
+that cross year boundaries, and then interpolates the 365-day result onto 366 days across
+the whole year. For Sydney's TX, over 1 January to 28 February alone (where the two
+day-of-year grids line up), it differs from climdex on 54 of 59 days for q95 (by up to
+0.25 °C) and on 45 of 59 days for q50 (by up to 0.1 °C). The thresholds are computed
+directly instead.
+
+**Minimum data per window.** A day's temperature threshold is missing when fewer than 10%
+of the window's values are present (`min.base.data.fraction.present = 0.1`). Climpact
+passes this value to `get.outofbase.quantiles` for the heatwave thresholds, but that
+function does not forward it, so the default 0.1 always applies. Python uses 0.1
+(`MIN_BASE_FRACTION`); the effect is identical.
+
+**Not enough base-period data.** climdex.pcic computes no thresholds (or stops) when 359
+days or fewer of the base period lie between the station's first and last dates; this
+counts dates, not valid values. Python applies the same rule using the `first_date` and
+`last_date` Dataset attributes and raises `InsufficientBaseData`. What Climpact then
+writes for the percentile indices has not been checked; Python writes no threshold
+tables.
+
+**Result.** `thres/thres` and `indices/tx95t_DAY` pass at `CLOSE` for both runs. Every
+threshold value is identical to R's file after formatting to the 15 significant digits R
+writes; `EXACT` cannot be used because the file holds rounded values. The tx95t
+standardised column differs by up to 1.4e-13 relative (mean and standard deviation
+arithmetic).
+
 ### Station input
 
 | R behaviour | Python |
@@ -366,6 +460,8 @@ period with no data, and Climpact writes `-99.9`.
 | Values are written with 15 significant digits and `-99.9` for missing | tables hold full-precision floats; comparisons parse R's text, so the 15-digit rounding is covered by the `CLOSE` tier (and is exact for `EXACT` values) |
 | No file is written when an index is missing for every period | not yet handled: Python returns an all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi`; the parity suite only compares files R wrote, so this does not fail a test yet |
 | A 7-line metadata header (version, date of calculation, ...) | not yet written; ignored when comparing |
+| `tx95t_DAY`: `write.index.csv` writes the row names of an unnamed vector as `time`, so every `time` is `-99.9` | reproduced: `time` is missing on every row |
+| `thres.csv` has no metadata header, writes missing values as `NA` (not `-99.9`), and repeats each precipitation threshold on all 365 rows (`as.data.frame` recycling) | values and layout reproduced; the `NA` spelling will matter only when the CSV writer is ported |
 
 ### R behaviour not to be copied
 

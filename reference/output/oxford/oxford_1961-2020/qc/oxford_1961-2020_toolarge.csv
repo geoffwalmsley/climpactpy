@@ -1,0 +1,8 @@
+"Description: ","Dates where precipitation > 200 mm or abs(temperature) > 50 degrees."
+"Station: ","oxford_1961-2020"
+"Latitude: ","51.77"
+"Longitude: ","-1.27"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN

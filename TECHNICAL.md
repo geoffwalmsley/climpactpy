@@ -8,8 +8,9 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **65 of the 117** R reference files for each reference run, with
-none failing:
+The Python port reproduces **65 of the 117** R reference files for Sydney (`lat0` and
+`sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
+[Reference outputs](#reference-outputs)):
 
 | Area | Ported | Not yet ported |
 | --- | --- | --- |
@@ -49,8 +50,10 @@ tests/
   parity/            one test per R reference file, plus progress reporting
   test_*.py          unit tests
 reference/
+  stations.csv       one row per R reference run: station, coordinates, period, input source
+  fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
   input/             station input data used by the tests
-  output/            R reference outputs (CSV only; plots are gitignored)
+  output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored)
   r/, run_r_reference.sh   Docker setup that produces reference/output (see reference/README.md)
 ```
 
@@ -157,13 +160,33 @@ data-validation warnings.
 
 ### Reference outputs
 
-`reference/output/` holds the R outputs of Climpact v3.4.3 for the Sydney Observatory Hill
-station (1936-2015), produced by the Docker setup in `reference/` (see `reference/README.md`):
+`reference/output/<run>/<station>/` holds the R outputs of Climpact v3.4.3, produced by the
+Docker setup in `reference/` (see `reference/README.md`). Each row of `reference/stations.csv`
+is one run. `tests/parity/catalogue.py` reads it to build `RUNS`, so adding a row (with its input
+file and R outputs) adds a run to the parity suite. Every run uses the Climpact app defaults
+(base period 1971-2000) at the coordinates in `stations.csv`.
 
-| Run | Settings |
-| --- | --- |
-| `lat0` | Climpact app defaults: latitude 0, longitude 0, base period 1971-2000. Reproduces the stored reference in the original repo's `tests/output_compare` exactly |
-| `sydney` | As `lat0` but at the station's real coordinates (-33.86, 151.21) |
+| Run | Station | Input | Parity (of R files) |
+| --- | --- | --- | --- |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 65/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 65/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 65/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 65/115 and 65/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 65/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 47/83 and 40/60 |
+
+GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
+missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
+file. A GHCN conversion of the same station (ASN00066062) has every shared value identical,
+but GHCN has 89 more temperature days and QC-flags 96 values Climpact's file keeps, so it
+would not reproduce the stored reference (details in `reference/README.md`).
+
+Climpact writes no CSV for an index that is missing in every period, so stations with patchy
+data have fewer reference files (`oxford` 112 index files, `new_delhi` 80, `nairobi` 57,
+against 114). The catalogue lists only the files R wrote.
+
+If building a run's outputs raises, the `station_outputs` fixture caches the error, so every
+test of that run fails at once instead of rebuilding the station for each file.
 
 ### Tolerance tiers
 
@@ -197,9 +220,28 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
+alice_springs: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+beijing: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+darwin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+dublin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 lat0: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+madrid: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+minneapolis: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+nairobi: 40/60 reference files reproduced, 0 failing, 20 not yet ported
+new_delhi: 47/83 reference files reproduced, 0 failing, 36 not yet ported
+oxford: 65/115 reference files reproduced, 0 failing, 50 not yet ported
+perth: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+phoenix: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+potsdam: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 sydney: 65/117 reference files reproduced, 0 failing, 52 not yet ported
+yakutsk: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 ```
+
+Files that fail because of a filed bug are listed in `KNOWN_BUGS` in
+`tests/parity/catalogue.py` (a pattern on the test id and the ticket). They are strict xfails,
+counted as "known bugs" in the summary: when the bug is fixed the test passes, which fails the
+run, so the entry has to be removed. If a whole run's build fails, every file of that run
+counts as a known bug, including files not yet ported. The list is currently empty.
 
 A failure reports, per column, the number of missing-value and value mismatches, the
 largest difference and the first mismatching row.
@@ -284,8 +326,23 @@ skipping missing days (`which.max`/`which.min`), and no date when the value is m
 - *Handling:* replicated. A TM custom index can therefore have a value in a month where TX
   has more than 3 missing days; this matches R.
 
-**tmm mask.** R masks tmm with the TN and TX masks (not a TM mask); dtr uses the TM mask.
-Both are equivalent to "missing if either TX or TN is missing", which is what Python does.
+**tmm and dtr masks.** R masks tmm with the TN and TX masks (each variable's climdex rule
+applied separately, then combined), which is what Python does. climdex.pcic's `climdex.dtr`
+masks dtr with the TM mask, where a day is missing if either TX or TN is missing, so a month
+with 3 missing TX days and 3 missing TN days on different dates is missing.
+
+- *Handling:* dtr is computed with xclim (which applies the climdex rule to TX and TN
+  separately) and then masked with `valid_mask(ds.tas)`, the TM mask. Any period valid under
+  the TM mask is also valid for TX and TN, so the result has exactly R's mask. Sydney's gaps
+  coincide, so only `oxford` and `dublin` exercise this (#40).
+
+**Dates of extremes in empty periods.** R's `which.max`/`which.min` return no index for a
+period with no data, and Climpact writes `-99.9`.
+
+- *Handling:* pandas `idxmax`/`idxmin` raise on an all-missing group, so
+  `first_extreme_dates` fills missing days with -inf (max) or +inf (min), which never win in a
+  period with data, and sets the date to NaT for periods with no data. Exercised by
+  `yakutsk`, `beijing`, `nairobi` and `new_delhi` (#39).
 
 **SU threshold.** Climpact's code counts TX **>** 25 °C, although a code comment says
 `>=`. Python follows the code.
@@ -307,7 +364,7 @@ Both are equivalent to "missing if either TX or TN is missing", which is what Py
 | R behaviour | Python |
 | --- | --- |
 | Values are written with 15 significant digits and `-99.9` for missing | tables hold full-precision floats; comparisons parse R's text, so the 15-digit rounding is covered by the `CLOSE` tier (and is exact for `EXACT` values) |
-| No file is written when an index is missing for every period | not yet handled: Python returns an all-missing table |
+| No file is written when an index is missing for every period | not yet handled: Python returns an all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi`; the parity suite only compares files R wrote, so this does not fail a test yet |
 | A 7-line metadata header (version, date of calculation, ...) | not yet written; ignored when comparing |
 
 ### R behaviour not to be copied
@@ -324,7 +381,8 @@ output is ported.
 
 ## Performance
 
-A full station run (80 years, all ported indices) takes about 9 seconds, mostly per-call
+A full station run (80 years, all ported indices) takes about 9 seconds (7 s for a 60-year
+GHCN station). The whole test suite with 15 runs takes about 95 seconds. The extra runs are not marked `slow`; #23 tracks speed-ups. The time goes mostly on per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
 directly, are the obvious improvements. The R-precision emulation takes about 30 ms per

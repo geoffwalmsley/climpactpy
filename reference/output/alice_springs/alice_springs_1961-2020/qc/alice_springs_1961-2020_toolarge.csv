@@ -1,0 +1,9 @@
+"Description: ","Dates where precipitation > 200 mm or abs(temperature) > 50 degrees."
+"Station: ","alice_springs_1961-2020"
+"Latitude: ","-23.8"
+"Longitude: ","133.89"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN
+1988-3-31,204.8,20.9,17.7

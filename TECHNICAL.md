@@ -594,13 +594,14 @@ fewer than 10% of the `years * 5` window values present gives a missing threshol
 returns a missing day only when all comparisons are missing. Outside the base period a
 day scores 1 if `value > threshold` (`<` for tx10p, tn10p), else 0. Inside it, the day is
 compared with each of the `years - 1` bootstrapped thresholds for its year and day of
-year, and scores `hits / (byrs - 1)`. Comparisons with a missing threshold count as no
-hit. The period value is `mean(scores, na.rm = TRUE) * 100`, missing if more than 3
+year, and scores `hits / (byrs - 1)` (line 284). Comparisons with a missing threshold
+count as no hit. The period value is `mean(scores, na.rm = TRUE) * 100`, missing if more than 3
 (monthly) or 15 (annual) days' scores are missing, then multiplied by the variable's
 climdex mask. The in-base part is skipped for series shorter than 720 days.
 
-- *Handling:* ported in `days_op_threshold` and `percent_days` (`products/indices.py`).
-  The comparisons are strict, as in R. The mean uses `r_mean`: with numpy's mean, 269 of
+- *Handling:* ported in `days_op_threshold` and `percent_days` (`products/indices.py`),
+  except the denominator: Python divides by `years - 1`, the number of comparisons
+  (see the next entry). The comparisons are strict, as in R. The mean uses `r_mean`: with numpy's mean, 269 of
   the 54,207 values of the 14 stations would be written with a different last digit.
 
 **`byrs` counts the years of the series, not of the base period.** In R, `byrs` is the
@@ -608,13 +609,30 @@ number of base-period years between the series' first and last dates, while the
 bootstrap always has `base_end - base_start + 1` years. For a station that starts or
 ends inside the base period, the hits are divided by fewer than the number of
 comparisons, so a value can exceed 100%. For a station starting in 2002 with base period
-2001-2003, R gives 200% for 2003.
+2001-2003, R gives 200% for 2003 (checked in R itself: `tests/data/r_percent_days.R`).
 
-- *Handling:* reproduced, because the reference is R's output. Checked against R itself
-  on a synthetic station (`tests/data/r_percent_days.R`, used by
-  `test_station_starting_inside_the_base_period_matches_r`). No reference run exercises
-  it: every run starts before 1971 and ends after 2000. This looks like a bug in R;
-  whether to keep it is a project decision, recorded here until made.
+- *Handling:* not copied (decided 2026-11-13, #47). `days_op_threshold` divides each
+  in-base day's hits by `years - 1`, the number of bootstrapped thresholds it is
+  compared with, so a score is at most 1 and a percentage at most 100%. In the example,
+  Python gives 100% for 2003. Missing thresholds still count as no hit, as in R.
+- *Why this denominator:* when the series covers the whole base period, `years - 1`
+  equals R's `byrs - 1`, so the result is identical to R by construction, on any station.
+  The other candidate, the number of non-missing comparisons for each day, would also
+  stay at or below 100%. But it would differ from R on a station that covers the whole
+  base period whenever some, but not all, of a day's bootstrapped thresholds are
+  missing. On the 15 reference runs both candidates give the same results, because no
+  run has a partly missing set of bootstrapped thresholds. That includes the stress
+  stations: new_delhi (1,545 TX and 2,920 TN values missing in the base period) and
+  nairobi (3,501 and 3,797) have no missing bootstrapped threshold at all.
+- *Effect:* none on any reference run. Every run starts before 1971 and ends after 2000,
+  so `byrs` = 30 = `years`, and parity and text identity are unchanged on all 15 runs.
+  Only series that partly cover the base period differ from R. They are covered by
+  `test_station_starting_inside_the_base_period`,
+  `test_station_ending_inside_the_base_period` and `test_percentages_never_exceed_100`
+  in `tests/test_temperature_percentiles.py`. No other index ported so far uses
+  `byrs`: in R only tx90p, tn90p, tx10p, tn10p and txgt50p call
+  `percent.days.op.threshold`, and the spell-duration indices use the out-of-base
+  thresholds only.
 - *Not reproduced:* with exactly one base year in the series (and at least 720 days),
   R stops with an error (`byrs - 1 = 0`). Python uses the out-of-base thresholds for that
   year instead.
@@ -705,6 +723,11 @@ output is ported.
 - QC `flatline_tn` labels its report "TX".
 - QC checks re-read the data from a temporary file with `-99.9` sentinels rather than using
   the cleaned data.
+- `percent.days.op.threshold` divides the in-base hits by `byrs - 1`, the base years the
+  series covers minus one, not by the number of comparisons, so tx90p, tn90p, tx10p,
+  tn10p and txgt50p can exceed 100% for a series that starts or ends inside the base
+  period. Python divides by `years - 1`. No reference run is affected (see
+  [In-base bootstrap](#in-base-bootstrap)).
 - `percent.days.op.threshold` stops with an error when the series has exactly one
   base-period year and at least 720 days (`byrs - 1 = 0`). Python uses the out-of-base
   thresholds for that year (see [In-base bootstrap](#in-base-bootstrap)).

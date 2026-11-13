@@ -61,8 +61,8 @@ def test_bootstrap_matches_replaced_samples(seed):
     assert np.isnan(result[0.9][102]).all()
 
 
-def _run(start: int, tmax_by_year: dict[int, float]) -> StationRun:
-    dates = pd.date_range(f"{start}-01-01", "2004-12-31", freq="D")
+def _run(start: int, tmax_by_year: dict[int, float], end: int = 2004) -> StationRun:
+    dates = pd.date_range(f"{start}-01-01", f"{end}-12-31", freq="D")
     tmax = dates.year.map(tmax_by_year).to_numpy(dtype=float)
     df = pd.DataFrame({"date": dates, "prcp": 0.0, "tmax": tmax, "tmin": tmax - 5})
     meta = StationMetadata(name="test", base_start=2001, base_end=2003)
@@ -80,11 +80,38 @@ def test_txgt50p_matches_r():
     assert out["indices/txgt50p_ANN"]["txgt50p"].tolist() == [0.0, 50.0, 100.0, 100.0]
 
 
-def test_station_starting_inside_the_base_period_matches_r():
-    """R divides the in-base hits by the base years the series covers minus one (here
-    1), not by the number of bootstrapped thresholds (2), so 2003 gets 200%."""
+def test_station_starting_inside_the_base_period():
+    """In-base hits are divided by the number of bootstrapped thresholds (2), so 2003,
+    which exceeds both, gets 100%. R divides by the base years the series covers minus
+    one (1) and gives 200% (tests/data/r_percent_days.R): deliberately not copied."""
     out = temperature_percentiles(_run(2002, {2002: 2, 2003: 3, 2004: 2.5}))
-    assert out["indices/txgt50p_ANN"]["txgt50p"].tolist() == [0.0, 200.0, 100.0]
+    assert out["indices/txgt50p_ANN"]["txgt50p"].tolist() == [0.0, 100.0, 100.0]
+
+
+def test_station_ending_inside_the_base_period():
+    """The base period is 2001-2003 and the series ends in 2002. 2002 (2) is compared
+    with the thresholds of the samples where it is replaced by 2001 ({1, 1}) or by the
+    missing 2003 ({1}): both exceeded, 100% (R: 200%). 2001 (1) exceeds neither."""
+    out = temperature_percentiles(_run(2000, {2000: 1.5, 2001: 1, 2002: 2}, end=2002))
+    assert out["indices/txgt50p_ANN"]["txgt50p"].tolist()[1:] == [0.0, 100.0]
+
+
+@pytest.mark.parametrize(("start", "end"), [(2002, 2005), (2003, 2005), (1999, 2002)])
+def test_percentages_never_exceed_100(start, end):
+    """Random data on series that start or end inside the base period."""
+    rng = np.random.default_rng(start + end)
+    years = range(start, end + 1)
+    run = _run(start, dict.fromkeys(years, 0.0), end=end)
+    tasmax = run.data.tasmax.copy()
+    tasmax[:] = np.round(rng.normal(20, 3, tasmax.size), 1)
+    run.data["tasmax"] = tasmax
+    run.data["tasmin"] = tasmax - 5
+    out = temperature_percentiles(run)
+    for name in ("tx90p", "tn90p", "tx10p", "tn10p", "txgt50p"):
+        for freq in ("ANN", "MON"):
+            values = out[f"indices/{name}_{freq}"][name].to_numpy(dtype=float)
+            assert np.nanmax(values) <= 100.0, (name, freq)
+            assert not np.isnan(values).all()
 
 
 def test_strict_comparison_at_ties():

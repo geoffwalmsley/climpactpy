@@ -396,8 +396,14 @@ def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr
     Outside the base period a day is 1 or 0: ``value <condition> threshold``, with the
     out-of-base threshold for its day of year. Inside the base period it is compared
     with each of the ``years - 1`` bootstrapped thresholds for its year and day, and
-    the number of hits is divided by ``byrs - 1``, where ``byrs`` is the number of
-    base-period years the series covers. A day is missing when every comparison is.
+    the number of hits is divided by ``years - 1``, the number of comparisons, where
+    ``years`` is the length of the base period. A missing threshold counts as not
+    exceeded, as in R. A day is missing when every comparison is.
+
+    R divides by ``byrs - 1`` instead, where ``byrs`` is the number of base-period
+    years the series covers. That is the same when the series covers the whole base
+    period, but gives percentages above 100 when it starts or ends inside it, so it
+    is not copied (TECHNICAL.md, "R behaviour not copied").
     """
     th = run.thresholds
     da = run.data[var]
@@ -415,14 +421,14 @@ def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr
     # R skips the bootstrap for series shorter than two years. With one base year,
     # R fails (no years to replace with); the out-of-base thresholds are kept then.
     if inset.any() and time.size >= 360 * 2 and years.max() > years.min():
-        byrs = int(years.max() - years.min() + 1)
         doy = day_of_year(time[inset]) - 1
         base_thr = th.inbase(var, q)[doy, years - th.base_start, :]  # (days, years - 1)
+        comparisons = base_thr.shape[1]
         xb = x[inset][:, None]
         valid = ~np.isnan(xb) & ~np.isnan(base_thr)
         with np.errstate(invalid="ignore"):
             hits = (op(xb, base_thr) & valid).sum(axis=1)
-        dat[inset] = np.where(valid.any(axis=1), hits / (byrs - 1), np.nan)
+        dat[inset] = np.where(valid.any(axis=1), hits / comparisons, np.nan)
     return xr.DataArray(dat, dims="time", coords={"time": da.time.values})
 
 

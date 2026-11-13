@@ -1,11 +1,115 @@
-"""Quality-control output tables."""
+"""Quality-control output tables.
+
+Every QC file is declared once, in :data:`QC_REPORTS`: its name, the check that builds
+its table (:mod:`climpact.qc`) and the layout R writes it with. :func:`qc_reports`
+registers them all as one product. ``qc/nastatistics`` is separate: R computes it from
+the climdex input object, not from the QC rows.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+
 import pandas as pd
 
-from climpact.outputs import register
+from climpact import qc
+from climpact.config import QCParams
+from climpact.io.climpact_csv import NA_TOKEN, format_r_number
+from climpact.io.output_files import FileFormat, with_file_format
+from climpact.outputs import product, register
 from climpact.station import StationRun
+
+
+@dataclass(frozen=True)
+class QCReport:
+    """One QC file: ``qc/<name>``."""
+
+    name: str
+    # (QC rows, thresholds) -> table with R's columns.
+    check: Callable[[pd.DataFrame, QCParams], pd.DataFrame]
+    # Thresholds -> the file's Description line.
+    description: Callable[[QCParams], str]
+    # Quoted line written when nothing is found; None: R writes none.
+    empty_message: str | None = None
+    # R writes the column names with write.table(quote = TRUE).
+    quote_header: bool = False
+
+    def file_format(self, params: QCParams) -> FileFormat:
+        # The checks use write.table(sep = ",", quote = FALSE): missing values are "NA".
+        return FileFormat(
+            description=self.description(params),
+            sep=",",
+            na=NA_TOKEN,
+            quote_header=self.quote_header,
+            empty_message=self.empty_message,
+        )
+
+
+n = format_r_number
+
+# In the order allqc runs them. tmaxmin and humongous test length(data.frame) == 0, which
+# counts columns, so their "NO ... FOUND" line is never written. flatline_tn's description
+# says TX.
+QC_REPORTS: list[QCReport] = [
+    QCReport(
+        "tmaxmin",
+        lambda rows, p: qc.tmax_le_tmin(rows),
+        lambda p: "Dates where TN>TX",
+    ),
+    QCReport(
+        "toolarge",
+        qc.too_large,
+        lambda p: (
+            f"Dates where precipitation > {n(p.prec_max)} mm or abs(temperature) > "
+            f"{n(p.temp_max)} degrees."
+        ),
+    ),
+    QCReport(
+        "duplicates",
+        lambda rows, p: qc.duplicate_dates(rows),
+        lambda p: "Dates that have been used more than once in your input file.",
+        empty_message="NO DUPLICATE DATES FOUND",
+    ),
+    QCReport(
+        "tx_jumps",
+        lambda rows, p: qc.jumps(rows, "tmax", p),
+        lambda p: f"Dates where the change in TX is > {n(p.jump)} degrees.",
+        empty_message="NO LARGE TX JUMPS FOUND",
+    ),
+    QCReport(
+        "tn_jumps",
+        lambda rows, p: qc.jumps(rows, "tmin", p),
+        lambda p: f"Dates where the change in TN is > {n(p.jump)} degrees.",
+        empty_message="NO LARGE TN JUMPS FOUND",
+    ),
+    QCReport(
+        "tx_flatline",
+        lambda rows, p: qc.flatline(rows, "tmax", p),
+        lambda p: f"Dates where TX values have been repeated more than {p.flatline_days} times.",
+        empty_message="NO REPEATED TX FOUND",
+        quote_header=True,
+    ),
+    QCReport(
+        "tn_flatline",
+        lambda rows, p: qc.flatline(rows, "tmin", p),
+        lambda p: f"Dates where TX values have been repeated more than {p.flatline_days} times.",
+        empty_message="NO REPEATED TN FOUND",
+        quote_header=True,
+    ),
+]
+
+
+@product
+def qc_reports(run: StationRun) -> dict[str, pd.DataFrame]:
+    """Every file in :data:`QC_REPORTS`."""
+    rows = run.rows
+    return {
+        f"qc/{report.name}": with_file_format(
+            report.check(rows, run.qc), report.file_format(run.qc)
+        )
+        for report in QC_REPORTS
+    }
 
 
 @register("qc/nastatistics")

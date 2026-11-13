@@ -8,10 +8,11 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **all 117** R reference files for Sydney (`lat0` and `sydney`),
-and every file R wrote for all 13 GHCN stations, with none failing (see
-[Reference outputs](#reference-outputs)). Every file is also written text-identical to R's
-on all 15 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
+The Python port reproduces **all 124** ported R reference files for Sydney (`lat0` and
+`sydney`), and every ported file R wrote for all 13 GHCN stations and the synthetic QC
+station, with none failing (see [Reference outputs](#reference-outputs)). The only R file
+not yet ported is `qc/outliers` (#26). Every file is also written text-identical to R's
+on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
 | Area | Ported | Not yet ported |
@@ -25,7 +26,8 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
-| Other outputs | qc/nastatistics, thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | other QC outputs, plots, zip archive |
+| Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline (see [Quality control](#quality-control)) | qc/outliers (#26); QC plots are out of scope (#9) |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | plots, zip archive |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -40,9 +42,10 @@ It does not yet write plots or zip archives.
 src/climpact/
   cli.py             command line: `climpact run` (one station) and `climpact batch` (many)
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
-  config.py          StationMetadata, IndexParams, CustomIndex (Climpact app defaults)
+  config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
+  qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline)
   data/
     climate.indices.csv  index definitions, copied unchanged from Climpact R (file headers)
   io/
@@ -59,10 +62,11 @@ src/climpact/
     heatwaves.py     Tx90/Tn90 heatwave products; hw_aspects(), get.hw.aspects
     ehf.py           EHF heatwave products and the daily EHF/ECF series (climdex.hwEHF)
     thresholds.py    thresholds file and tx95t products
-    qc.py            QC products
+    qc.py            QC products: QC_REPORTS, the one list of QC files, and qc/nastatistics
     trends.py        trend file (trend/trend), built from the other products' tables
   compare.py         tiered comparison of tables against the R reference
-  rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var
+  rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var,
+                     and of R's round()
   rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
   trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S))
 tests/
@@ -75,6 +79,7 @@ tests/
 reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
+  make_qc_stress.py  make the synthetic QC stress station from Potsdam
   input/             station input data used by the tests
   output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored)
   r/, run_r_reference.sh   Docker setup that produces reference/output (see reference/README.md)
@@ -85,9 +90,11 @@ reference/
 ```
 station text file
   -> io.station.read_station_file   DataFrame(date, prcp, tmax, tmin), invalid dates dropped
-  -> io.station.station_dataset     xarray Dataset on a full-year daily axis
-  -> StationRun(data, metadata, params)
+  -> io.station.merged_rows         R's merged rows: first to last row's date, duplicates kept
+  -> io.station.station_dataset     xarray Dataset on a full-year daily axis (last row of a date)
+  -> StationRun(data, metadata, params, qc, qc_rows)
        run.thresholds               base-period thresholds, computed on first use and cached
+       run.rows                     the merged rows the QC checks run on
   -> outputs.build_all(run)         {"indices/fd_ANN": DataFrame, ...}
        derived products             the trend file, from the tables above
   -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
@@ -110,11 +117,19 @@ metadata file (see [Batch processing](#batch-processing)).
 | `tasmin` | degC | daily minimum temperature (TN) |
 | `tas` | degC | `(tasmax + tasmin) / 2` (TM) |
 
-The time axis always runs from 1 January of the first year to 31 December of the last
-year in the file, as climdex.pcic's `climdexInput.raw` does. Days with no data are NaN.
-Station metadata (name, latitude, longitude, base period) is kept in the `StationRun` and
-copied into the Dataset attributes, together with `first_date` and `last_date`, the first
-and last dates in the file before padding (used for climdex's base-period data check).
+The rows of the file are first merged as R's `qualityControlCheck` does
+(`io.station.merged_rows`): one row per day from the date of the file's first row to the
+date of its last row, a date given more than once keeping all its rows in file order. The
+time axis then runs from 1 January of the first year to 31 December of the last year,
+as climdex.pcic's `climdexInput.raw` does, with the last row of each date. Days with no
+data are NaN. Station metadata (name, latitude, longitude, base period) is kept in the
+`StationRun` and copied into the Dataset attributes, together with `first_date` and
+`last_date`, the first and last dates of the merged rows before padding (used for
+climdex's base-period data check).
+
+`StationRun.rows` is the merged rows (`date`, `prcp`, `tmax`, `tmin`), duplicates
+included, which the QC checks run on. `load_station` stores them in `qc_rows`; a
+`StationRun` built from a Dataset alone rebuilds them from the Dataset (one row per date).
 
 The Dataset is one-dimensional in time. Batch runs do not add a `station` dimension: each
 station is a separate `StationRun` in its own process, because stations have their own
@@ -136,6 +151,18 @@ planned; the index code operates along `time` and should not need to change.
 | `custom` | TN > 0 | custom threshold index (output named `TNgt0`) |
 
 Parameter values in output names are formatted as R's `paste` does (`30`, not `30.0`).
+
+`QCParams` (`StationRun.qc`) holds the QC thresholds of `load_data_qc`, the values the
+reference runs use (`reference/r/run_reference.R`):
+
+| Parameter | Default | Used by |
+| --- | --- | --- |
+| `iqr_temp`, `iqr_prec` | 3, 5 | qc/outliers (not yet ported, #26) |
+| `prec_max`, `temp_max` | 200 mm, 50 °C | qc/toolarge |
+| `flatline_days` | 5 | qc/tx_flatline, qc/tn_flatline |
+| `jump` | 20 °C | qc/tx_jumps, qc/tn_jumps |
+
+The command line and batch mode use the defaults, as R's batch mode does.
 
 ### Output products
 
@@ -159,6 +186,10 @@ Table layouts follow R's `write.index.csv`:
 | EHF heatwave aspect (`EHF-HWPS_ANN` ...) | `time`, `<aspect>` (`HWPS`, `HWPI`, `HWLS`, `HWLI`, `HWD`, `HWMD`, `HWN` or `HWF`); no standardised column (`write.hwEHF.csv`) |
 | SPI, SPEI (`3month_spi_MON` ...) | `time` (`"YYYY-MM"`), `spi` or `spei`; no standardised column (`write.precindex.csv`) |
 | Daily EHF/ECF (`EHFdaily`, `ECFdaily`) | `date` (`YYYY-MM-DD`, every day including 29 February), `Excess Heat Factor` or `Excess Cold Factor`; fields joined by `","` |
+| QC lists (`qc/tmaxmin`, `qc/toolarge`) | `Date` (`1961-1-3`), `Prec`, `TX`, `TN` |
+| QC duplicates (`qc/duplicates`) | `Dates_duplicated` |
+| QC jumps (`qc/tx_jumps`, `qc/tn_jumps`) | `Date`, `TX` (the change) or `TN` (the value) |
+| QC flatline (`qc/tx_flatline`, `qc/tn_flatline`) | `Date`, `TX` or `TN`, `Number of duplicates` |
 | Trend file (`trend/trend`) | `Index`, `Frequency`, `StartYear`, `EndYear`, `Lower bound`, `Slope`, `Upper bound`; one row per trend R writes (see [Trend file](#trend-file)); fields joined by `","`, missing as `NA` |
 
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
@@ -208,9 +239,17 @@ tables returned by `build_all` the way R does:
   so it has no metadata header and writes missing values as `NA`. A `None` description in
   `_DESCRIPTIONS` means no header, and `_NA_TOKENS` holds the `NA` token.
 
+- **Formats attached by products:** a product can attach a `FileFormat` (description or no
+  header, separator, missing-value token, quoted column names, a message for an empty
+  table) to a table with `with_file_format`; `write_outputs` then uses it instead of the
+  rules above. The QC files use it, because their descriptions depend on `QCParams`
+  (see [Quality control](#quality-control)).
+
 `write_climpact_csv` (in `climpact.io.climpact_csv`) writes one file and is the inverse of
-`read_climpact_csv`. An output key with no description or file format is an error, so a new
-product must add its format in `output_files.py` before its files can be written.
+`read_climpact_csv`, which unquotes quoted column names and returns a line that is a single
+quoted string (`"NO DUPLICATE DATES FOUND"`) in `ClimpactTable.messages`. An output key with
+no description or file format is an error, so a new product must add its format in
+`output_files.py`, or attach a `FileFormat`, before its files can be written.
 
 ## Batch processing
 
@@ -254,7 +293,7 @@ R behaviour not copied, and why:
 | Two rows with the same station name (e.g. `a.txt`, `a.csv`) both write to the same folder, the last overwriting | rejected when the metadata file is read, since parallel workers would write the same files |
 | A file name without an extension gives an empty station name (`strip_file_extension`) | the whole file name is used |
 | Exit status 0 even when stations fail | exit status 1 when any station fails |
-| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | QC beyond `qc/nastatistics` is not yet ported (#9) |
+| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | the ported QC files are written with the default `QCParams`; QC plots, warnings and `qc/outliers` (#26) are not yet |
 | Values are read with `colClasses` `integer` for `wsdin`, `csdin`, `rxnday`, `SPEI`, and `real` for `txtn` | `txtn` must also be a whole number (it is a day count; `IndexParams.txtn_days` is an `int`) |
 
 **Parity.** `tests/parity/test_batch.py` runs a batch of `sydney`, `nairobi` and a
@@ -383,12 +422,30 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 117/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 117/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 117/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 115/115 and 117/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 117/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 83/83 and 60/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 124/124 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 124/124 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 124/124 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 122/122 and 124/124 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 124/124 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 90/90 and 67/67 |
+| `qc_stress` | Synthetic: Potsdam with planted QC faults (see below). Only its `qc/` files are compared | `reference/make_qc_stress.py` | 8/8 |
+
+Each run also has `qc/outliers`, listed as not yet ported (#26); the counts above leave it
+out.
+
+`qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
+has a duplicated date and several QC checks fire at only a few of them.
+`reference/make_qc_stress.py` takes Potsdam 1961-2020 and plants duplicate dates (an
+identical repeat, a repeat with other values, a date given three times, an out-of-order
+repeat, an all-missing repeat), a removed day, an invalid date, TN >= TX, values at and
+beyond the too-large limits, jumps at and below 20 °C (including two-decimal values whose
+change depends on R's `round`), and flat runs of 5, 6 and more values, one broken by a
+missing value. The catalogue (`Run.qc_only`) compares only its `qc/` files, and
+`test_only_reference_files_written` checks only those. Its committed index, threshold and
+trend files were compared by hand when the run was added: all 110 that do not depend on
+the C maths library are text-identical to R's, and the SPI/SPEI files and rows differ on
+macOS only in the last digits, as on the other runs. This confirms that R's index
+calculations use the last row of a duplicated date, as Python does.
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -414,7 +471,7 @@ test of that run fails at once instead of rebuilding the station for each file.
 
 | Tier | Applies to | Pass condition |
 | --- | --- | --- |
-| `EXACT` | counts, extremes, event lengths, QC counts | identical values |
+| `EXACT` | counts, extremes, event lengths, all QC files | identical values |
 | `CLOSE` | means, sums, percentages, degree days, standardised anomalies, trend slopes and bounds | `abs(py - r) <= 1e-6 * abs(r) + 1e-9` |
 | `FITTED` | fitted distributions (no file uses it: SPI and SPEI pass at `CLOSE`) | at least 99% of values within 0.01 |
 
@@ -435,41 +492,44 @@ for fitted distributions.
 .venv/bin/pytest tests/parity    # parity only
 ```
 
-Files that no product builds are reported as `xfail` ("not yet ported"). A summary is
+Files that no product builds are reported as `xfail` ("not yet ported"); currently only
+`qc/outliers` (#26). A summary is
 printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-beijing: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-darwin: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-dublin: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-lat0: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-madrid: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-minneapolis: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-nairobi: 60/60 reference files reproduced, 0 failing, 0 not yet ported
-new_delhi: 83/83 reference files reproduced, 0 failing, 0 not yet ported
-oxford: 115/115 reference files reproduced, 0 failing, 0 not yet ported
-perth: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-phoenix: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-potsdam: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-sydney: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-yakutsk: 117/117 reference files reproduced, 0 failing, 0 not yet ported
-alice_springs: 117/117 written CSV files text-identical to R, 0 differing
-beijing: 117/117 written CSV files text-identical to R, 0 differing
-darwin: 117/117 written CSV files text-identical to R, 0 differing
-dublin: 117/117 written CSV files text-identical to R, 0 differing
-lat0: 117/117 written CSV files text-identical to R, 0 differing
-madrid: 117/117 written CSV files text-identical to R, 0 differing
-minneapolis: 117/117 written CSV files text-identical to R, 0 differing
-nairobi: 60/60 written CSV files text-identical to R, 0 differing
-new_delhi: 83/83 written CSV files text-identical to R, 0 differing
-oxford: 115/115 written CSV files text-identical to R, 0 differing
-perth: 117/117 written CSV files text-identical to R, 0 differing
-phoenix: 117/117 written CSV files text-identical to R, 0 differing
-potsdam: 117/117 written CSV files text-identical to R, 0 differing
-sydney: 117/117 written CSV files text-identical to R, 0 differing
-yakutsk: 117/117 written CSV files text-identical to R, 0 differing
+alice_springs: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+beijing: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+darwin: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+dublin: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+lat0: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+madrid: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+minneapolis: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+nairobi: 67/68 reference files reproduced, 0 failing, 1 not yet ported
+new_delhi: 90/91 reference files reproduced, 0 failing, 1 not yet ported
+oxford: 122/123 reference files reproduced, 0 failing, 1 not yet ported
+perth: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+phoenix: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+potsdam: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+qc_stress: 8/9 reference files reproduced, 0 failing, 1 not yet ported
+sydney: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+yakutsk: 124/125 reference files reproduced, 0 failing, 1 not yet ported
+alice_springs: 124/125 written CSV files text-identical to R, 0 differing
+beijing: 124/125 written CSV files text-identical to R, 0 differing
+darwin: 124/125 written CSV files text-identical to R, 0 differing
+dublin: 124/125 written CSV files text-identical to R, 0 differing
+lat0: 124/125 written CSV files text-identical to R, 0 differing
+madrid: 124/125 written CSV files text-identical to R, 0 differing
+minneapolis: 124/125 written CSV files text-identical to R, 0 differing
+nairobi: 67/68 written CSV files text-identical to R, 0 differing
+new_delhi: 90/91 written CSV files text-identical to R, 0 differing
+oxford: 122/123 written CSV files text-identical to R, 0 differing
+perth: 124/125 written CSV files text-identical to R, 0 differing
+phoenix: 124/125 written CSV files text-identical to R, 0 differing
+potsdam: 124/125 written CSV files text-identical to R, 0 differing
+qc_stress: 8/9 written CSV files text-identical to R, 0 differing
+sydney: 124/125 written CSV files text-identical to R, 0 differing
+yakutsk: 124/125 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -1387,10 +1447,11 @@ file must be text-identical.
 | Commas are treated as separators; a header row is skipped when the first field is not an integer | same |
 | Values equal to `-99.9` are missing | same |
 | Rows with an invalid date (e.g. 29 February in a non-leap year) are dropped | same |
-| If a date appears more than once, the last row wins (`create.filled.series`) | same. R's QC step also reports duplicates; QC is not yet ported |
+| `qualityControlCheck` merges the rows onto the dates from the first row's date to the last row's date (`merge(dffull, user_data, by = "dates", all.x = TRUE)`): rows dated outside that range are dropped, which only happens when the file is not in date order | same (`io.station.merged_rows`, used by `station_dataset` and the QC checks). A file whose last row is dated before its first row is an error, as R's `seq` fails |
+| A date that appears more than once keeps all its rows, in file order, through both merges; `create.filled.series` then keeps the last, even when it is missing. The QC step lists the repeats (`qc/duplicates`) | same: the indices use the last row of each date in file order, the QC checks see every row. Checked on the `qc_stress` run, whose index files match R's (see [Reference outputs](#reference-outputs)) |
 | The time axis is padded to whole years; padded days count as missing | same |
 | `northern.hemisphere = latitude > 0`, so latitude 0 is treated as Southern Hemisphere | same (`StationMetadata.northern_hemisphere`); matters for gsl and heatwaves |
-| Years out of order are rejected by the QC step | not yet checked |
+| `qualityControlCheck` stops with "Years are not in ascending order" when they are not | the check runs after the merge, which sorts the rows, so it never fires; Python has no such check either |
 
 ### Output files
 
@@ -1407,17 +1468,41 @@ file must be text-identical.
 | The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
 | `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
+### Quality control
+
+The per-value QC checks are in `climpact.qc`, one function per R check
+(`services/check/*.R`), and every QC file is declared once in `QC_REPORTS`
+(`climpact.products.qc`): its name, its check, its description (from `QCParams`), whether R
+writes a "NO ... FOUND" line and whether it quotes the column names. All of R's
+behaviour is reproduced, and every QC file is text-identical to R's on all 16 runs.
+
+| R behaviour (`services/check/`) | Python |
+| --- | --- |
+| `allqc` runs on a temporary file of the merged rows written with `na = "-99.9"` and read back with `na.strings = "-99.9"`. Since `-99.9` already means missing in the input, the checks see the same values and missing values as the indices | the checks run on `StationRun.rows` (`io.station.merged_rows`) |
+| QC only reports: `allqc` writes files and plots, and the climdex input object the indices use is built before it and never changed | same: the QC products read the rows and change nothing |
+| `duplivals` lists every repeat of a date (`duplicated` on year, month, day), so a date given three times is listed twice | `duplicate_dates` |
+| `tmaxmin` lists `tx - tn <= 0`: TN >= TX, not only TN > TX as its description says. Rows with TX or TN missing are left out; a missing precipitation is written `NA` | `tmax_le_tmin` |
+| `humongous` lists precipitation above `prec_threshold` or below 0, or TX or TN above `temp_threshold` or below its negative. A missing value does not hide the others (`NA \| TRUE` is `TRUE`) | `too_large` |
+| `jumps_tx`, `jumps_tn`: `abs(round(diff(x), 1))`, run-length encoded (`rle`), runs `>= temp_change_threshold` kept, although the description says `>`. A run of equal changes is reported once, on the date of its last change, which is the first of the two days compared. A missing value breaks runs | `jumps`, with R's `round` (`rnumerics.r_round`) and `rle` (`_runs`) |
+| `jumps_tx` writes the rounded change in its `TX` column; `jumps_tn` writes the TN value of the date (they select different columns after the merge) | reproduced |
+| `flatline_tx`, `flatline_tn`: runs of at least `no_variability_threshold` zero rounded changes (more than that many equal values), reported on the second-last day of the run with the value and the number of equal values | `flatline` |
+| `flatline_tn`'s description says "TX" | reproduced |
+| `duplivals`, `jumps_*` and `flatline_*` write a quoted "NO ... FOUND" line when nothing is found; `tmaxmin` and `humongous` test `length(data.frame) == 0`, which counts columns, so they never do | reproduced (`QCReport.empty_message`) |
+| `flatline_*` quote their column names (`write.table` default); the others do not. Missing values are written `NA` and numbers with `as.character` | reproduced (`QCReport.quote_header`, `FileFormat.na`); `format_r_number` gives the same text as `as.character` |
+
+R's `round(x, 1)` (`nmath/fround.c`, R >= 4.0.0) is not Python's: it picks the nearer of
+`floor(x * 10) / 10` and `ceil(x * 10) / 10` computed in doubles (ties to even), so
+`round(0.45, 1)` is 0.4 in R and 0.5 in Python. `r_round` ports it; on 813 changes printed
+by R (`tests/data/r_round.R`), numpy's `round` differs from R's on 11 and `r_round` on none.
+On the reference stations, whose values have one decimal, the two agree; on `qc_stress`,
+30.05 - 10.1 (19.950000000000003) rounds to 20 and is reported as a jump.
+
 ### R behaviour not to be copied
 
 These are known R bugs or limitations, found while reviewing the R code. They are not
 reproduced; where they affect an output, the difference will be documented when that
 output is ported.
 
-- QC `humongous` and `tmaxmin` test `length(data.frame) == 0`, which counts columns, so the
-  "none found" message is never written.
-- QC `flatline_tn` labels its report "TX".
-- QC checks re-read the data from a temporary file with `-99.9` sentinels rather than using
-  the cleaned data.
 - `percent.days.op.threshold` divides the in-base hits by `byrs - 1`, the base years the
   series covers minus one, not by the number of comparisons, so tx90p, tn90p, tx10p,
   tn10p and txgt50p can exceed 100% for a series that starts or ends inside the base

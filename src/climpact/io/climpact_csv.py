@@ -35,6 +35,11 @@ MISSING_TOKEN = "-99.9"
 NA_TOKEN = "NA"
 
 _METADATA_LINE = re.compile(r'^"(?P<key>[A-Za-z_]+): ","(?P<value>.*)"$')
+_QUOTED_LINE = re.compile(r'^"[^"]*"$')
+
+
+def _unquote(text: str) -> str:
+    return text[1:-1] if len(text) >= 2 and text[0] == text[-1] == '"' else text
 
 
 @dataclass
@@ -43,6 +48,8 @@ class ClimpactTable:
 
     data: pd.DataFrame
     metadata: dict[str, str] = field(default_factory=dict)
+    # Lines that are a single quoted string, such as "NO DUPLICATE DATES FOUND".
+    messages: list[str] = field(default_factory=list)
 
     @property
     def columns(self) -> list[str]:
@@ -64,6 +71,9 @@ def read_climpact_csv(path: str | Path) -> ClimpactTable:
 
     Metadata lines are returned separately from the data. Leading and trailing
     whitespace around fields is stripped, so both ``", "`` and ``","`` separators work.
+    Quotes around the header names are removed (the QC flatline files quote them), and
+    a data line that is one quoted string (a QC file's "NO ... FOUND" line) is returned
+    in :attr:`ClimpactTable.messages` rather than as a row.
     """
     lines = Path(path).read_text().splitlines()
 
@@ -73,14 +83,16 @@ def read_climpact_csv(path: str | Path) -> ClimpactTable:
         metadata[match["key"]] = match["value"]
         start += 1
 
-    header = [name.strip() for name in lines[start].split(",")]
-    rows = [[v.strip() for v in line.split(",")] for line in lines[start + 1 :] if line.strip()]
+    header = [_unquote(name.strip()) for name in lines[start].split(",")]
+    body = [line for line in lines[start + 1 :] if line.strip()]
+    messages = [_unquote(line) for line in body if _QUOTED_LINE.match(line)]
+    rows = [[v.strip() for v in line.split(",")] for line in body if not _QUOTED_LINE.match(line)]
     for number, row in enumerate(rows, start=start + 2):
         if len(row) != len(header):
             raise ValueError(f"{path}:{number}: expected {len(header)} fields, got {len(row)}")
 
     columns = {name: _parse_column([row[i] for row in rows]) for i, name in enumerate(header)}
-    return ClimpactTable(data=pd.DataFrame(columns), metadata=metadata)
+    return ClimpactTable(data=pd.DataFrame(columns), metadata=metadata, messages=messages)
 
 
 # --- writing ----------------------------------------------------------------------
@@ -232,6 +244,8 @@ def write_climpact_csv(
     metadata: dict[str, str] | None,
     sep: str = ", ",
     na: str = MISSING_TOKEN,
+    quote_header: bool = False,
+    empty_message: str | None = None,
 ) -> Path:
     """Write a table as a Climpact output CSV, the inverse of :func:`read_climpact_csv`.
 
@@ -242,11 +256,16 @@ def write_climpact_csv(
 
     ``metadata=None`` writes no header block and ``na`` changes the missing-value token,
     for files R writes with a plain ``write.table`` (``thres.csv``: no header, ``NA``).
+    ``quote_header`` quotes the column names, and ``empty_message`` is written as a quoted
+    line when the table has no rows, as some QC files do (``"NO REPEATED TX FOUND"``).
     """
     lines = climpact_header(metadata) if metadata is not None else []
-    lines.append(sep.join(str(name) for name in data.columns))
+    names = [_quote(str(name)) if quote_header else str(name) for name in data.columns]
+    lines.append(sep.join(names))
     columns = [[_format_value(v, na) for v in data[name].tolist()] for name in data.columns]
     lines.extend(sep.join(row) for row in zip(*columns, strict=True))
+    if empty_message is not None and data.empty:
+        lines.append(_quote(empty_message))
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="\n") as f:

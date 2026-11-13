@@ -1,0 +1,10 @@
+"Description: ","Dates where TX values have been repeated more than 5 times."
+"Station: ","qc_stress_1961-2020"
+"Latitude: ","52.38"
+"Longitude: ","13.06"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+"Date","TN","Number of duplicates"
+1968-4-11,0,12
+1968-7-6,15,7

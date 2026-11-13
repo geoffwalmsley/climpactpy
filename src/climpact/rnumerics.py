@@ -246,3 +246,32 @@ def r_var(x: np.ndarray) -> float:
         d = _ext(v - mean)
         total = _ext(total + _mul(d, d, EXTENDED_BITS))
     return _to_float(_div(total, n - 1))
+
+
+def r_round(x: np.ndarray, digits: int) -> np.ndarray:
+    """R ``round(x, digits)`` for ``digits >= 1`` (R >= 4.0.0, ``nmath/fround.c``).
+
+    R does not round the decimal value of ``x`` like Python's ``round``. It takes the two
+    candidates ``floor(x * 10**d) / 10**d`` and ``ceil(x * 10**d) / 10**d``, computed in
+    doubles, and returns the one nearer to ``x``, the even one when both are equally
+    near. So ``round(0.45, 1)`` is 0.4 in R, although 0.45 is stored as slightly more
+    than 0.45 and Python gives 0.5. Missing values stay missing; values with more than
+    15 significant digits before rounding are returned unchanged, as in R.
+    """
+    x = np.asarray(x, dtype=float)
+    sign = np.where(x < 0, -1.0, 1.0)
+    a = np.abs(x)
+    pow10 = 10.0**digits
+    with np.errstate(invalid="ignore", over="ignore"):  # inf and NaN are returned as is
+        x10 = a * pow10
+        i10 = np.floor(x10)
+        down = i10 / pow10
+        up = np.ceil(x10) / pow10
+        du = up - a
+        dd = a - down
+    rounded = np.where((du < dd) | ((du == dd) & (np.fmod(i10, 2.0) == 1.0)), up, down)
+    # R: l10x = M_LOG10_2 * (0.5 + logb(x)); no rounding when l10x + digits > DBL_DIG.
+    logb = np.frexp(a)[1] - 1.0
+    unchanged = (np.log10(2.0) * (0.5 + logb) + digits > 15) | (a == 0)
+    unchanged |= ~np.isfinite(x)
+    return np.where(unchanged, x, sign * rounded)

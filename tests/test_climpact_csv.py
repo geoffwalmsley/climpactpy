@@ -81,7 +81,10 @@ def test_ragged_row_is_an_error(tmp_path):
 @pytest.mark.parametrize("ref", reference_files(), ids=lambda f: f.id)
 def test_every_reference_file_parses(ref):
     table = read_climpact_csv(ref.path)
-    assert len(table.data) > 0
+    assert len(table.data.columns) > 0
+    # A QC list can be empty (with or without a "NO ... FOUND" message); nothing else is.
+    assert len(table.data) > 0 or ref.folder == "qc"
+    assert not table.messages or ref.folder == "qc"
 
 
 # --- writing ----------------------------------------------------------------------

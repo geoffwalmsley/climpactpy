@@ -1,0 +1,14 @@
+"Description: ","Dates where precipitation > 200 mm or abs(temperature) > 50 degrees."
+"Station: ","qc_stress_1961-2020"
+"Latitude: ","52.38"
+"Longitude: ","13.06"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN
+1963-7-2,200.1,26.2,14.7
+1963-7-3,-0.1,27.5,13.1
+1963-7-5,0,50.1,14.5
+1963-12-2,0,4.6,-50.1
+1963-12-3,NA,-55.2,NA
+1963-12-4,350.5,NA,NA

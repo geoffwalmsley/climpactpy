@@ -14,3 +14,4 @@ beijing,CHM00054511,beijing,39.93,116.28,1961,2020,ghcn
 dublin,EI000003969,dublin_phoenix_park,53.36,-6.32,1961,2020,ghcn
 new_delhi,IN022021900,new_delhi_safdarjung,28.58,77.20,1961,2020,ghcn
 nairobi,KE000063740,nairobi_jkia,-1.32,36.92,1961,2020,ghcn
+qc_stress,GM000003342,qc_stress,52.38,13.06,1961,2020,synthetic

@@ -83,6 +83,23 @@ def _climdex_missing_1d(valid: xr.DataArray, period: str) -> xr.DataArray:
     return years.wrap(annual | any_month)
 
 
+def valid_periods(present: np.ndarray, time, freq: str) -> np.ndarray:
+    """Climdex validity of each period: ``present`` is a daily boolean array whose last
+    axis runs along ``time`` (any leading dimensions, e.g. grid cells); returns a
+    boolean array ``(..., periods)``, True where the period is valid. ``freq`` is
+    ``"MS"`` or ``"YS"``. The same rules as :func:`climdex_missing`."""
+    period = _period(freq)
+    present = np.asarray(present, dtype=bool)
+    months = periods(time, "MS")
+    monthly = months.days() - months.count(present) > MAX_MISSING_DAYS["monthly"]
+    if period == "monthly":
+        return ~monthly
+    years = periods(time, "YS")
+    annual = years.days() - years.count(present) > MAX_MISSING_DAYS["annual"]
+    any_month = periods(months.labels, "YS").count(monthly) > 0
+    return ~(annual | any_month)
+
+
 def valid_mask(*arrays: xr.DataArray, freq: str) -> xr.DataArray:
     """True for periods that are valid for every input array (climdex ``namask``)."""
     missing = None

@@ -157,14 +157,31 @@ class GridRun:
     names: dict  # tasmax, tasmin, pr -> netCDF variable name
     base_start: int
     base_end: int
+    thresholds: bool  # R's thresholds file was made for this run
+    indices_thresholds: str  # run whose thresholds file R's indices used ("": none)
+    indices_exclude: tuple[str, ...]  # indices left out of R's run
 
     @property
     def input_paths(self) -> list[Path]:
         return [GRIDDED_DIR / "input" / f for f in self.files]
 
     @property
+    def output_dir(self) -> Path:
+        return GRIDDED_DIR / "output" / self.name
+
+    @property
     def thresholds_path(self) -> Path:
-        return GRIDDED_DIR / "output" / self.name / "thresholds.nc"
+        return self.output_dir / "thresholds.nc"
+
+    @property
+    def indices_dir(self) -> Path:
+        return self.output_dir / "indices"
+
+    @property
+    def indices_thresholds_path(self) -> Path | None:
+        if not self.indices_thresholds:
+            return None
+        return GRIDDED_DIR / "output" / self.indices_thresholds / "thresholds.nc"
 
 
 def _read_grid_runs() -> dict[str, GridRun]:
@@ -176,6 +193,9 @@ def _read_grid_runs() -> dict[str, GridRun]:
                 names={"tasmax": row["tmax"], "tasmin": row["tmin"], "pr": row["prec"]},
                 base_start=int(row["base_start"]),
                 base_end=int(row["base_end"]),
+                thresholds=row["thresholds"] == "yes",
+                indices_thresholds=row["indices_thresholds"],
+                indices_exclude=tuple(x for x in row["indices_exclude"].split(";") if x),
             )
             for row in csv.DictReader(f)
         }

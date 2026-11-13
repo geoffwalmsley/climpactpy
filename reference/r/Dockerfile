@@ -55,7 +55,7 @@ RUN base=https://github.com/ARCCSS-extremes/climpact/raw/${CLIMPACT_SHA}/server/
 # Record the exact package versions in the image.
 RUN R -q -e "ip <- installed.packages()[, c('Package', 'Version')]; write.csv(ip, '/opt/r-package-versions.csv', row.names = FALSE)"
 
-COPY run_reference.R run_gridded_thresholds.R compare_summary.R entrypoint.sh /opt/climpact-ref/
+COPY run_reference.R run_gridded_thresholds.R run_gridded_indices.R compare_summary.R entrypoint.sh /opt/climpact-ref/
 RUN chmod +x /opt/climpact-ref/entrypoint.sh
 
 ENTRYPOINT ["/opt/climpact-ref/entrypoint.sh"]

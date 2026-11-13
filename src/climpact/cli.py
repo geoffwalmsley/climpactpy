@@ -10,7 +10,8 @@ take ``--plots`` to draw R's index plots and combined PDF and ``--zip`` to zip t
 outputs, as R's download does (see :mod:`climpact.plots`).
 ``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
-(see :mod:`climpact.gridded`).
+(see :mod:`climpact.gridded`). ``climpact gridded-indices <netCDF files> --out <dir>``
+computes the indices of every cell, as ``climpact.ncdf.wrapper.r``.
 """
 
 from __future__ import annotations
@@ -230,6 +231,77 @@ def _parser() -> argparse.ArgumentParser:
     )
     grid.add_argument("--quiet", action="store_true", help="do not print progress")
 
+    gi = commands.add_parser(
+        "gridded-indices",
+        help="calculate the indices of every cell of a netCDF grid",
+        description="Calculate the indices of every cell of a grid of daily TX, TN and "
+        "precipitation, and write one netCDF file per index and frequency in the layout "
+        "of Climpact's climpact.ncdf.wrapper.r. Temperatures may be in K or degrees_C, "
+        "precipitation in kg m-2 d-1 or kg m-2 s-1. Not yet written: hw, hwEHF, spi, spei.",
+    )
+    gi.add_argument("input_files", type=Path, nargs="+", help="one to three CF netCDF files")
+    gi.add_argument("--out", type=Path, required=True, help="output directory")
+    gi.add_argument(
+        "--template",
+        default=None,
+        help="output file name template in CMIP5 form, var_freq_model_emissions_run_"
+        "start-end.nc (R's file.template; default: var_daily_climpactpy_historical_NA_"
+        "<first year>-<last year>.nc)",
+    )
+    gi.add_argument("--tmax", default="tasmax", help="TX variable name (" + _DEFAULT + ")")
+    gi.add_argument("--tmin", default="tasmin", help="TN variable name (" + _DEFAULT + ")")
+    gi.add_argument("--prec", default="pr", help="precipitation variable name (" + _DEFAULT + ")")
+    gi.add_argument(
+        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+    )
+    gi.add_argument(
+        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+    )
+    gi.add_argument(
+        "--indices",
+        nargs="+",
+        default=None,
+        metavar="INDEX",
+        help="indices to calculate, by short name (fd, rxdday, wsdid, ...; R's indices); "
+        "default: all",
+    )
+    gi.add_argument(
+        "--thresholds",
+        type=Path,
+        default=None,
+        help="thresholds file from 'climpact gridded-thresholds' (R's thresholds.files); "
+        "only for data with no day in the base period",
+    )
+    gi.add_argument("--institution", default=None, help="author institution (global attribute)")
+    gi.add_argument("--institution-id", default=None, help="author institution id")
+    from climpact.gridded.indices import WRAPPER_PARAMS as W
+
+    for flag, attr, kind, text in (
+        ("--wsdi-days", "wsdi_days", int, "days for wsdi<n> (R's wsdin_n)"),
+        ("--csdi-days", "csdi_days", int, "days for csdi<n> (R's csdin_n)"),
+        ("--rx-days", "rx_days", int, "days for rx<n>day (R's rxnday_n)"),
+        ("--txtn-days", "txtn_days", int, "days for tx<n>tn<n>, txb<n>tnb<n> (ntxntn_n)"),
+        ("--hdd-base", "hdd_base", float, "base temperature of hddheat (hddheatn_n)"),
+        ("--cdd-base", "cdd_base", float, "base temperature of cddcold (cddcoldn_n)"),
+        ("--gdd-base", "gdd_base", float, "base temperature of gddgrow (gddgrown_n)"),
+        ("--rnnmm", "rnnmm", float, "precipitation threshold of r<nn>mm (rnnmm_n)"),
+    ):
+        gi.add_argument(
+            flag, dest=attr, type=kind, default=getattr(W, attr), help=f"{text}; {_DEFAULT}"
+        )
+    gi.add_argument(
+        "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
+    )
+    gi.add_argument(
+        "--max-values",
+        type=float,
+        default=5.0,
+        metavar="MILLIONS",
+        help="millions of input values read at once, which bounds memory "
+        "(R's max.vals.millions; " + _DEFAULT + ")",
+    )
+    gi.add_argument("--quiet", action="store_true", help="do not print progress")
+
     commands.add_parser(
         "modules",
         help="list the QC, homogeneity and index modules available",
@@ -401,6 +473,78 @@ def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.Argume
     return 0
 
 
+def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from dataclasses import replace
+
+    from climpact.gridded import open_grid, write_grid_indices
+    from climpact.gridded.indices import NOT_PORTED, WRAPPER_PARAMS, index_files
+    from climpact.thresholds import InsufficientBaseData
+
+    for path in args.input_files:
+        if not path.is_file():
+            parser.error(f"input file not found: {path}")
+    if args.thresholds is not None and not args.thresholds.is_file():
+        parser.error(f"thresholds file not found: {args.thresholds}")
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
+    if args.base_end < args.base_start:
+        parser.error("--base-end is before --base-start")
+    params = replace(
+        WRAPPER_PARAMS,
+        **{
+            k: getattr(args, k)
+            for k in (
+                "wsdi_days", "csdi_days", "rx_days", "txtn_days", "hdd_base", "cdd_base",
+                "gdd_base", "rnnmm",
+            )
+        },
+    )  # fmt: skip
+    if args.indices:
+        known = {f.index for f in index_files(params, include_unported=True)}
+        unknown = sorted(set(args.indices) - known)
+        if unknown:
+            parser.error(f"unknown indices {unknown}; known: {' '.join(sorted(known))}")
+        skipped = sorted(set(args.indices) & set(NOT_PORTED))
+        if skipped:
+            print(f"Not yet ported, not written: {' '.join(skipped)}")
+    names = {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec}
+    try:
+        inp = open_grid(args.input_files, names, max_values=int(args.max_values * 1e6))
+    except (ValueError, NotImplementedError) as exc:
+        parser.error(str(exc))
+    author = {"institution": args.institution, "institution_id": args.institution_id}
+    ny, nx = inp.shape
+
+    def progress(stage: str, done: int, total: int) -> None:
+        if not args.quiet:
+            print(f"[{done}/{total}] blocks done", flush=True)
+
+    if not args.quiet:
+        print(
+            f"{ny} x {nx} cells, {inp.time[0]:%Y-%m-%d} to {inp.time[-1]:%Y-%m-%d}, "
+            f"base period {args.base_start}-{args.base_end}"
+            + (f", thresholds from {args.thresholds}" if args.thresholds else "")
+        )
+    try:
+        paths = write_grid_indices(
+            inp,
+            args.out,
+            args.base_start,
+            args.base_end,
+            template=args.template,
+            params=params,
+            thresholds_file=args.thresholds,
+            author=author,
+            workers=args.workers,
+            progress=progress,
+            indices=args.indices,
+        )
+    except (InsufficientBaseData, ValueError) as exc:
+        parser.error(str(exc))
+    print(f"Wrote {len(paths)} files to {args.out}")
+    return 0
+
+
 def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     from climpact.modules import available
 
@@ -422,6 +566,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return modules_command(args, parser)
     if args.command == "gridded-thresholds":
         return gridded_thresholds_command(args, parser)
+    if args.command == "gridded-indices":
+        return gridded_indices_command(args, parser)
     parser.error(f"unknown command {args.command!r}")  # pragma: no cover
     return 2
 

@@ -5,6 +5,13 @@ Index definitions follow ``climpact.etsci-functions.r`` and climdex.pcic 1.2-0; 
 the two differ, Climpact's definition is used because it is the one that runs.
 Monthly and annual reductions use :mod:`climpact.periods`, not xarray's ``resample``,
 for speed.
+
+Each index is computed by an array function (``*_values``) taking daily values whose
+last axis runs along a complete daily time axis ``time``, with any leading dimensions:
+the station products below call them with one series, and the gridded indices
+(:mod:`climpact.gridded.indices`) with the cells of a block. Steps that must follow R's
+extended-precision arithmetic (means and sums) or that are sequential by nature
+(spells, the growing season) loop over the leading dimensions inside these functions.
 """
 
 from __future__ import annotations
@@ -16,13 +23,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climpact.missing import valid_mask
+from climpact.missing import valid_mask, valid_periods
 from climpact.outputs import product
-from climpact.periods import periods
+from climpact.periods import Periods, periods
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
-from climpact.thresholds import InsufficientBaseData, day_of_year
+from climpact.thresholds import DAYS_PER_YEAR, InsufficientBaseData, day_of_year
 
 OPERATORS: dict[str, Callable] = {
     ">": operator.gt,
@@ -54,6 +61,24 @@ COUNTS: dict[str, tuple[str, float, str]] = {
 }
 
 
+def valid_values(time, rule: str, *arrays: np.ndarray) -> np.ndarray:
+    """The climdex validity of each period, ``(..., periods)``: valid for every array
+    (``namask`` of each variable multiplied together)."""
+    valid = None
+    for x in arrays:
+        v = valid_periods(~np.isnan(x), time, rule)
+        valid = v if valid is None else valid & v
+    return valid
+
+
+def count_values(x: np.ndarray, threshold: float, condition: str, time, rule: str) -> np.ndarray:
+    """:func:`count_days` of an array, ``(..., time) -> (..., periods)``."""
+    with np.errstate(invalid="ignore"):
+        hits = OPERATORS[condition](x, threshold)
+    counts = periods(time, rule).count(hits).astype(float)
+    return np.where(valid_values(time, rule, x), counts, np.nan)
+
+
 def count_days(da: xr.DataArray, threshold: float, condition: str, freq: str) -> xr.DataArray:
     """Number of days per period with ``da <condition> threshold`` (missing days do not
     count), masked by the climdex rules for ``da``.
@@ -64,11 +89,7 @@ def count_days(da: xr.DataArray, threshold: float, condition: str, freq: str) ->
     station run's time (``tests/test_index_helpers.py`` checks the two agree).
     """
     rule = FREQS[freq]
-    with np.errstate(invalid="ignore"):
-        hits = OPERATORS[condition](da.values, threshold)
-    p = periods(da.time, rule)
-    counts = p.wrap(p.count(hits).astype(float))
-    return counts.where(valid_mask(da, freq=rule))
+    return periods(da.time, rule).wrap(count_values(da.values, threshold, condition, da.time, rule))
 
 
 @product
@@ -118,6 +139,68 @@ def custom_index(run: StationRun) -> dict[str, pd.DataFrame]:
 # --- means and totals --------------------------------------------------------------
 
 
+# Margin (relative to the mean and the largest value) within which a float32 rounding
+# boundary makes :func:`period_means` use R's exact mean: see its docstring.
+_FLOAT32_MARGIN = 2.0**-40
+
+
+def period_means(
+    x: np.ndarray, p: Periods, float32: bool = False, scale: float = 1.0
+) -> np.ndarray:
+    """R's ``mean`` of the non-missing values of each period, times ``scale``,
+    ``(..., time) -> (..., periods)`` (NaN for a period with no values).
+
+    With ``float32``, the result is only guaranteed to round to the same float32 as R's
+    (the gridded outputs are float32): the mean is the double sum divided by the count,
+    vectorised, and :func:`~climpact.rnumerics.r_mean` is used only for periods whose
+    result lies within ``2**-40 * scale * (|mean| + max |x|)`` of a float32 rounding
+    boundary (a midpoint between two float32 values). Both the double estimate (error
+    below ``n * 2**-53 * max |x|``, n <= 366) and R's extended-precision mean (error
+    well below ``2**-52 * (|mean| + max |x|)``) are much closer to the exact mean than
+    that margin, so outside it both round to the same float32.
+    """
+    if not float32:
+        return p.apply(x, r_mean) * scale
+    x = np.asarray(x, dtype=float)
+    present = ~np.isnan(x)
+    n = p.count(present)
+    order, bounds = p.grouping()
+    filled = np.diff(bounds) > 0
+    starts = bounds[:-1][filled]
+    sums = np.zeros(n.shape)
+    largest = np.zeros(n.shape)
+    values = np.where(present, x, 0.0)[..., order]
+    sums[..., filled] = np.add.reduceat(values, starts, axis=-1)
+    largest[..., filled] = np.maximum.reduceat(np.abs(values), starts, axis=-1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = sums / n * scale
+    f = out.astype(np.float32)
+    with np.errstate(over="ignore"):
+        lower = (f.astype(float) + np.nextafter(f, np.float32(-np.inf)).astype(float)) / 2
+        upper = (f.astype(float) + np.nextafter(f, np.float32(np.inf)).astype(float)) / 2
+    distance = np.minimum(np.abs(out - lower), np.abs(out - upper))
+    margin = _FLOAT32_MARGIN * scale * (np.abs(sums / np.maximum(n, 1)) + largest)
+    near = (n > 0) & ~(distance > margin)
+    if near.any():
+        rows = x.reshape(-1, x.shape[-1])
+        flat = out.reshape(-1, p.size)
+        for r, i in zip(*np.nonzero(near.reshape(-1, p.size)), strict=True):
+            period = rows[r, order[bounds[i] : bounds[i + 1]]]
+            flat[r, i] = r_mean(period[~np.isnan(period)]) * scale
+        out = flat.reshape(out.shape)
+    return np.where(n > 0, out, np.nan)
+
+
+def period_stat_values(
+    x: np.ndarray, time, rule: str, stat: str, *masks: np.ndarray, float32: bool = False
+) -> np.ndarray:
+    """:func:`period_stat` of an array, ``(..., time) -> (..., periods)``; ``float32``:
+    see :func:`period_means`."""
+    p = periods(time, rule)
+    values = period_means(x, p, float32) if stat == "mean" else p.reduce(x, stat)
+    return np.where(valid_values(time, rule, *masks), values, np.nan)
+
+
 def period_stat(da: xr.DataArray, freq: str, stat: str, *mask_vars: xr.DataArray) -> xr.DataArray:
     """Mean, max or min per period, skipping missing days, masked by the climdex rules
     for ``mask_vars``.
@@ -127,12 +210,8 @@ def period_stat(da: xr.DataArray, freq: str, stat: str, *mask_vars: xr.DataArray
     extremes would no longer be identical to R.
     """
     rule = FREQS[freq]
-    if stat == "mean":
-        values = period_reduce(da, rule, r_mean)
-    else:
-        p = periods(da.time, rule)
-        values = p.wrap(p.reduce(da.values, stat))
-    return values.where(valid_mask(*mask_vars, freq=rule))
+    masks = [m.values for m in mask_vars]
+    return periods(da.time, rule).wrap(period_stat_values(da.values, da.time, rule, stat, *masks))
 
 
 def period_reduce(da: xr.DataArray, rule: str, func: Callable) -> xr.DataArray:
@@ -158,48 +237,88 @@ def wet_day_total(pr: np.ndarray) -> float:
     return r_sum(pr[pr >= 1])
 
 
+def means_and_totals_values(
+    tasmax: np.ndarray,
+    tasmin: np.ndarray,
+    tas: np.ndarray,
+    pr: np.ndarray,
+    time,
+    freq: str,
+    float32: bool = False,
+) -> dict[str, np.ndarray]:
+    """dtr, tmm, txm, tnm and prcptot for ``freq`` (``"MON"`` or ``"ANN"``), and sdii for
+    ``"ANN"``: ``{name: (..., periods)}``; ``float32``: see :func:`period_means`."""
+    rule = FREQS[freq]
+    f32 = {"float32": float32}
+    out = {
+        # climdex.dtr masks with the TM mask (a day is missing if TX or TN is missing),
+        # which is stricter than masking TX and TN separately (#40).
+        "dtr": period_stat_values(tasmax - tasmin, time, rule, "mean", tas, **f32),
+        "tmm": period_stat_values(tas, time, rule, "mean", tasmin, tasmax, **f32),
+        "txm": period_stat_values(tasmax, time, rule, "mean", tasmax, **f32),
+        "tnm": period_stat_values(tasmin, time, rule, "mean", tasmin, **f32),
+    }
+    p = periods(time, rule)
+    valid = valid_values(time, rule, pr)
+    out["prcptot"] = np.where(valid, p.apply(pr, wet_day_total), np.nan)
+    if freq == "ANN":
+        out["sdii"] = np.where(valid, p.apply(pr, precipitation_intensity), np.nan)
+    return out
+
+
 @product
 def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
     ds = run.data
     out = {}
-    for freq in FREQS:
-        tables = {
-            # climdex.dtr masks with the TM mask (a day is missing if TX or TN is missing),
-            # which is stricter than masking TX and TN separately (#40).
-            "dtr": period_stat(ds.tasmax - ds.tasmin, freq, "mean", ds.tas),
-            "tmm": period_stat(ds.tas, freq, "mean", ds.tasmin, ds.tasmax),
-            "txm": period_stat(ds.tasmax, freq, "mean", ds.tasmax),
-            "tnm": period_stat(ds.tasmin, freq, "mean", ds.tasmin),
-            "prcptot": period_reduce(ds.pr, FREQS[freq], wet_day_total).where(
-                valid_mask(ds.pr, freq=FREQS[freq])
+    for freq, rule in FREQS.items():
+        p = periods(ds.time, rule)
+        values = means_and_totals_values(
+            ds.tasmax.values, ds.tasmin.values, ds.tas.values, ds.pr.values, ds.time, freq
+        )
+        for name, v in values.items():
+            out[f"indices/{name}_{freq}"] = index_table(name, p.wrap(v), freq)
+    return out
+
+
+def degree_day_values(tas: np.ndarray, time, params) -> dict[str, np.ndarray]:
+    """hddheat, cddcold and gddgrow (named with their base temperatures):
+    ``{name: (..., years)}``.
+
+    Climpact's climdex.hddheatn, cddcoldn, gddgrown: the annual sum of Tb - TM over days
+    with TM < Tb (heating), or of TM - Tb over days with TM > Tb, with R's
+    extended-precision sum, masked by the annual TM mask.
+    """
+    p = params
+    with np.errstate(invalid="ignore"):
+        specs = {
+            f"hddheat{format_number(p.hdd_base)}": np.where(
+                tas < p.hdd_base, p.hdd_base - tas, 0.0
+            ),
+            f"cddcold{format_number(p.cdd_base)}": np.where(
+                tas > p.cdd_base, tas - p.cdd_base, 0.0
+            ),
+            f"gddgrow{format_number(p.gdd_base)}": np.where(
+                tas > p.gdd_base, tas - p.gdd_base, 0.0
             ),
         }
-        for name, values in tables.items():
-            out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
-
-    sdii = period_reduce(ds.pr, "YS", precipitation_intensity).where(valid_mask(ds.pr, freq="YS"))
-    out["indices/sdii_ANN"] = index_table("sdii", sdii, "ANN")
+    years = periods(time, "YS")
+    valid = valid_values(time, "YS", tas)
+    out = {}
+    for name, excess in specs.items():
+        # A year whose days all fall outside the condition sums to 0 (sum(na.rm = TRUE)).
+        excess = np.where(np.isnan(tas), np.nan, excess)
+        out[name] = np.where(valid, years.apply(excess, r_sum), np.nan)
     return out
 
 
 @product
 def degree_days(run: StationRun) -> dict[str, pd.DataFrame]:
-    ds, p = run.data, run.params
-    # Climpact's climdex.hddheatn, cddcoldn, gddgrown: the annual sum of Tb - TM over days
-    # with TM < Tb (heating), or of TM - Tb over days with TM > Tb, with R's
-    # extended-precision sum, masked by the annual TM mask.
-    specs = {
-        f"hddheat{format_number(p.hdd_base)}": (p.hdd_base - ds.tas).where(ds.tas < p.hdd_base),
-        f"cddcold{format_number(p.cdd_base)}": (ds.tas - p.cdd_base).where(ds.tas > p.cdd_base),
-        f"gddgrow{format_number(p.gdd_base)}": (ds.tas - p.gdd_base).where(ds.tas > p.gdd_base),
+    ds = run.data
+    years = periods(ds.time, "YS")
+    return {
+        f"indices/{name}_ANN": index_table(name, years.wrap(values), "ANN")
+        for name, values in degree_day_values(ds.tas.values, ds.time, run.params).items()
     }
-    mask = valid_mask(ds.tas, freq=FREQS["ANN"])
-    out = {}
-    for name, excess in specs.items():
-        # A year whose days all fall outside the condition sums to 0 (sum(na.rm = TRUE)).
-        values = period_reduce(excess.fillna(0).where(ds.tas.notnull()), FREQS["ANN"], r_sum)
-        out[f"indices/{name}_ANN"] = index_table(name, values.where(mask), "ANN")
-    return out
 
 
 # --- extremes with the date they occurred -----------------------------------------
@@ -207,19 +326,9 @@ def degree_days(run: StationRun) -> dict[str, pd.DataFrame]:
 
 def first_extreme_dates(da: xr.DataArray, rule: str, stat: str) -> xr.DataArray:
     """Date of the first maximum/minimum in each period, skipping missing days
-    (R ``which.max`` / ``which.min``).
-
-    A period with no data gets no date (NaT). pandas' ``idxmax`` raises on an all-missing
-    group, so missing days are filled with -inf (max) or +inf (min) first: they never win
-    in a period that has data, and the first occurrence is unchanged.
-    """
-    s = da.to_series()
-    fill = -np.inf if stat == "max" else np.inf
-    grouped = s.fillna(fill).groupby(pd.Grouper(freq=rule))
-    idx = grouped.idxmax() if stat == "max" else grouped.idxmin()
-    empty = s.groupby(pd.Grouper(freq=rule)).count() == 0
-    idx[empty] = pd.NaT
-    return xr.DataArray(idx.values, dims="time", coords={"time": idx.index.values})
+    (R ``which.max`` / ``which.min``). A period with no data gets no date (NaT)."""
+    p = periods(da.time, rule)
+    return p.wrap(_dates(da.time, p.first_extreme(da.values, stat)))
 
 
 EXTREMES = {
@@ -231,15 +340,35 @@ EXTREMES = {
 }
 
 
+def extreme_values(x: np.ndarray, time, rule: str, stat: str) -> tuple[np.ndarray, np.ndarray]:
+    """Maximum or minimum of each period, masked by the climdex rules for ``x``, and
+    the position in ``time`` of its first occurrence (-1 if the period has no data):
+    two ``(..., periods)`` arrays."""
+    p = periods(time, rule)
+    values = np.where(valid_values(time, rule, x), p.reduce(x, stat), np.nan)
+    return values, p.first_extreme(x, stat)
+
+
+def _dates(time, position: np.ndarray) -> np.ndarray:
+    """The dates at ``position`` in ``time`` (NaT where it is -1)."""
+    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
+    dates = np.array(index[np.maximum(position, 0)].to_numpy())
+    dates[position < 0] = np.datetime64("NaT")
+    return dates
+
+
 @product
 def extremes(run: StationRun) -> dict[str, pd.DataFrame]:
     ds = run.data
+    time = pd.DatetimeIndex(ds.time.values)
     out = {}
     for name, (var, stat) in EXTREMES.items():
         for freq, rule in FREQS.items():
-            values = period_stat(ds[var], freq, stat, ds[var])
-            dates = first_extreme_dates(ds[var], rule, stat)
-            out[f"indices/{name}_{freq}"] = dated_table(values, dates, freq)
+            p = periods(time, rule)
+            values, position = extreme_values(ds[var].values, time, rule, stat)
+            out[f"indices/{name}_{freq}"] = dated_table(
+                p.wrap(values), p.wrap(_dates(time, position)), freq
+            )
     return out
 
 
@@ -264,23 +393,46 @@ def running_sum_centred(pr: np.ndarray, ndays: int) -> np.ndarray:
     return out
 
 
+def running_sums(pr: np.ndarray, ndays: int) -> np.ndarray:
+    """:func:`running_sum_centred` of every series (last axis)."""
+    pr = np.asarray(pr, dtype=float)
+    rows = pr.reshape(-1, pr.shape[-1])
+    return np.stack([running_sum_centred(row, ndays) for row in rows]).reshape(pr.shape)
+
+
+def rxnday_values(
+    pr: np.ndarray, time, ndays: int, rule: str, runsum: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Rx{n}day: the largest centred ``ndays``-day total of each period, masked by the
+    climdex rules for ``pr``, and the position of its first occurrence: two
+    ``(..., periods)`` arrays. The running sums (``runsum``, :func:`running_sums` if
+    not given) follow R's arithmetic one series at a time."""
+    if runsum is None:
+        runsum = running_sums(pr, ndays)
+    p = periods(time, rule)
+    values = p.reduce(runsum, "max") * ndays
+    values = np.where(valid_values(time, rule, pr), values, np.nan)
+    return values, p.first_extreme(runsum, "max")
+
+
 def rxnday(run: StationRun, ndays: int, freq: str) -> pd.DataFrame:
     ds = run.data
     rule = FREQS[freq]
-    runsum = xr.DataArray(
-        running_sum_centred(ds.pr.values, ndays), dims="time", coords={"time": ds.time}
-    )
-    p = periods(runsum.time, rule)
-    values = p.wrap(p.reduce(runsum.values, "max")) * ndays
-    values = values.where(valid_mask(ds.pr, freq=rule))
-    dates = first_extreme_dates(runsum, rule, "max")
-    return dated_table(values, dates, freq)
+    time = pd.DatetimeIndex(ds.time.values)
+    p = periods(time, rule)
+    values, position = rxnday_values(ds.pr.values, time, ndays, rule)
+    return dated_table(p.wrap(values), p.wrap(_dates(time, position)), freq)
+
+
+def rx_days(params) -> list[int]:
+    """The Rx{n}day indices computed: Rx5day and the user's Rx{d}day."""
+    return sorted({5, params.rx_days})
 
 
 @product
 def multi_day_precipitation(run: StationRun) -> dict[str, pd.DataFrame]:
     out = {}
-    for ndays in sorted({5, run.params.rx_days}):
+    for ndays in rx_days(run.params):
         for freq in FREQS:
             out[f"indices/rx{ndays}day_{freq}"] = rxnday(run, ndays, freq)
     return out
@@ -304,6 +456,38 @@ def series_lengths_at_ends(flags: np.ndarray) -> np.ndarray:
     return out
 
 
+def spell_length_values(pr: np.ndarray, time, condition: str) -> tuple[np.ndarray, np.ndarray]:
+    """Annual longest spell of one series (climdex.pcic ``spell.length.max`` with
+    ``spells.can.span.years=TRUE``): ``(durations, ends)`` per year, ``ends`` the 1-based
+    day of the year of the spell's last day (see :func:`spell_length_max`)."""
+    flags = OPERATORS[condition](pr, 1.0)  # NaN compares False, as R's NA -> FALSE
+    nan = np.isnan(pr)
+    spells = series_lengths_at_ends(flags)
+    years = pd.DatetimeIndex(time).year.to_numpy()
+    mask = valid_periods(~nan, time, "YS")
+    durations, ends = [], []
+    for i, year in enumerate(np.unique(years)):
+        sel = years == year
+        f, s = flags[sel], spells[sel]
+        max_spell = float(s.max())
+        # R: all(bools) is NA if the year has missing days but no False day
+        all_true = bool(f.all()) if not nan[sel].any() else (None if f[~nan[sel]].all() else False)
+        if max_spell == 0:
+            if all_true is None or all_true:
+                max_spell = np.nan
+        ends.append(int(np.argmax(series_lengths_at_ends(f))) + 1)  # 1-based, first maximum
+        durations.append(max_spell if mask[i] else np.nan)
+    return np.asarray(durations), np.asarray(ends)
+
+
+def spell_length_max_values(pr: np.ndarray, time, condition: str) -> np.ndarray:
+    """Annual longest spell (cdd for ``"<"``, cwd for ``">="``) of every series,
+    ``(..., time) -> (..., years)``."""
+    rows = pr.reshape(-1, pr.shape[-1])
+    out = np.stack([spell_length_values(row, time, condition)[0] for row in rows])
+    return out.reshape(*pr.shape[:-1], out.shape[-1])
+
+
 def spell_length_max(run: StationRun, condition: str) -> pd.DataFrame:
     """Annual longest spell with dates (climdex.pcic ``spell.length.max`` with
     ``spells.can.span.years=TRUE`` and ``include.exact.dates=TRUE``).
@@ -315,25 +499,10 @@ def spell_length_max(run: StationRun, condition: str) -> pd.DataFrame:
     date in that year.
     """
     ds = run.data
-    pr = ds.pr.values
-    flags = OPERATORS[condition](pr, 1.0)  # NaN compares False, as R's NA -> FALSE
-    nan = np.isnan(pr)
-    spells = series_lengths_at_ends(flags)
-    years = ds.time.dt.year.values
-    mask = valid_mask(ds.pr, freq="YS").values
-
+    time = pd.DatetimeIndex(ds.time.values)
+    durations, ends = spell_length_values(ds.pr.values, time, condition)
     rows = []
-    for i, year in enumerate(np.unique(years)):
-        sel = years == year
-        f, s = flags[sel], spells[sel]
-        max_spell = float(s.max())
-        # R: all(bools) is NA if the year has missing days but no False day
-        all_true = bool(f.all()) if not nan[sel].any() else (None if f[~nan[sel]].all() else False)
-        if max_spell == 0:
-            if all_true is None or all_true:
-                max_spell = np.nan
-        end = int(np.argmax(series_lengths_at_ends(f))) + 1  # 1-based, first maximum
-        duration = max_spell if mask[i] else np.nan
+    for year, duration, end in zip(np.unique(time.year), durations, ends, strict=True):
         if np.isnan(duration) or duration == 0:
             start_date = end_date = None
         else:
@@ -365,8 +534,43 @@ def annual_total_above(pr: xr.DataArray, threshold: float, condition: str) -> xr
 
     Not masked: the caller applies the annual missing-data mask.
     """
+    p = periods(pr.time, "YS")
+    return p.wrap(annual_total_values(pr.values, pr.time, threshold, condition))
+
+
+def annual_total_values(pr: np.ndarray, time, threshold, condition: str) -> np.ndarray:
+    """:func:`annual_total_above` of an array, ``(..., time) -> (..., years)``;
+    ``threshold`` is a number or an array of the leading dimensions (one per series)."""
     op = OPERATORS[condition]
-    return period_reduce(pr, "YS", lambda x: r_sum(x[op(x, threshold)]))
+    years = periods(time, "YS")
+    pr = np.asarray(pr, dtype=float)
+    thresholds = np.broadcast_to(np.asarray(threshold, dtype=float), pr.shape[:-1]).reshape(-1)
+    rows = pr.reshape(-1, pr.shape[-1])
+    out = np.stack(
+        [
+            years.apply(row, lambda x, t=t: r_sum(x[op(x, t)]))
+            for row, t in zip(rows, thresholds, strict=True)
+        ]
+    )
+    return out.reshape(*pr.shape[:-1], years.size)
+
+
+def precipitation_percentile_values(
+    pr: np.ndarray, time, quantiles: dict[float, np.ndarray]
+) -> dict[str, np.ndarray]:
+    """r95p, r99p, r95ptot and r99ptot of every series, ``{name: (..., years)}``;
+    ``quantiles[q]`` holds each series' base-period wet-day percentile (a missing
+    percentile gives no days above it, so a total of 0)."""
+    valid = valid_values(time, "YS", pr)
+    prcptot = np.where(valid, annual_total_values(pr, time, 1.0, ">="), np.nan)
+    out = {}
+    for q in (0.95, 0.99):
+        name = f"r{round(q * 100)}p"
+        total = np.where(valid, annual_total_values(pr, time, quantiles[q], ">"), np.nan)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out[f"{name}tot"] = 100 * total / prcptot
+        out[name] = total
+    return out
 
 
 @product
@@ -382,18 +586,13 @@ def precipitation_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
         quantiles = run.thresholds.precipitation
     except InsufficientBaseData:
         return {}
-    pr = run.data.pr
-    mask = valid_mask(pr, freq="YS")
-    prcptot = annual_total_above(pr, 1.0, ">=").where(mask)
-    out = {}
-    for q in (0.95, 0.99):
-        name = f"r{round(q * 100)}p"
-        total = annual_total_above(pr, quantiles[q], ">").where(mask)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            share = 100 * total / prcptot
-        out[f"indices/{name}_ANN"] = index_table(name, total, "ANN")
-        out[f"indices/{name}tot_ANN"] = index_table(f"{name}tot", share, "ANN")
-    return out
+    ds = run.data
+    values = precipitation_percentile_values(ds.pr.values, ds.time, quantiles)
+    p = periods(ds.time, "YS")
+    return {
+        f"indices/{name}_ANN": index_table(name, p.wrap(values[name]), "ANN")
+        for name in ("r95p", "r95ptot", "r99p", "r99ptot")
+    }
 
 
 # --- temperature percentile indices ------------------------------------------------
@@ -403,7 +602,50 @@ MAX_MISSING_DAYS = {"ANN": 15, "MON": 3}  # climdex.pcic max.missing.days
 
 def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr.DataArray:
     """Daily share of thresholds exceeded: Climpact's ``percent.days.op.threshold``
-    (``climpact.etsci-functions.r``, which replaces climdex.pcic's) before averaging.
+    (``climpact.etsci-functions.r``, which replaces climdex.pcic's) before averaging
+    (see :func:`days_op_threshold_values`)."""
+    th = run.thresholds
+    da = run.data[var]
+    dat = days_op_threshold_values(
+        da.values,
+        da.time,
+        th.outbase(var, q),
+        th.inbase(var, q) if _bootstraps(da.time, th.base_start, th.base_end) else None,
+        th.base_start,
+        th.base_end,
+        condition,
+    )
+    return xr.DataArray(dat, dims="time", coords={"time": da.time.values})
+
+
+def _base_days(time, base_start: int, base_end: int) -> np.ndarray:
+    time = pd.DatetimeIndex(time)
+    return (time >= pd.Timestamp(f"{base_start}-01-01")) & (
+        time <= pd.Timestamp(f"{base_end}-12-31")
+    )
+
+
+def _bootstraps(time, base_start: int, base_end: int) -> bool:
+    """Whether the in-base thresholds are used: R skips the bootstrap for series shorter
+    than two years. With one base year, R fails (no years to replace with); the
+    out-of-base thresholds are kept then."""
+    inset = _base_days(time, base_start, base_end)
+    years = pd.DatetimeIndex(time).year.to_numpy()[inset]
+    return bool(inset.any() and len(time) >= 360 * 2 and years.max() > years.min())
+
+
+def days_op_threshold_values(
+    x: np.ndarray,
+    time,
+    outbase: np.ndarray,
+    inbase: np.ndarray | None,
+    base_start: int,
+    base_end: int,
+    condition: str,
+) -> np.ndarray:
+    """Daily share of thresholds exceeded, for every series: ``x`` is ``(..., time)``,
+    ``outbase`` the ``(..., 365)`` out-of-base thresholds and ``inbase`` the
+    ``(..., 365, years, years - 1)`` bootstrapped ones (None: not used).
 
     Outside the base period a day is 1 or 0: ``value <condition> threshold``, with the
     out-of-base threshold for its day of year. Inside the base period it is compared
@@ -417,43 +659,45 @@ def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr
     period, but gives percentages above 100 when it starts or ends inside it, so it
     is not copied (TECHNICAL.md, "R behaviour not copied").
     """
-    th = run.thresholds
-    da = run.data[var]
-    x = da.values
-    time = pd.DatetimeIndex(da.time.values)
+    time = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
     op = OPERATORS[condition]
-    thr = th.daily(var, q, time).values
+    thr = np.asarray(outbase)[..., day_of_year(time) - 1]
     with np.errstate(invalid="ignore"):
         dat = np.where(np.isnan(x) | np.isnan(thr), np.nan, op(x, thr).astype(float))
-
-    inset = (time >= pd.Timestamp(f"{th.base_start}-01-01")) & (
-        time <= pd.Timestamp(f"{th.base_end}-12-31")
-    )
+    if inbase is None:
+        return dat
+    inset = _base_days(time, base_start, base_end)
     years = time.year.to_numpy()[inset]
-    # R skips the bootstrap for series shorter than two years. With one base year,
-    # R fails (no years to replace with); the out-of-base thresholds are kept then.
-    if inset.any() and time.size >= 360 * 2 and years.max() > years.min():
-        doy = day_of_year(time[inset]) - 1
-        base_thr = th.inbase(var, q)[doy, years - th.base_start, :]  # (days, years - 1)
-        comparisons = base_thr.shape[1]
-        xb = x[inset][:, None]
-        valid = ~np.isnan(xb) & ~np.isnan(base_thr)
-        with np.errstate(invalid="ignore"):
-            hits = (op(xb, base_thr) & valid).sum(axis=1)
-        dat[inset] = np.where(valid.any(axis=1), hits / comparisons, np.nan)
-    return xr.DataArray(dat, dims="time", coords={"time": da.time.values})
+    doy = day_of_year(time[inset]) - 1
+    base_thr = inbase[..., doy, years - base_start, :]  # (..., days, years - 1)
+    comparisons = base_thr.shape[-1]
+    xb = x[..., inset][..., None]
+    valid = ~np.isnan(xb) & ~np.isnan(base_thr)
+    with np.errstate(invalid="ignore"):
+        hits = (op(xb, base_thr) & valid).sum(axis=-1)
+    dat[..., inset] = np.where(valid.any(axis=-1), hits / comparisons, np.nan)
+    return dat
 
 
 def percent_days(dat: xr.DataArray, freq: str, mask: xr.DataArray) -> xr.DataArray:
+    """Percentage of days per period (see :func:`percent_days_values`)."""
+    rule = FREQS[freq]
+    values = percent_days_values(dat.values, dat.time, freq, mask.values)
+    return periods(dat.time, rule).wrap(values)
+
+
+def percent_days_values(
+    dat: np.ndarray, time, freq: str, valid: np.ndarray, float32: bool = False
+) -> np.ndarray:
     """Percentage of days per period: R ``tapply(dat, f, mean, na.rm = TRUE) * 100``,
     missing when more than ``max.missing.days`` days of ``dat`` are, then multiplied
-    by the variable's climdex missing-data ``mask``."""
-    rule = FREQS[freq]
-    p = periods(dat.time, rule)
-    n_missing = p.wrap(p.count(np.isnan(dat.values)))
-    values = period_reduce(dat, rule, r_mean) * 100
-    values = values.where(n_missing <= MAX_MISSING_DAYS[freq])
-    return values.where(mask)
+    by the variable's climdex missing-data mask (``valid``, ``(..., periods)``);
+    ``float32``: see :func:`period_means`."""
+    p = periods(time, FREQS[freq])
+    n_missing = p.count(np.isnan(dat))
+    values = period_means(dat, p, float32, scale=100.0)
+    values = np.where(n_missing <= MAX_MISSING_DAYS[freq], values, np.nan)
+    return np.where(valid, values, np.nan)
 
 
 # name -> (variable, quantile, condition)
@@ -520,10 +764,11 @@ def select_blocks_gt_length(d: np.ndarray, n: int) -> np.ndarray:
     if n >= d.size:
         return np.zeros(d.size)
     flags = d == 1  # NaN -> False
-    lengths = series_lengths_at_ends(flags)
-    # Spread each run's length (stored at its last day) back over the run.
-    run_id = np.cumsum(np.concatenate([[True], flags[1:] != flags[:-1]]))
-    run_length = pd.Series(lengths).groupby(run_id).transform("max").to_numpy()
+    # The length of the run of equal flags each day belongs to.
+    starts = np.flatnonzero(np.concatenate([[True], flags[1:] != flags[:-1]]))
+    run_length = np.repeat(
+        np.diff(np.append(starts, flags.size)), np.diff(np.append(starts, flags.size))
+    )
     return (flags & (run_length > n)).astype(float)
 
 
@@ -591,6 +836,52 @@ def annual_index(name: str, values: np.ndarray, years: np.ndarray, mask: xr.Data
     return index_table(name, da.where(mask.values), "ANN")
 
 
+def spell_duration_values(
+    tasmax: np.ndarray,
+    tasmin: np.ndarray,
+    time,
+    thresholds: dict[tuple[str, float], np.ndarray],
+    params,
+) -> dict[str, np.ndarray]:
+    """wsdi, csdi, wsdi{n}, csdi{n}, tx{n}tn{n} and txb{n}tnb{n} of every series,
+    ``{name: (..., years)}``; ``thresholds[var, q]`` holds the ``(..., 365)``
+    out-of-base thresholds of TX and TN for q = 0.05, 0.1, 0.9, 0.95. The spells are
+    found one series at a time."""
+    time = pd.DatetimeIndex(time)
+    years = time.year.to_numpy()
+    doy = day_of_year(time) - 1
+    masks = {v: valid_values(time, "YS", x) for v, x in (("tasmax", tasmax), ("tasmin", tasmin))}
+    lead = tasmax.shape[:-1]
+    tx, tn = tasmax.reshape(-1, time.size), tasmin.reshape(-1, time.size)
+    thr = {k: np.asarray(v).reshape(-1, DAYS_PER_YEAR)[:, doy] for k, v in thresholds.items()}
+    out = {}
+    for prefix, var, x, q, condition in (
+        ("wsdi", "tasmax", tx, 0.9, ">"),
+        ("csdi", "tasmin", tn, 0.1, "<"),
+    ):
+        user_days = params.wsdi_days if prefix == "wsdi" else params.csdi_days
+        for name, days in ((prefix, 6), (f"{prefix}{user_days}", user_days)):
+            values = np.stack(
+                [
+                    threshold_exceedance_duration(x[i], thr[var, q][i], condition, days, years)
+                    for i in range(x.shape[0])
+                ]
+            )
+            out[name] = np.where(masks[var], values.reshape(*lead, -1), np.nan)
+    d = params.txtn_days
+    for name, q, condition in ((f"tx{d}tn{d}", 0.95, ">"), (f"txb{d}tnb{d}", 0.05, "<")):
+        values = np.stack(
+            [
+                dual_threshold_duration(
+                    tx[i], tn[i], thr["tasmax", q][i], thr["tasmin", q][i], condition, d, years
+                )
+                for i in range(tx.shape[0])
+            ]
+        )
+        out[name] = np.where(masks["tasmax"], values.reshape(*lead, -1), np.nan)
+    return out
+
+
 @product
 def spell_durations(run: StationRun) -> dict[str, pd.DataFrame]:
     """wsdi, csdi, wsdi{n}, csdi{n} (Climpact's ``climdex.wsdid``/``csdid``,
@@ -605,34 +896,17 @@ def spell_durations(run: StationRun) -> dict[str, pd.DataFrame]:
         th = run.thresholds
     except InsufficientBaseData:
         return {}
-    ds, p = run.data, run.params
-    time = pd.DatetimeIndex(ds.time.values)
-    years = time.year.to_numpy()
-    tx, tn = ds.tasmax.values, ds.tasmin.values
-    thr = {
-        (v, q): th.daily(v, q, time).values
-        for v in ("tasmax", "tasmin")
-        for q in (0.05, 0.1, 0.9, 0.95)
+    ds = run.data
+    thresholds = {
+        (v, q): th.outbase(v, q) for v in ("tasmax", "tasmin") for q in (0.05, 0.1, 0.9, 0.95)
     }
-    masks = {v: valid_mask(ds[v], freq="YS") for v in ("tasmax", "tasmin")}
-
-    out = {}
-    for prefix, var, x, q, condition in (
-        ("wsdi", "tasmax", tx, 0.9, ">"),
-        ("csdi", "tasmin", tn, 0.1, "<"),
-    ):
-        user_days = p.wsdi_days if prefix == "wsdi" else p.csdi_days
-        for name, days in ((prefix, 6), (f"{prefix}{user_days}", user_days)):
-            values = threshold_exceedance_duration(x, thr[var, q], condition, days, years)
-            out[f"indices/{name}_ANN"] = annual_index(name, values, years, masks[var])
-
-    d = p.txtn_days
-    for name, q, condition in ((f"tx{d}tn{d}", 0.95, ">"), (f"txb{d}tnb{d}", 0.05, "<")):
-        values = dual_threshold_duration(
-            tx, tn, thr["tasmax", q], thr["tasmin", q], condition, d, years
-        )
-        out[f"indices/{name}_ANN"] = annual_index(name, values, years, masks["tasmax"])
-    return out
+    values = spell_duration_values(
+        ds.tasmax.values, ds.tasmin.values, ds.time, thresholds, run.params
+    )
+    p = periods(ds.time, "YS")
+    return {
+        f"indices/{name}_ANN": index_table(name, p.wrap(v), "ANN") for name, v in values.items()
+    }
 
 
 # --- growing season length (GSL) ---------------------------------------------------
@@ -713,12 +987,22 @@ def growing_season_length(run: StationRun) -> pd.DataFrame:
     no start has length 0 and no dates.
     """
     ds = run.data
-    tas = ds.tas.values
-    dates = pd.DatetimeIndex(ds.time.values)
+    rows = gsl_series(
+        ds.tas.values, pd.DatetimeIndex(ds.time.values), run.metadata.northern_hemisphere
+    )
+    df = pd.DataFrame(rows, columns=["time", "start", "sl", "end"])
+    df["start"] = df["start"].astype(object)
+    df["end"] = df["end"].astype(object)
+    return df
+
+
+def gsl_series(tas: np.ndarray, dates: pd.DatetimeIndex, northern: bool) -> list[tuple]:
+    """``(year, start date, length, end date)`` for each season of one series (see
+    :func:`growing_season_length`)."""
     years, months = dates.year.to_numpy(), dates.month.to_numpy()
-    if run.metadata.northern_hemisphere:
+    if northern:
         season_years, transition, origin_month = years, 7, 1
-        mask = np.where(valid_mask(ds.tas, freq="YS").values, 1.0, np.nan)
+        mask = np.where(valid_periods(~np.isnan(tas), dates, "YS"), 1.0, np.nan)
     else:
         # R: years.gsl <- years - floor((12 - months) / 6), keeping years.gsl >= first year.
         season_years = years - (months <= 6)
@@ -742,11 +1026,23 @@ def growing_season_length(run: StationRun) -> pd.DataFrame:
                 start_date = (origin + pd.Timedelta(days=start - 1)).strftime("%Y-%m-%d")
                 end_date = (origin + pd.Timedelta(days=end)).strftime("%Y-%m-%d")
         rows.append((float(year), start_date, length, end_date))
+    return rows
 
-    df = pd.DataFrame(rows, columns=["time", "start", "sl", "end"])
-    df["start"] = df["start"].astype(object)
-    df["end"] = df["end"].astype(object)
-    return df
+
+def gsl_values(tas: np.ndarray, time, northern: np.ndarray) -> np.ndarray:
+    """Growing season length of every series, ``(..., time) -> (..., years)``;
+    ``northern`` (the leading dimensions) says which series use the Northern
+    Hemisphere season."""
+    dates = pd.DatetimeIndex(time)
+    rows = tas.reshape(-1, dates.size)
+    north = np.broadcast_to(np.asarray(northern, dtype=bool), tas.shape[:-1]).reshape(-1)
+    out = np.stack(
+        [
+            np.array([r[2] for r in gsl_series(row, dates, bool(n))], dtype=float)
+            for row, n in zip(rows, north, strict=True)
+        ]
+    )
+    return out.reshape(*tas.shape[:-1], out.shape[-1])
 
 
 @product

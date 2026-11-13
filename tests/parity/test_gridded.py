@@ -31,7 +31,8 @@ def _variables(run: str) -> list[str]:
         return list(nc.variables)
 
 
-CASES = [(run, var) for run in GRID_RUNS for var in _variables(run)]
+THRESHOLD_RUNS = [run for run, spec in GRID_RUNS.items() if spec.thresholds]
+CASES = [(run, var) for run in THRESHOLD_RUNS for var in _variables(run)]
 
 
 @pytest.fixture(scope="session")
@@ -96,7 +97,7 @@ def _same(a, b) -> bool:
 
 
 @pytest.mark.parity
-@pytest.mark.parametrize("run", list(GRID_RUNS))
+@pytest.mark.parametrize("run", THRESHOLD_RUNS)
 def test_gridded_layout(run, grid_thresholds_file):
     """Dimensions, variable order and attributes match R's file."""
     with (

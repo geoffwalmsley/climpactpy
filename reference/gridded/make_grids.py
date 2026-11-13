@@ -1,6 +1,6 @@
 """Make the small gridded inputs used for the gridded R reference runs.
 
-Two runs (``reference/gridded/runs.csv``):
+Three runs (``reference/gridded/runs.csv``):
 
 ``grid_stations``
     A synthetic 3 lat x 4 lon grid cut from the committed station inputs, 1966-2005
@@ -20,6 +20,14 @@ Two runs (``reference/gridded/runs.csv``):
     with a ``missing_value`` attribute, TN in degrees C as double with ``_FillValue``,
     both in ``grid_stations_tas.nc``; precipitation in kg m-2 s-1 as float in a second
     file, ``grid_stations_pr.nc``.
+
+``grid_future``
+    The cells of ``grid_stations`` for 2001-2020, after its base period, stored the
+    same way (``grid_future_tas.nc``, ``grid_future_pr.nc``), with no cell degraded
+    apart from the all-missing one (Sydney's series ends in 2015). Only indices are
+    computed for it, with ``grid_stations``' thresholds file: R's
+    ``create.indices.from.files`` accepts a thresholds file only for data with no day
+    in the base period.
 
 ``grid_sample``
     A 3 x 4 cut of Climpact's own sample, ``www/sample_data/
@@ -79,8 +87,13 @@ SAMPLE_LAT = slice(10, 13)
 SAMPLE_LON = slice(18, 22)
 
 
-def station_cube() -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
-    dates = pd.date_range(f"{START}-01-01", f"{END}-12-31", freq="D")
+FUTURE = (2001, 2020)
+
+
+def station_cube(
+    start: int = START, end: int = END, degrade: bool = True
+) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
+    dates = pd.date_range(f"{start}-01-01", f"{end}-12-31", freq="D")
     shape = (dates.size, len(LATS), len(LONS))
     cube = {k: np.full(shape, np.nan) for k in ("prcp", "tmax", "tmin")}
     for i, row in enumerate(CELLS):
@@ -91,6 +104,8 @@ def station_cube() -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
             df = df.set_index("date").reindex(dates)
             for k in cube:
                 cube[k][:, i, j] = df[k].to_numpy()
+    if not degrade:
+        return dates, cube
 
     in_base = (dates.year >= BASE[0]) & (dates.year <= BASE[1])
     rng = np.random.default_rng(29)
@@ -149,11 +164,11 @@ def _coords(nc: netCDF4.Dataset, dates: pd.DatetimeIndex) -> None:
     )
 
 
-def write_station_grid() -> None:
-    dates, cube = station_cube()
+def write_station_grid(name: str = "grid_stations", future: bool = False) -> None:
+    dates, cube = station_cube(*FUTURE, degrade=False) if future else station_cube()
     CHUNKS = (dates.size, 1, 1)  # noqa: N806 - one time series per chunk compresses best
     dims = ("time", "lat", "lon")
-    with netCDF4.Dataset(OUT / "grid_stations_tas.nc", "w", format="NETCDF4") as nc:
+    with netCDF4.Dataset(OUT / f"{name}_tas.nc", "w", format="NETCDF4") as nc:
         _coords(nc, dates)
         tx = nc.createVariable(
             "tasmax", "f4", dims, zlib=True, complevel=9, fill_value=False, chunksizes=CHUNKS
@@ -179,7 +194,7 @@ def write_station_grid() -> None:
             }
         )
         tn[:] = np.ma.masked_invalid(cube["tmin"])
-    with netCDF4.Dataset(OUT / "grid_stations_pr.nc", "w", format="NETCDF4") as nc:
+    with netCDF4.Dataset(OUT / f"{name}_pr.nc", "w", format="NETCDF4") as nc:
         _coords(nc, dates)
         pr = nc.createVariable(
             "pr", "f4", dims, zlib=True, complevel=9, fill_value=1e20, chunksizes=CHUNKS
@@ -240,6 +255,7 @@ def main() -> None:
     args = parser.parse_args()
     OUT.mkdir(exist_ok=True)
     write_station_grid()
+    write_station_grid("grid_future", future=True)
     write_sample_grid(args.climpact)
     for path in sorted(OUT.glob("*.nc")):
         print(f"{path.relative_to(HERE.parent.parent)}: {path.stat().st_size / 1e6:.2f} MB")

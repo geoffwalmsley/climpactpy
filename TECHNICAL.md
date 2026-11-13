@@ -12,7 +12,10 @@ The Python port reproduces **all 125** R reference files for Sydney (`lat0` and
 `sydney`), and every file R wrote for all 13 GHCN stations and the synthetic QC station,
 with none failing and none left to port (see [Reference outputs](#reference-outputs)).
 Gridded base-period thresholds (`climpact gridded-thresholds`, #29) reproduce every
-variable of R's thresholds netCDF bit for bit on both gridded reference grids (see
+variable of R's thresholds netCDF bit for bit on both gridded reference grids, and the
+gridded indices (`climpact gridded-indices`, #30) reproduce every variable of the 84 index
+files R writes per grid that are ported, bit for bit on all three reference grids; the
+gridded heatwave, EHF, SPI and SPEI files are not ported yet (#87; see
 [Gridded data](#gridded-data)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
@@ -29,8 +32,8 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)) | |
-| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`) | gridded indices (#30) |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files (all but four), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)) | gridded `hw`, `hwEHF`, `spi`, `spei` files (#87) |
+| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -45,8 +48,8 @@ with `--zip` zips the outputs as R's download does (see [Plots and zip archive](
 ```
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
-                     `climpact gridded-thresholds` (a netCDF grid), `climpact modules`
-                     (list the modules available)
+                     `climpact gridded-thresholds` and `climpact gridded-indices` (a netCDF
+                     grid), `climpact modules` (list the modules available)
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
@@ -63,6 +66,8 @@ src/climpact/
                      load(), cell_latitude()
     thresholds.py    thresholds of every cell (cell_thresholds) and the thresholds netCDF
                      in R's layout (write_grid_thresholds)
+    indices.py       indices of every cell (cell_indices, block_indices) and the index
+                     netCDF files in R's names and layout (write_grid_indices)
   qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
                      outliers with R's fivenum and boxplot.stats)
   data/
@@ -74,11 +79,13 @@ src/climpact/
   missing.py         climdex.pcic missing-data rules; registered with xclim as "climdex"
   outputs.py         registry of the index products; the built-in index module
                      (CLIMPACT_INDICES); build_all()
-  periods.py         monthly and annual counts, max, min and per-period functions (fast resample)
+  periods.py         monthly and annual counts, max, min, first extremes and per-period
+                     functions (fast resample), along the last axis of any array
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
     drought.py       SPI and SPEI (Climpact's cspei, lmomco fitting, SPEI's hargreaves)
-    indices.py       index products
+    indices.py       index products, and the array functions (*_values) they and the
+                     gridded indices share
     heatwaves.py     Tx90/Tn90 heatwave products; hw_aspects(), get.hw.aspects
     ehf.py           EHF heatwave products and the daily EHF/ECF series (climdex.hwEHF)
     thresholds.py    thresholds file and tx95t products
@@ -108,7 +115,7 @@ reference/
   output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored,
                      their names are in output/<run>/plot-files.txt)
   gridded/           gridded runs (runs.csv), make_grids.py, input grids and R's thresholds
-                     netCDF files (output/<run>/thresholds.nc)
+                     and index netCDF files (output/<run>/thresholds.nc, output/<run>/indices/)
   r/, run_r_reference.sh, run_r_gridded.sh
                      Docker setup that produces reference/output and reference/gridded/output
                      (see reference/README.md)
@@ -167,7 +174,8 @@ included, which the QC checks run on. `load_station` stores them in `qc_rows`; a
 The Dataset is one-dimensional in time. Batch runs do not add a `station` dimension: each
 station is a separate `StationRun` in its own process, because stations have their own
 time axes, coordinates and parameters. Gridded data have their own data path (see
-[Gridded data](#gridded-data)); the threshold functions take any leading dimensions.
+[Gridded data](#gridded-data)); the threshold functions and the array functions of the
+index products take any leading dimensions.
 
 ### Index parameters
 
@@ -426,6 +434,7 @@ stops calling it.
 | `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules. With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
 | `gridded.write_grid_thresholds(..., progress=)` | `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
+| `gridded.write_grid_indices(..., progress=)` | `indices` once per block |
 
 **Batch with several workers.** Callbacks are called only in the process that passed
 them, so they need not be picklable. Each worker process gets a `multiprocessing` queue
@@ -569,8 +578,11 @@ with xclim.set_options(check_missing="climdex"):
 `namask` multiplied together.
 
 For a single series (a station) the rules are computed with `climpact.periods` (integer
-period codes and `numpy.bincount`); arrays with more dimensions use xarray's `resample`.
-`tests/test_periods.py` checks the two give the same mask. The masks are cheap enough
+period codes and `numpy.bincount`); DataArrays with more dimensions use xarray's
+`resample`. `tests/test_periods.py` checks the two give the same mask.
+`valid_periods(present, time, freq)` applies the rules to a numpy array with any leading
+dimensions (the index functions and the gridded indices use it), also with
+`climpact.periods`. The masks are cheap enough
 (about 1 ms) that they are recomputed for each index rather than cached.
 
 ## Monthly and annual reductions
@@ -585,7 +597,12 @@ date's, including empty ones. `Periods.count`, `Periods.days` and `Periods.reduc
 (`"max"`, `"min"`) give integer counts and exact extremes; `Periods.apply` calls a
 function, usually `r_mean` or `r_sum`, on each period's non-missing values in date order.
 No floating-point sums are done there, so results are identical to `resample`'s
-(`tests/test_periods.py`).
+(`tests/test_periods.py`). `Periods.first_extreme` gives the position of each period's
+first maximum or minimum (R `which.max`), for the dates of the extremes. Every method
+works along the last axis of an array with any leading dimensions (the cells of a grid
+block); `Periods.apply` then calls the function once per period and leading index.
+`missing.valid_periods` is the climdex validity of such an array
+(`tests/test_gridded_indices.py` checks both against one series at a time).
 
 ## Base-period thresholds
 
@@ -611,7 +628,12 @@ station. `StationRun.thresholds` computes them on first use and caches them
   values.
 - `Thresholds.inbase(var, q)` gives the bootstrapped thresholds used inside the base
   period, a `(365, years, years - 1)` array, computed on first use and cached (see
-  [In-base bootstrap](#in-base-bootstrap)).
+  [In-base bootstrap](#in-base-bootstrap)). The quantiles a variable needs in the base
+  period (`INBASE_QUANTILES`: TX q10, q50, q90; TN q10, q90) are computed together,
+  since they share each day's sorting and weights (about 25% faster than one at a time,
+  and identical). `bootstrap_quantiles` accepts leading dimensions (one cell at a time
+  inside: the per-day work is already vectorised over the year pairs and limited by
+  memory, so taking cells together was slower).
 - `climdex_quantile_sorted` is climdex's C++ quantile, vectorised over the rows of a
   sorted matrix. `r_quantile_type8_rows` and `r_quantile_type7_rows` are R's
   `quantile(type = 8)` and `quantile()` along the last axis; the per-series
@@ -666,7 +688,8 @@ netCDF files
   three variables, like R's stripes (`axis.to.split.on = "Y"`). They are the dask chunks of
   `GriddedInput.data`, opened with those chunks so that a block reads only its cells.
 - `GriddedInput.cell_latitude()` gives each cell's latitude, from the Y coordinate or a
-  two-dimensional latitude variable, for the hemisphere rules of the gridded indices (#30).
+  two-dimensional latitude variable, for the hemisphere rules of the gridded indices (see
+  [Gridded indices](#gridded-indices)).
 
 **Thresholds** (`cell_thresholds`), as `get.quantiles.for.stripe`, for a block of cells
 at once: each series is padded to whole years (`create.filled.series`), TAVG is
@@ -705,6 +728,92 @@ times larger, with the same block size, stays within 1.5 times that of the small
 input files' read cache is netCDF-C's default (64 MB per variable). See
 [Performance](#performance) for timings.
 
+### Gridded indices
+
+`climpact gridded-indices <files> --out <dir>` ports Climpact's `climpact.ncdf.wrapper.r`,
+which calls `create.indices.from.files` in the same modified climdex.pcic.ncdf. Options
+follow the wrapper's settings: input files and variable names as for the thresholds,
+`--template` (R's `file.template`, the CMIP5-style name the outputs follow; default
+`var_daily_climpactpy_historical_NA_<first year>-<last year>.nc`), `--base-start`,
+`--base-end`, `--indices` (R's `indices`, by short name: `fd`, `rxdday`, `wsdid`, ...),
+`--thresholds` (R's `thresholds.files`, a file from `climpact gridded-thresholds`),
+`--institution`, `--institution-id`, `--workers` (`cores`), `--max-values`
+(`maxvals`) and the wrapper's "esoteric" index parameters with its values
+(`WRAPPER_PARAMS`: `--wsdi-days`, `--csdi-days` 5, `--rx-days` 7, `--txtn-days` 3,
+`--hdd-base`, `--cdd-base` 18, `--gdd-base` 10, `--rnnmm` 30). `EHF_DEF` only affects
+`hwEHF`, not ported yet.
+
+R computes every cell as a station: `climdexInput.raw` and the index functions of
+`climpact.etsci-functions.r`. So `gridded/indices.py` computes them with the station code:
+the index products' array functions (`count_values`, `means_and_totals_values`,
+`extreme_values`, `rxnday_values`, `spell_length_max_values`,
+`precipitation_percentile_values`, `days_op_threshold_values`, `percent_days_values`,
+`spell_duration_values`, `gsl_values`, `degree_day_values`) take `(cells, time)` arrays,
+and the station products call the same functions with one series. Counts, masks, extremes
+and their dates, and the daily comparisons with the thresholds are vectorised over the
+cells; R's extended-precision sums, the running sums of Rx{n}day, spells and the growing
+season are computed one series at a time inside those functions. The thresholds of a block
+are computed as for a station (`compute_block_thresholds`: `running_quantiles`,
+`wet_day_quantiles` and the in-base bootstrap), or read from the thresholds file.
+
+```
+netCDF files
+  -> gridded.io.open_grid           as for the thresholds; the exemplar is the precipitation
+                                    file (the wrapper's variable map lists prec first)
+  -> gridded.indices.write_grid_indices
+       create_index_file            one file per index and frequency (create.ncdf.output.files)
+       per block: GriddedInput.load(block), thresholds file block if given
+                  block_indices -> cell_indices   batches of cells, on worker threads
+                  _write_block                    every file, before the next block is read
+```
+
+**What R writes.** For TX, TN and precipitation, `get.climdex.variable.list` gives 88
+files, in its order (`index_files`): one per index and frequency, `MON` and `ANN`, `ANN`
+only for the spell, degree-day, rNNp, gsl, wsdi/csdi, tx{n}tn{n} indices, sdii, cdd and
+cwd, `MON` only for SPI and SPEI, and `DAY` for tx95t. Parameterised indices are named
+with their values (`rx7day`, `r30mm`, `wsdi5`, `csdi5`, `tx3tn3`, `txb3tnb3`, `hddheat18`,
+`cddcold18`, `gddgrow10`) and their `definition` attribute is rewritten as R does. 84 are
+ported; `hw_ANN`, `hwEHF_ANN`, `spi_MON` and `spei_MON` are not (`NOT_PORTED`, #87).
+Station outputs the gridded code does not have: the custom index, Rx3day (the wrapper's
+`rxnday_n` is 7), the thresholds and trend files, the daily EHF/ECF series, the SPI/SPEI
+custom scale, the QC files and plots.
+
+**Per cell, as R:**
+
+| Rule | R source | Python |
+| --- | --- | --- |
+| Northern Hemisphere when the cell's latitude is >= 0 (the station app: > 0); only gsl depends on it here | `get.northern.hemisphere.booleans` (`y.subset.vals >= 0`) | `cell_indices(latitude)`, `gsl_values(northern)` |
+| A cell whose TX, TN and precipitation are all missing gets no index (every value missing, also counts) | `compute.indices.for.stripe`'s fast path | `cell_indices` |
+| Thresholds from a file: the out-of-base thresholds for every year, no in-base bootstrap; only for data with no day in the base period, else R stops (`check.quantile.validity`: "Temperature in-base quantiles must contain 10th and 90th percentiles") | `get.thresholds.chunk`, `get.quantiles.object`, `climdexInput.raw` | `thresholds_from_file`, `check_thresholds_file` (raises `ValueError`) |
+| Values are stored as float32 | `ncvar_def` (default `prec = "float"`) | `create_index_file` |
+| R's `NaN` is stored as NaN, its `NA` as the fill value 1e20. `NaN` occurs where a mean has no values and its mask is the annual climdex mask: tmm, txm, tnm `ANN` for a year with no data (`NaN * NA` is `NaN` with that mask, which `prod` builds; with the monthly mask it is `NA`), and r95ptot, r99ptot for a year with no wet day (`0 / 0`) | `climdex.tmm` ..., `climdex.r95ptot` | `IndexResult.nan`, `_write_block` |
+| The extremes (txx, tnn, tnx, txn, rx1day, rx5day, rx{n}day) also get `day_of_<index>`: the day of the month (`MON`) or of the year (`ANN`) of the first extreme, missing with the value; cdd, cwd and gsl get no dates | `write.climdex.results` (`exact_date_indices`) | `IndexResult.day` |
+
+**Writing** (`create_index_file`), as `create.ncdf.output.files`: dimensions `bnds` (or the
+input time bounds' own dimension, `nb2` in Climpact's sample), `time` (unlimited), X and Y;
+variables `time` (the middle of each month or year, in `days since <origin>` with the
+origin's date only, and the input time's attributes), its bounds (first and last day of
+each period, named by the input time's `bounds` attribute), X and Y (float64, the input's
+attributes) and the index (float32, fill value 1e20) with `units`, `long_name`, the
+attributes of the input precipitation variable that R does not exclude, `definition` and
+`expert_team`. tx95t has a fixed `time` dimension of 365 calendar days (int32, values 1 to
+365, no bounds variable although the copied `bounds` attribute names one). Global
+attributes: the precipitation file's, with `title`, `frequency`, `creation_date` and
+`tracking_id` renamed `input_*`, then `put.ETCCDI.atts` (`index_calculation_frequency` is
+`mon`, `yr` or `NA` for tx95t). The files are netCDF4, compressed, chunked by block,
+written under temporary names and renamed when all are complete.
+
+**Memory and speed.** As for the thresholds: one block is read and its cells computed in
+batches of 8 (`DEFAULT_CELLS_PER_BATCH`) by `--workers` threads, and every file is written
+before the next block is read. Each of the 84 open files' variables has a 1 MB HDF5 chunk
+cache. `tests/test_gridded_indices.py` checks that the memory numpy allocates for a grid 16
+times larger, with the same block size, stays within 1.5 times that of the small grid.
+The means of the gridded indices (tmm, txm, tnm, dtr and the percentage indices) use a
+vectorised mean that is only guaranteed to round to the same float32 as R's
+extended-precision mean (`period_means(float32=True)`), falling back to `r_mean` near a
+float32 rounding boundary (see [Numerical precision](#numerical-precision)). See
+[Performance](#performance) for timings.
+
 ## Use of xclim
 
 xclim 1.0 was meant to be used where its result is identical to R's or within tolerance,
@@ -717,7 +826,10 @@ resample per call. `count_days` makes the same comparison and counts with
 `climpact.periods`; `tests/test_index_helpers.py` checks it gives the same values and
 mask as the xclim indicators on the Sydney station with a gap added. xclim remains a
 dependency: `climpact.missing` registers the climdex rules as an xclim missing method
-(see [Missing data](#missing-data)), for the gridded work.
+(see [Missing data](#missing-data)), so that xclim indicators can be used with
+Climpact's rules. The gridded indices do not use xclim either: they are the station
+index functions taking many cells (`count_values` and the other `*_values` functions,
+with the climdex masks of `missing.valid_periods`).
 
 | Uses xclim | Computed directly, and why |
 | --- | --- |
@@ -760,12 +872,18 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 **Gridded runs.** `reference/gridded/runs.csv` lists the gridded reference runs, made by
 `reference/run_r_gridded.sh` with the same image (see `reference/README.md`); the catalogue
-reads it into `GRID_RUNS`:
+reads it into `GRID_RUNS`. Each run has R's thresholds file (`output/<run>/thresholds.nc`,
+unless its `thresholds` column is `no`) and R's index files (`output/<run>/indices/`,
+`climpact.ncdf.wrapper.r` with its fixed settings):
 
-| Run | Grid | Parity (of R's netCDF variables) |
-| --- | --- | --- |
-| `grid_stations` | Synthetic 3 x 4 grid, latitudes 52.5, 0 and -33.75, one station input per cell, 1966-2005, base 1971-2000, with an all-missing cell, a sparse base period, a dry cell and missing years; TX in K (float, `missing_value`), TN in degrees C (double), precipitation in kg m-2 s-1 in a second file | 26/26 |
-| `grid_sample` | 3 x 4 cut of Climpact's sample grid, 1991-2010, base 1991-2010; K, kg m-2 d-1, time in hours since 1800 | 26/26 |
+| Run | Grid | Thresholds (of R's variables) | Indices (of R's index variables) |
+| --- | --- | --- | --- |
+| `grid_stations` | Synthetic 3 x 4 grid, latitudes 52.5, 0 and -33.75, one station input per cell, 1966-2005, base 1971-2000, with an all-missing cell, a sparse base period, a dry cell and missing years; TX in K (float, `missing_value`), TN in degrees C (double), precipitation in kg m-2 s-1 in a second file | 26/26 | 98/100 (84 of 86 files; R's run leaves out `hw` and `hwEHF`, see [Gridded data](#gridded-data-1)) |
+| `grid_sample` | 3 x 4 cut of Climpact's sample grid, 1991-2010, base 1991-2010; K, kg m-2 d-1, time in hours since 1800 | 26/26 | 98/118 (84 of 88 files) |
+| `grid_future` | The cells of `grid_stations` for 2001-2020, after the base period; indices only, with `grid_stations`' thresholds file (R accepts one only for data with no base-period day) | none | 98/100 (84 of 86 files; no `hw`, `hwEHF`) |
+
+The variables not reproduced are those of `hw_ANN` (10), `hwEHF_ANN` (8), `spi_MON` and
+`spei_MON`, not ported yet (#87), reported as "not yet ported".
 
 `tests/parity/test_gridded.py` writes each run's thresholds file with small blocks, batches
 and two threads, and requires every variable (the 21 thresholds and the coordinates) to have
@@ -775,6 +893,14 @@ unlike the CSV files no rounding is involved). `test_gridded_layout` checks the 
 from `history`, `file_created` and `file_created_by_userid`, R's `R_version` and Python's
 `climpactpy_version`, and the time units of `grid_sample` (see
 [Gridded data](#gridded-data-1)).
+
+`tests/parity/test_gridded_indices.py` writes each run's index files (one-row blocks,
+batches of 3 cells, two threads, the thresholds file for `grid_future`) and compares every
+index variable of every file R wrote, `day_of_<index>` included: same name, dimensions,
+type (float32), fill-value positions, NaN positions and values (`EXACT`: both sides round
+the same doubles to float32). `test_gridded_indices_layout` checks each file's dimensions,
+variable order, coordinate values and types, and every attribute, with the same
+exceptions as the thresholds file.
 
 `qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
 has a duplicated date and several QC checks fire at only a few of them.
@@ -821,8 +947,8 @@ test of that run fails at once instead of rebuilding the station for each file.
 In every tier the pattern of missing values must be identical, and string columns (dates)
 must match exactly. Metadata header lines (including `Date_of_calculation`) are not compared.
 Tiers are assigned by file name in `tests/parity/catalogue.py`; the standardised column of
-an `EXACT` file uses `CLOSE`. Every variable of the gridded thresholds netCDF is compared at
-`EXACT`.
+an `EXACT` file uses `CLOSE`. Every variable of the gridded thresholds and index netCDF
+files is compared at `EXACT`.
 
 **These tiers are the project's acceptance criteria** (decided 2026-11-13, #31). WMO could
 not be consulted, so the project set them itself. A file may be moved to a looser tier only
@@ -960,6 +1086,18 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   2**-44), always take the fast path; decimal doubles near 0 °C do not. `excess_factors`
   uses it for stations too; every station EHF file is unchanged, and
   `tests/test_rnumerics.py` checks it against `r_sum` on both paths.
+- *Means stored as float32 (gridded indices):* R's gridded index files store float32, so
+  only R's mean rounded to float32 matters. `period_means(float32=True)` divides the double
+  sum of each period by its count, for all periods and cells at once, and uses `r_mean`
+  only where the result lies within `2**-40 * scale * (|mean| + max |x|)` of a float32
+  rounding boundary (a midpoint between two float32 values; `scale` is 100 for the
+  percentage indices, applied before rounding as R does). The double estimate is within
+  `n * 2**-53 * max |x|` of the exact mean (n <= 366) and R's two-pass extended mean
+  within about `2**-52 * (|mean| + max |x|)`, both far inside the margin, so outside it
+  both round to the same float32. Station outputs keep `r_mean` (they print 15 digits).
+  `tests/test_gridded_indices.py` checks the float32 results against `r_mean`, including
+  means exactly on and next to a boundary, which take the fallback. It made the gridded
+  means about 20 times faster (they were half of a cell's time).
 
 **R's `write.index.csv` standardises the text, not the values.** It prepends the column
 name to the index vector, which turns the numbers into strings (`as.character`, 15
@@ -1824,9 +1962,11 @@ file must be text-identical.
 
 ### Gridded data
 
-The gridded thresholds match R's file exactly on both reference grids (see
-[Reference outputs](#reference-outputs)). Differences in behaviour, none of which the
-reference grids exercise:
+The gridded thresholds match R's file exactly on both reference grids, and every ported
+gridded index file matches R's exactly on the three reference grids (see
+[Reference outputs](#reference-outputs)); the per-cell rules R follows are in
+[Gridded indices](#gridded-indices). Differences in behaviour (the reference grids
+exercise only those said to be):
 
 | R behaviour | Python |
 | --- | --- |
@@ -1839,6 +1979,10 @@ reference grids exercise:
 | `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
 | Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |
 | R writes an uncompressed file with one chunk per day | compressed (zlib), chunked by block; the content is the same |
+| Gridded indices: R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an all-missing cell (`climdex.results[[i]][[ind]][[2]]` of the cell's `NA`), after writing part of the files | not ported yet (#87); the other files are written. The `grid_stations` and `grid_future` R references leave `hw` and `hwEHF` out for this reason |
+| Gridded indices: bounds variables of X and Y, a `grid_mapping` variable and two-dimensional coordinate variables named in `coordinates` are copied to every index file | not copied, as for the thresholds; X and Y are float64 |
+| Gridded indices: `create.climdex.cmip5.filenames` names monthly files with years only (it looks for `_mon` in lower case) and needs a six-part template; `rxnday_n = 5` writes `rx5day` twice | the same names; a template with fewer parts is refused; `rx5day` is written once |
+| Gridded indices: `create.ncdf.output.files` gives tx95t's `time` a `calendar` of `365_day`, replaced by the input time's calendar when it has one; its `bounds` attribute names a variable that does not exist | the same |
 
 ### Quality control
 
@@ -1991,6 +2135,26 @@ Input files chunked by time step over the whole grid (common in model output) ar
 again for every block, since each block needs every day; R's stripes have the same
 pattern. Rechunking such files first is #67.
 
+### Gridded indices
+
+The same kind of synthetic grid (float32 in K, 1961-2020, base 1971-2000), the 84 ported
+files (R run with `hw`, `hwEHF`, `spi` and `spei` left out, so both compute the same
+indices), default block and batch:
+
+| Grid | Python, 1 thread | Python, 4 threads | R (`climpact.ncdf.wrapper.r`, `cores = FALSE`, Docker amd64 under emulation) |
+| --- | --- | --- | --- |
+| 8 x 8 (64 cells) | 46 s (0.7 s per cell), 0.82 GB | 37 s, 1.23 GB | 196 s (3.1 s per cell) |
+| 16 x 16 (256 cells) | 172 s (0.67 s per cell), 0.95 GB | 123 s, 1.31 GB | not timed (over 30 minutes on a loaded machine) |
+
+On the 64-cell grid all 196 index variables of R's 84 files were identical to Python's,
+with 1 and 4 threads. A cell's time is mostly the in-base bootstrap (about 0.28 s per
+variable, TX and TN), then R's exact running sums for Rx{n}day, the spell indices and
+the exact sums, which run in Python one series at a time and hold the GIL; so threads
+help less than for the thresholds. Before the float32 means (see
+[Numerical precision](#numerical-precision)) a 60-year cell took 1.76 s, half of it in
+`r_mean`. The batched bootstrap was tried (all cells of a batch per day) and was slower
+than one cell at a time; computing a variable's in-base quantiles together is kept.
+
 ## Development
 
 ```sh
@@ -2002,6 +2166,8 @@ python3 -m venv .venv
 
 - Compute gridded thresholds with
   `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
+- Compute gridded indices with
+  `.venv/bin/climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N]`.
 - Run a station from the command line with
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip]`
   (`climpact run --help` lists the options), or a batch with

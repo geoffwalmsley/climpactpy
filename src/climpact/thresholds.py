@@ -40,6 +40,8 @@ PRECIPITATION_QUANTILES = (0.05, 0.1, 0.5, 0.9, 0.95, 0.99)  # Climpact prec.qua
 TEMPERATURE_WINDOW = 5  # climdex.pcic default n
 HEATWAVE_WINDOW = 15  # Climpact climdex.hw
 HEATWAVE_QUANTILE = 0.9
+# Quantiles used inside the base period (tx10p, txgt50p, tx90p, tn10p, tn90p).
+INBASE_QUANTILES = {"tasmax": (0.1, 0.5, 0.9), "tasmin": (0.1, 0.9)}
 MIN_BASE_FRACTION = 0.1  # min.base.data.fraction.present
 WET_DAY = 1.0  # mm; wet days for precipitation percentiles
 # climdex.pcic refuses to compute thresholds with this many base-period days or fewer.
@@ -289,24 +291,51 @@ def bootstrap_quantiles(
 
     The Zhang et al. (2005) bootstrap. For each calendar day, base year ``rm`` and
     other base year ``dup``, the window values of year ``rm`` are replaced by a second
-    copy of year ``dup``'s, and the quantile is taken of the result. Returns
-    ``{q: array (365, years, years - 1)}``, indexed ``[day, rm, k]`` where ``k`` runs
-    over the other years in increasing order (as R's ``dim(d) <- c(dpy, nyears,
-    nyears - 1, nq)``). A threshold is missing when fewer than ``min_fraction`` of the
-    window's ``years * window`` values remain.
+    copy of year ``dup``'s, and the quantile is taken of the result. ``base`` is
+    ``(..., years, 365)`` (any leading dimensions, for example grid cells). Returns
+    ``{q: array (..., 365, years, years - 1)}``, indexed ``[..., day, rm, k]`` where
+    ``k`` runs over the other years in increasing order (as R's ``dim(d) <- c(dpy,
+    nyears, nyears - 1, nq)``). A threshold is missing when fewer than
+    ``min_fraction`` of the window's ``years * window`` values remain.
 
     The replaced sample is never built. The C++ sorts the window values once and then
     drops or duplicates elements in place, so the replaced sample is the sorted values
     with weights 0 (year ``rm``), 2 (year ``dup``) or 1. The value at position ``p`` of
     the replaced sample is the first sorted value whose cumulative weight exceeds ``p``.
+    Missing values sort last and belong to no year, so their cumulative weights are
+    above every position: series of different lengths are handled together.
     """
+    base = np.asarray(base, dtype=float)
+    lead = base.shape[:-2]
+    nyears = base.shape[-2]
+    flat = base.reshape(-1, nyears, DAYS_PER_YEAR)
+    out = {
+        q: np.full((flat.shape[0], DAYS_PER_YEAR, nyears, nyears - 1), np.nan) for q in quantiles
+    }
+    for cell in range(flat.shape[0]):
+        result = _bootstrap_cell(flat[cell], window, quantiles, min_fraction)
+        for q in quantiles:
+            out[q][cell] = result[q]
+    return {q: v.reshape(*lead, DAYS_PER_YEAR, nyears, nyears - 1) for q, v in out.items()}
+
+
+def _weighted_value(data: np.ndarray, weight: np.ndarray, pos: np.ndarray) -> np.ndarray:
+    """For each row of ``weight`` (cumulative weights of the sorted ``data``), the first
+    value whose cumulative weight exceeds the row's position ``pos``."""
+    count = np.count_nonzero(weight <= pos[:, None], axis=1)
+    return data[np.minimum(count, data.size - 1)]
+
+
+def _bootstrap_cell(
+    base: np.ndarray, window: int, quantiles, min_fraction: float
+) -> dict[float, np.ndarray]:
+    """:func:`bootstrap_quantiles` of one ``(years, 365)`` series."""
     nyears = base.shape[0]
     slab = window * nyears
     pairs = [(rm, dup) for rm in range(nyears) for dup in range(nyears) if dup != rm]
     rm_idx = np.array([p[0] for p in pairs])
     dup_idx = np.array([p[1] for p in pairs])
     out = {q: np.full((DAYS_PER_YEAR, len(pairs)), np.nan) for q in quantiles}
-
     windows = window_values(base, window)  # (365, years, window)
     year_of = np.repeat(np.arange(nyears), window)
     for day in range(DAYS_PER_YEAR):
@@ -323,11 +352,11 @@ def bootstrap_quantiles(
         weight = np.arange(1, size + 1, dtype=np.int32)[None, :] - cum[rm_idx] + cum[dup_idx]
         n = size - cum[rm_idx, -1] + cum[dup_idx, -1]
         enough = n / slab >= min_fraction
+        first = _weighted_value(data, weight, np.zeros(len(pairs), dtype=np.int64))
         for q in quantiles:
             left_pos, right_pos, h = _c_quantile_positions(n, q)
-            left = data[np.minimum((weight <= left_pos[:, None]).sum(axis=1), size - 1)]
-            right = data[np.minimum((weight <= right_pos[:, None]).sum(axis=1), size - 1)]
-            first = data[np.minimum((weight <= 0).sum(axis=1), size - 1)]
+            left = _weighted_value(data, weight, left_pos)
+            right = _weighted_value(data, weight, right_pos)
             result = _c_quantile_combine(n, left, right, first, h)
             out[q][day] = np.where(enough, result, np.nan)
     return {q: v.reshape(DAYS_PER_YEAR, nyears, nyears - 1) for q, v in out.items()}
@@ -368,7 +397,11 @@ class Thresholds:
         (see :func:`bootstrap_quantiles`). Computed on first use and cached."""
         key = (var, q)
         if key not in self._inbase:
-            self._inbase[key] = bootstrap_quantiles(self.base[var], self.window, [q])[q]
+            # All the in-base quantiles of a variable share the sorting and weights of
+            # each day, so they are computed together.
+            qs = sorted({q, *INBASE_QUANTILES.get(var, ())})
+            for k, v in bootstrap_quantiles(self.base[var], self.window, qs).items():
+                self._inbase.setdefault((var, k), v)
         return self._inbase[key]
 
     def daily(self, var: str, q: float, time) -> xr.DataArray:

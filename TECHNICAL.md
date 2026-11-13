@@ -11,6 +11,9 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 The Python port reproduces **all 125** R reference files for Sydney (`lat0` and
 `sydney`), and every file R wrote for all 13 GHCN stations and the synthetic QC station,
 with none failing and none left to port (see [Reference outputs](#reference-outputs)).
+Gridded base-period thresholds (`climpact gridded-thresholds`, #29) reproduce every
+variable of R's thresholds netCDF bit for bit on both gridded reference grids (see
+[Gridded data](#gridded-data)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
@@ -26,8 +29,8 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs | plots, zip archive |
-| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF | plots, zip archive |
+| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`) | gridded indices (#30) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -41,13 +44,21 @@ It does not yet write plots or zip archives.
 ```
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
-                     `climpact modules` (list the modules available)
+                     `climpact gridded-thresholds` (a netCDF grid), `climpact modules`
+                     (list the modules available)
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); run_pipeline(): QC -> homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   config.py          StationMetadata, IndexParams, CustomIndex, QCParams (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
-  thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
+  thresholds.py      base-period percentile thresholds; climdex and R type-7/8 quantiles,
+                     vectorised over any leading dimensions (grid cells)
+  gridded/
+    io.py            read CF netCDF tasmax/tasmin/pr as climdex.pcic.ncdf does (ncdf4
+                     masking, udunits conversion); GriddedInput: dask blocks of cells,
+                     load(), cell_latitude()
+    thresholds.py    thresholds of every cell (cell_thresholds) and the thresholds netCDF
+                     in R's layout (write_grid_thresholds)
   qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
                      outliers with R's fivenum and boxplot.stats)
   data/
@@ -72,11 +83,12 @@ src/climpact/
     trends.py        trend file (trend/trend), built from the other products' tables
   compare.py         tiered comparison of tables against the R reference
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var,
-                     and of R's round()
+                     the sums of moving windows (r_window_sums), and of R's round()
   rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
   trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S))
 tests/
-  parity/            one test per R reference file, plus progress reporting
+  parity/            one test per R reference file and per gridded netCDF variable, plus
+                     progress reporting
   libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
   rreference.py      the original, plain R-precision and number-formatting code: the
                      reference the faster versions are tested against
@@ -89,7 +101,11 @@ reference/
   make_qc_stress.py  make the synthetic QC stress station from Potsdam
   input/             station input data used by the tests
   output/            R reference outputs, output/<run>/<station>/ (CSV only; plots are gitignored)
-  r/, run_r_reference.sh   Docker setup that produces reference/output (see reference/README.md)
+  gridded/           gridded runs (runs.csv), make_grids.py, input grids and R's thresholds
+                     netCDF files (output/<run>/thresholds.nc)
+  r/, run_r_reference.sh, run_r_gridded.sh
+                     Docker setup that produces reference/output and reference/gridded/output
+                     (see reference/README.md)
 ```
 
 ## Data flow
@@ -144,8 +160,8 @@ included, which the QC checks run on. `load_station` stores them in `qc_rows`; a
 
 The Dataset is one-dimensional in time. Batch runs do not add a `station` dimension: each
 station is a separate `StationRun` in its own process, because stations have their own
-time axes, coordinates and parameters. `(lat, lon)` dimensions for gridded data are
-planned; the index code operates along `time` and should not need to change.
+time axes, coordinates and parameters. Gridded data have their own data path (see
+[Gridded data](#gridded-data)); the threshold functions take any leading dimensions.
 
 ### Index parameters
 
@@ -446,7 +462,13 @@ station. `StationRun.thresholds` computes them on first use and caches them
   period, a `(365, years, years - 1)` array, computed on first use and cached (see
   [In-base bootstrap](#in-base-bootstrap)).
 - `climdex_quantile_sorted` is climdex's C++ quantile, vectorised over the rows of a
-  sorted matrix.
+  sorted matrix. `r_quantile_type8_rows` and `r_quantile_type7_rows` are R's
+  `quantile(type = 8)` and `quantile()` along the last axis; the per-series
+  `r_quantile_type8` and `r_quantile_type7` call them.
+- `running_quantiles`, `window_values`, `base_period_array` and `wet_day_quantiles`
+  accept any leading dimensions, so a block of grid cells is computed with the station
+  code in one call (`tests/test_thresholds.py` checks cells together against one at a
+  time).
 - When the station's dates cover 359 days of the base period or fewer,
   `compute_thresholds` raises `InsufficientBaseData` (climdex.pcic refuses to compute
   thresholds in that case), and the threshold and percentile index products produce no
@@ -454,6 +476,83 @@ station. `StationRun.thresholds` computes them on first use and caches them
 
 Both quantile functions are checked bit for bit against values printed by R 4.6.1 and
 climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker image).
+
+## Gridded data
+
+`climpact gridded-thresholds <files> --out <file>` ports Climpact's
+`climpact.ncdf.thresholds.wrapper.r`, which calls `create.thresholds.from.file` in
+Climpact's own modified climdex.pcic.ncdf 0.5-4 (`server/pcic_packages/climdex.pcic.ncdf/R/ncdf.R`).
+Options follow the wrapper's settings: input files (one to three), `--tmax`, `--tmin`,
+`--prec` (variable names, default `tasmax`, `tasmin`, `pr`), `--base-start`, `--base-end`,
+`--institution`, `--institution-id` (R's `author.data`), `--workers` (R's `cores`) and
+`--max-values` (R's `max.vals.millions`, default 5). R's wrapper always uses
+`fclimdex.compatible = FALSE`, which only affects the in-base bootstrap, not used here.
+
+```
+netCDF files
+  -> gridded.io.open_grid          GriddedInput: tasmax, tasmin (degrees C), pr (kg m-2 d-1),
+                                   float64 dask arrays (time, y, x), chunked in blocks of cells
+  -> gridded.thresholds.write_grid_thresholds
+       create_thresholds_file      dimensions, coordinates, attributes (create.thresholds.file)
+       per block: GriddedInput.load(block)          one read per block, in the main thread
+                  block_thresholds -> cell_thresholds   batches of cells, on worker threads
+                  _write_block                      written before the next block is read
+```
+
+**Reading** (`gridded/io.py`), as `create.file.metadata` and `get.data`:
+
+- Each variable must be in exactly one file and have time, Y and X dimensions (found
+  from `axis`, `standard_name` or the dimension name); the files must share their time axis
+  (truncated to days). Only the standard (Gregorian) calendar is supported.
+- Missing values as ncdf4's `ncvar_get`: the `missing_value` attribute, else `_FillValue`,
+  else 1e30 for float types; float values within `1e-5 * |missing value|` of it are missing
+  (`1e-10` when it is 0), integers only when equal. Then `value * scale_factor + add_offset`
+  (`decode_ncdf4`).
+- Units as udunits2's `ud.convert`, which checked in the image computes exactly `value -
+  273.15` for K to degrees C and `value * 86400` for kg m-2 s-1 to kg m-2 d-1
+  (`unit_conversion`). Every value is converted to float64 first, as R reads doubles.
+- Blocks are whole Y rows (or parts of a row) with at most `max_values` values of the
+  three variables, like R's stripes (`axis.to.split.on = "Y"`). They are the dask chunks of
+  `GriddedInput.data`, opened with those chunks so that a block reads only its cells.
+- `GriddedInput.cell_latitude()` gives each cell's latitude, from the Y coordinate or a
+  two-dimensional latitude variable, for the hemisphere rules of the gridded indices (#30).
+
+**Thresholds** (`cell_thresholds`), as `get.quantiles.for.stripe`, for a block of cells
+at once: each series is padded to whole years (`create.filled.series`), TAVG is
+`(TX + TN) / 2`, and
+
+| Variable | Dimensions | Computed with |
+| --- | --- | --- |
+| `tx05thresh` ... `tx95thresh`, `tn05thresh` ... `tn95thresh` | time (365), lat, lon | `running_quantiles`, 5-day window (the station `thres/thres` columns) |
+| `tx90thresh_15days`, `tn90thresh_15days`, `tavg90thresh_15days` | time, lat, lon | `running_quantiles`, 15-day window (`HW_TX90`, `HW_TN90`, `HW_TAVG90`) |
+| `tavg05thresh`, `tavg95thresh` | lat, lon | `r_quantile_type7_rows` over every base-period day (the station EHF's T05, T95) |
+| `ehf85thresh` | lat, lon | `excess_factors` (`calculate_EHF` is the station EHF formula), then the type-7 85th percentile of the positive base-period EHF |
+| `r95thresh`, `r99thresh` | lat, lon | `wet_day_quantiles` (`get.prec.var.quantiles`) |
+| `txraw`, `tnraw`, `precraw` | base_time, lat, lon | the base-period data, 29 February included, for the gridded SPI and SPEI |
+
+`calculate_EHF` has no 50% base-period check, unlike the station EHF, so every cell gets
+an `ehf85thresh` unless it has no positive base-period EHF. With 359 days of the base
+period or fewer in the time axis, R stops; Python raises `InsufficientBaseData` and writes
+nothing.
+
+**Writing** (`create_thresholds_file`): the 21 variables above in R's order, as float64 with
+`_FillValue` 1e20 and `units`, `long_name`, `history`, `base_period`; dimensions `bnds`,
+`time` (unlimited, 365 days of the middle base year, `floor(mean(base))`), the X and Y
+dimensions of the input, and `base_time` (unlimited, every base-period day); `time` with
+the input time's attributes and `time_bnds` (first and last base year, named by the input
+time's `bounds` attribute); X and Y as float64 with the input's attributes; the exemplar
+file's (the TX file's) global attributes plus R's `put.ETCCDI.atts`. The file is netCDF4,
+compressed, chunked by blocks, and renamed into place when complete.
+
+**Memory and speed.** One block is read (default 5 million values, 40 MB as float64), its
+cells are computed in batches of 8 (`cells_per_batch`, about 10 MB of working memory per
+cell for 60 years) by `--workers` threads, and the results are written before the next
+block is read. The output variables get a 1 MB HDF5 chunk cache each (`OUTPUT_CHUNK_CACHE`):
+with HDF5's default of 64 MB each, written chunks of the 21 variables would stay cached.
+`tests/test_gridded.py` checks that the memory numpy allocates (tracemalloc) for a grid 16
+times larger, with the same block size, stays within 1.5 times that of the small grid. The
+input files' read cache is netCDF-C's default (64 MB per variable). See
+[Performance](#performance) for timings.
 
 ## Use of xclim
 
@@ -508,6 +607,24 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 | `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 91/91 and 68/68 |
 | `qc_stress` | Synthetic: Potsdam with planted QC faults (see below). Only its `qc/` files are compared | `reference/make_qc_stress.py` | 9/9 |
 
+**Gridded runs.** `reference/gridded/runs.csv` lists the gridded reference runs, made by
+`reference/run_r_gridded.sh` with the same image (see `reference/README.md`); the catalogue
+reads it into `GRID_RUNS`:
+
+| Run | Grid | Parity (of R's netCDF variables) |
+| --- | --- | --- |
+| `grid_stations` | Synthetic 3 x 4 grid, latitudes 52.5, 0 and -33.75, one station input per cell, 1966-2005, base 1971-2000, with an all-missing cell, a sparse base period, a dry cell and missing years; TX in K (float, `missing_value`), TN in degrees C (double), precipitation in kg m-2 s-1 in a second file | 26/26 |
+| `grid_sample` | 3 x 4 cut of Climpact's sample grid, 1991-2010, base 1991-2010; K, kg m-2 d-1, time in hours since 1800 | 26/26 |
+
+`tests/parity/test_gridded.py` writes each run's thresholds file with small blocks, batches
+and two threads, and requires every variable (the 21 thresholds and the coordinates) to have
+R's dimensions, type, missing values and values exactly (`EXACT`: R stores doubles, so
+unlike the CSV files no rounding is involved). `test_gridded_layout` checks the dimensions
+(sizes and unlimited), the order of the dimensions and variables, and every attribute, apart
+from `history`, `file_created` and `file_created_by_userid`, R's `R_version` and Python's
+`climpactpy_version`, and the time units of `grid_sample` (see
+[Gridded data](#gridded-data-1)).
+
 `qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
 has a duplicated date and several QC checks fire at only a few of them.
 `reference/make_qc_stress.py` takes Potsdam 1961-2020 and plants duplicate dates (an
@@ -553,7 +670,8 @@ test of that run fails at once instead of rebuilding the station for each file.
 In every tier the pattern of missing values must be identical, and string columns (dates)
 must match exactly. Metadata header lines (including `Date_of_calculation`) are not compared.
 Tiers are assigned by file name in `tests/parity/catalogue.py`; the standardised column of
-an `EXACT` file uses `CLOSE`.
+an `EXACT` file uses `CLOSE`. Every variable of the gridded thresholds netCDF is compared at
+`EXACT`.
 
 **These tiers are the project's acceptance criteria** (decided 2026-11-13, #31). WMO could
 not be consulted, so the project set them itself. A file may be moved to a looser tier only
@@ -604,6 +722,8 @@ potsdam: 125/125 written CSV files text-identical to R, 0 differing
 qc_stress: 9/9 written CSV files text-identical to R, 0 differing
 sydney: 125/125 written CSV files text-identical to R, 0 differing
 yakutsk: 125/125 written CSV files text-identical to R, 0 differing
+grid_sample: 26/26 thresholds netCDF variables identical to R, 0 differing
+grid_stations: 26/26 thresholds netCDF variables identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -681,6 +801,14 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   done with enough extra bits that their 64-bit rounding is exact, as it is in units of
   2**-1074. `tests/test_rnumerics.py` checks all three against the original
   implementation (`tests/rreference.py`) bit for bit on random and adversarial series.
+- *Moving sums:* the EHF's 30-day `sum(..., na.rm = TRUE)` is needed for every day of every
+  series (and grid cell). `r_window_sums` computes all windows at once: where a window
+  meets `r_sum`'s fast-path condition, the exact sum is formed in 64-bit integers (values
+  scaled by the window's finest power of two) and rounded once to a double; other windows
+  go through `r_sum`. Data stored as float, or converted from kelvin (multiples of
+  2**-44), always take the fast path; decimal doubles near 0 °C do not. `excess_factors`
+  uses it for stations too; every station EHF file is unchanged, and
+  `tests/test_rnumerics.py` checks it against `r_sum` on both paths.
 
 **R's `write.index.csv` standardises the text, not the values.** It prepends the column
 name to the index vector, which turns the numbers into strings (`as.character`, 15
@@ -1543,6 +1671,24 @@ file must be text-identical.
 | The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
 | `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
+### Gridded data
+
+The gridded thresholds match R's file exactly on both reference grids (see
+[Reference outputs](#reference-outputs)). Differences in behaviour, none of which the
+reference grids exercise:
+
+| R behaviour | Python |
+| --- | --- |
+| `create.thresholds.file` copies every attribute of the input time variable onto the output `time`, including `units`; with input units in hours (Climpact's own sample, `hours since 1800-01-01 00:00:00`) or seconds, the output says hours although its values are days | the input's units are kept when they are in days, as R; otherwise `time` keeps `days since <origin>`. The values are identical; `grid_sample` exercises this |
+| `get.quantiles.for.stripe` takes the base-period TAVG, EHF and raw data by position in the full-year date series (`date.series`) but indexes the file's series with it, and `base_time` holds the file's base-period dates: if the file does not start on 1 January or skips days, the positions shift and `txraw` and `base_time` differ in length | Python pads every series to whole years by date first (as `create.filled.series` does for the percentiles), so the positions are right and missing days are missing. Identical for files starting on 1 January with every day, as all reference grids |
+| `calculate_EHF` on a series that does not start on 1 January has its first 32 values missing; with the padding, the first EHF values of such a file use the padded (missing) days | as above: only files not starting on 1 January differ |
+| Bounds variables of X and Y (`lat_bnds`, ...) are copied (Climpact's README says inputs must not have them) | not copied; `time_bnds` uses a dimension `bnds` |
+| Non-standard calendars (`365_day`, `360_day`) are supported by PCICt | not supported: `open_grid` raises `NotImplementedError` (#66) |
+| Units udunits cannot convert to kg m-2 d-1 (`mm/day`) stop the run | `mm/day`, `mm d-1`, `mm day-1` and `mm` are accepted as kg m-2 d-1 |
+| `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
+| Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |
+| R writes an uncompressed file with one chunk per day | compressed (zlib), chunked by block; the content is the same |
+
 ### Quality control
 
 The per-value QC checks are in `climpact.qc`, one function per R check
@@ -1670,6 +1816,30 @@ once with numpy, so it takes about 0.15 s per variable and quantile, against 317
 quantiles. A batch runs one station per process, and each spawned worker also imports
 xclim (about 2 s).
 
+### Gridded thresholds
+
+Apple M-series laptop, a synthetic grid of float32 data in K, 1961-2020 (21,915 days),
+base 1971-2000, default block (5 million values) and batch (8 cells):
+
+| Grid | Python, 1 thread | Python, 4 threads | R (`climpact.ncdf.thresholds.wrapper.r`, `parallel = FALSE`, Docker amd64 under emulation) |
+| --- | --- | --- | --- |
+| 16 x 16 (256 cells) | 5.8 s (23 ms per cell) | 3.2 s | 40 s |
+| 32 x 32 (1,024 cells) | 24 s | 13 s | not run |
+
+Both 256-cell results are identical. Peak resident memory with 1 thread was 0.69 GB on the
+256-cell grid and 1.2 GB on the 1,024-cell grid (about 330 MB of it imports). The memory
+numpy allocates depends only on the block (see [Gridded data](#gridded-data)); the rest is
+netCDF-C's read cache, which holds more of the larger grid's bigger file chunks (up to
+64 MB per variable), and memory the allocator keeps: with a 4 MB read cache
+(`netCDF4.set_chunk_cache`) the 1,024-cell grid peaked at 0.78 GB. The
+two reference grids take under 0.5 s each. Decimal doubles in degrees C are slower in the
+EHF, where some 30-day sums need R's rounding emulation one window at a time (see
+[Numerical precision](#numerical-precision)).
+
+Input files chunked by time step over the whole grid (common in model output) are read
+again for every block, since each block needs every day; R's stripes have the same
+pattern. Rechunking such files first is #67.
+
 ## Development
 
 ```sh
@@ -1679,18 +1849,20 @@ python3 -m venv .venv
 .venv/bin/pytest
 ```
 
+- Compute gridded thresholds with
+  `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
 - Run a station from the command line with
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
+- Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
   (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
   the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
   macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:
   Ubuntu 26.04's `lgamma` differs from glibc 2.39 in the last bit on some inputs, so
   `test_libm_lgamma_matches_glibc_2_39` checks against fixed values printed in the R image.
 - Always work inside `.venv`.
-- To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the
+- To regenerate the R reference outputs, station or gridded, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are
   meant to change.
 - Work is tracked as GitHub issues on the

@@ -138,3 +138,28 @@ def test_sum_at_the_fast_path_limit():
     assert bits(r_sum(np.array([-0.0]))) == bits(rreference.r_sum(np.array([-0.0])))
     with pytest.raises(ValueError):
         r_sum(np.array([1.0, np.inf]))
+
+
+def test_window_sums_match_r_sum():
+    """r_window_sums gives r_sum of every window, on both of its paths: values whose
+    exact sum fits 62 bits (float data, kelvin conversions) and decimal doubles that
+    need R's rounding emulation."""
+    from climpact.rnumerics import r_window_sums
+
+    rng = np.random.default_rng(0)
+    cases = [
+        np.round(rng.normal(10, 8, (3, 800)), 1) / 2,  # decimal doubles: some slow windows
+        rng.normal(290, 10, (2, 800)).astype(np.float32).astype(float) - 273.15,
+        rng.normal(0, 1e-3, (2, 300)),
+        rng.normal(0, 1e5, (1, 300)) * rng.random((1, 300)),
+    ]
+    for x in cases:
+        x[rng.random(x.shape) < 0.1] = np.nan
+        x[0, 40:80] = np.nan  # an all-missing window sums to 0
+        got = r_window_sums(x, 30)
+        expected = [
+            [r_sum(row[k : k + 30][~np.isnan(row[k : k + 30])]) for k in range(row.size - 29)]
+            for row in x
+        ]
+        assert np.array_equal(got, np.array(expected))
+    assert r_window_sums(np.ones((2, 10)), 30).shape == (2, 0)

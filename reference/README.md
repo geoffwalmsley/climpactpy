@@ -54,6 +54,44 @@ R30mm, SPEI 24, custom TN > 0).
 | `nairobi` | Nairobi JKIA (KE000063740) | -1.32 | 1961-2020 | Stress: near-equator SH, patchy temperature base (65-68 %), 1,624 m | 57 |
 | `qc_stress` | Synthetic, from Potsdam (GM000003342) | 52.38 | 1961-2020 | QC checks: planted duplicate dates, TN >= TX, too-large values, jumps, flat lines, missing values (see below) | 114 (not compared) |
 
+## Gridded reference
+
+Climpact's gridded thresholds (`climpact.ncdf.thresholds.wrapper.r`, which calls
+`create.thresholds.from.file` in Climpact's own modified `climdex.pcic.ncdf`) are run on two
+small test grids by
+
+```sh
+.venv/bin/python reference/gridded/make_grids.py   # make the input grids (deterministic)
+./reference/run_r_gridded.sh                        # build the image, run every grid
+./reference/run_r_gridded.sh grid_sample            # only the named runs
+```
+
+`make_grids.py` needs the original repo for the sample grid (`--climpact`, or `CLIMPACT_DIR`,
+default `../climpact`). Each row of [`gridded/runs.csv`](gridded/runs.csv) is one run: its
+input files in `gridded/input/` (`;`-separated), the netCDF names of TX, TN and precipitation,
+and the base period. The R output goes to `gridded/output/<run>/thresholds.nc`, with
+`r-package-versions.csv` and `climpact-commit.txt`. The wrapper is a script with hard-coded
+settings, so `r/run_gridded_thresholds.R` makes its call with the run's files, names and base
+period and the wrapper's fixed settings (`fclimdex.compatible = FALSE`, no cluster), and author
+data `climpactpy reference` / `CPY`.
+
+| Run | Grid | Period, base | Covers |
+| --- | --- | --- | --- |
+| `grid_stations` | 3 lat (52.5, 0, -33.75) x 4 lon, one committed station input per cell | 1966-2005, base 1971-2000 | Both hemispheres and the equator; an all-missing cell; a sparse base period (about 10% of values kept, so some windows have too few values); a dry cell (no wet day in the base period); missing years of TX and TN; TX in K as float with `missing_value`, TN in degrees C as double, precipitation in kg m-2 s-1 in a second file |
+| `grid_sample` | 3 x 4 cut of Climpact's `www/sample_data/climpact.sampledata.gridded.1991-2010.nc` (south-east Australia) | 1991-2010, base 1991-2010 (the wrapper's defaults) | A real CF file: K, kg m-2 d-1, time in hours since 1800 with `time_bnds` |
+
+The inputs (1.6 MB) and outputs (2.2 MB) are committed. R writes its thresholds file uncompressed
+with one chunk per day; `run_r_gridded.sh` repacks it with `nccopy -d 9 -s` and larger chunks,
+which changes neither the variables, values nor attributes. Re-running changes the
+`file_created` and `history` attributes, so only commit a re-run when the numbers are meant to
+change.
+
+The image's netCDF support (ncdf4, abind, snow, udunits2, functional, proj4 from the same CRAN
+snapshot, and Climpact's `ncdf4.helpers` 0.3-3 and modified `climdex.pcic.ncdf` 0.5-4 fetched
+from the pinned Climpact commit) is installed in layers after the station packages, which are
+unchanged: the rebuilt image reproduces the committed `sydney` outputs (every CSV identical apart
+from `Date_of_calculation`).
+
 ## Synthetic QC station
 
 `qc_stress_1961-2020.txt` is Potsdam's input with faults planted for every per-value QC
@@ -126,6 +164,9 @@ commercially should check the national source's terms.
 
 - `rocker/r-ver:4.6.1`, CRAN from the Posit snapshot of 2026-09-18
 - PCICt 0.5-4.4 from the CRAN archive; climdex.pcic 1.2-0 from GitHub commit `011cb78`
+- For gridded runs: ncdf4 1.24, udunits2 0.13.2.2 and the other CRAN packages from the same
+  snapshot; ncdf4.helpers 0.3-3 and climdex.pcic.ncdf 0.5-4 (Climpact's modified version) from
+  Climpact's `server/pcic_packages` at commit `5ee0cfe` (checked by SHA-256)
 - Runs as `linux/amd64` (emulated on Apple Silicon). On native arm64, climdex.pcic's bootstrapped
   in-base percentiles round differently and tx10p, tn10p, tx90p and csdi change in some base-period
   years. Use `PLATFORM=linux/arm64` to run natively anyway.

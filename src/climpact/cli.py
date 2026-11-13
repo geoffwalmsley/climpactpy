@@ -6,6 +6,9 @@ app does. ``climpact batch <metadata file> <data dir> --out <dir>`` does the sam
 station of an R batch metadata file (see :mod:`climpact.batch`). Both take ``--qc``,
 ``--homogeneity`` and ``--indices`` to select the modules a run uses, and
 ``climpact modules`` lists the modules available (see :mod:`climpact.modules`).
+``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
+thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
+(see :mod:`climpact.gridded`).
 """
 
 from __future__ import annotations
@@ -161,6 +164,40 @@ def _parser() -> argparse.ArgumentParser:
     )
     _module_arguments(batch)
 
+    grid = commands.add_parser(
+        "gridded-thresholds",
+        help="calculate the base-period thresholds of every cell of a netCDF grid",
+        description="Calculate the base-period percentile thresholds of every cell of a "
+        "grid of daily TX, TN and precipitation, and write them to a netCDF file in the "
+        "layout of Climpact's climpact.ncdf.thresholds.wrapper.r. Temperatures may be in "
+        "K or degrees_C, precipitation in kg m-2 d-1 or kg m-2 s-1.",
+    )
+    grid.add_argument("input_files", type=Path, nargs="+", help="one to three CF netCDF files")
+    grid.add_argument("--out", type=Path, required=True, help="thresholds netCDF file to write")
+    grid.add_argument("--tmax", default="tasmax", help="TX variable name (" + _DEFAULT + ")")
+    grid.add_argument("--tmin", default="tasmin", help="TN variable name (" + _DEFAULT + ")")
+    grid.add_argument("--prec", default="pr", help="precipitation variable name (" + _DEFAULT + ")")
+    grid.add_argument(
+        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+    )
+    grid.add_argument(
+        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+    )
+    grid.add_argument("--institution", default=None, help="author institution (global attribute)")
+    grid.add_argument("--institution-id", default=None, help="author institution id")
+    grid.add_argument(
+        "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
+    )
+    grid.add_argument(
+        "--max-values",
+        type=float,
+        default=5.0,
+        metavar="MILLIONS",
+        help="millions of input values read at once, which bounds memory "
+        "(R's max.vals.millions; " + _DEFAULT + ")",
+    )
+    grid.add_argument("--quiet", action="store_true", help="do not print progress")
+
     commands.add_parser(
         "modules",
         help="list the QC, homogeneity and index modules available",
@@ -263,6 +300,44 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
     return 1 if failed else 0
 
 
+def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from climpact.gridded import open_grid, write_grid_thresholds
+    from climpact.thresholds import InsufficientBaseData
+
+    for path in args.input_files:
+        if not path.is_file():
+            parser.error(f"input file not found: {path}")
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
+    if args.base_end < args.base_start:
+        parser.error("--base-end is before --base-start")
+    names = {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec}
+    try:
+        inp = open_grid(args.input_files, names, max_values=int(args.max_values * 1e6))
+    except (ValueError, NotImplementedError) as exc:
+        parser.error(str(exc))
+    author = {"institution": args.institution, "institution_id": args.institution_id}
+    ny, nx = inp.shape
+
+    def progress(done: int, total: int) -> None:
+        if not args.quiet:
+            print(f"[{done}/{total}] blocks done", flush=True)
+
+    if not args.quiet:
+        print(
+            f"{ny} x {nx} cells, {inp.time[0]:%Y-%m-%d} to {inp.time[-1]:%Y-%m-%d}, "
+            f"base period {args.base_start}-{args.base_end}"
+        )
+    try:
+        write_grid_thresholds(
+            inp, args.out, args.base_start, args.base_end, author, args.workers, progress
+        )
+    except InsufficientBaseData as exc:
+        parser.error(str(exc))
+    print(f"Wrote {args.out}")
+    return 0
+
+
 def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     from climpact.modules import available
 
@@ -282,6 +357,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return batch_command(args, parser)
     if args.command == "modules":
         return modules_command(args, parser)
+    if args.command == "gridded-thresholds":
+        return gridded_thresholds_command(args, parser)
     parser.error(f"unknown command {args.command!r}")  # pragma: no cover
     return 2
 

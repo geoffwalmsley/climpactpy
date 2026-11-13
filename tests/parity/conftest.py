@@ -6,10 +6,9 @@ from collections import Counter
 
 import pytest
 
-from climpact.config import StationMetadata
 from climpact.station import load_station
 
-from .catalogue import REFERENCE_DIR, STATION
+from .catalogue import RUNS
 
 
 def pytest_terminal_summary(terminalreporter):
@@ -20,25 +19,20 @@ def pytest_terminal_summary(terminalreporter):
             if "test_parity[" not in report.nodeid:
                 continue
             run = report.nodeid.split("test_parity[", 1)[1].split("/", 1)[0]
-            counts.setdefault(run, Counter())[outcome] += 1
+            kind = outcome
+            if outcome == "xfailed" and getattr(report, "wasxfail", "").startswith("known bug"):
+                kind = "known bug"
+            counts.setdefault(run, Counter())[kind] += 1
     if not counts:
         return
     terminalreporter.section("R parity")
     for run, c in sorted(counts.items()):
         total = sum(c.values())
+        known = f", {c['known bug']} known bugs" if c["known bug"] else ""
         terminalreporter.write_line(
             f"{run}: {c['passed']}/{total} reference files reproduced, "
-            f"{c['failed']} failing, {c['xfailed']} not yet ported"
+            f"{c['failed']} failing{known}, {c['xfailed']} not yet ported"
         )
-
-
-STATION_FILE = REFERENCE_DIR.parent / "input" / f"{STATION}.txt"
-
-# Station settings for each R reference run (see reference/README.md).
-RUN_METADATA = {
-    "lat0": StationMetadata(name=STATION, latitude=0.0, longitude=0.0),
-    "sydney": StationMetadata(name=STATION, latitude=-33.86, longitude=151.21),
-}
 
 
 @pytest.fixture(scope="session")
@@ -48,7 +42,7 @@ def station_run():
 
     def get(run: str):
         if run not in cache:
-            cache[run] = load_station(STATION_FILE, RUN_METADATA[run])
+            cache[run] = load_station(RUNS[run].input_path, RUNS[run].metadata)
         return cache[run]
 
     return get
@@ -56,14 +50,23 @@ def station_run():
 
 @pytest.fixture(scope="session")
 def station_outputs(station_run):
-    """Factory returning the (cached) dict of Python output tables for a run."""
+    """Factory returning the (cached) dict of Python output tables for a run.
+
+    A failure is cached too, so a run whose build raises fails each of its tests at once
+    instead of rebuilding the whole station for every reference file.
+    """
     from climpact.outputs import build_all
 
     cache = {}
 
     def get(run: str):
         if run not in cache:
-            cache[run] = build_all(station_run(run))
+            try:
+                cache[run] = build_all(station_run(run))
+            except Exception as exc:  # noqa: BLE001 - re-raised for every test of the run
+                cache[run] = exc
+        if isinstance(cache[run], Exception):
+            raise RuntimeError(f"building the {run} outputs failed: {cache[run]!r}") from cache[run]
         return cache[run]
 
     return get

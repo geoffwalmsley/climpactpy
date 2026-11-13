@@ -1,0 +1,9 @@
+"Description: ","Dates where the change in TX is > 20 degrees."
+"Station: ","new_delhi_safdarjung_1961-2020"
+"Latitude: ","28.58"
+"Longitude: ","77.2"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TX
+"NO LARGE TX JUMPS FOUND"

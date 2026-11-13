@@ -1,0 +1,9 @@
+"Description: ","Dates where the change in TN is > 20 degrees."
+"Station: ","oxford_1961-2020"
+"Latitude: ","51.77"
+"Longitude: ","-1.27"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TN
+"NO LARGE TN JUMPS FOUND"

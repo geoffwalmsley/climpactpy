@@ -1,0 +1,16 @@
+run,id,name,lat,lon,start,end,source
+lat0,ASN00066062,sydney_observatory_hill,0,0,1936,2015,climpact
+sydney,ASN00066062,sydney_observatory_hill,-33.86,151.21,1936,2015,climpact
+minneapolis,USW00014922,minneapolis_st_paul,44.89,-93.23,1961,2020,ghcn
+yakutsk,RSM00024959,yakutsk,62.02,129.72,1961,2020,ghcn
+phoenix,USW00023183,phoenix,33.43,-112.00,1961,2020,ghcn
+alice_springs,ASN00015590,alice_springs,-23.80,133.89,1961,2020,ghcn
+darwin,ASN00014015,darwin,-12.42,130.89,1961,2020,ghcn
+perth,ASN00009021,perth_airport,-31.93,115.98,1961,2020,ghcn
+madrid,SP000003195,madrid_retiro,40.41,-3.68,1961,2020,ghcn
+oxford,UK000056225,oxford,51.77,-1.27,1961,2020,ghcn
+potsdam,GM000003342,potsdam,52.38,13.06,1961,2020,ghcn
+beijing,CHM00054511,beijing,39.93,116.28,1961,2020,ghcn
+dublin,EI000003969,dublin_phoenix_park,53.36,-6.32,1961,2020,ghcn
+new_delhi,IN022021900,new_delhi_safdarjung,28.58,77.20,1961,2020,ghcn
+nairobi,KE000063740,nairobi_jkia,-1.32,36.92,1961,2020,ghcn

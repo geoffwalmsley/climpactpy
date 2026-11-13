@@ -2,15 +2,58 @@
 
 from __future__ import annotations
 
+import csv
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from climpact.compare import Tier
+from climpact.config import StationMetadata
 
 REFERENCE_DIR = Path(__file__).parents[2] / "reference" / "output"
-STATION = "sydney_observatory_hill_1936-2015"
-RUNS = ("lat0", "sydney")
+STATIONS_CSV = REFERENCE_DIR.parent / "stations.csv"
+
+
+@dataclass(frozen=True)
+class Run:
+    """One R reference run: a row of reference/stations.csv."""
+
+    name: str  # run name, e.g. "sydney"; outputs are in reference/output/<name>/<station>/
+    station_id: str  # GHCN-Daily station id
+    station: str  # input file stem and R output folder, e.g. "phoenix_1961-2020"
+    latitude: float
+    longitude: float
+
+    @property
+    def input_path(self) -> Path:
+        return REFERENCE_DIR.parent / "input" / f"{self.station}.txt"
+
+    @property
+    def output_dir(self) -> Path:
+        return REFERENCE_DIR / self.name / self.station
+
+    @property
+    def metadata(self) -> StationMetadata:
+        return StationMetadata(name=self.station, latitude=self.latitude, longitude=self.longitude)
+
+
+def _read_runs() -> dict[str, Run]:
+    with STATIONS_CSV.open(newline="") as f:
+        return {
+            row["run"]: Run(
+                name=row["run"],
+                station_id=row["id"],
+                station=f"{row['name']}_{row['start']}-{row['end']}",
+                latitude=float(row["lat"]),
+                longitude=float(row["lon"]),
+            )
+            for row in csv.DictReader(f)
+        }
+
+
+RUNS = _read_runs()
+# The Climpact sample station, used by the lat0 and sydney runs and by unit tests.
+STATION = RUNS["sydney"].station
 FOLDERS = ("indices", "thres", "trend")
 # Individual QC files that have a tabular format comparable with the reader.
 QC_FILES = ("nastatistics",)
@@ -27,6 +70,17 @@ _EXACT = re.compile(
 )
 _FITTED = re.compile(r"^\d+month_(spi|spei)_MON$")
 
+# Reference files that fail because of a filed bug, keyed by a pattern on ``ReferenceFile.id``.
+# They are strict xfails: once the bug is fixed the test XPASSes, which fails, so remove the entry.
+KNOWN_BUGS = {
+    re.compile(r"^(yakutsk|beijing|nairobi|new_delhi)/"): (
+        "known bug #39: extremes crash on a month with no data"
+    ),
+    re.compile(r"^(oxford|dublin)/indices/dtr_(ANN|MON)$"): (
+        "known bug #40: dtr uses per-variable masks instead of the TM mask"
+    ),
+}
+
 
 @dataclass(frozen=True)
 class ReferenceFile:
@@ -41,7 +95,8 @@ class ReferenceFile:
 
     @property
     def path(self) -> Path:
-        return REFERENCE_DIR / self.run / STATION / self.folder / f"{STATION}_{self.name}.csv"
+        station = RUNS[self.run].station
+        return REFERENCE_DIR / self.run / station / self.folder / f"{station}_{self.name}.csv"
 
     @property
     def tier(self) -> Tier:
@@ -59,14 +114,20 @@ class ReferenceFile:
     def id(self) -> str:
         return f"{self.run}/{self.key}"
 
+    @property
+    def known_bug(self) -> str | None:
+        """Reason this file is expected to fail, if it is listed in ``KNOWN_BUGS``."""
+        return next((reason for pat, reason in KNOWN_BUGS.items() if pat.search(self.id)), None)
+
 
 def reference_files() -> list[ReferenceFile]:
     files = []
-    for run in RUNS:
+    for run in RUNS.values():
         for folder in FOLDERS:
-            for path in sorted((REFERENCE_DIR / run / STATION / folder).glob("*.csv")):
-                name = path.stem.removeprefix(f"{STATION}_")
-                files.append(ReferenceFile(run=run, folder=folder, name=name))
+            for path in sorted((run.output_dir / folder).glob("*.csv")):
+                name = path.stem.removeprefix(f"{run.station}_")
+                files.append(ReferenceFile(run=run.name, folder=folder, name=name))
         for name in QC_FILES:
-            files.append(ReferenceFile(run=run, folder="qc", name=name))
+            if (run.output_dir / "qc" / f"{run.station}_{name}.csv").exists():
+                files.append(ReferenceFile(run=run.name, folder="qc", name=name))
     return files

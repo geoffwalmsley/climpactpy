@@ -1,0 +1,11 @@
+"Description: ","Dates where precipitation > 200 mm or abs(temperature) > 50 degrees."
+"Station: ","nairobi_jkia_1961-2020"
+"Latitude: ","-1.32"
+"Longitude: ","36.92"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN
+1990-5-9,207,25.8,15.1
+1990-5-13,268,24.4,15.8
+2010-2-13,351.5,25.5,15.4

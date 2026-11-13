@@ -1,0 +1,11 @@
+"Description: ","Dates where the change in TX is > 20 degrees."
+"Station: ","alice_springs_1961-2020"
+"Latitude: ","-23.8"
+"Longitude: ","133.89"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TX
+1977-10-13,20.6
+2018-11-6,21.3
+2020-10-4,23.4

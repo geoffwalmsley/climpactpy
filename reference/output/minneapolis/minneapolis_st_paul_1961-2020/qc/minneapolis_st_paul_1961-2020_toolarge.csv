@@ -1,0 +1,9 @@
+"Description: ","Dates where precipitation > 200 mm or abs(temperature) > 50 degrees."
+"Station: ","minneapolis_st_paul_1961-2020"
+"Latitude: ","44.89"
+"Longitude: ","-93.23"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,Prec,TX,TN
+1987-7-23,232.4,32.8,20

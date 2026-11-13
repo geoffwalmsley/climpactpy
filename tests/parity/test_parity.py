@@ -3,6 +3,8 @@
 Files that no registered product builds are reported as xfail ("not yet ported").
 Once a product builds a file its comparison must pass; ``strict`` xfail is not used
 so that the summary shows progress without failing CI for unported files.
+
+Files listed in ``catalogue.KNOWN_BUGS`` are strict xfails pointing at the bug ticket.
 """
 
 from __future__ import annotations
@@ -19,7 +21,9 @@ FILES = reference_files()
 
 @pytest.mark.parity
 @pytest.mark.parametrize("ref", FILES, ids=[f.id for f in FILES])
-def test_parity(ref, station_outputs):
+def test_parity(ref, station_outputs, request):
+    if ref.known_bug:
+        request.applymarker(pytest.mark.xfail(reason=ref.known_bug, strict=True))
     outputs = station_outputs(ref.run)
     if ref.key not in outputs:
         pytest.xfail("not yet ported")

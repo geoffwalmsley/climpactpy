@@ -1,0 +1,9 @@
+"Description: ","Dates where the change in TX is > 20 degrees."
+"Station: ","nairobi_jkia_1961-2020"
+"Latitude: ","-1.32"
+"Longitude: ","36.92"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TX
+"NO LARGE TX JUMPS FOUND"

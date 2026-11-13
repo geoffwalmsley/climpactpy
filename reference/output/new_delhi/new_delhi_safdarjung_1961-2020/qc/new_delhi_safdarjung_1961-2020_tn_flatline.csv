@@ -1,0 +1,10 @@
+"Description: ","Dates where TX values have been repeated more than 5 times."
+"Station: ","new_delhi_safdarjung_1961-2020"
+"Latitude: ","28.58"
+"Longitude: ","77.2"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+"Date","TN","Number of duplicates"
+1981-9-15,25,6
+1981-12-17,7,6

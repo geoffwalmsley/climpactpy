@@ -1,0 +1,15 @@
+"Description: ","Dates where the change in TN is > 20 degrees."
+"Station: ","yakutsk_1961-2020"
+"Latitude: ","62.02"
+"Longitude: ","129.72"
+"Base_period: ","1971-2000"
+"Climpact_version: ","3.4.3"
+"Date_of_calculation: ","2026-11-13"
+Date,TN
+1965-3-20,-13.2
+1965-4-3,-29.4
+1968-3-1,-29.6
+1983-4-3,-27.6
+1986-2-27,-37.1
+1988-11-30,-19.5
+1990-4-12,-24.3

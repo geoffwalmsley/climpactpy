@@ -75,7 +75,8 @@ default `../climpact`). Each row of [`gridded/runs.csv`](gridded/runs.csv) is on
 input files in `gridded/input/` (`;`-separated), the netCDF names of TX, TN and precipitation,
 the base period, whether to compute a thresholds file (`thresholds`), the run whose
 thresholds file the indices use (`indices_thresholds`; empty: R computes the thresholds
-itself) and the indices left out of R's index run (`indices_exclude`, `;`-separated). A run
+itself), the indices left out of R's index run (`indices_exclude`, `;`-separated) and the
+only indices it computes (`indices`, `;`-separated; empty: all but the excluded). A run
 that uses another's thresholds file comes after it.
 
 The R outputs go to `gridded/output/<run>/`: `thresholds.nc`, `indices/<index>_<FREQ>_climpactpy_historical_NA_<years>.nc`
@@ -94,11 +95,16 @@ wrapper's `thresholds.name.map`), and author data `climpactpy reference` / `CPY`
 | `grid_sample` | 3 x 4 cut of Climpact's `www/sample_data/climpact.sampledata.gridded.1991-2010.nc` (south-east Australia) | 1991-2010, base 1991-2010 (the wrapper's defaults) | A real CF file: K, kg m-2 d-1, time in hours since 1800 with `time_bnds` |
 | `grid_future` | The cells of `grid_stations` for 2001-2020, stored the same way | 2001-2020; indices only, with `grid_stations`' thresholds file (base 1971-2000) | R's thresholds-file path, which it accepts only for data with no day in the base period (otherwise `check.quantile.validity` stops: "Temperature in-base quantiles must contain 10th and 90th percentiles") |
 
+| `grid_filled` | `grid_stations` with Beijing's series in the all-missing cell; the sparse cell instead misses 20 June-20 July of every base year | 1966-2005, base 1971-2000; only `hw`, `hwEHF`, `spi`, `spei` | `hw` and `hwEHF` on a grid with missing data: missing 15-day thresholds in the northern season, the dry and gappy cells, Nairobi with 53% of the base period |
+| `grid_filled_future` | The cells of `grid_filled` for 2001-2020 | 2001-2020; the four only, with `grid_filled`'s thresholds file | The thresholds-file paths of `hw` (`tx90thresh_15days`, `tn90thresh_15days`), `hwEHF` (`tavg95thresh`, `tavg05thresh`, `ehf85thresh`) and SPI/SPEI (`txraw`, `tnraw`, `precraw`) |
+
 R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an
 all-missing cell, so `grid_stations` and `grid_future` leave those two indices out (86 index
-files each; `grid_sample` has all 88).
+files each; `grid_sample` has all 88). It also stops on `hwEHF` when a cell has TAVG on less
+than half of the base period (`climdex.hwEHF` returns `NULL`), which is why `grid_filled`
+does not keep `grid_stations`' sparse cell.
 
-The inputs (2.2 MB) and outputs (2.1 MB of thresholds, 9.2 MB of index files) are committed.
+The inputs (3.9 MB) and outputs (4.2 MB of thresholds, 9.8 MB of index files) are committed.
 R writes uncompressed files with one chunk per time step; `run_r_gridded.sh` repacks them with
 `nccopy -d 9 -s` and larger chunks, which changes neither the variables, values nor attributes.
 Re-running changes the `file_created` and `history` attributes, so only commit a re-run when

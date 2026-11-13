@@ -29,6 +29,17 @@ Three runs (``reference/gridded/runs.csv``):
     ``create.indices.from.files`` accepts a thresholds file only for data with no day
     in the base period.
 
+``grid_filled``, ``grid_filled_future``
+    ``grid_stations`` and ``grid_future`` with the all-missing cell given Beijing's
+    series (``FILLED``), so that the grid has missing data but no all-missing cell: R
+    stops on the ``hw`` and ``hwEHF`` files of a grid with an all-missing cell, and on
+    ``hwEHF`` for a cell with less than half of the base period (as the sparse cell). So
+    the sparse cell instead misses 20 June to 20 July of every base year
+    (``SEASONAL_GAP``): its 15-day-window thresholds are missing for days of the
+    northern heatwave season, but EHF is computed. The dry and gappy cells are as in
+    ``grid_stations``. Only ``hw``, ``hwEHF``, ``spi`` and ``spei`` are computed for
+    them, the future grid with ``grid_filled``'s thresholds file.
+
 ``grid_sample``
     A 3 x 4 cut of Climpact's own sample, ``www/sample_data/
     climpact.sampledata.gridded.1991-2010.nc`` (south-eastern Australia), with its
@@ -78,7 +89,9 @@ CELLS = [
         "sydney_observatory_hill_1936-2015",
     ],
 ]
+FILLED = "beijing_1961-2020"  # grid_filled: the series of the all-missing cell
 SPARSE = (0, 2)  # yakutsk: about 10% of base-period values kept
+SEASONAL_GAP = ((6, 20), (7, 20))  # grid_filled: (month, day) range missing in base years
 DRY = (2, 0)  # alice springs: no wet day in the base period
 GAPS = (2, 2)  # oxford: TX missing 1980-1982, TN missing 1990
 TIME_UNITS = "days since 1950-01-01 00:00:00"
@@ -91,7 +104,7 @@ FUTURE = (2001, 2020)
 
 
 def station_cube(
-    start: int = START, end: int = END, degrade: bool = True
+    start: int = START, end: int = END, degrade: bool = True, filled: bool = False
 ) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
     dates = pd.date_range(f"{start}-01-01", f"{end}-12-31", freq="D")
     shape = (dates.size, len(LATS), len(LONS))
@@ -99,7 +112,9 @@ def station_cube(
     for i, row in enumerate(CELLS):
         for j, name in enumerate(row):
             if name is None:
-                continue
+                if not filled:
+                    continue
+                name = FILLED
             df = read_station_file(STATIONS / f"{name}.txt").drop_duplicates("date", keep="last")
             df = df.set_index("date").reindex(dates)
             for k in cube:
@@ -110,6 +125,10 @@ def station_cube(
     in_base = (dates.year >= BASE[0]) & (dates.year <= BASE[1])
     rng = np.random.default_rng(29)
     drop = in_base & (rng.random(dates.size) > 0.1)
+    if filled:
+        (m1, d1), (m2, d2) = SEASONAL_GAP
+        md = dates.month * 100 + dates.day
+        drop = in_base & (md >= m1 * 100 + d1) & (md <= m2 * 100 + d2)
     for k in cube:
         cube[k][drop, SPARSE[0], SPARSE[1]] = np.nan
     wet = cube["prcp"][:, DRY[0], DRY[1]]
@@ -164,8 +183,13 @@ def _coords(nc: netCDF4.Dataset, dates: pd.DatetimeIndex) -> None:
     )
 
 
-def write_station_grid(name: str = "grid_stations", future: bool = False) -> None:
-    dates, cube = station_cube(*FUTURE, degrade=False) if future else station_cube()
+def write_station_grid(
+    name: str = "grid_stations", future: bool = False, filled: bool = False
+) -> None:
+    if future:
+        dates, cube = station_cube(*FUTURE, degrade=False, filled=filled)
+    else:
+        dates, cube = station_cube(filled=filled)
     CHUNKS = (dates.size, 1, 1)  # noqa: N806 - one time series per chunk compresses best
     dims = ("time", "lat", "lon")
     with netCDF4.Dataset(OUT / f"{name}_tas.nc", "w", format="NETCDF4") as nc:
@@ -256,6 +280,8 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     write_station_grid()
     write_station_grid("grid_future", future=True)
+    write_station_grid("grid_filled", filled=True)
+    write_station_grid("grid_filled_future", future=True, filled=True)
     write_sample_grid(args.climpact)
     for path in sorted(OUT.glob("*.nc")):
         print(f"{path.relative_to(HERE.parent.parent)}: {path.stat().st_size / 1e6:.2f} MB")

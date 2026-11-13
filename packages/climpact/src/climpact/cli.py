@@ -515,7 +515,7 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     from dataclasses import replace
 
     from climpact.gridded import open_grid, write_grid_indices
-    from climpact.gridded.indices import NOT_PORTED, WRAPPER_PARAMS, index_files
+    from climpact.gridded.indices import WRAPPER_PARAMS, index_files
     from climpact.thresholds import InsufficientBaseData
 
     for path in args.input_files:
@@ -538,13 +538,10 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
         },
     )  # fmt: skip
     if args.indices:
-        known = {f.index for f in index_files(params, include_unported=True)}
+        known = {f.index for f in index_files(params)}
         unknown = sorted(set(args.indices) - known)
         if unknown:
             parser.error(f"unknown indices {unknown}; known: {' '.join(sorted(known))}")
-        skipped = sorted(set(args.indices) & set(NOT_PORTED))
-        if skipped:
-            print(f"Not yet ported, not written: {' '.join(skipped)}")
     names = {"tasmax": args.tmax, "tasmin": args.tmin, "pr": args.prec}
     try:
         inp = open_grid(args.input_files, names, max_values=int(args.max_values * 1e6))

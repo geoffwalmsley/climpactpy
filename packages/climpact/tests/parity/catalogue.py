@@ -160,6 +160,7 @@ class GridRun:
     thresholds: bool  # R's thresholds file was made for this run
     indices_thresholds: str  # run whose thresholds file R's indices used ("": none)
     indices_exclude: tuple[str, ...]  # indices left out of R's run
+    indices: tuple[str, ...]  # the only indices R computed (empty: all but the excluded)
 
     @property
     def input_paths(self) -> list[Path]:
@@ -196,6 +197,7 @@ def _read_grid_runs() -> dict[str, GridRun]:
                 thresholds=row["thresholds"] == "yes",
                 indices_thresholds=row["indices_thresholds"],
                 indices_exclude=tuple(x for x in row["indices_exclude"].split(";") if x),
+                indices=tuple(x for x in row["indices"].split(";") if x),
             )
             for row in csv.DictReader(f)
         }

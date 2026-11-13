@@ -5,8 +5,8 @@ written by :func:`climpact.gridded.write_grid_indices` must have the same name, 
 each index variable (and ``day_of_<index>``) identical values (``EXACT``: R stores
 float32, so both are rounded to float32 the same way), the same missing values (the
 fill value, and NaN where R stores NaN) and the same layout and attributes, apart from
-the run-dependent ones. Files of indices not ported yet (``hw``, ``hwEHF``, ``spi``,
-``spei``) are expected failures.
+the run-dependent ones. Runs whose R reference computed only some indices
+(``runs.csv``'s ``indices`` column) are computed for those only.
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ import numpy as np
 import pytest
 
 from climpact.gridded import open_grid, write_grid_indices
-from climpact.gridded.indices import NOT_PORTED
 
 from .catalogue import GRID_RUNS
 from .test_gridded import AUTHOR, PYTHON_ONLY, R_ONLY, RUN_DEPENDENT, _attrs, _same
@@ -50,11 +49,6 @@ def _key(name: str) -> str:
     return "_".join(name.split("_")[:2])
 
 
-def _expect_ported(name: str) -> None:
-    if name.split("_")[0] in NOT_PORTED:
-        pytest.xfail("not yet ported: heatwaves, EHF, SPI and SPEI on grids (#87)")
-
-
 @pytest.fixture(scope="session")
 def grid_indices_dir(tmp_path_factory):
     """Factory returning the directory of the index files Python writes for a run."""
@@ -66,9 +60,8 @@ def grid_indices_dir(tmp_path_factory):
             # Small blocks (one row) and batches, and two threads, so all are exercised.
             inp = open_grid(spec.input_paths, spec.names, max_values=4 * 3 * 14610)
             out = tmp_path_factory.mktemp(f"grid_indices_{run}")
-            template = next(spec.indices_dir.glob("fd_ANN_*.nc")).name.replace(
-                "fd_ANN", "var_daily"
-            )
+            name = next(spec.indices_dir.glob("*.nc")).name
+            template = "_".join(["var", "daily", *name.split("_")[2:]])
             write_grid_indices(
                 inp,
                 out,
@@ -79,6 +72,7 @@ def grid_indices_dir(tmp_path_factory):
                 author=AUTHOR,
                 workers=2,
                 cells_per_batch=3,
+                indices=spec.indices or None,
             )
             cache[run] = out
         return cache[run]
@@ -91,7 +85,6 @@ def grid_indices_dir(tmp_path_factory):
     ("run", "name", "var"), VARIABLES, ids=[f"{r}/{_key(n)}/{v}" for r, n, v in VARIABLES]
 )
 def test_gridded_indices(run, name, var, grid_indices_dir):
-    _expect_ported(name)
     path = grid_indices_dir(run) / name
     assert path.exists(), f"{name} not written"
     with netCDF4.Dataset(GRID_RUNS[run].indices_dir / name) as r, netCDF4.Dataset(path) as py:
@@ -121,7 +114,6 @@ def test_gridded_indices(run, name, var, grid_indices_dir):
 def test_gridded_indices_layout(run, name, grid_indices_dir):
     """Dimensions, variables (order, types, values of the coordinates) and attributes
     match R's file."""
-    _expect_ported(name)
     path = grid_indices_dir(run) / name
     assert path.exists(), f"{name} not written"
     with netCDF4.Dataset(GRID_RUNS[run].indices_dir / name) as r, netCDF4.Dataset(path) as py:

@@ -12,17 +12,18 @@
 # Usage (run from the root of a writable copy of the climpact repo):
 #   Rscript run_gridded_indices.R --files a.nc[,b.nc] --outdir dir [--template var_daily_m_e_r_1966-2005.nc] \
 #     [--tmax tasmax] [--tmin tasmin] [--prec pr] [--base_start 1971] [--base_end 2000] \
-#     [--thresholds thresholds.nc] [--exclude hw,hwEHF]
+#     [--thresholds thresholds.nc] [--exclude hw,hwEHF] [--indices hw,hwEHF,spi,spei]
 #
 # --exclude leaves indices out (climdex.vars.subset is every other index of
 # server/climate.indices.csv): R stops in write.climdex.results on the hw and hwEHF
-# files of any grid with an all-missing cell.
+# files of any grid with an all-missing cell. --indices computes only those indices
+# (climdex.vars.subset, less any excluded).
 
 suppressPackageStartupMessages(library(climdex.pcic.ncdf))
 
 args <- commandArgs(trailingOnly = TRUE)
 opt <- list(files = NULL, outdir = NULL, template = "", tmax = "tasmax", tmin = "tasmin",
-            prec = "pr", base_start = 1971, base_end = 2000, thresholds = "", exclude = "",
+            prec = "pr", base_start = 1971, base_end = 2000, thresholds = "", exclude = "", indices = "",
             institution = "climpactpy reference", institution_id = "CPY")
 i <- 1
 while (i <= length(args)) {
@@ -45,9 +46,10 @@ vars <- c(prec = opt$prec, tmax = opt$tmax, tmin = opt$tmin)
 base.range <- c(as.numeric(opt$base_start), as.numeric(opt$base_end))
 author.data <- list(institution = opt$institution, institution_id = opt$institution_id)
 subset <- NULL
-if (nzchar(opt$exclude)) {
-  all.indices <- unique(read.csv("server/climate.indices.csv", sep = "\t", stringsAsFactors = FALSE)$Short.name)
-  subset <- setdiff(all.indices, strsplit(opt$exclude, ",")[[1]])
+if (nzchar(opt$exclude) || nzchar(opt$indices)) {
+  subset <- unique(read.csv("server/climate.indices.csv", sep = "\t", stringsAsFactors = FALSE)$Short.name)
+  if (nzchar(opt$indices)) subset <- intersect(subset, strsplit(opt$indices, ",")[[1]])
+  subset <- setdiff(subset, strsplit(opt$exclude, ",")[[1]])
 }
 thresholds.files <- if (nzchar(opt$thresholds)) opt$thresholds else NULL
 

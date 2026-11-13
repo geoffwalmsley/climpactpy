@@ -1,4 +1,6 @@
-run,files,tmax,tmin,prec,base_start,base_end,thresholds,indices_thresholds,indices_exclude
-grid_stations,grid_stations_tas.nc;grid_stations_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,hw;hwEHF
-grid_sample,grid_sample.nc,tmax,tmin,precip,1991,2010,yes,,
-grid_future,grid_future_tas.nc;grid_future_pr.nc,tasmax,tasmin,pr,1971,2000,no,grid_stations,hw;hwEHF
+run,files,tmax,tmin,prec,base_start,base_end,thresholds,indices_thresholds,indices_exclude,indices
+grid_stations,grid_stations_tas.nc;grid_stations_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,hw;hwEHF,
+grid_sample,grid_sample.nc,tmax,tmin,precip,1991,2010,yes,,,
+grid_future,grid_future_tas.nc;grid_future_pr.nc,tasmax,tasmin,pr,1971,2000,no,grid_stations,hw;hwEHF,
+grid_filled,grid_filled_tas.nc;grid_filled_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,,hw;hwEHF;spi;spei
+grid_filled_future,grid_filled_future_tas.nc;grid_filled_future_pr.nc,tasmax,tasmin,pr,1971,2000,no,grid_filled,,hw;hwEHF;spi;spei

@@ -3,7 +3,8 @@
 #   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_hw_aspects.R
 # Rows are HWM, HWA, HWN, HWD, HWF; columns are the years 2001-2003. The output is copied
-# into tests/test_heatwaves.py.
+# into tests/test_heatwaves.py, except the whole-season heatwave (north 2002) and the series
+# with no heatwave, where Python deliberately differs from R (#51).
 suppressMessages(library(climdex.pcic))
 src <- readLines("/climpact/server/climpact.etsci-functions.r")
 a <- grep("^get.hw.aspects <- function", src)
@@ -28,7 +29,7 @@ f <- set(f, "2001-04-29", "2001-05-02", TRUE)  # began before the season, 2 days
 f <- set(f, "2001-06-10", "2001-06-12", TRUE); d <- set(d, "2001-06-10", "2001-06-12", c(30, 31, 32))
 f <- set(f, "2001-07-01", "2001-07-03", TRUE); d <- set(d, "2001-07-01", "2001-07-03", 31)  # same mean
 f <- set(f, "2001-09-20", "2001-10-31", TRUE)  # runs past the season: cut 14 days after it
-f <- set(f, "2002-04-20", "2002-10-10", TRUE)  # covers the whole season: not counted
+f <- set(f, "2002-04-20", "2002-10-10", TRUE)  # covers the whole season: not counted (Python counts it, #51)
 f <- set(f, "2003-04-28", "2003-05-01", TRUE)  # began before the season, 1 day inside
 f <- set(f, "2003-08-01", "2003-08-08", TRUE); f <- set(f, "2003-08-04", "2003-08-04", NA)
 d <- set(d, "2003-08-06", "2003-08-06", NA)
@@ -41,5 +42,5 @@ f <- set(f, "2002-03-28", "2002-04-20", TRUE)  # runs past the season: cut 14 da
 f <- set(f, "2002-11-05", "2002-11-07", TRUE)
 show("south", f, d, FALSE, c(1, 1, NA))
 
-# No heatwave at all: HWN and HWF are missing too.
+# No heatwave at all: HWN and HWF are missing too (Python gives 0, #51).
 show("none", rep(FALSE, length(dates)), base.data, TRUE)

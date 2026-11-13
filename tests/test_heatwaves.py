@@ -1,8 +1,11 @@
 """Heatwave aspects against values printed by R's get.hw.aspects (tests/data/r_hw_aspects.R).
 
 The synthetic series exercise branches no reference station reaches: a heatwave cut 14
-days after the season, one covering the whole season (not counted), ties in HWM, missing
-flags and data inside a heatwave, and a run with no heatwave at all.
+days after the season, ties in HWM, and missing flags and data inside a heatwave.
+
+Two R behaviours are deliberately not copied (#51), so those values are worked out here
+instead of taken from R: a heatwave covering the whole season (R: not counted) and a
+series with no heatwave at all (R: HWN and HWF missing in every year).
 """
 
 import numpy as np
@@ -10,6 +13,7 @@ import pandas as pd
 import pytest
 
 from climpact.products.heatwaves import heatwave_flags, hw_aspects, rle
+from climpact.rnumerics import r_mean
 
 NA = np.nan
 DATES = pd.date_range("2001-01-01", "2003-12-31", freq="D")
@@ -20,6 +24,12 @@ BASE = (200 + (np.arange(1, DATES.size + 1) * 37) % 101) / 10
 
 def put(x, start, end, value):
     x[(DATES >= start) & (DATES <= end)] = value
+
+
+def one_heatwave(start, end, data=BASE):
+    """HWM, HWA, HWN, HWD, HWF of a season whose only heatwave covers start..end."""
+    days = data[(DATES >= start) & (DATES <= end)]
+    return [r_mean(days), days.max(), 1, days.size, days.size]
 
 
 def north():
@@ -46,13 +56,15 @@ def south():
     return f, BASE.copy()
 
 
-# Rows HWM, HWA, HWN, HWD, HWF; columns 2001-2003 (R output in r_hw_aspects.R).
+# Rows HWM, HWA, HWN, HWD, HWF; columns 2001-2003 (R output in r_hw_aspects.R), except
+# 2002, where the heatwave covers the whole season: R gives NA, NA, 0, NA, 0 (#51).
+WHOLE_2002 = one_heatwave("2002-05-01", "2002-09-30")  # its in-season days
 R_NORTH = [
-    [27.955500000000001, NA, 25.966666666666669],
-    [32.0, NA, 27.600000000000001],
-    [4, 0, 3],
-    [25, NA, 4],
-    [33, 0, 8],
+    [27.955500000000001, WHOLE_2002[0], 25.966666666666669],
+    [32.0, WHOLE_2002[1], 27.600000000000001],
+    [4, 1, 3],
+    [25, 153, 4],
+    [33, 153, 8],
 ]
 R_SOUTH = [
     [25.524999999999999, 26.166666666666668, NA],
@@ -68,14 +80,55 @@ R_SOUTH = [
     [
         (north, True, 1.0, R_NORTH),
         (south, False, np.array([1, 1, NA]), R_SOUTH),
-        (lambda: (np.zeros(DATES.size), BASE), True, 1.0, [[NA] * 3] * 5),
     ],
-    ids=["north", "south", "none"],
+    ids=["north", "south"],
 )
 def test_hw_aspects_match_r(make, northern, namask, expected):
     flags, data = make()
     out = hw_aspects(flags, data, YEARS, MONTHS, northern, namask)
     np.testing.assert_array_equal(out, np.array(expected, dtype=float))
+
+
+NO_HEATWAVE = [NA, NA, 0, NA, 0]
+
+
+@pytest.mark.parametrize(
+    ("northern", "start", "end", "year", "counted"),
+    [
+        # Under way before the season and still running after it: its in-season days.
+        (True, "2002-04-20", "2002-10-10", 1, ("2002-05-01", "2002-09-30")),
+        (False, "2001-10-20", "2002-04-30", 0, ("2001-11-01", "2002-03-31")),
+        # Starting on the season's first day: cut 14 days after the season, as any
+        # heatwave that begins in the season and runs past it.
+        (True, "2002-05-01", "2002-11-30", 1, ("2002-05-01", "2002-10-14")),
+        (False, "2001-11-01", "2002-05-31", 0, ("2001-11-01", "2002-04-14")),
+    ],
+    ids=["north-under-way", "south-under-way", "north-first-day", "south-first-day"],
+)
+def test_heatwave_covering_the_whole_season_counts(northern, start, end, year, counted):
+    flags = np.zeros(DATES.size)
+    put(flags, start, end, 1)
+    out = hw_aspects(flags, BASE, YEARS, MONTHS, northern)
+    expected = [NO_HEATWAVE] * 3
+    expected[year] = one_heatwave(*counted)
+    if not northern:
+        expected[2] = [NA] * 5  # the last southern season is incomplete
+    np.testing.assert_array_equal(out, np.array(expected, dtype=float).T)
+
+
+@pytest.mark.parametrize("northern", [True, False], ids=["north", "south"])
+def test_no_heatwave_at_all_gives_zero_heatwaves(northern):
+    out = hw_aspects(np.zeros(DATES.size), BASE, YEARS, MONTHS, northern)
+    expected = [NO_HEATWAVE, NO_HEATWAVE, NO_HEATWAVE if northern else [NA] * 5]
+    np.testing.assert_array_equal(out, np.array(expected, dtype=float).T)
+
+
+def test_season_without_usable_values_is_missing():
+    data = BASE.copy()
+    put(data, "2002-05-01", "2002-09-30", NA)  # e.g. no data or no threshold
+    out = hw_aspects(np.zeros(DATES.size), data, YEARS, MONTHS, True)
+    expected = [NO_HEATWAVE, [NA] * 5, NO_HEATWAVE]
+    np.testing.assert_array_equal(out, np.array(expected, dtype=float).T)
 
 
 def test_all_missing_data_gives_all_missing():

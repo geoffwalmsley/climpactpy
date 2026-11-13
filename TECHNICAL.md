@@ -783,15 +783,24 @@ Hemisphere and November Y to March Y+1 in the Southern Hemisphere (latitude 0 is
 `lat > 0`). R looks at the season plus the following 90 days; days past the end of the
 series are missing.
 
-**Which heatwaves count** (`season_aspects`), all reproduced:
+**Which heatwaves count** (`season_aspects`):
 
 - A run that ends inside the season counts, including the in-season part of one that began
   before the season. If only 1 or 2 days of such a run fall in the season, R adds them by a
-  separate test, so a heatwave can count with a duration of 1 or 2 days.
+  separate test, so a heatwave can count with a duration of 1 or 2 days (reproduced; see
+  below).
 - The first run that ends after the season counts if it began inside it, cut so that it
-  ends at most 14 days after the season. The cut applies to HWM, HWA, HWD and HWF.
-- A run already under way on the first day of the season that also ends after the season
-  is not counted at all (`extvals[1] > 1` excludes it).
+  ends at most 14 days after the season. The cut applies to HWM, HWA, HWD and HWF
+  (reproduced).
+- A run that is under way on the first day of the season and ends after the season. R does
+  not count it at all: `extvals[1] > 1` (`climpact.etsci-functions.r`, line 827) excludes
+  the first run of the extended season, so the season gets HWN 0. **Not copied** (decided
+  2026-11-13, #51): Python counts it as one heatwave. If it was already under way the day
+  before the season (`flags[start - 1] == 1`) only its in-season days count, as for any
+  heatwave that began before the season, so HWD = HWF = the season length (153 days in the
+  north, 151 in the south). If it began on the season's first day, it began inside the
+  season and the 14-day cut applies. No season of any reference run has such a heatwave,
+  so no reference file changes.
 
 **Aspects.** HWN is the number of heatwaves; HWF the sum of their lengths; HWD the longest;
 HWM the mean of the heatwave means (R's extended-precision `mean`, `r_mean`); HWA the peak
@@ -801,14 +810,22 @@ HWD are missing.
 
 **Missing data.**
 
-- If HWM is missing in every year, HWN and HWF are made missing in every year too. R does
-  this for stations without thresholds, but it also applies when a station has no heatwave
-  at all.
+- R (`get.hw.aspects`, after the season loop) makes HWN and HWF missing in every year when
+  HWM is missing in every year. It does this for stations without thresholds, but it also
+  catches a station with no heatwave in any year, which gets missing instead of 0. **Not
+  copied** (decided 2026-11-13, #51). Python drops the rule. Instead, `hw_aspects` makes a
+  season missing when none of its days has a usable value, and `tx90_tn90_heatwaves`
+  treats a day without a threshold as having no usable value (thresholds are only read on
+  heatwave days, so nothing else changes). A station without base-period thresholds
+  writes no heatwave files at all (`InsufficientBaseData`), in R as in Python. On all 15
+  reference runs every Tx90 and Tn90 series has a heatwave in at least one year and no
+  threshold is missing, so R's rule never fires and no reference file changes.
 - In the Southern Hemisphere the last year is always missing (its season is incomplete).
 - Each year is multiplied by the variable's climdex annual mask (`namasks$annual$tmax` for
   TX90, `tmin` for TN90). Missing days within the season are not otherwise checked (R's
   25-day rule is commented out). A southern season is masked by its first year only, so
-  January-March data missing in Y+1 do not affect year Y.
+  January-March data missing in Y+1 do not affect year Y. **Kept deliberately for R parity**
+  (decided 2026-11-13, #51): see below.
 - All-missing files are still written (see [Writing output files](#writing-output-files)).
   On `new_delhi`, no TN year passes the climdex annual rule, so all five `TN90-` files are
   `-99.9` throughout, in R as in Python.
@@ -816,20 +833,32 @@ HWD are missing.
 **Result.** All 10 files pass on all 14 runs where R wrote them (none for `nairobi`) and
 are text-identical to R's: `HWN`, `HWF` and `HWD` at `EXACT`, `HWM` and `HWA` at `CLOSE`.
 The reference runs exercise the pre-season and post-season branches but not the 14-day cut,
-the whole-season run, HWM ties, or missing flags and values inside a heatwave (possible for
-EHF); `tests/test_heatwaves.py` checks those against `get.hw.aspects` output printed by R
-(`tests/data/r_hw_aspects.R`) for both hemispheres.
+the whole-season run, HWM ties, a station without heatwaves, or missing flags and values
+inside a heatwave (possible for EHF). `tests/test_heatwaves.py` checks the reproduced
+branches against `get.hw.aspects` output printed by R (`tests/data/r_hw_aspects.R`) for
+both hemispheres; for the two behaviours not copied it checks the corrected values
+instead (the whole-season heatwave in both hemispheres, under way before the season and
+starting on its first day; a series without heatwaves; a season without usable values).
 
-**R behaviour that looks like a bug (reproduced, pending a decision).** Each is reproduced
-so that the files match R's:
+**R behaviour kept deliberately for R parity** (decided 2026-11-13, #51). These look like
+R bugs but are reproduced so that the files match R's:
 
-1. A heatwave that runs through the whole season (under way on its first day and ending
-   after its last) is not counted: HWN 0 for that season.
-2. HWN and HWF become missing for every year when no year has a heatwave, instead of 0.
-3. A southern season (November-March) is masked only by the annual missing-data mask of
-   the year it starts in.
-4. A heatwave that began before the season can count with only 1 or 2 days, below the
-   3-day minimum.
+1. **Southern season masked by its first year only.** `get.hw.aspects` multiplies year Y's
+   aspects by `namask[Y]` (`calculate.hw`, `namasks$annual$tmax`/`tmin`), but a southern
+   season runs from November Y to March Y+1. Missing data in January-March Y+1 never mask
+   year Y, and year Y+1's mask applies to a season that is mostly in Y+1's November and
+   December. `hw_aspects` multiplies by the same per-year mask. A season can therefore
+   have a value although up to three of its months fail the climdex monthly rule.
+2. **Pre-season heatwave with 1 or 2 days in the season.** The two tests after `truevals`
+   in `get.hw.aspects` (`extended_boolean[1:2] == TRUE, extended_boolean[3] == FALSE` and
+   `extended_boolean[1] == TRUE, extended_boolean[2] == FALSE`, each with the days before
+   the season TRUE) add the first run of the season even when only 1 or 2 of its days are
+   in the season. `season_aspects` does the same, so a season can have HWD 1 or 2, below
+   the 3-day minimum, and those days count in HWN, HWF, HWM and HWA.
+
+R behaviour not copied (also #51) is described above: the whole-season heatwave and the
+all-missing HWN/HWF; both are listed under
+[R behaviour not to be copied](#r-behaviour-not-to-be-copied).
 
 ### Station input
 
@@ -874,6 +903,14 @@ output is ported.
 - `percent.days.op.threshold` stops with an error when the series has exactly one
   base-period year and at least 720 days (`byrs - 1 = 0`). Python uses the out-of-base
   thresholds for that year (see [In-base bootstrap](#in-base-bootstrap)).
+- `get.hw.aspects` does not count a heatwave that is under way on the first day of the
+  extended season and ends after it (`extvals[1] > 1`), so the season gets HWN 0. Python
+  counts it (decided 2026-11-13, #51). No reference run is affected (see
+  [Heatwaves](#heatwaves-tx90-tn90)).
+- `get.hw.aspects` makes HWN and HWF missing in every year when HWM is missing in every
+  year, so a station without any heatwave gets missing instead of 0. Python gives 0 and
+  makes a season missing only when it has no usable value (decided 2026-11-13, #51). No
+  reference run is affected (see [Heatwaves](#heatwaves-tx90-tn90)).
 
 ## Performance
 

@@ -17,15 +17,18 @@ R quirks reproduced (see TECHNICAL.md, "Heatwaves"):
   is cut out, and a missing flag counts as FALSE (``select.blocks.gt.length``).
 - A heatwave that started before the season counts with only its in-season days.
 - A heatwave that starts in the season and runs past its end counts, cut to end at
-  most 14 days after the season ends. Only the first such run is considered, and a
-  heatwave that already runs on the first day of the season and past its end is not
-  counted at all.
+  most 14 days after the season ends. Only the first such run is considered.
 - HWA is the peak of the heatwave with the highest mean (the first, on ties), not
   the hottest day of the season.
-- HWN and HWF are missing for every year when HWM is missing for every year.
 - In the Southern Hemisphere the last year is missing (its summer is incomplete).
-- Values are multiplied by the variable's annual climdex missing-data mask; a
-  season's own missing days are not otherwise checked.
+- Values are multiplied by the variable's annual climdex missing-data mask (for a
+  southern season, that of the year it starts in); a season's own missing days are not
+  otherwise checked.
+
+R behaviour not copied (#51): R drops a heatwave that runs through the whole season
+(HWN 0), and makes HWN and HWF missing in every year when no year has a heatwave.
+Here the first counts (its in-season days if it began before the season), and HWN and
+HWF are 0 in a season without heatwaves unless the season has no usable value.
 """
 
 from __future__ import annotations
@@ -129,10 +132,19 @@ def season_aspects(
 
     # The first heatwave that ends after the season, counted if it began inside it.
     extvals = np.flatnonzero((lengths >= MIN_LENGTH) & (ends > last_day) & is_true) + 1
-    if ends.size > 1 and extvals.size and extvals[0] > 1 and ends[extvals[0] - 2] < last_day:
+    e, limit = None, season_length + MAX_DAYS_AFTER_SEASON
+    if extvals.size and extvals[0] == 1:
+        # Not copied from R (#51): a heatwave running on the season's first day and past
+        # its last. R's `extvals[1] > 1` drops it (HWN 0). Count it: only its in-season
+        # days if it was already under way before the season (as a pre-season heatwave),
+        # otherwise it began on the first day and the 14-day cut applies as below.
+        e = 1
+        if flags[start - 1] == 1:
+            limit = season_length
+    elif ends.size > 1 and extvals.size and ends[extvals[0] - 2] < last_day:
         e = int(extvals[0])
+    if e is not None:
         truevals.append(e)
-        limit = season_length + MAX_DAYS_AFTER_SEASON
         if ends[e - 1] > limit:
             lengths[e - 1] -= ends[e - 1] - limit
             ends = np.cumsum(lengths)
@@ -179,8 +191,10 @@ def hw_aspects(
     order of :data:`ASPECTS`.
 
     ``flags`` (1/0/NaN, runs of fewer than three days already removed), ``data``,
-    ``years`` and ``months`` are daily, without 29 February. ``namask`` is the annual
-    missing-data mask (1 or NaN per year) the result is multiplied by.
+    ``years`` and ``months`` are daily, without 29 February; ``data`` is missing on
+    days whose value or threshold is missing. ``namask`` is the annual missing-data
+    mask (1 or NaN per year) the result is multiplied by. A season with no usable value
+    is missing.
     """
     uniq = np.unique(years)
     out = np.full((len(ASPECTS), uniq.size), np.nan)
@@ -188,11 +202,14 @@ def hw_aspects(
         return out
     for k, year in enumerate(range(int(uniq[0]), int(uniq[-1]) + 1)):
         summer = summer_days(years, months, year, northern)
+        # Not copied from R (#51): R makes HWN and HWF missing in every year when HWM is
+        # missing in every year, which also catches a station with no heatwave at all.
+        # Here only a season without a single usable value is missing.
+        if np.isnan(data[summer]).all():
+            continue
         out[:, k] = season_aspects(flags, data, summer)
 
     out[[1, 3]] = np.where(np.isneginf(out[[1, 3]]), np.nan, out[[1, 3]])
-    if np.isnan(out[0]).all():  # no heatwave magnitude at all: HWN and HWF missing too
-        out[[2, 4]] = np.nan
     if not northern:  # the last summer is incomplete
         out[:, -1] = np.nan
     return out * namask
@@ -233,7 +250,12 @@ def tx90_tn90_heatwaves(run: StationRun) -> dict[str, pd.DataFrame]:
     results = {}
     for label, var in (("TX90", "tasmax"), ("TN90", "tasmin")):
         x = ds[var].values[keep]
-        flags = heatwave_flags(x, th.heatwave[var][jday])
+        thr = th.heatwave[var][jday]
+        flags = heatwave_flags(x, thr)
+        # A day without a threshold cannot be a heatwave day, and it is not a usable
+        # value either: a season with no threshold is missing, not HWN 0 (#51). Values
+        # are only read on heatwave days, so this changes nothing else.
+        x = np.where(np.isnan(thr), np.nan, x)
         namask = np.where(valid_mask(ds[var], freq="YS").values, 1.0, np.nan)
         results[label] = hw_aspects(flags, x, years, months, northern, namask)
 

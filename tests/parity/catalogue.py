@@ -68,7 +68,6 @@ _EXACT = re.compile(
     r"|wsdi\d*|csdi\d*|tx\d+tn\d+|txb\d+tnb\d+"
     r"|(TX90|TN90|EHF)-(HWN|HWF|HWD))_(ANN|MON)$"
 )
-_FITTED = re.compile(r"^\d+month_(spi|spei)_MON$")
 
 # Reference files that fail because of a filed bug, keyed by a pattern on ``ReferenceFile.id``.
 # They are strict xfails: once the bug is fixed the test XPASSes, which fails, so remove the entry.
@@ -95,8 +94,6 @@ class ReferenceFile:
 
     @property
     def tier(self) -> Tier:
-        if _FITTED.match(self.name):
-            return Tier.FITTED
         if self.folder == "qc" or _EXACT.match(self.name):
             return Tier.EXACT
         return Tier.CLOSE

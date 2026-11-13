@@ -13,6 +13,11 @@ can be missing for every year; the products leave out the whole group otherwise.
 ``write.hwEHF.csv`` does the same for the eight EHF heatwave files and the daily EHF and
 ECF series (``EHFdaily``, ``ECFdaily``, separated by ``","``), unless HWF is missing in
 every year.
+
+SPI and SPEI are written by ``write.precindex.csv`` (``services/write_prec_index.R``):
+``time, spi`` or ``time, spei`` with the same header block, one file per scale
+(``3month_spi_MON`` ...), all four written unless every value of all four is missing,
+so a scale that is missing throughout is still written.
 """
 
 from __future__ import annotations
@@ -45,6 +50,14 @@ _HEATWAVE_ASPECTS = {
     "HWN": "number",
     "HWD": "duration",
     "HWF": "frequency",
+}
+
+# SPI/SPEI files (write.precindex.csv): written even when missing in every month.
+_PRECINDEX_FILE = re.compile(r"^\d+month_(spi|spei)_MON$")
+# Description line of the SPI/SPEI files (the header passed by calculate.spi/spei).
+_PRECINDEX_DESCRIPTIONS = {
+    "spi": "Standardised Precipitation Index",
+    "spei": "Standardised Precipitation-Evapotranspiration Index",
 }
 
 # Descriptions written by write.hwEHF.csv (the daily ones say 29 February is omitted;
@@ -149,6 +162,11 @@ def index_descriptions(params: IndexParams) -> dict[str, str]:
 
     out.update(_EHF_DESCRIPTIONS)
 
+    # calculate.spi, calculate.spei: 3, 6, 12 months and the custom scale.
+    for scale in (3, 6, 12, params.spei_months):
+        for index, description in _PRECINDEX_DESCRIPTIONS.items():
+            out[f"{scale}month_{index}_MON"] = description
+
     # calculate.custom.index: header "TN > 0", for both frequencies.
     if (spec := params.custom) is not None:
         for suffix in ("ANN", "MON"):
@@ -193,7 +211,8 @@ def write_outputs(
     """Write output tables (as returned by ``build_all``) as Climpact CSV files.
 
     Index tables that are missing for every period are skipped, as R's
-    ``write.index.csv`` does, apart from the heatwave files (see the module docstring).
+    ``write.index.csv`` does, apart from the heatwave, SPI and SPEI files (see the module
+    docstring).
     Returns the path written for each key.
     """
     descriptions = index_descriptions(params)
@@ -201,7 +220,8 @@ def write_outputs(
     for key, table in tables.items():
         folder, name = key.split("/", 1)
         if folder == "indices":
-            if is_all_missing(table) and not _HEATWAVE_FILE.match(name):
+            always_written = _HEATWAVE_FILE.match(name) or _PRECINDEX_FILE.match(name)
+            if is_all_missing(table) and not always_written:
                 continue
             try:
                 description = descriptions[name]

@@ -23,7 +23,7 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot, tx90p, tx10p, tn90p, tn10p, txgt50p (with the in-base bootstrap) | |
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
-| Drought | | SPI, SPEI (3, 6, 12 months and custom) |
+| Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
@@ -52,6 +52,7 @@ src/climpact/
   outputs.py         registry of products that build Climpact-format output tables
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
+    drought.py       SPI and SPEI (Climpact's cspei, lmomco fitting, SPEI's hargreaves)
     indices.py       index products
     heatwaves.py     Tx90/Tn90 heatwave products; hw_aspects(), get.hw.aspects
     ehf.py           EHF heatwave products and the daily EHF/ECF series (climdex.hwEHF)
@@ -59,8 +60,10 @@ src/climpact/
     qc.py            QC products
   compare.py         tiered comparison of tables against the R reference
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var
+  rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
 tests/
   parity/            one test per R reference file, plus progress reporting
+  libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
   test_*.py          unit tests
   data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
 reference/
@@ -122,7 +125,7 @@ planned; the index code operates along `time` and should not need to change.
 | `txtn_days` | 2 | txdtnd, txbdtnbd (outputs named `tx2tn2`, `txb2tnb2`) |
 | `hdd_base`, `cdd_base`, `gdd_base` | 18, 18, 10 °C | hddheat, cddcold, gddgrow |
 | `rnnmm` | 30 mm | rNNmm (output named `r30mm`) |
-| `spei_months` | 24 | custom SPI/SPEI scale (not yet ported) |
+| `spei_months` | 24 | custom SPI/SPEI scale (outputs named `24month_spi_MON`, `24month_spei_MON`) |
 | `custom` | TN > 0 | custom threshold index (output named `TNgt0`) |
 
 Parameter values in output names are formatted as R's `paste` does (`30`, not `30.0`).
@@ -145,6 +148,7 @@ Table layouts follow R's `write.index.csv`:
 | Day of year (`tx95t_DAY`) | `time` (always missing, see below), `tx95t`, standardised anomaly; 365 rows |
 | Heatwave aspect (`TX90-HWM_ANN` ...) | `time`, `<aspect>` (`HWM`, `HWA`, `HWN`, `HWD` or `HWF`); no standardised column (`write.hw.csv`) |
 | EHF heatwave aspect (`EHF-HWPS_ANN` ...) | `time`, `<aspect>` (`HWPS`, `HWPI`, `HWLS`, `HWLI`, `HWD`, `HWMD`, `HWN` or `HWF`); no standardised column (`write.hwEHF.csv`) |
+| SPI, SPEI (`3month_spi_MON` ...) | `time` (`"YYYY-MM"`), `spi` or `spei`; no standardised column (`write.precindex.csv`) |
 | Daily EHF/ECF (`EHFdaily`, `ECFdaily`) | `date` (`YYYY-MM-DD`, every day including 29 February), `Excess Heat Factor` or `Excess Cold Factor`; fields joined by `","` |
 
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
@@ -171,7 +175,10 @@ tables returned by `build_all` the way R does:
   `wsdi1` and so on, all in `index_descriptions`. The custom index uses `TN > 0`, as in
   `calculate.custom.index`. Heatwave files use `write.hw.csv`'s
   `TX90 heatwave magnitude (HWM)` and so on; the EHF files use `write.hwEHF.csv`'s own
-  descriptions (`_EHF_DESCRIPTIONS`). `qc/nastatistics` has an empty description.
+  descriptions (`_EHF_DESCRIPTIONS`). The SPI and SPEI files use the headers
+  `calculate.spi` and `calculate.spei` pass, `Standardised Precipitation Index` and
+  `Standardised Precipitation-Evapotranspiration Index` (`_PRECINDEX_DESCRIPTIONS`).
+  `qc/nastatistics` has an empty description.
 - **Body:** a header row and data rows, unquoted, joined by `", "` (`write.index.csv`) or
   `","` (`write.NA.statistics`, and the daily EHF/ECF files). Missing values (NaN or None) are written as `-99.9`.
   Numbers are formatted by `format_r_number`, a port of R's `formatReal`/`scientific`
@@ -183,7 +190,8 @@ tables returned by `build_all` the way R does:
   so a file that is missing in every year is still written (`_HEATWAVE_FILE`). The
   heatwave product returns no tables in the all-missing case. `write.hwEHF.csv` does the
   same for the eight EHF files and the two daily files, unless HWF is missing in every
-  year.
+  year. `write.precindex.csv` writes all four SPI (or SPEI) files unless every value of
+  all four is missing (`_PRECINDEX_FILE`); the drought products return no tables then.
 - **`thres/thres`:** R writes it with a plain `write.table` in `quality_control_checks.R`,
   so it has no metadata header and writes missing values as `NA`. A `None` description in
   `_DESCRIPTIONS` means no header, and `_NA_TOKENS` holds the `NA` token.
@@ -320,6 +328,7 @@ data-validation warnings.
 | | wsdi, csdi, wsdid, csdid: xclim's `warm_spell_duration_index`/`cold_spell_duration_index` would need its own thresholds (`percentile_doy`, see below) and does not reproduce R's missing-value handling (`wsdi1` missing for any year with a missing day); txdtnd, txbdtnbd have no xclim equivalent. Both are ported directly (see below) |
 | | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
 | | EHF heatwaves, EHF and ECF: xclim has no Excess Heat Factor; Climpact's definition (single base-period quantiles, joining and splitting heatwaves) is ported directly |
+| | SPI, SPEI: xclim 1.0's `standardized_precipitation_index` and `..._evapotranspiration_index` do not implement `method="PWM"` for the gamma or fisk distributions (`NotImplementedError`), fit only the non-zero values, and its `fisk` is a 2-parameter log-logistic, not lmomco's generalised logistic. With `method="ML"` on `lat0` and `sydney` only 6-23% of values are within 0.01 of R's (largest difference 6.9), far from even the `FITTED` tier. Climpact's `cspei` is ported directly (see [SPI and SPEI](#spi-and-spei)) |
 | | Tx90/Tn90 heatwaves: xclim's `heat_wave_index`/`hot_spell_*` use fixed thresholds or `percentile_doy`, calendar-year periods and no extended summer; Climpact's season and run rules are ported directly (see below) |
 
 ## Parity testing
@@ -334,12 +343,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 108/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 108/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 108/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 106/115 and 108/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 108/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 74/83 and 51/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 116/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 116/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 116/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 114/115 and 116/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 116/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 82/83 and 59/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -367,7 +376,7 @@ test of that run fails at once instead of rebuilding the station for each file.
 | --- | --- | --- |
 | `EXACT` | counts, extremes, event lengths, QC counts | identical values |
 | `CLOSE` | means, sums, percentages, degree days, standardised anomalies | `abs(py - r) <= 1e-6 * abs(r) + 1e-9` |
-| `FITTED` | SPI, SPEI | at least 99% of values within 0.01 |
+| `FITTED` | fitted distributions (no file uses it: SPI and SPEI pass at `CLOSE`) | at least 99% of values within 0.01 |
 
 In every tier the pattern of missing values must be identical, and string columns (dates)
 must match exactly. Metadata header lines (including `Date_of_calculation`) are not compared.
@@ -391,42 +400,45 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-beijing: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-darwin: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-dublin: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-lat0: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-madrid: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-minneapolis: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-nairobi: 51/60 reference files reproduced, 0 failing, 9 not yet ported
-new_delhi: 74/83 reference files reproduced, 0 failing, 9 not yet ported
-oxford: 106/115 reference files reproduced, 0 failing, 9 not yet ported
-perth: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-phoenix: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-potsdam: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-sydney: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-yakutsk: 108/117 reference files reproduced, 0 failing, 9 not yet ported
-alice_springs: 108/117 written CSV files text-identical to R, 0 differing
-beijing: 108/117 written CSV files text-identical to R, 0 differing
-darwin: 108/117 written CSV files text-identical to R, 0 differing
-dublin: 108/117 written CSV files text-identical to R, 0 differing
-lat0: 108/117 written CSV files text-identical to R, 0 differing
-madrid: 108/117 written CSV files text-identical to R, 0 differing
-minneapolis: 108/117 written CSV files text-identical to R, 0 differing
-nairobi: 51/60 written CSV files text-identical to R, 0 differing
-new_delhi: 74/83 written CSV files text-identical to R, 0 differing
-oxford: 106/115 written CSV files text-identical to R, 0 differing
-perth: 108/117 written CSV files text-identical to R, 0 differing
-phoenix: 108/117 written CSV files text-identical to R, 0 differing
-potsdam: 108/117 written CSV files text-identical to R, 0 differing
-sydney: 108/117 written CSV files text-identical to R, 0 differing
-yakutsk: 108/117 written CSV files text-identical to R, 0 differing
+alice_springs: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+beijing: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+darwin: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+dublin: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+lat0: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+madrid: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+minneapolis: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+nairobi: 59/60 reference files reproduced, 0 failing, 1 not yet ported
+new_delhi: 82/83 reference files reproduced, 0 failing, 1 not yet ported
+oxford: 114/115 reference files reproduced, 0 failing, 1 not yet ported
+perth: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+phoenix: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+potsdam: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+sydney: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+yakutsk: 116/117 reference files reproduced, 0 failing, 1 not yet ported
+alice_springs: 116/117 written CSV files text-identical to R, 0 differing
+beijing: 116/117 written CSV files text-identical to R, 0 differing
+darwin: 116/117 written CSV files text-identical to R, 0 differing
+dublin: 116/117 written CSV files text-identical to R, 0 differing
+lat0: 116/117 written CSV files text-identical to R, 0 differing
+madrid: 116/117 written CSV files text-identical to R, 0 differing
+minneapolis: 116/117 written CSV files text-identical to R, 0 differing
+nairobi: 59/60 written CSV files text-identical to R, 0 differing
+new_delhi: 82/83 written CSV files text-identical to R, 0 differing
+oxford: 114/115 written CSV files text-identical to R, 0 differing
+perth: 116/117 written CSV files text-identical to R, 0 differing
+phoenix: 116/117 written CSV files text-identical to R, 0 differing
+potsdam: 116/117 written CSV files text-identical to R, 0 differing
+sydney: 116/117 written CSV files text-identical to R, 0 differing
+yakutsk: 116/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
 compares tables with the tolerance tiers. The "text-identical" lines come from
 `tests/parity/test_csv_text.py`, which writes every built table with `write_outputs` and
 requires the file to equal R's line for line, ignoring only the `Date_of_calculation` line.
+The SPI and SPEI files are compared as text only on glibc x86_64; on other platforms
+their numeric fields may differ within 1e-10 relative (see
+[SPI and SPEI](#spi-and-spei)), so a macOS run also prints "text-identical" for them.
 It also checks that no file is written that R does not write: on `oxford`, `new_delhi` and
 `nairobi` this exercises the rule that all-missing index tables are skipped, on
 `new_delhi` the exception for heatwave files, and on both that no EHF file is written
@@ -1045,6 +1057,133 @@ season ending in a cold run, or a cold run starting on the transition day.
    climdex monthly limit of 3 days, season 1996 of `lat0` and `sydney` would become missing;
    no other reference row changes.
 
+### SPI and SPEI
+
+**Which R code runs.** Climpact 3.4.3 computes SPI and SPEI in `calculate.spi` and
+`calculate.spei` (`services/calculate/calculate_spi.R`, `calculate_spei.R`) with its own
+copy of the SPEI package's old fitting function, `cspei` (`services/calculate/custom_cspei.R`;
+`cspi` in `custom_cspi.R` is `cspei` with a Gamma distribution). `climdex.spi` and
+`climdex.spei` in `climpact.etsci-functions.r` are never called, and neither is the SPEI
+package's current `spei()`. `cspei` uses lmomco 2.5.7 (`pwm.ub`, `pwm2lmom`,
+`are.lmom.valid`, `parglo`, `cdfglo`, `lmom.ub`, `pargam`, `cdfgam`) and SPEI 1.8.1's
+`hargreaves` and `kern`, the versions in the reference image. Ported directly in
+`products/drought.py` (`monthly_inputs`, `hargreaves`, `accumulate`, `cspei`,
+`standardise_month` and one function per lmomco function); the scales are 3, 6, 12 and
+`IndexParams.spei_months`.
+
+**R behaviour reproduced:**
+
+- **Monthly inputs ignore the missing-data rules.** Precipitation is the total of the
+  days present (`sum(na.rm = TRUE)`), missing only when every day of the month is
+  missing; TX and TN are the means of the days present. R's extended-precision `sum` and
+  `mean` are used (`r_sum`, `r_mean`).
+- **PET** (SPEI only) is `hargreaves(Tmin, Tmax, lat = latitude, Pre = prec)`: the
+  Droogers and Allen (2002) form `0.0013 * 0.408 * Ra * (Tmean + 17) * (Tr - 0.0123 P)^0.76`
+  times the days in the month, with extraterrestrial radiation `Ra` from the station
+  latitude. This is why `lat0` and `sydney` have different SPEI files (their SPI files are
+  identical). ET0 is 0 when `Tr - 0.0123 P` is negative (wet months) and missing when TX,
+  TN or precipitation is. The inputs are plain vectors, so `hargreaves` assumes every year
+  is a non-leap year: February always has 28 days and the mid-month day of year is fixed.
+  At polar latitudes the sunset hour angle is 0 (polar night) or the series maximum
+  (`omegas[sset < -1] <- max(omegas)`), as in SPEI.
+- **Accumulation** (`accumulate`): `sum(data[t:(t - scale + 1)] * kern(scale))` with
+  rectangular weights `1 / scale`, so the accumulated value is the *mean* of the last
+  `scale` months, multiplied first and summed newest month first in extended precision.
+  Any missing month in the window makes it missing; the first `scale - 1` months are
+  missing.
+- **Fit window.** The fit uses `window(data, base start, base end)` and accumulates again
+  inside that window, so the first `scale - 1` months of the base period have no
+  accumulated value and are left out of the fit (one or two of the 30 base years per
+  calendar month, at 24 months).
+- **Per calendar month** a distribution is fitted by unbiased probability-weighted
+  moments: `parglo` (generalised logistic) for SPEI; for SPI, `pargam` of `lmom.ub` (a
+  two-parameter Gamma, from lmomco's direct L-moment formula rather than the PWMs) fitted
+  to **all** base values, zeros included. Each value then becomes `qnorm(cdfglo(x))`, or
+  `qnorm(pze + (1 - pze) * pnorm(qnorm(cdfgam(x))))` for SPI, where `pze` is the fraction
+  of zeros among the base values.
+- **Months without a fit.** A calendar month with fewer than two base values, invalid
+  L-moments (for example all values equal, `L2 = 0`) or a NaN L-moment (fewer than five
+  values: `pwm.ub` divides 0 by 0) is skipped (`next`), so all its values are missing.
+- **Infinite values are missing.** A value outside the fitted distribution's support or
+  with probability 0 or 1 gives `qnorm` of 0 or 1, which `calculate.spi`/`calculate.spei`
+  turn into `NA`.
+- **Files** (`write.precindex.csv`): `time, spi` (or `spei`), no standardised column,
+  written unless every value of all four scales is missing, so a scale missing throughout
+  is still written. Nothing is calculated when all precipitation (SPI) or all of TX, TN
+  or precipitation (SPEI) is missing. A custom scale of 3, 6 or 12 writes the same file
+  twice in R; Python builds it once.
+
+**Exact arithmetic.** R's distribution functions differ from scipy's in the last bits
+(scipy's `ndtri`, `ndtr` and `gammainc` disagree with R on 469 of 706, 275 of 706 and 261
+of 400 test values), which changes the 15th significant digit of about 40% of SPI values.
+`climpact.rdist` ports R 4.6.1's `qnorm` (AS 241), `pnorm` (Cody), `dnorm` and `pgamma`
+(Welinder's algorithm, with `dpois_raw`, `ebd0`, `stirlerr`, `lgamma1p`, `log1pmx` and
+`lgammafn`). R's `stirlerr` calls the C library's `lgamma`, and CPython's `math.lgamma` is
+its own implementation, so glibc's `lgamma` (fdlibm `e_lgamma_r.c`) is ported too
+(`libm_lgamma`). The lmomco and SPEI functions follow R's operation order, including
+`pi * LCV^2` and `5 * TAU3^2` (squared first). On Linux x86_64 with glibc, all 1,812 R
+test values (`tests/data/r_rdist.R`) are reproduced bit for bit.
+
+**The C maths library.** The remaining operations call the C library's `exp`, `log`,
+`log1p`, `expm1`, `pow`, `sin`, `cos`, `tan` and `acos`, as R does. Python's `math`
+calls the same functions, so on glibc x86_64 (R's platform for the reference, and CI)
+every SPI and SPEI value is identical to R's. macOS's library differs from glibc in the
+last bit for some inputs (for example `sin`, `cos`, `tan` and `acos` on 5-35% of
+inputs), which changes the 15th significant digit of up to about 60% of the values of a
+file; the largest relative difference on the 15 runs is 2.7e-11. Correctly rounded
+replacements were tried and rejected: glibc is not exactly correctly rounded either (about
+0.1% of `exp`, `log` and `sin` inputs differ by one ulp), so they left 551 differing
+values on macOS. `test_csv_text` therefore requires text identity for these files only on
+glibc x86_64 (`tests/libm.py`); elsewhere their numeric fields must agree to 1e-10
+relative plus 1e-12, with identical missing values. `test_drought.py` and `test_rdist.py`
+are bit-exact on glibc x86_64 and use the same tolerance elsewhere.
+
+**Result.** All 8 files (`3month_spi_MON`, `6month_spi_MON`, `12month_spi_MON`,
+`24month_spi_MON` and the same for `spei`) pass at `CLOSE` on all 15 runs (120 files),
+with identical missing values. On glibc x86_64 every file is text-identical to R's; on
+macOS the largest difference is 2.4e-12 absolute and 2.7e-11 relative (`perth` and
+`sydney` SPEI), all well inside `CLOSE`. No file needs the `FITTED` tier. The runs
+exercise dry months mixed in with the zero probability (`phoenix`, `alice_springs`,
+`darwin`, `madrid`, `new_delhi`), partial months and long gaps (`oxford`, `dublin`,
+`new_delhi`, `nairobi`) and latitudes from 33.9 S to 62 N. `tests/test_drought.py` checks
+`cspei` (scales 1, 3, 24) and `hargreaves` (latitudes 0, -33.86, 62, 75, -80) against R
+(`tests/data/r_drought.R`) on a synthetic series with a calendar month never fitted
+because all base values are 0, one with only four base values, dry months, missing months,
+an infinite value and polar night.
+
+**R quirks reproduced for parity that look like bugs (decision pending).** Numbers are
+the values (rows of the 8 files) that would change on the 15 runs.
+
+1. **No missing-data rule for the monthly inputs.** A month with one day of
+   precipitation gets that day as its total, which biases SPI low. Applying the climdex
+   monthly rule (more than 3 missing days) would change 2,603 values on each of `lat0`
+   and `sydney`, 2,415 on `dublin`, 2,189 on `oxford`, 262 on `beijing`, 176 on `yakutsk`,
+   121 on `alice_springs` and 53 on `darwin`, and every value of `new_delhi` and `nairobi`,
+   whose SPEI files would no longer be written; none on `minneapolis`, `phoenix`, `perth`,
+   `madrid` or `potsdam`.
+2. **The first `scale - 1` base-period months are left out of the fit.** Accumulating
+   over the whole series before taking the base-period window would change about 60% of
+   all values on every run except `new_delhi` (3,155 to 4,718 values per run; `nairobi`
+   1,483).
+3. **The Gamma distribution is fitted to the zeros as well** and then mixed with the zero
+   probability, so zeros count twice; the usual method (and later SPEI versions) fits
+   the non-zero values. Fitting the non-zero values would change SPI in calendar months
+   with zero accumulations: `phoenix` 346 values, `new_delhi` 190, `alice_springs` 171,
+   `darwin` 148, `madrid` 59, none elsewhere.
+4. **Leap years are ignored in PET.** Passing a monthly `ts` (as SPEI expects) would give
+   leap Februaries 29 days and SPEI's own mid-month days, changing almost every SPEI value
+   on every run (3,799 values on `lat0`, about 2,800 on the 60-year runs).
+5. **`std[f] <- NA`** in `cspei` (for a month with no base values) indexes the output with
+   positions in the base-period window rather than the series. Because the series and
+   the window both start in January it only touches values of the same calendar month,
+   which are still missing at that point: no effect on any output.
+
+**R behaviour not copied** (none is reachable on the reference runs): when `pargam`
+returns no parameters (`L1 <= L2`) or `are.parglo.valid` fails, R stops with an error
+(`cdfgam` on `NULL`, or a zero-length replacement), ending the SPI/SPEI calculation;
+Python leaves that calendar month missing. When the base period lies wholly outside the
+series, R's `window` stops with an error; Python writes no SPI/SPEI files.
+
 ### Station input
 
 | R behaviour | Python |
@@ -1068,6 +1207,7 @@ season ending in a cold run, or a cold run starting on the transition day.
 | `thres.csv` is written by a plain `write.table`: no metadata header, missing values as `NA` (not `-99.9`), and each precipitation threshold repeated on all 365 rows (`as.data.frame` recycling) | reproduced; `write_outputs` writes it with no header and `NA` (`_DESCRIPTIONS`/`_NA_TOKENS` in `io/output_files.py`) |
 | `write.hwEHF.csv` writes the eight EHF files and `EHFdaily`/`ECFdaily` unless HWF is missing in every year; the daily files are joined by `","`, and their description says 29 February is omitted, though it is not | reproduced (`_HEATWAVE_FILE`, `_SEPARATORS`, `_EHF_DESCRIPTIONS`) |
 | `write.hw.csv` writes the ten Tx90/Tn90 heatwave files with `time, <aspect>` columns (no standardised column) and writes them even when one is missing in every year | reproduced (`_HEATWAVE_FILE` in `io/output_files.py`). Exercised by `new_delhi` |
+| `write.precindex.csv` writes the four SPI (SPEI) files with `time, spi` columns and no standardised column, all four unless every value is missing | reproduced (`_PRECINDEX_FILE`, `_PRECINDEX_DESCRIPTIONS`) |
 | `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
 ### R behaviour not to be copied
@@ -1102,6 +1242,11 @@ output is ported.
   the piece with its duration only. No reference run is affected (see
   [EHF heatwaves](#ehf-heatwaves-and-the-daily-ehfecf-series)).
 
+- `cspei` stops with an error when `pargam` returns no parameters or the generalised
+  logistic parameters are invalid, and `window` stops when the base period is outside the
+  series. Python leaves the calendar month missing, or writes no SPI/SPEI files. No
+  reference run is affected (see [SPI and SPEI](#spi-and-spei)).
+
 ## Performance
 
 A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
@@ -1128,7 +1273,8 @@ take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
 | `new_delhi`, `nairobi` (patchy) | 0.7 s | 0.9 s | 1.5-1.6 s |
 
 The spell-duration indices (6 files) take about 0.2-0.25 s per station, and gsl about
-0.03-0.1 s.
+0.03-0.1 s. SPI and SPEI (8 files) take 0.1-0.3 s per station, mostly the
+extended-precision accumulations and the scalar R ports.
 
 The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
 at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550
@@ -1149,6 +1295,9 @@ python3 -m venv .venv
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
 - Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 (x86_64 Linux).
+  Its glibc is the C maths library the R reference was made with, so CI checks the SPI
+  and SPEI files for text identity; on macOS they are checked to 1e-10 relative
+  (`tests/libm.py`).
 - Always work inside `.venv`.
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are

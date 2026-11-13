@@ -3,18 +3,32 @@
 For every reference file the Python port builds, the file written by
 :func:`climpact.io.output_files.write_outputs` must match R's line for line, apart from
 the ``Date_of_calculation`` line.
+
+The SPI and SPEI files are the one exception, and only on platforms other than glibc on
+x86_64, where the R reference was made: their values go through the C library's
+``exp``, ``log``, ``pow`` and trigonometric functions, which differ from glibc in the
+last bit for some inputs on other platforms (see ``tests/libm.py``). There a line of
+these files may differ from R's only in numeric fields that agree within ``LIBM_RTOL``
+relative (plus ``LIBM_ATOL``); missing values (``-99.9``) and every other field must
+still be identical.
+On glibc x86_64 (CI) they must be text-identical like every other file.
 """
 
 from __future__ import annotations
+
+import re
 
 import pytest
 
 from climpact.io.output_files import write_outputs
 
+from ..libm import GLIBC_X86_64, LIBM_ATOL, LIBM_RTOL
 from .catalogue import RUNS, reference_files
 
 FILES = reference_files()
 DATE_LINE = '"Date_of_calculation: "'
+# Files whose last digit depends on the platform's C maths library (see the module docstring).
+LIBM_SENSITIVE = re.compile(r"^indices/\d+month_(spi|spei)_MON$")
 
 
 @pytest.fixture(scope="session")
@@ -36,6 +50,23 @@ def lines_without_date(path) -> list[str]:
     return [line for line in path.read_text().splitlines() if not line.startswith(DATE_LINE)]
 
 
+def same_within_libm_tolerance(expected: str, actual: str) -> bool:
+    """Lines equal apart from numeric fields within the libm tolerance (never ``-99.9``)."""
+    e_fields, a_fields = expected.split(", "), actual.split(", ")
+    if len(e_fields) != len(a_fields):
+        return False
+    for e, a in zip(e_fields, a_fields, strict=True):
+        if e == a:
+            continue
+        try:
+            x, y = float(e), float(a)
+        except ValueError:
+            return False
+        if "-99.9" in (e, a) or abs(x - y) > LIBM_RTOL * abs(x) + LIBM_ATOL:
+            return False
+    return True
+
+
 @pytest.mark.parity
 @pytest.mark.parametrize("ref", FILES, ids=[f.id for f in FILES])
 def test_csv_text(ref, station_outputs, written_files, request):
@@ -48,10 +79,11 @@ def test_csv_text(ref, station_outputs, written_files, request):
 
     expected = lines_without_date(ref.path)
     actual = lines_without_date(written[ref.key])
+    relaxed = not GLIBC_X86_64 and LIBM_SENSITIVE.match(ref.key)
     mismatches = [
         (number, e, a)
         for number, (e, a) in enumerate(zip(expected, actual, strict=False), start=1)
-        if e != a
+        if e != a and not (relaxed and same_within_libm_tolerance(e, a))
     ]
     assert len(expected) == len(actual) and not mismatches, (
         f"{ref.id}: {len(mismatches)} lines differ ({len(expected)} lines in R, "

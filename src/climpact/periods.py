@@ -10,6 +10,9 @@ period to the last date's, labelled by its first day, including periods with no 
 Only reductions whose result does not depend on the order of the arithmetic are done
 here (counts, maximum, minimum), or a Python function applied to each period's values
 (:func:`apply`), so results are identical to ``resample``'s.
+
+Every reduction takes values whose last axis runs along the time axis, with any
+leading dimensions (the cells of a grid block), and returns ``(..., periods)``.
 """
 
 from __future__ import annotations
@@ -40,32 +43,77 @@ class Periods:
         return xr.DataArray(values, dims="time", coords={"time": self.labels})
 
     def count(self, flags: np.ndarray) -> np.ndarray:
-        """Number of True days in each period (integers)."""
+        """Number of True days in each period (integers), along the last axis."""
         flags = np.asarray(flags, dtype=bool)
-        return np.bincount(self.codes[flags], minlength=self.size)
+        if flags.ndim == 1:
+            return np.bincount(self.codes[flags], minlength=self.size)
+        lead = flags.shape[:-1]
+        rows = flags.reshape(-1, flags.shape[-1])
+        row, day = np.nonzero(rows)
+        counts = np.bincount(row * self.size + self.codes[day], minlength=rows.shape[0] * self.size)
+        return counts.reshape(*lead, self.size)
 
     def days(self) -> np.ndarray:
         """Number of days of the time axis in each period."""
         return np.bincount(self.codes, minlength=self.size)
 
+    def grouping(self) -> tuple[np.ndarray, np.ndarray]:
+        """Days in period order, and where each period starts and ends in that order."""
+        order = np.argsort(self.codes, kind="stable")
+        return order, np.searchsorted(self.codes[order], np.arange(self.size + 1))
+
     def reduce(self, values: np.ndarray, stat: str) -> np.ndarray:
-        """``"max"`` or ``"min"`` of the non-missing values of each period (NaN if none)."""
-        grouped = pd.Series(np.asarray(values, dtype=float)).groupby(self.codes)
-        result = getattr(grouped, stat)(skipna=True)
-        return result.reindex(range(self.size)).to_numpy(dtype=float)
+        """``"max"`` or ``"min"`` of the non-missing values of each period (NaN if none),
+        along the last axis."""
+        values = np.asarray(values, dtype=float)
+        if values.ndim == 1:
+            grouped = pd.Series(values).groupby(self.codes)
+            result = getattr(grouped, stat)(skipna=True)
+            return result.reindex(range(self.size)).to_numpy(dtype=float)
+        order, bounds = self.grouping()
+        ufunc = {"max": np.fmax, "min": np.fmin}[stat]  # ignore NaN unless all are
+        out = np.full((*values.shape[:-1], self.size), np.nan)
+        filled = np.diff(bounds) > 0
+        if filled.any():
+            with np.errstate(invalid="ignore"):
+                reduced = ufunc.reduceat(values[..., order], bounds[:-1][filled], axis=-1)
+            out[..., filled] = reduced
+        return out
+
+    def first_extreme(self, values: np.ndarray, stat: str) -> np.ndarray:
+        """Position in the time axis of the first maximum (``"max"``) or minimum
+        (``"min"``) of each period, skipping missing days (R ``which.max`` /
+        ``which.min``); -1 for a period with no data. Along the last axis."""
+        values = np.asarray(values, dtype=float)
+        extreme = self.reduce(values, stat)
+        order, bounds = self.grouping()
+        days = values[..., order]
+        period = self.codes[order]
+        with np.errstate(invalid="ignore"):
+            hit = days == extreme[..., period]
+        position = np.where(hit, order, np.iinfo(np.int64).max)
+        out = np.full(extreme.shape, -1, dtype=np.int64)
+        filled = np.diff(bounds) > 0
+        if filled.any():
+            first = np.minimum.reduceat(position, bounds[:-1][filled], axis=-1)
+            out[..., filled] = np.where(first == np.iinfo(np.int64).max, -1, first)
+        return out
 
     def apply(self, values: np.ndarray, func: Callable[[np.ndarray], float]) -> np.ndarray:
-        """``func`` of the non-missing values of each period, in date order (NaN if none)."""
+        """``func`` of the non-missing values of each period, in date order (NaN if none),
+        along the last axis (``func`` is called once per period and leading index)."""
         values = np.asarray(values, dtype=float)
-        order = np.argsort(self.codes, kind="stable")
-        bounds = np.searchsorted(self.codes[order], np.arange(self.size + 1))
-        out = np.full(self.size, np.nan)
-        for i in range(self.size):
-            period = values[order[bounds[i] : bounds[i + 1]]]
-            period = period[~np.isnan(period)]
-            if period.size:
-                out[i] = func(period)
-        return out
+        order, bounds = self.grouping()
+        lead = values.shape[:-1]
+        rows = values.reshape(-1, values.shape[-1])
+        out = np.full((rows.shape[0], self.size), np.nan)
+        for r, row in enumerate(rows):
+            for i in range(self.size):
+                period = row[order[bounds[i] : bounds[i + 1]]]
+                period = period[~np.isnan(period)]
+                if period.size:
+                    out[r, i] = func(period)
+        return out.reshape(*lead, self.size)
 
 
 def periods(time: xr.DataArray | pd.DatetimeIndex | np.ndarray, rule: str) -> Periods:

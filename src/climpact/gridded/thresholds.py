@@ -193,9 +193,11 @@ def _copy_attrs(src, dst, skip=()) -> None:
             dst.setncattr(name, src.getncattr(name))
 
 
-def _etccdi_attrs(base_start: int, base_end: int, author: Mapping[str, str]) -> dict:
+def _etccdi_attrs(
+    base_start: int, base_end: int, author: Mapping[str, str], frequency: str = "days"
+) -> dict:
     """``put.ETCCDI.atts``: the global attributes added to the copied ones."""
-    attrs = {"index_calculation_frequency": "days", "base_period": f"{base_start}-{base_end}"}
+    attrs = {"index_calculation_frequency": frequency, "base_period": f"{base_start}-{base_end}"}
     for key, name in (
         ("institution", "author_institution"),
         ("institution_id", "author_institution_id"),

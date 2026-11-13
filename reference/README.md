@@ -59,8 +59,9 @@ R30mm, SPEI 24, custom TN > 0).
 ## Gridded reference
 
 Climpact's gridded thresholds (`climpact.ncdf.thresholds.wrapper.r`, which calls
-`create.thresholds.from.file` in Climpact's own modified `climdex.pcic.ncdf`) are run on two
-small test grids by
+`create.thresholds.from.file` in Climpact's own modified `climdex.pcic.ncdf`) and gridded
+indices (`climpact.ncdf.wrapper.r`, `create.indices.from.files`) are run on three small test
+grids by
 
 ```sh
 .venv/bin/python reference/gridded/make_grids.py   # make the input grids (deterministic)
@@ -71,22 +72,37 @@ small test grids by
 `make_grids.py` needs the original repo for the sample grid (`--climpact`, or `CLIMPACT_DIR`,
 default `../climpact`). Each row of [`gridded/runs.csv`](gridded/runs.csv) is one run: its
 input files in `gridded/input/` (`;`-separated), the netCDF names of TX, TN and precipitation,
-and the base period. The R output goes to `gridded/output/<run>/thresholds.nc`, with
-`r-package-versions.csv` and `climpact-commit.txt`. The wrapper is a script with hard-coded
-settings, so `r/run_gridded_thresholds.R` makes its call with the run's files, names and base
-period and the wrapper's fixed settings (`fclimdex.compatible = FALSE`, no cluster), and author
-data `climpactpy reference` / `CPY`.
+the base period, whether to compute a thresholds file (`thresholds`), the run whose
+thresholds file the indices use (`indices_thresholds`; empty: R computes the thresholds
+itself) and the indices left out of R's index run (`indices_exclude`, `;`-separated). A run
+that uses another's thresholds file comes after it.
+
+The R outputs go to `gridded/output/<run>/`: `thresholds.nc`, `indices/<index>_<FREQ>_climpactpy_historical_NA_<years>.nc`
+(R's names from the default template `var_daily_climpactpy_historical_NA_<first>-<last year>.nc`),
+`r-package-versions.csv` and `climpact-commit.txt`. The wrappers are scripts with hard-coded
+settings, so `r/run_gridded_thresholds.R` and `r/run_gridded_indices.R` make their calls with
+the run's files, names, base period (and thresholds file) and the wrappers' fixed settings
+(`fclimdex.compatible = FALSE`, no cluster; for the indices `EHF_DEF = "NF13"`, `maxvals = 10`,
+`wsdin_n = csdin_n = 5`, `rxnday_n = 7`, `ntxntn_n = ntxbntnb_n = 3`, `hddheatn_n =
+cddcoldn_n = 18`, `gddgrown_n = 10`, `rnnmm_n = 30`, `project.lat2d.coords = TRUE` and the
+wrapper's `thresholds.name.map`), and author data `climpactpy reference` / `CPY`.
 
 | Run | Grid | Period, base | Covers |
 | --- | --- | --- | --- |
 | `grid_stations` | 3 lat (52.5, 0, -33.75) x 4 lon, one committed station input per cell | 1966-2005, base 1971-2000 | Both hemispheres and the equator; an all-missing cell; a sparse base period (about 10% of values kept, so some windows have too few values); a dry cell (no wet day in the base period); missing years of TX and TN; TX in K as float with `missing_value`, TN in degrees C as double, precipitation in kg m-2 s-1 in a second file |
 | `grid_sample` | 3 x 4 cut of Climpact's `www/sample_data/climpact.sampledata.gridded.1991-2010.nc` (south-east Australia) | 1991-2010, base 1991-2010 (the wrapper's defaults) | A real CF file: K, kg m-2 d-1, time in hours since 1800 with `time_bnds` |
+| `grid_future` | The cells of `grid_stations` for 2001-2020, stored the same way | 2001-2020; indices only, with `grid_stations`' thresholds file (base 1971-2000) | R's thresholds-file path, which it accepts only for data with no day in the base period (otherwise `check.quantile.validity` stops: "Temperature in-base quantiles must contain 10th and 90th percentiles") |
 
-The inputs (1.6 MB) and outputs (2.2 MB) are committed. R writes its thresholds file uncompressed
-with one chunk per day; `run_r_gridded.sh` repacks it with `nccopy -d 9 -s` and larger chunks,
-which changes neither the variables, values nor attributes. Re-running changes the
-`file_created` and `history` attributes, so only commit a re-run when the numbers are meant to
-change.
+R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an
+all-missing cell, so `grid_stations` and `grid_future` leave those two indices out (86 index
+files each; `grid_sample` has all 88).
+
+The inputs (2.2 MB) and outputs (2.1 MB of thresholds, 9.2 MB of index files) are committed.
+R writes uncompressed files with one chunk per time step; `run_r_gridded.sh` repacks them with
+`nccopy -d 9 -s` and larger chunks, which changes neither the variables, values nor attributes.
+Re-running changes the `file_created` and `history` attributes, so only commit a re-run when
+the numbers are meant to change (the thresholds files of #29 were re-run for #30 and were
+identical apart from those, so the committed ones were kept).
 
 The image's netCDF support (ncdf4, abind, snow, udunits2, functional, proj4 from the same CRAN
 snapshot, and Climpact's `ncdf4.helpers` 0.3-3 and modified `climdex.pcic.ncdf` 0.5-4 fetched

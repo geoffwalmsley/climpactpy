@@ -11,6 +11,7 @@
 #   compare                             per-file summary of /out against the stored reference
 #   all [run_reference.R args...]       generate, then test and compare
 #   gridded-thresholds [args...]        run_gridded_thresholds.R (inputs and output under /out)
+#   gridded-indices [args...]           run_gridded_indices.R
 set -euo pipefail
 
 STATION=sydney_observatory_hill_1936-2015
@@ -46,6 +47,11 @@ cmd_gridded_thresholds() {
   Rscript /opt/climpact-ref/run_gridded_thresholds.R "$@"
 }
 
+cmd_gridded_indices() {
+  cd /work
+  Rscript /opt/climpact-ref/run_gridded_indices.R "$@"
+}
+
 cmd_compare() {
   Rscript /opt/climpact-ref/compare_summary.R /climpact/tests/output_compare "/out/${STATION}"
 }
@@ -58,6 +64,7 @@ case "$cmd" in
   test)     cmd_test ;;
   compare)  cmd_compare ;;
   gridded-thresholds) cmd_gridded_thresholds "$@" ;;
+  gridded-indices) cmd_gridded_indices "$@" ;;
   all)      cmd_generate "$@"; status=0; cmd_test || status=$?; cmd_compare; exit $status ;;
   *)        echo "unknown command: $cmd" >&2; exit 2 ;;
 esac

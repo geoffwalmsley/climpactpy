@@ -51,6 +51,7 @@ src/climpact/
     output_files.py  file names, folders and metadata headers; write_outputs()
   missing.py         climdex.pcic missing-data rules; registered with xclim as "climdex"
   outputs.py         registry of products that build Climpact-format output tables
+  periods.py         monthly and annual counts, max, min and per-period functions (fast resample)
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
     drought.py       SPI and SPEI (Climpact's cspei, lmomco fitting, SPEI's hargreaves)
@@ -67,6 +68,8 @@ src/climpact/
 tests/
   parity/            one test per R reference file, plus progress reporting
   libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
+  rreference.py      the original, plain R-precision and number-formatting code: the
+                     reference the faster versions are tested against
   test_*.py          unit tests
   data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
 reference/
@@ -281,6 +284,25 @@ with xclim.set_options(check_missing="climdex"):
 `valid_mask(*arrays, freq=...)` combines several variables, like climdex's per-variable
 `namask` multiplied together.
 
+For a single series (a station) the rules are computed with `climpact.periods` (integer
+period codes and `numpy.bincount`); arrays with more dimensions use xarray's `resample`.
+`tests/test_periods.py` checks the two give the same mask. The masks are cheap enough
+(about 1 ms) that they are recomputed for each index rather than cached.
+
+## Monthly and annual reductions
+
+xarray's `resample` without the optional flox package reduces each period through its own
+xarray objects, about 0.1 ms per month. With 960 months per station and hundreds of
+reductions per run, this was most of a station run's time (see [Performance](#performance)).
+`climpact.periods` groups a 1-D daily series by integer period codes instead
+(`periods(time, "MS" | "YS")`), and gives the same periods and labels as
+`resample(time=rule)`: every month or year from the first date's period to the last
+date's, including empty ones. `Periods.count`, `Periods.days` and `Periods.reduce`
+(`"max"`, `"min"`) give integer counts and exact extremes; `Periods.apply` calls a
+function, usually `r_mean` or `r_sum`, on each period's non-missing values in date order.
+No floating-point sums are done there, so results are identical to `resample`'s
+(`tests/test_periods.py`).
+
 ## Base-period thresholds
 
 `climpact.thresholds` computes every base-period threshold Climpact uses, once per
@@ -318,14 +340,22 @@ climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker i
 
 ## Use of xclim
 
-xclim 1.0 is used where its result is identical to R's or within tolerance. All calls go
-through `run_xclim`, which sets `check_missing="climdex"`, `as_dataset=False` (xclim 1.0
-returns a `Dataset` by default), and logs rather than raises CF-compliance and
-data-validation warnings.
+xclim 1.0 was meant to be used where its result is identical to R's or within tolerance,
+but no station index uses it now. Threshold counts were the last: they used xclim's
+`tn_days_below`, `tx_days_above`, `tg_days_*` and `wetdays` with
+`check_missing="climdex"` until #23, and are now counted directly (`count_days`) for
+speed. xclim compares in the data's units and counts with xarray's `resample(...).sum()`,
+which took most of a station run's time, and its missing-value check builds a second
+resample per call. `count_days` makes the same comparison and counts with
+`climpact.periods`; `tests/test_index_helpers.py` checks it gives the same values and
+mask as the xclim indicators on the Sydney station with a gap added. xclim remains a
+dependency: `climpact.missing` registers the climdex rules as an xclim missing method
+(see [Missing data](#missing-data)), for the gridded work.
 
 | Uses xclim | Computed directly, and why |
 | --- | --- |
-| Threshold counts (`tn_days_below`, `tx_days_above`, `tg_days_*`, `wetdays`, ...) | Temperature max/min/mean (txx, tnn, tnx, txn, tmm, txm, tnm): xclim's kelvin round trip changes values (see below) |
+| | Threshold counts (fd, su, tr, r10mm, ...): xclim's comparison and count are reproduced exactly, without xarray's per-period resampling (see above) |
+| | Temperature max/min/mean (txx, tnn, tnx, txn, tmm, txm, tnm): xclim's kelvin round trip changes values (see below) |
 | | dtr, sdii, and the means tmm/txm/tnm: R's extended-precision `mean`/`sum` is needed for the 15th digit written to the CSV files (see below) |
 | | prcptot, hddheat, cddcold, gddgrow: xclim's sums (`wet_precip_accumulation`, `heating_degree_days`, ...) give the same 15 digits in the CSV files but differ from R's extended-precision `sum` in the last bits, which changes the trend file's slopes (see [Trend file](#trend-file)) |
 | | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
@@ -507,6 +537,15 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   would be written with a different last digit.
 - The emulation is only used where it changes a result. It should be considered for
   other index calculations if new tie-related or last-digit mismatches appear.
+- *Speed:* rounding to 64 significant bits does not depend on the unit, so `r_sum`,
+  `r_cumsum` and `r_mean` hold the values as integers in the coarsest power-of-two unit that
+  holds them all exactly, not in units of 2**-1074, and only round when an accumulator
+  reaches 2**64 units. When the absolute values add up to less than 2**62 of those units,
+  no partial sum is ever rounded, so R's `sum` is the exact sum rounded once, which is
+  `math.fsum` (most monthly and 30-day temperature sums). `r_mean`'s two divisions are
+  done with enough extra bits that their 64-bit rounding is exact, as it is in units of
+  2**-1074. `tests/test_rnumerics.py` checks all three against the original
+  implementation (`tests/rreference.py`) bit for bit on random and adversarial series.
 
 **R's `write.index.csv` standardises the text, not the values.** It prepends the column
 name to the index vector, which turns the numbers into strings (`as.character`, 15
@@ -525,7 +564,11 @@ long double and then be printed with 14 digits: R writes `-0.8707237491215295` a
 
 - *Handling:* `format_r_number` ports `scientific()` with exact long-double rounding, and
   R's choice between fixed and scientific notation (`1e+05`, not `100000`). Tested in
-  `tests/test_climpact_csv.py`; the reference files have this case in `r10mm_ANN`.
+  `tests/test_climpact_csv.py`; the reference files have this case in `r10mm_ANN`. The
+  long-double steps are done on integer ratios (each value is `n / 2**shift`), and results
+  are cached (`functools.lru_cache`), since index files repeat many values; the test checks
+  the result against the original `Fraction` version (`tests/rreference.py`) on values
+  next to decimal rounding boundaries.
 
 **xclim converts temperatures to kelvin internally.** Indicators such as `tx_max` and
 `tg_mean` return kelvin, and converting °C → K → °C changes the last bits of about 84% of
@@ -534,8 +577,9 @@ values.
 - *Handling:* temperature maxima, minima and means are computed directly (`period_stat`):
   maxima and minima with xarray, means with `r_mean`, the same arithmetic as R's `tapply`
   with `mean`. Results are identical to R.
-- Threshold counts are unaffected: xclim converts the threshold into the data's units, so
-  comparisons are made on the original values.
+- Threshold counts would be unaffected: xclim converts the threshold into the data's
+  units, so comparisons are made on the original values. They are counted directly anyway,
+  for speed (see [Use of xclim](#use-of-xclim)).
 
 **The R reference depends on CPU architecture.** On arm64, climdex.pcic's C++ percentile
 code (used for the bootstrapped in-base percentiles) rounds differently from x86, which
@@ -586,9 +630,8 @@ applied separately, then combined), which is what Python does. climdex.pcic's `c
 masks dtr with the TM mask, where a day is missing if either TX or TN is missing, so a month
 with 3 missing TX days and 3 missing TN days on different dates is missing.
 
-- *Handling:* dtr is computed with xclim (which applies the climdex rule to TX and TN
-  separately) and then masked with `valid_mask(ds.tas)`, the TM mask. Any period valid under
-  the TM mask is also valid for TX and TN, so the result has exactly R's mask. Sydney's gaps
+- *Handling:* dtr is the mean of TX − TN (`period_stat`, with `r_mean`) masked with
+  `valid_mask(ds.tas)`, the TM mask, exactly R's mask. Sydney's gaps
   coincide, so only `oxford` and `dublin` exercise this (#40).
 
 **Dates of extremes in empty periods.** R's `which.max`/`which.min` return no index for a
@@ -1408,39 +1451,54 @@ output is ported.
 
 ## Performance
 
-A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
-a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
-with 15 runs, including the text comparison and the batch test, takes about 220 seconds.
-A batch runs one station per process: Climpact's two sample stations (80 years each) take
-about 19 seconds with `--workers 2`, against about 12 seconds for one station alone (each
-spawned worker also imports xclim). The extra runs are not
-marked `slow`; #23 tracks speed-ups. Most of the time is per-call
-overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
-call. Caching masks per variable and frequency, or calling xclim's compute functions
-directly, are the obvious improvements. The R-precision emulation takes about 30 ms per
-80-year series for a sum, and about 0.2 s for a series of monthly means.
-The EHF port adds about 0.7 s per 80-year station, almost all of it the extended-precision
-30-day sums (one `r_sum` per day).
+Measured on an Apple M-series laptop (one process), before and after #23:
 
-The temperature percentile indices (tx90p, tn90p, tx10p, tn10p, txgt50p, ANN and MON)
-take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
+| | Before #23 | After #23 |
+| --- | --- | --- |
+| Build, 80-year station (`lat0`, `sydney`) | 13.4 s | 2.6-2.7 s |
+| Build, 60-year GHCN station | 10.3-10.5 s | 2.1-2.3 s |
+| Build, patchy stations (`new_delhi`, `nairobi`) | 9.2-9.5 s | 1.5-1.7 s |
+| Write the CSV files | 1.0-1.3 s | 0.1-0.2 s |
+| `climpact run` for Sydney (including about 2 s of imports) | 16.6 s | 5.2 s |
+| `climpact batch`, Climpact's two sample stations, `--workers 2` | 19.1 s | 8-9 s |
+| Full test suite (15 runs, text comparison, batch test) | 202 s | 55 s |
 
-| Run | Bootstrap (5 variable/quantile pairs) | Indices | Total |
-| --- | --- | --- | --- |
-| `lat0`, `sydney` (80 years) | 0.8 s | 1.3 s | 2.1-2.2 s |
-| other GHCN runs (60 years) | 0.7-0.8 s | 1.0 s | 1.7-1.9 s |
-| `new_delhi`, `nairobi` (patchy) | 0.7 s | 0.9 s | 1.5-1.6 s |
+The build is `build_all`, after `load_station`. Profiling (cProfile) on Sydney before #23
+showed three causes, fixed without changing any output (all 1,662 files written for the 15
+runs are byte-identical before and after, as well as text-identical to R):
 
-The spell-duration indices (6 files) take about 0.2-0.25 s per station, and gsl about
-0.03-0.1 s. SPI and SPEI (8 files) take 0.1-0.3 s per station, mostly the
-extended-precision accumulations and the scalar R ports. The trend file takes about
-0.7 s for an 80-year station, mostly sorting the 460,000 pairwise slopes of each monthly
-series.
+- **xarray's `resample`** reduced each of the 960 months separately through xarray
+  objects (flox is not installed), about 70% of the build. Most of it was the climdex
+  missing-data mask, recomputed 75 times per station, including inside every xclim call.
+  Masks, counts, maxima and minima now use `climpact.periods` (see
+  [Monthly and annual reductions](#monthly-and-annual-reductions)), and threshold counts
+  no longer go through xclim (see [Use of xclim](#use-of-xclim)). Once a mask takes about
+  1 ms, caching it per variable on the `StationRun` was not worth it.
+- **The R-precision emulation** worked on integers in units of 2**-1074 (about 1,100
+  bits). It now uses the values' own unit and skips rounding that cannot happen, with an
+  exact `math.fsum` path (see [Numerical precision](#numerical-precision)).
+- **R number formatting** used `fractions.Fraction`, for every value written and for the
+  standardised column. It now uses integer ratios and a cache.
 
-The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
-at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550
-quantiles. Most of the rest is the per-period R-precision mean (`r_mean`) and the
-missing-data masks.
+The trend file also reads its two confidence-bound order statistics with `np.partition`
+instead of sorting all the pairwise slopes.
+
+What is left of the Sydney build (about 2.4 s for the products):
+
+| Product | Time |
+| --- | --- |
+| Temperature percentile indices (tx90p, tn90p, tx10p, tn10p, txgt50p) | 1.0 s: bootstrap 0.74 s (5 variable/quantile pairs), indices 0.26 s |
+| Trend file | 0.47 s, mostly the 460,000 pairwise slopes of each monthly series |
+| EHF heatwaves | 0.31 s, mostly the extended-precision 30-day sums (one `r_sum` per day) |
+| Means and totals (tmm, txm, tnm, dtr, prcptot, sdii) | 0.24 s, mostly `r_mean` per month |
+| SPI and SPEI (8 files) | 0.22 s, the extended-precision accumulations and the scalar R ports |
+| Everything else | under 0.12 s each |
+
+GHCN stations take 0.9 s for the percentile indices and 0.3 s for the trend file. The
+bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day at
+once with numpy, so it takes about 0.15 s per variable and quantile, against 317,550
+quantiles. A batch runs one station per process, and each spawned worker also imports
+xclim (about 2 s).
 
 ## Development
 

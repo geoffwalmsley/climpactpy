@@ -127,11 +127,15 @@ def confint_zyp(x: np.ndarray, y: np.ndarray, slopes: np.ndarray, level: float =
     the sorted slopes at those (1-based) positions. Raises ``ValueError`` where R's
     ``confint.zyp`` stops with an error.
     """
-    s = np.sort(slopes[~np.isnan(slopes)])  # R's sort drops NA and NaN
+    s = slopes[~np.isnan(slopes)]  # R's sort drops NA and NaN
     zstat = qnorm(1 - (1 - level) / 2)
     c_alpha = math.sqrt(kendall_var_s(x, y)) * zstat
     n_prime = len(s)
     idx = [round((n_prime - c_alpha) / 2), round((n_prime + c_alpha) / 2)]
+    # Only the two order statistics are needed: partition instead of sorting.
+    positions = sorted({i - 1 for i in idx if 1 <= i <= n_prime})
+    if positions:
+        s = np.partition(s, positions)
 
     def at(i: int) -> float:
         return float(s[i - 1]) if 1 <= i <= n_prime else math.nan

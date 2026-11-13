@@ -120,3 +120,48 @@ def test_annual_total_above_is_strict():
     pr = xr.DataArray([5.0, 10.0, np.nan, 12.5], dims="time", coords={"time": time})
     assert annual_total_above(pr, 10.0, ">").item() == 12.5
     assert annual_total_above(pr, 10.0, ">=").item() == 22.5
+
+
+def test_threshold_counts_match_xclim():
+    """count_days gives the same counts and climdex mask as the xclim indicators."""
+    import xclim
+    from xclim.indicators import atmos
+
+    from climpact.products.indices import COUNTS, count_days
+    from climpact.products.tables import FREQS
+    from climpact.station import load_station
+    from tests.parity.catalogue import RUNS
+
+    run = RUNS["sydney"]
+    ds = load_station(run.input_path, run.metadata).data.copy(deep=True)
+    for var in ("pr", "tasmax", "tasmin", "tas"):
+        ds[var][100:105] = np.nan  # April 1936: the month and the year are missing
+    indicators = {
+        ("tasmin", "<"): atmos.tn_days_below,
+        ("tasmin", ">"): atmos.tn_days_above,
+        ("tasmax", "<"): atmos.tx_days_below,
+        ("tasmax", ">"): atmos.tx_days_above,
+        ("tasmax", ">="): atmos.tx_days_above,
+        ("tas", ">="): atmos.tg_days_above,
+        ("tas", "<"): atmos.tg_days_below,
+        ("pr", ">="): atmos.wetdays,
+    }
+    units = {"pr": "mm/d"}
+    for var, threshold, condition in [*COUNTS.values(), ("pr", 12.5, ">=")]:
+        indicator = indicators[var, condition]
+        for freq, rule in FREQS.items():
+            with xclim.set_options(
+                check_missing="climdex",
+                as_dataset=False,
+                cf_compliance="log",
+                data_validation="log",
+            ):
+                expected = indicator(
+                    **{var: ds[var]},
+                    thresh=f"{threshold} {units.get(var, 'degC')}",
+                    condition=condition,
+                    freq=rule,
+                )
+            actual = count_days(ds[var], threshold, condition, freq)
+            assert np.isnan(actual.values).any()
+            np.testing.assert_array_equal(actual.values, expected.values.astype(float))

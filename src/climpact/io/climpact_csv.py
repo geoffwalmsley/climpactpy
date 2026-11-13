@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from fractions import Fraction
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -102,15 +102,31 @@ METADATA_KEYS = (
 )
 
 
-def _round_extended(q: Fraction) -> Fraction:
-    """Round a positive rational to the x87 extended format (64-bit significand)."""
-    e = q.numerator.bit_length() - q.denominator.bit_length()
-    if Fraction(2) ** e > q:
+def _round_extended(num: int, den: int) -> tuple[int, int]:
+    """Round the positive rational ``num / den`` to the x87 extended format (64-bit
+    significand), returned as ``(n, shift)`` with value ``n / 2**shift``."""
+    e = num.bit_length() - den.bit_length()  # floor(log2(num / den)) or one more
+    if (den << e > num) if e >= 0 else (den > num << -e):
         e -= 1
     shift = EXTENDED_BITS - 1 - e  # scale so the significand is a 64-bit integer
-    scaled = q * Fraction(2) ** shift
-    n = round(scaled)  # Fraction rounding is half to even
-    return Fraction(n) / Fraction(2) ** shift
+    if shift >= 0:
+        num <<= shift
+    else:
+        den <<= -shift
+    return _round_half_even(num, den), shift
+
+
+def _round_half_even(num: int, den: int) -> int:
+    """``num / den`` rounded to an integer, ties to even (``den > 0``)."""
+    q, r = divmod(num, den)
+    if 2 * r > den or (2 * r == den and q & 1):
+        q += 1
+    return q
+
+
+def _as_ratio(n: int, shift: int) -> tuple[int, int]:
+    """``n / 2**shift`` as an integer numerator and denominator."""
+    return (n, 1 << shift) if shift >= 0 else (n << -shift, 1)
 
 
 def _r_scientific(r: float, digits: int) -> tuple[int, int, bool]:
@@ -121,13 +137,22 @@ def _r_scientific(r: float, digits: int) -> tuple[int, int, bool]:
     integer and counts its trailing zeros. A value just below a rounding boundary can
     therefore be given fewer significant digits than correct rounding would, and is
     then printed rounded to that many digits.
+
+    The arithmetic is exact, on integers: ``r = a / b`` and every long double result is
+    held as ``n / 2**shift``.
     """
+    a, b = r.as_integer_ratio()
     kp = math.floor(math.log10(r)) - digits + 1
-    r_prec = _round_extended(Fraction(r) / Fraction(10) ** kp)
-    if r_prec < 10 ** (digits - 1):
-        r_prec = _round_extended(r_prec * 10)
+    if kp >= 0:
+        n, shift = _round_extended(a, b * 10**kp)
+    else:
+        n, shift = _round_extended(a * 10**-kp, b)
+    num, den = _as_ratio(n, shift)
+    if num < 10 ** (digits - 1) * den:
+        n, shift = _round_extended(10 * num, den)
         kp -= 1
-    alpha = round(r_prec)  # nearbyintl: half to even; at most 10**digits, exact as double
+    # nearbyintl: half to even; at most 10**digits, exact as double
+    alpha = _round_half_even(*_as_ratio(n, shift))
     nsig = digits
     for _ in range(digits):
         if alpha % 10:
@@ -140,7 +165,10 @@ def _r_scientific(r: float, digits: int) -> tuple[int, int, bool]:
     kpower = kp + digits - 1
     rgt = min(max(digits - kpower, 0), 27)
     fuzz = 0.5 / 10.0**rgt
-    widens = 0 < kpower <= 27 and Fraction(r) < Fraction(10) ** kpower - Fraction(fuzz)
+    widens = False
+    if 0 < kpower <= 27:
+        c, d = fuzz.as_integer_ratio()
+        widens = a * d + c * b < 10**kpower * b * d  # r < 10**kpower - fuzz
     return kpower, nsig, widens
 
 
@@ -152,7 +180,11 @@ def format_r_number(value: float, digits: int = R_DIGITS) -> str:
     unless scientific notation is narrower (``scipen = 0``). Missing values are written
     as :data:`MISSING_TOKEN`.
     """
-    x = float(value)
+    return _format_r_number(float(value), digits)
+
+
+@lru_cache(maxsize=1 << 16)
+def _format_r_number(x: float, digits: int) -> str:
     if math.isnan(x):
         return MISSING_TOKEN
     if math.isinf(x):

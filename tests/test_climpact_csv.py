@@ -163,3 +163,34 @@ def test_round_trip(tmp_path):
     assert table.metadata == METADATA
     result = compare_tables(table.data, data, Tier.CLOSE)
     assert result.ok, result.summary()
+
+
+def test_format_r_number_matches_fraction_arithmetic():
+    """The integer arithmetic gives the same text as the original Fraction-based port
+    (tests/rreference.py), including values next to decimal rounding boundaries."""
+    from . import rreference
+
+    rng = np.random.default_rng(7)
+    n = 3000
+    base = np.round(rng.uniform(1, 10, n), 14) * 10.0 ** rng.integers(-10, 20, n)
+    values = [
+        *rng.normal(0, 1, n) * 10.0 ** rng.integers(-30, 30, n),
+        *[
+            round(v, int(k))
+            for v, k in zip(rng.normal(20, 10, n), rng.integers(0, 4, n), strict=True)
+        ],
+        *base,
+        *np.nextafter(base, np.inf),
+        *np.nextafter(base, -np.inf),
+        *(rng.integers(0, 30, n) / rng.integers(1, 400, n)),
+        *[10.0**k for k in range(-30, 31)],
+        *[np.nextafter(10.0**k, 0) for k in range(-20, 28)],
+        999999999999999.9,
+        99999.99999999999,
+        5e-324,
+        1.7976931348623157e308,
+    ]
+    for value in values:
+        for v in (float(value), -float(value)):
+            for digits in (15, 7):
+                assert format_r_number(v, digits) == rreference.format_r_number(v, digits), v

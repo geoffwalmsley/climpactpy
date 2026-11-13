@@ -12,9 +12,12 @@ as plain functions and registers it with xclim as the ``"climdex"`` missing meth
 
 from __future__ import annotations
 
+import numpy as np
 import xarray as xr
 from xclim.core.missing import MissingBase
 from xclim.core.options import register_missing_method
+
+from climpact.periods import RULES, periods
 
 MAX_MISSING_DAYS = {"monthly": 3, "annual": 15}
 
@@ -42,6 +45,9 @@ def _period(freq: str) -> str:
 
 def missing_days(valid: xr.DataArray, resample_freq: str) -> xr.DataArray:
     """Number of days without valid data in each period."""
+    if valid.ndim == 1 and resample_freq in RULES:
+        p = periods(valid.time, resample_freq)
+        return p.wrap(p.days() - p.count(valid.values))
     grouped = valid.resample(time=resample_freq)
     return grouped.count() - grouped.sum()
 
@@ -52,12 +58,29 @@ def climdex_missing(valid: xr.DataArray, freq: str) -> xr.DataArray:
     ``valid`` is a daily boolean array (True where the day has data) on a complete
     daily time axis. ``freq`` is ``"MS"`` (monthly) or ``"YS"`` (annual).
     """
+    period = _period(freq)
+    if valid.ndim == 1:
+        return _climdex_missing_1d(valid, period)
     monthly = missing_days(valid, "MS") > MAX_MISSING_DAYS["monthly"]
-    if _period(freq) == "monthly":
+    if period == "monthly":
         return monthly
     annual = missing_days(valid, "YS") > MAX_MISSING_DAYS["annual"]
     any_month = monthly.resample(time="YS").any()
     return annual | any_month
+
+
+def _climdex_missing_1d(valid: xr.DataArray, period: str) -> xr.DataArray:
+    """:func:`climdex_missing` for a single series, with :mod:`climpact.periods`."""
+    flags = np.asarray(valid.values, dtype=bool)
+    months = periods(valid.time, "MS")
+    monthly = months.days() - months.count(flags) > MAX_MISSING_DAYS["monthly"]
+    if period == "monthly":
+        return months.wrap(monthly)
+    years = periods(valid.time, "YS")
+    annual = years.days() - years.count(flags) > MAX_MISSING_DAYS["annual"]
+    # Each month's year is that of its first day, so group the months by their labels.
+    any_month = periods(months.labels, "YS").count(monthly) > 0
+    return years.wrap(annual | any_month)
 
 
 def valid_mask(*arrays: xr.DataArray, freq: str) -> xr.DataArray:

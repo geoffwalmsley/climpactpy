@@ -76,9 +76,6 @@ KNOWN_BUGS = {
     re.compile(r"^(yakutsk|beijing|nairobi|new_delhi)/"): (
         "known bug #39: extremes crash on a month with no data"
     ),
-    re.compile(r"^(oxford|dublin)/indices/dtr_(ANN|MON)$"): (
-        "known bug #40: dtr uses per-variable masks instead of the TM mask"
-    ),
 }
 
 

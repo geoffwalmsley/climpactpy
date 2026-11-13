@@ -30,3 +30,24 @@ def test_parameter_names_match_r():
     assert format_number(12.5) == "12.5"
     assert CustomIndex("TN", ">", 0).name == "TNgt0"
     assert CustomIndex("TX", "<=", -2.5).name == "TXle-2.5"
+
+
+def test_dtr_uses_tm_mask_when_tx_and_tn_gaps_differ():
+    """climdex.dtr masks with TM: 3 TX gaps + 3 TN gaps on other days = 6 missing days."""
+    import pandas as pd
+
+    from climpact.config import StationMetadata
+    from climpact.io.station import station_dataset
+    from climpact.products.indices import means_and_totals
+    from climpact.station import StationRun
+
+    dates = pd.date_range("2001-01-01", "2001-12-31", freq="D")
+    df = pd.DataFrame({"date": dates, "prcp": 0.0, "tmax": 20.0, "tmin": 10.0})
+    df.loc[[0, 1, 2], "tmax"] = np.nan  # 1-3 January: TX missing
+    df.loc[[10, 11, 12], "tmin"] = np.nan  # 11-13 January: TN missing
+    meta = StationMetadata(name="test")
+    run = StationRun(data=station_dataset(df, meta), metadata=meta)
+
+    dtr = means_and_totals(run)["indices/dtr_MON"]["dtr"]
+    assert np.isnan(dtr.iloc[0])  # January: 6 days missing TX or TN
+    assert dtr.iloc[1:].tolist() == [10.0] * 11

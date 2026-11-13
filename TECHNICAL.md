@@ -9,8 +9,8 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 ## Status
 
 The Python port reproduces **65 of the 117** R reference files for Sydney (`lat0` and
-`sydney`) and for 7 of the 13 GHCN stations, with none failing. On the other six, files fail
-because of two open bugs found by the GHCN stations, recorded as known bugs (see
+`sydney`) and for 9 of the 13 GHCN stations, with none failing. The other four fail because of
+an open bug found by the GHCN stations (#39), recorded as a known bug (see
 [Reference outputs](#reference-outputs)):
 
 | Area | Ported | Not yet ported |
@@ -172,7 +172,7 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 | `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 65/117 |
 | `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 65/117 |
 | `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 65/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 63/115 and 63/117: dtr ANN/MON are known bugs (#40) |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 65/115 and 65/117 |
 | `yakutsk`, `beijing`, `nairobi`, `new_delhi` | Extreme cold; missing-data rules; patchy base periods | GHCN-Daily | 0: `build_all` raises on a month with no data, so the whole run is a known bug (#39) |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
@@ -223,13 +223,13 @@ printed at the end:
 alice_springs: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 beijing: 0/117 reference files reproduced, 0 failing, 117 known bugs, 0 not yet ported
 darwin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
-dublin: 63/117 reference files reproduced, 0 failing, 2 known bugs, 52 not yet ported
+dublin: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 lat0: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 madrid: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 minneapolis: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 nairobi: 0/60 reference files reproduced, 0 failing, 60 known bugs, 0 not yet ported
 new_delhi: 0/83 reference files reproduced, 0 failing, 83 known bugs, 0 not yet ported
-oxford: 63/115 reference files reproduced, 0 failing, 2 known bugs, 50 not yet ported
+oxford: 65/115 reference files reproduced, 0 failing, 50 not yet ported
 perth: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 phoenix: 65/117 reference files reproduced, 0 failing, 52 not yet ported
 potsdam: 65/117 reference files reproduced, 0 failing, 52 not yet ported
@@ -331,9 +331,10 @@ applied separately, then combined), which is what Python does. climdex.pcic's `c
 masks dtr with the TM mask, where a day is missing if either TX or TN is missing, so a month
 with 3 missing TX days and 3 missing TN days on different dates is missing.
 
-- *Open bug (#40):* Python computes dtr with xclim under the climdex rule applied to TX and TN
-  separately, so it reports dtr for such periods. Sydney's gaps coincide, so `lat0` and
-  `sydney` pass; `oxford` (24 monthly, 13 annual values) and `dublin` (18, 14) fail.
+- *Handling:* dtr is computed with xclim (which applies the climdex rule to TX and TN
+  separately) and then masked with `valid_mask(ds.tas)`, the TM mask. Any period valid under
+  the TM mask is also valid for TX and TN, so the result has exactly R's mask. Sydney's gaps
+  coincide, so only `oxford` and `dublin` exercise this (#40).
 
 **Dates of extremes in empty periods.** R's `which.max`/`which.min` return no index for a
 period with no data, and Climpact writes `-99.9`.
@@ -380,7 +381,7 @@ output is ported.
 ## Performance
 
 A full station run (80 years, all ported indices) takes about 9 seconds (7 s for a 60-year
-GHCN station). The whole test suite with 15 runs takes about 90 seconds while four runs fail
+GHCN station). The whole test suite with 15 runs takes about 90-100 seconds while four runs fail
 early (#39). The extra runs are not marked `slow`; #23 tracks speed-ups. The time goes mostly on per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions

@@ -135,9 +135,11 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
     out = {}
     for freq in FREQS:
         tables = {
+            # climdex.dtr masks with the TM mask (a day is missing if TX or TN is missing);
+            # xclim applies the climdex rule to TX and TN separately, which is looser.
             "dtr": run_xclim(
                 atmos.daily_temperature_range, freq, tasmin=ds.tasmin, tasmax=ds.tasmax
-            ),
+            ).where(valid_mask(ds.tas, freq=FREQS[freq])),
             "tmm": period_stat(ds.tas, freq, "mean", ds.tasmin, ds.tasmax),
             "txm": period_stat(ds.tasmax, freq, "mean", ds.tasmax),
             "tnm": period_stat(ds.tasmin, freq, "mean", ds.tasmin),

@@ -23,7 +23,8 @@ Each run writes indices, thres, trend, qc and plots, plus `r-package-versions.cs
 `climpact-commit.txt`. The `lat0` run also runs Climpact's own CSV test
 (`climpact/tests/output_compare`) and writes `comparison_summary.csv`.
 
-The CSV outputs are committed so tests can use them without Docker; plots (PNG/PDF) are gitignored.
+The CSV outputs are committed so tests can use them without Docker (the parity suite is
+`packages/climpact/tests/parity`, which finds this folder at the repository root); plots (PNG/PDF) are gitignored.
 The plot file names are committed in `output/<run>/plot-files.txt` (written by
 `run_r_reference.sh` when the run has plots), for the plot file-list test.
 Re-running changes the `Date_of_calculation` header line in every CSV, so only commit a re-run when the

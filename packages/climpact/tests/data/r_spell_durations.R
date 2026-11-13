@@ -1,7 +1,7 @@
 # Prints climdex.pcic's select.blocks.gt.length and threshold.exceedance.duration.index and
 # Climpact's dual.threshold.exceedance.duration.index on small synthetic series, for
 # tests/test_spell_durations.py. Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_spell_durations.R
 # Output (climdex.pcic 1.2-0 with Climpact's dual.threshold.exceedance.duration.index):
 #   select n=0 : 1 1 0 1 1 1 0 NA 1 1

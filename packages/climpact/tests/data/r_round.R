@@ -2,8 +2,8 @@
 # flatline checks use (services/check/jumps_tx.R ...), for tests/test_qc.py; the output
 # is stored in tests/data/r_round.txt as C99 hex floats: one "change rounded" pair a line.
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $PWD/tests/data:/probe:ro \
-#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_round.R > tests/data/r_round.txt
+#   docker run --rm --platform linux/amd64 -v $PWD/packages/climpact/tests/data:/probe:ro \
+#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_round.R > packages/climpact/tests/data/r_round.txt
 # Cases: changes between values with two decimals and with one decimal (uniform in
 # [-60, 60]), and changes that sit on or next to a rounding tie.
 set.seed(25)

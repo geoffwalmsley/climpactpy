@@ -42,8 +42,8 @@ Cross-cutting tickets (for example the plugin interfaces, #28) and decision tick
 ## Adding a ticket
 
 1. **Check for duplicates first:** `gh issue list --repo geoffwalmsley/climpactpy --state all --search "<keywords>"`.
-2. **Read the code**, both the Python (`src/climpact/...`) and the R it ports (`../climpact/server/climpact.etsci-functions.r`, `../climpact/services/...`, climdex.pcic), so the paths, functions and line numbers in the ticket are real. Read `TECHNICAL.md` and `CLAUDE.md`. Don't reopen decisions the user has already made.
-3. **Plan the parity coverage.** Every ticket gets a **Parity coverage** section: list the reference files (`tests/parity` ids such as `indices/gsl_ANN`) that should go from xfail to pass, for which runs (`lat0`, `sydney`), and at which tier. If no reference output exists yet (gridded, northern hemisphere), say how one will be produced with the Docker image in `reference/r`. If behaviour shouldn't change, write "No change: everything that passes now still passes".
+2. **Read the code**, both the Python (`packages/climpact/src/climpact/...`) and the R it ports (`../climpact/server/climpact.etsci-functions.r`, `../climpact/services/...`, climdex.pcic), so the paths, functions and line numbers in the ticket are real. Read `TECHNICAL.md` and `CLAUDE.md`. Don't reopen decisions the user has already made.
+3. **Plan the parity coverage.** Every ticket gets a **Parity coverage** section: list the reference files (`packages/climpact/tests/parity` ids such as `indices/gsl_ANN`) that should go from xfail to pass, for which runs (`lat0`, `sydney`), and at which tier. If no reference output exists yet (gridded, northern hemisphere), say how one will be produced with the Docker image in `reference/r`. If behaviour shouldn't change, write "No change: everything that passes now still passes".
 4. **Write the body** using the template below, saved to a temp file.
 5. **Create, add to the board and set fields.** Run these one ticket at a time, and record each issue number before moving on. A failed batch retry creates duplicate issues.
    ```bash
@@ -72,7 +72,7 @@ Why this exists and where it fits. 2–5 sentences. Name the R code being ported
 climdex.pcic function). Link related issues/PRs (#N). State dependencies as "Depends on #N".
 
 ## Scope
-Concrete bullets naming real files (`src/climpact/...`) and the outputs produced.
+Concrete bullets naming real files (`packages/climpact/src/climpact/...`) and the outputs produced.
 Include non-obvious design decisions and their reasoning (for example, xclim vs a direct port).
 
 ## Out of Scope            (optional)

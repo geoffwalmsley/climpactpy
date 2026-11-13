@@ -3,8 +3,8 @@
 # is stored in tests/data/r_boxplot.txt, one case a line: "coef;x;fivenum;stats", each
 # a space-separated list of C99 hex floats (NA for missing).
 # Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $PWD/tests/data:/probe:ro \
-#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_boxplot.R > tests/data/r_boxplot.txt
+#   docker run --rm --platform linux/amd64 -v $PWD/packages/climpact/tests/data:/probe:ro \
+#     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_boxplot.R > packages/climpact/tests/data/r_boxplot.txt
 # Cases: n = 1 to 12 (odd and even), longer samples with outliers at several
 # coefficients, ties, an interquartile range of 0, missing values, values exactly on a
 # fence, coef = 0, and no values at all.

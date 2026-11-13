@@ -15,7 +15,7 @@ written from memory.
 ```sh
 git fetch -q
 git diff --stat origin/main...HEAD
-git diff origin/main...HEAD -- src tests reference pyproject.toml .github
+git diff origin/main...HEAD -- packages reference ruff.toml pytest.ini .github
 ```
 
 List the changes that affect documented behaviour. Ignore pure refactors that change no
@@ -65,7 +65,7 @@ input, Output files). Add a subheading only if none fits.
   ```sh
   grep -oE '`[A-Za-z_][A-Za-z0-9_./]*(\(\))?`' TECHNICAL.md | sort -u
   ```
-  and look up each name that refers to code with `grep -rn` in `src/`, `tests/` and `reference/`.
+  and look up each name that refers to code with `grep -rn` in `packages/` and `reference/`.
 - Status table, parity counts and "not yet ported" lists agree with each other and with
   the test run from step 2.
 - No statement describes behaviour that the code no longer has.

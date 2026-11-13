@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "climpact-web"
+description = "Web front end for climpactpy (Climpact in Python)"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+dynamic = ["version"]
+dependencies = [
+    "climpactpy",  # the core package (import name: climpact)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.8",
+]
+
+[project.urls]
+Repository = "https://github.com/geoffwalmsley/climpactpy"
+
+[tool.hatch.version]
+path = "src/climpact_web/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/climpact_web"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-rfE --strict-markers"
+
+[tool.ruff]
+extend = "../../ruff.toml"

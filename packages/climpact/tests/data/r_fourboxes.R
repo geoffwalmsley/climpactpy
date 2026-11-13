@@ -2,7 +2,7 @@
 # stations written by tests/data/make_fourboxes_synthetic.py, for tests/test_qc.py.
 # Writes tests/data/r_fourboxes_<station>_<iqr temp>_<iqr prec>_outliers.csv.
 # Run in the R reference image (reference/r), with the Climpact repo mounted:
-#   docker run --rm --platform linux/amd64 -v $PWD/tests/data:/probe \
+#   docker run --rm --platform linux/amd64 -v $PWD/packages/climpact/tests/data:/probe \
 #     -v $CLIMPACT_DIR:/climpact:ro --entrypoint Rscript climpact-r-ref:3.4.3-amd64 \
 #     /probe/r_fourboxes.R
 version.climpact <- "3.4.3"

@@ -1,6 +1,6 @@
 # Prints Climpact's get.hw.aspects (climpact.etsci-functions.r) on small synthetic series,
 # for tests/test_heatwaves.py. Run in the R reference image (reference/r):
-#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/tests/data:/probe:ro \
+#   docker run --rm --platform linux/amd64 -v $CLIMPACT_DIR:/climpact:ro -v $PWD/packages/climpact/tests/data:/probe:ro \
 #     --entrypoint Rscript climpact-r-ref:3.4.3-amd64 /probe/r_hw_aspects.R
 # Rows are HWM, HWA, HWN, HWD, HWF; columns are the years 2001-2003. The output is copied
 # into tests/test_heatwaves.py, except the whole-season heatwave (north 2002) and the series

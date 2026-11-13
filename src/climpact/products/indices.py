@@ -23,6 +23,7 @@ from climpact.outputs import product
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
+from climpact.thresholds import InsufficientBaseData, day_of_year
 
 OPERATORS: dict[str, Callable] = {
     ">": operator.gt,
@@ -341,3 +342,281 @@ def spells(run: StationRun) -> dict[str, pd.DataFrame]:
         "indices/cdd_ANN": spell_length_max(run, "<"),
         "indices/cwd_ANN": spell_length_max(run, ">="),
     }
+
+
+# --- precipitation percentile indices ---------------------------------------------
+
+
+def annual_total_above(pr: xr.DataArray, threshold: float, condition: str) -> xr.DataArray:
+    """Annual sum of the days where ``pr <condition> threshold``, skipping missing days
+    (climdex.pcic ``total.precip.op.threshold``), with R's extended-precision ``sum``.
+
+    Not masked: the caller applies the annual missing-data mask.
+    """
+    op = OPERATORS[condition]
+    return period_reduce(pr, "YS", lambda x: r_sum(x[op(x, threshold)]))
+
+
+@product
+def precipitation_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
+    """r95p, r99p, r95ptot and r99ptot (Climpact's ``climdex.r95p`` ... ``climdex.r99ptot``
+    in ``climpact.etsci-functions.r``).
+
+    rNNp is the annual total on days above the base-period wet-day (>= 1 mm) percentile;
+    rNNptot is ``100 * rNNp / prcptot``, with prcptot recomputed in the same way, as R
+    does. A year with no wet days gives 0 / 0, which R writes as missing.
+    """
+    try:
+        quantiles = run.thresholds.precipitation
+    except InsufficientBaseData:
+        return {}
+    pr = run.data.pr
+    mask = valid_mask(pr, freq="YS")
+    prcptot = annual_total_above(pr, 1.0, ">=").where(mask)
+    out = {}
+    for q in (0.95, 0.99):
+        name = f"r{round(q * 100)}p"
+        total = annual_total_above(pr, quantiles[q], ">").where(mask)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            share = 100 * total / prcptot
+        out[f"indices/{name}_ANN"] = index_table(name, total, "ANN")
+        out[f"indices/{name}tot_ANN"] = index_table(f"{name}tot", share, "ANN")
+    return out
+
+
+# --- temperature percentile indices ------------------------------------------------
+
+MAX_MISSING_DAYS = {"ANN": 15, "MON": 3}  # climdex.pcic max.missing.days
+
+
+def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr.DataArray:
+    """Daily share of thresholds exceeded: Climpact's ``percent.days.op.threshold``
+    (``climpact.etsci-functions.r``, which replaces climdex.pcic's) before averaging.
+
+    Outside the base period a day is 1 or 0: ``value <condition> threshold``, with the
+    out-of-base threshold for its day of year. Inside the base period it is compared
+    with each of the ``years - 1`` bootstrapped thresholds for its year and day, and
+    the number of hits is divided by ``years - 1``, the number of comparisons, where
+    ``years`` is the length of the base period. A missing threshold counts as not
+    exceeded, as in R. A day is missing when every comparison is.
+
+    R divides by ``byrs - 1`` instead, where ``byrs`` is the number of base-period
+    years the series covers. That is the same when the series covers the whole base
+    period, but gives percentages above 100 when it starts or ends inside it, so it
+    is not copied (TECHNICAL.md, "R behaviour not copied").
+    """
+    th = run.thresholds
+    da = run.data[var]
+    x = da.values
+    time = pd.DatetimeIndex(da.time.values)
+    op = OPERATORS[condition]
+    thr = th.daily(var, q, time).values
+    with np.errstate(invalid="ignore"):
+        dat = np.where(np.isnan(x) | np.isnan(thr), np.nan, op(x, thr).astype(float))
+
+    inset = (time >= pd.Timestamp(f"{th.base_start}-01-01")) & (
+        time <= pd.Timestamp(f"{th.base_end}-12-31")
+    )
+    years = time.year.to_numpy()[inset]
+    # R skips the bootstrap for series shorter than two years. With one base year,
+    # R fails (no years to replace with); the out-of-base thresholds are kept then.
+    if inset.any() and time.size >= 360 * 2 and years.max() > years.min():
+        doy = day_of_year(time[inset]) - 1
+        base_thr = th.inbase(var, q)[doy, years - th.base_start, :]  # (days, years - 1)
+        comparisons = base_thr.shape[1]
+        xb = x[inset][:, None]
+        valid = ~np.isnan(xb) & ~np.isnan(base_thr)
+        with np.errstate(invalid="ignore"):
+            hits = (op(xb, base_thr) & valid).sum(axis=1)
+        dat[inset] = np.where(valid.any(axis=1), hits / comparisons, np.nan)
+    return xr.DataArray(dat, dims="time", coords={"time": da.time.values})
+
+
+def percent_days(dat: xr.DataArray, freq: str, mask: xr.DataArray) -> xr.DataArray:
+    """Percentage of days per period: R ``tapply(dat, f, mean, na.rm = TRUE) * 100``,
+    missing when more than ``max.missing.days`` days of ``dat`` are, then multiplied
+    by the variable's climdex missing-data ``mask``."""
+    rule = FREQS[freq]
+    n_missing = dat.isnull().resample(time=rule).sum()
+    values = period_reduce(dat, rule, r_mean) * 100
+    values = values.where(n_missing <= MAX_MISSING_DAYS[freq])
+    return values.where(mask)
+
+
+# name -> (variable, quantile, condition)
+TEMPERATURE_PERCENTILES = {
+    "tx90p": ("tasmax", 0.9, ">"),
+    "tn90p": ("tasmin", 0.9, ">"),
+    "tx10p": ("tasmax", 0.1, "<"),
+    "tn10p": ("tasmin", 0.1, "<"),
+    "txgt50p": ("tasmax", 0.5, ">"),
+}
+
+
+@product
+def temperature_percentiles(run: StationRun) -> dict[str, pd.DataFrame]:
+    """tx90p, tn90p, tx10p, tn10p and txgt50p: the percentage of days above (below) the
+    base-period percentile for the day of year, bootstrapped inside the base period
+    (Climpact's ``climdex.tx90p`` ... ``climdex.txgt50p``)."""
+    try:
+        run.thresholds  # noqa: B018 - raises when the base period has too little data
+    except InsufficientBaseData:
+        return {}
+    masks = {
+        (var, freq): valid_mask(run.data[var], freq=rule)
+        for var in ("tasmax", "tasmin")
+        for freq, rule in FREQS.items()
+    }
+    out = {}
+    for name, (var, q, condition) in TEMPERATURE_PERCENTILES.items():
+        dat = days_op_threshold(run, var, q, condition)
+        for freq in FREQS:
+            values = percent_days(dat, freq, masks[var, freq])
+            out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
+    return out
+
+
+# --- spell-duration indices (wsdi, csdi, wsdi{n}, csdi{n}, tx{n}tn{n}, txb{n}tnb{n}) -----
+
+
+def r_compare(x: np.ndarray, thr: np.ndarray, condition: str) -> np.ndarray:
+    """``x <condition> thr`` as an R logical held in floats: 1, 0, or NaN (R ``NA``)
+    where either side is missing."""
+    with np.errstate(invalid="ignore"):
+        hit = OPERATORS[condition](x, thr).astype(float)
+    hit[np.isnan(x) | np.isnan(thr)] = np.nan
+    return hit
+
+
+def r_and(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """R's ``&`` on logicals held as 1/0/NaN: FALSE wins over NA."""
+    out = np.where((a == 1) & (b == 1), 1.0, np.nan)
+    out[(a == 0) | (b == 0)] = 0.0
+    return out
+
+
+def select_blocks_gt_length(d: np.ndarray, n: int) -> np.ndarray:
+    """climdex.pcic ``select.blocks.gt.length(d, n)``: runs of TRUE no longer than ``n``
+    become FALSE; ``d`` holds an R logical as 1/0/NaN.
+
+    R quirks kept: with ``n < 1``, ``d`` is returned unchanged, missing values (NA)
+    included; with ``n >= length(d)``, everything is FALSE; otherwise NA counts as FALSE.
+    """
+    if n < 1:
+        return d.copy()
+    if n >= d.size:
+        return np.zeros(d.size)
+    flags = d == 1  # NaN -> False
+    lengths = series_lengths_at_ends(flags)
+    # Spread each run's length (stored at its last day) back over the run.
+    run_id = np.cumsum(np.concatenate([[True], flags[1:] != flags[:-1]]))
+    run_length = pd.Series(lengths).groupby(run_id).transform("max").to_numpy()
+    return (flags & (run_length > n)).astype(float)
+
+
+def threshold_exceedance_duration(
+    x: np.ndarray, thr: np.ndarray, condition: str, min_length: int, years: np.ndarray
+) -> np.ndarray:
+    """climdex.pcic ``threshold.exceedance.duration.index`` with
+    ``spells.can.span.years = FALSE``: per year, the number of days in runs of at least
+    ``min_length`` days with ``x <condition> thr``. Spells are cut at year boundaries.
+
+    With ``min_length = 1`` R does not replace missing comparisons with FALSE (see
+    :func:`select_blocks_gt_length`), so any year with a missing day is missing.
+
+    No missing-data mask is applied here: R's ``get.na.mask(is.na(x + thr), ...)`` calls
+    ``is.na`` a second time on its already-logical input, so its mask is always 1. The
+    caller applies the variable's climdex mask.
+    """
+    hit = r_compare(x, thr, condition)
+    totals = [
+        float(select_blocks_gt_length(hit[years == y], min_length - 1).sum())
+        for y in np.unique(years)
+    ]
+    return np.asarray(totals)
+
+
+def dual_threshold_duration(
+    x1: np.ndarray,
+    x2: np.ndarray,
+    thr1: np.ndarray,
+    thr2: np.ndarray,
+    condition: str,
+    n: int,
+    years: np.ndarray,
+) -> np.ndarray:
+    """Climpact's ``dual.threshold.exceedance.duration.index``
+    (``climpact.etsci-functions.r``, line 373): per year, the number of events where both
+    ``x1 <condition> thr1`` and ``x2 <condition> thr2`` hold on **more than** ``n``
+    consecutive days, events separated by 3 days or fewer counting as one.
+
+    As in :func:`threshold_exceedance_duration`, R's own 15-day mask is always 1, so
+    no mask is applied here; R then masks with the TX annual mask only.
+    """
+    both = r_and(r_compare(x1, thr1, condition), r_compare(x2, thr2, condition))
+    counts = []
+    for y in np.unique(years):
+        periods = select_blocks_gt_length(both[years == y], n)
+        # Gaps of k = 3 days or fewer (including at the ends of the year) are closed.
+        gaps = select_blocks_gt_length(r_not(periods), 3)
+        periods = r_not(gaps)
+        true = periods == 1
+        counts.append(float(np.count_nonzero(true & ~np.concatenate([[False], true[:-1]]))))
+    return np.asarray(counts)
+
+
+def r_not(d: np.ndarray) -> np.ndarray:
+    """R's ``!`` on a logical held as 1/0/NaN."""
+    return 1.0 - d
+
+
+def annual_index(name: str, values: np.ndarray, years: np.ndarray, mask: xr.DataArray):
+    """Annual index table from per-year ``values``, multiplied by a climdex ``mask``."""
+    uniq = np.unique(years)
+    time = pd.to_datetime([f"{y}-01-01" for y in uniq])
+    da = xr.DataArray(values, dims="time", coords={"time": time})
+    return index_table(name, da.where(mask.values), "ANN")
+
+
+@product
+def spell_durations(run: StationRun) -> dict[str, pd.DataFrame]:
+    """wsdi, csdi, wsdi{n}, csdi{n} (Climpact's ``climdex.wsdid``/``csdid``,
+    climdex.pcic's ``climdex.wsdi``/``csdi``), tx{n}tn{n} and txb{n}tnb{n}
+    (``climdex.txdtnd``/``txbdtnbd``).
+
+    All use the out-of-base thresholds only (no in-base bootstrap), and spells cannot
+    span years. The dual-threshold indices are masked with the TX annual mask only, as
+    in R.
+    """
+    try:
+        th = run.thresholds
+    except InsufficientBaseData:
+        return {}
+    ds, p = run.data, run.params
+    time = pd.DatetimeIndex(ds.time.values)
+    years = time.year.to_numpy()
+    tx, tn = ds.tasmax.values, ds.tasmin.values
+    thr = {
+        (v, q): th.daily(v, q, time).values
+        for v in ("tasmax", "tasmin")
+        for q in (0.05, 0.1, 0.9, 0.95)
+    }
+    masks = {v: valid_mask(ds[v], freq="YS") for v in ("tasmax", "tasmin")}
+
+    out = {}
+    for prefix, var, x, q, condition in (
+        ("wsdi", "tasmax", tx, 0.9, ">"),
+        ("csdi", "tasmin", tn, 0.1, "<"),
+    ):
+        user_days = p.wsdi_days if prefix == "wsdi" else p.csdi_days
+        for name, days in ((prefix, 6), (f"{prefix}{user_days}", user_days)):
+            values = threshold_exceedance_duration(x, thr[var, q], condition, days, years)
+            out[f"indices/{name}_ANN"] = annual_index(name, values, years, masks[var])
+
+    d = p.txtn_days
+    for name, q, condition in ((f"tx{d}tn{d}", 0.95, ">"), (f"txb{d}tnb{d}", 0.05, "<")):
+        values = dual_threshold_duration(
+            tx, tn, thr["tasmax", q], thr["tasmin", q], condition, d, years
+        )
+        out[f"indices/{name}_ANN"] = annual_index(name, values, years, masks["tasmax"])
+    return out

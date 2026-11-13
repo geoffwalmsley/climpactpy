@@ -8,7 +8,7 @@ Reference version: **Climpact R v3.4.3** (commit `5ee0cfe`), with climdex.pcic 1
 
 ## Status
 
-The Python port reproduces **67 of the 117** R reference files for Sydney (`lat0` and
+The Python port reproduces **97 of the 117** R reference files for Sydney (`lat0` and
 `sydney`), and every ported file R wrote for all 13 GHCN stations, with none failing (see
 [Reference outputs](#reference-outputs)). Every ported file is also written text-identical
 to R's on all 15 runs, apart from the `Date_of_calculation` line:
@@ -20,10 +20,12 @@ to R's on all 15 runs, apart from the `Date_of_calculation` line:
 | Extremes (with dates) | txx, tnn, tnx, txn, rx1day, rx3day (rxdday), rx5day | |
 | Spells (with dates) | cdd, cwd | gsl |
 | Degree days | hddheat, cddcold, gddgrow | |
-| Percentile indices | tx95t | tx90p, tx10p, tn90p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd, r95p, r99p, r95ptot, r99ptot |
-| Heatwaves | | Tx90/Tn90 (5 aspects each), EHF (8 aspects, daily EHF/ECF) |
+| Percentile indices | tx95t, r95p, r99p, r95ptot, r99ptot, tx90p, tx10p, tn90p, tn10p, txgt50p (with the in-base bootstrap) | |
+| Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
+| Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each) | EHF (8 aspects, daily EHF/ECF) |
 | Drought | | SPI, SPEI (3, 6, 12 months and custom) |
 | Other outputs | qc/nastatistics, thresholds file (`thres/thres`), CSV files for all ported outputs | trend file, other QC outputs, plots, zip archive |
+| Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`) | gridded data |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -35,7 +37,8 @@ It does not yet write plots or zip archives.
 
 ```
 src/climpact/
-  cli.py             command line: `climpact run <station file> --out <dir>`
+  cli.py             command line: `climpact run` (one station) and `climpact batch` (many)
+  batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   config.py          StationMetadata, IndexParams, CustomIndex (Climpact app defaults)
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-8 quantiles
@@ -50,6 +53,7 @@ src/climpact/
   products/
     tables.py        shape results into Climpact's table layouts; standardised anomalies
     indices.py       index products
+    heatwaves.py     Tx90/Tn90 heatwave products; hw_aspects(), shared with the EHF heatwaves
     thresholds.py    thresholds file and tx95t products
     qc.py            QC products
   compare.py         tiered comparison of tables against the R reference
@@ -57,7 +61,7 @@ src/climpact/
 tests/
   parity/            one test per R reference file, plus progress reporting
   test_*.py          unit tests
-  data/              unit-test fixtures (quantiles printed by R)
+  data/              unit-test fixtures (quantiles printed by R) and the R scripts that print them
 reference/
   stations.csv       one row per R reference run: station, coordinates, period, input source
   fetch_ghcn.py      download GHCN-Daily stations and convert them to Climpact input files
@@ -78,9 +82,11 @@ station text file
   -> io.output_files.write_outputs  <out>/<station>/indices/<station>_fd_ANN.csv, ...
 ```
 
-`climpact run` (`climpact.cli`) runs the whole chain for one station file. Station
-settings and every `IndexParams` value are options; defaults are the Climpact app
-defaults, and the station name defaults to the file name without its suffix.
+`climpact run` (`climpact.cli`) runs the whole chain for one station file
+(`batch.run_station`). Station settings and every `IndexParams` value are options;
+defaults are the Climpact app defaults, and the station name defaults to the file name
+without its suffix. `climpact batch` runs the same chain for every station of an R batch
+metadata file (see [Batch processing](#batch-processing)).
 
 ### Station data model
 
@@ -99,9 +105,10 @@ Station metadata (name, latitude, longitude, base period) is kept in the `Statio
 copied into the Dataset attributes, together with `first_date` and `last_date`, the first
 and last dates in the file before padding (used for climdex's base-period data check).
 
-The Dataset is currently one-dimensional in time. A `station` dimension for batch runs and
-`(lat, lon)` dimensions for gridded data are planned; the index code operates along `time`
-and should not need to change.
+The Dataset is one-dimensional in time. Batch runs do not add a `station` dimension: each
+station is a separate `StationRun` in its own process, because stations have their own
+time axes, coordinates and parameters. `(lat, lon)` dimensions for gridded data are
+planned; the index code operates along `time` and should not need to change.
 
 ### Index parameters
 
@@ -109,9 +116,9 @@ and should not need to change.
 
 | Parameter | Default | Used by |
 | --- | --- | --- |
-| `wsdi_days`, `csdi_days` | 1 | wsdid, csdid (not yet ported) |
+| `wsdi_days`, `csdi_days` | 1 | wsdid, csdid (outputs named `wsdi1`, `csdi1`) |
 | `rx_days` | 3 | rxdday (output named `rx3day`) |
-| `txtn_days` | 2 | txdtnd, txbdtnbd (not yet ported) |
+| `txtn_days` | 2 | txdtnd, txbdtnbd (outputs named `tx2tn2`, `txb2tnb2`) |
 | `hdd_base`, `cdd_base`, `gdd_base` | 18, 18, 10 °C | hddheat, cddcold, gddgrow |
 | `rnnmm` | 30 mm | rNNmm (output named `r30mm`) |
 | `spei_months` | 24 | custom SPI/SPEI scale (not yet ported) |
@@ -135,6 +142,7 @@ Table layouts follow R's `write.index.csv`:
 | Spell with dates | `time`, `start`, `duration`, `end` |
 | Thresholds (`thres/thres`) | 365 rows, one per day of year: `tmax_q5` ... `tavg_q95`, `prec_q5` ... `prec_q99`, `HW_TN90`, `HW_TX90`, `HW_TAVG90` |
 | Day of year (`tx95t_DAY`) | `time` (always missing, see below), `tx95t`, standardised anomaly; 365 rows |
+| Heatwave aspect (`TX90-HWM_ANN` ...) | `time`, `<aspect>` (`HWM`, `HWA`, `HWN`, `HWD` or `HWF`); no standardised column (`write.hw.csv`) |
 
 `time` is the year (as a number) for annual tables and `"YYYY-MM"` for monthly tables.
 The standardised column is `(x - mean) / sd` over all non-missing periods, using the sample
@@ -158,14 +166,18 @@ tables returned by `build_all` the way R does:
   (copied unchanged into `src/climpact/data/`), and the parameterised definitions that
   `index.calc` builds (`services/calculate_indices.R`) for `r30mm`, `rx3day`, `hddheat18`,
   `wsdi1` and so on, all in `index_descriptions`. The custom index uses `TN > 0`, as in
-  `calculate.custom.index`. `qc/nastatistics` has an empty description.
+  `calculate.custom.index`. Heatwave files use `write.hw.csv`'s
+  `TX90 heatwave magnitude (HWM)` and so on. `qc/nastatistics` has an empty description.
 - **Body:** a header row and data rows, unquoted, joined by `", "` (`write.index.csv`) or
   `","` (`write.NA.statistics`). Missing values (NaN or None) are written as `-99.9`.
   Numbers are formatted by `format_r_number`, a port of R's `formatReal`/`scientific`
   (`src/main/format.c`) with 15 significant digits.
 - **All-missing indices:** an index table whose values are missing in every period is not
   written, as in `write.index.csv` (`services/write_indices.R`, line 11). `climpact run`
-  lists the files it skipped.
+  lists the files it skipped. The heatwave files are the exception: `write.hw.csv`
+  (line 58) writes all ten `TX90-`/`TN90-` files unless every value of all ten is missing,
+  so a file that is missing in every year is still written (`_HEATWAVE_FILE`). The
+  heatwave product returns no tables in the all-missing case.
 - **`thres/thres`:** R writes it with a plain `write.table` in `quality_control_checks.R`,
   so it has no metadata header and writes missing values as `NA`. A `None` description in
   `_DESCRIPTIONS` means no header, and `_NA_TOKENS` holds the `NA` token.
@@ -173,6 +185,59 @@ tables returned by `build_all` the way R does:
 `write_climpact_csv` (in `climpact.io.climpact_csv`) writes one file and is the inverse of
 `read_climpact_csv`. An output key with no description or file format is an error, so a new
 product must add its format in `output_files.py` before its files can be written.
+
+## Batch processing
+
+`climpact batch <metadata file> <data dir> --out <dir>` ports Climpact's batch mode
+(`climpact.batch.stations.r`, `server/batch_stations.R`). Options: `--base-start`,
+`--base-end` (default 1971-2000, applied to every station, as R's command-line
+arguments), `--workers` (processes; R's `cores_to_use`) and `--custom VAR OP VALUE`.
+
+- **Metadata file** (`read_batch_metadata`): R's format, read unchanged, for example
+  Climpact's `www/sample_data/climpact.sample.batch.metadata.txt` (copied to
+  `tests/data/`). As R's `read.file.list.metadata` (`read.table(header = TRUE)`): a header
+  row (its names are not checked), then one whitespace-separated row per station with 12
+  fields: `station_file latitude longitude wsdin csdin Tb_HDD Tb_CDD Tb_GDD rxnday rnnmm
+  txtn SPEI`. Blank lines and `#` comments are skipped. The columns map to `wsdi_days`,
+  `csdi_days`, `hdd_base`, `cdd_base`, `gdd_base`, `rx_days`, `rnnmm`, `txtn_days` and
+  `spei_months`. A row with the wrong number of fields or a non-numeric value stops the
+  batch before any station runs, as `read.table` does.
+- **Station name:** the file name without its last extension (`strip_file_extension`,
+  as R's), so outputs go to `<out>/<station>/` exactly as `climpact run` writes them.
+- **Custom index:** R's batch mode calls `climdexInputParams` with empty `var.choice` and
+  `op.choice`, so `calculate.custom.index` writes nothing. Python calculates none either,
+  unless `--custom` is given (then for every station).
+- **Running:** `run_batch` runs each station in a `ProcessPoolExecutor` (spawn start
+  method, one process per CPU by default, at most one per station; `--workers 1` runs in
+  the main process). Each worker runs `run_station`, the same function as `climpact run`.
+  Progress is printed as each station finishes; results are returned in metadata order.
+- **Failures:** any exception in a station (unreadable file, invalid parameters, a
+  calculation error, a crashed worker) is caught and written to
+  `<out>/<station>.errors.txt`, R's error log name, and the batch carries on. An error file
+  left by an earlier run is removed first, as R does. The command ends with a summary of
+  failed stations and their error files.
+
+R behaviour not copied, and why:
+
+| R behaviour | Python |
+| --- | --- |
+| Outputs go to a folder named after the metadata file without its extension | outputs go to `--out` |
+| A station listed in the metadata but not in the data folder is skipped silently | reported as a failure (`station file not found`) with an error file |
+| Parameters failing `validate_climdexInputParams` (e.g. `wsdin` outside 1-10) stop the whole batch: the check runs outside the `tryCatch` | the same checks (`validate_params`) fail only that station |
+| An index calculation error leaves the files already written for that station | a station is built in full before anything is written, so a failed station has no output folder |
+| Two rows with the same station name (e.g. `a.txt`, `a.csv`) both write to the same folder, the last overwriting | rejected when the metadata file is read, since parallel workers would write the same files |
+| A file name without an extension gives an empty station name (`strip_file_extension`) | the whole file name is used |
+| Exit status 0 even when stations fail | exit status 1 when any station fails |
+| QC warnings go to `<station>.warnings.txt`; QC plots and text files are written | QC beyond `qc/nastatistics` is not yet ported (#9) |
+| Values are read with `colClasses` `integer` for `wsdin`, `csdin`, `rxnday`, `SPEI`, and `real` for `txtn` | `txtn` must also be a whole number (it is a day count; `IndexParams.txtn_days` is an `int`) |
+
+**Parity.** `tests/parity/test_batch.py` runs a batch of `sydney`, `nairobi` and a
+malformed file through a two-process pool, and checks that every file written for each
+reference station is byte-identical to the file `write_outputs` writes for its single run
+(same date), with the same set of files, and that the malformed file fails with an error
+file while the others succeed. The single-run files are the ones `test_csv_text` checks
+against R. `tests/test_batch.py` covers the metadata format, R's sample file, the error
+cases and the command line.
 
 ## Missing data
 
@@ -202,6 +267,7 @@ station. `StationRun.thresholds` computes them on first use and caches them
 | Threshold | R source | Python |
 | --- | --- | --- |
 | TX, TN, TM q5, q10, q50, q90, q95, 5-day window | climdex.pcic `get.outofbase.quantiles` / `zhang.running.qtile`, C++ `running_quantile_windowed` | `Thresholds.temperature[var][q]` (365 values) |
+| TX, TN q10, q50, q90 inside the base period (Zhang et al. 2005 bootstrap) | climdex.pcic `zhang.running.qtile(get.bootstrap.data = TRUE)`, C++ `running_quantile_windowed_bootstrap` | `Thresholds.inbase(var, q)` (365 × years × (years − 1) values) |
 | TX, TN, TM q90, 15-day window (`HW_TX90`, `HW_TN90`, `HW_TAVG90`) | Climpact `quality_control_checks.R`, `get.outofbase.quantiles(n = 15)` | `Thresholds.heatwave[var]` |
 | Wet-day (≥ 1 mm) precipitation q5, q10, q50, q90, q95, q99 | climdex.pcic `get.prec.var.quantiles`, R `quantile(type = 8)` | `Thresholds.precipitation[q]` (a number) |
 
@@ -212,12 +278,16 @@ station. `StationRun.thresholds` computes them on first use and caches them
   threshold, later days of a leap year shift back by one).
 - `Thresholds.base[var]` is the `(years, 365)` base-period matrix the temperature
   thresholds came from, and `window_values` returns the `(365, years, window)` window
-  values. These are the inputs to the in-base bootstrap.
+  values.
+- `Thresholds.inbase(var, q)` gives the bootstrapped thresholds used inside the base
+  period, a `(365, years, years - 1)` array, computed on first use and cached (see
+  [In-base bootstrap](#in-base-bootstrap)).
 - `climdex_quantile_sorted` is climdex's C++ quantile, vectorised over the rows of a
   sorted matrix.
 - When the station's dates cover 359 days of the base period or fewer,
   `compute_thresholds` raises `InsufficientBaseData` (climdex.pcic refuses to compute
-  thresholds in that case), and the threshold products produce no tables.
+  thresholds in that case), and the threshold and percentile index products produce no
+  tables.
 
 Both quantile functions are checked bit for bit against values printed by R 4.6.1 and
 climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker image).
@@ -236,8 +306,12 @@ data-validation warnings.
 | `heating_degree_days`, `cooling_degree_days`, `growing_degree_days` | rx1day: computed with the other extremes so the date of occurrence comes from the same data |
 | | rx3day/rx5day: xclim's window is trailing, R's is centred (see below) |
 | | cdd/cwd: R's handling of spells across years and its start/end dates have no xclim equivalent |
+| | r95p, r99p, r95ptot, r99ptot: one threshold per station, not per day of year, and R's extended-precision `sum` is needed for the 15th digit (see below) |
 | | Custom index: R's mask choice per variable differs from xclim's (see below) |
+| | tx90p, tn90p, tx10p, tn10p, txgt50p: xclim's bootstrapping (`xclim.core.bootstrapping`) recomputes `percentile_doy`, which already differs from climdex's thresholds (see below), so it cannot match R exactly; the bootstrap and R's in-base averaging are ported directly |
+| | wsdi, csdi, wsdid, csdid: xclim's `warm_spell_duration_index`/`cold_spell_duration_index` would need its own thresholds (`percentile_doy`, see below) and does not reproduce R's missing-value handling (`wsdi1` missing for any year with a missing day); txdtnd, txbdtnbd have no xclim equivalent. Both are ported directly (see below) |
 | | Base-period thresholds: xclim's `percentile_doy` gives different values (see below) |
+| | Tx90/Tn90 heatwaves: xclim's `heat_wave_index`/`hot_spell_*` use fixed thresholds or `percentile_doy`, calendar-year periods and no extended summer; Climpact's season and run rules are ported directly (see below) |
 
 ## Parity testing
 
@@ -251,12 +325,12 @@ file and R outputs) adds a run to the parity suite. Every run uses the Climpact 
 
 | Run | Station | Input | Parity (of R files) |
 | --- | --- | --- | --- |
-| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 67/117 |
-| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 67/117 |
-| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 67/117 each |
-| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 67/115 and 67/117 |
-| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 67/117 each |
-| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 49/83 and 42/60 |
+| `lat0` | Sydney Observatory Hill 1936-2015 at latitude 0, longitude 0. Reproduces the stored reference in the original repo's `tests/output_compare` exactly | Climpact's sample file | 97/117 |
+| `sydney` | The same file at its real coordinates (-33.86, 151.21) | Climpact's sample file | 97/117 |
+| `minneapolis`, `phoenix`, `alice_springs`, `darwin`, `perth`, `madrid`, `potsdam` | NH and SH continental, arid, tropical and Mediterranean climates, 1961-2020 | GHCN-Daily | 97/117 each |
+| `oxford`, `dublin` | Maritime; TX and TN often missing on different days | GHCN-Daily | 95/115 and 97/117 |
+| `yakutsk`, `beijing` | Extreme cold; missing-data rules (months with no data) | GHCN-Daily | 97/117 each |
+| `new_delhi`, `nairobi` | Patchy base periods; R writes fewer files | GHCN-Daily | 74/83 and 51/60 |
 
 GHCN inputs are converted by `reference/fetch_ghcn.py`: values divided by 10, `-99.9` for
 missing, and values with a GHCN QC flag set to missing. Sydney keeps Climpact's own sample
@@ -266,7 +340,10 @@ would not reproduce the stored reference (details in `reference/README.md`).
 
 Climpact writes no CSV for an index that is missing in every period, so stations with patchy
 data have fewer reference files (`oxford` 112 index files, `new_delhi` 80, `nairobi` 57,
-against 114). The catalogue lists only the files R wrote.
+against 114). The catalogue lists only the files R wrote. The heatwave files are an
+exception (see [Writing output files](#writing-output-files)): `new_delhi`'s five
+`TN90-` files are written although every value is missing, and `nairobi` has no heatwave
+files because no TX or TN year passes the climdex annual rule, so every value is missing.
 
 If building a run's outputs raises, the `station_outputs` fixture caches the error, so every
 test of that run fails at once instead of rebuilding the station for each file.
@@ -303,36 +380,36 @@ printed at the end:
 
 ```
 =================================== R parity ===================================
-alice_springs: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-beijing: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-darwin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-dublin: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-lat0: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-madrid: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-minneapolis: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-nairobi: 42/60 reference files reproduced, 0 failing, 18 not yet ported
-new_delhi: 49/83 reference files reproduced, 0 failing, 34 not yet ported
-oxford: 67/115 reference files reproduced, 0 failing, 48 not yet ported
-perth: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-phoenix: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-potsdam: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-sydney: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-yakutsk: 67/117 reference files reproduced, 0 failing, 50 not yet ported
-alice_springs: 67/117 written CSV files text-identical to R, 0 differing
-beijing: 67/117 written CSV files text-identical to R, 0 differing
-darwin: 67/117 written CSV files text-identical to R, 0 differing
-dublin: 67/117 written CSV files text-identical to R, 0 differing
-lat0: 67/117 written CSV files text-identical to R, 0 differing
-madrid: 67/117 written CSV files text-identical to R, 0 differing
-minneapolis: 67/117 written CSV files text-identical to R, 0 differing
-nairobi: 42/60 written CSV files text-identical to R, 0 differing
-new_delhi: 49/83 written CSV files text-identical to R, 0 differing
-oxford: 67/115 written CSV files text-identical to R, 0 differing
-perth: 67/117 written CSV files text-identical to R, 0 differing
-phoenix: 67/117 written CSV files text-identical to R, 0 differing
-potsdam: 67/117 written CSV files text-identical to R, 0 differing
-sydney: 67/117 written CSV files text-identical to R, 0 differing
-yakutsk: 67/117 written CSV files text-identical to R, 0 differing
+alice_springs: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+beijing: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+darwin: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+dublin: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+lat0: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+madrid: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+minneapolis: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+nairobi: 51/60 reference files reproduced, 0 failing, 9 not yet ported
+new_delhi: 74/83 reference files reproduced, 0 failing, 9 not yet ported
+oxford: 95/115 reference files reproduced, 0 failing, 20 not yet ported
+perth: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+phoenix: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+potsdam: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+sydney: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+yakutsk: 97/117 reference files reproduced, 0 failing, 20 not yet ported
+alice_springs: 97/117 written CSV files text-identical to R, 0 differing
+beijing: 97/117 written CSV files text-identical to R, 0 differing
+darwin: 97/117 written CSV files text-identical to R, 0 differing
+dublin: 97/117 written CSV files text-identical to R, 0 differing
+lat0: 97/117 written CSV files text-identical to R, 0 differing
+madrid: 97/117 written CSV files text-identical to R, 0 differing
+minneapolis: 97/117 written CSV files text-identical to R, 0 differing
+nairobi: 51/60 written CSV files text-identical to R, 0 differing
+new_delhi: 74/83 written CSV files text-identical to R, 0 differing
+oxford: 95/115 written CSV files text-identical to R, 0 differing
+perth: 97/117 written CSV files text-identical to R, 0 differing
+phoenix: 97/117 written CSV files text-identical to R, 0 differing
+potsdam: 97/117 written CSV files text-identical to R, 0 differing
+sydney: 97/117 written CSV files text-identical to R, 0 differing
+yakutsk: 97/117 written CSV files text-identical to R, 0 differing
 ```
 
 The "reference files reproduced" lines come from `tests/parity/test_parity.py`, which
@@ -340,7 +417,8 @@ compares tables with the tolerance tiers. The "text-identical" lines come from
 `tests/parity/test_csv_text.py`, which writes every built table with `write_outputs` and
 requires the file to equal R's line for line, ignoring only the `Date_of_calculation` line.
 It also checks that no file is written that R does not write: on `oxford`, `new_delhi` and
-`nairobi` this exercises the rule that all-missing index tables are skipped.
+`nairobi` this exercises the rule that all-missing index tables are skipped, and on
+`new_delhi` the exception for heatwave files.
 
 Files that fail because of a filed bug are listed in `KNOWN_BUGS` in
 `tests/parity/catalogue.py` (a pattern on the test id and the ticket). They are strict xfails
@@ -387,8 +465,10 @@ significand). numpy accumulates in 64-bit doubles (pairwise summation).
   (`summary.c`: extended-precision sum, divide, then add the mean of the residuals) and
   `rnumerics.r_var` emulates `var` (`cov.c`: the same mean rounded to a double, then
   squared deviations summed in extended precision). They are used for tmm, txm, tnm, dtr
-  (`period_stat`) and the standardised column (`standardise`); sdii uses `r_sum`. All
-  written files are then text-identical to R's.
+  (`period_stat`) and the standardised column (`standardise`); sdii and the r95p, r99p,
+  r95ptot and r99ptot totals use `r_sum`. All written files are then text-identical to
+  R's. With numpy sums, 34 of the 3,752 r95p/r99p/r95ptot/r99ptot values of the 15 runs
+  would be written with a different last digit.
 - The emulation is only used where it changes a result. It should be considered for
   other index calculations if new tie-related or last-digit mismatches appear.
 
@@ -428,8 +508,11 @@ flips threshold ties and changes tx10p, tn10p, tx90p and csdi in some base-perio
 - *Handling:* the R reference is always generated as `linux/amd64` (emulated on Apple
   Silicon). This matches the original repo's stored reference exactly.
 - *Implication for the port:* percentile indices are sensitive to exact ties between data
-  (0.1 °C resolution) and thresholds. Expect to need the same care as the Rx ties when
-  porting them.
+  (0.1 °C resolution) and thresholds. Across the 14 distinct stations, 178,283 of the
+  21.4 million in-base comparisons of tx90p, tn90p, tx10p, tn10p and txgt50p are exact
+  ties, as are 5,319 out-of-base days. The thresholds are therefore computed bit for bit
+  as climdex's C++ does (`climdex_quantile_sorted`, `bootstrap_quantiles`), with no fused
+  multiply-add, which matches the amd64 reference.
 
 ### Index definitions
 
@@ -479,6 +562,21 @@ period with no data, and Climpact writes `-99.9`.
   `first_extreme_dates` fills missing days with -inf (max) or +inf (min), which never win in a
   period with data, and sets the date to NaT for periods with no data. Exercised by
   `yakutsk`, `beijing`, `nairobi` and `new_delhi` (#39).
+
+**r95p, r99p, r95ptot, r99ptot.** climdex.pcic's `climdex.r95ptot` returns the total
+precipitation above the percentile, which is r95p in Donat et al. (2013). Climpact
+redefines all four in `climpact.etsci-functions.r`: `climdex.r95p` and `climdex.r99p` are
+the annual totals on days with precipitation **>** the base-period wet-day (≥ 1 mm)
+95th/99th percentile, and `climdex.r95ptot` and `climdex.r99ptot` are `100 * rNNp /
+prcptot`, with prcptot recomputed as the annual total on days ≥ 1 mm. All four use the
+annual precipitation mask. A year with no wet days gives `0 / 0`; R's `write.index.csv`
+turns the resulting `NaN` into `-99.9` and leaves it out of the standardised column.
+
+- *Handling:* Climpact's definitions are ported (`precipitation_percentiles`,
+  `annual_total_above` in `products/indices.py`), using `Thresholds.precipitation` and
+  `r_sum`. The `0 / 0` year is `NaN`, so it is missing in the table and the file, as in R.
+  All four files are text-identical to R's on all 15 runs. No reference run has a valid
+  year without wet days; `tests/test_index_helpers.py` covers it.
 
 **SU threshold.** Climpact's code counts TX **>** 25 °C, although a code comment says
 `>=`. Python follows the code.
@@ -532,13 +630,235 @@ days or fewer of the base period lie between the station's first and last dates;
 counts dates, not valid values. Python applies the same rule using the `first_date` and
 `last_date` Dataset attributes and raises `InsufficientBaseData`. What Climpact then
 writes for the percentile indices has not been checked; Python writes no threshold
-tables.
+tables and none of the percentile indices (tx95t, r95p, r99p, r95ptot, r99ptot, tx90p,
+tn90p, tx10p, tn10p, txgt50p, wsdi, csdi, wsdid, csdid, txdtnd, txbdtnbd).
 
 **Result.** `thres/thres` and `indices/tx95t_DAY` pass at `CLOSE` for both runs. Every
 threshold value is identical to R's file after formatting to the 15 significant digits R
 writes; `EXACT` cannot be used because the file holds rounded values. The tx95t
 standardised column differs by up to 1.4e-13 relative (mean and standard deviation
 arithmetic).
+
+### In-base bootstrap
+
+**Zhang et al. (2005) in-base thresholds.** Inside the base period climdex.pcic does not
+compare a day with the plain threshold, which would be biased because the day's own year
+helped set it. For each calendar day and base year `rm`, it builds `years - 1` samples:
+the 5-day window values of all base years, with year `rm` replaced by a second copy of
+another year `dup`, and takes the quantile of each (`zhang.running.qtile` with
+`get.bootstrap.data = TRUE`, C++ `running_quantile_windowed_bootstrap`). A sample with
+fewer than 10% of the `years * 5` window values present gives a missing threshold.
+
+- *Handling:* `bootstrap_quantiles` in `thresholds.py`, used through `Thresholds.inbase`.
+  The C++ sorts the window values once and drops or duplicates elements in place, so the
+  replaced sample is the sorted values with weights 0, 1 or 2. Python finds the values at
+  the two quantile positions from the cumulative weights, without building each sample,
+  and applies `c_quantile`'s arithmetic (shared with `climdex_quantile_sorted`). Results
+  are bit-identical to building every sample (`tests/test_temperature_percentiles.py`).
+  Only the quantiles the indices use are computed: TX q10, q50, q90 and TN q10, q90
+  (R computes all five for TX, TN; the others are unused).
+
+**Averaging in-base comparisons.** Climpact replaces climdex.pcic's
+`percent.days.op.threshold` (`climpact.etsci-functions.r`, line 259) with a version that
+returns a missing day only when all comparisons are missing. Outside the base period a
+day scores 1 if `value > threshold` (`<` for tx10p, tn10p), else 0. Inside it, the day is
+compared with each of the `years - 1` bootstrapped thresholds for its year and day of
+year, and scores `hits / (byrs - 1)` (line 284). Comparisons with a missing threshold
+count as no hit. The period value is `mean(scores, na.rm = TRUE) * 100`, missing if more than 3
+(monthly) or 15 (annual) days' scores are missing, then multiplied by the variable's
+climdex mask. The in-base part is skipped for series shorter than 720 days.
+
+- *Handling:* ported in `days_op_threshold` and `percent_days` (`products/indices.py`),
+  except the denominator: Python divides by `years - 1`, the number of comparisons
+  (see the next entry). The comparisons are strict, as in R. The mean uses `r_mean`: with numpy's mean, 269 of
+  the 54,207 values of the 14 stations would be written with a different last digit.
+
+**`byrs` counts the years of the series, not of the base period.** In R, `byrs` is the
+number of base-period years between the series' first and last dates, while the
+bootstrap always has `base_end - base_start + 1` years. For a station that starts or
+ends inside the base period, the hits are divided by fewer than the number of
+comparisons, so a value can exceed 100%. For a station starting in 2002 with base period
+2001-2003, R gives 200% for 2003 (checked in R itself: `tests/data/r_percent_days.R`).
+
+- *Handling:* not copied (decided 2026-11-13, #47). `days_op_threshold` divides each
+  in-base day's hits by `years - 1`, the number of bootstrapped thresholds it is
+  compared with, so a score is at most 1 and a percentage at most 100%. In the example,
+  Python gives 100% for 2003. Missing thresholds still count as no hit, as in R.
+- *Why this denominator:* when the series covers the whole base period, `years - 1`
+  equals R's `byrs - 1`, so the result is identical to R by construction, on any station.
+  The other candidate, the number of non-missing comparisons for each day, would also
+  stay at or below 100%. But it would differ from R on a station that covers the whole
+  base period whenever some, but not all, of a day's bootstrapped thresholds are
+  missing. On the 15 reference runs both candidates give the same results, because no
+  run has a partly missing set of bootstrapped thresholds. That includes the stress
+  stations: new_delhi (1,545 TX and 2,920 TN values missing in the base period) and
+  nairobi (3,501 and 3,797) have no missing bootstrapped threshold at all.
+- *Effect:* none on any reference run. Every run starts before 1971 and ends after 2000,
+  so `byrs` = 30 = `years`, and parity and text identity are unchanged on all 15 runs.
+  Only series that partly cover the base period differ from R. They are covered by
+  `test_station_starting_inside_the_base_period`,
+  `test_station_ending_inside_the_base_period` and `test_percentages_never_exceed_100`
+  in `tests/test_temperature_percentiles.py`. No other index ported so far uses
+  `byrs`: in R only tx90p, tn90p, tx10p, tn10p and txgt50p call
+  `percent.days.op.threshold`, and the spell-duration indices use the out-of-base
+  thresholds only.
+- *Not reproduced:* with exactly one base year in the series (and at least 720 days),
+  R stops with an error (`byrs - 1 = 0`). Python uses the out-of-base thresholds for that
+  year instead.
+
+**Result.** All 10 files (`tx90p`, `tn90p`, `tx10p`, `tn10p`, `txgt50p`, ANN and MON)
+pass at `CLOSE` on all 15 runs (8 files for `new_delhi` and 5 for `nairobi`, where R wrote
+fewer), and are text-identical to R's.
+
+### Spell-duration indices
+
+**Thresholds and year boundaries.** wsdi and csdi (climdex.pcic `climdex.wsdi`/`csdi`),
+Climpact's `climdex.wsdid`/`csdid` (`climpact.etsci-functions.r`, lines 47-62) and
+`climdex.txdtnd`/`txbdtnbd` (lines 330-347) all compare with the out-of-base thresholds
+(`ci@quantiles$...$outbase`) only, on every day including the base period: there is no
+in-base bootstrap. Climpact calls them without `spells.can.span.years`, so the default
+`FALSE` applies (unlike cdd/cwd): each year is split off before runs are found, and a spell
+crossing 31 December counts as two separate runs.
+
+- *Handling:* `spell_durations` in `products/indices.py` uses `Thresholds.daily` with
+  q90 (wsdi), q10 (csdi), q95 (tx{n}tn{n}) and q5 (txb{n}tnb{n}), year by year.
+
+**Run selection** (`threshold_exceedance_duration`, `select_blocks_gt_length`). wsdi/csdi
+count the days in runs of at least `min.length` days (6, or `wsdi_days`/`csdi_days`) via
+climdex.pcic `select.blocks.gt.length(d, min.length - 1)`, which keeps runs **longer than**
+its `n`. Missing comparisons count as FALSE, except that with `n < 1` the function returns
+its input unchanged, NA included.
+
+- *Effect, reproduced:* `wsdi1` and `csdi1` (`min.length = 1`) are missing in every year
+  with a single missing TX (TN) day or threshold, because the year's `sum` is NA. This is
+  why R wrote no `wsdi1`/`csdi1` for `oxford` and `new_delhi`.
+
+**Dual-threshold events** (`dual_threshold_duration`). Climpact's
+`dual.threshold.exceedance.duration.index` (line 373) combines the two comparisons with R's
+`&` (FALSE wins over NA), keeps runs with `select.blocks.gt.length(both, n)`, so events need
+**more than** `n` days: `tx2tn2` counts events of at least 3 days, although its description
+says "2 consecutive days". Runs of 3 or fewer non-event days are then filled in (including
+at the ends of the year), and the result is the number of remaining events.
+
+- *Handling:* reproduced, including the "more than `n`" rule.
+
+**Missing-data masks.** Both R functions compute an annual mask with
+`get.na.mask(is.na(x + thresholds[jdays]), f, 15)`, but `get.na.mask` applies `is.na` again
+to its already-logical input, so the mask is always 1 (checked in R on `oxford`, where TN
+has 16 and 30 missing days in 1981 and 2018). The only mask applied is the variable's
+climdex annual mask (`namasks$annual`): TX for wsdi, wsdid, txdtnd and txbdtnbd, TN for csdi
+and csdid. The dual-threshold indices are therefore not masked for missing TN.
+
+- *Handling:* reproduced (no 15-day mask; TX mask for the dual-threshold indices). Masking
+  for TN as well would make 1981 and 2018 missing in `oxford`'s `tx2tn2` and `txb2tnb2`.
+
+**Result.** All 6 files (`wsdi`, `csdi`, `wsdi1`, `csdi1`, `tx2tn2`, `txb2tnb2`) pass at
+`EXACT` on every run where R wrote them (4 for `oxford`, 3 for `new_delhi`, none for
+`nairobi`), and are text-identical to R's. `tests/test_spell_durations.py` checks the
+helpers against values printed by R (`tests/data/r_spell_durations.R`), covering the
+`n < 1`, `n >= length` and gap-merging cases.
+
+### Heatwaves (Tx90, Tn90)
+
+Climpact's `climdex.hw` and `get.hw.aspects` (`climpact.etsci-functions.r`, lines 674 and
+773; Perkins and Alexander 2013), driven by `services/calculate/calculate_hw.R` and written by
+`write.hw.csv`. Ported in `products/heatwaves.py`: `tx90_tn90_heatwaves` builds the daily
+flags, and `hw_aspects` / `season_aspects` turn flags into the five annual aspects. The EHF
+and ECF heatwaves (#21) go through the same `get.hw.aspects`, so `hw_aspects` takes any daily
+flags (1/0/NaN) and values.
+
+**Thresholds.** `climdex.hw` finds no `q90_15days` in the climdex object, so it recomputes
+the 15-day-window q90 with `get.outofbase.quantiles(n = 15)`. These are the same values as
+`HW_TX90`/`HW_TN90` in `thres.csv`; Python uses `Thresholds.heatwave[var]`. `calculate.hw`
+calls `climdex.hw(cio)` without `min.base.data.fraction.present`, which is harmless because
+`get.outofbase.quantiles` never uses it (see [Base-period thresholds](#base-period-thresholds-1)).
+
+**Daily flags** (`heatwave_flags`). 29 February is dropped from the data, the dates and the
+thresholds. A day is flagged when `value > threshold`; `select.blocks.gt.length(flags, 2)`
+then keeps runs of at least 3 days over the whole series, with missing days counting as
+FALSE. A missing day therefore ends a heatwave.
+
+**Season** (`summer_days`). Year Y's season is May-September of Y in the Northern
+Hemisphere and November Y to March Y+1 in the Southern Hemisphere (latitude 0 is southern,
+`lat > 0`). R looks at the season plus the following 90 days; days past the end of the
+series are missing.
+
+**Which heatwaves count** (`season_aspects`):
+
+- A run that ends inside the season counts, including the in-season part of one that began
+  before the season. If only 1 or 2 days of such a run fall in the season, R adds them by a
+  separate test, so a heatwave can count with a duration of 1 or 2 days (reproduced; see
+  below).
+- The first run that ends after the season counts if it began inside it, cut so that it
+  ends at most 14 days after the season. The cut applies to HWM, HWA, HWD and HWF
+  (reproduced).
+- A run that is under way on the first day of the season and ends after the season. R does
+  not count it at all: `extvals[1] > 1` (`climpact.etsci-functions.r`, line 827) excludes
+  the first run of the extended season, so the season gets HWN 0. **Not copied** (decided
+  2026-11-13, #51): Python counts it as one heatwave. If it was already under way the day
+  before the season (`flags[start - 1] == 1`) only its in-season days count, as for any
+  heatwave that began before the season, so HWD = HWF = the season length (153 days in the
+  north, 151 in the south). If it began on the season's first day, it began inside the
+  season and the 14-day cut applies. No season of any reference run has such a heatwave,
+  so no reference file changes.
+
+**Aspects.** HWN is the number of heatwaves; HWF the sum of their lengths; HWD the longest;
+HWM the mean of the heatwave means (R's extended-precision `mean`, `r_mean`); HWA the peak
+of the heatwave with the highest mean (the first on ties, `which.max`), as defined by
+Perkins and Alexander. With no heatwave in a season, HWN and HWF are 0 and HWM, HWA and
+HWD are missing.
+
+**Missing data.**
+
+- R (`get.hw.aspects`, after the season loop) makes HWN and HWF missing in every year when
+  HWM is missing in every year. It does this for stations without thresholds, but it also
+  catches a station with no heatwave in any year, which gets missing instead of 0. **Not
+  copied** (decided 2026-11-13, #51). Python drops the rule. Instead, `hw_aspects` makes a
+  season missing when none of its days has a usable value, and `tx90_tn90_heatwaves`
+  treats a day without a threshold as having no usable value (thresholds are only read on
+  heatwave days, so nothing else changes). A station without base-period thresholds
+  writes no heatwave files at all (`InsufficientBaseData`), in R as in Python. On all 15
+  reference runs every Tx90 and Tn90 series has a heatwave in at least one year and no
+  threshold is missing, so R's rule never fires and no reference file changes.
+- In the Southern Hemisphere the last year is always missing (its season is incomplete).
+- Each year is multiplied by the variable's climdex annual mask (`namasks$annual$tmax` for
+  TX90, `tmin` for TN90). Missing days within the season are not otherwise checked (R's
+  25-day rule is commented out). A southern season is masked by its first year only, so
+  January-March data missing in Y+1 do not affect year Y. **Kept deliberately for R parity**
+  (decided 2026-11-13, #51): see below.
+- All-missing files are still written (see [Writing output files](#writing-output-files)).
+  On `new_delhi`, no TN year passes the climdex annual rule, so all five `TN90-` files are
+  `-99.9` throughout, in R as in Python.
+
+**Result.** All 10 files pass on all 14 runs where R wrote them (none for `nairobi`) and
+are text-identical to R's: `HWN`, `HWF` and `HWD` at `EXACT`, `HWM` and `HWA` at `CLOSE`.
+The reference runs exercise the pre-season and post-season branches but not the 14-day cut,
+the whole-season run, HWM ties, a station without heatwaves, or missing flags and values
+inside a heatwave (possible for EHF). `tests/test_heatwaves.py` checks the reproduced
+branches against `get.hw.aspects` output printed by R (`tests/data/r_hw_aspects.R`) for
+both hemispheres; for the two behaviours not copied it checks the corrected values
+instead (the whole-season heatwave in both hemispheres, under way before the season and
+starting on its first day; a series without heatwaves; a season without usable values).
+
+**R behaviour kept deliberately for R parity** (decided 2026-11-13, #51). These look like
+R bugs but are reproduced so that the files match R's:
+
+1. **Southern season masked by its first year only.** `get.hw.aspects` multiplies year Y's
+   aspects by `namask[Y]` (`calculate.hw`, `namasks$annual$tmax`/`tmin`), but a southern
+   season runs from November Y to March Y+1. Missing data in January-March Y+1 never mask
+   year Y, and year Y+1's mask applies to a season that is mostly in Y+1's November and
+   December. `hw_aspects` multiplies by the same per-year mask. A season can therefore
+   have a value although up to three of its months fail the climdex monthly rule.
+2. **Pre-season heatwave with 1 or 2 days in the season.** The two tests after `truevals`
+   in `get.hw.aspects` (`extended_boolean[1:2] == TRUE, extended_boolean[3] == FALSE` and
+   `extended_boolean[1] == TRUE, extended_boolean[2] == FALSE`, each with the days before
+   the season TRUE) add the first run of the season even when only 1 or 2 of its days are
+   in the season. `season_aspects` does the same, so a season can have HWD 1 or 2, below
+   the 3-day minimum, and those days count in HWN, HWF, HWM and HWA.
+
+R behaviour not copied (also #51) is described above: the whole-season heatwave and the
+all-missing HWN/HWF; both are listed under
+[R behaviour not to be copied](#r-behaviour-not-to-be-copied).
 
 ### Station input
 
@@ -557,10 +877,11 @@ arithmetic).
 | R behaviour | Python |
 | --- | --- |
 | Values are written with 15 significant digits and `-99.9` for missing | same, including R's digit-count quirk (`format_r_number`); tables in memory hold full-precision floats |
-| No file is written when an index is missing for every period | same (`write_outputs`); `build_all` still returns the all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi` |
+| No file is written when an index is missing for every period (`write.index.csv`; heatwave files differ, below) | same (`write_outputs`); `build_all` still returns the all-missing table. Exercised by `oxford`, `new_delhi` and `nairobi` |
 | A 7-line metadata header (version, date of calculation, ...) | same; `Climpact_version` is `3.4.3`. Ignored by the table comparison; only `Date_of_calculation` is ignored by the text comparison |
 | `tx95t_DAY`: `write.index.csv` writes the row names of an unnamed vector as `time`, so every `time` is `-99.9` | reproduced: `time` is missing on every row |
 | `thres.csv` is written by a plain `write.table`: no metadata header, missing values as `NA` (not `-99.9`), and each precipitation threshold repeated on all 365 rows (`as.data.frame` recycling) | reproduced; `write_outputs` writes it with no header and `NA` (`_DESCRIPTIONS`/`_NA_TOKENS` in `io/output_files.py`) |
+| `write.hw.csv` writes the ten Tx90/Tn90 heatwave files with `time, <aspect>` columns (no standardised column) and writes them even when one is missing in every year | reproduced (`_HEATWAVE_FILE` in `io/output_files.py`). Exercised by `new_delhi` |
 | `index.calc` writes a plot PDF and a zip archive alongside the CSV files | not yet written |
 
 ### R behaviour not to be copied
@@ -574,17 +895,52 @@ output is ported.
 - QC `flatline_tn` labels its report "TX".
 - QC checks re-read the data from a temporary file with `-99.9` sentinels rather than using
   the cleaned data.
+- `percent.days.op.threshold` divides the in-base hits by `byrs - 1`, the base years the
+  series covers minus one, not by the number of comparisons, so tx90p, tn90p, tx10p,
+  tn10p and txgt50p can exceed 100% for a series that starts or ends inside the base
+  period. Python divides by `years - 1`. No reference run is affected (see
+  [In-base bootstrap](#in-base-bootstrap)).
+- `percent.days.op.threshold` stops with an error when the series has exactly one
+  base-period year and at least 720 days (`byrs - 1 = 0`). Python uses the out-of-base
+  thresholds for that year (see [In-base bootstrap](#in-base-bootstrap)).
+- `get.hw.aspects` does not count a heatwave that is under way on the first day of the
+  extended season and ends after it (`extvals[1] > 1`), so the season gets HWN 0. Python
+  counts it (decided 2026-11-13, #51). No reference run is affected (see
+  [Heatwaves](#heatwaves-tx90-tn90)).
+- `get.hw.aspects` makes HWN and HWF missing in every year when HWM is missing in every
+  year, so a station without any heatwave gets missing instead of 0. Python gives 0 and
+  makes a season missing only when it has no usable value (decided 2026-11-13, #51). No
+  reference run is affected (see [Heatwaves](#heatwaves-tx90-tn90)).
 
 ## Performance
 
-A full station run (80 years, all ported indices) takes about 10 seconds to build (7 s for
+A full station run (80 years, all ported indices) takes about 12 seconds to build (9 s for
 a 60-year GHCN station), plus about 0.5 seconds to write the CSV files. The whole test suite
-with 15 runs, including the text comparison, takes about 130 seconds. The extra runs are not
+with 15 runs, including the text comparison and the batch test, takes about 190 seconds.
+A batch runs one station per process: Climpact's two sample stations (80 years each) take
+about 19 seconds with `--workers 2`, against about 12 seconds for one station alone (each
+spawned worker also imports xclim). The extra runs are not
 marked `slow`; #23 tracks speed-ups. Most of the time is per-call
 overhead in xclim (metadata, unit checks) and recomputing the missing-data mask for each
 call. Caching masks per variable and frequency, or calling xclim's compute functions
 directly, are the obvious improvements. The R-precision emulation takes about 30 ms per
 80-year series for a sum, and about 0.2 s for a series of monthly means.
+
+The temperature percentile indices (tx90p, tn90p, tx10p, tn10p, txgt50p, ANN and MON)
+take 1.5-2.2 s per station (Apple M-series, measured on all 15 runs):
+
+| Run | Bootstrap (5 variable/quantile pairs) | Indices | Total |
+| --- | --- | --- | --- |
+| `lat0`, `sydney` (80 years) | 0.8 s | 1.3 s | 2.1-2.2 s |
+| other GHCN runs (60 years) | 0.7-0.8 s | 1.0 s | 1.7-1.9 s |
+| `new_delhi`, `nairobi` (patchy) | 0.7 s | 0.9 s | 1.5-1.6 s |
+
+The spell-duration indices (6 files) take about 0.2-0.25 s per station.
+
+The bootstrap loops over the 365 days and handles all 870 (rm, dup) year pairs of a day
+at once with numpy, so it takes about 0.16 s per variable and quantile, against 317,550
+quantiles. Most of the rest is the per-period R-precision mean (`r_mean`) and the
+missing-data masks.
 
 ## Development
 
@@ -597,7 +953,8 @@ python3 -m venv .venv
 
 - Run a station from the command line with
   `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...]`
-  (`climpact run --help` lists the options).
+  (`climpact run --help` lists the options), or a batch with
+  `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
 - Python 3.11+, xclim 1.0.x. CI runs on Python 3.11, 3.12 and 3.13 (x86_64 Linux).
 - Always work inside `.venv`.
 - To regenerate the R reference outputs, see `reference/README.md`. Re-running changes the

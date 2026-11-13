@@ -19,7 +19,7 @@ Size     field PVTSSF_lAHOAFbo984BraA5zhps4zs  XS 6c6483d2 | S f784b110 | M 7515
 ```
 If an edit fails with an unknown ID, re-read the fields: `gh project field-list 2 --owner geoffwalmsley --format json`.
 
-- **Status:** Backlog (not ready, blocked, or waiting on WMO) → Ready (can start now) → In progress → In review (PR open) → Done.
+- **Status:** Backlog (not ready or blocked) → Ready (can start now) → In progress → In review (PR open) → Done.
 - **Priority:** P0 (needed for R parity on stations, which is how WMO judges the port), P1 (in the WMO scope but not on the parity critical path), P2 (nice to have).
 - **Size:** XS (< 1 hour), S (half a day), M (1–2 days), L (3–5 days), XL (too big, so split it; only epics are XL).
 
@@ -35,9 +35,9 @@ If an edit fails with an unknown ID, re-read the fields: `gh project field-list 
 | #11 | Web front end | split into children before starting |
 | #12 | Containers, deployment and handover | split into children before starting |
 
-Cross-cutting tickets (for example the plugin interfaces, #28) and WMO decisions sit outside the epics.
+Cross-cutting tickets (for example the plugin interfaces, #28) and decision tickets sit outside the epics.
 
-**Labels:** `enhancement`, `bug`, `documentation`, `question`, `epic`, `parity` (changes which R reference files pass), `qc`, `gridded`, `web`, `infra`, `performance`, `wmo-decision` (blocked on input from WMO; keep in Backlog until they answer).
+**Labels:** `enhancement`, `bug`, `documentation`, `question`, `epic`, `parity` (changes which R reference files pass), `qc`, `gridded`, `web`, `infra`, `performance`, `wmo-decision` (a scope or acceptance decision WMO would normally make. WMO cannot be consulted, so bring the options and a recommendation to the user, record their decision in the issue and in `TECHNICAL.md`, then close it).
 
 ## Adding a ticket
 
@@ -90,7 +90,7 @@ or "No change: everything that passes now still passes".
 - [ ] `TECHNICAL.md` updated (see the `update-technical-docs` skill)
 ```
 
-**Sizing:** one ticket should be one reviewable PR (S–L). If it's XL, split it into sub-issues. Say what and why, plus enough how to remove ambiguity, but don't write the implementation. Call out risk explicitly (bootstrap or tie sensitivity, fitted distributions that may need the FITTED tier, anything that needs WMO input or a new R reference run). Put open questions in the issue and bring them up with the user instead of guessing.
+**Sizing:** one ticket should be one reviewable PR (S–L). If it's XL, split it into sub-issues. Say what and why, plus enough how to remove ambiguity, but don't write the implementation. Call out risk explicitly (bootstrap or tie sensitivity, fitted distributions that may need the FITTED tier, anything that needs a user decision or a new R reference run). Put open questions in the issue and bring them up with the user instead of guessing.
 
 ## Working a ticket
 

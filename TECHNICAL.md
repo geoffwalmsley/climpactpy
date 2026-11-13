@@ -180,6 +180,11 @@ must match exactly. Metadata header lines (including `Date_of_calculation`) are 
 Tiers are assigned by file name in `tests/parity/catalogue.py`; the standardised column of
 an `EXACT` file uses `CLOSE`.
 
+**These tiers are the project's acceptance criteria** (decided 2026-11-13, #31). WMO could
+not be consulted, so the project set them itself. A file may be moved to a looser tier only
+with an entry under "Differences between Python and R" explaining why. `FITTED` is reserved
+for fitted distributions.
+
 ### Running
 
 ```sh

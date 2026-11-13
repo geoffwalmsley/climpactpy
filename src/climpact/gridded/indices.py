@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import csv
 import os
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import cache
@@ -72,6 +72,7 @@ from climpact.products.indices import (
     valid_values,
 )
 from climpact.products.tables import FREQS, format_number
+from climpact.progress import Progress
 from climpact.thresholds import (
     DAYS_PER_YEAR,
     INBASE_QUANTILES,
@@ -714,7 +715,7 @@ def write_grid_indices(
     thresholds_file: str | Path | None = None,
     author: Mapping[str, str] | None = None,
     workers: int = 1,
-    progress: Callable[[int, int], None] | None = None,
+    progress: Progress | None = None,
     cells_per_batch: int = DEFAULT_CELLS_PER_BATCH,
     indices: Sequence[str] | None = None,
 ) -> list[Path]:
@@ -728,7 +729,8 @@ def write_grid_indices(
     ``indices`` limits the output to those indices, by short name as in
     ``climate.indices.csv`` (R's ``climdex.vars.subset``, e.g. ``rxdday``, ``wsdid``).
     Blocks are read, computed (by ``workers`` threads, ``cells_per_batch`` cells at a
-    time) and written one at a time; the files are written under temporary names and
+    time) and written one at a time; ``progress("indices", done, total)`` is called after
+    each block (see :mod:`climpact.progress`); the files are written under temporary names and
     renamed when all are complete.
     """
     time = inp.time
@@ -776,7 +778,7 @@ def write_grid_indices(
                     _write_block(files[s.key], s, block, results[s.key])
                 del results
                 if progress:
-                    progress(done, len(blocks))
+                    progress("indices", done, len(blocks))
         for nc in files.values():
             nc.close()
     except BaseException:

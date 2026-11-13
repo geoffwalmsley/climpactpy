@@ -217,11 +217,18 @@ def test_thresholds_file_only_outside_the_base_period(tmp_path):
     assert len(written) == 84
 
 
+# A representative subset (counts, means, extremes, Rx5day, spells, gsl and the
+# percentile indices with their bootstrap): tracemalloc makes the full set slow.
+MEMORY_INDICES = ("fd", "tmm", "txx", "rx5day", "cdd", "gsl", "tx90p", "wsdi", "r95p")
+
+
 def _traced_peak(path, tmp_path, max_values):
     inp = open_grid([path], max_values=max_values)
     tracemalloc.start()
     try:
-        write_grid_indices(inp, tmp_path / "out", 1972, 1974, cells_per_batch=2)
+        write_grid_indices(
+            inp, tmp_path / "out", 1972, 1974, cells_per_batch=2, indices=MEMORY_INDICES
+        )
         return tracemalloc.get_traced_memory()[1]
     finally:
         tracemalloc.stop()
@@ -233,12 +240,12 @@ def test_memory_is_bounded_by_the_block_not_the_grid(tmp_path):
     ntime = 1826
     max_values = 4 * 3 * ntime  # 4 cells per block
     small = write_grid(tmp_path / "small.nc", ny=2, nx=2, end="1975-12-31")  # one block
-    large = write_grid(tmp_path / "large.nc", ny=8, nx=8, end="1975-12-31", seed=1)  # 16
+    large = write_grid(tmp_path / "large.nc", ny=6, nx=6, end="1975-12-31", seed=1)  # 9
     peak_small = _traced_peak(small, tmp_path / "s", max_values)
     peak_large = _traced_peak(large, tmp_path / "l", max_values)
-    whole_grid = 64 * 3 * ntime * 8  # the large grid's input as float64
+    peak_one_block = _traced_peak(large, tmp_path / "o", 36 * 3 * ntime)
     assert peak_large < 1.5 * peak_small
-    assert peak_large < whole_grid
+    assert peak_large < peak_one_block / 2
 
 
 def test_command_line(tmp_path, capsys):

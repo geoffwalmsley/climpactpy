@@ -515,7 +515,7 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     author = {"institution": args.institution, "institution_id": args.institution_id}
     ny, nx = inp.shape
 
-    def progress(done: int, total: int) -> None:
+    def progress(stage: str, done: int, total: int) -> None:
         if not args.quiet:
             print(f"[{done}/{total}] blocks done", flush=True)
 

@@ -154,6 +154,12 @@ def precipitation_intensity(pr: np.ndarray) -> float:
     return r_sum(wet) / wet.size if wet.size else 0.0
 
 
+def wet_day_total(pr: np.ndarray) -> float:
+    """climdex.pcic ``total.precip.op.threshold(prec, 1, ">=")``: the total of days with at
+    least 1 mm, with R's extended-precision ``sum`` (prcptot)."""
+    return r_sum(pr[pr >= 1])
+
+
 @product
 def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
     ds = run.data
@@ -166,7 +172,9 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
             "tmm": period_stat(ds.tas, freq, "mean", ds.tasmin, ds.tasmax),
             "txm": period_stat(ds.tasmax, freq, "mean", ds.tasmax),
             "tnm": period_stat(ds.tasmin, freq, "mean", ds.tasmin),
-            "prcptot": run_xclim(atmos.wet_precip_accumulation, freq, pr=ds.pr, thresh="1 mm/d"),
+            "prcptot": period_reduce(ds.pr, FREQS[freq], wet_day_total).where(
+                valid_mask(ds.pr, freq=FREQS[freq])
+            ),
         }
         for name, values in tables.items():
             out[f"indices/{name}_{freq}"] = index_table(name, values, freq)
@@ -179,15 +187,20 @@ def means_and_totals(run: StationRun) -> dict[str, pd.DataFrame]:
 @product
 def degree_days(run: StationRun) -> dict[str, pd.DataFrame]:
     ds, p = run.data, run.params
+    # Climpact's climdex.hddheatn, cddcoldn, gddgrown: the annual sum of Tb - TM over days
+    # with TM < Tb (heating), or of TM - Tb over days with TM > Tb, with R's
+    # extended-precision sum, masked by the annual TM mask.
     specs = {
-        f"hddheat{format_number(p.hdd_base)}": (atmos.heating_degree_days, p.hdd_base),
-        f"cddcold{format_number(p.cdd_base)}": (atmos.cooling_degree_days, p.cdd_base),
-        f"gddgrow{format_number(p.gdd_base)}": (atmos.growing_degree_days, p.gdd_base),
+        f"hddheat{format_number(p.hdd_base)}": (p.hdd_base - ds.tas).where(ds.tas < p.hdd_base),
+        f"cddcold{format_number(p.cdd_base)}": (ds.tas - p.cdd_base).where(ds.tas > p.cdd_base),
+        f"gddgrow{format_number(p.gdd_base)}": (ds.tas - p.gdd_base).where(ds.tas > p.gdd_base),
     }
+    mask = valid_mask(ds.tas, freq=FREQS["ANN"])
     out = {}
-    for name, (indicator, base) in specs.items():
-        values = run_xclim(indicator, "ANN", tas=ds.tas, thresh=f"{base} degC")
-        out[f"indices/{name}_ANN"] = index_table(name, values, "ANN")
+    for name, excess in specs.items():
+        # A year whose days all fall outside the condition sums to 0 (sum(na.rm = TRUE)).
+        values = period_reduce(excess.fillna(0).where(ds.tas.notnull()), FREQS["ANN"], r_sum)
+        out[f"indices/{name}_ANN"] = index_table(name, values.where(mask), "ANN")
     return out
 
 
@@ -620,3 +633,122 @@ def spell_durations(run: StationRun) -> dict[str, pd.DataFrame]:
         )
         out[f"indices/{name}_ANN"] = annual_index(name, values, years, masks["tasmax"])
     return out
+
+
+# --- growing season length (GSL) ---------------------------------------------------
+
+GSL_THRESHOLD = 5.0  # degC (growing.season.length t.thresh)
+GSL_MIN_LENGTH = 6  # days (growing.season.length min.length)
+
+
+def season_length(
+    tas: np.ndarray, months: np.ndarray, transition_month: int
+) -> tuple[int | None, float, int | None] | None:
+    """climdex.pcic ``growing.season.length`` (``gsl.mode = "GSL"``) for one season.
+
+    ``tas`` holds the season's daily mean temperatures in order (a calendar year in the
+    north, July to June in the south) and ``months`` their months. Returns
+    ``(start, length, end)`` as R computes them: ``start`` is the 1-based day of the
+    first day of the first run of at least 6 days with TM > 5 before the first day of
+    ``transition_month`` (the run must be at least 6 days long before that day);
+    ``end`` is the 0-based day offset R uses for the end date (see
+    :func:`growing_season_length`). Missing days count as neither warm nor cold. With
+    no start the length is 0 and ``start`` and ``end`` are None. Returns None when the
+    season has no day in ``transition_month`` (R's ``NA``).
+    """
+    mid = np.flatnonzero(months == transition_month)
+    if mid.size == 0:
+        return None
+    ts_mid = int(mid[0]) + 1  # 1-based, as R's which()
+    ts_len = tas.size
+    n = GSL_MIN_LENGTH - 1
+    thresh = np.full(ts_len, GSL_THRESHOLD)
+    warm = select_blocks_gt_length(r_compare(tas, thresh, ">")[: ts_mid - 1], n)
+    cold = select_blocks_gt_length(r_compare(tas, thresh, "<")[ts_mid - 1 :], n)
+    begin = np.flatnonzero(warm == 1)
+    finish = np.flatnonzero(cold == 1)
+    if begin.size == 0:
+        return None, 0.0, None
+    start = int(begin[0]) + 1
+    if finish.size == 0:
+        # R: ``end <- ts.len - 1``, so the end date is the last day of the season.
+        return start, float(ts_len - start + 1), ts_len - 1
+    # R: ``gs.end`` is the cold run's first day (1-based, within the second half) minus
+    # 1, and ``end <- gs.end + ts.mid - 1`` is the 1-based day before the cold run. Used
+    # as a 0-based offset for the date, it gives the cold run's first day.
+    end = int(finish[0]) + ts_mid - 1
+    return start, float(end - start + 1), end
+
+
+def southern_gsl_mask(tas: np.ndarray, season_years: np.ndarray, months: np.ndarray):
+    """``climdex.gsl``'s missing-data mask for Southern Hemisphere seasons (July to
+    June): one value, 1 or NaN, per season year in sorted order.
+
+    R applies ``ci@max.missing.days["annual"]`` (15 days) both to the season and to each
+    of its months, so a month with 4 to 15 missing days does not make the season
+    missing, where the climdex monthly rule allows only 3. The last season is always
+    missing.
+    """
+    missing = pd.Series(np.isnan(tas))
+    by_season = missing.groupby(season_years).sum() > 15
+    by_month = (missing.groupby([season_years, months]).sum() > 15).groupby(level=0).any()
+    mask = np.where(by_season.to_numpy() | by_month.to_numpy(), np.nan, 1.0)
+    mask[-1] = np.nan
+    return mask
+
+
+def growing_season_length(run: StationRun) -> pd.DataFrame:
+    """Annual growing season length with dates: climdex.pcic ``climdex.gsl`` with
+    ``gsl.mode = "GSL"`` and ``include.exact.dates = TRUE``, as Climpact calls it.
+
+    Northern Hemisphere (``lat > 0``) seasons are calendar years; the season ends at the
+    first run of 6 days with TM < 5 from 1 July, and is masked with the climdex annual
+    TM mask. Southern Hemisphere seasons run from July of the labelled year to June of
+    the next and end from 1 January; they are masked by :func:`southern_gsl_mask`.
+    January to June of the first year are not used, and the last season is missing.
+
+    Dates follow R: the start is the first day of the warm run, and the end is the
+    first day of the cold run when one is found (so ``end - start = length``), or the
+    last day of the season when none is (``end - start = length - 1``). A season with
+    no start has length 0 and no dates.
+    """
+    ds = run.data
+    tas = ds.tas.values
+    dates = pd.DatetimeIndex(ds.time.values)
+    years, months = dates.year.to_numpy(), dates.month.to_numpy()
+    if run.metadata.northern_hemisphere:
+        season_years, transition, origin_month = years, 7, 1
+        mask = np.where(valid_mask(ds.tas, freq="YS").values, 1.0, np.nan)
+    else:
+        # R: years.gsl <- years - floor((12 - months) / 6), keeping years.gsl >= first year.
+        season_years = years - (months <= 6)
+        inset = season_years >= years[0]
+        tas, season_years, months = tas[inset], season_years[inset], months[inset]
+        transition, origin_month = 1, 7
+        mask = southern_gsl_mask(tas, season_years, months)
+
+    rows = []
+    for i, year in enumerate(np.unique(season_years)):
+        sel = season_years == year
+        result = season_length(tas[sel], months[sel], transition)
+        start_date = end_date = None
+        if result is None:
+            length = np.nan
+        else:
+            start, length, end = result
+            length *= mask[i]
+            if start is not None and not np.isnan(length):
+                origin = pd.Timestamp(year=int(year), month=origin_month, day=1)
+                start_date = (origin + pd.Timedelta(days=start - 1)).strftime("%Y-%m-%d")
+                end_date = (origin + pd.Timedelta(days=end)).strftime("%Y-%m-%d")
+        rows.append((float(year), start_date, length, end_date))
+
+    df = pd.DataFrame(rows, columns=["time", "start", "sl", "end"])
+    df["start"] = df["start"].astype(object)
+    df["end"] = df["end"].astype(object)
+    return df
+
+
+@product
+def growing_season(run: StationRun) -> dict[str, pd.DataFrame]:
+    return {"indices/gsl_ANN": growing_season_length(run)}

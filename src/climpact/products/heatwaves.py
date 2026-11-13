@@ -1,9 +1,9 @@
 """Climpact's Tx90 and Tn90 heatwave indices (Perkins and Alexander 2013).
 
 A port of ``climdex.hw`` and ``get.hw.aspects`` in ``climpact.etsci-functions.r``
-(lines 674 and 773). :func:`hw_aspects` is the shared machinery that turns daily
-heatwave flags into the five annual aspects; the EHF and ECF heatwaves (#21) use it
-too.
+(lines 674 and 773). :func:`hw_aspects` turns daily heatwave flags into the five
+annual aspects. Climpact's EHF heatwaves do not use it (``climdex.hwEHF`` has its own
+calendar-year aspects; see :mod:`climpact.products.ehf`).
 
 A heatwave is a run of at least three days whose value exceeds the 15-day-window
 90th percentile for the day of year (``Thresholds.heatwave``). Each year's aspects

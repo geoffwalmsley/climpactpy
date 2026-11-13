@@ -28,6 +28,7 @@ period, the percentile indices use the bootstrapped thresholds of
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -135,6 +136,23 @@ def r_quantile_type8(values, probs) -> np.ndarray:
     out = np.where(h == 1, hi, lo)
     other = (h > 0) & (h < 1) & (lo != hi)
     return np.where(other, (1 - h) * lo + h * hi, out)
+
+
+def r_quantile_type7(values: np.ndarray, prob: float) -> float:
+    """R ``quantile(x, prob, na.rm = TRUE)`` (type 7), as ``quantile.default`` computes
+    it: ``(1 - h) * x[lo] + h * x[hi]``, and ``x[lo]`` when the neighbours are equal."""
+    x = np.sort(np.asarray(values, dtype=float).ravel())
+    x = x[~np.isnan(x)]
+    n = x.size
+    if n == 0:
+        return float("nan")
+    index = 1 + (n - 1) * prob
+    lo, hi = math.floor(index), math.ceil(index)
+    qs = float(x[lo - 1])
+    if index > lo and x[hi - 1] != qs:
+        h = index - lo
+        qs = (1 - h) * qs + h * float(x[hi - 1])
+    return qs
 
 
 # --- base period and day of year -------------------------------------------------------

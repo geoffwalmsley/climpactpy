@@ -13,8 +13,9 @@ quoted metadata lines followed by a header row and data rows, for example::
     time, fd, standardised values (using all years)
     1936, 0, -99.9
 
-Missing values are written as ``-99.9``. Columns holding dates (``ymd``, ``start``,
-``end``, ``date``) are kept as strings; all other columns are parsed as floats.
+Missing values are written as ``-99.9`` (``NA`` in ``thres.csv`` and the trend file).
+Columns holding dates (``ymd``, ``start``, ``end``, ``date``) and other text are kept as
+strings; all other columns are parsed as floats.
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ import pandas as pd
 
 MISSING_VALUE = -99.9
 MISSING_TOKEN = "-99.9"
+# R's NA, written by plain write.table (thres.csv) and paste (the trend file).
+NA_TOKEN = "NA"
 
 _METADATA_LINE = re.compile(r'^"(?P<key>[A-Za-z_]+): ","(?P<value>.*)"$')
 
@@ -47,9 +50,9 @@ class ClimpactTable:
 
 
 def _parse_column(values: list[str]) -> pd.Series:
-    """Parse a column as floats if every entry is numeric, otherwise as strings."""
+    """Parse a column as floats if every entry is numeric or ``NA``, otherwise as strings."""
     try:
-        numbers = np.array([float(v) for v in values], dtype=float)
+        numbers = np.array([math.nan if v == NA_TOKEN else float(v) for v in values], dtype=float)
     except ValueError:
         return pd.Series([None if v == MISSING_TOKEN else v for v in values], dtype=object)
     numbers[numbers == MISSING_VALUE] = np.nan

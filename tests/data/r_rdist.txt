@@ -1,0 +1,1812 @@
+qnorm 0x1.0fe180c4p-2 -0x1.40be8dac1fafbp-1 
+qnorm 0x1.7d0e0c2cp-2 -0x1.4e101e89e79f5p-2 
+qnorm 0x1.254d093ap-1 0x1.7819fdbc05dbp-3 
+qnorm 0x1.d1009c88p-1 0x1.546db9699b1aep+0 
+qnorm 0x1.9d0b6a9p-3 -0x1.abd783c034d22p-1 
+qnorm 0x1.cbf9bb98p-1 0x1.45bded2b57227p+0 
+qnorm 0x1.e3ac7a1p-1 0x1.986452237ef51p+0 
+qnorm 0x1.52541698p-1 0x1.a897c34960512p-2 
+qnorm 0x1.421b3c68p-1 0x1.516a7cfdafceap-2 
+qnorm 0x1.fa27336p-5 -0x1.8a3a29d4027bcp+0 
+qnorm 0x1.a5d5ff78p-3 -0x1.a4146e58beda3p-1 
+qnorm 0x1.6996963p-3 -0x1.db6d23e7cdb3ep-1 
+qnorm 0x1.5fc17564p-1 0x1.f3209a3da916p-2 
+qnorm 0x1.89527c3p-2 -0x1.2dcb32e604ec4p-2 
+qnorm 0x1.8a28a794p-1 0x1.7a05b1f5b2be2p-1 
+qnorm 0x1.fda4decp-2 -0x1.79f52bcc070f3p-8 
+qnorm 0x1.6f6bb17p-1 0x1.26ccd008314abp-1 
+qnorm 0x1.fbdb1d9cp-1 0x1.33cbaed132b7p+1 
+qnorm 0x1.8527f12cp-2 -0x1.38b7bc4f73a6bp-2 
+qnorm 0x1.8e0d4cdp-1 0x1.86f5b84b0d4dep-1 
+qnorm 0x1.de91af1ep-1 0x1.83041775bd755p+0 
+qnorm 0x1.b277c738p-3 -0x1.9917bde2ca1d4p-1 
+qnorm 0x1.4da82f12p-1 0x1.8f3310f1b6c68p-2 
+qnorm 0x1.012307b8p-3 -0x1.25ccd943b8c27p+0 
+qnorm 0x1.11a24b84p-2 -0x1.3e133f15cbcbbp-1 
+qnorm 0x1.8b617e2p-2 -0x1.28689d12983a2p-2 
+qnorm 0x1.b6c6418p-7 -0x1.1b7b49b76b08ap+1 
+qnorm 0x1.8790b568p-2 -0x1.326572ba8a6b4p-2 
+qnorm 0x1.bd481e58p-1 0x1.1ffb7904eab8bp+0 
+qnorm 0x1.5c847288p-2 -0x1.a5631915bc16fp-2 
+qnorm 0x1.eda668e8p-2 -0x1.70189983aa216p-5 
+qnorm 0x1.32fa4ab8p-1 0x1.0246dd92ce486p-2 
+qnorm 0x1.f962e474p-2 -0x1.0942d430afb62p-6 
+qnorm 0x1.7d5fa76p-3 -0x1.c8a9e33c9e93bp-1 
+qnorm 0x1.a79d79c2p-1 0x1.e33e7f53c2c3dp-1 
+qnorm 0x1.564145b6p-1 0x1.be23c35a0d31bp-2 
+qnorm 0x1.96a69b66p-1 0x1.a4771b2ca53d4p-1 
+qnorm 0x1.ba23187p-4 -0x1.3ccf51c0d73f6p+0 
+qnorm 0x1.728a3dbap-1 0x1.3013d5de14e5dp-1 
+qnorm 0x1.a5251fc4p-2 -0x1.cb4cf6c523867p-3 
+qnorm 0x1.a453129ap-1 0x1.d684337eb6ac4p-1 
+qnorm 0x1.4b4b7946p-1 0x1.8274002721e1p-2 
+qnorm 0x1.90dc9022p-1 0x1.90742b4c90281p-1 
+qnorm 0x1.1b27935p-1 0x1.1112a6b370fb1p-3 
+qnorm 0x1.0f3767a2p-1 0x1.316b0c0382a8bp-4 
+qnorm 0x1.94268p-1 0x1.9bbeba331c098p-1 
+qnorm 0x1.7e4227cp-6 -0x1.fd4625fcc7242p+0 
+qnorm 0x1.e8aeff88p-2 -0x1.d3d19cc58c24ap-5 
+qnorm 0x1.76f1d38cp-1 0x1.3d59cc86a2ee4p-1 
+qnorm 0x1.62adb5e8p-1 0x1.01d8e79056647p-1 
+qnorm 0x1.e9151e44p-2 -0x1.cbce82e4d6dd1p-5 
+qnorm 0x1.b8f072d4p-1 0x1.15f4fb0b401c1p+0 
+qnorm 0x1.c09c873p-2 -0x1.3f11b69cbbf9p-3 
+qnorm 0x1.f5584658p-3 -0x1.61c4b36978134p-1 
+qnorm 0x1.21805a4p-4 -0x1.78833a67522a8p+0 
+qnorm 0x1.9769d41p-4 -0x1.48db810984865p+0 
+qnorm 0x1.43dcbafcp-2 -0x1.e9a02a632e0dp-2 
+qnorm 0x1.098a6e1ep-1 0x1.7ec7e0bcbba9ap-5 
+qnorm 0x1.52f25452p-1 0x1.abf8df26d17a5p-2 
+qnorm 0x1.a09817b4p-2 -0x1.e2ba1fc92427ep-3 
+qnorm 0x1.d364792p-1 0x1.5bd26c793a924p+0 
+qnorm 0x1.2ca65cdp-2 -0x1.15f572ea74e6ap-1 
+qnorm 0x1.d6155364p-2 -0x1.a504bc32c8b67p-4 
+qnorm 0x1.545f44fcp-2 -0x1.bbb5b2b9f489fp-2 
+qnorm 0x1.4d3ee4d4p-1 0x1.8cf9c987c915ap-2 
+qnorm 0x1.08358d0cp-2 -0x1.4c878c8190128p-1 
+qnorm 0x1.ea07c3fcp-2 -0x1.b8c5572cdc8fep-5 
+qnorm 0x1.8859df4ap-1 0x1.7418ac97c5341p-1 
+qnorm 0x1.59134aep-4 -0x1.6086f9fbdc845p+0 
+qnorm 0x1.c02a1e0cp-1 0x1.26e3b03813fa7p+0 
+qnorm 0x1.5b35efacp-2 -0x1.a8f45662e738ep-2 
+qnorm 0x1.adcb2026p-1 0x1.fbfc71c4cb314p-1 
+qnorm 0x1.6300ff2p-2 -0x1.93c0befe5c6a3p-2 
+qnorm 0x1.55c9187p-2 -0x1.b7d2484d9e4e2p-2 
+qnorm 0x1.e7c89eecp-2 -0x1.e5e535df6e31fp-5 
+qnorm 0x1.c8ce3864p-1 0x1.3d017f2b8cc0fp+0 
+qnorm 0x1.ba8ab3fep-1 0x1.199b439a74eap+0 
+qnorm 0x1.8f596b3cp-2 -0x1.1e0cf40a3c9dcp-2 
+qnorm 0x1.8dfcfa88p-1 0x1.86bef80e1474cp-1 
+qnorm 0x1.ebd61f44p-1 0x1.c205ef4c5097fp+0 
+qnorm 0x1.bd17604p-2 -0x1.50f1bfd4dd279p-3 
+qnorm 0x1.6cceb956p-1 0x1.1f1a1c88e3931p-1 
+qnorm 0x1.99981fb4p-2 -0x1.03713e6e2e5dp-2 
+qnorm 0x1.4d291d5p-2 -0x1.cfa69a38079d2p-2 
+qnorm 0x1.83a0ed3ap-1 0x1.64d862bfa493ap-1 
+qnorm 0x1.9f1d1df8p-3 -0x1.aa0193f8f0995p-1 
+qnorm 0x1.6c1814b4p-1 0x1.1d02f5f3c64f4p-1 
+qnorm 0x1.f2733a5p-4 -0x1.2aa45e1a57482p+0 
+qnorm 0x1.f6c2ae98p-3 -0x1.60a495c271261p-1 
+qnorm 0x1.257cc438p-3 -0x1.10ca8b58a5eebp+0 
+qnorm 0x1.eac2d3a8p-3 -0x1.6a3ccda763245p-1 
+qnorm 0x1.e2ca58ep-5 -0x1.905405b2ce68cp+0 
+qnorm 0x1.48da01b2p-1 0x1.7554f92fc6682p-2 
+qnorm 0x1.c0a65bb6p-1 0x1.2812cf0d8661bp+0 
+qnorm 0x1.8ecde794p-1 0x1.897d2558e3fbcp-1 
+qnorm 0x1.9838dcc8p-1 0x1.aa021480ffc96p-1 
+qnorm 0x1.d2337764p-2 -0x1.cc2b88d0de1ddp-4 
+qnorm 0x1.a3ed14e4p-2 -0x1.d191b48c662e9p-3 
+qnorm 0x1.9f2a626cp-1 0x1.c3208d5e4688p-1 
+qnorm 0x1.35b9d0f4p-1 0x1.10865036f2e1p-2 
+qnorm 0x1.4f37f986p-1 0x1.97a91107faabep-2 
+qnorm 0x1.69ac8bbp-2 -0x1.81be5b5e727f2p-2 
+qnorm 0x1.14bf136p-2 -0x1.395b862d8da3ep-1 
+qnorm 0x1.fc4115d4p-1 0x1.387ea1ddddffp+1 
+qnorm 0x1.44593aaap-1 0x1.5d4e7b916c50cp-2 
+qnorm 0x1.b4a6778p-3 -0x1.9736b0021b119p-1 
+qnorm 0x1.08f45eap-3 -0x1.211df084aee45p+0 
+qnorm 0x1.e997c624p-2 -0x1.c18e6dd0962f7p-5 
+qnorm 0x1.d92049f6p-1 0x1.6edaa46410d5ap+0 
+qnorm 0x1.3290cc28p-1 0x1.00250b8fe4ce6p-2 
+qnorm 0x1.f3cca534p-1 0x1.fafb7d0b16cb3p+0 
+qnorm 0x1.76ad8214p-1 0x1.3c8a62851663ap-1 
+qnorm 0x1.6d49d1d4p-2 -0x1.7808e7d219b8p-2 
+qnorm 0x1.b9d43d38p-2 -0x1.61886d96a8492p-3 
+qnorm 0x1.2f898afp-3 -0x1.0b4c67a8c1df4p+0 
+qnorm 0x1.ac86a78p-7 -0x1.1ca8c416954e6p+1 
+qnorm 0x1.6e5eace8p-1 0x1.23b24ae1f8923p-1 
+qnorm 0x1.a6a4836p-4 -0x1.437c3b4f36b1dp+0 
+qnorm 0x1.c8fec3a8p-2 -0x1.149782eae2b1p-3 
+qnorm 0x1.47bb52fep-1 0x1.6f56a0a968868p-2 
+qnorm 0x1.fbd24588p-1 0x1.336834eba02e7p+1 
+qnorm 0x1.fb7ce204p-2 -0x1.69f0428fff613p-7 
+qnorm 0x1.eff9525cp-2 -0x1.41743a951e4cep-5 
+qnorm 0x1.6335bc2p-3 -0x1.e19cc4fa2cdf2p-1 
+qnorm 0x1.8277e40ep-1 0x1.6125845920698p-1 
+qnorm 0x1.d0c9faa8p-2 -0x1.da6ba82c17947p-4 
+qnorm 0x1.05b80bcp-1 0x1.cac98ce1ad477p-6 
+qnorm 0x1.a90d699p-3 -0x1.a14393d5118a7p-1 
+qnorm 0x1.d44ab868p-3 -0x1.7c8e4e8059985p-1 
+qnorm 0x1.310129acp-1 0x1.f027d644e290fp-3 
+qnorm 0x1.2655a616p-1 0x1.82a58a2f6a12dp-3 
+qnorm 0x1.3ba7dc1p-4 -0x1.6cd33f97e8845p+0 
+qnorm 0x1.2325ff6p-5 -0x1.ce11c47789bf1p+0 
+qnorm 0x1.491c7da2p-1 0x1.76b94486b575dp-2 
+qnorm 0x1.db737392p-1 0x1.772e9a2e85938p+0 
+qnorm 0x1.32392b84p-1 0x1.fcbfc40cb868p-3 
+qnorm 0x1.1f2e6202p-1 0x1.39dce19bbc557p-3 
+qnorm 0x1.0d53817ep-1 0x1.0b6b9ebc7f1fap-4 
+qnorm 0x1.f85e66b4p-1 0x1.1618242510745p+1 
+qnorm 0x1.03e9a102p-1 0x1.39dbaddad7a9ep-6 
+qnorm 0x1.5d966628p-1 0x1.e6ebf856ab55bp-2 
+qnorm 0x1.33fd35e2p-1 0x1.0783b68885efep-2 
+qnorm 0x1.e933fb38p-3 -0x1.6b7e194593ec2p-1 
+qnorm 0x1.085ca61p-2 -0x1.4c4b0cfcbdacdp-1 
+qnorm 0x1.7568122ap-1 0x1.38b1200d74a5ap-1 
+qnorm 0x1.cf6eba6p-2 -0x1.e81d7e2d99256p-4 
+qnorm 0x1.66a8dcf8p-3 -0x1.de420b3f42cc5p-1 
+qnorm 0x1.7e4f3c5p-1 0x1.5409984b4e669p-1 
+qnorm 0x1.ae07852p-4 -0x1.40ee1e8c5c0abp+0 
+qnorm 0x1.baa5a2b4p-1 0x1.19d91c8cec7a9p+0 
+qnorm 0x1.3ab2bee8p-1 0x1.2a70e1df11f31p-2 
+qnorm 0x1.1d4403dcp-1 0x1.2671a9c61e785p-3 
+qnorm 0x1.50ab0064p-2 -0x1.c5ee4d9413e0bp-2 
+qnorm 0x1.d001b08cp-2 -0x1.e2519adf52398p-4 
+qnorm 0x1.0039cc96p-1 0x1.21c318b1d2332p-10 
+qnorm 0x1.726a101p-3 -0x1.d2faa0711c2e1p-1 
+qnorm 0x1.0f2bbe0cp-1 0x1.308087cffd7aap-4 
+qnorm 0x1.3454572p-4 -0x1.7005a6a15ae1dp+0 
+qnorm 0x1.1c6c0d1cp-2 -0x1.2dd5b07f36f2ap-1 
+qnorm 0x1.b39bce38p-3 -0x1.981c1e52e482dp-1 
+qnorm 0x1.23a01da8p-2 -0x1.23288cc14a85ap-1 
+qnorm 0x1.ca49c636p-1 0x1.410b976eab834p+0 
+qnorm 0x1.c8f1e9ap-2 -0x1.14d887efd0882p-3 
+qnorm 0x1.8f5a2df2p-1 0x1.8b5638624ea8fp-1 
+qnorm 0x1.c2e07f86p-1 0x1.2d971bced93bp+0 
+qnorm 0x1.a70a0864p-2 -0x1.c19166d754312p-3 
+qnorm 0x1.055c0a9p-4 -0x1.8608795b00f3cp+0 
+qnorm 0x1.578a0874p-2 -0x1.b301774858e62p-2 
+qnorm 0x1.728c351p-1 0x1.3019b6e621044p-1 
+qnorm 0x1.59b7d58p-2 -0x1.ad091f5f9781dp-2 
+qnorm 0x1.42c5a3cep-1 0x1.54f0f05b51175p-2 
+qnorm 0x1.ae6507e4p-1 0x1.fe750f86dca44p-1 
+qnorm 0x1.b656e3bap-1 0x1.10274fe228523p+0 
+qnorm 0x1.90c07cc4p-2 -0x1.1a658e0d4f1c5p-2 
+qnorm 0x1.85a0306cp-2 -0x1.377bfda148ef9p-2 
+qnorm 0x1.ca77d2a8p-1 0x1.418a72fc14a06p+0 
+qnorm 0x1.49e3c174p-1 0x1.7ae6361685316p-2 
+qnorm 0x1.7b6ea92p-1 0x1.4b18e7c7dac45p-1 
+qnorm 0x1.35ea5556p-1 0x1.118257b2b19c2p-2 
+qnorm 0x1.ce60b686p-1 0x1.4c9fbb017db62p+0 
+qnorm 0x1.2cc79908p-2 -0x1.15c52f94ffcedp-1 
+qnorm 0x1.87b36168p-3 -0x1.bf1c369659c2dp-1 
+qnorm 0x1.c5dce5e6p-1 0x1.3536d323a12c4p+0 
+qnorm 0x1.01b5b68cp-1 0x1.124c980d9ad84p-7 
+qnorm 0x1.c10dafbp-1 0x1.291025accc782p+0 
+qnorm 0x1.8377f228p-3 -0x1.c3019ee4ff4e6p-1 
+qnorm 0x1.84261552p-1 0x1.668266eee59e7p-1 
+qnorm 0x1.72f184d4p-1 0x1.3148dc279cb0cp-1 
+qnorm 0x1.e32fe63ep-1 0x1.963ab8166a4fp+0 
+qnorm 0x1.1865222ap-1 0x1.ea5d0b59c09e6p-4 
+qnorm 0x1.6c69b136p-1 0x1.1df1ef1f68b09p-1 
+qnorm 0x1.8e3d2374p-2 -0x1.20f22f4ea49ep-2 
+qnorm 0x1.9d2d23ap-4 -0x1.46cebf4e74c26p+0 
+qnorm 0x1.dac756ep-1 0x1.74bba8181e86cp+0 
+qnorm 0x1.2207b358p-2 -0x1.25830b49d3054p-1 
+qnorm 0x1.2e5f9ae6p-1 0x1.d5083a5fd90b2p-3 
+qnorm 0x1.c4097b5p-4 -0x1.3980367a8a79dp+0 
+qnorm 0x1.ae56f00ep-1 0x1.fe3b016218ffp-1 
+qnorm 0x1.459845a8p-2 -0x1.e4c32396748d4p-2 
+qnorm 0x1.90d1e3f4p-1 0x1.904fd94e8ebd3p-1 
+qnorm 0x1.11edabe8p-2 -0x1.3da0b308ed922p-1 
+qnorm 0x1.bfc9196p-3 -0x1.8db5aa744f892p-1 
+qnorm 0x1.0899984ep-1 0x1.590362b888dcbp-5 
+qnorm 0x1.1367c8b4p-2 -0x1.3b63074ce41a9p-1 
+qnorm 0x1.73086148p-3 -0x1.d26452bd27006p-1 
+qnorm 0x1.0982cfbep-1 0x1.7d95fdb916fc8p-5 
+qnorm 0x1.202515cp-1 0x1.43a496767fd37p-3 
+qnorm 0x1.0883639p-3 -0x1.2160f62c242a6p+0 
+qnorm 0x1.06853aacp-2 -0x1.4f25b8368f86cp-1 
+qnorm 0x1.6f953666p-1 0x1.2747aee0d0cddp-1 
+qnorm 0x1.ec3dec56p-1 0x1.c46cf09dbc574p+0 
+qnorm 0x1.9a2d49dp-4 -0x1.47df31c1d952cp+0 
+qnorm 0x1.86c51fd6p-1 0x1.6ef447c745146p-1 
+qnorm 0x1.e55bd896p-1 0x1.a01d4ff30332bp+0 
+qnorm 0x1.a32415fcp-1 0x1.d2025be36d88dp-1 
+qnorm 0x1.3bb0fc18p-2 -0x1.005b4e3620e04p-1 
+qnorm 0x1.4c95add6p-1 0x1.8967e21b4b204p-2 
+qnorm 0x1.e81e34a8p-1 0x1.ada4e258b6f11p+0 
+qnorm 0x1.e84fa55ap-1 0x1.aea31789d2c73p+0 
+qnorm 0x1.5c23822p-2 -0x1.a66b9d0b1a8ecp-2 
+qnorm 0x1.0cc6035cp-2 -0x1.457f3f30881d2p-1 
+qnorm 0x1.52d983p-3 -0x1.f1cf94d491e96p-1 
+qnorm 0x1.49e66c4cp-2 -0x1.d8b9654f3acb4p-2 
+qnorm 0x1.052f218ep-1 0x1.9fdf68655085ep-6 
+qnorm 0x1.d912653ep-1 0x1.6eaa0ce398304p+0 
+qnorm 0x1.059c8274p-1 0x1.c227f45bbd7c3p-6 
+qnorm 0x1.07cdde28p-2 -0x1.4d281255726b5p-1 
+qnorm 0x1.7c9b8acp-5 -0x1.ae20741b45613p+0 
+qnorm 0x1.abe282dp-2 -0x1.a8b73cd2de558p-3 
+qnorm 0x1.b53faf56p-1 0x1.0dc29dd65a6edp+0 
+qnorm 0x1.63907054p-2 -0x1.923c3d345cd25p-2 
+qnorm 0x1.0d31a1ap-3 -0x1.1e9e0bdd29669p+0 
+qnorm 0x1.7f797c1p-2 -0x1.47ac36907eeeep-2 
+qnorm 0x1.4349831ep-1 0x1.57ac09cdddfeep-2 
+qnorm 0x1.8f70da1cp-2 -0x1.1dcfe14dbb9dbp-2 
+qnorm 0x1.6116e6c2p-1 0x1.faabbce921c19p-2 
+qnorm 0x1.60facb78p-1 0x1.fa0c81f77ba45p-2 
+qnorm 0x1.1c1bef3ap-1 0x1.1abb621d1b484p-3 
+qnorm 0x1.b7ef75f4p-2 -0x1.6b2c3d47d06e8p-3 
+qnorm 0x1.cf95d92p-2 -0x1.e69277e4e1e13p-4 
+qnorm 0x1.39cc42fcp-2 -0x1.030cdafab702cp-1 
+qnorm 0x1.281e0216p-1 0x1.94db7b1ae6547p-3 
+qnorm 0x1.d21c0e78p-1 0x1.57d165082185ep+0 
+qnorm 0x1.240d9be8p-3 -0x1.1195d82e91b43p+0 
+qnorm 0x1.a9023ea4p-2 -0x1.b7756882a71c5p-3 
+qnorm 0x1.aff9d708p-3 -0x1.9b3ec3a0a3199p-1 
+qnorm 0x1.b70a5654p-2 -0x1.6fbb542d21507p-3 
+qnorm 0x1.0fbfc3p-3 -0x1.1d1fb68889b3ap+0 
+qnorm 0x1.d72385dp-2 -0x1.9a619ce81af55p-4 
+qnorm 0x1.e2cb4486p-1 0x1.9480e2bf6af5fp+0 
+qnorm 0x1.8621702p-1 0x1.6ce298c9f770cp-1 
+qnorm 0x1.dda65b6ap-1 0x1.7f710d0fb1e15p+0 
+qnorm 0x1.e1f98b48p-2 -0x1.2d51de92d4f2cp-4 
+qnorm 0x1.35097ec6p-1 0x1.0cf2eddbaa03bp-2 
+qnorm 0x1.f0a12284p-2 -0x1.344c94bc6db07p-5 
+qnorm 0x1.bdabb13p-4 -0x1.3b9f6980020dbp+0 
+qnorm 0x1.fb5834bp-3 -0x1.5d029a0837264p-1 
+qnorm 0x1.fe7a97d8p-2 -0x1.e80cdd40336dep-9 
+qnorm 0x1.7dd0c534p-2 -0x1.4c0d824c27715p-2 
+qnorm 0x1.de8fde06p-1 0x1.82fcf3fcc244p+0 
+qnorm 0x1.0c47e738p-1 0x1.ecd59c203952p-5 
+qnorm 0x1.44c192a4p-2 -0x1.e71d73785f6bap-2 
+qnorm 0x1.1ca32078p-2 -0x1.2d8393e1f2a64p-1 
+qnorm 0x1.9338826ap-1 0x1.988880ce14c4ap-1 
+qnorm 0x1.67a92a9cp-1 0x1.1020450cf406cp-1 
+qnorm 0x1.51fa02b8p-3 -0x1.f2b0760bb9655p-1 
+qnorm 0x1.0804a0dp-4 -0x1.84b579d43b173p+0 
+qnorm 0x1.8268c676p-1 0x1.60f5757cc15fcp-1 
+qnorm 0x1.3da66244p-1 0x1.39ea4da5afd1bp-2 
+qnorm 0x1.5b4b1058p-3 -0x1.e963bdea4e636p-1 
+qnorm 0x1.fda853p-5 -0x1.8954c5e8a9bd2p+0 
+qnorm 0x1.be95797p-4 -0x1.3b5127246b061p+0 
+qnorm 0x1.86e0a6bcp-2 -0x1.3433159208a84p-2 
+qnorm 0x1.5abfae48p-3 -0x1.e9edbb949d9c7p-1 
+qnorm 0x1.31d1f8d4p-2 -0x1.0e7ab3cbdc1cp-1 
+qnorm 0x1.89a52718p-3 -0x1.bd542e707a6afp-1 
+qnorm 0x1.075793fcp-2 -0x1.4ddf5d5d9139cp-1 
+qnorm 0x1.7329ab8p-3 -0x1.d244bd034e3ecp-1 
+qnorm 0x1.e8c4ecd4p-2 -0x1.d21932299d4c3p-5 
+qnorm 0x1.8a9e0bb2p-1 0x1.7b8891ffe0c49p-1 
+qnorm 0x1.c743a38p-6 -0x1.ea1375c319c3ap+0 
+qnorm 0x1.0dfbad9cp-1 0x1.189f8a738a34fp-4 
+qnorm 0x1.c2b92e56p-1 0x1.2d34905970eb3p+0 
+qnorm 0x1.7e045318p-2 -0x1.4b85512cdcb15p-2 
+qnorm 0x1.88e196cp-5 -0x1.aa3ba182351d3p+0 
+qnorm 0x1.1be9205p-3 -0x1.1625104f24ce7p+0 
+qnorm 0x1.49353afcp-2 -0x1.daa7b58957481p-2 
+qnorm 0x1.3d185b18p-3 -0x1.0413eb66f8f4bp+0 
+qnorm 0x1.0ecda4d8p-3 -0x1.1dacf0470d0aep+0 
+qnorm 0x1.c53c0adp-3 -0x1.891bcb0cf541ep-1 
+qnorm 0x1.cfa0bc2p-3 -0x1.806b59200c091p-1 
+qnorm 0x1.0d241c98p-3 -0x1.1ea5f98d70fffp+0 
+qnorm 0x1.f68f7c62p-1 0x1.0b284643b7229p+1 
+qnorm 0x1.4edcafb8p-2 -0x1.caee2ffd1e638p-2 
+qnorm 0x1.038d92e2p-1 0x1.1d02816822394p-6 
+qnorm 0x1.5ce60886p-1 0x1.e30edc307f61fp-2 
+qnorm 0x1.9632577p-4 -0x1.494afd68ffbfdp+0 
+qnorm 0x1.e7065e7p-4 -0x1.2e34a3111f12ap+0 
+qnorm 0x1.9d33a2p-5 -0x1.a3feb9f039277p+0 
+qnorm 0x1.dbc72b76p-1 0x1.7862c35f61f19p+0 
+qnorm 0x1.58f0cf4ep-1 0x1.ccfdd9202da12p-2 
+qnorm 0x1.8489abbp-4 -0x1.4fb94245c5e64p+0 
+qnorm 0x1.f86b1e14p-2 -0x1.30159ac163e59p-6 
+qnorm 0x1.d8a10bb4p-2 -0x1.8b5db7803da48p-4 
+qnorm 0x1.8038c324p-2 -0x1.45b3b839cd40bp-2 
+qnorm 0x1.fb715b5ep-1 0x1.2f52fc2304e14p+1 
+qnorm 0x1.692a902p-3 -0x1.dbd55ba500366p-1 
+qnorm 0x1.a07a9464p-1 0x1.c800320056f59p-1 
+qnorm 0x1.185b804p-4 -0x1.7cca332cf2c88p+0 
+qnorm 0x1.9a0f7f98p-2 -0x1.023c4d6bc016ep-2 
+qnorm 0x1.211046b8p-3 -0x1.133fcd1bbfb6cp+0 
+qnorm 0x1.8be60a88p-3 -0x1.bb4563529a50dp-1 
+qnorm 0x1.aec5a6f8p-1 0x1.0001e3538503p+0 
+qnorm 0x1.709890f8p-1 0x1.2a48b6c4c6ea9p-1 
+qnorm 0x1.11a00b58p-2 -0x1.3e16aaeb09a9ap-1 
+qnorm 0x1.fae1b61p-2 -0x1.9a8fc61d07daap-7 
+qnorm 0x1.546f3d1p-4 -0x1.6269cc1c207c1p+0 
+qnorm 0x1.6a60a16p-2 -0x1.7fd9ed8b91707p-2 
+qnorm 0x1.f03c22f4p-1 0x1.de89d4e075aa5p+0 
+qnorm 0x1.3fda89ccp-1 0x1.4583d5ef5517cp-2 
+qnorm 0x1.5448d7dep-1 0x1.b34d83a0345ecp-2 
+qnorm 0x1.3ffd49dcp-2 -0x1.f489766db4545p-2 
+qnorm 0x1.9f6d190cp-2 -0x1.e8bfd20166426p-3 
+qnorm 0x1.fdfdda6ep-1 0x1.544ee7433b09p+1 
+qnorm 0x1.b5cd5ac8p-1 0x1.0ef8be4934418p+0 
+qnorm 0x1.e8377edp-1 0x1.ae26b5a845b3ap+0 
+qnorm 0x1.9fe673fcp-1 0x1.c5d930b915d93p-1 
+qnorm 0x1.907a2c9ep-1 0x1.8f25a2ca99332p-1 
+qnorm 0x1.124ea4ecp-2 -0x1.3d0d6cb0ffd28p-1 
+qnorm 0x1.8638b9acp-1 0x1.6d2ddc4a500ap-1 
+qnorm 0x1.f8fdd526p-1 0x1.1a6191519e618p+1 
+qnorm 0x1.2ca6eedcp-2 -0x1.15f49ecf9857bp-1 
+qnorm 0x1.98ef7f2p-2 -0x1.0525cf0286fap-2 
+qnorm 0x1.9fcfb3fep-1 0x1.c584bf0a8ff56p-1 
+qnorm 0x1.3c03638p-4 -0x1.6cabae1a860dap+0 
+qnorm 0x1.746cefcp-2 -0x1.64f601328f3eap-2 
+qnorm 0x1.c536f5bp-2 -0x1.27baf9f20c89dp-3 
+qnorm 0x1.40f356dp-3 -0x1.020fdd471e39bp+0 
+qnorm 0x1.2a16cf26p-1 0x1.a909db668d424p-3 
+qnorm 0x1.f0b918dcp-1 0x1.e2183f432839cp+0 
+qnorm 0x1.fa9fb8ep-1 0x1.276bd6ca0ec3p+1 
+qnorm 0x1.695faf7p-3 -0x1.dba219020a21bp-1 
+qnorm 0x1.15921e76p-1 0x1.b15dd5300bap-4 
+qnorm 0x1.8986f5ap-2 -0x1.2d41d65a250cfp-2 
+qnorm 0x1.5a322caap-1 0x1.d3f77f383d141p-2 
+qnorm 0x1.13c1bfa4p-2 -0x1.3adac32fe9278p-1 
+qnorm 0x1.e08351acp-2 -0x1.3c04b68502911p-4 
+qnorm 0x1.5fd8b8b8p-3 -0x1.e4e71de8e879bp-1 
+qnorm 0x1.7a0ccd6cp-2 -0x1.560450f30dep-2 
+qnorm 0x1.736851e4p-1 0x1.32acdefdc2573p-1 
+qnorm 0x1.f1d1122p-2 -0x1.1c79c09f1f845p-5 
+qnorm 0x1.0555bc4p-4 -0x1.860ba0a463456p+0 
+qnorm 0x1.91b00b2p-1 0x1.93457fa84ce2ep-1 
+qnorm 0x1.ac5c81c4p-2 -0x1.a6466c8deca72p-3 
+qnorm 0x1.f648009ep-1 0x1.09a1a121e1c09p+1 
+qnorm 0x1.21ac54ecp-2 -0x1.260a0c6e1dc9cp-1 
+qnorm 0x1.b21d9beep-1 0x1.0703313331f2bp+0 
+qnorm 0x1.50da157p-4 -0x1.63e1ec02b6539p+0 
+qnorm 0x1.c5ddebdep-1 0x1.35397c1b1affcp+0 
+qnorm 0x1.e341cf3cp-2 -0x1.206df8604b19ap-4 
+qnorm 0x1.bee0a6ep-4 -0x1.3b3802f08c9a2p+0 
+qnorm 0x1.5546d2fp-2 -0x1.b9387bb36e179p-2 
+qnorm 0x1.acc1dd54p-1 0x1.f7c12909659d2p-1 
+qnorm 0x1.1b7e866p-2 -0x1.2f3829e24ee05p-1 
+qnorm 0x1.2c8fdebcp-1 0x1.c267efbca8aep-3 
+qnorm 0x1.ac682c0cp-1 0x1.f654db96f4651p-1 
+qnorm 0x1.237266ep-4 -0x1.779db2e870b9cp+0 
+qnorm 0x1.67d29d8ep-1 0x1.1097f53539df3p-1 
+qnorm 0x1.65cc546ap-1 0x1.0ac37e539fc04p-1 
+qnorm 0x1.db18f454p-2 -0x1.72821ddac8082p-4 
+qnorm 0x1.bf6ade78p-2 -0x1.45212166dc11ep-3 
+qnorm 0x1.1fd5a2ccp-1 0x1.407e145e69ac2p-3 
+qnorm 0x1.db622748p-1 0x1.76ef3196525bap+0 
+qnorm 0x1.d7fec68p-3 -0x1.7980eac3aa4e4p-1 
+qnorm 0x1.c6464a28p-3 -0x1.883be69580317p-1 
+qnorm 0x1.ae4d133cp-2 -0x1.9c58c6dbe9ab4p-3 
+qnorm 0x1.55867a64p-2 -0x1.b8896e3352006p-2 
+qnorm 0x1.bac80e24p-1 0x1.1a283f06fdadcp+0 
+qnorm 0x1.6ae4f8p-3 -0x1.da2b06a105212p-1 
+qnorm 0x1.f9288b78p-2 -0x1.12673cecdcebap-6 
+qnorm 0x1.b806c7e4p-2 -0x1.6ab57ac574a64p-3 
+qnorm 0x1.20e730cp-1 0x1.4b57d52556bfdp-3 
+qnorm 0x1.4ff481ccp-1 0x1.9ba8f8c2d5418p-2 
+qnorm 0x1.f50509c2p-1 0x1.032b6159b668fp+1 
+qnorm 0x1.db774dep-3 -0x1.76a7b1cbf0d24p-1 
+qnorm 0x1.ed2ea15p-3 -0x1.684a9d6148c91p-1 
+qnorm 0x1.97fae632p-1 0x1.a926abf47eeap-1 
+qnorm 0x1.a9d0e002p-1 0x1.ebecfaa1b0c33p-1 
+qnorm 0x1.d0ed74fp-4 -0x1.3544ea2c55971p+0 
+qnorm 0x1.ed373b8cp-1 0x1.ca5d3a8cee331p+0 
+qnorm 0x1.2db7a0ep-3 -0x1.0c48b47622352p+0 
+qnorm 0x1.2625e1fp-3 -0x1.106d20cc53666p+0 
+qnorm 0x1.d9b7bcf2p-1 0x1.70efb66168a5fp+0 
+qnorm 0x1.039a2ba6p-1 0x1.20f5125462e43p-6 
+qnorm 0x1.3d2287bp-3 -0x1.040e942ba0ad4p+0 
+qnorm 0x1.64a94b0cp-2 -0x1.8f4435f1278c1p-2 
+qnorm 0x1.51d40fbep-1 0x1.a5dcb3d630aa8p-2 
+qnorm 0x1.3f4141ep-2 -0x1.f69cdbdcae4fbp-2 
+qnorm 0x1.6802dc1cp-2 -0x1.8638cccabe64fp-2 
+qnorm 0x1.2ec9baep-3 -0x1.0bb426cd52f52p+0 
+qnorm 0x1.4c67100a89b7p-657 -0x1.e06f23dac57b8p+4 
+qnorm 0x1.7a44a7a0d87b9p-185 -0x1.f843bc15c1fd1p+3 
+qnorm 0x1.d989b583664abp-952 -0x1.217f27d68a76cp+5 
+qnorm 0x1.2ae89d0c10a36p-895 -0x1.18bcfcf876d1bp+5 
+qnorm 0x1.72203fdb207a1p-941 -0x1.1fdcb99e0831bp+5 
+qnorm 0x1.b93c8d58533a9p-722 -0x1.f7b3b764788b3p+4 
+qnorm 0x1.e114d7d72a9e7p-370 -0x1.670ecd13888d1p+4 
+qnorm 0x1.9309601a1755ep-779 -0x1.05b6194f0adf3p+5 
+qnorm 0x1.d9f75523c6c54p-12 -0x1.a8cec56768e9dp+1 
+qnorm 0x1.e093808afd7dcp-938 -0x1.1f577d91fdcecp+5 
+qnorm 0x1.91f94e7561aefp-991 -0x1.27718df034eeap+5 
+qnorm 0x1.c30cd88ed4d57p-357 -0x1.60a272c9cc779p+4 
+qnorm 0x1.e565cd99431edp-746 -0x1.0003fca1b9698p+5 
+qnorm 0x1.bef351751aabfp-791 -0x1.07b5e9ecc527dp+5 
+qnorm 0x1.7867982af84e2p-704 -0x1.f168a3fe2cb0bp+4 
+qnorm 0x1.bea8c15bb8bb6p-475 -0x1.97a064572da9ap+4 
+qnorm 0x1.06d3b836a5568p-493 -0x1.9fb3f3aa6d177p+4 
+qnorm 0x1.00479252625b6p-307 -0x1.470223a934f2bp+4 
+qnorm 0x1.49e0b72b7cba6p-693 -0x1.ed8a9f3b97808p+4 
+qnorm 0x1.03ec4a3f34815p-820 -0x1.0cab5dda55f3ep+5 
+qnorm 0x1.b47b44cc62ba6p-434 -0x1.856a37793c8cbp+4 
+qnorm 0x1.051d73ad7ca0fp-513 -0x1.a825610eda4abp+4 
+qnorm 0x1.3209fd1d756e5p-661 -0x1.e1f3940bf9b48p+4 
+qnorm 0x1.404c21301037p-143 -0x1.b9e4af1bf2c6ap+3 
+qnorm 0x1.9d5f0f719c6ep-344 -0x1.5a1c03484b4d1p+4 
+qnorm 0x1.8abdfe152a1ecp-405 -0x1.780f7352fbf82p+4 
+qnorm 0x1.f9436e94da563p-86 -0x1.5196405cbedf5p+3 
+qnorm 0x1.892635a0b5906p-930 -0x1.1e265ca73c8cap+5 
+qnorm 0x1.662d06007440fp-836 -0x1.0f38731ab7585p+5 
+qnorm 0x1.7d8e1e18d7e38p-877 -0x1.15d356a811b52p+5 
+qnorm 0x1.6752d125f350cp-933 -0x1.1ea25f9869e4bp+5 
+qnorm 0x1.b9d06b4363a65p-73 -0x1.35c56ee3bae16p+3 
+qnorm 0x1.7351722d44383p-378 -0x1.6b2a1baacadcdp+4 
+qnorm 0x1.f759d1129269p-537 -0x1.b1ab932b02d4ep+4 
+qnorm 0x1.3d35f4647f216p-105 -0x1.78644289aea67p+3 
+qnorm 0x1.0a0211a9a8b0ep-799 -0x1.092d47ee8a4fbp+5 
+qnorm 0x1.da14de3e1c22bp-738 -0x1.fd44088f3bed8p+4 
+qnorm 0x1.0546125be5f4dp-52 -0x1.03f308d194fd3p+3 
+qnorm 0x1.651ae0bf1d302p-481 -0x1.9a5d94db06ed6p+4 
+qnorm 0x1.8caa37d4a4225p-918 -0x1.1c486b56fde64p+5 
+qnorm 0x1.87b73fff0c614p-42 -0x1.cb8942710d60fp+2 
+qnorm 0x1.028455b65d373p-293 -0x1.3f5546ef23bb4p+4 
+qnorm 0x1.d1af2fbb00fb2p-500 -0x1.a25397c09a298p+4 
+qnorm 0x1.437139cce5b56p-608 -0x1.ce04c703705eap+4 
+qnorm 0x1.932100277ade6p-264 -0x1.2e75b86d18906p+4 
+qnorm 0x1.4612c55a6dc85p-422 -0x1.801c86108ec77p+4 
+qnorm 0x1.9d2caa48de664p-366 -0x1.6530381bbba3bp+4 
+qnorm 0x1.a58a5590520dfp-940 -0x1.1fade45132a14p+5 
+qnorm 0x1.9fce1fc207fc6p-124 -0x1.99c6a3cd9e34dp+3 
+qnorm 0x1.277c3d0246e66p-70 -0x1.303c68cf0e6afp+3 
+qnorm 0x1.f9ce76db8e8fbp-962 -0x1.230267527e32dp+5 
+qnorm 0x1.00b4ab8a61989p-441 -0x1.88ee8a86e39adp+4 
+qnorm 0x1.fe10436974aa9p-370 -0x1.670424ebbfbe3p+4 
+qnorm 0x1.43ca9359a9e27p-170 -0x1.e31c0a09f14ebp+3 
+qnorm 0x1.fe395a0af6915p-55 -0x1.095e68190408bp+3 
+qnorm 0x1.5728e4e296664p-656 -0x1.e00c502338284p+4 
+qnorm 0x1.c2c9c1ba22382p-577 -0x1.c1c80ce500af4p+4 
+qnorm 0x1.35e74d43493bdp-984 -0x1.2672aa42ec5bcp+5 
+qnorm 0x1.3570b906e879cp-602 -0x1.cbbc62fc7367cp+4 
+qnorm 0x1.352e908d2d583p-65 -0x1.245109ffbe6e3p+3 
+qnorm 0x1.5ca352fe5e2bbp-162 -0x1.d71a5905a0f27p+3 
+qnorm 0x1.2bf9048de1ff8p-474 -0x1.977104c1c3a09p+4 
+qnorm 0x1.0d6ea62b5fe0ep-2 -0x1.447cb9181d07p-1 
+qnorm 0x1.094636e90de14p-440 -0x1.887595852f7cep+4 
+qnorm 0x1.f30ddc08c8b33p-261 -0x1.2c84b1e19111cp+4 
+qnorm 0x1.bcd4016acf4aep-936 -0x1.1f0cdf5b81574p+5 
+qnorm 0x1.885928c17c37ep-714 -0x1.f4f04b17b93c4p+4 
+qnorm 0x1.6335e0fa0ea18p-163 -0x1.d88f6018d3486p+3 
+qnorm 0x1.5b9a22188ce22p-475 -0x1.97c8a2769703cp+4 
+qnorm 0x1.13558b493db12p-688 -0x1.ebd61ee5bef3dp+4 
+qnorm 0x1.9aa95f83040a9p-460 -0x1.911b888fb2adp+4 
+qnorm 0x1.1677a6a5f058bp-952 -0x1.219d2cb100784p+5 
+qnorm 0x1.dd034f27d73c5p-711 -0x1.f3c6a48d8b94fp+4 
+qnorm 0x1.284df4d2b1c27p-396 -0x1.73fe8c127eb57p+4 
+qnorm 0x1.9ac46b7614892p-118 -0x1.8f58339aaad26p+3 
+qnorm 0x1.a16785dff6668p-240 -0x1.200c4407e1e44p+4 
+qnorm 0x1.408ce4d521125p-861 -0x1.134d30fbe6514p+5 
+qnorm 0x1.6de783ca92e8dp-435 -0x1.85fc32fb4aa39p+4 
+qnorm 0x1.c8ce72a1e5528p-497 -0x1.a110d2c063435p+4 
+qnorm 0x1.5b3e95605f2bp-690 -0x1.ec6faa868571bp+4 
+qnorm 0x1.389a2f0bd74ccp-758 -0x1.02318a1c798c5p+5 
+qnorm 0x1.183c2e436d1b7p-155 -0x1.ccf810ab05d15p+3 
+qnorm 0x1.5d8eab4fd6baap-847 -0x1.110496cc8fd9fp+5 
+qnorm 0x1.56ef06de5aa47p-944 -0x1.205739c520f95p+5 
+qnorm 0x1.8272840340dfbp-587 -0x1.c5ca9530c8e45p+4 
+qnorm 0x1.620429a4165f9p-501 -0x1.a2eace971a7e7p+4 
+qnorm 0x1.d3b2394451d9ep-190 -0x1.fecd97ece2f7bp+3 
+qnorm 0x1.1fe68a38a700ep-2 -0x1.28a9bfd6436e2p-1 
+qnorm 0x1.579c81625b70fp-875 -0x1.1587c8f82acd3p+5 
+qnorm 0x1.45baeedb01774p-134 -0x1.ab3b7e55afbfap+3 
+qnorm 0x1.434496f60b513p-23 -0x1.47db984fbfbabp+2 
+qnorm 0x1.0df680c7d2dddp-936 -0x1.1f29597224b2dp+5 
+qnorm 0x1.09b1ae0106ab4p-292 -0x1.3ec1a3cf47e83p+4 
+qnorm 0x1.2d6e292739931p-164 -0x1.da67e427a8cdep+3 
+qnorm 0x1.333170b4ca68fp-398 -0x1.74ebaffab2653p+4 
+qnorm 0x1.fef4fd670c572p-459 -0x1.9086b5172a5d3p+4 
+qnorm 0x1.5ebb015a73e6fp-433 -0x1.851a7a331a962p+4 
+qnorm 0x1.b147fab7ee3aap-516 -0x1.a917d0e2e284dp+4 
+qnorm 0x1.91a2504dc8bb3p-844 -0x1.107f742c2654cp+5 
+qnorm 0x1.0460b1bc6b11ap-55 -0x1.0beaa1f3d25c6p+3 
+qnorm 0x1.a56a0be3d97d2p-553 -0x1.b8434a587585fp+4 
+qnorm 0x1.0e8c829616dbfp-686 -0x1.eb1fcc16f3b1ap+4 
+qnorm 0x1.24da9939addfbp-656 -0x1.e021edb72a6d2p+4 
+qnorm 0x1.e6b869e9cfd6ap-662 -0x1.e212b3eb6fde3p+4 
+qnorm 0x1.4d8239b40db4ep-471 -0x1.961172b09bd33p+4 
+qnorm 0x1.ba61660777e24p-967 -0x1.23cca49e1f876p+5 
+qnorm 0x1.21d5844ed6b03p-401 -0x1.7661ed1b6b8e3p+4 
+qnorm 0x1.475a2485314d9p-847 -0x1.1108862e48051p+5 
+qnorm 0x1.ec8263fde5865p-755 -0x1.0190b2cb8d63dp+5 
+qnorm 0x1.2a66eefd78954p-531 -0x1.af857c15b9f14p+4 
+qnorm 0x1.caaadf5c3e357p-872 -0x1.14fbf421001cdp+5 
+qnorm 0x1.65d5daa0fd082p-466 -0x1.93d60fa329429p+4 
+qnorm 0x1.dd7ffb8945261p-9 -0x1.577c37621d2ecp+1 
+qnorm 0x1.a69618af4db84p-726 -0x1.f92130161e6cbp+4 
+qnorm 0x1.d16b06082b65dp-715 -0x1.f5348b583accbp+4 
+qnorm 0x1.291fc37254d9dp-187 -0x1.fb8bd8c30ffaep+3 
+qnorm 0x1.1abb407491b25p-644 -0x1.dbb36b0f1049dp+4 
+qnorm 0x1.d58d4e0e842ecp-541 -0x1.b357aa663376bp+4 
+qnorm 0x1.c601436956d22p-335 -0x1.55676be2af9c7p+4 
+qnorm 0x1.3587393a8e41ep-636 -0x1.d8a9651af4265p+4 
+qnorm 0x1.8ddb71cc317bap-827 -0x1.0db88739d6285p+5 
+qnorm 0x1.5ddabb513214dp-707 -0x1.f283a5f0ad5a9p+4 
+qnorm 0x1.8f8d49026d409p-348 -0x1.5c2cbe33c5ce4p+4 
+qnorm 0x1.14838d678fc2bp-128 -0x1.a19a37e6765cfp+3 
+qnorm 0x1.304cbdc1439ecp-387 -0x1.6faa6db0f1fc3p+4 
+qnorm 0x1.ff639a9c84fddp-926 -0x1.1d787ca8b950fp+5 
+qnorm 0x1.48e6a2f34cb21p-802 -0x1.09a071dbf8e93p+5 
+qnorm 0x1.dd6ca1abbdd45p-757 -0x1.01eab67bcefdep+5 
+qnorm 0x1.048c8127631f3p-954 -0x1.21ef412810d1ap+5 
+qnorm 0x1.66c225a082d8ap-991 -0x1.2777db6296bc3p+5 
+qnorm 0x1.8d45dd0ded1d6p-605 -0x1.ccc0983a5b078p+4 
+qnorm 0x1.a6a8b8a1039b8p-30 -0x1.7b5ca750b2a29p+2 
+qnorm 0x1.a18d741d3c353p-336 -0x1.55fc17edd9f3p+4 
+qnorm 0x1.396ac9b2dd764p-277 -0x1.362e1037cd6b5p+4 
+qnorm 0x1.26c55141e213fp-117 -0x1.8e6c3eb1ffb8ap+3 
+qnorm 0x1.e79ee1d2fad66p-44 -0x1.d5a471fcea68ap+2 
+qnorm 0x1.f10d8d9fbbcep-370 -0x1.6708d9fa7a6cdp+4 
+qnorm 0x1.359e25cd2b4eep-336 -0x1.5635433eeff4ep+4 
+qnorm 0x1.ebb12911577bbp-174 -0x1.e80ddbfe36049p+3 
+qnorm 0x1.473af0be975fep-620 -0x1.d297c92488026p+4 
+qnorm 0x1.6e7cfab1463cp-397 -0x1.745304a246976p+4 
+qnorm 0x1.8273a3439f7efp-953 -0x1.21b1d4641e659p+5 
+qnorm 0x1.d91cbd5e0172ep-652 -0x1.de65b388e6ffp+4 
+qnorm 0x1.4d65fe9c84018p-328 -0x1.51fcd79c2967p+4 
+qnorm 0x1.7117a5321da92p-197 -0x1.046eece1a6d86p+4 
+qnorm 0x1.0974a73939d62p-115 -0x1.8b22f567ebf73p+3 
+qnorm 0x1.5bd78ec0e6096p-993 -0x1.27c657fb801ddp+5 
+qnorm 0x1.03c0cbdba6271p-378 -0x1.6b6a71b3e0818p+4 
+qnorm 0x1.e95f678c1069ep-561 -0x1.bb62966dd88f2p+4 
+qnorm 0x1.ba586b23c32ddp-731 -0x1.fadbb5179f467p+4 
+qnorm 0x1.20cf0936c1e7ep-868 -0x1.14734b6455b74p+5 
+qnorm 0x1.b9dd6fd213a8ap-571 -0x1.bf6c2b2a674fdp+4 
+qnorm 0x1.004ccd4cbce74p-11 -0x1.a5ffa70c04ee1p+1 
+qnorm 0x1.b9582da1fb1f9p-904 -0x1.1a113c87040a4p+5 
+qnorm 0x1.fa13e1c0dd365p-769 -0x1.03f4d3c943d41p+5 
+qnorm 0x1.bf00fe5b3b926p-382 -0x1.6cfae8d810641p+4 
+qnorm 0x1.35f36e0340fbcp-94 -0x1.63460e7e3d42dp+3 
+qnorm 0x1.6e27986d2bb24p-50 -0x1.fa57e6f31b9a9p+2 
+qnorm 0x1.90f81b749e3f9p-819 -0x1.0c66b01fdfbe2p+5 
+qnorm 0x1.6d637f9bbd335p-827 -0x1.0dbdb1db3033p+5 
+qnorm 0x1.6be29d3c8a5b8p-653 -0x1.dee86659d5427p+4 
+qnorm 0x1.8b432b1447352p-133 -0x1.a91d24977cb97p+3 
+qnorm 0x1.4878ca0ad9b3cp-341 -0x1.58bddade8b666p+4 
+qnorm 0x1.184e7425e4e54p-729 -0x1.fa638332928d8p+4 
+qnorm 0x1.c1bd5c6ab3003p-905 -0x1.1a385c94da5c5p+5 
+qnorm 0x1.230b010f7b4c2p-694 -0x1.edf7226ec1344p+4 
+qnorm 0x1.2fe14d649e91p-241 -0x1.20f121dbb07cp+4 
+qnorm 0x1.11bbe16c180c8p-642 -0x1.daf8f4a4f633cp+4 
+qnorm 0x1.2831625b7e051p-280 -0x1.37eee7b369661p+4 
+qnorm 0x1.8ef5d19568041p-955 -0x1.21fe55733cfc1p+5 
+qnorm 0x1.1b43baf103e49p-158 -0x1.d185336711a18p+3 
+qnorm 0x1.10edfa985b79dp-417 -0x1.7deaef1ee12eap+4 
+qnorm 0x1.ce3b4c1169123p-252 -0x1.273cf235f94ccp+4 
+qnorm 0x1.e8a9a9c2b4d8p-95 -0x1.63f4081cfc94p+3 
+qnorm 0x1.151cb2a202f4dp-825 -0x1.0d7a509958e22p+5 
+qnorm 0x1.6800dd05cee31p-524 -0x1.ac867ce98775bp+4 
+qnorm 0x1.73796f2653f21p-666 -0x1.e3af37b5bef76p+4 
+qnorm 0x1.160c5e26d9549p-407 -0x1.793d1847cab24p+4 
+qnorm 0x1.39aa19b3c3fe8p-840 -0x1.0fe794ab635dp+5 
+qnorm 0x1.299bf66407f9p-735 -0x1.fc74644901db2p+4 
+qnorm 0x1.f472736777a0fp-348 -0x1.5c0270e55ad97p+4 
+qnorm 0x1.3d13517613636p-946 -0x1.20aa575bc0058p+5 
+qnorm 0x1.72892a1146985p-645 -0x1.dbed92798bcb4p+4 
+qnorm 0x1.cb2fea81901b9p-36 -0x1.a420f6f997447p+2 
+qnorm 0x1.81f7aa6bd3a9bp-595 -0x1.c8e7de6bad516p+4 
+qnorm 0x1.12f3d8aa10b8p-414 -0x1.7c84cfedcd03p+4 
+qnorm 0x1.49f14406cb916p-77 -0x1.3fa4874f7b993p+3 
+qnorm 0x1.b0e57646a9b86p-527 -0x1.ada786281a2b3p+4 
+qnorm 0x1.f1c961b847ddap-960 -0x1.22b545c5bda8ep+5 
+qnorm 0x1.9b8ef8cad8654p-707 -0x1.f26e5079402dp+4 
+qnorm 0x1.560c2cf921fa6p-552 -0x1.b7fb3e847006ap+4 
+qnorm 0x1.d56743dd56f95p-243 -0x1.21c7f8c592786p+4 
+qnorm 0x1.8954abda956d8p-776 -0x1.0535710852e67p+5 
+qnorm 0x1.38ef5b014aae3p-650 -0x1.dde07dd290338p+4 
+qnorm 0x1.82b12784de14fp-828 -0x1.0de44f490adc5p+5 
+qnorm 0x1.96c87b0b6a68dp-647 -0x1.dc9f4910eb6e3p+4 
+qnorm 0x1.bf9432389c188p-479 -0x1.995c32fbfd6ebp+4 
+qnorm 0x1.8c1e92bc27761p-494 -0x1.9fe07b06af135p+4 
+qnorm 0x1.583742d9a1a74p-379 -0x1.6bb47facddf82p+4 
+qnorm 0x1.0a1e9e3d0e0c3p-449 -0x1.8c7fc04e2bfcbp+4 
+qnorm 0x1.ffffffffffdd9p-1 0x1.da8282ee2a3bep+2 
+qnorm 0x1.ffffffffffff5p-1 0x1.faa8467d8ae76p+2 
+qnorm 0x1.ffaf97ca203acp-1 0x1.9dc4235086aap+1 
+qnorm 0x1.fffffffffec18p-1 0x1.c7433c4b29c4dp+2 
+qnorm 0x1.ffffffffffffep-1 0x1.04074bdbf8864p+3 
+qnorm 0x1.ffffffffffffep-1 0x1.04074bdbf8864p+3 
+qnorm 0x1.ffffed88c6508p-1 0x1.37dae04e71339p+2 
+qnorm 0x1.fffffbdd5899fp-1 0x1.4a43317c356d4p+2 
+qnorm 0x1.ffffffffffffbp-1 0x1.0072d19333a0cp+3 
+qnorm 0x1.feb68da68df17p-1 0x1.67141c75436ddp+1 
+qnorm 0x1.ffffffffffff7p-1 0x1.fc40a0611cdeep+2 
+qnorm 0x1.ffffea74d6403p-1 0x1.35e697b9f1b0bp+2 
+qnorm 0x1.fffffff7542a3p-1 0x1.7fc2ff91ee10ap+2 
+qnorm 0x1.fffffff8e2fa3p-1 0x1.81d0d267e7191p+2 
+qnorm 0x1.fffffffffbd14p-1 0x1.bc6f038e65bd1p+2 
+qnorm 0x1.fffffd40b6a01p-1 0x1.4f2108a431104p+2 
+qnorm 0x1.ffbd0f46f4b97p-1 0x1.a46c5d4a219d5p+1 
+qnorm 0x1.ffffe58f680c1p-1 0x1.33497127166e6p+2 
+qnorm 0x1.ffffffffa86b7p-1 0x1.a01486a951f81p+2 
+qnorm 0x1.f8f128e6b03a8p-1 0x1.1a0752fc3560cp+1 
+qnorm 0x1.fffffffffff69p-1 0x1.e55ed27b62527p+2 
+qnorm 0x1.fff787f2acf41p-1 0x1.e9f99494c3966p+1 
+qnorm 0x1.fffffff90c7e8p-1 0x1.820de28174454p+2 
+qnorm 0x1.ff8a7509420efp-1 0x1.8fac401fb5d85p+1 
+qnorm 0x1.ffffd30ba884p-1 0x1.2c6a0d944d074p+2 
+qnorm 0x1.ffffffff95cf4p-1 0x1.9e38b125c817bp+2 
+qnorm 0x1.fffe1ab18533dp-1 0x1.0ba1e766ee56dp+2 
+qnorm 0x1.ffffffffbe119p-1 0x1.a2ce0ec428e32p+2 
+qnorm 0x1.ffffffd3719c2p-1 0x1.6e5e29896447ep+2 
+qnorm 0x1.ffffffffffff8p-1 0x1.fd2fba88ab075p+2 
+qnorm 0x1.fffffffffff84p-1 0x1.e700afab5582dp+2 
+qnorm 0x1.fffff6d3ca6fap-1 0x1.4095c427f570ep+2 
+qnorm 0x1.ffffbf0750331p-1 0x1.278f0921f1611p+2 
+qnorm 0x1.ffffffffffebp-1 0x1.deb018d279384p+2 
+qnorm 0x1.ffffff70a8fafp-1 0x1.6174b1c615df8p+2 
+qnorm 0x1.ffffc2af1b9ddp-1 0x1.2853b85e3c5bap+2 
+qnorm 0x1.fe40ec6916a6dp-1 0x1.5a4b2418c4b33p+1 
+qnorm 0x1.fa8ed650f57a4p-1 0x1.26d4dc6fc3756p+1 
+qnorm 0x1.fffffffff5fddp-1 0x1.b47b397a02d51p+2 
+qnorm 0x1.ffffffffeb094p-1 0x1.ada1c3dcb77fap+2 
+qnorm 0x1.fffffffffffe8p-1 0x1.f468b607df4fap+2 
+qnorm 0x1.ffff9beb4faf6p-1 0x1.21c47684dbb11p+2 
+qnorm 0x1.ffffffffffff7p-1 0x1.fc40a0611cdeep+2 
+qnorm 0x1.fff3c2ae4d301p-1 0x1.de3e869408711p+1 
+qnorm 0x1.ffffffffffb6cp-1 0x1.d410b04aff78cp+2 
+qnorm 0x1.fffa66d91559ap-1 0x1.f6de2548b153cp+1 
+qnorm 0x1.ee4d5756ff13fp-1 0x1.d14b33b44437cp+0 
+qnorm 0x1.fffffffffff96p-1 0x1.e84c681269679p+2 
+qnorm 0x1.fffffffff45e7p-1 0x1.b3190e3499423p+2 
+qnorm 0x1.ffffffffffff9p-1 0x1.fe3e495619d47p+2 
+qnorm 0x1.ffffffffeffd2p-1 0x1.b02405d973fc8p+2 
+qnorm 0x1.fffffffffff35p-1 0x1.e2e88c47e7846p+2 
+qnorm 0x1.fffff37cd9f77p-1 0x1.3cbd209023621p+2 
+qnorm 0x1.fffffba1d89abp-1 0x1.499b528c0ae0dp+2 
+qnorm 0x1.fffffffd60b25p-1 0x1.8c03025256679p+2 
+qnorm 0x1.fe15f6cd711acp-1 0x1.565fe3be34989p+1 
+qnorm 0x1.ffefc100407a9p-1 0x1.d50bd9fe1f8f6p+1 
+qnorm 0x1.fffffffeb3ed4p-1 0x1.930e2711ef19ep+2 
+qnorm 0x1.fffffffffed37p-1 0x1.c7c62e0d4951ep+2 
+qnorm 0x1.fffffffffffa8p-1 0x1.e9d4e8a257ccp+2 
+qnorm 0x1.fffff71c9ee77p-1 0x1.40f9116bb9d4bp+2 
+qnorm 0x1.ffffffffffc56p-1 0x1.d5f9d08e0718bp+2 
+qnorm 0x1.f92afba40ffcfp-1 0x1.1ba79ec852b36p+1 
+qnorm 0x1.ffffffff9e1ebp-1 0x1.9f023049fd864p+2 
+qnorm 0x1.fffff0ffab0a3p-1 0x1.3a78948d51606p+2 
+qnorm 0x1.fffffffeb255cp-1 0x1.930200eb06e2dp+2 
+qnorm 0x1.fffffffffffeep-1 0x1.f6b8cabb773cdp+2 
+qnorm 0x1.fff2a34871979p-1 0x1.db69276bbc705p+1 
+qnorm 0x1.fffff63d2d4e5p-1 0x1.3fd17fa41e179p+2 
+qnorm 0x1.ffffffffed54fp-1 0x1.aeb6967cfde88p+2 
+qnorm 0x1.ffffffffff56dp-1 0x1.ccd0b3c16947fp+2 
+qnorm 0x1.fffffff3672dbp-1 0x1.7bdc12b768833p+2 
+qnorm 0x1.ffffffffffeaap-1 0x1.de89fa91073b2p+2 
+qnorm 0x1.fffffff5585c6p-1 0x1.7d9d293b7c579p+2 
+qnorm 0x1.ffffffe66f088p-1 0x1.745b7b5e3c971p+2 
+qnorm 0x1.fffffe5116279p-1 0x1.54df3d3947aaep+2 
+qnorm 0x1.fffff3a93f57bp-1 0x1.3ce9a0eee4357p+2 
+qnorm 0x1.ff47774f3715dp-1 0x1.7e5b7793618a6p+1 
+qnorm 0x1.ffff8eef71464p-1 0x1.201ce69b833dep+2 
+qnorm 0x1.ffff12888c7ebp-1 0x1.15da6d8350d62p+2 
+qnorm 0x1.ffffffffff629p-1 0x1.cd716431869f3p+2 
+qnorm 0x1.ffffffffff886p-1 0x1.cfd4a4405e8edp+2 
+qnorm 0x1.ffa4a6d26842p-1 0x1.9913dab4da037p+1 
+qnorm 0x1.fffffff01c68p-1 0x1.796a1675989dcp+2 
+qnorm 0x1.ffffffff0e1b8p-1 0x1.963021d0e3eb2p+2 
+qnorm 0x1.ffffffe9cce93p-1 0x1.75dd894c967bap+2 
+qnorm 0x1.fffffa93a9596p-1 0x1.46ffcb4f584eep+2 
+qnorm 0x1.fffffea33f26cp-1 0x1.5752fed1f343cp+2 
+qnorm 0x1.dde3ff14b64bep-1 0x1.805ee099078fcp+0 
+qnorm 0x1.ffffffffffff1p-1 0x1.f82eaa5eb75cp+2 
+qnorm 0x1.fcb4d4c955cadp-1 0x1.3e653b4f8164ap+1 
+qnorm 0x1.ffffffeaf1a97p-1 0x1.766dc0c09d369p+2 
+qnorm 0x1.ffffffffffe3fp-1 0x1.dc3e49183b60ep+2 
+qnorm 0x1.ffffffff17911p-1 0x1.9694ad124115ep+2 
+qnorm 0x1.fffffe8b04cecp-1 0x1.568c2515d8ff8p+2 
+qnorm 0x1.fffffffc7f729p-1 0x1.8914dd51dac2ap+2 
+qnorm 0x1.ffffffffffadfp-1 0x1.d31673d47fae2p+2 
+qnorm 0x1.ffd8069322059p-1 0x1.b6acbd60d0349p+1 
+qnorm 0x1.ffffffffffffep-1 0x1.04074bdbf8864p+3 
+qnorm 0x1.ffffffbc2aa86p-1 0x1.69c603bfde525p+2 
+qnorm 0x1.3333333333333p-4 -0x1.7085226d3e523p+0 
+qnorm 0x1.d99999999999ap-1 0x1.7085226d3e524p+0 
+qnorm 0x1p-1 0x0p+0 
+qnorm 0x1.e8a37a45fc32ep-37 -0x1.aa1b1c13ee525p+2 
+qnorm 0x1.ffffffffe175dp-1 0x1.aa1b1e6eab81fp+2 
+qnorm 0x1.56e1fc2f8f359p-997 -0x1.286074064c26ep+5 
+pnorm 0x1.795046ef0db8dp+0 0x1.dc074d39a8fd2p-1 
+pnorm 0x1.5ac2ef9230ecap-1 0x1.8073a16b4ce72p-1 
+pnorm 0x1.8514f0420492ep-2 0x1.4bc86b04b013ap-1 
+pnorm -0x1.8ad9e6c2d609bp-3 0x1.b1b94c43f20d8p-2 
+pnorm 0x1.93f0b777bdbb1p+0 0x1.e2aa32ed95165p-1 
+pnorm 0x1.314598e0909d1p-1 0x1.72f06dde16965p-1 
+pnorm -0x1.2c6f89d461d8dp+0 0x1.ecad1790f22d9p-4 
+pnorm -0x1.3ec18369c37e3p-3 0x1.c0ac553739f31p-2 
+pnorm -0x1.eb3dac8a083e8p+0 0x1.c286712c289ddp-6 
+pnorm -0x1.8fe3deb26628p-3 0x1.b0bcc8e2318d1p-2 
+pnorm -0x1.4bd164a17789ep+1 0x1.385fb350a7e9bp-8 
+pnorm 0x1.5062722efd1f9p+0 0x1.cfa7d2ad39f15p-1 
+pnorm -0x1.4565e46944f96p-1 0x1.0cd68aecf010dp-2 
+pnorm -0x1.b84c5f68a785fp-2 0x1.559caf4a05382p-2 
+pnorm -0x1.5ac391decd311p-3 0x1.bb28e1069aacfp-2 
+pnorm 0x1.3974a91699ac6p-1 0x1.75a8c6e315396p-1 
+pnorm 0x1.5b4f675977fb6p-1 0x1.80a02b033fd5bp-1 
+pnorm 0x1.22ca99d6edd5fp-1 0x1.6e100d130d6d2p-1 
+pnorm -0x1.25244ddedbd92p-1 0x1.2247d9ea396ap-2 
+pnorm -0x1.5d00a7e0a362cp+0 0x1.61e01c15d7276p-4 
+pnorm -0x1.8e0d343aa2d22p-2 0x1.651c4fc56b444p-2 
+pnorm 0x1.1c9585b7e29afp-2 0x1.380b41115e291p-1 
+pnorm -0x1.a56ae38636b47p-1 0x1.a4501d61b2a51p-3 
+pnorm -0x1.19f8f3a36099ep-4 0x1.e3e6466af2409p-2 
+pnorm -0x1.2aebeb0f7faf9p+0 0x1.f18c195a0385cp-4 
+pnorm -0x1.10451028b5378p-7 0x1.fc9b0cf37c86dp-2 
+pnorm 0x1.07e5573e30be9p-3 0x1.1a3f45483a675p-1 
+pnorm -0x1.2ac0d76c30081p-3 0x1.c49e36989d36p-2 
+pnorm -0x1.4fb08c3519914p-3 0x1.bd56969cd12bep-2 
+pnorm 0x1.c37824e0c1acap+0 0x1.ec14cfdcb3092p-1 
+pnorm 0x1.8671bd466a2d1p-1 0x1.8de5f28a2045dp-1 
+pnorm 0x1.1c86bf4f7efa7p+0 0x1.bbce558d317d6p-1 
+pnorm -0x1.d8ae94ebb018dp-1 0x1.6c70e22a364e8p-3 
+pnorm 0x1.5092742b4cfa5p-3 0x1.216aef6e8a224p-1 
+pnorm 0x1.27a29f9b2e0bfp+0 0x1.c078742d56d34p-1 
+pnorm -0x1.cf0604bbaada2p-5 0x1.e8ec1de8feef5p-2 
+pnorm -0x1.108ee3c4c751fp+1 0x1.102caff80919p-6 
+pnorm 0x1.611f3f5986831p-2 0x1.4510ef9b6c24p-1 
+pnorm -0x1.e7ab28fb20804p+0 0x1.d1309606d34bap-6 
+pnorm -0x1.9f51b1be7503cp-1 0x1.ab484affdc4f4p-3 
+pnorm 0x1.52f1f27bbe956p+0 0x1.d082f76d9906fp-1 
+pnorm 0x1.3b34c0cbef57dp-1 0x1.763cd5de3d3ep-1 
+pnorm 0x1.17779dde1535ep+0 0x1.b99b000a96296p-1 
+pnorm 0x1.39f69ff3fb8e3p-2 0x1.3da8ba92b58ecp-1 
+pnorm -0x1.c335d5a3b50c3p-4 0x1.d316d185d7817p-2 
+pnorm -0x1.d93f8617b6a84p-1 0x1.6bd9ec0ed4a2cp-3 
+pnorm 0x1.97c9321d92922p+0 0x1.e389bcd5ef825p-1 
+pnorm 0x1.70ba10dd051e9p-5 0x1.0930d1280405p-1 
+pnorm -0x1.6e254f4a9e61dp-1 0x1.e5eb1d8420b27p-3 
+pnorm 0x1.bafe85aa0ec5fp-1 0x1.9cf30cd649f84p-1 
+pnorm 0x1.130e90094956ep+0 0x1.b7a5e1c2343ebp-1 
+pnorm 0x1.e549a19bb06d2p+0 0x1.f12689afafe27p-1 
+pnorm -0x1.34bc10051ec0ap-1 0x1.17d038d6ab69bp-2 
+pnorm -0x1.903fa76c42378p-2 0x1.644c577937f8p-2 
+pnorm -0x1.aa361bb52ffb3p-2 0x1.5ac030840f2dap-2 
+pnorm -0x1.80ac56e60d8abp-2 0x1.6a1265318d44p-2 
+pnorm -0x1.776e1a45f9042p-2 0x1.6d838e7ae0406p-2 
+pnorm -0x1.2ec611f60f405p-2 0x1.88f2ab45ee642p-2 
+pnorm 0x1.711b24748384ep+0 0x1.d9c3ffbaadd39p-1 
+pnorm -0x1.6523bd2ef2cbfp-1 0x1.f11dfeb793441p-3 
+pnorm -0x1.8d7bc85d35613p-2 0x1.65521c46f2c1cp-2 
+pnorm 0x1.4e1942030c8fdp-1 0x1.7c66e17475efep-1 
+pnorm 0x1.1ff116494f6efp+0 0x1.bd43b7824b9d4p-1 
+pnorm -0x1.8b521b6fc08bep-1 0x1.c29c275df1f4ep-3 
+pnorm -0x1.0423e063b9832p-1 0x1.39087cdd298c6p-2 
+pnorm 0x1.0c17ff7f6702ap-1 0x1.6642d97a3e703p-1 
+pnorm 0x1.048b8a7e58aabp+0 0x1.b0f2d371d3acep-1 
+pnorm -0x1.01314a2f0134cp-2 0x1.9a76b349d4bc2p-2 
+pnorm -0x1.6e140cf20743cp+0 0x1.38c4afbef68f3p-4 
+pnorm 0x1.b588f4b9c76fep+0 0x1.e99e48a05a9fp-1 
+pnorm 0x1.6f60b8309029ap+0 0x1.d9468c489bdeap-1 
+pnorm -0x1.6bb5c44ee5023p-1 0x1.e8eef27d6e30dp-3 
+pnorm -0x1.0a844bce17c55p-4 0x1.e57002b7ade38p-2 
+pnorm -0x1.c26c8b04bb2cfp+0 0x1.41870a93cb82ep-5 
+pnorm 0x1.23b2bab77c669p-1 0x1.6e5ed2d681b52p-1 
+pnorm 0x1.9cc2c2801643ep+0 0x1.e4a3162f8f0eap-1 
+pnorm -0x1.a324d311b03fdp+0 0x1.a009cbebe4bebp-5 
+pnorm -0x1.8f239aaa62bcfp-1 0x1.be19b20944243p-3 
+pnorm -0x1.484857d2d103ap-1 0x1.0af5f45c3695ap-2 
+pnorm -0x1.5cbd410755838p-1 0x1.fbaff13c2370fp-3 
+pnorm -0x1.0442b3d04db15p+1 0x1.58420a1df16c1p-6 
+pnorm 0x1.007e4baeea3fcp-1 0x1.6233d2423805fp-1 
+pnorm -0x1.8823ec4339fb9p+0 0x1.012c06cba0222p-4 
+pnorm -0x1.998fb2cb59a58p-6 0x1.f5ca02d0c6349p-2 
+pnorm 0x1.2f9bb17fa9a22p-1 0x1.72620cc4e9bbp-1 
+pnorm -0x1.95e77b2bf29e7p-3 0x1.af8f8ffca3137p-2 
+pnorm 0x1.c8b552f2dcd6ep-1 0x1.a0ab26ce5235ep-1 
+pnorm -0x1.a550d326e60b6p-6 0x1.f57f018173987p-2 
+pnorm -0x1.4b9a268c5b2a1p-1 0x1.08cf0a3a304aep-2 
+pnorm 0x1.4aef9f0a1228fp-1 0x1.7b614bff66f94p-1 
+pnorm -0x1.bc3ea65971d1dp-2 0x1.542d88f8eeecdp-2 
+pnorm 0x1.c5c9d8bc01a86p+0 0x1.ec780d398dc33p-1 
+pnorm -0x1.2b2ac791e3e4ep-6 0x1.f88a7fe478c4p-2 
+pnorm 0x1.b4a42ab61aff6p-1 0x1.9b326b6b608b7p-1 
+pnorm 0x1.a42c72be48b7p-3 0x1.299d36d529aa8p-1 
+pnorm -0x1.8107bc8a922fep+1 0x1.58a1086c32e22p-10 
+pnorm -0x1.5db982f3bbbefp+0 0x1.600f1e06b650ep-4 
+pnorm -0x1.b247dce5ed35cp-2 0x1.57cdb30f440dbp-2 
+pnorm 0x1.e4f951bae1975p-3 0x1.2febbe026354bp-1 
+pnorm -0x1.2bde59e8c32ccp+1 0x1.39a60295e5d1ep-7 
+pnorm 0x1.ec63804a16405p-1 0x1.a9eeaa3113f3ap-1 
+pnorm -0x1.35774a2f87ff7p-1 0x1.1753b91815bc1p-2 
+pnorm -0x1.8179217987c43p-1 0x1.ce5c380fdd4a6p-3 
+pnorm -0x1.8e3c8fb3418a1p+0 0x1.eab3e897b62c7p-5 
+pnorm -0x1.7432614892e05p+0 0x1.2af55815f5241p-4 
+pnorm 0x1.cd786c3279746p-5 0x1.0b800b3282c4dp-1 
+pnorm 0x1.04cc111e7e9cfp-1 0x1.63b6b5c442c83p-1 
+pnorm -0x1.0c876dc78dfbep+1 0x1.26383b898a5b8p-6 
+pnorm -0x1.011ddddf14a9dp+0 0x1.42c4e1b807379p-3 
+pnorm 0x1.1250abd264988p-1 0x1.686b1078a78c4p-1 
+pnorm -0x1.cfe8f419c94cap-2 0x1.4d11397c45d9p-2 
+pnorm 0x1.152acb898bfd2p+1 0x1.f83a5c828200ap-1 
+pnorm 0x1.3ee941028dce3p+0 0x1.c9822d34a2301p-1 
+pnorm 0x1.30e51e4a5289dp-1 0x1.72d033527daaep-1 
+pnorm 0x1.401b770686181p-8 0x1.00ff685b6a099p-1 
+pnorm 0x1.1e10c0bad96b3p-2 0x1.385404fb45703p-1 
+pnorm -0x1.696c8714241d1p-1 0x1.ebc5be459a0c4p-3 
+pnorm 0x1.418b76da8e8d6p-1 0x1.785265f01953ep-1 
+pnorm 0x1.7aef4d55a6975p+0 0x1.dc768b5d9d5f7p-1 
+pnorm 0x1.155ba99f50e05p+0 0x1.b8ac8393f867ap-1 
+pnorm -0x1.a0618d1c106f8p-1 0x1.aa105bebbb594p-3 
+pnorm -0x1.9e6eb693aab5ap+0 0x1.b00541a505ee1p-5 
+pnorm -0x1.c12655b1f3b62p-4 0x1.d34b1cb53ae8ap-2 
+pnorm 0x1.c37880d4f8402p-2 0x1.57389170711dcp-1 
+pnorm 0x1.59dabdd05eed6p+0 0x1.d2c3f6347a185p-1 
+pnorm -0x1.51906424445eep+0 0x1.7f96fc5b1681cp-4 
+pnorm 0x1.75213c11a93dp-2 0x1.48d05977f440bp-1 
+pnorm 0x1.de35295a9cd53p-3 0x1.2f43b210cbb06p-1 
+pnorm 0x1.31a70d4ffea8cp+0 0x1.c47b2d4c031a3p-1 
+pnorm -0x1.c946e861d7f61p-6 0x1.f4998b8141cc3p-2 
+pnorm -0x1.6ddfc03bf9e2bp-2 0x1.71159f3898c12p-2 
+pnorm -0x1.25959c7938086p+0 0x1.017e529fd65aep-3 
+pnorm -0x1.08eb566ea156dp-1 0x1.35b08f1eac6ecp-2 
+pnorm -0x1.72d093014fb07p-2 0x1.6f3ca4724ae37p-2 
+pnorm 0x1.2cdef6d25e261p+1 0x1.fb337f2edffd3p-1 
+pnorm 0x1.3927f0aba2757p+1 0x1.fc4eb8628be8bp-1 
+pnorm -0x1.5568876c2ad52p-3 0x1.bc36877b7a6d5p-2 
+pnorm -0x1.0b2dca0eabbedp+0 0x1.2fc2351105b06p-3 
+pnorm -0x1.f912438afc943p+0 0x1.8d561ce63e283p-6 
+pnorm 0x1.07830a539729p-1 0x1.64a9e6f345e8ap-1 
+pnorm -0x1.172fd49405d1ap+0 0x1.1a125528e7a86p-3 
+pnorm 0x1.246fb77edb736p+1 0x1.fa48659983694p-1 
+pnorm -0x1.c56faa9ea85d9p-1 0x1.80d7e97a4c65fp-3 
+pnorm 0x1.c71789222192dp-4 0x1.16a5d795008a5p-1 
+pnorm 0x1.e7b725722e8f1p+1 0x1.fff6e721c72d7p-1 
+pnorm -0x1.1be1868f5faadp+0 0x1.11e3657044298p-3 
+pnorm 0x1.3af2bec4eccf2p-2 0x1.3dd8b40cfc845p-1 
+pnorm -0x1.1b5d6fa6548b9p+0 0x1.12c79ac6de97ap-3 
+pnorm 0x1.63ff517019ff1p-2 0x1.459b37d20e856p-1 
+pnorm -0x1.bf1c8775b23d5p-1 0x1.87b30943fa36dp-3 
+pnorm 0x1.3ca233008a48dp-4 0x1.0fc62babd4c2dp-1 
+pnorm -0x1.2ffe5555151c5p-2 0x1.887b717a3d0bfp-2 
+pnorm -0x1.2ee8f6a5e772p+0 0x1.e4c9de1404ec1p-4 
+pnorm 0x1.7209efbb76ec9p-7 0x1.024e7be505dbbp-1 
+pnorm 0x1.fbb321891c012p-1 0x1.adb93de9e26d3p-1 
+pnorm 0x1.980e404567a9fp+0 0x1.e39937e0beffap-1 
+pnorm -0x1.5f6a017f7dcb1p+0 0x1.5bd62ffd528f7p-4 
+pnorm -0x1.ff340451205fep-3 0x1.9b142af2a489bp-2 
+pnorm 0x1.28d00bb9065ep+0 0x1.c0f395d2f99b6p-1 
+pnorm -0x1.1d3dad0075e8dp+0 0x1.0f8c584412bcdp-3 
+pnorm -0x1.43a5e91b43506p+1 0x1.775c3a3a2d995p-8 
+pnorm -0x1.df2e9ec21d63ep-1 0x1.65b505d7d420ap-3 
+pnorm -0x1.ef3a029e77d18p-1 0x1.556d30c396c6fp-3 
+pnorm 0x1.8506cbdf6405cp-5 0x1.09b240d173ad1p-1 
+pnorm -0x1.9d6d2d9110587p-2 0x1.5f70a4da3fe8ap-2 
+pnorm 0x1.da1aa45fb0c7dp-3 0x1.2eddb71e0a4e6p-1 
+pnorm -0x1.b082647b1cd19p-2 0x1.58731bfbe218ep-2 
+pnorm 0x1.7f18e478317bfp-2 0x1.4aabc98c9032cp-1 
+pnorm -0x1.76ca37c70989ap-2 0x1.6dc0b1c1aa93ap-2 
+pnorm 0x1.30aa7d07baf23p+0 0x1.c4182609c54e3p-1 
+pnorm -0x1.7982fe4ed7404p-1 0x1.d7fc4029b99e9p-3 
+pnorm 0x1.29a48460cc776p-2 0x1.3a8babe01acfcp-1 
+pnorm -0x1.c50b00ab52aa4p-1 0x1.8144796860003p-3 
+pnorm 0x1.a9ff4d00d9c8fp-3 0x1.2a2ec413c57e7p-1 
+pnorm -0x1.87016d3a7c98bp-5 0x1.ec8241f83e16bp-2 
+pnorm -0x1.af3cbebc9a1f8p+0 0x1.792a0623b2cbbp-5 
+pnorm -0x1.276040bf250b5p-3 0x1.c548de7403c8ap-2 
+pnorm 0x1.2e227b97a04bep+0 0x1.c317fc8a728adp-1 
+pnorm 0x1.5ce07363470e9p-1 0x1.811f25d9ca8adp-1 
+pnorm 0x1.255f038f21d19p-3 0x1.1d28e745217e5p-1 
+pnorm -0x1.313ba6843ae14p+0 0x1.dd7707d9b2d73p-4 
+pnorm 0x1.2b5291a946784p+0 0x1.c1f7df4a71fe6p-1 
+pnorm 0x1.446902db52ad5p-4 0x1.102924fb81b7p-1 
+pnorm -0x1.ce9dc75554a45p-2 0x1.4d887e1494eb2p-2 
+pnorm 0x1.a45bf60116b15p+0 0x1.e6401ddd9742p-1 
+pnorm -0x1.8a0801390b97fp-1 0x1.c423860084552p-3 
+pnorm 0x1.36a441755a359p-2 0x1.3d06d019c2a83p-1 
+pnorm 0x1.481ff1920ae6p+0 0x1.ccd11320605edp-1 
+pnorm 0x1.34568bd4534d1p-1 0x1.73f61d41c2574p-1 
+pnorm -0x1.3a640b65517acp-2 0x1.8484e5b180d96p-2 
+pnorm -0x1.ac75cb9904b35p-2 0x1.59edad2ea5b4p-2 
+pnorm 0x1.6ba8a5fcc8409p-2 0x1.470b05c21b44bp-1 
+pnorm 0x1.06e6ff24a3303p-1 0x1.64735af43234p-1 
+pnorm 0x1.30dd17f8087d1p-6 0x1.03cced8734b7bp-1 
+pnorm 0x1.5185df314988ep+0 0x1.d0099b9a74254p-1 
+pnorm -0x1.0da5dae55cc04p-4 0x1.e5203cdb5afc8p-2 
+pnorm -0x1.668d3523c87edp-1 0x1.ef5a2c4cb53f8p-3 
+pnorm 0x1.131c69245738ap-1 0x1.68b172b1631f5p-1 
+pnorm -0x1.19d400cdb5e39p+1 0x1.c58538d22e953p-7 
+pnorm 0x1.916190aa04f92p-2 0x1.4e0f64bba0544p-1 
+pnorm 0x1.fce354f8320e7p-2 0x1.617b05903db88p-1 
+pnorm -0x1.cc8b1d63bff8dp-3 0x1.a4e73e0fbae56p-2 
+pnorm -0x1.1dfd18300ce4cp+0 0x1.0e447ba3dec5dp-3 
+pnorm -0x1.9479771d51817p-2 0x1.62bcd3361ce36p-2 
+pnorm 0x1.8cc1ae6a40e06p+0 0x1.e0fa335891a42p-1 
+pnorm -0x1.7cadee0daceap-1 0x1.d42470b0b61abp-3 
+pnorm -0x1.2a758aecaaeefp+1 0x1.43063afa64647p-7 
+pnorm 0x1.9fdea2753a2e3p-1 0x1.95565f607ac6p-1 
+pnorm -0x1.00abca5ba1d3dp-1 0x1.3b78575e5cf8ep-2 
+pnorm -0x1.0592ec8976555p-1 0x1.380745e329a7ap-2 
+pnorm -0x1.372219097ec38p+0 0x1.cb37ab9871dc8p-4 
+pnorm -0x1.7199bebf9caa7p-6 0x1.f6c902ea9d101p-2 
+pnorm 0x1.6708d66c07f0ep-1 0x1.84500a39bcc4fp-1 
+pnorm -0x1.2cca71adcac35p-1 0x1.1d1f60b90c76ap-2 
+pnorm -0x1.36a50b73ed1c6p-1 0x1.168b4b2a3ac38p-2 
+pnorm 0x1.18bd69c2e7985p+0 0x1.ba29dd4707e9ap-1 
+pnorm -0x1.fae65a8406f2ep-3 0x1.9be93bb3fa44cp-2 
+pnorm -0x1.477a8caa61b7ap-3 0x1.bef46a96a7f07p-2 
+pnorm -0x1.406601c2e9147p-1 0x1.101b93d46c228p-2 
+pnorm 0x1.cd05c4c02d69fp-1 0x1.a1d206daf4af3p-1 
+pnorm -0x1.fd06f2872e12ap-1 0x1.47cfcb49e25a8p-3 
+pnorm 0x1.b2d0f252f16dp-1 0x1.9ab0a74a83006p-1 
+pnorm 0x1.9c8502aaeea9ap-1 0x1.945fb6a18cbcep-1 
+pnorm -0x1.ded2c79ea5263p-2 0x1.47b741233900cp-2 
+pnorm 0x1.b26425b9685b1p-1 0x1.9a926106a8561p-1 
+pnorm 0x1.f939e649a5846p-1 0x1.ad1e5c8512a49p-1 
+pnorm 0x1.26b7b3d435a02p-1 0x1.6f648eb755e6p-1 
+pnorm 0x1.032e062e51821p+1 0x1.f50594cff1af1p-1 
+pnorm -0x1.f65cc75b8345ap+0 0x1.975149c8a8cf4p-6 
+pnorm -0x1.2a38421383aaap+0 0x1.f3d102c53e1a4p-4 
+pnorm -0x1.6063902d4a213p+0 0x1.596ae890ae92fp-4 
+pnorm 0x1.576893d5f1d0ap-3 0x1.2217189506d65p-1 
+pnorm 0x1.95aa405748156p+0 0x1.e30f1d1825bdap-1 
+pnorm 0x1.ad8a21635a485p+0 0x1.e818fbd17cf9ap-1 
+pnorm 0x1.f4040cb967892p-2 0x1.5fe9bcc8c4794p-1 
+pnorm 0x1.c1e1763d21e6dp-1 0x1.9ed3f230ce83fp-1 
+pnorm -0x1.28b4286fc3806p-3 0x1.c505c5ba74596p-2 
+pnorm 0x1.e03a221110ac5p-2 0x1.5c649c04c2ef7p-1 
+pnorm 0x1.8143df7776e01p-2 0x1.4b12f7728df3fp-1 
+pnorm -0x1.85a712289ce43p-1 0x1.c95a2a0a7b4e4p-3 
+pnorm -0x1.2c5581d22b777p-2 0x1.89e142ac0b364p-2 
+pnorm -0x1.1427a82640ab8p-3 0x1.c914dfb183bfdp-2 
+pnorm 0x1.64d31454212ap+0 0x1.d62dc40b231a8p-1 
+pnorm -0x1.0978173c93789p+0 0x1.32ef569cfaap-3 
+pnorm -0x1.0ea288bc4cce1p+1 0x1.1a83c08764ef3p-6 
+pnorm 0x1.895bc33ad586ap-1 0x1.8ec3fdbbe1ca4p-1 
+pnorm -0x1.a1dfce0cd6abcp-1 0x1.a85aa4a4b2234p-3 
+pnorm -0x1.be92d03222a9fp-2 0x1.53552afa4b413p-2 
+pnorm 0x1.cf357f73c5ccp-1 0x1.a2669e2f60af2p-1 
+pnorm -0x1.86b33e2c860dep-1 0x1.c81a120bb49dap-3 
+pnorm -0x1.5d40a98d28d28p-2 0x1.7752be5ee5f77p-2 
+pnorm 0x1.809ee4ef3ede5p+0 0x1.ddf487eb15df3p-1 
+pnorm 0x1.0e7e59353f3d7p-1 0x1.671847763f7eap-1 
+pnorm 0x1.159a1af7c9467p-1 0x1.698d5d76f6b4dp-1 
+pnorm -0x1.17e8334857c47p-3 0x1.c85707d69bf9bp-2 
+pnorm -0x1.2300fd6430f8cp+0 0x1.05c8ffbc75bcfp-3 
+pnorm -0x1.7f22f50a43807p+0 0x1.136fa68fc506fp-4 
+pnorm -0x1.c97e698bc59c6p-3 0x1.a57f1b78c2268p-2 
+pnorm 0x1.003855ed87896p+1 0x1.f4663d827cca4p-1 
+pnorm 0x1.c60ca68049856p-3 0x1.2ceaa781ebb62p-1 
+pnorm 0x1.50a2be6c7e2e7p-3 0x1.216c89c6495aep-1 
+pnorm 0x1.549b48878d9b2p-2 0x1.42b5797462558p-1 
+pnorm -0x1.8a73f739056b9p-2 0x1.6671521126608p-2 
+pnorm -0x1.6614be6f36e74p+0 0x1.4b8b48b36d4eap-4 
+pnorm 0x1.567eaca560d76p+1 0x1.fe1755e21c293p-1 
+pnorm -0x1.b1dac41aa3186p-2 0x1.57f57ba838d74p-2 
+pnorm -0x1.31c498412797bp-2 0x1.87ce13825fba9p-2 
+pnorm -0x1.cad6e84c16f62p+0 0x1.2b54178398fd6p-5 
+pnorm -0x1.fbebbc7e73b03p-3 0x1.9bb6abbc14addp-2 
+pnorm -0x1.fa7a7a0cbb8fcp-3 0x1.9bfe1a59de16ap-2 
+pnorm -0x1.05a4833e3ca89p-2 0x1.98be91c0402bap-2 
+pnorm -0x1.c974c67bdfbb6p+0 0x1.2ee39131208d5p-5 
+pnorm 0x1.c8dfa98d36af6p+0 0x1.ecf99ffbd8a0bp-1 
+pnorm 0x1.c37a65173d9b3p+0 0x1.ec1530f2b9e1ep-1 
+pnorm 0x1.611347c10ae5ap-1 0x1.827227c438cc2p-1 
+pnorm -0x1.19ca238d2dcp+0 0x1.1583871fa4357p-3 
+pnorm 0x1.6dd42ba11fca6p-1 0x1.866c2639d261ep-1 
+pnorm -0x1.f8c56df554bd9p-3 0x1.9c52aa175e398p-2 
+pnorm -0x1.477606517b77bp-2 0x1.7f8e0640cb723p-2 
+pnorm 0x1.5cd641a2524c6p+0 0x1.d3b69f84e7c13p-1 
+pnorm -0x1.3a56836f4dab2p+0 0x1.c18485822f504p-4 
+pnorm -0x1.05be86fb7fbdcp-1 0x1.37e8bddca5cb8p-2 
+pnorm -0x1.765f30dff72d8p-1 0x1.dbcfd864b9b85p-3 
+pnorm 0x1.439debe43c57ep-6 0x1.0408c4bc27991p-1 
+pnorm -0x1.92a735a2bce94p+0 0x1.da1d053814802p-5 
+pnorm -0x1.681b4c6033d6p-1 0x1.ed6995629cb14p-3 
+pnorm 0x1.6e8ea69807e0cp-1 0x1.86a5c13756606p-1 
+pnorm 0x1.dc614be2cbbap-2 0x1.5bb4772b50148p-1 
+pnorm -0x1.f2a352b702c45p-1 0x1.52070ecd88b82p-3 
+pnorm 0x1.1e51c94f68dfcp-1 0x1.6c8a673b6fdf1p-1 
+pnorm -0x1.3760bd3abbcap+1 0x1.eb2a9315261e4p-8 
+pnorm -0x1.5ca814a3dddfp-2 0x1.778c2e5ef8c7ap-2 
+pnorm 0x1.6d12afd9b033ep-1 0x1.86305190afaf6p-1 
+pnorm -0x1.516d592b9fcdcp-1 0x1.050de956e4417p-2 
+pnorm -0x1.2a35d52d2c882p-5 0x1.f121d7b075754p-2 
+pnorm -0x1.97e19c6e390d4p+0 0x1.c70c93989a3eep-5 
+pnorm 0x1.b211e5c3ed53ap-1 0x1.9a7b7a5ec8eafp-1 
+pnorm -0x1.d9b31565e1639p+0 0x1.0732e60c4b839p-5 
+pnorm -0x1.4b6b1239c2311p-2 0x1.7e0e42bfd1327p-2 
+pnorm -0x1.055fc2de44757p-2 0x1.98d91e02ae63bp-2 
+pnorm 0x1.f31112dd45005p-5 0x1.0c6f9c8a43f99p-1 
+pnorm -0x1.a5a0b1de54e9dp-1 0x1.a412eef9a8753p-3 
+pnorm 0x1.d4693790dd706p+0 0x1.eec610f0a4fep-1 
+pnorm -0x1.6e0efd36cd379p+0 0x1.38d04f081a112p-4 
+pnorm 0x1.043c86f79d414p-2 0x1.335b33dbf833ep-1 
+pnorm -0x1.784a81238df76p+1 0x1.ae8237c026f37p-10 
+pnorm 0x1.3ca518cfac1d8p-9 0x1.007e52aadacdbp-1 
+pnorm 0x1.04f2e2c0ef311p-1 0x1.63c44fb214a62p-1 
+pnorm -0x1.15b035c219fefp+0 0x1.1cb80229ca78p-3 
+pnorm 0x1.68dfde31a9b67p-1 0x1.84e2cedc65a3ep-1 
+pnorm 0x1.52eb76dbe5fb3p-2 0x1.4263f3c6b056bp-1 
+pnorm 0x1.f3e131cd3d5bdp-1 0x1.abcd10955f6d2p-1 
+pnorm -0x1.afca3eab7343p-1 0x1.989d84b1cdbb7p-3 
+pnorm -0x1.f0efd96b14fe3p-1 0x1.53b83e12ef4c7p-3 
+pnorm -0x1.c5831416429ap+0 0x1.393b1b62531f8p-5 
+pnorm -0x1.4a35aa4d327a9p-2 0x1.7e836b70bb20dp-2 
+pnorm -0x1.56bba53c45eap+0 0x1.71f10cfde7938p-4 
+pnorm 0x1.6055fca6dd79p-1 0x1.823696e6c6ea4p-1 
+pnorm 0x1.23f72e640f806p-4 0x1.0e8c1f7a40d38p-1 
+pnorm 0x1.1849ce28b8b18p+1 0x1.f8b17551e74d6p-1 
+pnorm -0x1.285f8675549d1p+0 0x1.f9d26c594835ep-4 
+pnorm 0x1.2e831be559a18p+0 0x1.c33e5fc7f9e8ep-1 
+pnorm -0x1.0e0339d41abd9p-1 0x1.3224e79516065p-2 
+pnorm -0x1.74e592c704685p+0 0x1.2968a07a11661p-4 
+pnorm 0x1.255bfaabe2f45p-1 0x1.6eeeece948062p-1 
+pnorm -0x1.6ef1d75c61f6fp+0 0x1.36c8aa586d4dcp-4 
+pnorm -0x1.0e209af9ccebbp+0 0x1.2a55386453a2ap-3 
+pnorm -0x1.775a70a3ac429p-1 0x1.da9d2c8fb6966p-3 
+pnorm 0x1.aff025d395d2dp-3 0x1.2ac328465212bp-1 
+pnorm -0x1.ff72899c0c129p-1 0x1.457609ec0c7a7p-3 
+pnorm 0x1.13edffb026b3fp+0 0x1.b809cb3a0f8b6p-1 
+pnorm -0x1.32effc319cf52p+0 0x1.d82442123232bp-4 
+pnorm 0x1.bbac32a9c40ffp-3 0x1.2be7ffd41b553p-1 
+pnorm 0x1.250ad00b66da1p-3 0x1.1d209756b00d9p-1 
+pnorm -0x1.10d4ff7ac8153p+0 0x1.2569db912fca3p-3 
+pnorm -0x1.b6e90e2d0e752p-2 0x1.561df50f694e7p-2 
+pnorm -0x1.4ff6c1a214226p-1 0x1.05fead2d3bbaep-2 
+pnorm 0x1.eb35bbb3a48c4p-1 0x1.a9a2c43220573p-1 
+pnorm 0x1.8e59772ee9e3ap+0 0x1.e15ba175b56fep-1 
+pnorm -0x1.0a71a294e9f88p+0 0x1.311f0e97368c3p-3 
+pnorm 0x1.dc73fc9a7b09fp-1 0x1.a5de6d2870cf4p-1 
+pnorm -0x1.3506cae504a43p-4 0x1.e13551a11e6cp-2 
+pnorm -0x1.f79a1d490465dp+0 0x1.92b972a16627cp-6 
+pnorm -0x1.8305cd602d3fcp-1 0x1.cc7ffbe098d1ep-3 
+pnorm 0x1.d8377c4bd14dcp-2 0x1.5af57de1a8e42p-1 
+pnorm 0x1.292daa56444cp-3 0x1.1d891b0fd6937p-1 
+pnorm -0x1.389da84958fe8p+1 0x1.de339e5d7107ap-8 
+pnorm 0x1.291f87de8b5ffp-1 0x1.70347251e0741p-1 
+pnorm 0x1.4f62f9bd5c2a9p-1 0x1.7cd11b77ba578p-1 
+pnorm -0x1.37d12a257d1f4p-2 0x1.857fbf5c16db3p-2 
+pnorm -0x1.6a4662258f434p-1 0x1.eab6eca5d3eb4p-3 
+pnorm 0x1.f8b8f18be4908p+0 0x1.f38b1e183121fp-1 
+pnorm -0x1.70a274e10b2f2p-4 0x1.db489967f9533p-2 
+pnorm -0x1.cb513b504ee1cp-7 0x1.fa461e867086bp-2 
+pnorm -0x1.1f9adfb35a397p+0 0x1.0b83692954059p-3 
+pnorm -0x1.5818e9697820ep+0 0x1.6e666ecea6818p-4 
+pnorm -0x1.85ed895f6ce28p+0 0x1.0591ed1fbf3d8p-4 
+pnorm -0x1.b0186f3e2c1e5p-2 0x1.5899c6c533c44p-2 
+pnorm 0x1.5c658bb18ddc9p+0 0x1.d3930ad8c2a79p-1 
+pnorm 0x1.c0f8b2f09b4dbp+0 0x1.eba823589eb48p-1 
+pnorm 0x1.918059ea3eb53p+0 0x1.e219a7ab8f88ep-1 
+pnorm 0x1.4bf82c4bd4d7ep+0 0x1.ce2723503e361p-1 
+pnorm -0x1.e698dd0cd1ee3p-3 0x1.9fd7ed01d2e61p-2 
+pnorm -0x1.3961e73e24811p+0 0x1.c464e900c98f9p-4 
+pnorm -0x1.4fae2091a9b18p-2 0x1.7c717b67283dbp-2 
+pnorm -0x1.34cb2bafe861ap+1 0x1.039dad625a793p-7 
+pnorm -0x1.4152eb44a1002p-2 0x1.81e221314fd2fp-2 
+pnorm 0x1.a8edcf8fc7badp+0 0x1.e72f03de71726p-1 
+pnorm 0x1.0c3123a35a48p-3 0x1.1aac09bbd2647p-1 
+pnorm 0x1.188c292435526p+0 0x1.ba145110a2706p-1 
+pnorm 0x1.f515cbbaab786p-2 0x1.601a315caa831p-1 
+pnorm -0x1.8ecd548af0777p-1 0x1.be7f51afad374p-3 
+pnorm 0x1.be59e7df776bcp+0 0x1.eb341ed09a154p-1 
+pnorm -0x1.411306aeb4d6bp-4 0x1.e0029ea921a79p-2 
+pnorm -0x1.f37bc964bf08bp-1 0x1.513040b6f8657p-3 
+pnorm 0x1.216c32464abc8p-4 0x1.0e6bbdcf0590cp-1 
+pnorm -0x1.84c2f0500442p+0 0x1.07e97f59fdac4p-4 
+pnorm 0x1.ba413ed19e529p-1 0x1.9cbf158763e17p-1 
+pnorm 0x1.00cd9247b1e98p-1 0x1.624fb6c164f2p-1 
+pnorm -0x1.6b4bcc0042c4cp-2 0x1.720cbc5dbb5a6p-2 
+pnorm -0x1.f426b3ca80d73p-2 0x1.402041393c4fcp-2 
+pnorm 0x1.df61eb962138bp-1 0x1.a69ff3153c232p-1 
+pnorm -0x1.0ff9fefaade21p+0 0x1.26f6aa4d09248p-3 
+pnorm -0x1.f7b75e8a2f64p-1 0x1.4d022bd6e79c2p-3 
+pnorm 0x1.b26e0914cb6f4p-2 0x1.54201c08e333ap-1 
+pnorm -0x1.ce251efcdeb75p-2 0x1.4db3f66a6c4e4p-2 
+pnorm 0x1.d9a4b6e7e973cp-1 0x1.a523d8498fc4bp-1 
+pnorm -0x1.96c681d397645p-3 0x1.af63f138fbbecp-2 
+pnorm 0x1.31e1c1992df6fp+0 0x1.c492211a8f50fp-1 
+pnorm 0x1.fb701239d1a01p-2 0x1.61398bade2082p-1 
+pnorm -0x1.1f6128d821386p+1 0x1.95a4009af30dbp-7 
+pnorm -0x1.55dae5c102e36p+0 0x1.743be0cc32a79p-4 
+pnorm 0x1.4863f4b6a7216p+0 0x1.cce8ecdc7948ep-1 
+pnorm 0x1.61b0003146102p-1 0x1.82a36d2d88ba8p-1 
+pnorm -0x1.ef22d6874494ap-1 0x1.55845ade801dbp-3 
+pnorm -0x1.5885ef58531ecp+0 0x1.6d4cc2537687p-4 
+pnorm 0x1.089e4b821e408p+0 0x1.b2de7ca83349ap-1 
+pnorm -0x1.9fa12a03d4b9ap-1 0x1.aaed0dac409b7p-3 
+pnorm 0x1.cd3de18708f63p+0 0x1.edac5e786e68dp-1 
+pnorm 0x1.c583c61f523f7p+0 0x1.ec6c6bddbd888p-1 
+pnorm -0x1.115bc617p+5 0x1.465b620b03d5cp-849 
+pnorm 0x1.df1d7e0bp+4 0x1p+0 
+pnorm -0x1.81715bddp+4 0x1.5f6c806e45e31p-425 
+pnorm 0x1.6232fa1p+1 0x1.fe8d6fe7e0d55p-1 
+pnorm -0x1.f8e1619ap+4 0x1.59a598cd7918p-725 
+pnorm -0x1.28f90686p+3 0x1.3ef0c3634f218p-67 
+pnorm 0x1.3d104701p+4 0x1p+0 
+pnorm 0x1.f53996a2p+3 0x1p+0 
+pnorm -0x1.01077df88p+5 0x1.0a0f000fd81d3p-751 
+pnorm 0x1.1d8579e2p+3 0x1p+0 
+pnorm -0x1.329b9b3d8p+5 0x0.00000000000e5p-1022 
+pnorm 0x1.7f436b6cp+3 0x1p+0 
+pnorm 0x1.322976898p+5 0x1p+0 
+pnorm 0x1.b667dc77p+4 0x1p+0 
+pnorm 0x1.b6c41091p+4 0x1p+0 
+pnorm -0x1.201f59cap+3 0x1.01597acf06cf2p-63 
+pnorm 0x1.772189ebp+4 0x1p+0 
+pnorm -0x1.e0460bccp+2 0x1.162f3eef786e8p-45 
+pnorm -0x1.3bb6a17ap+4 0x1.6bf580f64b7ccp-287 
+pnorm -0x1.9d29e02p+2 0x1.d9d10bbf320e5p-35 
+pnorm -0x1.70ada2cp-2 0x1.7009119bc76aep-2 
+pnorm 0x1.ca8e0901p+4 0x1p+0 
+pnorm 0x1.294c8c16p+4 0x1p+0 
+pnorm 0x1.2fa25d278p+5 0x1p+0 
+pnorm -0x1.ffee01d7p+4 0x1.2956e8f3b2641p-745 
+pnorm 0x1.a9b75d9p+4 0x1p+0 
+pnorm -0x1.fa534188p+1 0x1.401de9883a12p-15 
+pnorm 0x1.c096731bp+4 0x1p+0 
+pnorm 0x1.6520be4cp+2 0x1.ffffff98c578cp-1 
+pnorm 0x1.2763201f8p+5 0x1p+0 
+pnorm 0x1.230a5c39p+5 0x1p+0 
+pnorm -0x1.14c3216ap+4 0x1.a6c92e3ccd75bp-222 
+pnorm 0x1.32b241d8p+4 0x1p+0 
+pnorm -0x1.12b989518p+5 0x1.debc689c7cbdcp-858 
+pnorm 0x1.00139628p+5 0x1p+0 
+pnorm -0x1.d538bf2cp+4 0x1.5528d4f43b5f9p-627 
+pnorm 0x1.1e22fffp+2 0x1.ffff7d4fdd446p-1 
+pnorm 0x1.010b688p+3 0x1.ffffffffffffcp-1 
+pnorm -0x1.d5cf53a6p+4 0x1.cf67e1a85ad4cp-629 
+pnorm 0x1.7d6eefp-1 0x1.8b3142c23b242p-1 
+pnorm -0x1.545a2c2ep+3 0x1.91581b515ee24p-87 
+pnorm -0x1.3de2953c8p+5 0x0p+0 
+pnorm -0x1.214afacc8p+5 0x1.29bebf0cac04dp-950 
+pnorm 0x1.e905a2dbp+4 0x1p+0 
+pnorm 0x1.9e1a104fp+4 0x1p+0 
+pnorm -0x1.bd48233p+2 0x1.e75e0b160b566p-40 
+pnorm 0x1.0de8c53b8p+5 0x1p+0 
+pnorm -0x1.cec9b56p+0 0x1.215a9694dec85p-5 
+pnorm -0x1.000e9e48p+1 0x1.7457fd636f2bbp-6 
+pnorm 0x1.940f71e4p+3 0x1p+0 
+pnorm -0x1.aef32758p+4 0x1.874ec4dcc8e7ep-530 
+pnorm -0x1.03135aae8p+5 0x1.1a31d7ec5e4ecp-763 
+pnorm 0x1.cebd2acap+4 0x1p+0 
+pnorm -0x1.4cf464c7p+4 0x1.e3a72632257aap-319 
+pnorm 0x1.1bab4dccp+2 0x1.ffff639a55af6p-1 
+pnorm 0x1.bf3d8d97p+4 0x1p+0 
+pnorm -0x1.80e6f628p+3 0x1.a3bff88801a6fp-110 
+pnorm 0x1.307902eep+5 0x1p+0 
+pnorm 0x1.d8d6cddbp+4 0x1p+0 
+pnorm 0x1.45475e78p+4 0x1p+0 
+pnorm -0x1.61b2b198p+4 0x1.9eca652d0b826p-359 
+pnorm 0x1.595d759bp+4 0x1p+0 
+pnorm 0x1.dfa225b6p+4 0x1p+0 
+pnorm -0x1.23f8efea8p+5 0x1.91a99aa8facfap-968 
+pnorm -0x1.804e6958p+4 0x1.e68710840b755p-423 
+pnorm 0x1.c4ca4bc4p+4 0x1p+0 
+pnorm 0x1.85c543fcp+3 0x1p+0 
+pnorm 0x1.d8beb75p+4 0x1p+0 
+pnorm 0x1.91746fdep+4 0x1p+0 
+pnorm -0x1.62b1ad1p+3 0x1.7b896ce3a7d12p-94 
+pnorm -0x1.05d39fe5p+5 0x1.f6b3e710d44fdp-780 
+pnorm 0x1.7e3c2eacp+2 0x1.fffffff5f5d5cp-1 
+pnorm 0x1.8c1c1fb4p+3 0x1p+0 
+pnorm 0x1.9c6c0fa5p+4 0x1p+0 
+pnorm -0x1.c6e81f3p+1 0x1.8de9871ba9abep-13 
+pnorm 0x1.35f8725b8p+5 0x1p+0 
+pnorm 0x1.40828a61p+4 0x1p+0 
+pnorm -0x1.d50c78f4p+4 0x1.d48df76f0c1c5p-627 
+pnorm -0x1.6c93f18p+4 0x1.8ce19ac5653b9p-381 
+pnorm 0x1.bded01c5p+4 0x1p+0 
+pnorm -0x1.62e800b8p+1 0x1.6c54ad54330bp-9 
+pnorm 0x1.0a17650fp+5 0x1p+0 
+pnorm 0x1.0a98d1e18p+5 0x1p+0 
+pnorm 0x1.9969f335p+4 0x1p+0 
+pnorm 0x1.5688af7p+2 0x1.fffffe8a954acp-1 
+pnorm 0x1.279f1cc6p+3 0x1p+0 
+pnorm 0x1.795828b4p+4 0x1p+0 
+pnorm -0x1.34c0f0ap+2 0x1.792f8e6933bap-21 
+pnorm -0x1.bf8da2b4p+2 0x1.7aa0db7d95034p-40 
+pnorm 0x1.4f48df78p+2 0x1.fffffd49ea68cp-1 
+pnorm -0x1.bde409d5p+4 0x1.912a9377747dap-567 
+pnorm 0x1.898cc514p+4 0x1p+0 
+pnorm -0x1.650f2c4p-2 0x1.74637ce8ffc21p-2 
+pnorm -0x1.cc25f36ep+4 0x1.26c1ce7b2909p-603 
+pnorm -0x1.f2d468b5p+4 0x1.7a3bf101fff0bp-708 
+pnorm -0x1.f22ffbfep+4 0x1.4ab437f6b5a1ap-706 
+pnorm -0x1.3cfb9ccap+5 0x0p+0 
+pnorm -0x1.4ed7a92fp+4 0x1.47fdef01c3119p-322 
+pnorm 0x1.e4e4ae59p+4 0x1p+0 
+pnorm -0x1.0e947ec4p+5 0x1.518acf3940bc1p-832 
+pnorm -0x1.ceabaf43p+4 0x1.8dfb82b43db48p-610 
+pnorm -0x1.219592da8p+5 0x1.3e8ad414aa937p-952 
+pnorm -0x1.2a4abb56p+5 0x1.7d993c4f52405p-1010 
+pnorm 0x1.0a4c0657p+5 0x1p+0 
+pnorm 0x1.b374dd76p+4 0x1p+0 
+pnorm -0x1.9b0b6a0cp+4 0x1.dfc3077383312p-483 
+pnorm -0x1.83a6624p-2 0x1.68f7400a5876fp-2 
+pnorm -0x1.ee2fa8e2p+3 0x1.9a60afa0c3fd1p-178 
+pnorm -0x1.20cc283ap+4 0x1.65d92a8aa7f73p-241 
+pnorm -0x1.dbd90dafp+4 0x1.ae2439405129p-645 
+pnorm -0x1.699089e4p+2 0x1.1489180eec79p-27 
+pnorm 0x1.f59e7dcep+3 0x1p+0 
+pnorm -0x1.a63e9b88p+3 0x1.46121edea765cp-131 
+pnorm 0x1.01986e6ap+4 0x1p+0 
+pnorm 0x1.b3e27b1ap+4 0x1p+0 
+pnorm 0x1.e9c4db1fp+4 0x1p+0 
+pnorm 0x1.553bff8cp+4 0x1p+0 
+pnorm -0x1.c79bf956p+3 0x1.86241265f10fcp-152 
+pnorm -0x1.250b8ca88p+5 0x1.7c681087dac1ep-975 
+pnorm 0x1.f6ab2ff5p+4 0x1p+0 
+pnorm 0x1.618c9684p+3 0x1p+0 
+pnorm 0x1.170137ap+2 0x1.ffff253dda601p-1 
+pnorm 0x1.54e6ff55p+4 0x1p+0 
+pnorm -0x1.02023edap+5 0x1.497c4e9825164p-757 
+pnorm 0x1.3d760aebp+4 0x1p+0 
+pnorm 0x1.e0476e22p+4 0x1p+0 
+pnorm -0x1.3b1793ca8p+5 0x0p+0 
+pnorm 0x1.1658cc848p+5 0x1p+0 
+pnorm -0x1.dc55f9p+2 0x1.bc1c8ef8eb4efp-45 
+pnorm 0x1.719dfccfp+4 0x1p+0 
+pnorm 0x1.30b8cp+5 0x1p+0 
+pnorm -0x1.aa7d4ebap+3 0x1.bcbc3c0729f9dp-134 
+pnorm 0x1.6fa28d73p+4 0x1p+0 
+pnorm -0x1.06cf1b86p+5 0x1.1de37500d9b2fp-785 
+pnorm -0x1.24083543p+5 0x1.31e551b8cefe6p-968 
+pnorm 0x1.31d7cc1p+0 0x1.c48e3cb88d8a8p-1 
+pnorm -0x1.21390b698p+5 0x1.98c1eacf9bb72p-950 
+pnorm -0x1.06ea1b408p+5 0x1.729f3e5c67e0ep-786 
+pnorm 0x1.e21d0388p+3 0x1p+0 
+pnorm -0x1.29b40dfc8p+5 0x1.724d4c13d06fep-1006 
+pnorm -0x1.61bc6eep+2 0x1.179e684ab8c15p-26 
+pnorm 0x1.4be57986p+4 0x1p+0 
+pnorm 0x1.a8b339e1p+4 0x1p+0 
+pnorm -0x1.2ce55d6cp+3 0x1.90ae7cc95723fp-69 
+pnorm 0x1.27d2019p+3 0x1p+0 
+pnorm -0x1.8cd58c7ep+3 0x1.12352b66906f8p-116 
+pnorm 0x1.4a88de98p+1 0x1.fd7cce39c1832p-1 
+pnorm -0x1.33303741p+4 0x1.6c8f87d282127p-272 
+pnorm 0x1.750bdff8p+2 0x1.ffffffe8078c2p-1 
+pnorm 0x1.03bdeb778p+5 0x1p+0 
+pnorm 0x1.52083254p+2 0x1.fffffdda6f685p-1 
+pnorm -0x1.1bd933248p+5 0x1.558d5c47853c8p-915 
+pnorm -0x1.fd4b5e2fp+4 0x1.bfca8a70d393fp-738 
+pnorm -0x1.b771e19ep+3 0x1.cddd065fe6574p-142 
+pnorm 0x1.39fbfcb3p+5 0x1p+0 
+pnorm 0x1.12633c02p+4 0x1p+0 
+pnorm -0x1.0d74dea58p+5 0x1.2f1921e09cd93p-825 
+pnorm 0x1.2464e46ep+3 0x1p+0 
+pnorm -0x1.1526154p-1 0x1.2d3535142faa4p-2 
+pnorm -0x1.278e1499p+4 0x1.404fd6b86d5f6p-252 
+pnorm -0x1.08d16eb6p+4 0x1.028bf1f574945p-203 
+pnorm -0x1.fa4ce7cp+0 0x1.88e04308f793cp-6 
+pnorm 0x1.2902a1078p+5 0x1p+0 
+pnorm -0x1.8700ee6p+2 0x1.12d73597798d6p-31 
+pnorm 0x1.b871bc81p+4 0x1p+0 
+pnorm 0x1.227312cp+5 0x1p+0 
+pnorm -0x1.11505afcp+4 0x1.0fd79726cbcc9p-216 
+pnorm 0x1.a24c3eep+1 0x1.ffb901716fab5p-1 
+pnorm 0x1.a0a83058p+2 0x1.ffffffffad844p-1 
+pnorm -0x1.37f3e912p+4 0x1.21339765138dep-280 
+pnorm 0x1.e3f28e03p+4 0x1p+0 
+pnorm 0x1.e958d8acp+4 0x1p+0 
+pnorm 0x1.37e4ea2c8p+5 0x1p+0 
+pnorm -0x1.fdecdcf5p+4 0x1.fd9579f7de9a2p-740 
+pnorm 0x1.301062acp+3 0x1p+0 
+pnorm 0x1.060f2966p+4 0x1p+0 
+pnorm -0x1.c1ce8b01p+4 0x1.af1e0a5bb6aa7p-577 
+pnorm 0x1.f43cd08ep+4 0x1p+0 
+pnorm -0x1.afc83231p+4 0x1.805d8e7fa1a1ep-532 
+pnorm -0x1.e402cb97p+4 0x1.9093afe893b0cp-667 
+pnorm 0x1.31a2ea5ep+5 0x1p+0 
+pnorm 0x1.4566fbcap+3 0x1p+0 
+pnorm -0x1.33b65d8ap+5 0x0.0000000000001p-1022 
+pnorm 0x1.a55481c4p+4 0x1p+0 
+pnorm 0x1.3f4815e68p+5 0x1p+0 
+pnorm 0x1.d72989ecp+4 0x1p+0 
+pnorm -0x1.07e85ba4p+3 0x1.7628b30438545p-54 
+pnorm 0x1.1731da888p+5 0x1p+0 
+pnorm -0x1.c094d5bap+3 0x1.139b30776c145p-147 
+pnorm 0x1.2e5dcef9p+5 0x1p+0 
+pnorm 0x1.40810bap+2 0x1.fffff6c45011ep-1 
+pnorm 0x1.962a280cp+2 0x1.ffffffff0d889p-1 
+pnorm 0x1.9f9a88fap+4 0x1p+0 
+pnorm -0x1.81fdb6afp+4 0x1.333f7f00d426fp-426 
+pnorm 0x1.309d0c16p+3 0x1p+0 
+pnorm -0x1.608eaabfp+4 0x1.f5cfbec44e51fp-357 
+pnorm -0x1.2fdb5814p+5 0x0.0000006dfcac2p-1022 
+pnorm 0x1.4853996ap+4 0x1p+0 
+pnorm 0x1.61ae8906p+3 0x1p+0 
+pnorm -0x1.1af6c1dd8p+5 0x1.0cfd9e3a95bccp-909 
+pnorm 0x1.0af414b8p+1 0x1.f6860998238afp-1 
+pnorm 0x1.263677f4p+1 0x1.fa7cede59f264p-1 
+pnorm 0x1.78abf35cp+1 0x1.ff2acd6ea1877p-1 
+pnorm -0x1.20b87199p+2 0x1.b07aa9222e82bp-19 
+pnorm -0x1.0be66ad8p+2 0x1.dc74d8f016114p-17 
+pnorm -0x1.ef777072p+1 0x1.c6eea9229ee57p-15 
+pnorm -0x1.79303112p+2 0x1.03b957bd4379p-29 
+pnorm 0x1.9affab94p+0 0x1.e4406f7fd4872p-1 
+pnorm -0x1.86e8c6a4p+0 0x1.039ca96cdd388p-4 
+pnorm -0x1.556c088p+1 0x1.f50597cabb0f7p-9 
+pnorm -0x1.f706e5bap+1 0x1.6470a0ade351p-15 
+pnorm -0x1.c7198514p+1 0x1.8ba331d6f4ee6p-13 
+pnorm -0x1.ab34d1c2p+1 0x1.bb21bfe84ce7bp-12 
+pnorm -0x1.7abaad7p+1 0x1.94c5f35577d0dp-10 
+pnorm -0x1.fabaddf2p+1 0x1.3be8aa0772213p-15 
+pnorm 0x1.43d90675p+2 0x1.fffff8f8737a3p-1 
+pnorm -0x1.db32723cp+0 0x1.03c43d715ae1fp-5 
+pnorm -0x1.3ea2d93ep+2 0x1.57af4366db0dbp-22 
+pnorm -0x1.7757fce4p+0 0x1.240a2c6d21893p-4 
+pnorm 0x1.0a4d7628p-1 0x1.65a33570f1f95p-1 
+pnorm 0x1.b8d949cep+1 0x1.ffda745ea27d1p-1 
+pnorm -0x1.13ff988cp+1 0x1.fcf885af7d233p-7 
+pnorm 0x1.039d13b7p+2 0x1.fffcbc21c8d61p-1 
+pnorm 0x1.7ed349p+2 0x1.fffffff6833e3p-1 
+pnorm -0x1.b826ccep+1 0x1.3278d4b347969p-12 
+pnorm -0x1.81401768p-1 0x1.cea0c9ddd915bp-3 
+pnorm -0x1.748a9c9p+0 0x1.2a31cf77c05a1p-4 
+pnorm 0x1.65901b03p+2 0x1.ffffff9cbad3bp-1 
+pnorm 0x1.b1828878p+0 0x1.e8dcdfbe68ba7p-1 
+pnorm 0x1.d6394fbap+1 0x1.fff053fcf7cd9p-1 
+pnorm 0x1.41d6fa94p+2 0x1.fffff7b7963b3p-1 
+pnorm -0x1.52fa5b95p+2 0x1.fae844c45d728p-25 
+pnorm -0x1.12b97ecp-2 0x1.93b391fd50274p-2 
+pnorm 0x1.2e697666p+1 0x1.fb5aae61f187ep-1 
+pnorm -0x1.5db1395p+2 0x1.90033e7ac748cp-26 
+pnorm 0x1.8a873a22p+1 0x1.ff795cb965909p-1 
+pnorm 0x1.199f2698p+0 0x1.ba8c657cd2a7p-1 
+pnorm 0x1.f26c8dcp-4 0x1.18cb4a09f8055p-1 
+pnorm -0x1.2336f9a8p-1 0x1.2396532162cb4p-2 
+pnorm -0x1.6c6e0aa7p+2 0x1.a9da9a90388d5p-28 
+pnorm 0x1.62b225fap+2 0x1.ffffff7fa7c33p-1 
+pnorm 0x1.767f74a6p+2 0x1.ffffffeb1491fp-1 
+pnorm 0x1.9cc0a7fp+0 0x1.e4a2a10d956cap-1 
+pnorm -0x1.c97955cp-1 0x1.7c8169816ac57p-3 
+pnorm -0x1.66766d96p+1 0x1.4e661f1f78725p-9 
+pnorm -0x1.421f64e4p+2 0x1.0302b0347d323p-22 
+pnorm -0x1.04e70e14p+1 0x1.54215d861350bp-6 
+pnorm 0x1.2ea16713p+2 0x1.ffffda124932ep-1 
+pnorm -0x1.28f267b8p+1 0x1.4d5b0e5390a1ep-7 
+pnorm -0x1.2bc10384p+0 0x1.eedd7bf133bbbp-4 
+pnorm 0x1.c55fd528p-1 0x1.9fc5c110fd028p-1 
+pnorm 0x1.29f2c4e4p+0 0x1.c169b9c7bd2a8p-1 
+pnorm 0x1.ae2f6f6p-1 0x1.99659fbf41d3dp-1 
+pnorm -0x1.b10ae164p+1 0x1.77b5a38f515bp-12 
+pnorm 0x1.ebb6f53cp+1 0x1.fff7fc93dadfcp-1 
+pnorm -0x1.63d92e24p+2 0x1.cf1f5f7719e22p-27 
+pnorm 0x1.81ca5824p+0 0x1.de418d614c895p-1 
+pnorm -0x1.98b49558p-1 0x1.b2eace2c5c3dp-3 
+pnorm -0x1.b785dcfp+0 0x1.6041798bf052ap-5 
+pnorm 0x1.a45a7ea8p+1 0x1.ffbcee153bf62p-1 
+pnorm -0x1.f593e12ap+1 0x1.759a53585ae37p-15 
+pnorm -0x1.4dcae48p-4 0x1.debeee1b23982p-2 
+pnorm 0x1.6c52794ep+1 0x1.fede19d08f317p-1 
+pnorm 0x1.0e5c736p-3 0x1.1ae2f2167a4c5p-1 
+pnorm -0x1.3221c93p-2 0x1.87aa857094e3bp-2 
+pnorm 0x1.0e075378p+0 0x1.b55f2220613c2p-1 
+pnorm 0x1.bdab6ecp-1 0x1.9dae8ce273f95p-1 
+pnorm 0x1.dbe844c8p+0 0x1.efdd92bc479c9p-1 
+pnorm 0x1.186a9af3p+2 0x1.ffff3a42e61f8p-1 
+pnorm -0x1.3ce34f98p+0 0x1.b9e7c562696b5p-4 
+pnorm 0x1.615e8463p+2 0x1.ffffff6f8d1f4p-1 
+pnorm -0x1.6df1f03cp+0 0x1.39130a56632d4p-4 
+pnorm -0x1.fabe912p+1 0x1.3bc271d690e95p-15 
+pnorm -0x1.9c41418ep+1 0x1.4f2d03e73b3a3p-11 
+pnorm 0x1.5989e99bp+2 0x1.fffffee03f78cp-1 
+pnorm -0x1.3fdda0cep+2 0x1.3728089043322p-22 
+pnorm -0x1.d77c0116p+1 0x1.e2829525fb948p-14 
+pnorm -0x1.46a24eb2p+2 0x1.65b85a4844a47p-23 
+pnorm 0x1.429bf3p+0 0x1.cadab8ba28434p-1 
+pnorm -0x1.b4771ea2p+1 0x1.54bc653f93b73p-12 
+pnorm 0x1.0e4bff54p+0 0x1.b57e878db27cfp-1 
+pnorm -0x1.a069ccdp+1 0x1.2b1c4972270c7p-11 
+pnorm -0x1.4f13edfp+0 0x1.86490434f35e6p-4 
+pnorm -0x1.d33ba82p+0 0x1.1673d4c30294ap-5 
+pnorm 0x1.4150bcd1p+2 0x1.fffff75b1ade7p-1 
+pnorm -0x1.29f43644p+2 0x1.b1b8a5fd81e76p-20 
+pnorm -0x1.785b4cfcp+1 0x1.adcc0bcfc637dp-10 
+pnorm -0x1.e1586e02p+1 0x1.639b5381f9edap-14 
+pnorm 0x1.7927a456p+1 0x1.ff2d632eebd9ap-1 
+pnorm 0x1.4c852058p+2 0x1.fffffc93af9c1p-1 
+pnorm -0x1.03ebc64p-4 0x1.e61811a382499p-2 
+pnorm 0x1.bd6babb4p+0 0x1.eb0a6a2ea4defp-1 
+pnorm -0x1.f1f79c2ap+1 0x1.a3d0e0e4485afp-15 
+pnorm 0x1.3c66491cp+0 0x1.c8949b4077dbbp-1 
+pnorm 0x1.29cc425ap+2 0x1.ffffc923b3e7dp-1 
+pnorm -0x1.e13a34p-4 0x1.d01d5d24ecf3p-2 
+pnorm -0x1.71e1a47fp+2 0x1.01973baaf10cfp-28 
+pnorm -0x1.ec74ab94p+1 0x1.f4e3f3501e186p-15 
+pnorm -0x1.34229d38p+1 0x1.074d549201982p-7 
+pnorm -0x1.56954cbap+1 0x1.e7a8a6cc69c8bp-9 
+pnorm 0x1.5956b87379746p-1 0x1.7fffffff76fa7p-1 
+pnorm -0x1.5956b87379746p-1 0x1.00000001120b2p-2 
+pnorm 0x1.6a09e667f3bcdp+2 0x1.ffffffbdc88bbp-1 
+pnorm -0x1.6a09e667f3bcdp+2 0x1.08ddd13bd35dcp-27 
+pnorm 0x1.70ef54646d497p-57 0x1p-1 
+pnorm 0x0p+0 0x1p-1 
+pgamma 0x1.e5c675292fa7ep+1 0x1.904e570fd3333p+1 0x1.69380c4a3bcdcp-1 
+pgamma 0x1.cc410818781abp+2 0x1.1cc5d79a66667p+4 0x1.3a23112c9f413p-11 
+pgamma 0x1.7c5d28c466347p+6 0x1.cdf7f4666b334p+4 0x1.ffffffffffffcp-1 
+pgamma 0x1.5f3bf2f42e13cp+4 0x1.ac65b04f88001p+4 0x1.693e4e818f157p-3 
+pgamma 0x1.18217d54a1086p+5 0x1.e3bc1edda999ap+4 0x1.a014260c82661p-1 
+pgamma 0x1.0d201d4c5ae78p+5 0x1.85548c260a667p+4 0x1.ebb0cacfae252p-1 
+pgamma 0x1.7ecfc301d8df3p+1 0x1.a7fbdb2623333p+2 0x1.83ef3c1c8d76ep-5 
+pgamma 0x1.43d59914e7bc6p+4 0x1.81d799dc40ccdp+5 0x1.80ce2d3c66008p-24 
+pgamma 0x1.1dc58c8c1ee58p+5 0x1.29166ff66accdp+5 0x1.b6c600f5364c9p-2 
+pgamma 0x1.d2166b169891bp+4 0x1.25fa6094ecccdp+4 0x1.f922f97b76eafp-1 
+pgamma 0x1.0171d2a90957fp+3 0x1.e55bb9ba56667p+2 0x1.39736fd97bf5cp-1 
+pgamma 0x1.4070dd906f788p+4 0x1.6c5722bce199ap+3 0x1.f8d440143d1eap-1 
+pgamma 0x1.85c711d2e1962p+5 0x1.2a260faf84p+5 0x1.ec2d9b9fa43aap-1 
+pgamma 0x1.fe4d197a620b1p+1 0x1.49de0fab33333p+1 0x1.a948654e58754p-1 
+pgamma 0x1.3595908daf333p+3 0x1.db84fa34b999ap+4 0x1.78dffd72fd47cp-23 
+pgamma 0x1.a7c98a3ead9d1p+3 0x1.ed1c96972999ap+2 0x1.ec39fda824cd9p-1 
+pgamma 0x1.4481016d00807p+4 0x1.313509995b333p+5 0x1.0bca1d3dc0ba3p-12 
+pgamma 0x1.124824897ace5p+5 0x1.8e1d43a6bcccdp+5 0x1.f40b07316d7d7p-8 
+pgamma 0x1.013662be7c1d2p+3 0x1.17b7f4de2199ap+3 0x1.cab9f3558336ap-2 
+pgamma 0x1.093ebf60d2182p+3 0x1.ef9bfe95f0ccdp+4 0x1.5b3f537bf0d6fp-30 
+pgamma 0x1.8dc90e3ce4ba9p+4 0x1.aec193381e667p+4 0x1.768fdc330744p-2 
+pgamma 0x1.cc86c9b49d482p+4 0x1.476041a3e8p+5 0x1.38d3f82e64536p-6 
+pgamma 0x1.2257ff0ca5416p+3 0x1.01f0ac3e6999ap+4 0x1.638a70a1e670dp-6 
+pgamma 0x1.2b250b00caafbp+4 0x1.d23218999599ap+4 0x1.f03daa6661ddbp-7 
+pgamma 0x1.376aea2303d4ap+3 0x1.cbe9cb7e26666p+1 0x1.fc0cbf3adfd08p-1 
+pgamma 0x1.4dbf51bace1ecp+3 0x1.c8dbd3744199ap+4 0x1.70c1fa722f4adp-19 
+pgamma 0x1.79d7b094d1fa1p+4 0x1.c0e4ac9a00ccdp+4 0x1.a428bb48f24eap-3 
+pgamma 0x1.811647163d93p+1 0x1.5bca171758001p+4 0x1.92f7cd2a910d9p-39 
+pgamma 0x1.c0c669aacf978p+4 0x1.80cb73b9b1333p+5 0x1.78b81507080bbp-12 
+pgamma 0x1.7d2ecb4f0f677p+4 0x1.1c9fc9485d333p+5 0x1.d9ae8ce3814dap-7 
+pgamma 0x1.6419afcbc10dbp+5 0x1.9ebcd9e7ae667p+3 0x1.ffffffbee99d4p-1 
+pgamma 0x1.570a57ae1a725p+4 0x1.724cfd900ap+5 0x1.286cc9881eeffp-19 
+pgamma 0x1.4f911448fe61ep+3 0x1.511cd8aca4001p+4 0x1.55af379f28f81p-9 
+pgamma 0x1.ab0d8823a9439p+3 0x1.469801d4b4p+5 0x1.42a327083a65bp-30 
+pgamma 0x1.5cade35438575p+5 0x1.2df6d2bbaeccdp+5 0x1.a9980871c6e52p-1 
+pgamma 0x1.9f9f8ff464451p+5 0x1.4a2f5780c199ap+4 0x1.fffff74c8da28p-1 
+pgamma 0x1.3bd070eb17f86p+3 0x1.9bec03beb4ccdp+4 0x1.33c488e9ee585p-16 
+pgamma 0x1.34de089a758dbp+4 0x1.b231a682e4001p+4 0x1.b508edcd42d7bp-5 
+pgamma 0x1.2297e2f3fcd6bp+7 0x1.859ebfa83199ap+5 0x1p+0 
+pgamma 0x1.140891c6051dbp+1 0x1.dd362d4733333p+1 0x1.b8c9e32121c7bp-3 
+pgamma 0x1.0a67a6098c6ccp+6 0x1.33e4cadfa7333p+5 0x1.fff651957ed2fp-1 
+pgamma 0x1.dcb2c1ef4cbb1p+5 0x1.5d12ac4ef6ccdp+5 0x1.f93d276978998p-1 
+pgamma 0x1.16b1ffe09c73p+4 0x1.8bf3460bf9333p+5 0x1.1f450f9efef8p-32 
+pgamma 0x1.ff02a14e52a5cp+6 0x1.8212b008a399ap+5 0x1.ffffffffffffep-1 
+pgamma 0x1.e132e1b9007f3p+5 0x1.fd6d8c0634ccep+4 0x1.fffcea3f59921p-1 
+pgamma 0x1.1f3b1b3e8b865p+1 0x1.a87915db6cccdp+1 0x1.43ca333db0e5p-2 
+pgamma 0x1.9178534a59417p+1 0x1.9db75eb30999ap+2 0x1.0ff0eb329006p-4 
+pgamma 0x1.20c49044a7543p+4 0x1.8aa23361f0001p+4 0x1.4756bf9508155p-4 
+pgamma 0x1.fd1559b3ccdd9p+5 0x1.096ec1e5fcccdp+5 0x1.fffeaad09f616p-1 
+pgamma 0x1.8385845709147p+2 0x1.304d8d36f6667p+3 0x1.e53da4034ca73p-4 
+pgamma 0x1.fde7d8249b4cep+0 0x1.1d792857c8001p+3 0x1.11db95a6999c3p-12 
+pgamma 0x1.4c5e517306cf1p+2 0x1.749f8d3af6667p+2 0x1.cabae68ba34aap-2 
+pgamma 0x1.d42ae93d55379p+3 0x1.f8f207e66p+2 0x1.f58cafb2df653p-1 
+pgamma 0x1.0f6a00b69573cp+4 0x1.570578dcf7333p+5 0x1.999da6d751b7p-24 
+pgamma 0x1.195c5c6be4e38p+4 0x1.545939b76599ap+4 0x1.bf68735f9ea2ep-3 
+pgamma 0x1.0859bbb92e33ap+4 0x1.5f62a51a3999ap+5 0x1.1fa4eec9faa96p-26 
+pgamma 0x1.6a5306d595cc3p+5 0x1.4a002d8b5799ap+5 0x1.7dd2f941e9993p-1 
+pgamma 0x1.60285345854b2p+5 0x1.87894c31d5333p+5 0x1.fc075c3c99533p-3 
+pgamma 0x1.ee6c0aa3f1355p+4 0x1.fbed41573c001p+4 0x1.da8b4f01db868p-2 
+pgamma 0x1.50699a1a0bd2ep+4 0x1.14bb924cb0666p+5 0x1.0b7f616bb08cp-8 
+pgamma 0x1.676501c60f566p+4 0x1.3cf4dab870666p+5 0x1.5d9f2edc16e81p-11 
+pgamma 0x1.c38db8c8e8e89p+1 0x1.c1bf336c8cccdp+0 0x1.ccfa25d7457c3p-1 
+pgamma 0x1.64db741bc5ef6p+5 0x1.4811c91c25333p+5 0x1.733d90be7f2a2p-1 
+pgamma 0x1.d9e98b905026dp+4 0x1.132dedda1a666p+5 0x1.b2f25e3c469cp-3 
+pgamma 0x1.a750d8cc6d4dap+0 0x1.59e0479134ccdp+4 0x1.24e57799c23cp-55 
+pgamma 0x1.1a245abe44287p+2 0x1.87693b150b334p+3 0x1.9fa2b57fb1534p-10 
+pgamma 0x1.aec023a089f2ep-1 0x1.d3f1fabb9999ap-2 0x1.a66c594c94bb6p-1 
+pgamma 0x1.e7441921e7e07p+3 0x1.5159187b1199ap+4 0x1.6f1f4e01c5973p-4 
+pgamma 0x1.df0b66dee2fedp+3 0x1.3ade33f6ed333p+5 0x1.f7577b70701f9p-24 
+pgamma 0x1.4f80f68a1e284p+4 0x1.dccc16e7c599ap+4 0x1.485e466fe3815p-5 
+pgamma 0x1.23bd8548b626ap+5 0x1.89fdc1ca84666p+5 0x1.9a1adac04d4afp-6 
+pgamma 0x1.1b17bcef8d05cp+4 0x1.a6cff4db4199ap+4 0x1.fc1297b8d4dd3p-6 
+pgamma 0x1.37b1cc343ed8cp+5 0x1.a3010d7324001p+4 0x1.f993aae3351b1p-1 
+pgamma 0x1.099451013bc4fp+7 0x1.3aa9d0e9f799ap+5 0x1p+0 
+pgamma 0x1.389fadb2fd2ap+3 0x1.1ba18915b6666p+2 0x1.f5fc065e43202p-1 
+pgamma 0x1.166aec7fe5fa5p+5 0x1.9af829ef38001p+3 0x1.ffff29386f4bfp-1 
+pgamma 0x1.b704685712204p+3 0x1.1dcc4a929199ap+4 0x1.4b0a0840fe9cep-3 
+pgamma 0x1.88b06f1e44cadp+4 0x1.8fb0b3d5ce667p+3 0x1.fe99442097ad4p-1 
+pgamma 0x1.00b1a521df2d2p+2 0x1.19597c2918001p+3 0x1.ad28bf11a3e06p-6 
+pgamma 0x1.9a55cadac4897p+4 0x1.caade85eccccdp+4 0x1.33d7a81ff83c9p-2 
+pgamma 0x1.16030743398fep+7 0x1.8320b7c52a667p+4 0x1p+0 
+pgamma 0x1.40bf3ceb5e775p+5 0x1.440e3c54c0ccdp+5 0x1.faca2a27073d2p-2 
+pgamma 0x1.d674a338911e1p+4 0x1.2c4e4ea47c666p+5 0x1.55abfb219dc4ap-4 
+pgamma 0x1.5d0398d1f2f18p+3 0x1.167a221d96667p+4 0x1.594cc20461745p-5 
+pgamma 0x1.2b2967316fe94p+6 0x1.42d3b9268599ap+5 0x1.ffff584134a7cp-1 
+pgamma 0x1.1051aa37d9779p+6 0x1.94051aee90001p+3 0x1p+0 
+pgamma 0x1.4a0da29d2a361p+5 0x1.dab24c02b3334p+4 0x1.f33205cd1c9b7p-1 
+pgamma 0x1.97cb6e0e5820bp+2 0x1.f6972827ep+2 0x1.502032f3dab48p-2 
+pgamma 0x1.71dcdee7c5504p+5 0x1.19933f754199ap+3 0x1.fffffffff7ed3p-1 
+pgamma 0x1.85d389446187ep+2 0x1.6b7104b033334p+3 0x1.26f716a8d4d86p-5 
+pgamma 0x1.87ba2b594cecfp+6 0x1.3cde57082b99ap+5 0x1.ffffffffeff3ap-1 
+pgamma 0x1.bc4a1a0d9baeap+3 0x1.3730c377cd99ap+4 0x1.77ece5a579f95p-4 
+pgamma 0x1.41eec677aba79p+4 0x1.6c863a1c2accdp+5 0x1.9daf148374dd3p-21 
+pgamma 0x1.04330fe24ede6p+4 0x1.88b87cbb73333p+2 0x1.ff501522d5d01p-1 
+pgamma 0x1.768c9a2a1bd6bp+3 0x1.8b2390d531333p+5 0x1.0205838fe7038p-52 
+pgamma 0x1.d854abbd552c2p+4 0x1.2e368aa557333p+5 0x1.4a74b18204b8cp-4 
+pgamma 0x1.f8917485568d8p+3 0x1.f258167914ccep+3 0x1.1b34c2765fc4p-1 
+pgamma 0x1.769b3e3046bfcp-1 0x1.0ad282a5a6667p+0 0x1.fec4a67147a37p-2 
+pgamma 0x1.26913ce1f6111p+3 0x1.110a51d778666p+5 0x1.fda07ba7e4c84p-33 
+pgamma 0x1.a4c231066bae4p+3 0x1.5f7017e33e667p+4 0x1.07efa15e269d5p-6 
+pgamma 0x1.96ec66bfcd29fp+3 0x1.6186dc7caaccdp+5 0x1.530396d581127p-38 
+pgamma 0x1.1818a772a4b5ap+4 0x1.e115c6fbap+1 0x1.fffdb08fdd899p-1 
+pgamma 0x1.49110303393f1p+2 0x1.6b5f69dd58001p+4 0x1.5b77361dae94bp-27 
+pgamma 0x1.078d19701fa94p+3 0x1.634261131e666p+5 0x1.608e840e1cc1fp-60 
+pgamma 0x1.e996816a68ce4p+5 0x1.182f029214666p+5 0x1.fff18fd6f95bbp-1 
+pgamma 0x1.f8ca4a4aa0af8p+4 0x1.e87f62408cccep+3 0x1.ffc1c51c89477p-1 
+pgamma 0x1.904b645833f9fp+4 0x1.d43ea693d6667p+4 0x1.c77346b076fadp-3 
+pgamma 0x1.27214f883f498p+5 0x1.5c3bbb4938666p+5 0x1.3f733ed22557ap-3 
+pgamma 0x1.3f68e496b4987p+5 0x1.65a9607d8999ap+4 0x1.ff820df3db2ep-1 
+pgamma 0x1.9dfcce8f6349ap+5 0x1.0e6db45c03334p+4 0x1.ffffffd184ff7p-1 
+pgamma 0x1.fc9a75c2282b2p+2 0x1.c5df94860199ap+4 0x1.10b47e0feb8f1p-26 
+pgamma 0x1.d8e006bf657d8p+5 0x1.4d1451cf8d99ap+4 0x1.ffffffe6ff122p-1 
+pgamma 0x1.85b010eae7c5dp+5 0x1.4d21966e84ccdp+5 0x1.b96bebb44fc9ap-1 
+pgamma 0x1.78fd74cb93b84p+2 0x1.ee9289f5e6667p+2 0x1.1919cdc04ad58p-2 
+pgamma 0x1.6aa196bf11561p+6 0x1.07989dc9be666p+5 0x1.fffffffffdc3fp-1 
+pgamma 0x1.b7f3ced97d365p-3 0x1.9ee1da519999ap-4 0x1.c42f1ec6fd902p-1 
+pgamma 0x1.6510b9a42b07fp+5 0x1.00e785957e667p+4 0x1.fffff6b5b1f0dp-1 
+pgamma 0x1.2d191074251a1p+5 0x1.7c12b69f22ccdp+5 0x1.13a49025ea805p-4 
+pgamma 0x1.4279d0ca804a3p+0 0x1.5a9f7663ccccep-1 0x1.a9c117d07b18dp-1 
+pgamma 0x1.44604cf44f192p+2 0x1.0009905b9p+2 0x1.7d1b36b587861p-1 
+pgamma 0x1.c4ebce2ca967dp+2 0x1.5685275580001p+3 0x1.f6f7a36e30bp-4 
+pgamma 0x1.95c5a9407e40ep+7 0x1.8df07a4f2d99ap+5 0x1p+0 
+pgamma 0x1.c076d732b3282p+4 0x1.8a09bce25f334p+4 0x1.87b77675a1a24p-1 
+pgamma 0x1.e0e66943fd441p+4 0x1.f667ba58a4001p+4 0x1.b567e40718c9dp-2 
+pgamma 0x1.0fdbf2c5f93e4p-1 0x1.641d795f66667p-2 0x1.9648d971d660bp-1 
+pgamma 0x1.39217070de547p+4 0x1.ca824fe4c0001p+3 0x1.d1131f0074f2ep-1 
+pgamma 0x1.c0b805c7ca649p+4 0x1.8a98faa802666p+5 0x1.6eb33207f4b2fp-13 
+pgamma 0x1.228be7714daa8p+5 0x1.2f2c81a208p+5 0x1.ac90a98d18e6bp-2 
+pgamma 0x1.bd760b4fe3226p+4 0x1.baec488813333p+1 0x1.fffffff76dc03p-1 
+pgamma 0x1.32145fa6c373ap+5 0x1.44619bf341333p+5 0x1.81f287a158367p-2 
+pgamma 0x1.386e6f0057d9fp+2 0x1.8bfecce843333p+2 0x1.558678e890535p-2 
+pgamma 0x1.277886a43aa86p+5 0x1.48682104d2667p+4 0x1.ff5a061172aafp-1 
+pgamma 0x1.ff95822aabb0dp+5 0x1.730be388bd99ap+5 0x1.fb4dce7c05546p-1 
+pgamma 0x1.207608ba040fcp+4 0x1.bbb925439a667p+4 0x1.4a1fa05d7263p-6 
+pgamma 0x1.486ba4409df8fp-2 0x1.8675c93966667p-1 0x1.97fb973fc509bp-2 
+pgamma 0x1.7d3be16c418e4p+6 0x1.82f58bed44p+5 0x1.fffffe9d2c11bp-1 
+pgamma 0x1.52d9c415e696p+5 0x1.341e417d77333p+5 0x1.7c7468feabc27p-1 
+pgamma 0x1.7ca0b63abd25fp+2 0x1.02cab84ab3334p+2 0x1.ad89b420c648ap-1 
+pgamma 0x1.cfed25877145ap+3 0x1.24d7f26bde667p+4 0x1.83c2632951a2p-3 
+pgamma 0x1.9a6f6344b48dfp+2 0x1.80c1c3de5cccdp+4 0x1.4df2904649208p-24 
+pgamma 0x1.1dcda216ed1aep+5 0x1.0e6f18d2a9999p+5 0x1.4c11f34f6956ep-1 
+pgamma 0x1.0a462ba5e10dcp+8 0x1.3aaa10f79d99ap+5 0x1p+0 
+pgamma 0x1.9297dcbfac67ep+3 0x1.44196526ccccdp+5 0x1.60f762158bac1p-32 
+pgamma 0x1.cf6773c905516p+0 0x1.fd6eb77ac6667p+1 0x1.cd21592bc18bcp-4 
+pgamma 0x1.7510e6d8d2e4dp+1 0x1.0f97c4871999ap+3 0x1.7dad9e2cc130fp-8 
+pgamma 0x1.6848f8544e33p+0 0x1.e28274135999ap+0 0x1.ca2707a39820cp-2 
+pgamma 0x1.22fb8d8b98617p+5 0x1.8171870554ccep+3 0x1.ffffe283c9a2dp-1 
+pgamma 0x1.42ca8c94082bep+5 0x1.6ce9c720c8ccdp+5 0x1.c8d0f6c541cdcp-3 
+pgamma 0x1.8a4f120cb3d13p-4 0x1.e3c2ec1cp-4 0x1.972b512d688d7p-1 
+pgamma 0x1.04522dc87a8fdp+2 0x1.6ceac2e368001p+3 0x1.0f1921a834f6ep-9 
+pgamma 0x1.1d0d98332e658p+3 0x1.0e8d2d252b334p+3 0x1.3603b6ffddae2p-1 
+pgamma 0x1.13d7a57ca8807p+4 0x1.e1f5f78166667p+2 0x1.fe766df123ae4p-1 
+pgamma 0x1.8b820bd482f9cp+7 0x1.03612f24f9999p+5 0x1p+0 
+pgamma 0x1.164d4caefa818p+6 0x1.84de9ce2bd99ap+4 0x1.ffffffff01ba1p-1 
+pgamma 0x1.149ffd7213efdp+4 0x1.156ba14d86666p+5 0x1.3bfd3a16190d3p-13 
+pgamma 0x1.36a82e799d0acp+3 0x1.d09b8f9314ccep+3 0x1.6c78c4fada187p-4 
+pgamma 0x1.3e387274ea46p+6 0x1.877a29775199ap+5 0x1.fff42404d2ee9p-1 
+pgamma 0x1.ca718cd63a9cp+3 0x1.ce2420c3d6667p+3 0x1.0bb929358f3ecp-1 
+pgamma 0x1.065ce4bd9081bp+5 0x1.a4fdb286d999ap+4 0x1.c8a733556fc53p-1 
+pgamma 0x1.60c4e7c622573p+0 0x1.f7f6e70ed3333p+1 0x1.c62527ef2d256p-5 
+pgamma 0x1.8216fd273ff0fp+4 0x1.0f8cd42d62p+5 0x1.182f5fb64c02dp-5 
+pgamma 0x1.16bae41547867p+2 0x1.246dad6296667p+3 0x1.ee2bae3da68bap-6 
+pgamma 0x1.93a6d5a21b50ap+3 0x1.a8383f9ac6667p+4 0x1.bcd2fd71da616p-12 
+pgamma 0x1.68eec25562ca7p+4 0x1.40c0385cd999ap+5 0x1.1b3820bd0a86dp-11 
+pgamma 0x1.6861a17d67037p+3 0x1.f632cb41d3334p+3 0x1.f882250914703p-4 
+pgamma 0x1.1361a072065c4p+5 0x1.14a202ce9p+5 0x1.0625d0dc89126p-1 
+pgamma 0x1.00b60c0a48b35p+6 0x1.354effd5dd333p+5 0x1.ffe0a12f169d3p-1 
+pgamma 0x1.178214bce7fc6p+3 0x1.a40d0a8cc999ap+3 0x1.95a581b8a4105p-4 
+pgamma 0x1.11b0409562d89p+4 0x1.0fa1ef43ceccdp+5 0x1.ba15942740c2cp-13 
+pgamma 0x1.697c85162d91p+7 0x1.8cdc472d02ccdp+5 0x1p+0 
+pgamma 0x1.e8effc2a093c2p+5 0x1.b98c7fda5b334p+4 0x1.ffffed5b4ed65p-1 
+pgamma 0x1.451156b75cc1p+6 0x1.744d30212f99ap+5 0x1.fffe85f1dc123p-1 
+pgamma 0x1.44766cc942cb1p+5 0x1.4d1d77811cccep+3 0x1.ffffffd85ce49p-1 
+pgamma 0x1.51b6f6bfe5beep+2 0x1.712aa1a023334p+3 0x1.932f2bd8deabfp-7 
+pgamma 0x1.f310f929cb61ap+6 0x1.839a220f62667p+4 0x1p+0 
+pgamma 0x1.ec88bf381b3cbp+5 0x1.714756c19e667p+4 0x1.ffffffc9f2997p-1 
+pgamma 0x1.905dfd819dfa1p+5 0x1.392cea91aa666p+5 0x1.e6e7f9500c0fdp-1 
+pgamma 0x1.0ec4d345f5b48p-3 0x1.48a270ce66667p-4 0x1.c14952ea3108ep-1 
+pgamma 0x1.3b74b05ab6a64p+5 0x1.2c595ecafaccdp+5 0x1.4779033c6449ap-1 
+pgamma 0x1.302972864408p+5 0x1.4c5c55a892p+5 0x1.37fa80eee5fc5p-2 
+pgamma 0x1.1df6ede433e34p+2 0x1.f8920c8f2b334p+3 0x1.a8f7582acb973p-16 
+pgamma 0x1.020d6c47ec135p+6 0x1.1cedaef2cp+5 0x1.fffb9d033a08ep-1 
+pgamma 0x1.183f5942c683ap+6 0x1.93ef8cad26667p+3 0x1p+0 
+pgamma 0x1.49fe93b407b62p+6 0x1.f00fa064ecccep+3 0x1p+0 
+pgamma 0x1.3f0623fa6af15p+5 0x1.1680e91b3b333p+5 0x1.9e7171decd9fbp-1 
+pgamma 0x1.36e9e24c1b5c8p+4 0x1.52f0237607334p+4 0x1.800740c1ca669p-2 
+pgamma 0x1.8ab16650c385fp+5 0x1.553705985199ap+5 0x1.b1d1da06396cap-1 
+pgamma 0x1.0b8db9b0ed489p+6 0x1.abe4753428ccdp+4 0x1.ffffffbae9ecdp-1 
+pgamma 0x1.65bf10798ca22p+6 0x1.b6e749e0d8ccdp+4 0x1.fffffffffffd6p-1 
+pgamma 0x1.d4d2f17d863f1p+5 0x1.5247850ac0666p+5 0x1.fa6be8a4a2029p-1 
+pgamma 0x1.706062a85c18p+5 0x1.2e1f23d826667p+4 0x1.ffffbe5cc3c36p-1 
+pgamma 0x1.05486ce3b5a5bp+3 0x1.0b011448cb334p+3 0x1.0aefef6d6f0dap-1 
+pgamma 0x1.c4d43fcaea3c2p+3 0x1.3018139903334p+3 0x1.d81ab1101b2a7p-1 
+pgamma 0x1.ba898d93d0208p+6 0x1.56cdebcd4399ap+5 0x1.ffffffffffdd7p-1 
+pgamma 0x1.36e5b77e3c30bp+8 0x1.0e88577f70ccdp+4 0x1p+0 
+pgamma 0x1.28fd51d8ce448p+5 0x1.3619edaa25333p+5 0x1.a986200745a5bp-2 
+pgamma 0x1.0682b829a0c87p+1 0x1.c001dabcecccdp+1 0x1.db2351fe275e1p-3 
+pgamma 0x1.143aed2f61e89p+4 0x1.82bbb9f500001p+3 0x1.d7810d8ddf15p-1 
+pgamma 0x1.19a91cf3da919p+3 0x1.85b1c7f9a4ccep+3 0x1.509664105af5p-3 
+pgamma 0x1.01d01e482b454p+5 0x1.362e4269b6667p+4 0x1.fcf7cf1d6a68bp-1 
+pgamma 0x1.ca40b23a3d4b3p+5 0x1.5cc5f61950ccdp+5 0x1.f2853b8d8a9f4p-1 
+pgamma 0x1.15366e6471a57p+7 0x1.82e45637a199ap+5 0x1p+0 
+pgamma 0x1.41dd5ab25fffap+4 0x1.5ad1da9a4999ap+5 0x1.3c0576918e98dp-18 
+pgamma 0x1.0b4e7693afe13p+3 0x1.5e9f3fe998ccdp+4 0x1.1c27e9c8e24ccp-14 
+pgamma 0x1.0e31a9f8f5f5ap+5 0x1.3464b3b1b999ap+3 0x1.fffff68cd6be2p-1 
+pgamma 0x1.3eddcf34910e5p+2 0x1.0a475c5p+2 0x1.694dfa4a90e78p-1 
+pgamma 0x1.bea38c6a590e6p+3 0x1.d31834583b334p+4 0x1.008890228fdap-12 
+pgamma 0x1.8286a9ea78ea6p+0 0x1.c84364d85999ap+1 0x1.be8f010613835p-4 
+pgamma 0x1.0f98ff88f7b92p+4 0x1.a6820bedc4ccdp+4 0x1.4c3e1ca1c85e3p-6 
+pgamma 0x1.2f51a2ad27ee5p+5 0x1.7a40b7593cccdp+4 0x1.fd4eef582372dp-1 
+pgamma 0x1.9c8d61632270fp+0 0x1.3a842f5a6p+1 0x1.61f4b6637de2cp-2 
+pgamma 0x1.5c1b691b74926p+6 0x1.dbf4fed5c8ccdp+4 0x1.ffffffffff33dp-1 
+pgamma 0x1.80c96e243bacap+5 0x1.3c978bd71ap+5 0x1.d0375d8d06b3cp-1 
+pgamma 0x1.185fd86b49162p+5 0x1.df6a7546c4001p+4 0x1.a73b67870087bp-1 
+pgamma 0x1.6d343a11320eap+0 0x1.71c43deea6667p+0 0x1.35a68fd70f616p-1 
+pgamma 0x1.f3caa78086c34p+3 0x1.3d1091c39b334p+4 0x1.6201f8f8c2159p-3 
+pgamma 0x1.2bcd56c0c4125p+2 0x1.56d7387e4999ap+2 0x1.bfe7c7092b4fap-2 
+pgamma 0x1.94fb4af47b6ecp+1 0x1.411dfcf1a6667p+0 0x1.ddcfa068d1d0ap-1 
+pgamma 0x1.cd1df086ca5d3p+3 0x1.506c3936c199ap+5 0x1.5f6eb201c693bp-29 
+pgamma 0x1.381873c6af412p+5 0x1.05a8a87a07334p+4 0x1.fffe1fe99b2e1p-1 
+pgamma 0x1.6489ecc1f517cp+3 0x1.d8015f39c999ap+3 0x1.634666ae684a8p-3 
+pgamma 0x1.284dfcc96bf58p+6 0x1.493ae36c7ap+5 0x1.fffe7531860c1p-1 
+pgamma 0x1.3cca7c0aeda21p+4 0x1.4bf24b518e667p+4 0x1.c7f05bcc79fp-2 
+pgamma 0x1.856c54a38357dp-3 0x1.1db911969999ap-1 0x1.aa8ed06bf11acp-2 
+pgamma 0x1.c2b3ee80134ccp+1 0x1.557a701d86666p+1 0x1.804284097354p-1 
+pgamma 0x1.5ebe31bb1766p+4 0x1.244189811d999p+5 0x1.5bd15e6b41c97p-9 
+pgamma 0x1.24571d0d48489p+3 0x1.dba86e4cf999ap+1 0x1.f8d49460422e6p-1 
+pgamma 0x1.d6940f455509fp+0 0x1.c83b6cb326666p+1 0x1.6350f53c6af8ep-3 
+pgamma 0x1.e81b81863bec8p+2 0x1.fe0720458c001p+4 0x1.b2238fe9356d5p-35 
+pgamma 0x1.4e6be4ff86496p+3 0x1.4b1d32842d99ap+4 0x1.b3a32165e478p-9 
+pgamma 0x1.b4a979d23a126p+3 0x1.590799c98f334p+4 0x1.d630304abe18bp-6 
+pgamma 0x1.0c4911586520ep+1 0x1.03bb49f57cccdp+2 0x1.3887ddd95fe8bp-3 
+pgamma 0x1.6f982b4f19618p+3 0x1.bc8b15a766667p+3 0x1.1a4aecf51aab5p-2 
+pgamma 0x1.8aa93ea7ee54fp+4 0x1.3db5f59f8f99ap+5 0x1.a4122be994605p-9 
+pgamma 0x1.a7ed64f38d3b3p+1 0x1.266b9deb4p+2 0x1.38fe2ee963cbap-2 
+pgamma 0x1.208292931d9cap+4 0x1.bbd94a78f3334p+3 0x1.bb982dd450136p-1 
+pgamma 0x1.59eda0d7d5d92p+1 0x1.b6c80d087cccdp+2 0x1.8abf727a744f6p-6 
+pgamma 0x1.e7c608e9c11c1p+5 0x1.09866984d2666p+5 0x1.fffaee3499f64p-1 
+pgamma 0x1.86dc408357be5p+5 0x1.87a90d279c666p+5 0x1.06d091041ed2p-1 
+pgamma 0x1.49e9f3b2a11c1p+3 0x1.5428c3bee3334p+3 0x1.00b7a1af24b4p-1 
+pgamma 0x1.d3c33cb525dc5p+1 0x1.2a1fbc3a84p+4 0x1.97acb314cb16dp-26 
+pgamma 0x1.2bdf7d8f0060ep+2 0x1.7d969c8b5cccdp+2 0x1.570b19e067bf6p-2 
+pgamma 0x1.9074840005674p+4 0x1.384d5fe49cp+5 0x1.74ed334bdea45p-8 
+pgamma 0x1.a336855fed835p+2 0x1.a9ae4d4a53333p+1 0x1.e1f0a382d8554p-1 
+pgamma 0x1.dd0c34afe3d1ep+6 0x1.3998b5fc9accdp+5 0x1p+0 
+pgamma 0x1.0b32ce293cb19p+4 0x1.8f2178ea33333p+2 0x1.ff6f531715f49p-1 
+pgamma 0x1.fe8e4c6788a83p+3 0x1.370696648ep+5 0x1.d320f8e9fef84p-21 
+pgamma 0x1.325cf063c6b44p+3 0x1.219715f7e4ccdp+4 0x1.252fac766686p-7 
+pgamma 0x1.caf9c70230146p+4 0x1.ed0d1fadc2667p+4 0x1.7aa951a491cfap-2 
+pgamma 0x1.3a4f03aaaf47ap+4 0x1.6ed9ab9882p+5 0x1.55484eff706bp-22 
+pgamma 0x1.78596b8f3261cp+0 0x1.53914f3e1999ap+2 0x1.703b402ac950cp-7 
+pgamma 0x1.0da3b2a2014d2p+6 0x1.1e5504755cccdp+5 0x1.fffece2b1ac5bp-1 
+pgamma 0x1.09a1d61bf2d8fp+3 0x1.f7129636acccdp+2 0x1.371241118f54dp-1 
+pgamma 0x1.57104cce8b4cdp+4 0x1.a3b3dfbdccccep+3 0x1.f512834822d8dp-1 
+pgamma 0x1.d905e330ff16fp+3 0x1.359b665a0f333p+5 0x1.614d6781e05b8p-23 
+pgamma 0x1.6a9c5dd5e4222p+4 0x1.dc21a6a74f334p+4 0x1.64c4e6d600b63p-4 
+pgamma 0x1.e2db6c4487845p+0 0x1.3419ac7836667p+2 0x1.b17640f33e99p-5 
+pgamma 0x1.068e8dc2bc2ecp+2 0x1.fdca507d4999ap+2 0x1.e3f57a34f514bp-5 
+pgamma 0x1.5105227bb0286p+5 0x1.188e4c2a01999p+5 0x1.c29eab44761bp-1 
+pgamma 0x1.c20138583ae07p+2 0x1.afdc966250001p+3 0x1.3e48c5697a31dp-6 
+pgamma 0x1.ae0edff147ffdp+2 0x1.dc0d9ccc40001p+3 0x1.231597073563ap-8 
+pgamma 0x1.3ce1e5a3b1ba4p+3 0x1.c27b6b02b599ap+4 0x1.aae369caaa142p-20 
+pgamma 0x1.5f545b472f79ep+2 0x1.14aa41f113334p+4 0x1.6e6bf8d1f8967p-15 
+pgamma 0x1.8fb118d56c20fp+4 0x1.8e8bf9b598666p+5 0x1.04a2ab1f8250cp-17 
+pgamma 0x1.5125b87979dabp+5 0x1.59145f755199ap+3 0x1.ffffffec1f20dp-1 
+pgamma 0x1.17e64e2a8f85fp+4 0x1.d8ecd74ee199ap+4 0x1.58154a8253a7fp-8 
+pgamma 0x1.0cf8be3b7f5f7p+3 0x1.47aa67b782667p+4 0x1.393dcf99b8758p-12 
+pgamma 0x1.18de7993b023p+3 0x1.b04faabb28001p+4 0x1.3dda3da5cee9cp-21 
+pgamma 0x1.1f3697266fd18p+5 0x1.43ffb33560666p+5 0x1.f03a08457e373p-3 
+pgamma 0x1.b2ef38b68aeaep-2 0x1.2a0c392f66667p-1 0x1.2cbccc044b86p-1 
+pgamma 0x1.4a7aa45f60c42p+5 0x1.0e20362cfaccdp+5 0x1.cba83b4174e5bp-1 
+pgamma 0x1.18d8b7839186p+5 0x1.601edc4c4accdp+5 0x1.4dfa70507b586p-4 
+pgamma 0x1.47447211e2f3bp+5 0x1.46f1cd7afa667p+4 0x1.ffec640eeef0ep-1 
+pgamma 0x1.3e25f5d1980adp+6 0x1.65a9c9a306ccdp+5 0x1.fffeeac3778f6p-1 
+pgamma 0x1.782acaec4749fp+6 0x1.4337a68b51333p+5 0x1.fffffffeac12dp-1 
+pgamma 0x1.9dd527e0dc855p+1 0x1.549558dd4p+1 0x1.6791f3a56d90fp-1 
+pgamma 0x1.cff1b750a721fp+6 0x1.7c79af5b28666p+5 0x1.ffffffffff926p-1 
+pgamma 0x1.77d15e5d29a0ap+4 0x1.8f8d99dd62667p+4 0x1.a089f10d395c1p-2 
+pgamma 0x1.a4222d4dc8825p+5 0x1.8e5e8fa948ccdp+4 0x1.fffef22d1fe7cp-1 
+pgamma 0x1.1cdb812a1fa8cp+3 0x1.433bb705e3334p+3 0x1.8c435f7ca0ba9p-2 
+pgamma 0x1.3bfa9b19a47ddp+4 0x1.1086ca9730666p+5 0x1.176491393808dp-9 
+pgamma 0x1.4a37e9efa932ap+3 0x1.b6349be2a4ccdp+4 0x1.f7d2cccdef1d2p-18 
+pgamma 0x1.14c14af3c108cp+4 0x1.e7f97acd3d99ap+4 0x1.4ff1184309c37p-9 
+pgamma 0x1.0f825ab20e524p+3 0x1.ee331fa408001p+3 0x1.4935402220ec4p-6 
+pgamma 0x1.a24b8fcbe72a9p+3 0x1.07d5da867e667p+3 0x1.e0ac2104d3a96p-1 
+pgamma 0x1.452e5cf7ab6d7p+5 0x1.53055bb58ap+5 0x1.a7a037605abc6p-2 
+pgamma 0x1.57cd684f1f884p+2 0x1.1ca13da4c4ccdp+3 0x1.a10e40b394119p-4 
+pgamma 0x1.c9794e39e5e07p+3 0x1.d54cb360a0001p+4 0x1.51fce60d57ad8p-12 
+pgamma 0x1.4633fb3ca29a3p+7 0x1.850899d3c0ccdp+5 0x1p+0 
+pgamma 0x1.61dd02cbd072fp+4 0x1.aba6f4b8e8001p+4 0x1.81e4c67b531a1p-3 
+pgamma 0x1.dde12dac59c4ep+3 0x1.44712fc799333p+5 0x1.1ade9afa8d391p-25 
+pgamma 0x1.715a36525e1b3p+4 0x1.048092ebdf333p+5 0x1.2885750f2a9bep-5 
+pgamma 0x1.4c63e68f4173dp+5 0x1.347beaba56p+5 0x1.661901fd8c5f8p-1 
+pgamma 0x1.bab7c1ae86e38p+1 0x1.c6b43f331999ap+0 0x1.c8a62c6dbefbcp-1 
+pgamma 0x1.a1e659e7cb0d6p+4 0x1.bf48030f0f334p+4 0x1.8a796d967c204p-2 
+pgamma 0x1.a7549f6c59875p+2 0x1.8318653ec6667p+2 0x1.47ac680df7cd8p-1 
+pgamma 0x1.de4b55329bd6ap+3 0x1.12a534702f333p+5 0x1.98692a6f248eep-17 
+pgamma 0x1.59c41a4fee574p+6 0x1.6daf42e01eccdp+5 0x1.ffffecbf7d66ap-1 
+pgamma 0x1.e5f58bfce0a72p+4 0x1.c0a1abd980ccdp+4 0x1.607e5ba3bc0c2p-1 
+pgamma 0x1.9f75aceb2def3p+5 0x1.cccce5610599ap+4 0x1.ffe84fecd8f9ap-1 
+pgamma 0x1.e6f431909c908p+9 0x1.1a899e2bfp+8 0x1p+0 
+pgamma 0x1.8f62bf3b43de6p+8 0x1.5a1f325968p+8 0x1.fe7453cd70fffp-1 
+pgamma 0x1.f630b3304d447p+7 0x1.3ac74939cap+8 0x1.f8425bd84db18p-15 
+pgamma 0x1.743efe08fec68p+5 0x1.57dd3f1688p+6 0x1.3ce62cbb7c323p-23 
+pgamma 0x1.2f55c5a78320dp+6 0x1.e10b95e73p+6 0x1.9e7f033c5eb76p-20 
+pgamma 0x1.da8b16326c2c9p+7 0x1.ed495f9f82p+8 0x1.8e99e68839a26p-157 
+pgamma 0x1.4d9f4b2872d5dp+9 0x1.f052caebbep+8 0x1.fffffffffbf62p-1 
+pgamma 0x1.c39b6ccc44d56p+5 0x1.6d47d3899cp+7 0x1.15ad6c0b24d1cp-132 
+pgamma 0x1.90e4bc3cb8e82p+6 0x1.94ebad0882p+8 0x1.93a31cbe6a14fp-382 
+pgamma 0x1.a50ecd9af7f2bp+7 0x1.6712f04f86p+8 0x1.5509bca73210ap-67 
+pgamma 0x1.123b2d831924fp+9 0x1.ccbe76988cp+7 0x1p+0 
+pgamma 0x1.f85c69170a834p+7 0x1.c928329f54p+7 0x1.dfe1e755ff5c8p-1 
+pgamma 0x1.2e9684e66d212p+8 0x1.c15616017ap+8 0x1.31c9aae7e86fbp-49 
+pgamma 0x1.66bfce18558e5p+9 0x1.a3ef6587cep+8 0x1p+0 
+pgamma 0x1.ff64c0eb6c855p+6 0x1.52b87507ccp+7 0x1.118933c81eb02p-12 
+pgamma 0x1.dfdf79b44ef98p+6 0x1.070dc4f60cp+7 0x1.402395d983cb2p-3 
+pgamma 0x1.fd4cb0b0533d3p+8 0x1.e069d0044ep+8 0x1.cf1815020c4ddp-1 
+pgamma 0x1.fdec14d119364p+9 0x1.aad4763a1p+8 0x1p+0 
+pgamma 0x1.21ac557cd596fp+9 0x1.9bfcc431d4p+7 0x1p+0 
+pgamma 0x1.2b2cd6014a2cbp+10 0x1.acf05bac4p+8 0x1p+0 
+pgamma 0x1.dd9e943b4a26dp+6 0x1.b477f9fc4p+5 0x1.ffffffffe7d11p-1 
+pgamma 0x1.7d79d80ececf5p+7 0x1.251675934cp+7 0x1.ffcdafc1daa82p-1 
+pgamma 0x1.035189a395f5fp+11 0x1.cd2e4504fap+8 0x1p+0 
+pgamma 0x1.7087eab0209a2p+8 0x1.1f94620dep+6 0x1p+0 
+pgamma 0x1.3fe5983f60711p+10 0x1.ba0dce063ap+8 0x1p+0 
+pgamma 0x1.217cd6ef252a7p+8 0x1.591ac73e4ep+8 0x1.a6d6aba2221ffp-11 
+pgamma 0x1.02dd417206aefp+6 0x1.296f47e00cp+7 0x1.764034fdb1ebap-62 
+pgamma 0x1.fa68981db3801p+5 0x1.b1f94573ep+5 0x1.c63a9bdb4d0aep-1 
+pgamma 0x1.b76e633fca66fp+5 0x1.56960a1a98p+6 0x1.3b5cd2cc50adbp-14 
+pgamma 0x1.eca2ed95b7c35p+8 0x1.8b5a568e2ap+8 0x1.ffffa8fcf43a6p-1 
+pgamma 0x1.4ea7f0dae2e27p+5 0x1.03eb0b4768p+6 0x1.1f18d9c48cc95p-11 
+pgamma 0x1.a09b2c9c8888dp+9 0x1.8eba7a5158p+8 0x1p+0 
+pgamma 0x1.477dc06beffbep+10 0x1.c6904c7bbcp+7 0x1p+0 
+pgamma 0x1.b3e51fa17f189p+9 0x1.932af2bc96p+8 0x1p+0 
+pgamma 0x1.d6a825f90fef5p+6 0x1.03ff8599p+6 0x1.fffffe814e162p-1 
+pgamma 0x1.ba9124a03302ep+7 0x1.ad8952d5f4p+7 0x1.5b45783c2099p-1 
+pgamma 0x1.9a94e192a5432p+9 0x1.1eeb6aa2c4p+7 0x1p+0 
+pgamma 0x1.c6c3d642eaefdp+8 0x1.e4a91fd49p+8 0x1.5c786d162673fp-4 
+pgamma 0x1.c9759fffcece8p+9 0x1.303c15843ap+8 0x1p+0 
+pgamma 0x1.b626009a0d053p+9 0x1.f1011d84ecp+7 0x1p+0 
+pgamma 0x1.d41b31a675f03p+8 0x1.9bbd9b664ep+8 0x1.fe1882c820b4fp-1 
+pgamma 0x1.273a4145a5ae2p+3 0x1.f223d0743p+6 0x1.0bba09e5a193ep-306 
+pgamma 0x1.b68c2e16f9a8fp+6 0x1.1d81b77c9p+7 0x1.6af37ba064921p-10 
+pgamma 0x1.2a30d67201b9p+8 0x1.9dba5ed9fp+7 0x1.ffffffaf546a1p-1 
+pgamma 0x1.6455fe602d0abp+6 0x1.f9bbc135d4p+7 0x1.fdaf69673b052p-150 
+pgamma 0x1.1299959725776p+5 0x1.81b7d6a5a8p+6 0x1.dca94b9e1bc88p-59 
+pgamma 0x1.4aadb955788d6p+9 0x1.40473f2e96p+8 0x1p+0 
+pgamma 0x1.4591e7c52b83dp+3 0x1.7d0a4cc948p+6 0x1.dd2517a1a45d3p-190 
+pgamma 0x1.21bfbb2a23288p+9 0x1.e0bbd6fb76p+8 0x1.fffe8e9bf3d7ap-1 
+pgamma 0x1.f642de350714ep+7 0x1.3770416312p+8 0x1.1599e9b347815p-13 
+pgamma 0x1.299a5383fbc37p+6 0x1.f80287c4f8p+6 0x1.147e18d298af7p-25 
+pgamma 0x1.2a162f7b672cep+8 0x1.1b5b650154p+8 0x1.9f045bfa9b1f9p-1 
+pgamma 0x1.370bb96f6d2bbp+6 0x1.29c7f6ec2p+6 0x1.52d2cee9cb398p-1 
+pgamma 0x1.414c70666de32p+7 0x1.07afea0aa8p+7 0x1.fb813f753c30ep-1 
+pgamma 0x1.1d6a6472fc8bbp+6 0x1.02743c65ap+6 0x1.9b1afc7a46036p-1 
+pgamma 0x1.33a8c8340181bp+7 0x1.d81a833044p+7 0x1.0359f74e595c3p-31 
+pgamma 0x1.c6d3a02ce3599p+8 0x1.71dcb48008p+8 0x1.fffdae941463ep-1 
+pgamma 0x1.7728958ebd1e3p+9 0x1.ee76fccf7cp+7 0x1p+0 
+pgamma 0x1.c28fba577d53ap+8 0x1.0836b248cap+8 0x1p+0 
+pgamma 0x1.6dc9b3c8f3693p+9 0x1.b9bbf7c404p+7 0x1p+0 
+pgamma 0x1.41d453467f0ffp+8 0x1.90fc5a61f6p+8 0x1.8679483b74a66p-17 
+pgamma 0x1.80cd526dd21f1p+9 0x1.e2b5b19cep+8 0x1p+0 
+pgamma 0x1.75a8cb5d7998bp+8 0x1.f3993c0f3p+7 0x1.fffffffff76d7p-1 
+pgamma 0x1.810e4ded393bcp+6 0x1.5ceb3aep+7 0x1.2ef94f2dd56cbp-41 
+pgamma 0x1.65b27ec57cf03p+7 0x1.57cb317b16p+8 0x1.45903ec950747p-91 
+pgamma 0x1.b2e6c458e9a6bp+10 0x1.85a0357812p+8 0x1p+0 
+pgamma 0x1.44f1fa2f031f2p+7 0x1.3aeaf9a602p+8 0x1.c2c9c57535fc6p-86 
+pgamma 0x1.cc36e0db0d7f4p+8 0x1.ae3550c1b8p+7 0x1p+0 
+pgamma 0x1.c35829a722acdp+7 0x1.1739d8a10cp+8 0x1.4d2f6f331d9cp-12 
+pgamma 0x1.7d8f0d98e2c72p+5 0x1.cb9cc689fp+6 0x1.292b4068dd8f5p-53 
+pgamma 0x1.8e8ce38f78071p+5 0x1.53fd347bf8p+7 0x1.c6488469dd3f2p-133 
+pgamma 0x1.86c6dd793f007p+5 0x1.007056987cp+7 0x1.cc888519853d4p-69 
+pgamma 0x1.7d205c759ec36p+6 0x1.c56ff1c4eap+8 0x1.ba639a7170f7ap-510 
+pgamma 0x1.2ad0dbea4101bp+7 0x1.2f0dedcb68p+8 0x1.f76feacbd9f89p-93 
+pgamma 0x1.bcae462761ee5p+8 0x1.983579904p+7 0x1p+0 
+pgamma 0x1.be860a1e23f7cp+6 0x1.635b517f88p+7 0x1.647f1ade98768p-28 
+pgamma 0x1.83997d3f79cdap+10 0x1.82646eeab4p+8 0x1p+0 
+pgamma 0x1.0826ea67320e3p+8 0x1.2f4857a9d6p+8 0x1.4295c37d13b52p-7 
+pgamma 0x1.1f7c606f9c913p+7 0x1.306c7777fp+8 0x1.a2d8f12fcea8bp-103 
+pgamma 0x1.0ac9ad36f37bcp+8 0x1.4effd3a28ap+8 0x1.0de147a0b3302p-15 
+pgamma 0x1.2d9caf52945c8p+8 0x1.e329f9b358p+8 0x1.0db2ff02e2423p-71 
+pgamma 0x1.15a41165be11p+8 0x1.8c0606d658p+8 0x1.f05fe8c1dae2fp-37 
+pgamma 0x1.9bfe4da38ce4ep+8 0x1.88af95ccb4p+8 0x1.abb3e45abd1f7p-1 
+pgamma 0x1.fb313e39e2a22p+6 0x1.dae65d96a8p+6 0x1.8cc3efa9e2ff4p-1 
+pgamma 0x1.8b5480cfe558bp+8 0x1.af04a6dddp+7 0x1p+0 
+pgamma 0x1.630ca58ec24fcp+9 0x1.cd208a1bcap+8 0x1p+0 
+pgamma 0x1.fcd281a365b3p+8 0x1.115b89734p+8 0x1p+0 
+pgamma 0x1.15cbdc92ba33p+6 0x1.f3d853061p+5 0x1.a0bfda7e26502p-1 
+pgamma 0x1.08e3d5b309ed7p+7 0x1.f9201d494cp+7 0x1.c9741d2e1f529p-67 
+pgamma 0x1.649fe18b593b7p+6 0x1.f1e033738p+5 0x1.ff6daf9afb53fp-1 
+pgamma 0x1.43f9da9959a42p+6 0x1.d1c67d1b5p+5 0x1.fe4432bab33bbp-1 
+pgamma 0x1.404f03507fcap+8 0x1.ba6213db34p+8 0x1.1b745b0073502p-34 
+pgamma 0x1.5fc4972bd20eap+8 0x1.dfd5c29262p+8 0x1.e913666985042p-35 
+pgamma 0x1.0f396129e89d8p+10 0x1.c3bb774414p+8 0x1p+0 
+pgamma 0x1.3e0d48acc6779p+10 0x1.b356c3fe46p+8 0x1p+0 
+pgamma 0x1.ced708a36f8cfp+6 0x1.a65c0a89b8p+6 0x1.ad2d749a00eb6p-1 
+pgamma 0x1.b5a5ca303e04ep+6 0x1.2b7d4076b8p+7 0x1.333312a58bc12p-13 
+pgamma 0x1.5220af58b6e09p+10 0x1.689f5ad7d8p+8 0x1p+0 
+pgamma 0x1.f9b9a438a9eabp+6 0x1.55f28c846ep+8 0x1.28aa3d4dea77fp-185 
+pgamma 0x1.5f921e3574a4dp+5 0x1.6c99f1cffp+6 0x1.6b60357aad02ep-32 

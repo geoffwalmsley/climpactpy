@@ -415,3 +415,13 @@ def test_tour_script_remembers_the_choice():
     js = (PACKAGE / "core" / "static" / "climpact_web" / "js" / "tour.js").read_text()
     assert '"climpact-tour"' in js and "localStorage" in js
     assert "Escape" in js and 'aria-modal", "false"' in js
+
+
+def test_accessibility_statement_is_linked_from_every_footer(client):
+    """The accessibility statement (#83) is a guide, linked from the page shell's footer."""
+    for url in ("/", "/station/", "/help/", "/no-such-page/"):
+        html = client.get(url).content.decode()
+        assert 'href="/help/accessibility/"' in html, url
+    html = client.get("/help/accessibility/").content.decode()
+    for text in ("WCAG 2.1", "partially conforms", "Known limitations", "Reporting a problem"):
+        assert text in html

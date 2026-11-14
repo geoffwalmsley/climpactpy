@@ -58,6 +58,7 @@
         Sector-specific Climate Indices (ET-SCI).
       {% endblocktranslate %}</p>
       <p>{% blocktranslate with version=climpact_web_version %}Climpact web, version {{ version }}{% endblocktranslate %}</p>
+      {% url 'help:guide' 'accessibility' as accessibility_url %}{% if accessibility_url %}<p><a href="{{ accessibility_url }}">{% translate "Accessibility" %}</a></p>{% endif %}
     </div>
   </footer>
   {% endblock %}

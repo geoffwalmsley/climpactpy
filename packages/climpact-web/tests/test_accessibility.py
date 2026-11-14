@@ -1,0 +1,839 @@
+"""Accessibility checks of every page type in a real browser (#83, WCAG 2.1 AA).
+
+The app runs as a user runs it (``climpact-web`` on a free port, with its worker), and
+headless Chrome (``browser.py``, over the DevTools protocol) goes through the sample
+station (steps 1 to 5 and the downloads), the sample batch and the sample grid, so every
+page is checked with real results. On each page:
+
+- **axe** (axe-core, vendored in ``assets/axe-core``): every WCAG 2.1 A and AA rule and
+  axe's best practices in the light theme and in a 320 px wide viewport, and the contrast
+  rules again in the dark theme. A serious or critical violation fails
+  ``test_axe_every_page``; ``test_no_axe_violations_at_all`` fails on any;
+- **reflow**: no horizontal scrolling at 320 px wide (WCAG 1.4.10, the same as 400% zoom)
+  and at 200% zoom (1.4.4);
+- **keyboard**: Tab through the whole page: the skip link comes first and works, every
+  stop is visible and has a visible focus indicator, focus never gets stuck and comes back
+  round to the start (2.1.1, 2.1.2, 2.4.1, 2.4.3, 2.4.7); the same in forced colours
+  (Windows high contrast), where box shadows disappear;
+- **reduced motion**: no animation or transition longer than 0.1 s (2.3.3);
+- the page's language, title, one ``main`` and one ``h1``.
+
+The widgets (tabs, dialog, drop zone, charts, the tour, the gridded map) are worked by
+keyboard in their own tests, and the progress regions are checked for live announcements.
+
+Chrome is the one already installed (``CHROME`` names another); without one the tests
+skip, unless ``CLIMPACT_A11Y_REQUIRE_CHROME`` is set (CI), when they fail.
+``CLIMPACT_A11Y_REPORT=<folder>`` saves a JSON report and screenshots there.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from urllib.parse import urljoin
+
+import pytest
+from browser import Chrome, DevToolsError, find_chrome
+
+ASSETS = Path(__file__).parent / "assets" / "axe-core"
+AXE = ASSETS / "axe.min.js"
+AXE_VERSION = "4.14.0"
+AXE_SHA256 = "20c09fe157a8a34a30e241aaa1fcdade657734f08ab379ecfbeb7d45cc46e878"
+AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"]
+FAILING_IMPACTS = {"serious", "critical"}
+REPORT = os.environ.get("CLIMPACT_A11Y_REPORT")
+
+STATION = "sydney_observatory_hill_1936-2015"
+
+
+def test_vendored_axe_is_the_pinned_release():
+    """The vendored axe-core is the release recorded in its README, unmodified."""
+    assert hashlib.sha256(AXE.read_bytes()).hexdigest() == AXE_SHA256
+    assert AXE.read_text(encoding="utf-8").startswith(f"/*! axe v{AXE_VERSION}")
+    readme = (ASSETS / "README.md").read_text(encoding="utf-8")
+    assert AXE_VERSION in readme and AXE_SHA256 in readme
+    assert "Mozilla Public License" in (ASSETS / "LICENSE").read_text(encoding="utf-8")
+
+
+# ---- The browser and the app ---------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def chrome():
+    pytest.importorskip("websocket", reason="websocket-client is needed (a dev dependency)")
+    executable = find_chrome()
+    if not executable and os.environ.get("CLIMPACT_A11Y_REQUIRE_CHROME"):
+        pytest.fail("CLIMPACT_A11Y_REQUIRE_CHROME is set but no Chrome was found (set CHROME)")
+    if not executable:
+        pytest.skip(
+            "No Chrome or Chromium found, so the browser accessibility checks (#83) did not "
+            "run. Install Chrome, or set CHROME to its executable."
+        )
+    browser = Chrome(executable)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture(scope="module")
+def server(tmp_path_factory):
+    """``climpact-web`` on a free port with its worker, in a fresh data folder."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CLIMPACT_WEB_")}
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+    env["CLIMPACT_WEB_PATTERN_LIBRARY"] = "true"
+    data = tmp_path_factory.mktemp("a11y-data")
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "climpact_web", "--no-browser", "--port", "0"]
+        + ["--data-dir", str(data)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+    )
+    url, output, deadline = None, [], time.monotonic() + 120
+    while time.monotonic() < deadline:
+        line = proc.stdout.readline()
+        if not line:
+            break
+        output.append(line)
+        if "is running at " in line:
+            url = line.rsplit(" ", 1)[1].strip()
+            break
+    if not url:
+        proc.kill()
+        pytest.fail("climpact-web did not start:\n" + "".join(output))
+    yield url
+    proc.terminate()
+    try:
+        proc.wait(30)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
+# What happened while the jobs ran, for the tests of progress pages: axe on each progress
+# page while its job was running, what the announcer said, and whether keyboard focus on
+# the batch's cancel button survived the progress polls.
+WHILE_RUNNING: dict[str, dict] = {}
+
+
+def wait_for(
+    c: Chrome, predicate: str, timeout: float = 600, what: str = "", heard: list | None = None
+) -> None:
+    """Wait until a JavaScript expression is true (pages may navigate meanwhile); with
+    ``heard``, collect what the page's announcer (#announcer) says meanwhile."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if heard is not None:
+                said = c.evaluate("(document.getElementById('announcer') || {}).textContent")
+                if said and (not heard or heard[-1] != said):
+                    heard.append(said)
+            if c.evaluate(predicate):
+                c.settle()
+                return
+        except DevToolsError:
+            pass  # the page is navigating
+        time.sleep(0.25)
+    raise AssertionError(
+        f"timed out waiting for {what or predicate} on {c.evaluate('location.href')}"
+    )
+
+
+def submit(c: Chrome, form: str, submitter: str | None = None) -> None:
+    """Submit a form (a CSS selector) as a click would, and wait for the next page."""
+    c.events.clear()
+    button = f"document.querySelector({json.dumps(submitter)})" if submitter else "undefined"
+    c.evaluate(f"document.querySelector({json.dumps(form)}).requestSubmit({button})")
+    c.wait_event("Page.loadEventFired", timeout=120)
+    c.settle()
+
+
+def here(c: Chrome) -> str:
+    return c.evaluate("location.href")
+
+
+def while_running(c: Chrome, name: str) -> list:
+    """axe on a progress page as its job runs; returns the list the announcer fills."""
+    WHILE_RUNNING[name] = {"axe": run_axe(c), "heard": []}
+    return WHILE_RUNNING[name]["heard"]
+
+
+@pytest.fixture(scope="module")
+def site(chrome, server):
+    """Every page type, with real results: name -> URL, or a function that opens a page
+    which has no URL of its own (a form's answer). Built once by going through the sample
+    station, batch and grid in the browser; the worker runs the jobs."""
+    c = chrome
+    pages: dict[str, object] = {}
+
+    def open_url(path):
+        return urljoin(server, path)
+
+    # Pages that need no data.
+    for name, path in [
+        ("landing", "/"),
+        ("pattern library", "/patterns/"),
+        ("station upload", "/station/"),
+        ("batch start", "/batch/"),
+        ("gridded start", "/gridded/"),
+        ("help", "/help/"),
+        ("help guide", "/help/quality-control/"),
+        ("help indices", "/help/indices/"),
+        ("help topics", "/help/topics/"),
+        ("help search", "/help/search/?q=base+period"),
+        ("accessibility statement", "/help/accessibility/"),
+        ("not found", "/no-such-page/"),
+    ]:
+        pages[name] = open_url(path)
+
+    def upload_errors(c):
+        c.navigate(open_url("/station/"))
+        submit(c, "form[action$='/station/']")
+
+    pages["station upload, errors"] = upload_errors
+
+    # Station steps 1-5 with the Sydney sample.
+    c.navigate(open_url("/station/"))
+    submit(c, "form[action$='/station/sample']")
+    load = pages["station sample loaded"] = here(c)
+
+    def metadata_errors(c):
+        c.navigate(load)
+        c.evaluate(
+            "document.querySelector('[name=latitude]').value = '123';"
+            "document.querySelector('[name=base_end]').value = '1960'"
+        )
+        submit(c, "form.form[action$='/load']")
+
+    pages["station details, errors"] = metadata_errors
+
+    c.navigate(load)
+    submit(c, "form.form[action$='/load']")
+    heard = while_running(c, "station quality checks")
+    wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
+             what="the quality checks", heard=heard)  # fmt: skip
+    pages["station quality results"] = here(c)
+    table = c.evaluate("(document.querySelector('a[href*=\"/quality/checks/\"]') || {}).href")
+    if table:
+        pages["station quality table"] = table
+    submit(c, "form[action$='/quality/continue']")
+    pages["station indices"] = here(c)
+
+    def indices_errors(c):
+        c.navigate(pages["station indices"])
+        c.evaluate("document.querySelector('[name=hdd_base]').value = 'warm'")
+        submit(c, "form[action$='/indices']")
+
+    pages["station indices, errors"] = indices_errors
+    submit(c, "form[action$='/indices']")
+    heard = while_running(c, "station run")
+    wait_for(c, "!!document.querySelector('[data-results-filter]')", what="the station run",
+             heard=heard)  # fmt: skip
+    results = pages["station results"] = here(c).split("?")[0]
+    pages["station index"] = results + "/txx"
+    pages["station index, spi"] = results + "/spi"
+    pages["station downloads"] = results.replace("/results", "/downloads")
+    sector = results.replace("/results", "/sector")
+    pages["station sector"] = sector
+    c.navigate(sector)
+    submit(c, "form[action$='/sector']", "button[name=sample]")
+    heard = while_running(c, "sector comparison")
+    wait_for(c, "!!document.querySelector('.sector-plot')", what="the sector comparison",
+             heard=heard)  # fmt: skip
+    pages["station sector results"] = sector
+
+    # The jobs.
+    pages["jobs"] = open_url("/jobs/")
+    c.navigate(pages["jobs"])
+    job = c.evaluate(
+        'document.querySelector(\'a[href^="/jobs/"][href$="/"]:not([href="/jobs/"])\').href'
+    )
+    pages["job"] = job
+
+    # The sample batch.
+    c.navigate(open_url("/batch/"))
+    submit(c, "form[action$='/batch/sample']")
+    pages["batch check"] = here(c)
+    submit(c, "form[action$='/run']")
+    heard = while_running(c, "batch")
+    # Keyboard focus on the cancel button stays there while the progress is polled.
+    cancel = "#batch-progress form[action$='/cancel'] button"
+    c.evaluate(
+        f"document.querySelector({json.dumps(cancel)}).focus();"
+        "document.querySelector('#batch-progress').dataset.a11yMark = '1'"
+    )
+    time.sleep(3.5)
+    WHILE_RUNNING["batch"]["focus"] = c.evaluate(
+        "({swapped: !document.querySelector('#batch-progress').dataset.a11yMark,"
+        " running: document.querySelector('#batch-progress').dataset.status !== 'succeeded',"
+        f" kept: document.activeElement === document.querySelector({json.dumps(cancel)})}})"
+    )
+    wait_for(c, "document.querySelector('[data-status]') &&"
+             " document.querySelector('[data-status]').dataset.status === 'succeeded'",
+             what="the batch", heard=heard)  # fmt: skip
+    pages["batch results"] = here(c)
+
+    # The sample grid: thresholds, then three indices.
+    c.navigate(open_url("/gridded/"))
+    submit(c, "form[action$='/gridded/sample']")
+    pages["gridded set-up"] = here(c)
+    c.evaluate(
+        "document.querySelectorAll('input[name=indices]').forEach(function (box) {"
+        " box.checked = ['txx', 'fd', 'spi'].indexOf(box.value) >= 0 })"
+    )
+    submit(c, "form[action$='/']:has(input[name=indices])")
+    heard = while_running(c, "gridded run")
+    wait_for(c, "!!document.querySelector('.gmap')", what="the gridded run", heard=heard)
+    pages["gridded results"] = here(c)
+
+    # The error pages without a URL.
+    def too_large(c):
+        """The 413 page, as the server answers an upload over the limit."""
+        html = c.evaluate(
+            "fetch('/station/', {method: 'POST', body: new Uint8Array(51 * 1024 * 1024)})"
+            ".then(function (r) { return r.text() })",
+            await_promise=True,
+        )
+        c.navigate(open_url("/station/"))
+        c.set_content(html)
+
+    def server_error(c):
+        from django.template.loader import render_to_string
+
+        c.navigate(open_url("/station/"))
+        c.set_content(render_to_string("500.html"))
+
+    pages["upload too large"] = too_large
+    pages["server error"] = server_error
+    return pages
+
+
+def open_page(c: Chrome, page) -> None:
+    if callable(page):
+        page(c)
+    else:
+        c.navigate(page)
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def set_mode(c: Chrome, width: int = 1280, scheme: str = "light", scale: float = 1, **media):
+    c.viewport(width, 900, scale)
+    c.media(prefers_color_scheme=scheme, **media)
+
+
+def run_axe(c: Chrome, rules: list[str] | None = None) -> list[dict]:
+    """axe's violations on the page as it is now (all WCAG 2.1 A/AA and best-practice
+    rules, or only the rules named)."""
+    if not c.evaluate("typeof axe !== 'undefined'"):
+        c.evaluate(AXE.read_text(encoding="utf-8"))
+    run_only = {"type": "rule", "values": rules} if rules else {"type": "tag", "values": AXE_TAGS}
+    options = json.dumps({"runOnly": run_only, "resultTypes": ["violations"]})
+    return c.evaluate(
+        f"axe.run(document, {options}).then(function (r) {{ return r.violations.map("
+        "function (v) { return {id: v.id, impact: v.impact, help: v.help,"
+        " nodes: v.nodes.map(function (n) { return {target: n.target.join(' '),"
+        " summary: n.failureSummary, html: n.html.slice(0, 200)} })} }) })",
+        await_promise=True,
+    )
+
+
+# ---- What each check reads from the page ---------------------------------------------------
+
+OVERFLOW = """(function () {
+  var width = document.documentElement.clientWidth;
+  var wide = [];
+  document.querySelectorAll('body *').forEach(function (el) {
+    var r = el.getBoundingClientRect();
+    if (r.width === 0 || r.right <= width + 1) return;
+    for (var p = el.parentElement; p; p = p.parentElement) {
+      var o = getComputedStyle(p).overflowX;
+      if (o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip') return;
+    }
+    wide.push(el.tagName.toLowerCase() + '.' + String(el.getAttribute('class') || '')
+      .trim().split(/\\s+/).join('.') + ' ' + Math.round(r.right));
+  });
+  return {scroll: document.documentElement.scrollWidth, width: width, wide: wide.slice(0, 5)};
+})()"""
+
+# The focused element: a path to it, whether it (or, for a visually hidden input such as
+# the drop zone's, the control drawn for it) is visible, and whether it or a near ancestor
+# draws a focus outline. In forced colours box shadows are not drawn, so only an outline
+# counts; "auto" is the browser's own focus ring.
+FOCUSED = """(function (forced) {
+  var el = document.activeElement;
+  if (!el || el === document.body || el === document.documentElement) return null;
+  if (el.hasAttribute('data-a11y-start')) return {start: true};
+  function path(e) {
+    var parts = [];
+    for (; e && e.nodeType === 1 && e !== document.body; e = e.parentElement) {
+      var i = 1, s = e;
+      while ((s = s.previousElementSibling)) if (s.tagName === e.tagName) i++;
+      parts.unshift(e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + ':nth-of-type(' + i + ')');
+    }
+    return parts.join('>');
+  }
+  function sized(e) {
+    var r = e.getBoundingClientRect(), s = getComputedStyle(e);
+    return r.width >= 4 && r.height >= 4 && s.opacity !== '0';
+  }
+  function ring(e) {
+    var s = getComputedStyle(e);
+    var outline = s.outlineStyle !== 'none' &&
+      (s.outlineStyle === 'auto' || parseFloat(s.outlineWidth) >= 2);
+    return outline || (!forced && s.boxShadow !== 'none');
+  }
+  var shown = el;
+  for (var n = 0; shown && !sized(shown) && n < 4; n++) shown = shown.parentElement;
+  var indicator = false;
+  for (var e = el, i = 0; e && i < 4; e = e.parentElement, i++) {
+    if (ring(e)) { indicator = true; break; }
+  }
+  var hidden = !shown;
+  for (var h = shown; h; h = h.parentElement) {
+    var hs = getComputedStyle(h);
+    if (hs.visibility === 'hidden' || hs.display === 'none' || hs.opacity === '0') hidden = true;
+  }
+  return {key: path(el), tag: el.tagName.toLowerCase(),
+    text: (el.getAttribute('aria-label') || el.innerText || el.value || '').trim().slice(0, 50),
+    visible: !hidden && sized(shown), indicator: indicator,
+    skip: el.classList.contains('skip-link')};
+})(%s)"""
+
+# Sequential focus starts from a marker at the top of the body that is not itself a Tab
+# stop (blurring would leave the starting point wherever focus last was).
+START = """(function () {
+  var old = document.querySelector('[data-a11y-start]');
+  if (old) old.remove();
+  var start = document.createElement('span');
+  start.setAttribute('data-a11y-start', '');
+  start.tabIndex = -1;
+  document.body.insertBefore(start, document.body.firstChild);
+  window.scrollTo(0, 0);
+  start.focus();
+})()"""
+
+MOTION = """(function () {
+  function longest(list) {
+    return Math.max.apply(null, list.split(',').map(function (t) {
+      t = t.trim(); return t.endsWith('ms') ? parseFloat(t) / 1000 : parseFloat(t) || 0; }));
+  }
+  var moving = [];
+  document.querySelectorAll('*').forEach(function (el) {
+    [null, '::before', '::after'].forEach(function (pseudo) {
+      var s = getComputedStyle(el, pseudo);
+      var runs = s.animationIterationCount === 'infinite' ? 1000 :
+        parseFloat(s.animationIterationCount);
+      var a = s.animationName !== 'none' ? longest(s.animationDuration) * runs : 0;
+      var t = longest(s.transitionDuration);
+      if (a > 0.1 || t > 0.1) {
+        moving.push(el.tagName.toLowerCase() + '.' + el.getAttribute('class') + (pseudo || ''));
+      }
+    });
+  });
+  var smooth = getComputedStyle(document.documentElement).scrollBehavior;
+  return {moving: moving.slice(0, 5), smooth: smooth};
+})()"""
+
+STRUCTURE = """(function () {
+  var skip = document.querySelector('.skip-link');
+  var named = function (el) {
+    return el.getAttribute('aria-label') || el.getAttribute('aria-labelledby'); };
+  return {lang: document.documentElement.lang, title: document.title.trim(),
+    mains: document.querySelectorAll('main, [role=main]').length,
+    h1: document.querySelectorAll('h1').length,
+    skipTarget: !skip || !!document.querySelector(skip.getAttribute('href')),
+    unnamed: Array.prototype.filter.call(document.querySelectorAll(
+      '[role=region], [role=group][tabindex], [role=toolbar], nav, [role=tablist]'),
+      function (el) { return !named(el); }).map(function (el) {
+        return el.tagName.toLowerCase() + '.' + (el.getAttribute('class') || ''); })};
+})()"""
+
+MAX_TABS = 1500
+
+
+def tab_through(c: Chrome, forced: bool = False) -> tuple[list[dict], str | None]:
+    """Tab from the top of the page until focus comes back round; returns the stops and
+    a problem (a trap, or no way round), or None."""
+    c.evaluate(START)
+    stops, seen = [], set()
+    for _ in range(MAX_TABS):
+        c.press("Tab")
+        info = c.evaluate(FOCUSED % ("true" if forced else "false"))
+        if info is None or info.get("start"):  # out of the page: the cycle is complete
+            return stops, None
+        if info["key"] in seen:
+            if info["key"] == stops[0]["key"]:
+                return stops, None
+            return stops, f"focus came back to {info['key']} ({info['text']!r}): a loop"
+        seen.add(info["key"])
+        stops.append(info)
+    return stops, f"{MAX_TABS} stops without coming back round"
+
+
+def skip_link_works(c: Chrome) -> bool:
+    c.evaluate(START)
+    c.press("Tab")
+    c.press("Enter")
+    time.sleep(0.1)
+    return c.evaluate("document.activeElement.id") == "main"
+
+
+# ---- The audit: every page once, every check ------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def audit(chrome, site):
+    """Each page opened once, and everything the tests below assert on read from it:
+    name -> {check: findings}. Saved to CLIMPACT_A11Y_REPORT with screenshots."""
+    c = chrome
+    found: dict[str, dict] = {}
+    shots = Path(REPORT) / "screenshots" if REPORT else None
+    if shots:
+        shots.mkdir(parents=True, exist_ok=True)
+    for name, page in site.items():
+        f = found[name] = {}
+        set_mode(c)
+        open_page(c, page)
+        f["structure"] = c.evaluate(STRUCTURE)
+        f["positive tabindex"] = c.evaluate(
+            'document.querySelectorAll(\'[tabindex]:not([tabindex^="-"]):not([tabindex="0"])\')'
+            ".length"
+        )
+        # axe: every rule in the light theme and at 320 px; contrast again in dark.
+        f["axe light"] = run_axe(c)
+        if shots:
+            c.screenshot(shots / f"{slug(name)}-light.png")
+        set_mode(c, scheme="dark")
+        c.settle(0.6)  # colour transitions run to their end
+        f["axe dark"] = run_axe(c, ["color-contrast", "link-in-text-block"])
+        if shots:
+            c.screenshot(shots / f"{slug(name)}-dark.png")
+        # Keyboard, then the same in forced colours.
+        set_mode(c)
+        f["tab stops"], f["tab problem"] = tab_through(c)
+        has_skip = c.evaluate("!!document.querySelector('.skip-link')")
+        f["skip link"] = skip_link_works(c) if has_skip else None
+        set_mode(c, forced_colors="active")
+        f["tab stops forced"], f["tab problem forced"] = tab_through(c, forced=True)
+        if shots:
+            c.screenshot(shots / f"{slug(name)}-forced-colours.png")
+        # Reduced motion.
+        set_mode(c, prefers_reduced_motion="reduce")
+        f["motion"] = c.evaluate(MOTION)
+        # Reflow: 200% zoom, then 320 px (where axe runs again: content changes there).
+        set_mode(c, 640, scale=2)
+        c.settle(0.1)
+        f["reflow 200% zoom"] = c.evaluate(OVERFLOW)
+        set_mode(c, 320)
+        c.settle(0.1)
+        f["reflow 320px"] = c.evaluate(OVERFLOW)
+        f["axe 320px"] = run_axe(c)
+        if shots:
+            c.screenshot(shots / f"{slug(name)}-320px.png")
+    set_mode(c)
+    if REPORT:
+        summary = {
+            name: {k: (len(v) if k.startswith("tab stops") else v) for k, v in checks.items()}
+            for name, checks in found.items()
+        }
+        summary["while running"] = WHILE_RUNNING
+        Path(REPORT, "report.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return found
+
+
+def test_axe_every_page(audit):
+    """No serious or critical axe violation on any page, in the light theme, the dark
+    theme (contrast) or 320 px wide. Minor and moderate ones are in the report."""
+    failures = []
+    for name, checks in audit.items():
+        for mode in ("light", "dark", "320px"):
+            for v in checks[f"axe {mode}"]:
+                if v["impact"] in FAILING_IMPACTS:
+                    targets = "; ".join(n["target"] for n in v["nodes"][:5])
+                    failures.append(
+                        f"{name} ({mode}): {v['id']} [{v['impact']}] {v['help']}: {targets}"
+                    )
+    assert not failures, "\n".join(failures)
+
+
+def test_no_axe_violations_at_all(audit):
+    """Not even minor or moderate ones (the issue's acceptance criterion)."""
+    found = sorted(
+        {f"{name}: {v['id']} [{v['impact']}]" for name, checks in audit.items()
+         for mode in ("light", "dark", "320px") for v in checks[f"axe {mode}"]}
+    )  # fmt: skip
+    assert not found, "\n".join(found)
+
+
+def test_reflow_at_320px_and_200_percent_zoom(audit):
+    """No horizontal scrolling at 320 CSS px (WCAG 1.4.10, the same as 400% zoom of a
+    1280 px window) nor at 200% zoom (1.4.4); wide tables and maps scroll inside their own
+    region."""
+    failures = [
+        f"{name} ({mode}): {r['scroll']} px wide in {r['width']} px: {r['wide']}"
+        for name, checks in audit.items()
+        for mode in ("320px", "200% zoom")
+        if (r := checks[f"reflow {mode}"])["scroll"] > r["width"] + 1
+    ]
+    assert not failures, "\n".join(failures)
+
+
+def test_keyboard_every_page(audit):
+    """Tab reaches the skip link first, then every control in turn, each visible with a
+    focus indicator (also in forced colours), and comes back round: no trap (WCAG 2.1.1,
+    2.1.2, 2.4.3, 2.4.7); the skip link moves focus to the main content (2.4.1); no
+    positive tabindex."""
+    failures = []
+    for name, checks in audit.items():
+        if checks["positive tabindex"]:
+            failures.append(f"{name}: an element has a positive tabindex")
+        for suffix, label in (("", name), (" forced", f"{name} (forced colours)")):
+            if checks[f"tab problem{suffix}"]:
+                failures.append(f"{label}: {checks[f'tab problem{suffix}']}")
+            for stop in checks[f"tab stops{suffix}"]:
+                if not stop["visible"]:
+                    failures.append(
+                        f"{label}: focus on something not visible: {stop['key']} {stop['text']!r}"
+                    )
+                elif not stop["indicator"]:
+                    failures.append(
+                        f"{label}: no focus indicator on {stop['key']} {stop['text']!r}"
+                    )
+        if checks["skip link"] is None:
+            if name != "server error":  # the one page without the page shell
+                failures.append(f"{name}: no skip link")
+        elif not checks["tab stops"] or not checks["tab stops"][0]["skip"]:
+            failures.append(f"{name}: the first Tab stop is not the skip link")
+        elif not checks["skip link"]:
+            failures.append(f"{name}: the skip link does not move focus to the main content")
+    assert not failures, "\n".join(failures)
+
+
+def test_reduced_motion_every_page(audit):
+    """With prefers-reduced-motion, nothing animates or transitions for longer than 0.1 s
+    and scrolling is not smooth (WCAG 2.3.3)."""
+    failures = []
+    for name, checks in audit.items():
+        if checks["motion"]["moving"]:
+            failures.append(f"{name}: moves with reduced motion: {checks['motion']['moving']}")
+        if checks["motion"]["smooth"] == "smooth":
+            failures.append(f"{name}: smooth scrolling with reduced motion")
+    assert not failures, "\n".join(failures)
+
+
+def test_structure_every_page(audit):
+    """Every page has a language, a title, one main landmark, one h1, a working skip
+    link target and names on its regions, groups, toolbars and navigation (WCAG 1.3.1,
+    2.4.1, 2.4.2, 3.1.1, 4.1.2)."""
+    failures = []
+    for name, checks in audit.items():
+        s = checks["structure"]
+        problems = [
+            "no lang" if not s["lang"] else "",
+            "no title" if not s["title"] else "",
+            f"{s['mains']} main landmarks" if s["mains"] != 1 else "",
+            f"{s['h1']} h1 headings" if s["h1"] != 1 else "",
+            "the skip link's target is missing" if not s["skipTarget"] else "",
+            f"unnamed: {s['unnamed']}" if s["unnamed"] else "",
+        ]
+        failures += [f"{name}: {p}" for p in problems if p]
+    assert not failures, "\n".join(failures)
+
+
+# ---- Progress while a job runs -------------------------------------------------------------
+
+
+def test_progress_pages_while_running(site):
+    """The progress pages pass axe while their job runs; the stages are announced through
+    the page's announcer (a live region that stays, as the polled fragment replaces
+    itself), the batch's end too; and keyboard focus on the cancel button survives the
+    polls (WCAG 4.1.3, 2.4.3)."""
+    failures = []
+    for name, seen in WHILE_RUNNING.items():
+        for v in seen["axe"]:
+            failures.append(f"{name} (running): {v['id']} [{v['impact']}] {v['help']}")
+    for name in ("station run", "batch", "gridded run"):
+        if not WHILE_RUNNING[name]["heard"]:
+            failures.append(f"{name}: nothing was announced while it ran")
+    batch = WHILE_RUNNING["batch"]
+    if not any("calculated" in said for said in batch["heard"]):
+        failures.append(f"batch: its end was not announced: {batch['heard']}")
+    focus = batch["focus"]
+    if focus["swapped"] and focus["running"] and not focus["kept"]:
+        failures.append("batch: focus on the cancel button was lost when the progress updated")
+    assert not failures, "\n".join(failures)
+
+
+# ---- Widgets by keyboard -------------------------------------------------------------------
+
+
+def focus(c: Chrome, selector: str) -> None:
+    c.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
+
+
+def active(c: Chrome, expression: str = "document.activeElement"):
+    return c.evaluate(
+        f"(function (el) {{ return el && (el.id || el.textContent.trim()) }})({expression})"
+    )
+
+
+def test_tabs_by_keyboard(chrome, site):
+    """The tabs component: arrow keys, Home and End move between tabs and show the panel."""
+    c = chrome
+    c.navigate(site["pattern library"])
+    tabs = c.evaluate(
+        "Array.prototype.map.call(document.querySelectorAll('[role=tablist]')[0]"
+        ".querySelectorAll('[role=tab]'), function (t) { return t.id })"
+    )
+    assert len(tabs) >= 3
+    focus(c, f"#{tabs[0]}")
+    state = (
+        "(function () { var t = document.activeElement;"
+        " var panel = document.getElementById(t.getAttribute('aria-controls'));"
+        " return [t.id, t.getAttribute('aria-selected'), t.tabIndex, !panel.hidden] })()"
+    )
+    c.press("ArrowRight")
+    assert c.evaluate(state) == [tabs[1], "true", 0, True]
+    c.press("End")
+    assert c.evaluate(state) == [tabs[-1], "true", 0, True]
+    c.press("Home")
+    assert c.evaluate(state) == [tabs[0], "true", 0, True]
+    c.press("ArrowLeft")
+    assert c.evaluate(state)[0] == tabs[-1]  # wraps round
+    # Only the selected tab is a Tab stop; Tab goes on into its panel.
+    assert (
+        c.evaluate(
+            "Array.prototype.filter.call(document.querySelectorAll('[role=tablist]')[0]"
+            ".querySelectorAll('[role=tab]'), function (t) { return t.tabIndex === 0 }).length"
+        )
+        == 1
+    )
+
+
+def test_dialog_by_keyboard(chrome, site):
+    """The dialog opens from the keyboard with focus inside, keeps focus inside, closes
+    with Escape and gives focus back to the button that opened it."""
+    c = chrome
+    c.navigate(site["pattern library"])
+    opener = "[data-dialog-open]"
+    focus(c, opener)
+    c.press("Enter")
+    time.sleep(0.1)
+    inside = "document.querySelector('dialog[open]') && document.querySelector('dialog[open]')" \
+        ".contains(document.activeElement)"  # fmt: skip
+    assert c.evaluate(inside), "focus did not move into the dialog"
+    for _ in range(8):
+        c.press("Tab")
+        assert c.evaluate(inside) or c.evaluate("document.activeElement === document.body"), \
+            "Tab left the open dialog"  # fmt: skip
+    c.press("Escape")
+    time.sleep(0.1)
+    assert not c.evaluate("!!document.querySelector('dialog[open]')")
+    assert c.evaluate(f"document.activeElement === document.querySelector('{opener}')")
+
+
+def test_drop_zone_by_keyboard(chrome, site):
+    """The drop zone's file input is a Tab stop, shows its focus on the drop zone, and
+    Space or Enter opens the file chooser."""
+    c = chrome
+    c.navigate(site["station upload"])
+    c.evaluate(START)
+    for _ in range(40):
+        c.press("Tab")
+        if c.evaluate("document.activeElement.type === 'file'"):
+            break
+    else:
+        raise AssertionError("Tab never reached the file input")
+    ring = c.evaluate("getComputedStyle(document.activeElement.closest('[data-dropzone]'))"
+                      ".outlineStyle")  # fmt: skip
+    assert ring != "none", "the drop zone shows no focus"
+    c.send("Page.setInterceptFileChooserDialog", enabled=True)
+    try:
+        c.events.clear()
+        c.press(" ")
+        c.wait_event("Page.fileChooserOpened", timeout=5)
+    finally:
+        c.send("Page.setInterceptFileChooserDialog", enabled=False)
+
+
+def test_chart_by_keyboard(chrome, site):
+    """An interactive chart's plot is a Tab stop; + zooms in, arrows move, 0 resets, and
+    each change is announced in the chart's status."""
+    c = chrome
+    c.navigate(site["station index"])
+    wait_for(c, "!!document.querySelector('#index-chart [data-chart-plot] canvas')", timeout=20,
+             what="the chart")  # fmt: skip
+    focus(c, "#index-chart [data-chart-plot]")
+    status = "document.querySelector('#index-chart [data-chart-status]').textContent"
+    c.press("+")
+    time.sleep(0.8)
+    zoomed = c.evaluate(status)
+    assert zoomed, "zooming in was not announced"
+    c.press("ArrowLeft")
+    time.sleep(0.8)
+    assert c.evaluate(status) != zoomed, "moving was not announced"
+    c.press("0")
+    time.sleep(0.8)
+    assert c.evaluate("document.activeElement.hasAttribute('data-chart-plot')")
+    # The table view, the data without the chart, opens from the keyboard too.
+    focus(c, "#index-chart details summary")
+    c.press("Enter")
+    time.sleep(0.3)
+    assert c.evaluate("document.querySelector('#index-chart details').open")
+    assert (
+        c.evaluate("document.querySelectorAll('#index-chart details table tbody tr').length") > 10
+    )
+
+
+def test_tour_by_keyboard(chrome, site):
+    """The landing page's tour starts from the keyboard, takes focus, moves on with its
+    buttons and closes with Escape, giving focus back."""
+    c = chrome
+    c.navigate(site["landing"])
+    c.evaluate("try { localStorage.clear() } catch (e) {}")
+    c.navigate(site["landing"])
+    wait_for(c, "!document.querySelector('[data-tour-invite]').hidden", timeout=5,
+             what="the tour invitation")  # fmt: skip
+    focus(c, "[data-tour-start]")
+    c.press("Enter")
+    time.sleep(0.2)
+    in_tour = "!!document.activeElement.closest('.tour')"
+    assert c.evaluate(in_tour), "focus did not move to the tour"
+    c.press("Escape")
+    time.sleep(0.2)
+    assert not c.evaluate(in_tour)
+    assert c.evaluate("document.activeElement !== document.body"), "focus was dropped"
+
+
+def test_help_search_announces_results(chrome, site):
+    """Typing in the help search updates the results in place and announces their count."""
+    c = chrome
+    c.navigate(site["help"])
+    focus(c, "#help-q")
+    c.send("Input.insertText", text="outliers")
+    wait_for(c, "/result/.test(document.getElementById('announcer').textContent)", timeout=10,
+             what="the announcement of the results")  # fmt: skip
+    assert c.evaluate("document.activeElement.id") == "help-q", "typing lost focus"
+
+
+def test_gridded_explorer_keeps_focus(chrome, site):
+    """Changing a select of the gridded explorer swaps the map in place; focus stays on
+    the select, so a keyboard user can go on choosing."""
+    c = chrome
+    c.navigate(site["gridded results"])
+    focus(c, "#explore-t")
+    c.evaluate(
+        "var s = document.getElementById('explore-t'); s.selectedIndex = 0;"
+        " s.dispatchEvent(new Event('change', {bubbles: true}))"
+    )
+    wait_for(c, "document.getElementById('explore-t').selectedIndex === 0 &&"
+             " !document.querySelector('.htmx-request')", timeout=10)  # fmt: skip
+    assert c.evaluate("document.activeElement.id") == "explore-t"

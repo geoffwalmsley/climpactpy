@@ -14,7 +14,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   {% if job.status == "queued" or job.status == "running" %}
   <div class="progress">
     <div class="progress__header">
-      <span id="batch-progress-label">{% if job.status == "running" %}{% blocktranslate count counter=total_stations with done=counts.done|add:counts.failed trimmed %}{{ done }} of {{ counter }} station finished{% plural %}{{ done }} of {{ counter }} stations finished{% endblocktranslate %}{% else %}{{ job.get_status_display }}{% endif %}</span>
+      <span id="batch-progress-label" data-announce>{% if job.status == "running" %}{% blocktranslate count counter=total_stations with done=counts.done|add:counts.failed trimmed %}{{ done }} of {{ counter }} station finished{% plural %}{{ done }} of {{ counter }} stations finished{% endblocktranslate %}{% else %}{{ job.get_status_display }}{% endif %}</span>
       {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
     </div>
     <progress id="batch-progress-bar" max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="batch-progress-label" aria-describedby="batch-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
@@ -41,7 +41,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   <div class="alert alert--{% if counts.failed or counts.skipped %}warning{% else %}success{% endif %}" role="status">
     {% if counts.failed or counts.skipped %}{% icon "warning" %}{% else %}{% icon "check-circle" %}{% endif %}
     <div class="alert__body">
-      <h2 class="alert__title">{% blocktranslate count counter=total_stations with done=counts.done trimmed %}{{ done }} of {{ counter }} station calculated{% plural %}{{ done }} of {{ counter }} stations calculated{% endblocktranslate %}</h2>
+      <h2 class="alert__title" data-announce="now">{% blocktranslate count counter=total_stations with done=counts.done trimmed %}{{ done }} of {{ counter }} station calculated{% plural %}{{ done }} of {{ counter }} stations calculated{% endblocktranslate %}</h2>
       <p>{% blocktranslate %}Finished in {{ elapsed }}.{% endblocktranslate %}
         {% if counts.failed %}{% blocktranslate count counter=counts.failed trimmed %}{{ counter }} station failed; its error is below.{% plural %}{{ counter }} stations failed; their errors are below.{% endblocktranslate %}{% endif %}
         {% if counts.skipped %}{% blocktranslate count counter=counts.skipped trimmed %}{{ counter }} station was left out before the run.{% plural %}{{ counter }} stations were left out before the run.{% endblocktranslate %}{% endif %}</p>

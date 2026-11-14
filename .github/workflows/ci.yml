@@ -55,7 +55,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
       - name: Test
-        run: pytest packages/climpact-web --ignore=packages/climpact-web/tests/test_page_budget.py
+        run: >-
+          pytest packages/climpact-web
+          --ignore=packages/climpact-web/tests/test_page_budget.py
+          --ignore=packages/climpact-web/tests/test_accessibility.py
       - name: Page size budget
         # The low-bandwidth budget (#82): every page type with what it links, gzipped, and
         # each static file; fails over budget and prints the sizes (TECHNICAL.md, "Size budget").
@@ -67,6 +70,41 @@ jobs:
           mkdir -p "$CLIMPACT_WEB_DATA_DIR"
           climpact-web manage check
           climpact-web manage makemigrations --check --dry-run
+
+  web-accessibility:
+    # The accessibility checks (#83): axe-core, keyboard, reflow, forced-colours,
+    # reduced-motion and progress checks of every page type, with the sample station,
+    # batch and grid run through the worker, in the runner's preinstalled Google Chrome
+    # driven over the DevTools protocol (TECHNICAL.md, "Accessibility"). Fails on a
+    # serious or critical axe violation, or any other finding; the report and screenshots
+    # are kept as an artifact.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install both packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
+      - name: Find Chrome
+        run: |
+          echo "CHROME=$(which google-chrome)" >> "$GITHUB_ENV"
+          google-chrome --version
+      - name: Accessibility checks
+        env:
+          CLIMPACT_A11Y_REQUIRE_CHROME: "1"
+          CLIMPACT_A11Y_REPORT: ${{ runner.temp }}/accessibility
+        run: pytest packages/climpact-web/tests/test_accessibility.py -rs
+      - name: Keep the report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-report
+          path: ${{ runner.temp }}/accessibility
+          if-no-files-found: ignore
 
   web-postgres:
     # Hosted mode against a real Postgres (a service container): the settings read

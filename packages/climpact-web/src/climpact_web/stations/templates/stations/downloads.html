@@ -45,8 +45,9 @@
 
   <section class="stack" aria-labelledby="summary-title">
     <h2 id="summary-title">{% translate "Summary and quality-control files" %}</h2>
-    <div class="table-wrap" role="region" aria-labelledby="summary-title" tabindex="0">
+    <div class="table-wrap" role="region" aria-labelledby="summary-caption" tabindex="0">
       <table class="table download-table">
+        <caption id="summary-caption" class="visually-hidden">{% translate "Summary and quality-control files to download" %}</caption>
         <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Contents" %}</th><th scope="col">{% translate "Download" %}</th></tr></thead>
         <tbody>
           {% for d in summary %}<tr><th scope="row">{{ d.label }}</th><td>{{ d.note }}</td><td>{% include "stations/_download_link.html" with d=d job=job %}</td></tr>{% endfor %}
@@ -63,8 +64,9 @@
     <p class="small muted">{% translate "The files of step 5, in Climpact for R's corr folder: the correlation of each index with your sector data, and the scatter plots." %}</p>
     {% if sector.zip %}<p>{% include "stations/_download_link.html" with d=sector.zip job=sector.job %}</p>{% endif %}
     {% if sector.files %}
-    <div class="table-wrap" role="region" aria-labelledby="sector-title" tabindex="0">
+    <div class="table-wrap" role="region" aria-labelledby="sector-caption" tabindex="0">
       <table class="table download-table">
+        <caption id="sector-caption" class="visually-hidden">{% translate "Sector comparison files to download" %}</caption>
         <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Download" %}</th></tr></thead>
         <tbody>{% for d in sector.files %}<tr><th scope="row">{{ d.label }}</th><td>{% include "stations/_download_link.html" with d=d job=sector.job %}</td></tr>{% endfor %}</tbody>
       </table>

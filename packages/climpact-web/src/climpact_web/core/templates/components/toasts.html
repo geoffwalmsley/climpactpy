@@ -1,5 +1,7 @@
 {% load i18n ui %}{# Toast region: ui.js adds toasts here (Climpact.toast(), or an HX-Trigger "toast" event). #}
 <ul class="toasts" id="toasts" aria-live="polite" aria-relevant="additions"></ul>
+{# Announcements of content htmx swaps in, e.g. a calculation's stage (ui.js, #83). #}
+<p class="visually-hidden" id="announcer" role="status" aria-live="polite" aria-atomic="true"></p>
 <template id="toast-template">
   <li class="alert toast">
     <span data-toast-icon></span>

@@ -4,7 +4,7 @@ the form to gridded:checks and swaps in this panel): the variables' problems, th
 and period, the base period's coverage and the files the run will write. Parameters:
 problems, summary, coverage, outputs, form.
 {% endcomment %}
-<div id="gridded-checks" class="gridded-checks stack stack--sm" aria-live="polite">
+<div id="gridded-checks" class="gridded-checks stack stack--sm" data-announce="now">
   {% if problems %}
   <ul class="file-problems gridded-checks__problems">
     {% for role, message in problems.items %}<li><strong>{% if role == "tasmax" %}{% translate "Maximum temperature:" %}{% elif role == "tasmin" %}{% translate "Minimum temperature:" %}{% else %}{% translate "Precipitation:" %}{% endif %}</strong> {{ message }}</li>{% endfor %}

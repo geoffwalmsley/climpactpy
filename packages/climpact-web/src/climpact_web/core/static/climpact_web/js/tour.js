@@ -69,7 +69,10 @@
       box = null;
       doc.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", place);
-      if (returnFocus && doc.contains(returnFocus)) returnFocus.focus();
+      // Back to where the tour was started from; when that is gone or hidden (the
+      // invitation's button), to the main content rather than to nowhere (#83).
+      if (returnFocus && doc.contains(returnFocus) && returnFocus.offsetParent) returnFocus.focus();
+      else if (doc.getElementById("main")) doc.getElementById("main").focus();
     }
 
     function onKey(event) {

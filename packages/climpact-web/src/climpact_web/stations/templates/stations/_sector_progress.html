@@ -12,7 +12,7 @@ Parameters: job, analysis, phases, and jobs.views.progress_context.
   {% if job.status == "queued" or job.status == "running" %}
   <div class="progress">
     <div class="progress__header">
-      <span id="sector-progress-label">{% if stage_label %}{{ stage_label }}{% else %}{{ job.get_status_display }}{% endif %}</span>
+      <span id="sector-progress-label" data-announce>{% if stage_label %}{{ stage_label }}{% else %}{{ job.get_status_display }}{% endif %}</span>
       {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
     </div>
     <progress max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="sector-progress-label" aria-describedby="sector-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>

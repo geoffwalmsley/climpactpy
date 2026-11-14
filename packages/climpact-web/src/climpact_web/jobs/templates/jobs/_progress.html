@@ -11,7 +11,7 @@ components' classes.
   {% if job.status == "queued" or job.status == "running" %}
   <div class="progress">
     <div class="progress__header">
-      <span id="job-progress-label">{% if stage_label %}{{ stage_label }}{% else %}{{ job.get_status_display }}{% endif %}</span>
+      <span id="job-progress-label" data-announce>{% if stage_label %}{{ stage_label }}{% else %}{{ job.get_status_display }}{% endif %}</span>
       {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
     </div>
     <progress id="job-progress-bar" max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="job-progress-label" aria-describedby="job-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
@@ -38,7 +38,7 @@ components' classes.
   <div class="alert alert--success" role="status">
     {% icon "check-circle" %}
     <div class="alert__body">
-      <h2 class="alert__title">{% translate "The calculation finished" %}</h2>
+      <h2 class="alert__title" data-announce="now">{% translate "The calculation finished" %}</h2>
       <p>{% blocktranslate %}Finished in {{ elapsed }}.{% endblocktranslate %}</p>
     </div>
   </div>

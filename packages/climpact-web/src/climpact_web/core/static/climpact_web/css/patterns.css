@@ -76,3 +76,12 @@
 .patterns > * {
   min-inline-size: 0;
 }
+
+/* The type specimen's first heading: drawn as an h1, but a paragraph, so the page keeps
+   one h1 (#83). */
+.pattern__h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+}

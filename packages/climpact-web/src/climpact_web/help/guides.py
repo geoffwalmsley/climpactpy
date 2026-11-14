@@ -48,6 +48,7 @@ GUIDE_ORDER = (
     "sector",
     "gridded",
     "faq",
+    "accessibility",  # the accessibility statement (#83), linked from every page's footer
 )
 
 CATALOGUE_MARKER = "[[index-catalogue]]"
@@ -169,13 +170,20 @@ def resolve_links(body: str, slug: str) -> str:
 
 
 def wrap_tables(body: str) -> str:
-    """Wide tables scroll in their own focusable region, as the table component does."""
-    return re.sub(
-        r"(<table>.*?</table>)",
-        r'<div class="table-wrap" tabindex="0" role="region">\1</div>',
-        body,
-        flags=re.S,
-    ).replace("<table>", '<table class="table">')
+    """Wide tables scroll in their own focusable region, as the table component does. The
+    region is named by the heading above the table (a focusable region needs a name, #83)."""
+    out, last = [], 0
+    heading = re.compile(r'<h[2-6] id="([^"]+)"')
+    for match in re.finditer(r"<table>.*?</table>", body, flags=re.S):
+        before = body[last : match.start()]
+        out.append(before)
+        ids = heading.findall(body, 0, match.start())
+        named = f' aria-labelledby="{ids[-1]}"' if ids else ""
+        table = match.group(0).replace("<table>", '<table class="table">', 1)
+        out.append(f'<div class="table-wrap" tabindex="0" role="region"{named}>{table}</div>')
+        last = match.end()
+    out.append(body[last:])
+    return "".join(out)
 
 
 def split_sections(body: str) -> list[Section]:

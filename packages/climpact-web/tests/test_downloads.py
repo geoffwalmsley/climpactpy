@@ -185,3 +185,27 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert re.search(rf"PDF report \({SIZE}\)", html)
     assert re.search(rf"Download \(zip, {SIZE}\)", html)
     assert re.search(rf"Download everything \(zip, {SIZE}\)", html)
+
+
+def test_downloads_page_lists_the_sector_comparison(client):
+    """A finished sector comparison (step 5, #90) of the run shown: its corr/ files."""
+    from test_sector_web import finished_analysis as sector_analysis
+    from test_sector_web import run_next
+
+    analysis, _job = sector_analysis(client)
+    page = f"/station/{analysis.pk}/downloads"
+    assert "Sector comparison" not in client.get(page).content.decode()
+    client.post(f"/station/{analysis.pk}/sector", {"sample": "1", "detrend": "on"})
+    sector = run_next()
+    assert sector.status == Status.SUCCEEDED, sector.log
+    html = client.get(page).content.decode()
+    assert "Sector comparison" in html
+    files = f"/jobs/{sector.pk}/files/"
+    csvs = [f for f in sector.result["files"] if f.endswith(".csv")]
+    assert csvs and all(f'href="{files}{f}"' in html for f in csvs)
+    assert f'href="{files}{sector.result["zip"]}"' in html  # step 5 always zips corr/
+    pngs = [f for f in sector.result["files"] if f.endswith(".png")]
+    assert pngs and all(f'href="{files}{f}"' in html for f in pngs)
+    section = html.split('id="sector-title"')[1].split("</section>")[0]
+    links = re.findall(r'download-link"[^>]*>.*?</a>', section, re.S)
+    assert links and all(re.search(SIZE, link) for link in links)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 06:52+0000\n"
+"POT-Creation-Date: 2026-11-14 06:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2219,7 +2219,7 @@ msgstr ""
 msgid "Monthly values by year."
 msgstr ""
 
-#: core/views.py:70 stations/templates/stations/downloads.html:68
+#: core/views.py:70 stations/templates/stations/downloads.html:85
 msgid "Table"
 msgstr ""
 
@@ -2850,7 +2850,7 @@ msgstr ""
 #: gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
-#: stations/templates/stations/downloads.html:68
+#: stations/templates/stations/downloads.html:85
 msgid "Index"
 msgstr ""
 
@@ -3032,6 +3032,7 @@ msgstr ""
 
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/downloads.html:50
+#: stations/templates/stations/downloads.html:68
 msgid "File"
 msgstr ""
 
@@ -5143,6 +5144,10 @@ msgstr ""
 msgid "Flat runs in TN"
 msgstr ""
 
+#: stations/downloads.py:173
+msgid "Sector comparison (zip)"
+msgstr ""
+
 #: stations/forms.py:31
 msgid ""
 "A text file of daily data with six columns: year, month, day, precipitation "
@@ -6019,7 +6024,7 @@ msgid "Every value in the file is missing."
 msgstr ""
 
 #: stations/sector_file.py:218 stations/templates/stations/_qc_summary.html:33
-#: stations/templates/stations/downloads.html:74 stations/views_indices.py:350
+#: stations/templates/stations/downloads.html:91 stations/views_indices.py:350
 msgid "none"
 msgstr ""
 
@@ -6884,6 +6889,7 @@ msgid "Contents"
 msgstr ""
 
 #: stations/templates/stations/downloads.html:50
+#: stations/templates/stations/downloads.html:68
 msgid "Download"
 msgstr ""
 
@@ -6895,42 +6901,56 @@ msgstr ""
 msgid "See what the quality checks found"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:61
+#: stations/templates/stations/downloads.html:62
+msgid "Sector comparison"
+msgstr ""
+
+#: stations/templates/stations/downloads.html:63
+msgid ""
+"The files of step 5, in Climpact for R's corr folder: the correlation of "
+"each index with your sector data, and the scatter plots."
+msgstr ""
+
+#: stations/templates/stations/downloads.html:73
+msgid "See the sector comparison"
+msgstr ""
+
+#: stations/templates/stations/downloads.html:78
 msgid "Each index"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:62
+#: stations/templates/stations/downloads.html:79
 msgid ""
 "The table of each index (CSV) and Climpact's plot of each series (PNG). The "
 "days of occurrence are columns of the index's table."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:62
+#: stations/templates/stations/downloads.html:79
 msgid "The plots were switched off in the settings."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:65
+#: stations/templates/stations/downloads.html:82
 #, python-format
 msgid "%(counter)s index"
 msgid_plural "%(counter)s indices"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/downloads.html:68
+#: stations/templates/stations/downloads.html:85
 #: stations/templates/stations/result.html:26
 #: stations/templates/stations/result.html:90
 msgid "Series"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:68
+#: stations/templates/stations/downloads.html:85
 msgid "Plot"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:73
+#: stations/templates/stations/downloads.html:90
 msgid "in the index's table"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:83
+#: stations/templates/stations/downloads.html:100
 msgid "Every file of this calculation, as a list"
 msgstr ""
 

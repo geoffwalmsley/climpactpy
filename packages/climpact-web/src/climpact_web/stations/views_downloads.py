@@ -29,6 +29,8 @@ def downloads(request, analysis_id):
     main = model.main_downloads(source)
     summary = model.summary_downloads(source)
     qc = model.qc_downloads(source)
+    from climpact_web.stations.views_sector import sector_job
+
     first = next((c for s in run.sections() for c in s["cards"] if not c.daily), None)
     return render(
         request,
@@ -46,5 +48,6 @@ def downloads(request, analysis_id):
             "first_card": first,
             "from_batch": source.from_batch and analysis.indices_job is None,
             "plots_made": bool(job.params.get("plots", True)),
+            "sector": model.sector_downloads(sector_job(analysis, source)),
         },
     )

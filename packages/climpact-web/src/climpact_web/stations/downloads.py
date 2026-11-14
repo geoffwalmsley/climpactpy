@@ -160,5 +160,25 @@ def index_downloads(source: RunSource, run: RunResults) -> list[dict]:
     return sections
 
 
+def sector_downloads(job) -> dict | None:
+    """The files of the station's finished sector comparison (step 5, #90): its
+    ``corr/`` zip and each CSV and PNG, or None when there is none."""
+    from climpact_web.jobs.models import Status
+
+    if job is None or job.status != Status.SUCCEEDED:
+        return None
+    out = {"job": job, "zip": None, "files": []}
+    root = job.output_dir
+    if (rel := job.result.get("zip")) and (root / rel).is_file():
+        out["zip"] = Download(_("Sector comparison (zip)"), rel, (root / rel).stat().st_size, "zip")
+    for rel in job.result.get("files", []):
+        path = root / rel
+        if path.is_file() and path.suffix in (".csv", ".png"):
+            out["files"].append(
+                Download(path.name, rel, path.stat().st_size, path.suffix.lstrip("."))
+            )
+    return out if out["zip"] or out["files"] else None
+
+
 def totals(items) -> int:
     return sum(d.size for d in items if d is not None)

@@ -3415,6 +3415,8 @@ size (Django's `filesizeformat`, in the interface language), for slow connection
   The index page's downloads card repeats the hint.
 - *Summary and quality-control files*: trend, thresholds, missing values and the eight QC
   files.
+- *Sector comparison*, when the run shown has a finished step 5 (#90, `views_sector.sector_job`):
+  its `corr/` zip and each CSV and PNG, linked from the sector job.
 - *Each index*: grouped as the dashboard, in disclosures (the first open): for each series
   its table (CSV; the `day_of_` series point to the index's table, which holds the dates)
   and its PNG. Below 40rem each row becomes a block with its buttons side by side.
@@ -3423,7 +3425,7 @@ Everything is a file the job wrote; the page only reads sizes (`stat`). The size
 every other download button too: the dashboard and index page, the QC page (the
 `file_size` filter in `core/templatetags/ui.py`), the job page (each file and the zip,
 `jobs.views.output_size`) and the batch results (the zips and each station's report). The
-Sydney page is 111 KB of HTML, 37.5 KB gzipped with its files.
+Sydney page is 111 KB of HTML, 37.4 KB gzipped with its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
 links to step 3 with `?index=<key>`; the key travels in a hidden field to the results URL
@@ -3939,10 +3941,10 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
 | station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
-| station results, 80 indices | 190.8 | 37.7 | 69.2 | 65.7 |
-| station index (TXx, with chart code) | 18.8 | 4.5 | 68.4 | 61.4 |
-| station sector results (#90) | 110.6 | 14.7 | 45.2 | 41.8 |
-| station downloads, 114 tables (#79) | 110.6 | 6.8 | 37.5 | 34.1 |
+| station results, 80 indices | 190.9 | 37.7 | 69.4 | 65.8 |
+| station index (TXx, with chart code) | 19.0 | 4.6 | 68.6 | 61.7 |
+| station sector results (#90) | 110.6 | 14.6 | 45.1 | 41.7 |
+| station downloads, 114 tables (#79) | 110.6 | 6.7 | 37.4 | 34.0 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | station indices (step 3) | 28.8 | 5.4 | 36.1 | 32.7 |

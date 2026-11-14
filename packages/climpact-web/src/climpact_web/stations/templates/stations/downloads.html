@@ -57,6 +57,23 @@
     {% if qc and analysis.qc_job %}<p class="small"><a href="{% url 'stations:qc' analysis.pk %}">{% translate "See what the quality checks found" %}</a></p>{% endif %}
   </section>
 
+  {% if sector %}
+  <section class="stack" aria-labelledby="sector-title">
+    <h2 id="sector-title">{% translate "Sector comparison" %}</h2>
+    <p class="small muted">{% translate "The files of step 5, in Climpact for R's corr folder: the correlation of each index with your sector data, and the scatter plots." %}</p>
+    {% if sector.zip %}<p>{% include "stations/_download_link.html" with d=sector.zip job=sector.job %}</p>{% endif %}
+    {% if sector.files %}
+    <div class="table-wrap" role="region" aria-labelledby="sector-title" tabindex="0">
+      <table class="table download-table">
+        <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Download" %}</th></tr></thead>
+        <tbody>{% for d in sector.files %}<tr><th scope="row">{{ d.label }}</th><td>{% include "stations/_download_link.html" with d=d job=sector.job %}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
+    <p class="small"><a href="{% url 'stations:sector' analysis.pk %}">{% translate "See the sector comparison" %}</a></p>
+  </section>
+  {% endif %}
+
   <section class="stack" aria-labelledby="indices-title">
     <h2 id="indices-title">{% translate "Each index" %}</h2>
     <p class="small muted">{% translate "The table of each index (CSV) and Climpact's plot of each series (PNG). The days of occurrence are columns of the index's table." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>

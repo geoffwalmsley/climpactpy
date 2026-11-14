@@ -10,6 +10,7 @@ import climpact
 import climpact_web
 from climpact_web.core.forms import PatternDemoForm
 from climpact_web.core.navigation import destination, station_steps
+from climpact_web.help.tour import home_tour
 
 
 @require_safe
@@ -32,6 +33,7 @@ def home(request):
         "sample_url": destination("sample").url,
         "ways": ways,
         "steps": station_steps("upload"),
+        "tour_steps": home_tour(),
     }
     return render(request, "core/home.html", context)
 

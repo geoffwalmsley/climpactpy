@@ -1,0 +1,11 @@
+{% load i18n ui %}{% comment %}
+A help topic opening in place ({% help_topic %} in templatetags/help.py). Parameters:
+topic, summary, variant ("compact" or "block"), guide_title.
+{% endcomment %}{% if topic %}
+<details class="disclosure help-topic{% if variant != 'block' %} help-topic--compact{% endif %}" data-help-topic="{{ topic.id }}">
+  <summary>{% icon "help" %}<span>{{ summary }}</span>{% if variant == 'block' %}{% icon "chevron-down" %}{% endif %}</summary>
+  <div class="disclosure__body">
+    <p>{{ topic.text }}</p>
+    {% if guide_title %}<p><a href="{{ topic.url }}">{% blocktranslate with title=guide_title %}More in the guide: {{ title }}{% endblocktranslate %}</a></p>{% else %}<p><a href="{{ topic.url }}">{% translate "More about this" %}</a></p>{% endif %}
+  </div>
+</details>{% endif %}

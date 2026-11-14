@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{{ guide.title }}{% endblock %}
+{% block content %}
+<div class="help-guide">
+  <nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb small"><a href="{% url 'help:index' %}">{% translate "Help" %}</a></nav>
+  <header class="help-guide__header stack stack--sm">
+    <h1>{{ guide.title }}</h1>
+    {% if guide.summary %}<p class="lead">{{ guide.summary }}</p>{% endif %}
+    {% if guide.fallback %}
+    {% translate "This guide is not yet translated, so it is shown in English." as fallback_message %}
+    {% include "components/alert.html" with kind="info" message=fallback_message %}
+    {% endif %}
+  </header>
+  {% if guide.toc %}
+  <nav class="help-toc" aria-labelledby="toc-title">
+    <h2 class="help-toc__title" id="toc-title">{% translate "On this page" %}</h2>
+    <ol>
+      {% for item in guide.toc %}
+      <li><a href="#{{ item.id }}">{{ item.name }}</a>{% if item.children %}
+        <ol>{% for child in item.children %}<li><a href="#{{ child.id }}">{{ child.name }}</a></li>{% endfor %}</ol>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </nav>
+  {% endif %}
+  <article class="help-article prose" lang="{{ guide.language }}">
+    {{ guide.html|safe }}
+  </article>
+  <nav class="help-pager" aria-label="{% translate 'Other guides' %}">
+    {% if previous %}<a class="help-pager__link" href="{{ previous.url }}" rel="prev"><span class="small muted">{% translate "Previous" %}</span><span>{{ previous.title }}</span></a>{% endif %}
+    {% if next %}<a class="help-pager__link help-pager__link--next" href="{{ next.url }}" rel="next"><span class="small muted">{% translate "Next" %}</span><span>{{ next.title }}</span></a>{% endif %}
+  </nav>
+</div>
+{% endblock %}

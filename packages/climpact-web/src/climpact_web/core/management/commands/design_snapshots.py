@@ -1,4 +1,4 @@
-"""Save the landing page and pattern library as static HTML for design review (#71).
+"""Save the landing page, pattern library and other pages as static HTML for design review (#71).
 
     climpact-web manage design_snapshots <folder>
 
@@ -7,7 +7,9 @@ the job pages with example jobs (``job-running.html``, ``job-finished.html``,
 ``job-failed.html``, ``jobs.html``), the single-station step 1 pages with the sample data
 (``station-upload.html``, ``station-upload-problems.html``, ``station-load.html``,
 ``station-load-errors.html``, ``station-qc.html``), the batch pages (``batch-start.html``,
-``batch-check.html``, ``batch-running.html``, ``batch-results.html``) and a dark-theme copy of each
+``batch-check.html``, ``batch-running.html``, ``batch-results.html``), the help pages
+(``help.html``, ``help-guide.html``, ``help-indices.html``, ``help-topics.html``,
+``help-search.html``, #81) and a dark-theme copy of each
 (``*-dark.html``), with the static files copied alongside, so the pages open straight from
 disk (``file://``) in any browser without a server. The icon sprite is inlined, since
 browsers will not load an external sprite from ``file://``. Nothing touches the database:
@@ -28,7 +30,16 @@ from django.utils import timezone
 STATIC_APP = Path(__file__).resolve().parents[2] / "static" / "climpact_web"
 SPRITE_URL = "static/climpact_web/icons/icons.svg"
 
-PAGES = {"index": "/", "patterns": "/patterns/", "404": "/this-page-does-not-exist/"}
+PAGES = {
+    "index": "/",
+    "patterns": "/patterns/",
+    "404": "/this-page-does-not-exist/",
+    "help": "/help/",
+    "help-guide": "/help/quality-control/",
+    "help-indices": "/help/indices/",
+    "help-topics": "/help/topics/",
+    "help-search": "/help/search/?q=base+period",
+}
 
 
 def to_static_files(html: str) -> str:

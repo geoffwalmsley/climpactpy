@@ -1,0 +1,20 @@
+{% load i18n %}{% comment %}
+Search results (help:search, also swapped into #help-results by htmx). Parameters: query,
+results.
+{% endcomment %}
+{% if query %}
+<p class="small muted" aria-live="polite">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
+{% if results %}
+<ol class="help-results">
+  {% for result in results %}
+  <li>
+    <a href="{{ result.url }}">{{ result.title }}</a>
+    <span class="small muted">{{ result.context }}</span>
+    <p class="small">{{ result.excerpt }}</p>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p>{% translate "Nothing found. Try a shorter word, or browse the guides and the list of help topics." %}</p>
+{% endif %}
+{% endif %}

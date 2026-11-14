@@ -113,7 +113,7 @@
         {% blocktranslate asvar files_hint with size=max_upload_mb %}Up to {{ size }} MB in all.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=add_form.station_files hint=files_hint multiple=True %}
         <p class="small muted">{{ add_form.station_files.help_text }}</p>
-        {% include "components/field.html" with field=add_form.metadata_file %}
+        {% include "components/field.html" with field=add_form.metadata_file help="batch.metadata_file" %}
         <div>
           {% translate "Load and check again" as add_label %}
           {% include "components/button.html" with label=add_label type="submit" variant="secondary" icon="refresh" %}

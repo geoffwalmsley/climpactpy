@@ -17,7 +17,9 @@ def test_static_files_in_package():
         "css/theme-dark.css",
         "css/patterns.css",
         "css/stations.css",
+        "css/help.css",
         "js/ui.js",
+        "js/tour.js",
         "icons/icons.svg",
         "icons/favicon.svg",
         "chart-palette.json",
@@ -33,7 +35,9 @@ def test_vendored_htmx_matches_readme():
     assert actual.hexdigest() == recorded
 
 
-@pytest.mark.parametrize("name", ["main.css", "theme-dark.css", "patterns.css", "stations.css"])
+@pytest.mark.parametrize(
+    "name", ["main.css", "theme-dark.css", "patterns.css", "stations.css", "batch.css", "help.css"]
+)
 def test_css_uses_logical_properties(name):
     """Right-to-left languages: no physical left/right/top/bottom in the stylesheets."""
     css = (STATIC / "css" / name).read_text()
@@ -45,7 +49,14 @@ def test_css_uses_logical_properties(name):
     assert not re.search(sizes, css)
 
 
-def test_ui_js_has_no_dependencies():
-    """ui.js is plain script: no imports, no network requests."""
-    js = (STATIC / "js" / "ui.js").read_text()
+@pytest.mark.parametrize("name", ["ui.js", "tour.js"])
+def test_scripts_have_no_dependencies(name):
+    """ui.js and tour.js are plain scripts: no imports, no network requests."""
+    js = (STATIC / "js" / name).read_text()
     assert not re.search(r"\bimport\b|\brequire\(|fetch\(|XMLHttpRequest|https?://", js)
+
+
+def test_help_assets_stay_small():
+    """help.css loads on every page and tour.js on the landing page (#81)."""
+    assert (STATIC / "css" / "help.css").stat().st_size < 7 * 1024
+    assert (STATIC / "js" / "tour.js").stat().st_size < 8 * 1024

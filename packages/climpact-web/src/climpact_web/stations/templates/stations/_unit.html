@@ -1,4 +1,4 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 A group of metadata fields validated together as they change: htmx posts the whole form
 with "group" and swaps in this group's re-rendered fields (stations:validate). Without
 JavaScript the form is checked when it is sent. Parameters: form (MetadataForm), group
@@ -6,13 +6,13 @@ JavaScript the form is checked when it is sent. Parameters: form (MetadataForm),
 {% endcomment %}
 <div class="field-group" id="group-{{ group }}" hx-post="{% url 'stations:validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
   {% if group == "station_name" %}
-  {% include "components/field.html" with field=form.station_name %}
+  {% include "components/field.html" with field=form.station_name help="station.name" %}
   {% elif group == "latitude" %}
   {% translate "°N" as north %}
-  {% include "components/field.html" with field=form.latitude unit=north %}
+  {% include "components/field.html" with field=form.latitude unit=north help="station.latitude" %}
   {% elif group == "longitude" %}
   {% translate "°E" as east %}
-  {% include "components/field.html" with field=form.longitude unit=east %}
+  {% include "components/field.html" with field=form.longitude unit=east help="station.longitude" %}
   {% else %}
   <fieldset class="field-set" aria-describedby="base-period-hint">
     <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
@@ -20,6 +20,7 @@ JavaScript the form is checked when it is sent. Parameters: form (MetadataForm),
       The years the percentile thresholds are calculated from, within the years of the data
       ({{ first }} to {{ last }}). Climpact for R suggests 1971 to 2000.
     {% endblocktranslate %}{% else %}{% translate "The years the percentile thresholds are calculated from. Climpact for R suggests 1971 to 2000." %}{% endif %}</p>
+    {% help_topic "station.base_period" %}
     <div class="form__row">
       {% include "components/field.html" with field=form.base_start %}
       {% include "components/field.html" with field=form.base_end %}

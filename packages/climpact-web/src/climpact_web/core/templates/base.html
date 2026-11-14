@@ -9,6 +9,7 @@
   <link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'climpact_web/css/main.css' %}">
   <link rel="stylesheet" href="{% static 'climpact_web/css/theme-dark.css' %}" media="(prefers-color-scheme: dark)" id="theme-dark">
+  <link rel="stylesheet" href="{% static 'climpact_web/css/help.css' %}">
   {# The theme the user picked (ui.js), applied before the page paints. #}
   <script>try{var t=localStorage.getItem("climpact-theme");if(t==="dark"||t==="light"){document.getElementById("theme-dark").media=t==="dark"?"all":"not all";document.documentElement.dataset.theme=t}}catch(e){}</script>
   <script src="{% static 'climpact_web/vendor/htmx/htmx.min.js' %}" defer></script>
@@ -28,7 +29,7 @@
       <nav class="site-nav" aria-label="{% translate 'Main' %}">
         <ul>
           {% for item in nav_items %}
-          <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+          <li><a href="{{ item.url }}" data-nav="{{ item.key }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
           {% endfor %}
         </ul>
       </nav>

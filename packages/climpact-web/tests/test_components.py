@@ -224,14 +224,14 @@ def test_landing_page(client):
         html,
         re.S,
     )
-    assert "Available soon" in html  # help is a later ticket
+    assert "Available soon" in html  # gridded is a later ticket (#85)
     assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/jobs/"]
+    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/help/", "/jobs/"]
 
 
 @override_settings(IS_HOSTED=True)

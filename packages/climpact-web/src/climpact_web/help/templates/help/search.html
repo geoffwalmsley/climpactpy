@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block title %}{% translate "Search the help" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg help-page">
+  <nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb small"><a href="{% url 'help:index' %}">{% translate "Help" %}</a></nav>
+  <h1>{% translate "Search the help" %}</h1>
+  {% include "help/_search_form.html" with live=True %}
+  <div id="help-results">{% include "help/_results.html" %}</div>
+</div>
+{% endblock %}

@@ -14,3 +14,5 @@ atexit.register(shutil.rmtree, _data_dir, ignore_errors=True)
 os.environ["CLIMPACT_WEB_DATA_DIR"] = _data_dir
 
 from climpact_web.settings import *  # noqa: E402, F403
+
+HELP_STRICT = True  # an unknown help topic id fails the test instead of being logged

@@ -302,6 +302,41 @@ def test_sample_loads_in_one_click(client):
     assert response["Location"] == f"/station/{analysis.pk}/quality"
 
 
+TOP_CONTINUE = "Details look right: continue to quality checks"
+
+
+@pytest.mark.django_db
+def test_load_page_offers_continue_at_the_top_when_the_details_are_valid(client):
+    """#114: with the sample (or on a re-visit) the details are already valid, so a
+    continue button under the heading submits the station form below it."""
+    client.post("/station/sample")
+    analysis = StationAnalysis.objects.get()
+    html = client.get(f"/station/{analysis.pk}/load").content.decode()
+    top = html.index(TOP_CONTINUE)
+    assert html.index("<h1>") < top < html.index('id="details-title"')
+    button = re.search(r'<button type="submit" form="station-details"[^>]*>', html)
+    assert button and button.start() < top
+    form = r'<form method="post" action="[^"]*/load" class="form" id="station-details"'
+    assert re.search(form, html)
+    assert "<span>Continue to quality checks</span>" in html  # the form's own button stays
+    # The top button posts the same form: the next step, as from the bottom button.
+    data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
+            "base_start": "1971", "base_end": "2000"}  # fmt: skip
+    assert client.post(f"/station/{analysis.pk}/load", data)["Location"].endswith("/quality")
+
+
+@pytest.mark.django_db
+def test_no_top_continue_until_the_details_are_valid(client):
+    analysis = loaded(client)  # an upload: no latitude yet, so the form is not bound
+    assert TOP_CONTINUE not in client.get(f"/station/{analysis.pk}/load").content.decode()
+    response = client.post(f"/station/{analysis.pk}/load", metadata(latitude="123"))
+    assert response.status_code == 200 and TOP_CONTINUE not in response.content.decode()
+    # A warning (latitude 0) is worth reading first, so it is not skipped from the top.
+    client.post(f"/station/{analysis.pk}/load", metadata(latitude="0"))
+    html = client.get(f"/station/{analysis.pk}/load").content.decode()
+    assert "Southern Hemisphere" in html and TOP_CONTINUE not in html
+
+
 @pytest.mark.django_db
 def test_sample_get_goes_to_the_upload_page_and_the_file_downloads(client):
     assert client.get("/station/sample")["Location"] == "/station/"

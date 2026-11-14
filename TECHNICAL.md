@@ -2925,7 +2925,7 @@ a comment listing its parameters. Labels are passed in already translated
 
 | Component | Notes |
 | --- | --- |
-| `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons |
+| `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons; `form_id` (a submit button outside its form) and `describedby` (`aria-describedby`) |
 | `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
@@ -3322,7 +3322,10 @@ server validates the whole form and returns only that group, re-rendered with it
 errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
 whole form is posted and the page shows every error with the error summary.
 "Continue to quality checks" saves the metadata, moves `step` to `qc` and redirects to
-step 2.
+step 2. When the saved details are already valid and have no warnings (the sample, or a
+re-visit), a second button under the heading, "Details look right: continue to quality
+checks", submits the same form from outside it (`form="station-details"`), so the step
+can be finished without scrolling past the summary and the charts (#114).
 
 **Step 2: the quality checks (#77).** Replaces the R app's step 2
 (`singleStationStep2UI.R`, `singleStationStep2.R`, `services/quality_control_checks.R`) and
@@ -3341,8 +3344,11 @@ without errors; the user corrects the file outside the app and loads it again.
   waits for a click), so the results are usually there when the page opens; changing the
   thresholds or uploading a corrected file queues another, cancelling one still waiting.
   The page polls `.../quality/progress` (progress bar, stage, time) and reloads when the
-  job has finished (`HX-Refresh`; a `<noscript>` refresh without JavaScript). A failed or
-  cancelled check says so and offers the form again.
+  job has finished (`HX-Refresh`; a `<noscript>` refresh without JavaScript). While the job
+  is queued or running the page says "Running the quality checks…" and the thresholds
+  form is closed behind "Change the thresholds" (its button then reads "Restart the
+  checks with these thresholds"), so nothing suggests the checks must be started by hand
+  (#114). A failed or cancelled check says so and offers the form again.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
   user downloads, so every row of every file is on the screen. A summary first: the
   verdict (`clear`, `review` or `errors`), what each finding means, a count per check
@@ -3398,7 +3404,15 @@ warnings that do not stop the run: d = 6 for WSDId or CSDId, Rx1day/Rx5day, R10m
 and the 3, 6 and 12-month scales duplicate indices always calculated. R's station screen
 has no EHF definition (station runs always use Nairn and Fawcett 2013, the only one
 `climdex.hwEHF` accepts); the page says so. The form starts from the last calculation's
-settings, else the batch station's metadata line (`origin`), else the defaults. Step 3
+settings, else the batch station's metadata line (`origin`), else the defaults.
+"Calculate with these settings" comes first, straight after the intro, and the parameter
+cards (plots, spell lengths, degree days, precipitation and drought, your own index and
+the heatwave note) sit in one "Change the settings" disclosure (`<details id="settings">`).
+It starts closed, labelled "Climpact's defaults", and the server opens it when the posted
+form has errors (so the error summary's links reach visible fields) or a setting differs
+from its default (`IndexParamsForm.settings_open`; the files card stays outside and does not
+count). The submit button at the end of the form stays, named "Calculate indices"; the
+first is described by the run-time note (#114). Step 3
 opens once step 1 is complete, whether or not the quality checks have finished; step 2's
 "Continue" leads here once they have, and until then an info alert recommends them.
 "Calculate indices" queues a `station` job (the `station` runner: QC files, every index,
@@ -4019,14 +4033,14 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | --- | ---: | ---: | ---: | ---: |
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
-| station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
+| station step 1, sample loaded (#114: with the top continue button) | 82.5 | 20.8 | 84.3 | 77.4 |
 | station results, 80 indices (#113: with the significant-trends summary) | 231.7 | 47.1 | 80.0 | 76.2 |
 | station index (TXx, with chart code) | 19.2 | 4.7 | 69.7 | 62.6 |
 | station sector results (#90) | 110.6 | 14.6 | 45.1 | 41.7 |
 | station downloads, 114 tables (#79) | 110.6 | 6.7 | 37.4 | 34.0 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station indices (step 3) | 28.8 | 5.4 | 36.1 | 32.7 |
+| station indices (step 3; #114: settings in a disclosure) | 30.0 | 5.6 | 37.3 | 33.7 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
 | landing | 13.4 | 4.1 | 34.9 | 31.5 |
 | batch check | 18.6 | 4.4 | 34.1 | 30.8 |

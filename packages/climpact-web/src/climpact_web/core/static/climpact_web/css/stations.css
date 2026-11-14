@@ -132,3 +132,8 @@
 .recent-list {
   overflow-wrap: anywhere;
 }
+
+/* Step 3's parameter cards sit in one "Change the settings" disclosure (#114). */
+.settings-disclosure .disclosure__body {
+  color: inherit;
+}

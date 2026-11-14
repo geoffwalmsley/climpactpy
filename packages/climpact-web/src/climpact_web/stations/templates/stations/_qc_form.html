@@ -14,7 +14,7 @@ runs the checks again. Context: analysis, qc_form, review.
     {% endfor %}
   </div>
   <div class="form__actions">
-    {% if review %}{% translate "Check again with these thresholds" as run_label %}{% else %}{% translate "Run the quality checks" as run_label %}{% endif %}
+    {% if review %}{% translate "Check again with these thresholds" as run_label %}{% elif job and not job.is_finished %}{% translate "Restart the checks with these thresholds" as run_label %}{% else %}{% translate "Run the quality checks" as run_label %}{% endif %}
     {% include "components/button.html" with label=run_label type="submit" icon="play" %}
   </div>
 </form>

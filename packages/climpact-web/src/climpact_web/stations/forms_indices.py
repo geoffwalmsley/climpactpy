@@ -227,6 +227,29 @@ class IndexParamsForm(forms.Form):
         for name in ("custom_variable", "custom_operator", "custom_threshold"):
             self.fields[name].required = bool(enabled)
 
+    def settings_open(self) -> bool:
+        """Whether the page's "Change the settings" disclosure starts open (#114): when
+        the form has errors, so that they are seen and focused, or when a setting differs
+        from Climpact's default (a previous run's or a batch line's values)."""
+        names = [name for unit in self.UNITS.values() for name in unit]
+        if self.is_bound:
+            if self.errors:
+                return True
+            values = self.cleaned_data
+        else:
+            values = {name: self.initial.get(name, self.fields[name].initial) for name in names}
+        custom = bool(values.get("custom_enabled"))
+        for name in names:
+            value, default = values.get(name), self.fields[name].initial
+            if name in ("custom_variable", "custom_operator", "custom_threshold") and not custom:
+                continue
+            if name == "plot_title":
+                if value:
+                    return True
+            elif value != default:
+                return True
+        return False
+
     def warn(self, unit: str, message: str) -> None:
         self.warnings.setdefault(unit, []).append(message)
 

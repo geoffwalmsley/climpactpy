@@ -10,6 +10,14 @@
     <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check that this is the data you expect, then give the station's details.{% endblocktranslate %}{% endif %}</p>
   </header>
 
+  {% if form.is_bound and not form.errors and not form.warnings %}{# details already valid, e.g. the sample or a re-visit (#114) #}
+  <div class="cluster results-actions">
+    {% translate "Details look right: continue to quality checks" as top_label %}
+    {% include "components/button.html" with label=top_label type="submit" form_id="station-details" icon_end="arrow-right" size="lg" %}
+    <a href="#details-title">{% translate "Check the station details" %}</a>
+  </div>
+  {% endif %}
+
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
   {% if analysis.warnings %}
@@ -27,7 +35,7 @@
 
   <section class="card stack" aria-labelledby="details-title">
     <h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>
-    <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" novalidate>
+    <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" id="station-details" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" %}
       {% include "stations/_unit.html" with group="station_name" %}

@@ -55,7 +55,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
       - name: Test
-        run: pytest packages/climpact-web
+        run: pytest packages/climpact-web --ignore=packages/climpact-web/tests/test_page_budget.py
+      - name: Page size budget
+        # The low-bandwidth budget (#82): every page type with what it links, gzipped, and
+        # each static file; fails over budget and prints the sizes (TECHNICAL.md, "Size budget").
+        run: pytest packages/climpact-web/tests/test_page_budget.py
       - name: Django checks
         env:
           CLIMPACT_WEB_DATA_DIR: ${{ runner.temp }}/climpact-web

@@ -13,7 +13,8 @@ dependencies = [
     "climpactpy",  # the core package (import name: climpact)
     "django>=5.2,<6",  # 5.2 LTS (Django 6 needs Python 3.12)
     "waitress>=3.0",  # the local server started by `climpact-web`
-    "whitenoise>=6.7",  # static files, from the package in local mode
+    "whitenoise>=6.7",  # static files: hashed, compressed copies (#82)
+    "brotli>=1.1",  # Brotli copies of the static files, made by collectstatic (#82)
     "dj-database-url>=2.2",  # DATABASE_URL in hosted mode
     "platformdirs>=4.2",  # the user data folder in local mode
     "markdown>=3.6",  # the help guides (#81)

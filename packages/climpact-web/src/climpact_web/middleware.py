@@ -1,7 +1,41 @@
 """Request-level middleware for climpact-web."""
 
+from pathlib import Path
+
 from django.conf import settings
+from django.middleware.gzip import GZipMiddleware
 from django.shortcuts import render
+from whitenoise.middleware import WhiteNoiseMiddleware
+
+# Responses worth compressing: pages, htmx fragments, chart data, CSV (#82).
+COMPRESSIBLE_TYPES = ("text/", "application/json", "image/svg+xml")
+
+
+class StaticFilesMiddleware(WhiteNoiseMiddleware):
+    """WhiteNoise, without its warning when ``STATIC_ROOT`` does not exist yet: in local
+    mode the folder is made by ``collectstatic`` when ``climpact-web`` starts, and until
+    then the finders serve every file from the package."""
+
+    def add_files(self, root, prefix=None):
+        if Path(root).is_dir():
+            super().add_files(root, prefix)
+
+
+class CompressionMiddleware(GZipMiddleware):
+    """Gzip pages, htmx fragments and other text answers for browsers that accept it.
+
+    Django's own middleware, limited to text: file downloads (zips, netCDF, PNG) are
+    already compressed or streamed, and static files come precompressed from WhiteNoise,
+    which answers before this middleware runs. Django's middleware pads each answer with
+    random bytes against BREACH, and the CSRF token is masked afresh on every page.
+    """
+
+    def process_response(self, request, response):
+        if response.streaming or not response.get("Content-Type", "").startswith(
+            COMPRESSIBLE_TYPES
+        ):
+            return response
+        return super().process_response(request, response)
 
 
 def upload_limit(path: str) -> tuple[int, int]:

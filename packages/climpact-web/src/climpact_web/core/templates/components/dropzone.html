@@ -8,7 +8,7 @@ file field; its label is the zone's title), hint (accepted formats and size limi
   <label class="dropzone" for="{{ field.id_for_label }}" data-dropzone>
     {% icon "upload" "" "dropzone__icon" %}
     <span class="dropzone__title">{{ field.label }}</span>
-    <span class="dropzone__hint">{% if hint %}{% blocktranslate %}Drop a file here or choose one. {{ hint }}{% endblocktranslate %}{% else %}{% translate "Drop a file here or choose one" %}{% endif %}</span>
+    <span class="dropzone__hint"{% if hint %} id="{{ field.auto_id }}_helptext"{% endif %}>{% if hint %}{% blocktranslate %}Drop a file here or choose one. {{ hint }}{% endblocktranslate %}{% else %}{% translate "Drop a file here or choose one" %}{% endif %}</span>
     <span class="dropzone__file" data-dropzone-file hidden>{% icon "file" %}<span></span></span>
     {{ field }}
   </label>

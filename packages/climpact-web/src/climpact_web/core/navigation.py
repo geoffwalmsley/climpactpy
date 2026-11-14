@@ -39,6 +39,7 @@ DESTINATIONS = (
     Destination("batch", "stations:batch", _("Batch"), "layers"),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", local_only=True),
     Destination("help", "help:index", _("Help"), "book"),
+    Destination("jobs", "jobs:list", _("Your calculations"), "clock"),
 )
 
 

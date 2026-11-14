@@ -2558,7 +2558,8 @@ packages/climpact-web/src/climpact_web/
                      progress fragment, cancel, retry, file downloads
     context_processors.py  `job_retention_days` for every template
     management/commands/  runworker, purgejobs
-    templates/jobs/  job_list.html, job_detail.html, _progress.html, station_form.html
+    templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html,
+                     station_form.html
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
@@ -2733,9 +2734,9 @@ a comment listing its parameters. Labels are passed in already translated
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
-(single station, sample data, batch, gridded, help) with the URL name each later ticket
-will add (`stations:upload`, `stations:sample`, `stations:batch`, `gridded:start`,
-`help:index`). Until a URL exists, the landing page shows that action disabled or
+(single station, sample data, batch, gridded, help, and the job list from #73) with the
+URL name each later ticket will add (`stations:upload`, `stations:sample`,
+`stations:batch`, `gridded:start`, `help:index`; `jobs:list` exists). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered only in local mode, as
 in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
 reason.
@@ -2754,14 +2755,16 @@ scroll inside their own region. Only logical properties are used: a test fails o
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
 under `forced-colors`.
 
-**Size.** `main.css` and `theme-dark.css` together are about 35 KB (7.5 KB gzipped);
+**Size.** `main.css` and `theme-dark.css` together are about 36 KB (7.6 KB gzipped);
 `ui.js` is about 10.6 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 12 KB. The
 issue aimed for under 30 KB of CSS; the full component set, both token sets and the
 comments put it above that. Whole-page budgets are set in #82.
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
-page, pattern library and 404 page (light and dark copies) with the static files beside
-them and the icon sprite inlined, so they open from disk without a server.
+page, pattern library, 404 page and the job pages (a running, a finished and a failed
+job, the job list and the station form, rendered from unsaved example jobs, so no
+database is needed), each in light and dark copies, with the static files beside them
+and the icon sprite inlined, so they open from disk without a server.
 
 ### Translations
 
@@ -2898,9 +2901,12 @@ the upload is saved as `input/station.txt`, never under a name from the browser.
 `jobs/<id>/` is the job page; `jobs/<id>/progress` the progress fragment;
 `jobs/<id>/cancel` and `jobs/<id>/retry` (POST); `jobs/<id>/files/<path>` downloads an
 output file of a finished job (paths outside `output/` give 404). Any other session gets
-404, as for a job that does not exist. The templates use plain semantic markup (a
-`<progress>` bar, the existing `main.css` classes) until the design system (#71) restyles
-them.
+404, as for a job that does not exist. The templates use the design system's components
+(see [Design system](#design-system)): a status badge (`jobs/_status.html`), the progress
+bar and note, alerts for failure, cancellation and a missing worker, the zip download
+button and the file list in a disclosure; the list is a table with an empty state, and
+the station form uses the field and drop zone components with an error summary. The
+header links to the list as "Your calculations".
 
 **Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
 server chooses: `hx-trigger="load delay:<n>s, visibilitychange[!document.hidden] from:document"`

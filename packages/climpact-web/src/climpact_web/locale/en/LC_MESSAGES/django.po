@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 01:29+0000\n"
+"POT-Creation-Date: 2026-11-14 01:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,120 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: core/forms.py:10 jobs/forms.py:27
+msgid "Station name"
+msgstr ""
+
+#: core/forms.py:11
+msgid "Used in output file names. Defaults to the file name."
+msgstr ""
+
+#: core/forms.py:15 jobs/forms.py:38
+msgid "Latitude"
+msgstr ""
+
+#: core/forms.py:18
+msgid "Decimal degrees, negative in the southern hemisphere."
+msgstr ""
+
+#: core/forms.py:20
+msgid "Base period start"
+msgstr ""
+
+#: core/forms.py:21
+msgid "Base period end"
+msgstr ""
+
+#: core/forms.py:23
+msgid "Variable"
+msgstr ""
+
+#: core/forms.py:24
+msgid "Maximum temperature"
+msgstr ""
+
+#: core/forms.py:24
+msgid "Minimum temperature"
+msgstr ""
+
+#: core/forms.py:27
+msgid "Trend method"
+msgstr ""
+
+#: core/forms.py:28
+msgid "Least squares"
+msgstr ""
+
+#: core/forms.py:28
+msgid "Sen's slope"
+msgstr ""
+
+#: core/forms.py:33
+msgid "Notes"
+msgstr ""
+
+#: core/forms.py:36
+msgid "Detrend data"
+msgstr ""
+
+#: core/forms.py:38
+msgid "Remove the linear trend before correlating."
+msgstr ""
+
+#: core/forms.py:40 jobs/forms.py:23
+msgid "Station file"
+msgstr ""
+
+#: core/forms.py:46
+msgid "The end must be after the start."
+msgstr ""
+
+#: core/navigation.py:37
+msgid "Single station"
+msgstr ""
+
+#: core/navigation.py:38 core/templates/core/home.html:17
+msgid "Try with sample data"
+msgstr ""
+
+#: core/navigation.py:39 core/templates/core/patterns.html:177
+msgid "Batch"
+msgstr ""
+
+#: core/navigation.py:40 core/templates/core/patterns.html:178
+msgid "Gridded"
+msgstr ""
+
+#: core/navigation.py:41
+msgid "Help"
+msgstr ""
+
+#: core/navigation.py:42 jobs/templates/jobs/job_list.html:3
+#: jobs/templates/jobs/job_list.html:8 jobs/templates/jobs/job_list.html:17
+msgid "Your calculations"
+msgstr ""
+
+#: core/navigation.py:81 core/templates/core/home.html:58
+msgid "Load data"
+msgstr ""
+
+#: core/navigation.py:82 core/templates/core/home.html:63
+msgid "Check quality"
+msgstr ""
+
+#: core/navigation.py:83 core/templates/core/home.html:68
+#: core/templates/core/patterns.html:87
+msgid "Calculate indices"
+msgstr ""
+
+#: core/navigation.py:84
+msgid "Results and downloads"
+msgstr ""
+
+#: core/navigation.py:85
+msgid "Compare with sector data"
+msgstr ""
 
 #: core/templates/404.html:3 core/templates/404.html:5
 msgid "Page not found"
@@ -47,35 +161,255 @@ msgstr ""
 msgid "The server could not finish this request. Please try again."
 msgstr ""
 
-#: core/templates/base.html:8 core/templates/base.html:18
-#: core/templates/core/home.html:5
+#: core/templates/base.html:8 core/templates/base.html:25
 msgid "Climpact"
 msgstr ""
 
-#: core/templates/base.html:14
+#: core/templates/base.html:19
 msgid "Skip to main content"
 msgstr ""
 
-#: core/templates/base.html:19
+#: core/templates/base.html:28
 msgid "Main"
 msgstr ""
 
-#: core/templates/base.html:42
+#: core/templates/base.html:55
+msgid ""
+"Climpact calculates the climate indices defined by the WMO Expert Team on "
+"Sector-specific Climate Indices (ET-SCI)."
+msgstr ""
+
+#: core/templates/base.html:59
 #, python-format
 msgid "Climpact web, version %(version)s"
 msgstr ""
 
-#: core/templates/core/home.html:6
-msgid ""
-"Calculate indices of climate extremes from daily station data: check the "
-"data quality, calculate the indices and their trends, and download the "
-"results."
+#: core/templates/components/alert.html:13
+#: core/templates/components/toasts.html:7
+msgid "Dismiss"
+msgstr ""
+
+#: core/templates/components/chart_frame.html:15
+msgid "CSV"
+msgstr ""
+
+#: core/templates/components/chart_frame.html:20
+msgid "Loading chart"
+msgstr ""
+
+#: core/templates/components/chart_frame.html:24
+msgid "View as table"
+msgstr ""
+
+#: core/templates/components/dialog.html:12
+msgid "Close"
+msgstr ""
+
+#: core/templates/components/dialog.html:16
+#: core/templates/core/patterns.html:131 jobs/templates/jobs/_progress.html:31
+msgid "Cancel"
+msgstr ""
+
+#: core/templates/components/dropzone.html:11
+#, python-format
+msgid "Drop a file here or choose one. %(hint)s"
+msgstr ""
+
+#: core/templates/components/dropzone.html:11
+msgid "Drop a file here or choose one"
+msgstr ""
+
+#: core/templates/components/field.html:23
+msgid "(optional)"
+msgstr ""
+
+#: core/templates/components/form_errors.html:9
+#, python-format
+msgid "There is %(counter)s problem with the form"
+msgid_plural "There are %(counter)s problems with the form"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/templates/components/form_errors.html:12
+#, python-format
+msgid "%(label)s: %(errors)s"
+msgstr ""
+
+#: core/templates/components/progress.html:6
+#, python-format
+msgid "%(value)s%%"
+msgstr ""
+
+#: core/templates/components/skeleton.html:7
+msgid "Loading"
+msgstr ""
+
+#: core/templates/components/stages.html:9
+#: core/templates/components/steps.html:13
+msgid "(done)"
+msgstr ""
+
+#: core/templates/components/stages.html:9
+msgid "(in progress)"
+msgstr ""
+
+#: core/templates/components/stages.html:9
+msgid "(failed)"
+msgstr ""
+
+#: core/templates/components/stages.html:9
+msgid "(not started)"
+msgstr ""
+
+#: core/templates/components/steps.html:6
+msgid "Progress through the steps"
+msgstr ""
+
+#: core/templates/components/steps.html:13
+#, python-format
+msgid "Step %(number)s of %(total)s:"
+msgstr ""
+
+#: core/templates/components/steps.html:13
+msgid "Optional"
+msgstr ""
+
+#: core/templates/components/table.html:14
+msgid "No rows to show."
+msgstr ""
+
+#: core/templates/components/theme_toggle.html:2
+msgid "Colour theme"
+msgstr ""
+
+#: core/templates/components/theme_toggle.html:3
+msgid "Use the system theme"
+msgstr ""
+
+#: core/templates/components/theme_toggle.html:4
+msgid "Light theme"
+msgstr ""
+
+#: core/templates/components/theme_toggle.html:5
+msgid "Dark theme"
+msgstr ""
+
+#: core/templates/core/home.html:4
+msgid "Climpact: indices of climate extremes"
+msgstr ""
+
+#: core/templates/core/home.html:8
+msgid "Climate indices for national meteorological services"
+msgstr ""
+
+#: core/templates/core/home.html:9
+msgid "Turn daily station records into indices of climate extremes"
 msgstr ""
 
 #: core/templates/core/home.html:10
 msgid ""
-"The web app is being built. The calculations are available now from the "
-"<code>climpact</code> command line."
+"Upload daily temperature and rainfall for a station. Climpact checks the "
+"data quality, calculates the ET-SCI indices and their trends, and gives you "
+"charts, tables and files in the same layout as Climpact in R."
+msgstr ""
+
+#: core/templates/core/home.html:16
+msgid "Start with your data"
+msgstr ""
+
+#: core/templates/core/home.html:30
+msgid ""
+"The upload screens are being built. Until then, use the <code>climpact</"
+"code> command line."
+msgstr ""
+
+#: core/templates/core/home.html:34
+msgid "The sample is Sydney Observatory Hill, 1936 to 2015."
+msgstr ""
+
+#: core/templates/core/home.html:46
+msgid ""
+"Illustration: a yearly index of warm days with its linear trend and "
+"confidence band."
+msgstr ""
+
+#: core/templates/core/home.html:52
+msgid "How it works"
+msgstr ""
+
+#: core/templates/core/home.html:53
+msgid "Four steps, each with its results on screen before you move on."
+msgstr ""
+
+#: core/templates/core/home.html:59
+msgid ""
+"A text file of daily maximum and minimum temperature and precipitation, with "
+"the station's name, location and base period."
+msgstr ""
+
+#: core/templates/core/home.html:64
+msgid ""
+"Missing days, outliers, jumps, repeated values and other suspect data, "
+"flagged on charts and in tables so you can fix the file."
+msgstr ""
+
+#: core/templates/core/home.html:69
+msgid ""
+"Choose the parameters, then Climpact calculates the temperature, rainfall, "
+"heatwave and drought indices and their trends."
+msgstr ""
+
+#: core/templates/core/home.html:73
+msgid "Explore and download"
+msgstr ""
+
+#: core/templates/core/home.html:74
+msgid ""
+"Interactive charts for every index, and the full set of tables and plots to "
+"download."
+msgstr ""
+
+#: core/templates/core/home.html:81
+msgid "Other ways to run Climpact"
+msgstr ""
+
+#: core/templates/core/home.html:85 core/templates/core/patterns.html:178
+msgid "Available soon"
+msgstr ""
+
+#: core/templates/core/home.html:92
+msgid "Command line"
+msgstr ""
+
+#: core/templates/core/home.html:93
+msgid ""
+"Run single stations, batches and gridded data from a terminal or a script "
+"with the climpact command."
+msgstr ""
+
+#: core/templates/core/home.html:100
+msgid "About the indices"
+msgstr ""
+
+#: core/templates/core/home.html:101
+msgid ""
+"The indices describe how often, how long and how intensely extremes occur: "
+"the hottest day of the year, warm spells, the longest dry period, heavy "
+"rainfall and more. They are defined by the Expert Team on Sector-specific "
+"Climate Indices (ET-SCI) and calculated the same way as in Climpact for R, "
+"so results can be compared between countries."
+msgstr ""
+
+#: core/templates/core/home.html:108
+msgid ""
+"You can also install Climpact on your own computer and use it without an "
+"internet connection."
+msgstr ""
+
+#: core/templates/core/home.html:110
+msgid ""
+"This copy of Climpact runs on your own computer. Your data stays here and no "
+"internet connection is needed."
 msgstr ""
 
 #: core/templates/core/language_switcher.html:5
@@ -86,16 +420,558 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
-#: jobs/forms.py:23
-msgid "Station file"
+#: core/templates/core/patterns.html:3 core/templates/core/patterns.html:8
+msgid "Pattern library"
+msgstr ""
+
+#: core/templates/core/patterns.html:7
+msgid "Design system"
+msgstr ""
+
+#: core/templates/core/patterns.html:9
+msgid ""
+"Every component of the web app, in both themes, for design review and the "
+"accessibility audit. Components are template includes in <code>core/"
+"templates/components</code>; each file lists its parameters."
+msgstr ""
+
+#: core/templates/core/patterns.html:17
+msgid "Components"
+msgstr ""
+
+#: core/templates/core/patterns.html:19 core/templates/core/patterns.html:41
+msgid "Colour"
+msgstr ""
+
+#: core/templates/core/patterns.html:20 core/templates/core/patterns.html:60
+msgid "Typography"
+msgstr ""
+
+#: core/templates/core/patterns.html:21 core/templates/core/patterns.html:78
+msgid "Icons"
+msgstr ""
+
+#: core/templates/core/patterns.html:22 core/templates/core/patterns.html:86
+msgid "Buttons"
+msgstr ""
+
+#: core/templates/core/patterns.html:23 core/templates/core/patterns.html:107
+msgid "Form fields"
+msgstr ""
+
+#: core/templates/core/patterns.html:24 core/templates/core/patterns.html:140
+msgid "File drop zone"
+msgstr ""
+
+#: core/templates/core/patterns.html:25 core/templates/core/patterns.html:149
+msgid "Alerts"
+msgstr ""
+
+#: core/templates/core/patterns.html:26 core/templates/core/patterns.html:163
+msgid "Toasts and dialogs"
+msgstr ""
+
+#: core/templates/core/patterns.html:27 core/templates/core/patterns.html:175
+msgid "Cards"
+msgstr ""
+
+#: core/templates/core/patterns.html:28 core/templates/core/patterns.html:187
+msgid "Badges, statistics, summaries"
+msgstr ""
+
+#: core/templates/core/patterns.html:29 core/templates/core/patterns.html:207
+msgid "Tables"
+msgstr ""
+
+#: core/templates/core/patterns.html:30 core/templates/core/patterns.html:216
+msgid "Tabs"
+msgstr ""
+
+#: core/templates/core/patterns.html:31 core/templates/core/patterns.html:222
+msgid "Step indicator"
+msgstr ""
+
+#: core/templates/core/patterns.html:32 core/templates/core/patterns.html:232
+#: jobs/templates/jobs/job_detail.html:15
+msgid "Progress"
+msgstr ""
+
+#: core/templates/core/patterns.html:33 core/templates/core/patterns.html:245
+msgid "Loading and empty states"
+msgstr ""
+
+#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:257
+msgid "Help in place"
+msgstr ""
+
+#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:263
+msgid "Chart frame"
+msgstr ""
+
+#: core/templates/core/patterns.html:42
+msgid ""
+"One accent and neutral surfaces. Every text and background pair meets WCAG "
+"AA in both themes (checked by a test from the token values). Chart colours "
+"are colour-blind safe and assigned in a fixed order; status colours are "
+"never used for data series and always come with an icon and a label. Charts "
+"outside the browser read <code>chart-palette.json</code>."
+msgstr ""
+
+#: core/templates/core/patterns.html:62
+msgid "Eyebrow"
+msgstr ""
+
+#: core/templates/core/patterns.html:63
+msgid "Heading 1: station results"
+msgstr ""
+
+#: core/templates/core/patterns.html:64
+msgid "Heading 2: temperature indices"
+msgstr ""
+
+#: core/templates/core/patterns.html:65
+msgid "Heading 3: warm days"
+msgstr ""
+
+#: core/templates/core/patterns.html:66
+msgid "Heading 4: trend"
+msgstr ""
+
+#: core/templates/core/patterns.html:67
+msgid "A lead paragraph introduces a page in a sentence or two."
+msgstr ""
+
+#: core/templates/core/patterns.html:68
+msgid ""
+"Body text uses the system font of each device, so nothing is downloaded and "
+"every script the operating system supports displays. Lines are kept to a "
+"readable length. <a href=\"#type\">A link</a> and <code>inline code</code>."
+msgstr ""
+
+#: core/templates/core/patterns.html:73
+msgid "Small, muted text for notes and captions."
+msgstr ""
+
+#: core/templates/core/patterns.html:79
+msgid ""
+"An SVG sprite drawn for this app, inserted with the icon template tag. Icons "
+"are decorative unless given a label."
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Back"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Reset"
+msgstr ""
+
+#: core/templates/core/patterns.html:87 core/templates/core/patterns.html:168
+msgid "Delete run"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Download all"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Working"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Not yet"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Next step"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Refresh"
+msgstr ""
+
+#: core/templates/core/patterns.html:87
+msgid "Small"
+msgstr ""
+
+#: core/templates/core/patterns.html:108
+msgid ""
+"Labels above inputs, hints under labels, errors inline and summarised at the "
+"top. This form is shown after a submission with mistakes."
+msgstr ""
+
+#: core/templates/core/patterns.html:114
+#: jobs/templates/jobs/station_form.html:18
+msgid "°N"
+msgstr ""
+
+#: core/templates/core/patterns.html:127 core/templates/core/patterns.html:128
+msgid "Search indices"
+msgstr ""
+
+#: core/templates/core/patterns.html:131
+msgid "Save"
+msgstr ""
+
+#: core/templates/core/patterns.html:141
+msgid ""
+"A real file input inside a large target. Without JavaScript it is a plain "
+"file input; with it, files can be dropped and the chosen file is shown."
+msgstr ""
+
+#: core/templates/core/patterns.html:143
+msgid "Text file (.txt or .csv), up to 50 MB"
+msgstr ""
+
+#: core/templates/core/patterns.html:150
+msgid "Quality control finished"
+msgstr ""
+
+#: core/templates/core/patterns.html:150
+msgid "The data passed every check. You can calculate the indices."
+msgstr ""
+
+#: core/templates/core/patterns.html:151
+msgid "Base period is short"
+msgstr ""
+
+#: core/templates/core/patterns.html:151
+msgid ""
+"The base period has fewer than 30 years, so percentile thresholds are less "
+"reliable."
+msgstr ""
+
+#: core/templates/core/patterns.html:152
+msgid "The file could not be read"
+msgstr ""
+
+#: core/templates/core/patterns.html:152
+msgid ""
+"Line 1204 has 3 values; each line needs year, month, day, precipitation, "
+"maximum and minimum temperature."
+msgstr ""
+
+#: core/templates/core/patterns.html:153
+msgid "Results are kept for 7 days."
+msgstr ""
+
+#: core/templates/core/patterns.html:153
+msgid "Read more"
+msgstr ""
+
+#: core/templates/core/patterns.html:164
+msgid ""
+"Toasts confirm something that happened in the background and disappear on "
+"their own; errors stay until dismissed. Dialogs ask for a decision and keep "
+"focus inside until closed."
+msgstr ""
+
+#: core/templates/core/patterns.html:166
+msgid "Station file uploaded."
+msgstr ""
+
+#: core/templates/core/patterns.html:166
+msgid "Show a toast"
+msgstr ""
+
+#: core/templates/core/patterns.html:167
+msgid "The worker stopped. Try again."
+msgstr ""
+
+#: core/templates/core/patterns.html:167
+msgid "Show an error toast"
+msgstr ""
+
+#: core/templates/core/patterns.html:170
+msgid "Delete this run?"
+msgstr ""
+
+#: core/templates/core/patterns.html:170
+msgid ""
+"The uploaded file and all results will be deleted. This cannot be undone."
+msgstr ""
+
+#: core/templates/core/patterns.html:170
+msgid "Delete"
+msgstr ""
+
+#: core/templates/core/patterns.html:176
+msgid "TXx: hottest day"
+msgstr ""
+
+#: core/templates/core/patterns.html:176
+msgid "Annual maximum of daily maximum temperature."
+msgstr ""
+
+#: core/templates/core/patterns.html:176
+msgid "+0.21 °C per decade"
+msgstr ""
+
+#: core/templates/core/patterns.html:177
+msgid "Process many stations in one run."
+msgstr ""
+
+#: core/templates/core/patterns.html:178
+msgid "Indices on netCDF grids, on your own computer."
+msgstr ""
+
+#: core/templates/core/patterns.html:188
+msgid "Passed"
+msgstr ""
+
+#: core/templates/core/patterns.html:188
+msgid "3 outliers"
+msgstr ""
+
+#: core/templates/core/patterns.html:188
+msgid "12 duplicates"
+msgstr ""
+
+#: core/templates/core/patterns.html:188
+msgid "Not calculated"
+msgstr ""
+
+#: core/templates/core/patterns.html:189
+msgid "Days missing"
+msgstr ""
+
+#: core/templates/core/patterns.html:189
+#, python-format
+msgid "1.2%%"
+msgstr ""
+
+#: core/templates/core/patterns.html:189
+msgid "345 of 29,220"
+msgstr ""
+
+#: core/templates/core/patterns.html:190
+msgid "Trend"
+msgstr ""
+
+#: core/templates/core/patterns.html:190
+msgid "+0.21 °C"
+msgstr ""
+
+#: core/templates/core/patterns.html:190
+msgid "per decade, 1936 to 2015"
+msgstr ""
+
+#: core/templates/core/patterns.html:208
+msgid "Annual indices, Sydney Observatory Hill"
+msgstr ""
+
+#: core/templates/core/patterns.html:208
+msgid "Empty table"
+msgstr ""
+
+#: core/templates/core/patterns.html:208
+msgid "No index values for this period."
+msgstr ""
+
+#: core/templates/core/patterns.html:217
+msgid "Index views"
+msgstr ""
+
+#: core/templates/core/patterns.html:223
+msgid ""
+"Shown under the header during the single-station flow. Completed steps link "
+"back. On a narrow screen only the current step is named."
+msgstr ""
+
+#: core/templates/core/patterns.html:233 jobs/stages.py:14
+msgid "Calculating indices"
+msgstr ""
+
+#: core/templates/core/patterns.html:233
+msgid "Thresholds: about 20 seconds left"
+msgstr ""
+
+#: core/templates/core/patterns.html:233
+msgid "Waiting for a worker"
+msgstr ""
+
+#: core/templates/core/patterns.html:233
+msgid "Your run is next in the queue."
+msgstr ""
+
+#: core/templates/core/patterns.html:233
+msgid "Run stages"
+msgstr ""
+
+#: core/templates/core/patterns.html:246
+msgid "No runs yet"
+msgstr ""
+
+#: core/templates/core/patterns.html:246
+msgid "Runs you start appear here while they are kept."
+msgstr ""
+
+#: core/templates/core/patterns.html:246
+msgid "Start a run"
+msgstr ""
+
+#: core/templates/core/patterns.html:258
+msgid "What is a base period?"
+msgstr ""
+
+#: core/templates/core/patterns.html:258
+msgid ""
+"The years used to calculate percentile thresholds, usually 1961 to 1990 or "
+"1981 to 2010. The station needs enough data in those years."
+msgstr ""
+
+#: core/templates/core/patterns.html:264
+msgid ""
+"The chart scripts (#75) draw into the plot area; until then it shows a "
+"placeholder. Every chart has a text summary, a legend, a table view and a "
+"CSV download."
+msgstr ""
+
+#: core/templates/core/patterns.html:265
+msgid "TXx, hottest day of the year"
+msgstr ""
+
+#: core/templates/core/patterns.html:265
+#, python-format
+msgid ""
+"Rising by 0.21 °C per decade since 1936 (significant at 5%%). Highest 45.8 "
+"°C in 2013."
+msgstr ""
+
+#: core/templates/core/patterns_table.html:1
+msgid "TXx by year"
+msgstr ""
+
+#: core/views.py:20
+msgid "Process many stations in one run from a batch metadata file."
+msgstr ""
+
+#: core/views.py:23
+msgid "Calculate indices on gridded netCDF data. Runs on your own computer."
+msgstr ""
+
+#: core/views.py:25
+msgid "Guides to preparing station files, base periods and reading results."
+msgstr ""
+
+#: core/views.py:61
+msgid "Annual"
+msgstr ""
+
+#: core/views.py:61
+msgid "Annual values, 1936 to 2015."
+msgstr ""
+
+#: core/views.py:62
+msgid "Monthly"
+msgstr ""
+
+#: core/views.py:62
+msgid "Monthly values by year."
+msgstr ""
+
+#: core/views.py:63
+msgid "Table"
+msgstr ""
+
+#: core/views.py:63
+msgid "The same values as a table."
+msgstr ""
+
+#: core/views.py:71
+msgid "Year"
+msgstr ""
+
+#: core/views.py:72
+msgid "TXx (°C)"
+msgstr ""
+
+#: core/views.py:73
+msgid "TNn (°C)"
+msgstr ""
+
+#: core/views.py:74
+msgid "PRCPTOT (mm)"
+msgstr ""
+
+#: core/views.py:84 core/views.py:91
+msgid "Read station file"
+msgstr ""
+
+#: core/views.py:85 core/views.py:92
+msgid "Quality control"
+msgstr ""
+
+#: core/views.py:86
+msgid "Thresholds"
+msgstr ""
+
+#: core/views.py:87
+msgid "Indices"
+msgstr ""
+
+#: core/views.py:88
+msgid "Trends"
+msgstr ""
+
+#: core/views.py:95
+msgid "Station"
+msgstr ""
+
+#: core/views.py:96
+msgid "Period"
+msgstr ""
+
+#: core/views.py:96
+msgid "1936 to 2015"
+msgstr ""
+
+#: core/views.py:97
+msgid "Base period"
+msgstr ""
+
+#: core/views.py:97
+msgid "1961 to 1990"
+msgstr ""
+
+#: core/views.py:98
+msgid "Missing days"
+msgstr ""
+
+#: core/views.py:98
+msgid "1.2%"
+msgstr ""
+
+#: core/views.py:101
+msgid "Annual value"
+msgstr ""
+
+#: core/views.py:102
+msgid "Linear trend"
+msgstr ""
+
+#: core/views.py:105
+msgid "Categorical, in order"
+msgstr ""
+
+#: core/views.py:107
+msgid "Variables and marks"
+msgstr ""
+
+#: core/views.py:111
+msgid "Sequential"
+msgstr ""
+
+#: core/views.py:112
+msgid "Diverging"
+msgstr ""
+
+#: core/views.py:114
+msgid "Interface"
 msgstr ""
 
 #: jobs/forms.py:24
 msgid "Daily data in Climpact's text format: year month day prcp tmax tmin."
-msgstr ""
-
-#: jobs/forms.py:27
-msgid "Station name"
 msgstr ""
 
 #: jobs/forms.py:33
@@ -105,10 +981,6 @@ msgstr ""
 
 #: jobs/forms.py:36
 msgid "Used in the names of the result files. Default: the file name."
-msgstr ""
-
-#: jobs/forms.py:38
-msgid "Latitude"
 msgstr ""
 
 #: jobs/forms.py:39
@@ -175,10 +1047,6 @@ msgstr ""
 msgid "Checking homogeneity"
 msgstr ""
 
-#: jobs/stages.py:14
-msgid "Calculating indices"
-msgstr ""
-
 #: jobs/stages.py:15
 msgid "Drawing plots"
 msgstr ""
@@ -195,100 +1063,88 @@ msgstr ""
 msgid "Calculating correlations"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:6
-#, python-format
-msgid "<strong>%(status)s</strong>: %(stage_label)s"
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:9
+#: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
 #, python-format
 msgid "%(percent)s%%"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:11
+#: jobs/templates/jobs/_progress.html:19
 #, python-format
 msgid "Step %(step)s of %(total)s (%(percent)s%%)"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:12
+#: jobs/templates/jobs/_progress.html:20
 #, python-format
 msgid "Time so far: %(elapsed)s."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:13
+#: jobs/templates/jobs/_progress.html:21
 #, python-format
 msgid "About %(remaining)s left."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:15
+#: jobs/templates/jobs/_progress.html:24
 msgid "Cancelling…"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:17
+#: jobs/templates/jobs/_progress.html:26
 msgid ""
 "No calculation worker is running, so this job cannot start yet. If you run "
 "Climpact yourself, restart it with the climpact-web command."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:21
-msgid "Cancel"
+#: jobs/templates/jobs/_progress.html:41
+msgid "The calculation finished"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:27
+#: jobs/templates/jobs/_progress.html:42
 #, python-format
 msgid "Finished in %(elapsed)s."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:29
+#: jobs/templates/jobs/_progress.html:46
 msgid "Download all results (zip)"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:33
+#: jobs/templates/jobs/_progress.html:50
 #, python-format
 msgid "%(counter)s file"
 msgid_plural "%(counter)s files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: jobs/templates/jobs/_progress.html:43
+#: jobs/templates/jobs/_progress.html:64
 msgid "The calculation failed."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:47
+#: jobs/templates/jobs/_progress.html:70
 msgid "The calculation was cancelled."
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:50
+#: jobs/templates/jobs/_progress.html:75
 msgid "Try again"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:55
+#: jobs/templates/jobs/_progress.html:81
 #, python-format
 msgid "The results and uploaded files are deleted on %(date)s."
 msgstr ""
 
-#: jobs/templates/jobs/job_detail.html:3
-#, python-format
-msgid "%(title)s · Climpact"
-msgstr ""
-
-#: jobs/templates/jobs/job_detail.html:6 jobs/templates/jobs/job_list.html:10
+#: jobs/templates/jobs/job_detail.html:3 jobs/templates/jobs/job_detail.html:7
+#: jobs/templates/jobs/job_detail.html:9 jobs/templates/jobs/job_list.html:18
 msgid "Calculation"
 msgstr ""
 
-#: jobs/templates/jobs/job_detail.html:8
+#: jobs/templates/jobs/job_detail.html:12
+#, python-format
+msgid "Started on %(date)s."
+msgstr ""
+
+#: jobs/templates/jobs/job_detail.html:18
 msgid "All your calculations"
 msgstr ""
 
-#: jobs/templates/jobs/job_list.html:3
-msgid "Your calculations · Climpact"
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:6
-msgid "Your calculations"
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:7
+#: jobs/templates/jobs/job_list.html:9
 #, python-format
 msgid ""
 "Calculations and their files are kept for %(days)s day after they finish, "
@@ -299,27 +1155,34 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: jobs/templates/jobs/job_list.html:10
-msgid "Started"
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:10
-msgid "Status"
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:22
-msgid "You have no calculations."
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:24 jobs/templates/jobs/station_form.html:6
+#: jobs/templates/jobs/job_list.html:11 jobs/templates/jobs/station_form.html:3
+#: jobs/templates/jobs/station_form.html:7
 msgid "Calculate indices for a station"
 msgstr ""
 
-#: jobs/templates/jobs/station_form.html:3
-msgid "Calculate indices for a station · Climpact"
+#: jobs/templates/jobs/job_list.html:18
+msgid "Started"
 msgstr ""
 
-#: jobs/templates/jobs/station_form.html:7
+#: jobs/templates/jobs/job_list.html:18
+msgid "Status"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:31
+msgid "You have no calculations."
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:31
+msgid "Calculations you start appear here while they are kept."
+msgstr ""
+
+#: jobs/templates/jobs/station_form.html:8
+msgid ""
+"Upload a station file and give its location and base period. The calculation "
+"runs in the background; you can leave the page and come back to it."
+msgstr ""
+
+#: jobs/templates/jobs/station_form.html:10
 #, python-format
 msgid ""
 "Your file and the results are kept for %(days)s day after the calculation "
@@ -330,7 +1193,11 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: jobs/templates/jobs/station_form.html:11
+#: jobs/templates/jobs/station_form.html:18
+msgid "°E"
+msgstr ""
+
+#: jobs/templates/jobs/station_form.html:29
 msgid "Start the calculation"
 msgstr ""
 
@@ -349,6 +1216,6 @@ msgstr ""
 msgid "%(h)d h %(m)d min"
 msgstr ""
 
-#: settings.py:156
+#: settings.py:160
 msgid "English"
 msgstr ""

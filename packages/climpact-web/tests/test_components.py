@@ -224,7 +224,9 @@ def test_landing_page(client):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
-    assert 'class="site-nav"' not in html  # no destination exists yet
+    # Only the jobs list exists so far, so it is the one header link
+    assert re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0].count("<li>") == 1
+    assert 'href="/jobs/"' in html
 
 
 @override_settings(IS_HOSTED=True)
@@ -254,7 +256,7 @@ def test_destinations_link_once_their_urls_exist(client):
     page = client.get("/stations/upload/")
     assert page.status_code == 200
     items = navigation.nav_items(page.wsgi_request)
-    assert [i["label"] for i in items] == ["Single station", "Batch"]
+    assert [i["label"] for i in items] == ["Single station", "Batch", "Your calculations"]
     assert items[0]["current"]
 
 
@@ -283,13 +285,15 @@ def test_pattern_library(client):
 def test_design_snapshots(tmp_path):
     out = tmp_path / "review"
     call_command("design_snapshots", str(out))
-    for name in ("index", "patterns", "404"):
+    for name in ("index", "patterns", "404", "job-running", "job-finished", "jobs", "job-new"):
         for suffix in ("", "-dark"):
             html = (out / f"{name}{suffix}.html").read_text()
             assert 'href="static/climpact_web/css/main.css"' in html
             assert '"/static/' not in html
             assert "icons.svg#" not in html and '<symbol id="upload"' in html
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()
+    assert "Step 9 of 14" in (out / "job-running.html").read_text()
+    assert "Download all results (zip)" in (out / "job-finished.html").read_text()
     assert (out / "static" / "climpact_web" / "css" / "main.css").is_file()
     assert (out / "static" / "climpact_web" / "js" / "ui.js").is_file()
 

@@ -1,14 +1,8 @@
 /*
- * climpact-web stylesheet: design tokens, page shell and components (#71).
- *
- * Hand-written, no build step (#69). Rules:
- * - Colours, sizes and spacing come from the tokens below; components never use raw values.
- * - Logical properties only (margin-inline, inset-inline-start, ...), so layouts mirror
- *   for right-to-left languages (checked by tests/test_static.py).
- * - Dark values of the tokens are in theme-dark.css. tests/test_design_tokens.py checks
- *   every text/background pair meets WCAG AA in both themes and that chart-palette.json
- *   matches the --chart-* tokens.
- * - The pattern library (/patterns/, DEBUG only) shows every component.
+ * climpact-web stylesheet (#71): tokens, page shell, components. Hand-written, no build.
+ * Components use tokens only; logical properties only (right-to-left); dark token values
+ * are in theme-dark.css. Tests: test_design_tokens.py, test_static.py. Every component
+ * is on the pattern library (/patterns/). See TECHNICAL.md, "Design system".
  */
 
 /* == Tokens: light == */
@@ -356,6 +350,22 @@ svg {
 .skip-link:focus {
   inset-block-start: var(--space-2);
   color: var(--color-accent-contrast);
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.file-list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  columns: 2 20rem;
 }
 
 /* == Header and footer == */

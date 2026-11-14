@@ -696,7 +696,8 @@ HAND_WRITTEN = (
         _("Values read at once"),
         _(
             "How many million values are read into memory at a time. Lower it if the "
-            "computer runs out of memory. Default 5."
+            "computer runs out of memory. Default 5, or less for a small grid, so that "
+            "progress shows in small steps."
         ),
         "gridded",
         "running-a-grid",

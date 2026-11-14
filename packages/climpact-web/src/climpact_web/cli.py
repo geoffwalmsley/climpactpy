@@ -241,7 +241,7 @@ def serve(args: argparse.Namespace) -> int:
     options = {
         "host": args.host,
         "threads": args.threads,
-        "max_request_body_size": settings.MAX_UPLOAD_BYTES,
+        "max_request_body_size": max(settings.MAX_UPLOAD_BYTES, settings.GRIDDED_MAX_UPLOAD_BYTES),
         "ident": "climpact-web",
     }
     app = get_wsgi_application()

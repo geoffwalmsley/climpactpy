@@ -1,0 +1,93 @@
+{% load i18n ui help %}{% comment %}
+The gridded run's jobs (thresholds, then indices): progress while they run, polled by
+htmx (outerHTML swap) as the job page's fragment is; then each job's files to download.
+When the last job finishes the server asks htmx to reload the page, so the map appears.
+Parameters: run, rows (kind, job, stage_label, elapsed, remaining, worker_missing,
+files), active, delay, all_done.
+{% endcomment %}
+<div id="gridded-progress" class="stack"
+  {% if active %}hx-get="{% url 'gridded:progress' run.pk %}?was_active=1"
+  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
+  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  {% for row in rows %}{% with job=row.job %}
+  <section class="card stack" aria-labelledby="job-{{ row.kind }}-title">
+    <div class="batch-item__head">
+      <h2 class="card__title" id="job-{{ row.kind }}-title">{% if row.kind == "thresholds" %}{% translate "Thresholds file" %}{% else %}{% translate "Indices" %}{% endif %}</h2>
+      {% include "jobs/_status.html" %}
+    </div>
+
+    {% if job.status == "queued" or job.status == "running" %}
+    <div class="progress">
+      <div class="progress__header">
+        <span id="progress-label-{{ row.kind }}">{% if job.status == "running" %}{{ row.stage_label|default:_("Starting") }}{% else %}{% translate "Waiting to start" %}{% endif %}</span>
+        {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
+      </div>
+      <progress max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="progress-label-{{ row.kind }}" aria-describedby="progress-note-{{ row.kind }}">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
+      <p class="progress__note" id="progress-note-{{ row.kind }}">
+        {% if job.total %}{% blocktranslate with step=job.step total=job.total %}Step {{ step }} of {{ total }}.{% endblocktranslate %}{% endif %}
+        {% if row.elapsed %}{% blocktranslate with elapsed=row.elapsed %}Time so far: {{ elapsed }}.{% endblocktranslate %}{% endif %}
+        {% if row.remaining %}{% blocktranslate with remaining=row.remaining %}About {{ remaining }} left.{% endblocktranslate %}{% endif %}
+        {% if job.status == "queued" and row.kind == "indices" and run.thresholds_job and not run.thresholds_job.is_finished %}{% translate "The indices start when the thresholds file is finished." %}{% endif %}
+      </p>
+    </div>
+    {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+    {% if row.worker_missing %}
+    {% translate "No calculation worker is running, so this cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
+    {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
+    {% endif %}
+    {% if job.can_cancel %}
+    <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}
+      {% translate "Cancel" as cancel_label %}
+      {% include "components/button.html" with label=cancel_label type="submit" variant="secondary" size="sm" icon="close" %}
+    </form>
+    {% endif %}
+    {% endif %}
+
+    {% if job.status == "failed" %}
+    <div class="alert alert--error" role="alert">
+      {% icon "error" %}
+      <div class="alert__body">
+        <h3 class="alert__title">{% translate "The calculation failed." %}</h3>
+        <p>{{ job.error }}</p>
+      </div>
+    </div>
+    {% endif %}
+    {% if job.status == "cancelled" %}
+    {% translate "The calculation was cancelled." as cancelled_message %}
+    {% include "components/alert.html" with kind="info" message=cancelled_message title="" %}
+    {% endif %}
+    {% if job.can_retry %}
+    <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}
+      {% translate "Try again" as retry_label %}
+      {% include "components/button.html" with label=retry_label type="submit" icon="refresh" size="sm" %}
+    </form>
+    {% endif %}
+
+    {% if job.status == "succeeded" %}
+    <p class="small muted">{% blocktranslate count counter=row.files|length with elapsed=row.elapsed trimmed %}Finished in {{ elapsed }}: {{ counter }} file.{% plural %}Finished in {{ elapsed }}: {{ counter }} files.{% endblocktranslate %}{% if job.result.copied_to %} {% blocktranslate with folder=job.result.copied_to %}Also copied to {{ folder }}.{% endblocktranslate %}{% endif %}</p>
+    {% if row.kind == "indices" %}{% help_topic "gridded.output" %}{% endif %}
+    <details class="disclosure"{% if row.kind == "thresholds" %} open{% endif %}>
+      <summary>{% icon "file" %}<span>{% blocktranslate count counter=row.files|length trimmed %}The file to download{% plural %}The {{ counter }} files to download{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+      <div class="disclosure__body">
+        <div class="table-wrap gridded-files" role="region" aria-labelledby="files-{{ row.kind }}" tabindex="0">
+          <table class="table">
+            <caption id="files-{{ row.kind }}">{% if row.kind == "thresholds" %}{% translate "Thresholds file" %}{% else %}{% translate "Index files" %}{% endif %}</caption>
+            <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Frequency" %}</th><th scope="col" class="num">{% translate "Size" %}</th></tr></thead>
+            <tbody>
+              {% for f in row.files %}
+              <tr><th scope="row"><a href="{% url 'jobs:file' job.pk f.path %}" download>{{ f.name }}</a></th><td>{{ f.index }}</td><td>{% if f.freq == "ANN" %}{% translate "annual" %}{% elif f.freq == "MON" %}{% translate "monthly" %}{% elif f.freq == "DAY" %}{% translate "daily" %}{% endif %}</td><td class="num">{{ f.size|filesizeformat }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+    {% endif %}
+  </section>
+  {% endwith %}{% endfor %}
+
+  {% if all_done %}
+  <p>{% translate "Download everything (zip)" as zip_label %}{% url 'gridded:download_all' run.pk as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
+  {% for row in rows|slice:":1" %}<p class="small muted cluster">{% icon "clock" %}<span>{% blocktranslate with date=row.job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>{% endfor %}
+  {% endif %}
+</div>

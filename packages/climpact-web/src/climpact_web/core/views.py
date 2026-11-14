@@ -21,7 +21,12 @@ def home(request):
         ("batch", _("Process many stations in one run from a batch metadata file.")),
         (
             "gridded",
-            _("Calculate indices on gridded netCDF data. Runs on your own computer."),
+            _("Calculate indices and thresholds on gridded netCDF data, and map the results.")
+            if settings.IS_HOSTED
+            else _(
+                "Calculate indices and thresholds on gridded netCDF data on this computer, "
+                "and map the results."
+            ),
         ),
         ("help", _("Guides to preparing station files, base periods and reading results.")),
     ):

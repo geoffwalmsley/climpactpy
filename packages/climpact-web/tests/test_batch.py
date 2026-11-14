@@ -646,7 +646,13 @@ def test_landing_page_and_header_link_to_batch(client):
     html = client.get("/").content.decode()
     assert 'href="/batch/"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/help/", "/jobs/"]
+    assert re.findall(r'href="([^"]+)"', nav) == [
+        "/station/",
+        "/batch/",
+        "/gridded/",
+        "/help/",
+        "/jobs/",
+    ]
 
 
 def test_skipped_names_are_safe_and_never_collide():

@@ -224,17 +224,24 @@ def test_landing_page(client):
         html,
         re.S,
     )
-    assert "Available soon" in html  # gridded is a later ticket (#85)
+    assert "Available soon" not in html  # every other way to run Climpact exists now
+    assert re.search(r'<a [^>]*href="/gridded/"', html)  # gridded (#85), local mode
     assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/help/", "/jobs/"]
+    assert re.findall(r'href="([^"]+)"', nav) == [
+        "/station/",
+        "/batch/",
+        "/gridded/",
+        "/help/",
+        "/jobs/",
+    ]
 
 
-@override_settings(IS_HOSTED=True)
+@override_settings(IS_HOSTED=True, GRIDDED_ENABLED=False)
 def test_landing_page_hosted_hides_gridded(client):
     html = client.get("/").content.decode()
     assert "Gridded" not in html and "install Climpact on your own computer" in html

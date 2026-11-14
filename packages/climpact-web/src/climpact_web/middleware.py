@@ -4,12 +4,21 @@ from django.conf import settings
 from django.shortcuts import render
 
 
+def upload_limit(path: str) -> tuple[int, int]:
+    """The largest body accepted for a request to ``path``: ``(bytes, MB)``. The gridded
+    pages (#85), which upload netCDF files, may send up to GRIDDED_MAX_UPLOAD_BYTES."""
+    if settings.GRIDDED_ENABLED and path.startswith("/gridded/"):
+        return settings.GRIDDED_MAX_UPLOAD_BYTES, settings.GRIDDED_MAX_UPLOAD_MB
+    return settings.MAX_UPLOAD_BYTES, settings.MAX_UPLOAD_MB
+
+
 class UploadSizeLimitMiddleware:
-    """Refuse requests whose body is larger than ``settings.MAX_UPLOAD_BYTES`` with a 413.
+    """Refuse requests whose body is larger than ``settings.MAX_UPLOAD_BYTES`` with a 413
+    (``GRIDDED_MAX_UPLOAD_BYTES`` for the gridded uploads).
 
     Django limits only in-memory form data, not file uploads, so the overall limit is
     checked here from ``Content-Length`` before anything reads the body. The local server
-    (waitress) is given the same limit for bodies sent without a length.
+    (waitress) is given the larger of the two limits for bodies sent without a length.
     """
 
     def __init__(self, get_response):
@@ -20,8 +29,7 @@ class UploadSizeLimitMiddleware:
             length = int(request.META.get("CONTENT_LENGTH") or 0)
         except ValueError:
             length = 0
-        if length > settings.MAX_UPLOAD_BYTES:
-            return render(
-                request, "413.html", {"max_upload_mb": settings.MAX_UPLOAD_MB}, status=413
-            )
+        limit, limit_mb = upload_limit(request.path_info)
+        if length > limit:
+            return render(request, "413.html", {"max_upload_mb": limit_mb}, status=413)
         return self.get_response(request)

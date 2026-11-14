@@ -95,6 +95,7 @@ INSTALLED_APPS = [
     "climpact_web.jobs",
     "climpact_web.stations",
     "climpact_web.batch",
+    "climpact_web.gridded",
     "climpact_web.help",
 ]
 
@@ -205,6 +206,14 @@ JOB_STORAGE = env("JOB_STORAGE", "climpact_web.jobs.storage.LocalJobStorage")
 # Station files are a few MB; gridded files are read from disk in local mode (#85).
 MAX_UPLOAD_MB = int(env("MAX_UPLOAD_MB", "50"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
+# Gridded (netCDF) runs (#85): on in the local install, as in R; off in hosted mode unless
+# CLIMPACT_WEB_GRIDDED_HOSTED is set (large uploads and long jobs; decided 2026-11-14).
+# Local mode reads the files in place from paths on this computer; uploads (both modes)
+# may be larger than other requests, up to GRIDDED_MAX_UPLOAD_MB in all.
+GRIDDED_ENABLED = env_bool("GRIDDED_HOSTED", False) if IS_HOSTED else True
+GRIDDED_MAX_UPLOAD_MB = int(env("GRIDDED_MAX_UPLOAD_MB", "200"))
+GRIDDED_MAX_UPLOAD_BYTES = GRIDDED_MAX_UPLOAD_MB * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440  # Django's default: larger uploads go to a temp file
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440  # non-file form data
 

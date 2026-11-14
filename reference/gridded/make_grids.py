@@ -40,6 +40,15 @@ Three runs (``reference/gridded/runs.csv``):
     ``grid_stations``. Only ``hw``, ``hwEHF``, ``spi`` and ``spei`` are computed for
     them, the future grid with ``grid_filled``'s thresholds file.
 
+``grid_filled_noleap``, ``grid_filled_360day``
+    ``grid_filled`` relabelled to the ``noleap`` (365-day) and ``360_day`` calendars
+    (``CALENDARS``): the same series without 29 February, or the first 360 days of every
+    year as 30-day months. Thresholds and every index.
+
+``grid_sample_360day``
+    ``grid_sample`` relabelled to ``360_day`` the same way, keeping its storage (time in
+    hours since 1800 with ``time_bnds``). Thresholds and every index.
+
 ``grid_sample``
     A 3 x 4 cut of Climpact's own sample, ``www/sample_data/
     climpact.sampledata.gridded.1991-2010.nc`` (south-eastern Australia), with its
@@ -59,6 +68,7 @@ import argparse
 import os
 from pathlib import Path
 
+import cftime
 import netCDF4
 import numpy as np
 import pandas as pd
@@ -101,6 +111,24 @@ SAMPLE_LON = slice(18, 22)
 
 
 FUTURE = (2001, 2020)
+CALENDARS = {"noleap": "noleap", "360day": "360_day"}  # name suffix: CF calendar
+
+
+def relabel(dates: pd.DatetimeIndex, calendar: str) -> tuple[np.ndarray, list]:
+    """Positions of the days of ``dates`` kept in ``calendar``, and their dates there:
+    every day but 29 February (``noleap``), or the first 360 days of each year as twelve
+    30-day months (``360_day``)."""
+    if calendar == "noleap":
+        keep = np.flatnonzero(~((dates.month == 2) & (dates.day == 29)))
+        new = [cftime.datetime(d.year, d.month, d.day, calendar=calendar) for d in dates[keep]]
+        return keep, new
+    keep = np.flatnonzero(dates.day_of_year <= 360)
+    doy = dates.day_of_year[keep] - 1
+    new = [
+        cftime.datetime(y, i // 30 + 1, i % 30 + 1, calendar=calendar)
+        for y, i in zip(dates.year[keep], doy, strict=True)
+    ]
+    return keep, new
 
 
 def station_cube(
@@ -138,7 +166,7 @@ def station_cube(
     return dates, cube
 
 
-def _coords(nc: netCDF4.Dataset, dates: pd.DatetimeIndex) -> None:
+def _coords(nc: netCDF4.Dataset, dates, calendar: str = "standard") -> None:
     nc.createDimension("time", None)
     nc.createDimension("lat", len(LATS))
     nc.createDimension("lon", len(LONS))
@@ -148,11 +176,13 @@ def _coords(nc: netCDF4.Dataset, dates: pd.DatetimeIndex) -> None:
             "standard_name": "time",
             "long_name": "time",
             "units": TIME_UNITS,
-            "calendar": "standard",
+            "calendar": calendar,
             "axis": "T",
         }
     )
-    t[:] = netCDF4.date2num(dates.to_pydatetime(), TIME_UNITS, "standard")
+    if isinstance(dates, pd.DatetimeIndex):
+        dates = dates.to_pydatetime()
+    t[:] = netCDF4.date2num(dates, TIME_UNITS, calendar)
     lat = nc.createVariable("lat", "f8", ("lat",))
     lat.setncatts(
         {
@@ -184,16 +214,22 @@ def _coords(nc: netCDF4.Dataset, dates: pd.DatetimeIndex) -> None:
 
 
 def write_station_grid(
-    name: str = "grid_stations", future: bool = False, filled: bool = False
+    name: str = "grid_stations",
+    future: bool = False,
+    filled: bool = False,
+    calendar: str = "standard",
 ) -> None:
     if future:
         dates, cube = station_cube(*FUTURE, degrade=False, filled=filled)
     else:
         dates, cube = station_cube(filled=filled)
-    CHUNKS = (dates.size, 1, 1)  # noqa: N806 - one time series per chunk compresses best
+    if calendar != "standard":
+        keep, dates = relabel(dates, calendar)
+        cube = {k: v[keep] for k, v in cube.items()}
+    CHUNKS = (len(dates), 1, 1)  # noqa: N806 - one time series per chunk compresses best
     dims = ("time", "lat", "lon")
     with netCDF4.Dataset(OUT / f"{name}_tas.nc", "w", format="NETCDF4") as nc:
-        _coords(nc, dates)
+        _coords(nc, dates, calendar)
         tx = nc.createVariable(
             "tasmax", "f4", dims, zlib=True, complevel=9, fill_value=False, chunksizes=CHUNKS
         )
@@ -219,7 +255,7 @@ def write_station_grid(
         )
         tn[:] = np.ma.masked_invalid(cube["tmin"])
     with netCDF4.Dataset(OUT / f"{name}_pr.nc", "w", format="NETCDF4") as nc:
-        _coords(nc, dates)
+        _coords(nc, dates, calendar)
         pr = nc.createVariable(
             "pr", "f4", dims, zlib=True, complevel=9, fill_value=1e20, chunksizes=CHUNKS
         )
@@ -233,11 +269,23 @@ def write_station_grid(
         pr[:] = np.ma.masked_invalid((cube["prcp"] / 86400.0).astype("f4"))
 
 
-def write_sample_grid(climpact: Path) -> None:
+def write_sample_grid(climpact: Path, calendar: str = "standard") -> None:
+    name = "grid_sample" if calendar == "standard" else f"grid_sample_{calendar.replace('_', '')}"
     with (
         netCDF4.Dataset(climpact / SAMPLE) as src,
-        netCDF4.Dataset(OUT / "grid_sample.nc", "w", format="NETCDF4_CLASSIC") as dst,
+        netCDF4.Dataset(OUT / f"{name}.nc", "w", format="NETCDF4_CLASSIC") as dst,
     ):
+        keep = slice(None)
+        if calendar != "standard":
+            t = src.variables["time"]
+            dates = pd.DatetimeIndex(
+                netCDF4.num2date(t[:], t.units, t.calendar, only_use_cftime_datetimes=False).astype(
+                    "datetime64[ns]"
+                )
+            )
+            keep, new = relabel(dates, calendar)
+            hours = netCDF4.date2num(new, t.units, calendar)
+
         dst.setncatts({k: src.getncattr(k) for k in src.ncattrs()})
         sub = {"lat": SAMPLE_LAT, "lon": SAMPLE_LON}
         for name, dim in src.dimensions.items():
@@ -265,7 +313,18 @@ def write_sample_grid(climpact: Path) -> None:
             var.set_auto_maskandscale(False)
             out.set_auto_maskandscale(False)
             index = tuple(sub.get(d, slice(None)) for d in var.dimensions)
-            out[:] = var[index]
+            if calendar == "standard":
+                out[:] = var[index]
+            elif name == "time":
+                out.setncattr("calendar", calendar)
+                out[:] = hours
+            elif name == "time_bnds":
+                out[:] = np.stack([hours, hours + 24.0], axis=1)
+            else:
+                index = tuple(
+                    keep if d == "time" else i for d, i in zip(var.dimensions, index, strict=True)
+                )
+                out[:] = var[index]
 
 
 def main() -> None:
@@ -282,7 +341,10 @@ def main() -> None:
     write_station_grid("grid_future", future=True)
     write_station_grid("grid_filled", filled=True)
     write_station_grid("grid_filled_future", future=True, filled=True)
+    for suffix, calendar in CALENDARS.items():
+        write_station_grid(f"grid_filled_{suffix}", filled=True, calendar=calendar)
     write_sample_grid(args.climpact)
+    write_sample_grid(args.climpact, "360_day")
     for path in sorted(OUT.glob("*.nc")):
         print(f"{path.relative_to(HERE.parent.parent)}: {path.stat().st_size / 1e6:.2f} MB")
 

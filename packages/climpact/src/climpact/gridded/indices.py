@@ -49,6 +49,7 @@ import netCDF4
 import numpy as np
 import pandas as pd
 
+from climpact.calendars import CalendarDays, DayAxis, calendar_of, days_per_year
 from climpact.config import IndexParams
 from climpact.gridded.drought import SCALES, spei_values, spi_values
 from climpact.gridded.heatwaves import (
@@ -90,7 +91,6 @@ from climpact.products.indices import (
 from climpact.products.tables import FREQS, format_number
 from climpact.progress import Progress
 from climpact.thresholds import (
-    DAYS_PER_YEAR,
     INBASE_QUANTILES,
     TEMPERATURE_QUANTILES,
     TEMPERATURE_WINDOW,
@@ -314,15 +314,31 @@ class IndexResult:
     day: np.ndarray | None = None
 
 
-def _day_numbers(time: pd.DatetimeIndex, position: np.ndarray, freq: str) -> np.ndarray:
-    day = (time.day if freq == "MON" else time.day_of_year).to_numpy().astype(float)
+def _day_numbers(time: DayAxis, position: np.ndarray, freq: str) -> np.ndarray:
+    """The day of the month (MON) or year (ANN) of each extreme at ``position`` in
+    ``time``, as ``write.climdex.results`` gets it: the date read by ``as.Date`` (the
+    standard calendar), so in ``noleap`` a day after February of a leap year gets the
+    number it has there, and in ``360_day`` 29 and 30 February (and 29 February outside
+    leap years) are missing."""
+    if isinstance(time, CalendarDays):
+        standard = pd.DatetimeIndex(
+            pd.to_datetime(
+                {"year": time.year, "month": time.month, "day": time.day}, errors="coerce"
+            )
+        )
+        day = (standard.day if freq == "MON" else standard.day_of_year).to_numpy(
+            dtype=float, na_value=np.nan
+        )
+    else:
+        day = (time.day if freq == "MON" else time.day_of_year).to_numpy().astype(float)
     return np.where(position >= 0, day[np.maximum(position, 0)], np.nan)
 
 
 @dataclass(frozen=True)
 class GridThresholds:
-    """Thresholds for a block of cells: ``outbase[var][q]`` ``(cells, 365)``,
-    ``precipitation[q]`` ``(cells,)`` and ``inbase[var][q]`` ``(cells, 365, years,
+    """Thresholds for a block of cells (``dpy`` is 365, or the days of a year of the
+    ``noleap`` or ``360_day`` calendar): ``outbase[var][q]`` ``(cells, dpy)``,
+    ``precipitation[q]`` ``(cells,)`` and ``inbase[var][q]`` ``(cells, dpy, years,
     years - 1)`` (empty when the in-base thresholds are not used)."""
 
     outbase: dict[str, dict[float, np.ndarray]]
@@ -359,7 +375,7 @@ def compute_block_thresholds(
 
 def thresholds_from_file(values: Mapping[str, np.ndarray]) -> GridThresholds:
     """:class:`GridThresholds` from the variables of a thresholds file for a block
-    (``tx05thresh`` ... as ``(cells, 365)``, ``r95thresh``, ``r99thresh`` as ``(cells,)``);
+    (``tx05thresh`` ... as ``(cells, dpy)``, ``r95thresh``, ``r99thresh`` as ``(cells,)``);
     ``get.quantiles.object``. No in-base thresholds."""
     outbase = {
         var: {q: values[f"{prefix}{round(q * 100):02d}thresh"] for q in TEMPERATURE_QUANTILES}
@@ -400,7 +416,7 @@ def cell_indices(
     ``tasmax``, ``tasmin`` (degrees C) and ``pr`` (kg m-2 d-1) are ``(cells, time)``
     arrays on the input's time axis ``time``; ``latitude`` is ``(cells,)``.
     ``thresholds`` holds the :data:`THRESHOLD_FILE_VARIABLES` of the cells from a
-    thresholds file, ``(cells, 365)``, ``(cells,)`` or ``(cells, base days)``, or None
+    thresholds file, ``(cells, dpy)``, ``(cells,)`` or ``(cells, base days)``, or None
     to compute them. Returns ``{"<name>_<FREQ>": IndexResult}``.
     """
     full = filled_dates(time)
@@ -605,15 +621,14 @@ def block_indices(
 # --- writing -------------------------------------------------------------------------------
 
 
-def _period_bounds(time: pd.DatetimeIndex, freq: str, origin: str) -> tuple[np.ndarray, np.ndarray]:
+def _period_bounds(time: DayAxis, freq: str, origin: str) -> tuple[np.ndarray, np.ndarray]:
     """``get.output.time.data``: bounds ``[first day, last day]`` of every month or year
     from January of the first year to December of the last (``nc.make.time.bounds``),
-    and their midpoints, in days since ``origin``."""
-    start, end = time[0].year, time[-1].year
-    rule = FREQS[freq]
-    starts = pd.date_range(f"{start}-01-01", f"{end + 1}-01-01", freq=rule)
-    first = _days_since(starts[:-1], origin)
-    last = _days_since(starts[1:] - pd.Timedelta(days=1), origin)
+    and their midpoints, in days since ``origin``, in the calendar of ``time``."""
+    full = filled_dates(time)
+    _, edges = periods(full, FREQS[freq]).grouping()
+    first = _days_since(full[edges[:-1]], origin)
+    last = _days_since(full[edges[1:] - 1], origin)
     bounds = np.stack([first, last], axis=1)
     return bounds, (first + last) / 2
 
@@ -695,18 +710,19 @@ def create_index_file(
     origin = layout["origin"]
     nc = netCDF4.Dataset(path, "w", format="NETCDF4")
     try:
+        dpy = days_per_year(calendar_of(inp.time))
         if spec.freq == "DAY":
             nc.createDimension(inp.x_dim, nx)
             nc.createDimension(inp.y_dim, ny)
-            nc.createDimension(inp.time_dim, DAYS_PER_YEAR)
+            nc.createDimension(inp.time_dim, dpy)
             _coordinates(nc, inp, layout)
             t = nc.createVariable(inp.time_dim, "i4", (inp.time_dim,))
             t.setncatts({"long_name": inp.time_dim, "units": "calendar day", "calendar": "365_day"})
             t.setncatts(layout["time_attrs"])
             t.setncattr("units", f"days since {origin}")
-            t[:] = np.arange(1, DAYS_PER_YEAR + 1)
+            t[:] = np.arange(1, dpy + 1)
             dims = (inp.time_dim, inp.y_dim, inp.x_dim)
-            chunks = (DAYS_PER_YEAR, by, bx)
+            chunks = (dpy, by, bx)
         else:
             bounds, mid = _period_bounds(inp.time, spec.freq, origin)
             nc.createDimension(layout["bnds_dim"], 2)
@@ -789,7 +805,7 @@ def _write_block(nc: netCDF4.Dataset, spec: IndexFile, block, result: IndexResul
 
 
 def _read_thresholds(nc: netCDF4.Dataset, block, inp: GriddedInput) -> dict[str, np.ndarray]:
-    """The thresholds of a block from a thresholds file, ``(y, x, 365)``, ``(y, x)`` or
+    """The thresholds of a block from a thresholds file, ``(y, x, dpy)``, ``(y, x)`` or
     ``(y, x, base days)``."""
     ys, xs = block
     out = {}
@@ -802,7 +818,8 @@ def _read_thresholds(nc: netCDF4.Dataset, block, inp: GriddedInput) -> dict[str,
 
 
 def check_thresholds_file(path: Path, inp: GriddedInput, base_start: int, base_end: int) -> None:
-    """R's requirements for a thresholds file: the grid of the input, and no input day
+    """R's requirements for a thresholds file: the grid of the input, ``dpy`` days of
+    thresholds for the input's calendar (R would index past them), and no input day
     in the base period (``check.quantile.validity`` wants in-base thresholds then,
     which a thresholds file does not hold)."""
     full = filled_dates(inp.time)
@@ -818,6 +835,12 @@ def check_thresholds_file(path: Path, inp: GriddedInput, base_start: int, base_e
         shape = nc.variables["r95thresh"].shape
         if tuple(shape) != inp.shape:
             raise ValueError(f"{path}: grid {tuple(shape)} differs from the input's {inp.shape}")
+        days = nc.variables["tx90thresh"].shape[0]
+        dpy = days_per_year(calendar_of(inp.time))
+        if days != dpy:
+            raise ValueError(
+                f"{path}: {days} days of thresholds, the input's calendar has {dpy} days a year"
+            )
 
 
 def write_grid_indices(

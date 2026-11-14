@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import tracemalloc
 
+import cftime
 import netCDF4
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 
+from climpact.calendars import CalendarDays, canonical_calendar
 from climpact.cli import main
 from climpact.gridded import cell_thresholds, open_grid, write_grid_thresholds
 from climpact.gridded.io import decode_ncdf4, unit_conversion
@@ -27,8 +29,16 @@ def write_grid(
     seed=0,
     names=("tasmax", "tasmin", "pr"),
 ):
-    """A small grid: TX and TN in K (float), pr in kg m-2 s-1 (float)."""
-    dates = pd.date_range(start, end, freq="D")
+    """A small grid: TX and TN in K (float), pr in kg m-2 s-1 (float). With a
+    ``noleap``, ``365_day`` or ``360_day`` calendar, every day of the years of ``start``
+    to ``end`` in that calendar."""
+    if calendar in ("standard", "gregorian", "proleptic_gregorian"):
+        dates = pd.date_range(start, end, freq="D")
+        times, doy = dates.to_pydatetime(), dates.day_of_year.to_numpy()
+    else:
+        days = CalendarDays.whole_years(canonical_calendar(calendar), int(start[:4]), int(end[:4]))
+        times = [cftime.datetime(d.year, d.month, d.day, calendar=calendar) for d in days]
+        dates, doy = days, days.day_of_year.to_numpy()
     rng = np.random.default_rng(seed)
     with netCDF4.Dataset(path, "w") as nc:
         nc.createDimension("time", None)
@@ -37,14 +47,14 @@ def write_grid(
         t = nc.createVariable("time", "f8", ("time",))
         t.units = "days since 1950-01-01"
         t.calendar = calendar
-        t[:] = netCDF4.date2num(dates.to_pydatetime(), t.units, "standard")
+        t[:] = netCDF4.date2num(times, t.units, calendar)
         lat = nc.createVariable("lat", "f8", ("lat",))
         lat.units = "degrees_north"
         lat[:] = np.linspace(-30, 30, ny)
         lon = nc.createVariable("lon", "f8", ("lon",))
         lon.units = "degrees_east"
         lon[:] = np.linspace(0, 90, nx)
-        season = 8 * np.cos(2 * np.pi * dates.day_of_year.to_numpy() / 365.25)[:, None, None]
+        season = 8 * np.cos(2 * np.pi * doy / 365.25)[:, None, None]
         shape = (dates.size, ny, nx)
         for name, units, values in (
             (names[0], "K", 295 + season + rng.normal(0, 3, shape)),
@@ -130,10 +140,29 @@ def test_open_grid_variables_across_files(tmp_path):
         open_grid([a, c], {"tasmax": "tx", "tasmin": "tn", "pr": "rain2"})
 
 
+@pytest.mark.parametrize(
+    ("calendar", "canonical", "dpy"),
+    [("noleap", "noleap", 365), ("365_day", "noleap", 365), ("360_day", "360_day", 360)],
+)
+def test_open_grid_other_calendars(tmp_path, calendar, canonical, dpy):
+    """noleap and 360_day times are read as a CalendarDays axis in that calendar."""
+    path = write_grid(tmp_path / "g.nc", calendar=calendar, end="1972-12-31")
+    inp = open_grid([path])
+    assert isinstance(inp.time, CalendarDays)
+    assert inp.time.calendar == canonical and inp.time.size == 2 * dpy
+    assert (inp.time[0].year, inp.time[0].month, inp.time[0].day) == (1971, 1, 1)
+    assert inp.time[-1].day == (31 if dpy == 365 else 30)
+    assert f"{inp.time[-1]:%Y-%m-%d}" == f"1972-12-{inp.time[-1].day}"
+    assert inp.data.tasmax.shape == (2 * dpy, 2, 3)
+
+
 def test_open_grid_refuses_other_calendars(tmp_path):
-    path = write_grid(tmp_path / "g.nc", calendar="360_day", end="1972-12-30")
-    with pytest.raises(NotImplementedError, match="calendar"):
-        open_grid([path])
+    for calendar in ("all_leap", "julian"):
+        path = write_grid(tmp_path / f"{calendar}.nc", calendar="360_day", end="1972-12-30")
+        with netCDF4.Dataset(path, "a") as nc:
+            nc["time"].calendar = calendar
+        with pytest.raises(NotImplementedError, match="calendar"):
+            open_grid([path])
 
 
 def test_blocks_are_bounded_by_max_values(tmp_path):

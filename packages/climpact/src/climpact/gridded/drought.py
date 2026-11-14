@@ -38,6 +38,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from climpact.calendars import calendar_of, year_range
 from climpact.periods import periods
 from climpact.products.drought import _exp, are_lmom_valid, hargreaves, pwm2lmom
 from climpact.rdist import pgamma, qnorm
@@ -202,7 +203,7 @@ def _series(
     of the first base year, the cell's data at the end and missing in between."""
     if raw is None:
         return data, full
-    dates = pd.date_range(f"{base_start}-01-01", full[-1], freq="D")
+    dates = year_range(calendar_of(full), base_start, full[-1].year)
     series = np.full((*data.shape[:-1], dates.size), np.nan)
     series[..., : raw.shape[-1]] = raw
     series[..., dates.size - full.size :] = data

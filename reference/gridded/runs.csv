@@ -4,3 +4,6 @@ grid_sample,grid_sample.nc,tmax,tmin,precip,1991,2010,yes,,,
 grid_future,grid_future_tas.nc;grid_future_pr.nc,tasmax,tasmin,pr,1971,2000,no,grid_stations,hw;hwEHF,
 grid_filled,grid_filled_tas.nc;grid_filled_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,,hw;hwEHF;spi;spei
 grid_filled_future,grid_filled_future_tas.nc;grid_filled_future_pr.nc,tasmax,tasmin,pr,1971,2000,no,grid_filled,,hw;hwEHF;spi;spei
+grid_filled_noleap,grid_filled_noleap_tas.nc;grid_filled_noleap_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,,
+grid_filled_360day,grid_filled_360day_tas.nc;grid_filled_360day_pr.nc,tasmax,tasmin,pr,1971,2000,yes,,,
+grid_sample_360day,grid_sample_360day.nc,tmax,tmin,precip,1991,2010,yes,,,

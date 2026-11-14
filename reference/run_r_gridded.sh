@@ -60,7 +60,11 @@ for run in "${runs[@]}"; do
       --tmax '$tmax' --tmin '$tmin' --prec '$prec' --base_start '$base_start' --base_end '$base_end' \
       --exclude '${exclude//;/,}' --indices '${only//;/,}' $thr_arg
     mkdir -p /out/indices
-    for f in /tmp/indices/*.nc; do nccopy -d 9 -s -c time/365 \"\$f\" \"/out/indices/\$(basename \"\$f\")\"; done
+    for f in /tmp/indices/*.nc; do
+      # tx95t's time is a fixed 360 days in the 360_day calendar, shorter than the chunk.
+      c=365; ncdump -h \"\$f\" | grep -q 'time = 360 ;' && c=360
+      nccopy -d 9 -s -c time/\$c \"\$f\" \"/out/indices/\$(basename \"\$f\")\"
+    done
     cp /opt/r-package-versions.csv /out/r-package-versions.csv"
   docker run --rm --platform "$PLATFORM" \
     -v "$CLIMPACT_DIR:/climpact:ro" \

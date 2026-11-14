@@ -61,7 +61,7 @@
       <h2 id="type-title">{% translate "Typography" %}</h2>
       <div class="pattern__demo stack">
         <p class="eyebrow">{% translate "Eyebrow" %}</p>
-        <h1>{% translate "Heading 1: station results" %}</h1>
+        <p class="pattern__h1">{% translate "Heading 1: station results" %}</p>
         <h2>{% translate "Heading 2: temperature indices" %}</h2>
         <h3>{% translate "Heading 3: warm days" %}</h3>
         <h4>{% translate "Heading 4: trend" %}</h4>
@@ -223,9 +223,10 @@
       <h2 id="steps-title">{% translate "Step indicator" %}</h2>
       <p>{% translate "Shown under the header during the single-station flow. Completed steps link back. On a narrow screen only the current step is named." %}</p>
       <div class="stack">
-        {% include "components/steps.html" with steps=steps_first %}
-        {% include "components/steps.html" with steps=steps_middle %}
-        {% include "components/steps.html" with steps=steps_last %}
+        {% translate "Example: the first step" as steps_first_label %}{% translate "Example: a middle step" as steps_middle_label %}{% translate "Example: the last step" as steps_last_label %}
+        {% include "components/steps.html" with steps=steps_first label=steps_first_label %}
+        {% include "components/steps.html" with steps=steps_middle label=steps_middle_label %}
+        {% include "components/steps.html" with steps=steps_last label=steps_last_label %}
       </div>
     </section>
 

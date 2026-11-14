@@ -1,12 +1,20 @@
 {% load i18n %}<!doctype html>
+{% comment %}Rendered without context processors or the page shell (Django's server_error
+handler), so it stands alone: a lang attribute, a title, one main landmark, and system
+colours that follow the light or dark setting (#83).{% endcomment %}
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>{% translate "Something went wrong" %}</title>
+  <style>body{margin:0 auto;padding:1rem;max-inline-size:40rem;font-family:system-ui,sans-serif;line-height:1.5;background:Canvas;color:CanvasText}a{color:LinkText}</style>
 </head>
 <body>
-  <h1>{% translate "Something went wrong" %}</h1>
-  <p>{% translate "The server could not finish this request. Please try again." %}</p>
+  <main>
+    <h1>{% translate "Something went wrong" %}</h1>
+    <p>{% translate "The server could not finish this request. Please try again." %}</p>
+    <p><a href="/">{% translate "Go to the start page" %}</a></p>
+  </main>
 </body>
 </html>

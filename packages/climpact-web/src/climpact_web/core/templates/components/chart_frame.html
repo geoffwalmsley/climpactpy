@@ -4,7 +4,7 @@ the chart script draws into [data-chart-plot]) and the fallbacks every chart has
 view and a CSV download.
 
 Parameters: id, title, summary, legend (list of {label, token}, token a --chart-* name),
-height (CSS length), csv_href, table_template (included as the table view), and for an
+height (CSS length), heading (the title's heading level, default 3), csv_href, table_template (included as the table view), and for an
 interactive chart (#75): data_url (a chart data URL, see TECHNICAL.md "Charts"; the page
 loads the scripts with {% load charts %}{% chart_scripts %}) and image_src (a static image
 shown without JavaScript, e.g. the run's PNG). With data_url, the summary, legend and CSV
@@ -14,7 +14,7 @@ built from the data when opened.
 <figure class="chart" id="{{ id }}" aria-labelledby="{{ id }}-title"{% if data_url %} aria-describedby="{{ id }}-summary"{% endif %} data-chart{% if data_url %} data-chart-src="{{ data_url }}"{% endif %}>
   <div class="chart__header">
     <div class="stack stack--sm">
-      <h3 class="chart__title" id="{{ id }}-title">{{ title }}</h3>
+      <h{{ heading|default:3 }} class="chart__title" id="{{ id }}-title">{{ title }}</h{{ heading|default:3 }}>
       {% if summary or data_url %}<p class="chart__summary" id="{{ id }}-summary" data-chart-summary>{{ summary }}</p>{% endif %}
     </div>
     <div class="cluster">

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 06:53+0000\n"
+"POT-Creation-Date: 2026-11-14 07:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1383,7 +1383,7 @@ msgstr ""
 msgid "There is no page at this address."
 msgstr ""
 
-#: core/templates/404.html:6
+#: core/templates/404.html:6 core/templates/500.html:18
 msgid "Go to the start page"
 msgstr ""
 
@@ -1396,11 +1396,11 @@ msgstr ""
 msgid "Uploads can be at most %(max_upload_mb)s MB."
 msgstr ""
 
-#: core/templates/500.html:6 core/templates/500.html:9
+#: core/templates/500.html:11 core/templates/500.html:16
 msgid "Something went wrong"
 msgstr ""
 
-#: core/templates/500.html:10
+#: core/templates/500.html:17
 msgid "The server could not finish this request. Please try again."
 msgstr ""
 
@@ -1427,8 +1427,12 @@ msgstr ""
 msgid "Climpact web, version %(version)s"
 msgstr ""
 
+#: core/templates/base.html:61
+msgid "Accessibility"
+msgstr ""
+
 #: core/templates/components/alert.html:13
-#: core/templates/components/toasts.html:7
+#: core/templates/components/toasts.html:9
 msgid "Dismiss"
 msgstr ""
 
@@ -1559,7 +1563,7 @@ msgid "Loading"
 msgstr ""
 
 #: core/templates/components/stages.html:9
-#: core/templates/components/steps.html:13
+#: core/templates/components/steps.html:14
 msgid "(done)"
 msgstr ""
 
@@ -1575,16 +1579,16 @@ msgstr ""
 msgid "(not started)"
 msgstr ""
 
-#: core/templates/components/steps.html:6
+#: core/templates/components/steps.html:7
 msgid "Progress through the steps"
 msgstr ""
 
-#: core/templates/components/steps.html:13
+#: core/templates/components/steps.html:14
 #, python-format
 msgid "Step %(number)s of %(total)s:"
 msgstr ""
 
-#: core/templates/components/steps.html:13
+#: core/templates/components/steps.html:14
 msgid "Optional"
 msgstr ""
 
@@ -1805,25 +1809,25 @@ msgstr ""
 msgid "Step indicator"
 msgstr ""
 
-#: core/templates/core/patterns.html:32 core/templates/core/patterns.html:233
+#: core/templates/core/patterns.html:32 core/templates/core/patterns.html:234
 #: jobs/templates/jobs/job_detail.html:15
 #: stations/templates/stations/results_progress.html:18
 msgid "Progress"
 msgstr ""
 
-#: core/templates/core/patterns.html:33 core/templates/core/patterns.html:246
+#: core/templates/core/patterns.html:33 core/templates/core/patterns.html:247
 msgid "Loading and empty states"
 msgstr ""
 
-#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:258
+#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:259
 msgid "Help in place"
 msgstr ""
 
-#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:264
+#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:265
 msgid "Chart frame"
 msgstr ""
 
-#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:271
+#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:272
 msgid "Interactive charts"
 msgstr ""
 
@@ -2094,69 +2098,81 @@ msgid ""
 "back. On a narrow screen only the current step is named."
 msgstr ""
 
-#: core/templates/core/patterns.html:234 jobs/stages.py:14
+#: core/templates/core/patterns.html:226
+msgid "Example: the first step"
+msgstr ""
+
+#: core/templates/core/patterns.html:226
+msgid "Example: a middle step"
+msgstr ""
+
+#: core/templates/core/patterns.html:226
+msgid "Example: the last step"
+msgstr ""
+
+#: core/templates/core/patterns.html:235 jobs/stages.py:14
 #: stations/templates/stations/results_progress.html:3
 #: stations/templates/stations/results_progress.html:9
 msgid "Calculating indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:234
+#: core/templates/core/patterns.html:235
 msgid "Thresholds: about 20 seconds left"
 msgstr ""
 
-#: core/templates/core/patterns.html:234
+#: core/templates/core/patterns.html:235
 msgid "Waiting for a worker"
 msgstr ""
 
-#: core/templates/core/patterns.html:234
+#: core/templates/core/patterns.html:235
 msgid "Your run is next in the queue."
 msgstr ""
 
-#: core/templates/core/patterns.html:234
+#: core/templates/core/patterns.html:235
 msgid "Run stages"
 msgstr ""
 
-#: core/templates/core/patterns.html:247
+#: core/templates/core/patterns.html:248
 msgid "No runs yet"
 msgstr ""
 
-#: core/templates/core/patterns.html:247
+#: core/templates/core/patterns.html:248
 msgid "Runs you start appear here while they are kept."
 msgstr ""
 
-#: core/templates/core/patterns.html:247
+#: core/templates/core/patterns.html:248
 msgid "Start a run"
 msgstr ""
 
-#: core/templates/core/patterns.html:259
+#: core/templates/core/patterns.html:260
 msgid "What is a base period?"
 msgstr ""
 
-#: core/templates/core/patterns.html:259
+#: core/templates/core/patterns.html:260
 msgid ""
 "The years used to calculate percentile thresholds, usually 1961 to 1990 or "
 "1981 to 2010. The station needs enough data in those years."
 msgstr ""
 
-#: core/templates/core/patterns.html:265
+#: core/templates/core/patterns.html:266
 msgid ""
 "The chart scripts (#75) draw into the plot area; until then it shows a "
 "placeholder. Every chart has a text summary, a legend, a table view and a "
 "CSV download."
 msgstr ""
 
-#: core/templates/core/patterns.html:266
+#: core/templates/core/patterns.html:267
 msgid "TXx, hottest day of the year"
 msgstr ""
 
-#: core/templates/core/patterns.html:266
+#: core/templates/core/patterns.html:267
 #, python-format
 msgid ""
 "Rising by 0.21 °C per decade since 1936 (significant at 5%%). Highest 45.8 "
 "°C in 2013."
 msgstr ""
 
-#: core/templates/core/patterns.html:272
+#: core/templates/core/patterns.html:273
 msgid ""
 "The chart frame with a data URL: charts.js draws it with uPlot when it "
 "scrolls into view. Drag across the plot to zoom, double-click to show all; "
@@ -2164,19 +2180,19 @@ msgid ""
 "SVG save the current view. The data are the Sydney sample and its run."
 msgstr ""
 
-#: core/templates/core/patterns.html:274
+#: core/templates/core/patterns.html:275
 msgid "Daily series with quality-check flags"
 msgstr ""
 
-#: core/templates/core/patterns.html:277
+#: core/templates/core/patterns.html:278
 msgid "TXx, annual, with the trend"
 msgstr ""
 
-#: core/templates/core/patterns.html:280
+#: core/templates/core/patterns.html:281
 msgid "TXx, monthly"
 msgstr ""
 
-#: core/templates/core/patterns.html:283
+#: core/templates/core/patterns.html:284
 msgid "SPI, 3 months, as bars"
 msgstr ""
 
@@ -2219,7 +2235,7 @@ msgstr ""
 msgid "Monthly values by year."
 msgstr ""
 
-#: core/views.py:70 stations/templates/stations/downloads.html:85
+#: core/views.py:70 stations/templates/stations/downloads.html:87
 msgid "Table"
 msgstr ""
 
@@ -2850,7 +2866,7 @@ msgstr ""
 #: gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
-#: stations/templates/stations/downloads.html:85
+#: stations/templates/stations/downloads.html:87
 msgid "Index"
 msgstr ""
 
@@ -3031,8 +3047,8 @@ msgid "Index files"
 msgstr ""
 
 #: gridded/templates/gridded/_progress.html:75
-#: stations/templates/stations/downloads.html:50
-#: stations/templates/stations/downloads.html:68
+#: stations/templates/stations/downloads.html:51
+#: stations/templates/stations/downloads.html:70
 msgid "File"
 msgstr ""
 
@@ -3466,37 +3482,37 @@ msgstr ""
 msgid "This file could not be read."
 msgstr ""
 
-#: help/guides.py:208
+#: help/guides.py:216
 #, python-format
 msgid "Units: %(units)s"
 msgstr ""
 
-#: help/guides.py:210
+#: help/guides.py:218
 msgid "yearly and monthly values"
 msgstr ""
 
-#: help/guides.py:212
+#: help/guides.py:220
 msgid "monthly values"
 msgstr ""
 
-#: help/guides.py:214
+#: help/guides.py:222
 msgid "yearly values"
 msgstr ""
 
-#: help/guides.py:216
+#: help/guides.py:224
 msgid "uses the base period"
 msgstr ""
 
-#: help/guides.py:223
+#: help/guides.py:231
 msgid "an extra time scale"
 msgstr ""
 
-#: help/guides.py:224
+#: help/guides.py:232
 #, python-format
 msgid "You choose %(what)s on the indices step."
 msgstr ""
 
-#: help/guides.py:269
+#: help/guides.py:277
 msgid "Help topic"
 msgstr ""
 
@@ -6024,7 +6040,7 @@ msgid "Every value in the file is missing."
 msgstr ""
 
 #: stations/sector_file.py:218 stations/templates/stations/_qc_summary.html:33
-#: stations/templates/stations/downloads.html:91 stations/views_indices.py:350
+#: stations/templates/stations/downloads.html:93 stations/views_indices.py:350
 msgid "none"
 msgstr ""
 
@@ -6885,72 +6901,80 @@ msgid "Summary and quality-control files"
 msgstr ""
 
 #: stations/templates/stations/downloads.html:50
+msgid "Summary and quality-control files to download"
+msgstr ""
+
+#: stations/templates/stations/downloads.html:51
 msgid "Contents"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:50
-#: stations/templates/stations/downloads.html:68
+#: stations/templates/stations/downloads.html:51
+#: stations/templates/stations/downloads.html:70
 msgid "Download"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:53
+#: stations/templates/stations/downloads.html:54
 msgid "Quality check: the rows it found"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:57
+#: stations/templates/stations/downloads.html:58
 msgid "See what the quality checks found"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:62
+#: stations/templates/stations/downloads.html:63
 msgid "Sector comparison"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:63
+#: stations/templates/stations/downloads.html:64
 msgid ""
 "The files of step 5, in Climpact for R's corr folder: the correlation of "
 "each index with your sector data, and the scatter plots."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:73
+#: stations/templates/stations/downloads.html:69
+msgid "Sector comparison files to download"
+msgstr ""
+
+#: stations/templates/stations/downloads.html:75
 msgid "See the sector comparison"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:78
+#: stations/templates/stations/downloads.html:80
 msgid "Each index"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:79
+#: stations/templates/stations/downloads.html:81
 msgid ""
 "The table of each index (CSV) and Climpact's plot of each series (PNG). The "
 "days of occurrence are columns of the index's table."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:79
+#: stations/templates/stations/downloads.html:81
 msgid "The plots were switched off in the settings."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:82
+#: stations/templates/stations/downloads.html:84
 #, python-format
 msgid "%(counter)s index"
 msgid_plural "%(counter)s indices"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/downloads.html:85
+#: stations/templates/stations/downloads.html:87
 #: stations/templates/stations/result.html:26
 #: stations/templates/stations/result.html:90
 msgid "Series"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:85
+#: stations/templates/stations/downloads.html:87
 msgid "Plot"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:90
+#: stations/templates/stations/downloads.html:92
 msgid "in the index's table"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:100
+#: stations/templates/stations/downloads.html:102
 msgid "Every file of this calculation, as a list"
 msgstr ""
 
@@ -7286,7 +7310,6 @@ msgid "%(column)s (°C²)"
 msgstr ""
 
 #: stations/templates/stations/result.html:84
-#: stations/templates/stations/result.html:88
 msgid "Trends in the trend file"
 msgstr ""
 
@@ -7295,6 +7318,10 @@ msgstr ""
 msgid ""
 "The rows of the trend file for this index, as written: Sen's slope per year "
 "(per month for the monthly row) and its 95%% confidence interval."
+msgstr ""
+
+#: stations/templates/stations/result.html:88
+msgid "The trend file's rows for this index"
 msgstr ""
 
 #: stations/templates/stations/result.html:91

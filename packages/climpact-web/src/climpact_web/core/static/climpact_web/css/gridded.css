@@ -249,3 +249,10 @@
     stroke: CanvasText;
   }
 }
+
+/* File names in the checks (e.g. txx_ANN_climpactpy_historical_NA_1991-2010.nc) break
+   anywhere rather than widen the page at 320 px (#83). */
+.gridded-checks span {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}

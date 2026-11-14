@@ -19,7 +19,7 @@ files), active, delay, all_done.
     {% if job.status == "queued" or job.status == "running" %}
     <div class="progress">
       <div class="progress__header">
-        <span id="progress-label-{{ row.kind }}">{% if job.status == "running" %}{{ row.stage_label|default:_("Starting") }}{% else %}{% translate "Waiting to start" %}{% endif %}</span>
+        <span id="progress-label-{{ row.kind }}" data-announce>{% if job.status == "running" %}{{ row.stage_label|default:_("Starting") }}{% else %}{% translate "Waiting to start" %}{% endif %}</span>
         {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
       </div>
       <progress max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="progress-label-{{ row.kind }}" aria-describedby="progress-note-{{ row.kind }}">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>

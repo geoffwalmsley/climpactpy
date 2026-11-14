@@ -2586,7 +2586,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-5, described in [Single-station steps](#single-station-steps)), #79
 (downloads, described there too), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
-(accessibility).
+(accessibility, described in [Accessibility](#accessibility)).
 
 ### Layout
 
@@ -2628,7 +2628,8 @@ packages/climpact-web/src/climpact_web/
       css/charts.css      the interactive charts (#75), chart pages only
       css/results.css     station steps 3 and 4 (#78): parameters, dashboard cards, sparklines
       css/sector.css      station step 5, sector data (#90): settings, bar chart, scatter plots
-      js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
+      js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts,
+                     the announcer and focus kept across htmx swaps (#83)
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
@@ -2733,7 +2734,8 @@ packages/climpact-web/src/climpact_web/
     tour.py          the landing page's tour steps
     views.py, urls.py  /help/: index, search, topics (A to Z), /help/<guide>/
     templatetags/help.py  `{% help_topic "id" %}`
-    guides/en/*.md   the guides, in English
+    guides/en/*.md   the guides, in English (accessibility.md: the accessibility
+                     statement, #83, linked from every page's footer)
     templates/help/  index.html, guide.html, topics.html, search.html, _results.html,
                      _search_form.html, _topic.html, _tour.html
   charts/            chart data for the interactive charts (label `charts`, see [Charts](#charts))
@@ -2744,8 +2746,13 @@ packages/climpact-web/src/climpact_web/
     sample_outputs/sydney/  four index tables and the trend rows of the Sydney sample's run
                      (pattern library examples and tests)
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
+packages/climpact-web/docs/accessibility-audit.md  the accessibility audit (#83): what was
+                     checked, what was fixed, the screen reader checklist done by hand
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
+  browser.py         headless Chrome over the DevTools protocol (#83)
+  assets/axe-core/   axe-core 4.14.0, vendored for the accessibility tests (README: source,
+                     SHA-256, MPL-2.0 licence)
   conftest.py        prints the page sizes measured by test_page_budget.py
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
@@ -2753,7 +2760,8 @@ packages/climpact-web/tests/
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
-                     the downloads page and the PDF report jobs (test_downloads.py)
+                     the downloads page and the PDF report jobs (test_downloads.py),
+                     accessibility in a browser (test_accessibility.py, #83)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
@@ -2919,11 +2927,11 @@ a comment listing its parameters. Labels are passed in already translated
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows |
+| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
-| `chart_frame` | title, text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)) |
+| `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)) |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -2943,15 +2951,18 @@ The pattern library (`/patterns/`, with `PATTERN_LIBRARY`) shows every component
 palette and the icons, and is what the user review and the accessibility audit (#83) use.
 
 **Responsive and right-to-left.** Layouts use flex and grid with `auto-fill` columns, so
-they reflow down to 320px wide and at 200% zoom without horizontal scrolling (checked on
-the landing page, pattern library, station step 1 pages and batch pages in a 320px frame with headless Chrome; the gridded pages at 375px); wide tables
-scroll inside their own region. Only logical properties are used: a test fails on
+they reflow down to 320px wide and at 200% zoom without horizontal scrolling (every page
+type is checked by `test_accessibility.py`, see [Accessibility](#accessibility)); wide
+tables scroll inside their own region. Grids that hold forms and charts use a
+`minmax(0, 1fr)` column, so content such as a drawn chart cannot hold them wider than the
+window, and headings break long words (station names). Only logical properties are used: a test fails on
 `left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
 under `forced-colors`.
 
 **Size.** `main.css` and `theme-dark.css` together are about 36 KB (7.6 KB gzipped);
-`ui.js` is about 10.6 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 12 KB. The
+`ui.js` is about 13 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 14 KB (12 KB
+until #83 added the announcer and focus keeping). The
 issue aimed for under 30 KB of CSS; the full component set, both token sets and the
 comments put it above that. `help.css` (about 5.9 KB, 1.6 KB gzipped) is a separate
 stylesheet loaded on every page, since any screen can show a help topic and `main.css` is
@@ -3156,8 +3167,8 @@ core reads and writes ordinary files, so a worker always works on a local folder
 subclass can copy `input/` down from S3 before a run and `output/` up after it and serve
 downloads from S3; `CLIMPACT_WEB_JOB_STORAGE` names the class.
 
-The design system has no browser tests (no browser is installed for them; the axe checks
-are #83). Instead `test_components.py` renders every component with sample parameters and
+Browser tests of the finished pages are in `test_accessibility.py` (#83, see
+[Accessibility](#accessibility)). `test_components.py` renders every component with sample parameters and
 checks the accessibility hooks in the markup (labels, `aria-describedby`, `aria-invalid`,
 `aria-current`, roles, the no-JS fallbacks), that the pattern library includes every
 component, that every icon used exists in the sprite, the landing page with and without
@@ -3700,12 +3711,13 @@ Markdown is the app's own text, so it is rendered as trusted HTML. Links use two
 resolved at render time, so guides do not depend on where the app is mounted:
 `guide:<slug>#<anchor>` and `url:<url name>` (a page that does not exist yet, such as
 `gridded:start`, keeps the link text without a link). Tables are wrapped in the table
-component's scrolling region.
+component's scrolling region, named by the heading above the table (#83).
 
 The guides, in order (`GUIDE_ORDER`): preparing a station file (`station-file`), choosing a
 base period (`base-period`), reading the quality checks (`quality-control`), the indices
 (`indices`), interpreting trends (`trends`), batch processing (`batch`), sector correlation
-(`sector`), gridded data (`gridded`, local mode) and questions and troubleshooting (`faq`).
+(`sector`), gridded data (`gridded`, local mode), questions and troubleshooting (`faq`)
+and the accessibility statement (`accessibility`, #83, see [Accessibility](#accessibility)).
 They are rewritten from the R guide for meteorological-service staff, checked against the
 Python code rather than the R text where they differ: the flatline check flags more than
 `flatline_days` (5) equal values, not R's "4 or more"; `tmaxmin` lists TN >= TX; jumps are
@@ -4188,8 +4200,9 @@ on the chart of its variable and in its table (every page), the per-variable pay
 thresholds against `QCParams` and R's limits, the job's files against R's, the summary,
 the missing-data rules, the table pages and the page of a date, re-uploading a corrected
 file (the details and thresholds kept), continuing to step 3 and 404 for another session.
-The drawing itself has no
-browser tests (no browser is installed for them; #83); it was checked by hand as above. #77's linking (a table row to the chart, a ring to its
+The drawing itself was checked by hand as above; `test_accessibility.py` (#83) checks the
+charts' keyboard use, announcements, table view and that they redraw to fit when the
+window narrows. #77's linking (a table row to the chart, a ring to its
 table rows on another page, the pager's focus) and the QC page at 390px and in both themes
 were checked in headless Chrome over the DevTools protocol; screenshots are in the PR's
 review folder.
@@ -4198,6 +4211,76 @@ review folder.
 with trend, monthly, SPI bars) from the Sydney sample, through the same views. The design
 snapshots (`design_snapshots`) open from disk without a server, so their charts show the
 "could not be loaded" message.
+
+### Accessibility
+
+The audit of the finished app against WCAG 2.1 AA (#83). The full record (what was
+checked, each finding and its fix, the screen reader checklist) is
+`packages/climpact-web/docs/accessibility-audit.md`; the statement for users is the help
+guide `accessibility` (`/help/accessibility/`), linked from every page's footer: target
+WCAG 2.1 AA, status "partially conforms" until the screen reader checks are done by
+hand, what was tested and how, the known limitations and how to report a problem.
+
+**How the pages are checked.** `tests/test_accessibility.py` starts `climpact-web` on a
+free port with its worker, in a fresh data folder, and drives the Chrome already on the
+machine (`tests/browser.py`: headless, a temporary profile, the DevTools protocol over a
+WebSocket with `websocket-client`; nothing is downloaded or installed). Chrome is found
+from `CHROME`, then the usual install paths and `PATH`; without it the tests skip with a
+message, unless `CLIMPACT_A11Y_REQUIRE_CHROME` is set (CI). The `site` fixture goes
+through the Sydney sample station (steps 1 to 5 with the sample sector file), the sample
+batch and the 3 x 4 sample grid (thresholds, then `txx`, `fd` and `spi`) in the browser, so
+the worker runs real jobs (about a minute), and collects 36 pages and states, including
+forms answered with errors, the 413 page (a real over-limit upload) and the 500 page
+(rendered from its template). The `audit` fixture opens each page once and reads:
+
+| Check | How |
+| --- | --- |
+| axe-core | every rule tagged `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` or `best-practice`, in the light theme and at 320 px; `color-contrast` and `link-in-text-block` again in the dark theme (`prefers-color-scheme` emulated, after the colour transitions end) |
+| reflow | `scrollWidth` against the viewport at 320 CSS px and at 200% zoom (640 px at device scale 2), after the page has drawn, as when a user zooms; content inside a scrolling region is allowed to be wider |
+| keyboard | Tab from a marker at the top of the body until focus leaves the page: every stop visible (or, for a visually hidden input, the control drawn for it) with an outline or box shadow on it or a near ancestor; no stop twice before the cycle ends (a trap); the skip link first, and Enter on it focuses `main`; no positive `tabindex` |
+| forced colours | the same traversal under `forced-colors: active`, where only outlines count |
+| reduced motion | under `prefers-reduced-motion: reduce`, no animation or transition over 0.1 s on any element or pseudo-element, and no smooth scrolling |
+| structure | `lang`, a title, one `main`, one `h1`, the skip link's target, names on regions, focusable groups, toolbars, navigation and tab lists |
+
+While the jobs run the fixture also runs axe on each progress page, records what the
+announcer says, and checks that focus on the batch's Cancel button survives the polls.
+Widget tests work the tabs, dialog, drop zone (Space opens the file chooser, caught with
+`Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
+gridded explorer by keyboard. `test_axe_every_page` fails on a serious or critical axe
+violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
+about four minutes. `CLIMPACT_A11Y_REPORT=<folder>` writes `report.json` and screenshots
+of every page (light, dark, forced colours, 320 px). axe-core (4.14.0, MPL-2.0) is a test
+asset in `tests/assets/axe-core/`, injected with `Runtime.evaluate`; its README records the
+source URL and SHA-256, which `test_vendored_axe_is_the_pinned_release` checks. It is
+never served or packaged.
+
+**Announcements and focus across htmx swaps.** Progress fragments replace themselves at
+every poll (`hx-swap="outerHTML"`), so a live region inside one is new each time and
+screen readers do not read it. The page shell has one persistent live region,
+`#announcer` (`role="status"`, in `components/toasts.html`); a fragment marks its news
+with `data-announce` (the stage of the checks, a station run, a sector comparison, a
+batch, a gridded job and the job page) and `ui.js` copies the text there after a swap when
+it has changed, at most every 10 s unless the element says `data-announce="now"` (the end
+of a batch or a job, the help search's result count, the batch estimate, the gridded
+set-up checks). `ui.js` also notes the focused control before an htmx swap and focuses
+the same control after it (same id, or the same kind of control in a form with the same
+action), so a keyboard user on Cancel is not dropped to the top of the page at each poll.
+
+**Fixed by the audit.** Progress not announced and focus lost at each poll (above);
+charts holding the page wide after a zoom or a narrower window, the gridded set-up form
+and a calculation's long title wider than 320 px (see Responsive and right-to-left under
+[Design system](#design-system)); the tour returning focus to its hidden invitation (now
+to `main`); the 500 page given a `main`, a way back and theme-following system colours;
+help guide tables, download tables and the index page's trend table given their own
+names; the index chart's heading level; the pattern library's duplicate step indicator
+names and second `h1`.
+
+**Known limitations.** The PDF report and plots PDF are not tagged PDF/UA (matplotlib
+cannot write a structure tree; PR #109); follow-up #110. The PNG plots have no text inside
+the files (their data are in the CSVs). The gridded map's cells are mouse targets only;
+the latitude and longitude selects are the keyboard route, and the map has a table.
+Screen readers (VoiceOver, NVDA) cannot be driven here: the checklist in the audit file is
+done by hand.
 
 ## Development
 
@@ -4210,14 +4293,19 @@ python3 -m venv .venv
 
 - One venv holds both packages, installed editable with pip (no uv). New T3 worktrees get
   it from the project's "Set up venv" script, which runs the commands above.
-- CI has three jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` installs only
+- CI has four jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` installs only
   `packages/climpact[dev]`, runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
   suite, parity included); `web` installs both packages, runs
-  `pytest packages/climpact-web` (without the size budget), the size budget as its own step
+  `pytest packages/climpact-web` (without the size budget and the accessibility tests), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
   [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
   container, including a station job through the worker (see [Tests](#tests)).
+  `web-accessibility` (Python 3.12) runs `test_accessibility.py` in the runner's
+  preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
+  `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps
+  the report and screenshots as the `accessibility-report` artifact (see
+  [Accessibility](#accessibility)).
 - Start the web app with `.venv/bin/climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with

@@ -2,6 +2,14 @@
    uPlot's overlays in the design tokens. Loaded with uPlot by {% chart_scripts %}, on chart
    pages only. Tokens only, logical properties only (checked by test_static.py). */
 
+/* A drawn chart is as wide as its frame, never wider: when the window narrows or the page
+   is zoomed after drawing, the frame shrinks and the chart is redrawn to fit, rather than
+   the canvas holding the page wide (#83, WCAG 1.4.4 and 1.4.10). */
+.chart {
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
 .chart__toolbar {
   justify-content: space-between;
 }

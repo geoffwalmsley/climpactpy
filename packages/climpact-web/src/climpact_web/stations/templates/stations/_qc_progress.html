@@ -9,11 +9,11 @@ Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing)
   hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML">
   <div class="progress">
     <div class="progress__header">
-      <span id="qc-progress-label">{% if job.status == "running" %}{% translate "Running the quality checks" %}{% else %}{% translate "Waiting to run the quality checks" %}{% endif %}</span>
+      <span id="qc-progress-label" data-announce>{% if job.status == "running" %}{% translate "Running the quality checks" %}{% else %}{% translate "Waiting to run the quality checks" %}{% endif %}</span>
       {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
     </div>
     <progress max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="qc-progress-label" aria-describedby="qc-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
-    <p class="progress__note" id="qc-progress-text" role="status">
+    <p class="progress__note" id="qc-progress-text">
       {% if stage_label %}{% blocktranslate with stage=stage_label %}{{ stage }}.{% endblocktranslate %}{% endif %}
       {% if elapsed %}{% blocktranslate %}Time so far: {{ elapsed }}.{% endblocktranslate %}{% endif %}
       {% translate "The checks usually take a few seconds; the results appear here." %}

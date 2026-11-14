@@ -3,7 +3,7 @@ Search results (help:search, also swapped into #help-results by htmx). Parameter
 results.
 {% endcomment %}
 {% if query %}
-<p class="small muted" aria-live="polite">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
+<p class="small muted" data-announce="now">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
 {% if results %}
 <ol class="help-results">
   {% for result in results %}

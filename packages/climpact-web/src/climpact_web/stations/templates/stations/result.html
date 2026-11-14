@@ -49,7 +49,7 @@
   {% if chart_url %}
   {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
   {% url 'jobs:file' job.pk csv_path as csv_url %}
-  {% include "components/chart_frame.html" with id="index-chart" title=series.description data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
+  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=series.description data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
   {% help_topic "trend.sen_slope" %}
   {% endif %}
 
@@ -85,7 +85,7 @@
     <p class="small muted">{% translate "The rows of the trend file for this index, as written: Sen's slope per year (per month for the monthly row) and its 95% confidence interval." %}</p>
     <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
       <table class="table">
-        <caption id="trend-caption" class="visually-hidden">{% translate "Trends in the trend file" %}</caption>
+        <caption id="trend-caption" class="visually-hidden">{% translate "The trend file's rows for this index" %}</caption>
         <thead><tr>
           <th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Years" %}</th>
           <th scope="col" class="numeric">{% translate "Lower bound" %}</th><th scope="col" class="numeric">{% translate "Slope" %}</th><th scope="col" class="numeric">{% translate "Upper bound" %}</th>

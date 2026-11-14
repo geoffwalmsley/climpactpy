@@ -1,7 +1,8 @@
 /*
  * climpact-web UI behaviour (#71). Progressive enhancement only: every page works without
  * this file, which adds the theme toggle, tabs, drag and drop on file inputs, dialogs and
- * toasts. Runs on page load and again on content htmx swaps in. No dependencies.
+ * toasts, announcements of polled progress and focus kept across htmx swaps (#83). Runs
+ * on page load and again on content htmx swaps in. No dependencies.
  *
  * window.Climpact:
  *   toast(message, kind)   show a toast; kind is "info", "success", "warning" or "error".
@@ -272,7 +273,67 @@
     if (detail.message) toast(detail.message, detail.kind);
   });
 
+  /* ---- Announcements and focus across htmx swaps (#83) ----
+   * A polled fragment replaces itself, so a live region inside it would be new each time
+   * and screen readers would not read it. Instead the fragment marks its news with
+   * data-announce and the text goes to #announcer, which stays: when it changes, and at
+   * most every 10 s unless marked data-announce="now" (a job that has finished). */
+  var lastText = "";
+  var lastTime = 0;
+
+  function announce(scope) {
+    var region = doc.getElementById("announcer");
+    var items = scope.matches && scope.matches("[data-announce]") ? [scope] : [];
+    items = items.concat(Array.prototype.slice.call(scope.querySelectorAll("[data-announce]")));
+    if (!region || !items.length) return;
+    var text = items
+      .map(function (el) {
+        return el.textContent.replace(/\s+/g, " ").trim();
+      })
+      .join(" ");
+    var now = items.some(function (el) {
+      return el.getAttribute("data-announce") === "now";
+    });
+    if (!text || text === lastText || (!now && Date.now() - lastTime < 10000)) return;
+    lastText = text;
+    lastTime = Date.now();
+    region.textContent = text;
+  }
+
+  /* Keyboard focus inside a fragment that is swapped (a cancel button in a polled
+   * progress fragment) goes to the same control in the new content. */
+  var focusKey = null;
+
+  function keyOf(el) {
+    if (el.id) return "#" + el.id;
+    var form = el.form || el.closest("form");
+    var tag = el.tagName.toLowerCase();
+    if (form && form.getAttribute("action")) {
+      return 'form[action="' + form.getAttribute("action") + '"] ' + tag;
+    }
+    return el.getAttribute("href") ? tag + '[href="' + el.getAttribute("href") + '"]' : null;
+  }
+
+  doc.addEventListener("htmx:beforeSwap", function (event) {
+    var active = doc.activeElement;
+    var target = event.detail.target;
+    focusKey = active && active !== doc.body && target && target.contains(active) ? keyOf(active) : null;
+  });
+
+  doc.addEventListener("htmx:afterSettle", function () {
+    if (!focusKey) return;
+    var el = null;
+    try {
+      el = doc.querySelector(focusKey);
+    } catch (e) {
+      /* a key that is not a valid selector: leave focus where it is */
+    }
+    focusKey = null;
+    if (el && doc.activeElement !== el) el.focus();
+  });
+
   function init(scope) {
+    if (scope !== doc) announce(scope);
     initThemeToggle(scope);
     initTabs(scope);
     initDropzones(scope);

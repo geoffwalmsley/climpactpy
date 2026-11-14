@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps) and [Batch page](#batch-page)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), help (#81), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page) and [Help](#help)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2512,7 +2512,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
-(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help), #85 (gridded), #82 (size budget) and #83
+(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded), #82 (size budget) and #83
 (accessibility).
 
 ### Layout
@@ -2521,7 +2521,7 @@ imports `climpact_web`. This section describes the skeleton (#69) and the design
 packages/climpact-web/src/climpact_web/
   settings.py        the one settings module; every value from environment variables
                      (local or hosted mode, see below); reading it has no side effects
-  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/ and the core app;
+  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, help/ and the core app;
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
@@ -2545,7 +2545,9 @@ packages/climpact-web/src/climpact_web/
       css/patterns.css    pattern library page only
       css/stations.css    the single-station pages (and the batch pages)
       css/batch.css       the batch pages only
+      css/help.css        help topics (every page) and the help pages and tour (#81)
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
+      js/tour.js     the first-run tour of the landing page (#81), loaded there only
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
@@ -2588,17 +2590,31 @@ packages/climpact-web/src/climpact_web/
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
     templates/batch/  start.html, check.html, results.html, _options.html,
                      _progress.html, _retention.html
+  help/              in-app help (label `help`, see [Help](#help))
+    topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
+    indices.py       the index catalogue from the core's climate.indices.csv (display names,
+                     groups, parameters); writes index_messages.py
+    index_messages.py  generated: the index names and definitions for makemessages
+    guides.py        guide pages from Markdown (language folders, English fallback), the
+                     generated index catalogue, link resolution, search
+    tour.py          the landing page's tour steps
+    views.py, urls.py  /help/: index, search, topics (A to Z), /help/<guide>/
+    templatetags/help.py  `{% help_topic "id" %}`
+    guides/en/*.md   the guides, in English
+    templates/help/  index.html, guide.html, topics.html, search.html, _results.html,
+                     _search_form.html, _topic.html, _tour.html
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
-                     step 1 (test_stations.py) and the batch page (test_batch.py)
+                     step 1 (test_stations.py), the batch page (test_batch.py) and the help
+                     (test_help.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
 worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4
-follow in #77-#79, #90), `batch` (#80) and planned `gridded` (#85). `core` keeps what every page shares.
+follow in #77-#79, #90), `batch` (#80), `help` (#81) and planned `gridded` (#85). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2749,7 +2765,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Component | Notes |
 | --- | --- |
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons |
-| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django 5.2 puts in the widget's `aria-describedby` with `aria-invalid` |
+| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django 5.2 puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text |
@@ -2757,15 +2773,15 @@ a comment listing its parameters. Labels are passed in already translated
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
 | `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
-| `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, help that opens in place (`<details>`) for #81 |
+| `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
 | `chart_frame` | title, text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view, for #75 |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket will add (`gridded:start`, `help:index`; `stations:upload`,
-`stations:sample` (#76), `batch:start` (#80) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
+URL name each later ticket will add (`gridded:start`; `stations:upload`,
+`stations:sample` (#76), `batch:start` (#80), `help:index` (#81) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered only in local mode, as
 in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
 reason. "Try with sample data" is a one-button POST form, since it creates the session's
@@ -2788,13 +2804,17 @@ under `forced-colors`.
 **Size.** `main.css` and `theme-dark.css` together are about 36 KB (7.6 KB gzipped);
 `ui.js` is about 10.6 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 12 KB. The
 issue aimed for under 30 KB of CSS; the full component set, both token sets and the
-comments put it above that. Whole-page budgets are set in #82.
+comments put it above that. `help.css` (about 5.9 KB, 1.6 KB gzipped) is a separate
+stylesheet loaded on every page, since any screen can show a help topic and `main.css` is
+at its limit; `tour.js` (about 6.5 KB) loads on the landing page only. Tests hold them
+under 7 KB and 8 KB. Whole-page budgets are set in #82.
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
 job and the job list), the single-station step 1 pages (upload, upload with file
 problems, the sample loaded, metadata errors, the step 2 placeholder) and the batch pages
-(start, a check with every station status, a running batch, finished results), rendered from
+(start, a check with every station status, a running batch, finished results) and the help
+pages (index, a guide, the indices guide, the topic list, a search), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
 and the icon sprite inlined, so they open from disk without a server.
 
@@ -2812,7 +2832,8 @@ attributes, since screen readers and tooltips read those. To refresh the catalog
 GNU gettext's `xgettext`), run from `packages/climpact-web/src/climpact_web`:
 `../../../../.venv/bin/climpact-web manage makemessages -l en --no-obsolete`. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
-the `.po` file and run `compilemessages`.
+the `.po` file and run `compilemessages`. The help guides are translated as Markdown files, one folder per
+language, with English as the fallback (see [Help](#help)).
 
 ### Tests
 
@@ -3188,6 +3209,138 @@ R behaviour not copied, and why:
 | Plots are always drawn | a checkbox, on by default (plots are about two thirds of the run time) |
 | One zip of the batch folder | the same zip, and each station's own zip |
 | Station files only as separate uploads | separate files or zips, with the metadata file in the zip if wanted |
+
+### Help
+
+The in-app help (#81) replaces the R app's long user guide
+(`climpact/www/user_guide/Climpact_user_guide.md`) and its per-tab "Instructions" boxes and
+hover tooltips (`bsTooltip` in `modules/singleStationStep2UI.R`, `singleStationStep3UI.R`).
+It has four parts, all in the `help` app: **contextual help topics** that open in place
+next to fields and results, **guide pages** written in Markdown, a **search** and an A-Z
+**list of topics**, and a short optional **first-run tour** of the landing page. The
+standalone user guide and handover documents are #12.
+
+**Contextual help topics** (`help/topics.py`). A topic is an id, a title, one or two
+plain sentences and the guide section that says more (`Topic.url`, a guide and an
+anchor). A screen shows one with
+
+```django
+{% load help %}{% help_topic "station.base_period" %}
+{% include "components/field.html" with field=form.rx_days help="param.rx_days" %}
+```
+
+which renders a `<details>` (no JavaScript): the title as a quiet link-style summary
+(`help-topic--compact`, in `css/help.css`), and when opened the text in a tinted panel
+with "More in the guide: ..." linking to the section. `variant="block"` gives the bordered
+`disclosure` instead, `summary="..."` replaces the title. An unknown id raises
+`UnknownTopic` with `DEBUG` or `HELP_STRICT` (set in the test settings); otherwise it is
+logged and nothing is shown, so a typo cannot break a page in production.
+
+**Topic ids for the screens.** These are the contract with the later screens; the QC
+(#77), indices and results (#78), sector (#90) and gridded (#85) screens drop them in with
+`{% help_topic %}` or `help=`. All exist now and point at written guide sections.
+
+| Family | Ids |
+| --- | --- |
+| Step 1 (#76, applied) | `station.file`, `station.name`, `station.latitude`, `station.longitude`, `station.base_period` |
+| Batch (#80, applied) | `batch.metadata_file`, `batch.station_files`, `batch.base_period`, `batch.workers`, `batch.plots` |
+| QC checks and plots (#77): `qc.<file>` as in `QC_REPORTS` | `qc.outliers`, `qc.tmaxmin`, `qc.toolarge`, `qc.duplicates`, `qc.tx_jumps`, `qc.tn_jumps`, `qc.tx_flatline`, `qc.tn_flatline`, `qc.nastatistics`, `qc.rounding` (decimal histograms), `qc.precip_histogram`, `qc.daily_series`, `qc.homogeneity` |
+| QC thresholds (#77): `QCParams` fields | `qcparam.iqr_temp`, `qcparam.iqr_prec`, `qcparam.prec_max`, `qcparam.temp_max`, `qcparam.flatline_days`, `qcparam.jump` |
+| Index settings (#78): `IndexParams` fields | `param.plot_title`, `param.wsdi_days`, `param.csdi_days`, `param.rx_days`, `param.txtn_days`, `param.hdd_base`, `param.cdd_base`, `param.gdd_base`, `param.rnnmm`, `param.spei_months`, `param.custom` (variable, operator and threshold) |
+| Indices (#78) | `index.<short name>` for every short name of `climate.indices.csv` (`index.txx`, `index.rxdday`, `index.hw`, `index.hwEHF`, `index.spi` ...); `index_topic_for_output(name)` maps an output name to its id: `rx3day_ANN` to `index.rxdday`, `TX90-HWN_ANN` to `index.hw`, `3month_spi_MON` to `index.spi`, a custom index such as `TXge40` to `param.custom` |
+| Trends and results (#78, #79) | `trend.sen_slope`, `trend.confidence`, `trend.significance`, `trend.minimum_data`, `trend.seasons`, `results.missing_value`, `results.standardised`, `results.thresholds`, `results.files` |
+| Sector (#90) | `sector.file`, `sector.title`, `sector.y_label`, `sector.detrend`, `sector.correlation`, `sector.regression` |
+| Gridded (#85) | `gridded.files`, `gridded.variables`, `gridded.base_period`, `gridded.thresholds_file`, `gridded.indices`, `gridded.output`, `gridded.institution`, `gridded.workers`, `gridded.max_values` |
+
+A screen that needs a topic not listed adds it to `HAND_WRITTEN` with a guide anchor that
+exists; the tests below check both.
+
+**Index definitions** come from the core's `climate.indices.csv`, the single source:
+`help/indices.py` builds one entry per short name (`catalogue()`), adding a display name in
+the usual spelling (`TXx`, `Rx1day`, `R95pTOT`), a group, the parameter topic for
+user-defined indices, sentence-case long names and `°C` for `degrees_C`. The definitions
+are shown as the core writes them (for example "Annual warmest daily TX"); the file's slips
+are kept (`tmge10`'s long name says "TX"). Index topic texts are the definition plus units.
+
+**Guide pages** (`help/guides.py`). `guides/<language>/<slug>.md`, starting with `title:` and
+`summary:` lines (Markdown `meta` extension), rendered with Python-Markdown (`markdown`, a
+pure-Python dependency added for #81) with `toc`, `tables`, `fenced_code`, `attr_list`,
+`def_list` and `sane_lists`. Headings get ids from their text or an explicit `{#id}`;
+the page shows a table of contents of the `##` and `###` headings, sticky beside the text
+from 64rem and above it on narrow screens, and links to the previous and next guide.
+Rendered guides are cached per file version, file language and interface language. The
+Markdown is the app's own text, so it is rendered as trusted HTML. Links use two schemes
+resolved at render time, so guides do not depend on where the app is mounted:
+`guide:<slug>#<anchor>` and `url:<url name>` (a page that does not exist yet, such as
+`gridded:start`, keeps the link text without a link). Tables are wrapped in the table
+component's scrolling region.
+
+The guides, in order (`GUIDE_ORDER`): preparing a station file (`station-file`), choosing a
+base period (`base-period`), reading the quality checks (`quality-control`), the indices
+(`indices`), interpreting trends (`trends`), batch processing (`batch`), sector correlation
+(`sector`), gridded data (`gridded`, local mode) and questions and troubleshooting (`faq`).
+They are rewritten from the R guide for meteorological-service staff, checked against the
+Python code rather than the R text where they differ: the flatline check flags more than
+`flatline_days` (5) equal values, not R's "4 or more"; `tmaxmin` lists TN >= TX; jumps are
+>= 20 °C; the trend file has no p-value, so significance is read from whether the 95%
+bounds exclude zero; the SPI and SPEI trend labels for the 6- and 12-month scales do not
+name the month used; the `tx95t` trend row is across days of the year. The indices guide
+ends with the catalogue: the line `[[index-catalogue]]` is replaced, before rendering, by a
+`###` heading per group and a `####` entry per index anchored `index-<short name>`
+(definition, units, yearly or monthly, whether it uses the base period, which setting it
+takes), so every index has a linkable, searchable definition.
+
+Not ported from the R guide: installing R and starting the Shiny app, screenshots of the
+R screens (the app's own screens explain themselves, and pages stay small), the ET-SCI
+background chapter, the netCDF wrapper-script instructions (replaced by the gridded guide
+for the gridded screen and command line) and the reference lists beyond the papers each
+guide relies on.
+
+**Search and topic list.** `/help/search/?q=` finds the guide sections (`##` and `###`,
+catalogue entries included) and topics containing every word of the query, title matches
+first, with an excerpt. It is a plain GET form; with htmx the results replace
+`#help-results` as you type (300 ms after the last key), on the help index, the search
+page and the topic list. `/help/topics/` lists every topic by family, A to Z, each with
+its text and a link to its section (anchors `topic-<id>`).
+
+**Sample data.** The help index has a card per flow: the single-station sample and the
+sample batch (the same one-click POST forms and downloads as #76 and #80), and in local
+mode the gridded sample (R's `climpact.sampledata.gridded.1991-2010.nc`), linked to the
+gridded screen once `gridded:start` exists. R's sector sample
+(`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide; the sector step (#90) will
+offer it.
+
+**First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
+landing page (the start buttons, the four steps, other ways to run Climpact, Help and Your
+calculations in the header), passed as `json_script` data with translated text. On a first
+visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
+finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
+once. `/?tour=1` (the help index's "Take the tour" link) starts it at once. The tour box is
+a non-modal dialog placed under (or above) its target, docked to the bottom of the screen
+below 40rem; focus moves to its title, Escape closes it and focus returns. Steps whose
+target is not on the page are skipped. Without JavaScript the invitation stays hidden.
+No library is used.
+
+**Translations.** Template strings and topic texts are marked as usual. Guides are
+translated as files: a guide missing in the interface language (`pt-br`, then `pt`) falls
+back to English, with a notice and `lang="en"` on the article. The index names and
+definitions are core data that `makemessages` cannot find, so
+`help/index_messages.py` lists them with `gettext_noop`; regenerate it with
+`.venv/bin/python -m climpact_web.help.indices` when `climate.indices.csv` changes (a test
+fails when it is out of date; ruff's line-length rule is off for that file only). They
+are passed through `gettext` when shown.
+
+**Tests** (`tests/test_help.py`). Every guide renders with a table of contents and no
+unresolved `guide:`/`url:` link; **no broken help link**: every link on the help pages,
+the landing page, step 1 and the batch pages that goes to `/help/` or an `#anchor`
+answers 200 and the anchor exists on the target page (over 300 links); every topic's guide
+and anchor exist; every id used in a template (`help_topic` or `help=`) exists; every form
+field of step 1 and the batch page has help text (the base period's two years share the
+fieldset's hint and topic); the step 1 and batch screens show their topics; the
+catalogue covers every short name of `climate.indices.csv` exactly once, with a group,
+display name, units and an entry in the indices guide; output-name mapping;
+`index_messages.py` is current; search (full page and htmx fragment); the English fallback
+and a translated guide; the tour's data, targets and labels.
 
 ## Development
 

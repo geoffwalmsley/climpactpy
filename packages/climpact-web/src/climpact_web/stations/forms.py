@@ -45,9 +45,17 @@ class RunAllForm(forms.Form):
     the quality (#77) and indices (#78) steps exist. A checkbox left unticked is absent
     from the request, so both default to ticked on the page."""
 
-    plots = forms.BooleanField(label=_("Draw plots"), required=False, initial=True)
+    plots = forms.BooleanField(
+        label=_("Draw plots"),
+        help_text=_("A plot of every index. They take about two thirds of the time."),
+        required=False,
+        initial=True,
+    )
     zip = forms.BooleanField(
-        label=_("Make a zip file of the results"), required=False, initial=True
+        label=_("Make a zip file of the results"),
+        help_text=_("Every result file in one download, in the folder layout of Climpact for R."),
+        required=False,
+        initial=True,
     )
 
 

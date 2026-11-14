@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Load station data" %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
@@ -19,6 +19,7 @@
       {% blocktranslate asvar hint with size=max_upload_mb %}Text or CSV, up to {{ size }} MB.{% endblocktranslate %}
       {% include "components/dropzone.html" with field=form.station_file hint=hint %}
       <p class="small muted" id="format-hint">{{ form.station_file.help_text }}</p>
+      {% help_topic "station.file" %}
       <div>
         {% translate "Load the file" as load_label %}
         {% include "components/button.html" with label=load_label type="submit" icon_end="arrow-right" size="lg" %}
@@ -55,6 +56,7 @@
 1936 1 2 0.5 24.1 17.7
 1936 1 3 -99.9 25 19.7</code></pre>
       <p>{% translate "This is the format of Climpact for R and RClimDex, so files prepared for them work here unchanged." %}</p>
+      <p><a href="{% url 'help:guide' 'station-file' %}">{% translate "Read the guide to preparing a station file" %}</a></p>
     </div>
   </details>
 

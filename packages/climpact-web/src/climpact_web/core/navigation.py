@@ -62,7 +62,9 @@ def nav_items(request) -> list[dict]:
         url = d.url
         if d.in_nav and d.available and url:
             current = path == url or (url != "/" and path.startswith(url))
-            items.append({"label": d.label, "url": url, "icon": d.icon, "current": current})
+            items.append(
+                {"key": d.key, "label": d.label, "url": url, "icon": d.icon, "current": current}
+            )
     return items
 
 

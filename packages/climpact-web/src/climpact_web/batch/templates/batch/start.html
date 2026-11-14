@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Batch processing" %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
@@ -19,9 +19,11 @@
       {% translate "One text file." as metadata_hint %}
       {% include "components/dropzone.html" with field=form.metadata_file hint=metadata_hint %}
       <p class="small muted">{{ form.metadata_file.help_text }}</p>
+      {% help_topic "batch.metadata_file" %}
       {% blocktranslate asvar files_hint with size=max_upload_mb %}Several files or a zip, up to {{ size }} MB in all.{% endblocktranslate %}
       {% include "components/dropzone.html" with field=form.station_files hint=files_hint multiple=True %}
       <p class="small muted">{{ form.station_files.help_text }}</p>
+      {% help_topic "batch.station_files" %}
       <div>
         {% translate "Check the stations" as load_label %}
         {% include "components/button.html" with label=load_label type="submit" icon_end="arrow-right" size="lg" %}
@@ -65,6 +67,7 @@ sydney_observatory_hill_1936-2015.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24</code
       </table>
       <p>{% translate "Each station file must be named in the station_file column exactly, including capitals and the extension. The station's name, used for its results folder, is the file name without its extension." %}</p>
       <p>{% translate "Station files have the same six-column format as for a single station: year, month, day, precipitation (mm), maximum and minimum temperature (°C), with -99.9 for missing values." %} <a href="{% url 'stations:sample_file' %}" download>{% translate "Download an example station file" %}</a></p>
+      <p><a href="{% url 'help:guide' 'batch' %}">{% translate "Read the guide to batch processing" %}</a></p>
     </div>
   </details>
 

@@ -9,3 +9,7 @@ select = ["E", "F", "W", "I", "UP", "B", "NPY"]
 [lint.isort]
 # Both packages are first-party wherever they are imported (reference/ scripts, either package).
 known-first-party = ["climpact", "climpact_web"]
+
+[lint.per-file-ignores]
+# Generated: the index definitions of the core's climate.indices.csv, one string each.
+"**/climpact_web/help/index_messages.py" = ["E501"]

@@ -1,6 +1,7 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 A form field with its label, hint and inline errors. Parameters: field (a bound field),
-unit (shown after a text or number input, e.g. "mm"), narrow (a short input).
+unit (shown after a text or number input, e.g. "mm"), narrow (a short input), help (a
+help topic id, shown under the hint as an explanation that opens in place, #81).
 Django gives the widget aria-describedby (<id>_helptext, <id>_error) and aria-invalid, so
 the hint and error ids below must keep those names. Radio groups render as a fieldset.
 {% endcomment %}
@@ -9,6 +10,7 @@ the hint and error ids below must keep those names. Radio groups render as a fie
 <fieldset class="field{% if field.errors %} field--error{% endif %}"{% if field.help_text or field.errors %} aria-describedby="{% if field.help_text %}{{ field.auto_id }}_helptext{% endif %}{% if field.errors %} {{ field.auto_id }}_error{% endif %}"{% endif %}>
   <legend>{{ field.label }}{% if field.field.required %} <span class="field__required" aria-hidden="true">&ast;</span>{% endif %}</legend>
   {% if field.help_text %}<p class="field__hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
+  {% if help %}{% help_topic help %}{% endif %}
   {% include "components/field_errors.html" %}
   {% for choice in field %}<label class="check">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>{% endfor %}
 </fieldset>
@@ -17,6 +19,7 @@ the hint and error ids below must keep those names. Radio groups render as a fie
   {% include "components/field_errors.html" %}
   <label class="check" for="{{ field.id_for_label }}">{{ field }} <span>{{ field.label }}</span></label>
   {% if field.help_text %}<p class="field__hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
+  {% if help %}{% help_topic help %}{% endif %}
 </div>
 {% else %}
 <div class="field{% if narrow %} field--narrow{% endif %}{% if field.errors %} field--error{% endif %}">
@@ -24,6 +27,7 @@ the hint and error ids below must keep those names. Radio groups render as a fie
   {% if field.help_text %}<p class="field__hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
   {% include "components/field_errors.html" %}
   {% if unit %}<div class="input-group">{{ field }}<span class="input-group__unit">{{ unit }}</span></div>{% else %}{{ field }}{% endif %}
+  {% if help %}{% help_topic help %}{% endif %}
 </div>
 {% endif %}
 {% endwith %}

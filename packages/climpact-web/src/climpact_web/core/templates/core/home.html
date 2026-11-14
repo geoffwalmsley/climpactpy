@@ -1,8 +1,10 @@
 {% extends "base.html" %}
-{% load i18n ui %}
+{% load i18n static ui %}
 {% block title_suffix %}{% endblock %}
 {% block title %}{% translate "Climpact: indices of climate extremes" %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/tour.js' %}" defer></script>{% endblock %}
 {% block content %}
+{% include "help/_tour.html" %}
 <section class="hero" aria-labelledby="hero-title">
   <div>
     <p class="eyebrow">{% translate "Climate indices for national meteorological services" %}</p>
@@ -12,7 +14,7 @@
       calculates the ET-SCI indices and their trends, and gives you charts, tables and files
       in the same layout as Climpact in R.
     {% endblocktranslate %}</p>
-    <div class="cluster hero__actions">
+    <div class="cluster hero__actions" id="hero-actions">
       {% translate "Start with your data" as start_label %}
       {% translate "Try with sample data" as sample_label %}
       {% if start_url %}

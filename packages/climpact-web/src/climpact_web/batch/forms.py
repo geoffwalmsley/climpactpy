@@ -89,6 +89,7 @@ class AddFilesForm(forms.Form):
     )
     metadata_file = forms.FileField(
         label=_("Replace the metadata file"),
+        help_text=_("A new metadata file replaces the one loaded; the stations are checked again."),
         required=False,
         widget=forms.ClearableFileInput(attrs={"accept": ACCEPT_TEXT}),
         error_messages={"empty": _("The metadata file is empty.")},

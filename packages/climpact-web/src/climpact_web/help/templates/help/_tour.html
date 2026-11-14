@@ -1,0 +1,16 @@
+{% load i18n ui %}{% comment %}
+The first-run tour's invitation and data (js/tour.js). Hidden until the script shows it,
+so without JavaScript nothing appears. Parameters: tour_steps (help.tour.home_tour()).
+{% endcomment %}
+<div class="alert alert--info tour-invite" hidden data-tour-invite>
+  {% icon "info" %}
+  <div class="alert__body cluster">
+    <p>{% translate "New to Climpact? A short tour shows you around this page." %}</p>
+    <div class="cluster">
+      <button type="button" class="button button--sm" data-tour-start>{% translate "Take the tour" %}</button>
+      <button type="button" class="button button--sm button--ghost" data-tour-dismiss>{% translate "No thanks" %}</button>
+    </div>
+  </div>
+</div>
+<template id="tour-labels" data-next="{% translate 'Next' %}" data-back="{% translate 'Back' %}" data-done="{% translate 'Done' %}" data-skip="{% translate 'Skip the tour' %}" data-count="{% translate 'Step {step} of {total}' %}"></template>
+{{ tour_steps|json_script:"tour-steps" }}

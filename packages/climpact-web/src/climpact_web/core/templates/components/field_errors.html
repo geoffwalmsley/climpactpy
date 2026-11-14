@@ -1,0 +1,1 @@
+{% load ui %}{# Inline error for a field (used by field.html and dropzone.html). Parameter: field. The id is the one Django puts in aria-describedby. #}{% if field.errors %}<p class="field__error" id="{{ field.auto_id }}_error">{% icon "error" %}<span>{{ field.errors|join:" " }}</span></p>{% endif %}

@@ -1,0 +1,19 @@
+{% load i18n %}{% comment %}
+Step indicator for the single-station flow. Parameter: steps, from
+climpact_web.core.navigation.station_steps(current, urls). Completed steps link back when
+they have a URL. On narrow screens only the current step's label shows.
+{% endcomment %}
+<nav class="steps-bar" aria-label="{% translate 'Progress through the steps' %}">
+  <ol class="steps container">
+    {% for step in steps %}
+    <li class="steps__item steps__item--{{ step.state }}">
+      {% if step.url %}<a class="steps__link" href="{{ step.url }}">{% else %}<span class="steps__link"{% if step.state == "current" %} aria-current="step"{% endif %}>{% endif %}
+        <span class="steps__marker" aria-hidden="true"></span>
+        <span class="steps__label">
+          <span class="visually-hidden">{% blocktranslate with number=step.number total=steps|length %}Step {{ number }} of {{ total }}:{% endblocktranslate %} </span>{{ step.label }}{% if step.optional %}<span class="steps__optional">{% translate "Optional" %}</span>{% endif %}{% if step.state == "complete" %}<span class="visually-hidden"> {% translate "(done)" %}</span>{% endif %}
+        </span>
+      {% if step.url %}</a>{% else %}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</nav>

@@ -1,0 +1,7 @@
+{% if messages %}{# Django messages, shown as alerts at the top of the page. #}
+<ul class="messages" role="status">
+  {% for message in messages %}
+  <li>{% include "components/alert.html" with kind=message.level_tag message=message.message title="" dismissible=False %}</li>
+  {% endfor %}
+</ul>
+{% endif %}

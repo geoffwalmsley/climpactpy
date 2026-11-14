@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+Progress bar for a running job (#73). Parameters: id, label, value (0-100; omitted means
+indeterminate), note (current stage or estimate; announced politely when it changes).
+{% endcomment %}
+<div class="progress">
+  <div class="progress__header"><span id="{{ id }}-label">{{ label }}</span>{% if value is not None and value != "" %}<span class="progress__value">{% blocktranslate with value=value %}{{ value }}%{% endblocktranslate %}</span>{% endif %}</div>
+  <progress id="{{ id }}" aria-labelledby="{{ id }}-label" max="100"{% if value is not None and value != "" %} value="{{ value }}"{% endif %}></progress>
+  {% if note %}<p class="progress__note" aria-live="polite">{{ note }}</p>{% endif %}
+</div>

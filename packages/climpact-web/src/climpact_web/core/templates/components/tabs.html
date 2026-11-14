@@ -1,0 +1,17 @@
+{% comment %}
+Tabs. Parameters: label (names the tab list), tabs (list of {id, label, text} or
+{id, label, template}; a template is included as the panel's content).
+Without JS the links jump to each panel and all panels show; ui.js makes an ARIA tablist
+(arrow keys, Home, End) showing one panel at a time.
+{% endcomment %}
+<div class="tabs" data-tabs>
+  <ul class="tabs__list" aria-label="{{ label }}">
+    {% for tab in tabs %}<li><a class="tabs__tab" href="#{{ tab.id }}" id="{{ tab.id }}-tab">{{ tab.label }}</a></li>{% endfor %}
+  </ul>
+  {% for tab in tabs %}
+  <section class="tabs__panel" id="{{ tab.id }}">
+    <h3 class="tabs__panel-heading">{{ tab.label }}</h3>
+    {% if tab.template %}{% include tab.template %}{% else %}<p>{{ tab.text }}</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>

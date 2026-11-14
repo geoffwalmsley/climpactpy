@@ -1,0 +1,2 @@
+{% load ui %}{# Badge. Parameters: label, kind ("info", "success", "warning", "danger"), icon. Never colour alone: the label says it. #}
+<span class="badge{% if kind %} badge--{{ kind }}{% endif %}">{% if icon %}{% icon icon %}{% endif %}{{ label }}</span>

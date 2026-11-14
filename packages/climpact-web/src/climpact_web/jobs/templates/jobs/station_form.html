@@ -1,14 +1,34 @@
 {% extends "base.html" %}
-{% load i18n %}
-{% block title %}{% translate "Calculate indices for a station · Climpact" %}{% endblock %}
+{% load i18n ui %}
+{% block title %}{% translate "Calculate indices for a station" %}{% endblock %}
 {% block content %}
-<section class="stack">
-  <h1>{% translate "Calculate indices for a station" %}</h1>
-  <p>{% blocktranslate count days=job_retention_days %}Your file and the results are kept for {{ days }} day after the calculation finishes, then deleted.{% plural %}Your file and the results are kept for {{ days }} days after the calculation finishes, then deleted.{% endblocktranslate %}</p>
-  <form method="post" enctype="multipart/form-data" class="stack">
+<div class="stack stack--lg">
+  <header class="stack stack--sm">
+    <h1>{% translate "Calculate indices for a station" %}</h1>
+    <p class="lead">{% translate "Upload a station file and give its location and base period. The calculation runs in the background; you can leave the page and come back to it." %}</p>
+  </header>
+  {% blocktranslate count days=job_retention_days asvar retention %}Your file and the results are kept for {{ days }} day after the calculation finishes, then deleted.{% plural %}Your file and the results are kept for {{ days }} days after the calculation finishes, then deleted.{% endblocktranslate %}
+  {% include "components/alert.html" with kind="info" message=retention title="" %}
+  <form method="post" enctype="multipart/form-data" class="form" novalidate>
     {% csrf_token %}
-    {{ form.as_div }}
-    <p><button type="submit" class="button">{% translate "Start the calculation" %}</button></p>
+    {% include "components/form_errors.html" %}
+    {% include "components/dropzone.html" with field=form.station_file hint=form.station_file.help_text %}
+    {% include "components/field.html" with field=form.name %}
+    <div class="form__row">
+      {% translate "°N" as north %}{% translate "°E" as east %}
+      {% include "components/field.html" with field=form.latitude unit=north %}
+      {% include "components/field.html" with field=form.longitude unit=east %}
+    </div>
+    <div class="form__row">
+      {% include "components/field.html" with field=form.base_start %}
+      {% include "components/field.html" with field=form.base_end %}
+    </div>
+    {% include "components/field.html" with field=form.plots %}
+    {% include "components/field.html" with field=form.zip %}
+    <div class="form__actions">
+      {% translate "Start the calculation" as submit_label %}
+      {% include "components/button.html" with label=submit_label type="submit" icon_end="arrow-right" size="lg" %}
+    </div>
   </form>
-</section>
+</div>
 {% endblock %}

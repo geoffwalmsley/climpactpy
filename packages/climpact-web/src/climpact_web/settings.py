@@ -64,6 +64,10 @@ DATA_DIR = Path(env("DATA_DIR") or user_data_dir("climpact-web", appauthor=False
 
 DEBUG = env_bool("DEBUG", False)
 
+# The pattern library at /patterns/ (every UI component, for design review and the
+# accessibility audit): on with DEBUG, or on its own with CLIMPACT_WEB_PATTERN_LIBRARY.
+PATTERN_LIBRARY = env_bool("PATTERN_LIBRARY", DEBUG)
+
 # Secret key: the environment, else (local mode) the file `climpact-web` writes on first
 # start, else (local mode, e.g. tests) a throwaway key for this process.
 SECRET_KEY = env("SECRET_KEY")

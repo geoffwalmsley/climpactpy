@@ -1,0 +1,5 @@
+{% load ui %}{# Help that opens in place (#81). Parameters: summary, text, icon (default "help"). Native <details>, no JS. #}
+<details class="disclosure">
+  <summary>{% icon icon|default:"help" %}<span>{{ summary }}</span>{% icon "chevron-down" %}</summary>
+  <div class="disclosure__body"><p>{{ text }}</p></div>
+</details>

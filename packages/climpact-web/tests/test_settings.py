@@ -103,3 +103,9 @@ def test_bad_values(load_settings):
 def test_upload_limit_setting(load_settings):
     s = load_settings(CLIMPACT_WEB_MAX_UPLOAD_MB="3")
     assert s.MAX_UPLOAD_BYTES == 3 * 1024 * 1024
+
+
+def test_pattern_library_setting(load_settings):
+    assert load_settings().PATTERN_LIBRARY is False
+    assert load_settings(CLIMPACT_WEB_DEBUG="true").PATTERN_LIBRARY is True
+    assert load_settings(CLIMPACT_WEB_PATTERN_LIBRARY="true").PATTERN_LIBRARY is True

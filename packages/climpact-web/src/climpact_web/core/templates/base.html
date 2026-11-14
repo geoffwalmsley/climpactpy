@@ -1,13 +1,18 @@
-{% load i18n static %}<!doctype html>
+{% load i18n static ui %}<!doctype html>
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
 <html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>{% block title %}{% translate "Climpact" %}{% endblock %}</title>
+  <title>{% block title %}{% translate "Climpact" %}{% endblock %}{% block title_suffix %} &middot; {% translate "Climpact" %}{% endblock %}</title>
+  <link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'climpact_web/css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'climpact_web/css/theme-dark.css' %}" media="(prefers-color-scheme: dark)" id="theme-dark">
+  {# The theme the user picked (ui.js), applied before the page paints. #}
+  <script>try{var t=localStorage.getItem("climpact-theme");if(t==="dark"||t==="light"){document.getElementById("theme-dark").media=t==="dark"?"all":"not all";document.documentElement.dataset.theme=t}}catch(e){}</script>
   <script src="{% static 'climpact_web/vendor/htmx/htmx.min.js' %}" defer></script>
+  <script src="{% static 'climpact_web/js/ui.js' %}" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
@@ -15,34 +20,47 @@
   {% block header %}
   <header class="site-header">
     <div class="container site-header__inner">
-      <a class="site-header__brand" href="{% url 'core:home' %}">{% translate "Climpact" %}</a>
+      <a class="brand" href="{% url 'core:home' %}">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8"/><path d="M6 21h4l3-9 4 13 3-17 2 9h4"/></svg>
+        <span>{% translate "Climpact" %}</span>
+      </a>
+      {% if nav_items %}
       <nav class="site-nav" aria-label="{% translate 'Main' %}">
-        {% block nav %}{% endblock %}
+        <ul>
+          {% for item in nav_items %}
+          <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+          {% endfor %}
+        </ul>
       </nav>
-      {% if show_language_switcher %}
-      {% include "core/language_switcher.html" %}
       {% endif %}
+      <div class="site-header__tools">
+        {% include "components/theme_toggle.html" %}
+        {% if show_language_switcher %}
+        {% include "core/language_switcher.html" %}
+        {% endif %}
+      </div>
     </div>
   </header>
   {% endblock %}
   {% block steps %}{% endblock %}
-  <main id="main" class="container site-main" tabindex="-1">
-    {% if messages %}
-    <ul class="messages" role="status">
-      {% for message in messages %}
-      <li class="message message--{{ message.tags }}">{{ message }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-    {% block content %}{% endblock %}
+  <main id="main" class="site-main" tabindex="-1">
+    <div class="container">
+      {% include "components/messages.html" %}
+      {% block content %}{% endblock %}
+    </div>
   </main>
   {% block footer %}
   <footer class="site-footer">
-    <div class="container">
-      {% blocktranslate with version=climpact_web_version %}Climpact web, version {{ version }}{% endblocktranslate %}
+    <div class="container site-footer__inner">
+      <p>{% blocktranslate trimmed %}
+        Climpact calculates the climate indices defined by the WMO Expert Team on
+        Sector-specific Climate Indices (ET-SCI).
+      {% endblocktranslate %}</p>
+      <p>{% blocktranslate with version=climpact_web_version %}Climpact web, version {{ version }}{% endblocktranslate %}</p>
     </div>
   </footer>
   {% endblock %}
+  {% include "components/toasts.html" %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

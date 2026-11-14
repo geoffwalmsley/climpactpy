@@ -1,0 +1,18 @@
+{% load i18n %}{% comment %}
+Data table in a scrolling region (keyboard-focusable, so wide tables scroll without a
+mouse). Parameters: caption (also names the region), columns (list of {label, numeric}),
+rows (list of lists of cells), empty (text when there are no rows).
+{% endcomment %}
+<div class="table-wrap" role="region" aria-label="{{ caption }}" tabindex="0">
+  <table class="table">
+    <caption>{{ caption }}</caption>
+    <thead><tr>{% for column in columns %}<th scope="col"{% if column.numeric %} class="num"{% endif %}>{{ column.label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>{% for cell in row %}{% if forloop.first %}<th scope="row">{{ cell }}</th>{% else %}<td{% for column in columns %}{% if forloop.counter0 == forloop.parentloop.counter0 and column.numeric %} class="num"{% endif %}{% endfor %}>{{ cell }}</td>{% endif %}{% endfor %}</tr>
+      {% empty %}
+      <tr><td colspan="{{ columns|length }}">{{ empty|default:_("No rows to show.") }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

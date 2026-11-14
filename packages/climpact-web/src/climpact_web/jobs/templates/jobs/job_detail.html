@@ -1,10 +1,20 @@
 {% extends "base.html" %}
-{% load i18n %}
-{% block title %}{% blocktranslate with title=job.title|default:job.kind %}{{ title }} · Climpact{% endblocktranslate %}{% endblock %}
+{% load i18n ui %}
+{% block title %}{% if job.title %}{{ job.title }}{% else %}{% translate "Calculation" %}{% endif %}{% endblock %}
 {% block content %}
-<section class="stack">
-  <h1>{% if job.title %}{{ job.title }}{% else %}{% translate "Calculation" %}{% endif %}</h1>
-  {% include "jobs/_progress.html" %}
-  <p><a href="{% url 'jobs:list' %}">{% translate "All your calculations" %}</a></p>
-</section>
+<div class="stack stack--lg job-page">
+  <header class="stack stack--sm">
+    <p class="eyebrow">{% translate "Calculation" %}</p>
+    <div class="cluster">
+      <h1>{% if job.title %}{{ job.title }}{% else %}{% translate "Calculation" %}{% endif %}</h1>
+      {% include "jobs/_status.html" %}
+    </div>
+    <p class="muted small">{% blocktranslate with date=job.created_at|date:"j F Y, H:i e" %}Started on {{ date }}.{% endblocktranslate %}</p>
+  </header>
+  <section class="card" aria-labelledby="job-progress-heading">
+    <h2 class="visually-hidden" id="job-progress-heading">{% translate "Progress" %}</h2>
+    {% include "jobs/_progress.html" %}
+  </section>
+  <p><a class="cluster" href="{% url 'jobs:list' %}">{% icon "arrow-left" "" "icon--flip" %}<span>{% translate "All your calculations" %}</span></a></p>
+</div>
 {% endblock %}

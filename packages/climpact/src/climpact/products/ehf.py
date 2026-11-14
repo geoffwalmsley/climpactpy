@@ -140,16 +140,25 @@ def annual_aspects(ehf: np.ndarray, years: np.ndarray, ehf85: float) -> dict[str
             # starts on 1 or 2 January) has a duration only. With a missing value among
             # them R stops (`if (NA)`); here it is treated the same way.
             continue
+        # With EHF85 missing (no positive base-period EHF, or a missing threshold from a
+        # gridded thresholds file) every severity is NA: R's max(na.rm = TRUE) is -Inf
+        # and sum(na.rm = TRUE) is 0.
         severities = pos / ehf85
+        severities = severities[~np.isnan(severities)]
         acc["pi"].append(float(np.nanmax(values)))
         acc["li"].append(r_sum(pos))
-        acc["ps"].append(float(severities.max()))
+        acc["ps"].append(float(severities.max()) if severities.size else -np.inf)
         acc["ls"].append(r_sum(severities))
 
     def stat(key: str, func) -> np.ndarray:
-        return np.array(
-            [func(per_year[int(y)][key]) if per_year[int(y)][key] else np.nan for y in uniq]
-        )
+        def value(x: list[float]) -> float:
+            if not x:
+                return np.nan
+            if not np.isfinite(x).all():  # -Inf peak severity: R's mean is -Inf too
+                return float(np.mean(x))
+            return func(x)
+
+        return np.array([value(per_year[int(y)][key]) for y in uniq])
 
     return {
         "HWPS": stat("ps", r_mean),

@@ -13,11 +13,34 @@ import pytest
 
 from climpact.cli import main
 from climpact.gridded import open_grid, write_grid_indices, write_grid_thresholds
-from climpact.gridded.indices import NOT_PORTED, WRAPPER_PARAMS, cell_indices, index_files
+from climpact.gridded.drought import (
+    SCALES,
+    monthly_inputs,
+    pelgam,
+    spei_package,
+    spei_values,
+    spi_values,
+    tl_pwm,
+)
+from climpact.gridded.heatwaves import (
+    EHF_FILE_THRESHOLDS,
+    EHF_VARIABLES,
+    hw_values,
+    hwehf_values,
+)
+from climpact.gridded.indices import (
+    THRESHOLD_FILE_VARIABLES,
+    WRAPPER_PARAMS,
+    cell_indices,
+    index_files,
+)
+from climpact.gridded.thresholds import cell_thresholds
 from climpact.missing import valid_mask, valid_periods
 from climpact.periods import periods
 from climpact.products import indices
+from climpact.products.drought import pargam, pwm2lmom, pwm_ub
 from climpact.products.indices import period_means
+from climpact.rdist import pgamma, qnorm
 from climpact.rnumerics import r_mean
 from climpact.thresholds import bootstrap_quantiles
 
@@ -34,9 +57,9 @@ def test_index_files_follow_r_names_and_order():
                 "txb3tnb3_ANN", "hddheat18_ANN", "cddcold18_ANN", "gddgrow10_ANN",
                 "tx95t_DAY"):  # fmt: skip
         assert key in keys
-    assert len(files) == 84
-    assert not {f.index for f in files} & set(NOT_PORTED)
-    assert len(index_files(include_unported=True)) == 88
+    assert len(files) == 88
+    assert keys[-4:] == ["tmm_MON", "tmm_ANN", "hw_ANN", "hwEHF_ANN"]
+    assert keys.index("spei_MON") + 1 == keys.index("spi_MON")
     rx = next(f for f in files if f.key == "rx7day_MON")
     assert rx.definition == "Maximum monthly 7-day precipitation total"
     assert rx.dated and not next(f for f in files if f.key == "cdd_ANN").dated
@@ -173,6 +196,126 @@ def test_hemisphere_of_the_equator_is_north():
     assert np.isnan(south[0, -1])  # the last southern season is always missing
 
 
+def test_heatwave_hemisphere_per_cell():
+    """hw: each cell's season follows its own latitude, with 0 as north (R's gridded
+    ``lat >= 0``; the station app's ``> 0``)."""
+    time, tx, tn, pr = _cells(n_years=8, cells=1)
+    tx, tn, pr = (np.repeat(x, 2, axis=0) for x in (tx, tn, pr))
+    lat = np.array([0.0, -0.1])
+    hw = cell_indices(tx, tn, pr, time, lat, 1972, 1977, separate=["hw"])["hw_ANN"].values
+    full = pd.DatetimeIndex(time)
+    north = hw_values(tx[:1], tn[:1], full, np.array([True]), 1972, 1977)
+    south = hw_values(tx[1:], tn[1:], full, np.array([False]), 1972, 1977)
+    assert np.array_equal(hw[:1], north, equal_nan=True)
+    assert np.array_equal(hw[1:], south, equal_nan=True)
+    assert not np.array_equal(north, south, equal_nan=True)
+    assert np.isnan(south[0, :, -1]).all()  # the last southern season is always missing
+    assert not np.isnan(north[0, :, -1]).all()
+
+
+def test_ehf_needs_half_of_the_base_period_unless_thresholds_are_given():
+    """hwEHF: a cell with TAVG on less than half of the base period gets missing values
+    (R stops); with thresholds from a file the check is not made."""
+    time, tx, tn, pr = _cells(n_years=8, cells=2)
+    in_base = (time.year >= 1972) & (time.year <= 1977)
+    sparse = in_base & (np.arange(time.size) % 5 < 3)  # 60% of base days missing
+    tx[1, sparse] = np.nan
+    full = pd.DatetimeIndex(time)
+    out = hwehf_values(tx, tn, full, 1972, 1977)
+    assert np.isnan(out[1]).all()
+    assert not np.isnan(out[0]).all()
+    assert np.isnan(out[0, :, 0]).all()  # the first year is always missing
+    thr = cell_thresholds(tx, tn, pr, time, 1972, 1977)
+    given = hwehf_values(tx, tn, full, 1972, 1977, {k: thr[k] for k in EHF_FILE_THRESHOLDS})
+    assert np.array_equal(given[0], out[0], equal_nan=True)  # the same thresholds
+    assert not np.isnan(given[1]).all()
+    # No positive base-period EHF in the sparse cell, so no EHF85: R's severities are
+    # NA, giving HWPS -Inf (max with na.rm) and HWLS 0 in a year with heatwaves.
+    assert np.isnan(thr["ehf85thresh"][1])
+    hwn, hwps, hwls = (
+        given[1, [k for k, v in enumerate(EHF_VARIABLES) if v[0] == n][0]]
+        for n in ("EHF-HWN", "EHF-HWPS", "EHF-HWLS")
+    )
+    years = hwn > 0
+    assert years.any() and np.isneginf(hwps[years]).all() and (hwls[years] == 0).all()
+
+
+def test_heatwaves_and_drought_with_a_thresholds_file():
+    """With a thresholds file, hw uses its 15-day thresholds and hwEHF its TAVG and EHF
+    thresholds; SPI and SPEI fit the base-period data from the file followed by the data
+    (``computefuture``), and the first ``scale - 1`` months are missing."""
+    time, tx, tn, pr = _cells(n_years=12, cells=2, seed=5)
+    lat = np.array([-20.0, 40.0])
+    base, later = time.year <= 1976, time.year >= 1977
+    thr = cell_thresholds(tx[:, base], tn[:, base], pr[:, base], time[base], 1971, 1976)
+    future = pd.DatetimeIndex(time[later])
+    file_values = {k: thr[k] for k in THRESHOLD_FILE_VARIABLES}
+    out = cell_indices(
+        tx[:, later], tn[:, later], pr[:, later], future, lat, 1971, 1976, thresholds=file_values
+    )
+    expected_hw = hw_values(
+        tx[:, later], tn[:, later], future, lat >= 0, 1971, 1976,
+        {"tasmax": thr["tx90thresh_15days"], "tasmin": thr["tn90thresh_15days"]},
+    )  # fmt: skip
+    assert np.array_equal(out["hw_ANN"].values, expected_hw, equal_nan=True)
+    assert not np.isnan(expected_hw).all()
+    expected_ehf = hwehf_values(
+        tx[:, later], tn[:, later], future, 1971, 1976,
+        {k: thr[k] for k in EHF_FILE_THRESHOLDS},
+    )  # fmt: skip
+    assert np.array_equal(out["hwEHF_ANN"].values, expected_ehf, equal_nan=True)
+
+    # The data follow the base period here, so the series fitted is the whole series.
+    n_future = 12 * 6
+    whole_spi = spi_values(pr, pd.DatetimeIndex(time), 1971, 1976)[..., -n_future:]
+    whole_spei = spei_values(tx, tn, pr, pd.DatetimeIndex(time), lat, 1971, 1976)
+    whole_spei = whole_spei[..., -n_future:]
+    for i, scale in enumerate(SCALES):
+        for whole in (whole_spi, whole_spei):
+            whole[:, i, : scale - 1] = np.nan
+    assert np.array_equal(out["spi_MON"].values, whole_spi, equal_nan=True)
+    assert np.array_equal(out["spei_MON"].values, whole_spei, equal_nan=True)
+    assert np.isfinite(whole_spei[:, 0, 2:]).mean() > 0.9
+
+
+def test_spi_and_spei_monthly_inputs_and_zero_accumulations():
+    """climdex.spi sums a month with no data to 0 (``sum(na.rm = TRUE)``), climdex.spei
+    makes it missing; SPI's Gamma is fitted to the non-zero values and an accumulated 0
+    gets ``qnorm(0)``, which becomes missing."""
+    time = pd.date_range("2000-01-01", "2000-03-31")
+    pr = np.ones((1, time.size))
+    pr[0, time.month == 2] = np.nan
+    assert monthly_inputs(pr, time, "spi")[0].tolist() == [31.0, 0.0, 31.0]
+    assert np.isnan(monthly_inputs(pr, time, "spei")[0, 1])
+
+    rng = np.random.default_rng(4)
+    monthly = rng.gamma(2.0, 20.0, 240)
+    monthly[::12] = 0.0  # every January dry: nothing left to fit, all missing
+    monthly[1::12][:5] = 0.0  # some dry Februaries
+    values = spei_package(monthly, 1, slice(0, 240), "Gamma")
+    assert np.isnan(values[::12]).all()
+    assert np.isneginf(values[1::12][:5]).all()  # qnorm(cdfgam(0)) = qnorm(0) = -Inf
+    assert np.isfinite(values[1::12][5:]).all()
+    # The Gamma is fitted to the non-zero values only, and pze is not used.
+    feb = monthly[1::12]
+    lambdas, _ = pwm2lmom([tl_pwm(np.sort(feb[feb > 0]), r) for r in range(3)])
+    alpha, beta = pelgam(lambdas[0], lambdas[1])
+    expected = [qnorm(pgamma(v / beta, alpha)) for v in feb[5:]]
+    assert np.array_equal(values[1::12][5:], expected)
+
+
+def test_tl_pwm_and_pelgam_agree_with_lmomco():
+    """TLMoments' PWMs and lmom's PELGAM differ from lmomco's ``pwm.ub`` and ``pargam``
+    only in rounding (and PELGAM's 8-digit pi)."""
+    x = np.sort(np.random.default_rng(1).gamma(2.0, 3.0, 30))
+    lmomco = pwm_ub(x, nmom=3)
+    tl = [tl_pwm(x, r) for r in range(3)]
+    assert np.allclose(tl, lmomco, rtol=1e-13, atol=0)
+    lambdas, _ = pwm2lmom(tl)
+    assert np.allclose(pelgam(lambdas[0], lambdas[1]), pargam(lambdas), rtol=1e-6)
+    assert pelgam(1.0, 1.0) is None
+
+
 # --- writing ---------------------------------------------------------------------------------
 
 
@@ -214,7 +357,7 @@ def test_thresholds_file_only_outside_the_base_period(tmp_path):
     written = write_grid_indices(
         open_grid([future]), tmp_path / "out", 1972, 1975, thresholds_file=thresholds
     )
-    assert len(written) == 84
+    assert len(written) == 88
 
 
 # A representative subset (counts, means, extremes, Rx5day, spells, gsl and the
@@ -254,12 +397,11 @@ def test_command_line(tmp_path, capsys):
     args = ["gridded-indices", str(path), "--out", str(out), "--base-start", "1972"]
     args += ["--base-end", "1975", "--indices", "fd", "rxdday", "hw", "--rx-days", "4"]
     assert main(args) == 0
-    text = capsys.readouterr().out
-    assert "Not yet ported, not written: hw" in text
     names = sorted(p.name for p in out.glob("*.nc"))
     assert names == [
         "fd_ANN_climpactpy_historical_NA_1971-1976.nc",
         "fd_MON_climpactpy_historical_NA_1971-1976.nc",
+        "hw_ANN_climpactpy_historical_NA_1971-1976.nc",
         "rx4day_ANN_climpactpy_historical_NA_1971-1976.nc",
         "rx4day_MON_climpactpy_historical_NA_1971-1976.nc",
     ]

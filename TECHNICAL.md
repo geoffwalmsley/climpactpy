@@ -15,11 +15,10 @@ Sector correlation (the app's step 4, `climpact sector-correlation`, #84) reprod
 ten files for Sydney with Climpact's sample wheat data, detrended and not (see
 [Sector correlation](#sector-correlation)).
 Gridded base-period thresholds (`climpact gridded-thresholds`, #29) reproduce every
-variable of R's thresholds netCDF bit for bit on both gridded reference grids, and the
-gridded indices (`climpact gridded-indices`, #30) reproduce every variable of the 84 index
-files R writes per grid that are ported, bit for bit on all three reference grids; the
-gridded heatwave, EHF, SPI and SPEI files are not ported yet (#87; see
-[Gridded data](#gridded-data)).
+variable of R's thresholds netCDF bit for bit on the three gridded reference grids that
+have one, and the gridded indices (`climpact gridded-indices`, #30, #87) reproduce every
+variable of all 88 index files R writes per grid, including the heatwave, EHF, SPI and
+SPEI files, bit for bit on all five reference grids (see [Gridded data](#gridded-data)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
@@ -35,7 +34,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files (all but four), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | gridded `hw`, `hwEHF`, `spi`, `spei` files (#87); web step 4 for sector correlation (#90) |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
@@ -99,6 +98,11 @@ src/climpact/
                      in R's layout (write_grid_thresholds)
     indices.py       indices of every cell (cell_indices, block_indices) and the index
                      netCDF files in R's names and layout (write_grid_indices)
+    heatwaves.py     hw and hwEHF of every cell (hw_values, hwehf_values), with the
+                     station heatwave and EHF code
+    drought.py       SPI and SPEI of every cell (spi_values, spei_values): climdex.spi,
+                     climdex.spei and the SPEI package's spei() (spei_package), with
+                     TLMoments' PWMs and lmom's pelglo, pelgam, cdfglo, cdfgam
   qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
                      outliers with R's fivenum and boxplot.stats)
   data/
@@ -837,8 +841,8 @@ follow the wrapper's settings: input files and variable names as for the thresho
 `--institution`, `--institution-id`, `--workers` (`cores`), `--max-values`
 (`maxvals`) and the wrapper's "esoteric" index parameters with its values
 (`WRAPPER_PARAMS`: `--wsdi-days`, `--csdi-days` 5, `--rx-days` 7, `--txtn-days` 3,
-`--hdd-base`, `--cdd-base` 18, `--gdd-base` 10, `--rnnmm` 30). `EHF_DEF` only affects
-`hwEHF`, not ported yet.
+`--hdd-base`, `--cdd-base` 18, `--gdd-base` 10, `--rnnmm` 30). `EHF_DEF` is always
+`NF13`, the only definition `climdex.hwEHF` accepts.
 
 R computes every cell as a station: `climdexInput.raw` and the index functions of
 `climpact.etsci-functions.r`. So `gridded/indices.py` computes them with the station code:
@@ -846,7 +850,14 @@ the index products' array functions (`count_values`, `means_and_totals_values`,
 `extreme_values`, `rxnday_values`, `spell_length_max_values`,
 `precipitation_percentile_values`, `days_op_threshold_values`, `percent_days_values`,
 `spell_duration_values`, `gsl_values`, `degree_day_values`) take `(cells, time)` arrays,
-and the station products call the same functions with one series. Counts, masks, extremes
+and the station products call the same functions with one series. The heatwaves call the
+station's `heatwave_flags`, `hw_aspects`, `excess_factors` and `annual_aspects` one cell at
+a time (`gridded/heatwaves.py`), so the Tx90/Tn90 behaviour not copied from R (#51, see
+[Heatwaves](#heatwaves-tx90-tn90)) applies to grids too; no cell of the reference grids is
+affected; SPI and SPEI have their own port (`gridded/drought.py`,
+see [Gridded SPI and SPEI](#gridded-spi-and-spei)), because R's gridded code does not run
+the station app's `cspei`. `cell_indices` computes the heatwave, SPI and SPEI files only
+when they are requested (`SEPARATE`); the other 84 are always computed. Counts, masks, extremes
 and their dates, and the daily comparisons with the thresholds are vectorised over the
 cells; R's extended-precision sums, the running sums of Rx{n}day, spells and the growing
 season are computed one series at a time inside those functions. The thresholds of a block
@@ -869,22 +880,25 @@ files, in its order (`index_files`): one per index and frequency, `MON` and `ANN
 only for the spell, degree-day, rNNp, gsl, wsdi/csdi, tx{n}tn{n} indices, sdii, cdd and
 cwd, `MON` only for SPI and SPEI, and `DAY` for tx95t. Parameterised indices are named
 with their values (`rx7day`, `r30mm`, `wsdi5`, `csdi5`, `tx3tn3`, `txb3tnb3`, `hddheat18`,
-`cddcold18`, `gddgrow10`) and their `definition` attribute is rewritten as R does. 84 are
-ported; `hw_ANN`, `hwEHF_ANN`, `spi_MON` and `spei_MON` are not (`NOT_PORTED`, #87).
-Station outputs the gridded code does not have: the custom index, Rx3day (the wrapper's
-`rxnday_n` is 7), the thresholds and trend files, the daily EHF/ECF series, the SPI/SPEI
-custom scale, the QC files and plots.
+`cddcold18`, `gddgrow10`) and their `definition` attribute is rewritten as R does. All 88
+are ported. Station outputs the gridded code does not have: the custom index, Rx3day (the
+wrapper's `rxnday_n` is 7), the thresholds and trend files, the daily EHF/ECF series, the
+SPI/SPEI custom scale, the QC files and plots.
 
 **Per cell, as R:**
 
 | Rule | R source | Python |
 | --- | --- | --- |
-| Northern Hemisphere when the cell's latitude is >= 0 (the station app: > 0); only gsl depends on it here | `get.northern.hemisphere.booleans` (`y.subset.vals >= 0`) | `cell_indices(latitude)`, `gsl_values(northern)` |
+| Northern Hemisphere when the cell's latitude is >= 0 (the station app: > 0); gsl and the Tx90/Tn90 heatwave season depend on it | `get.northern.hemisphere.booleans` (`y.subset.vals >= 0`) | `cell_indices(latitude)`, `gsl_values(northern)`, `hw_values(northern)` |
+| SPEI's PET uses the cell's latitude (the Y coordinate, or the 2-D latitude) | `compute.indices.for.stripe` (`lat = y.subset.vals[x]`), `spei.opts$lat` | `spei_values(latitude)` |
 | A cell whose TX, TN and precipitation are all missing gets no index (every value missing, also counts) | `compute.indices.for.stripe`'s fast path | `cell_indices` |
 | Thresholds from a file: the out-of-base thresholds for every year, no in-base bootstrap; only for data with no day in the base period, else R stops (`check.quantile.validity`: "Temperature in-base quantiles must contain 10th and 90th percentiles") | `get.thresholds.chunk`, `get.quantiles.object`, `climdexInput.raw` | `thresholds_from_file`, `check_thresholds_file` (raises `ValueError`) |
+| With a thresholds file, `hw` uses its `tx90thresh_15days`/`tn90thresh_15days` (`q90_15days`) instead of recomputing them; `hwEHF` its `tavg95thresh`, `tavg05thresh` and `ehf85thresh`, and then skips the 50% base-period check; SPI and SPEI fit `precraw` (and `txraw`, `tnraw`) followed by the data (`computefuture`) | `climdex.hw`, `climdex.hwEHF`, `climdex.spi`, `climdex.spei` | `hw_values`, `hwehf_values`, `spi_values(raw)`, `spei_values(raw)` |
+| A cell with TAVG on less than half of the base period (and no thresholds file) gets no EHF heatwaves. R prints "NOT CALCULATING EHF HEATWAVES ..." and `climdex.hwEHF` returns `NULL`, after which `write.climdex.results` stops (see [Gridded data](#gridded-data-1)) | `climdex.hwEHF` | `hwehf_values` (missing values) |
 | Values are stored as float32 | `ncvar_def` (default `prec = "float"`) | `create_index_file` |
 | R's `NaN` is stored as NaN, its `NA` as the fill value 1e20. `NaN` occurs where a mean has no values and its mask is the annual climdex mask: tmm, txm, tnm `ANN` for a year with no data (`NaN * NA` is `NaN` with that mask, which `prod` builds; with the monthly mask it is `NA`), and r95ptot, r99ptot for a year with no wet day (`0 / 0`) | `climdex.tmm` ..., `climdex.r95ptot` | `IndexResult.nan`, `_write_block` |
 | The extremes (txx, tnn, tnx, txn, rx1day, rx5day, rx{n}day) also get `day_of_<index>`: the day of the month (`MON`) or of the year (`ANN`) of the first extreme, missing with the value; cdd, cwd and gsl get no dates | `write.climdex.results` (`exact_date_indices`) | `IndexResult.day` |
+| The heatwave, SPI and SPEI values have no `NaN`: R's `NaN` and infinite values become `NA` (fill value), except EHF-HWPS, which is `-Inf` in a year with heatwaves when the cell has no EHF85 (the severities are all `NA` and `max(na.rm = TRUE)` is `-Inf`; EHF-HWLS is then 0) | `get.hw.aspects`, `climdex.hwEHF`, `climdex.spi`/`climdex.spei` | `annual_aspects`, `_write_block` |
 
 **Writing** (`create_index_file`), as `create.ncdf.output.files`: dimensions `bnds` (or the
 input time bounds' own dimension, `nb2` in Climpact's sample), `time` (unlimited), X and Y;
@@ -893,7 +907,13 @@ origin's date only, and the input time's attributes), its bounds (first and last
 each period, named by the input time's `bounds` attribute), X and Y (float64, the input's
 attributes) and the index (float32, fill value 1e20) with `units`, `long_name`, the
 attributes of the input precipitation variable that R does not exclude, `definition` and
-`expert_team`. tx95t has a fixed `time` dimension of 365 calendar days (int32, values 1 to
+`expert_team`. Three files differ (`IndexFile.variables`, `IndexFile.scaled`): `hw_ANN`
+holds ten variables, `hwm_tx90`, `hwm_tn90`, `hwa_tx90`, ... `hwf_tn90` (`HW_VARIABLES`),
+and `hwEHF_ANN` eight, `EHF-HWMD`, `EHF-HWD`, `EHF-HWPS`, `EHF-HWPI`, `EHF-HWLS`,
+`EHF-HWLI`, `EHF-HWN`, `EHF-HWF` (`EHF_VARIABLES`), each with its own `units` and
+`long_name`, `expert_team` `ETSCI`, and no `definition` or copied input attributes;
+`spi_MON` and `spei_MON` have a fourth dimension `scale` (length 3, an int coordinate
+variable 1-3 with `units` `3,6,12 months`), and their variable is `(scale, time, Y, X)`. tx95t has a fixed `time` dimension of 365 calendar days (int32, values 1 to
 365, no bounds variable although the copied `bounds` attribute names one). Global
 attributes: the precipitation file's, with `title`, `frequency`, `creation_date` and
 `tracking_id` renamed `input_*`, then `put.ETCCDI.atts` (`index_calculation_frequency` is
@@ -902,7 +922,7 @@ written under temporary names and renamed when all are complete.
 
 **Memory and speed.** As for the thresholds: one block is read and its cells computed in
 batches of 8 (`DEFAULT_CELLS_PER_BATCH`) by `--workers` threads, and every file is written
-before the next block is read. Each of the 84 open files' variables has a 1 MB HDF5 chunk
+before the next block is read. Each of the 88 open files' variables has a 1 MB HDF5 chunk
 cache. `tests/test_gridded_indices.py` checks that the memory numpy allocates for a grid 16
 times larger, with the same block size, stays within 1.5 times that of the small grid.
 The means of the gridded indices (tmm, txm, tnm, dtr and the percentage indices) use a
@@ -910,6 +930,36 @@ vectorised mean that is only guaranteed to round to the same float32 as R's
 extended-precision mean (`period_means(float32=True)`), falling back to `r_mean` near a
 float32 rounding boundary (see [Numerical precision](#numerical-precision)). See
 [Performance](#performance) for timings.
+
+### Gridded SPI and SPEI
+
+R's gridded code computes SPI and SPEI with `climdex.spi` and `climdex.spei`
+(`climpact.etsci-functions.r`, lines 405 and 543), which call the SPEI package's own
+`spi()`/`spei()` (SPEI 1.8.1, in the reference image), not the station app's `cspei` (see
+[SPI and SPEI](#spi-and-spei)). The two give different values. Ported in
+`gridded/drought.py`, scales 3, 6 and 12 only:
+
+| Step | Station (`cspei`, `products/drought.py`) | Gridded (`spei()`, `gridded/drought.py`) |
+| --- | --- | --- |
+| Monthly precipitation with no data | missing | SPI: 0 (`tapply.fast(..., sum, na.rm = TRUE)`); SPEI: missing (`monthly_inputs`) |
+| Accumulation | mean of the last `scale` months | sum (`rollapply` with `kern(scale) * scale`, all weights 1; `accumulate_sum`) |
+| Reference window | accumulated again inside the window | cut from the accumulated series, so the first base months keep the accumulation from before the base period |
+| PWMs and fit | lmomco `pwm.ub`, `parglo`; SPI `pargam(lmom.ub)` on all values | TLMoments `PWM` (`tl_pwm`, its C++ loop), lmomco `pwm2lmom`/`are.lmom.valid`, lmom's Fortran `PELGLO`/`PELGAM` (`pelglo`, `pelgam`, with PELGAM's `PI = 3.1415927D0`) |
+| Months skipped | fewer than 2 values, invalid L-moments | no value, `sd` NA or 0, fewer than 4 values, invalid or NA L-moments |
+| SPI zeros | fitted, then mixed with the zero probability `pze` | left out of the fit; `pze` is computed but the mixed value is overwritten, so an accumulated 0 is `qnorm(cdfgam(0))` = `-Inf` and becomes missing |
+| CDF | lmomco `cdfglo`, `cdfgam` | lmom `cdfglo` (`-1 / k * log(pmax(0, 1 - k * (x - xi) / alpha))`), `cdfgam` (`pgamma(x / beta, alpha)`) |
+| PET | `hargreaves` on plain vectors at the station latitude | the same, at the cell's latitude |
+
+With a thresholds file, `computefuture`: the daily series fitted runs from 1 January of
+the first base year to the last data year, the file's `precraw` (and `txraw`, `tnraw`)
+first, the cell's data last and missing in between (SPI's missing months there are 0).
+Only the cell's months are kept, and their first `scale - 1` are made missing (R's comment
+calls it a kludge for a SPEI bug). Infinite and NaN results become `NA`. `spei_package`
+keeps R's order of operations and its extended-precision `sum` (`r_sum`) in the
+accumulation, and uses `climpact.rdist`'s `qnorm` and `pgamma`; every SPI and SPEI value
+of the five reference grids is identical to R's after rounding to float32. Not reachable
+with precipitation sums, and not reproduced: when `PELGAM` fails (`L1 <= L2`) R falls back
+to lmomco's `pargam`, gets `NULL` and stops; Python leaves the month missing.
 
 ## Use of xclim
 
@@ -975,12 +1025,15 @@ unless its `thresholds` column is `no`) and R's index files (`output/<run>/indic
 
 | Run | Grid | Thresholds (of R's variables) | Indices (of R's index variables) |
 | --- | --- | --- | --- |
-| `grid_stations` | Synthetic 3 x 4 grid, latitudes 52.5, 0 and -33.75, one station input per cell, 1966-2005, base 1971-2000, with an all-missing cell, a sparse base period, a dry cell and missing years; TX in K (float, `missing_value`), TN in degrees C (double), precipitation in kg m-2 s-1 in a second file | 26/26 | 98/100 (84 of 86 files; R's run leaves out `hw` and `hwEHF`, see [Gridded data](#gridded-data-1)) |
-| `grid_sample` | 3 x 4 cut of Climpact's sample grid, 1991-2010, base 1991-2010; K, kg m-2 d-1, time in hours since 1800 | 26/26 | 98/118 (84 of 88 files) |
-| `grid_future` | The cells of `grid_stations` for 2001-2020, after the base period; indices only, with `grid_stations`' thresholds file (R accepts one only for data with no base-period day) | none | 98/100 (84 of 86 files; no `hw`, `hwEHF`) |
+| `grid_stations` | Synthetic 3 x 4 grid, latitudes 52.5, 0 and -33.75, one station input per cell, 1966-2005, base 1971-2000, with an all-missing cell, a sparse base period, a dry cell and missing years; TX in K (float, `missing_value`), TN in degrees C (double), precipitation in kg m-2 s-1 in a second file | 26/26 | 100/100 (86 files; R's run leaves out `hw` and `hwEHF`, see [Gridded data](#gridded-data-1)) |
+| `grid_sample` | 3 x 4 cut of Climpact's sample grid, 1991-2010, base 1991-2010; K, kg m-2 d-1, time in hours since 1800 | 26/26 | 118/118 (88 files) |
+| `grid_future` | The cells of `grid_stations` for 2001-2020, after the base period; indices only, with `grid_stations`' thresholds file (R accepts one only for data with no base-period day) | none | 100/100 (86 files; no `hw`, `hwEHF`) |
+| `grid_filled` | `grid_stations` with Beijing's series in the all-missing cell, and the sparse cell missing 20 June-20 July of every base year instead (its 15-day thresholds are missing for part of the northern season, but it has EHF), so R can write `hw` and `hwEHF`; only `hw`, `hwEHF`, `spi`, `spei` (`indices` column) | 26/26 | 20/20 (4 files) |
+| `grid_filled_future` | The cells of `grid_filled` for 2001-2020, with `grid_filled`'s thresholds file: the thresholds-file paths of `hw`, `hwEHF`, SPI and SPEI | none | 20/20 (4 files) |
 
-The variables not reproduced are those of `hw_ANN` (10), `hwEHF_ANN` (8), `spi_MON` and
-`spei_MON`, not ported yet (#87), reported as "not yet ported".
+`runs.csv`'s `indices_exclude` column lists the indices R's run leaves out, and its
+`indices` column the only ones it computes (passed to `run_gridded_indices.R` as
+`--exclude` and `--indices`); the Python side computes the same.
 
 `tests/parity/test_gridded.py` writes each run's thresholds file with small blocks, batches
 and two threads, and requires every variable (the 21 thresholds and the coordinates) to have
@@ -992,7 +1045,8 @@ from `history`, `file_created` and `file_created_by_userid`, R's `R_version` and
 [Gridded data](#gridded-data-1)).
 
 `tests/parity/test_gridded_indices.py` writes each run's index files (one-row blocks,
-batches of 3 cells, two threads, the thresholds file for `grid_future`) and compares every
+batches of 3 cells, two threads, the thresholds file for `grid_future` and
+`grid_filled_future`, only the run's `indices` if set) and compares every
 index variable of every file R wrote, `day_of_<index>` included: same name, dimensions,
 type (float32), fill-value positions, NaN positions and values (`EXACT`: both sides round
 the same doubles to float32). `test_gridded_indices_layout` checks each file's dimensions,
@@ -1110,11 +1164,14 @@ potsdam: 125/125 written CSV files text-identical to R, 0 differing
 qc_stress: 9/9 written CSV files text-identical to R, 0 differing
 sydney: 125/125 written CSV files text-identical to R, 0 differing
 yakutsk: 125/125 written CSV files text-identical to R, 0 differing
+grid_filled: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_sample: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_stations: 26/26 thresholds netCDF variables identical to R, 0 differing
-grid_future: 98/100 index netCDF variables identical to R, 0 differing, 2 not yet ported
-grid_sample: 98/118 index netCDF variables identical to R, 0 differing, 20 not yet ported
-grid_stations: 98/100 index netCDF variables identical to R, 0 differing, 2 not yet ported
+grid_filled: 20/20 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_filled_future: 20/20 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_future: 100/100 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_sample: 118/118 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_stations: 100/100 index netCDF variables identical to R, 0 differing, 0 not yet ported
 sydney: 10/10 sector correlation CSV files matching R, 0 differing
 ```
 
@@ -2105,7 +2162,9 @@ exercise only those said to be):
 | `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
 | Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |
 | R writes an uncompressed file with one chunk per day | compressed (zlib), chunked by block; the content is the same |
-| Gridded indices: R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an all-missing cell (`climdex.results[[i]][[ind]][[2]]` of the cell's `NA`), after writing part of the files | not ported yet (#87); the other files are written. The `grid_stations` and `grid_future` R references leave `hw` and `hwEHF` out for this reason |
+| Gridded indices: R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an all-missing cell (`climdex.results[[i]][[ind]][[2]]` of the cell's `NA`), after writing part of the files | **Not copied** (decided 2026-11-14, #87): Python writes every file, with missing values (the fill value) for the all-missing cell, as for every other index. The `grid_stations` and `grid_future` R references leave `hw` and `hwEHF` out for this reason; `grid_filled` has no all-missing cell. `test_r_missing_values` checks the all-missing cell |
+| Gridded indices: for a cell with TAVG on less than half of the base period, `climdex.hwEHF` prints "NOT CALCULATING EHF HEATWAVES, LESS THAN 50% OF BASE PERIOD DATA AVAILABLE..." and returns `NULL`; `write.climdex.results` then stops on `hwEHF` ("subscript out of bounds": it turns the `NULL` into a one-element list and takes its second element). The first `grid_filled` run hit this on its sparse cell, which is why that cell was changed | **Not copied** (#87, same decision): the cell's eight EHF variables are missing (`hwehf_values`), as the station product writes no EHF files then. With a thresholds file R makes no such check, and neither does Python. `test_ehf_needs_half_of_the_base_period_unless_thresholds_are_given` |
+| Gridded indices: EHF85 missing from a thresholds file (a cell without positive base-period EHF) makes every severity `NA`; R's `max(na.rm = TRUE)` and `sum(na.rm = TRUE)` then give EHF-HWPS `-Inf` and EHF-HWLS 0 in years with heatwaves, written as such | reproduced (`annual_aspects` drops missing severities; `_write_block` keeps infinite values). The station product had raised an error in this case (possible only with no positive base-period EHF); it now gives R's values too. No reference grid has such a cell; the unit test above checks it |
 | Gridded indices: bounds variables of X and Y, a `grid_mapping` variable and two-dimensional coordinate variables named in `coordinates` are copied to every index file | not copied, as for the thresholds; X and Y are float64 |
 | Gridded indices: `create.climdex.cmip5.filenames` names monthly files with years only (it looks for `_mon` in lower case) and needs a six-part template; `rxnday_n = 5` writes `rx5day` twice | the same names; a template with fewer parts is refused; `rx5day` is written once |
 | Gridded indices: `create.ncdf.output.files` gives tx95t's `time` a `calendar` of `365_day`, replaced by the input time's calendar when it has one; its `bounds` attribute names a variable that does not exist | the same |
@@ -2176,6 +2235,9 @@ output is ported.
   the piece with its duration only. No reference run is affected (see
   [EHF heatwaves](#ehf-heatwaves-and-the-daily-ehfecf-series)).
 
+- Gridded `hw`/`hwEHF`: R stops on a grid with an all-missing cell, and on `hwEHF` when
+  a cell has less than half of the base period. Python writes missing values for those
+  cells (decided 2026-11-14, #87; see [Gridded data](#gridded-data-1)).
 - `cspei` stops with an error when `pargam` returns no parameters or the generalised
   logistic parameters are invalid, and `window` stops when the base period is outside the
   series. Python leaves the calendar month missing, or writes no SPI/SPEI files. No
@@ -2263,9 +2325,9 @@ pattern. Rechunking such files first is #67.
 
 ### Gridded indices
 
-The same kind of synthetic grid (float32 in K, 1961-2020, base 1971-2000), the 84 ported
-files (R run with `hw`, `hwEHF`, `spi` and `spei` left out, so both compute the same
-indices), default block and batch:
+The same kind of synthetic grid (float32 in K, 1961-2020, base 1971-2000), the 84 files
+other than `hw`, `hwEHF`, `spi` and `spei` (R run with those four left out, so both compute
+the same indices), default block and batch (timed for #30):
 
 | Grid | Python, 1 thread | Python, 4 threads | R (`climpact.ncdf.wrapper.r`, `cores = FALSE`, Docker amd64 under emulation) |
 | --- | --- | --- | --- |
@@ -2280,6 +2342,22 @@ help less than for the thresholds. Before the float32 means (see
 [Numerical precision](#numerical-precision)) a 60-year cell took 1.76 s, half of it in
 `r_mean`. The batched bootstrap was tried (all cells of a batch per day) and was slower
 than one cell at a time; computing a variable's in-base quantiles together is kept.
+
+**The heatwave, EHF, SPI and SPEI files** (#87), on the same 64-cell grid, measured on the
+same kind of machine. `cell_indices` always computes the other 84 outputs (`--indices` only
+limits what is written), and these four only when asked for:
+
+| Run | Python, 1 thread | Python, 4 threads | R (the four only, `cores = FALSE`, Docker amd64 under emulation) |
+| --- | --- | --- | --- |
+| `--indices fd` (the 84 computed, one written) | 47.4 s, 0.76 GB | | |
+| `--indices hw` / `hwEHF` / `spi` / `spei` | 48.1 / 48.1 / 51.3 / 51.8 s | | |
+| `--indices hw hwEHF spi spei` | 53.8 s, 0.83 GB | 52.0 s, 1.32 GB | 103 s (1.6 s per cell) |
+| all 88 files | 59.2 s (0.92 s per cell), 0.95 GB | 50.9 s, 1.33 GB | |
+
+So the four add about 0.1 s per cell (hw and hwEHF about 0.01 s each, SPI and SPEI about
+0.06 s each, mostly the per-value `qnorm`, `pgamma` and exact sums in pure Python), and
+threads do not help them (they hold the GIL). All 20 variables of R's four files were
+identical to Python's with 1 and 4 threads (644,232 values).
 
 ## Development
 

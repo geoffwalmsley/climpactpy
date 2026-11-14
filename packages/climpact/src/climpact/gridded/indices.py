@@ -11,19 +11,27 @@ a block together. What differs from a station run:
 - the wrapper's parameters: ``wsdin_n = csdin_n = 5``, ``rxnday_n = 7``,
   ``ntxntn_n = ntxbntnb_n = 3`` (:data:`WRAPPER_PARAMS`);
 - the hemisphere of each cell is its latitude ``>= 0`` (``get.northern.hemisphere.booleans``),
-  where the station app uses ``> 0``; only gsl depends on it here;
+  where the station app uses ``> 0`` (gsl and the Tx90/Tn90 heatwaves depend on it);
+- SPI and SPEI come from ``climdex.spi``/``climdex.spei`` and the SPEI package's
+  ``spi()``/``spei()``, not the station app's ``cspei`` (:mod:`climpact.gridded.drought`),
+  at 3, 6 and 12 months; SPEI uses the cell's latitude;
 - a cell with every value of TX, TN and precipitation missing gets no index at all
   (``compute.indices.for.stripe``'s fast path);
 - thresholds may come from a thresholds file (``climpact gridded-thresholds``), for data
   with no day in the base period only (R's ``check.quantile.validity`` stops otherwise);
-  the out-of-base thresholds are then used for every year;
+  the out-of-base thresholds are then used for every year, the heatwave thresholds and
+  the base-period data for SPI and SPEI too (:mod:`climpact.gridded.heatwaves`);
 - R stores two kinds of missing value: its ``NA`` as the fill value, and ``NaN`` as
   NaN. :func:`block_indices` reproduces where R has ``NaN`` (see :class:`IndexResult`).
 
 One file is written per index and frequency, named after a CMIP5-style template
-(``create.climdex.cmip5.filenames``), with the layout of ``create.ncdf.output.files``.
-Not ported yet: ``hw_ANN``, ``hwEHF_ANN``, ``spi_MON`` and ``spei_MON``
-(:data:`NOT_PORTED`, #87).
+(``create.climdex.cmip5.filenames``), with the layout of ``create.ncdf.output.files``:
+one variable per file, except ``hw_ANN`` (10 variables), ``hwEHF_ANN`` (8) and
+``spi_MON``/``spei_MON`` (a ``scale`` dimension).
+
+Not copied from R: R stops on ``hw`` and ``hwEHF`` for a grid with an all-missing cell,
+and on ``hwEHF`` for a cell with TAVG on less than half of the base period. Python writes
+missing values for those cells.
 """
 
 from __future__ import annotations
@@ -42,6 +50,14 @@ import numpy as np
 import pandas as pd
 
 from climpact.config import IndexParams
+from climpact.gridded.drought import SCALES, spei_values, spi_values
+from climpact.gridded.heatwaves import (
+    EHF_FILE_THRESHOLDS,
+    EHF_VARIABLES,
+    HW_VARIABLES,
+    hw_values,
+    hwehf_values,
+)
 from climpact.gridded.io import GriddedInput
 from climpact.gridded.thresholds import (
     FILL_VALUE,
@@ -98,7 +114,9 @@ WRAPPER_PARAMS = IndexParams(
     custom=None,
 )
 DEFAULT_TEMPLATE = "var_daily_climpactpy_historical_NA_{start}-{end}.nc"
-NOT_PORTED = ("hw", "hwEHF", "spei", "spi")  # #87: heatwaves, EHF, SPI and SPEI on grids
+# Indices computed by their own functions (gridded.heatwaves, gridded.drought), and only
+# when asked for: they take most of a cell's time.
+SEPARATE = ("hw", "hwEHF", "spi", "spei")
 DEFAULT_CELLS_PER_BATCH = 8
 
 # get.climdex.variable.list: the indices each variable makes available, in R's order.
@@ -155,6 +173,24 @@ class IndexFile:
     def dated(self) -> bool:
         """Whether a ``day_of_<name>`` variable is written (the extremes)."""
         return self.index in _DATED
+
+    @property
+    def scaled(self) -> bool:
+        """Whether the index has a ``scale`` dimension (SPI and SPEI: 3, 6, 12 months)."""
+        return self.index in ("spi", "spei")
+
+    @property
+    def variables(self) -> tuple[tuple[str, str, str], ...]:
+        """``(name, units, long_name)`` of each index variable, in the file's order: one,
+        except for ``hw`` and ``hwEHF`` (whose variables get no ``definition``)."""
+        if self.index == "hw":
+            return HW_VARIABLES
+        if self.index == "hwEHF":
+            return tuple(
+                (name, units, f"{text}, see user guide for definition.")
+                for name, _, units, text in EHF_VARIABLES
+            )
+        return ((self.name, self.units, self.long_name),)
 
     def filename(self, template: str) -> str:
         """``create.climdex.cmip5.filenames``: ``<name>_<FREQ>_<model>_<emissions>_<run>_
@@ -223,17 +259,12 @@ def _renamed(index: str, freq: str, params: IndexParams) -> tuple[str, str | Non
     return index, None
 
 
-def index_files(
-    params: IndexParams = WRAPPER_PARAMS, include_unported: bool = False
-) -> list[IndexFile]:
+def index_files(params: IndexParams = WRAPPER_PARAMS) -> list[IndexFile]:
     """The files ``create.indices.from.files`` writes with TX, TN and precipitation, in
-    R's order (``get.climdex.variable.list``), without :data:`NOT_PORTED` unless
-    ``include_unported``."""
+    R's order (``get.climdex.variable.list``)."""
     out: list[IndexFile] = []
     seen = set()
     for index in (i for names in _BY_VARIABLE.values() for i in names):
-        if index in NOT_PORTED and not include_unported:
-            continue
         if index == "tx95t":
             freqs = ["DAY"]
         elif index in _ANNUAL_ONLY:
@@ -267,7 +298,9 @@ def index_files(
 
 @dataclass
 class IndexResult:
-    """The values of one output for a block of cells, ``(cells, periods)``.
+    """The values of one output for a block of cells, ``(cells, periods)``, or
+    ``(cells, k, periods)`` for the ``k`` variables of ``hw`` and ``hwEHF`` and the three
+    scales of SPI and SPEI.
 
     ``values`` is NaN where R has a missing value; ``nan`` marks where R's missing value
     is ``NaN`` rather than ``NA`` (written as NaN instead of the fill value): a year
@@ -340,6 +373,12 @@ THRESHOLD_FILE_VARIABLES = (
     *(f"{p}{q:02d}thresh" for p in ("tx", "tn") for q in (5, 10, 50, 90, 95)),
     "r95thresh",
     "r99thresh",
+    "tx90thresh_15days",
+    "tn90thresh_15days",
+    *EHF_FILE_THRESHOLDS,
+    "txraw",
+    "tnraw",
+    "precraw",
 )
 
 
@@ -353,14 +392,16 @@ def cell_indices(
     base_end: int,
     params: IndexParams = WRAPPER_PARAMS,
     thresholds: Mapping[str, np.ndarray] | None = None,
+    separate: Sequence[str] = SEPARATE,
 ) -> dict[str, IndexResult]:
-    """Every output of :func:`index_files` for a batch of cells.
+    """Every output of :func:`index_files` for a batch of cells, of :data:`SEPARATE`
+    only those in ``separate``.
 
     ``tasmax``, ``tasmin`` (degrees C) and ``pr`` (kg m-2 d-1) are ``(cells, time)``
     arrays on the input's time axis ``time``; ``latitude`` is ``(cells,)``.
     ``thresholds`` holds the :data:`THRESHOLD_FILE_VARIABLES` of the cells from a
-    thresholds file, ``(cells, 365)`` or ``(cells,)``, or None to compute them.
-    Returns ``{"<name>_<FREQ>": IndexResult}``.
+    thresholds file, ``(cells, 365)``, ``(cells,)`` or ``(cells, base days)``, or None
+    to compute them. Returns ``{"<name>_<FREQ>": IndexResult}``.
     """
     full = filled_dates(time)
     tx = take_dates(tasmax, time, full)
@@ -435,8 +476,12 @@ def cell_indices(
     for name, values in spell_duration_values(tx, tn, full, spell_thresholds, params).items():
         out[f"{name}_ANN"] = IndexResult(values)
 
-    out["gsl_ANN"] = IndexResult(gsl_values(tas, full, np.asarray(latitude) >= 0))
+    northern = np.asarray(latitude) >= 0
+    out["gsl_ANN"] = IndexResult(gsl_values(tas, full, northern))
     out["tx95t_DAY"] = IndexResult(th.outbase["tasmax"][0.95])
+    out.update(
+        _separate_indices(tx, tn, prec, full, latitude, base_start, base_end, thresholds, separate)
+    )
 
     # compute.indices.for.stripe: a cell with no data at all has no index.
     empty = (
@@ -455,6 +500,50 @@ def cell_indices(
     return out
 
 
+def _separate_indices(
+    tx: np.ndarray,
+    tn: np.ndarray,
+    prec: np.ndarray,
+    full: pd.DatetimeIndex,
+    latitude: np.ndarray,
+    base_start: int,
+    base_end: int,
+    thresholds: Mapping[str, np.ndarray] | None,
+    separate: Sequence[str],
+) -> dict[str, IndexResult]:
+    """hw, hwEHF, SPI and SPEI (those in ``separate``) for a batch of cells, as
+    ``(cells, variables or scales, periods)``. With a thresholds file, the heatwaves use
+    its thresholds and SPI and SPEI its base-period data (``computefuture``)."""
+    out = {}
+    thr = thresholds
+    latitude = np.asarray(latitude, dtype=float)
+    if "hw" in separate:
+        hw_thr = (
+            None
+            if thr is None
+            else {"tasmax": thr["tx90thresh_15days"], "tasmin": thr["tn90thresh_15days"]}
+        )
+        out["hw_ANN"] = IndexResult(
+            hw_values(tx, tn, full, latitude >= 0, base_start, base_end, hw_thr)
+        )
+    if "hwEHF" in separate:
+        ehf_thr = None if thr is None else {k: thr[k] for k in EHF_FILE_THRESHOLDS}
+        out["hwEHF_ANN"] = IndexResult(hwehf_values(tx, tn, full, base_start, base_end, ehf_thr))
+    if "spi" in separate:
+        raw = None if thr is None else thr["precraw"]
+        out["spi_MON"] = IndexResult(spi_values(prec, full, base_start, base_end, raw))
+    if "spei" in separate:
+        raw = (
+            None
+            if thr is None
+            else {"tasmax": thr["txraw"], "tasmin": thr["tnraw"], "pr": thr["precraw"]}
+        )
+        out["spei_MON"] = IndexResult(
+            spei_values(tx, tn, prec, full, latitude, base_start, base_end, raw)
+        )
+    return out
+
+
 def block_indices(
     data: Mapping[str, np.ndarray],
     time: pd.DatetimeIndex,
@@ -465,6 +554,7 @@ def block_indices(
     thresholds: Mapping[str, np.ndarray] | None = None,
     pool: ThreadPoolExecutor | None = None,
     cells_per_batch: int = DEFAULT_CELLS_PER_BATCH,
+    separate: Sequence[str] = SEPARATE,
 ) -> dict[str, IndexResult]:
     """:func:`cell_indices` of a block, ``data[var]`` ``(y, x, time)``, latitude and
     thresholds ``(y, x, ...)``; computed in batches of ``cells_per_batch`` cells (on
@@ -491,6 +581,7 @@ def block_indices(
             base_end,
             params,
             None if thr is None else {k: v[part] for k, v in thr.items()},
+            separate,
         )
 
     starts = range(0, ny * nx, step)
@@ -632,19 +723,32 @@ def create_index_file(
             _coordinates(nc, inp, layout)
             dims = (inp.time_dim, inp.y_dim, inp.x_dim)
             chunks = (len(mid), by, bx)
-        names = [spec.name] + ([f"day_of_{spec.name}"] if spec.dated else [])
-        for name in names:
+            if spec.scaled:
+                # ncdim_def("scale", "3,6,12 months", 1:3): an int coordinate variable
+                nc.createDimension("scale", len(SCALES))
+                scale = nc.createVariable("scale", "i4", ("scale",))
+                scale.setncatts({"units": "3,6,12 months", "long_name": "scale"})
+                scale[:] = np.arange(1, len(SCALES) + 1)
+                dims = ("scale", *dims)
+                chunks = (len(SCALES), *chunks)
+        variables = [(name, units, long_name, False) for name, units, long_name in spec.variables]
+        if spec.dated:
+            variables.append((f"day_of_{spec.name}", "calendar day", spec.long_name, True))
+        for name, units, long_name, is_day in variables:
             v = nc.createVariable(
                 name, "f4", dims, fill_value=np.float32(FILL_VALUE), zlib=True, complevel=4,
                 chunksizes=chunks,
             )  # fmt: skip
             v.set_var_chunk_cache(size=OUTPUT_CHUNK_CACHE, nelems=101, preemption=1.0)
-            if name == spec.name:
-                v.setncatts({"units": spec.units, "long_name": spec.long_name})
+            v.setncatts({"units": units, "long_name": long_name})
+            if is_day:
+                continue
+            if spec.index in ("hw", "hwEHF"):
+                # R copies no attribute of the input to these and sets no definition.
+                v.setncattr("expert_team", spec.expert_team)
+            else:
                 v.setncatts(layout["var_attrs"])
                 v.setncatts({"definition": spec.definition, "expert_team": spec.expert_team})
-            else:
-                v.setncatts({"units": "calendar day", "long_name": spec.long_name})
         nc.setncatts(layout["global_attrs"])
         frequency = {"MON": "mon", "ANN": "yr", "DAY": "NA"}[spec.freq]
         nc.setncatts(_etccdi_attrs(base_start, base_end, author, frequency))
@@ -664,6 +768,16 @@ def _coordinates(nc: netCDF4.Dataset, inp: GriddedInput, layout: dict) -> None:
 
 def _write_block(nc: netCDF4.Dataset, spec: IndexFile, block, result: IndexResult) -> None:
     ys, xs = block
+    if spec.scaled:  # (y, x, scale, t) -> (scale, t, y, x)
+        values = np.moveaxis(result.values, (0, 1), (2, 3))
+        nc.variables[spec.name][:, :, ys, xs] = np.ma.masked_invalid(values)
+        return
+    if len(spec.variables) > 1:  # (y, x, variable, t)
+        for i, (name, _, _) in enumerate(spec.variables):
+            values = np.moveaxis(result.values[:, :, i], -1, 0)
+            # NaN is R's NA; an infinite value (EHF-HWPS with no EHF85) is kept as R's.
+            nc.variables[name][:, ys, xs] = np.ma.masked_where(np.isnan(values), values)
+        return
     values = np.moveaxis(result.values, -1, 0)  # (y, x, t) -> (t, y, x)
     masked = np.isnan(values)
     if result.nan is not None:
@@ -675,7 +789,8 @@ def _write_block(nc: netCDF4.Dataset, spec: IndexFile, block, result: IndexResul
 
 
 def _read_thresholds(nc: netCDF4.Dataset, block, inp: GriddedInput) -> dict[str, np.ndarray]:
-    """The thresholds of a block from a thresholds file, ``(y, x, 365)`` or ``(y, x)``."""
+    """The thresholds of a block from a thresholds file, ``(y, x, 365)``, ``(y, x)`` or
+    ``(y, x, base days)``."""
     ys, xs = block
     out = {}
     for name in THRESHOLD_FILE_VARIABLES:
@@ -745,6 +860,7 @@ def write_grid_indices(
     specs = index_files(params)
     if indices is not None:
         specs = [s for s in specs if s.index in set(indices)]
+    separate = [s.index for s in specs if s.index in SEPARATE]
     layout = _input_layout(inp, inp.files["pr"])
     paths = {s.key: out_dir / s.filename(template) for s in specs}
     tmp = {k: p.with_name(f".{p.name}.{os.getpid()}.tmp") for k, p in paths.items()}
@@ -772,6 +888,7 @@ def write_grid_indices(
                     thr,
                     pool if workers > 1 else None,
                     cells_per_batch,
+                    separate,
                 )
                 del data
                 for s in specs:
@@ -797,7 +914,7 @@ def write_grid_indices(
 
 
 __all__ = [
-    "NOT_PORTED",
+    "SEPARATE",
     "WRAPPER_PARAMS",
     "IndexFile",
     "IndexResult",

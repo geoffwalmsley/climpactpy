@@ -9,8 +9,9 @@
 # Each row of reference/gridded/runs.csv is one run: the input files (';'-separated, in
 # reference/gridded/input/, made by gridded/make_grids.py), the netCDF variable names, the
 # base period, whether to compute a thresholds file, the run whose thresholds file the
-# indices use (empty: none, R computes the thresholds itself) and the indices to leave out
-# (';'-separated; R stops on hw and hwEHF for grids with an all-missing cell).
+# indices use (empty: none, R computes the thresholds itself), the indices to leave out
+# (';'-separated; R stops on hw and hwEHF for grids with an all-missing cell) and the
+# indices to compute (';'-separated; empty: all but the excluded ones).
 #
 # Outputs go to reference/gridded/output/<run>/: thresholds.nc and indices/<index>_<freq>_*.nc,
 # compressed afterwards with nccopy (lossless: same variables, values and attributes; only
@@ -38,7 +39,7 @@ docker build --platform "$PLATFORM" -t "$IMAGE" "$HERE/r"
 
 status=0
 for run in "${runs[@]}"; do
-  IFS=, read -r _ files tmax tmin prec base_start base_end thresholds indices_thresholds exclude \
+  IFS=, read -r _ files tmax tmin prec base_start base_end thresholds indices_thresholds exclude only \
     < <(grep "^$run," "$RUNS")
   out="$GRID/output/$run"
   rm -rf "$out"
@@ -57,7 +58,7 @@ for run in "${runs[@]}"; do
   script+="
     /opt/climpact-ref/entrypoint.sh gridded-indices --files '$inputs' --outdir /tmp/indices \
       --tmax '$tmax' --tmin '$tmin' --prec '$prec' --base_start '$base_start' --base_end '$base_end' \
-      --exclude '${exclude//;/,}' $thr_arg
+      --exclude '${exclude//;/,}' --indices '${only//;/,}' $thr_arg
     mkdir -p /out/indices
     for f in /tmp/indices/*.nc; do nccopy -d 9 -s -c time/365 \"\$f\" \"/out/indices/\$(basename \"\$f\")\"; done
     cp /opt/r-package-versions.csv /out/r-package-versions.csv"

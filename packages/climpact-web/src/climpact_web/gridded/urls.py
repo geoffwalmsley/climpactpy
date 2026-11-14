@@ -17,6 +17,7 @@ urlpatterns = [
     path("<uuid:run_id>/explore", views.explore, name="explore"),
     path("<uuid:run_id>/map.csv", views.map_csv, name="map_csv"),
     path("<uuid:run_id>/series.csv", views.series_csv, name="series_csv"),
+    path("<uuid:run_id>/series.json", views.series_json, name="series_json"),
     path("<uuid:run_id>/download.zip", views.download_all, name="download_all"),
     path("<uuid:run_id>/delete", views.delete, name="delete"),
 ]

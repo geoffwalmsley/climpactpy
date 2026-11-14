@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui charts %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/patterns.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/patterns.css' %}">{% chart_scripts %}{% endblock %}
 {% block content %}
 <header class="section__header">
   <p class="eyebrow">{% translate "Design system" %}</p>
@@ -33,6 +33,7 @@
       <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
       <li><a href="#help">{% translate "Help in place" %}</a></li>
       <li><a href="#charts">{% translate "Chart frame" %}</a></li>
+      <li><a href="#interactive-charts">{% translate "Interactive charts" %}</a></li>
     </ul>
   </nav>
 
@@ -264,6 +265,25 @@
       <p>{% translate "The chart scripts (#75) draw into the plot area; until then it shows a placeholder. Every chart has a text summary, a legend, a table view and a CSV download." %}</p>
       {% translate "TXx, hottest day of the year" as ch_title %}{% translate "Rising by 0.21 °C per decade since 1936 (significant at 5%). Highest 45.8 °C in 2013." as ch_summary %}
       {% include "components/chart_frame.html" with id="pattern-chart" title=ch_title summary=ch_summary legend=chart_legend csv_href="#charts" table_template="core/patterns_table.html" %}
+    </section>
+
+    <section class="pattern" id="interactive-charts" aria-labelledby="interactive-charts-title">
+      <h2 id="interactive-charts-title">{% translate "Interactive charts" %}</h2>
+      <p>{% translate "The chart frame with a data URL: charts.js draws it with uPlot when it scrolls into view. Drag across the plot to zoom, double-click to show all; the buttons and the keyboard (plus, minus, arrows, 0) zoom and move; PNG and SVG save the current view. The data are the Sydney sample and its run." %}</p>
+      <div class="stack stack--lg">
+        {% translate "Daily series with quality-check flags" as d_title %}
+        {% url "charts:sample_daily" as d_url %}
+        {% include "components/chart_frame.html" with id="pattern-daily" title=d_title data_url=d_url height="24rem" only %}
+        {% translate "TXx, annual, with the trend" as a_title %}
+        {% url "charts:sample_series" "txx_ANN" as a_url %}
+        {% include "components/chart_frame.html" with id="pattern-annual" title=a_title data_url=a_url only %}
+        {% translate "TXx, monthly" as m_title %}
+        {% url "charts:sample_series" "txx_MON" as m_url %}
+        {% include "components/chart_frame.html" with id="pattern-monthly" title=m_title data_url=m_url only %}
+        {% translate "SPI, 3 months, as bars" as s_title %}
+        {% url "charts:sample_series" "3month_spi_MON" as s_url %}
+        {% include "components/chart_frame.html" with id="pattern-spi" title=s_title data_url=s_url only %}
+      </div>
     </section>
   </div>
 </div>

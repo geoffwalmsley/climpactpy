@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages) and [Help](#help)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the screens: steps 2-4 (#77, #78, #90), downloads (#79) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2511,7 +2511,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
-(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
+(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
 (downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
 (accessibility).
 
@@ -2521,7 +2521,7 @@ imports `climpact_web`. This section describes the skeleton (#69) and the design
 packages/climpact-web/src/climpact_web/
   settings.py        the one settings module; every value from environment variables
                      (local or hosted mode, see below); reading it has no side effects
-  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, gridded/, help/ and the core app;
+  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, gridded/, help/, charts/ and the core app;
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
@@ -2551,12 +2551,16 @@ packages/climpact-web/src/climpact_web/
       css/batch.css       the batch pages (and the gridded file and job cards)
       css/gridded.css     the gridded pages only: file browser, set-up form, map
       css/help.css        help topics (every page) and the help pages and tour (#81)
+      css/charts.css      the interactive charts (#75), chart pages only
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
+      js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
+      vendor/uplot/  uPlot 1.6.32 (JS, CSS, MIT LICENSE), vendored; README.md records the
+                     source URLs and SHA-256s
   jobs/              background jobs (label `jobs`, see [Background jobs](#background-jobs))
     models.py        Job (the queue and its progress), Worker (running workers)
     registry.py      runner registry, JobContext, JobError, JobCancelled, JobInterrupted
@@ -2579,7 +2583,8 @@ packages/climpact-web/src/climpact_web/
     station_file.py  checks an uploaded file (plain-language problems at file lines,
                      warnings) and summarises its data
     forms.py         UploadForm, MetadataForm (step 1), RunAllForm (step 2 placeholder)
-    preview.py       the static monthly preview (inline SVG) until the charts of #75
+    preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
+                     fallback
     retention.py     purge_expired_analyses, registered with the jobs app's purge
     views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
                      daily CSV, delete, the step 2 placeholder
@@ -2604,7 +2609,7 @@ packages/climpact-web/src/climpact_web/
                      `preflight` (the core's `open_grid`) before a run
     forms.py         PathsForm, UploadForm (step 1), SetupForm (step 2)
     maps.py          output files, the map of one index at one time step and a cell's
-                     time series, drawn as inline SVG
+                     time series, drawn as inline SVG (the series: the chart's fallback)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
     views.py, urls.py  /gridded/: start (paths and folder browser), upload, sample,
                      set-up and its checks (htmx), results, progress, explore (htmx),
@@ -2627,6 +2632,13 @@ packages/climpact-web/src/climpact_web/
     guides/en/*.md   the guides, in English
     templates/help/  index.html, guide.html, topics.html, search.html, _results.html,
                      _search_form.html, _topic.html, _tour.html
+  charts/            chart data for the interactive charts (label `charts`, see [Charts](#charts))
+    data.py          the payloads: daily series with QC flags, index series with trend, summaries
+    views.py, urls.py  /charts/: a station analysis's daily series, a finished job's index
+                     series and their list, the pattern library's examples; ETag caching
+    templatetags/charts.py  `{% chart_scripts %}`: the chart assets and text for a page
+    sample_outputs/sydney/  four index tables and the trend rows of the Sydney sample's run
+                     (pattern library examples and tests)
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
@@ -2634,13 +2646,13 @@ packages/climpact-web/tests/
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      step 1 (test_stations.py), the batch page (test_batch.py), the
-                     gridded pages (test_gridded_web.py), the help (test_help.py) and
-                     the size budget (test_page_budget.py)
+                     gridded pages (test_gridded_web.py), the help (test_help.py),
+                     the size budget (test_page_budget.py) and the charts (test_charts.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
 worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4
-follow in #77-#79, #90), `batch` (#80), `gridded` (#85) and `help` (#81). `core` keeps what every page shares.
+follow in #77-#79, #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2805,7 +2817,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
-| `chart_frame` | title, text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view, for #75 |
+| `chart_frame` | title, text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)) |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -3036,7 +3048,8 @@ checks the accessibility hooks in the markup (labels, `aria-describedby`, `aria-
 `aria-current`, roles, the no-JS fallbacks), that the pattern library includes every
 component, that every icon used exists in the sprite, the landing page with and without
 the later screens' URLs (a stub URLconf), and the snapshot command.
-`test_design_tokens.py` checks contrast, the chart palette export and the size budgets;
+`test_design_tokens.py` checks contrast, the chart palette export and the size budgets
+(`test_charts.py` those of the chart assets);
 `test_static.py` checks logical properties in every stylesheet and that `ui.js` has no
 imports or network requests.
 
@@ -3102,9 +3115,10 @@ disclosure), a CSV download of the daily series and a form to load a different f
 (the metadata is kept; the station name follows the new file name only if it was still
 the default). The preview (`preview.py`) is two small inline SVG charts of monthly means
 (maximum and minimum temperature, monthly total precipitation; months with fewer than 20
-days are gaps), drawn on the server in the chart tokens. It is a placeholder: a
-`CHART HOOK` comment in `stations/_summary.html` marks where the interactive chart of #75
-replaces it, fed by `stations:series`.
+days are gaps), drawn on the server in the chart tokens. Since #75 the summary shows the
+interactive daily series instead (`charts:station_daily`, with the values the QC checks
+flag; its CSV link is `stations:series`), and the static preview is the fallback inside
+`<noscript>`. See [Charts](#charts).
 
 **Step 1: the metadata.** The fields are exactly those of the R app: station name,
 latitude, longitude, base period first and last year (`MetadataForm`). The name defaults
@@ -3455,9 +3469,11 @@ HTML; see [Size budget](#size-budget)). R's sample grid (19 x 24) is drawn whole
 `HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
 which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
 cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
-are the keyboard path) swaps in its time series: a server-drawn SVG line, broken at
-missing values, the placeholder for the interactive chart of #75 (`CHART HOOK` in
-`gridded/_explore.html`). Each has a table (latitudes by longitudes; time and value) and a
+are the keyboard path) swaps in its time series as an interactive chart (#75, see
+[Charts](#charts)): data from `gridded:series_json` (`<run>/series.json`, the same query
+string as `series.csv`), drawn as a line, or bars for SPI and SPEI, without a trend (R's
+gridded outputs have none); charts.js hydrates it on `htmx:load` after each swap. The
+server-drawn SVG line, broken at missing values, is the `<noscript>` fallback. Each has a table (latitudes by longitudes; time and value) and a
 CSV. Values are read straight from the output netCDF (fill values and non-finite values,
 such as R's `-Inf` EHF-HWPS, shown as no value).
 
@@ -3510,14 +3526,14 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 87.1 KB at most (gridded results, worst-case map) |
+| Any other page, chart code included | 300 KB gzipped in total | 120.2 KB at most (gridded results, worst-case map, with the chart code) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | none yet; step 1 with data loaded is marked for #75 |
+| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded and the gridded results |
 | Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
-`ASSET_BUDGETS` (a test fails otherwise); #75's files have theirs already (uPlot 24 KB,
-`charts.js` 14 KB, `charts.css` 1.5 KB, uPlot's CSS 1 KB, gzipped). To add a page, add a
+`ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
+9.2 of 14 KB, `charts.css` 0.5 of 1.5 KB, uPlot's CSS 0.7 of 1 KB, gzipped. To add a page, add a
 function returning its URL to `PAGES`.
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
@@ -3534,8 +3550,8 @@ only). The sizes print at the end of the test run, largest first; on this branch
 
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| gridded results, 100 x 100 grid | 1408.5 | 56.2 | 87.1 | 83.7 |
-| station step 1, sample loaded | 77.0 | 19.5 | 48.8 | 45.6 |
+| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 120.2 | 113.4 |
+| station step 1, sample loaded | 81.9 | 20.7 | 81.9 | 75.3 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
@@ -3572,7 +3588,8 @@ About 30 KB of every page is shared and cached after the first: htmx (16.9 KB), 
   alone. Django pads each compressed answer with random bytes against BREACH and masks the
   CSRF token afresh on every response. Pages compress to between a quarter and a third of their size.
 - *Gridded map*: the inline SVG map is capped at 2,500 cells (`MAX_MAP_CELLS`, was 40,000),
-  which keeps the worst gridded results page at 87 KB gzipped and 1.4 MB of HTML; before,
+  which keeps the worst gridded results page at 87 KB gzipped (120 KB with the chart code of
+#75) and 1.4 MB of HTML; before,
   a 100 x 100 grid gave 5.5 MB of HTML (249 KB gzipped) and the full cap about 20 MB.
 
 **Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
@@ -3596,6 +3613,171 @@ then the stylesheets and scripts in parallel), not by bytes. Before #82 the land
 was 129.6 KB in local mode, over its budget: neither the HTML nor the static files were
 compressed there. In hosted mode the static files were already compressed, but not the
 pages. The scripts are `defer`red, so the first paint waits only for the stylesheets.
+
+### Charts
+
+The interactive charts (#75) for the QC review (#77), results dashboard (#78), gridded
+clicked-cell series (#85) and sector screen (#90). The R app draws static PNGs (and
+`plotly` only for the QC histograms); here the static PNGs and PDF are still written by the
+core (`climpact.plots`, see [Plots and zip archive](#plots-and-zip-archive)), and the
+screens show the same series as interactive charts.
+
+**Pieces.** uPlot 1.6.32, vendored in `vendor/uplot/` (MIT; version, source URLs and
+SHA-256s in its README, checked by `test_charts.py`); `js/charts.js`, a plain script
+with no build step that hydrates the design system's `chart_frame`; `css/charts.css`; the
+`charts` app, whose JSON views give each chart its data. ECharts was not added: every chart
+the screens need (lines, bars, markers, a trend overlay, two synchronised panels) is a time
+series uPlot draws, and a trimmed ECharts build is several times uPlot's size against the
+budget of #82.
+
+**Template API.** A page with charts loads the assets in its `head` block and includes the
+frame with a data URL:
+
+```django
+{% load charts %}
+{% block head %}{% chart_scripts %}{% endblock %}
+
+{% url "charts:station_daily" analysis.pk as daily_url %}
+{% include "components/chart_frame.html" with id="daily-chart" title=title data_url=daily_url csv_href=csv_url height="24rem" only %}
+
+{% url "charts:job_series" job.pk "txx_ANN" as txx_url %}
+{% include "components/chart_frame.html" with id="txx" title=title data_url=txx_url|add:"?station="|add:station image_src=png_url only %}
+```
+
+Include it with `only`: otherwise a page variable named like a parameter (`summary`,
+`legend`, `height` ...) leaks into the frame; step 1 and the gridded results both have a
+`summary` of their own.
+
+`chart_frame` parameters: `id`, `title`, `summary`, `legend`, `height` (CSS length of the
+plot area, default 16rem; the daily chart splits it 60/40 between its panels), `csv_href`,
+`table_template`, and for an interactive chart `data_url` and `image_src` (a static image,
+such as the run's PNG, shown instead without JavaScript). A summary, legend or CSV link
+left out is filled in from the data; without `table_template` the table view is built from
+the data. `{% chart_scripts %}` writes uPlot's stylesheet, `charts.css`, uPlot and
+`charts.js` (deferred) and `#climpact-chart-text`, the script's strings in the interface
+language. Only pages that include it load chart code: the landing page and the upload page
+do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
+`ClimpactCharts.hydrate(element)` does it by hand.
+
+**Data URLs** (`charts/urls.py`). All are GET-only and private to the session, like the
+pages (another session's analysis or job is 404):
+
+| URL name | Path | Payload |
+| --- | --- | --- |
+| `charts:station_daily` | `/charts/station/<analysis>/daily.json` | `daily`: the analysis's station file, with QC flags |
+| `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
+| `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
+| `gridded:series_json` | `/gridded/<run>/series.json?file=&var=&scale=&cell=y,x` | `index`: a gridded run's clicked-cell series (`data.series_payload`, no trend) |
+| `charts:sample_daily`, `charts:sample_series` | `/charts/sample/...` | the pattern library's examples (with `PATTERN_LIBRARY` only) |
+
+A job must have succeeded. `station` may be left out for a `station` job; for a `batch`
+job it names a station that finished, and its `IndexParams` are read from the job's
+metadata file (the output names of parameterised indices depend on them). Other apps
+serve the same payload kinds from their own views with `charts.views.json_response` (the
+caching) and `charts.data.series_payload` (an `index` payload from labels and values), as
+the gridded results do; the sector screen (#90) can do the same.
+
+**Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
+
+- `daily`: `start` (first date) and `days`; `series`, one per variable (`tmax`, `tmin`,
+  `prcp`) with `label`, `short`, `unit`, `panel`, `token` (the `--chart-*` colour) and
+  `values`, one per day, `null` where missing; `flags.points`, `[day, variable, check]`.
+  The x values are implicit (day *i* is `start` + *i*), so only values travel. The days are
+  the core's `merged_rows` (every date from the first row to the last; a repeated date takes
+  its last row, as the indices and the CSV download do; a test checks the payload against
+  the CSV). The flags come from the core's QC checks (`climpact.qc`: `outliers`,
+  `too_large`, `tmax_le_tmin`, `jumps`, `flatline`) run on the same rows with the
+  analysis's `QCParams` (the defaults until #77 stores the user's, through
+  `views.analysis_qc_params`), each placed on the value the check reports: the outlier's
+  variable (a DTR outlier on both temperatures), each value over the `toolarge` limits, both
+  temperatures for `tmaxmin`, the date a jump or flatline is reported on.
+- `index`: `x` (decimal years, mid-month for monthly series, day of the year for
+  `tx95t`), `y`, `dates` (the event dates of `txx`, `rx1day` ...), `title`, `units`,
+  `axis`, `step`, `bars` (SPI and SPEI), and `trend` (`slope`, `lower`, `upper`,
+  `intercept`, `p_value`) with the core's `trend_text`. Everything comes from
+  `climpact.plots.index_plots`, the function the static plots use, given a mapping that
+  reads only the one table asked for: the trend is the trend file's Sen's slope and bounds
+  (checked against the sample run's trend file) with `zyp.sen`'s intercept, drawn from the
+  first to the last position, so the chart and the PNG show the same line.
+
+Each payload has `summary`, a plain-language description written on the server and
+translated: the period, extremes with their dates, missing values, flagged values, and the
+trend per decade with its 95% interval and whether the interval excludes zero
+(significance as in the trends guide; the trend file has no p-value). The daily payload of
+an 80-year station is about 420 KB, 100 KB gzipped; an annual series 2-3 KB, a monthly one
+about 30 KB.
+
+**Caching.** Each response has an `ETag` (a hash of the source files' paths, modification
+times and sizes, the parameters, the language, the schema version and the app version) and
+`Last-Modified` (the newest source file), with `Cache-Control: private, no-cache`: the
+browser keeps the data and revalidates, and an unchanged file answers 304 without being
+read. Built payloads are also kept in a small in-process cache (24 entries) keyed by the
+ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
+
+**Behaviour** (`js/charts.js`):
+
+- *Lazy loading*: a frame's data is fetched when it comes within 200px of the viewport
+  (`IntersectionObserver`; at once where there is none). Until then the frame's skeleton
+  shows; a failed fetch replaces it with a message pointing to the CSV.
+- *Daily*: two panels sharing the x axis, cursor and zoom: temperature (TX and TN lines) and
+  precipitation (bars); flagged values as hollow rings in `--chart-flag`, told apart by
+  shape; missing days as gaps. *Index*: a line (with hollow markers for annual series),
+  the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and dry
+  (`--chart-2`), as in the static plots.
+- *Zoom and move*: drag across the plot to zoom, double-click to show all; the toolbar
+  (zoom in, zoom out, earlier, later, show all) and, on the focused plot, the keyboard
+  (`+`/`-`, arrow keys, `0` or Home). The visible range is announced politely
+  ("Showing 31 Mar 1972 to 1 Apr 1977") to screen readers after keyboard or button use.
+  Zoom stops at 7 days (daily) or 4 steps.
+- *Read-out*: the hovered date with each value, the event date and the QC checks that
+  flagged it, in a line under the plot (hidden from screen readers, which have the table).
+- *Table view*: "View as table" lists the values in view (date, each series, trend, event
+  date, flags), up to 1,000 rows; with more in view it asks to zoom in or use the CSV.
+  It follows the zoom while open.
+- *Export*: PNG (the canvases at the screen's pixel ratio, with title, visible range and
+  legend) and SVG (redrawn from the data of the current view, each pixel column of a long
+  series reduced to its lowest and highest value; uPlot's own axis ticks, read from its
+  undocumented `_splits` and `_values`, with a fallback).
+- *Themes*: colours come from `Climpact.chartPalette()`; on `climpact:themechange` the
+  charts are redrawn at the same zoom. Width follows the container (`ResizeObserver`).
+- Dates and numbers use the page language (`Intl`); dates are UTC. The plot area is
+  `dir="ltr"`: time runs left to right in right-to-left languages too, as in printed charts.
+
+**Accessibility.** The figure is labelled by the title and described by the summary; the
+plot area is focusable (`role="group"`, `aria-roledescription="chart"`, described by the
+summary and the keyboard hint), so a screen reader announces the summary on focus; the
+table view and the CSV carry the data. Without JavaScript the toolbar and table stay hidden,
+the frame shows `image_src` or a note, and the station step shows the static monthly
+overview.
+
+**Performance.** With the Sydney sample (29,220 days, three variables and 423 flags) in
+headless Chrome at 390px wide with the CPU throttled 4x (a mid-range phone), each zoom or
+move redraws in 18-37 ms. Pages and charts were checked in light and dark themes and at
+390px; screenshots are in the review folder of the PR.
+
+**Size.** `charts.js` is about 31.8 KB (9.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
+together 31.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
+`ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
+[Size budget](#size-budget)): step 1 with data (81.9 KB gzipped in total) and the gridded
+results (120.2 KB at worst), both under the 300 KB page budget.
+
+**Tests** (`tests/test_charts.py`): the vendored files' hashes; `charts.js` makes one
+request (the data URL) and has no other dependencies; chart assets only on
+chart pages; the daily payload (days, gaps, extremes, summary) and that it matches the CSV
+download; the QC flags against the core checks (the sample's TN >= TX day, TX jumps and
+`toolarge` days, every outlier row, stricter thresholds flagging more); index payloads
+against the trend file and `index_plots`; SPI bars, `day_of_` without trend; the views'
+JSON, 304 on `If-None-Match` and `If-Modified-Since`, new validators after a file
+changes, gzip, 404 for another session, an unfinished job, an unknown series or station;
+batch stations; the pattern library examples; the frame's markup, and that a page's own
+`summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
+against the netCDF values, its 304, SPI bars and the chart on the results page. The drawing itself has no
+browser tests (no browser is installed for them; #83); it was checked by hand as above.
+
+**Pattern library.** "Interactive charts" shows the four kinds (daily with flags, annual
+with trend, monthly, SPI bars) from the Sydney sample, through the same views. The design
+snapshots (`design_snapshots`) open from disk without a server, so their charts show the
+"could not be loaded" message.
 
 ## Development
 

@@ -9,5 +9,6 @@ urlpatterns = [
     path("batch/", include("climpact_web.batch.urls")),
     path("gridded/", include("climpact_web.gridded.urls")),
     path("help/", include("climpact_web.help.urls")),
+    path("charts/", include("climpact_web.charts.urls")),
     path("", include("climpact_web.core.urls")),
 ]

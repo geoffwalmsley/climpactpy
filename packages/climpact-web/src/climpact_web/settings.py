@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     "climpact_web.batch",
     "climpact_web.gridded",
     "climpact_web.help",
+    "climpact_web.charts",
 ]
 
 MIDDLEWARE = [

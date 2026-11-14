@@ -444,6 +444,31 @@ def test_sample_run_end_to_end(client, tmp_path):
     rows = response.content.decode().splitlines()
     assert rows[0] == "time,txx" and rows[1].startswith("1991,") and len(rows) == 21
     assert float(rows[-1].split(",")[1]) == pytest.approx(expected[-1], abs=1e-4)
+    # The interactive chart's data (#75): the same values, in the charts app's format.
+    response = client.get(f"/gridded/{run.pk}/series.json", {"file": path.name, "cell": "2,3"})
+    payload = response.json()
+    assert payload["kind"] == "index" and payload["step"] == "year" and payload["trend"] is None
+    assert payload["x"][0] == 1991 and len(payload["y"]) == 20
+    assert payload["y"][-1] == pytest.approx(expected[-1], abs=1e-4)
+    assert payload["csv"].startswith(f"/gridded/{run.pk}/series.csv?")
+    assert "No trend" not in payload["summary"] and "1991 to 2010" in payload["summary"]
+    assert (
+        client.get(
+            f"/gridded/{run.pk}/series.json",
+            {"file": path.name, "cell": "2,3"},
+            HTTP_IF_NONE_MATCH=response["ETag"],
+        ).status_code
+        == 304
+    )
+    monthly = client.get(
+        f"/gridded/{run.pk}/series.json", {"file": spi, "scale": 2, "cell": "0,1"}
+    ).json()
+    assert monthly["step"] == "month" and monthly["bars"] and len(monthly["x"]) == 240
+    html = client.get(f"/gridded/{run.pk}/results").content.decode()
+    assert f'data-chart-src="/gridded/{run.pk}/series.json?' in html
+    assert "uPlot.iife.min.js" in html and "<noscript>" in html and "series-preview" in html
+    assert 'id="series-chart-summary" data-chart-summary></p>' in html  # filled from the data
+    assert 'id="series-table-caption"' in html  # the table view
     response = client.get(f"/gridded/{run.pk}/map.csv", {"file": path.name, "t": 0})
     rows = response.content.decode().splitlines()
     assert rows[0] == "latitude,longitude,txx" and len(rows) == 13

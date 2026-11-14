@@ -36,11 +36,14 @@ series and the days with data in each year. Parameters from views.summary_contex
   </div>
 
   {% comment %}
-  CHART HOOK (#75, #77): the interactive daily-series chart replaces the static figure
-  below. Use components/chart_frame.html with csv_href set to the stations:series URL of
-  this analysis (the daily series as CSV: date, prcp, tmax, tmin) and keep the table view
-  of days with data per year as its table_template.
+  The interactive daily series (#75): data from charts:station_daily, with the values the
+  quality checks flag; the table view lists the days in view. Without JavaScript the
+  static monthly overview (preview.py) is shown instead.
   {% endcomment %}
+  {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.pk as series_url %}
+  {% translate "Daily series" as daily_title %}
+  {% include "components/chart_frame.html" with id="daily-chart" title=daily_title data_url=daily_url csv_href=series_url height="24rem" only %}
+  <noscript>
   <figure class="series-preview" aria-labelledby="preview-title">
     <figcaption class="stack stack--sm">
       <h3 class="chart__title" id="preview-title">{% translate "Monthly overview" %}</h3>
@@ -60,6 +63,7 @@ series and the days with data in each year. Parameters from views.summary_contex
       {% for variable in variables %}<li><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span>{{ variable.label }}</li>{% endfor %}
     </ul>
   </figure>
+  </noscript>
 
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "Days with data in each year" %}</span>{% icon "chevron-down" %}</summary>
@@ -83,10 +87,6 @@ series and the days with data in each year. Parameters from views.summary_contex
       </div>
     </div>
   </details>
-
-  <div class="cluster">
-    <a class="button button--secondary button--sm" href="{% url 'stations:series' analysis.pk %}" download>{% icon "download" %}<span>{% translate "Daily data (CSV)" %}</span></a>
-  </div>
 
   <details class="disclosure"{% if replace_open %} open{% endif %}>
     <summary>{% icon "upload" %}<span>{% translate "Use a different file" %}</span>{% icon "chevron-down" %}</summary>

@@ -49,7 +49,7 @@ ASSET_BUDGETS = {
     "icons/icons.svg": 2.5 * KB,
     "icons/favicon.svg": 0.5 * KB,
     "chart-palette.json": 1.5 * KB,  # not linked by pages; for code that cannot read CSS
-    # The interactive charts (#75), on chart pages only. Not on main yet.
+    # The interactive charts (#75), on chart pages only.
     "js/charts.js": 14 * KB,
     "css/charts.css": 1.5 * KB,
     "vendor/uplot/uPlot.iife.min.js": 24 * KB,
@@ -145,7 +145,7 @@ PAGES = {
     "job": Page(job_detail),
     "gridded start": Page(lambda client: "/gridded/"),
     "gridded set-up": Page(gridded_setup),
-    "gridded results, 100x100 grid": Page(gridded_results_large_grid),
+    "gridded results, 100x100 grid": Page(gridded_results_large_grid, charts=True),  # cell series
     "help": Page(lambda client: "/help/"),
     "help guide": Page(lambda client: "/help/quality-control/"),
     "help indices": Page(lambda client: "/help/indices/"),
@@ -269,7 +269,10 @@ def test_static_file_within_budget(path):
 def test_chart_code_only_on_chart_pages():
     """Only the pages marked as chart pages may load uPlot and the chart script; the rule
     is checked page by page in test_page_within_budget."""
-    assert [name for name, page in PAGES.items() if page.charts] == ["station sample loaded"]
+    assert [name for name, page in PAGES.items() if page.charts] == [
+        "station sample loaded",
+        "gridded results, 100x100 grid",
+    ]
     assert "landing" in PAGES and not PAGES["landing"].charts
 
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui charts %}
 {% block title %}{% translate "Check the data and describe the station" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% chart_scripts %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">

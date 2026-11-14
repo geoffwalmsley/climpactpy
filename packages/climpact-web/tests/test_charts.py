@@ -1,7 +1,6 @@
 """Interactive charts (#75): the chart data, the JSON views and their caching, the chart
 frame's hooks, and the vendored uPlot."""
 
-import gzip
 import hashlib
 import json
 import re
@@ -71,22 +70,6 @@ def test_charts_js_has_no_dependencies_beyond_uplot():
     # One request: the frame's own data URL. The only URL is the SVG namespace.
     assert js.count("fetch(") == 1 and 'getAttribute("data-chart-src")' in js
     assert re.findall(r"https?://[^\s\"']+", js) == ["http://www.w3.org/2000/svg"]
-
-
-# Chart JavaScript (uPlot and charts.js), loaded on chart pages only. #82 sets the page
-# budgets; these keep the chart layer where it is now.
-CHARTS_JS_BUDGET = 34_000  # bytes, charts.js uncompressed
-CHART_JS_GZIP_BUDGET = 33_000  # bytes, uPlot + charts.js gzipped
-CHARTS_CSS_BUDGET = 3_000
-
-
-def test_chart_assets_stay_small():
-    charts = (STATIC / "js" / "charts.js").read_bytes()
-    uplot = (UPLOT / "uPlot.iife.min.js").read_bytes()
-    assert len(charts) <= CHARTS_JS_BUDGET, len(charts)
-    gzipped = len(gzip.compress(uplot, 9)) + len(gzip.compress(charts, 9))
-    assert gzipped <= CHART_JS_GZIP_BUDGET, gzipped
-    assert (STATIC / "css" / "charts.css").stat().st_size <= CHARTS_CSS_BUDGET
 
 
 def test_chart_scripts_load_only_on_chart_pages(client):

@@ -3526,14 +3526,14 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 87.1 KB at most (gridded results, worst-case map) |
+| Any other page, chart code included | 300 KB gzipped in total | 120.2 KB at most (gridded results, worst-case map, with the chart code) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | none yet; step 1 with data loaded is marked for #75 |
+| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded and the gridded results |
 | Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
-`ASSET_BUDGETS` (a test fails otherwise); #75's files have theirs already (uPlot 24 KB,
-`charts.js` 14 KB, `charts.css` 1.5 KB, uPlot's CSS 1 KB, gzipped). To add a page, add a
+`ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
+9.2 of 14 KB, `charts.css` 0.5 of 1.5 KB, uPlot's CSS 0.7 of 1 KB, gzipped. To add a page, add a
 function returning its URL to `PAGES`.
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
@@ -3550,8 +3550,8 @@ only). The sizes print at the end of the test run, largest first; on this branch
 
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| gridded results, 100 x 100 grid | 1408.5 | 56.2 | 87.1 | 83.7 |
-| station step 1, sample loaded | 77.0 | 19.5 | 48.8 | 45.6 |
+| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 120.2 | 113.4 |
+| station step 1, sample loaded | 81.9 | 20.7 | 81.9 | 75.3 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
@@ -3588,7 +3588,8 @@ About 30 KB of every page is shared and cached after the first: htmx (16.9 KB), 
   alone. Django pads each compressed answer with random bytes against BREACH and masks the
   CSRF token afresh on every response. Pages compress to between a quarter and a third of their size.
 - *Gridded map*: the inline SVG map is capped at 2,500 cells (`MAX_MAP_CELLS`, was 40,000),
-  which keeps the worst gridded results page at 87 KB gzipped and 1.4 MB of HTML; before,
+  which keeps the worst gridded results page at 87 KB gzipped (120 KB with the chart code of
+#75) and 1.4 MB of HTML; before,
   a 100 x 100 grid gave 5.5 MB of HTML (249 KB gzipped) and the full cap about 20 MB.
 
 **Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
@@ -3755,11 +3756,13 @@ move redraws in 18-37 ms. Pages and charts were checked in light and dark themes
 390px; screenshots are in the review folder of the PR.
 
 **Size.** `charts.js` is about 31.8 KB (9.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
-together 31.4 KB gzipped, plus 4 KB of CSS. `test_charts.py` holds `charts.js` under
-34 KB and the two scripts under 33 KB gzipped, until #82 sets the page budgets.
+together 31.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
+`ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
+[Size budget](#size-budget)): step 1 with data (81.9 KB gzipped in total) and the gridded
+results (120.2 KB at worst), both under the 300 KB page budget.
 
 **Tests** (`tests/test_charts.py`): the vendored files' hashes; `charts.js` makes one
-request (the data URL) and has no other dependencies; size budgets; chart assets only on
+request (the data URL) and has no other dependencies; chart assets only on
 chart pages; the daily payload (days, gaps, extremes, summary) and that it matches the CSV
 download; the QC flags against the core checks (the sample's TN >= TX day, TX jumps and
 `toolarge` days, every outlier row, stricter thresholds flagging more); index payloads

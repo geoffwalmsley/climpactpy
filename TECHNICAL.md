@@ -2925,7 +2925,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Component | Notes |
 | --- | --- |
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons |
-| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django 5.2 puts in the widget's `aria-describedby` with `aria-invalid` |
+| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text |
@@ -3030,8 +3030,9 @@ runs it, reporting progress through the core's callbacks (#72, see
 **Choice of backend (#73).** The queue is the database: a `Job` table and a worker that
 polls it (`climpact-web manage runworker`). The development machine may not install
 system services, and the local install should not need any, so Redis (RQ, Celery) was
-ruled out (issue comment of 2026-11-14). Django's tasks framework is not in Django 5.2
-(it arrives in Django 6.0, which needs Python 3.12, and ships no production backend). The
+ruled out (issue comment of 2026-11-14). Django's tasks framework (new in Django 6.0) ships
+no production backend, only immediate and dummy ones, and was not in Django 5.2 when this
+was decided. The
 `django-tasks` package's database backend was considered, but the progress pages need
 stage progress, heartbeats and cancel requests on the job row anyway, so it would add a
 dependency without removing much code; the worker is about 400 lines in `jobs/worker.py`.
@@ -4304,8 +4305,8 @@ uv run pytest
   replacing the old `[dev]` extras; plain pip 25.1+ can install it with `pip install
   --group`): the core's is what the `core` CI job installs. Groups are not transitive, so
   a tool added to a member's group must be added to the root's too. `.python-version`
-  pins Python 3.12 for development; the supported range (`requires-python >=3.11`) is
-  unchanged. `uv.lock` is committed and resolved for every supported Python; after
+  pins Python 3.12 for development, which is also the minimum (`requires-python >=3.12`
+  in both packages, ruff `target-version = "py312"`; #117, needed by Django 6.0). `uv.lock` is committed and resolved for every supported Python; after
   changing a dependency, run `uv lock`. New T3 worktrees get the environment from the
   project's setup script, which should run `uv sync`.
 - The `climpact-example-plugin` test package is installed by writing its metadata into a
@@ -4315,7 +4316,7 @@ uv run pytest
 - CI installs uv with `astral-sh/setup-uv` (pinned to a commit SHA, uv 0.13.8, with its
   cache), sets the job's Python with its `python-version` input, and installs with
   `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
-- CI has four jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` checks
+- CI has four jobs. `core` and `web` run on Python 3.12, 3.13 and 3.14: `core` checks
   `uv lock --check`, installs only the core with its dev group (`uv sync --locked
   --package climpactpy`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
@@ -4341,8 +4342,13 @@ uv run pytest
   `uv run climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip] [--report]`
   (`climpact run --help` lists the options), or a batch with
   `uv run climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the
-  plots (the optional `plots` extra, also in the `dev` groups). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
+- Python 3.12+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the
+  plots (the optional `plots` extra, also in the `dev` groups). The web package uses
+  Django 6.0.x (`django>=6.0,<6.1`; #117 moved it from 5.2 LTS). Python 3.14 is in the CI
+  matrix because every compiled dependency has wheels for it: numpy, scipy, pandas,
+  matplotlib, brotli and psycopg-binary ship cp314 wheels, and netCDF4 and cftime ship
+  `cp311-abi3` wheels, which cover it (xarray, xclim and Django are pure Python).
+  CI runs on Python 3.12, 3.13 and 3.14 on **Ubuntu 24.04**
   (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
   the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
   macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:

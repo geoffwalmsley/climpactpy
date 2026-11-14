@@ -7,12 +7,12 @@ name = "climpact-web"
 description = "Web front end for climpactpy (Climpact in Python)"
 readme = "README.md"
 license = "GPL-3.0-or-later"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "climpactpy[plots]",  # the core package (import name: climpact), with matplotlib
     # for the plots and the PDF report (#79)
-    "django>=5.2,<6",  # 5.2 LTS (Django 6 needs Python 3.12)
+    "django>=6.0,<6.1",  # 6.0 (needs Python 3.12, the minimum since #117)
     "waitress>=3.0",  # the local server started by `climpact-web`
     "whitenoise>=6.7",  # static files: hashed, compressed copies (#82)
     "brotli>=1.1",  # Brotli copies of the static files, made by collectstatic (#82)

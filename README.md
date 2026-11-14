@@ -16,7 +16,7 @@ The repository holds two Python packages:
 
 ## Development
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/). The repository is a uv
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). The repository is a uv
 workspace: `uv sync` makes one virtual environment (`.venv`) with both packages installed
 in editable mode and the development tools, at the versions in `uv.lock`:
 

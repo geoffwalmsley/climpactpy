@@ -1,7 +1,7 @@
 # Ruff settings shared by the whole repository: reference/ scripts and both packages
 # (packages/*/pyproject.toml extend this file, so each package is its own ruff project).
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [lint]
 select = ["E", "F", "W", "I", "UP", "B", "NPY"]

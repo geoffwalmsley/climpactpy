@@ -2375,6 +2375,28 @@ EHF, where some 30-day sums need R's rounding emulation one window at a time (se
 Input files chunked by time step over the whole grid (common in model output) are
 rechunked first; see [Rechunked inputs](#rechunked-inputs).
 
+### Rechunked inputs
+
+Apple M-series laptop, a synthetic 2.5-degree global grid (72 x 144 = 10,368 cells),
+1961-2020 (21,915 days), float32 in K, chunked by one time step over the whole grid and
+compressed (zlib level 1, shuffle; 1.7 GB, 2.7 GB of raw values), default block (5 million
+values: 144 blocks of 76 cells) and slabs (482 days, 46 slabs):
+
+| | Read directly (`--rechunk no`, as before #67) | Rechunked (`--rechunk auto`) |
+| --- | --- | --- |
+| Reading every block (`load`), no computing | about 22 min (9 s per block: each decompresses the whole file) | 22 s (rechunk 10-11 s, then 11.5 s for the 144 blocks) |
+| `climpact gridded-thresholds`, base 1991-2000, `--workers 4` | 1,377 s, 1.54 GB peak resident memory | 80 s, 1.16 GB |
+
+All 26 variables of the two thresholds files are identical, as are the SHA-1 hashes of
+every block's three arrays. The numpy allocations of the rechunk are 40 MB
+(tracemalloc); the rest of its resident memory is netCDF-C's read cache, as for reading
+blocks directly (see [Rechunking](#rechunking-inputs-chunked-by-time-step)). Read
+directly, the time grows with the square of the grid: a 1-degree global grid has 900
+blocks, each decompressing four times as much, so about 9 hours of reading against
+about 3 minutes of rechunking. The indices compute for much longer per cell than the
+thresholds (see below), so the gain is relatively smaller there, but the hours of reading
+saved are the same.
+
 ### Gridded indices
 
 The same kind of synthetic grid (float32 in K, 1961-2020, base 1971-2000), the 84 files

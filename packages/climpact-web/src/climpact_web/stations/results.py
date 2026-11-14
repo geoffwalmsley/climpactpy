@@ -31,7 +31,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from django.utils.translation import get_language
+from django.utils.translation import get_language, gettext_lazy
 from django.utils.translation import gettext as _
 
 from climpact_web.charts import data as chart_data
@@ -164,6 +164,54 @@ def display_name(key: str, info) -> str:
     return key.replace("-", " ")
 
 
+# Heatwave tables share one catalogue entry (one long name), so each aspect gets its own
+# plain name, in the words of the indices guide; the definition says which heatwaves.
+_HEATWAVE = re.compile(r"^(TX90|TN90|EHF|ECF)-([A-Z]+)$")
+_ASPECTS = {
+    "HWN": gettext_lazy("Number of heatwaves"),
+    "HWF": gettext_lazy("Heatwave days"),
+    "HWD": gettext_lazy("Longest heatwave"),
+    "HWM": gettext_lazy("Mean heatwave temperature"),
+    "HWA": gettext_lazy("Peak temperature of the hottest heatwave"),
+    "HWMD": gettext_lazy("Mean heatwave duration"),
+    "HWPS": gettext_lazy("Peak heatwave severity"),
+    "HWLS": gettext_lazy("Total heatwave severity"),
+    "HWPI": gettext_lazy("Peak heatwave intensity"),
+    "HWLI": gettext_lazy("Total heatwave intensity"),
+    "CWN": gettext_lazy("Number of cold waves"),
+    "CWF": gettext_lazy("Cold-wave days"),
+    "CWD": gettext_lazy("Longest cold wave"),
+    "CWMD": gettext_lazy("Mean cold-wave duration"),
+    "CWPS": gettext_lazy("Peak cold-wave severity"),
+    "CWLS": gettext_lazy("Total cold-wave severity"),
+    "CWPI": gettext_lazy("Peak cold-wave intensity"),
+    "CWLI": gettext_lazy("Total cold-wave intensity"),
+}
+_DEFINITION_LABEL = {"TX90": "Tx90", "TN90": "Tn90", "EHF": "EHF", "ECF": "ECF"}
+
+
+def plain_name(key: str, info) -> str:
+    """The card's title, in words: the catalogue's long name (``Frost days``), or for the
+    indices that share one entry, a name of their own (``Number of heatwaves (Tx90)``,
+    ``Standardised precipitation index, 3 months``, ``Excess heat factor, daily``)."""
+    if m := _HEATWAVE.match(key):
+        aspect = _ASPECTS.get(m.group(2))
+        if aspect:
+            return _("%(aspect)s (%(definition)s)") % {
+                "aspect": aspect,
+                "definition": _DEFINITION_LABEL[m.group(1)],
+            }
+    if key == "EHFdaily":
+        return _("Excess heat factor, daily")
+    if key == "ECFdaily":
+        return _("Excess cold factor, daily")
+    if info is None:
+        return _("Your own threshold index")
+    if m := _SCALE.match(key):
+        return _("%(index)s, %(n)s months") % {"index": _(info.long_name), "n": m.group(1)}
+    return _(info.long_name)
+
+
 def signature(key: str) -> str:
     """What stays the same about an index when the parameters change, to keep the user on
     the same index after recalculating: ``rx3day`` and ``rx7day`` are both Rxdday,
@@ -215,6 +263,7 @@ class Card:
     name: str
     definition: str
     long_name: str
+    title: str  # the plain name the card and the index page lead with
     units: str
     group: str
     family: str
@@ -228,11 +277,17 @@ class Card:
     count: int = 0
     missing: int = 0
     daily: dict | None = None  # EHF and ECF daily tables
+    spread: float = 0.0  # standard deviation of the series the card shows
     order: int = 0
 
     @property
     def search_text(self) -> str:
-        return " ".join([self.key, self.name, self.definition, self.long_name]).lower()
+        return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
+
+    @property
+    def code(self) -> str:
+        """The index's code as Climpact's files spell it: ``TXx``, ``TX90-HWN``."""
+        return self.key if _HEATWAVE.match(self.key) else self.name
 
     @property
     def series_text(self) -> str:
@@ -241,6 +296,15 @@ class Card:
     @property
     def significant(self) -> bool:
         return bool(self.trend and self.trend.get("significant"))
+
+    @property
+    def change(self) -> float:
+        """How big the trend is next to the index's own variability: the slope per decade
+        divided by the standard deviation of the series (0 without a trend). This puts
+        days, °C, mm and % on one scale, to rank the significant trends."""
+        if not (self.trend and self.trend.get("valid")) or not self.spread:
+            return 0.0
+        return abs(self.trend["slope"]) / self.spread
 
 
 def _x_label(step: str, x: float) -> str:
@@ -352,6 +416,16 @@ def sparkline(values, bars: bool = False, trend=None) -> dict:
     return out
 
 
+def _spread(values) -> float:
+    """The sample standard deviation of the values present (0 for fewer than two)."""
+    present = [float(v) for v in values if v == v]
+    n = len(present)
+    if n < 2:
+        return 0.0
+    mean = sum(present) / n
+    return math.sqrt(sum((v - mean) ** 2 for v in present) / (n - 1))
+
+
 def _latest(plot) -> dict | None:
     for i in range(len(plot.values) - 1, -1, -1):
         v = plot.values[i]
@@ -404,9 +478,21 @@ class RunResults:
             cards = [c for c in self.cards if c.group == key]
             if cards:
                 out.append(
-                    {"key": key, "label": label, "family": FAMILY_OF_GROUP[key], "cards": cards}
+                    {
+                        "key": key,
+                        "label": label,
+                        "family": FAMILY_OF_GROUP[key],
+                        "cards": cards,
+                        "significant": sum(1 for c in cards if c.significant),
+                    }
                 )
         return out
+
+    def significant(self) -> list[Card]:
+        """The cards with a significant trend, the largest change first (see
+        :attr:`Card.change`), then in the catalogue's order."""
+        ordered = [c for s in self.sections() for c in s["cards"] if c.significant]
+        return sorted(ordered, key=lambda c: -c.change)
 
     def neighbours(self, card: Card) -> tuple[Card | None, Card | None]:
         ordered = [c for s in self.sections() for c in s["cards"]]
@@ -428,6 +514,7 @@ def _new_card(key: str, order: int) -> Card:
         name=display_name(key, info),
         definition="",
         long_name=_(info.long_name) if info is not None else _("Your own threshold index"),
+        title=plain_name(key, info),
         units="",
         group=group,
         family=FAMILY_OF_GROUP.get(group, "other"),
@@ -473,6 +560,7 @@ def build(
         card.latest = _latest(plot)
         card.count = len(plot.values)
         card.missing = int(sum(1 for v in plot.values if v != v))
+        card.spread = _spread(plot.values)
         # Annual first, then monthly, then the days of occurrence.
         card.series.sort(key=lambda s: (s.name.startswith("day_of_"), s.name.endswith("_MON")))
     for name in ("EHFdaily", "ECFdaily"):

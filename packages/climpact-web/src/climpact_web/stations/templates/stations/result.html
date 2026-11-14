@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
-{% block title %}{% blocktranslate with name=card.name station=analysis.station_name %}{{ name }}: {{ station }}{% endblocktranslate %}{% endblock %}
+{% block title %}{% blocktranslate with title=card.title name=card.name station=analysis.station_name %}{{ title }} ({{ name }}): {{ station }}{% endblocktranslate %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <nav class="cluster small result-nav" aria-label="{% translate 'Indices' %}">
-    <a href="{% url 'stations:results' analysis.pk %}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
+    <a href="{% url 'stations:results' analysis.pk %}?group={{ card.group }}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
     {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
     {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next">{% blocktranslate with name=next.name %}Next: {{ name }}{% endblocktranslate %}</a>{% endif %}
   </nav>
 
   <header class="stack stack--sm">
-    <p class="eyebrow">{{ card.long_name }}</p>
-    <h1>{{ card.name }}</h1>
+    <p class="eyebrow"><code class="index-code">{{ card.code }}</code></p>
+    <h1>{{ card.title }}</h1>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
     <p class="small muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
     {% help_topic card.topic %}

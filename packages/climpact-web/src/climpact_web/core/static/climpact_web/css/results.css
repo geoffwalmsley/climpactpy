@@ -36,7 +36,8 @@
   align-items: end;
 }
 
-.results-filter__search {
+.results-filter__search,
+.results-filter__families {
   grid-column: 1 / -1;
 }
 
@@ -96,14 +97,52 @@
   outline-offset: 2px;
 }
 
-/* Cards */
-.results-section {
+/* The significant trends, largest first (#113) */
+.trend-list {
   display: grid;
-  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
+.trend-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.trend-list__name {
+  flex: 1 1 16rem;
+}
+
+.trend-list .spark {
+  inline-size: 6rem;
+  block-size: 1.75rem;
+}
+
+.index-code {
+  font-size: var(--text-xs);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Groups, collapsed (#113), and cards */
 .results-section__title {
+  margin: 0;
   font-size: var(--text-lg);
+}
+
+.results-section__count {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: normal;
+}
+
+.results-section > .index-grid {
+  padding: var(--space-2) var(--space-4) var(--space-4);
 }
 
 .index-grid {
@@ -138,13 +177,6 @@
 
 .index-card > * {
   margin: 0;
-}
-
-.index-card__head {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-  justify-content: space-between;
 }
 
 .index-card__name {

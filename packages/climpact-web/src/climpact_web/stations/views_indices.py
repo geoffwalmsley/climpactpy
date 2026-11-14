@@ -373,6 +373,9 @@ def dashboard_context(request, analysis, source, run) -> dict:
         family = ""
     sections = run.sections()
     words = q.lower().split()
+    filtering = bool(words or family or significant)
+    # The "All indices" link of an index's page opens its group without JavaScript.
+    group = request.GET.get("group", "")
     shown = 0
     for section in sections:
         for card in section["cards"]:
@@ -383,6 +386,8 @@ def dashboard_context(request, analysis, source, run) -> dict:
             )
             shown += not card.hidden
         section["hidden"] = all(c.hidden for c in section["cards"])
+        # Groups start collapsed, unless a filter shows what is in them or a link asks.
+        section["open"] = not section["hidden"] and (filtering or section["key"] == group)
     counts = {key: sum(1 for c in run.cards if c.family == key) for key, _label in families}
     return {
         "source": source,
@@ -392,8 +397,10 @@ def dashboard_context(request, analysis, source, run) -> dict:
         "q": q,
         "family": family,
         "significant": significant,
+        "filtering": filtering,
         "shown": shown,
         "total": len(run.cards),
+        "significant_cards": run.significant(),
         "significant_count": sum(1 for c in run.cards if c.significant),
         "params": params_summary(source),
         "downloads": downloads(source),

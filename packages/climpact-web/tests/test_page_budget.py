@@ -42,7 +42,7 @@ ASSET_BUDGETS = {
     "css/qc.css": 1.5 * KB,  # the quality-check step (#77)
     "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
     "css/results.css": 2 * KB,  # station steps 3 and 4 (#78)
-    "js/results.js": 1 * KB,  # the results dashboard's filters (#78)
+    "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
     "css/sector.css": 1.5 * KB,  # station step 5, sector data (#90)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "css/batch.css": 1 * KB,

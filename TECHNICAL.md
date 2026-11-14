@@ -15,10 +15,11 @@ Sector correlation (the app's step 4, `climpact sector-correlation`, #84) reprod
 ten files for Sydney with Climpact's sample wheat data, detrended and not (see
 [Sector correlation](#sector-correlation)).
 Gridded base-period thresholds (`climpact gridded-thresholds`, #29) reproduce every
-variable of R's thresholds netCDF bit for bit on the three gridded reference grids that
+variable of R's thresholds netCDF bit for bit on the six gridded reference grids that
 have one, and the gridded indices (`climpact gridded-indices`, #30, #87) reproduce every
 variable of all 88 index files R writes per grid, including the heatwave, EHF, SPI and
-SPEI files, bit for bit on all five reference grids (see [Gridded data](#gridded-data)).
+SPEI files, bit for bit on all eight reference grids, three of them in the `noleap` and
+`360_day` calendars (#66; see [Gridded data](#gridded-data)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
@@ -90,6 +91,8 @@ src/climpact/
   station.py         StationRun (with cached base-period thresholds) and load_station()
   thresholds.py      base-period percentile thresholds; climdex and R type-7/8 quantiles,
                      vectorised over any leading dimensions (grid cells)
+  calendars.py       CalendarDays: a daily axis in the noleap and 360_day calendars, for
+                     gridded data (see Non-standard calendars)
   gridded/
     io.py            read CF netCDF tasmax/tasmin/pr as climdex.pcic.ncdf does (ncdf4
                      masking, udunits conversion); GriddedInput: dask blocks of cells,
@@ -780,7 +783,9 @@ netCDF files
 
 - Each variable must be in exactly one file and have time, Y and X dimensions (found
   from `axis`, `standard_name` or the dimension name); the files must share their time axis
-  (truncated to days). Only the standard (Gregorian) calendar is supported.
+  (truncated to days). The standard, `noleap` (`365_day`) and `360_day` calendars are
+  supported (see [Non-standard calendars](#non-standard-calendars)); others (`all_leap`,
+  `julian`) raise `NotImplementedError`, as PCICt does not know them.
 - Missing values as ncdf4's `ncvar_get`: the `missing_value` attribute, else `_FillValue`,
   else 1e30 for float types; float values within `1e-5 * |missing value|` of it are missing
   (`1e-10` when it is 0), integers only when equal. Then `value * scale_factor + add_offset`
@@ -804,7 +809,7 @@ at once: each series is padded to whole years (`create.filled.series`), TAVG is
 
 | Variable | Dimensions | Computed with |
 | --- | --- | --- |
-| `tx05thresh` ... `tx95thresh`, `tn05thresh` ... `tn95thresh` | time (365), lat, lon | `running_quantiles`, 5-day window (the station `thres/thres` columns) |
+| `tx05thresh` ... `tx95thresh`, `tn05thresh` ... `tn95thresh` | time (365, or `dpy`), lat, lon | `running_quantiles`, 5-day window (the station `thres/thres` columns) |
 | `tx90thresh_15days`, `tn90thresh_15days`, `tavg90thresh_15days` | time, lat, lon | `running_quantiles`, 15-day window (`HW_TX90`, `HW_TN90`, `HW_TAVG90`) |
 | `tavg05thresh`, `tavg95thresh` | lat, lon | `r_quantile_type7_rows` over every base-period day (the station EHF's T05, T95) |
 | `ehf85thresh` | lat, lon | `excess_factors` (`calculate_EHF` is the station EHF formula), then the type-7 85th percentile of the positive base-period EHF |
@@ -818,7 +823,7 @@ nothing.
 
 **Writing** (`create_thresholds_file`): the 21 variables above in R's order, as float64 with
 `_FillValue` 1e20 and `units`, `long_name`, `history`, `base_period`; dimensions `bnds`,
-`time` (unlimited, 365 days of the middle base year, `floor(mean(base))`), the X and Y
+`time` (unlimited, 365 days (`dpy` in other calendars) of the middle base year, `floor(mean(base))`), the X and Y
 dimensions of the input, and `base_time` (unlimited, every base-period day); `time` with
 the input time's attributes and `time_bnds` (first and last base year, named by the input
 time's `bounds` attribute); X and Y as float64 with the input's attributes; the exemplar
@@ -920,8 +925,8 @@ and `hwEHF_ANN` eight, `EHF-HWMD`, `EHF-HWD`, `EHF-HWPS`, `EHF-HWPI`, `EHF-HWLS`
 `EHF-HWLI`, `EHF-HWN`, `EHF-HWF` (`EHF_VARIABLES`), each with its own `units` and
 `long_name`, `expert_team` `ETSCI`, and no `definition` or copied input attributes;
 `spi_MON` and `spei_MON` have a fourth dimension `scale` (length 3, an int coordinate
-variable 1-3 with `units` `3,6,12 months`), and their variable is `(scale, time, Y, X)`. tx95t has a fixed `time` dimension of 365 calendar days (int32, values 1 to
-365, no bounds variable although the copied `bounds` attribute names one). Global
+variable 1-3 with `units` `3,6,12 months`), and their variable is `(scale, time, Y, X)`. tx95t has a fixed `time` dimension of 365 calendar days (360 in the `360_day`
+calendar; int32, values 1 to 365 or 360, no bounds variable although the copied `bounds` attribute names one). Global
 attributes: the precipitation file's, with `title`, `frequency`, `creation_date` and
 `tracking_id` renamed `input_*`, then `put.ETCCDI.atts` (`index_calculation_frequency` is
 `mon`, `yr` or `NA` for tx95t). The files are netCDF4, compressed, chunked by block,
@@ -1013,6 +1018,61 @@ that the temporary file is in `tmp_dir` and deleted (also on error), and that th
 numpy allocates while rechunking does not grow with the grid. See
 [Performance](#performance) for timings.
 
+### Non-standard calendars
+
+Model output often uses the `noleap` (`365_day`) or `360_day` calendar (#66). R reads them
+as PCICt dates, and climdex.pcic then works with `dpy` days per year (`attr(ts, "dpy")`):
+365 or 360 day-of-year thresholds (`create.thresholds.file`'s `num.thresholds`), years that
+end on the calendar's last day of December (`get.last.monthday.of.year`, 30 December for
+`360_day`), day numbers `1..dpy` (`get.jdays`), and no day dropped from the base period
+(`get.bootstrap.set` drops 29 February only when it exists and `dpy != 360`).
+
+`open_grid` reads such a time axis (xarray decodes it to cftime dates) into a
+`CalendarDays` (`src/climpact/calendars.py`), held as `GriddedInput.calendar_days`.
+`CalendarDays` has the parts of the `pandas.DatetimeIndex` interface the index code uses
+(`year`, `month`, `day`, `day_of_year`, indexing, `get_indexer`), so the station index
+functions run on it unchanged; standard-calendar data keep a `DatetimeIndex` and take
+exactly the code paths they took before. The functions that build or compare dates go
+through `climpact.calendars` (`as_days`, `whole_years`, `year_range`, `days_per_year`):
+`filled_dates`, `take_dates`, `base_period_array` (`(years, dpy)`), `running_quantiles`,
+`bootstrap_quantiles` (`dpy` from the array), `day_of_year`, `periods` (months and years of
+the calendar; labels are the first days as standard dates), the base-period masks of the
+percentile indices (by year), SPI/SPEI's `computefuture` series, and the output time axes
+(`_days_since`, `_period_bounds`).
+
+What R does in these calendars, reproduced (all checked by the reference runs
+`grid_filled_noleap`, `grid_filled_360day` and `grid_sample_360day`):
+
+- The thresholds file's `time` has `dpy` values and `base_time` every base-period day;
+  `base_time`'s `calendar` attribute is PCICt's name, `365` or `360` (`pcict_calendar`),
+  while `time` takes the input time's attributes, so it says `noleap` or `360_day`.
+- `create.thresholds.file` makes the `time` and `time_bnds` dates with
+  `as.PCICt(paste(year, 1:dpy), format = "%Y-%j")`. In `noleap`, PCICt reads `%j` as a day
+  of the standard calendar and places its month and day in the 365-day year, so in a leap
+  year day 60 (29 February) becomes 1 March, and so does day 61: 1 March appears twice and
+  31 December not at all (`_year_days`). `grid_filled_noleap`'s `time_bnds` (base end 2000)
+  has this. In `360_day` `%j` is read in the calendar.
+- `climdex.hw` drops 29 February only in the standard calendar, and looks up each day's
+  threshold with `tx90p[match(fact2, fact)]`, the position of its `"%m-%d"` among the days
+  of 2001 (`hw_threshold_days`). In `noleap` that is the day of the year. In `360_day` it is
+  not: from 1 February each day takes the threshold of a later day (1 February day 32's,
+  1 March day 60's), 29 and 30 February get none, and neither do 27-30 December (positions
+  past 360). Such days have no usable value (#51). Without this, 56 to 89 of
+  `grid_filled_360day`'s `hw` values differ from R's.
+- `climdex.hwEHF`'s 50% check divides by the days from 1 January of the first base year to
+  the calendar's last day of the last (`base_data_sufficient(..., calendar)`).
+- `write.climdex.results` turns the date of each extreme into a day number with `as.Date`,
+  in the standard calendar (`_day_numbers`): in `noleap`, a day after February of a leap
+  year gets its standard day of the year (1 March 2000 is 61); in `360_day`, the annual
+  day numbers reach 364 and 29 and 30 February (and 29 February outside leap years) are
+  missing. `day_of_txx` of the 360-day runs has such values.
+- The index files' `time_bnds` and `time` (the midpoints) are the first and last days of
+  each month or year of the calendar, in days since the origin of the calendar.
+
+A thresholds file whose `time` length is not the input calendar's `dpy` is refused
+(`check_thresholds_file`); R would index past its thresholds. Station files stay
+standard-calendar: Climpact's station input has no calendar.
+
 ## Use of xclim
 
 xclim 1.0 was meant to be used where its result is identical to R's or within tolerance,
@@ -1082,6 +1142,9 @@ unless its `thresholds` column is `no`) and R's index files (`output/<run>/indic
 | `grid_future` | The cells of `grid_stations` for 2001-2020, after the base period; indices only, with `grid_stations`' thresholds file (R accepts one only for data with no base-period day) | none | 100/100 (86 files; no `hw`, `hwEHF`) |
 | `grid_filled` | `grid_stations` with Beijing's series in the all-missing cell, and the sparse cell missing 20 June-20 July of every base year instead (its 15-day thresholds are missing for part of the northern season, but it has EHF), so R can write `hw` and `hwEHF`; only `hw`, `hwEHF`, `spi`, `spei` (`indices` column) | 26/26 | 20/20 (4 files) |
 | `grid_filled_future` | The cells of `grid_filled` for 2001-2020, with `grid_filled`'s thresholds file: the thresholds-file paths of `hw`, `hwEHF`, SPI and SPEI | none | 20/20 (4 files) |
+| `grid_filled_noleap` | `grid_filled` relabelled to the `noleap` calendar (29 February dropped); all indices | 26/26 | 118/118 (88 files) |
+| `grid_filled_360day` | `grid_filled` relabelled to `360_day` (the first 360 days of each year as twelve 30-day months); all indices | 26/26 | 118/118 (88 files) |
+| `grid_sample_360day` | `grid_sample` relabelled to `360_day` the same way, keeping its storage (hours since 1800, `time_bnds`); all indices | 26/26 | 118/118 (88 files) |
 
 `runs.csv`'s `indices_exclude` column lists the indices R's run leaves out, and its
 `indices` column the only ones it computes (passed to `run_gridded_indices.R` as
@@ -1217,12 +1280,18 @@ qc_stress: 9/9 written CSV files text-identical to R, 0 differing
 sydney: 125/125 written CSV files text-identical to R, 0 differing
 yakutsk: 125/125 written CSV files text-identical to R, 0 differing
 grid_filled: 26/26 thresholds netCDF variables identical to R, 0 differing
+grid_filled_360day: 26/26 thresholds netCDF variables identical to R, 0 differing
+grid_filled_noleap: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_sample: 26/26 thresholds netCDF variables identical to R, 0 differing
+grid_sample_360day: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_stations: 26/26 thresholds netCDF variables identical to R, 0 differing
 grid_filled: 20/20 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_filled_360day: 118/118 index netCDF variables identical to R, 0 differing, 0 not yet ported
 grid_filled_future: 20/20 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_filled_noleap: 118/118 index netCDF variables identical to R, 0 differing, 0 not yet ported
 grid_future: 100/100 index netCDF variables identical to R, 0 differing, 0 not yet ported
 grid_sample: 118/118 index netCDF variables identical to R, 0 differing, 0 not yet ported
+grid_sample_360day: 118/118 index netCDF variables identical to R, 0 differing, 0 not yet ported
 grid_stations: 100/100 index netCDF variables identical to R, 0 differing, 0 not yet ported
 sydney: 10/10 sector correlation CSV files matching R, 0 differing
 ```
@@ -2197,8 +2266,8 @@ file must be text-identical.
 
 ### Gridded data
 
-The gridded thresholds match R's file exactly on both reference grids, and every ported
-gridded index file matches R's exactly on the three reference grids (see
+The gridded thresholds match R's file exactly on all six reference grids that have one,
+and every gridded index file matches R's exactly on all eight reference grids (see
 [Reference outputs](#reference-outputs)); the per-cell rules R follows are in
 [Gridded indices](#gridded-indices). Differences in behaviour (the reference grids
 exercise only those said to be):
@@ -2209,7 +2278,7 @@ exercise only those said to be):
 | `get.quantiles.for.stripe` takes the base-period TAVG, EHF and raw data by position in the full-year date series (`date.series`) but indexes the file's series with it, and `base_time` holds the file's base-period dates: if the file does not start on 1 January or skips days, the positions shift and `txraw` and `base_time` differ in length | Python pads every series to whole years by date first (as `create.filled.series` does for the percentiles), so the positions are right and missing days are missing. Identical for files starting on 1 January with every day, as all reference grids |
 | `calculate_EHF` on a series that does not start on 1 January has its first 32 values missing; with the padding, the first EHF values of such a file use the padded (missing) days | as above: only files not starting on 1 January differ |
 | Bounds variables of X and Y (`lat_bnds`, ...) are copied (Climpact's README says inputs must not have them) | not copied; `time_bnds` uses a dimension `bnds` |
-| Non-standard calendars (`365_day`, `360_day`) are supported by PCICt | not supported: `open_grid` raises `NotImplementedError` (#66) |
+| Non-standard calendars: PCICt supports `365_day`/`noleap` and `360_day` (and stops on others) | supported the same way (#66), including R's `%Y-%j` threshold dates in `noleap` leap years, `climdex.hw`'s threshold lookup by month and day of 2001, and `day_of_<index>` numbers read as standard dates (see [Non-standard calendars](#non-standard-calendars)); `all_leap` and `julian` raise `NotImplementedError`. Identical on `grid_filled_noleap`, `grid_filled_360day` and `grid_sample_360day` |
 | Units udunits cannot convert to kg m-2 d-1 (`mm/day`) stop the run | `mm/day`, `mm d-1`, `mm day-1` and `mm` are accepted as kg m-2 d-1 |
 | `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
 | Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |

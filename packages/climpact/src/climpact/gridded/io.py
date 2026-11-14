@@ -14,7 +14,9 @@ from:
 - **Units** (udunits2 ``ud.convert``): temperatures to ``degrees_C`` (from kelvin,
   ``value - 273.15``), precipitation to ``kg m-2 d-1`` (from ``kg m-2 s-1``,
   ``value * 86400``). Both are exactly what udunits computes.
-- **Time** is truncated to whole days; all files must have the same time axis.
+- **Time** is truncated to whole days; all files must have the same time axis. The
+  ``noleap`` (``365_day``) and ``360_day`` calendars are read as a
+  :class:`~climpact.calendars.CalendarDays` axis, as PCICt reads them in R.
 
 Each variable is converted to float64 before any arithmetic, as R reads every value as
 a double. The data are opened lazily with dask, chunked in blocks of cells with the
@@ -46,6 +48,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from climpact.calendars import CalendarDays, DayAxis, canonical_calendar
 from climpact.progress import Progress, Steps
 
 VARIABLES = ("tasmax", "tasmin", "pr")
@@ -184,7 +187,9 @@ class GriddedInput:
     coordinates and attributes outputs copy.
 
     ``max_values``, ``rechunk`` and ``tmp_dir`` are :func:`open_grid`'s options of the
-    same names, used by :meth:`block_reader`.
+    same names, used by :meth:`block_reader`. ``calendar_days`` holds the time axis of
+    data in the ``noleap`` or ``360_day`` calendar (``data`` then has no time
+    coordinate); None for the standard calendar.
     """
 
     data: xr.Dataset
@@ -196,13 +201,19 @@ class GriddedInput:
     max_values: int = DEFAULT_MAX_VALUES
     rechunk: bool | None = None
     tmp_dir: Path | None = None
+    calendar_days: CalendarDays | None = None
 
     @property
     def exemplar(self) -> Path:
         return self.files["tasmax"]
 
     @property
-    def time(self) -> pd.DatetimeIndex:
+    def time(self) -> DayAxis:
+        """The days of the data: a ``DatetimeIndex``, or a
+        :class:`~climpact.calendars.CalendarDays` in the ``noleap`` and ``360_day``
+        calendars."""
+        if self.calendar_days is not None:
+            return self.calendar_days
         return pd.DatetimeIndex(self.data[self.time_dim].values)
 
     @property
@@ -494,6 +505,22 @@ def _find(datasets: dict[Path, xr.Dataset], name: str) -> Path:
     return found[0]
 
 
+def _days(coord: xr.DataArray, name: str) -> DayAxis:
+    """The decoded time coordinate truncated to days: a ``DatetimeIndex``, or a
+    :class:`~climpact.calendars.CalendarDays` for the ``noleap`` and ``360_day``
+    calendars (decoded by xarray to cftime dates)."""
+    t = coord.values
+    if np.issubdtype(t.dtype, np.datetime64):
+        return pd.DatetimeIndex(t).normalize()
+    calendar = getattr(t[0], "calendar", None) if t.size else None
+    if not calendar:
+        raise ValueError(f"{name}: cannot decode the time axis")
+    canonical = canonical_calendar(calendar)
+    if canonical is None:  # standard dates outside numpy's range
+        raise NotImplementedError(f"{name}: dates outside the years 1678-2261")
+    return CalendarDays.from_cftime(t, canonical)
+
+
 def _block_shape(ny: int, nx: int, cells: int) -> tuple[int, int]:
     """Rows of the whole width when they fit in ``cells``, else part of one row."""
     if cells >= nx:
@@ -512,8 +539,8 @@ def open_grid(
 
     ``names`` maps ``tasmax``, ``tasmin`` and ``pr`` to the netCDF variable names
     (default: the same names). Each variable must be in exactly one file, with
-    dimensions time, Y and X, and the files must share the time axis. Times must use
-    the standard (Gregorian) calendar.
+    dimensions time, Y and X, and the files must share the time axis. Times may use the
+    standard (Gregorian), ``noleap`` (``365_day``) or ``360_day`` calendar.
 
     The data are chunked in blocks of whole Y rows (or parts of a row) holding at most
     ``max_values`` values of the three variables, like climdex.pcic.ncdf's stripes
@@ -561,20 +588,15 @@ def open_grid(
         raw = datasets[where[v]][names[v]]
         if set(raw.dims) != set(first.dims):
             raise ValueError(f"{names[v]} does not have the dimensions of {names['tasmax']}")
-        t = raw[time_dim].values
-        if not np.issubdtype(t.dtype, np.datetime64):
-            raise NotImplementedError(
-                f"{names[v]}: only the standard (Gregorian) calendar is supported"
-            )
-        t = pd.DatetimeIndex(t).normalize()
+        t = _days(raw[time_dim], names[v])
         if time is None:
             time = t
         elif not time.equals(t):
             raise ValueError("the input files do not have the same time axis")
         if raw.sizes != first.sizes:
             raise ValueError(f"{names[v]} does not have the grid of {names['tasmax']}")
-        x = _to_climpact_units(raw.transpose(time_dim, y_dim, x_dim), v)
-        variables[v] = x.drop_vars(time_dim).assign_coords({time_dim: time})
+        x = _to_climpact_units(raw.transpose(time_dim, y_dim, x_dim), v).drop_vars(time_dim)
+        variables[v] = x if isinstance(time, CalendarDays) else x.assign_coords({time_dim: time})
     if not time.is_unique:
         raise ValueError("the time axis has a day more than once")
     data = xr.Dataset(variables)
@@ -588,6 +610,7 @@ def open_grid(
         max_values=max_values,
         rechunk=rechunk,
         tmp_dir=None if tmp_dir is None else Path(tmp_dir),
+        calendar_days=time if isinstance(time, CalendarDays) else None,
     )
 
 

@@ -9,6 +9,8 @@ base-period wet days (``get.prec.var.quantiles``, R ``quantile(type = 8)``).
 The R behaviour reproduced here, all of which affects results:
 
 - The base period is a 365-day year: 29 February is dropped (``get.bootstrap.set``).
+  In the ``noleap`` and ``360_day`` calendars (gridded data only) a year is the
+  calendar's ``dpy`` days, all kept (:mod:`climpact.calendars`).
 - The window wraps around **within the same year**: the window for 1 January takes
   30-31 December of the same year, not of the previous year (``(day + dpy) % dpy`` in
   the C++ code).
@@ -34,7 +36,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-DAYS_PER_YEAR = 365
+from climpact.calendars import CalendarDays, as_days, calendar_of, days_per_year, year_range
+
+DAYS_PER_YEAR = 365  # the standard calendar's dpy; see climpact.calendars for the others
 TEMPERATURE_QUANTILES = (0.05, 0.1, 0.5, 0.9, 0.95)  # Climpact temp.quantiles
 PRECIPITATION_QUANTILES = (0.05, 0.1, 0.5, 0.9, 0.95, 0.99)  # Climpact prec.quantiles
 TEMPERATURE_WINDOW = 5  # climdex.pcic default n
@@ -189,8 +193,10 @@ def r_quantile_type7(values: np.ndarray, prob: float) -> float:
 def day_of_year(time) -> np.ndarray:
     """climdex.pcic ``jdays`` (``get.jdays.replaced.feb29``): day of year 1-365 for every
     date, where 29 February shares 28 February's day (59) and later days of a leap year
-    are shifted back by one."""
-    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
+    are shifted back by one. In the ``noleap`` and ``360_day`` calendars, 1 to ``dpy``."""
+    index = as_days(time)
+    if isinstance(index, CalendarDays):
+        return index.day_of_year.to_numpy()
     doy = index.day_of_year.to_numpy().copy()
     shift = index.is_leap_year & (doy >= 60)
     feb29 = index.is_leap_year & (doy == 60)
@@ -199,17 +205,19 @@ def day_of_year(time) -> np.ndarray:
     return doy
 
 
-def base_period_dates(base_start: int, base_end: int) -> pd.DatetimeIndex:
-    """The days of the base period without 29 February (``get.bootstrap.set``)."""
-    dates = pd.date_range(f"{base_start}-01-01", f"{base_end}-12-31", freq="D")
+def base_period_dates(base_start: int, base_end: int, calendar: str | None = None):
+    """The days of the base period without 29 February (``get.bootstrap.set``); every
+    day of it in the ``noleap`` and ``360_day`` calendars."""
+    dates = year_range(calendar, base_start, base_end)
+    if calendar is not None:
+        return dates
     return dates[~((dates.month == 2) & (dates.day == 29))]
 
 
 def take_dates(values: np.ndarray, time, dates: pd.DatetimeIndex) -> np.ndarray:
     """The values on ``dates`` (last axis of ``values`` runs along ``time``), missing
     where a date is not in ``time`` (``create.filled.series``)."""
-    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
-    pos = index.get_indexer(dates)
+    pos = as_days(time).get_indexer(dates)
     out = np.take(np.asarray(values, dtype=float), np.maximum(pos, 0), axis=-1)
     out[..., pos < 0] = np.nan
     return out
@@ -225,9 +233,10 @@ def base_period_matrix(da: xr.DataArray, base_start: int, base_end: int) -> np.n
 
 def base_period_array(values: np.ndarray, time, base_start: int, base_end: int) -> np.ndarray:
     """:func:`base_period_matrix` for an array whose last axis runs along ``time``:
-    returns ``(..., years, 365)``."""
-    out = take_dates(values, time, base_period_dates(base_start, base_end))
-    return out.reshape(*out.shape[:-1], -1, DAYS_PER_YEAR)
+    returns ``(..., years, 365)`` (``dpy`` days in another calendar)."""
+    calendar = calendar_of(as_days(time))
+    out = take_dates(values, time, base_period_dates(base_start, base_end, calendar))
+    return out.reshape(*out.shape[:-1], -1, days_per_year(calendar))
 
 
 def window_values(base: np.ndarray, window: int) -> np.ndarray:
@@ -238,9 +247,8 @@ def window_values(base: np.ndarray, window: int) -> np.ndarray:
     includes days 364 and 365 of the same year.
     """
     half = window // 2
-    days = (np.arange(DAYS_PER_YEAR)[:, None] + np.arange(-half, half + 1)[None, :]) % (
-        DAYS_PER_YEAR
-    )
+    dpy = base.shape[-1]
+    days = (np.arange(dpy)[:, None] + np.arange(-half, half + 1)[None, :]) % dpy
     return np.swapaxes(base[..., days], -3, -2)  # base[..., days] is (..., years, 365, window)
 
 
@@ -265,7 +273,7 @@ def running_quantiles(
     out = {}
     for q in quantiles:
         result = climdex_quantile_sorted(rows, counts, q)
-        out[q] = np.where(enough, result, np.nan).reshape(*lead, DAYS_PER_YEAR)
+        out[q] = np.where(enough, result, np.nan).reshape(*lead, base.shape[-1])
     return out
 
 
@@ -273,7 +281,7 @@ def wet_day_quantiles(pr: np.ndarray, time, base_start: int, base_end: int, quan
     """climdex.pcic ``get.prec.var.quantiles``: R ``quantile(type = 8)`` of the wet days
     (>= 1 mm) of the base-period years, 29 February included. ``pr``'s last axis runs
     along ``time``; returns ``{q: array (...)}``."""
-    years = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time).year
+    years = as_days(time).year
     in_base = (years >= base_start) & (years <= base_end)
     values = np.asarray(pr, dtype=float)[..., in_base]
     with np.errstate(invalid="ignore"):
@@ -307,16 +315,14 @@ def bootstrap_quantiles(
     """
     base = np.asarray(base, dtype=float)
     lead = base.shape[:-2]
-    nyears = base.shape[-2]
-    flat = base.reshape(-1, nyears, DAYS_PER_YEAR)
-    out = {
-        q: np.full((flat.shape[0], DAYS_PER_YEAR, nyears, nyears - 1), np.nan) for q in quantiles
-    }
+    nyears, dpy = base.shape[-2:]
+    flat = base.reshape(-1, nyears, dpy)
+    out = {q: np.full((flat.shape[0], dpy, nyears, nyears - 1), np.nan) for q in quantiles}
     for cell in range(flat.shape[0]):
         result = _bootstrap_cell(flat[cell], window, quantiles, min_fraction)
         for q in quantiles:
             out[q][cell] = result[q]
-    return {q: v.reshape(*lead, DAYS_PER_YEAR, nyears, nyears - 1) for q, v in out.items()}
+    return {q: v.reshape(*lead, dpy, nyears, nyears - 1) for q, v in out.items()}
 
 
 def _weighted_value(data: np.ndarray, weight: np.ndarray, pos: np.ndarray) -> np.ndarray:
@@ -330,15 +336,15 @@ def _bootstrap_cell(
     base: np.ndarray, window: int, quantiles, min_fraction: float
 ) -> dict[float, np.ndarray]:
     """:func:`bootstrap_quantiles` of one ``(years, 365)`` series."""
-    nyears = base.shape[0]
+    nyears, dpy = base.shape
     slab = window * nyears
     pairs = [(rm, dup) for rm in range(nyears) for dup in range(nyears) if dup != rm]
     rm_idx = np.array([p[0] for p in pairs])
     dup_idx = np.array([p[1] for p in pairs])
-    out = {q: np.full((DAYS_PER_YEAR, len(pairs)), np.nan) for q in quantiles}
-    windows = window_values(base, window)  # (365, years, window)
+    out = {q: np.full((dpy, len(pairs)), np.nan) for q in quantiles}
+    windows = window_values(base, window)  # (dpy, years, window)
     year_of = np.repeat(np.arange(nyears), window)
-    for day in range(DAYS_PER_YEAR):
+    for day in range(dpy):
         values = windows[day].reshape(-1)
         present = ~np.isnan(values)
         order = np.argsort(values[present], kind="stable")
@@ -359,7 +365,7 @@ def _bootstrap_cell(
             right = _weighted_value(data, weight, right_pos)
             result = _c_quantile_combine(n, left, right, first, h)
             out[q][day] = np.where(enough, result, np.nan)
-    return {q: v.reshape(DAYS_PER_YEAR, nyears, nyears - 1) for q, v in out.items()}
+    return {q: v.reshape(dpy, nyears, nyears - 1) for q, v in out.items()}
 
 
 # --- thresholds for a station ------------------------------------------------------------

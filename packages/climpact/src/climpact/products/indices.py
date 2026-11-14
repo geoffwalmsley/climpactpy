@@ -23,13 +23,14 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from climpact.calendars import as_days
 from climpact.missing import valid_mask, valid_periods
 from climpact.outputs import product
 from climpact.periods import Periods, periods
 from climpact.products.tables import FREQS, dated_table, format_number, index_table
 from climpact.rnumerics import r_cumsum, r_mean, r_sum
 from climpact.station import StationRun
-from climpact.thresholds import DAYS_PER_YEAR, InsufficientBaseData, day_of_year
+from climpact.thresholds import InsufficientBaseData, day_of_year
 
 OPERATORS: dict[str, Callable] = {
     ">": operator.gt,
@@ -463,7 +464,7 @@ def spell_length_values(pr: np.ndarray, time, condition: str) -> tuple[np.ndarra
     flags = OPERATORS[condition](pr, 1.0)  # NaN compares False, as R's NA -> FALSE
     nan = np.isnan(pr)
     spells = series_lengths_at_ends(flags)
-    years = pd.DatetimeIndex(time).year.to_numpy()
+    years = as_days(time).year.to_numpy()
     mask = valid_periods(~nan, time, "YS")
     durations, ends = [], []
     for i, year in enumerate(np.unique(years)):
@@ -619,10 +620,8 @@ def days_op_threshold(run: StationRun, var: str, q: float, condition: str) -> xr
 
 
 def _base_days(time, base_start: int, base_end: int) -> np.ndarray:
-    time = pd.DatetimeIndex(time)
-    return (time >= pd.Timestamp(f"{base_start}-01-01")) & (
-        time <= pd.Timestamp(f"{base_end}-12-31")
-    )
+    years = as_days(time).year.to_numpy()
+    return (years >= base_start) & (years <= base_end)
 
 
 def _bootstraps(time, base_start: int, base_end: int) -> bool:
@@ -630,7 +629,7 @@ def _bootstraps(time, base_start: int, base_end: int) -> bool:
     than two years. With one base year, R fails (no years to replace with); the
     out-of-base thresholds are kept then."""
     inset = _base_days(time, base_start, base_end)
-    years = pd.DatetimeIndex(time).year.to_numpy()[inset]
+    years = as_days(time).year.to_numpy()[inset]
     return bool(inset.any() and len(time) >= 360 * 2 and years.max() > years.min())
 
 
@@ -659,7 +658,7 @@ def days_op_threshold_values(
     period, but gives percentages above 100 when it starts or ends inside it, so it
     is not copied (TECHNICAL.md, "R behaviour not copied").
     """
-    time = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
+    time = as_days(time)
     op = OPERATORS[condition]
     thr = np.asarray(outbase)[..., day_of_year(time) - 1]
     with np.errstate(invalid="ignore"):
@@ -847,13 +846,13 @@ def spell_duration_values(
     ``{name: (..., years)}``; ``thresholds[var, q]`` holds the ``(..., 365)``
     out-of-base thresholds of TX and TN for q = 0.05, 0.1, 0.9, 0.95. The spells are
     found one series at a time."""
-    time = pd.DatetimeIndex(time)
+    time = as_days(time)
     years = time.year.to_numpy()
     doy = day_of_year(time) - 1
     masks = {v: valid_values(time, "YS", x) for v, x in (("tasmax", tasmax), ("tasmin", tasmin))}
     lead = tasmax.shape[:-1]
     tx, tn = tasmax.reshape(-1, time.size), tasmin.reshape(-1, time.size)
-    thr = {k: np.asarray(v).reshape(-1, DAYS_PER_YEAR)[:, doy] for k, v in thresholds.items()}
+    thr = {k: np.asarray(v).reshape(-1, np.shape(v)[-1])[:, doy] for k, v in thresholds.items()}
     out = {}
     for prefix, var, x, q, condition in (
         ("wsdi", "tasmax", tx, 0.9, ">"),
@@ -1033,7 +1032,7 @@ def gsl_values(tas: np.ndarray, time, northern: np.ndarray) -> np.ndarray:
     """Growing season length of every series, ``(..., time) -> (..., years)``;
     ``northern`` (the leading dimensions) says which series use the Northern
     Hemisphere season."""
-    dates = pd.DatetimeIndex(time)
+    dates = as_days(time)
     rows = tas.reshape(-1, dates.size)
     north = np.broadcast_to(np.asarray(northern, dtype=bool), tas.shape[:-1]).reshape(-1)
     out = np.stack(

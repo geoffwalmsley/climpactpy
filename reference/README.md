@@ -97,6 +97,9 @@ wrapper's `thresholds.name.map`), and author data `climpactpy reference` / `CPY`
 
 | `grid_filled` | `grid_stations` with Beijing's series in the all-missing cell; the sparse cell instead misses 20 June-20 July of every base year | 1966-2005, base 1971-2000; only `hw`, `hwEHF`, `spi`, `spei` | `hw` and `hwEHF` on a grid with missing data: missing 15-day thresholds in the northern season, the dry and gappy cells, Nairobi with 53% of the base period |
 | `grid_filled_future` | The cells of `grid_filled` for 2001-2020 | 2001-2020; the four only, with `grid_filled`'s thresholds file | The thresholds-file paths of `hw` (`tx90thresh_15days`, `tn90thresh_15days`), `hwEHF` (`tavg95thresh`, `tavg05thresh`, `ehf85thresh`) and SPI/SPEI (`txraw`, `tnraw`, `precraw`) |
+| `grid_filled_noleap` | `grid_filled` relabelled to the `noleap` calendar: the same series without 29 February | 1966-2005, base 1971-2000; thresholds and all 88 index files | A 365-day calendar on the grid with missing data, including leap years of the labels (R's `%Y-%j` threshold dates, `day_of_` numbers read as standard dates) |
+| `grid_filled_360day` | `grid_filled` relabelled to `360_day`: the first 360 days of every year as twelve 30-day months | 1966-2005, base 1971-2000; thresholds and all 88 index files | `dpy = 360`: 360 thresholds, years ending on 30 December, 29 and 30 February, `climdex.hw`'s threshold lookup by month and day in 2001 |
+| `grid_sample_360day` | `grid_sample` relabelled to `360_day` the same way, its storage kept | 1991-2010, base 1991-2010; thresholds and all 88 index files | `360_day` with time in hours since 1800 and `time_bnds` |
 
 R stops in `write.climdex.results` on the `hw` and `hwEHF` files of any grid with an
 all-missing cell, so `grid_stations` and `grid_future` leave those two indices out (86 index
@@ -104,7 +107,7 @@ files each; `grid_sample` has all 88). It also stops on `hwEHF` when a cell has 
 than half of the base period (`climdex.hwEHF` returns `NULL`), which is why `grid_filled`
 does not keep `grid_stations`' sparse cell.
 
-The inputs (3.9 MB) and outputs (4.2 MB of thresholds, 9.8 MB of index files) are committed.
+The inputs (6.6 MB) and outputs (7.3 MB of thresholds, 19.5 MB of index files) are committed.
 R writes uncompressed files with one chunk per time step; `run_r_gridded.sh` repacks them with
 `nccopy -d 9 -s` and larger chunks, which changes neither the variables, values nor attributes.
 Re-running changes the `file_created` and `history` attributes, so only commit a re-run when

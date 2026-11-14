@@ -37,6 +37,7 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
+from climpact.calendars import days_per_year
 from climpact.missing import valid_mask
 from climpact.outputs import product
 from climpact.products.heatwaves import aspect_table
@@ -172,10 +173,17 @@ def annual_aspects(ehf: np.ndarray, years: np.ndarray, ehf85: float) -> dict[str
     }
 
 
-def base_data_sufficient(tavg_base: np.ndarray, base_start: int, base_end: int) -> bool:
+def base_data_sufficient(
+    tavg_base: np.ndarray, base_start: int, base_end: int, calendar: str | None = None
+) -> bool:
     """R's check: TAVG present on at least half of the days from 1 January of the first
-    base year to 31 December of the last (``difftime`` of the two dates)."""
-    ideal = (dt.date(base_end, 12, 31) - dt.date(base_start, 1, 1)).days
+    base year to 31 December of the last (``difftime`` of the two dates). In the
+    ``noleap`` and ``360_day`` calendars (gridded data) the last day is the calendar's
+    last day of the year, so the difference is ``years * dpy - 1`` days."""
+    if calendar is None:
+        ideal = (dt.date(base_end, 12, 31) - dt.date(base_start, 1, 1)).days
+    else:
+        ideal = (base_end - base_start + 1) * days_per_year(calendar) - 1
     return np.count_nonzero(~np.isnan(tavg_base)) / ideal >= MIN_BASE_FRACTION
 
 

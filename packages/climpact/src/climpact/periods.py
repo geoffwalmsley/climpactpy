@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from climpact.calendars import CalendarDays
+
 RULES = ("MS", "YS")
 
 
@@ -117,12 +119,27 @@ class Periods:
 
 
 def periods(time: xr.DataArray | pd.DatetimeIndex | np.ndarray, rule: str) -> Periods:
-    """Periods (``"MS"`` monthly or ``"YS"`` annual) of a daily time axis."""
-    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
-    # Periods counted from 1970 in numpy's month or year units.
+    """Periods (``"MS"`` monthly or ``"YS"`` annual) of a daily time axis.
+
+    For a :class:`~climpact.calendars.CalendarDays` axis (``noleap``, ``360_day``) the
+    periods are its months or years and the labels their first days as standard dates,
+    which always exist."""
     unit = {"MS": "M", "YS": "Y"}.get(rule)
     if unit is None:
         raise ValueError(f"periods supports 'MS' or 'YS', got {rule!r}")
+    if isinstance(time, CalendarDays):
+        year, month = time.year.to_numpy(), time.month.to_numpy()
+        number = year * 12 + month - 1 if unit == "M" else year
+        first, last = int(number.min()), int(number.max())
+        codes = np.arange(first, last + 1)
+        labels = pd.to_datetime(
+            {"year": codes // 12, "month": codes % 12 + 1, "day": 1}
+            if unit == "M"
+            else {"year": codes, "month": 1, "day": 1}
+        )
+        return Periods(codes=(number - first).astype(np.intp), labels=pd.DatetimeIndex(labels))
+    index = pd.DatetimeIndex(time.values if isinstance(time, xr.DataArray) else time)
+    # Periods counted from 1970 in numpy's month or year units.
     number = index.to_numpy().astype(f"datetime64[{unit}]").astype(np.int64)
     first, last = int(number.min()), int(number.max())
     starts = np.arange(first, last + 1).astype(f"datetime64[{unit}]")

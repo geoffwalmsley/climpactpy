@@ -27,6 +27,7 @@ from __future__ import annotations
 import datetime as dt
 import getpass
 import os
+import re
 import time as time_module
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -38,12 +39,20 @@ import numpy as np
 import pandas as pd
 
 from climpact import __version__
+from climpact.calendars import (
+    CalendarDate,
+    CalendarDays,
+    DayAxis,
+    calendar_of,
+    days_per_year,
+    whole_years,
+    year_range,
+)
 from climpact.gridded.io import GriddedInput
 from climpact.io.output_files import CLIMPACT_VERSION
 from climpact.products.ehf import excess_factors
 from climpact.progress import Progress
 from climpact.thresholds import (
-    DAYS_PER_YEAR,
     HEATWAVE_QUANTILE,
     HEATWAVE_WINDOW,
     MIN_BASE_DAYS,
@@ -72,8 +81,9 @@ OUTPUT_CHUNK_CACHE = 1 << 20  # bytes per output variable
 class ThresholdVariable:
     """One variable of the thresholds file (``get.thresholds.metadata``).
 
-    ``kind`` is ``"day"`` (365 days of year, on ``time``), ``"cell"`` (one value per
-    cell) or ``"base"`` (every base-period day, on ``base_time``).
+    ``kind`` is ``"day"`` (365 days of year, or the ``dpy`` of a ``noleap`` or
+    ``360_day`` calendar, on ``time``), ``"cell"`` (one value per cell) or ``"base"``
+    (every base-period day, on ``base_time``).
     """
 
     name: str
@@ -106,12 +116,13 @@ THRESHOLD_VARIABLES = (
 )
 
 
-def filled_dates(time: pd.DatetimeIndex) -> pd.DatetimeIndex:
-    """1 January of the first year to 31 December of the last (``date.series``)."""
-    return pd.date_range(f"{time[0].year}-01-01", f"{time[-1].year}-12-31", freq="D")
+def filled_dates(time: DayAxis) -> DayAxis:
+    """1 January of the first year to 31 December of the last (``date.series``), or the
+    last day of the year of a ``noleap`` or ``360_day`` calendar."""
+    return whole_years(time)
 
 
-def check_base_period(time: pd.DatetimeIndex, base_start: int, base_end: int) -> None:
+def check_base_period(time: DayAxis, base_start: int, base_end: int) -> None:
     """climdex.pcic stops when the dates cover ``MIN_BASE_DAYS`` days of the base
     period or fewer (``get.num.days.in.range``)."""
     years = time.year
@@ -125,16 +136,16 @@ def cell_thresholds(
     tasmax: np.ndarray,
     tasmin: np.ndarray,
     pr: np.ndarray,
-    time: pd.DatetimeIndex,
+    time: DayAxis,
     base_start: int,
     base_end: int,
 ) -> dict[str, np.ndarray]:
     """Every threshold of :data:`THRESHOLD_VARIABLES` for a block of cells.
 
     The inputs are ``(..., time)`` arrays in degrees C and kg m-2 d-1 (any leading
-    dimensions, the cells). Returns ``{name: array}`` of shape ``(..., 365)`` for the
-    day-of-year thresholds, ``(...)`` for the single values and ``(..., base days)``
-    for the base-period data.
+    dimensions, the cells). Returns ``{name: array}`` of shape ``(..., 365)`` (``dpy``
+    in the ``noleap`` and ``360_day`` calendars) for the day-of-year thresholds,
+    ``(...)`` for the single values and ``(..., base days)`` for the base-period data.
     """
     full = filled_dates(time)
     tx = take_dates(tasmax, time, full)
@@ -183,8 +194,36 @@ def _time_origin(units: str) -> str:
 
 
 def _days_since(dates, origin: str) -> np.ndarray:
+    """Days from the date ``origin`` (``YYYY-MM-DD``) to each date, in the calendar of
+    ``dates``."""
+    if isinstance(dates, CalendarDays):
+        match = re.fullmatch(r"(-?\d+)-(\d{1,2})-(\d{1,2})(?:[T ].*)?", origin.strip())
+        if match is None:
+            raise ValueError(f"unsupported time origin {origin!r}")
+        return dates.days_since(CalendarDate(*(int(g) for g in match.groups())))
     origin_day = pd.Timestamp(origin).normalize()
     return ((pd.DatetimeIndex(dates) - origin_day) / pd.Timedelta(days=1)).to_numpy(float)
+
+
+def _year_days(calendar: str | None, year: int) -> DayAxis:
+    """Days ``1:dpy`` of ``year`` as ``create.thresholds.file`` makes them
+    (``as.PCICt(paste(year, 1:dpy, sep = "-"), cal, format = "%Y-%j")``).
+
+    In ``noleap`` PCICt reads ``%j`` as a day of the standard calendar and then places
+    its month and day in the 365-day year. In a leap year, day 60 (29 February) becomes
+    1 March and every later day the day before its number, so 1 March appears twice and
+    31 December not at all. Reproduced (``360_day`` reads ``%j`` in its own calendar)."""
+    days = year_range(calendar, year, year)[: days_per_year(calendar)]
+    if calendar != "noleap":
+        return days
+    standard = pd.Timestamp(f"{year}-01-01") + pd.to_timedelta(np.arange(days.size), unit="D")
+    return CalendarDays(calendar, days.year, standard.month, standard.day)
+
+
+def pcict_calendar(calendar: str | None) -> str:
+    """The calendar name R writes where it does not copy the input's (PCICt's
+    ``attr(ts, "cal")``: ``365``, ``360``; ``proleptic_gregorian`` for standard data)."""
+    return {None: "proleptic_gregorian", "noleap": "365", "360_day": "360"}[calendar]
 
 
 def _copy_attrs(src, dst, skip=()) -> None:
@@ -229,6 +268,8 @@ def create_thresholds_file(
     """Create the thresholds file with everything but the threshold values
     (``create.thresholds.file``), and return it open for writing."""
     author = author or {}
+    calendar = calendar_of(inp.time)
+    dpy = days_per_year(calendar)
     nbase = _base_dates(inp.time, base_start, base_end).size
     ny, nx = inp.shape
     by = max(inp.data.chunks[inp.y_dim])
@@ -243,12 +284,11 @@ def create_thresholds_file(
             src_time.getncattr("bounds") if "bounds" in src_time.ncattrs() else "time_bnds"
         )
         mid = (base_start + base_end) // 2  # R: floor(mean(base.range))
-        day = pd.to_timedelta(np.arange(DAYS_PER_YEAR), unit="D")
-        out_time = _days_since(pd.Timestamp(f"{mid}-01-01") + day, origin)
+        out_time = _days_since(_year_days(calendar, mid), origin)
         out_bounds = np.stack(
             [
-                _days_since(pd.Timestamp(f"{base_start}-01-01") + day, origin),
-                _days_since(pd.Timestamp(f"{base_end}-01-01") + day, origin),
+                _days_since(_year_days(calendar, base_start), origin),
+                _days_since(_year_days(calendar, base_end), origin),
             ],
             axis=1,
         )
@@ -267,7 +307,7 @@ def create_thresholds_file(
                 {
                     "long_name": "time",
                     "units": f"days since {origin}",
-                    "calendar": "proleptic_gregorian",
+                    "calendar": pcict_calendar(calendar),
                 }
             )
             # R copies every attribute of the input time, including units in hours or
@@ -295,7 +335,7 @@ def create_thresholds_file(
                 "base": ("base_time", inp.y_dim, inp.x_dim),
             }
             chunks = {
-                "day": (DAYS_PER_YEAR, by, bx),
+                "day": (dpy, by, bx),
                 "cell": (by, bx),
                 "base": (max(nbase, 1), by, bx),
             }
@@ -306,7 +346,7 @@ def create_thresholds_file(
                         {
                             "units": f"days since {origin}",
                             "long_name": "time",
-                            "calendar": "proleptic_gregorian",
+                            "calendar": pcict_calendar(calendar),
                         }
                     )
                     bt[:] = base_time
@@ -337,7 +377,7 @@ def create_thresholds_file(
     return nc
 
 
-def _base_dates(time: pd.DatetimeIndex, base_start: int, base_end: int) -> pd.DatetimeIndex:
+def _base_dates(time: DayAxis, base_start: int, base_end: int) -> DayAxis:
     full = filled_dates(time)
     return full[(full.year >= base_start) & (full.year <= base_end)]
 

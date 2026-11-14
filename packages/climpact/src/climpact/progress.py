@@ -19,7 +19,9 @@ that fails stops calling it.
   the workers send them to the parent through a queue and the callback is called in the
   parent process, in the thread that called ``run_batch``.
 - :func:`climpact.gridded.write_grid_thresholds` reports ``thresholds`` once per block
-  of the grid, and :func:`climpact.gridded.write_grid_indices` ``indices``.
+  of the grid, and :func:`climpact.gridded.write_grid_indices` ``indices``; both report
+  ``rechunk`` once per time slab first when the input is rechunked
+  (:meth:`climpact.gridded.GriddedInput.block_reader`).
 
 The default everywhere is no callback, which costs nothing and changes no output.
 Callbacks are only ever called in the process that passed them, so they need not be

@@ -398,9 +398,10 @@ def write_grid_thresholds(
     block is read, so memory is bounded by one block and ``workers`` batches whatever
     the size of the grid. ``author`` may give ``institution``, ``institution_id``,
     ``indices_archive``, ``contact`` and ``references`` (R's ``author.data``).
-    ``progress("thresholds", done, total)`` is called after each block (see
-    :mod:`climpact.progress`). The file is written under a
-    temporary name and renamed when complete.
+    ``progress("thresholds", done, total)`` is called after each block, after
+    ``progress("rechunk", ...)`` for each time slab if the input is rechunked first
+    (see :meth:`GriddedInput.block_reader` and :mod:`climpact.progress`). The file is
+    written under a temporary name and renamed when complete.
     """
     time = inp.time
     check_base_period(time, base_start, base_end)
@@ -409,9 +410,12 @@ def write_grid_thresholds(
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     nc = create_thresholds_file(tmp, inp, base_start, base_end, author)
     try:
-        with ThreadPoolExecutor(max_workers=max(workers, 1)) as pool:
-            for done, block in enumerate(blocks, start=1):
-                data = inp.load(block)  # netCDF reads and writes stay in this thread
+        with (
+            inp.block_reader(progress, len(blocks)) as reader,
+            ThreadPoolExecutor(max_workers=max(workers, 1)) as pool,
+        ):
+            for block in blocks:
+                data = reader.load(block)  # netCDF reads and writes stay in this thread
                 result = block_thresholds(
                     data,
                     time,
@@ -423,8 +427,7 @@ def write_grid_thresholds(
                 del data
                 _write_block(nc, block, result)
                 del result
-                if progress:
-                    progress("thresholds", done, len(blocks))
+                reader.steps.done("thresholds")
         nc.close()
     except BaseException:
         nc.close()

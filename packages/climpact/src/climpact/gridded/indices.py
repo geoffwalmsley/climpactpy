@@ -845,8 +845,9 @@ def write_grid_indices(
     ``climate.indices.csv`` (R's ``climdex.vars.subset``, e.g. ``rxdday``, ``wsdid``).
     Blocks are read, computed (by ``workers`` threads, ``cells_per_batch`` cells at a
     time) and written one at a time; ``progress("indices", done, total)`` is called after
-    each block (see :mod:`climpact.progress`); the files are written under temporary names and
-    renamed when all are complete.
+    each block, after ``progress("rechunk", ...)`` for each time slab if the input is
+    rechunked first (see :meth:`GriddedInput.block_reader`); the files are written under
+    temporary names and renamed when all are complete.
     """
     time = inp.time
     if thresholds_file is None:
@@ -874,9 +875,12 @@ def write_grid_indices(
             )
         thr_nc = netCDF4.Dataset(thresholds_file) if thresholds_file else None
         blocks = list(inp.blocks())
-        with ThreadPoolExecutor(max_workers=max(workers, 1)) as pool:
-            for done, block in enumerate(blocks, start=1):
-                data = inp.load(block)  # netCDF reads and writes stay in this thread
+        with (
+            inp.block_reader(progress, len(blocks)) as reader,
+            ThreadPoolExecutor(max_workers=max(workers, 1)) as pool,
+        ):
+            for block in blocks:
+                data = reader.load(block)  # netCDF reads and writes stay in this thread
                 thr = _read_thresholds(thr_nc, block, inp) if thr_nc else None
                 results = block_indices(
                     data,
@@ -894,8 +898,7 @@ def write_grid_indices(
                 for s in specs:
                     _write_block(files[s.key], s, block, results[s.key])
                 del results
-                if progress:
-                    progress("indices", done, len(blocks))
+                reader.steps.done("indices")
         for nc in files.values():
             nc.close()
     except BaseException:

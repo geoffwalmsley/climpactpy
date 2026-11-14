@@ -40,16 +40,20 @@ def owner_token(request) -> str:
 
 def create_job(request, kind: str, params: dict, files: dict | None = None, title: str = "") -> Job:
     """Queue a job for this session, with its uploaded files (``{name: UploadedFile}``)
-    saved into its ``input/`` folder. Workers see the job only when the transaction
-    commits, after its files are in place."""
+    saved into its ``input/`` folder; a key ``"<folder>/<name>"`` saves into a folder of
+    ``input/`` (see :meth:`LocalJobStorage.save_input`). Workers see the job only when the
+    transaction commits, after its files are in place."""
     storage = get_storage()
     with transaction.atomic():
         job = Job.objects.create(
             kind=kind, owner=owner_token(request), params=params, title=title[:200]
         )
         storage.create(job)
-        for name, uploaded in (files or {}).items():
-            storage.save_input(job, name, uploaded)
+        for key, uploaded in (files or {}).items():
+            folder, _, name = key.partition("/")
+            if not name:
+                folder, name = "", key
+            storage.save_input(job, name, uploaded, folder)
     return job
 
 

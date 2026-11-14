@@ -1,0 +1,8 @@
+{% load i18n %}{% comment %}How long a batch's files are kept (the jobs' retention setting). Parameter: run.{% endcomment %}
+{% blocktranslate count days=job_retention_days with date=run.expires_at|date:"j F Y" asvar retention trimmed %}
+Your files are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} day after the calculation finishes.
+{% plural %}
+Your files are kept for {{ days }} days after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} days after the calculation finishes.
+{% endblocktranslate %}
+{% if is_hosted %}{% translate "Only this browser can see them." as extra %}{% else %}{% translate "They stay on this computer." as extra %}{% endif %}
+{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}

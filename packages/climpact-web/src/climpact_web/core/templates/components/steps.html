@@ -1,6 +1,6 @@
 {% load i18n %}{% comment %}
-Step indicator for the single-station flow. Parameter: steps, from
-climpact_web.core.navigation.station_steps(current, urls). Completed steps link back when
+Step indicator for the single-station flow and the batch page. Parameter: steps, from
+climpact_web.core.navigation.station_steps or batch_steps(current, urls). Completed steps link back when
 they have a URL. On narrow screens only the current step's label shows.
 {% endcomment %}
 <nav class="steps-bar" aria-label="{% translate 'Progress through the steps' %}">

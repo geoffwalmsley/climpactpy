@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Batch results" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% if job.status == "succeeded" %}{% translate "Batch results" %}{% else %}{% translate "Calculating the batch" %}{% endif %}</h1>
+    <p class="lead">{% blocktranslate with name=run.metadata_name|default:_("Your batch") start=job.params.base_start end=job.params.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
+  </header>
+
+  {% include "batch/_progress.html" %}
+
+  <details class="disclosure">
+    <summary>{% icon "folder" %}<span>{% translate "What is in the zip" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body prose">
+      <p>{% translate "The results for each station are in a folder of their own, as Climpact for R writes them. A station that could not be calculated has a file named after it ending in .errors.txt, with the reason." %}</p>
+      <ul>
+        <li>{% translate "plots: an image of each index (when plots were drawn), and all of them in one PDF;" %}</li>
+        <li>{% translate "indices: a CSV file of each index's values;" %}</li>
+        <li>{% translate "trend: the linear trend of each index;" %}</li>
+        <li>{% translate "thres: the percentile thresholds calculated for each variable;" %}</li>
+        <li>{% translate "qc: the quality-control diagnostics." %}</li>
+      </ul>
+    </div>
+  </details>
+
+  <p class="cluster">
+    <a href="{% url 'batch:check' run.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the files or options and calculate again" %}</a>
+    <a href="{% url 'batch:start' %}">{% translate "Start a new batch" %}</a>
+  </p>
+</div>
+{% endblock %}

@@ -12,6 +12,7 @@ S3 before a run and ``output/`` up after it, and to serve downloads from S3; set
 
 from __future__ import annotations
 
+import re
 import shutil
 from functools import cache
 from pathlib import Path
@@ -27,13 +28,19 @@ class LocalJobStorage:
         """Make the job's empty ``input/`` folder."""
         job.input_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_input(self, job, name: str, uploaded) -> Path:
-        """Save an uploaded file (a Django ``UploadedFile``) as ``input/<name>``."""
+    def save_input(self, job, name: str, uploaded, folder: str = "") -> Path:
+        """Save an uploaded file (a Django ``UploadedFile``) as ``input/<name>``, or as
+        ``input/<folder>/<name>`` when the caller names a folder (one plain word, chosen
+        by the code, e.g. a batch's ``stations``)."""
         name = Path(name).name  # never a path from the browser
         if not name or name in {".", ".."}:
             raise ValueError("invalid file name")
+        if folder and not re.fullmatch(r"[\w-]+", folder):
+            raise ValueError("invalid folder name")
         self.create(job)
-        path = job.input_dir / name
+        target = job.input_dir / folder if folder else job.input_dir
+        target.mkdir(parents=True, exist_ok=True)
+        path = target / name
         with path.open("wb") as out:
             for chunk in uploaded.chunks():
                 out.write(chunk)

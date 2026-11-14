@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 02:45+0000\n"
+"POT-Creation-Date: 2026-11-14 03:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,895 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: batch/check.py:75
+msgid "station file"
+msgstr ""
+
+#: batch/check.py:76
+msgid "latitude"
+msgstr ""
+
+#: batch/check.py:77
+msgid "longitude"
+msgstr ""
+
+#: batch/check.py:78
+msgid "wsdin (days for WSDI)"
+msgstr ""
+
+#: batch/check.py:79
+msgid "csdin (days for CSDI)"
+msgstr ""
+
+#: batch/check.py:80
+msgid "Tb_HDD (base temperature for heating degree days)"
+msgstr ""
+
+#: batch/check.py:81
+msgid "Tb_CDD (base temperature for cooling degree days)"
+msgstr ""
+
+#: batch/check.py:82
+msgid "Tb_GDD (base temperature for growing degree days)"
+msgstr ""
+
+#: batch/check.py:83
+msgid "rxnday (days for Rxnday)"
+msgstr ""
+
+#: batch/check.py:84
+msgid "rnnmm (millimetres for Rnnmm)"
+msgstr ""
+
+#: batch/check.py:85
+msgid "txtn (days for TXdTNd and TXbdTNbd)"
+msgstr ""
+
+#: batch/check.py:86
+msgid "SPEI (months for the custom SPEI and SPI)"
+msgstr ""
+
+#: batch/check.py:194
+#, python-format
+msgid "Two files are named %(name)s; the last one is used."
+msgstr ""
+
+#: batch/check.py:199
+#, python-format
+msgid "Only the first %(count)d files are used."
+msgstr ""
+
+#: batch/check.py:211
+#, python-format
+msgid "%(name)s is not a zip file that can be opened."
+msgstr ""
+
+#: batch/check.py:222
+#, python-format
+msgid ""
+"%(name)s holds more data than a batch can use; the rest of it is left out."
+msgstr ""
+
+#: batch/check.py:232
+#, python-format
+msgid "%(file)s in %(name)s could not be read (damaged or encrypted)."
+msgstr ""
+
+#: batch/check.py:248
+#, python-format
+msgid ""
+"The zip holds more than one metadata file (%(names)s). Choose the one to use "
+"in the metadata box."
+msgstr ""
+
+#: batch/check.py:271 batch/check.py:288 batch/forms.py:55 batch/forms.py:94
+msgid "The metadata file is empty."
+msgstr ""
+
+#: batch/check.py:277
+msgid ""
+"The metadata file is not a text file. If it is a spreadsheet, save it as "
+"text (tab-delimited) with the 12 columns of the template."
+msgstr ""
+
+#: batch/check.py:294
+#, python-format
+msgid ""
+"Line %(line)d looks like a station, not the line of column names. The first "
+"line is always read as column names, so this station is left out, as in "
+"Climpact for R. Add the column names as the first line to include it."
+msgstr ""
+
+#: batch/check.py:301 batch/check.py:376
+msgid "The metadata file has the line of column names but no stations."
+msgstr ""
+
+#: batch/check.py:308
+#, python-format
+msgid ""
+"Line %(line)d has %(count)d value; each line needs 12: the station file, "
+"latitude, longitude, wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD, rxnday, rnnmm, "
+"txtn and SPEI."
+msgid_plural ""
+"Line %(line)d has %(count)d values; each line needs 12: the station file, "
+"latitude, longitude, wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD, rxnday, rnnmm, "
+"txtn and SPEI."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/check.py:317
+msgid "Separate the values with spaces or tabs, not commas."
+msgstr ""
+
+#: batch/check.py:325 stations/station_file.py:196
+#, python-format
+msgid "Line %(line)d: “%(value)s” in the %(column)s column is not a number."
+msgstr ""
+
+#: batch/check.py:333
+#, python-format
+msgid "Line %(line)d: %(column)s must be a whole number, not %(value)s."
+msgstr ""
+
+#: batch/check.py:360
+#, python-format
+msgid ""
+"Lines %(first)d and %(line)d both give the station name “%(name)s” "
+"(%(file1)s and %(file2)s). Each station's results go in a folder named after "
+"it, so each needs its own name."
+msgstr ""
+
+#: batch/check.py:389
+#, python-format
+msgid "Latitude %(value)s is outside -90 to 90."
+msgstr ""
+
+#: batch/check.py:394
+#, python-format
+msgid "Longitude %(value)s is outside -180 to 180."
+msgstr ""
+
+#: batch/check.py:398 batch/check.py:399
+#, python-format
+msgid "%(column)s must be between 1 and 10."
+msgstr ""
+
+#: batch/check.py:400 batch/check.py:401 batch/check.py:403
+#, python-format
+msgid "%(column)s must be 1 or more."
+msgstr ""
+
+#: batch/check.py:402
+#, python-format
+msgid "%(column)s must be 0 or more."
+msgstr ""
+
+#: batch/check.py:411
+#, python-format
+msgid "It is %(value)s."
+msgstr ""
+
+#: batch/check.py:417 stations/forms.py:142
+msgid ""
+"Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
+"which decides the season used for the growing season length and heatwaves."
+msgstr ""
+
+#: batch/check.py:427
+#, python-format
+msgid ""
+"“%(file)s” is a folder path. Give only the file's name, e.g. %(example)s, "
+"and upload the file."
+msgstr ""
+
+#: batch/check.py:440
+#, python-format
+msgid ""
+"The station name “%(name)s” (the file name without its extension) cannot be "
+"used: use letters, digits, spaces and . ( ) - _ only, not starting with a "
+"dot. Rename the file and the line in the metadata file."
+msgstr ""
+
+#: batch/check.py:488
+#, python-format
+msgid ""
+"No file named %(file)s was uploaded, but %(similar)s was. Names must match "
+"the metadata file exactly, including capitals and the extension."
+msgstr ""
+
+#: batch/check.py:494
+#, python-format
+msgid "No file named %(file)s was uploaded."
+msgstr ""
+
+#: batch/check.py:510 batch/forms.py:71
+msgid "Choose the batch metadata file."
+msgstr ""
+
+#: batch/forms.py:38
+msgid ""
+"A text file with a line of column names, then one line per station: "
+"station_file, latitude, longitude, wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD, "
+"rxnday, rnnmm, txtn and SPEI, separated by spaces or tabs."
+msgstr ""
+
+#: batch/forms.py:43
+msgid ""
+"Every station file named in the metadata file, in Climpact's six-column "
+"format. Choose several files at once, or a zip of them (the zip may hold the "
+"metadata file too)."
+msgstr ""
+
+#: batch/forms.py:51
+msgid "Batch metadata file"
+msgstr ""
+
+#: batch/forms.py:58
+msgid "Station files"
+msgstr ""
+
+#: batch/forms.py:61
+msgid "One of the station files is empty."
+msgstr ""
+
+#: batch/forms.py:72 batch/forms.py:74
+msgid "Choose the station files, or a zip of them."
+msgstr ""
+
+#: batch/forms.py:86
+msgid "Add or replace station files"
+msgstr ""
+
+#: batch/forms.py:87
+msgid ""
+"Files with the same name as one already loaded replace it. A zip works too."
+msgstr ""
+
+#: batch/forms.py:91
+msgid "Replace the metadata file"
+msgstr ""
+
+#: batch/forms.py:100
+msgid "Choose the files to add."
+msgstr ""
+
+#: batch/forms.py:113 stations/forms.py:105
+msgid "First year"
+msgstr ""
+
+#: batch/forms.py:117 stations/forms.py:109
+msgid "Enter the first year of the base period."
+msgstr ""
+
+#: batch/forms.py:118 batch/forms.py:119 batch/forms.py:120
+#: stations/forms.py:110
+msgid "Enter a year, e.g. 1971."
+msgstr ""
+
+#: batch/forms.py:125 stations/forms.py:115
+msgid "Last year"
+msgstr ""
+
+#: batch/forms.py:129 stations/forms.py:119
+msgid "Enter the last year of the base period."
+msgstr ""
+
+#: batch/forms.py:130 batch/forms.py:131 batch/forms.py:132
+#: stations/forms.py:120
+msgid "Enter a year, e.g. 2000."
+msgstr ""
+
+#: batch/forms.py:137
+msgid "Stations to calculate at the same time"
+msgstr ""
+
+#: batch/forms.py:142
+msgid "Draw the plots of every index"
+msgstr ""
+
+#: batch/forms.py:143
+msgid ""
+"Plots take about two thirds of the time. The tables are written either way."
+msgstr ""
+
+#: batch/forms.py:158
+#, python-format
+msgid "Your computer has %(count)d processor cores. Each station runs on one."
+msgstr ""
+
+#: batch/forms.py:162
+msgid "Enter how many stations to calculate at the same time (1 or more)."
+msgstr ""
+
+#: batch/forms.py:163
+msgid "Enter a whole number, e.g. 2."
+msgstr ""
+
+#: batch/forms.py:164
+msgid "You need at least 1."
+msgstr ""
+
+#: batch/forms.py:165
+#, python-format
+msgid "You cannot use more than %(count)d on this computer."
+msgstr ""
+
+#: batch/forms.py:174 stations/forms.py:151
+msgid "The last year must not be before the first year."
+msgstr ""
+
+#: batch/models.py:37
+msgid "Uploaded files"
+msgstr ""
+
+#: batch/models.py:38
+msgid "Sample batch"
+msgstr ""
+
+#: batch/templates/batch/_options.html:9 core/views.py:97
+#: stations/templates/stations/_unit.html:18
+#: stations/templates/stations/qc.html:20
+msgid "Base period"
+msgstr ""
+
+#: batch/templates/batch/_options.html:10
+msgid ""
+"The years the percentile thresholds are calculated from, the same for every "
+"station. Climpact for R suggests 1971 to 2000."
+msgstr ""
+
+#: batch/templates/batch/_options.html:18
+msgid ""
+"Less than a year of the base period is covered by this station's data, so "
+"its percentile thresholds and the indices that use them (TX90p, WSDI, R95p "
+"and others) cannot be calculated:"
+msgid_plural ""
+"Less than a year of the base period is covered by these stations' data, so "
+"their percentile thresholds and the indices that use them (TX90p, WSDI, R95p "
+"and others) cannot be calculated:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_options.html:19
+#, python-format
+msgid "%(name)s (data %(first)s to %(last)s)"
+msgstr ""
+
+#: batch/templates/batch/_options.html:24
+#, python-format
+msgid "This should take %(estimate)s, as a rough guide."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:16
+#, python-format
+msgid "%(done)s of %(counter)s station finished"
+msgid_plural "%(done)s of %(counter)s stations finished"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_progress.html:17
+#: batch/templates/batch/_progress.html:19
+#: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
+#, python-format
+msgid "%(percent)s%%"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:21
+#, python-format
+msgid "%(stage)s."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:22
+#: jobs/templates/jobs/_progress.html:20
+#, python-format
+msgid "Time so far: %(elapsed)s."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:23
+#: jobs/templates/jobs/_progress.html:21
+#, python-format
+msgid "About %(remaining)s left."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:26
+#: jobs/templates/jobs/_progress.html:24
+msgid "Cancelling…"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:28
+msgid ""
+"No calculation worker is running, so this batch cannot start yet. If you run "
+"Climpact yourself, restart it with the climpact-web command."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:33
+msgid "Cancel the batch"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:43
+#, python-format
+msgid "%(done)s of %(counter)s station calculated"
+msgid_plural "%(done)s of %(counter)s stations calculated"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_progress.html:44
+#: jobs/templates/jobs/_progress.html:42
+#, python-format
+msgid "Finished in %(elapsed)s."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:45
+#, python-format
+msgid "%(counter)s station failed; its error is below."
+msgid_plural "%(counter)s stations failed; their errors are below."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_progress.html:46
+#, python-format
+msgid "%(counter)s station was left out before the run."
+msgid_plural "%(counter)s stations were left out before the run."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_progress.html:50
+msgid "Download everything (zip)"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:58
+msgid "The batch could not be calculated."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:64
+msgid "The batch was cancelled."
+msgstr ""
+
+#: batch/templates/batch/_progress.html:69
+#: jobs/templates/jobs/_progress.html:75
+msgid "Try again"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:76 batch/templates/batch/check.html:44
+msgid "Stations"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:82 jobs/models.py:20
+msgid "Finished"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:83 jobs/models.py:21 jobs/stages.py:19
+msgid "Failed"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:84
+msgid "Calculating"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:85
+msgid "Left out"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:86
+msgid "Waiting"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:90
+#, python-format
+msgid "Progress of %(name)s"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:101
+msgid "Download (zip)"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:103
+#: batch/templates/batch/_progress.html:106
+msgid "Open as a single station"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:111
+#, python-format
+msgid "%(name)s.errors.txt"
+msgstr ""
+
+#: batch/templates/batch/_progress.html:122
+#, python-format
+msgid "The results are deleted on %(date)s."
+msgstr ""
+
+#: batch/templates/batch/_retention.html:3
+#, python-format
+msgid ""
+"Your files are kept for %(days)s day after your last change (until %(date)s "
+"unless you change them), then deleted. Results are kept for %(days)s day "
+"after the calculation finishes."
+msgid_plural ""
+"Your files are kept for %(days)s days after your last change (until %(date)s "
+"unless you change them), then deleted. Results are kept for %(days)s days "
+"after the calculation finishes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/_retention.html:8
+#: stations/templates/stations/_retention.html:16
+msgid "Only this browser can see them."
+msgstr ""
+
+#: batch/templates/batch/_retention.html:8
+#: stations/templates/stations/_retention.html:16
+msgid "They stay on this computer."
+msgstr ""
+
+#: batch/templates/batch/check.html:3 batch/templates/batch/check.html:9
+#: batch/templates/batch/start.html:26
+msgid "Check the stations"
+msgstr ""
+
+#: batch/templates/batch/check.html:10
+msgid ""
+"Climpact's sample batch is loaded and checked. Choose the options below and "
+"start."
+msgstr ""
+
+#: batch/templates/batch/check.html:10
+#, python-format
+msgid ""
+"Loaded from %(name)s. Every station it lists has been checked; nothing has "
+"been calculated yet."
+msgstr ""
+
+#: batch/templates/batch/check.html:10
+msgid "Your files are loaded. Add the metadata file that lists the stations."
+msgstr ""
+
+#: batch/templates/batch/check.html:14
+msgid "Follow its progress"
+msgstr ""
+
+#: batch/templates/batch/check.html:15
+msgid "This batch is being calculated."
+msgstr ""
+
+#: batch/templates/batch/check.html:27
+#, python-format
+msgid "The metadata file cannot be used: it has %(counter)s problem"
+msgid_plural "The metadata file cannot be used: it has %(counter)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/check.html:33
+msgid ""
+"Correct the metadata file and load it again below. The station files you "
+"loaded are kept."
+msgstr ""
+
+#: batch/templates/batch/check.html:47
+msgid "Listed"
+msgstr ""
+
+#: batch/templates/batch/check.html:48 batch/templates/batch/check.html:57
+msgid "Ready"
+msgstr ""
+
+#: batch/templates/batch/check.html:49 batch/templates/batch/check.html:58
+msgid "File missing"
+msgstr ""
+
+#: batch/templates/batch/check.html:50
+msgid "With problems"
+msgstr ""
+
+#: batch/templates/batch/check.html:59
+msgid "Has problems"
+msgstr ""
+
+#: batch/templates/batch/check.html:62
+#, python-format
+msgid "%(file)s · line %(line)s of the metadata file · %(lat)s° N, %(lon)s° E"
+msgstr ""
+
+#: batch/templates/batch/check.html:64
+#, python-format
+msgid " · data %(first)s to %(last)s"
+msgstr ""
+
+#: batch/templates/batch/check.html:70
+msgid "And more lines like these."
+msgstr ""
+
+#: batch/templates/batch/check.html:79
+#, python-format
+msgid "Not in the metadata file, so not used: %(names)s."
+msgid_plural "Not in the metadata file, so not used: %(names)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/check.html:83
+msgid "Index parameters from the metadata file"
+msgstr ""
+
+#: batch/templates/batch/check.html:87
+msgid "Each station's parameters, as the metadata file gives them"
+msgstr ""
+
+#: batch/templates/batch/check.html:89 core/views.py:95
+#: stations/templates/stations/qc.html:18
+msgid "Station"
+msgstr ""
+
+#: batch/templates/batch/check.html:101
+msgid "As in Climpact for R, batch runs calculate no custom index."
+msgstr ""
+
+#: batch/templates/batch/check.html:108
+msgid "Add or replace files"
+msgstr ""
+
+#: batch/templates/batch/check.html:113
+#, python-format
+msgid "Up to %(size)s MB in all."
+msgstr ""
+
+#: batch/templates/batch/check.html:118
+msgid "Load and check again"
+msgstr ""
+
+#: batch/templates/batch/check.html:126
+msgid "Options and start"
+msgstr ""
+
+#: batch/templates/batch/check.html:133
+#, python-format
+msgid "Calculate %(counter)s station"
+msgid_plural "Calculate %(counter)s stations"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/check.html:136
+msgid "No station is ready"
+msgstr ""
+
+#: batch/templates/batch/check.html:141
+#, python-format
+msgid ""
+"%(counter)s station with a missing file or problems will be left out, and "
+"listed with its reasons in the results and the zip."
+msgid_plural ""
+"%(counter)s stations with missing files or problems will be left out, and "
+"listed with their reasons in the results and the zip."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/templates/batch/check.html:143
+msgid ""
+"Load the missing files, or correct the files with problems and load them "
+"again, to start."
+msgstr ""
+
+#: batch/templates/batch/check.html:151
+msgid "Delete these files now"
+msgstr ""
+
+#: batch/templates/batch/check.html:153
+msgid "Start again with another batch"
+msgstr ""
+
+#: batch/templates/batch/results.html:3 batch/templates/batch/results.html:9
+msgid "Batch results"
+msgstr ""
+
+#: batch/templates/batch/results.html:9
+msgid "Calculating the batch"
+msgstr ""
+
+#: batch/templates/batch/results.html:10 batch/templates/batch/start.html:18
+msgid "Your batch"
+msgstr ""
+
+#: batch/templates/batch/results.html:10
+#, python-format
+msgid "%(name)s, base period %(start)s to %(end)s."
+msgstr ""
+
+#: batch/templates/batch/results.html:16
+msgid "What is in the zip"
+msgstr ""
+
+#: batch/templates/batch/results.html:18
+msgid ""
+"The results for each station are in a folder of their own, as Climpact for R "
+"writes them. A station that could not be calculated has a file named after "
+"it ending in .errors.txt, with the reason."
+msgstr ""
+
+#: batch/templates/batch/results.html:20
+msgid ""
+"plots: an image of each index (when plots were drawn), and all of them in "
+"one PDF;"
+msgstr ""
+
+#: batch/templates/batch/results.html:21
+msgid "indices: a CSV file of each index's values;"
+msgstr ""
+
+#: batch/templates/batch/results.html:22
+msgid "trend: the linear trend of each index;"
+msgstr ""
+
+#: batch/templates/batch/results.html:23
+msgid "thres: the percentile thresholds calculated for each variable;"
+msgstr ""
+
+#: batch/templates/batch/results.html:24
+msgid "qc: the quality-control diagnostics."
+msgstr ""
+
+#: batch/templates/batch/results.html:30
+msgid "Change the files or options and calculate again"
+msgstr ""
+
+#: batch/templates/batch/results.html:31
+msgid "Start a new batch"
+msgstr ""
+
+#: batch/templates/batch/start.html:3 batch/templates/batch/start.html:9
+msgid "Batch processing"
+msgstr ""
+
+#: batch/templates/batch/start.html:10
+msgid ""
+"Calculate the indices for many stations in one run. Load a metadata file "
+"that lists the stations, and their station files. Climpact checks every "
+"station before anything runs."
+msgstr ""
+
+#: batch/templates/batch/start.html:19
+msgid "One text file."
+msgstr ""
+
+#: batch/templates/batch/start.html:22
+#, python-format
+msgid "Several files or a zip, up to %(size)s MB in all."
+msgstr ""
+
+#: batch/templates/batch/start.html:34
+msgid "Try the sample batch"
+msgstr ""
+
+#: batch/templates/batch/start.html:35
+msgid ""
+"Climpact's sample batch: two stations made from the Sydney Observatory Hill "
+"sample data, with their metadata file."
+msgstr ""
+
+#: batch/templates/batch/start.html:38
+msgid "Use the sample batch"
+msgstr ""
+
+#: batch/templates/batch/start.html:41
+#, python-format
+msgid ""
+"Download the sample metadata file (%(sample_metadata)s) to use as a template"
+msgstr ""
+
+#: batch/templates/batch/start.html:45
+msgid "How long it takes"
+msgstr ""
+
+#: batch/templates/batch/start.html:46
+msgid ""
+"About 10 seconds per station with plots, a few seconds without. The "
+"calculation runs in the background: you can leave the page and come back to "
+"it from Your calculations."
+msgstr ""
+
+#: batch/templates/batch/start.html:54
+msgid "What the metadata file must look like"
+msgstr ""
+
+#: batch/templates/batch/start.html:56
+msgid ""
+"A text file with a first line of column names, then one line per station, "
+"the values separated by spaces or tabs. It is the batch metadata file of "
+"Climpact for R, so files prepared for it work here unchanged. Lines starting "
+"with # are ignored."
+msgstr ""
+
+#: batch/templates/batch/start.html:60
+msgid "The columns, in this order"
+msgstr ""
+
+#: batch/templates/batch/start.html:61
+msgid "Column"
+msgstr ""
+
+#: batch/templates/batch/start.html:61
+msgid "Meaning"
+msgstr ""
+
+#: batch/templates/batch/start.html:66
+msgid ""
+"Each station file must be named in the station_file column exactly, "
+"including capitals and the extension. The station's name, used for its "
+"results folder, is the file name without its extension."
+msgstr ""
+
+#: batch/templates/batch/start.html:67
+msgid ""
+"Station files have the same six-column format as for a single station: year, "
+"month, day, precipitation (mm), maximum and minimum temperature (°C), with "
+"-99.9 for missing values."
+msgstr ""
+
+#: batch/templates/batch/start.html:67
+msgid "Download an example station file"
+msgstr ""
+
+#: batch/templates/batch/start.html:73
+msgid "Your recent batches"
+msgstr ""
+
+#: batch/templates/batch/start.html:76
+#, python-format
+msgid "%(counter)s station, changed %(when)s ago"
+msgid_plural "%(counter)s stations, changed %(when)s ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/views.py:236
+#, python-format
+msgid "about %(n)d minute"
+msgid_plural "about %(n)d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/views.py:305
+#, python-format
+msgid "%(count)d file loaded. The stations were checked again."
+msgid_plural "%(count)d files loaded. The stations were checked again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/views.py:366
+#, python-format
+msgid "Batch: %(name)s (%(count)d station)"
+msgid_plural "Batch: %(name)s (%(count)d stations)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: batch/views.py:367
+msgid "stations"
+msgstr ""
+
+#: batch/views.py:380
+#, python-format
+msgid "And %(count)d more problems like these."
+msgstr ""
+
+#: batch/views.py:382
+msgid "Not calculated: the station file is missing."
+msgstr ""
+
+#: batch/views.py:384
+msgid "Not calculated: the station has problems."
+msgstr ""
+
+#: batch/views.py:394
+msgid "The batch files were deleted."
+msgstr ""
+
+#: batch/views.py:432
+msgid "The station file was not found."
+msgstr ""
+
+#: batch/views.py:570
+#, python-format
+msgid ""
+"%(name)s is open as a single station, with its data and details from the "
+"batch."
+msgstr ""
 
 #: core/forms.py:10 stations/forms.py:67
 msgid "Station name"
@@ -111,26 +1000,38 @@ msgstr ""
 msgid "Your calculations"
 msgstr ""
 
-#: core/navigation.py:81 core/templates/core/home.html:59 stations/models.py:44
+#: core/navigation.py:81 core/templates/core/home.html:59 stations/models.py:45
 msgid "Load data"
 msgstr ""
 
-#: core/navigation.py:82 core/templates/core/home.html:64 stations/models.py:45
+#: core/navigation.py:82 core/templates/core/home.html:64 stations/models.py:46
 #: stations/templates/stations/qc.html:3 stations/templates/stations/qc.html:9
 msgid "Check quality"
 msgstr ""
 
 #: core/navigation.py:83 core/templates/core/home.html:69
-#: core/templates/core/patterns.html:87 stations/models.py:46
+#: core/templates/core/patterns.html:87 stations/models.py:47
 msgid "Calculate indices"
 msgstr ""
 
-#: core/navigation.py:84 stations/models.py:47
+#: core/navigation.py:84 stations/models.py:48
 msgid "Results and downloads"
 msgstr ""
 
-#: core/navigation.py:85 stations/models.py:48
+#: core/navigation.py:85 stations/models.py:49
 msgid "Compare with sector data"
+msgstr ""
+
+#: core/navigation.py:102
+msgid "Load files"
+msgstr ""
+
+#: core/navigation.py:103
+msgid "Check stations"
+msgstr ""
+
+#: core/navigation.py:104
+msgid "Calculate and download"
 msgstr ""
 
 #: core/templates/404.html:3 core/templates/404.html:5
@@ -209,6 +1110,15 @@ msgstr ""
 #: core/templates/components/dialog.html:16
 #: core/templates/core/patterns.html:131 jobs/templates/jobs/_progress.html:31
 msgid "Cancel"
+msgstr ""
+
+#: core/templates/components/dropzone.html:11
+#, python-format
+msgid "Drop files here or choose them. %(hint)s"
+msgstr ""
+
+#: core/templates/components/dropzone.html:11
+msgid "Drop files here or choose them"
 msgstr ""
 
 #: core/templates/components/dropzone.html:11
@@ -916,21 +1826,12 @@ msgstr ""
 msgid "Trends"
 msgstr ""
 
-#: core/views.py:95 stations/templates/stations/qc.html:18
-msgid "Station"
-msgstr ""
-
 #: core/views.py:96 stations/templates/stations/_summary.html:8
 msgid "Period"
 msgstr ""
 
 #: core/views.py:96
 msgid "1936 to 2015"
-msgstr ""
-
-#: core/views.py:97 stations/templates/stations/_unit.html:18
-#: stations/templates/stations/qc.html:20
-msgid "Base period"
 msgstr ""
 
 #: core/views.py:97
@@ -981,14 +1882,6 @@ msgstr ""
 msgid "Running"
 msgstr ""
 
-#: jobs/models.py:20
-msgid "Finished"
-msgstr ""
-
-#: jobs/models.py:21 jobs/stages.py:19
-msgid "Failed"
-msgstr ""
-
 #: jobs/models.py:22
 msgid "Cancelled"
 msgstr ""
@@ -1029,28 +1922,9 @@ msgstr ""
 msgid "Calculating correlations"
 msgstr ""
 
-#: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
-#, python-format
-msgid "%(percent)s%%"
-msgstr ""
-
 #: jobs/templates/jobs/_progress.html:19
 #, python-format
 msgid "Step %(step)s of %(total)s (%(percent)s%%)"
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:20
-#, python-format
-msgid "Time so far: %(elapsed)s."
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:21
-#, python-format
-msgid "About %(remaining)s left."
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:24
-msgid "Cancelling…"
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:26
@@ -1061,11 +1935,6 @@ msgstr ""
 
 #: jobs/templates/jobs/_progress.html:41
 msgid "The calculation finished"
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:42
-#, python-format
-msgid "Finished in %(elapsed)s."
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:46
@@ -1085,10 +1954,6 @@ msgstr ""
 
 #: jobs/templates/jobs/_progress.html:70
 msgid "The calculation was cancelled."
-msgstr ""
-
-#: jobs/templates/jobs/_progress.html:75
-msgid "Try again"
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:81
@@ -1141,22 +2006,22 @@ msgstr ""
 msgid "Calculations you start appear here while they are kept."
 msgstr ""
 
-#: jobs/views.py:65
+#: jobs/views.py:69
 #, python-format
 msgid "%(s)d s"
 msgstr ""
 
-#: jobs/views.py:68
+#: jobs/views.py:72
 #, python-format
 msgid "%(m)d min %(s)d s"
 msgstr ""
 
-#: jobs/views.py:70
+#: jobs/views.py:74
 #, python-format
 msgid "%(h)d h %(m)d min"
 msgstr ""
 
-#: settings.py:161
+#: settings.py:162
 msgid "English"
 msgstr ""
 
@@ -1232,40 +2097,6 @@ msgstr ""
 msgid "Longitude must be between -180 and 180."
 msgstr ""
 
-#: stations/forms.py:105
-msgid "First year"
-msgstr ""
-
-#: stations/forms.py:109
-msgid "Enter the first year of the base period."
-msgstr ""
-
-#: stations/forms.py:110
-msgid "Enter a year, e.g. 1971."
-msgstr ""
-
-#: stations/forms.py:115
-msgid "Last year"
-msgstr ""
-
-#: stations/forms.py:119
-msgid "Enter the last year of the base period."
-msgstr ""
-
-#: stations/forms.py:120
-msgid "Enter a year, e.g. 2000."
-msgstr ""
-
-#: stations/forms.py:142
-msgid ""
-"Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
-"which decides the season used for the growing season length and heatwaves."
-msgstr ""
-
-#: stations/forms.py:151
-msgid "The last year must not be before the first year."
-msgstr ""
-
 #: stations/forms.py:160
 #, python-format
 msgid ""
@@ -1297,6 +2128,10 @@ msgstr ""
 
 #: stations/models.py:38
 msgid "Sample data"
+msgstr ""
+
+#: stations/models.py:39
+msgid "From a batch"
 msgstr ""
 
 #: stations/station_file.py:45
@@ -1358,11 +2193,6 @@ msgstr ""
 msgid ""
 "Line %(line)d: “%(value)s” in the %(column)s column is not a number. Write "
 "missing values as -99.9."
-msgstr ""
-
-#: stations/station_file.py:196
-#, python-format
-msgid "Line %(line)d: “%(value)s” in the %(column)s column is not a number."
 msgstr ""
 
 #: stations/station_file.py:234
@@ -1481,14 +2311,6 @@ msgid_plural ""
 "Results are kept for %(days)s days after each calculation finishes."
 msgstr[0] ""
 msgstr[1] ""
-
-#: stations/templates/stations/_retention.html:16
-msgid "Only this browser can see them."
-msgstr ""
-
-#: stations/templates/stations/_retention.html:16
-msgid "They stay on this computer."
-msgstr ""
 
 #: stations/templates/stations/_summary.html:6
 msgid "Your data"

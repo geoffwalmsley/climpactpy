@@ -36,7 +36,7 @@ class Destination:
 DESTINATIONS = (
     Destination("station", "stations:upload", _("Single station"), "station"),
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
-    Destination("batch", "stations:batch", _("Batch"), "layers"),
+    Destination("batch", "batch:start", _("Batch"), "layers"),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", local_only=True),
     Destination("help", "help:index", _("Help"), "book"),
     Destination("jobs", "jobs:list", _("Your calculations"), "clock"),
@@ -96,16 +96,36 @@ class StepState:
     number: int = 0
 
 
+# The batch page's steps (#80): load the files, check the stations and choose the options,
+# then follow the run and download the results.
+BATCH_STEPS = (
+    Step("upload", _("Load files"), "batch:start"),
+    Step("check", _("Check stations"), "batch:check"),
+    Step("results", _("Calculate and download"), "batch:results"),
+)
+
+
 def station_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
     """The single-station steps with ``current`` marked. Steps before it are complete and
     link back when ``urls`` gives their address (a run's own URLs, from #76-#78)."""
-    keys = [s.key for s in STATION_STEPS]
+    return flow_steps(STATION_STEPS, current, urls)
+
+
+def batch_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
+    """The batch steps with ``current`` marked, as :func:`station_steps`."""
+    return flow_steps(BATCH_STEPS, current, urls)
+
+
+def flow_steps(
+    definition: tuple[Step, ...], current: str, urls: dict[str, str] | None = None
+) -> list[StepState]:
+    keys = [s.key for s in definition]
     if current not in keys:
         raise ValueError(f"unknown step {current!r}; expected one of {keys}")
     position = keys.index(current)
     urls = urls or {}
     steps = []
-    for number, step in enumerate(STATION_STEPS, start=1):
+    for number, step in enumerate(definition, start=1):
         if number - 1 < position:
             state = "complete"
         elif number - 1 == position:

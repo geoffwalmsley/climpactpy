@@ -224,13 +224,14 @@ def test_landing_page(client):
         html,
         re.S,
     )
-    assert "Available soon" in html  # batch and help are later tickets
+    assert "Available soon" in html  # help is a later ticket
+    assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/jobs/"]
+    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/jobs/"]
 
 
 @override_settings(IS_HOSTED=True)
@@ -245,14 +246,10 @@ def stub(name):
     return path(f"{name}/", lambda request: HttpResponse(name), name=name)
 
 
-def stations_with_batch():
-    from climpact_web.stations import urls as stations
-
-    return (stations.urlpatterns + [stub("batch")], "stations")
-
-
 urlpatterns = [
-    path("station/", include(stations_with_batch())),
+    path("station/", include("climpact_web.stations.urls")),
+    path("batch/", include("climpact_web.batch.urls")),
+    path("help/", include(([stub("index")], "help"))),
     path("jobs/", include("climpact_web.jobs.urls")),
     path("", include("climpact_web.core.urls")),
 ]
@@ -261,12 +258,12 @@ urlpatterns = [
 @override_settings(ROOT_URLCONF=__name__)
 def test_destinations_link_once_their_urls_exist(client):
     html = client.get("/").content.decode()
-    assert 'href="/station/batch/"' in html and "Available soon" in html  # help is still to come
-    page = client.get("/station/batch/")
+    assert 'href="/help/index/"' in html
+    page = client.get("/help/index/")
     assert page.status_code == 200
     items = navigation.nav_items(page.wsgi_request)
-    assert [i["label"] for i in items] == ["Single station", "Batch", "Your calculations"]
-    assert items[1]["current"]
+    assert [i["label"] for i in items] == ["Single station", "Batch", "Help", "Your calculations"]
+    assert items[2]["current"]
 
 
 # ---- Pattern library -------------------------------------------------------------------

@@ -36,6 +36,7 @@ def stations_dir() -> Path:
 class Source(models.TextChoices):
     UPLOAD = "upload", _("Uploaded file")
     SAMPLE = "sample", _("Sample data")
+    BATCH = "batch", _("From a batch")
 
 
 class Step(models.TextChoices):
@@ -80,6 +81,12 @@ class StationAnalysis(models.Model):
     base_end = models.IntegerField(default=2000)
 
     step = models.CharField(max_length=10, choices=Step.choices, default=Step.UPLOAD)
+
+    # A station opened from a batch's results (#80): {"batch": batch id, "job": the batch
+    # job's id, "station": its name, "params": the IndexParams fields of its metadata
+    # line, "outputs": its folder in the batch job's output/}. Empty otherwise. The
+    # indices step (#78) can start from these parameters, and show the batch's results.
+    origin = models.JSONField(default=dict, blank=True)
 
     # The jobs the later steps start. A job outlives a change to the file or metadata only
     # as a record: the links are cleared (reset_later_steps) so the steps run again.

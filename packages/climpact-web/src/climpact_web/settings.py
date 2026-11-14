@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "climpact_web.core",
     "climpact_web.jobs",
     "climpact_web.stations",
+    "climpact_web.batch",
 ]
 
 MIDDLEWARE = [

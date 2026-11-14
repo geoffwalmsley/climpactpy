@@ -15,7 +15,13 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
 ``batch`` (``climpact batch``)
     ``metadata_file``; ``data_dir`` (a folder in ``input/``, default ``input/`` itself);
     ``base_start``, ``base_end``, ``custom``, ``plots``, ``zip``, ``workers`` (default 1),
-    ``modules``.
+    ``modules``; ``folder``, the name of the batch folder in ``output/`` and of its zip
+    (default ``batch``; the batch page uses the metadata file's name, as R);
+    ``station_zips`` (also zip each finished station to ``output/stations/<name>.zip``);
+    ``skipped``, stations left out before the run (``[{"name", "station_file",
+    "error"}]``), whose error is written to ``<folder>/<name>.errors.txt`` like a failed
+    station's. Each station's progress is written to ``output/stations.json``
+    (:class:`BatchStatus`).
 ``sector`` (``climpact sector-correlation``)
     ``station_job`` (the id of a finished station job, whose station file and index
     tables are used), ``sector_file``, ``detrend``, ``title``, ``y_label``, ``plots``,
@@ -27,8 +33,8 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``institution_id``, ``workers``; for indices also ``template``, ``indices``,
     ``thresholds_file`` and ``params`` (IndexParams fields).
 
-The batch, sector and gridded runners are complete but have no screen yet: #80, #90 and
-#85 add the forms that create these jobs.
+The batch page (#80) creates batch jobs. The sector and gridded runners are complete but
+have no screen yet: #90 and #85 add the forms that create these jobs.
 """
 
 from __future__ import annotations
@@ -142,9 +148,82 @@ def station_steps(params, modules, plots: bool) -> int:
     return total
 
 
+STATIONS_FILE = "stations.json"  # a batch's per-station progress, in output/
+_STATUS_INTERVAL = 0.5  # seconds between writes of the per-station progress
+
+
+class BatchStatus:
+    """Each station's state during a batch, written to ``output/stations.json`` for the
+    batch page (``{"stations": [{"name", "state", "step", "total", "stage", "error"}]}``;
+    ``state`` is ``waiting``, ``running``, ``done``, ``failed`` or ``skipped``). Written
+    atomically (a temporary file, then a rename) when a station starts or ends, and at
+    most every 0.5 s in between."""
+
+    def __init__(self, path: Path, totals: dict[str, int], skipped: list[dict]):
+        self.path = path
+        self.stations = {
+            name: {"name": name, "state": "waiting", "step": 0, "total": total, "stage": ""}
+            for name, total in totals.items()
+        }
+        for item in skipped:
+            self.stations[item["name"]] = {
+                "name": item["name"],
+                "state": "skipped",
+                "step": 0,
+                "total": 0,
+                "stage": "",
+                "error": item.get("error", ""),
+            }
+        self.written = 0.0
+        self.write()
+
+    def update(self, name: str, force: bool = False, **values) -> None:
+        import time
+
+        entry = self.stations[name]
+        force = force or values.get("state", entry["state"]) != entry["state"]
+        entry.update(values)
+        if force or time.monotonic() - self.written >= _STATUS_INTERVAL:
+            self.write()
+
+    def write(self) -> None:
+        import json
+        import time
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"stations": list(self.stations.values())}))
+        tmp.replace(self.path)
+        self.written = time.monotonic()
+
+
+def _skipped_stations(value, taken: set[str]) -> list[dict]:
+    """The ``skipped`` parameter: stations the batch page found unusable before the run,
+    as ``[{"name", "station_file", "error"}]``. Names are made safe for file names, and
+    never the same as a station's that runs (``taken``) or another skipped one's."""
+    from climpact.batch import strip_file_extension
+    from climpact_web.jobs.forms import safe_station_name
+
+    items = []
+    taken = set(taken)
+    for item in value or []:
+        base = safe_station_name(
+            str(item.get("name") or strip_file_extension(item.get("station_file", "")))
+        )
+        name, n = base, 1
+        while name in taken:
+            n += 1
+            name = f"{base}_{n}"
+        taken.add(name)
+        items.append({**item, "name": name, "error": str(item.get("error", ""))})
+    return items
+
+
 @register("batch")
 def run_batch_job(ctx: JobContext) -> dict:
     from climpact.batch import read_batch_metadata, run_batch
+    from climpact.plots import zip_batch, zip_folder
+    from climpact_web.jobs.forms import safe_station_name
 
     p = ctx.params
     metadata_file = ctx.input_file(p["metadata_file"])
@@ -154,9 +233,11 @@ def run_batch_job(ctx: JobContext) -> dict:
     stations = read_batch_metadata(metadata_file)
     if not stations:
         raise JobError("The metadata file lists no stations.")
+    skipped = _skipped_stations(p.get("skipped"), {s.name for s in stations})
     custom = custom_index(p.get("custom"))
     modules = module_selection(p.get("modules"))
     plots, zip_ = bool(p.get("plots")), bool(p.get("zip"))
+    folder = safe_station_name(p.get("folder") or "batch")
 
     # One count for the whole batch: each station's steps, then the zip. Stations may
     # interleave (several workers), so the count is the sum of each station's last step.
@@ -167,17 +248,26 @@ def run_batch_job(ctx: JobContext) -> dict:
     }
     total = sum(totals.values()) + (1 if zip_ else 0)
     done = dict.fromkeys(totals, 0)
+    status = BatchStatus(ctx.output_dir / STATIONS_FILE, totals, skipped)
 
     def progress(station: str, stage: str, step: int, _total: int) -> None:
         done[station] = step
+        status.update(station, state="running", step=step, stage=stage)
         ctx.progress(f"{station}: {stage}", sum(done.values()), total)
 
     def on_result(result) -> None:
+        if result.ok:
+            status.update(result.name, state="done", step=totals[result.name])
+        else:
+            status.update(result.name, state="failed", error=result.error or "")
         if done[result.name] < totals[result.name]:  # a failed station: count it as done
             done[result.name] = totals[result.name]
             ctx.progress(f"{result.name}: failed", sum(done.values()), total)
 
-    out_dir = ctx.output_dir / "batch"
+    out_dir = ctx.output_dir / folder
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for item in skipped:  # in the zip too, under R's error file name
+        (out_dir / f"{item['name']}.errors.txt").write_text(item["error"] + "\n")
     results = run_batch(
         stations,
         data_dir,
@@ -190,15 +280,46 @@ def run_batch_job(ctx: JobContext) -> dict:
         modules=modules,
         progress=progress,
         plots=plots,
-        zip=zip_,
     )
+    station_zips = {}
+    if p.get("station_zips"):  # each station on its own, beside the batch folder
+        for r in results:
+            if r.ok and (out_dir / r.name).is_dir():
+                archive = ctx.output_dir / "stations" / f"{r.name}.zip"
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                zip_folder(out_dir / r.name, archive, exclude_suffix=".zip")
+                station_zips[r.name] = _relative([archive], ctx.output_dir)[0]
     if zip_:
+        zip_batch(out_dir)
         ctx.progress("zip", total, total)
+
+    def entry(r) -> dict:
+        folder_path = out_dir / r.name
+        return {
+            "name": r.name,
+            "station_file": r.station_file,
+            "ok": r.ok,
+            "written": r.written,
+            "skipped_outputs": list(r.skipped),
+            "error": r.error,
+            "error_file": _relative([r.error_file], ctx.output_dir)[0] if r.error_file else None,
+            "folder": _relative([folder_path], ctx.output_dir)[0] if r.ok else None,
+            "zip": station_zips.get(r.name),
+        }
+
     return {
-        "stations": [
-            {"name": r.name, "ok": r.ok, "written": r.written, "error": r.error} for r in results
+        "folder": folder,
+        "stations": [entry(r) for r in results],
+        "skipped": [
+            {
+                "name": item["name"],
+                "station_file": item.get("station_file", ""),
+                "error": item["error"],
+                "error_file": f"{folder}/{item['name']}.errors.txt",
+            }
+            for item in skipped
         ],
-        "zip": "batch.zip" if zip_ else None,
+        "zip": f"{folder}.zip" if zip_ else None,
     }
 
 

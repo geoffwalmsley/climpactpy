@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Check the data and describe the station" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Check the data and describe the station" %}</h1>
+    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check that this is the data you expect, then give the station's details.{% endblocktranslate %}{% endif %}</p>
+  </header>
+
+  {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
+
+  {% if analysis.warnings %}
+  <div class="alert alert--warning">
+    {% icon "warning" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% blocktranslate count counter=analysis.warnings|length trimmed %}Something to check in the file{% plural %}{{ counter }} things to check in the file{% endblocktranslate %}</h2>
+      <ul>{% for warning in analysis.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      <p>{% translate "These do not stop you going on; the quality checks in the next step look at the data in detail." %}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% include "stations/_summary.html" %}
+
+  <section class="card stack" aria-labelledby="details-title">
+    <h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>
+    <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {% include "components/form_errors.html" %}
+      {% include "stations/_unit.html" with group="station_name" %}
+      <div class="form__row">
+        {% include "stations/_unit.html" with group="latitude" %}
+        {% include "stations/_unit.html" with group="longitude" %}
+      </div>
+      {% include "stations/_unit.html" with group="base_period" %}
+      <div class="form__actions">
+        {% translate "Continue to quality checks" as continue_label %}
+        {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" size="lg" %}
+      </div>
+    </form>
+  </section>
+
+  {% include "stations/_retention.html" %}
+  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="cluster">
+    {% csrf_token %}
+    {% translate "Delete this data now" as delete_label %}
+    {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
+    <a class="small" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
+  </form>
+</div>
+{% endblock %}

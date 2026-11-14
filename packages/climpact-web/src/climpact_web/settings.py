@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "climpact_web.core",
     "climpact_web.jobs",
+    "climpact_web.stations",
 ]
 
 MIDDLEWARE = [

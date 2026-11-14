@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library) (see [Web front end](#web-front-end) and [Background jobs](#background-jobs)) | the screens: charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data (see [Web front end](#web-front-end), [Background jobs](#background-jobs) and [Single-station steps](#single-station-steps)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2238,6 +2238,8 @@ file must be text-identical.
 | The time axis is padded to whole years; padded days count as missing | same |
 | `northern.hemisphere = latitude > 0`, so latitude 0 is treated as Southern Hemisphere | same (`StationMetadata.northern_hemisphere`); matters for gsl and heatwaves |
 | `qualityControlCheck` stops with "Years are not in ascending order" when they are not | the check runs after the merge, which sorts the rows, so it never fires; Python has no such check either |
+| `read_user_file` reads the columns with `read.table`, whose default `na.strings = "NA"` makes an `NA` value missing | `read_station_rows` raises `ValueError` on `NA` (numpy cannot convert it); the web app's step 1 refuses the file and asks for -99.9 at the line (#76); reading `NA` as missing is #99. Files written as Climpact documents them (-99.9) are unaffected |
+| A UTF-8 byte-order mark is kept by `readLines`, so the first row's first field is not an integer and the first data row is skipped as a header | same in the core; the web app stores uploads without the BOM, so it keeps that row |
 
 ### Output files
 
@@ -2509,7 +2511,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
-(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4), #79
+(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
 (downloads), #80 (batch), #81 (help), #85 (gridded), #82 (size budget) and #83
 (accessibility).
 
@@ -2519,8 +2521,8 @@ imports `climpact_web`. This section describes the skeleton (#69) and the design
 packages/climpact-web/src/climpact_web/
   settings.py        the one settings module; every value from environment variables
                      (local or hosted mode, see below); reading it has no side effects
-  urls.py            root URLs: i18n/ (set_language) and the core app; later apps add
-                     their own include here
+  urls.py            root URLs: i18n/ (set_language), jobs/, station/ and the core app;
+                     later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
   cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
@@ -2540,6 +2542,7 @@ packages/climpact-web/src/climpact_web/
       css/main.css   tokens (light), base styles, layout and every component
       css/theme-dark.css  dark values of the colour tokens
       css/patterns.css    pattern library page only
+      css/stations.css    the single-station pages only
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
@@ -2554,22 +2557,36 @@ packages/climpact-web/src/climpact_web/
     retention.py     purge_expired: old jobs and their folders
     storage.py       LocalJobStorage: the per-job folders (the S3 hook for #12)
     stages.py        readable names of the core's progress stages
-    views.py, urls.py, forms.py  /jobs/: list, a minimal station form, job page,
-                     progress fragment, cancel, retry, file downloads
+    views.py, urls.py  /jobs/: list, job page, progress fragment, cancel, retry, file
+                     downloads
+    forms.py         STATION_NAME and safe_station_name (the station name rules)
     context_processors.py  `job_retention_days` for every template
     management/commands/  runworker, purgejobs
-    templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html,
-                     station_form.html
+    templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html
+  stations/          the single-station steps (label `stations`, see
+                     [Single-station steps](#single-station-steps))
+    models.py        StationAnalysis: one station going through the steps
+    station_file.py  checks an uploaded file (plain-language problems at file lines,
+                     warnings) and summarises its data
+    forms.py         UploadForm, MetadataForm (step 1), RunAllForm (step 2 placeholder)
+    preview.py       the static monthly preview (inline SVG) until the charts of #75
+    retention.py     purge_expired_analyses, registered with the jobs app's purge
+    views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
+                     daily CSV, delete, the step 2 placeholder
+    sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB)
+    templates/stations/  upload.html, load.html, qc.html, _unit.html (a field group
+                     validated by htmx), _summary.html, _problems.html, _retention.html
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
   test_*.py          settings, views and security, i18n, static files, the command, jobs
-                     (test_jobs.py) and the worker as a real process (test_worker_process.py)
+                     (test_jobs.py), the worker as a real process (test_worker_process.py)
+                     and step 1 (test_stations.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
-worker and progress pages, #73), and planned `stations` (single-station steps 1-4 and batch, #76-#80,
-#90) and `gridded` (#85). `core` keeps what every page shares.
+worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4 and
+batch follow in #77-#80, #90) and planned `gridded` (#85). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2735,11 +2752,12 @@ a comment listing its parameters. Labels are passed in already translated
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket will add (`stations:upload`, `stations:sample`,
-`stations:batch`, `gridded:start`, `help:index`; `jobs:list` exists). Until a URL exists, the landing page shows that action disabled or
+URL name each later ticket will add (`stations:batch`, `gridded:start`, `help:index`;
+`stations:upload`, `stations:sample` (#76) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered only in local mode, as
 in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
-reason.
+reason. "Try with sample data" is a one-button POST form, since it creates the session's
+analysis.
 
 **Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
 sample data" buttons, the four steps, the other ways to run Climpact (batch, gridded in
@@ -2749,7 +2767,7 @@ palette and the icons, and is what the user review and the accessibility audit (
 
 **Responsive and right-to-left.** Layouts use flex and grid with `auto-fill` columns, so
 they reflow down to 320px wide and at 200% zoom without horizontal scrolling (checked on
-the landing page and pattern library in a 320px frame with headless Chrome); wide tables
+the landing page, pattern library and station step 1 pages in a 320px frame with headless Chrome); wide tables
 scroll inside their own region. Only logical properties are used: a test fails on
 `left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
@@ -2761,9 +2779,10 @@ issue aimed for under 30 KB of CSS; the full component set, both token sets and 
 comments put it above that. Whole-page budgets are set in #82.
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
-page, pattern library, 404 page and the job pages (a running, a finished and a failed
-job, the job list and the station form, rendered from unsaved example jobs, so no
-database is needed), each in light and dark copies, with the static files beside them
+page, pattern library, 404 page, the job pages (a running, a finished and a failed
+job and the job list) and the single-station step 1 pages (upload, upload with file
+problems, the sample loaded, metadata errors, the step 2 placeholder), rendered from
+unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
 and the icon sprite inlined, so they open from disk without a server.
 
 ### Translations
@@ -2893,11 +2912,10 @@ down, and the worker's imports (xclim, matplotlib) stay out of the server proces
 Hosted mode runs `runworker` processes alongside the web servers (#12); more workers
 claim different jobs. `runworker --once` runs the jobs waiting now and exits.
 
-**Pages** (`/jobs/`). `jobs/` lists the session's jobs; `jobs/station/new` is a minimal
-form (station file, name, coordinates, base period, plots, zip) so a run can be started
-from the browser now: the single-station steps (#76-#78) replace it. The station name is
-restricted to letters, digits, spaces and `.()-_` (it becomes folder and file names), and
-the upload is saved as `input/station.txt`, never under a name from the browser.
+**Pages** (`/jobs/`). `jobs/` lists the session's jobs. Station runs are started from
+the single-station steps (see [Single-station steps](#single-station-steps)), which
+replaced #73's minimal form at `jobs/station/new`; the station file is copied into the
+job as `input/station.txt`, never under a name from the browser.
 `jobs/<id>/` is the job page; `jobs/<id>/progress` the progress fragment;
 `jobs/<id>/cancel` and `jobs/<id>/retry` (POST); `jobs/<id>/files/<path>` downloads an
 output file of a finished job (paths outside `output/` give 404). Any other session gets
@@ -2928,7 +2946,9 @@ deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
 stale jobs), for cron in a deployment. Every template gets `job_retention_days` (context
 processor `climpact_web.jobs.context_processors.jobs`), for the upload page (#76) to state
-the period; the job page shows the deletion date.
+the period; the job page shows the deletion date. Other apps register their own clean-up
+with `register_purger(func)`; each purge calls `func(now, days)` (the stations app deletes
+its analyses this way, so the jobs app knows nothing of them).
 
 **Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads,
 empties `output/` before a run, resolves download paths and deletes a job's folder. The
@@ -2946,6 +2966,106 @@ the later screens' URLs (a stub URLconf), and the snapshot command.
 `test_design_tokens.py` checks contrast, the chart palette export and the size budgets;
 `test_static.py` checks logical properties in every stylesheet and that `ui.js` has no
 imports or network requests.
+
+### Single-station steps
+
+The single-station flow (#76-#79, #90) replaces the R app's tabs
+(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Step 1 (#76) is
+built; the later steps add pages to the same object.
+
+**Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
+through the steps: a UUID primary key; `owner` (the session's job owner token, so a
+session sees its analyses and its jobs, and any other session gets 404); `source`
+(`upload` or `sample`); `file_name` (as uploaded, display only); `summary` (JSON from
+`station_file.summarise`: first and last dates, days, per variable the days present and
+missing, days with data per year, monthly means for the preview); `warnings` (about the
+file); the metadata `station_name`, `latitude`, `longitude` (null until given),
+`base_start`, `base_end` (R's defaults, 1971 and 2000); `step`, the furthest step reached
+(`upload`, `qc`, `indices`, `results`, `sector`, the keys of `STATION_STEPS`); and
+`qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
+delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
+(not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
+its own `input/` when queued, so analyses and jobs expire independently. Changing the
+file or any metadata value clears the job links and sets `step` back (`reset_later_steps`),
+so the later steps run again. `step_urls()` gives the step indicator a link for each step
+reached whose URL exists; #77-#79 and #90 add `stations:indices`, `stations:results` and
+`stations:sector` (all `/station/<id>/...`) and set the job links.
+
+**URLs.** `/station/` upload page (`stations:upload`); `/station/sample` (POST) loads the
+sample; `/station/sample.txt` downloads it (R links to the sample file too);
+`/station/<id>/load` step 1 (`stations:load`); `.../load/validate` (htmx, POST);
+`.../file` (POST) loads a different file into the analysis; `.../series.csv` the daily
+series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`) and
+`.../quality/run-all` (POST).
+
+**Step 1: the file.** The upload page has a drop zone around a real file input (a plain
+multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
+card, the retention note, the file format in a disclosure and the session's recent
+analyses. `station_file.inspect_station_bytes` checks the file before anything is saved:
+
+- *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
+  data rows, a line without six values, a value that is not a number ("NA" and similar
+  get "write missing values as -99.9"; a comma inside a number gets a note that commas
+  separate values), no valid date, the last row dated before the first. Each names the
+  **line of the file** (blank and header lines counted) and shows the line; at most 10
+  are listed, with a count of the rest. The lines are walked with the core reader's rules
+  (commas are separators, blank lines skipped, a first row whose first field is not an
+  integer is a header), then the core itself (`read_station_file`, `merged_rows`) reads the
+  file; its remaining errors are translated (`core_error_message`). A test checks that
+  every `ValueError` the core reader raises has its own message.
+- *Warnings* do not stop it, for what R accepts silently: dates that do not exist
+  (dropped), rows dated outside the first row's and last row's dates (dropped), rows out
+  of order (sorted), repeated dates (the indices use the last row), a variable with no
+  values.
+- The accepted file is stored as UTF-8 without a byte-order mark: the core reads with
+  Python's default encoding, and a BOM would make the first data row a header (as it does
+  in R). A header in Latin-1 is decoded as such.
+
+**Step 1: the summary.** The load page shows the period, years and days (from the first
+row's date to the last, as R's quality control), a table of days with data, days missing
+and the share missing per variable (one value per date, the last row of a repeated date,
+as the indices use), a static preview, the days with data in each year (in a
+disclosure), a CSV download of the daily series and a form to load a different file
+(the metadata is kept; the station name follows the new file name only if it was still
+the default). The preview (`preview.py`) is two small inline SVG charts of monthly means
+(maximum and minimum temperature, monthly total precipitation; months with fewer than 20
+days are gaps), drawn on the server in the chart tokens. It is a placeholder: a
+`CHART HOOK` comment in `stations/_summary.html` marks where the interactive chart of #75
+replaces it, fed by `stations:series`.
+
+**Step 1: the metadata.** The fields are exactly those of the R app: station name,
+latitude, longitude, base period first and last year (`MetadataForm`). The name defaults
+to the file name without its extension (as the command line does), reduced to letters,
+digits, spaces and `.()-_` (it becomes folder and file names). Rules and messages:
+
+| Field | R app | Python |
+| --- | --- | --- |
+| Station name | required ("Please enter a station name") | required; the characters above, not starting with a dot |
+| Latitude, longitude | default 0, 0; must lie in -90..90 and -180..180 | start empty and are required (a forgotten 0 would put the station in the Southern Hemisphere); same ranges; latitude 0 gets a warning that it counts as Southern Hemisphere |
+| Base period | default 1971-2000; years >= 0; the help says it "must be within the limits of the dates in the station data", but nothing checks it before the run | same defaults; the last year must not be before the first; a base period with no year inside the data is an error; partial coverage is a warning naming the years covered; 359 days or fewer of the base period inside the data (`MIN_BASE_DAYS`, the core's rule) is a warning that the percentile indices cannot be calculated, as the run would go ahead in R too |
+| Sample | a link to the file; the user uploads it and types the metadata | one click: the analysis is created with the name, latitude -33.86 and longitude 151.21 (as in `reference/stations.csv`) filled in |
+
+**htmx.** The form is split into groups (`MetadataForm.UNITS`: name, latitude, longitude,
+base period). Each group is a `<div>` with `hx-post` to `.../load/validate`,
+`hx-trigger="change"`, `hx-include="closest form"` and `hx-vals` naming the group; the
+server validates the whole form and returns only that group, re-rendered with its
+errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
+whole form is posted and the page shows every error with the error summary.
+"Continue to quality checks" saves the metadata, moves `step` to `qc` and redirects to
+step 2.
+
+**Step 2 placeholder.** Until #77, `stations:qc` shows what was loaded and offers the
+whole calculation with the default parameters (the `station` runner: QC files, every
+index, plots and zip, each of the last two a checkbox), recorded as `indices_job`; this
+is what #73's minimal form did. #77 replaces the page with the quality-check screen and
+its own job.
+
+**Retention.** An analysis is deleted, with its folder, `JOB_RETENTION_DAYS` after it was
+last changed (`updated_at`), unless one of its jobs is queued or running
+(`stations/retention.py`, run with every purge of expired jobs); folders under
+`stations/` that belong to no analysis are deleted once older than the period. The pages
+state the period and the date the analysis will be deleted, and "Delete this data now"
+deletes it at once.
 
 ## Development
 

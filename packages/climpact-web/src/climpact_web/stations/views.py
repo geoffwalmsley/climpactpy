@@ -1,0 +1,341 @@
+"""The single-station steps. Step 1 (#76): load the station file, or the sample, and give
+the station's metadata. The later steps (#77-#79, #90) add their pages to the same
+analysis (``/station/<id>/...``).
+
+An analysis is visible only to the browser session that created it, like a job: any
+other session gets 404.
+"""
+
+from __future__ import annotations
+
+import csv
+import gzip
+from pathlib import Path
+
+from django.conf import settings
+from django.contrib import messages
+from django.core.files import File
+from django.db import transaction
+from django.http import Http404, HttpResponse, HttpResponseBadRequest
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.translation import gettext as _
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods, require_POST, require_safe
+
+from climpact_web.core.navigation import station_steps
+from climpact_web.jobs.forms import safe_station_name
+from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
+from climpact_web.stations import preview
+from climpact_web.stations.forms import MetadataForm, RunAllForm, UploadForm
+from climpact_web.stations.models import STATION_FILE, Source, StationAnalysis, Step
+from climpact_web.stations.station_file import (
+    Inspection,
+    inspect_station_bytes,
+    variable_label,
+)
+
+SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
+SAMPLE_NAME = "sydney_observatory_hill_1936-2015.txt"
+# Sydney Observatory Hill (ASN00066062), as in reference/stations.csv.
+SAMPLE_METADATA = {
+    "station_name": "sydney_observatory_hill_1936-2015",
+    "latitude": -33.86,
+    "longitude": 151.21,
+}
+RECENT_ANALYSES = 5
+
+
+def sample_bytes() -> bytes:
+    return gzip.decompress((SAMPLE_DIR / f"{SAMPLE_NAME}.gz").read_bytes())
+
+
+def get_analysis(request, analysis_id) -> StationAnalysis:
+    owner = request.session.get(OWNER_KEY) or "-"
+    return get_object_or_404(StationAnalysis, pk=analysis_id, owner=owner)
+
+
+def default_name(file_name: str) -> str:
+    """The station name from the file name without its extension, as the command line
+    and the R app do, keeping only the characters allowed in result file names."""
+    return safe_station_name(Path(file_name).stem)
+
+
+# ---- Step 1: the file --------------------------------------------------------------------
+
+
+def apply_inspection(analysis: StationAnalysis, inspection: Inspection, file_name: str):
+    analysis.file_name = file_name[:255]
+    analysis.summary = inspection.summary
+    analysis.warnings = inspection.warnings
+    analysis.reset_later_steps()
+    analysis.touch()
+    analysis.save()
+    analysis.save_station_text(inspection.text)
+
+
+def read_upload(uploaded) -> bytes:
+    return b"".join(uploaded.chunks())
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def upload(request):
+    """Start: upload a station file (or choose the sample)."""
+    inspection = None
+    if request.method == "POST":
+        form = UploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded = form.cleaned_data["station_file"]
+            inspection = inspect_station_bytes(read_upload(uploaded))
+            if inspection.ok:
+                with transaction.atomic():
+                    analysis = StationAnalysis(
+                        owner=owner_token(request),
+                        source=Source.UPLOAD,
+                        station_name=default_name(uploaded.name),
+                    )
+                    apply_inspection(analysis, inspection, uploaded.name)
+                return redirect("stations:load", analysis_id=analysis.pk)
+    else:
+        form = UploadForm()
+    return render(request, "stations/upload.html", upload_context(request, form, inspection))
+
+
+def upload_context(request, form, inspection=None) -> dict:
+    owner = request.session.get(OWNER_KEY) or "-"
+    return {
+        "form": form,
+        "inspection": inspection,
+        "file_name": form.files.get("station_file").name if form.files.get("station_file") else "",
+        "steps": station_steps("upload"),
+        "recent": StationAnalysis.objects.filter(owner=owner)[:RECENT_ANALYSES],
+        "sample_name": SAMPLE_NAME,
+        "max_upload_mb": settings.MAX_UPLOAD_MB,
+    }
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def sample(request):
+    """One click: an analysis of the Sydney sample with its metadata filled in."""
+    if request.method != "POST":
+        return redirect("stations:upload")
+    inspection = inspect_station_bytes(sample_bytes())
+    with transaction.atomic():
+        analysis = StationAnalysis(owner=owner_token(request), source=Source.SAMPLE)
+        apply_inspection(analysis, inspection, SAMPLE_NAME)
+        for name, value in SAMPLE_METADATA.items():
+            setattr(analysis, name, value)
+        analysis.save()
+    return redirect("stations:load", analysis_id=analysis.pk)
+
+
+@require_safe
+def sample_file(request):
+    """The sample station file, to look at or to use as a template (R links to it)."""
+    response = HttpResponse(sample_bytes(), content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{SAMPLE_NAME}"'
+    return response
+
+
+@require_POST
+def replace_file(request, analysis_id):
+    """Load a different file into the analysis, keeping the metadata."""
+    analysis = get_analysis(request, analysis_id)
+    form = UploadForm(request.POST, request.FILES)
+    inspection = None
+    if form.is_valid():
+        uploaded = form.cleaned_data["station_file"]
+        inspection = inspect_station_bytes(read_upload(uploaded))
+        if inspection.ok:
+            old_default = default_name(analysis.file_name)
+            if not analysis.station_name or analysis.station_name == old_default:
+                analysis.station_name = default_name(uploaded.name)
+            analysis.source = Source.UPLOAD
+            apply_inspection(analysis, inspection, uploaded.name)
+            messages.success(request, _("The new file is loaded."))
+            return redirect("stations:load", analysis_id=analysis.pk)
+    metadata = MetadataForm(initial=initial_metadata(analysis), summary=analysis.summary)
+    context = load_context(request, analysis, metadata)
+    context.update(replace_form=form, inspection=inspection, replace_open=True)
+    return render(request, "stations/load.html", context)
+
+
+# ---- Step 1: the metadata ----------------------------------------------------------------
+
+
+def initial_metadata(analysis: StationAnalysis) -> dict:
+    return {
+        "station_name": analysis.station_name,
+        "latitude": analysis.latitude,
+        "longitude": analysis.longitude,
+        "base_start": analysis.base_start,
+        "base_end": analysis.base_end,
+    }
+
+
+def percent_text(variable: dict) -> str:
+    if variable["missing"] and variable["percent_missing"] < 0.1:
+        return _("under 0.1%")
+    return _("%(value)s%%") % {"value": f"{variable['percent_missing']:.1f}"}
+
+
+def summary_context(analysis: StationAnalysis) -> dict:
+    summary = analysis.summary or {}
+    if not summary:
+        return {}
+    variables = [
+        {
+            **v,
+            "label": variable_label(v["key"]),
+            "percent_text": percent_text(v),
+            "token": f"--chart-{v['key']}",
+        }
+        for v in summary["variables"]
+    ]
+    years = [
+        {
+            **y,
+            "cells": [
+                {"value": y[k], "percent": round(100 * y[k] / y["days"])}
+                for k in ("prcp", "tmax", "tmin")
+            ],
+        }
+        for y in summary["years"]
+    ]
+    return {
+        "summary": summary,
+        "variables": variables,
+        "years": years,
+        "year_count": summary["last_year"] - summary["first_year"] + 1,
+        "panels": preview.panels(summary.get("preview", {})),
+    }
+
+
+def load_context(request, analysis: StationAnalysis, form: MetadataForm) -> dict:
+    return {
+        "analysis": analysis,
+        "form": form,
+        "replace_form": UploadForm(),
+        "steps": station_steps("upload", analysis.step_urls()),
+        **summary_context(analysis),
+    }
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD", "POST"])
+def load(request, analysis_id):
+    """Step 1's main page: what is in the file, and the station metadata."""
+    analysis = get_analysis(request, analysis_id)
+    if request.method == "POST":
+        form = MetadataForm(request.POST, summary=analysis.summary)
+        if form.is_valid():
+            data = form.cleaned_data
+            changed = any(getattr(analysis, k) != v for k, v in data.items())
+            for name, value in data.items():
+                setattr(analysis, name, value)
+            if changed:
+                analysis.reset_later_steps()
+            analysis.advance_to(Step.QC)
+            analysis.touch()
+            analysis.save()
+            return redirect("stations:qc", analysis_id=analysis.pk)
+    else:
+        if analysis.metadata_complete:
+            # Bound, to show the warnings (and any errors) of the saved metadata.
+            form = MetadataForm(initial_metadata(analysis), summary=analysis.summary)
+            form.is_valid()
+        else:
+            form = MetadataForm(initial=initial_metadata(analysis), summary=analysis.summary)
+    return render(request, "stations/load.html", load_context(request, analysis, form))
+
+
+@require_POST
+def validate(request, analysis_id):
+    """htmx: one group of fields checked as it changes, returned on its own."""
+    analysis = get_analysis(request, analysis_id)
+    unit = request.POST.get("group", "")
+    if unit not in MetadataForm.UNITS:
+        return HttpResponseBadRequest()
+    form = MetadataForm(request.POST, summary=analysis.summary)
+    form.is_valid()
+    context = {"form": form, "group": unit, "analysis": analysis}
+    return render(request, "stations/_unit.html", context)
+
+
+@require_safe
+def series(request, analysis_id):
+    """The daily series as CSV (date, prcp, tmax, tmin; empty when missing): the CSV
+    download of the preview, and the data for the interactive chart (#75)."""
+    analysis = get_analysis(request, analysis_id)
+    from climpact.io.station import merged_rows, read_station_file
+
+    if not analysis.station_file.is_file():
+        raise Http404
+    rows = merged_rows(read_station_file(analysis.station_file))
+    rows = rows.drop_duplicates(subset="date", keep="last")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    name = analysis.station_name or "station"
+    response["Content-Disposition"] = f'attachment; filename="{name}_daily.csv"'
+    writer = csv.writer(response)
+    writer.writerow(["date", "prcp", "tmax", "tmin"])
+    for date, *values in rows[["date", "prcp", "tmax", "tmin"]].itertuples(index=False):
+        writer.writerow([date.date().isoformat(), *("" if v != v else f"{v:g}" for v in values)])
+    return response
+
+
+@require_POST
+def delete(request, analysis_id):
+    """Delete the analysis and its file now, rather than at the end of the retention."""
+    analysis = get_analysis(request, analysis_id)
+    analysis.delete_files()
+    analysis.delete()
+    messages.success(request, _("The station data were deleted."))
+    return redirect("stations:upload")
+
+
+# ---- Step 2 placeholder ------------------------------------------------------------------
+
+
+@never_cache
+@require_safe
+def qc(request, analysis_id):
+    """Step 2, Check quality: the screen comes with #77. Until then the page confirms
+    what was loaded and can run the whole calculation with the default parameters."""
+    analysis = get_analysis(request, analysis_id)
+    if not analysis.reached(Step.QC) or not analysis.metadata_complete:
+        return redirect("stations:load", analysis_id=analysis.pk)
+    return render(
+        request,
+        "stations/qc.html",
+        {
+            "analysis": analysis,
+            "steps": station_steps("qc", analysis.step_urls()),
+            "run_form": RunAllForm(),
+        },
+    )
+
+
+@require_POST
+def run_all(request, analysis_id):
+    """Queue the whole station calculation (QC, indices, plots, zip) with the default
+    index parameters, as the job pages' minimal form did before step 1 existed."""
+    analysis = get_analysis(request, analysis_id)
+    if not analysis.metadata_complete or not analysis.station_file.is_file():
+        return redirect("stations:load", analysis_id=analysis.pk)
+    form = RunAllForm(request.POST)
+    form.is_valid()  # two optional checkboxes: always valid
+    params = {
+        "station_file": STATION_FILE,
+        "metadata": analysis.metadata,
+        "params": {},
+        "plots": form.cleaned_data["plots"],
+        "zip": form.cleaned_data["zip"],
+    }
+    with analysis.station_file.open("rb") as handle:
+        job = create_job(
+            request, "station", params, {STATION_FILE: File(handle)}, title=analysis.station_name
+        )
+    analysis.indices_job = job
+    analysis.touch()
+    analysis.save()
+    return redirect(reverse("jobs:detail", args=[job.pk]))

@@ -16,6 +16,7 @@ def test_static_files_in_package():
         "css/main.css",
         "css/theme-dark.css",
         "css/patterns.css",
+        "css/stations.css",
         "js/ui.js",
         "icons/icons.svg",
         "icons/favicon.svg",
@@ -32,7 +33,7 @@ def test_vendored_htmx_matches_readme():
     assert actual.hexdigest() == recorded
 
 
-@pytest.mark.parametrize("name", ["main.css", "theme-dark.css", "patterns.css"])
+@pytest.mark.parametrize("name", ["main.css", "theme-dark.css", "patterns.css", "stations.css"])
 def test_css_uses_logical_properties(name):
     """Right-to-left languages: no physical left/right/top/bottom in the stylesheets."""
     css = (STATIC / "css" / name).read_text()

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Check quality" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Check quality" %}</h1>
+    <p class="lead">{% blocktranslate with name=analysis.station_name %}{{ name }}: data and station details saved.{% endblocktranslate %}</p>
+  </header>
+  {% translate "The quality-check screen is not available yet. Until it is, you can run the whole calculation with the default settings: the quality-control files, every index, the plots and a zip of the results." as soon %}
+  {% include "components/alert.html" with kind="info" title="" message=soon %}
+
+  <section class="card stack" aria-labelledby="loaded-title">
+    <h2 class="card__title" id="loaded-title">{% translate "What you loaded" %}</h2>
+    <dl class="summary-list">
+      <dt>{% translate "Station" %}</dt><dd>{{ analysis.station_name }}</dd>
+      <dt>{% translate "Location" %}</dt><dd>{% blocktranslate with lat=analysis.latitude lon=analysis.longitude %}{{ lat }}° N, {{ lon }}° E{% endblocktranslate %}</dd>
+      <dt>{% translate "Base period" %}</dt><dd>{% blocktranslate with start=analysis.base_start end=analysis.base_end %}{{ start }} to {{ end }}{% endblocktranslate %}</dd>
+      <dt>{% translate "Data" %}</dt><dd>{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date name=analysis.file_name %}{{ first }} to {{ last }}, from {{ name }}{% endblocktranslate %}</dd>
+    </dl>
+    <p><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the data or the station details" %}</a></p>
+  </section>
+
+  <section class="card stack" aria-labelledby="run-title">
+    <h2 class="card__title" id="run-title">{% translate "Calculate everything now" %}</h2>
+    {% if analysis.indices_job %}
+    <p>{% translate "A calculation for this station has been started." %} <a href="{% url 'jobs:detail' analysis.indices_job.pk %}">{% translate "Follow its progress and download the results" %}</a></p>
+    {% endif %}
+    <form method="post" action="{% url 'stations:run_all' analysis.pk %}" class="stack">
+      {% csrf_token %}
+      {% include "components/field.html" with field=run_form.plots %}
+      {% include "components/field.html" with field=run_form.zip %}
+      {% if analysis.indices_job %}{% translate "Calculate again" as run_label %}{% else %}{% translate "Calculate with the default settings" as run_label %}{% endif %}
+      {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" %}
+    </form>
+  </section>
+</div>
+{% endblock %}

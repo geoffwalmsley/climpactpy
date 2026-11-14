@@ -11,7 +11,9 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``station_file``; ``metadata``: ``name``, ``latitude``, ``longitude``,
     ``base_start``, ``base_end``; ``params``: :class:`climpact.config.IndexParams` fields,
     ``custom`` as ``{"variable", "operator", "threshold"}`` or null; ``plots``, ``zip``;
-    optional ``modules``: ``{"qc": [...], "homogeneity": ..., "indices": [...]}``.
+    optional ``plot_title`` (printed on every plot instead of the station title, R's
+    "Plot title" of step 3); optional ``modules``:
+    ``{"qc": [...], "homogeneity": ..., "indices": [...]}``.
     Optional ``qc``: :class:`climpact.config.QCParams` fields (the QC files' thresholds).
 ``qc`` (the R app's quality-control step)
     ``station_file``, ``metadata`` as for ``station``, and ``qc``: :class:`QCParams`
@@ -155,6 +157,7 @@ def run_station_job(ctx: JobContext) -> dict:
         plots=bool(p.get("plots")),
         zip=bool(p.get("zip")),
         qc=qc_params(p.get("qc")),
+        plot_title=p.get("plot_title") or None,
     )
     archive = written.pop("zip", None)
     return {

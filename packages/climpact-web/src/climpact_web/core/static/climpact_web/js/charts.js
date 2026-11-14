@@ -145,9 +145,10 @@
     var series = [];
     var legend = [];
     if (p.bars) {
-      series.push({ label: t("wet"), short: p.label, unit: p.units, token: "--chart-1", bars: true, values: y.map(function (v) { return v != null && v >= 0 ? v : null; }) });
-      series.push({ label: t("dry"), short: p.label, unit: p.units, token: "--chart-2", bars: true, values: y.map(function (v) { return v != null && v < 0 ? v : null; }) });
-      legend.push({ label: t("wet"), token: "--chart-1", box: true }, { label: t("dry"), token: "--chart-2", box: true });
+      var wet = p.bar_labels ? p.bar_labels[0] : t("wet"), dry = p.bar_labels ? p.bar_labels[1] : t("dry");
+      series.push({ label: wet, short: p.label, unit: p.units, token: "--chart-1", bars: true, values: y.map(function (v) { return v != null && v >= 0 ? v : null; }) });
+      series.push({ label: dry, short: p.label, unit: p.units, token: "--chart-2", bars: true, values: y.map(function (v) { return v != null && v < 0 ? v : null; }) });
+      legend.push({ label: wet, token: "--chart-1", box: true }, { label: dry, token: "--chart-2", box: true });
     } else {
       series.push({ label: p.label, short: p.label, unit: p.units, token: "--chart-1", values: y, markers: p.step !== "month" && x.length <= 200, thin: p.step === "month" });
       legend.push({ label: p.label, token: "--chart-1" });

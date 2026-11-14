@@ -576,7 +576,7 @@ def test_open_a_station_as_a_single_station(client):
     assert client.get(url).status_code == 405
     response = client.post(url)
     analysis = StationAnalysis.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/load"
+    assert response["Location"] == f"/station/{analysis.pk}/results"
     assert analysis.source == Source.BATCH and analysis.step == Step.QC
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == ("a", -30, 150)
     assert (analysis.base_start, analysis.base_end) == (2000, 2001)
@@ -587,7 +587,7 @@ def test_open_a_station_as_a_single_station(client):
     assert client.post(url)["Location"] == response["Location"]
     assert StationAnalysis.objects.count() == 1
     html = client.get(f"/batch/{run.pk}/results").content.decode()
-    assert f'href="/station/{analysis.pk}/load"' in html
+    assert f'href="/station/{analysis.pk}/results"' in html
     assert client.post(f"/batch/{run.pk}/open/nope").status_code == 404
 
 

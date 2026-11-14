@@ -133,16 +133,19 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     assert run_job(claim("w0"), None).status == Status.SUCCEEDED
     response = client.post(load_url.replace("/load", "/quality/continue"))
     page = client.get(response["Location"]).content.decode()
-    assert "Calculate with the default settings" in page
-    run_url = load_url.replace("/load", "/indices/run-all")
-    response = client.post(run_url, {"zip": "on"})
+    assert "Calculate indices" in page
+    from test_indices_results import defaults
+
+    run_url = load_url.replace("/load", "/indices")
+    response = client.post(run_url, {**defaults(), "plots": ""})
     assert response.status_code == 302
     job = Job.objects.exclude(pk=qc_job.pk).get()
-    assert response["Location"] == f"/jobs/{job.pk}/"
+    assert response["Location"] == load_url.replace("/load", "/results")
+    response = client.get(f"/jobs/{job.pk}/")
     assert (job.status, job.kind, job.title) == (Status.QUEUED, "station", "Testville")
     assert job.params["plots"] is False and job.params["zip"] is True
     assert (job.input_dir / "station.txt").read_text() == station_text()
-    page = client.get(response["Location"]).content.decode()
+    page = response.content.decode()
     assert "Waiting to start" in page and 'hx-get="/jobs/' in page
 
     # Each progress write, and what the progress fragment shows at that moment.

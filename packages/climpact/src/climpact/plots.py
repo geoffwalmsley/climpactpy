@@ -322,7 +322,7 @@ class _Canvas:
 
     _LEFT, _RIGHT, _BOTTOM = 0.085, 0.97, 0.2
 
-    def __init__(self, metadata: StationMetadata) -> None:
+    def __init__(self, metadata: StationMetadata, title: str | None = None) -> None:
         require_matplotlib()
         from matplotlib.backends.backend_agg import FigureCanvasAgg
         from matplotlib.collections import PolyCollection
@@ -332,7 +332,8 @@ class _Canvas:
         fig = self.figure = Figure(figsize=(_WIDTH, _HEIGHT), dpi=_DPI, facecolor="white")
         FigureCanvasAgg(fig)
         left, right = self._LEFT, self._RIGHT
-        fig.text(left, 0.945, station_title(metadata), color=_INK_2, fontsize=10)
+        heading = title or station_title(metadata)
+        fig.text(left, 0.945, heading, color=_INK_2, fontsize=10)
         self.title = fig.text(left, 0.915, "", color=_INK, fontsize=12.5, weight="bold", va="top")
         self.trend_text = fig.text(left, 0.105, "", color=_INK, fontsize=10.5)
         fig.text(
@@ -466,6 +467,7 @@ def write_plots(
     params: IndexParams,
     out_dir: str | Path,
     progress: Callable[[str], None] | None = None,
+    title: str | None = None,
 ) -> dict[str, Path]:
     """Draw every plot of a run as R names them, and the combined PDF.
 
@@ -473,7 +475,8 @@ def write_plots(
     ``<out_dir>/<station>/plots/<station>_<name>.png`` for each plot and
     ``<station>_all_plots.pdf`` with every plot as a page, in R's order. Returns the path
     of each plot by name, and of the PDF under ``"all_plots"``. ``progress(stage)`` is
-    called after each stage of :func:`plot_steps`. Needs matplotlib.
+    called after each stage of :func:`plot_steps`. ``title`` is printed at the top of
+    every plot (R's "Plot title"; default :func:`station_title`). Needs matplotlib.
     """
     matplotlib = require_matplotlib()
     from matplotlib.backends.backend_pdf import PdfPages
@@ -482,9 +485,9 @@ def write_plots(
     pdf_path = pdf_file(out_dir, station)
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     with matplotlib.rc_context(_RC_PNG):
-        png_canvas = _Canvas(metadata)
+        png_canvas = _Canvas(metadata, title)
     with matplotlib.rc_context(_RC_PDF), _quiet_font_manager():
-        pdf_canvas = _Canvas(metadata)
+        pdf_canvas = _Canvas(metadata, title)
     written: dict[str, Path] = {}
     with PdfPages(pdf_path, metadata={"Title": f"{station}: Climpact index plots"}) as pdf:
         for stage, plots in index_plots(tables, params):

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load i18n static ui help charts %}
+{% block title %}{% blocktranslate with name=card.name station=analysis.station_name %}{{ name }}: {{ station }}{% endblocktranslate %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <nav class="cluster small result-nav" aria-label="{% translate 'Indices' %}">
+    <a href="{% url 'stations:results' analysis.pk %}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
+    {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
+    {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next">{% blocktranslate with name=next.name %}Next: {{ name }}{% endblocktranslate %}</a>{% endif %}
+  </nav>
+
+  <header class="stack stack--sm">
+    <p class="eyebrow">{{ card.long_name }}</p>
+    <h1>{{ card.name }}</h1>
+    <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
+    <p class="small muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
+    {% help_topic card.topic %}
+    {% if card.param_topic %}
+    <p class="small">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>; you come back to this index afterwards.{% endblocktranslate %}</p>
+    {% endif %}
+  </header>
+
+  {% if card.series|length > 1 %}
+  <nav class="series-nav" aria-label="{% translate 'Series' %}">
+    <ul class="chips" role="list">
+      {% for s in card.series %}<li><a class="chip{% if s.name == series.name %} chip--current{% endif %}" href="?series={{ s.name|urlencode }}"{% if s.name == series.name %} aria-current="page"{% endif %}>{{ s.label }}</a></li>{% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% if stats %}
+  <div class="stat-row">
+    {% if trend.valid %}
+    {% blocktranslate with slope=trend.slope_text units=card.units asvar trend_value %}{{ slope }} {{ units }}{% endblocktranslate %}
+    {% blocktranslate with lower=trend.lower_text upper=trend.upper_text asvar trend_note %}per decade; 95% interval {{ lower }} to {{ upper }}{% endblocktranslate %}
+    {% translate "Trend" as trend_label %}{% include "components/stat.html" with label=trend_label value=trend_value note=trend_note %}
+    {% if trend.significant %}{% translate "Yes: the interval excludes zero" as sig_note %}{% translate "Yes" as sig_value %}{% else %}{% translate "No: the interval includes zero" as sig_note %}{% translate "No" as sig_value %}{% endif %}
+    {% translate "Significant at 5%" as sig_label %}{% include "components/stat.html" with label=sig_label value=sig_value note=sig_note %}
+    {% elif trend %}
+    {% translate "Trend" as trend_label %}{% translate "None" as none_value %}{% translate "needs at least 10 values and 70% of the series" as none_note %}
+    {% include "components/stat.html" with label=trend_label value=none_value note=none_note %}
+    {% endif %}
+    {% for s in stats %}{% include "components/stat.html" with label=s.label value=s.value note=s.note %}{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if chart_url %}
+  {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
+  {% url 'jobs:file' job.pk csv_path as csv_url %}
+  {% include "components/chart_frame.html" with id="index-chart" title=series.description data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
+  {% help_topic "trend.sen_slope" %}
+  {% endif %}
+
+  {% if anomaly_url %}
+  <section class="stack" aria-labelledby="anomaly-heading">
+    <h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>
+    <p class="small muted">{% translate "Each value's distance from the mean of all years, in standard deviations, as in the table's last column." %}</p>
+    {% translate "Standardised anomalies" as anomaly_title %}
+    {% include "components/chart_frame.html" with id="anomaly-chart" title=anomaly_title data_url=anomaly_url height="14rem" only %}
+    {% help_topic "results.standardised" %}
+  </section>
+  {% endif %}
+
+  {% if card.daily %}
+  <section class="card stack" aria-labelledby="daily-title">
+    <h2 class="card__title" id="daily-title">{% translate "Daily values" %}</h2>
+    <p>{% blocktranslate with days=card.daily.days first=card.daily.first last=card.daily.last missing=card.daily.missing positive=card.daily.positive trimmed %}
+      {{ days }} days from {{ first }} to {{ last }}: {{ positive }} above zero, {{ missing }} missing. Climpact for R does not plot this table; the ten highest days are below and the CSV has them all.
+    {% endblocktranslate %}</p>
+    <div class="table-wrap" role="region" aria-labelledby="daily-caption" tabindex="0">
+      <table class="table">
+        <caption id="daily-caption">{% translate "The ten highest days" %}</caption>
+        <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="numeric">{% blocktranslate with column=card.daily.column %}{{ column }} (°C²){% endblocktranslate %}</th></tr></thead>
+        <tbody>{% for row in card.daily.top %}<tr><td>{{ row.date }}</td><td class="numeric">{{ row.text }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if trend_rows %}
+  <section class="card stack" aria-labelledby="trend-title">
+    <h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>
+    <p class="small muted">{% translate "The rows of the trend file for this index, as written: Sen's slope per year (per month for the monthly row) and its 95% confidence interval." %}</p>
+    <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
+      <table class="table">
+        <caption id="trend-caption" class="visually-hidden">{% translate "Trends in the trend file" %}</caption>
+        <thead><tr>
+          <th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Years" %}</th>
+          <th scope="col" class="numeric">{% translate "Lower bound" %}</th><th scope="col" class="numeric">{% translate "Slope" %}</th><th scope="col" class="numeric">{% translate "Upper bound" %}</th>
+          <th scope="col">{% translate "Significant" %}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in trend_rows %}<tr>
+            <th scope="row">{{ row.label }} <span class="small muted">{{ row.per }}</span></th><td>{% blocktranslate with start=row.start end=row.end %}{{ start }} to {{ end }}{% endblocktranslate %}</td>
+            {% if row.valid %}<td class="numeric">{{ row.lower|floatformat:"-4" }}</td><td class="numeric">{{ row.slope|floatformat:"-4" }}</td><td class="numeric">{{ row.upper|floatformat:"-4" }}</td>
+            <td>{% if row.significant %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
+            {% else %}<td class="numeric" colspan="3">{% translate "Too few values" %}</td><td></td>{% endif %}
+          </tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% help_topic "trend.seasons" %}
+  </section>
+  {% endif %}
+
+  <section class="card stack" aria-labelledby="files-title">
+    <h2 class="card__title" id="files-title">{% translate "Downloads" %}</h2>
+    <ul class="link-list">
+      <li><a href="{% url 'jobs:file' job.pk csv_path %}" download>{% translate "The table (CSV)" %}</a></li>
+      {% if png_path %}<li><a href="{% url 'jobs:file' job.pk png_path %}" download>{% translate "Climpact's plot of this series (PNG)" %}</a></li>{% endif %}
+      {% if source.station %}<li><a href="{% url 'stations:results' analysis.pk %}#downloads">{% translate "Everything else" %}</a></li>{% endif %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

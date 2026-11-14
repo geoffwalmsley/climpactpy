@@ -154,25 +154,6 @@ class QCParamsForm(forms.Form):
         return any(self.cleaned_data[k] != v for k, v in QC_DEFAULTS.items())
 
 
-class RunAllForm(forms.Form):
-    """The whole calculation with default index parameters, from the placeholder of step
-    3 until the indices step (#78) exists. A checkbox left unticked is absent
-    from the request, so both default to ticked on the page."""
-
-    plots = forms.BooleanField(
-        label=_("Draw plots"),
-        help_text=_("A plot of every index. They take about two thirds of the time."),
-        required=False,
-        initial=True,
-    )
-    zip = forms.BooleanField(
-        label=_("Make a zip file of the results"),
-        help_text=_("Every result file in one download, in the folder layout of Climpact for R."),
-        required=False,
-        initial=True,
-    )
-
-
 class MetadataForm(forms.Form):
     """Station metadata, validated against the data (``summary`` from
     :func:`climpact_web.stations.station_file.summarise`)."""

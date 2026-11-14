@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load i18n static ui help %}
+{% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}"><script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Results" %}</h1>
+    <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_year last=analysis.summary.last_year start=analysis.base_start end=analysis.base_end count counter=total trimmed %}
+      {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} index.
+    {% plural %}
+      {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} indices.
+    {% endblocktranslate %}</p>
+  </header>
+
+  {% if from_batch %}
+  {% translate "These are this station's results from the batch run. Change the settings to calculate it again here." as batch_note %}
+  {% include "components/alert.html" with kind="info" title="" message=batch_note %}
+  {% endif %}
+
+  <div class="cluster results-actions">
+    {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
+    {% include "components/button.html" with label=change_label href=indices_url variant="secondary" icon="sliders" %}
+    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip as zip_url %}{% translate "Download everything (zip)" as zip_label %}
+    {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
+    <a href="#downloads">{% translate "Other downloads" %}</a>
+  </div>
+
+  {% if run.skipped %}
+  <div class="alert alert--warning">
+    {% icon "warning" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% blocktranslate count counter=run.skipped|length trimmed %}{{ counter }} index could not be calculated{% plural %}{{ counter }} indices could not be calculated{% endblocktranslate %}</h2>
+      <p>{% translate "Climpact does not write a table whose values are all missing. These are not shown below:" %}</p>
+      <ul class="skipped-list">
+        {% for item in run.skipped %}<li>{% blocktranslate with name=item.name tables=item.tables_text reason=item.reason %}<strong>{{ name }}</strong> ({{ tables }}): {{ reason }}{% endblocktranslate %}</li>{% endfor %}
+      </ul>
+      {% help_topic "results.missing_value" %}
+    </div>
+  </div>
+  {% endif %}
+
+  <form class="results-filter card" method="get" action="{% url 'stations:results' analysis.pk %}" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
+    <div class="results-filter__search">
+      <label class="field__label" for="results-q">{% translate "Find an index" %}</label>
+      <div class="search">
+        {% icon "search" %}
+        <input type="search" id="results-q" name="q" value="{{ q }}" placeholder="{% translate 'Name or words, e.g. TXx, frost, rain' %}" autocomplete="off">
+      </div>
+    </div>
+    <fieldset class="results-filter__families">
+      <legend class="field__label">{% translate "Show" %}</legend>
+      <div class="chips">
+        <label class="chip"><input type="radio" name="family" value=""{% if not family %} checked{% endif %}><span>{% blocktranslate with n=total %}All ({{ n }}){% endblocktranslate %}</span></label>
+        {% for key, label, n in families %}<label class="chip"><input type="radio" name="family" value="{{ key }}"{% if family == key %} checked{% endif %}><span>{% blocktranslate %}{{ label }} ({{ n }}){% endblocktranslate %}</span></label>{% endfor %}
+      </div>
+    </fieldset>
+    <label class="check results-filter__significant"><input type="checkbox" name="significant" value="1"{% if significant %} checked{% endif %}> <span>{% blocktranslate with n=significant_count %}Significant trends only ({{ n }}){% endblocktranslate %}</span></label>
+    <div class="results-filter__submit" data-results-submit>
+      {% translate "Show these" as filter_label %}
+      {% include "components/button.html" with label=filter_label type="submit" variant="secondary" size="sm" %}
+    </div>
+  </form>
+  <p class="small muted" id="results-count" aria-live="polite" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}</p>
+  {% help_topic "trend.significance" %}
+
+  {% for section in sections %}
+  <section class="results-section" aria-labelledby="group-{{ section.key }}" data-results-section{% if section.hidden %} hidden{% endif %}>
+    <h2 id="group-{{ section.key }}" class="results-section__title">{{ section.label }}</h2>
+    <ul class="index-grid" role="list">
+      {% for card in section.cards %}
+      <li class="index-card" data-family="{{ card.family }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
+        <div class="index-card__head">
+          <h3 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.name }}</a></h3>
+          {% if card.units %}<span class="index-card__units">{{ card.units }}</span>{% endif %}
+        </div>
+        <p class="index-card__definition">{{ card.definition }}</p>
+        {% if card.spark %}<svg class="spark" viewBox="0 0 240 60" preserveAspectRatio="none" aria-hidden="true" focusable="false">{% if card.spark.trend %}<path class="spark__trend" d="{{ card.spark.trend }}"/>{% endif %}{% if card.spark.line %}<path class="spark__line" d="{{ card.spark.line }}"/>{% if card.spark.dots %}<path class="spark__dots" d="{{ card.spark.dots }}"/>{% endif %}{% else %}<path class="spark__zero" d="M0 {{ card.spark.zero }}H240"/><path class="spark__pos" style="stroke-width:{{ card.spark.bar_width }}" d="{{ card.spark.pos }}"/><path class="spark__neg" style="stroke-width:{{ card.spark.bar_width }}" d="{{ card.spark.neg }}"/>{% endif %}</svg>
+        {% elif card.daily %}<p class="index-card__daily small">{% blocktranslate with days=card.daily.days|floatformat:"0g" high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
+        <p class="index-card__trend">
+          {% if card.trend.valid %}
+          <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
+          {% if card.trend.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}{% translate "Not significant" as sig %}{% include "components/badge.html" with label=sig %}{% endif %}
+          {% elif card.trend %}<span class="small muted">{% translate "No trend: too few values" %}</span>
+          {% elif card.daily %}<span class="small muted">{% translate "Daily values, no trend" %}</span>
+          {% else %}<span class="small muted">{% translate "No trend line" %}</span>{% endif %}
+        </p>
+        <p class="index-card__meta small muted">{% if card.latest %}{% blocktranslate with when=card.latest.when value=card.latest.text units=card.units series=card.series_text %}Latest: {{ value }} {{ units }} in {{ when }} · {{ series }}{% endblocktranslate %}{% else %}{{ card.series_text }}{% endif %}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
+
+  <div class="results-footer">
+    <section class="card stack" id="downloads" aria-labelledby="downloads-title">
+      <h2 class="card__title" id="downloads-title">{% translate "Downloads" %}</h2>
+      <ul class="link-list">
+        {% if downloads.zip %}<li><a href="{% url 'jobs:file' downloads.job.pk downloads.zip %}">{% translate "Everything, in Climpact for R's folder layout (zip)" %}</a></li>{% endif %}
+        {% for f in downloads.files %}<li><a href="{% url 'jobs:file' downloads.job.pk f.path %}">{{ f.label }}</a></li>{% endfor %}
+        <li><a href="{% url 'jobs:detail' downloads.job.pk %}">{% translate "Every file of this calculation" %}</a></li>
+      </ul>
+      {% help_topic "results.files" %}
+      <p class="small muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
+    </section>
+    <section class="card stack" aria-labelledby="params-title">
+      <h2 class="card__title" id="params-title">{% translate "Settings used" %}</h2>
+      <dl class="settings-list">
+        {% for p in params %}<dt>{{ p.label }}</dt><dd>{{ p.value }}</dd>{% endfor %}
+      </dl>
+      <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
+    </section>
+    <section class="card stack" aria-labelledby="next-title">
+      <h2 class="card__title" id="next-title">{% translate "Next: compare with sector data" %}</h2>
+      <p>{% translate "Optional: see how the indices relate to yearly data from a sector such as agriculture or health." %}</p>
+      <p><a href="{% url 'stations:sector' analysis.pk %}">{% translate "Compare with sector data" %} {% icon "arrow-right" %}</a></p>
+    </section>
+  </div>
+</div>
+{% endblock %}

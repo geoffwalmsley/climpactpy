@@ -238,7 +238,6 @@ FIELDSET_COVERED = {"base_start", "base_end"}
     [
         station_forms.UploadForm,
         station_forms.MetadataForm,
-        station_forms.RunAllForm,
         batch_forms.UploadForm,
         batch_forms.AddFilesForm,
         batch_forms.OptionsForm,

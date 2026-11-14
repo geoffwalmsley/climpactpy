@@ -96,11 +96,13 @@ def job_pages() -> dict[str, str]:
 
 def station_pages() -> dict[str, str]:
     """Steps 1 and 2 of the single-station flow (#76, #77: before the checks have run) and
-    the step 3 placeholder, with the sample data, rendered without a database. The results
-    of the checks need a finished job's files; their screenshots are in the PR (#77)."""
+    step 3 (the index parameters, #78), with the sample data, rendered without a database.
+    The results of the checks and of the indices need a finished job's files; their
+    screenshots are in the PRs (#77, #78)."""
     from climpact_web.core.navigation import station_steps
-    from climpact_web.stations import views
-    from climpact_web.stations.forms import MetadataForm, RunAllForm, UploadForm
+    from climpact_web.stations import views, views_indices
+    from climpact_web.stations.forms import MetadataForm, UploadForm
+    from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
     from climpact_web.stations.models import Source, StationAnalysis, Step
     from climpact_web.stations.station_file import inspect_station_bytes
 
@@ -139,10 +141,8 @@ def station_pages() -> dict[str, str]:
         "station-load-errors": ("stations/load.html",
                                 views.load_context(request, uploaded, errors)),
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
-        "station-indices": ("stations/indices.html",
-                            {"analysis": sample,
-                             "steps": station_steps("indices", sample.step_urls()),
-                             "run_form": RunAllForm()}),
+        "station-indices": ("stations/indices.html", views_indices.indices_context(
+            sample, IndexParamsForm(initial=initial_from_params({})), "default")),
     }  # fmt: skip
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 

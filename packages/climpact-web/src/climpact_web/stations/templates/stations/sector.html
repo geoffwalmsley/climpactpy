@@ -1,16 +1,91 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Compare with sector data" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/sector.css' %}"><script src="{% static 'climpact_web/js/sector.js' %}" defer></script>{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% translate "Compare with sector data" %}</h1>
-    <p class="lead">{% translate "Optional: how the indices relate to yearly data from a sector such as crop yields or hospital admissions." %}</p>
+    <p class="lead">{% translate "Optional: how yearly data from a sector such as crop yields or hospital admissions relates to the station's temperatures and indices." %}</p>
   </header>
-  {% translate "This screen is not available yet. The command line can already do it: climpact sector-correlation." as soon %}
-  {% include "components/alert.html" with kind="info" title="" message=soon %}
-  <p class="cluster">{% if job %}<a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a>{% else %}<a href="{% url 'stations:indices' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Calculate the indices first" %}</a>{% endif %}</p>
+
+  {% if not source %}
+  {% if indices_job and not indices_job.is_finished %}
+  {% translate "The indices are still being calculated. Come back when they have finished." as wait_message %}
+  {% include "components/alert.html" with kind="info" title="" message=wait_message %}
+  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "See the progress" %} {% icon "arrow-right" %}</a></p>
+  {% else %}
+  {% translate "Calculate the climate indices first: the comparison uses them." as first_message %}
+  {% include "components/alert.html" with kind="info" title="" message=first_message %}
+  <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
+  {% endif %}
+  {% else %}
+
+  {% if from_batch %}
+  {% blocktranslate asvar batch_note with name=source.station %}This compares the indices calculated for {{ name }} in the batch run.{% endblocktranslate %}
+  {% include "components/alert.html" with kind="info" title="" message=batch_note %}
+  {% endif %}
+
+  {% if job and not job.is_finished %}
+  <section class="card stack" aria-labelledby="progress-title">
+    <h2 class="card__title" id="progress-title">{% translate "Calculating correlations" %}</h2>
+    {% include "stations/_sector_progress.html" %}
+    <noscript><p class="small">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
+  </section>
+  {% elif job.status == "failed" %}
+  <div class="alert alert--error" role="alert" id="sector-error">
+    {% icon "error" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% translate "The correlations could not be calculated." %}</h2>
+      <p>{% if r_error %}{% translate "Error:" %} {% endif %}{{ job.error }}</p>
+      {% if r_error %}<p>{% blocktranslate trimmed with min=10 %}This is Climpact for R's message: the station and your data need at least {{ min }} years in common, and each index at least one.{% endblocktranslate %}</p>{% endif %}
+      <p>{% translate "Check the file and the settings below, and calculate again." %}</p>
+    </div>
+  </div>
+  {% elif job.status == "cancelled" %}
+  {% translate "The calculation was cancelled." as cancelled_message %}
+  {% include "components/alert.html" with kind="info" title="" message=cancelled_message %}
+  {% elif missing_outputs %}
+  {% translate "The result files of this comparison are no longer there. Calculate it again." as gone_message %}
+  {% include "components/alert.html" with kind="warning" title="" message=gone_message %}
+  {% endif %}
+
+  {% if results %}{% include "stations/_sector_results.html" %}{% endif %}
+
+  {% if form.inspection and not form.inspection.ok %}{% include "stations/_problems.html" with inspection=form.inspection file_name=form.file_name %}
+  {% elif form.errors %}{% include "components/form_errors.html" %}{% endif %}
+
+  <details class="card sector-settings"{% if not results or form.errors %} open{% endif %} id="settings">
+    <summary class="card__title sector-settings__summary">{% if results %}{% translate "Change the file or the settings" %}{% else %}{% translate "Sector data and plot settings" %}{% endif %}{% icon "chevron-down" %}</summary>
+    <form method="post" action="{% url 'stations:sector' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
+      {% csrf_token %}
+      <div class="stack">
+        <h3>{% translate "Sector data" %}</h3>
+        <p class="small">{% translate "Climpact correlates yearly sector data with the indices calculated in the previous step. Only yearly data can be used." %}</p>
+        {% blocktranslate asvar hint %}CSV, one line per year.{% endblocktranslate %}
+        {% include "components/dropzone.html" with field=form.sector_file hint=hint %}
+        <p class="small muted">{{ form.sector_file.help_text }}</p>
+        {% help_topic "sector.file" %}
+        <p class="small">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use Climpact for R's sample, yearly wheat yields for New South Wales, 1922 to 1999, which goes with the Sydney sample station: the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
+      </div>
+      <div class="stack">
+        <h3>{% translate "Plot attributes" %}</h3>
+        <p class="small muted">{% translate "Climpact fills in a title and a y-axis label from the station and the file name; you can change them." %}</p>
+        {% include "components/field.html" with field=form.title help="sector.title" %}
+        {% include "components/field.html" with field=form.y_label help="sector.y_label" %}
+        {% include "components/field.html" with field=form.detrend help="sector.detrend" %}
+      </div>
+      <div class="cluster">
+        {% translate "Calculate correlations" as run_label %}
+        {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
+        {% translate "Use the sample data" as sample_label %}
+        {% include "components/button.html" with label=sample_label type="submit" name="sample" value="1" variant="secondary" %}
+      </div>
+    </form>
+  </details>
+
+  <p class="cluster"><a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a> <a href="{% url 'help:guide' 'sector' %}">{% translate "Guide: sector correlation" %}</a></p>
+  {% endif %}
 </div>
 {% endblock %}

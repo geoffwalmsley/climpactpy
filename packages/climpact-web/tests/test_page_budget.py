@@ -43,6 +43,8 @@ ASSET_BUDGETS = {
     "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
     "css/results.css": 2 * KB,  # station steps 3 and 4 (#78)
     "js/results.js": 1 * KB,  # the results dashboard's filters (#78)
+    "css/sector.css": 1.5 * KB,  # station step 5, sector data (#90)
+    "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "css/batch.css": 1 * KB,
     "css/gridded.css": 1.5 * KB,
     "css/patterns.css": 1 * KB,
@@ -126,6 +128,19 @@ def station_index(client) -> str:
     return station_results(client) + "/txx"
 
 
+def station_sector(client) -> str:
+    """Step 5's results (#90): R's sample wheat file against the Sydney run, the 42 bars and
+    the four scatter plots with their tables."""
+    from climpact_web.jobs.models import Job
+    from climpact_web.jobs.worker import claim, run_job
+
+    url = station_results(client).replace("/results", "/sector")
+    Job.objects.filter(kind="qc").delete()
+    client.post(url, {"sample": "1", "detrend": "on"})
+    run_job(claim("budget"), None)
+    return url
+
+
 def batch_check(client) -> str:
     return client.post("/batch/sample")["Location"]
 
@@ -185,6 +200,7 @@ PAGES = {
     "station indices": Page(station_indices),
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
     "station index": Page(station_index, charts=True),  # the index's chart (#78)
+    "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "batch start": Page(lambda client: "/batch/"),
     "batch check": Page(batch_check),
     "batch results": Page(batch_results),

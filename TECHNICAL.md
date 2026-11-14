@@ -35,9 +35,9 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data, and step 2, the quality checks; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the screens: steps 3-4 (#78, #90), downloads (#79) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data, step 2, the quality checks, steps 3 and 4, the indices and results, and step 5, sector data; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the downloads page (#79) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -621,6 +621,7 @@ year (Climpact's sample is `www/sample_data/wheat_yield_nsw_1922-1999.csv`, copi
 | --- | --- |
 | `read_sector_file(path)` | reads the file as `read.csv`: the header through `make.names` (`r_make_names`: `Wheat yield (t/ha)` becomes `Wheat.yield..t.ha.`), `-99.9`, `NA` and empty as missing. Returns a `SectorData` (`years`, `values`, `column`) |
 | `sector_correlation(rows, index_tables, sector, station, detrend_sector)` | the calculation, in memory. `rows` are the station's daily rows as R's `read_user_file` reads them (`io.station.read_station_rows`), `index_tables` a run's tables keyed `indices/<name>_ANN` (from `build_all`, or read back by `read_index_tables`). Returns a `SectorCorrelation`: the four scatter tables with their regressions and the correlation table |
+| `regression(x, y)` | `lm(y ~ x)` on the years with both values, rounded to 2 decimals as R annotates the scatter plots (a `Regression`, or `None` with fewer than two such years); public for the web app's `sector` runner (#90) |
 | `write_sector_correlation(result, folder, title, y_label, plots)` | writes the files below to `folder` (R's `corr/`), with `write_r_csv` (R's `write.csv`) |
 | `run_sector_correlation(station_file, sector_file, out_dir, station, ..., index_tables=None, plots, zip, progress)` | the hook called after a run, by `climpact sector-correlation` and the web app: reads the station file and the index CSV files in `<out_dir>/<station>/indices/` (or uses `index_tables`, a run's tables in memory), writes to `<out_dir>/<station>/corr/` and, with `zip`, zips that folder to `<out_dir>/<station>_corr.zip`, as R's `zipFiles(corrdir, destinationFolder = baseFolder)` |
 
@@ -2525,7 +2526,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
-(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-4; steps 1 to 4 are described in [Single-station steps](#single-station-steps)), #79
+(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-5, described in [Single-station steps](#single-station-steps)), #79
 (downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
 (accessibility).
 
@@ -2568,12 +2569,14 @@ packages/climpact-web/src/climpact_web/
       css/help.css        help topics (every page) and the help pages and tour (#81)
       css/charts.css      the interactive charts (#75), chart pages only
       css/results.css     station steps 3 and 4 (#78): parameters, dashboard cards, sparklines
+      css/sector.css      station step 5, sector data (#90): settings, bar chart, scatter plots
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       step 2's results: links the check tables and the daily charts (#77)
       js/results.js  the results dashboard's filters (#78), that page only
+      js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
@@ -2615,13 +2618,20 @@ packages/climpact-web/src/climpact_web/
                      daily CSV, delete; step 2: the checks, thresholds, progress, table
                      pages, re-upload, continue
     views_indices.py steps 3 and 4: parameters (htmx field checks), the job, progress,
-                     dashboard, each index's page, anomalies JSON, the step 5 placeholder
-    sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB)
+                     dashboard, each index's page, anomalies JSON
+    sector_file.py   step 5 (#90): checks a sector file (plain-language problems at file
+                     lines, years in common with the station); SectorForm
+    sector_plots.py  step 5's results: a sector job's files read back; the bar chart and
+                     scatter plots as inline SVG
+    views_sector.py  step 5: the form, the sector job, its progress and results, the sample
+    sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB);
+                     wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
     templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; indices.html, _indices_unit.html
                      (step 3), results_progress.html, _results_progress.html, results.html,
-                     result.html (step 4), sector.html
+                     result.html (step 4), sector.html, _sector_progress.html,
+                     _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
     models.py        BatchRun: one batch's files, check result, options and job
     check.py         the pre-flight check: metadata file, each station, zip unpacking
@@ -2678,13 +2688,13 @@ packages/climpact-web/tests/
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      step 1 (test_stations.py), step 2 (test_qc_review.py), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
-                     the size budget (test_page_budget.py), the charts (test_charts.py) and
-                     steps 3 and 4 (test_indices_results.py)
+                     the size budget (test_page_budget.py), the charts (test_charts.py),
+                     steps 3 and 4 (test_indices_results.py) and step 5 (test_sector_web.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
 worker and progress pages, #73), `stations` (single-station steps, #76-#78; the downloads
-page follows in #79 and step 5 in #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
+page follows in #79; step 5, sector data, is #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2971,14 +2981,15 @@ runner's result also maps each output key to its file, `reports`), `batch` (`run
 count for the whole batch, the sum of each station's last step over the sum of their
 `pipeline_stages` + `plot_steps` totals; a failed station counts as done; `workers`
 defaults to 1; each station's own progress goes to `output/stations.json`, see
-[Batch page](#batch-page)), `sector` (`run_sector_correlation` on the station file and index tables
-of a finished `station` job), `gridded-thresholds` and `gridded-indices`
+[Batch page](#batch-page)), `sector` (`run_sector_correlation` on a station file and the index
+tables of a finished `station` job, or of one station of a `batch` job; its result also
+holds what step 5 shows: each scatter plot's file and regression, read back from its CSV
+with the core's `regression`, and the correlation table's file), `gridded-thresholds` and `gridded-indices`
 (`write_grid_thresholds`, `write_grid_indices`; input files are read in place from the
 paths given; `max_values`, `rechunk`, `tmp_dir` (default the job's folder) and
 `copy_to`, a folder the written files are also copied to). The parameters of each are in
-the module docstring. The batch page (#80) creates batch jobs and the gridded pages (#85)
-the gridded ones; the sector runner is complete and tested but no screen creates it yet
-(#90). The `station` runner also takes `plot_title` (step 3's "Plot title", passed to
+the module docstring. The batch page (#80) creates batch jobs, the gridded pages (#85)
+the gridded ones and step 5 of a station (#90) the sector ones. The `station` runner also takes `plot_title` (step 3's "Plot title", passed to
 `run_station`). The core is imported inside each runner, so the web server never imports
 xclim.
 
@@ -3095,8 +3106,9 @@ imports or network requests.
 
 The single-station flow (#76-#79, #90) replaces the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76),
-2 (#77), 3 and 4 (#78: parameters, calculation, results) are built; the downloads page
-(#79) and step 5 (#90) add pages to the same object.
+2 (#77), 3 and 4 (#78: parameters, calculation, results) and 5 (#90: sector data) are
+built; the downloads page (#79) adds pages to the same object. R's step 4, sector
+correlation, is step 5 here, because the results have a step of their own.
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
 through the steps: a UUID primary key; `owner` (the session's job owner token, so a
@@ -3114,8 +3126,8 @@ delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<
 its own `input/` when queued, so analyses and jobs expire independently. Changing the
 file or any metadata value clears the job links and sets `step` back (`reset_later_steps`),
 so the later steps run again. `step_urls()` gives the step indicator a link for each step
-reached whose URL exists. #78 added `stations:indices`, `stations:results` and the
-`stations:sector` placeholder (all `/station/<id>/...`); step 3 sets `indices_job`. The
+reached whose URL exists. #78 added `stations:indices` and `stations:results`, #90 `stations:sector`
+(all `/station/<id>/...`); step 3 sets `indices_job`, step 5 `sector_job`. The
 index parameters are not stored on the analysis: they are the `params` of its
 `indices_job` (or of its batch station, `origin`), so the model needed no migration.
 
@@ -3130,7 +3142,9 @@ series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`), `.../quality/
 step 3 (`stations:indices`) and `.../indices/validate` (htmx, POST); `.../results` step 4
 (`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
-`.../sector` the step 5 placeholder (`stations:sector`, until #90).
+`.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
+sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's sample
+sector file (`stations:sector_sample`).
 
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
@@ -3343,6 +3357,74 @@ R behaviour not copied in steps 3 and 4, and why:
 | Plots and zip always made | both on by default, each can be left out |
 | Results: a carousel of the PNGs and a link to the folder or zip | a card per index table with sparkline, trend and significance, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
+**Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
+`singleStationStep4.R`; the calculation is the core's `climpact.sector`, see
+[Sector correlation](#sector-correlation)). `stations/views_sector.py`, one page at
+`stations:sector`:
+
+- *Before the indices*: R's "Please calculate climate indices." becomes an info alert
+  with a link to step 3 (or to the progress while the indices job runs).
+- *The form* (`SectorForm`, `sector_file.py`): R's inputs and defaults. The sector file
+  (a drop zone around a file input; the help topic `sector.file`); "Title" (the station
+  name, as R fills it in); "Label for y axis" (empty; `js/sector.js` fills it with the
+  chosen file's name up to its first `_` or `.` as R does, and the server uses the same
+  default, `default_y_label`, for an empty label); "Detrend data" (ticked). "Use the sample
+  data" submits the same form with R's `wheat_yield_nsw_1922-1999.csv` (bundled, 795
+  bytes) instead of a file, and the file can be downloaded (R links to it). The form
+  starts from the last comparison's title and detrend setting.
+- *The checks* (`inspect_sector_bytes`), before anything is queued, with the core's rules
+  (`read_sector_file`): a header row whose first column is `Year`, exactly two
+  comma-separated columns, a whole-number year and a number, empty, `NA` or -99.9 on every
+  line, years increasing with none repeated, some values present. Each problem names the
+  line of the file and shows it (at most 10, with a count of the rest; the step 1 template
+  `_problems.html`), with hints for a semicolon or tab separator and a decimal comma. It
+  also checks what R checks only when it runs: at least 10 years in common between the
+  station file and the sector file (`MIN_COMMON_YEARS`, years with a missing value
+  counted, as R), quoting R's message "not able to make a correlation, since there is no
+  data in common!". The accepted text is stored as UTF-8 without a BOM. A test checks
+  the core reads every file the check accepts the same way.
+- *The job*: a `sector` job on the run the results dashboard shows (the analysis's
+  `indices_job`, or its batch station's outputs, `origin`), with the analysis's station
+  file and the checked sector file copied into its `input/`, plots and zip on. A job
+  queued earlier and not started is cancelled. While it runs the page polls
+  `stations:sector_progress` (the progress bar, time, and four stages: read, correlate,
+  write the tables and plots, zip), which answers `HX-Redirect` when it has finished. A
+  sector job made from another run of the indices (the indices were calculated again) is
+  not shown.
+- *Errors*: a failed job shows its message in an alert above the form, open again. The
+  core's `SectorCorrelationError` messages are R's, so R's case (an index with no year in
+  common with the sector data) reads "Error: not able to make a correlation, since there is
+  no data in common!", as R's `textOutput`, with a plain explanation.
+- *Results* (`sector_plots.py`, `_sector_results.html`), read back from the job's CSV files:
+  what was compared (column, file, detrended or not, years in common) and the zip of the
+  `corr/` folder (`<station>_corr.zip`, R's `zipFiles(corrdir)`); the correlation with each
+  index as horizontal bars from zero, temperature and precipitation indices in
+  `--chart-tmax` and `--chart-prcp` with a legend, each value written at the end of its bar
+  and NA at zero, in R's order or strongest first (`?order=strength`, a plain link); the four
+  scatter plots (mean TN, mean TX, mean temperature, days above 30 °C against the sector
+  series) with the least-squares line and R's equation and R² (rounded to 2 decimals, the
+  numbers the PNG prints, from the job's result). Each chart has "View as table" (a native
+  `<details>`; the index names link to their result pages), its CSV and the core's PNG.
+  The settings fold into "Change the file or the settings" once there are results, as R
+  collapses its "Settings" panel.
+- *Why inline SVG, not the uPlot charts of #75*: neither chart is a time series; the page
+  then loads no chart code (45 KB gzipped in all) and works without JavaScript. Points and
+  bars carry `<title>` read-outs on hover; the tables are the keyboard and screen-reader
+  view. On a phone the bar chart keeps a readable width (34rem) in a region that scrolls
+  sideways.
+- *Batch stations*: a station opened from a batch's results is compared with the batch
+  run's index tables (the runner reads `<folder>/<station>/indices/` of the batch job),
+  with a note saying so.
+
+R behaviour not copied in step 5, and why:
+
+| R step 4 | Python |
+| --- | --- |
+| A plot title is required ("Please enter a plot title") | filled in with the station name as in R, and an empty title also means the station name, as in step 3 |
+| The file is read only when "Calculate Correlations" is pressed; a malformed file gives an R error or, with years out of order, wrong numbers (see [Sector correlation](#sector-correlation-1)) | checked on upload, every problem listed with its line; fewer than 10 years in common is found before the job runs |
+| Results: a carousel of the PNGs and a link to the folder or zip | the bar chart and scatter plots drawn on the page, each with its table, CSV and PNG, and the zip |
+| The indices must have been calculated in the same session | the comparison uses the run kept for the analysis (or its batch station) for `JOB_RETENTION_DAYS` |
+
 **Retention.** An analysis is deleted, with its folder, `JOB_RETENTION_DAYS` after it was
 last changed (`updated_at`), unless one of its jobs is queued or running
 (`stations/retention.py`, run with every purge of expired jobs); folders under
@@ -3553,8 +3635,8 @@ its text and a link to its section (anchors `topic-<id>`).
 sample batch (the same one-click POST forms and downloads as #76 and #80), and in local
 mode the gridded sample (R's `climpact.sampledata.gridded.1991-2010.nc`), linked to the
 gridded screen once `gridded:start` exists. R's sector sample
-(`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide; the sector step (#90) will
-offer it.
+(`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide and offered by the sector
+step (#90).
 
 **First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
 landing page (the start buttons, the four steps, other ways to run Climpact, Help and Your
@@ -3734,7 +3816,9 @@ Every stylesheet, script, SVG and JSON file in the package must have an entry in
 function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
 quality-check results page (the Sydney sample checked: every section, the four chart
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
-year). #78 added `results.css` (2 KB) and `results.js` (1 KB).
+year). #78 added `results.css` (2 KB) and `results.js` (1 KB); #90 `sector.css` (1.5 KB) and
+`sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
+run: 42 bars, four scatter plots and their tables as inline SVG, no chart code).
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
 temporary folder, renders each page type with the real views (creating the session's
@@ -3745,7 +3829,7 @@ supports it; Brotli is printed as well. The pages measured: landing; station ste
 with the sample loaded, step 2 with the checks queued and with their results, step 3 (the
 parameters), the step 4 dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code); batch start, check and results (queued); the job list
+index's page (TXx, with the chart code), step 5's results (#90); batch start, check and results (queued); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
 largest map drawn, values all different); the help index, a guide, the indices guide, the
 topic list and a search; and the 404 page. The pattern library is left out (development
@@ -3758,6 +3842,7 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
 | station results, 80 indices | 190.8 | 37.7 | 69.2 | 65.7 |
 | station index (TXx, with chart code) | 18.8 | 4.5 | 68.4 | 61.4 |
+| station sector results (#90) | 110.6 | 14.7 | 45.2 | 41.8 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | station indices (step 3) | 28.3 | 5.3 | 35.9 | 32.5 |
@@ -3824,7 +3909,8 @@ pages. The scripts are `defer`red, so the first paint waits only for the stylesh
 ### Charts
 
 The interactive charts (#75) for the QC review (#77), results dashboard (#78), gridded
-clicked-cell series (#85) and sector screen (#90). The R app draws static PNGs (and
+clicked-cell series (#85). The sector screen (#90) draws its bar chart and scatter
+plots as inline SVG instead (see [Single-station steps](#single-station-steps)). The R app draws static PNGs (and
 `plotly` only for the QC histograms); here the static PNGs and PDF are still written by the
 core (`climpact.plots`, see [Plots and zip archive](#plots-and-zip-archive)), and the
 screens show the same series as interactive charts.
@@ -3883,7 +3969,7 @@ job it names a station that finished, and its `IndexParams` are read from the jo
 metadata file (the output names of parameterised indices depend on them). Other apps
 serve the same payload kinds from their own views with `charts.views.json_response` (the
 caching) and `charts.data.series_payload` (an `index` payload from labels and values), as
-the gridded results do; the sector screen (#90) can do the same.
+the gridded results do.
 
 **Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
 

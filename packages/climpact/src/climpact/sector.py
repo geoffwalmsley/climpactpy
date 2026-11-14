@@ -362,7 +362,9 @@ def _r_cor(x: np.ndarray, y: np.ndarray) -> float:
     return max(-1.0, min(1.0, r))
 
 
-def _regression(x: np.ndarray, y: np.ndarray) -> Regression | None:
+def regression(x: np.ndarray, y: np.ndarray) -> Regression | None:
+    """``lm(y ~ x)`` on the years with both values, rounded to 2 decimals as R annotates
+    the scatter plots; ``None`` with fewer than two such years or no variation in x."""
     ok = ~(np.isnan(x) | np.isnan(y))
     x, y = x[ok], y[ok]
     if len(x) < 2 or np.ptp(x) == 0:
@@ -421,7 +423,7 @@ def sector_correlation(
     for name, x_column, x_label in SCATTERS:
         x = temperature[x_column].to_numpy()
         table = pd.DataFrame({"year": temperature["year"], x_column: x, column: series})
-        scatters.append(Scatter(name, x_label, table, _regression(x.astype(float), series)))
+        scatters.append(Scatter(name, x_label, table, regression(x.astype(float), series)))
 
     rows_out = []
     for index, category in SECTOR_INDICES:

@@ -30,9 +30,15 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     station's. Each station's progress is written to ``output/stations.json``
     (:class:`BatchStatus`).
 ``sector`` (``climpact sector-correlation``)
-    ``station_job`` (the id of a finished station job, whose station file and index
-    tables are used), ``sector_file``, ``detrend``, ``title``, ``y_label``, ``plots``,
-    ``zip``.
+    ``station_job`` (the id of a finished ``station`` or ``batch`` job, whose index tables
+    are used), ``station`` (the station's name; required for a batch job),
+    ``station_file`` (optional: the station file in this job's ``input/``; default the
+    station job's), ``sector_file``, ``detrend``, ``title``, ``y_label``, ``plots``,
+    ``zip``. The result also describes the outputs for the step 5 screen (#90):
+    ``sector_column``, ``detrended``, ``correlation`` (the table's file) and ``scatters``
+    (each scatter's ``name``, ``file``, ``x_column``, ``x_label``, and its regression as
+    the PNG prints it: ``slope``, ``intercept``, ``r_squared``, ``text``; null values when
+    there is none).
 ``gridded-thresholds`` and ``gridded-indices`` (``climpact gridded-thresholds`` and
 ``gridded-indices``)
     ``input_files`` (absolute paths, read in place: files on this computer in local mode,
@@ -44,8 +50,8 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``out_file``; for indices also ``template``, ``indices``, ``thresholds_file`` and
     ``params`` (IndexParams fields).
 
-The batch page (#80) creates batch jobs and the gridded pages (#85) the gridded ones. The
-sector runner is complete but has no screen yet: #90 adds the form that creates it.
+The batch page (#80) creates batch jobs, the gridded pages (#85) the gridded ones and step
+5 of a station (#90) the sector ones.
 """
 
 from __future__ import annotations
@@ -394,12 +400,25 @@ def run_sector_job(ctx: JobContext) -> dict:
     from climpact_web.jobs.models import Job, Status
 
     p = ctx.params
-    station_job = Job.objects.filter(pk=p.get("station_job"), kind="station").first()
+    station_job = Job.objects.filter(pk=p.get("station_job"), kind__in=("station", "batch")).first()
     if station_job is None or station_job.status != Status.SUCCEEDED:
         raise JobError("Calculate the station's indices first: the station run was not found.")
-    station = station_job.result["station"]
-    station_file = station_job.input_dir / station_job.params["station_file"]
-    tables = read_index_tables(station_job.output_dir / station / "indices", station)
+    result = station_job.result or {}
+    if station_job.kind == "batch":
+        station = p.get("station") or ""
+        if not any(s.get("ok") and s["name"] == station for s in result.get("stations", [])):
+            raise JobError("Calculate the station's indices first: the station run was not found.")
+        folder = station_job.output_dir / result.get("folder", "")
+    else:
+        station = result["station"]
+        folder = station_job.output_dir
+    if p.get("station_file"):
+        station_file = ctx.input_file(p["station_file"])
+    elif station_job.kind == "station":
+        station_file = station_job.input_dir / station_job.params["station_file"]
+    else:
+        raise JobError("The station file was not given.")
+    tables = read_index_tables(folder / station / "indices", station)
     written = run_sector_correlation(
         station_file,
         ctx.input_file(p["sector_file"]),
@@ -418,6 +437,49 @@ def run_sector_job(ctx: JobContext) -> dict:
         "station": station,
         "files": _relative(written.values(), ctx.output_dir),
         "zip": _relative([archive], ctx.output_dir)[0] if archive else None,
+        **_sector_outputs(written, ctx.output_dir),
+    }
+
+
+def _sector_outputs(written: dict, root: Path) -> dict:
+    """What the step 5 screen shows of a sector run: the files of each scatter plot with
+    its regression (read back from its CSV file, as the PNG prints it) and the table of
+    correlations."""
+    import math
+
+    import pandas as pd
+
+    from climpact.sector import SCATTERS, regression, regression_text
+
+    def value(v):
+        return None if v is None or math.isnan(v) else v
+
+    scatters, column = [], ""
+    for name, x_column, x_label in SCATTERS:
+        key = next(k for k in written if k.startswith(f"corr_{name}_") and not k.endswith(".png"))
+        table = pd.read_csv(written[key])
+        column = table.columns[2]
+        reg = regression(table[x_column].to_numpy(float), table[column].to_numpy(float))
+        scatters.append(
+            {
+                "name": name,
+                "file": Path(written[key]).relative_to(root).as_posix(),
+                "x_column": x_column,
+                "x_label": x_label,
+                "slope": value(reg.slope) if reg else None,
+                "intercept": value(reg.intercept) if reg else None,
+                "r_squared": value(reg.r_squared) if reg else None,
+                "text": regression_text(reg),
+            }
+        )
+    bar = next(
+        k for k in written if k.startswith("index-sector_correlation_") and not k.endswith(".png")
+    )
+    return {
+        "sector_column": column,
+        "detrended": column.startswith("Detrended"),
+        "correlation": Path(written[bar]).relative_to(root).as_posix(),
+        "scatters": scatters,
     }
 
 

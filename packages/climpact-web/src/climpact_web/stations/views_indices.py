@@ -1,5 +1,5 @@
 """Steps 3 and 4 of a station (#78): the index parameters, the calculation as a job, the
-results dashboard and each index's own page.
+results dashboard and each index's own page (step 5 is in ``views_sector``).
 
 URLs (all ``/station/<id>/...``, private to the session like the other steps):
 
@@ -10,7 +10,6 @@ URLs (all ``/station/<id>/...``, private to the session like the other steps):
                             page (or opens the index the user came from)
 ``results/<key>``           one index: chart, trend, anomalies, tables, downloads
 ``results/<series>/anomalies.json``  the standardised anomalies, for the chart
-``sector``                  step 5, a placeholder until #90
 
 Step 3 works whether or not the quality checks (#77) have been run, as R lets you go on.
 The results come from the analysis's ``indices_job``; an analysis opened from a batch's
@@ -540,23 +539,3 @@ def result_anomalies(request, analysis_id, name):
         return payload
 
     return json_response(request, ("anomalies", str(job.pk), source.station, name), [path], build)
-
-
-# ---- step 5 placeholder -----------------------------------------------------------------
-
-
-@never_cache
-@require_safe
-def sector(request, analysis_id):
-    """Step 5, Compare with sector data: the screen comes with #90."""
-    analysis = get_analysis(request, analysis_id)
-    job, source = current_source(analysis)
-    return render(
-        request,
-        "stations/sector.html",
-        {
-            "analysis": analysis,
-            "job": job,
-            "steps": station_steps("sector", analysis.step_urls()),
-        },
-    )

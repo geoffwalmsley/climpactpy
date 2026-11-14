@@ -4,11 +4,14 @@ The format has six whitespace- or comma-separated columns::
 
     year  month  day  prcp  tmax  tmin
 
-with ``-99.9`` marking missing values and an optional header row. The behaviour
+with ``-99.9`` (or ``NA``) marking missing values and an optional header row. The behaviour
 follows the R code path used by Climpact v3.4.3:
 
 - ``read_user_file``: commas are treated as separators, a header row is skipped when
   the first field is not an integer, and values equal to ``-99.9`` become missing.
+  ``read.table``'s default ``na.strings = "NA"`` makes the field ``NA`` (exactly; ``na``
+  is an error) missing in any column, and ``NaN`` (any case) is read as a missing number
+  too. ``Inf`` is read as a number, as in R. An ``NA`` date is not a valid date.
 - ``create_user_data_ts``: rows whose year/month/day is not a valid date are dropped.
 - ``qualityControlCheck``: the rows are merged onto the daily dates from the date of the
   **first row** to the date of the **last row** of the file (:func:`merged_rows`). Rows
@@ -36,20 +39,22 @@ MISSING_VALUE = -99.9
 COLUMNS = ["year", "month", "day", "prcp", "tmax", "tmin"]
 
 _INTEGER = re.compile(r"^[+-]?\d+$")
+NA_STRING = "NA"  # R read.table's default na.strings
 
 
 def read_station_rows(path: str | Path) -> pd.DataFrame:
     """Read a station text file as R's ``read_user_file`` does: every row, in file order.
 
     Returns the six columns ``year``, ``month``, ``day``, ``prcp``, ``tmax``, ``tmin`` as
-    floats, with ``-99.9`` in the last three as NaN. Invalid dates are kept.
+    floats, with ``-99.9`` in the last three as NaN, and ``NA`` in any column as NaN.
+    Invalid dates are kept.
     """
     lines = [line.replace(",", "\t") for line in Path(path).read_text().splitlines()]
     lines = [line for line in lines if line.strip()]
     if lines and not _INTEGER.match(lines[0].split()[0]):
         lines = lines[1:]
 
-    rows = [line.split() for line in lines]
+    rows = [["nan" if f == NA_STRING else f for f in line.split()] for line in lines]
     for number, row in enumerate(rows, start=1):
         if len(row) != len(COLUMNS):
             raise ValueError(f"{path}: data row {number} has {len(row)} fields, expected 6")

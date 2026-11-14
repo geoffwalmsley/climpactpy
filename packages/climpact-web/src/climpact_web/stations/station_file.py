@@ -35,6 +35,7 @@ from django.utils.translation import ngettext
 MAX_PROBLEMS_SHOWN = 10
 MAX_LINE_SHOWN = 80
 MISSING_VALUE = -99.9
+NA_STRING = "NA"  # also missing, as R's read.table (na.strings = "NA") reads it
 COLUMNS = ("year", "month", "day", "prcp", "tmax", "tmin")
 VARIABLES = ("prcp", "tmax", "tmin")
 _INTEGER = re.compile(r"^[+-]?\d+$")
@@ -181,15 +182,18 @@ def _check_lines(text: str, result: Inspection) -> list[tuple[int, list[float]]]
             continue
         values = []
         for column, value in zip(COLUMNS, fields, strict=True):
+            if value == NA_STRING:
+                values.append(math.nan)  # missing, as R's read.table reads it
+                continue
             try:
                 number_value = float(value)
             except ValueError:
                 number_value = None
             if number_value is None or math.isinf(number_value):
-                if value.upper() in {"NA", "NAN", "NULL", "-", "."}:
+                if value.upper() in {"NA", "N/A", "NULL", "-", "."}:
                     message = _(
                         "Line %(line)d: “%(value)s” in the %(column)s column is not a "
-                        "number. Write missing values as -99.9."
+                        "number. Write missing values as -99.9 (or NA, in capitals)."
                     )
                 else:
                     message = _(
@@ -260,12 +264,18 @@ def _date(values: list[float]) -> dt.date | None:
         return None
 
 
+def _date_part(value: float) -> str:
+    if math.isnan(value):
+        return NA_STRING
+    return f"{int(value)}" if value.is_integer() else f"{value}"
+
+
 def _warn_about_rows(rows: list[tuple[int, list[float]]], result: Inspection) -> None:
     """Warnings for rows R accepts but silently drops or reorders."""
     invalid = [(n, v) for n, v in rows if _date(v) is None]
     if invalid:
         line, values = invalid[0]
-        shown = "-".join(f"{int(v)}" if float(v).is_integer() else f"{v}" for v in values[:3])
+        shown = "-".join(_date_part(v) for v in values[:3])
         result.warnings.append(
             ngettext(
                 "%(count)d row has a date that does not exist (line %(line)d: %(date)s). "

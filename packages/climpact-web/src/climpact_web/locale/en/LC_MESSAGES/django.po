@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 07:59+0000\n"
+"POT-Creation-Date: 2026-11-14 08:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -138,7 +138,7 @@ msgstr[1] ""
 msgid "Separate the values with spaces or tabs, not commas."
 msgstr ""
 
-#: batch/check.py:325 stations/station_file.py:196
+#: batch/check.py:325 stations/station_file.py:200
 #, python-format
 msgid "Line %(line)d: “%(value)s” in the %(column)s column is not a number."
 msgstr ""
@@ -951,7 +951,7 @@ msgid ""
 msgstr ""
 
 #: charts/data.py:68 core/forms.py:24 gridded/forms.py:139
-#: stations/station_file.py:57
+#: stations/station_file.py:58
 msgid "Maximum temperature"
 msgstr ""
 
@@ -961,7 +961,7 @@ msgid "TX"
 msgstr ""
 
 #: charts/data.py:75 core/forms.py:24 gridded/forms.py:140
-#: stations/station_file.py:58
+#: stations/station_file.py:59
 msgid "Minimum temperature"
 msgstr ""
 
@@ -972,7 +972,7 @@ msgstr ""
 
 #: charts/data.py:82 gridded/forms.py:141 gridded/forms.py:228
 #: help/indices.py:112 stations/qc_review.py:58 stations/results.py:60
-#: stations/sector_plots.py:37 stations/station_file.py:56
+#: stations/sector_plots.py:37 stations/station_file.py:57
 msgid "Precipitation"
 msgstr ""
 
@@ -5176,7 +5176,7 @@ msgid "Choose a station file."
 msgstr ""
 
 #: stations/forms.py:38 stations/sector_file.py:68 stations/sector_file.py:84
-#: stations/sector_file.py:277 stations/station_file.py:116
+#: stations/sector_file.py:277 stations/station_file.py:117
 msgid "The file is empty."
 msgstr ""
 
@@ -5901,7 +5901,7 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-#: stations/results.py:369 stations/station_file.py:47
+#: stations/results.py:369 stations/station_file.py:48
 msgid "day"
 msgstr ""
 
@@ -6126,38 +6126,38 @@ msgstr ""
 msgid "%(y)s against %(x)s"
 msgstr ""
 
-#: stations/station_file.py:45
+#: stations/station_file.py:46
 msgid "year"
 msgstr ""
 
-#: stations/station_file.py:46
+#: stations/station_file.py:47
 msgid "month"
 msgstr ""
 
-#: stations/station_file.py:48
+#: stations/station_file.py:49
 msgid "precipitation"
 msgstr ""
 
-#: stations/station_file.py:49
+#: stations/station_file.py:50
 msgid "maximum temperature"
 msgstr ""
 
-#: stations/station_file.py:50
+#: stations/station_file.py:51
 msgid "minimum temperature"
 msgstr ""
 
-#: stations/station_file.py:123
+#: stations/station_file.py:124
 msgid ""
 "This is not a text file. If it is a spreadsheet, save it as text (tab-"
 "delimited or CSV) with the six columns year, month, day, precipitation, "
 "maximum and minimum temperature."
 msgstr ""
 
-#: stations/station_file.py:136
+#: stations/station_file.py:137
 msgid "The file has no data rows, only a header."
 msgstr ""
 
-#: stations/station_file.py:165
+#: stations/station_file.py:166
 #, python-format
 msgid ""
 "Line %(line)d has %(count)d value; each line needs 6: year, month, day, "
@@ -6168,41 +6168,41 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/station_file.py:173
+#: stations/station_file.py:174
 msgid "Commas separate values, so write decimals with a point (.)."
 msgstr ""
 
-#: stations/station_file.py:191
+#: stations/station_file.py:195
 #, python-format
 msgid ""
 "Line %(line)d: “%(value)s” in the %(column)s column is not a number. Write "
-"missing values as -99.9."
+"missing values as -99.9 (or NA, in capitals)."
 msgstr ""
 
-#: stations/station_file.py:234
+#: stations/station_file.py:238
 msgid ""
 "None of the rows has a valid date. Check that the first three columns are "
 "year, month and day."
 msgstr ""
 
-#: stations/station_file.py:241
+#: stations/station_file.py:245
 #, python-format
 msgid ""
 "The rows are not in date order: the last row (%(last)s) is dated before the "
 "first (%(first)s). Sort the file by date."
 msgstr ""
 
-#: stations/station_file.py:246
+#: stations/station_file.py:250
 #, python-format
 msgid "Data row %(row)s has %(count)s values; each row needs 6."
 msgstr ""
 
-#: stations/station_file.py:250
+#: stations/station_file.py:254
 #, python-format
 msgid "The file could not be read: %(error)s"
 msgstr ""
 
-#: stations/station_file.py:271
+#: stations/station_file.py:281
 #, python-format
 msgid ""
 "%(count)d row has a date that does not exist (line %(line)d: %(date)s). It "
@@ -6213,7 +6213,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/station_file.py:287
+#: stations/station_file.py:297
 #, python-format
 msgid ""
 "%(count)d row is dated outside the range from the first row (%(first)s) to "
@@ -6226,11 +6226,11 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/station_file.py:298
+#: stations/station_file.py:308
 msgid "The rows are not in date order. They are sorted by date."
 msgstr ""
 
-#: stations/station_file.py:307
+#: stations/station_file.py:317
 #, python-format
 msgid ""
 "%(count)d date appears more than once (%(date)s, lines %(lines)s). The "
@@ -6242,7 +6242,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/station_file.py:322
+#: stations/station_file.py:332
 #, python-format
 msgid "The file has no %(variable)s values: every value is missing."
 msgstr ""

@@ -27,8 +27,10 @@ unchanged. The [sample station file](url:stations:sample_file) is a good templat
 
 ## Missing values {#missing-values}
 
-Write a missing value as **-99.9**. Do not leave it blank and do not write `NA`: a blank
-moves the other values into the wrong columns, and the file is refused.
+Write a missing value as **-99.9**. `NA` (in capitals) is accepted too, as in Climpact
+for R, but -99.9 is the standard code and works in every Climpact and RClimDex version.
+Do not leave a value blank: a blank moves the other values into the wrong columns, and
+the file is refused. Other codes, such as `na`, `N/A` or `-`, are refused too.
 
 A day missing from the file altogether is treated as missing for all three variables, so
 you do not need to add rows for days with no observations. A whole column can be -99.9
@@ -54,7 +56,7 @@ dropped with a warning.
 | A line without six values | A value is missing from that line. Write -99.9 in its place. |
 | A value that is not a number | It has letters, or a comma as the decimal mark. Fix that line. |
 | The file is not text | Save the spreadsheet as text (tab-delimited) or CSV first. |
-| "Write missing values as -99.9" | The file has `NA`, blanks or another code for missing values. |
+| "Write missing values as -99.9" | The file uses a code for missing values other than -99.9 or `NA`, such as `na` or `N/A`. |
 
 Climpact shows each problem with the **line number in your file**, so you can find it in
 any text editor.

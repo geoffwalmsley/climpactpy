@@ -3072,9 +3072,9 @@ move to Redis, the decision is to keep the database queue and add no Redis (RQ, 
 every job run exactly once, none claimed twice, and a killed worker's job recovered by the
 stale-heartbeat reaper (see [Tests](#tests)). Revisit if hosted mode needs many workers on
 several machines and the claim query becomes a bottleneck, or if Django's tasks framework
-(`django.tasks`, Django 6) gains a mature backend with progress reporting and
-cancellation; its database backend has neither today, so switching would lose features
-the progress pages rely on.
+(`django.tasks`, Django 6) gains a mature production backend with progress reporting and
+cancellation. Django ships none, and the `django-tasks` package's database backend has
+neither feature today, so switching would lose what the progress pages rely on.
 
 **The `Job` model** (`jobs/models.py`): a UUID primary key (unguessable URLs); `kind` (the
 runner); `owner` (a random token kept in the browser session, `jobs_owner`: only that

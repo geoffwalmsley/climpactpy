@@ -82,6 +82,10 @@ class StationAnalysis(models.Model):
 
     step = models.CharField(max_length=10, choices=Step.choices, default=Step.UPLOAD)
 
+    # The quality-control thresholds of step 2 (#77): climpact.config.QCParams fields as
+    # entered; empty until changed (R's defaults, stations.forms.QC_DEFAULTS).
+    qc_params = models.JSONField(default=dict, blank=True)
+
     # A station opened from a batch's results (#80): {"batch": batch id, "job": the batch
     # job's id, "station": its name, "params": the IndexParams fields of its metadata
     # line, "outputs": its folder in the batch job's output/}. Empty otherwise. The

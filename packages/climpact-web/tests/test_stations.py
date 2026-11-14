@@ -471,7 +471,8 @@ def test_quality_page_needs_step_one_first(client):
     assert (
         client.get(f"/station/{analysis.pk}/quality")["Location"] == f"/station/{analysis.pk}/load"
     )
-    assert client.post(f"/station/{analysis.pk}/quality/run-all").status_code == 302
+    assert client.post(f"/station/{analysis.pk}/indices/run-all").status_code == 302
+    assert client.post(f"/station/{analysis.pk}/quality/run").status_code == 302
     assert not Job.objects.exists()
 
 
@@ -479,17 +480,20 @@ def test_quality_page_needs_step_one_first(client):
 def test_changing_metadata_resets_the_later_steps(client):
     analysis = loaded(client)
     client.post(f"/station/{analysis.pk}/load", metadata())
-    client.post(f"/station/{analysis.pk}/quality/run-all", {"zip": "on"})
+    client.post(f"/station/{analysis.pk}/indices/run-all", {"zip": "on"})
     analysis.refresh_from_db()
-    assert analysis.indices_job is not None
+    assert analysis.indices_job is not None and analysis.qc_job is not None
     # the same metadata again: nothing to redo
     client.post(f"/station/{analysis.pk}/load", metadata())
     analysis.refresh_from_db()
     assert analysis.indices_job is not None and analysis.step == Step.QC
+    first_qc = analysis.qc_job
     client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30"))
     analysis.refresh_from_db()
     assert analysis.indices_job is None and analysis.step == Step.QC
-    assert Job.objects.count() == 1  # the job itself is kept, with its own retention
+    assert analysis.qc_job != first_qc  # the checks run again (#77)
+    # The jobs themselves are kept, with their own retention.
+    assert Job.objects.count() == 3
 
 
 @pytest.mark.django_db
@@ -542,7 +546,7 @@ def test_other_sessions_get_404(client):
     other = Client()
     for url in ("load", "series.csv", "quality"):
         assert other.get(f"/station/{analysis.pk}/{url}").status_code == 404
-    for url in ("load", "load/validate", "file", "delete", "quality/run-all"):
+    for url in ("load", "load/validate", "file", "delete", "indices/run-all", "quality/run"):
         assert other.post(f"/station/{analysis.pk}/{url}").status_code == 404
     assert client.get(f"/station/{uuid.uuid4()}/load").status_code == 404
     assert StationAnalysis.objects.exists()

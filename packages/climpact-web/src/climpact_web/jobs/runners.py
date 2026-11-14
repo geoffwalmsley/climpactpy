@@ -12,6 +12,11 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``base_start``, ``base_end``; ``params``: :class:`climpact.config.IndexParams` fields,
     ``custom`` as ``{"variable", "operator", "threshold"}`` or null; ``plots``, ``zip``;
     optional ``modules``: ``{"qc": [...], "homogeneity": ..., "indices": [...]}``.
+    Optional ``qc``: :class:`climpact.config.QCParams` fields (the QC files' thresholds).
+``qc`` (the R app's quality-control step)
+    ``station_file``, ``metadata`` as for ``station``, and ``qc``: :class:`QCParams`
+    fields (left out: R's defaults). Runs only the QC modules and writes the ``qc/``
+    files to ``output/<station>/qc/`` and their zip to ``output/<station>.zip``.
 ``batch`` (``climpact batch``)
     ``metadata_file``; ``data_dir`` (a folder in ``input/``, default ``input/`` itself);
     ``base_start``, ``base_end``, ``custom``, ``plots``, ``zip``, ``workers`` (default 1),
@@ -100,6 +105,33 @@ def module_selection(value: dict | None):
     )
 
 
+QC_PARAM_FIELDS = ("iqr_temp", "iqr_prec", "prec_max", "temp_max", "flatline_days", "jump")
+
+
+def qc_params(values: dict[str, Any] | None):
+    """:class:`QCParams` from JSON; fields left out keep R's defaults."""
+    from climpact.config import QCParams
+
+    values = dict(values or {})
+    changes = {k: values[k] for k in QC_PARAM_FIELDS if values.get(k) is not None}
+    if "flatline_days" in changes:
+        changes["flatline_days"] = int(changes["flatline_days"])
+    return QCParams(**{k: v if k == "flatline_days" else float(v) for k, v in changes.items()})
+
+
+def station_metadata(p: dict):
+    from climpact.config import StationMetadata
+
+    meta = p.get("metadata", {})
+    return StationMetadata(
+        name=meta.get("name") or Path(p["station_file"]).stem,
+        latitude=float(meta.get("latitude", 0.0)),
+        longitude=float(meta.get("longitude", 0.0)),
+        base_start=int(meta.get("base_start", 1971)),
+        base_end=int(meta.get("base_end", 2000)),
+    )
+
+
 def _relative(paths, root: Path) -> list[str]:
     return sorted(str(Path(p).relative_to(root)) for p in paths)
 
@@ -107,18 +139,10 @@ def _relative(paths, root: Path) -> list[str]:
 @register("station")
 def run_station_job(ctx: JobContext) -> dict:
     from climpact.batch import run_station, validate_params
-    from climpact.config import StationMetadata
 
     p = ctx.params
-    meta = p.get("metadata", {})
     station_file = ctx.input_file(p["station_file"])
-    metadata = StationMetadata(
-        name=meta.get("name") or Path(p["station_file"]).stem,
-        latitude=float(meta.get("latitude", 0.0)),
-        longitude=float(meta.get("longitude", 0.0)),
-        base_start=int(meta.get("base_start", 1971)),
-        base_end=int(meta.get("base_end", 2000)),
-    )
+    metadata = station_metadata(p)
     params = index_params(p.get("params"))
     validate_params(params)
     written, skipped = run_station(
@@ -130,6 +154,7 @@ def run_station_job(ctx: JobContext) -> dict:
         progress=ctx.progress,
         plots=bool(p.get("plots")),
         zip=bool(p.get("zip")),
+        qc=qc_params(p.get("qc")),
     )
     archive = written.pop("zip", None)
     return {
@@ -137,6 +162,39 @@ def run_station_job(ctx: JobContext) -> dict:
         "files": _relative(written.values(), ctx.output_dir),
         "skipped": list(skipped),
         "zip": _relative([archive], ctx.output_dir)[0] if archive else None,
+    }
+
+
+@register("qc")
+def run_qc_job(ctx: JobContext) -> dict:
+    """The quality-control step alone: the ``qc/`` files of the station and their zip
+    (the R app's step 2, ``load_data_qc``), with the user's thresholds."""
+    from dataclasses import asdict
+
+    from climpact.batch import run_station
+    from climpact.config import IndexParams
+    from climpact.modules import ModuleSelection
+
+    p = ctx.params
+    metadata = station_metadata(p)
+    thresholds = qc_params(p.get("qc"))
+    written, _skipped = run_station(
+        ctx.input_file(p["station_file"]),
+        metadata,
+        IndexParams(),
+        ctx.output_dir,
+        modules=ModuleSelection(indices=()),
+        progress=ctx.progress,
+        zip=True,
+        qc=thresholds,
+    )
+    archive = written.pop("zip")
+    return {
+        "station": metadata.name,
+        "files": _relative(written.values(), ctx.output_dir),
+        "reports": {key: _relative([path], ctx.output_dir)[0] for key, path in written.items()},
+        "zip": _relative([archive], ctx.output_dir)[0],
+        "qc": asdict(thresholds),
     }
 
 

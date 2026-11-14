@@ -1,0 +1,170 @@
+/* Step 2, Check quality (#77): the summary, the check tables linked to the charts, and the
+   distribution plots drawn on the server. Tokens only, logical properties only (checked by
+   test_static.py). */
+
+.qc-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+
+.qc-summary {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-inline-start: 6px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.qc-summary--review { border-inline-start-color: var(--color-warning); }
+.qc-summary--errors { border-inline-start-color: var(--color-danger); }
+
+.qc-summary__head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.qc-summary__head > .icon {
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  color: var(--color-success);
+}
+
+.qc-summary--review .qc-summary__head > .icon { color: var(--color-warning); }
+.qc-summary--errors .qc-summary__head > .icon { color: var(--color-danger); }
+
+.qc-summary__title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.qc-reasons {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qc-reasons__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.qc-counts { max-inline-size: 32rem; }
+
+.qc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.qc-group-title {
+  margin-block-start: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.qc-check__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+/* position: the visually hidden text in the rows stays inside the scrolling region. */
+.qc-table .table-wrap { position: relative; max-block-size: 32rem; }
+
+.qc-table__date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.qc-table__show { text-align: end; }
+
+.qc-table tr.is-selected > * {
+  background: var(--color-accent-soft);
+}
+
+.qc-table tr.is-selected > :first-child {
+  box-shadow: inset 4px 0 0 var(--color-accent);
+}
+
+[dir="rtl"] .qc-table tr.is-selected > :first-child {
+  box-shadow: inset -4px 0 0 var(--color-accent);
+}
+
+.qc-table tr:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+.qc-flagged strong { color: var(--color-danger); }
+
+.qc-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.qc-missing .table-wrap,
+.qc-missing { max-block-size: 28rem; }
+
+.qc-missing__short { background: var(--color-warning-soft); }
+
+.qc-missing__tag {
+  display: block;
+  color: var(--color-warning);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.qc-form-grid {
+  display: grid;
+  gap: var(--space-4) var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  align-items: start;
+}
+
+.qc-plots {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+}
+
+.qc-plots--wide { grid-template-columns: 1fr; }
+
+.qc-figure { margin: 0; min-inline-size: 0; }
+
+.qc-figure__title { font-weight: 600; }
+
+.qc-plot {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  direction: ltr;
+}
+
+.qc-plot__grid { stroke: var(--chart-grid); stroke-width: 1; }
+.qc-plot__tick { fill: var(--color-text-muted); font-size: 11px; }
+.qc-plot__box { fill: var(--plot-colour); fill-opacity: 0.25; stroke: var(--plot-colour); stroke-width: 1.25; }
+.qc-plot__median { stroke: var(--color-text); stroke-width: 2; }
+.qc-plot__whisker { stroke: var(--plot-colour); stroke-width: 1.25; }
+.qc-plot__out { fill: none; stroke: var(--chart-flag); stroke-width: 1.25; }
+.qc-plot__bar { fill: var(--plot-colour); }
+
+.qc-files { display: grid; gap: var(--space-1); }
+
+@media (forced-colors: active) {
+  .qc-table tr.is-selected > * { outline: 2px solid Highlight; }
+  .qc-plot__box, .qc-plot__whisker, .qc-plot__out { stroke: CanvasText; }
+  .qc-plot__bar { fill: CanvasText; }
+}

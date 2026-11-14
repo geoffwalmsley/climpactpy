@@ -1,0 +1,27 @@
+{% load i18n ui %}{% comment %}
+A box plot figure with its table (#77). Parameter: plot (qc_plots._plot).
+{% endcomment %}
+<figure class="qc-figure stack stack--sm" aria-labelledby="box-{{ plot.title|slugify }}">
+  <figcaption id="box-{{ plot.title|slugify }}" class="qc-figure__title">{{ plot.title }}</figcaption>
+  {% if plot.svg %}{{ plot.svg }}{% else %}<p class="muted">{% translate "No data." %}</p>{% endif %}
+  <details class="disclosure">
+    <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">
+      <div class="table-wrap" role="region" aria-label="{{ plot.title }}" tabindex="0">
+        <table class="table">
+          <thead><tr>
+            <th scope="col">{% translate "Group" %}</th>
+            <th scope="col" class="num">{% translate "Values" %}</th>
+            <th scope="col" class="num">{% translate "Lower whisker" %}</th>
+            <th scope="col" class="num">{% translate "Lower quartile" %}</th>
+            <th scope="col" class="num">{% translate "Median" %}</th>
+            <th scope="col" class="num">{% translate "Upper quartile" %}</th>
+            <th scope="col" class="num">{% translate "Upper whisker" %}</th>
+            <th scope="col" class="num">{% translate "Beyond the whiskers" %}</th>
+          </tr></thead>
+          <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.n }}</td>{% if row.stats %}{% for v in row.stats %}<td class="num">{{ v }}</td>{% endfor %}{% else %}<td class="num muted" colspan="5">{% translate "no data" %}</td>{% endif %}<td class="num">{{ row.outliers }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</figure>

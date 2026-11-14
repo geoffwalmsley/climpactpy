@@ -33,6 +33,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
 VARIABLES = ("tmax", "tmin", "prcp")
+# The variables a daily chart can show on its own (the QC screen, #77): DTR is TX - TN.
+DAILY_VARIABLES = ("tmax", "tmin", "dtr", "prcp")
 SCHEMA_VERSION = 1
 
 # Units as the core's tables give them -> as shown (plots._UNIT_LABELS).
@@ -83,6 +85,13 @@ def variable_meta() -> dict[str, dict]:
             "panel": "precipitation",
             "token": "--chart-prcp",
         },
+        "dtr": {
+            "label": _("Diurnal temperature range"),
+            "short": _("DTR"),
+            "unit": "°C",
+            "panel": "dtr",
+            "token": "--chart-7",
+        },
     }
 
 
@@ -96,10 +105,16 @@ def check_labels() -> dict[str, str]:
         "tn_jumps": _("Large day-to-day change"),
         "tx_flatline": _("Repeated values"),
         "tn_flatline": _("Repeated values"),
+        "duplicates": _("Repeated date"),
     }
 
 
-_OUTLIER_VARIABLES = {"Prec": ("prcp",), "TX": ("tmax",), "TN": ("tmin",), "DTR": ("tmax", "tmin")}
+_OUTLIER_VARIABLES = {
+    "Prec": ("prcp",),
+    "TX": ("tmax",),
+    "TN": ("tmin",),
+    "DTR": ("tmax", "tmin", "dtr"),
+}
 
 
 def qc_flags(rows, params=None) -> list[tuple[str, str, str]]:
@@ -107,9 +122,10 @@ def qc_flags(rows, params=None) -> list[tuple[str, str, str]]:
     (:func:`~climpact.io.station.merged_rows`), dates as ``YYYY-MM-DD``.
 
     Each flag is placed on the value the check reports: the outlier's variable (a DTR
-    outlier on both temperatures), each value over the ``toolarge`` limits, both
-    temperatures for ``tmaxmin``, and the date a jump or flatline is reported on (the
-    first of the two days compared; the second-last day of a run).
+    outlier on both temperatures and on DTR), each value over the ``toolarge`` limits,
+    both temperatures and DTR for ``tmaxmin``, the date a jump or flatline is reported
+    on (the first of the two days compared; the second-last day of a run), and every
+    variable of a repeated date (``duplicates``).
     """
     import numpy as np
     import pandas as pd
@@ -139,27 +155,47 @@ def qc_flags(rows, params=None) -> list[tuple[str, str, str]]:
             if abs(tn) > t:
                 flags.append((date, "tmin", "toolarge"))
     for date in dates(qc.tmax_le_tmin(rows)):
-        flags += [(date, "tmax", "tmaxmin"), (date, "tmin", "tmaxmin")]
+        flags += [(date, v, "tmaxmin") for v in ("tmax", "tmin", "dtr")]
     for variable, prefix in (("tmax", "tx"), ("tmin", "tn")):
         flags += [(d, variable, f"{prefix}_jumps") for d in dates(qc.jumps(rows, variable, params))]
         flags += [
             (d, variable, f"{prefix}_flatline") for d in dates(qc.flatline(rows, variable, params))
         ]
+    repeated = qc.duplicate_dates(rows).rename(columns={"Dates_duplicated": "Date"})
+    for date in dict.fromkeys(dates(repeated)):
+        flags += [(date, v, "duplicates") for v in DAILY_VARIABLES]
     return flags
 
 
-def daily_payload(station_file: str | Path, qc_params=None, title: str = "") -> dict:
-    """The ``daily`` payload of a station file. ``x`` is implicit: day ``i`` is ``start``
-    plus ``i`` days, so only the values travel."""
+def daily_payload(
+    station_file: str | Path, qc_params=None, title: str = "", variable: str | None = None
+) -> dict:
+    """The ``daily`` payload of a station file: TX and TN, and precipitation, or with
+    ``variable`` (one of :data:`DAILY_VARIABLES`) that variable alone, as the QC screen
+    shows them. ``x`` is implicit: day ``i`` is ``start`` plus ``i`` days, so only the
+    values travel."""
     from climpact.io.station import merged_rows, read_station_file
 
     rows = merged_rows(read_station_file(station_file))
     days = rows.drop_duplicates(subset="date", keep="last").reset_index(drop=True)
+    days["dtr"] = days["tmax"] - days["tmin"]
     start = days["date"].iloc[0]
     position = {d.date().isoformat(): i for i, d in enumerate(days["date"])}
     meta = variable_meta()
-    series = [{"key": key, **meta[key], "values": _finite(days[key])} for key in VARIABLES]
-    points = sorted({(position[d], v, c) for d, v, c in qc_flags(rows, qc_params) if d in position})
+    keys = (variable,) if variable else VARIABLES
+    series = [{"key": key, **meta[key], "values": _finite(days[key])} for key in keys]
+    points = sorted(
+        {
+            (position[d], v, c)
+            for d, v, c in qc_flags(rows, qc_params)
+            if d in position and v in keys
+        }
+    )
+    panels = {
+        "temperature": _("Temperature (°C)"),
+        "precipitation": _("Precipitation (mm)"),
+        "dtr": _("Diurnal temperature range (°C)"),
+    }
     payload = {
         "kind": "daily",
         "version": SCHEMA_VERSION,
@@ -167,10 +203,7 @@ def daily_payload(station_file: str | Path, qc_params=None, title: str = "") -> 
         "start": start.date().isoformat(),
         "days": len(days),
         "series": series,
-        "panels": {
-            "temperature": _("Temperature (°C)"),
-            "precipitation": _("Precipitation (mm)"),
-        },
+        "panels": {s["panel"]: panels[s["panel"]] for s in series},
         "flags": {
             "checks": check_labels(),
             "label": _("Flagged by the quality checks"),

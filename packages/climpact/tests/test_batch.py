@@ -210,3 +210,26 @@ def test_batch_bad_metadata_is_a_usage_error(tmp_path):
     meta.write_text(HEADER + "a.txt 1 2\n")
     with pytest.raises(SystemExit):
         main(["batch", str(meta), str(tmp_path), "--out", str(tmp_path / "out")])
+
+
+def test_run_station_qc_only_with_thresholds(tmp_path):
+    """No index modules: only the QC files, written with the given thresholds (#77)."""
+    from climpact.batch import run_station
+    from climpact.config import QCParams, StationMetadata
+    from climpact.modules import ModuleSelection
+
+    station = write_station(tmp_path / "s.txt")
+    meta = StationMetadata("s", -30.0, 150.0, 2000, 2001)
+    stages = []
+    written, skipped = run_station(station, meta, IndexParams(), tmp_path / "out",
+                                   modules=ModuleSelection(indices=()), zip=True,
+                                   progress=lambda *a: stages.append(a[0]),
+                                   qc=QCParams(jump=5.0, temp_max=30.0))  # fmt: skip
+    assert {k.split("/")[0] for k in written} == {"qc", "zip"} and not skipped
+    assert stages == ["read", "qc:climpact", "homogeneity:none", "write", "zip"]
+    jumps = written["qc/tx_jumps"].read_text()
+    assert "change in TX is > 5 degrees" in jumps
+    assert "abs(temperature) > 30 degrees" in written["qc/toolarge"].read_text()
+    default, _ = run_station(station, meta, IndexParams(), tmp_path / "default",
+                             modules=ModuleSelection(indices=()))  # fmt: skip
+    assert "> 20 degrees" in default["qc/tx_jumps"].read_text()

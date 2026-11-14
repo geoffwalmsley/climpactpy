@@ -39,6 +39,8 @@ ASSET_BUDGETS = {
     "css/theme-dark.css": 1 * KB,
     "css/help.css": 1.5 * KB,  # every page: any screen can show a help topic (#81)
     "css/stations.css": 1 * KB,
+    "css/qc.css": 1.5 * KB,  # the quality-check step (#77)
+    "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
     "css/batch.css": 1 * KB,
     "css/gridded.css": 1.5 * KB,
     "css/patterns.css": 1 * KB,
@@ -81,6 +83,16 @@ def station_qc(client) -> str:
     data = {"station_name": "sydney_observatory_hill_1936-2015", "latitude": "-33.86",
             "longitude": "151.21", "base_start": "1971", "base_end": "2000"}  # fmt: skip
     return client.post(load, data)["Location"]
+
+
+def station_qc_results(client) -> str:
+    """The quality-check results of the Sydney sample (#77): the checks run, every section,
+    the charts and the distribution plots."""
+    from climpact_web.jobs.worker import claim, run_job
+
+    url = station_qc(client)
+    run_job(claim("budget"), None)
+    return url
 
 
 def batch_check(client) -> str:
@@ -137,7 +149,8 @@ PAGES = {
     "landing": Page(lambda client: "/"),
     "station upload": Page(lambda client: "/station/"),
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
-    "station quality": Page(station_qc),
+    "station quality": Page(station_qc),  # the checks queued
+    "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
     "batch start": Page(lambda client: "/batch/"),
     "batch check": Page(batch_check),
     "batch results": Page(batch_results),
@@ -271,6 +284,7 @@ def test_chart_code_only_on_chart_pages():
     is checked page by page in test_page_within_budget."""
     assert [name for name, page in PAGES.items() if page.charts] == [
         "station sample loaded",
+        "station quality results",
         "gridded results, 100x100 grid",
     ]
     assert "landing" in PAGES and not PAGES["landing"].charts

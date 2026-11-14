@@ -1,0 +1,14 @@
+{% load i18n ui help %}{% comment %}
+One check's section (#77): what it looks for, how many it found, its table and its file.
+Parameters: check (qc_review.Check), page (its qc_review.Page), analysis, job.
+{% endcomment %}
+<section class="card stack qc-check" id="{{ check.anchor }}" aria-labelledby="{{ check.anchor }}-title">
+  <div class="qc-check__head">
+    <h4 class="card__title" id="{{ check.anchor }}-title">{{ check.title }}</h4>
+    {% if check.count %}{% blocktranslate count counter=check.count asvar found trimmed %}{{ counter }} found{% plural %}{{ counter }} found{% endblocktranslate %}{% if check.kind == "error" %}{% include "components/badge.html" with label=found kind="danger" %}{% else %}{% include "components/badge.html" with label=found kind="warning" %}{% endif %}{% else %}{% translate "None found" as none_found %}{% include "components/badge.html" with label=none_found kind="success" icon="check" %}{% endif %}
+  </div>
+  <p>{{ check.description }}</p>
+  {% help_topic check.help_id %}
+  {% if check.rows %}{% include "stations/_qc_table.html" with selected="" %}{% endif %}
+  {% if check.file %}<p class="small"><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "download" %} {% blocktranslate with name=check.file_name %}Download {{ name }}{% endblocktranslate %}</a></p>{% endif %}
+</section>

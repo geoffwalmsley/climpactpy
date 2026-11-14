@@ -1,0 +1,20 @@
+{% load i18n ui %}{% comment %}
+The quality-control thresholds (#77), the six of the R app with its defaults; posting
+runs the checks again. Context: analysis, qc_form, review.
+{% endcomment %}
+<form method="post" action="{% url 'stations:qc_run' analysis.pk %}" class="form stack" novalidate>
+  {% csrf_token %}
+  {% include "components/form_errors.html" with form=qc_form %}
+  <p class="small muted">{% translate "The defaults are those of Climpact for R. Smaller numbers flag more values." %}</p>
+  <div class="qc-form-grid">
+    {% for field in qc_form %}
+    {% with topic="qcparam."|add:field.name %}
+    {% include "components/field.html" with field=field unit=field.field.unit narrow=True help=topic %}
+    {% endwith %}
+    {% endfor %}
+  </div>
+  <div class="form__actions">
+    {% if review %}{% translate "Check again with these thresholds" as run_label %}{% else %}{% translate "Run the quality checks" as run_label %}{% endif %}
+    {% include "components/button.html" with label=run_label type="submit" icon="play" %}
+  </div>
+</form>

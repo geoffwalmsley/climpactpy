@@ -233,6 +233,68 @@ def test_htmx_checks_one_group_and_warns(client):
     assert client.post(url, {**defaults(), "group": "nope"}).status_code == 400
 
 
+DEFAULTS_NOTE = '<span class="small muted">Climpact'
+
+
+def _settings(html: str) -> str:
+    """The opening tag of the "Change the settings" disclosure."""
+    return re.search(r'<details[^>]*id="settings"[^>]*>', html).group(0)
+
+
+def test_the_primary_action_comes_before_the_settings(client):
+    """#114: "Calculate with these settings" straight after the intro, the parameter cards
+    in a "Change the settings" disclosure that starts closed with the defaults, and the
+    button at the end of the form kept, under a different name."""
+    analysis = ready_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/indices").content.decode()
+    form = re.search(r'<form method="post" action="/station/[^"]+/indices".*?</form>', html, re.S)
+    form = form.group(0)
+    top = form.index("Calculate with these settings")
+    assert top < form.index('id="settings"') < form.index('name="hdd_base"')
+    assert form.index('name="hdd_base"') < form.index("<span>Calculate indices</span>")
+    assert " open" not in _settings(html) and DEFAULTS_NOTE in html
+    # Both submit the one form; the top button is described by the run-time note.
+    buttons = re.findall(r'<button type="submit"[^>]*>', form)
+    assert len(buttons) == 2 and 'aria-describedby="run-time"' in buttons[0]
+    assert 'id="run-time"' in form
+
+
+def test_the_settings_open_on_errors(client):
+    analysis = ready_analysis(client)
+    response = client.post(f"/station/{analysis.pk}/indices", {**defaults(), "hdd_base": "warm"})
+    html = response.content.decode()
+    assert response.status_code == 200 and "data-error-summary" in html
+    assert " open" in _settings(html)
+    assert html.index('id="settings"') < html.index('name="hdd_base"')
+    assert 'href="#id_hdd_base"' in html  # the summary links to the field, now shown
+
+
+@pytest.mark.parametrize(
+    "changes, opened",
+    [
+        ({}, False),
+        ({"rx_days": 7}, True),
+        ({"hdd_base": 18}, False),  # an int is the same as the default 18.0
+        ({"plot_title": "Sydney"}, True),
+        ({"custom_enabled": False}, True),
+        ({"custom_threshold": 40.0}, True),
+        ({"plots": False, "zip": False, "report": False}, False),  # outside the disclosure
+    ],
+)
+def test_the_settings_open_when_a_value_is_not_the_default(changes, opened):
+    from climpact_web.stations.forms_indices import initial_from_params
+
+    initial = {**initial_from_params(None), **changes}
+    assert IndexParamsForm(initial=initial).settings_open() is opened
+
+
+def test_the_settings_of_a_changed_last_run_are_shown_open(client):
+    analysis = ready_analysis(client)
+    client.post(f"/station/{analysis.pk}/indices", {**defaults(), "rx_days": "7"})
+    html = client.get(f"/station/{analysis.pk}/indices").content.decode()
+    assert " open" in _settings(html) and DEFAULTS_NOTE not in html
+
+
 def test_calculate_queues_a_station_job_with_the_parameters(client):
     analysis = ready_analysis(client)
     analysis.qc_params = {"jump": "15", "flatline_days": "4"}  # step 2's thresholds (#77)

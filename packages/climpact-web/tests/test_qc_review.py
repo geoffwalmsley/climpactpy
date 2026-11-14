@@ -117,6 +117,25 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert Job.objects.count() == 1
 
 
+def test_while_the_checks_run_the_thresholds_are_tucked_away(client):
+    """#114: the checks start by themselves, so the page says they are running and the
+    thresholds form is behind "Change the thresholds", not a "Run" button in view."""
+    analysis = start(client)
+    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    assert "Running the quality checks…" in page and "Waiting to run" not in page
+    assert "Run the quality checks" not in page
+    details = re.search(r'<details class="disclosure"[^>]*>\s*<summary>.*?</summary>', page, re.S)
+    assert details and "Change the thresholds<" in details.group(0)
+    assert " open" not in details.group(0).split(">")[0]
+    assert page.index("<summary>", details.start()) < page.index('name="iqr_temp"')
+    assert "Restart the checks with these thresholds" in page
+    # Before any check (no job) the form is in view, to run them by hand.
+    analysis.qc_job = None
+    analysis.save()
+    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    assert "Run the quality checks" in page and "Change the thresholds<" not in page
+
+
 def test_qc_job_writes_the_qc_files_like_r(checked):
     job = checked.qc_job
     names = sorted(Path(f).name for f in job.result["files"])

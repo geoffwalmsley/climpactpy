@@ -96,9 +96,9 @@ correct the file. Context from views.qc_context.
   {% endif %}
 
   <section class="card stack" id="thresholds" aria-labelledby="thresholds-title">
-    {% if review %}
+    {% if review or job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}
     <details class="disclosure"{% if qc_form.errors %} open{% endif %}>
-      <summary>{% icon "sliders" %}<span id="thresholds-title">{% translate "Change the thresholds and check again" %}</span>{% icon "chevron-down" %}</summary>
+      <summary>{% icon "sliders" %}<span id="thresholds-title">{% if review %}{% translate "Change the thresholds and check again" %}{% else %}{% translate "Change the thresholds" %}{% endif %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body">{% include "stations/_qc_form.html" %}</div>
     </details>
     {% else %}

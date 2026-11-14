@@ -861,3 +861,31 @@ def test_results_groups_open_with_the_search_and_links(chrome, site):
     assert c.evaluate(opened) == []
     c.navigate(site["station results"] + "?from=index#group-drought")
     assert c.evaluate(opened) == ["group-drought"]
+
+
+def test_primary_actions_in_the_first_screen_and_errors_still_focused(chrome, site):
+    """#114: at 1280x800 the step pages' main buttons are visible without scrolling; with
+    an error in a setting, the settings open and the error summary, then its link, focus
+    the field."""
+    c = chrome
+    c.viewport(1280, 800)
+    bottom = (
+        "(function (b) {{ var r = b.getBoundingClientRect(); return scrollY + r.bottom }})"
+        "(document.querySelector({}))"
+    )
+    try:
+        c.navigate(site["station sample loaded"])
+        assert c.evaluate(bottom.format(json.dumps("button[form=station-details]"))) <= 800
+        c.navigate(site["station indices"])
+        assert c.evaluate("document.getElementById('settings').open") is False
+        top = "form[action$='/indices'] button[type=submit][aria-describedby=run-time]"
+        assert c.evaluate(bottom.format(json.dumps(top))) <= 800
+        open_page(c, site["station indices, errors"])
+        assert c.evaluate("document.getElementById('settings').open") is True
+        assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
+        link = "[data-error-summary] a[href='#id_hdd_base']"
+        c.evaluate(f"document.querySelector({json.dumps(link)}).click()")
+        assert c.evaluate("document.activeElement.id") == "id_hdd_base"
+        assert c.evaluate("document.activeElement.getClientRects().length") > 0
+    finally:
+        c.viewport(1280, 900)

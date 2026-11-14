@@ -2,6 +2,7 @@
 
 ``climpact-web`` starts the app for one user on their own computer (local mode): it
 prepares the data folder (database, secret key, run files), applies database migrations,
+collects the static files into the data folder (hashed names, gzip and Brotli copies),
 starts a background worker (a child process running ``manage runworker``, restarted if it
 crashes), serves the app with waitress on localhost and opens it in the browser.
 Everything it needs ships in the package, so it works without a network connection.
@@ -237,6 +238,8 @@ def serve(args: argparse.Namespace) -> int:
     if not hosted:
         call_command("migrate", interactive=False, verbosity=0)
         settings.RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        if not settings.DEBUG:  # hashed, compressed static files (#82); a fraction of a second
+            call_command("collectstatic", interactive=False, verbosity=0)
 
     options = {
         "host": args.host,

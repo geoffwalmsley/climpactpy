@@ -2512,7 +2512,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
-(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget) and #83
+(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
 (accessibility).
 
 ### Layout
@@ -2525,7 +2525,8 @@ packages/climpact-web/src/climpact_web/
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
-                     (GRIDDED_MAX_UPLOAD_MB under /gridded/)
+                     (GRIDDED_MAX_UPLOAD_MB under /gridded/); StaticFilesMiddleware
+                     (WhiteNoise); CompressionMiddleware (gzip for text answers, #82)
   cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
                      the background worker as a child process in local mode
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
@@ -2534,6 +2535,8 @@ packages/climpact-web/src/climpact_web/
                      single-station, batch and gridded steps (`station_steps`,
                      `batch_steps`, `gridded_steps`) for the step indicator
     tokens.py        reads the design tokens back from the CSS; writes chart-palette.json
+    storage.py       the static files storage: hashed names, gzip and Brotli copies,
+                     minified CSS (StaticFilesStorage, LocalStaticFilesStorage; #82)
     forms.py         PatternDemoForm, the example form on the pattern library
     templatetags/ui.py  `{% icon %}` and the `times` filter
     management/commands/design_snapshots.py  static HTML copies of the pages for review
@@ -2627,10 +2630,12 @@ packages/climpact-web/src/climpact_web/
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
+  conftest.py        prints the page sizes measured by test_page_budget.py
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      step 1 (test_stations.py), the batch page (test_batch.py), the
-                     gridded pages (test_gridded_web.py) and the help (test_help.py)
+                     gridded pages (test_gridded_web.py), the help (test_help.py) and
+                     the size budget (test_page_budget.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
@@ -2652,7 +2657,7 @@ design system (#71) is hand-written CSS with custom-property tokens.
 | Database | SQLite, `<data dir>/db.sqlite3` (WAL journal, 20 s busy timeout, `IMMEDIATE` transactions, as the server and the worker both write), migrated on every start | `DATABASE_URL` (Postgres; the `postgres` extra installs psycopg); migrations run by the deployment |
 | Secret key | `CLIMPACT_WEB_SECRET_KEY`, else `<data dir>/secret_key` (written on first start, mode 0600) | `CLIMPACT_WEB_SECRET_KEY`, required |
 | Allowed hosts | localhost, 127.0.0.1, [::1] (`*` when started with a non-loopback `--host`) | `CLIMPACT_WEB_ALLOWED_HOSTS`, required |
-| Static files | WhiteNoise serves them straight from the package (`WHITENOISE_USE_FINDERS`), no `collectstatic` | `collectstatic` into `CLIMPACT_WEB_STATIC_ROOT` (required), WhiteNoise's compressed, hashed storage |
+| Static files | `climpact-web` runs `collectstatic` into `<data dir>/static` on every start (hashed, compressed copies, `LocalStaticFilesStorage`); WhiteNoise serves them, and its finders serve any file not collected straight from the package. With `DEBUG`, nothing is collected | `collectstatic` into `CLIMPACT_WEB_STATIC_ROOT` (required) at deployment, `StaticFilesStorage`; see [Size budget](#size-budget) |
 | HTTPS | none (localhost) | secure session and CSRF cookies, redirect to HTTPS, `X-Forwarded-Proto` from the proxy trusted; `/healthz` exempt from the redirect |
 | Uploads and results | `<data dir>/media`; job folders under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT`, a filesystem every worker and web process shares (S3: a documented hook, see [Background jobs](#background-jobs), for #12) |
 | Background worker | started by `climpact-web` as a child process, restarted if it crashes | one or more `climpact-web manage runworker` processes, run by the deployment (#12) |
@@ -2675,7 +2680,7 @@ the variable.
 | `DATABASE_URL` | SQLite in the data folder | any URL dj-database-url reads, e.g. `postgres://user:pw@host:5432/db`; required in hosted mode |
 | `CLIMPACT_WEB_DEBUG` | `false` | Django `DEBUG` |
 | `CLIMPACT_WEB_PATTERN_LIBRARY` | same as `DEBUG` | serve the pattern library at `/patterns/` (404 otherwise) |
-| `CLIMPACT_WEB_STATIC_ROOT` | none | `collectstatic` target; required in hosted mode |
+| `CLIMPACT_WEB_STATIC_ROOT` | `<data dir>/static` (local) | `collectstatic` target; required in hosted mode |
 | `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
 | `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
 | `CLIMPACT_WEB_JOB_HEARTBEAT_SECONDS` | `10` | seconds between worker heartbeats |
@@ -2833,7 +2838,9 @@ issue aimed for under 30 KB of CSS; the full component set, both token sets and 
 comments put it above that. `help.css` (about 5.9 KB, 1.6 KB gzipped) is a separate
 stylesheet loaded on every page, since any screen can show a help topic and `main.css` is
 at its limit; `tour.js` (about 6.5 KB) loads on the landing page only. Tests hold them
-under 7 KB and 8 KB. Whole-page budgets are set in #82.
+under 7 KB and 8 KB. Whole-page budgets are in [Size budget](#size-budget) (#82); as served,
+stylesheets are minified, and `main.css` is 28.4 KB (5.8 KB gzipped, 5.2 KB Brotli),
+under the original 30 KB aim with every component kept.
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
@@ -2870,8 +2877,8 @@ temporary folder, so tests never touch the user's data; the database is SQLite i
 `test_settings.py` loads `settings.py` afresh under different environments (local
 defaults, hosted with a Postgres `DATABASE_URL`, each required hosted variable missing).
 `test_cli.py::test_serves_local_mode` starts `python -m climpact_web --no-browser --port 0`
-on a fresh data folder, fetches `/healthz`, `/` and a static file, and stops it with
-SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
+on a fresh data folder, fetches `/healthz`, `/` (gzipped when asked) and the collected,
+hashed `main.css` (Brotli, immutable cache) and its plain name, and stops it with SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
 runs hosted mode against a Postgres 16 service container: `check --deploy`, `migrate`,
 `collectstatic` and `/healthz`, then queues a station job (Madrid) and runs it with
 `runworker --once`, which claims it with `SELECT ... FOR UPDATE SKIP LOCKED`.
@@ -3441,8 +3448,10 @@ ignored.
 inline SVG raster of the grid's cells, north up and west left, in five equal classes over
 the shown values with rounded limits, coloured with the sequential chart tokens
 (`--chart-seq-1` ... `-5`, both themes), missing values in the sunken surface colour;
-the selected cell is outlined. Above 40,000 cells (`MAX_MAP_CELLS`) every n-th row and
-column is drawn and the page says so. Controls (GET form, htmx swaps `gridded:explore` and
+the selected cell is outlined. Above 2,500 cells (`MAX_MAP_CELLS`) every n-th row and
+column is drawn and the page says so (lowered from 40,000 by #82: each cell is about 550
+bytes of HTML with its link, tooltip and table cell, so a 200 x 200 map was about 20 MB of
+HTML; see [Size budget](#size-budget)). R's sample grid (19 x 24) is drawn whole. Controls (GET form, htmx swaps `gridded:explore` and
 `HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
 which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
 cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
@@ -3487,6 +3496,107 @@ series, CSVs and zip, the CSV values checked against the netCDF; indices of `gri
 with the thresholds file of `grid_stations`, as R's reference run; a failed job; the map
 drawing; ownership and retention.
 
+### Size budget
+
+The app must work on slow connections (#11). #82 set the budgets, which CI enforces in its
+own step (`tests/test_page_budget.py`, also part of the full `pytest` run), and made pages
+and static files smaller on the wire. The user was away when the budgets were set; they
+follow the examples in the issue and are recorded on #82.
+
+**Budgets.** A page's cost is everything the browser fetches before it can render: the
+HTML and every stylesheet, script, icon sprite and favicon it links. Content htmx loads
+afterwards (progress fragments, the set-up checks) and chart data are not counted.
+
+| Budget | Limit | Measured |
+| --- | --- | --- |
+| First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
+| Any other page, chart code included | 300 KB gzipped in total | 87.1 KB at most (gridded results, worst-case map) |
+| Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
+| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | none yet; step 1 with data loaded is marked for #75 |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
+
+Every stylesheet, script, SVG and JSON file in the package must have an entry in
+`ASSET_BUDGETS` (a test fails otherwise); #75's files have theirs already (uPlot 24 KB,
+`charts.js` 14 KB, `charts.css` 1.5 KB, uPlot's CSS 1 KB, gzipped). To add a page, add a
+function returning its URL to `PAGES`.
+
+**How it is measured.** The test runs `collectstatic` with the deployment storage into a
+temporary folder, renders each page type with the real views (creating the session's
+analysis, batch, job or gridded run first), asks for it with `Accept-Encoding: gzip, br`,
+and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the file itself
+if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
+supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
+with the sample loaded, and step 2; batch start, check and results (queued); the job list
+and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
+largest map drawn, values all different); the help index, a guide, the indices guide, the
+topic list and a search; and the 404 page. The pattern library is left out (development
+only). The sizes print at the end of the test run, largest first; on this branch (KB):
+
+| Page | HTML | HTML gzip | Total gzip | Total Brotli |
+| --- | ---: | ---: | ---: | ---: |
+| gridded results, 100 x 100 grid | 1408.5 | 56.2 | 87.1 | 83.7 |
+| station step 1, sample loaded | 77.0 | 19.5 | 48.8 | 45.6 |
+| gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
+| help topics | 47.5 | 9.4 | 38.1 | 35.0 |
+| help indices | 26.0 | 6.7 | 35.3 | 32.3 |
+| landing | 13.4 | 4.1 | 34.9 | 31.5 |
+| batch check | 18.6 | 4.4 | 34.1 | 30.8 |
+| station step 1, empty | 11.6 | 3.3 | 32.5 | 29.3 |
+| job list | 5.3 | 1.8 | 30.4 | 27.3 |
+
+About 30 KB of every page is shared and cached after the first: htmx (16.9 KB), `main.css`
+(5.8 KB), `ui.js` (3.2 KB), the icon sprite, `help.css` and the dark theme.
+
+**Compression and caching.**
+
+- *Static files* (`core/storage.py`): `StaticFilesStorage` is WhiteNoise's
+  `CompressedManifestStaticFilesStorage`, so `collectstatic` writes each file under a name
+  with a hash of its contents (`main.f3fea2c28438.css`) and gzip and Brotli copies (the
+  `brotli` package is a dependency). WhiteNoise sends the Brotli or gzip copy the browser
+  accepts, and hashed names with `Cache-Control: max-age=315360000, public, immutable`, so
+  a returning visitor fetches only the HTML. Hosted mode collects at deployment; local mode
+  collects into `<data dir>/static` when `climpact-web` starts (about 0.25 s once the files
+  are there), with `LocalStaticFilesStorage`, which falls back to the plain name for a file
+  not collected (served from the package by WhiteNoise's finders, with a 60 s cache), so a
+  page never fails for want of `collectstatic` (`climpact-web manage ...` commands, tests).
+  `StaticFilesMiddleware` is WhiteNoise without its warning when that folder does not exist
+  yet. `design_snapshots` renders plain names, as it copies the source folder.
+- *Minified CSS*: the storage strips comments and whitespace from stylesheets as it saves
+  them (`minify_css`): strings are kept, and spaces are removed only next to `{ } ; ,`, so
+  selectors such as `.a :focus` keep their meaning; a test checks that every stylesheet
+  keeps the same sequence of selectors and declarations. This saves 1.2 KB gzipped on
+  `main.css`. Scripts are not minified: htmx comes minified, and minifying `ui.js` would
+  need a JavaScript minifier for about 1 KB gzipped; the sources stay readable.
+- *Pages*: `CompressionMiddleware` is Django's `GZipMiddleware` limited to text answers
+  (HTML, htmx fragments, JSON, CSV, SVG); streamed files (zips, netCDF, PNG) are left
+  alone. Django pads each compressed answer with random bytes against BREACH and masks the
+  CSRF token afresh on every response. Pages compress to between a quarter and a third of their size.
+- *Gridded map*: the inline SVG map is capped at 2,500 cells (`MAX_MAP_CELLS`, was 40,000),
+  which keeps the worst gridded results page at 87 KB gzipped and 1.4 MB of HTML; before,
+  a 100 x 100 grid gave 5.5 MB of HTML (249 KB gzipped) and the full cap about 20 MB.
+
+**Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
+(`Network.emulateNetworkConditions` with DevTools' Slow 3G values: 2,000 ms latency,
+50,000 bytes/s down and up), local mode started with `climpact-web` on a fresh data
+folder, cache disabled for the first visits. Times are from the start of navigation; bytes
+are the transferred sizes of every request.
+
+| Visit | First contentful paint | Loaded | Transferred | `main` before #82 |
+| --- | ---: | ---: | ---: | --- |
+| Landing, first visit | 5.1 s | 7.5 s | 34.9 KB, 8 requests | 5.7 s, 8.7 s, 129.6 KB |
+| Station step 1 (upload), first visit | 4.3 s | 6.7 s | 33.3 KB, 9 requests | 5.1 s, 7.9 s, 124.5 KB |
+| Landing, cache warm | 2.1 s | 2.1 s | 4.6 KB | 2.1 s, 2.3 s, 13.5 KB |
+| Step 1 from the landing page | 2.1 s | 2.1 s | 3.8 KB | 2.1 s, 2.3 s, 11.7 KB |
+| "Try with sample data" (POST and redirect) | 4.1 s | 4.4 s | 20.1 KB | 4.1 s, 5.6 s, 77.1 KB |
+| "Continue" to step 2 (POST and redirect) | 4.1 s | 4.1 s | 3.2 KB | 4.1 s, 4.2 s, 9.4 KB |
+
+The station flow is usable on Slow 3G: each step shows in about two round trips once the
+shared files are cached, and the first visit is dominated by latency (connection, HTML,
+then the stylesheets and scripts in parallel), not by bytes. Before #82 the landing page
+was 129.6 KB in local mode, over its budget: neither the HTML nor the static files were
+compressed there. In hosted mode the static files were already compressed, but not the
+pages. The scripts are `defer`red, so the first paint waits only for the stylesheets.
+
 ## Development
 
 ```sh
@@ -3502,8 +3612,9 @@ python3 -m venv .venv
   `packages/climpact[dev]`, runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
   suite, parity included); `web` installs both packages, runs
-  `pytest packages/climpact-web`, `climpact-web manage check` and
-  `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
+  `pytest packages/climpact-web` (without the size budget), the size budget as its own step
+  (`pytest packages/climpact-web/tests/test_page_budget.py`, see
+  [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
   container, including a station job through the worker (see [Tests](#tests)).
 - Start the web app with `.venv/bin/climpact-web` (see [Running the web app](#running-the-web-app)).
 

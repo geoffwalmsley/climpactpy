@@ -263,6 +263,11 @@ class Command(BaseCommand):
             shutil.rmtree(target)
         shutil.copytree(STATIC_APP, target)
         with override_settings(
+            # Plain static names, matching the copied folder (not collected, hashed ones)
+            STORAGES={
+                **settings.STORAGES,
+                "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+            },
             PATTERN_LIBRARY=True,
             ALLOWED_HOSTS=["testserver"],
             SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies",

@@ -20,7 +20,11 @@ import numpy as np
 
 from climpact_web.stations.preview import _nice_ticks, _path, _scale
 
-MAX_MAP_CELLS = 40_000
+# Each cell is a link with a tooltip and a table cell (about 550 bytes of HTML), so the cap
+# keeps the results page within the size budget (#82, TECHNICAL.md "Size budget"): 2,500
+# cells is about 1.4 MB of HTML, 60 KB gzipped. At the map's width, 50 cells a side are
+# about 13 px each, so a finer map could not be clicked cell by cell anyway.
+MAX_MAP_CELLS = 2_500
 MAP_WIDTH = 640  # SVG units; the height follows the grid's aspect
 MAX_CELL = 56
 LABEL_SPACE = 64  # SVG units a longitude label needs

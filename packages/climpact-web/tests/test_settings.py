@@ -48,6 +48,9 @@ def test_local_defaults(load_settings, tmp_path):
     assert s.RUNS_DIR == data / "media" / "runs"
     assert s.ALLOWED_HOSTS == ["localhost", "127.0.0.1", "[::1]"]
     assert s.WHITENOISE_USE_FINDERS is True
+    # Static files collected into the data folder by `climpact-web` (#82)
+    assert s.STATIC_ROOT == data / "static"
+    assert s.STORAGES["staticfiles"]["BACKEND"].endswith("storage.LocalStaticFilesStorage")
     assert s.SECRET_KEY
     assert not getattr(s, "SESSION_COOKIE_SECURE", False)
     # Reading the settings creates nothing
@@ -75,7 +78,7 @@ def test_hosted(load_settings):
     assert s.ALLOWED_HOSTS == ["climpact.example.org", "www.climpact.example.org"]
     assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE and s.SECURE_SSL_REDIRECT
     assert s.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
-    assert "CompressedManifest" in s.STORAGES["staticfiles"]["BACKEND"]
+    assert s.STORAGES["staticfiles"]["BACKEND"] == "climpact_web.core.storage.StaticFilesStorage"
 
 
 @pytest.mark.parametrize(

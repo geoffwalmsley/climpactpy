@@ -4,8 +4,9 @@ There is one settings module for both ways the app runs, chosen by ``CLIMPACT_WE
 
 ``local`` (the default)
     The offline install started by the ``climpact-web`` command: SQLite and run files in the
-    user's data folder, ``DEBUG`` off, static files served by WhiteNoise straight from the
-    package, bound to localhost.
+    user's data folder, ``DEBUG`` off, static files collected into the data folder when
+    the command starts and served by WhiteNoise (with the package as a fallback), bound to
+    localhost.
 ``hosted``
     The server deployment (#12): the database from ``DATABASE_URL`` (Postgres), and the
     secret key and allowed hosts must be set; secure cookies, HTTPS behind a proxy.
@@ -101,7 +102,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "climpact_web.middleware.StaticFilesMiddleware",  # WhiteNoise
+    "climpact_web.middleware.CompressionMiddleware",  # gzip for pages and fragments
     "climpact_web.middleware.UploadSizeLimitMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -167,21 +169,31 @@ USE_I18N = True
 USE_TZ = True
 TIME_ZONE = "UTC"
 
-# Static files: shipped inside the package (core/static). Local mode serves them with
-# WhiteNoise straight from the package (no collectstatic); hosted mode collects them into
-# STATIC_ROOT with hashed, compressed copies.
+# Static files: shipped inside the package (core/static). `collectstatic` writes hashed,
+# minified (CSS) and compressed (gzip, Brotli) copies that WhiteNoise serves with a
+# one-year cache (core/storage.py; TECHNICAL.md, "Size budget"). Hosted mode collects into
+# STATIC_ROOT at deployment. Local mode collects into the data folder when `climpact-web`
+# starts, and WhiteNoise's finders serve any file not collected straight from the package
+# (with DEBUG, nothing is collected, so edits show at once).
 STATIC_URL = "static/"
 STATIC_ROOT = Path(env("STATIC_ROOT")) if env("STATIC_ROOT") else None
 if IS_HOSTED:
     if STATIC_ROOT is None:
         raise ImproperlyConfigured("CLIMPACT_WEB_STATIC_ROOT must be set in hosted mode")
-    STORAGES = {
-        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-    }
+    static_backend = "climpact_web.core.storage.StaticFilesStorage"
 else:
+    STATIC_ROOT = STATIC_ROOT or DATA_DIR / "static"
     WHITENOISE_USE_FINDERS = True
     WHITENOISE_AUTOREFRESH = DEBUG
+    static_backend = (
+        "django.contrib.staticfiles.storage.StaticFilesStorage"
+        if DEBUG
+        else "climpact_web.core.storage.LocalStaticFilesStorage"
+    )
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": static_backend},
+}
 
 # Uploaded files and run outputs: each job has its own folder under RUNS_DIR.
 MEDIA_URL = "media/"

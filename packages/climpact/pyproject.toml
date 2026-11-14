@@ -7,7 +7,7 @@ name = "climpactpy"
 description = "Python port of Climpact: indices of daily climate extremes for station and gridded data"
 readme = "README.md"
 license = "GPL-3.0-or-later"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
     "xclim>=1.0,<1.1",

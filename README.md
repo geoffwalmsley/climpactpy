@@ -9,8 +9,8 @@ The repository holds two Python packages:
 - `packages/climpact`: the core package (distribution `climpactpy`, imported as
   `climpact`), with its tests and the R parity suite. It has no web dependencies:
   `pip install ./packages/climpact` installs only the core.
-- `packages/climpact-web`: the web front end (`climpact_web`), which depends on the core.
-  A stub for now.
+- `packages/climpact-web`: the web front end (`climpact_web`, Django + htmx), which
+  depends on the core. Only the skeleton so far: the screens are being built (epic #11).
 
 `reference/` (the R reference outputs) is shared at the root.
 
@@ -38,6 +38,12 @@ a station that fails is reported in `outputs/<station>.errors.txt`):
 
 ```sh
 .venv/bin/climpact batch metadata.txt station_files/ --out outputs
+```
+
+To start the web app on this computer (it opens in the browser and works offline):
+
+```sh
+.venv/bin/climpact-web               # --no-browser, --port, --host, --data-dir
 ```
 
 QC, homogeneity and index calculation are separate modules, and other packages can add

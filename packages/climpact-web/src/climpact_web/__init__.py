@@ -1,3 +1,7 @@
-"""Web front end for climpactpy. A stub for now: the web app is tracked under epic #11."""
+"""Web front end for climpactpy: a Django + htmx app (epic #11).
+
+Run it locally with the ``climpact-web`` command (``climpact_web.cli``); TECHNICAL.md
+("Web front end") describes the layout, the two modes and the settings.
+"""
 
 __version__ = "0.0.1"

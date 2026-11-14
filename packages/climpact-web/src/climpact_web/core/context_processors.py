@@ -1,0 +1,12 @@
+from django.conf import settings
+
+import climpact_web
+
+
+def site(request):
+    """Values every page template uses."""
+    return {
+        "climpact_web_version": climpact_web.__version__,
+        "show_language_switcher": len(settings.LANGUAGES) > 1,
+        "is_hosted": settings.IS_HOSTED,
+    }

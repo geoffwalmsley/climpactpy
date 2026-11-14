@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "File too large" %}{% endblock %}
+{% block content %}
+<h1>{% translate "File too large" %}</h1>
+<p>{% blocktranslate trimmed %}
+  Uploads can be at most {{ max_upload_mb }} MB.
+{% endblocktranslate %}</p>
+{% endblock %}

@@ -11,11 +11,24 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
     "climpactpy",  # the core package (import name: climpact)
+    "django>=5.2,<6",  # 5.2 LTS (Django 6 needs Python 3.12)
+    "waitress>=3.0",  # the local server started by `climpact-web`
+    "whitenoise>=6.7",  # static files, from the package in local mode
+    "dj-database-url>=2.2",  # DATABASE_URL in hosted mode
+    "platformdirs>=4.2",  # the user data folder in local mode
 ]
 
+[project.scripts]
+climpact-web = "climpact_web.cli:main"
+
 [project.optional-dependencies]
+# Hosted mode on Postgres (DATABASE_URL=postgres://...)
+postgres = [
+    "psycopg[binary]>=3.2",
+]
 dev = [
     "pytest>=8",
+    "pytest-django>=4.9",
     "ruff>=0.8",
 ]
 
@@ -31,6 +44,8 @@ packages = ["src/climpact_web"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-rfE --strict-markers"
+DJANGO_SETTINGS_MODULE = "web_test_settings"
+pythonpath = ["tests"]
 
 [tool.ruff]
 extend = "../../ruff.toml"

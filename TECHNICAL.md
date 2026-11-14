@@ -37,6 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check (see [Web front end](#web-front-end)) | the screens: design system (#71), jobs (#73), charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -58,8 +59,8 @@ packages/
   climpact/          the core package: distribution `climpactpy`, imported as `climpact`.
                      Its dependencies are the scientific stack only (xclim, xarray, numpy,
                      pandas, scipy, dask, netCDF4); extras `plots` and `dev`
-  climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/);
-                     depends on the core. A stub until the web app (#11)
+  climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/): a Django
+                     project, depends on the core (see [Web front end](#web-front-end))
 reference/           the R reference outputs and the scripts that make them, shared at the root
 ruff.toml            ruff settings for the whole repository (each package's pyproject.toml
                      extends it)
@@ -2502,6 +2503,148 @@ So the four add about 0.1 s per cell (hw and hwEHF about 0.01 s each, SPI and SP
 threads do not help them (they hold the GIL). All 20 variables of R's four files were
 identical to Python's with 1 and 4 threads (644,232 values).
 
+## Web front end
+
+The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/modules`). It is
+**Django + htmx**, server-rendered with Django templates (decided in #11). The
+`climpact-web` package depends on the core and calls it as a library; the core never
+imports `climpact_web`. This section describes the skeleton (#69); the screens follow in
+#71 (design system), #73 (jobs), #75 (charts), #76-#78 and #90 (steps 1-4), #79
+(downloads), #80 (batch), #81 (help), #85 (gridded), #82 (size budget) and #83
+(accessibility).
+
+### Layout
+
+```
+packages/climpact-web/src/climpact_web/
+  settings.py        the one settings module; every value from environment variables
+                     (local or hosted mode, see below); reading it has no side effects
+  urls.py            root URLs: i18n/ (set_language) and the core app; later apps add
+                     their own include here
+  wsgi.py            WSGI application, for waitress and hosted servers
+  middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
+  cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`)
+  core/              the UI shell app (label `core`): home page, /healthz, the context
+                     processor `site`
+    templates/       base.html (the page shell), 404.html, 413.html, 500.html,
+                     core/home.html, core/language_switcher.html
+    static/climpact_web/
+      css/main.css   hand-written stylesheet: design tokens as CSS custom properties,
+                     light and dark, logical properties only (right-to-left layouts)
+      vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
+  locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
+packages/climpact-web/tests/
+  web_test_settings.py  test settings: local mode, data folder in a temporary folder
+  test_*.py          settings, views and security, i18n, static files, the command
+```
+
+Planned apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
+worker and progress pages, #73), `stations` (single-station steps 1-4 and batch, #76-#80,
+#90) and `gridded` (#85). `core` keeps what every page shares.
+
+Templates and static files live inside the package, so the wheel carries them (hatchling
+includes every file under `src/climpact_web`; checked by building the wheel). There is no
+build step and no Node: the user decided against Tailwind on 2026-11-14 (#69), and the
+design system (#71) builds on `main.css`.
+
+### Modes
+
+`CLIMPACT_WEB_MODE` selects one of two modes; the same settings module serves both.
+
+| | `local` (default) | `hosted` |
+| --- | --- | --- |
+| Started by | `climpact-web` (waitress on 127.0.0.1) | a WSGI server chosen in #12, on `climpact_web.wsgi:application` |
+| Database | SQLite, `<data dir>/db.sqlite3`, migrated on every start | `DATABASE_URL` (Postgres; the `postgres` extra installs psycopg); migrations run by the deployment |
+| Secret key | `CLIMPACT_WEB_SECRET_KEY`, else `<data dir>/secret_key` (written on first start, mode 0600) | `CLIMPACT_WEB_SECRET_KEY`, required |
+| Allowed hosts | localhost, 127.0.0.1, [::1] (`*` when started with a non-loopback `--host`) | `CLIMPACT_WEB_ALLOWED_HOSTS`, required |
+| Static files | WhiteNoise serves them straight from the package (`WHITENOISE_USE_FINDERS`), no `collectstatic` | `collectstatic` into `CLIMPACT_WEB_STATIC_ROOT` (required), WhiteNoise's compressed, hashed storage |
+| HTTPS | none (localhost) | secure session and CSRF cookies, redirect to HTTPS, `X-Forwarded-Proto` from the proxy trusted; `/healthz` exempt from the redirect |
+| Uploads and results | `<data dir>/media`; runs under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT` (S3 is decided in #73) |
+
+The data folder is `CLIMPACT_WEB_DATA_DIR` or `--data-dir`, else the user data folder from
+platformdirs (`~/Library/Application Support/climpact-web` on macOS,
+`~/.local/share/climpact-web` on Linux, `%LOCALAPPDATA%\climpact-web` on Windows).
+Missing required settings in hosted mode stop the app with `ImproperlyConfigured` naming
+the variable.
+
+### Settings
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CLIMPACT_WEB_MODE` | `local` | `local` or `hosted` |
+| `CLIMPACT_WEB_DATA_DIR` | user data folder | database, secret key, media (local mode) |
+| `CLIMPACT_WEB_SECRET_KEY` | see Modes | Django `SECRET_KEY` |
+| `CLIMPACT_WEB_ALLOWED_HOSTS` | see Modes | comma-separated host names |
+| `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` | none | comma-separated origins, e.g. `https://climpact.example.org` |
+| `DATABASE_URL` | SQLite in the data folder | any URL dj-database-url reads, e.g. `postgres://user:pw@host:5432/db`; required in hosted mode |
+| `CLIMPACT_WEB_DEBUG` | `false` | Django `DEBUG` |
+| `CLIMPACT_WEB_STATIC_ROOT` | none | `collectstatic` target; required in hosted mode |
+| `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and run folders (`RUNS_DIR` is `media/runs`) |
+| `CLIMPACT_WEB_MAX_UPLOAD_MB` | `50` | largest request body, uploads included |
+| `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
+| `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age; set once the domain is final (#12) |
+| `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
+
+Both modes also set `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
+`Cross-Origin-Opener-Policy: same-origin`, HttpOnly SameSite=Lax session cookies and
+Django's CSRF protection; htmx requests send the CSRF token from the `hx-headers` on
+`<body>`. Server errors are logged to the console by `django.request`. pint's warnings
+about xclim redefining its units are silenced (`pint.util` at ERROR).
+
+**Upload limit.** Django limits only in-memory form data, not file uploads, so
+`UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
+`MAX_UPLOAD_MB`, before the body is read; waitress gets the same limit
+(`max_request_body_size`) for bodies without a length. The default, 50 MB, covers any
+station file; gridded runs read netCDF files from disk in local mode (#85). Uploads over
+2.5 MB go to a temporary file, not memory (Django's default).
+
+### Running the web app
+
+```sh
+.venv/bin/climpact-web                      # local mode: migrate, serve on 127.0.0.1:8000, open the browser
+.venv/bin/climpact-web --no-browser --port 9000 --data-dir /tmp/cw
+.venv/bin/climpact-web manage <command>     # any Django management command with these settings
+```
+
+Options: `--host` (default 127.0.0.1; 0.0.0.0 serves the network, with a warning),
+`--port` (default 8000, or a free port if 8000 is taken), `--no-browser`, `--data-dir`,
+`--threads` (default 4). Ctrl+C or SIGTERM stops the server cleanly (exit status 0). The
+command prints the address and the data folder.
+
+A hosted deployment runs `climpact-web manage migrate` and
+`climpact-web manage collectstatic --no-input` with the hosted variables set, then serves
+`climpact_web.wsgi:application`; the server, containers and AWS set-up are #12. Load
+balancers check **`/healthz`**: 200 and `{"status": "ok", "database": "ok", "version":
+..., "core_version": ...}` when the database answers, 503 otherwise; never cached.
+
+### Translations
+
+`LocaleMiddleware` picks the language from the request (`Accept-Language`, or the
+`django_language` cookie set by `set_language` at `/i18n/setlang/`). Only English is in
+`LANGUAGES` for now; the language switcher in the header appears once a second language
+is added. `<html>` carries `lang` and `dir` (`rtl` for right-to-left languages), and the
+stylesheet uses logical properties only, so layouts mirror. Every template string is in
+`{% translate %}` or `{% blocktranslate %}`: `tests/test_i18n.py` strips those, tags and
+`<code>` from each template and fails on any text left. To refresh the catalogue (needs
+GNU gettext's `xgettext`), run from `packages/climpact-web/src/climpact_web`:
+`../../../../.venv/bin/climpact-web manage makemessages -l en --no-obsolete`. To add a
+language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
+the `.po` file and run `compilemessages`.
+
+### Tests
+
+pytest-django with `web_test_settings` (set in `pytest.ini` and the package's
+`pyproject.toml`; the tests folder is put on the path by `pythonpath`). The settings clear
+every `CLIMPACT_WEB_*` variable and `DATABASE_URL`, and point the data folder at a
+temporary folder, so tests never touch the user's data; the database is SQLite in memory.
+`test_settings.py` loads `settings.py` afresh under different environments (local
+defaults, hosted with a Postgres `DATABASE_URL`, each required hosted variable missing).
+`test_cli.py::test_serves_local_mode` starts `python -m climpact_web --no-browser --port 0`
+on a fresh data folder, fetches `/healthz`, `/` and a static file, and stops it with
+SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
+runs hosted mode against a Postgres 16 service container: `check --deploy`, `migrate`,
+`collectstatic` and `/healthz`.
+
 ## Development
 
 ```sh
@@ -2513,11 +2656,14 @@ python3 -m venv .venv
 
 - One venv holds both packages, installed editable with pip (no uv). New T3 worktrees get
   it from the project's "Set up venv" script, which runs the commands above.
-- CI has two jobs, each on Python 3.11, 3.12 and 3.13: `core` installs only
+- CI has three jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` installs only
   `packages/climpact[dev]`, runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
-  suite, parity included); `web` installs both packages and runs
-  `pytest packages/climpact-web`.
+  suite, parity included); `web` installs both packages, runs
+  `pytest packages/climpact-web`, `climpact-web manage check` and
+  `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
+  container (see [Web front end](#web-front-end)).
+- Start the web app with `.venv/bin/climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with
   `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.

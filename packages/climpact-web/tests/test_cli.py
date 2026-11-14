@@ -1,6 +1,7 @@
 """The climpact-web command."""
 
 import os
+import sqlite3
 import subprocess
 import sys
 import time
@@ -80,6 +81,11 @@ def test_serves_local_mode(tmp_path):
             assert b"<html" in response.read()
         with urllib.request.urlopen(url + "static/climpact_web/css/main.css", timeout=10) as r:
             assert r.status == 200
+        # The background worker was started alongside the server.
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and not workers(data):
+            time.sleep(0.2)
+        assert len(workers(data)) == 1
     finally:
         proc.terminate()
         returncode = proc.wait(timeout=10)
@@ -89,3 +95,9 @@ def test_serves_local_mode(tmp_path):
     assert (data / "db.sqlite3").is_file()
     assert (data / "secret_key").is_file()
     assert (data / "media" / "runs").is_dir()
+    assert workers(data) == []  # the worker was stopped cleanly too
+
+
+def workers(data):
+    with sqlite3.connect(data / "db.sqlite3") as con:
+        return con.execute("SELECT name FROM jobs_worker").fetchall()

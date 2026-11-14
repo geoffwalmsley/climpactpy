@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 23:55+0000\n"
+"POT-Creation-Date: 2026-11-14 01:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,6 +86,269 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
-#: settings.py:145
+#: jobs/forms.py:23
+msgid "Station file"
+msgstr ""
+
+#: jobs/forms.py:24
+msgid "Daily data in Climpact's text format: year month day prcp tmax tmin."
+msgstr ""
+
+#: jobs/forms.py:27
+msgid "Station name"
+msgstr ""
+
+#: jobs/forms.py:33
+msgid ""
+"Use letters, digits, spaces and . ( ) - _ only, not starting with a dot."
+msgstr ""
+
+#: jobs/forms.py:36
+msgid "Used in the names of the result files. Default: the file name."
+msgstr ""
+
+#: jobs/forms.py:38
+msgid "Latitude"
+msgstr ""
+
+#: jobs/forms.py:39
+msgid "Longitude"
+msgstr ""
+
+#: jobs/forms.py:40
+msgid "First year of the base period"
+msgstr ""
+
+#: jobs/forms.py:41
+msgid "Last year of the base period"
+msgstr ""
+
+#: jobs/forms.py:42
+msgid "Draw plots"
+msgstr ""
+
+#: jobs/forms.py:44
+msgid "Make a zip file of the results"
+msgstr ""
+
+#: jobs/forms.py:51
+msgid "The base period must start before it ends."
+msgstr ""
+
+#: jobs/models.py:18
+msgid "Waiting to start"
+msgstr ""
+
+#: jobs/models.py:19
+msgid "Running"
+msgstr ""
+
+#: jobs/models.py:20
+msgid "Finished"
+msgstr ""
+
+#: jobs/models.py:21 jobs/stages.py:19
+msgid "Failed"
+msgstr ""
+
+#: jobs/models.py:22
+msgid "Cancelled"
+msgstr ""
+
+#: jobs/stages.py:9
+msgid "Reading the data"
+msgstr ""
+
+#: jobs/stages.py:10
+msgid "Writing the results"
+msgstr ""
+
+#: jobs/stages.py:11
+msgid "Making the zip file"
+msgstr ""
+
+#: jobs/stages.py:12
+msgid "Checking the data quality"
+msgstr ""
+
+#: jobs/stages.py:13
+msgid "Checking homogeneity"
+msgstr ""
+
+#: jobs/stages.py:14
+msgid "Calculating indices"
+msgstr ""
+
+#: jobs/stages.py:15
+msgid "Drawing plots"
+msgstr ""
+
+#: jobs/stages.py:16
+msgid "Preparing the input files"
+msgstr ""
+
+#: jobs/stages.py:17
+msgid "Calculating thresholds"
+msgstr ""
+
+#: jobs/stages.py:18
+msgid "Calculating correlations"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:6
+#, python-format
+msgid "<strong>%(status)s</strong>: %(stage_label)s"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:9
+#, python-format
+msgid "%(percent)s%%"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:11
+#, python-format
+msgid "Step %(step)s of %(total)s (%(percent)s%%)"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:12
+#, python-format
+msgid "Time so far: %(elapsed)s."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:13
+#, python-format
+msgid "About %(remaining)s left."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:15
+msgid "Cancelling…"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:17
+msgid ""
+"No calculation worker is running, so this job cannot start yet. If you run "
+"Climpact yourself, restart it with the climpact-web command."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:21
+msgid "Cancel"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:27
+#, python-format
+msgid "Finished in %(elapsed)s."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:29
+msgid "Download all results (zip)"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:33
+#, python-format
+msgid "%(counter)s file"
+msgid_plural "%(counter)s files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobs/templates/jobs/_progress.html:43
+msgid "The calculation failed."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:47
+msgid "The calculation was cancelled."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:50
+msgid "Try again"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:55
+#, python-format
+msgid "The results and uploaded files are deleted on %(date)s."
+msgstr ""
+
+#: jobs/templates/jobs/job_detail.html:3
+#, python-format
+msgid "%(title)s · Climpact"
+msgstr ""
+
+#: jobs/templates/jobs/job_detail.html:6 jobs/templates/jobs/job_list.html:10
+msgid "Calculation"
+msgstr ""
+
+#: jobs/templates/jobs/job_detail.html:8
+msgid "All your calculations"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:3
+msgid "Your calculations · Climpact"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:6
+msgid "Your calculations"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:7
+#, python-format
+msgid ""
+"Calculations and their files are kept for %(days)s day after they finish, "
+"then deleted."
+msgid_plural ""
+"Calculations and their files are kept for %(days)s days after they finish, "
+"then deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobs/templates/jobs/job_list.html:10
+msgid "Started"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:10
+msgid "Status"
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:22
+msgid "You have no calculations."
+msgstr ""
+
+#: jobs/templates/jobs/job_list.html:24 jobs/templates/jobs/station_form.html:6
+msgid "Calculate indices for a station"
+msgstr ""
+
+#: jobs/templates/jobs/station_form.html:3
+msgid "Calculate indices for a station · Climpact"
+msgstr ""
+
+#: jobs/templates/jobs/station_form.html:7
+#, python-format
+msgid ""
+"Your file and the results are kept for %(days)s day after the calculation "
+"finishes, then deleted."
+msgid_plural ""
+"Your file and the results are kept for %(days)s days after the calculation "
+"finishes, then deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobs/templates/jobs/station_form.html:11
+msgid "Start the calculation"
+msgstr ""
+
+#: jobs/views.py:66
+#, python-format
+msgid "%(s)d s"
+msgstr ""
+
+#: jobs/views.py:69
+#, python-format
+msgid "%(m)d min %(s)d s"
+msgstr ""
+
+#: jobs/views.py:71
+#, python-format
+msgid "%(h)d h %(m)d min"
+msgstr ""
+
+#: settings.py:156
 msgid "English"
 msgstr ""

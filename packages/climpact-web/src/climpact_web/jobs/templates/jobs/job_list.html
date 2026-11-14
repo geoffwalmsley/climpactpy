@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Your calculations · Climpact" %}{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>{% translate "Your calculations" %}</h1>
+  <p>{% blocktranslate count days=job_retention_days %}Calculations and their files are kept for {{ days }} day after they finish, then deleted.{% plural %}Calculations and their files are kept for {{ days }} days after they finish, then deleted.{% endblocktranslate %}</p>
+  {% if jobs %}
+  <table>
+    <thead><tr><th scope="col">{% translate "Calculation" %}</th><th scope="col">{% translate "Started" %}</th><th scope="col">{% translate "Status" %}</th></tr></thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><a href="{% url 'jobs:detail' job.pk %}">{{ job.title|default:job.kind }}</a></td>
+        <td>{{ job.created_at|date:"j M Y, H:i" }}</td>
+        <td>{{ job.get_status_display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>{% translate "You have no calculations." %}</p>
+  {% endif %}
+  <p><a class="button" href="{% url 'jobs:station_new' %}">{% translate "Calculate indices for a station" %}</a></p>
+</section>
+{% endblock %}

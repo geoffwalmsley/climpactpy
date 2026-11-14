@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "climpact_web.core",
+    "climpact_web.jobs",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,7 @@ TEMPLATES = [
                 "django.template.context_processors.i18n",
                 "django.contrib.messages.context_processors.messages",
                 "climpact_web.core.context_processors.site",
+                "climpact_web.jobs.context_processors.jobs",
             ],
         },
     },
@@ -133,6 +135,15 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": DATA_DIR / "db.sqlite3",
+            # The web server and the worker process write to the same file: WAL lets
+            # readers carry on during a write, writers wait for each other (timeout, in
+            # seconds) and take the write lock when a transaction starts (IMMEDIATE), which
+            # avoids SQLite's "database is locked" on upgrading a read lock.
+            "OPTIONS": {
+                "timeout": 20,
+                "transaction_mode": "IMMEDIATE",
+                "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+            },
         }
     }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -164,10 +175,24 @@ else:
     WHITENOISE_USE_FINDERS = True
     WHITENOISE_AUTOREFRESH = DEBUG
 
-# Uploaded files and run outputs (the job folders of #73 go under RUNS_DIR).
+# Uploaded files and run outputs: each job has its own folder under RUNS_DIR.
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT") or DATA_DIR / "media")
 RUNS_DIR = MEDIA_ROOT / "runs"
+
+# Background jobs (climpact_web.jobs; TECHNICAL.md, "Background jobs").
+# Days a finished job and its files are kept; the upload page states it.
+JOB_RETENTION_DAYS = int(env("RETENTION_DAYS", "7"))
+# Seconds between worker heartbeats, and without one before a running job counts as dead.
+JOB_HEARTBEAT_SECONDS = float(env("JOB_HEARTBEAT_SECONDS", "10"))
+JOB_STALE_SECONDS = float(env("JOB_STALE_SECONDS", "60"))
+# Seconds between a worker's checks for queued jobs, between progress writes, and between
+# purges of expired jobs.
+JOB_POLL_SECONDS = float(env("JOB_POLL_SECONDS", "1"))
+JOB_PROGRESS_INTERVAL = 0.5
+JOB_CLEANUP_INTERVAL = 3600
+# Where job folders live (the hook for S3 in hosted mode, #12).
+JOB_STORAGE = env("JOB_STORAGE", "climpact_web.jobs.storage.LocalJobStorage")
 
 # Largest request body accepted, uploads included (UploadSizeLimitMiddleware answers 413).
 # Station files are a few MB; gridded files are read from disk in local mode (#85).

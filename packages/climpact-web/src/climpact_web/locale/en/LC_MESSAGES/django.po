@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 01:46+0000\n"
+"POT-Creation-Date: 2026-11-14 02:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: core/forms.py:10 jobs/forms.py:27
+#: core/forms.py:10 stations/forms.py:67
 msgid "Station name"
 msgstr ""
 
@@ -26,7 +26,7 @@ msgstr ""
 msgid "Used in output file names. Defaults to the file name."
 msgstr ""
 
-#: core/forms.py:15 jobs/forms.py:38
+#: core/forms.py:15 stations/forms.py:79
 msgid "Latitude"
 msgstr ""
 
@@ -42,15 +42,15 @@ msgstr ""
 msgid "Base period end"
 msgstr ""
 
-#: core/forms.py:23
+#: core/forms.py:23 stations/templates/stations/_summary.html:20
 msgid "Variable"
 msgstr ""
 
-#: core/forms.py:24
+#: core/forms.py:24 stations/station_file.py:57
 msgid "Maximum temperature"
 msgstr ""
 
-#: core/forms.py:24
+#: core/forms.py:24 stations/station_file.py:58
 msgid "Minimum temperature"
 msgstr ""
 
@@ -78,7 +78,7 @@ msgstr ""
 msgid "Remove the linear trend before correlating."
 msgstr ""
 
-#: core/forms.py:40 jobs/forms.py:23
+#: core/forms.py:40 stations/forms.py:29
 msgid "Station file"
 msgstr ""
 
@@ -111,24 +111,25 @@ msgstr ""
 msgid "Your calculations"
 msgstr ""
 
-#: core/navigation.py:81 core/templates/core/home.html:58
+#: core/navigation.py:81 core/templates/core/home.html:59 stations/models.py:44
 msgid "Load data"
 msgstr ""
 
-#: core/navigation.py:82 core/templates/core/home.html:63
+#: core/navigation.py:82 core/templates/core/home.html:64 stations/models.py:45
+#: stations/templates/stations/qc.html:3 stations/templates/stations/qc.html:9
 msgid "Check quality"
 msgstr ""
 
-#: core/navigation.py:83 core/templates/core/home.html:68
-#: core/templates/core/patterns.html:87
+#: core/navigation.py:83 core/templates/core/home.html:69
+#: core/templates/core/patterns.html:87 stations/models.py:46
 msgid "Calculate indices"
 msgstr ""
 
-#: core/navigation.py:84
+#: core/navigation.py:84 stations/models.py:47
 msgid "Results and downloads"
 msgstr ""
 
-#: core/navigation.py:85
+#: core/navigation.py:85 stations/models.py:48
 msgid "Compare with sector data"
 msgstr ""
 
@@ -235,7 +236,7 @@ msgstr[1] ""
 msgid "%(label)s: %(errors)s"
 msgstr ""
 
-#: core/templates/components/progress.html:6
+#: core/templates/components/progress.html:6 stations/views.py:179
 #, python-format
 msgid "%(value)s%%"
 msgstr ""
@@ -317,81 +318,81 @@ msgstr ""
 msgid "Start with your data"
 msgstr ""
 
-#: core/templates/core/home.html:30
+#: core/templates/core/home.html:31
 msgid ""
 "The upload screens are being built. Until then, use the <code>climpact</"
 "code> command line."
 msgstr ""
 
-#: core/templates/core/home.html:34
+#: core/templates/core/home.html:35
 msgid "The sample is Sydney Observatory Hill, 1936 to 2015."
 msgstr ""
 
-#: core/templates/core/home.html:46
+#: core/templates/core/home.html:47
 msgid ""
 "Illustration: a yearly index of warm days with its linear trend and "
 "confidence band."
 msgstr ""
 
-#: core/templates/core/home.html:52
+#: core/templates/core/home.html:53
 msgid "How it works"
 msgstr ""
 
-#: core/templates/core/home.html:53
+#: core/templates/core/home.html:54
 msgid "Four steps, each with its results on screen before you move on."
 msgstr ""
 
-#: core/templates/core/home.html:59
+#: core/templates/core/home.html:60
 msgid ""
 "A text file of daily maximum and minimum temperature and precipitation, with "
 "the station's name, location and base period."
 msgstr ""
 
-#: core/templates/core/home.html:64
+#: core/templates/core/home.html:65
 msgid ""
 "Missing days, outliers, jumps, repeated values and other suspect data, "
 "flagged on charts and in tables so you can fix the file."
 msgstr ""
 
-#: core/templates/core/home.html:69
+#: core/templates/core/home.html:70
 msgid ""
 "Choose the parameters, then Climpact calculates the temperature, rainfall, "
 "heatwave and drought indices and their trends."
 msgstr ""
 
-#: core/templates/core/home.html:73
+#: core/templates/core/home.html:74
 msgid "Explore and download"
 msgstr ""
 
-#: core/templates/core/home.html:74
+#: core/templates/core/home.html:75
 msgid ""
 "Interactive charts for every index, and the full set of tables and plots to "
 "download."
 msgstr ""
 
-#: core/templates/core/home.html:81
+#: core/templates/core/home.html:82
 msgid "Other ways to run Climpact"
 msgstr ""
 
-#: core/templates/core/home.html:85 core/templates/core/patterns.html:178
+#: core/templates/core/home.html:86 core/templates/core/patterns.html:178
 msgid "Available soon"
 msgstr ""
 
-#: core/templates/core/home.html:92
+#: core/templates/core/home.html:93
 msgid "Command line"
 msgstr ""
 
-#: core/templates/core/home.html:93
+#: core/templates/core/home.html:94
 msgid ""
 "Run single stations, batches and gridded data from a terminal or a script "
 "with the climpact command."
 msgstr ""
 
-#: core/templates/core/home.html:100
+#: core/templates/core/home.html:101
 msgid "About the indices"
 msgstr ""
 
-#: core/templates/core/home.html:101
+#: core/templates/core/home.html:102
 msgid ""
 "The indices describe how often, how long and how intensely extremes occur: "
 "the hottest day of the year, warm spells, the longest dry period, heavy "
@@ -400,13 +401,13 @@ msgid ""
 "so results can be compared between countries."
 msgstr ""
 
-#: core/templates/core/home.html:108
+#: core/templates/core/home.html:109
 msgid ""
 "You can also install Climpact on your own computer and use it without an "
 "internet connection."
 msgstr ""
 
-#: core/templates/core/home.html:110
+#: core/templates/core/home.html:111
 msgid ""
 "This copy of Climpact runs on your own computer. Your data stays here and no "
 "internet connection is needed."
@@ -601,7 +602,7 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/patterns.html:114
-#: jobs/templates/jobs/station_form.html:18
+#: stations/templates/stations/_unit.html:11
 msgid "°N"
 msgstr ""
 
@@ -732,6 +733,7 @@ msgid "Not calculated"
 msgstr ""
 
 #: core/templates/core/patterns.html:189
+#: stations/templates/stations/_summary.html:22
 msgid "Days missing"
 msgstr ""
 
@@ -878,7 +880,7 @@ msgstr ""
 msgid "The same values as a table."
 msgstr ""
 
-#: core/views.py:71
+#: core/views.py:71 stations/templates/stations/_summary.html:72
 msgid "Year"
 msgstr ""
 
@@ -914,11 +916,11 @@ msgstr ""
 msgid "Trends"
 msgstr ""
 
-#: core/views.py:95
+#: core/views.py:95 stations/templates/stations/qc.html:18
 msgid "Station"
 msgstr ""
 
-#: core/views.py:96
+#: core/views.py:96 stations/templates/stations/_summary.html:8
 msgid "Period"
 msgstr ""
 
@@ -926,7 +928,8 @@ msgstr ""
 msgid "1936 to 2015"
 msgstr ""
 
-#: core/views.py:97
+#: core/views.py:97 stations/templates/stations/_unit.html:18
+#: stations/templates/stations/qc.html:20
 msgid "Base period"
 msgstr ""
 
@@ -968,43 +971,6 @@ msgstr ""
 
 #: core/views.py:114
 msgid "Interface"
-msgstr ""
-
-#: jobs/forms.py:24
-msgid "Daily data in Climpact's text format: year month day prcp tmax tmin."
-msgstr ""
-
-#: jobs/forms.py:33
-msgid ""
-"Use letters, digits, spaces and . ( ) - _ only, not starting with a dot."
-msgstr ""
-
-#: jobs/forms.py:36
-msgid "Used in the names of the result files. Default: the file name."
-msgstr ""
-
-#: jobs/forms.py:39
-msgid "Longitude"
-msgstr ""
-
-#: jobs/forms.py:40
-msgid "First year of the base period"
-msgstr ""
-
-#: jobs/forms.py:41
-msgid "Last year of the base period"
-msgstr ""
-
-#: jobs/forms.py:42
-msgid "Draw plots"
-msgstr ""
-
-#: jobs/forms.py:44
-msgid "Make a zip file of the results"
-msgstr ""
-
-#: jobs/forms.py:51
-msgid "The base period must start before it ends."
 msgstr ""
 
 #: jobs/models.py:18
@@ -1155,8 +1121,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: jobs/templates/jobs/job_list.html:11 jobs/templates/jobs/station_form.html:3
-#: jobs/templates/jobs/station_form.html:7
+#: jobs/templates/jobs/job_list.html:11
 msgid "Calculate indices for a station"
 msgstr ""
 
@@ -1176,46 +1141,667 @@ msgstr ""
 msgid "Calculations you start appear here while they are kept."
 msgstr ""
 
-#: jobs/templates/jobs/station_form.html:8
-msgid ""
-"Upload a station file and give its location and base period. The calculation "
-"runs in the background; you can leave the page and come back to it."
-msgstr ""
-
-#: jobs/templates/jobs/station_form.html:10
-#, python-format
-msgid ""
-"Your file and the results are kept for %(days)s day after the calculation "
-"finishes, then deleted."
-msgid_plural ""
-"Your file and the results are kept for %(days)s days after the calculation "
-"finishes, then deleted."
-msgstr[0] ""
-msgstr[1] ""
-
-#: jobs/templates/jobs/station_form.html:18
-msgid "°E"
-msgstr ""
-
-#: jobs/templates/jobs/station_form.html:29
-msgid "Start the calculation"
-msgstr ""
-
-#: jobs/views.py:66
+#: jobs/views.py:65
 #, python-format
 msgid "%(s)d s"
 msgstr ""
 
-#: jobs/views.py:69
+#: jobs/views.py:68
 #, python-format
 msgid "%(m)d min %(s)d s"
 msgstr ""
 
-#: jobs/views.py:71
+#: jobs/views.py:70
 #, python-format
 msgid "%(h)d h %(m)d min"
 msgstr ""
 
-#: settings.py:160
+#: settings.py:161
 msgid "English"
+msgstr ""
+
+#: stations/forms.py:31
+msgid ""
+"A text file of daily data with six columns: year, month, day, precipitation "
+"(mm), maximum and minimum temperature (°C), separated by spaces, tabs or "
+"commas. Missing values are -99.9."
+msgstr ""
+
+#: stations/forms.py:37
+msgid "Choose a station file."
+msgstr ""
+
+#: stations/forms.py:38 stations/station_file.py:116
+msgid "The file is empty."
+msgstr ""
+
+#: stations/forms.py:48
+msgid "Draw plots"
+msgstr ""
+
+#: stations/forms.py:50
+msgid "Make a zip file of the results"
+msgstr ""
+
+#: stations/forms.py:69
+msgid "Used in the names of the result files."
+msgstr ""
+
+#: stations/forms.py:73
+msgid ""
+"Use letters, digits, spaces and . ( ) - _ only, not starting with a dot."
+msgstr ""
+
+#: stations/forms.py:76
+msgid "Enter a station name."
+msgstr ""
+
+#: stations/forms.py:82
+msgid "Decimal degrees, e.g. -40.992. Negative south of the equator."
+msgstr ""
+
+#: stations/forms.py:84
+msgid "Enter the latitude."
+msgstr ""
+
+#: stations/forms.py:85
+msgid "Enter the latitude as a number of degrees, e.g. -40.992."
+msgstr ""
+
+#: stations/forms.py:86 stations/forms.py:87
+msgid "Latitude must be between -90 and 90."
+msgstr ""
+
+#: stations/forms.py:92
+msgid "Longitude"
+msgstr ""
+
+#: stations/forms.py:95
+msgid "Decimal degrees, e.g. 148.346. Negative west of Greenwich."
+msgstr ""
+
+#: stations/forms.py:97
+msgid "Enter the longitude."
+msgstr ""
+
+#: stations/forms.py:98
+msgid "Enter the longitude as a number of degrees, e.g. 148.346."
+msgstr ""
+
+#: stations/forms.py:99 stations/forms.py:100
+msgid "Longitude must be between -180 and 180."
+msgstr ""
+
+#: stations/forms.py:105
+msgid "First year"
+msgstr ""
+
+#: stations/forms.py:109
+msgid "Enter the first year of the base period."
+msgstr ""
+
+#: stations/forms.py:110
+msgid "Enter a year, e.g. 1971."
+msgstr ""
+
+#: stations/forms.py:115
+msgid "Last year"
+msgstr ""
+
+#: stations/forms.py:119
+msgid "Enter the last year of the base period."
+msgstr ""
+
+#: stations/forms.py:120
+msgid "Enter a year, e.g. 2000."
+msgstr ""
+
+#: stations/forms.py:142
+msgid ""
+"Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
+"which decides the season used for the growing season length and heatwaves."
+msgstr ""
+
+#: stations/forms.py:151
+msgid "The last year must not be before the first year."
+msgstr ""
+
+#: stations/forms.py:160
+#, python-format
+msgid ""
+"The base period %(start)s-%(end)s has no data: the file covers %(first)s to "
+"%(last)s. Choose years within that range."
+msgstr ""
+
+#: stations/forms.py:171
+msgid ""
+"Less than a year of the base period is covered by the data, so the "
+"percentile thresholds and the indices that use them (TX90p, WSDI, R95p and "
+"others) cannot be calculated."
+msgstr ""
+
+#: stations/forms.py:181
+#, python-format
+msgid ""
+"The file covers only %(covered)d year of the base period (%(first)s to "
+"%(last)s). The thresholds use the years with data."
+msgid_plural ""
+"The file covers only %(covered)d years of the base period (%(first)s to "
+"%(last)s). The thresholds use the years with data."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/models.py:37
+msgid "Uploaded file"
+msgstr ""
+
+#: stations/models.py:38
+msgid "Sample data"
+msgstr ""
+
+#: stations/station_file.py:45
+msgid "year"
+msgstr ""
+
+#: stations/station_file.py:46
+msgid "month"
+msgstr ""
+
+#: stations/station_file.py:47
+msgid "day"
+msgstr ""
+
+#: stations/station_file.py:48
+msgid "precipitation"
+msgstr ""
+
+#: stations/station_file.py:49
+msgid "maximum temperature"
+msgstr ""
+
+#: stations/station_file.py:50
+msgid "minimum temperature"
+msgstr ""
+
+#: stations/station_file.py:56
+msgid "Precipitation"
+msgstr ""
+
+#: stations/station_file.py:123
+msgid ""
+"This is not a text file. If it is a spreadsheet, save it as text (tab-"
+"delimited or CSV) with the six columns year, month, day, precipitation, "
+"maximum and minimum temperature."
+msgstr ""
+
+#: stations/station_file.py:136
+msgid "The file has no data rows, only a header."
+msgstr ""
+
+#: stations/station_file.py:165
+#, python-format
+msgid ""
+"Line %(line)d has %(count)d value; each line needs 6: year, month, day, "
+"precipitation, maximum and minimum temperature."
+msgid_plural ""
+"Line %(line)d has %(count)d values; each line needs 6: year, month, day, "
+"precipitation, maximum and minimum temperature."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/station_file.py:173
+msgid "Commas separate values, so write decimals with a point (.)."
+msgstr ""
+
+#: stations/station_file.py:191
+#, python-format
+msgid ""
+"Line %(line)d: “%(value)s” in the %(column)s column is not a number. Write "
+"missing values as -99.9."
+msgstr ""
+
+#: stations/station_file.py:196
+#, python-format
+msgid "Line %(line)d: “%(value)s” in the %(column)s column is not a number."
+msgstr ""
+
+#: stations/station_file.py:234
+msgid ""
+"None of the rows has a valid date. Check that the first three columns are "
+"year, month and day."
+msgstr ""
+
+#: stations/station_file.py:241
+#, python-format
+msgid ""
+"The rows are not in date order: the last row (%(last)s) is dated before the "
+"first (%(first)s). Sort the file by date."
+msgstr ""
+
+#: stations/station_file.py:246
+#, python-format
+msgid "Data row %(row)s has %(count)s values; each row needs 6."
+msgstr ""
+
+#: stations/station_file.py:250
+#, python-format
+msgid "The file could not be read: %(error)s"
+msgstr ""
+
+#: stations/station_file.py:271
+#, python-format
+msgid ""
+"%(count)d row has a date that does not exist (line %(line)d: %(date)s). It "
+"is left out, as in Climpact for R."
+msgid_plural ""
+"%(count)d rows have dates that do not exist (the first is line %(line)d: "
+"%(date)s). They are left out, as in Climpact for R."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/station_file.py:287
+#, python-format
+msgid ""
+"%(count)d row is dated outside the range from the first row (%(first)s) to "
+"the last (%(last)s) (line %(line)d) and is left out, as in Climpact for R. "
+"Sort the file by date to keep it."
+msgid_plural ""
+"%(count)d rows are dated outside the range from the first row (%(first)s) to "
+"the last (%(last)s) (the first is line %(line)d) and are left out, as in "
+"Climpact for R. Sort the file by date to keep them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/station_file.py:298
+msgid "The rows are not in date order. They are sorted by date."
+msgstr ""
+
+#: stations/station_file.py:307
+#, python-format
+msgid ""
+"%(count)d date appears more than once (%(date)s, lines %(lines)s). The "
+"quality checks list it; the indices use its last row."
+msgid_plural ""
+"%(count)d dates appear more than once (the first is %(date)s, lines "
+"%(lines)s). The quality checks list them; the indices use the last row of "
+"each."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/station_file.py:322
+#, python-format
+msgid "The file has no %(variable)s values: every value is missing."
+msgstr ""
+
+#: stations/templates/stations/_problems.html:8
+#, python-format
+msgid "%(name)s was not loaded: it has %(counter)s problem"
+msgid_plural "%(name)s was not loaded: it has %(counter)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_problems.html:8
+#, python-format
+msgid "The file was not loaded: it has %(counter)s problem"
+msgid_plural "The file was not loaded: it has %(counter)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_problems.html:14
+#, python-format
+msgid "And %(counter)s more line like these."
+msgid_plural "And %(counter)s more lines like these."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_problems.html:15
+msgid "Correct the file and load it again. Nothing was saved."
+msgstr ""
+
+#: stations/templates/stations/_retention.html:4
+#, python-format
+msgid ""
+"Your file and station details are kept for %(days)s day after your last "
+"change (until %(date)s unless you change them), then deleted. Results are "
+"kept for %(days)s day after each calculation finishes."
+msgid_plural ""
+"Your file and station details are kept for %(days)s days after your last "
+"change (until %(date)s unless you change them), then deleted. Results are "
+"kept for %(days)s days after each calculation finishes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_retention.html:10
+#, python-format
+msgid ""
+"Your file is kept for %(days)s day after your last change, then deleted. "
+"Results are kept for %(days)s day after each calculation finishes."
+msgid_plural ""
+"Your file is kept for %(days)s days after your last change, then deleted. "
+"Results are kept for %(days)s days after each calculation finishes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_retention.html:16
+msgid "Only this browser can see them."
+msgstr ""
+
+#: stations/templates/stations/_retention.html:16
+msgid "They stay on this computer."
+msgstr ""
+
+#: stations/templates/stations/_summary.html:6
+msgid "Your data"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:8
+#, python-format
+msgid "%(first)s to %(last)s"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:10
+msgid "Years"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:12
+msgid "Days"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:12
+msgid "from the first row to the last"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:18
+msgid "Missing values by variable"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:21
+msgid "Days with data"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:23
+msgid "Missing"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:47
+msgid "Monthly overview"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:48
+msgid ""
+"Monthly mean maximum and minimum temperature, and monthly total "
+"precipitation. Months with fewer than 20 days of data are left as gaps."
+msgstr ""
+
+#: stations/templates/stations/_summary.html:52
+msgid "Temperature (°C)"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:52
+msgid "Precipitation (mm per month)"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:53
+msgid "Monthly mean maximum and minimum temperature"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:53
+msgid "Monthly total precipitation"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:66
+msgid "Days with data in each year"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:70
+msgid "Days with data in each year, and the share of the year's days"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:79
+#, python-format
+msgid "%(days)s <span class=\"muted\">(%(percent)s%%)</span>"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:89
+msgid "Daily data (CSV)"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:93
+msgid "Use a different file"
+msgstr ""
+
+#: stations/templates/stations/_summary.html:98
+msgid ""
+"The station details below are kept. Later steps start again with the new "
+"file."
+msgstr ""
+
+#: stations/templates/stations/_summary.html:100
+msgid "Load this file instead"
+msgstr ""
+
+#: stations/templates/stations/_unit.html:14
+msgid "°E"
+msgstr ""
+
+#: stations/templates/stations/_unit.html:19
+#, python-format
+msgid ""
+"The years the percentile thresholds are calculated from, within the years of "
+"the data (%(first)s to %(last)s). Climpact for R suggests 1971 to 2000."
+msgstr ""
+
+#: stations/templates/stations/_unit.html:22
+msgid ""
+"The years the percentile thresholds are calculated from. Climpact for R "
+"suggests 1971 to 2000."
+msgstr ""
+
+#: stations/templates/stations/load.html:3
+#: stations/templates/stations/load.html:9
+msgid "Check the data and describe the station"
+msgstr ""
+
+#: stations/templates/stations/load.html:10
+#, python-format
+msgid ""
+"Sample data: %(name)s. The station details are filled in; continue when you "
+"are ready."
+msgstr ""
+
+#: stations/templates/stations/load.html:10
+#, python-format
+msgid ""
+"Loaded from %(name)s. Check that this is the data you expect, then give the "
+"station's details."
+msgstr ""
+
+#: stations/templates/stations/load.html:19
+#, python-format
+msgid "Something to check in the file"
+msgid_plural "%(counter)s things to check in the file"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/load.html:21
+msgid ""
+"These do not stop you going on; the quality checks in the next step look at "
+"the data in detail."
+msgstr ""
+
+#: stations/templates/stations/load.html:29
+msgid "Station details"
+msgstr ""
+
+#: stations/templates/stations/load.html:40
+msgid "Continue to quality checks"
+msgstr ""
+
+#: stations/templates/stations/load.html:49
+msgid "Delete this data now"
+msgstr ""
+
+#: stations/templates/stations/load.html:51
+msgid "Start again with another station"
+msgstr ""
+
+#: stations/templates/stations/qc.html:10
+#, python-format
+msgid "%(name)s: data and station details saved."
+msgstr ""
+
+#: stations/templates/stations/qc.html:12
+msgid ""
+"The quality-check screen is not available yet. Until it is, you can run the "
+"whole calculation with the default settings: the quality-control files, "
+"every index, the plots and a zip of the results."
+msgstr ""
+
+#: stations/templates/stations/qc.html:16
+msgid "What you loaded"
+msgstr ""
+
+#: stations/templates/stations/qc.html:19
+msgid "Location"
+msgstr ""
+
+#: stations/templates/stations/qc.html:19
+#, python-format
+msgid "%(lat)s° N, %(lon)s° E"
+msgstr ""
+
+#: stations/templates/stations/qc.html:20
+#, python-format
+msgid "%(start)s to %(end)s"
+msgstr ""
+
+#: stations/templates/stations/qc.html:21
+msgid "Data"
+msgstr ""
+
+#: stations/templates/stations/qc.html:21
+#, python-format
+msgid "%(first)s to %(last)s, from %(name)s"
+msgstr ""
+
+#: stations/templates/stations/qc.html:23
+msgid "Change the data or the station details"
+msgstr ""
+
+#: stations/templates/stations/qc.html:27
+msgid "Calculate everything now"
+msgstr ""
+
+#: stations/templates/stations/qc.html:29
+msgid "A calculation for this station has been started."
+msgstr ""
+
+#: stations/templates/stations/qc.html:29
+msgid "Follow its progress and download the results"
+msgstr ""
+
+#: stations/templates/stations/qc.html:35
+msgid "Calculate again"
+msgstr ""
+
+#: stations/templates/stations/qc.html:35
+msgid "Calculate with the default settings"
+msgstr ""
+
+#: stations/templates/stations/upload.html:3
+#: stations/templates/stations/upload.html:9
+msgid "Load station data"
+msgstr ""
+
+#: stations/templates/stations/upload.html:10
+msgid ""
+"Start with a file of daily temperature and precipitation for one station. "
+"Climpact checks it and shows you what it contains before you go on."
+msgstr ""
+
+#: stations/templates/stations/upload.html:18
+msgid "Your station file"
+msgstr ""
+
+#: stations/templates/stations/upload.html:19
+#, python-format
+msgid "Text or CSV, up to %(size)s MB."
+msgstr ""
+
+#: stations/templates/stations/upload.html:23
+msgid "Load the file"
+msgstr ""
+
+#: stations/templates/stations/upload.html:30
+msgid "No file to hand?"
+msgstr ""
+
+#: stations/templates/stations/upload.html:31
+msgid ""
+"Try Climpact with daily data for Sydney Observatory Hill, Australia, 1936 to "
+"2015. The station name and location are filled in for you."
+msgstr ""
+
+#: stations/templates/stations/upload.html:34
+msgid "Use the sample data"
+msgstr ""
+
+#: stations/templates/stations/upload.html:37
+#, python-format
+msgid "Download the sample file (%(sample_name)s)"
+msgstr ""
+
+#: stations/templates/stations/upload.html:44
+msgid "What the file must look like"
+msgstr ""
+
+#: stations/templates/stations/upload.html:46
+msgid ""
+"One row per day, in date order, with six columns separated by spaces, tabs "
+"or commas:"
+msgstr ""
+
+#: stations/templates/stations/upload.html:48
+msgid "year, month and day (whole numbers);"
+msgstr ""
+
+#: stations/templates/stations/upload.html:49
+msgid "precipitation in millimetres;"
+msgstr ""
+
+#: stations/templates/stations/upload.html:50
+msgid "maximum and minimum temperature in degrees Celsius."
+msgstr ""
+
+#: stations/templates/stations/upload.html:52
+msgid ""
+"Write a missing value as -99.9. A first row of column names is allowed and "
+"skipped. For example:"
+msgstr ""
+
+#: stations/templates/stations/upload.html:57
+msgid ""
+"This is the format of Climpact for R and RClimDex, so files prepared for "
+"them work here unchanged."
+msgstr ""
+
+#: stations/templates/stations/upload.html:63
+msgid "Continue where you left off"
+msgstr ""
+
+#: stations/templates/stations/upload.html:66
+#, python-format
+msgid "%(name)s, changed %(when)s ago"
+msgstr ""
+
+#: stations/views.py:155
+msgid "The new file is loaded."
+msgstr ""
+
+#: stations/views.py:178
+msgid "under 0.1%"
+msgstr ""
+
+#: stations/views.py:292
+msgid "The station data were deleted."
 msgstr ""

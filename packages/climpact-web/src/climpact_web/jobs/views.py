@@ -1,4 +1,4 @@
-"""Job pages: start a station run, follow its progress, cancel, retry, download results.
+"""Job pages: follow a job's progress, cancel, retry, download results.
 
 A job is visible only to the browser session that created it (``owner``): any other
 session gets 404, the same as for a job that does not exist (or was deleted).
@@ -15,9 +15,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_http_methods, require_POST, require_safe
+from django.views.decorators.http import require_POST, require_safe
 
-from climpact_web.jobs.forms import StationJobForm, safe_station_name
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.storage import get_storage
@@ -104,35 +103,6 @@ def progress_context(request, job: Job) -> dict:
 def job_list(request):
     jobs = Job.objects.filter(owner=request.session.get(OWNER_KEY) or "-")
     return render(request, "jobs/job_list.html", {"jobs": jobs})
-
-
-@require_http_methods(["GET", "HEAD", "POST"])
-def station_new(request):
-    if request.method == "POST":
-        form = StationJobForm(request.POST, request.FILES)
-        if form.is_valid():
-            data = form.cleaned_data
-            uploaded = data["station_file"]
-            file_name = "station.txt"  # the name on disk never comes from the browser
-            name = data["name"] or safe_station_name(uploaded.name.rsplit(".", 1)[0])
-            params = {
-                "station_file": file_name,
-                "metadata": {
-                    "name": name,
-                    "latitude": data["latitude"],
-                    "longitude": data["longitude"],
-                    "base_start": data["base_start"],
-                    "base_end": data["base_end"],
-                },
-                "params": {},
-                "plots": data["plots"],
-                "zip": data["zip"],
-            }
-            job = create_job(request, "station", params, {file_name: uploaded}, title=name)
-            return redirect("jobs:detail", job_id=job.pk)
-    else:
-        form = StationJobForm()
-    return render(request, "jobs/station_form.html", {"form": form})
 
 
 @never_cache

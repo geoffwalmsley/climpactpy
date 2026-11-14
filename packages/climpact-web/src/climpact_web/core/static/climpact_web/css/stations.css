@@ -1,0 +1,134 @@
+/* Single-station steps (#76): only what the shared components do not cover. Tokens only,
+   logical properties only (checked by test_static.py). */
+
+.station-start {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  align-items: start;
+}
+
+.file-problems {
+  display: grid;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-5);
+}
+
+.file-problems__line {
+  display: block;
+  margin-block-start: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: pre;
+}
+
+.file-example {
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.recent-list {
+  display: grid;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-5);
+}
+
+.stat-row {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.field-set {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field-set legend {
+  padding: 0;
+  font-weight: var(--weight-medium);
+}
+
+.field-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field__warning {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.field__warning .icon {
+  flex: none;
+  margin-block-start: 0.1em;
+  color: var(--color-warning);
+}
+
+.series-preview {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.series-preview__panel {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.series-preview__label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.series-preview svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  overflow: visible;
+}
+
+.series-preview__grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-preview__tick {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.year-table {
+  max-block-size: 24rem;
+}
+
+.year-table__gap {
+  font-weight: var(--weight-bold);
+}
+
+/* File and station names are often one long word (sydney_observatory_hill_1936-2015.txt):
+   let them wrap rather than widen the page on a phone. */
+.station-page .lead,
+.station-page .alert__body,
+.station-page .summary-list dd,
+.recent-list {
+  overflow-wrap: anywhere;
+}

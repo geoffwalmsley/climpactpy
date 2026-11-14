@@ -6,7 +6,6 @@ app_name = "jobs"
 
 urlpatterns = [
     path("", views.job_list, name="list"),
-    path("station/new", views.station_new, name="station_new"),
     path("<uuid:job_id>/", views.job_detail, name="detail"),
     path("<uuid:job_id>/progress", views.job_progress, name="progress"),
     path("<uuid:job_id>/cancel", views.job_cancel, name="cancel"),

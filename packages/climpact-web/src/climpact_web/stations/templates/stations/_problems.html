@@ -1,0 +1,17 @@
+{% load i18n ui %}{% comment %}
+Why a station file was not accepted, one problem per line of the file. Parameters:
+inspection (station_file.Inspection), file_name. Takes focus like the form error summary.
+{% endcomment %}
+<div class="alert alert--error" role="alert" tabindex="-1" data-error-summary>
+  {% icon "error" %}
+  <div class="alert__body">
+    <h2 class="alert__title">{% if file_name %}{% blocktranslate count counter=inspection.problem_count with name=file_name trimmed %}{{ name }} was not loaded: it has {{ counter }} problem{% plural %}{{ name }} was not loaded: it has {{ counter }} problems{% endblocktranslate %}{% else %}{% blocktranslate count counter=inspection.problem_count trimmed %}The file was not loaded: it has {{ counter }} problem{% plural %}The file was not loaded: it has {{ counter }} problems{% endblocktranslate %}{% endif %}</h2>
+    <ul class="file-problems">
+      {% for problem in inspection.problems %}
+      <li>{{ problem.message }}{% if problem.text %}<code class="file-problems__line">{{ problem.text }}</code>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if inspection.hidden_problems %}<p>{% blocktranslate count counter=inspection.hidden_problems trimmed %}And {{ counter }} more line like these.{% plural %}And {{ counter }} more lines like these.{% endblocktranslate %}</p>{% endif %}
+    <p>{% translate "Correct the file and load it again. Nothing was saved." %}</p>
+  </div>
+</div>

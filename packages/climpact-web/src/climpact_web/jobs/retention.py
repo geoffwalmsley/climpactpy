@@ -31,6 +31,18 @@ logger = logging.getLogger("climpact_web.jobs")
 class Purged:
     jobs: int = 0
     folders: int = 0
+    other: int = 0  # rows deleted by the registered purgers (e.g. station analyses)
+
+
+# Other apps' clean-up, run with every purge: functions (now, retention days) -> count.
+PURGERS: list = []
+
+
+def register_purger(func) -> None:
+    """Run ``func(now, days)`` whenever expired jobs are purged (the stations app deletes
+    its analyses this way, so the jobs app needs no knowledge of them)."""
+    if func not in PURGERS:
+        PURGERS.append(func)
 
 
 def retention_days() -> int:
@@ -69,6 +81,9 @@ def purge_expired(now: dt.datetime | None = None) -> Purged:
             if folder.stat().st_mtime < cutoff:
                 shutil.rmtree(folder, ignore_errors=True)
                 purged.folders += 1
+
+    for purger in PURGERS:
+        purged.other += purger(now, settings.JOB_RETENTION_DAYS)
 
     Worker.objects.filter(seen_at__lt=now - dt.timedelta(days=1)).delete()
     if purged.jobs or purged.folders:

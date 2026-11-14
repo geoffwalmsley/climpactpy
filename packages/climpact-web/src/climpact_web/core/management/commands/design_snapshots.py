@@ -4,11 +4,13 @@
 
 Writes ``index.html`` (landing page), ``patterns.html`` (pattern library), ``404.html``,
 the job pages with example jobs (``job-running.html``, ``job-finished.html``,
-``job-failed.html``, ``jobs.html``, ``job-new.html``) and a dark-theme copy of each
+``job-failed.html``, ``jobs.html``), the single-station step 1 pages with the sample data
+(``station-upload.html``, ``station-upload-problems.html``, ``station-load.html``,
+``station-load-errors.html``, ``station-qc.html``) and a dark-theme copy of each
 (``*-dark.html``), with the static files copied alongside, so the pages open straight from
 disk (``file://``) in any browser without a server. The icon sprite is inlined, since
 browsers will not load an external sprite from ``file://``. Nothing touches the database:
-the example jobs are never saved.
+the example jobs and station analyses are never saved.
 """
 
 import datetime as dt
@@ -41,7 +43,6 @@ def to_static_files(html: str) -> str:
 
 def job_pages() -> dict[str, str]:
     """The job pages (#73) for example jobs in each state, rendered without a database."""
-    from climpact_web.jobs.forms import StationJobForm
     from climpact_web.jobs.models import Job, Status
     from climpact_web.jobs.stages import stage_label
 
@@ -69,9 +70,6 @@ def job_pages() -> dict[str, str]:
                 "files": [], **extra}  # fmt: skip
 
     request = RequestFactory().get("/jobs/")
-    form = StationJobForm(data={"latitude": "-133.9", "longitude": "151.2",
-                                "base_start": "1990", "base_end": "1961"})  # fmt: skip
-    form.is_valid()
     pages = {
         "job-running": ("jobs/job_detail.html",
                         progress(running, elapsed="1 min 12 s", remaining="40 s")),
@@ -80,7 +78,56 @@ def job_pages() -> dict[str, str]:
                                   files=files)),
         "job-failed": ("jobs/job_detail.html", progress(failed, elapsed="1 s")),
         "jobs": ("jobs/job_list.html", {"jobs": [queued, running, finished, failed]}),
-        "job-new": ("jobs/station_form.html", {"form": form}),
+    }  # fmt: skip
+    return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
+
+
+def station_pages() -> dict[str, str]:
+    """Step 1 of the single-station flow (#76), with the sample data, rendered without a
+    database."""
+    from climpact_web.core.navigation import station_steps
+    from climpact_web.stations import views
+    from climpact_web.stations.forms import MetadataForm, RunAllForm, UploadForm
+    from climpact_web.stations.models import Source, StationAnalysis, Step
+    from climpact_web.stations.station_file import inspect_station_bytes
+
+    request = RequestFactory().get("/station/")
+    inspection = inspect_station_bytes(views.sample_bytes())
+    sample = StationAnalysis(source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
+                             summary=inspection.summary, updated_at=timezone.now(),
+                             **views.SAMPLE_METADATA)  # fmt: skip
+    upload = {"form": UploadForm(), "inspection": None, "file_name": "", "recent": [],
+              "steps": station_steps("upload"), "sample_name": views.SAMPLE_NAME,
+              "max_upload_mb": settings.MAX_UPLOAD_MB}  # fmt: skip
+    bad = inspect_station_bytes(
+        b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
+        b"1961 1 3 NA 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
+    )
+    form = MetadataForm(views.initial_metadata(sample), summary=sample.summary)
+    form.is_valid()
+
+    uploaded = StationAnalysis(source=Source.UPLOAD, file_name="perth_airport.txt",
+                               summary=inspection.summary, station_name="perth_airport",
+                               updated_at=timezone.now(),
+                               warnings=["2 rows have dates that do not exist (the first is "
+                                         "line 7362: 1956-2-29). They are left out, as in "
+                                         "Climpact for R."])  # fmt: skip
+    errors = MetadataForm(data={"station_name": ".perth", "latitude": "-133.9",
+                                "longitude": "", "base_start": "1900", "base_end": "1920"},
+                          summary=uploaded.summary)  # fmt: skip
+    errors.is_valid()
+    sample.step = Step.QC
+    pages = {
+        "station-upload": ("stations/upload.html", upload),
+        "station-upload-problems": ("stations/upload.html",
+                                    {**upload, "inspection": bad,
+                                     "file_name": "perth_airport.txt"}),
+        "station-load": ("stations/load.html", views.load_context(request, sample, form)),
+        "station-load-errors": ("stations/load.html",
+                                views.load_context(request, uploaded, errors)),
+        "station-qc": ("stations/qc.html",
+                       {"analysis": sample, "steps": station_steps("qc", sample.step_urls()),
+                        "run_form": RunAllForm()}),
     }  # fmt: skip
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 
@@ -119,6 +166,7 @@ class Command(BaseCommand):
                     raise RuntimeError(f"{url} answered {response.status_code}")
                 pages[name] = response.content.decode()
             pages.update(job_pages())
+            pages.update(station_pages())
         for name, html in pages.items():
             html = to_static_files(html)
             (folder / f"{name}.html").write_text(html)

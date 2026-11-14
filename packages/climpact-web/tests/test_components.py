@@ -216,17 +216,21 @@ def test_steps_component():
 def test_landing_page(client):
     html = client.get("/").content.decode()
     assert "<h1" in html and "indices of climate extremes" in html
-    assert "Start with your data" in html and "Try with sample data" in html
-    # The screens are not built yet: the buttons are disabled, not broken links
-    assert re.search(r"<button[^>]*disabled[^>]*>.*?Start with your data", html, re.S)
-    assert "Available soon" in html
+    # Step 1 exists (#76): start is a link, the sample a one-click POST form
+    assert re.search(r'<a href="/station/"[^>]*>.*?Start with your data', html, re.S)
+    assert re.search(
+        r'<form method="post" action="/station/sample">.*?csrfmiddlewaretoken.*?'
+        r'<button type="submit".*?Try with sample data',
+        html,
+        re.S,
+    )
+    assert "Available soon" in html  # batch and help are later tickets
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
-    # Only the jobs list exists so far, so it is the one header link
-    assert re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0].count("<li>") == 1
-    assert 'href="/jobs/"' in html
+    nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
+    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/jobs/"]
 
 
 @override_settings(IS_HOSTED=True)
@@ -241,23 +245,28 @@ def stub(name):
     return path(f"{name}/", lambda request: HttpResponse(name), name=name)
 
 
-stations_urls = ([stub("upload"), stub("sample"), stub("batch")], "stations")
+def stations_with_batch():
+    from climpact_web.stations import urls as stations
+
+    return (stations.urlpatterns + [stub("batch")], "stations")
+
+
 urlpatterns = [
-    path("stations/", include(stations_urls)),
-    path("", include("climpact_web.urls")),
+    path("station/", include(stations_with_batch())),
+    path("jobs/", include("climpact_web.jobs.urls")),
+    path("", include("climpact_web.core.urls")),
 ]
 
 
 @override_settings(ROOT_URLCONF=__name__)
 def test_destinations_link_once_their_urls_exist(client):
     html = client.get("/").content.decode()
-    assert 'href="/stations/upload/"' in html and 'href="/stations/sample/"' in html
-    assert '<nav class="site-nav"' in html and ">Single station</a>" in html
-    page = client.get("/stations/upload/")
+    assert 'href="/station/batch/"' in html and "Available soon" in html  # help is still to come
+    page = client.get("/station/batch/")
     assert page.status_code == 200
     items = navigation.nav_items(page.wsgi_request)
     assert [i["label"] for i in items] == ["Single station", "Batch", "Your calculations"]
-    assert items[0]["current"]
+    assert items[1]["current"]
 
 
 # ---- Pattern library -------------------------------------------------------------------
@@ -285,7 +294,10 @@ def test_pattern_library(client):
 def test_design_snapshots(tmp_path):
     out = tmp_path / "review"
     call_command("design_snapshots", str(out))
-    for name in ("index", "patterns", "404", "job-running", "job-finished", "jobs", "job-new"):
+    jobs = ("job-running", "job-finished", "jobs")
+    stations = ("upload", "upload-problems", "load", "load-errors", "qc")
+    names = ("index", "patterns", "404", *jobs, *(f"station-{n}" for n in stations))
+    for name in names:
         for suffix in ("", "-dark"):
             html = (out / f"{name}{suffix}.html").read_text()
             assert 'href="static/climpact_web/css/main.css"' in html
@@ -294,6 +306,9 @@ def test_design_snapshots(tmp_path):
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()
     assert "Step 9 of 14" in (out / "job-running.html").read_text()
     assert "Download all results (zip)" in (out / "job-finished.html").read_text()
+    assert "Line 3 has 5 values" in (out / "station-upload-problems.html").read_text()
+    assert "1936-01-01 to 2015-12-31" in (out / "station-load.html").read_text()
+    assert "has no data: the file covers" in (out / "station-load-errors.html").read_text()
     assert (out / "static" / "climpact_web" / "css" / "main.css").is_file()
     assert (out / "static" / "climpact_web" / "js" / "ui.js").is_file()
 

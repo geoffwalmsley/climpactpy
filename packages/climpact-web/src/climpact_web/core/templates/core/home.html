@@ -21,7 +21,8 @@
       {% include "components/button.html" with label=start_label size="lg" icon="upload" disabled=True %}
       {% endif %}
       {% if sample_url %}
-      {% include "components/button.html" with label=sample_label href=sample_url size="lg" variant="secondary" icon="play" %}
+      {# Loading the sample creates the session's analysis, so it is a POST (one click). #}
+      <form method="post" action="{{ sample_url }}">{% csrf_token %}{% include "components/button.html" with label=sample_label type="submit" size="lg" variant="secondary" icon="play" %}</form>
       {% else %}
       {% include "components/button.html" with label=sample_label size="lg" variant="secondary" icon="play" disabled=True %}
       {% endif %}

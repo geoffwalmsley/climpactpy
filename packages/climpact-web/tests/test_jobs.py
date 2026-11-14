@@ -118,25 +118,25 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     from climpact.batch import run_station  # noqa: F401  (imported once, outside the timing)
     from climpact.modules import pipeline_stages, resolve
 
-    response = client.get("/jobs/station/new")
-    assert response.status_code == 200
-    assert "kept for 7 days" in response.content.decode()
+    # Step 1 (#76) loads the file and metadata; the step 2 placeholder queues the run.
     response = client.post(
-        "/jobs/station/new",
-        {
-            "station_file": SimpleUploadedFile("my_station.txt", station_text().encode()),
-            "name": "Testville",
-            "latitude": "-33.9",
-            "longitude": "151.2",
-            "base_start": "2000",
-            "base_end": "2001",
-            "zip": "on",
-        },
+        "/station/",
+        {"station_file": SimpleUploadedFile("my_station.txt", station_text().encode())},
     )
+    assert response.status_code == 302
+    load_url = response["Location"]
+    metadata = {"station_name": "Testville", "latitude": "-33.9", "longitude": "151.2"}
+    response = client.post(load_url, {**metadata, "base_start": "2000", "base_end": "2001"})
+    assert response.status_code == 302
+    page = client.get(response["Location"]).content.decode()
+    assert "Calculate with the default settings" in page
+    run_url = load_url.replace("/load", "/quality/run-all")
+    response = client.post(run_url, {"zip": "on"})
     assert response.status_code == 302
     job = Job.objects.get()
     assert response["Location"] == f"/jobs/{job.pk}/"
     assert (job.status, job.kind, job.title) == (Status.QUEUED, "station", "Testville")
+    assert job.params["plots"] is False and job.params["zip"] is True
     assert (job.input_dir / "station.txt").read_text() == station_text()
     page = client.get(response["Location"]).content.decode()
     assert "Waiting to start" in page and 'hx-get="/jobs/' in page
@@ -178,25 +178,6 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     assert client.get(f"/jobs/{job.pk}/files/../input/station.txt").status_code == 404
     assert client.get(f"/jobs/{job.pk}/files/nope.csv").status_code == 404
     assert "Testville" in client.get("/jobs/").content.decode()
-
-
-@pytest.mark.django_db
-def test_station_form_rejects_bad_input(client):
-    response = client.post(
-        "/jobs/station/new",
-        {
-            "station_file": SimpleUploadedFile("s.txt", b"x"),
-            "latitude": "100",
-            "longitude": "0",
-            "base_start": "2001",
-            "base_end": "2000",
-        },
-    )
-    assert response.status_code == 200
-    assert not Job.objects.exists()
-    html = response.content.decode()
-    assert "The base period must start before it ends." in html
-    assert "less than or equal to 90" in html
 
 
 # --- Polling ------------------------------------------------------------------------------------

@@ -8,7 +8,7 @@
       <h1>{% translate "Your calculations" %}</h1>
       <p class="muted">{% blocktranslate count days=job_retention_days %}Calculations and their files are kept for {{ days }} day after they finish, then deleted.{% plural %}Calculations and their files are kept for {{ days }} days after they finish, then deleted.{% endblocktranslate %}</p>
     </div>
-    {% translate "Calculate indices for a station" as new_label %}{% url 'jobs:station_new' as new_url %}
+    {% translate "Calculate indices for a station" as new_label %}{% url 'stations:upload' as new_url %}
     {% if jobs %}{% include "components/button.html" with label=new_label href=new_url icon="upload" %}{% endif %}
   </header>
   {% if jobs %}

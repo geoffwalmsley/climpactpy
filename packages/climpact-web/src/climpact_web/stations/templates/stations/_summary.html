@@ -1,0 +1,105 @@
+{% load i18n ui %}{% comment %}
+What is in the station file (step 1): period, days missing per variable, a preview of the
+series and the days with data in each year. Parameters from views.summary_context.
+{% endcomment %}
+<section class="card stack" aria-labelledby="data-title">
+  <h2 class="card__title" id="data-title">{% translate "Your data" %}</h2>
+  <div class="stat-row">
+    {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
+    {% include "components/stat.html" with label=period_label value=period note="" %}
+    {% translate "Years" as years_label %}
+    {% include "components/stat.html" with label=years_label value=year_count note="" %}
+    {% translate "Days" as days_label %}{% translate "from the first row to the last" as days_note %}
+    {% include "components/stat.html" with label=days_label value=summary.days note=days_note %}
+  </div>
+
+  <div class="table-wrap" role="region" aria-labelledby="missing-caption" tabindex="0">
+    <table class="table">
+      <caption id="missing-caption">{% translate "Missing values by variable" %}</caption>
+      <thead><tr>
+        <th scope="col">{% translate "Variable" %}</th>
+        <th scope="col" class="num">{% translate "Days with data" %}</th>
+        <th scope="col" class="num">{% translate "Days missing" %}</th>
+        <th scope="col" class="num">{% translate "Missing" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for variable in variables %}
+        <tr>
+          <th scope="row"><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span> {{ variable.label }}</th>
+          <td class="num">{{ variable.present }}</td>
+          <td class="num">{{ variable.missing }}</td>
+          <td class="num">{{ variable.percent_text }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+  CHART HOOK (#75, #77): the interactive daily-series chart replaces the static figure
+  below. Use components/chart_frame.html with csv_href set to the stations:series URL of
+  this analysis (the daily series as CSV: date, prcp, tmax, tmin) and keep the table view
+  of days with data per year as its table_template.
+  {% endcomment %}
+  <figure class="series-preview" aria-labelledby="preview-title">
+    <figcaption class="stack stack--sm">
+      <h3 class="chart__title" id="preview-title">{% translate "Monthly overview" %}</h3>
+      <p class="chart__summary">{% translate "Monthly mean maximum and minimum temperature, and monthly total precipitation. Months with fewer than 20 days of data are left as gaps." %}</p>
+    </figcaption>
+    {% for panel in panels %}
+    <div class="series-preview__panel">
+      <p class="series-preview__label">{% if panel.key == "temperature" %}{% translate "Temperature (°C)" %}{% else %}{% translate "Precipitation (mm per month)" %}{% endif %}</p>
+      <svg viewBox="0 0 {{ panel.width }} {{ panel.height }}" role="img" aria-label="{% if panel.key == 'temperature' %}{% translate 'Monthly mean maximum and minimum temperature' %}{% else %}{% translate 'Monthly total precipitation' %}{% endif %}" focusable="false">
+        {% for tick in panel.y_labels %}<line x1="44" x2="{{ panel.width }}" y1="{{ tick.y }}" y2="{{ tick.y }}" class="series-preview__grid"/><text x="38" y="{{ tick.y }}" class="series-preview__tick" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+        {% for tick in panel.x_labels %}<text x="{{ tick.x }}" y="{{ panel.height|add:-4 }}" class="series-preview__tick" text-anchor="middle">{{ tick.text }}</text>{% endfor %}
+        {% for path in panel.paths %}<path d="{{ path.d }}" fill="none" stroke="var({{ path.token }})" stroke-width="1.25" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>{% endfor %}
+      </svg>
+    </div>
+    {% endfor %}
+    <ul class="chart__legend">
+      {% for variable in variables %}<li><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span>{{ variable.label }}</li>{% endfor %}
+    </ul>
+  </figure>
+
+  <details class="disclosure">
+    <summary>{% icon "table" %}<span>{% translate "Days with data in each year" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">
+      <div class="table-wrap year-table" role="region" aria-labelledby="years-caption" tabindex="0">
+        <table class="table">
+          <caption id="years-caption">{% translate "Days with data in each year, and the share of the year's days" %}</caption>
+          <thead><tr>
+            <th scope="col">{% translate "Year" %}</th>
+            {% for variable in variables %}<th scope="col" class="num">{{ variable.label }}</th>{% endfor %}
+          </tr></thead>
+          <tbody>
+            {% for year in years %}
+            <tr>
+              <th scope="row">{{ year.year }}</th>
+              {% for cell in year.cells %}<td class="num{% if cell.percent < 100 %} year-table__gap{% endif %}">{% blocktranslate with days=cell.value percent=cell.percent %}{{ days }} <span class="muted">({{ percent }}%)</span>{% endblocktranslate %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <div class="cluster">
+    <a class="button button--secondary button--sm" href="{% url 'stations:series' analysis.pk %}" download>{% icon "download" %}<span>{% translate "Daily data (CSV)" %}</span></a>
+  </div>
+
+  <details class="disclosure"{% if replace_open %} open{% endif %}>
+    <summary>{% icon "upload" %}<span>{% translate "Use a different file" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">
+      <form method="post" action="{% url 'stations:replace_file' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
+        {% csrf_token %}
+        {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
+        <p class="small muted">{% translate "The station details below are kept. Later steps start again with the new file." %}</p>
+        <div>
+          {% translate "Load this file instead" as replace_label %}
+          {% include "components/button.html" with label=replace_label type="submit" variant="secondary" %}
+        </div>
+      </form>
+    </div>
+  </details>
+</section>

@@ -1,0 +1,32 @@
+{% load i18n ui %}{% comment %}
+A group of metadata fields validated together as they change: htmx posts the whole form
+with "group" and swaps in this group's re-rendered fields (stations:validate). Without
+JavaScript the form is checked when it is sent. Parameters: form (MetadataForm), group
+(a key of MetadataForm.UNITS), analysis.
+{% endcomment %}
+<div class="field-group" id="group-{{ group }}" hx-post="{% url 'stations:validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
+  {% if group == "station_name" %}
+  {% include "components/field.html" with field=form.station_name %}
+  {% elif group == "latitude" %}
+  {% translate "°N" as north %}
+  {% include "components/field.html" with field=form.latitude unit=north %}
+  {% elif group == "longitude" %}
+  {% translate "°E" as east %}
+  {% include "components/field.html" with field=form.longitude unit=east %}
+  {% else %}
+  <fieldset class="field-set" aria-describedby="base-period-hint">
+    <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
+    <p class="field__hint" id="base-period-hint">{% if form.summary %}{% blocktranslate with first=form.summary.first_year last=form.summary.last_year trimmed %}
+      The years the percentile thresholds are calculated from, within the years of the data
+      ({{ first }} to {{ last }}). Climpact for R suggests 1971 to 2000.
+    {% endblocktranslate %}{% else %}{% translate "The years the percentile thresholds are calculated from. Climpact for R suggests 1971 to 2000." %}{% endif %}</p>
+    <div class="form__row">
+      {% include "components/field.html" with field=form.base_start %}
+      {% include "components/field.html" with field=form.base_end %}
+    </div>
+  </fieldset>
+  {% endif %}
+  {% for key, notes in form.warnings.items %}{% if key == group %}{% for note in notes %}
+  <p class="field__warning">{% icon "warning" %}<span>{{ note }}</span></p>
+  {% endfor %}{% endif %}{% endfor %}
+</div>

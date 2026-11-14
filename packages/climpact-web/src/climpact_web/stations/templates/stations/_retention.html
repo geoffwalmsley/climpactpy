@@ -1,0 +1,16 @@
+{% load i18n %}{% comment %}How long uploads are kept (#73's retention setting). Parameter: analysis (optional).{% endcomment %}
+{% if analysis %}
+{% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
+Your file and station details are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} day after each calculation finishes.
+{% plural %}
+Your file and station details are kept for {{ days }} days after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} days after each calculation finishes.
+{% endblocktranslate %}
+{% else %}
+{% blocktranslate count days=job_retention_days asvar retention trimmed %}
+Your file is kept for {{ days }} day after your last change, then deleted. Results are kept for {{ days }} day after each calculation finishes.
+{% plural %}
+Your file is kept for {{ days }} days after your last change, then deleted. Results are kept for {{ days }} days after each calculation finishes.
+{% endblocktranslate %}
+{% endif %}
+{% if is_hosted %}{% translate "Only this browser can see them." as extra %}{% else %}{% translate "They stay on this computer." as extra %}{% endif %}
+{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}

@@ -24,7 +24,7 @@ names, behaviour or results.
 ## 2. Get the current parity numbers
 
 ```sh
-.venv/bin/pytest -q 2>&1 | tail -6
+uv run pytest -q 2>&1 | tail -6
 ```
 
 Record the `R parity` summary lines (`lat0: N/117 ...`, `sydney: N/117 ...`) and the test

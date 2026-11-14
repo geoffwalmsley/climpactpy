@@ -1,0 +1,22 @@
+# The uv workspace (#116): the two packages under packages/ share one lockfile (uv.lock)
+# and one virtualenv (.venv). The root is not a package itself; `uv sync` installs both
+# members, editable, with the development tools below.
+[tool.uv.workspace]
+members = ["packages/climpact", "packages/climpact-web"]
+
+[tool.uv.sources]
+climpactpy = { workspace = true }
+climpact-web = { workspace = true }
+
+[dependency-groups]
+# Development: both packages with their own `dev` groups' tools. The core's group is
+# also installed on its own by CI's core job (`uv sync --package climpactpy`).
+dev = [
+    "climpactpy",
+    "climpact-web",
+    "pytest>=8",
+    "pytest-django>=4.9",
+    "ruff>=0.8",
+    "matplotlib>=3.8",
+    "websocket-client>=1.8",
+]

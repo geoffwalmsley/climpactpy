@@ -1,6 +1,6 @@
 """Write the synthetic stations for the outlier (``fourboxes``) tests in tests/test_qc.py.
 
-    .venv/bin/python packages/climpact/tests/data/make_fourboxes_synthetic.py
+    uv run python packages/climpact/tests/data/make_fourboxes_synthetic.py
 
 ``fourboxes_edges.txt`` (2001-2003) has cases none of the reference runs has:
 

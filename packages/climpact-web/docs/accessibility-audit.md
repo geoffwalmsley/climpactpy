@@ -47,7 +47,7 @@ explorer (focus stays on the select as the map is swapped).
 Colour contrast of every token pairing in both themes is checked separately by
 `tests/test_design_tokens.py` (#71).
 
-Run locally with `.venv/bin/pytest packages/climpact-web/tests/test_accessibility.py`;
+Run locally with `uv run pytest packages/climpact-web/tests/test_accessibility.py`;
 set `CLIMPACT_A11Y_REPORT=<folder>` for a JSON report and screenshots (light, dark,
 forced colours and 320 px of every page). CI runs it in the `web-accessibility` job with
 the runner's Chrome and keeps the report as an artifact.

@@ -1,10 +1,10 @@
 # An example third-party climpactpy plugin, used by tests/test_modules.py.
 #
 # It is a package of its own: it depends on climpactpy and registers one module of each
-# kind through climpactpy's entry point groups. `pip install` it next to climpactpy and
-# `climpact modules` lists it. The tests install it into a temporary folder by writing
-# its distribution metadata (the `example_plugin` fixture in tests/test_modules.py),
-# which needs no build step or network.
+# kind through climpactpy's entry point groups. `pip install` (or `uv pip install`) it
+# next to climpactpy and `climpact modules` lists it. The tests install it into a
+# temporary folder by writing its distribution metadata (the `example_plugin` fixture in
+# tests/test_modules.py), which needs no build step or network.
 [build-system]
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"

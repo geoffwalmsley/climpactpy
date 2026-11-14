@@ -51,18 +51,21 @@ With `--report` it writes a PDF report of each station beside the zip (see [PDF 
 ## Repository layout
 
 The repository holds two Python packages, each with its own `pyproject.toml` (hatchling)
-and tests, developed in one virtualenv with both installed editable (see
-[Development](#development)). There is no uv workspace or lock file: a uv workspace could
-be added later without moving files (#68).
+and tests. They are the members of a uv workspace with one lock file, developed in one
+virtualenv with both installed editable (see [Development](#development); #68, #116).
 
 ```
 packages/
   climpact/          the core package: distribution `climpactpy`, imported as `climpact`.
                      Its dependencies are the scientific stack only (xclim, xarray, numpy,
-                     pandas, scipy, dask, netCDF4); extras `plots` and `dev`
+                     pandas, scipy, dask, netCDF4); extra `plots`, dependency group `dev`
   climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/): a Django
                      project, depends on the core with its `plots` extra (matplotlib, for
                      the plots and the PDF report; see [Web front end](#web-front-end))
+pyproject.toml       the uv workspace (members: both packages) and the development `dev`
+                     dependency group; not a package itself
+uv.lock              the locked versions for every supported Python (`uv lock`)
+.python-version      the Python used for development (3.12)
 reference/           the R reference outputs and the scripts that make them, shared at the root
 ruff.toml            ruff settings for the whole repository (each package's pyproject.toml
                      extends it)
@@ -524,7 +527,7 @@ are byte-identical.
 `climpact.plots` draws the plots R draws in `index.calc` (`services/calculate_indices.R`,
 `plot.call` and `plot.hw` in `services/plot_indices.R`, `plot.precindex` in
 `services/plot_prec_index.R`) and zips the outputs as `services/zipFiles.R`. matplotlib is
-an optional dependency (`pip install climpactpy[plots]`; it is in `dev` too). It is imported
+an optional dependency (`pip install climpactpy[plots]`; it is in the `dev` dependency groups too). It is imported
 only when plots are drawn, on an Agg canvas without `pyplot`, so a caller's matplotlib
 backend is never changed. `climpact run --plots --zip` and `climpact batch --plots --zip`
 use it; `run_station(..., plots=True, zip=True)` and `run_batch(...)` take the same flags,
@@ -1298,9 +1301,9 @@ for fitted distributions.
 ### Running
 
 ```sh
-.venv/bin/pytest                                   # everything (both packages)
-.venv/bin/pytest packages/climpact                 # the core only
-.venv/bin/pytest packages/climpact/tests/parity    # parity only
+uv run pytest                                   # everything (both packages)
+uv run pytest packages/climpact                 # the core only
+uv run pytest packages/climpact/tests/parity    # parity only
 ```
 
 Files that no product builds are reported as `xfail` ("not yet ported"); there are none
@@ -2839,9 +2842,9 @@ uploads need the larger limit (#85). Uploads over
 ### Running the web app
 
 ```sh
-.venv/bin/climpact-web                      # local mode: migrate, serve on 127.0.0.1:8000, open the browser
-.venv/bin/climpact-web --no-browser --port 9000 --data-dir /tmp/cw
-.venv/bin/climpact-web manage <command>     # any Django management command with these settings
+uv run climpact-web                      # local mode: migrate, serve on 127.0.0.1:8000, open the browser
+uv run climpact-web --no-browser --port 9000 --data-dir /tmp/cw
+uv run climpact-web manage <command>     # any Django management command with these settings
 ```
 
 Options: `--host` (default 127.0.0.1; 0.0.0.0 serves the network, with a warning),
@@ -2912,7 +2915,7 @@ white (2.2-2.8:1), so charts that use them must label series directly or offer t
 view, which every chart frame has. The validator is not part of the test suite (it is
 JavaScript); re-run it when the palette changes. `chart-palette.json` carries the same
 colours for both themes, for code that cannot read CSS; it is generated with
-`.venv/bin/python -m climpact_web.core.tokens` and a test fails when it is out of date.
+`uv run python -m climpact_web.core.tokens` and a test fails when it is out of date.
 In the browser `Climpact.chartPalette()` returns the live values for the current theme.
 
 **Components.** Template includes in `core/templates/components/`; each file starts with
@@ -2994,7 +2997,7 @@ stylesheet uses logical properties only, so layouts mirror. Every template strin
 also fails on plain-text `aria-label`, `title`, `placeholder`, `alt` and `data-message`
 attributes, since screen readers and tooltips read those. To refresh the catalogue (needs
 GNU gettext's `xgettext`), run from `packages/climpact-web/src/climpact_web`:
-`../../../../.venv/bin/climpact-web manage makemessages -l en --no-obsolete`. To add a
+`uv run climpact-web manage makemessages -l en --no-obsolete`. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
 the `.po` file and run `compilemessages`. The help guides are translated as Markdown files, one folder per
 language, with English as the fallback (see [Help](#help)).
@@ -3767,7 +3770,7 @@ translated as files: a guide missing in the interface language (`pt-br`, then `p
 back to English, with a notice and `lang="en"` on the article. The index names and
 definitions are core data that `makemessages` cannot find, so
 `help/index_messages.py` lists them with `gettext_noop`; regenerate it with
-`.venv/bin/python -m climpact_web.help.indices` when `climate.indices.csv` changes (a test
+`uv run python -m climpact_web.help.indices` when `climate.indices.csv` changes (a test
 fails when it is out of date; ruff's line-length rule is off for that file only). They
 are passed through `gettext` when shown.
 
@@ -4287,47 +4290,65 @@ done by hand.
 ## Development
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
-.venv/bin/ruff check . && .venv/bin/ruff format --check .
-.venv/bin/pytest
+uv sync
+uv run ruff check . && uv run ruff format --check .
+uv run pytest
 ```
 
-- One venv holds both packages, installed editable with pip (no uv). New T3 worktrees get
-  it from the project's "Set up venv" script, which runs the commands above.
-- CI has four jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` installs only
-  `packages/climpact[dev]`, runs ruff, checks that `climpact_web` is neither installed nor
+- The repository is a [uv](https://docs.astral.sh/uv/) workspace (#116; it replaced the
+  two editable pip installs of #68). The root `pyproject.toml` is not a package: it lists
+  the members `packages/climpact` (distribution `climpactpy`) and `packages/climpact-web`,
+  and has a `dev` dependency group with both members and every development tool.
+  `uv sync` makes `.venv` from `uv.lock` with both packages editable and that group;
+  commands run through `uv run`. Each member also has its own `dev` group (PEP 735,
+  replacing the old `[dev]` extras; plain pip 25.1+ can install it with `pip install
+  --group`): the core's is what the `core` CI job installs. Groups are not transitive, so
+  a tool added to a member's group must be added to the root's too. `.python-version`
+  pins Python 3.12 for development; the supported range (`requires-python >=3.11`) is
+  unchanged. `uv.lock` is committed and resolved for every supported Python; after
+  changing a dependency, run `uv lock`. New T3 worktrees get the environment from the
+  project's setup script, which should run `uv sync`.
+- The `climpact-example-plugin` test package is installed by writing its metadata into a
+  temporary folder (`tests/test_modules.py`), so its test needs no pip in the venv (uv
+  venvs have none). To install it by hand: `uv pip install
+  packages/climpact/tests/plugins/climpact_example_plugin`.
+- CI installs uv with `astral-sh/setup-uv` (pinned to a commit SHA, uv 0.13.8, with its
+  cache), sets the job's Python with its `python-version` input, and installs with
+  `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
+- CI has four jobs. `core` and `web` run on Python 3.11, 3.12 and 3.13: `core` checks
+  `uv lock --check`, installs only the core with its dev group (`uv sync --locked
+  --package climpactpy`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
-  suite, parity included); `web` installs both packages, runs
+  suite, parity included); `web` installs both packages (`uv sync --locked`), runs
   `pytest packages/climpact-web` (without the size budget and the accessibility tests), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
-  [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
+  [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service
   container, including a station job through the worker (see [Tests](#tests)).
   `web-accessibility` (Python 3.12) runs `test_accessibility.py` in the runner's
   preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
   `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps
   the report and screenshots as the `accessibility-report` artifact (see
   [Accessibility](#accessibility)).
-- Start the web app with `.venv/bin/climpact-web` (see [Running the web app](#running-the-web-app)).
+- Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with
-  `.venv/bin/climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
+  `uv run climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
 - Compute gridded indices with
-  `.venv/bin/climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N]`.
+  `uv run climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N]`.
 - Correlate sector data with a station already run with
-  `.venv/bin/climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
+  `uv run climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
 - Run a station from the command line with
-  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip] [--report]`
+  `uv run climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip] [--report]`
   (`climpact run --help` lists the options), or a batch with
-  `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
+  `uv run climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
 - Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the
-  plots (the optional `plots` extra, also in `dev`). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
+  plots (the optional `plots` extra, also in the `dev` groups). CI runs on Python 3.11, 3.12 and 3.13 on **Ubuntu 24.04**
   (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
   the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
   macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:
   Ubuntu 26.04's `lgamma` differs from glibc 2.39 in the last bit on some inputs, so
   `test_libm_lgamma_matches_glibc_2_39` checks against fixed values printed in the R image.
-- Always work inside `.venv`.
+- Always work inside `.venv`, through `uv run`.
 - To regenerate the R reference outputs, station, sector correlation or gridded, see `reference/README.md`. Re-running changes the
   `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are
   meant to change.

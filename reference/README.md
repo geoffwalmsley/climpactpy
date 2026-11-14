@@ -65,7 +65,7 @@ indices (`climpact.ncdf.wrapper.r`, `create.indices.from.files`) are run on thre
 grids by
 
 ```sh
-.venv/bin/python reference/gridded/make_grids.py   # make the input grids (deterministic)
+uv run python reference/gridded/make_grids.py   # make the input grids (deterministic)
 ./reference/run_r_gridded.sh                        # build the image, run every grid
 ./reference/run_r_gridded.sh grid_sample            # only the named runs
 ```
@@ -148,7 +148,7 @@ layer after the station and gridded packages, so those are unchanged.
 check, made by
 
 ```sh
-.venv/bin/python reference/make_qc_stress.py
+uv run python reference/make_qc_stress.py
 ```
 
 None of the real stations has a duplicated date, and several checks fire at only a few of
@@ -162,8 +162,8 @@ Daily (Menne et al. 2012, GHCN-Daily v3, doi:10.7289/V5D21VHZ), one CSV per stat
 `https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/<ID>.csv`.
 
 ```sh
-.venv/bin/python reference/fetch_ghcn.py            # every source=ghcn row of stations.csv
-.venv/bin/python reference/fetch_ghcn.py phoenix    # one station
+uv run python reference/fetch_ghcn.py            # every source=ghcn row of stations.csv
+uv run python reference/fetch_ghcn.py phoenix    # one station
 ```
 
 Downloads are cached in `reference/.ghcn-cache/` (gitignored); `--refresh` downloads again.

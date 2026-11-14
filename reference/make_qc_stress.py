@@ -6,7 +6,7 @@ plants faults for every per-value QC check, including the threshold edges and R'
 quirks, writing ``input/qc_stress_1961-2020.txt``. Only its ``qc/`` files are compared
 with R; its index files are not part of the parity catalogue.
 
-    .venv/bin/python reference/make_qc_stress.py
+    uv run python reference/make_qc_stress.py
 
 The output is deterministic. Planted faults (default QC thresholds):
 

@@ -57,7 +57,7 @@ Three runs (``reference/gridded/runs.csv``):
     ``time_bnds``. Run with base period 1991-2010, the defaults of
     ``climpact.ncdf.thresholds.wrapper.r``.
 
-    .venv/bin/python reference/gridded/make_grids.py [--climpact ../climpact]
+    uv run python reference/gridded/make_grids.py [--climpact ../climpact]
 
 The output is deterministic.
 """

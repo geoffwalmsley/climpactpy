@@ -86,7 +86,7 @@ def test_dark_theme_only_overrides_known_tokens():
 def test_chart_palette_json_matches_the_css():
     on_disk = json.loads(tokens.CHART_PALETTE_JSON.read_text())
     assert on_disk == tokens.chart_palette(), (
-        "chart-palette.json is out of date: run .venv/bin/python -m climpact_web.core.tokens"
+        "chart-palette.json is out of date: run uv run python -m climpact_web.core.tokens"
     )
     for theme in ("light", "dark"):
         assert len(on_disk[theme]["categorical"]) == 8

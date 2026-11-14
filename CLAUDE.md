@@ -5,15 +5,21 @@ architecture, parity testing and the differences between the Python and R implem
 
 ## Working rules
 
-- Run all Python through the project virtualenv: `.venv/bin/python`, `.venv/bin/pytest`,
-  `.venv/bin/ruff`. Never install packages globally.
-- The repository holds two packages: the core in `packages/climpact` (`src/climpact`, its
-  tests and the R parity suite) and the web front end in `packages/climpact-web`
-  (`climpact_web`). The core must never import `climpact_web`. One venv has both,
-  installed editable: `python3 -m venv .venv && .venv/bin/python -m pip install -e
-  "packages/climpact[dev]" -e "packages/climpact-web[dev]"`.
-- `.venv/bin/pytest` from the root runs both packages' tests; `.venv/bin/pytest
-  packages/climpact` runs the core alone (as CI does, without the web package installed).
+- The repository is a uv workspace. `uv sync` makes the project virtualenv (`.venv`) from
+  `uv.lock`; run all Python through it with `uv run`: `uv run python`, `uv run pytest`,
+  `uv run ruff`, `uv run climpact-web`. Never install packages globally, and use uv only
+  for the project environment.
+- The repository holds two packages, both workspace members: the core in
+  `packages/climpact` (distribution `climpactpy`; `src/climpact`, its tests and the R
+  parity suite) and the web front end in `packages/climpact-web` (`climpact_web`). The
+  core must never import `climpact_web`. `uv sync` installs both, editable, with the dev
+  tools of the root `pyproject.toml`'s `dev` group.
+- Add or change a dependency in the member's `pyproject.toml` (dev tools in its
+  `[dependency-groups]` and in the root's), then run `uv lock` and commit `uv.lock`; CI
+  fails when `uv.lock` is stale (`uv lock --check`).
+- `uv run pytest` from the root runs both packages' tests; `uv run pytest
+  packages/climpact` runs the core alone (CI runs it without the web package installed:
+  `uv sync --package climpactpy`).
 - Changes go through pull requests; do not commit to `main`.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
   `pytest`, and report the R parity summary printed at the end of the test run.

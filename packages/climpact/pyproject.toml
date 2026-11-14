@@ -27,6 +27,10 @@ climpact = "climpact.cli:main"
 plots = [
     "matplotlib>=3.8",
 ]
+
+[dependency-groups]
+# The core's development tools (PEP 735; `uv sync --package climpactpy`, or
+# `pip install --group dev` with pip 25.1+). The root pyproject.toml's group has these too.
 dev = [
     "pytest>=8",
     "ruff>=0.8",

@@ -174,3 +174,11 @@ jobs:
           print(job.status, job.step, job.total, job.result.get('zip'))
           assert job.status == 'succeeded' and job.step == job.total, job.log
           "
+      - name: Several workers on Postgres (#119)
+        # Real worker processes competing for claims, one killed mid-job; the test makes
+        # and drops a database of its own. REQUIRED makes a missing URL fail, not skip.
+        env:
+          CLIMPACT_TEST_POSTGRES_REQUIRED: "1"
+        run: |
+          uv sync --locked --package climpact-web --extra postgres
+          uv run --no-sync pytest packages/climpact-web/tests/test_queue_postgres.py -v -rs

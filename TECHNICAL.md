@@ -2760,6 +2760,7 @@ packages/climpact-web/tests/
   conftest.py        prints the page sizes measured by test_page_budget.py
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
+                     several workers on Postgres (test_queue_postgres.py, #119),
                      step 1 (test_stations.py), step 2 (test_qc_review.py), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
@@ -3020,6 +3021,20 @@ runs hosted mode against a Postgres 16 service container: `check --deploy`, `mig
 SIGKILL in the middle of a station run, the job is failed by `purgejobs` once the heartbeat
 is stale, and after a retry a new worker runs it to the end; stopped with SIGTERM, the job
 is queued again. `test_cli.py` checks that `climpact-web` starts a worker and stops it.
+`test_queue_postgres.py` (#119) runs only when `DATABASE_URL` is a Postgres URL (the test
+settings drop it for their own in-memory SQLite database and keep it as
+`CLIMPACT_TEST_POSTGRES_URL`), so it skips locally and runs in `web-postgres`, where
+`CLIMPACT_TEST_POSTGRES_REQUIRED=1` makes a missing URL fail instead. It creates a database
+of its own on that server, migrates it, and drops it at the end. Four worker processes
+(`JobWorker` with a test job kind, each with its own connection; heartbeat 0.3 s, stale
+after 1.5 s, poll 0.05 s) wait until all are registered, then 40 jobs are queued. Each job
+must succeed with `attempts` 1, leave exactly one marker file (written by the runner, named
+after the job and the process) from the process of the worker recorded on the row, and more
+than one worker must have taken jobs. Then the worker running a long job is killed with
+SIGKILL: the surviving workers' `reap_stale` fails it ("no heartbeat" in the log, not
+before the stale time), a retry runs it on another worker (`attempts` 2, one marker per
+attempt), and 8 more jobs queued meanwhile run once each. The survivors stop cleanly on
+SIGTERM.
 
 ### Background jobs
 
@@ -3037,6 +3052,29 @@ was decided. The
 stage progress, heartbeats and cancel requests on the job row anyway, so it would add a
 dependency without removing much code; the worker is about 400 lines in `jobs/worker.py`.
 It works the same on SQLite (local) and Postgres (hosted).
+
+**Job queue: the database, not Redis (#119).** Asked again whether background jobs should
+move to Redis, the decision is to keep the database queue and add no Redis (RQ, Celery):
+
+- *Local mode* is a desktop-style app: `climpact-web` starts the server and its worker
+  with no other service. Redis would be a second program every user installs and runs.
+- *The workload* is few, long jobs (seconds to many minutes of CPU per station, batch or
+  gridded run). Redis helps with thousands of short jobs a second; here a claim takes
+  milliseconds in the database.
+- *The queue already has what Redis would add*: atomic claims (`SELECT ... FOR UPDATE
+  SKIP LOCKED` on Postgres, `claim()` in `jobs/worker.py`), heartbeats and stale-job
+  recovery, cancellation, progress and retention. RQ or Celery would need these rebuilt
+  or bolted on, plus a results store, which would still be the database.
+- *Hosting*: hosted mode already needs Postgres; Redis would be one more managed service
+  to run and secure. Hosted deployment sizes Postgres, not Redis.
+
+`test_queue_postgres.py` backs this for hosted mode: several worker processes on Postgres,
+every job run exactly once, none claimed twice, and a killed worker's job recovered by the
+stale-heartbeat reaper (see [Tests](#tests)). Revisit if hosted mode needs many workers on
+several machines and the claim query becomes a bottleneck, or if Django's tasks framework
+(`django.tasks`, Django 6) gains a mature production backend with progress reporting and
+cancellation. Django ships none, and the `django-tasks` package's database backend has
+neither feature today, so switching would lose what the progress pages rely on.
 
 **The `Job` model** (`jobs/models.py`): a UUID primary key (unguessable URLs); `kind` (the
 runner); `owner` (a random token kept in the browser session, `jobs_owner`: only that
@@ -4324,7 +4362,9 @@ uv run pytest
   `pytest packages/climpact-web` (without the size budget and the accessibility tests), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
   [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service
-  container, including a station job through the worker (see [Tests](#tests)).
+  container, including a station job through the worker (see [Tests](#tests)); a last
+  step adds the dev group (`uv sync --locked --package climpact-web --extra postgres`)
+  and runs `test_queue_postgres.py`, several workers competing for claims.
   `web-accessibility` (Python 3.12) runs `test_accessibility.py` in the runner's
   preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
   `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps

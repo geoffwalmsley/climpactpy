@@ -1,4 +1,4 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 The gridded run's jobs (thresholds, then indices): progress while they run, polled by
 htmx (outerHTML swap) as the job page's fragment is; then each job's files to download.
 When the last job finishes the server asks htmx to reload the page, so the map appears.
@@ -65,6 +65,7 @@ files), active, delay, all_done.
 
     {% if job.status == "succeeded" %}
     <p class="small muted">{% blocktranslate count counter=row.files|length with elapsed=row.elapsed trimmed %}Finished in {{ elapsed }}: {{ counter }} file.{% plural %}Finished in {{ elapsed }}: {{ counter }} files.{% endblocktranslate %}{% if job.result.copied_to %} {% blocktranslate with folder=job.result.copied_to %}Also copied to {{ folder }}.{% endblocktranslate %}{% endif %}</p>
+    {% if row.kind == "indices" %}{% help_topic "gridded.output" %}{% endif %}
     <details class="disclosure"{% if row.kind == "thresholds" %} open{% endif %}>
       <summary>{% icon "file" %}<span>{% blocktranslate count counter=row.files|length trimmed %}The file to download{% plural %}The {{ counter }} files to download{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body">

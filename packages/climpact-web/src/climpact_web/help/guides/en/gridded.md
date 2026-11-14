@@ -3,10 +3,15 @@ summary: Calculating the indices on gridded netCDF data, such as model output or
 
 ## Where it runs
 
-Gridded data are large and take a long time to process, so gridded calculations run only
-in the version of Climpact installed on **your own computer**, as in Climpact for R. The
-files are read where they are on your disk; nothing is uploaded. They are also available
-from the `climpact` command line.
+Gridded data are large and take a long time to process, so gridded calculations run in
+the version of Climpact installed on **your own computer**, as in Climpact for R. Choose
+the files by their path (Browse finds them): they are read where they are on your disk and
+never changed. You can also upload copies, up to the size limit shown on the page. A
+hosted Climpact offers gridded runs only if its operator has switched them on, and then
+by upload only. They are also available from the `climpact` command line.
+
+The calculation runs in the background: you can close the page and come back to it from
+**Your calculations**.
 
 A small grid takes minutes; a national grid over decades can take hours.
 
@@ -28,11 +33,19 @@ a file's variables, units and calendar. NCO (`ncrename`, `ncatted`) and CDO help
 and units.
 
 Climpact for R's sample grid, `climpact.sampledata.gridded.1991-2010.nc` (24 by 19 cells
-over Australia, 1991 to 2010), is a quick test.
+over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on the first page
+loads a 3 by 4 cut of it in one click.
+
+After you choose the files, Climpact shows what each holds (variables, units, calendar,
+grid and dates) and guesses which variable is which; check the guess before you go on.
+Problems, such as units it cannot read or files with different dates, are shown there,
+before anything is calculated.
 
 ## Running a grid {#running-a-grid}
 
-Choose the indices to calculate (all by default; fewer finish sooner), the base period and
+Choose what to calculate: the **indices**, a **thresholds file only**, or a thresholds
+file and then the indices. Then choose the indices (all by default; fewer finish sooner;
+the heatwave, SPI and SPEI indices take most of the time), the base period and
 the index settings, as for a station (see [The indices](guide:indices#settings)). On a
 computer with several processor cores, more threads finish sooner. If the computer runs
 short of memory, lower the number of values read at once.
@@ -58,7 +71,12 @@ One netCDF file per index and time scale, named in the CMIP5 style:
 `r20mm_ANN_climpactpy_historical_NA_1991-2010.nc`. Your institution's name and id, if
 given, are written into the files' attributes.
 
-View them with Panoply or Ncview, or read them with Python, R or any netCDF tool.
+The results page lists every file to download, with a zip of them all. It also maps an
+index: choose the index, the year (or month) and, for SPI and SPEI, the time scale. Choose
+a cell on the map, or its latitude and longitude, to see its values over time. The map and
+the series each have a table and a CSV file.
+
+View the files with Panoply or Ncview, or read them with Python, R or any netCDF tool.
 
 ## Things to know
 

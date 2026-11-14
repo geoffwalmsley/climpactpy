@@ -80,11 +80,11 @@ def test_header_links_to_help(client):
 
 def test_links_to_pages_that_do_not_exist_keep_their_text(settings):
     body = guides.resolve_links(
-        '<p><a href="url:gridded:start">the gridded screen</a> and '
+        '<p><a href="url:stations:indices">the indices step</a> and '
         '<a href="guide:trends#sens-slope">trends</a> and <a href="guide:#x">here</a></p>',
         "faq",
     )
-    assert "<p>the gridded screen and " in body
+    assert "<p>the indices step and " in body  # #78 adds that URL
     assert 'href="/help/trends/#sens-slope"' in body and 'href="/help/faq/#x"' in body
 
 

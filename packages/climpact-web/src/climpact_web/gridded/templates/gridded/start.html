@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Gridded data" %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/gridded.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
@@ -23,6 +23,7 @@
         <h2 class="card__title">{% if local %}{% translate "Or upload copies" %}{% else %}{% translate "Your netCDF files" %}{% endif %}</h2>
         {% blocktranslate asvar hint with size=max_upload_mb %}netCDF, up to {{ size }} MB in all. One file with all three variables, or one file for each.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
+        {% if not local %}{% help_topic "gridded.files" %}{% endif %}
         {% if local %}<p class="small muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
         <div>
           {% translate "Upload and check" as upload_label %}

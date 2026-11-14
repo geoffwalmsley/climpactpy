@@ -1,4 +1,4 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 Local mode: the files on this computer, by path, with a folder browser. The browser's
 buttons post the same form with action "browse:<folder>" or "add:<file>", so it works
 without JavaScript (the page is sent again); with htmx only this chooser is swapped.
@@ -12,6 +12,7 @@ Parameters: paths_form, paths_value (the paths typed so far), browse (browse_lis
   <div class="field{% if field.errors %} field--error{% endif %}">
     <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }} <span class="field__required" aria-hidden="true">&ast;</span></label>
     <p class="field__hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
+    {% help_topic "gridded.files" %}
     {% include "components/field_errors.html" %}
     <textarea name="paths" id="{{ field.id_for_label }}" rows="3" spellcheck="false" autocomplete="off" class="gridded-paths" aria-describedby="{{ field.auto_id }}_helptext{% if field.errors %} {{ field.auto_id }}_error{% endif %}"{% if field.errors %} aria-invalid="true"{% endif %}>{% if paths_value is not None %}{{ paths_value }}{% else %}{{ field.value|default:"" }}{% endif %}</textarea>
   </div>

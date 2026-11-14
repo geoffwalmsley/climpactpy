@@ -3452,6 +3452,13 @@ missing values, the placeholder for the interactive chart of #75 (`CHART HOOK` i
 CSV. Values are read straight from the output netCDF (fill values and non-finite values,
 such as R's `-Inf` EHF-HWPS, shown as no value).
 
+**Help** (see [Help](#help)). The gridded topics are on their fields: `gridded.files`
+(step 1), `gridded.variables`, `gridded.thresholds_file`, `gridded.base_period`,
+`gridded.output` (also on the results), `gridded.institution`, `gridded.indices`,
+`gridded.workers`, `gridded.max_values`, and `param.<field>` on the index parameters. The
+explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_ANN` to
+`index.rxdday`). The gridded guide (`help/guides/en/gridded.md`) describes the screens.
+
 **Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
 `source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
 (the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and

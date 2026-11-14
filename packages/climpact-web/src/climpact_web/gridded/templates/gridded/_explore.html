@@ -1,4 +1,4 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 The map of one index at one time step and the time series of one cell, drawn on the
 server as inline SVG (no map tiles: offline and low bandwidth), each with a table and a
 CSV. The form and the cells are plain links and GET forms, so it works without
@@ -61,6 +61,7 @@ table_template; clicking a map cell already swaps this fragment with the cell's 
     <noscript><div class="form__actions">{% translate "Show" as show_label %}{% include "components/button.html" with label=show_label type="submit" variant="secondary" %}</div></noscript>
   </form>
 
+  {% if index_topic %}<div class="gridded-explore__help">{% help_topic index_topic %}</div>{% endif %}
   <div class="gridded-explore__panels">
     <figure class="chart gridded-map" aria-labelledby="map-title">
       <div class="chart__header">

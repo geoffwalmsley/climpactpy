@@ -677,9 +677,12 @@ def explore_context(request, run: GriddedRun) -> dict:
         c.hx = f"{base}?{query}"
     lat = layer.lat[cell[0]] if cell[0] < len(layer.lat) else cell[0]
     lon = layer.lon[cell[1]] if cell[1] < len(layer.lon) else cell[1]
+    from climpact_web.help.topics import index_topic_for_output
+
     return {
         "explore_files": files,
         "chosen": chosen,
+        "index_topic": index_topic_for_output(f"{chosen.index}_{chosen.freq}"),
         "layer": layer,
         "t": t,
         "time_label": layer.times[t] if layer.times else "",

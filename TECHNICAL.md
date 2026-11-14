@@ -3756,8 +3756,8 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77) | 371.8 | 44.1 | 109.2 | 102.1 |
 | station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
-| station results, 80 indices | 190.8 | 37.7 | 69.2 | 65.6 |
-| station index (TXx, with chart code) | 18.8 | 4.5 | 67.0 | 60.2 |
+| station results, 80 indices | 190.8 | 37.7 | 69.2 | 65.7 |
+| station index (TXx, with chart code) | 18.8 | 4.5 | 68.4 | 61.4 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | station indices (step 3) | 28.3 | 5.3 | 35.9 | 32.5 |
@@ -3980,7 +3980,7 @@ move redraws in 18-37 ms. Pages and charts were checked in light and dark themes
 together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
 [Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
-quality-check results (109.2 KB, #77), a station index's page (67.0 KB, #78) and the
+quality-check results (109.2 KB, #77), a station index's page (68.4 KB, #78) and the
 gridded results (121.6 KB at worst), all under the 300 KB page budget. The results
 dashboard (#78) has no chart code: its sparklines are inline SVG.
 

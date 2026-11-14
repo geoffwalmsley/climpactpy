@@ -478,12 +478,124 @@ def test_filters_without_javascript(client):
     assert 0 < count < 80 and f"Significant trends only ({count})" in html
 
 
+def _summary(html: str) -> str:
+    return re.search(r'<section class="card stack trend-summary".*?</section>', html, re.S).group(0)
+
+
+def test_significant_trends_lead_the_dashboard_largest_first(client):
+    """Below the actions, the significant trends: every card marked significant, largest
+    change (slope per decade over the series' standard deviation) first (#113)."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    summary = _summary(html)
+    # First thing after the action row; before the filters and the groups.
+    assert html.index('class="cluster results-actions"') < html.index(summary)
+    assert html.index(summary) < html.index("data-results-filter")
+    keys = re.findall(rf'href="/station/{analysis.pk}/results/([^"#?]+)"', summary)
+    cards = re.findall(r'<li class="index-card"(?:(?!</li>).)*?</li>', html, re.S)
+    significant = {
+        re.search(r"/results/([^\"#?]+)\"", c).group(1) for c in cards if ">Significant</span>" in c
+    }
+    assert len(keys) == len(set(keys)) == len(significant) == 22
+    assert set(keys) == significant
+    assert "22 of 80 indices changed significantly" in summary
+    # The order, checked from the files: the trend file's annual slope per decade over
+    # the standard deviation of the annual table, for the indices the trend file has.
+    from climpact.io.climpact_csv import read_climpact_csv
+
+    trend = read_climpact_csv(LAT0 / STATION / "trend" / f"{STATION}_trend.csv").data
+    annual = trend[trend["Frequency"] == "annual"].set_index("Index")
+    change = {}
+    for key in keys:
+        if key in annual.index:
+            table = read_table(f"{key}_ANN")
+            values = table[table.columns[1]]
+            change[key] = abs(annual.loc[key, "Slope"] * 10) / values.std()
+    assert len(change) >= 15
+    checked = [k for k in keys if k in change]
+    assert [round(change[k], 6) for k in checked] == sorted(
+        (round(v, 6) for v in change.values()), reverse=True
+    )
+    # Plain name, code and the trend per decade, linked to the index's page.
+    link = f'<a href="/station/{analysis.pk}/results/tnm">Mean TN</a>'
+    assert f'{link} <code class="index-code">TNm</code>' in summary
+    assert "°C per decade" in summary and 'class="spark"' in summary
+
+
+def test_no_significant_trend_says_so(client, monkeypatch):
+    analysis, _job = finished_analysis(client)
+    monkeypatch.setattr(results_model.RunResults, "significant", lambda self: [])
+    summary = _summary(client.get(f"/station/{analysis.pk}/results").content.decode())
+    assert "No index has a significant trend" in summary and "<ol" not in summary
+
+
+def test_cards_and_index_page_lead_with_the_plain_name(client):
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results"
+    html = client.get(url).content.decode()
+    assert f'<a href="{url}/fd">Frost days</a></h3>' in html
+    assert '<code class="index-code">FD</code> days' in html
+    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></h3>' in html
+    assert '<code class="index-code">TX90-HWN</code>' in html
+    assert f'<a href="{url}/3month_spi">Standardised precipitation index, 3 months</a>' in html
+    # Codes still find their index.
+    assert "Showing 1 of 80 indices." in client.get(url, {"q": "tnltm20"}).content.decode()
+    page = client.get(f"{url}/txx").content.decode()
+    assert "<h1>Max TX</h1>" in page and '<code class="index-code">TXx</code>' in page
+    assert "<title>Max TX (TXx): " in page
+
+
+def test_plain_names_of_indices_that_share_a_catalogue_entry():
+    by_short = results_model.catalogue.by_short()
+    name = results_model.plain_name
+    assert name("EHF-HWLI", by_short["hwEHF"]) == "Total heatwave intensity (EHF)"
+    assert name("TN90-HWA", by_short["hw"]) == "Peak temperature of the hottest heatwave (Tn90)"
+    assert name("24month_spei", by_short["spei"]).endswith(", 24 months")
+    assert name("EHFdaily", by_short["hwEHF"]) == "Excess heat factor, daily"
+    assert name("TNgt0", None) == "Your own threshold index"
+    assert name("fd", by_short["fd"]) == "Frost days"
+
+
+def _groups(html: str) -> dict[str, str]:
+    """Each group's <details> start tag, by group key."""
+    pattern = r'(<details class="disclosure results-section" id="group-([\w-]+)"[^>]*>)'
+    return {key: tag for tag, key in re.findall(pattern, html)}
+
+
+def test_groups_are_collapsed_until_filtered_or_linked(client):
+    """Groups are <details>, collapsed by default; a filter or search opens the groups it
+    shows, and the index page's "All indices" link opens its group, without JavaScript."""
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results"
+    html = client.get(url).content.decode()
+    groups = _groups(html)
+    assert len(groups) == 8 and not any(" open" in tag for tag in groups.values())
+    assert "13 indices · 4 significant</span>" in html  # fixed-threshold group: count
+    assert ">14 indices</span>" in html  # precipitation: nothing significant
+    # A search opens only the group with a match.
+    groups = _groups(client.get(url, {"q": "frost"}).content.decode())
+    assert " open" in groups["temperature-thresholds"]
+    assert all(" open" not in t and " hidden" in t for k, t in groups.items()
+               if k != "temperature-thresholds")  # fmt: skip
+    groups = _groups(client.get(url, {"family": "drought"}).content.decode())
+    assert [k for k, t in groups.items() if " open" in t] == ["drought"]
+    # Linked from an index's page.
+    page = client.get(f"{url}/rx1day").content.decode()
+    link = f'href="{url}?group=precipitation#group-precipitation"'
+    assert link in page
+    groups = _groups(client.get(url, {"group": "precipitation"}).content.decode())
+    assert [k for k, t in groups.items() if " open" in t] == ["precipitation"]
+
+
 def test_downloads_and_next_step(client):
     analysis, job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert f"/jobs/{job.pk}/files/{STATION}/trend/{STATION}_trend.csv" in html
     assert f'href="/station/{analysis.pk}/downloads"' in html
-    assert f'href="/station/{analysis.pk}/sector"' in html
+    # The optional step 5 is in the action row at the top (#113).
+    actions = re.search(r'<div class="cluster results-actions">.*?</div>', html, re.S).group(0)
+    assert f'href="/station/{analysis.pk}/sector"' in actions
+    assert "Compare with sector data" in actions
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
     assert "Kept until" in html
 

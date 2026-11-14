@@ -837,3 +837,27 @@ def test_gridded_explorer_keeps_focus(chrome, site):
     wait_for(c, "document.getElementById('explore-t').selectedIndex === 0 &&"
              " !document.querySelector('.htmx-request')", timeout=10)  # fmt: skip
     assert c.evaluate("document.activeElement.id") == "explore-t"
+
+
+def test_results_groups_open_with_the_search_and_links(chrome, site):
+    """The results' groups are collapsed (#113): typing a search opens the groups it shows
+    and clearing it closes them again; a #group-... link opens its group."""
+    c = chrome
+    opened = (
+        "Array.prototype.filter.call(document.querySelectorAll('[data-results-section]'),"
+        " function (d) { return d.open }).map(function (d) { return d.id })"
+    )
+    c.navigate(site["station results"])
+    assert c.evaluate(opened) == []
+    focus(c, "#results-q")
+    c.send("Input.insertText", text="frost")
+    wait_for(c, "document.getElementById('group-temperature-thresholds').open", timeout=10,
+             what="the group with the match to open")  # fmt: skip
+    assert c.evaluate(opened) == ["group-temperature-thresholds"]
+    c.evaluate(
+        "var q = document.getElementById('results-q'); q.value = '';"
+        " q.dispatchEvent(new Event('input', {bubbles: true}))"
+    )
+    assert c.evaluate(opened) == []
+    c.navigate(site["station results"] + "?from=index#group-drought")
+    assert c.evaluate(opened) == ["group-drought"]

@@ -27,7 +27,30 @@
     {% if downloads.report %}{% url 'jobs:file' downloads.job.pk downloads.report.path as report_url %}{% blocktranslate with size=downloads.report.size|filesizeformat asvar report_label %}PDF report ({{ size }}){% endblocktranslate %}
     {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}{% endif %}
     <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "All downloads" %}</a>
+    {% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
+    {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" icon_end="arrow-right" %}
   </div>
+
+  <section class="card stack trend-summary" aria-labelledby="trends-title">
+    <h2 class="card__title" id="trends-title">{% translate "Significant trends" %}</h2>
+    {% if significant_cards %}
+    <p class="small muted">{% blocktranslate with n=significant_cards|length total=total trimmed %}
+      {{ n }} of {{ total }} indices changed significantly. Largest change first, measured against how much each index varies from year to year.
+    {% endblocktranslate %}</p>
+    <ol class="trend-list" role="list">
+      {% for card in significant_cards %}
+      <li class="trend-list__item">
+        <span class="trend-list__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a> <code class="index-code">{{ card.code }}</code></span>
+        <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
+        {% if card.spark %}{% include "stations/_spark.html" %}{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p>{% translate "No index has a significant trend: for every index, the 95% interval of the trend includes zero." %}</p>
+    {% endif %}
+    {% help_topic "trend.significance" %}
+  </section>
 
   {% if run.skipped %}
   <div class="alert alert--warning">
@@ -65,20 +88,21 @@
     </div>
   </form>
   <p class="small muted" id="results-count" aria-live="polite" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}</p>
-  {% help_topic "trend.significance" %}
 
   {% for section in sections %}
-  <section class="results-section" aria-labelledby="group-{{ section.key }}" data-results-section{% if section.hidden %} hidden{% endif %}>
-    <h2 id="group-{{ section.key }}" class="results-section__title">{{ section.label }}</h2>
+  <details class="disclosure results-section" id="group-{{ section.key }}" data-results-section{% if section.open %} open{% if filtering %} data-auto-open{% endif %}{% endif %}{% if section.hidden %} hidden{% endif %}>
+    <summary>
+      <h2 class="results-section__title">{{ section.label }}</h2>
+      <span class="results-section__count">{% if section.significant %}{% blocktranslate count counter=section.cards|length with n=section.significant trimmed %}{{ counter }} index · {{ n }} significant{% plural %}{{ counter }} indices · {{ n }} significant{% endblocktranslate %}{% else %}{% blocktranslate count counter=section.cards|length trimmed %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}{% endif %}</span>
+      {% icon "chevron-down" %}
+    </summary>
     <ul class="index-grid" role="list">
       {% for card in section.cards %}
       <li class="index-card" data-family="{{ card.family }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
-        <div class="index-card__head">
-          <h3 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.name }}</a></h3>
-          {% if card.units %}<span class="index-card__units">{{ card.units }}</span>{% endif %}
-        </div>
+        <h3 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h3>
+        <p class="index-card__units"><code class="index-code">{{ card.code }}</code>{% if card.units %} {{ card.units }}{% endif %}</p>
         <p class="index-card__definition">{{ card.definition }}</p>
-        {% if card.spark %}<svg class="spark" viewBox="0 0 240 60" preserveAspectRatio="none" aria-hidden="true" focusable="false">{% if card.spark.trend %}<path class="spark__trend" d="{{ card.spark.trend }}"/>{% endif %}{% if card.spark.line %}<path class="spark__line" d="{{ card.spark.line }}"/>{% if card.spark.dots %}<path class="spark__dots" d="{{ card.spark.dots }}"/>{% endif %}{% else %}<path class="spark__zero" d="M0 {{ card.spark.zero }}H240"/><path class="spark__pos" style="stroke-width:{{ card.spark.bar_width }}" d="{{ card.spark.pos }}"/><path class="spark__neg" style="stroke-width:{{ card.spark.bar_width }}" d="{{ card.spark.neg }}"/>{% endif %}</svg>
+        {% if card.spark %}{% include "stations/_spark.html" %}
         {% elif card.daily %}<p class="index-card__daily small">{% blocktranslate with days=card.daily.days|floatformat:"0g" high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
         <p class="index-card__trend">
           {% if card.trend.valid %}
@@ -92,7 +116,7 @@
       </li>
       {% endfor %}
     </ul>
-  </section>
+  </details>
   {% endfor %}
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
 
@@ -113,11 +137,6 @@
         {% for p in params %}<dt>{{ p.label }}</dt><dd>{{ p.value }}</dd>{% endfor %}
       </dl>
       <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
-    </section>
-    <section class="card stack" aria-labelledby="next-title">
-      <h2 class="card__title" id="next-title">{% translate "Next: compare with sector data" %}</h2>
-      <p>{% translate "Optional: see how the indices relate to yearly data from a sector such as agriculture or health." %}</p>
-      <p><a href="{% url 'stations:sector' analysis.pk %}">{% translate "Compare with sector data" %} {% icon "arrow-right" %}</a></p>
     </section>
   </div>
 </div>

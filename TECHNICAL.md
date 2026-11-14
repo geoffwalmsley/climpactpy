@@ -2638,7 +2638,7 @@ packages/climpact-web/src/climpact_web/
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       step 2's results: links the check tables and the daily charts (#77)
-      js/results.js  the results dashboard's filters (#78), that page only
+      js/results.js  the results dashboard's filters (#78) and collapsed groups (#113), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
@@ -2696,7 +2696,7 @@ packages/climpact-web/src/climpact_web/
     templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; indices.html, _indices_unit.html
-                     (step 3), results_progress.html, _results_progress.html, results.html,
+                     (step 3), results_progress.html, _results_progress.html, results.html, _spark.html,
                      result.html (step 4), downloads.html, _download_link.html (#79),
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
@@ -3424,8 +3424,13 @@ each heatwave aspect, each SPI/SPEI scale and the custom index have their own ca
 the daily `EHFdaily` and `ECFdaily` tables, which R does not plot, get cards with their
 days, highest value and date. For the Sydney sample that is 80 cards for the 114 tables.
 Cards are grouped as the help's index catalogue (temperature thresholds, extremes,
-percentiles, seasons, precipitation, heatwaves, drought, your own index). Each card shows
-the display name, the definition, units, a sparkline, the trend per decade with an arrow
+percentiles, seasons, precipitation, heatwaves, drought, your own index). Each card leads
+with its plain name (`Card.title`, from `plain_name`: the catalogue's long name, such as
+"Frost days"; the indices that share one catalogue entry get a name of their own: each
+heatwave aspect in the words of the indices guide, "Number of heatwaves (Tx90)", each
+SPI/SPEI scale, "Standardised precipitation index, 3 months", and the daily EHF and ECF
+tables), with the code as a monospace label (`Card.code`: `TXx`, `TX90-HWN`; searching
+for it still finds the card) and shows the definition, units, a sparkline, the trend per decade with an arrow
 and a "Significant" or "Not significant" badge (the 95% interval excludes zero or not, as
 in the trends guide), the latest value and the series it has. Sparklines are SVG paths
 drawn on the server (integer coordinates in a 240 x 60 box; long series averaged into 240
@@ -3433,19 +3438,37 @@ columns; gaps where values are missing; the trend line dashed; SPI and SPEI as b
 and below zero), so the dashboard loads no chart code. A search box, family chips
 (temperature, precipitation, heatwaves, drought, your own index) and "significant trends
 only" filter the cards as you type (`js/results.js`, which also keeps the filter in the
-URL); without JavaScript the same GET form filters on the server. The page also lists the
+URL); without JavaScript the same GET form filters on the server. The family chips span
+the filter's full width. Each group is a `<details>` with its counts ("13 indices · 4
+significant"), collapsed by default (#113): the server opens the groups a filter or
+search shows, and the group named by `?group=` (the index page's "All indices" link is
+`?group=<key>#group-<key>`), so it all works without JavaScript; `results.js` also opens
+the groups a filter shows as you type (and closes them again when the filter is cleared)
+and the group a `#group-...` fragment names. With the Sydney sample this makes the page
+about 5,000 px tall at 390 px wide, from about 23,000 px.
+
+**Significant trends first (#113).** Directly below the action row, "Significant trends"
+lists every index whose trend is significant (`RunResults.significant`), each with its
+plain name, code, trend per decade and sparkline, linked to its page; with none, one
+sentence says so. They are ordered by the size of the change against the index's own
+variability, so that days, °C, mm and % compare: `Card.change` is |Sen's slope per
+decade| divided by the sample standard deviation of the series the card shows (the
+annual one where there is one; monthly for SPI and SPEI), largest first, ties in the
+catalogue's order. This ranking is the web app's; R's results page has no summary. The
+Sydney sample has 22 significant trends, led by TNm, TMm and GDDgrow10. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. Above the cards: "Download everything (zip, *size*)", "PDF report (*size*)" and a link to
-the downloads page. Below the cards: downloads (the zip, the report, the PDF of all plots,
-the trend, thresholds and missing-value files, each with its format and size, and the
-downloads page), the settings used, and step 5. Building the
+the percentiles, or else the missing-data rules. The action row at the top: "Change the settings", "Download everything (zip, *size*)",
+"PDF report (*size*)", a link to the downloads page and the optional step 5, "Compare
+with sector data" (#113 moved it up from the bottom). Below the groups: downloads (the
+zip, the report, the PDF of all plots, the trend, thresholds and missing-value files, each
+with its format and size, and the downloads page) and the settings used. Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
 
-**Step 4: one index** (`stations:result`, `result.html`). The index's name, long name,
-definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
+**Step 4: one index** (`stations:result`, `result.html`). The index's plain name as the
+heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
 the trend per decade with its 95% interval and significance, and the highest, lowest and
 mean values with when; the series as an interactive chart (`charts:job_series`, with the
 trend line, table view, CSV, and the run's PNG as the fallback without JavaScript); the
@@ -3505,7 +3528,7 @@ R behaviour not copied in steps 3 and 4, and why:
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the downloads page (#79) |
-| Results: a carousel of the PNGs and a link to the folder or zip | a card per index table with sparkline, trend and significance, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | the significant trends first, largest change first (#113); a card per index table with sparkline, trend and significance, in collapsed groups, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see
@@ -3971,7 +3994,7 @@ Every stylesheet, script, SVG and JSON file in the package must have an entry in
 function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
 quality-check results page (the Sydney sample checked: every section, the four chart
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
-year). #78 added `results.css` (2 KB) and `results.js` (1 KB); #90 `sector.css` (1.5 KB) and
+year). #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse, 1.2 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (the same run as the dashboard: every table and file with its size) and
@@ -3997,8 +4020,8 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
 | station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
-| station results, 80 indices | 190.9 | 37.7 | 69.4 | 65.8 |
-| station index (TXx, with chart code) | 19.0 | 4.6 | 68.6 | 61.7 |
+| station results, 80 indices (#113: with the significant-trends summary) | 231.7 | 47.1 | 80.0 | 76.2 |
+| station index (TXx, with chart code) | 19.2 | 4.7 | 69.7 | 62.6 |
 | station sector results (#90) | 110.6 | 14.6 | 45.1 | 41.7 |
 | station downloads, 114 tables (#79) | 110.6 | 6.7 | 37.4 | 34.0 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |

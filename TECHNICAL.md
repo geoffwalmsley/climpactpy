@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data (see [Web front end](#web-front-end), [Background jobs](#background-jobs) and [Single-station steps](#single-station-steps)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps) and [Batch page](#batch-page)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), help (#81), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2512,7 +2512,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
-(downloads), #80 (batch), #81 (help), #85 (gridded), #82 (size budget) and #83
+(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help), #85 (gridded), #82 (size budget) and #83
 (accessibility).
 
 ### Layout
@@ -2521,7 +2521,7 @@ imports `climpact_web`. This section describes the skeleton (#69) and the design
 packages/climpact-web/src/climpact_web/
   settings.py        the one settings module; every value from environment variables
                      (local or hosted mode, see below); reading it has no side effects
-  urls.py            root URLs: i18n/ (set_language), jobs/, station/ and the core app;
+  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/ and the core app;
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
@@ -2530,7 +2530,8 @@ packages/climpact-web/src/climpact_web/
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
                      the context processor `site`
     navigation.py    the app's destinations (header links, landing page) and the
-                     single-station steps (`station_steps`) for the step indicator
+                     single-station and batch steps (`station_steps`, `batch_steps`) for
+                     the step indicator
     tokens.py        reads the design tokens back from the CSS; writes chart-palette.json
     forms.py         PatternDemoForm, the example form on the pattern library
     templatetags/ui.py  `{% icon %}` and the `times` filter
@@ -2542,7 +2543,8 @@ packages/climpact-web/src/climpact_web/
       css/main.css   tokens (light), base styles, layout and every component
       css/theme-dark.css  dark values of the colour tokens
       css/patterns.css    pattern library page only
-      css/stations.css    the single-station pages only
+      css/stations.css    the single-station pages (and the batch pages)
+      css/batch.css       the batch pages only
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
@@ -2576,17 +2578,27 @@ packages/climpact-web/src/climpact_web/
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB)
     templates/stations/  upload.html, load.html, qc.html, _unit.html (a field group
                      validated by htmx), _summary.html, _problems.html, _retention.html
+  batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
+    models.py        BatchRun: one batch's files, check result, options and job
+    check.py         the pre-flight check: metadata file, each station, zip unpacking
+    forms.py         UploadForm, AddFilesForm, OptionsForm
+    retention.py     purge_expired_batches, registered with the jobs app's purge
+    views.py, urls.py  /batch/: start, sample, check, add files, options (htmx), run,
+                     results, progress fragment, open a station, delete
+    sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
+    templates/batch/  start.html, check.html, results.html, _options.html,
+                     _progress.html, _retention.html
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
   test_*.py          settings, views and security, i18n, static files, the command, jobs
-                     (test_jobs.py), the worker as a real process (test_worker_process.py)
-                     and step 1 (test_stations.py)
+                     (test_jobs.py), the worker as a real process (test_worker_process.py),
+                     step 1 (test_stations.py) and the batch page (test_batch.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
-worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4 and
-batch follow in #77-#80, #90) and planned `gridded` (#85). `core` keeps what every page shares.
+worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4
+follow in #77-#79, #90), `batch` (#80) and planned `gridded` (#85). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2752,8 +2764,8 @@ a comment listing its parameters. Labels are passed in already translated
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket will add (`stations:batch`, `gridded:start`, `help:index`;
-`stations:upload`, `stations:sample` (#76) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
+URL name each later ticket will add (`gridded:start`, `help:index`; `stations:upload`,
+`stations:sample` (#76), `batch:start` (#80) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered only in local mode, as
 in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
 reason. "Try with sample data" is a one-button POST form, since it creates the session's
@@ -2767,7 +2779,7 @@ palette and the icons, and is what the user review and the accessibility audit (
 
 **Responsive and right-to-left.** Layouts use flex and grid with `auto-fill` columns, so
 they reflow down to 320px wide and at 200% zoom without horizontal scrolling (checked on
-the landing page, pattern library and station step 1 pages in a 320px frame with headless Chrome); wide tables
+the landing page, pattern library, station step 1 pages and batch pages in a 320px frame with headless Chrome); wide tables
 scroll inside their own region. Only logical properties are used: a test fails on
 `left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
@@ -2780,8 +2792,9 @@ comments put it above that. Whole-page budgets are set in #82.
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
-job and the job list) and the single-station step 1 pages (upload, upload with file
-problems, the sample loaded, metadata errors, the step 2 placeholder), rendered from
+job and the job list), the single-station step 1 pages (upload, upload with file
+problems, the sample loaded, metadata errors, the step 2 placeholder) and the batch pages
+(start, a check with every station status, a running batch, finished results), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
 and the icon sprite inlined, so they open from disk without a server.
 
@@ -2855,12 +2868,13 @@ built-in runners call the same core functions as the command line, so the files 
 same: `station` (`run_station`, with plots and zip), `batch` (`run_batch`; one progress
 count for the whole batch, the sum of each station's last step over the sum of their
 `pipeline_stages` + `plot_steps` totals; a failed station counts as done; `workers`
-defaults to 1), `sector` (`run_sector_correlation` on the station file and index tables
+defaults to 1; each station's own progress goes to `output/stations.json`, see
+[Batch page](#batch-page)), `sector` (`run_sector_correlation` on the station file and index tables
 of a finished `station` job), `gridded-thresholds` and `gridded-indices`
 (`write_grid_thresholds`, `write_grid_indices`; input files are read in place from the
 paths given, local mode). The parameters of each are in the module docstring. The
-batch, sector and gridded runners are complete and tested but no screen creates them yet
-(#80, #90, #85). The core is imported inside each runner, so the web server never imports
+batch page (#80) creates batch jobs; the sector and gridded runners are complete and
+tested but no screen creates them yet (#90, #85). The core is imported inside each runner, so the web server never imports
 xclim.
 
 **The worker** (`jobs/worker.py`, `JobWorker`) runs one job at a time:
@@ -2950,7 +2964,10 @@ the period; the job page shows the deletion date. Other apps register their own 
 with `register_purger(func)`; each purge calls `func(now, days)` (the stations app deletes
 its analyses this way, so the jobs app knows nothing of them).
 
-**Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads,
+**Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads
+(`save_input(job, name, file, folder="")`: the name is reduced to a file name, and a
+folder, one plain word chosen by the code, puts it in `input/<folder>/`; `create_job` takes
+such files as `"<folder>/<name>"` keys),
 empties `output/` before a run, resolves download paths and deletes a job's folder. The
 core reads and writes ordinary files, so a worker always works on a local folder. For AWS
 (#12) the job folders can live on shared storage (EFS) with this class unchanged, or a
@@ -3066,6 +3083,111 @@ last changed (`updated_at`), unless one of its jobs is queued or running
 `stations/` that belong to no analysis are deleted once older than the period. The pages
 state the period and the date the analysis will be deleted, and "Delete this data now"
 deletes it at once.
+
+### Batch page
+
+The batch page (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R`
+and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
+
+**Flow** (`batch:start`, `batch:check`, `batch:results`; the step indicator's three steps,
+`navigation.batch_steps`):
+
+1. `/batch/`: two drop zones, the metadata file and the station files (several at once,
+   or a zip; a zip may also hold the metadata file, found by its first line, 12 column
+   names starting `station_file`, and may sit in the metadata box). "Use the sample batch"
+   loads R's sample in one click: R's `climpact.sample.batch.metadata.txt` (bundled
+   unchanged in `batch/sample_data/`) with two copies of the Sydney file under the two
+   names it lists; R ships the same file twice, the package keeps the one gzipped copy of
+   step 1. The sample metadata file downloads as a template (R links to it). The format,
+   each column's meaning and the retention note are on the page.
+2. `/batch/<id>/`: every station listed as **ready**, **file missing** or **has problems**,
+   with the reasons, before anything runs; counts; files uploaded but not listed; each
+   station's index parameters in a table; a form to add or replace station files or the
+   metadata file (checked again at once); the options; and "Calculate *N* stations". A
+   batch with some stations not ready can start: those are left out and reported.
+3. `/batch/<id>/results`: one `batch` job for the ready stations. A fragment polled by
+   htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
+   each station (waiting, calculating with its own bar and stage, finished, failed, left
+   out). When it has finished: a summary, "Download everything (zip)", and for each
+   station its zip and "Open as a single station", or its error and error file;
+   failures are listed first. The cancel and retry controls are the job's.
+
+**Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
+other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
+check result as JSON (`report`, `check.BatchCheck.to_json()`); the options `base_start`,
+`base_end`, `workers`, `plots`; `job` (null on delete). Files live in
+`<MEDIA_ROOT>/batches/<id>/`: `metadata.txt` and `files/<name>`, each station file under
+its own name without folders (hidden names are ignored). Every change checks the whole
+batch again. Retention as for analyses: `JOB_RETENTION_DAYS` after the last change unless
+its job is queued or running (`batch/retention.py`, registered with `register_purger`);
+"Delete these files now" deletes it at once.
+
+**The check** (`batch/check.py`). The metadata file is walked with
+`read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
+skipped, the first line the header) and every problem is reported in plain language with
+its line and the line's text, as step 1 does for station files: empty or not text, no
+stations, a line without 12 values (with a note when commas are used), a value that is not
+a number, a whole-number column (`wsdin`, `csdin`, `rxnday`, `txtn`, `SPEI`) with a
+fraction, two lines giving the same station name. A test checks that the core reads what
+the check accepts to the same stations. Any of these makes the metadata file unusable, as
+`read.table` stops R's whole batch. A first line that looks like a station (12 fields, a
+number second) is a warning: R and the core read it as the header, so that station is
+left out. Then each station:
+
+- *has problems* when its station file name is a path, its station name (the file name
+  without its extension) breaks the station name rules (`jobs.forms.STATION_NAME`; it
+  becomes a folder), its latitude or longitude is out of range, a parameter fails R's
+  `validate_climdexInputParams` rules (the same as `climpact.batch.validate_params`,
+  checked against it by a test), or its file fails step 1's checks
+  (`inspect_station_bytes`: the same messages with file lines);
+- *file missing* when no file of that name was uploaded, with a hint when a file of the
+  same name in other capitals, or with another extension, was;
+- *ready* otherwise, with step 1's warnings (dates R drops, repeated dates, latitude 0).
+
+**Options.** The R screen's base period (here 1971-2000 by default) and, in the local
+install only, the number of cores ("Stations to calculate at the same time", 1 to the
+number of cores, R's messages for both limits), plus a "Draw the plots" checkbox (on).
+An htmx fragment (`batch:options`) re-checks them as they change: the base period's order,
+ready stations whose data cover 359 days or fewer of it (`MIN_BASE_DAYS`: their
+percentile indices cannot be calculated) and a rough time estimate (10 s a station with
+plots, 4 s without, divided by the stations at a time; R's modal says about a minute a
+station per core).
+
+**The job.** `batch:run` writes a metadata file in R's format with only the ready
+stations (`check.metadata_text`, numbers written so they read back the same) and copies
+their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
+`station_zips`, `folder` (the metadata file's name without its extension, as R names the
+batch folder and zip) and `skipped` (the other stations and why). The runner writes each
+skipped station's reason to `<folder>/<station>.errors.txt`, so the zip lists it like a
+failed station; runs `run_batch` (a failing station fails alone, its error in R's error
+file); zips each finished station to `output/stations/<station>.zip` (as R's
+single-station zip) and the whole batch folder to `output/<folder>.zip`. During the run
+`BatchStatus` writes each station's state to `output/stations.json` (atomically, when a
+station starts or ends and at most every 0.5 s), which the progress fragment reads; at the
+end the job's `result` lists each station with its files, error, error file and zip. A
+station's error is shown without the exception's class name or the job folder's path.
+
+**Per-station dashboards (#78).** Each finished station can be opened as a
+single-station analysis ("Open as a single station", `batch:open_station`, POST): a
+`StationAnalysis` with `source` `batch`, the station file, its name, location and the
+batch's base period, at step 2 (the metadata is complete), and
+`origin = {"batch", "job", "station", "params", "outputs"}`: the batch, its job, the
+station, the `IndexParams` fields of its metadata line and its folder in the job's
+`output/`. The indices step (#78) can start from those parameters and show the batch's
+results; opening the station again returns to the same analysis. This keeps one
+dashboard implementation (the single-station steps) rather than a second one for batches.
+
+R behaviour not copied, and why:
+
+| R batch screen | Python |
+| --- | --- |
+| Base period defaults to 1970-2010 | 1971-2000, as R's single-station screen, the command line and WMO's reference period |
+| Number of cores defaults to 1 | up to 4, one core left free and no more than the stations; 1 when hosted (where the option is hidden, as in R) |
+| A station listed but not uploaded is skipped silently; problems appear only after the run, in error files | the check lists every station's status and reasons before the run; stations not ready are left out with an error file saying why |
+| A bad parameter or malformed metadata line stops the whole batch | a malformed metadata file is reported line by line before the run; a bad parameter leaves out only its station |
+| Plots are always drawn | a checkbox, on by default (plots are about two thirds of the run time) |
+| One zip of the batch folder | the same zip, and each station's own zip |
+| Station files only as separate uploads | separate files or zips, with the metadata file in the zip if wanted |
 
 ## Development
 

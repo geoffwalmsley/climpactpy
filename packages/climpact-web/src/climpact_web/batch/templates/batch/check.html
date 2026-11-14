@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Check the stations" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Check the stations" %}</h1>
+    <p class="lead">{% if run.source == "sample" %}{% translate "Climpact's sample batch is loaded and checked. Choose the options below and start." %}{% elif run.metadata_name %}{% blocktranslate with name=run.metadata_name %}Loaded from {{ name }}. Every station it lists has been checked; nothing has been calculated yet.{% endblocktranslate %}{% else %}{% translate "Your files are loaded. Add the metadata file that lists the stations." %}{% endif %}</p>
+  </header>
+
+  {% if job_active %}
+  {% url 'batch:results' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
+  {% translate "This batch is being calculated." as active_message %}
+  {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
+  {% endif %}
+
+  {% for problem in report.upload_problems %}
+  {% include "components/alert.html" with kind="warning" title="" message=problem %}
+  {% endfor %}
+
+  {% if report.metadata_problem_count %}
+  <div class="alert alert--error" role="alert" tabindex="-1" data-error-summary>
+    {% icon "error" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% blocktranslate count counter=report.metadata_problem_count trimmed %}The metadata file cannot be used: it has {{ counter }} problem{% plural %}The metadata file cannot be used: it has {{ counter }} problems{% endblocktranslate %}</h2>
+      <ul class="file-problems">
+        {% for problem in report.metadata_problems %}
+        <li>{{ problem.message }}{% if problem.text %}<code class="file-problems__line">{{ problem.text }}</code>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      <p>{% translate "Correct the metadata file and load it again below. The station files you loaded are kept." %}</p>
+    </div>
+  </div>
+  {% endif %}
+  {% for warning in report.metadata_warnings %}
+  {% include "components/alert.html" with kind="warning" title="" message=warning %}
+  {% endfor %}
+
+  {% if stations %}
+  <section class="stack" aria-labelledby="stations-title">
+    <div class="section__header">
+      <h2 id="stations-title">{% translate "Stations" %}</h2>
+    </div>
+    <div class="stat-row batch-stats">
+      {% translate "Listed" as listed_label %}{% include "components/stat.html" with label=listed_label value=counts.listed %}
+      {% translate "Ready" as ready_label %}{% include "components/stat.html" with label=ready_label value=counts.ready %}
+      {% translate "File missing" as missing_label %}{% include "components/stat.html" with label=missing_label value=counts.missing %}
+      {% translate "With problems" as invalid_label %}{% include "components/stat.html" with label=invalid_label value=counts.invalid %}
+    </div>
+    <ul class="batch-list" role="list">
+      {% for station in stations %}
+      <li class="batch-item batch-item--{{ station.status }}" id="station-{{ forloop.counter }}">
+        <div class="batch-item__head">
+          <h3 class="batch-item__name">{{ station.name }}</h3>
+          {% if station.status == "ready" %}{% translate "Ready" as label %}{% include "components/badge.html" with label=label kind="success" icon="check" %}
+          {% elif station.status == "missing" %}{% translate "File missing" as label %}{% include "components/badge.html" with label=label kind="warning" icon="file" %}
+          {% else %}{% translate "Has problems" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
+        </div>
+        <p class="batch-item__meta small muted">
+          {% blocktranslate with file=station.station_file line=station.line lat=station.latitude lon=station.longitude trimmed %}
+            {{ file }} · line {{ line }} of the metadata file · {{ lat }}° N, {{ lon }}° E
+          {% endblocktranslate %}{% if station.summary %}{% blocktranslate with first=station.summary.first_date last=station.summary.last_date %} · data {{ first }} to {{ last }}{% endblocktranslate %}{% endif %}
+        </p>
+        {% if station.problems %}
+        <ul class="file-problems batch-item__problems">
+          {% for problem in station.problems %}<li>{{ problem.message }}{% if problem.text %}<code class="file-problems__line">{{ problem.text }}</code>{% endif %}</li>{% endfor %}
+        </ul>
+        {% with hidden=station.problem_count|add:0 shown=station.problems|length %}{% if hidden > shown %}<p class="small">{% translate "And more lines like these." %}</p>{% endif %}{% endwith %}
+        {% endif %}
+        {% for warning in station.warnings %}
+        <p class="field__warning">{% icon "warning" %}<span>{{ warning }}</span></p>
+        {% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if report.extra_files %}
+    <p class="small muted">{% blocktranslate count counter=report.extra_files|length with names=report.extra_files|join:", " trimmed %}Not in the metadata file, so not used: {{ names }}.{% plural %}Not in the metadata file, so not used: {{ names }}.{% endblocktranslate %}</p>
+    {% endif %}
+
+    <details class="disclosure">
+      <summary>{% icon "table" %}<span>{% translate "Index parameters from the metadata file" %}</span>{% icon "chevron-down" %}</summary>
+      <div class="disclosure__body">
+        <div class="table-wrap" role="region" aria-labelledby="params-caption" tabindex="0">
+          <table class="table">
+            <caption id="params-caption">{% translate "Each station's parameters, as the metadata file gives them" %}</caption>
+            <thead><tr>
+              <th scope="col">{% translate "Station" %}</th>
+              <th scope="col" class="num"><code>wsdin</code></th><th scope="col" class="num"><code>csdin</code></th>
+              <th scope="col" class="num"><code>Tb_HDD</code></th><th scope="col" class="num"><code>Tb_CDD</code></th><th scope="col" class="num"><code>Tb_GDD</code></th>
+              <th scope="col" class="num"><code>rxnday</code></th><th scope="col" class="num"><code>rnnmm</code></th><th scope="col" class="num"><code>txtn</code></th><th scope="col" class="num"><code>SPEI</code></th>
+            </tr></thead>
+            <tbody>
+              {% for station in stations %}{% with p=station.params %}
+              <tr><th scope="row">{{ station.name }}</th><td class="num">{{ p.wsdi_days }}</td><td class="num">{{ p.csdi_days }}</td><td class="num">{{ p.hdd_base }}</td><td class="num">{{ p.cdd_base }}</td><td class="num">{{ p.gdd_base }}</td><td class="num">{{ p.rx_days }}</td><td class="num">{{ p.rnnmm }}</td><td class="num">{{ p.txtn_days }}</td><td class="num">{{ p.spei_months }}</td></tr>
+              {% endwith %}{% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">{% translate "As in Climpact for R, batch runs calculate no custom index." %}</p>
+      </div>
+    </details>
+  </section>
+  {% endif %}
+
+  <details class="disclosure"{% if add_form.errors or report.metadata_problem_count or not stations or counts.missing or counts.invalid %} open{% endif %}>
+    <summary>{% icon "upload" %}<span>{% translate "Add or replace files" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">
+      <form method="post" action="{% url 'batch:add_files' run.pk %}" enctype="multipart/form-data" class="stack" novalidate>
+        {% csrf_token %}
+        {% include "components/form_errors.html" with form=add_form %}
+        {% blocktranslate asvar files_hint with size=max_upload_mb %}Up to {{ size }} MB in all.{% endblocktranslate %}
+        {% include "components/dropzone.html" with field=add_form.station_files hint=files_hint multiple=True %}
+        <p class="small muted">{{ add_form.station_files.help_text }}</p>
+        {% include "components/field.html" with field=add_form.metadata_file %}
+        <div>
+          {% translate "Load and check again" as add_label %}
+          {% include "components/button.html" with label=add_label type="submit" variant="secondary" icon="refresh" %}
+        </div>
+      </form>
+    </div>
+  </details>
+
+  <section class="card stack" aria-labelledby="options-title">
+    <h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>
+    <form method="post" action="{% url 'batch:run' run.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {% include "components/form_errors.html" with form=options %}
+      {% include "batch/_options.html" %}
+      <div class="form__actions">
+        {% if counts.ready %}
+        {% blocktranslate count counter=counts.ready asvar run_label trimmed %}Calculate {{ counter }} station{% plural %}Calculate {{ counter }} stations{% endblocktranslate %}
+        {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
+        {% else %}
+        {% translate "No station is ready" as run_label %}
+        {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" disabled=True %}
+        {% endif %}
+      </div>
+      {% if counts.ready and not_ready %}
+      <p class="small">{% blocktranslate count counter=not_ready trimmed %}{{ counter }} station with a missing file or problems will be left out, and listed with its reasons in the results and the zip.{% plural %}{{ counter }} stations with missing files or problems will be left out, and listed with their reasons in the results and the zip.{% endblocktranslate %}</p>
+      {% elif not counts.ready %}
+      <p class="small">{% translate "Load the missing files, or correct the files with problems and load them again, to start." %}</p>
+      {% endif %}
+    </form>
+  </section>
+
+  {% include "batch/_retention.html" %}
+  <form method="post" action="{% url 'batch:delete' run.pk %}" class="cluster">
+    {% csrf_token %}
+    {% translate "Delete these files now" as delete_label %}
+    {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
+    <a class="small" href="{% url 'batch:start' %}">{% translate "Start again with another batch" %}</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% load i18n ui %}{% comment %}
+The batch options (the R batch screen's base period and number of cores, and the plots),
+checked as they change: htmx posts the form to batch:options and swaps in this fragment
+with the base period's coverage notes and the time estimate. Without JavaScript they are
+checked when the form is sent. Parameters: run, options (OptionsForm), coverage, estimate.
+{% endcomment %}
+<div class="stack" id="batch-options" hx-post="{% url 'batch:options' run.pk %}" hx-trigger="change" hx-include="closest form" hx-target="this" hx-swap="outerHTML">
+  <fieldset class="field-set" aria-describedby="base-period-hint">
+    <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
+    <p class="field__hint" id="base-period-hint">{% translate "The years the percentile thresholds are calculated from, the same for every station. Climpact for R suggests 1971 to 2000." %}</p>
+    <div class="form__row">
+      {% include "components/field.html" with field=options.base_start %}
+      {% include "components/field.html" with field=options.base_end %}
+    </div>
+  </fieldset>
+  {% if coverage %}
+  <div class="field__warning batch-coverage">{% icon "warning" %}<div>
+    <p>{% blocktranslate count counter=coverage|length trimmed %}Less than a year of the base period is covered by this station's data, so its percentile thresholds and the indices that use them (TX90p, WSDI, R95p and others) cannot be calculated:{% plural %}Less than a year of the base period is covered by these stations' data, so their percentile thresholds and the indices that use them (TX90p, WSDI, R95p and others) cannot be calculated:{% endblocktranslate %}</p>
+    <ul>{% for note in coverage %}<li>{% blocktranslate with name=note.name first=note.first last=note.last %}{{ name }} (data {{ first }} to {{ last }}){% endblocktranslate %}</li>{% endfor %}</ul>
+  </div></div>
+  {% endif %}
+  {% if options.workers %}{% include "components/field.html" with field=options.workers narrow=True %}{% endif %}
+  {% include "components/field.html" with field=options.plots %}
+  {% if estimate %}<p class="small muted cluster" aria-live="polite">{% icon "clock" %}<span>{% blocktranslate %}This should take {{ estimate }}, as a rough guide.{% endblocktranslate %}</span></p>{% endif %}
+</div>

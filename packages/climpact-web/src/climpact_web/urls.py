@@ -6,5 +6,6 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path("jobs/", include("climpact_web.jobs.urls")),
     path("station/", include("climpact_web.stations.urls")),
+    path("batch/", include("climpact_web.batch.urls")),
     path("", include("climpact_web.core.urls")),
 ]

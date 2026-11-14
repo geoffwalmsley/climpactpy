@@ -1,0 +1,28 @@
+{% load i18n ui %}{% comment %}
+Frame for an interactive chart (#75): title, text summary, legend, the plot area (a
+skeleton until the chart script draws into [data-chart-plot]) and the fallbacks every
+chart has: a table view and a CSV download. Parameters: id, title, summary, legend (list of
+{label, token}, token a --chart-* name), height (CSS length), csv_href, table_template
+(included as the table view).
+{% endcomment %}
+<figure class="chart" id="{{ id }}" aria-labelledby="{{ id }}-title" data-chart>
+  <div class="chart__header">
+    <div>
+      <h3 class="chart__title" id="{{ id }}-title">{{ title }}</h3>
+      {% if summary %}<p class="chart__summary">{{ summary }}</p>{% endif %}
+    </div>
+    <div class="cluster">
+      {% if csv_href %}<a class="button button--secondary button--sm" href="{{ csv_href }}" download>{% icon "download" %}<span>{% translate "CSV" %}</span></a>{% endif %}
+    </div>
+  </div>
+  {% if legend %}<ul class="chart__legend">{% for item in legend %}<li><span class="chart__swatch" style="--swatch: var({{ item.token }})" aria-hidden="true"></span>{{ item.label }}</li>{% endfor %}</ul>{% endif %}
+  <div class="chart__plot" data-chart-plot{% if height %} style="--chart-height: {{ height }}"{% endif %}>
+    {% include "components/skeleton.html" with chart_block=True height=height|default:"16rem" lines=0 label=_("Loading chart") %}
+  </div>
+  {% if table_template %}
+  <details class="disclosure">
+    <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">{% include table_template %}</div>
+  </details>
+  {% endif %}
+</figure>

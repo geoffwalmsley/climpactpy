@@ -4,14 +4,25 @@ import hashlib
 import re
 from pathlib import Path
 
+import pytest
+
 import climpact_web
 
 STATIC = Path(climpact_web.__file__).parent / "core" / "static" / "climpact_web"
 
 
 def test_static_files_in_package():
-    assert (STATIC / "css" / "main.css").is_file()
-    assert (STATIC / "vendor" / "htmx" / "htmx.min.js").is_file()
+    for name in (
+        "css/main.css",
+        "css/theme-dark.css",
+        "css/patterns.css",
+        "js/ui.js",
+        "icons/icons.svg",
+        "icons/favicon.svg",
+        "chart-palette.json",
+        "vendor/htmx/htmx.min.js",
+    ):
+        assert (STATIC / name).is_file(), name
 
 
 def test_vendored_htmx_matches_readme():
@@ -21,8 +32,19 @@ def test_vendored_htmx_matches_readme():
     assert actual.hexdigest() == recorded
 
 
-def test_css_uses_logical_properties():
-    """Right-to-left languages: no physical left/right in the stylesheet."""
-    css = (STATIC / "css" / "main.css").read_text()
+@pytest.mark.parametrize("name", ["main.css", "theme-dark.css", "patterns.css"])
+def test_css_uses_logical_properties(name):
+    """Right-to-left languages: no physical left/right/top/bottom in the stylesheets."""
+    css = (STATIC / "css" / name).read_text()
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    assert not re.search(r"(margin|padding|border)-(left|right)|\b(left|right)\s*:", css)
+    css = re.sub(r"@media[^{]*", "", css)  # media queries on the viewport width are fine
+    physical = r"(margin|padding|border)-(left|right|top|bottom)|\b(left|right|top|bottom)\s*:"
+    assert not re.search(physical, css)
+    sizes = r"(?<![\w-])(min-|max-)?(width|height)\s*:"  # inline-size, block-size instead
+    assert not re.search(sizes, css)
+
+
+def test_ui_js_has_no_dependencies():
+    """ui.js is plain script: no imports, no network requests."""
+    js = (STATIC / "js" / "ui.js").read_text()
+    assert not re.search(r"\bimport\b|\brequire\(|fetch\(|XMLHttpRequest|https?://", js)

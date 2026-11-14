@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention (see [Web front end](#web-front-end) and [Background jobs](#background-jobs)) | the screens: design system (#71), charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library) (see [Web front end](#web-front-end) and [Background jobs](#background-jobs)) | the screens: charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2508,8 +2508,8 @@ identical to Python's with 1 and 4 threads (644,232 values).
 The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/modules`). It is
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
-imports `climpact_web`. This section describes the skeleton (#69); the screens follow in
-#71 (design system), #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4), #79
+imports `climpact_web`. This section describes the skeleton (#69) and the design system
+(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4), #79
 (downloads), #80 (batch), #81 (help), #85 (gridded), #82 (size budget) and #83
 (accessibility).
 
@@ -2525,13 +2525,24 @@ packages/climpact-web/src/climpact_web/
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
   cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
                      the background worker as a child process in local mode
-  core/              the UI shell app (label `core`): home page, /healthz, the context
-                     processor `site`
+  core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
+                     the context processor `site`
+    navigation.py    the app's destinations (header links, landing page) and the
+                     single-station steps (`station_steps`) for the step indicator
+    tokens.py        reads the design tokens back from the CSS; writes chart-palette.json
+    forms.py         PatternDemoForm, the example form on the pattern library
+    templatetags/ui.py  `{% icon %}` and the `times` filter
+    management/commands/design_snapshots.py  static HTML copies of the pages for review
     templates/       base.html (the page shell), 404.html, 413.html, 500.html,
-                     core/home.html, core/language_switcher.html
+                     core/home.html (landing), core/patterns.html (pattern library),
+                     core/language_switcher.html, components/*.html (the components)
     static/climpact_web/
-      css/main.css   hand-written stylesheet: design tokens as CSS custom properties,
-                     light and dark, logical properties only (right-to-left layouts)
+      css/main.css   tokens (light), base styles, layout and every component
+      css/theme-dark.css  dark values of the colour tokens
+      css/patterns.css    pattern library page only
+      js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
+      icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
+      chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
   jobs/              background jobs (label `jobs`, see [Background jobs](#background-jobs))
     models.py        Job (the queue and its progress), Worker (running workers)
@@ -2561,8 +2572,8 @@ worker and progress pages, #73), and planned `stations` (single-station steps 1-
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
-build step and no Node: the user decided against Tailwind on 2026-11-14 (#69), and the
-design system (#71) builds on `main.css`.
+build step and no Node: the user decided against Tailwind on 2026-11-14 (#69), so the
+design system (#71) is hand-written CSS with custom-property tokens.
 
 ### Modes
 
@@ -2596,6 +2607,7 @@ the variable.
 | `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` | none | comma-separated origins, e.g. `https://climpact.example.org` |
 | `DATABASE_URL` | SQLite in the data folder | any URL dj-database-url reads, e.g. `postgres://user:pw@host:5432/db`; required in hosted mode |
 | `CLIMPACT_WEB_DEBUG` | `false` | Django `DEBUG` |
+| `CLIMPACT_WEB_PATTERN_LIBRARY` | same as `DEBUG` | serve the pattern library at `/patterns/` (404 otherwise) |
 | `CLIMPACT_WEB_STATIC_ROOT` | none | `collectstatic` target; required in hosted mode |
 | `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
 | `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
@@ -2641,6 +2653,116 @@ A hosted deployment runs `climpact-web manage migrate` and
 balancers check **`/healthz`**: 200 and `{"status": "ok", "database": "ok", "version":
 ..., "core_version": ...}` when the database answers, 503 otherwise; never cached.
 
+### Design system
+
+The visual language and shared components (#71). The R Shiny app (`climpact/ui`,
+`climpact/www/styles.css`: shinydashboard boxes, a sidebar menu, tabs as steps) is the
+baseline it replaces.
+
+**Look.** Calm and plain: neutral surfaces, one blue accent (`--color-accent`), strong
+type hierarchy, generous spacing. System fonts only (`--font-sans`, `--font-mono`): no
+web fonts are downloaded, for bandwidth and offline use, and every script the operating
+system supports displays. Icons are a sprite drawn for this project
+(`icons/icons.svg`, same licence as the package, 2px strokes on a 24px grid), inserted
+with `{% icon "name" %}` (decorative, `aria-hidden`) or `{% icon "name" "Label" %}`
+(announced as an image).
+
+**Tokens.** CSS custom properties on `:root` in `css/main.css`: colours (`--color-*`),
+chart colours (`--chart-*`), type scale (`--text-*`), spacing (`--space-*`), radii,
+control heights and widths. Components use only tokens: a test fails on a hex colour
+outside the token block. `css/theme-dark.css` holds the dark values and nothing else;
+`base.html` loads it with `media="(prefers-color-scheme: dark)"`. The theme toggle in the
+header (system, light, dark) sets that `media` to `all` or `not all` and stores the
+choice in `localStorage` (`climpact-theme`); a two-line inline script in `<head>` applies
+the stored choice before the page paints. Without JavaScript the system setting applies
+and the toggle stays hidden. The toggle sets `data-theme` on `<html>` and fires
+`climpact:themechange` on `document`, so charts can redraw.
+
+**Contrast.** `tests/test_design_tokens.py` reads the token values from both stylesheets
+and computes WCAG 2.1 contrast ratios for every pairing the components use, in both
+themes: text, muted text, links and status text on each surface and on each tinted alert
+background (4.5:1), button labels on their fills (4.5:1), and input borders, focus rings,
+status icons and chart line roles against their backgrounds (3:1, WCAG 1.4.11). All pass;
+the closest are light success text on the sunken surface (4.99:1, needs 4.5) and light
+input borders on the sunken surface (3.43:1, needs 3).
+
+**Chart palette.** For #75 (and the static plots of #74, #79):
+
+| Tokens | Use |
+| --- | --- |
+| `--chart-1` ... `--chart-8` | categorical series, assigned in this order and never cycled |
+| `--chart-tmax`, `--chart-tmin`, `--chart-prcp` | the variables: red, blue, teal |
+| `--chart-trend`, `--chart-trend-band` | trend line (ink, dashed) and its confidence band |
+| `--chart-flag` | QC flags: hollow ring markers in ink, told apart from series by shape |
+| `--chart-grid`, `--chart-axis` | gridlines and axes |
+| `--chart-seq-1` ... `-5` | sequential (one hue, blue), e.g. maps (#85) |
+| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies |
+
+The categorical order was checked with a colour-vision-deficiency validator (OKLab
+distance under protan, deutan and tritan simulation) against the light surface
+(`#ffffff`) and the dark surface (`#151c24`): worst adjacent pair ΔE 9.1 light, 8.4 dark
+(target 8), normal-vision floor 19.6 and 19.3 (floor 15). `tmax`, `tmin` and `prcp`
+were checked as a set with every pair compared: they pass in light; in dark the
+`prcp`-`tmax` pair is ΔE 6.5, inside the band that is acceptable with labels, and the two
+rarely share a chart. In the light theme categorical slots 3, 4 and 5 are below 3:1 on
+white (2.2-2.8:1), so charts that use them must label series directly or offer the table
+view, which every chart frame has. The validator is not part of the test suite (it is
+JavaScript); re-run it when the palette changes. `chart-palette.json` carries the same
+colours for both themes, for code that cannot read CSS; it is generated with
+`.venv/bin/python -m climpact_web.core.tokens` and a test fails when it is out of date.
+In the browser `Climpact.chartPalette()` returns the live values for the current theme.
+
+**Components.** Template includes in `core/templates/components/`; each file starts with
+a comment listing its parameters. Labels are passed in already translated
+(`{% translate "Start" as label %}{% include "components/button.html" with label=label %}`).
+
+| Component | Notes |
+| --- | --- |
+| `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons |
+| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django 5.2 puts in the widget's `aria-describedby` with `aria-invalid` |
+| `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
+| `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
+| `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text |
+| `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
+| `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
+| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows |
+| `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
+| `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, help that opens in place (`<details>`) for #81 |
+| `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
+| `chart_frame` | title, text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view, for #75 |
+| `theme_toggle` | see Tokens |
+
+**Navigation before the screens exist.** `core/navigation.py` lists the destinations
+(single station, sample data, batch, gridded, help) with the URL name each later ticket
+will add (`stations:upload`, `stations:sample`, `stations:batch`, `gridded:start`,
+`help:index`). Until a URL exists, the landing page shows that action disabled or
+"Available soon" and the header leaves it out. Gridded is offered only in local mode, as
+in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
+reason.
+
+**Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
+sample data" buttons, the four steps, the other ways to run Climpact (batch, gridded in
+local mode, help, the command line) and a note on where data is kept (local or hosted).
+The pattern library (`/patterns/`, with `PATTERN_LIBRARY`) shows every component, the
+palette and the icons, and is what the user review and the accessibility audit (#83) use.
+
+**Responsive and right-to-left.** Layouts use flex and grid with `auto-fill` columns, so
+they reflow down to 320px wide and at 200% zoom without horizontal scrolling (checked on
+the landing page and pattern library in a 320px frame with headless Chrome); wide tables
+scroll inside their own region. Only logical properties are used: a test fails on
+`left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
+Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
+under `forced-colors`.
+
+**Size.** `main.css` and `theme-dark.css` together are about 35 KB (7.5 KB gzipped);
+`ui.js` is about 10.6 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 12 KB. The
+issue aimed for under 30 KB of CSS; the full component set, both token sets and the
+comments put it above that. Whole-page budgets are set in #82.
+
+**Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
+page, pattern library and 404 page (light and dark copies) with the static files beside
+them and the icon sprite inlined, so they open from disk without a server.
+
 ### Translations
 
 `LocaleMiddleware` picks the language from the request (`Accept-Language`, or the
@@ -2648,8 +2770,10 @@ balancers check **`/healthz`**: 200 and `{"status": "ok", "database": "ok", "ver
 `LANGUAGES` for now; the language switcher in the header appears once a second language
 is added. `<html>` carries `lang` and `dir` (`rtl` for right-to-left languages), and the
 stylesheet uses logical properties only, so layouts mirror. Every template string is in
-`{% translate %}` or `{% blocktranslate %}`: `tests/test_i18n.py` strips those, tags and
-`<code>` from each template and fails on any text left. To refresh the catalogue (needs
+`{% translate %}` or `{% blocktranslate %}`: `tests/test_i18n.py` strips those,
+`{% comment %}` blocks, tags and `<code>` from each template and fails on any text left. It
+also fails on plain-text `aria-label`, `title`, `placeholder`, `alt` and `data-message`
+attributes, since screen readers and tooltips read those. To refresh the catalogue (needs
 GNU gettext's `xgettext`), run from `packages/climpact-web/src/climpact_web`:
 `../../../../.venv/bin/climpact-web manage makemessages -l en --no-obsolete`. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
@@ -2806,6 +2930,16 @@ core reads and writes ordinary files, so a worker always works on a local folder
 (#12) the job folders can live on shared storage (EFS) with this class unchanged, or a
 subclass can copy `input/` down from S3 before a run and `output/` up after it and serve
 downloads from S3; `CLIMPACT_WEB_JOB_STORAGE` names the class.
+
+The design system has no browser tests (no browser is installed for them; the axe checks
+are #83). Instead `test_components.py` renders every component with sample parameters and
+checks the accessibility hooks in the markup (labels, `aria-describedby`, `aria-invalid`,
+`aria-current`, roles, the no-JS fallbacks), that the pattern library includes every
+component, that every icon used exists in the sprite, the landing page with and without
+the later screens' URLs (a stub URLconf), and the snapshot command.
+`test_design_tokens.py` checks contrast, the chart palette export and the size budgets;
+`test_static.py` checks logical properties in every stylesheet and that `ui.js` has no
+imports or network requests.
 
 ## Development
 

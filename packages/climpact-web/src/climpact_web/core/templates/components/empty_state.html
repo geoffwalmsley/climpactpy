@@ -1,0 +1,7 @@
+{% load ui %}{# Empty state. Parameters: icon, title, text, action_label and action_href (optional). #}
+<div class="empty-state">
+  {% icon icon|default:"folder" "" "empty-state__icon" %}
+  <h3 class="empty-state__title">{{ title }}</h3>
+  {% if text %}<p class="empty-state__text">{{ text }}</p>{% endif %}
+  {% if action_href %}{% include "components/button.html" with label=action_label href=action_href variant="secondary" icon="" icon_end="" %}{% endif %}
+</div>

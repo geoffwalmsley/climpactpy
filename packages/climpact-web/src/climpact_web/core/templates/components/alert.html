@@ -1,0 +1,15 @@
+{% load i18n ui %}{% comment %}
+Alert. Parameters: kind ("info", "success", "warning", "error"), title (optional),
+message, action_label and action_href (optional link), dismissible (adds a close button,
+handled by ui.js), live ("polite" or "assertive" for alerts added after the page loads).
+{% endcomment %}
+<div class="alert alert--{{ kind|default:'info' }}"{% if live %} role="{% if live == 'assertive' %}alert{% else %}status{% endif %}"{% endif %}{% if dismissible %} data-dismissible{% endif %}>
+  {% if kind == "success" %}{% icon "check-circle" %}{% elif kind == "warning" %}{% icon "warning" %}{% elif kind == "error" or kind == "danger" %}{% icon "error" %}{% else %}{% icon "info" %}{% endif %}
+  <div class="alert__body">
+    {% if title %}<h2 class="alert__title">{{ title }}</h2>{% endif %}
+    <p>{{ message }}{% if action_href %} <a href="{{ action_href }}">{{ action_label }}</a>{% endif %}</p>
+  </div>
+  {% if dismissible %}
+  <button type="button" class="button button--ghost button--sm button--icon alert__close" data-dismiss>{% icon "close" %}<span class="visually-hidden">{% translate "Dismiss" %}</span></button>
+  {% endif %}
+</div>

@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Pattern library" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/patterns.css' %}">{% endblock %}
+{% block content %}
+<header class="section__header">
+  <p class="eyebrow">{% translate "Design system" %}</p>
+  <h1>{% translate "Pattern library" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Every component of the web app, in both themes, for design review and the accessibility
+    audit. Components are template includes in <code>core/templates/components</code>; each
+    file lists its parameters.
+  {% endblocktranslate %}</p>
+</header>
+
+<div class="patterns">
+  <nav class="patterns__toc" aria-label="{% translate 'Components' %}">
+    <ul>
+      <li><a href="#colour">{% translate "Colour" %}</a></li>
+      <li><a href="#type">{% translate "Typography" %}</a></li>
+      <li><a href="#icons">{% translate "Icons" %}</a></li>
+      <li><a href="#buttons">{% translate "Buttons" %}</a></li>
+      <li><a href="#forms">{% translate "Form fields" %}</a></li>
+      <li><a href="#dropzone">{% translate "File drop zone" %}</a></li>
+      <li><a href="#alerts">{% translate "Alerts" %}</a></li>
+      <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
+      <li><a href="#cards">{% translate "Cards" %}</a></li>
+      <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
+      <li><a href="#tables">{% translate "Tables" %}</a></li>
+      <li><a href="#tabs">{% translate "Tabs" %}</a></li>
+      <li><a href="#steps">{% translate "Step indicator" %}</a></li>
+      <li><a href="#progress">{% translate "Progress" %}</a></li>
+      <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
+      <li><a href="#help">{% translate "Help in place" %}</a></li>
+      <li><a href="#charts">{% translate "Chart frame" %}</a></li>
+    </ul>
+  </nav>
+
+  <div>
+    <section class="pattern" id="colour" aria-labelledby="colour-title">
+      <h2 id="colour-title">{% translate "Colour" %}</h2>
+      <p class="prose">{% blocktranslate trimmed %}
+        One accent and neutral surfaces. Every text and background pair meets WCAG AA in both
+        themes (checked by a test from the token values). Chart colours are colour-blind safe
+        and assigned in a fixed order; status colours are never used for data series and
+        always come with an icon and a label. Charts outside the browser read
+        <code>chart-palette.json</code>.
+      {% endblocktranslate %}</p>
+      <div class="stack">
+        {% for title, tokens in palette_groups %}
+        <h3>{{ title }}</h3>
+        <ul class="swatches">
+          {% for token in tokens %}<li><span style="--swatch: var({{ token }})"></span><code>{{ token }}</code></li>{% endfor %}
+        </ul>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="pattern" id="type" aria-labelledby="type-title">
+      <h2 id="type-title">{% translate "Typography" %}</h2>
+      <div class="pattern__demo stack">
+        <p class="eyebrow">{% translate "Eyebrow" %}</p>
+        <h1>{% translate "Heading 1: station results" %}</h1>
+        <h2>{% translate "Heading 2: temperature indices" %}</h2>
+        <h3>{% translate "Heading 3: warm days" %}</h3>
+        <h4>{% translate "Heading 4: trend" %}</h4>
+        <p class="lead">{% translate "A lead paragraph introduces a page in a sentence or two." %}</p>
+        <p class="prose">{% blocktranslate trimmed %}
+          Body text uses the system font of each device, so nothing is downloaded and every
+          script the operating system supports displays. Lines are kept to a readable length.
+          <a href="#type">A link</a> and <code>inline code</code>.
+        {% endblocktranslate %}</p>
+        <p class="small muted">{% translate "Small, muted text for notes and captions." %}</p>
+      </div>
+    </section>
+
+    <section class="pattern" id="icons" aria-labelledby="icons-title">
+      <h2 id="icons-title">{% translate "Icons" %}</h2>
+      <p>{% translate "An SVG sprite drawn for this app, inserted with the icon template tag. Icons are decorative unless given a label." %}</p>
+      <ul class="swatches">
+        {% for name in icons %}<li>{% icon name "" "icon--lg" %}<code>{{ name }}</code></li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="pattern" id="buttons" aria-labelledby="buttons-title">
+      <h2 id="buttons-title">{% translate "Buttons" %}</h2>
+      {% translate "Calculate indices" as l_primary %}{% translate "Back" as l_secondary %}{% translate "Reset" as l_ghost %}{% translate "Delete run" as l_danger %}{% translate "Download all" as l_download %}{% translate "Working" as l_busy %}{% translate "Not yet" as l_disabled %}{% translate "Next step" as l_next %}{% translate "Refresh" as l_icon %}{% translate "Small" as l_small %}
+      <div class="pattern__demo stack">
+        <div class="cluster">
+          {% include "components/button.html" with label=l_primary %}
+          {% include "components/button.html" with label=l_secondary variant="secondary" %}
+          {% include "components/button.html" with label=l_ghost variant="ghost" %}
+          {% include "components/button.html" with label=l_danger variant="danger" %}
+        </div>
+        <div class="cluster">
+          {% include "components/button.html" with label=l_next size="lg" icon_end="arrow-right" %}
+          {% include "components/button.html" with label=l_download icon="download" variant="secondary" href="#buttons" %}
+          {% include "components/button.html" with label=l_small size="sm" variant="secondary" %}
+          {% include "components/button.html" with label=l_icon icon="refresh" icon_only=True variant="secondary" %}
+          {% include "components/button.html" with label=l_busy busy=True %}
+          {% include "components/button.html" with label=l_disabled disabled=True %}
+        </div>
+      </div>
+    </section>
+
+    <section class="pattern" id="forms" aria-labelledby="forms-title">
+      <h2 id="forms-title">{% translate "Form fields" %}</h2>
+      <p>{% translate "Labels above inputs, hints under labels, errors inline and summarised at the top. This form is shown after a submission with mistakes." %}</p>
+      <div class="pattern__demo">
+        <form class="form" method="get" action="#forms" novalidate>
+          {% include "components/form_errors.html" %}
+          {% include "components/field.html" with field=form.station_name %}
+          <div class="form__row">
+            {% translate "°N" as unit_deg %}
+            {% include "components/field.html" with field=form.latitude unit=unit_deg %}
+            {% include "components/field.html" with field=form.variable %}
+          </div>
+          <div class="form__row">
+            {% include "components/field.html" with field=form.base_start %}
+            {% include "components/field.html" with field=form.base_end %}
+          </div>
+          {% include "components/field.html" with field=form.method %}
+          {% include "components/field.html" with field=form.detrend %}
+          {% include "components/field.html" with field=form.notes %}
+          <div class="search">
+            {% icon "search" %}
+            <label class="visually-hidden" for="pattern-search">{% translate "Search indices" %}</label>
+            <input type="search" id="pattern-search" placeholder="{% translate 'Search indices' %}">
+          </div>
+          <div class="form__actions">
+            {% translate "Save" as l_save %}{% translate "Cancel" as l_cancel %}
+            {% include "components/button.html" with label=l_save type="submit" %}
+            {% include "components/button.html" with label=l_cancel variant="ghost" %}
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="pattern" id="dropzone" aria-labelledby="dropzone-title">
+      <h2 id="dropzone-title">{% translate "File drop zone" %}</h2>
+      <p>{% translate "A real file input inside a large target. Without JavaScript it is a plain file input; with it, files can be dropped and the chosen file is shown." %}</p>
+      <div class="pattern__demo">
+        {% translate "Text file (.txt or .csv), up to 50 MB" as hint_file %}
+        {% include "components/dropzone.html" with field=form.station_file hint=hint_file %}
+      </div>
+    </section>
+
+    <section class="pattern" id="alerts" aria-labelledby="alerts-title">
+      <h2 id="alerts-title">{% translate "Alerts" %}</h2>
+      {% translate "Quality control finished" as t_success %}{% translate "The data passed every check. You can calculate the indices." as m_success %}
+      {% translate "Base period is short" as t_warning %}{% translate "The base period has fewer than 30 years, so percentile thresholds are less reliable." as m_warning %}
+      {% translate "The file could not be read" as t_error %}{% translate "Line 1204 has 3 values; each line needs year, month, day, precipitation, maximum and minimum temperature." as m_error %}
+      {% translate "Results are kept for 7 days." as m_info %}{% translate "Read more" as a_info %}
+      <div class="stack">
+        {% include "components/alert.html" with kind="info" message=m_info action_label=a_info action_href="#alerts" %}
+        {% include "components/alert.html" with kind="success" title=t_success message=m_success dismissible=True %}
+        {% include "components/alert.html" with kind="warning" title=t_warning message=m_warning %}
+        {% include "components/alert.html" with kind="error" title=t_error message=m_error %}
+      </div>
+    </section>
+
+    <section class="pattern" id="overlays" aria-labelledby="overlays-title">
+      <h2 id="overlays-title">{% translate "Toasts and dialogs" %}</h2>
+      <p>{% translate "Toasts confirm something that happened in the background and disappear on their own; errors stay until dismissed. Dialogs ask for a decision and keep focus inside until closed." %}</p>
+      <div class="pattern__demo cluster">
+        <button type="button" class="button button--secondary" data-toast-demo="success" data-message="{% translate 'Station file uploaded.' %}">{% translate "Show a toast" %}</button>
+        <button type="button" class="button button--secondary" data-toast-demo="error" data-message="{% translate 'The worker stopped. Try again.' %}">{% translate "Show an error toast" %}</button>
+        <button type="button" class="button button--danger" data-dialog-open="pattern-dialog">{% translate "Delete run" %}</button>
+      </div>
+      {% translate "Delete this run?" as d_title %}{% translate "The uploaded file and all results will be deleted. This cannot be undone." as d_text %}{% translate "Delete" as d_confirm %}
+      {% include "components/dialog.html" with id="pattern-dialog" title=d_title text=d_text confirm_label=d_confirm confirm_variant="danger" %}
+    </section>
+
+    <section class="pattern" id="cards" aria-labelledby="cards-title">
+      <h2 id="cards-title">{% translate "Cards" %}</h2>
+      {% translate "TXx: hottest day" as c1_title %}{% translate "Annual maximum of daily maximum temperature." as c1_text %}{% translate "+0.21 °C per decade" as c1_badge %}
+      {% translate "Batch" as c2_title %}{% translate "Process many stations in one run." as c2_text %}
+      {% translate "Gridded" as c3_title %}{% translate "Indices on netCDF grids, on your own computer." as c3_text %}{% translate "Available soon" as soon %}
+      <div class="grid">
+        {% include "components/card.html" with title=c1_title text=c1_text icon="thermometer" badge_label=c1_badge badge_kind="info" %}
+        {% include "components/card.html" with title=c2_title text=c2_text icon="layers" href="#cards" %}
+        {% include "components/card.html" with title=c3_title text=c3_text icon="grid" muted=True badge_label=soon %}
+      </div>
+    </section>
+
+    <section class="pattern" id="data" aria-labelledby="data-title">
+      <h2 id="data-title">{% translate "Badges, statistics, summaries" %}</h2>
+      {% translate "Passed" as b1 %}{% translate "3 outliers" as b2 %}{% translate "12 duplicates" as b3 %}{% translate "Not calculated" as b4 %}
+      {% translate "Days missing" as s1_l %}{% translate "1.2%" as s1_v %}{% translate "345 of 29,220" as s1_n %}
+      {% translate "Trend" as s2_l %}{% translate "+0.21 °C" as s2_v %}{% translate "per decade, 1936 to 2015" as s2_n %}
+      <div class="pattern__demo stack">
+        <div class="cluster">
+          {% include "components/badge.html" with label=b1 kind="success" icon="check" %}
+          {% include "components/badge.html" with label=b2 kind="warning" icon="warning" %}
+          {% include "components/badge.html" with label=b3 kind="danger" icon="error" %}
+          {% include "components/badge.html" with label=b4 icon="" %}
+        </div>
+        <div class="grid">
+          {% include "components/stat.html" with label=s1_l value=s1_v note=s1_n %}
+          {% include "components/stat.html" with label=s2_l value=s2_v note=s2_n %}
+        </div>
+        {% include "components/summary_list.html" with items=summary_items %}
+      </div>
+    </section>
+
+    <section class="pattern" id="tables" aria-labelledby="tables-title">
+      <h2 id="tables-title">{% translate "Tables" %}</h2>
+      {% translate "Annual indices, Sydney Observatory Hill" as t_caption %}{% translate "Empty table" as t_empty_caption %}{% translate "No index values for this period." as t_empty %}
+      <div class="stack">
+        {% include "components/table.html" with caption=t_caption columns=table_columns rows=table_rows %}
+        {% include "components/table.html" with caption=t_empty_caption columns=table_columns rows=None empty=t_empty %}
+      </div>
+    </section>
+
+    <section class="pattern" id="tabs" aria-labelledby="tabs-title">
+      <h2 id="tabs-title">{% translate "Tabs" %}</h2>
+      {% translate "Index views" as tabs_label %}
+      {% include "components/tabs.html" with label=tabs_label tabs=tab_items %}
+    </section>
+
+    <section class="pattern" id="steps" aria-labelledby="steps-title">
+      <h2 id="steps-title">{% translate "Step indicator" %}</h2>
+      <p>{% translate "Shown under the header during the single-station flow. Completed steps link back. On a narrow screen only the current step is named." %}</p>
+      <div class="stack">
+        {% include "components/steps.html" with steps=steps_first %}
+        {% include "components/steps.html" with steps=steps_middle %}
+        {% include "components/steps.html" with steps=steps_last %}
+      </div>
+    </section>
+
+    <section class="pattern" id="progress" aria-labelledby="progress-title">
+      <h2 id="progress-title">{% translate "Progress" %}</h2>
+      {% translate "Calculating indices" as p_label %}{% translate "Thresholds: about 20 seconds left" as p_note %}{% translate "Waiting for a worker" as p_label2 %}{% translate "Your run is next in the queue." as p_note2 %}{% translate "Run stages" as st_label %}
+      <div class="pattern__demo stack">
+        {% include "components/progress.html" with id="pattern-progress" label=p_label value=45 note=p_note %}
+        {% include "components/progress.html" with id="pattern-progress-2" label=p_label2 value=None note=p_note2 %}
+        <div class="grid">
+          {% include "components/stages.html" with label=st_label stages=stages %}
+          {% include "components/stages.html" with label=st_label stages=stages_failed %}
+        </div>
+      </div>
+    </section>
+
+    <section class="pattern" id="loading" aria-labelledby="loading-title">
+      <h2 id="loading-title">{% translate "Loading and empty states" %}</h2>
+      {% translate "No runs yet" as e_title %}{% translate "Runs you start appear here while they are kept." as e_text %}{% translate "Start a run" as e_action %}
+      <div class="grid grid--wide">
+        <div class="pattern__demo">{% include "components/skeleton.html" with lines=4 %}</div>
+        <div class="pattern__demo">{% include "components/skeleton.html" with chart_block=True height="8rem" lines=2 %}</div>
+      </div>
+      <div style="margin-block-start: var(--space-5)">
+        {% include "components/empty_state.html" with icon="folder" title=e_title text=e_text action_label=e_action action_href="#loading" %}
+      </div>
+    </section>
+
+    <section class="pattern" id="help" aria-labelledby="help-title">
+      <h2 id="help-title">{% translate "Help in place" %}</h2>
+      {% translate "What is a base period?" as h_summary %}{% translate "The years used to calculate percentile thresholds, usually 1961 to 1990 or 1981 to 2010. The station needs enough data in those years." as h_text %}
+      {% include "components/disclosure.html" with summary=h_summary text=h_text %}
+    </section>
+
+    <section class="pattern" id="charts" aria-labelledby="charts-title">
+      <h2 id="charts-title">{% translate "Chart frame" %}</h2>
+      <p>{% translate "The chart scripts (#75) draw into the plot area; until then it shows a placeholder. Every chart has a text summary, a legend, a table view and a CSV download." %}</p>
+      {% translate "TXx, hottest day of the year" as ch_title %}{% translate "Rising by 0.21 °C per decade since 1936 (significant at 5%). Highest 45.8 °C in 2013." as ch_summary %}
+      {% include "components/chart_frame.html" with id="pattern-chart" title=ch_title summary=ch_summary legend=chart_legend csv_href="#charts" table_template="core/patterns_table.html" %}
+    </section>
+  </div>
+</div>
+{% endblock %}

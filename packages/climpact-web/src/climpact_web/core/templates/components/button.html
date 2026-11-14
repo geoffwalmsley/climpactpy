@@ -1,0 +1,8 @@
+{% load ui %}{% comment %}
+Button, or a link styled as one when href is given. Parameters: label, variant
+("primary" default, "secondary", "ghost", "danger"), size ("lg", "sm"), icon (before the
+label), icon_end (after it), icon_only (label read by screen readers only), full_width, href,
+type ("button" default; "submit" for forms), name, value, id, disabled, busy (spinner and
+aria-busy while a request runs), extra_class.
+{% endcomment %}
+{% if href and not disabled %}<a href="{{ href }}"{% else %}<button type="{{ type|default:'button' }}"{% if name %} name="{{ name }}"{% endif %}{% if value %} value="{{ value }}"{% endif %}{% if disabled %} disabled{% endif %}{% endif %}{% if id %} id="{{ id }}"{% endif %} class="button{% if variant and variant != 'primary' %} button--{{ variant }}{% endif %}{% if size %} button--{{ size }}{% endif %}{% if icon_only %} button--icon{% endif %}{% if full_width %} button--block{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}"{% if busy %} aria-busy="true"{% endif %}>{% if icon %}{% icon icon %}{% endif %}{% if icon_only %}<span class="visually-hidden">{{ label }}</span>{% else %}<span>{{ label }}</span>{% endif %}{% if icon_end %}{% icon icon_end "" "icon--flip" %}{% endif %}{% if href and not disabled %}</a>{% else %}</button>{% endif %}

@@ -15,6 +15,7 @@ TEMPLATES = sorted(PACKAGE.rglob("templates/**/*.html"))
 # Everything that is not visible text: translation blocks, tags, variables, comments,
 # HTML tags and entities, and the content of <code> elements (names, not prose).
 NOT_TEXT = [
+    r"\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}",
     r"\{%\s*blocktranslate.*?\{%\s*endblocktranslate\s*%\}",
     r"\{%.*?%\}",
     r"\{\{.*?\}\}",
@@ -33,6 +34,20 @@ def untranslated_text(source: str) -> str:
     return source.strip()
 
 
+# Attributes whose values people read (screen readers, tooltips, placeholders).
+READ_ATTRIBUTES = re.compile(r'\b(aria-label|title|placeholder|alt|data-message)="([^"]*)"')
+
+
+def untranslated_attributes(source: str) -> list[str]:
+    """Readable attribute values written as plain text instead of a translation tag or a
+    variable (``{% translate %}`` inside the attribute, or ``{{ label }}``)."""
+    return [
+        f"{name}={value!r}"
+        for name, value in READ_ATTRIBUTES.findall(source)
+        if value.strip() and "{%" not in value and "{{" not in value
+    ]
+
+
 def test_templates_found():
     assert any(p.name == "base.html" for p in TEMPLATES)
 
@@ -40,6 +55,13 @@ def test_templates_found():
 @pytest.mark.parametrize("template", TEMPLATES, ids=lambda p: p.name)
 def test_template_text_is_marked_for_translation(template):
     assert untranslated_text(template.read_text()) == ""
+    assert untranslated_attributes(template.read_text()) == []
+
+
+def test_untranslated_attributes_are_caught():
+    assert untranslated_attributes('<button aria-label="Close">') == ["aria-label='Close'"]
+    assert untranslated_attributes("<a title=\"{% translate 'Help' %}\">") == []
+    assert untranslated_text("{% comment %}Parameters: label{% endcomment %}") == ""
 
 
 def test_locale_middleware():

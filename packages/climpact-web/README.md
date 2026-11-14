@@ -4,7 +4,10 @@ The web front end for [climpactpy](https://github.com/geoffwalmsley/climpactpy),
 port of Climpact: a Django + htmx app. It depends on the core package (`climpactpy`,
 imported as `climpact`); the core never imports it.
 
-Only the skeleton exists so far; the screens are tracked under epic #11.
+The skeleton, the design system and the landing page exist so far; the screens are
+tracked under epic #11. With `CLIMPACT_WEB_DEBUG=true` (or
+`CLIMPACT_WEB_PATTERN_LIBRARY=true`) the pattern library at `/patterns/` shows every UI
+component.
 
 ## Running it on your computer
 

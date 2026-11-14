@@ -1,0 +1,57 @@
+/*
+ * climpact-web dark theme tokens (#71). Loaded from base.html with
+ * media="(prefers-color-scheme: dark)"; the theme toggle (ui.js) switches the media to
+ * "all" (dark) or "not all" (light). Only token values here, so there is one copy of each.
+ */
+:root {
+  color-scheme: dark;
+  --color-page: #0d1218;
+  --color-surface: #151c24;
+  --color-surface-sunken: #0a0e13;
+  --color-text: #e5ebf1;
+  --color-text-muted: #a3afbb;
+  --color-border: #2b3540;
+  --color-border-strong: #7a8794;
+  --color-accent: #6db3f2;
+  --color-accent-hover: #96c8f6;
+  --color-accent-soft: #132a40;
+  --color-accent-contrast: #08111b;
+  --color-focus: #8ab4f8;
+  --color-success: #5cc97e;
+  --color-success-soft: #10291a;
+  --color-warning: #e9b04a;
+  --color-warning-soft: #2e2410;
+  --color-danger: #ff8c82;
+  --color-danger-soft: #351513;
+  --color-danger-contrast: #1a0806;
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.6);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --chart-tmax: #e66767;
+  --chart-tmin: #3987e5;
+  --chart-prcp: #199e70;
+  --chart-trend: #e5ebf1;
+  --chart-trend-band: #1c3a5c;
+  --chart-flag: #e5ebf1;
+  --chart-grid: #26303a;
+  --chart-axis: #7a8794;
+  --chart-seq-1: #0d366b;
+  --chart-seq-2: #1c5cab;
+  --chart-seq-3: #3987e5;
+  --chart-seq-4: #86b6ef;
+  --chart-seq-5: #cde2fb;
+  --chart-div-1: #5598e7;
+  --chart-div-2: #2f6bb8;
+  --chart-div-3: #1d3b60;
+  --chart-div-4: #3a4048;
+  --chart-div-5: #6b2a2a;
+  --chart-div-6: #c94646;
+  --chart-div-7: #f08a84;
+}

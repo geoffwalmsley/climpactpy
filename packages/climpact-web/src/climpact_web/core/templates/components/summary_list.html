@@ -1,0 +1,4 @@
+{# Key and value pairs (station metadata, run parameters). Parameter: items, a list of (term, value). #}
+<dl class="summary-list">
+  {% for term, value in items %}<dt>{{ term }}</dt><dd>{{ value }}</dd>{% endfor %}
+</dl>

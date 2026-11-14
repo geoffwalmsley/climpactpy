@@ -1,0 +1,85 @@
+{
+  "about": "climpact-web chart colours, generated from the --chart-* tokens in css/main.css and css/theme-dark.css by climpact_web.core.tokens. Categorical colours are assigned in this fixed order, never cycled.",
+  "light": {
+    "categorical": [
+      "#2a78d6",
+      "#eb6834",
+      "#1baf7a",
+      "#eda100",
+      "#e87ba4",
+      "#008300",
+      "#6250d6",
+      "#e34948"
+    ],
+    "roles": {
+      "tmax": "#e34948",
+      "tmin": "#2a78d6",
+      "prcp": "#14936a",
+      "trend": "#16202b",
+      "trend-band": "#cde2fb",
+      "flag": "#16202b",
+      "grid": "#e3e7eb",
+      "axis": "#78838f"
+    },
+    "sequential": [
+      "#cde2fb",
+      "#86b6ef",
+      "#3987e5",
+      "#1c5cab",
+      "#0d366b"
+    ],
+    "diverging": [
+      "#184f95",
+      "#5598e7",
+      "#b7d3f6",
+      "#ebecec",
+      "#f4b3ab",
+      "#e34948",
+      "#a3262a"
+    ],
+    "surface": "#ffffff",
+    "text": "#16202b",
+    "text_muted": "#4d5966"
+  },
+  "dark": {
+    "categorical": [
+      "#3987e5",
+      "#d95926",
+      "#199e70",
+      "#c98500",
+      "#d55181",
+      "#008300",
+      "#9085e9",
+      "#e66767"
+    ],
+    "roles": {
+      "tmax": "#e66767",
+      "tmin": "#3987e5",
+      "prcp": "#199e70",
+      "trend": "#e5ebf1",
+      "trend-band": "#1c3a5c",
+      "flag": "#e5ebf1",
+      "grid": "#26303a",
+      "axis": "#7a8794"
+    },
+    "sequential": [
+      "#0d366b",
+      "#1c5cab",
+      "#3987e5",
+      "#86b6ef",
+      "#cde2fb"
+    ],
+    "diverging": [
+      "#5598e7",
+      "#2f6bb8",
+      "#1d3b60",
+      "#3a4048",
+      "#6b2a2a",
+      "#c94646",
+      "#f08a84"
+    ],
+    "surface": "#151c24",
+    "text": "#e5ebf1",
+    "text_muted": "#a3afbb"
+  }
+}

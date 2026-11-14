@@ -1,7 +1,7 @@
 """Download GHCN-Daily stations and convert them to Climpact's station input format.
 
-    .venv/bin/python reference/fetch_ghcn.py              # every station in stations.csv
-    .venv/bin/python reference/fetch_ghcn.py minneapolis  # selected runs only
+    uv run python reference/fetch_ghcn.py              # every station in stations.csv
+    uv run python reference/fetch_ghcn.py minneapolis  # selected runs only
 
 Source: NOAA NCEI GHCN-Daily, one CSV per station (Menne et al. 2012, doi:10.7289/V5D21VHZ):
 https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/<ID>.csv

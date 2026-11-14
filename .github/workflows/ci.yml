@@ -18,24 +18,27 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
         with:
+          version: "0.13.8"
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: pip
+      - name: uv.lock is up to date
+        run: uv lock --check
       - name: Install the core package only
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e "packages/climpact[dev]"
+        # The climpactpy member with its own dev group, not the workspace root's group
+        # (which adds climpact-web)
+        run: uv sync --locked --package climpactpy
       - name: Lint
         run: |
-          ruff check .
-          ruff format --check .
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
       - name: Core does not import climpact_web
         run: |
-          python -c "import importlib.util, sys; sys.exit(importlib.util.find_spec('climpact_web') is not None)"
+          uv run --no-sync python -c "import importlib.util, sys; sys.exit(importlib.util.find_spec('climpact_web') is not None)"
           ! grep -rnE "^\s*(import|from)\s+climpact_web\b" packages/climpact
       - name: Test
-        run: pytest packages/climpact
+        run: uv run --no-sync pytest packages/climpact
 
   web:
     # Both packages installed together, as in development; runs the web package's tests.
@@ -46,30 +49,29 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
         with:
+          version: "0.13.8"
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: pip
       - name: Install both packages
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
+        run: uv sync --locked
       - name: Test
         run: >-
-          pytest packages/climpact-web
+          uv run --no-sync pytest packages/climpact-web
           --ignore=packages/climpact-web/tests/test_page_budget.py
           --ignore=packages/climpact-web/tests/test_accessibility.py
       - name: Page size budget
         # The low-bandwidth budget (#82): every page type with what it links, gzipped, and
         # each static file; fails over budget and prints the sizes (TECHNICAL.md, "Size budget").
-        run: pytest packages/climpact-web/tests/test_page_budget.py
+        run: uv run --no-sync pytest packages/climpact-web/tests/test_page_budget.py
       - name: Django checks
         env:
           CLIMPACT_WEB_DATA_DIR: ${{ runner.temp }}/climpact-web
         run: |
           mkdir -p "$CLIMPACT_WEB_DATA_DIR"
-          climpact-web manage check
-          climpact-web manage makemigrations --check --dry-run
+          uv run --no-sync climpact-web manage check
+          uv run --no-sync climpact-web manage makemigrations --check --dry-run
 
   web-accessibility:
     # The accessibility checks (#83): axe-core, keyboard, reflow, forced-colours,
@@ -81,14 +83,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
         with:
+          version: "0.13.8"
+          enable-cache: true
           python-version: "3.12"
-          cache: pip
       - name: Install both packages
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
+        run: uv sync --locked
       - name: Find Chrome
         run: |
           echo "CHROME=$(which google-chrome)" >> "$GITHUB_ENV"
@@ -97,7 +98,7 @@ jobs:
         env:
           CLIMPACT_A11Y_REQUIRE_CHROME: "1"
           CLIMPACT_A11Y_REPORT: ${{ runner.temp }}/accessibility
-        run: pytest packages/climpact-web/tests/test_accessibility.py -rs
+        run: uv run --no-sync pytest packages/climpact-web/tests/test_accessibility.py -rs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -133,14 +134,16 @@ jobs:
       DATABASE_URL: postgres://climpact:climpact@localhost:5432/climpact
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
         with:
+          version: "0.13.8"
+          enable-cache: true
           python-version: "3.12"
-          cache: pip
       - name: Install both packages with the postgres extra
+        # The web member and its dependencies (the core), without any dev group
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e "packages/climpact" -e "packages/climpact-web[postgres]"
+          uv sync --locked --package climpact-web --extra postgres --no-default-groups
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Migrate, collect static files, health check
         run: |
           climpact-web manage check --deploy

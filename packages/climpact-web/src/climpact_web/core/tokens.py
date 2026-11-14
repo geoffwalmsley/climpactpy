@@ -8,7 +8,7 @@ In the browser, charts read the live values with ``Climpact.chartPalette()`` (ui
 
 Regenerate the JSON after changing a ``--chart-*`` token::
 
-    .venv/bin/python -m climpact_web.core.tokens
+    uv run python -m climpact_web.core.tokens
 """
 
 import json

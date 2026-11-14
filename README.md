@@ -16,34 +16,38 @@ The repository holds two Python packages:
 
 ## Development
 
-Requires Python 3.11+. Work inside one virtual environment with both packages installed
-in editable mode:
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/). The repository is a uv
+workspace: `uv sync` makes one virtual environment (`.venv`) with both packages installed
+in editable mode and the development tools, at the versions in `uv.lock`:
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
-.venv/bin/ruff check . && .venv/bin/ruff format --check .
-.venv/bin/pytest                      # both packages' tests, including R parity
-.venv/bin/pytest packages/climpact    # the core only
+uv sync
+uv run ruff check . && uv run ruff format --check .
+uv run pytest                      # both packages' tests, including R parity
+uv run pytest packages/climpact    # the core only
 ```
+
+Without uv, `pip install -e packages/climpact -e packages/climpact-web` and
+`pip install --group packages/climpact/pyproject.toml:dev --group
+packages/climpact-web/pyproject.toml:dev` (pip 25.1+) also work, but are not locked.
 
 To calculate the indices for a station and write them as Climpact CSV files:
 
 ```sh
-.venv/bin/climpact run station.txt --out outputs --lat -33.86 --lon 151.21
+uv run climpact run station.txt --out outputs --lat -33.86 --lon 151.21
 ```
 
 To process many stations listed in a Climpact R batch metadata file (one process per CPU;
 a station that fails is reported in `outputs/<station>.errors.txt`):
 
 ```sh
-.venv/bin/climpact batch metadata.txt station_files/ --out outputs
+uv run climpact batch metadata.txt station_files/ --out outputs
 ```
 
 To start the web app on this computer (it opens in the browser and works offline):
 
 ```sh
-.venv/bin/climpact-web               # --no-browser, --port, --host, --data-dir
+uv run climpact-web               # --no-browser, --port, --host, --data-dir
 ```
 
 QC, homogeneity and index calculation are separate modules, and other packages can add

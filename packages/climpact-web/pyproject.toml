@@ -29,6 +29,9 @@ climpact-web = "climpact_web.cli:main"
 postgres = [
     "psycopg[binary]>=3.2",
 ]
+
+[dependency-groups]
+# The web package's development tools (PEP 735). The root pyproject.toml's group has these too.
 dev = [
     "pytest>=8",
     "pytest-django>=4.9",
@@ -39,6 +42,9 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/geoffwalmsley/climpactpy"
+
+[tool.uv.sources]
+climpactpy = { workspace = true }
 
 [tool.hatch.version]
 path = "src/climpact_web/__init__.py"

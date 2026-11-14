@@ -16,6 +16,9 @@ pip install ./packages/climpact-web
 climpact-web
 ```
 
+In a checkout of the repository, `uv sync` then `uv run climpact-web` does the same with
+the locked versions.
+
 `climpact-web` keeps its database and results in your user data folder, applies database
 migrations, starts a background worker for the calculations, serves the app on
 http://127.0.0.1:8000/ and opens it in the browser. It needs no network connection.

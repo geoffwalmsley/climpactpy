@@ -34,7 +34,7 @@ def help_topic(topic_id, summary=None, variant="compact"):
     guide = get_guide(topic.guide) if topic.guide else None
     return {
         "topic": topic,
-        "summary": summary or topic.title,
+        "summary": summary or topic.question or topic.title,
         "variant": variant,
         "guide_title": guide.title if guide else None,
     }

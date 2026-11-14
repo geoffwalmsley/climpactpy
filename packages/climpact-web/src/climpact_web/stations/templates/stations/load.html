@@ -6,7 +6,7 @@
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
-    <h1>{% translate "Check the data and describe the station" %}</h1>
+    <h1>{% translate "Load data: check it and describe the station" %}</h1>
     <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check that this is the data you expect, then give the station's details.{% endblocktranslate %}{% endif %}</p>
   </header>
 

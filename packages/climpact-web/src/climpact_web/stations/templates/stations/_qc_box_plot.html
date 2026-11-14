@@ -19,7 +19,7 @@ A box plot figure with its table (#77). Parameter: plot (qc_plots._plot).
             <th scope="col" class="num">{% translate "Upper whisker" %}</th>
             <th scope="col" class="num">{% translate "Beyond the whiskers" %}</th>
           </tr></thead>
-          <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.n }}</td>{% if row.stats %}{% for v in row.stats %}<td class="num">{{ v }}</td>{% endfor %}{% else %}<td class="num muted" colspan="5">{% translate "no data" %}</td>{% endif %}<td class="num">{{ row.outliers }}</td></tr>{% endfor %}</tbody>
+          <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.n|count }}</td>{% if row.stats %}{% for v in row.stats %}<td class="num">{{ v }}</td>{% endfor %}{% else %}<td class="num muted" colspan="5">{% translate "no data" %}</td>{% endif %}<td class="num">{{ row.outliers|count }}</td></tr>{% endfor %}</tbody>
         </table>
       </div>
     </div>

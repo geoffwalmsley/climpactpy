@@ -889,3 +889,62 @@ def test_primary_actions_in_the_first_screen_and_errors_still_focused(chrome, si
         assert c.evaluate("document.activeElement.getClientRects().length") > 0
     finally:
         c.viewport(1280, 900)
+
+
+def test_polish_layout_menu_and_flag_toggle(chrome, site):
+    """#115: the step indicator starts where the header and the content do; below 600px
+    the main links are in a one-row header's "Menu" (a <details>, so it works without
+    JavaScript); the results' action row is one line at 1280px; the daily chart's QC rings
+    are toggled from the legend, by keyboard; the CSV button keeps its place."""
+    c = chrome
+    left = "Math.round(document.querySelector({}).getBoundingClientRect().left)"
+    visible = "document.querySelector({}).checkVisibility()"
+    try:
+        for width in (1280, 390):
+            c.viewport(width, 900)
+            c.navigate(site["station sample loaded"])
+            first_step = c.evaluate(left.format(json.dumps(".steps__item")))
+            assert first_step == c.evaluate(left.format(json.dumps("main h1"))), width
+        # 390px: one row of header, the links behind the menu, then shown by it.
+        assert c.evaluate("document.querySelector('.site-header').offsetHeight") < 90
+        assert not c.evaluate(visible.format(json.dumps(".site-nav")))
+        assert c.evaluate(visible.format(json.dumps(".site-menu > summary")))
+        assert not c.evaluate(visible.format(json.dumps(".site-menu__panel a")))
+        c.evaluate("document.querySelector('.site-menu > summary').focus()")
+        c.press("Enter")
+        assert c.evaluate("document.querySelector('.site-menu').open") is True
+        assert c.evaluate(visible.format(json.dumps(".site-menu__panel a[aria-current=page]")))
+        assert run_axe(c) == []
+        c.viewport(320, 900)
+        assert c.evaluate("document.querySelector('.site-header').offsetHeight") < 90
+
+        c.viewport(1280, 900)
+        c.navigate(site["station results"])
+        tops = c.evaluate(
+            "[...document.querySelectorAll('.results-actions > *')]"
+            ".map(e => Math.round(e.getBoundingClientRect().top + e.offsetHeight / 2))"
+        )
+        assert max(tops) - min(tops) <= 2, tops
+
+        c.navigate(site["station sample loaded"])
+        wait_for(c, "!!document.querySelector('#daily-chart [data-chart-flags]')", 60)
+        csv = "Math.round(document.querySelector('#daily-chart [data-chart-csv]')"
+        csv += ".getBoundingClientRect().top - document.getElementById('daily-chart')"
+        csv += ".getBoundingClientRect().top)"
+        assert c.evaluate(csv) < 40  # in the header's top-right slot, beside the title
+        shown = (
+            "ClimpactCharts.get('daily-chart').plots.every(u => u.series.every("
+            "s => s.label !== {} || s.show === {}))"
+        )
+        label = json.dumps("Flagged by the quality checks")
+        assert c.evaluate(shown.format(label, "true"))
+        c.evaluate("document.querySelector('#daily-chart [data-chart-flags]').focus()")
+        c.press("Enter")
+        toggle = "document.querySelector('#daily-chart [data-chart-flags]')"
+        assert c.evaluate(f"{toggle}.getAttribute('aria-pressed')") == "false"
+        assert c.evaluate(shown.format(label, "false"))
+        c.press(" ")
+        assert c.evaluate(f"{toggle}.getAttribute('aria-pressed')") == "true"
+        assert c.evaluate(shown.format(label, "true"))
+    finally:
+        c.viewport(1280, 900)

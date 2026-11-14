@@ -40,6 +40,19 @@
         {% include "core/language_switcher.html" %}
         {% endif %}
       </div>
+      {% if nav_items %}
+      {# Below 600px the links above are hidden and this menu shows them; <details> needs no JavaScript. #}
+      <details class="site-menu">
+        <summary class="button button--secondary button--sm">{% icon "menu" %}<span class="site-menu__label">{% translate "Menu" %}</span></summary>
+        <nav class="site-menu__panel" aria-label="{% translate 'Main' %}">
+          <ul>
+            {% for item in nav_items %}
+            <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </details>
+      {% endif %}
     </div>
   </header>
   {% endblock %}

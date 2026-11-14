@@ -2929,14 +2929,14 @@ a comment listing its parameters. Labels are passed in already translated
 | `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
-| `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text |
+| `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one |
+| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data: check it and describe the station", "Results and downloads") |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
-| `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)) |
+| `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -2948,6 +2948,22 @@ set: always in local mode, as in R, and in hosted mode only with
 `CLIMPACT_WEB_GRIDDED_HOSTED`. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
 reason. "Try with sample data" is a one-button POST form, since it creates the session's
 analysis.
+
+**Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
+"Menu" `<details class="site-menu">` after the theme toggle holds the same links
+(`base.html`), so the header stays one row (69px at 390px, was 153px) and the menu works
+without JavaScript. Its panel drops over the page below the header. Below 23rem the button
+shows its icon only; "Menu" stays its accessible name.
+
+**Number and date formats (#115).** Counts are shown with the thousands grouped in the
+interface language (`29,220` in English) everywhere: the `count` template filter
+(`core/templatetags/ui.py`, `number_format(..., force_grouping=True)`) on the load
+summary, the QC tables and plots, the index pages and the gridded checks, as the chart
+summaries already did. Dates of data are ISO (`1936-01-01`) everywhere, as the station
+files, the tables and R's outputs: the chart summaries (`charts/data.py`) and the charts'
+read-out and announcements (`charts.js`). Dates of the app's own events (when results are
+deleted, when a job started) stay written out ("14 November 2026"). The output files are
+not affected.
 
 **Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
 sample data" buttons, the four steps, the other ways to run Climpact (batch, gridded in
@@ -2965,9 +2981,9 @@ window, and headings break long words (station names). Only logical properties a
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
 under `forced-colors`.
 
-**Size.** `main.css` and `theme-dark.css` together are about 36 KB (7.6 KB gzipped);
-`ui.js` is about 13 KB. Tests hold them under 36 KB (8.5 KB gzipped) and 14 KB (12 KB
-until #83 added the announcer and focus keeping). The
+**Size.** `main.css` and `theme-dark.css` together are about 37.6 KB (7.9 KB gzipped);
+`ui.js` is about 13 KB. Tests hold them under 38 KB (8.5 KB gzipped; 36 KB until #115
+added the phone menu) and 14 KB (12 KB until #83 added the announcer and focus keeping). The
 issue aimed for under 30 KB of CSS; the full component set, both token sets and the
 comments put it above that. `help.css` (about 5.9 KB, 1.6 KB gzipped) is a separate
 stylesheet loaded on every page, since any screen can show a help topic and `main.css` is
@@ -3411,7 +3427,9 @@ the heatwave note) sit in one "Change the settings" disclosure (`<details id="se
 It starts closed, labelled "Climpact's defaults", and the server opens it when the posted
 form has errors (so the error summary's links reach visible fields) or a setting differs
 from its default (`IndexParamsForm.settings_open`; the files card stays outside and does not
-count). The submit button at the end of the form stays, named "Calculate indices"; the
+count), or when the address asks for it with `?settings=open` (the results page's "Change
+the settings" link, `...indices?settings=open#settings`, #115), so it opens without
+JavaScript after a run with the defaults. The submit button at the end of the form stays, named "Calculate indices"; the
 first is described by the run-time note (#114). Step 3
 opens once step 1 is complete, whether or not the quality checks have finished; step 2's
 "Continue" leads here once they have, and until then an info alert recommends them.
@@ -3474,7 +3492,8 @@ index tables the core did not write (every value missing, the job's `skipped`) w
 likely reason: a variable the file has none of, a base period with too little data for
 the percentiles, or else the missing-data rules. The action row at the top: "Change the settings", "Download everything (zip, *size*)",
 "PDF report (*size*)", a link to the downloads page and the optional step 5, "Compare
-with sector data" (#113 moved it up from the bottom). Below the groups: downloads (the
+with sector data" (#113 moved it up from the bottom). Only the zip is a full-size button;
+the other three are small (`size="sm"`), which keeps the row on one line at 1280px (#115). Below the groups: downloads (the
 zip, the report, the PDF of all plots, the trend, thresholds and missing-value files, each
 with its format and size, and the downloads page) and the settings used. Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
@@ -3485,7 +3504,9 @@ parameters and the language.
 heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
 the trend per decade with its 95% interval and significance, and the highest, lowest and
 mean values with when; the series as an interactive chart (`charts:job_series`, with the
-trend line, table view, CSV, and the run's PNG as the fallback without JavaScript); the
+trend line, table view, CSV, and the run's PNG as the fallback without JavaScript), titled
+with the code and the cleaned definition (`results.chart_title`: "SU: Annual number of days
+when TX > 25 °C", not R's plot subtitle "su: ... 25 degrees_C", #115); the
 standardised anomalies (the tables' `standardised values (using all years)` column) as a
 bar chart where the table has them (`stations:result_anomalies`, an `index` payload from
 `charts.data.series_payload`, labelled "Above the mean" and "Below the mean"); every row
@@ -3751,7 +3772,11 @@ anchor). A screen shows one with
 which renders a `<details>` (no JavaScript): the title as a quiet link-style summary
 (`help-topic--compact`, in `css/help.css`), and when opened the text in a tinted panel
 with "More in the guide: ..." linking to the section. `variant="block"` gives the bordered
-`disclosure` instead, `summary="..."` replaces the title. An unknown id raises
+`disclosure` instead, `summary="..."` replaces the title. A topic can also have a
+`question`, which the in-place link says instead of the title when the title would repeat or
+contradict the heading it sits under (#115): the QC checks ("What counts as too large?"
+under "Values too large"), the missing days, the daily series. The index page asks "How is
+SU defined?" (`summary=`). The title stays the topic's name in the list of topics. An unknown id raises
 `UnknownTopic` with `DEBUG` or `HELP_STRICT` (set in the test settings); otherwise it is
 logged and nothing is shown, so a typo cannot break a page in production.
 
@@ -4214,13 +4239,16 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
   shows; a failed fetch replaces it with a message pointing to the CSV.
 - *Daily*: a panel per kind of variable present, sharing the x axis, cursor and zoom:
   temperature (TX and TN lines), DTR, precipitation (bars); flagged values as hollow rings in `--chart-flag`, told apart by
-  shape; missing days as gaps. *Index*: a line (with hollow markers for annual series),
+  shape, small (7px) and at 75% opacity so the series shows through (#115: the Sydney
+  sample has 423); the legend's "Flagged by the quality checks" entry is a toggle button
+  (`aria-pressed`) that hides and shows them on every panel, and in the PNG and SVG
+  exports; while hidden, a click picks the day under the pointer. Missing days as gaps. *Index*: a line (with hollow markers for annual series),
   the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and dry
   (`--chart-2`), as in the static plots.
 - *Zoom and move*: drag across the plot to zoom, double-click to show all; the toolbar
   (zoom in, zoom out, earlier, later, show all) and, on the focused plot, the keyboard
   (`+`/`-`, arrow keys, `0` or Home). The visible range is announced politely
-  ("Showing 31 Mar 1972 to 1 Apr 1977") to screen readers after keyboard or button use.
+  ("Showing 1972-03-31 to 1977-04-01") to screen readers after keyboard or button use.
   Zoom stops at 7 days (daily) or 4 steps.
 - *Read-out*: the hovered date with each value, the event date and the QC checks that
   flagged it, in a line under the plot (hidden from screen readers, which have the table).
@@ -4242,7 +4270,7 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
   checks, flagged}`: the nearest flagged day within 8px (`checks` the QC check keys that
   flagged it), else the day under the pointer; the day is marked. The QC screen's `qc.js`
   uses both.
-- Dates and numbers use the page language (`Intl`); dates are UTC. The plot area is
+- Numbers and month names use the page language (`Intl`); days are ISO dates (#115); dates are UTC. The plot area is
   `dir="ltr"`: time runs left to right in right-to-left languages too, as in printed charts.
 
 **Accessibility.** The figure is labelled by the title and described by the summary; the

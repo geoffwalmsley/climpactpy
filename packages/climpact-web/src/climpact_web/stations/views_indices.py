@@ -155,7 +155,11 @@ def indices(request, analysis_id):
     if analysis.step == Step.QC:
         analysis.advance_to(Step.INDICES)
         analysis.save(update_fields=["step"])
-    return render(request, "stations/indices.html", indices_context(analysis, form, source))
+    context = indices_context(analysis, form, source)
+    # "Change the settings" on the results page asks for the settings open (#115), even
+    # when the last run used the defaults and they would start closed.
+    context["open_settings"] = request.method != "POST" and request.GET.get("settings") == "open"
+    return render(request, "stations/indices.html", context)
 
 
 def queue_indices(request, analysis: StationAnalysis, form: IndexParamsForm) -> Job | None:
@@ -451,6 +455,7 @@ def result(request, analysis_id, key):
         "png_path": source.plot_file(name),
         "png_size": _size(source.station_dir / "plots" / f"{source.station}_{name}.png"),
         "from_batch": source.from_batch and analysis.indices_job is None,
+        "chart_title": results_model.chart_title(card, series),
     }
     if plot is not None:
         context["trend"] = results_model.trend_summary(plot)

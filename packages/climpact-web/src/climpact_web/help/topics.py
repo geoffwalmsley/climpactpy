@@ -40,6 +40,10 @@ class Topic:
     guide: str | None = None  # guide slug
     anchor: str = ""  # heading id in that guide
     kind: str = ""  # the id's family, for the topic list
+    # What the in-place link says, when the title would repeat or contradict the heading
+    # it sits under (#115): a question, as "Why the latitude matters". The title stays the
+    # topic's name in the list of topics.
+    question: str | Promise = ""
 
     @property
     def url(self) -> str:
@@ -54,8 +58,8 @@ class Topic:
         return "topic-" + self.id.replace(".", "-").replace("_", "-").lower()
 
 
-def T(id, title, text, guide=None, anchor=""):  # noqa: N802 (a table of constructors)
-    return Topic(id, title, text, guide, anchor, kind=id.split(".", 1)[0])
+def T(id, title, text, guide=None, anchor="", question=""):  # noqa: N802 (a table of constructors)
+    return Topic(id, title, text, guide, anchor, kind=id.split(".", 1)[0], question=question)
 
 
 KINDS = {
@@ -184,16 +188,18 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "outliers",
+        question=_("What counts as an outlier?"),
     ),
     T(
         "qc.tmaxmin",
-        _("Maximum below minimum"),
+        _("Minimum at or above maximum"),
         _(
             "Days where the minimum temperature is equal to or higher than the maximum. "
             "Usually a typing error or swapped columns."
         ),
         "quality-control",
         "maximum-below-minimum",
+        question=_("Why would the minimum reach the maximum?"),
     ),
     T(
         "qc.toolarge",
@@ -204,6 +210,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "values-too-large",
+        question=_("What counts as too large?"),
     ),
     T(
         "qc.duplicates",
@@ -214,6 +221,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "repeated-dates",
+        question=_("Which of the repeated rows is used?"),
     ),
     T(
         "qc.tx_jumps",
@@ -221,6 +229,7 @@ HAND_WRITTEN = (
         _("Days where the maximum temperature changed by 20 °C or more from the day before."),
         "quality-control",
         "jumps",
+        question=_("What counts as a jump?"),
     ),
     T(
         "qc.tn_jumps",
@@ -228,6 +237,7 @@ HAND_WRITTEN = (
         _("Days where the minimum temperature changed by 20 °C or more from the day before."),
         "quality-control",
         "jumps",
+        question=_("What counts as a jump?"),
     ),
     T(
         "qc.tx_flatline",
@@ -238,6 +248,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "repeated-values",
+        question=_("How many repeats are flagged?"),
     ),
     T(
         "qc.tn_flatline",
@@ -248,6 +259,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "repeated-values",
+        question=_("How many repeats are flagged?"),
     ),
     T(
         "qc.nastatistics",
@@ -258,6 +270,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "missing-days",
+        question=_("When does a year get no index value?"),
     ),
     T(
         "qc.rounding",
@@ -288,6 +301,7 @@ HAND_WRITTEN = (
         ),
         "quality-control",
         "daily-series-and-histograms",
+        question=_("What should I look for in the daily series?"),
     ),
     T(
         "qc.homogeneity",

@@ -203,6 +203,15 @@ def test_station_steps_states():
         navigation.station_steps("nope")
 
 
+def test_count_filter_groups_thousands():
+    """#115: every count is shown the same way, with the thousands grouped."""
+    from climpact_web.core.templatetags.ui import count
+
+    assert count(29220) == "29,220" and count(7) == "7" and count("1234") == "1,234"
+    assert count(1234.0) == "1,234" and count(2.5) == 2.5 and count("n/a") == "n/a"
+    assert count(None) is None
+
+
 def test_steps_component():
     html = render("steps", steps=navigation.station_steps("qc", urls={"upload": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
@@ -239,6 +248,11 @@ def test_landing_page(client):
         "/help/",
         "/jobs/",
     ]
+    # Below 600px a <details> menu (no JavaScript) holds the same links (#115).
+    menu = re.search(r'<details class="site-menu">.*?</details>', html, re.S).group(0)
+    assert re.search(r"<summary[^>]*>.*Menu.*</summary>", menu, re.S)
+    assert re.findall(r'<a href="([^"]+)"', menu) == re.findall(r'href="([^"]+)"', nav)
+    assert 'aria-label="Main"' in menu
 
 
 @override_settings(IS_HOSTED=True, GRIDDED_ENABLED=False)

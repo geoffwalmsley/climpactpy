@@ -28,7 +28,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from django.utils.formats import date_format, number_format
+from django.utils.formats import number_format
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
@@ -218,7 +218,7 @@ def _when(start, index: int) -> str:
     import datetime as dt
 
     day = dt.date.fromisoformat(start) + dt.timedelta(days=index)
-    return date_format(day, "DATE_FORMAT")
+    return day.isoformat()  # as the station files, the tables and R's outputs (#115)
 
 
 def daily_summary(payload: dict) -> str:

@@ -18,9 +18,9 @@ problems, summary, coverage, outputs, form.
   {% if coverage %}
   {% if form.task.value == "indices" and form.thresholds_source.value == "file" %}
   {% elif coverage.days < coverage.min %}
-  <p class="field__warning">{% icon "warning" %}<span>{% blocktranslate with days=coverage.days min=coverage.min %}The data cover {{ days }} days of the base period; at least {{ min }} are needed to calculate the thresholds.{% endblocktranslate %}</span></p>
+  <p class="field__warning">{% icon "warning" %}<span>{% blocktranslate with days=coverage.days|count min=coverage.min|count %}The data cover {{ days }} days of the base period; at least {{ min }} are needed to calculate the thresholds.{% endblocktranslate %}</span></p>
   {% else %}
-  <p class="cluster small">{% icon "check" %}<span>{% blocktranslate with days=coverage.days %}The data cover {{ days }} days of the base period.{% endblocktranslate %}</span></p>
+  <p class="cluster small">{% icon "check" %}<span>{% blocktranslate with days=coverage.days|count %}The data cover {{ days }} days of the base period.{% endblocktranslate %}</span></p>
   {% endif %}
   {% endif %}
   {% if outputs.count and form.task.value != "thresholds" %}

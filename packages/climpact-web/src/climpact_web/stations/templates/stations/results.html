@@ -6,7 +6,7 @@
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
-    <h1>{% translate "Results" %}</h1>
+    <h1>{% translate "Results and downloads" %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_year last=analysis.summary.last_year start=analysis.base_start end=analysis.base_end count counter=total trimmed %}
       {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} index.
     {% plural %}
@@ -21,14 +21,14 @@
 
   <div class="cluster results-actions">
     {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
-    {% include "components/button.html" with label=change_label href=indices_url variant="secondary" icon="sliders" %}
+    {% include "components/button.html" with label=change_label href=indices_url|add:"?settings=open#settings" variant="secondary" size="sm" icon="sliders" %}
     {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download everything (zip, {{ size }}){% endblocktranslate %}
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
     {% if downloads.report %}{% url 'jobs:file' downloads.job.pk downloads.report.path as report_url %}{% blocktranslate with size=downloads.report.size|filesizeformat asvar report_label %}PDF report ({{ size }}){% endblocktranslate %}
-    {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}{% endif %}
+    {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" size="sm" %}{% endif %}
     <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "All downloads" %}</a>
     {% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
-    {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" icon_end="arrow-right" %}
+    {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}
   </div>
 
   <section class="card stack trend-summary" aria-labelledby="trends-title">
@@ -103,7 +103,7 @@
         <p class="index-card__units"><code class="index-code">{{ card.code }}</code>{% if card.units %} {{ card.units }}{% endif %}</p>
         <p class="index-card__definition">{{ card.definition }}</p>
         {% if card.spark %}{% include "stations/_spark.html" %}
-        {% elif card.daily %}<p class="index-card__daily small">{% blocktranslate with days=card.daily.days|floatformat:"0g" high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
+        {% elif card.daily %}<p class="index-card__daily small">{% blocktranslate with days=card.daily.days|count high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
         <p class="index-card__trend">
           {% if card.trend.valid %}
           <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>

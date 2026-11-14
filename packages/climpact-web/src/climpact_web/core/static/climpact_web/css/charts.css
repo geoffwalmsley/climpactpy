@@ -94,3 +94,31 @@
     border-color: CanvasText;
   }
 }
+
+/* The QC flags' legend entry is a toggle (#115): pressed, the rings show. */
+.chart__legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 1.5rem;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chart__legend-toggle:hover {
+  background: var(--color-surface-sunken);
+}
+
+.chart__legend-toggle[aria-pressed="false"] {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.chart__legend-toggle[aria-pressed="false"] .chart__swatch {
+  opacity: 0.4;
+}

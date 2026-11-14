@@ -187,6 +187,18 @@ def test_help_topic_opens_in_place_with_a_guide_link():
     assert 'href="/help/quality-control/#outliers"' in block
 
 
+def test_help_links_under_a_heading_ask_a_question():
+    """#115: a link that would repeat or contradict the heading it sits under asks a
+    question instead; the list of topics keeps the topic's name."""
+    html = render_topic('{% help_topic "qc.toolarge" %}')
+    assert "<span>What counts as too large?</span>" in html
+    assert "Values too large" not in html
+    assert str(get_topic("qc.toolarge").title) == "Values too large"
+    assert str(get_topic("qc.tmaxmin").title) == "Minimum at or above maximum"
+    html = render_topic('{% help_topic "station.latitude" %}')  # a question already
+    assert "<span>Why the latitude matters</span>" in html
+
+
 def test_index_topics_come_from_the_core_definitions():
     topic = get_topic("index.txx")
     assert str(topic.title) == "TXx: Max TX"

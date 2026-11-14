@@ -7,7 +7,7 @@ Parameters: analysis, check, page, selected (an ISO date to mark).
 <div class="qc-table stack stack--sm" id="qc-table-{{ check.key }}" data-qc-table="{{ check.key }}" data-src="{{ table_src }}">
   <div class="table-wrap" role="region" aria-labelledby="qc-table-{{ check.key }}-caption" tabindex="0" data-qc-region>
     <table class="table">
-      <caption id="qc-table-{{ check.key }}-caption">{% blocktranslate with title=check.title first=page.first last=page.last total=check.rows|length trimmed %}{{ title }}: rows {{ first }} to {{ last }} of {{ total }}{% endblocktranslate %}</caption>
+      <caption id="qc-table-{{ check.key }}-caption">{% blocktranslate with title=check.title first=page.first last=page.last total=check.rows|length|count trimmed %}{{ title }}: rows {{ first }} to {{ last }} of {{ total }}{% endblocktranslate %}</caption>
       <thead><tr>
         <th scope="col">{% translate "Date" %}</th>
         {% for label, numeric in check.header %}<th scope="col"{% if numeric %} class="num"{% endif %}>{{ label }}</th>{% endfor %}

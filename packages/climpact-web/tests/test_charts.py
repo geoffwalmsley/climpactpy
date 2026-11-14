@@ -92,6 +92,9 @@ def test_daily_payload_is_columnar_with_gaps(sample_file):
     assert sum(v is None for v in tmax) == 58  # missing days are null: gaps
     assert max(v for v in tmax if v is not None) == 45.8
     assert "29,220 days" in payload["summary"] and "45.8 °C" in payload["summary"]
+    # ISO dates, as the tables and the files (#115), not "Jan. 1, 1936".
+    assert payload["summary"].startswith("1936-01-01 to 2015-12-31, 29,220 days.")
+    assert "45.8 °C on 2013-01-18" in payload["summary"] and "Jan." not in payload["summary"]
 
 
 def test_daily_payload_matches_the_csv_download(client, sample_file):

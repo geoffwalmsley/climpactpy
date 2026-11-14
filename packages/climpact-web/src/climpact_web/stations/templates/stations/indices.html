@@ -40,7 +40,7 @@
       {% include "components/button.html" with label=top_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
     </div>
 
-    <details class="disclosure settings-disclosure" id="settings"{% if form.settings_open %} open{% endif %}>
+    <details class="disclosure settings-disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
       <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="small muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
       <div class="disclosure__body stack stack--lg">
         <section class="card stack" aria-labelledby="plots-title">

@@ -10,7 +10,7 @@ series and the days with data in each year. Parameters from views.summary_contex
     {% translate "Years" as years_label %}
     {% include "components/stat.html" with label=years_label value=year_count note="" %}
     {% translate "Days" as days_label %}{% translate "from the first row to the last" as days_note %}
-    {% include "components/stat.html" with label=days_label value=summary.days note=days_note %}
+    {% include "components/stat.html" with label=days_label value=summary.days|count note=days_note %}
   </div>
 
   <div class="table-wrap" role="region" aria-labelledby="missing-caption" tabindex="0">
@@ -26,8 +26,8 @@ series and the days with data in each year. Parameters from views.summary_contex
         {% for variable in variables %}
         <tr>
           <th scope="row"><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span> {{ variable.label }}</th>
-          <td class="num">{{ variable.present }}</td>
-          <td class="num">{{ variable.missing }}</td>
+          <td class="num">{{ variable.present|count }}</td>
+          <td class="num">{{ variable.missing|count }}</td>
           <td class="num">{{ variable.percent_text }}</td>
         </tr>
         {% endfor %}

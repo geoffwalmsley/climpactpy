@@ -322,7 +322,7 @@ def test_setup_checks_fragment(client):
     html = client.post(
         f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
     ).content.decode()
-    assert "7305 days of the base period" in html and "index files will be written" in html
+    assert "7,305 days of the base period" in html and "index files will be written" in html
     assert client.post(f"/gridded/{run.pk}/checks", setup_data(run)).status_code == 400
 
 

@@ -56,3 +56,57 @@ jobs:
           python -m pip install -e "packages/climpact[dev]" -e "packages/climpact-web[dev]"
       - name: Test
         run: pytest packages/climpact-web
+      - name: Django checks
+        env:
+          CLIMPACT_WEB_DATA_DIR: ${{ runner.temp }}/climpact-web
+        run: |
+          mkdir -p "$CLIMPACT_WEB_DATA_DIR"
+          climpact-web manage check
+          climpact-web manage makemigrations --check --dry-run
+
+  web-postgres:
+    # Hosted mode against a real Postgres (a service container): the settings read
+    # DATABASE_URL, migrations apply and the health check reaches the database.
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: climpact
+          POSTGRES_PASSWORD: climpact
+          POSTGRES_DB: climpact
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U climpact"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CLIMPACT_WEB_MODE: hosted
+      CLIMPACT_WEB_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789abcdef
+      CLIMPACT_WEB_ALLOWED_HOSTS: localhost
+      CLIMPACT_WEB_STATIC_ROOT: ${{ github.workspace }}/staticfiles
+      CLIMPACT_WEB_SSL_REDIRECT: "false"
+      DATABASE_URL: postgres://climpact:climpact@localhost:5432/climpact
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install both packages with the postgres extra
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "packages/climpact" -e "packages/climpact-web[postgres]"
+      - name: Migrate, collect static files, health check
+        run: |
+          climpact-web manage check --deploy
+          climpact-web manage migrate --no-input
+          climpact-web manage collectstatic --no-input
+          climpact-web manage shell -c "
+          from django.test import Client
+          r = Client().get('/healthz', HTTP_HOST='localhost')
+          print(r.status_code, r.json())
+          assert r.status_code == 200 and r.json()['database'] == 'ok'
+          "

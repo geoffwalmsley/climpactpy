@@ -1,0 +1,91 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-13 23:55+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: core/templates/404.html:3 core/templates/404.html:5
+msgid "Page not found"
+msgstr ""
+
+#: core/templates/404.html:6
+msgid "There is no page at this address."
+msgstr ""
+
+#: core/templates/404.html:6
+msgid "Go to the start page"
+msgstr ""
+
+#: core/templates/413.html:3 core/templates/413.html:5
+msgid "File too large"
+msgstr ""
+
+#: core/templates/413.html:6
+#, python-format
+msgid "Uploads can be at most %(max_upload_mb)s MB."
+msgstr ""
+
+#: core/templates/500.html:6 core/templates/500.html:9
+msgid "Something went wrong"
+msgstr ""
+
+#: core/templates/500.html:10
+msgid "The server could not finish this request. Please try again."
+msgstr ""
+
+#: core/templates/base.html:8 core/templates/base.html:18
+#: core/templates/core/home.html:5
+msgid "Climpact"
+msgstr ""
+
+#: core/templates/base.html:14
+msgid "Skip to main content"
+msgstr ""
+
+#: core/templates/base.html:19
+msgid "Main"
+msgstr ""
+
+#: core/templates/base.html:42
+#, python-format
+msgid "Climpact web, version %(version)s"
+msgstr ""
+
+#: core/templates/core/home.html:6
+msgid ""
+"Calculate indices of climate extremes from daily station data: check the "
+"data quality, calculate the indices and their trends, and download the "
+"results."
+msgstr ""
+
+#: core/templates/core/home.html:10
+msgid ""
+"The web app is being built. The calculations are available now from the "
+"<code>climpact</code> command line."
+msgstr ""
+
+#: core/templates/core/language_switcher.html:5
+msgid "Language"
+msgstr ""
+
+#: core/templates/core/language_switcher.html:11
+msgid "Change"
+msgstr ""
+
+#: settings.py:145
+msgid "English"
+msgstr ""

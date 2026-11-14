@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<section class="stack">
+  <h1>{% translate "Climpact" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Calculate indices of climate extremes from daily station data: check the data quality,
+    calculate the indices and their trends, and download the results.
+  {% endblocktranslate %}</p>
+  <p>{% blocktranslate trimmed %}
+    The web app is being built. The calculations are available now from the
+    <code>climpact</code> command line.
+  {% endblocktranslate %}</p>
+</section>
+{% endblock %}

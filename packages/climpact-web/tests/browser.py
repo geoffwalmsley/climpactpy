@@ -19,6 +19,11 @@ import time
 import urllib.request
 from pathlib import Path
 
+try:
+    import websocket  # websocket-client, a dev dependency
+except ImportError:  # the tests that need a browser skip (test_accessibility.py)
+    websocket = None
+
 CANDIDATES = (
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
@@ -55,8 +60,6 @@ class Chrome:
     """One headless Chrome with one page, driven over the DevTools protocol."""
 
     def __init__(self, executable: str, width: int = 1280, height: int = 900):
-        import websocket  # websocket-client, a dev dependency
-
         self.profile = tempfile.mkdtemp(prefix="climpact-a11y-chrome-")
         self.proc = subprocess.Popen(
             [
@@ -78,7 +81,7 @@ class Chrome:
                 "about:blank",
             ],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=self._log(),
         )
         port_file = Path(self.profile) / "DevToolsActivePort"
         deadline = time.monotonic() + 30
@@ -100,14 +103,31 @@ class Chrome:
             self.send(f"{domain}.enable")
         self.viewport(width, height)
 
+    @staticmethod
+    def _log():
+        """Chrome's own messages: to the file ``CLIMPACT_A11Y_CHROME_LOG`` names, if any."""
+        path = os.environ.get("CLIMPACT_A11Y_CHROME_LOG")
+        return open(path, "ab") if path else subprocess.DEVNULL  # noqa: SIM115
+
     # ---- the protocol ------------------------------------------------------------------
 
-    def send(self, method: str, **params):
-        """Call a DevTools method and return its result; events seen meanwhile are kept."""
+    def send(self, method: str, timeout: float = 120, **params):
+        """Call a DevTools method and return its result; events seen meanwhile are kept.
+        Fails after ``timeout`` seconds without the answer, even while events arrive."""
         msg_id = next(self.ids)
         self.ws.send(json.dumps({"id": msg_id, "method": method, "params": params}))
+        deadline = time.monotonic() + timeout
         while True:
-            message = json.loads(self.ws.recv())
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise DevToolsError(f"{method}: no answer from Chrome in {timeout:.0f} s")
+            self.ws.settimeout(min(60, left))
+            try:
+                message = json.loads(self.ws.recv())
+            except websocket.WebSocketTimeoutException:
+                continue
+            finally:
+                self.ws.settimeout(60)
             if message.get("id") == msg_id:
                 if "error" in message:
                     raise DevToolsError(f"{method}: {message['error']}")

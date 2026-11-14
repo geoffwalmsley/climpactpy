@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page) and [Help](#help)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages) and [Help](#help)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2512,7 +2512,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
-(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded), #82 (size budget) and #83
+(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget) and #83
 (accessibility).
 
 ### Layout
@@ -2521,17 +2521,18 @@ imports `climpact_web`. This section describes the skeleton (#69) and the design
 packages/climpact-web/src/climpact_web/
   settings.py        the one settings module; every value from environment variables
                      (local or hosted mode, see below); reading it has no side effects
-  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, help/ and the core app;
+  urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, gridded/, help/ and the core app;
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
+                     (GRIDDED_MAX_UPLOAD_MB under /gridded/)
   cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
                      the background worker as a child process in local mode
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
                      the context processor `site`
     navigation.py    the app's destinations (header links, landing page) and the
-                     single-station and batch steps (`station_steps`, `batch_steps`) for
-                     the step indicator
+                     single-station, batch and gridded steps (`station_steps`,
+                     `batch_steps`, `gridded_steps`) for the step indicator
     tokens.py        reads the design tokens back from the CSS; writes chart-palette.json
     forms.py         PatternDemoForm, the example form on the pattern library
     templatetags/ui.py  `{% icon %}` and the `times` filter
@@ -2544,10 +2545,12 @@ packages/climpact-web/src/climpact_web/
       css/theme-dark.css  dark values of the colour tokens
       css/patterns.css    pattern library page only
       css/stations.css    the single-station pages (and the batch pages)
-      css/batch.css       the batch pages only
+      css/batch.css       the batch pages (and the gridded file and job cards)
+      css/gridded.css     the gridded pages only: file browser, set-up form, map
       css/help.css        help topics (every page) and the help pages and tour (#81)
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
+      js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
@@ -2590,6 +2593,24 @@ packages/climpact-web/src/climpact_web/
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
     templates/batch/  start.html, check.html, results.html, _options.html,
                      _progress.html, _retention.html
+  gridded/           gridded runs (label `gridded`, see [Gridded pages](#gridded-pages))
+    models.py        GriddedRun: one set of netCDF files, their inspection, the variable
+                     names, the parameters and the thresholds and indices jobs
+    inspection.py    reads the files' metadata (variables, units, calendar, grid, dates),
+                     guesses the variables, checks them as the core reader does, and
+                     `preflight` (the core's `open_grid`) before a run
+    forms.py         PathsForm, UploadForm (step 1), SetupForm (step 2)
+    maps.py          output files, the map of one index at one time step and a cell's
+                     time series, drawn as inline SVG
+    retention.py     purge_expired_gridded, registered with the jobs app's purge
+    views.py, urls.py  /gridded/: start (paths and folder browser), upload, sample,
+                     set-up and its checks (htmx), results, progress, explore (htmx),
+                     map and series CSV, zip of every output, delete
+    sample_data/     climpact.sampledata.gridded.3x4.1991-2010.nc (525 KB), the
+                     reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
+    templates/gridded/  start.html, setup.html, results.html, _chooser.html,
+                     _browser.html, _checks.html, _progress.html, _explore.html,
+                     _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
     indices.py       the index catalogue from the core's climate.indices.csv (display names,
@@ -2608,13 +2629,13 @@ packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
-                     step 1 (test_stations.py), the batch page (test_batch.py) and the help
-                     (test_help.py)
+                     step 1 (test_stations.py), the batch page (test_batch.py), the
+                     gridded pages (test_gridded_web.py) and the help (test_help.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
 worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4
-follow in #77-#79, #90), `batch` (#80), `help` (#81) and planned `gridded` (#85). `core` keeps what every page shares.
+follow in #77-#79, #90), `batch` (#80), `gridded` (#85) and `help` (#81). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2662,6 +2683,8 @@ the variable.
 | `CLIMPACT_WEB_JOB_POLL_SECONDS` | `1` | seconds between a worker's checks for queued jobs |
 | `CLIMPACT_WEB_JOB_STORAGE` | `climpact_web.jobs.storage.LocalJobStorage` | class that manages job folders |
 | `CLIMPACT_WEB_MAX_UPLOAD_MB` | `50` | largest request body, uploads included |
+| `CLIMPACT_WEB_GRIDDED_HOSTED` | `false` | hosted mode: offer gridded runs (`GRIDDED_ENABLED`; always on in local mode) |
+| `CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` | `200` | largest request body under `/gridded/` (netCDF uploads), when gridded runs are offered |
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age; set once the domain is final (#12) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
@@ -2674,9 +2697,11 @@ about xclim redefining its units are silenced (`pint.util` at ERROR).
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
 `UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
-`MAX_UPLOAD_MB`, before the body is read; waitress gets the same limit
-(`max_request_body_size`) for bodies without a length. The default, 50 MB, covers any
-station file; gridded runs read netCDF files from disk in local mode (#85). Uploads over
+`MAX_UPLOAD_MB`, before the body is read (`GRIDDED_MAX_UPLOAD_MB`, default 200 MB, for
+requests under `/gridded/` when gridded runs are offered); waitress gets the larger of the
+two (`max_request_body_size`) for bodies without a length. The default, 50 MB, covers any
+station file; gridded runs read netCDF files in place from paths in local mode, so only
+uploads need the larger limit (#85). Uploads over
 2.5 MB go to a temporary file, not memory (Django's default).
 
 ### Running the web app
@@ -2780,10 +2805,11 @@ a comment listing its parameters. Labels are passed in already translated
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket will add (`gridded:start`; `stations:upload`,
-`stations:sample` (#76), `batch:start` (#80), `help:index` (#81) and `jobs:list` exist). Until a URL exists, the landing page shows that action disabled or
-"Available soon" and the header leaves it out. Gridded is offered only in local mode, as
-in R. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
+URL name each later ticket adds (`stations:upload`,
+`stations:sample` (#76), `batch:start` (#80), `gridded:start` (#85), `help:index` (#81) and `jobs:list` all exist now). Until a URL exists, the landing page shows that action disabled or
+"Available soon" and the header leaves it out. Gridded is offered when `GRIDDED_ENABLED` is
+set: always in local mode, as in R, and in hosted mode only with
+`CLIMPACT_WEB_GRIDDED_HOSTED`. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
 reason. "Try with sample data" is a one-button POST form, since it creates the session's
 analysis.
 
@@ -2795,7 +2821,7 @@ palette and the icons, and is what the user review and the accessibility audit (
 
 **Responsive and right-to-left.** Layouts use flex and grid with `auto-fill` columns, so
 they reflow down to 320px wide and at 200% zoom without horizontal scrolling (checked on
-the landing page, pattern library, station step 1 pages and batch pages in a 320px frame with headless Chrome); wide tables
+the landing page, pattern library, station step 1 pages and batch pages in a 320px frame with headless Chrome; the gridded pages at 375px); wide tables
 scroll inside their own region. Only logical properties are used: a test fails on
 `left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
@@ -2893,9 +2919,11 @@ defaults to 1; each station's own progress goes to `output/stations.json`, see
 [Batch page](#batch-page)), `sector` (`run_sector_correlation` on the station file and index tables
 of a finished `station` job), `gridded-thresholds` and `gridded-indices`
 (`write_grid_thresholds`, `write_grid_indices`; input files are read in place from the
-paths given, local mode). The parameters of each are in the module docstring. The
-batch page (#80) creates batch jobs; the sector and gridded runners are complete and
-tested but no screen creates them yet (#90, #85). The core is imported inside each runner, so the web server never imports
+paths given; `max_values`, `rechunk`, `tmp_dir` (default the job's folder) and
+`copy_to`, a folder the written files are also copied to). The parameters of each are in
+the module docstring. The batch page (#80) creates batch jobs and the gridded pages (#85)
+the gridded ones; the sector runner is complete and tested but no screen creates it yet
+(#90). The core is imported inside each runner, so the web server never imports
 xclim.
 
 **The worker** (`jobs/worker.py`, `JobWorker`) runs one job at a time:
@@ -3250,7 +3278,7 @@ logged and nothing is shown, so a typo cannot break a page in production.
 | Indices (#78) | `index.<short name>` for every short name of `climate.indices.csv` (`index.txx`, `index.rxdday`, `index.hw`, `index.hwEHF`, `index.spi` ...); `index_topic_for_output(name)` maps an output name to its id: `rx3day_ANN` to `index.rxdday`, `TX90-HWN_ANN` to `index.hw`, `3month_spi_MON` to `index.spi`, a custom index such as `TXge40` to `param.custom` |
 | Trends and results (#78, #79) | `trend.sen_slope`, `trend.confidence`, `trend.significance`, `trend.minimum_data`, `trend.seasons`, `results.missing_value`, `results.standardised`, `results.thresholds`, `results.files` |
 | Sector (#90) | `sector.file`, `sector.title`, `sector.y_label`, `sector.detrend`, `sector.correlation`, `sector.regression` |
-| Gridded (#85) | `gridded.files`, `gridded.variables`, `gridded.base_period`, `gridded.thresholds_file`, `gridded.indices`, `gridded.output`, `gridded.institution`, `gridded.workers`, `gridded.max_values` |
+| Gridded (#85, applied) | `gridded.files`, `gridded.variables`, `gridded.base_period`, `gridded.thresholds_file`, `gridded.indices`, `gridded.output`, `gridded.institution`, `gridded.workers`, `gridded.max_values` |
 
 A screen that needs a topic not listed adds it to `HAND_WRITTEN` with a guide anchor that
 exists; the tests below check both.
@@ -3341,6 +3369,116 @@ catalogue covers every short name of `climate.indices.csv` exactly once, with a 
 display name, units and an entry in the indices guide; output-name mapping;
 `index_messages.py` is current; search (full page and htmx fragment); the English fallback
 and a translated guide; the tour's data, targets and labels.
+
+### Gridded pages
+
+The gridded pages (#85) replace the R app's two gridded screens
+(`climpact/modules/griddedStep1UI.R` and `griddedStep1.R`, indices;
+`griddedStep2UI.R` and `griddedStep2.R`, thresholds) with one flow that runs the core's
+`gridded-thresholds` and `gridded-indices` runners as background jobs.
+
+**Where it is offered** (decided 2026-11-14, recorded in #85). On in local mode, as in R.
+Off in hosted mode unless `CLIMPACT_WEB_GRIDDED_HOSTED` is set (large uploads, long jobs
+and storage cost; to be revisited for AWS in #12), with uploads limited to
+`CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` (200 by default). `settings.GRIDDED_ENABLED` holds the
+result: with it off every `/gridded/` URL is 404 and the landing page and header leave
+Gridded out. Paths on the server's disk are only ever accepted in local mode: in hosted
+mode the path field, the folder browser, the thresholds path, the number of cores, the
+temporary folder and "copy the results to a folder" are not offered, and a posted path is
+ignored.
+
+**Flow** (`gridded:start`, `gridded:setup`, `gridded:results`; `navigation.gridded_steps`):
+
+1. `/gridded/`: in local mode, netCDF files by path (one per line, read in place, never
+   copied) with a folder browser. The browser's buttons post the same form
+   (`action=browse:<folder>` or `add:<file>`), so it works without JavaScript; htmx swaps
+   only the chooser. Each path must be absolute, exist, be readable and start with a
+   netCDF-3 or HDF5 signature. Or upload copies (both modes; kept in
+   `<MEDIA_ROOT>/gridded/<id>/input/`). Or "Use the sample grid": `grid_sample`, a 3 x 4
+   cut of R's sample grid, bundled and read in place from the package.
+2. `/gridded/<id>/`: what each file holds, read from its metadata and coordinates only
+   (`inspection.inspect_file`: netCDF4 and cftime, no data): the grid, dates, calendar,
+   latitude and longitude ranges, format and size, and every variable with time, Y and X
+   dimensions (found as the core reader finds them) with its description, units and
+   dimensions. Unsupported calendars (`all_leap`, `julian`), files with no daily grid and
+   unreadable time axes are reported in plain language. Then the set-up form; an htmx
+   panel (`gridded:checks`) re-checks it as it changes: the variables (each in one file,
+   not chosen twice, units the core converts, the same grid and dates), the grid and
+   period, the base period's coverage and the number and names of the index files. On
+   "Start", the form is validated, and the files are opened with the core's `open_grid`
+   (`inspection.preflight`), so a file the core would refuse fails here with its message
+   rather than in the job.
+3. `/gridded/<id>/results`: the jobs (thresholds first, then indices; the worker takes
+   the oldest queued job first) with htmx-polled progress, including "Preparing the input
+   files" while the input is rechunked. When the last job finishes the fragment answers
+   `HX-Refresh` so the map appears. Then each job's files to download (a table with the
+   index, frequency and size), "Download everything (zip)" (`ZIP_STORED`, built in a
+   temporary file), and the explorer.
+
+**Options, against R's screens:**
+
+| R gridded screens | Python |
+| --- | --- |
+| Input files: upload only (`fileInput`, so the files are copied into Shiny's temporary folder) | local mode: paths read in place, with a folder browser; uploads in both modes |
+| Variable names typed in, defaults `precip`, `tmax`, `tmin` | chosen from the files' daily grid variables; guessed from R's defaults, then CMIP and other common names, then units and standard names; checked at once |
+| Two screens: indices, or thresholds | "What to calculate": indices, thresholds file only, or thresholds file then indices (two jobs on the same files; the indices compute their own thresholds, as R's indices screen does) |
+| Thresholds file for the indices (`thresholdFiles`, several allowed) | "Read them from a thresholds file": one file, by path (local) or upload (hosted); refused when the data have a day in its base period, as `check_thresholds_file` (and R) require |
+| Output file name pattern, default `var_daily_climpact.sample_historical_NA_1991-2010.nc` | the same CMIP5 form, checked (six parts, years, `.nc`), default the core's `var_daily_climpactpy_historical_NA_<first>-<last>.nc`; example names shown |
+| Thresholds output file name, default `sample_data.thresholds.1991-2010.nc` | default `<first file's name>.thresholds.<base start>-<base end>.nc`; letters, digits and `._+-` only |
+| Output written to `www/output/<institute ID>_ncdf` (or `_thres`) inside the app | each job's own folder, downloaded from the page; local mode can also copy the files to a chosen folder (`copy_to`) |
+| Institute name and ID, required | the same |
+| Base period, default 1991-2010 | 1971-2000 when the data cover it, else 1991-2010, else the data's first 30 years; fewer than 360 days of it in the data is an error (R stops in the run); with a thresholds file, any overlap with the data is an error |
+| Number of cores, default 1 | default up to 4, one left free; 1 to the number of cores (local mode only) |
+| Indices to calculate, a comma-separated list, empty for all | checkboxes grouped by variable, all ticked; the heatwave, SPI and SPEI indices marked as slow |
+| EHF definition: Perkins and Alexander (PA13) or Nairn and Fawcett (NF13) | NF13 only, stated on the page: `climdex.hwEHF` accepts only NF13 (see [Gridded indices](#gridded-indices)) |
+| Number of data values to process at once (millions), default 10 | the same field; default the core's 5, or less for a small grid, so that it is read in about 20 blocks (`default_max_values`): progress is reported after each block, and a grid of one or two blocks would show none for most of the run |
+| The wrapper script's index parameters (wsdi, csdi, rx, txtn days, base temperatures, rnnmm) are fixed in the screen | editable in a disclosure, defaults `WRAPPER_PARAMS`; ranges as `validate_params` |
+| No rechunking | the core's `--rechunk` (automatic, always, never) and, in local mode, its `--tmp-dir` |
+| A modal warns that the run takes hours; the browser must stay open until "Done" appears | a background job with progress; the page can be closed and opened again from "Your calculations" |
+| Errors in a modal with R's message | the job's error on the page, with "Try again" |
+
+**Explorer.** No map tiles or network services (offline and low bandwidth). The map is an
+inline SVG raster of the grid's cells, north up and west left, in five equal classes over
+the shown values with rounded limits, coloured with the sequential chart tokens
+(`--chart-seq-1` ... `-5`, both themes), missing values in the sunken surface colour;
+the selected cell is outlined. Above 40,000 cells (`MAX_MAP_CELLS`) every n-th row and
+column is drawn and the page says so. Controls (GET form, htmx swaps `gridded:explore` and
+`HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
+which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
+cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
+are the keyboard path) swaps in its time series: a server-drawn SVG line, broken at
+missing values, the placeholder for the interactive chart of #75 (`CHART HOOK` in
+`gridded/_explore.html`). Each has a table (latitudes by longitudes; time and value) and a
+CSV. Values are read straight from the output netCDF (fill values and non-finite values,
+such as R's `-Inf` EHF-HWPS, shown as no value).
+
+**Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
+`source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
+(the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and
+the pre-flight result); `thresholds_job`, `indices_job`. Retention as for batches
+(`gridded/retention.py`): `JOB_RETENTION_DAYS` after the last change unless a job is
+queued or running; only the run's own folder (uploads) is deleted, never a file read in
+place.
+
+**Checked in a browser** (headless Chrome over the DevTools protocol, local mode;
+screenshots in the review folder of #85): Climpact's full sample grid
+(`climpact.sampledata.gridded.1991-2010.nc`, 19 x 24 cells, 38 MB, netCDF-3) chosen by path
+with the folder browser, thresholds then all 88 indices with 4 cores and rechunking forced
+(the "Preparing the input files" stage shows): the thresholds took 4 s and the indices
+2 min 16 s on a laptop; the bundled 3 x 4 sample; an upload of `grid_filled_360day` (two
+files); `grid_stations` thresholds, then `grid_future` indices with that file (and its
+refusal when the base period overlaps the data). The map, cell clicks, the variable,
+time and scale selects, the tables, light and dark themes, and 375px wide pages (no
+horizontal scrolling) were checked.
+
+**Tests** (`test_gridded_web.py`): inspection of the sample, the 360-day reference grid in
+two files, and broken files; the path checks, browser and upload (and the 413 above the
+gridded limit); hosted mode off by default and, when on, uploads without paths; the
+set-up checks and every validation message; the pre-flight; a full run of the sample
+(thresholds, then five indices with `rx_days` 3, copied to a folder) with the map,
+series, CSVs and zip, the CSV values checked against the netCDF; indices of `grid_future`
+with the thresholds file of `grid_stations`, as R's reference run; a failed job; the map
+drawing; ownership and retention.
 
 ## Development
 

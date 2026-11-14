@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Check and set up" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/gridded.css' %}"><script src="{% static 'climpact_web/js/gridded.js' %}" defer></script>{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Check the files and set up the run" %}</h1>
+    <p class="lead">{% blocktranslate count counter=files|length trimmed %}Climpact has read the file below. Nothing has been calculated yet.{% plural %}Climpact has read the {{ counter }} files below. Nothing has been calculated yet.{% endblocktranslate %}</p>
+  </header>
+
+  {% if job_active %}
+  {% url 'gridded:results' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
+  {% translate "This run is being calculated." as active_message %}
+  {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
+  {% endif %}
+
+  <section class="stack" aria-labelledby="files-title">
+    <h2 id="files-title">{% translate "The files" %}</h2>
+    <ul class="batch-list" role="list">
+      {% for file in files %}
+      <li class="batch-item batch-item--{% if file.ok %}ready{% else %}invalid{% endif %}">
+        <div class="batch-item__head">
+          <h3 class="batch-item__name">{{ file.name }}</h3>
+          {% if file.ok %}{% translate "Readable" as label %}{% include "components/badge.html" with label=label kind="success" icon="check" %}
+          {% else %}{% translate "Cannot be used" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
+        </div>
+        {% if local and run.source == "path" %}<p class="batch-item__meta small muted"><code>{{ file.path }}</code></p>{% endif %}
+        {% if file.problem %}<p class="batch-item__error">{{ file.problem }}</p>{% endif %}
+        {% if file.ok %}
+        <dl class="gridded-facts">
+          <div><dt>{% translate "Grid" %}</dt><dd>{% blocktranslate with ny=file.ny nx=file.nx %}{{ ny }} × {{ nx }} cells{% endblocktranslate %}</dd></div>
+          <div><dt>{% translate "Dates" %}</dt><dd>{% blocktranslate with first=file.first last=file.last days=file.days %}{{ first }} to {{ last }} ({{ days }} days){% endblocktranslate %}</dd></div>
+          <div><dt>{% translate "Calendar" %}</dt><dd>{{ file.calendar }}</dd></div>
+          {% if file.y_range %}<div><dt>{% translate "Latitude" %}</dt><dd>{% blocktranslate with lo=file.y_range.0 hi=file.y_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}
+          {% if file.x_range %}<div><dt>{% translate "Longitude" %}</dt><dd>{% blocktranslate with lo=file.x_range.0 hi=file.x_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}
+          <div><dt>{% translate "Format" %}</dt><dd>{% blocktranslate with format=file.format size=file.size|filesizeformat %}{{ format }}, {{ size }}{% endblocktranslate %}</dd></div>
+        </dl>
+        <div class="table-wrap" role="region" aria-labelledby="vars-{{ forloop.counter }}" tabindex="0">
+          <table class="table">
+            <caption id="vars-{{ forloop.counter }}">{% blocktranslate with name=file.name %}Daily grid variables in {{ name }}{% endblocktranslate %}</caption>
+            <thead><tr><th scope="col">{% translate "Variable" %}</th><th scope="col">{% translate "Description" %}</th><th scope="col">{% translate "Units" %}</th><th scope="col">{% translate "Dimensions" %}</th></tr></thead>
+            <tbody>
+              {% for v in file.variables %}
+              <tr><th scope="row"><code>{{ v.name }}</code></th><td>{{ v.long_name|default:v.standard_name }}</td><td>{{ v.units }}</td><td><code>{{ v.dims|join:", " }}</code></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if preflight_error %}
+  <div class="alert alert--error" role="alert" tabindex="-1" data-error-summary>
+    {% icon "error" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% translate "The run cannot start" %}</h2>
+      <p>{{ preflight_error }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'gridded:setup' run.pk %}" class="form stack gridded-setup" novalidate{% if not local %} enctype="multipart/form-data"{% endif %}
+    hx-post="{% url 'gridded:checks' run.pk %}" hx-trigger="change delay:150ms" hx-target="#gridded-checks" hx-swap="outerHTML">
+    {% csrf_token %}
+    {% include "components/form_errors.html" with form=form %}
+
+    <section class="card stack" aria-labelledby="variables-title">
+      <h2 class="card__title" id="variables-title">{% translate "1. Variables" %}</h2>
+      <p class="field__hint">{% translate "Which variable in the files is which. Climpact guessed from their names and units; check them." %}</p>
+      <div class="form__row gridded-variables">
+        {% include "components/field.html" with field=form.tasmax %}
+        {% include "components/field.html" with field=form.tasmin %}
+        {% include "components/field.html" with field=form.pr %}
+      </div>
+      {% include "gridded/_checks.html" %}
+    </section>
+
+    <section class="card stack" aria-labelledby="task-title">
+      <h2 class="card__title" id="task-title">{% translate "2. What to calculate" %}</h2>
+      {% include "components/field.html" with field=form.task %}
+      <ul class="small muted gridded-task-help">
+        <li>{% translate "Indices: one netCDF file per index and frequency (monthly, annual), as Climpact for R writes them." %}</li>
+        <li>{% translate "Thresholds file only: the base-period percentiles of every cell, to calculate indices for other data later, e.g. a future scenario with thresholds from a historical run." %}</li>
+        <li>{% translate "Thresholds file, then indices: both, one after the other." %}</li>
+      </ul>
+      <div class="stack" data-for="source">
+        {% include "components/field.html" with field=form.thresholds_source %}
+        <div data-for="source file" class="stack">
+          {% if local %}{% include "components/field.html" with field=form.thresholds_path %}
+          {% else %}
+          {% blocktranslate asvar thresholds_hint with size=max_upload_mb %}netCDF, up to {{ size }} MB.{% endblocktranslate %}
+          {% include "components/dropzone.html" with field=form.thresholds_upload hint=thresholds_hint %}
+          {% if form.thresholds_uploaded %}<p class="small">{% blocktranslate with name=form.thresholds_uploaded %}Loaded: {{ name }}. Choose another file to replace it.{% endblocktranslate %}</p>{% endif %}
+          {% endif %}
+          <p class="small muted">{% translate "A thresholds file is only for data with no day in its base period (enter that base period below), as in Climpact for R." %}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="base-title">
+      <h2 class="card__title" id="base-title">{% translate "3. Base period" %}</h2>
+      <fieldset class="field-set" aria-describedby="base-period-hint">
+        <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
+        <p class="field__hint" id="base-period-hint">{% translate "The years the percentile thresholds are calculated from. WMO's reference period is 1971 to 2000." %}</p>
+        <div class="form__row">
+          {% include "components/field.html" with field=form.base_start narrow=True %}
+          {% include "components/field.html" with field=form.base_end narrow=True %}
+        </div>
+      </fieldset>
+    </section>
+
+    <section class="card stack" aria-labelledby="output-title">
+      <h2 class="card__title" id="output-title">{% translate "4. Output" %}</h2>
+      <div data-for="indices">{% include "components/field.html" with field=form.template %}</div>
+      <div data-for="thresholds">{% include "components/field.html" with field=form.thresholds_name %}</div>
+      <div class="form__row">
+        {% include "components/field.html" with field=form.institution %}
+        {% include "components/field.html" with field=form.institution_id narrow=True %}
+      </div>
+      {% if form.copy_to %}{% include "components/field.html" with field=form.copy_to %}{% endif %}
+    </section>
+
+    <section class="card stack" aria-labelledby="indices-title" data-for="indices">
+      <h2 class="card__title" id="indices-title">{% translate "5. Indices" %}</h2>
+      <fieldset class="field-set{% if form.indices.errors %} field--error{% endif %}" aria-describedby="indices-hint">
+        <legend>{{ form.indices.label }}</legend>
+        <p class="field__hint" id="indices-hint">{% translate "All are chosen; leave them all to calculate every index, as Climpact for R does when the list is empty. The heatwave, SPI and SPEI indices (marked) take most of the time." %}</p>
+        {% with field=form.indices %}{% include "components/field_errors.html" %}{% endwith %}
+        <div class="cluster" data-check-tools hidden>
+          <button type="button" class="button button--ghost button--sm" data-check-all="indices">{% translate "Choose all" %}</button>
+          <button type="button" class="button button--ghost button--sm" data-check-none="indices">{% translate "Choose none" %}</button>
+        </div>
+        <div class="gridded-indices">
+          {% for group in index_groups %}
+          <fieldset class="field-set gridded-indices__group">
+            <legend class="small">{{ group.label }}</legend>
+            {% for item in group.items %}
+            <label class="check"><input type="checkbox" name="indices" value="{{ item.value }}"{% if item.checked %} checked{% endif %}> <span>{{ item.label }}{% if item.slow %} <span class="badge">{% translate "slow" %}</span>{% endif %}</span></label>
+            {% endfor %}
+          </fieldset>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <details class="disclosure">
+        <summary>{% icon "sliders" %}<span>{% translate "Index parameters" %}</span>{% icon "chevron-down" %}</summary>
+        <div class="disclosure__body stack">
+          <p class="small muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>
+          <div class="gridded-params">
+            {% include "components/field.html" with field=form.wsdi_days narrow=True %}
+            {% include "components/field.html" with field=form.csdi_days narrow=True %}
+            {% include "components/field.html" with field=form.rx_days narrow=True %}
+            {% include "components/field.html" with field=form.txtn_days narrow=True %}
+            {% include "components/field.html" with field=form.hdd_base narrow=True %}
+            {% include "components/field.html" with field=form.cdd_base narrow=True %}
+            {% include "components/field.html" with field=form.gdd_base narrow=True %}
+            {% include "components/field.html" with field=form.rnnmm narrow=True %}
+          </div>
+          <p class="small muted">{% translate "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also lists Perkins and Alexander (2013), but its calculation accepts only Nairn and Fawcett." %}</p>
+        </div>
+      </details>
+    </section>
+
+    <details class="disclosure">
+      <summary>{% icon "sliders" %}<span>{% translate "Advanced: memory, speed and temporary files" %}</span>{% icon "chevron-down" %}</summary>
+      <div class="disclosure__body stack">
+        {% if form.workers %}{% include "components/field.html" with field=form.workers narrow=True %}{% endif %}
+        {% include "components/field.html" with field=form.max_values narrow=True %}
+        {% include "components/field.html" with field=form.rechunk %}
+        {% if form.tmp_dir %}{% include "components/field.html" with field=form.tmp_dir %}{% endif %}
+      </div>
+    </details>
+
+    <div class="form__actions">
+      {% translate "Start the calculation" as run_label %}
+      {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
+    </div>
+    <p class="small muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to it from Your calculations." %}</p>
+  </form>
+
+  {% include "gridded/_retention.html" %}
+  <form method="post" action="{% url 'gridded:delete' run.pk %}" class="cluster">
+    {% csrf_token %}
+    {% translate "Forget this run" as delete_label %}
+    {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
+    <a class="small" href="{% url 'gridded:start' %}">{% translate "Choose other files" %}</a>
+  </form>
+</div>
+{% endblock %}

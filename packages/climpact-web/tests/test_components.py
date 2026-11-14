@@ -231,10 +231,10 @@ def test_landing_page(client):
     assert "/static/climpact_web/js/ui.js" in html
     assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/help/", "/jobs/"]
+    assert re.findall(r'href="([^"]+)"', nav) == ["/station/", "/batch/", "/gridded/", "/help/", "/jobs/"]
 
 
-@override_settings(IS_HOSTED=True)
+@override_settings(IS_HOSTED=True, GRIDDED_ENABLED=False)
 def test_landing_page_hosted_hides_gridded(client):
     html = client.get("/").content.decode()
     assert "Gridded" not in html and "install Climpact on your own computer" in html

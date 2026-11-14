@@ -22,7 +22,7 @@ class Destination:
     label: Promise
     icon: str
     in_nav: bool = True
-    local_only: bool = False  # offered only by the local install (gridded runs, as in R)
+    gridded: bool = False  # offered only when gridded runs are (settings.GRIDDED_ENABLED)
 
     @property
     def url(self) -> str | None:
@@ -30,14 +30,14 @@ class Destination:
 
     @property
     def available(self) -> bool:
-        return not (self.local_only and settings.IS_HOSTED)
+        return not (self.gridded and not settings.GRIDDED_ENABLED)
 
 
 DESTINATIONS = (
     Destination("station", "stations:upload", _("Single station"), "station"),
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
     Destination("batch", "batch:start", _("Batch"), "layers"),
-    Destination("gridded", "gridded:start", _("Gridded"), "grid", local_only=True),
+    Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
     Destination("help", "help:index", _("Help"), "book"),
     Destination("jobs", "jobs:list", _("Your calculations"), "clock"),
 )
@@ -98,6 +98,15 @@ class StepState:
     number: int = 0
 
 
+# The gridded steps (#85): choose the netCDF files, check them and set the parameters, then
+# follow the run and explore the results.
+GRIDDED_STEPS = (
+    Step("files", _("Choose files"), "gridded:start"),
+    Step("setup", _("Check and set up"), "gridded:setup"),
+    Step("results", _("Calculate and explore"), "gridded:results"),
+)
+
+
 # The batch page's steps (#80): load the files, check the stations and choose the options,
 # then follow the run and download the results.
 BATCH_STEPS = (
@@ -116,6 +125,11 @@ def station_steps(current: str, urls: dict[str, str] | None = None) -> list[Step
 def batch_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
     """The batch steps with ``current`` marked, as :func:`station_steps`."""
     return flow_steps(BATCH_STEPS, current, urls)
+
+
+def gridded_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
+    """The gridded steps with ``current`` marked, as :func:`station_steps`."""
+    return flow_steps(GRIDDED_STEPS, current, urls)
 
 
 def flow_steps(

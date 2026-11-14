@@ -28,13 +28,17 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``zip``.
 ``gridded-thresholds`` and ``gridded-indices`` (``climpact gridded-thresholds`` and
 ``gridded-indices``)
-    ``input_files`` (absolute paths, read in place: local mode, #85), ``names``
-    (``{"tasmax", "tasmin", "pr"}``), ``base_start``, ``base_end``, ``institution``,
-    ``institution_id``, ``workers``; for indices also ``template``, ``indices``,
-    ``thresholds_file`` and ``params`` (IndexParams fields).
+    ``input_files`` (absolute paths, read in place: files on this computer in local mode,
+    or the gridded run's uploaded copies), ``names`` (``{"tasmax", "tasmin", "pr"}``),
+    ``base_start``, ``base_end``, ``institution``, ``institution_id``, ``workers``,
+    ``max_values`` (values read at once), ``rechunk`` (``auto``, ``yes``, ``no``),
+    ``tmp_dir`` (for the rechunked copy; default the job's own folder), ``copy_to`` (a
+    folder the written files are also copied to, local mode); for thresholds also
+    ``out_file``; for indices also ``template``, ``indices``, ``thresholds_file`` and
+    ``params`` (IndexParams fields).
 
-The batch page (#80) creates batch jobs. The sector and gridded runners are complete but
-have no screen yet: #90 and #85 add the forms that create these jobs.
+The batch page (#80) creates batch jobs and the gridded pages (#85) the gridded ones. The
+sector runner is complete but has no screen yet: #90 adds the form that creates it.
 """
 
 from __future__ import annotations
@@ -358,13 +362,43 @@ def run_sector_job(ctx: JobContext) -> dict:
 
 def _open_grid(ctx: JobContext):
     from climpact.gridded import open_grid
+    from climpact.gridded.io import DEFAULT_MAX_VALUES
 
-    files = [Path(f) for f in ctx.params.get("input_files", [])]
+    p = ctx.params
+    files = [Path(f) for f in p.get("input_files", [])]
     missing = [str(f) for f in files if not f.is_file()]
     if not files or missing:
         raise JobError(f"Input file not found: {', '.join(missing) or 'none given'}.")
-    names = ctx.params.get("names") or None
-    return open_grid(files, names=names, tmp_dir=ctx.output_dir / "tmp")
+    names = p.get("names") or None
+    tmp_dir = Path(p["tmp_dir"]) if p.get("tmp_dir") else ctx.output_dir.parent / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        return open_grid(
+            files,
+            names=names,
+            max_values=int(p.get("max_values") or DEFAULT_MAX_VALUES),
+            rechunk={"auto": None, "yes": True, "no": False}[p.get("rechunk", "auto")],
+            tmp_dir=tmp_dir,
+        )
+    except NotImplementedError as exc:
+        raise JobError(str(exc)) from None
+
+
+def _copy_results(ctx: JobContext, paths) -> str | None:
+    """Copy the written files to the ``copy_to`` folder (local mode), if one was given."""
+    import shutil
+
+    folder = ctx.params.get("copy_to")
+    if not folder:
+        return None
+    target = Path(folder)
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        for path in paths:
+            shutil.copy2(path, target / Path(path).name)
+    except OSError as exc:
+        raise JobError(f"The results could not be copied to {target}: {exc.strerror}.") from None
+    return str(target)
 
 
 def _author(p: dict) -> dict:
@@ -387,7 +421,8 @@ def run_gridded_thresholds_job(ctx: JobContext) -> dict:
         int(p.get("workers", 1)),
         ctx.progress,
     )
-    return {"files": _relative([path], ctx.output_dir)}
+    copied = _copy_results(ctx, [path])
+    return {"files": _relative([path], ctx.output_dir), "copied_to": copied}
 
 
 @register("gridded-indices")
@@ -414,4 +449,5 @@ def run_gridded_indices_job(ctx: JobContext) -> dict:
         progress=ctx.progress,
         indices=p.get("indices") or None,
     )
-    return {"files": _relative(paths, ctx.output_dir)}
+    copied = _copy_results(ctx, paths)
+    return {"files": _relative(paths, ctx.output_dir), "copied_to": copied}

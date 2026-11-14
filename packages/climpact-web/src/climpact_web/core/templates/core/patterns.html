@@ -273,16 +273,16 @@
       <div class="stack stack--lg">
         {% translate "Daily series with quality-check flags" as d_title %}
         {% url "charts:sample_daily" as d_url %}
-        {% include "components/chart_frame.html" with id="pattern-daily" title=d_title data_url=d_url height="24rem" %}
+        {% include "components/chart_frame.html" with id="pattern-daily" title=d_title data_url=d_url height="24rem" only %}
         {% translate "TXx, annual, with the trend" as a_title %}
         {% url "charts:sample_series" "txx_ANN" as a_url %}
-        {% include "components/chart_frame.html" with id="pattern-annual" title=a_title data_url=a_url %}
+        {% include "components/chart_frame.html" with id="pattern-annual" title=a_title data_url=a_url only %}
         {% translate "TXx, monthly" as m_title %}
         {% url "charts:sample_series" "txx_MON" as m_url %}
-        {% include "components/chart_frame.html" with id="pattern-monthly" title=m_title data_url=m_url %}
+        {% include "components/chart_frame.html" with id="pattern-monthly" title=m_title data_url=m_url only %}
         {% translate "SPI, 3 months, as bars" as s_title %}
         {% url "charts:sample_series" "3month_spi_MON" as s_url %}
-        {% include "components/chart_frame.html" with id="pattern-spi" title=s_title data_url=s_url %}
+        {% include "components/chart_frame.html" with id="pattern-spi" title=s_title data_url=s_url only %}
       </div>
     </section>
   </div>

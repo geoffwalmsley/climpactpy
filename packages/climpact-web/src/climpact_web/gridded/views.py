@@ -39,6 +39,7 @@ from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
+from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.core.navigation import gridded_steps
@@ -702,6 +703,9 @@ def explore_context(request, run: GriddedRun) -> dict:
         "series_csv": reverse("gridded:series_csv", args=[run.pk])
         + "?"
         + urlencode({**state, "cell": f"{cell[0]},{cell[1]}"}),
+        "series_json": reverse("gridded:series_json", args=[run.pk])
+        + "?"
+        + urlencode({**state, "cell": f"{cell[0]},{cell[1]}"}),
     }
 
 
@@ -826,6 +830,45 @@ def series_csv(request, run_id):
     lon = layer.lon[cell[1]] if cell[1] < len(layer.lon) else cell[1]
     name = f"{layer.variable}_{lat}_{lon}.csv"
     return _csv_response(rows, SAFE_NAME.sub("_", name))
+
+
+@gzip_page
+@gridded_enabled
+@require_safe
+def series_json(request, run_id):
+    """The chosen cell's series for the interactive chart (#75), in the charts app's
+    ``index`` format, for the query string of :func:`explore` (no trend: R's gridded
+    outputs have none)."""
+    from climpact_web.charts import data
+    from climpact_web.charts.views import json_response
+
+    run = get_run(request, run_id)
+    context = explore_context(request, run)
+    if not context.get("map"):
+        raise Http404
+    layer, cell, scale, chosen = (
+        context["layer"],
+        context["cell"],
+        context["scale"],
+        context["chosen"],
+    )
+    path = run.indices_job.output_dir / chosen.path
+    step = {"MON": "month", "DAY": "day"}.get(chosen.freq, "year")
+
+    def build():
+        values = maps.cell_series(path, layer, cell[0], cell[1], scale)
+        title = _("%(name)s at %(where)s") % {
+            "name": layer.variable,
+            "where": context["cell_label"],
+        }
+        payload = data.series_payload(
+            layer.variable, title, layer.units, step, layer.times, values, bars=bool(layer.scales)
+        )
+        payload["csv"] = context["series_csv"]
+        return payload
+
+    key = ("gridded", str(run.pk), chosen.path, layer.variable, scale, cell)
+    return json_response(request, key, [path], build)
 
 
 @gridded_enabled

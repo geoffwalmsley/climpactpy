@@ -368,6 +368,40 @@ def index_payload(source: IndexSource, name: str) -> dict | None:
     return payload
 
 
+def series_payload(
+    name: str, title: str, units: str, step: str, labels: list[str], values, bars: bool = False
+) -> dict:
+    """An ``index`` payload for a series that is not a station run's index table (the
+    gridded clicked-cell series, #85): ``labels`` are ``YYYY`` (``step`` "year"),
+    ``YYYY-MM`` ("month") or the day of the year ("day"). No trend is drawn or described:
+    R's gridded outputs have none."""
+
+    def position(label: str) -> float:
+        if step == "month":
+            year, month = label.split("-")[:2]
+            return round(int(year) + (int(month) - 0.5) / 12, 6)
+        return int(label)
+
+    units = UNIT_LABELS.get(units, units)
+    payload = {
+        "kind": "index",
+        "version": SCHEMA_VERSION,
+        "name": name,
+        "title": title,
+        "units": units,
+        "axis": units,
+        "step": step,
+        "bars": bars,
+        "x": [position(label) for label in labels],
+        "y": _finite(values),
+        "label": name,
+        "trend": None,
+        "trend_note": False,
+    }
+    payload["summary"] = index_summary(payload)
+    return payload
+
+
 def _x_label(step: str, x: float) -> str:
     if step == "month":
         year = math.floor(x)
@@ -428,7 +462,11 @@ def index_summary(payload: dict) -> str:
         else:
             text += " " + _("The interval includes zero: not significant at the 5% level.")
         parts.append(text)
-    elif step != "day" and not payload["name"].startswith("day_of_"):
+    elif (
+        payload.get("trend_note", True)
+        and step != "day"
+        and not payload["name"].startswith("day_of_")
+    ):
         parts.append(
             _("No trend: it needs at least 10 values and 70% of the series to be present.")
         )

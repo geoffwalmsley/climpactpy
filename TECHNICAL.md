@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages) and [Help](#help)) | the screens: charts (#75), steps 2-4 (#77, #78, #90), downloads (#79) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the screens: steps 2-4 (#77, #78, #90), downloads (#79) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2609,7 +2609,7 @@ packages/climpact-web/src/climpact_web/
                      `preflight` (the core's `open_grid`) before a run
     forms.py         PathsForm, UploadForm (step 1), SetupForm (step 2)
     maps.py          output files, the map of one index at one time step and a cell's
-                     time series, drawn as inline SVG
+                     time series, drawn as inline SVG (the series: the chart's fallback)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
     views.py, urls.py  /gridded/: start (paths and folder browser), upload, sample,
                      set-up and its checks (htmx), results, progress, explore (htmx),
@@ -3469,9 +3469,11 @@ HTML; see [Size budget](#size-budget)). R's sample grid (19 x 24) is drawn whole
 `HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
 which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
 cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
-are the keyboard path) swaps in its time series: a server-drawn SVG line, broken at
-missing values, the placeholder for the interactive chart of #75 (`CHART HOOK` in
-`gridded/_explore.html`). Each has a table (latitudes by longitudes; time and value) and a
+are the keyboard path) swaps in its time series as an interactive chart (#75, see
+[Charts](#charts)): data from `gridded:series_json` (`<run>/series.json`, the same query
+string as `series.csv`), drawn as a line, or bars for SPI and SPEI, without a trend (R's
+gridded outputs have none); charts.js hydrates it on `htmx:load` after each swap. The
+server-drawn SVG line, broken at missing values, is the `<noscript>` fallback. Each has a table (latitudes by longitudes; time and value) and a
 CSV. Values are read straight from the output netCDF (fill values and non-finite values,
 such as R's `-Inf` EHF-HWPS, shown as no value).
 
@@ -3635,11 +3637,15 @@ frame with a data URL:
 {% block head %}{% chart_scripts %}{% endblock %}
 
 {% url "charts:station_daily" analysis.pk as daily_url %}
-{% include "components/chart_frame.html" with id="daily-chart" title=title data_url=daily_url csv_href=csv_url height="24rem" %}
+{% include "components/chart_frame.html" with id="daily-chart" title=title data_url=daily_url csv_href=csv_url height="24rem" only %}
 
 {% url "charts:job_series" job.pk "txx_ANN" as txx_url %}
-{% include "components/chart_frame.html" with id="txx" title=title data_url=txx_url|add:"?station="|add:station image_src=png_url %}
+{% include "components/chart_frame.html" with id="txx" title=title data_url=txx_url|add:"?station="|add:station image_src=png_url only %}
 ```
+
+Include it with `only`: otherwise a page variable named like a parameter (`summary`,
+`legend`, `height` ...) leaks into the frame; step 1 and the gridded results both have a
+`summary` of their own.
 
 `chart_frame` parameters: `id`, `title`, `summary`, `legend`, `height` (CSS length of the
 plot area, default 16rem; the daily chart splits it 60/40 between its panels), `csv_href`,
@@ -3660,12 +3666,15 @@ pages (another session's analysis or job is 404):
 | `charts:station_daily` | `/charts/station/<analysis>/daily.json` | `daily`: the analysis's station file, with QC flags |
 | `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
 | `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
+| `gridded:series_json` | `/gridded/<run>/series.json?file=&var=&scale=&cell=y,x` | `index`: a gridded run's clicked-cell series (`data.series_payload`, no trend) |
 | `charts:sample_daily`, `charts:sample_series` | `/charts/sample/...` | the pattern library's examples (with `PATTERN_LIBRARY` only) |
 
 A job must have succeeded. `station` may be left out for a `station` job; for a `batch`
 job it names a station that finished, and its `IndexParams` are read from the job's
-metadata file (the output names of parameterised indices depend on them). The gridded and
-sector screens (#85, #90) add their own views returning the same payload kinds.
+metadata file (the output names of parameterised indices depend on them). Other apps
+serve the same payload kinds from their own views with `charts.views.json_response` (the
+caching) and `charts.data.series_payload` (an `index` payload from labels and values), as
+the gridded results do; the sector screen (#90) can do the same.
 
 **Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
 
@@ -3757,7 +3766,9 @@ download; the QC flags against the core checks (the sample's TN >= TX day, TX ju
 against the trend file and `index_plots`; SPI bars, `day_of_` without trend; the views'
 JSON, 304 on `If-None-Match` and `If-Modified-Since`, new validators after a file
 changes, gzip, 404 for another session, an unfinished job, an unknown series or station;
-batch stations; the pattern library examples; the frame's markup. The drawing itself has no
+batch stations; the pattern library examples; the frame's markup, and that a page's own
+`summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
+against the netCDF values, its 304, SPI bars and the chart on the results page. The drawing itself has no
 browser tests (no browser is installed for them; #83); it was checked by hand as above.
 
 **Pattern library.** "Interactive charts" shows the four kinds (daily with flags, annual

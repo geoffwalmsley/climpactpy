@@ -397,3 +397,6 @@ def test_step1_loaded_sample_has_the_chart(client):
     assert f'href="/station/{analysis.pk}/series.csv"' in html
     assert "uPlot.iife.min.js" in html and "js/charts.js" in html
     assert "<noscript>" in html and "series-preview" in html  # the static overview
+    # The page's own `summary` (the file summary) does not leak into the frame: the
+    # chart's summary comes from its data.
+    assert 'id="daily-chart-summary" data-chart-summary></p>' in html

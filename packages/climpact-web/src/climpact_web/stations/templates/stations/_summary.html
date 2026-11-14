@@ -42,7 +42,7 @@ series and the days with data in each year. Parameters from views.summary_contex
   {% endcomment %}
   {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.pk as series_url %}
   {% translate "Daily series" as daily_title %}
-  {% include "components/chart_frame.html" with id="daily-chart" title=daily_title data_url=daily_url csv_href=series_url height="24rem" %}
+  {% include "components/chart_frame.html" with id="daily-chart" title=daily_title data_url=daily_url csv_href=series_url height="24rem" only %}
   <noscript>
   <figure class="series-preview" aria-labelledby="preview-title">
     <figcaption class="stack stack--sm">

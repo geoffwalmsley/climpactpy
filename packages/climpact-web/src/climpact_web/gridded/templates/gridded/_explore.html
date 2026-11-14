@@ -6,11 +6,12 @@ JavaScript; htmx swaps only this fragment (gridded:explore), and the response's
 HX-Push-Url puts the results page's address for it in the history.
 Parameters: run, explore_files, chosen, layer, t, time_label, scale, scale_label, map
 (maps.MapDrawing), cell, cell_label, lat_options, lon_options, series
-(maps.SeriesDrawing or None), map_csv, series_csv, explore_error.
+(maps.SeriesDrawing or None), map_csv, series_csv, series_json, explore_error.
 
-CHART HOOK (#75): the interactive chart replaces the static series figure below. Use
-components/chart_frame.html with csv_href=series_csv and the series table as its
-table_template; clicking a map cell already swaps this fragment with the cell's series.
+The cell's series is an interactive chart (#75): chart_frame with data from
+gridded:series_json (series_json), the static SVG as the noscript fallback and
+_series_table.html as the table view. Clicking a map cell swaps this fragment; charts.js
+hydrates the new chart on htmx:load.
 {% endcomment %}
 <div id="explore" class="stack gridded-explore">
   {% if explore_error %}
@@ -99,15 +100,11 @@ table_template; clicking a map cell already swaps this fragment with the cell's 
       </details>
     </figure>
 
-    <figure class="chart gridded-series" aria-labelledby="series-title">
-      <div class="chart__header">
-        <div>
-          <h3 class="chart__title" id="series-title">{% blocktranslate with name=layer.variable where=cell_label %}{{ name }} at {{ where }}{% endblocktranslate %}</h3>
-          <p class="chart__summary">{% if series %}{% blocktranslate count counter=series.count with first=layer.times.0 last=layer.times|last trimmed %}{{ counter }} value from {{ first }} to {{ last }}.{% plural %}{{ counter }} values from {{ first }} to {{ last }}.{% endblocktranslate %}{% else %}{% translate "This cell has no values." %}{% endif %}</p>
-        </div>
-        <a class="button button--secondary button--sm" href="{{ series_csv }}" download>{% icon "download" %}<span>{% translate "CSV" %}</span></a>
-      </div>
+    <div class="gridded-series">
+      {% blocktranslate asvar series_title with name=layer.variable where=cell_label %}{{ name }} at {{ where }}{% endblocktranslate %}
       {% if series %}
+      {% include "components/chart_frame.html" with id="series-chart" title=series_title data_url=series_json csv_href=series_csv table_template="gridded/_series_table.html" layer=layer cell_label=cell_label series=series only %}
+      <noscript>
       <div class="series-preview">
         <svg viewBox="0 0 {{ series.width }} {{ series.height }}" role="img" aria-label="{% blocktranslate with name=layer.variable where=cell_label %}Time series of {{ name }} at {{ where }}{% endblocktranslate %}" focusable="false">
           {% for tick in series.y_labels %}<line x1="52" x2="{{ series.width }}" y1="{{ tick.y }}" y2="{{ tick.y }}" class="series-preview__grid"/><text x="46" y="{{ tick.y }}" class="series-preview__tick" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
@@ -116,20 +113,19 @@ table_template; clicking a map cell already swaps this fragment with the cell's 
           {% for p in series.points %}<circle cx="{{ p.x }}" cy="{{ p.y }}" r="2.5" fill="var(--chart-1)"/>{% endfor %}
         </svg>
       </div>
-      <details class="disclosure">
-        <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
-        <div class="disclosure__body">
-          <div class="table-wrap year-table" role="region" aria-labelledby="series-table-caption" tabindex="0">
-            <table class="table">
-              <caption id="series-table-caption">{% blocktranslate with name=layer.variable where=cell_label %}{{ name }} at {{ where }}{% endblocktranslate %}</caption>
-              <thead><tr><th scope="col">{% translate "Time" %}</th><th scope="col" class="num">{{ layer.variable }}</th></tr></thead>
-              <tbody>{% for row in series.rows %}<tr><th scope="row">{{ row.time }}</th><td class="num">{{ row.value|default:"–" }}</td></tr>{% endfor %}</tbody>
-            </table>
+      </noscript>
+      {% else %}
+      <figure class="chart" aria-labelledby="series-title">
+        <div class="chart__header">
+          <div>
+            <h3 class="chart__title" id="series-title">{{ series_title }}</h3>
+            <p class="chart__summary">{% translate "This cell has no values." %}</p>
           </div>
+          <a class="button button--secondary button--sm" href="{{ series_csv }}" download>{% icon "download" %}<span>{% translate "CSV" %}</span></a>
         </div>
-      </details>
+      </figure>
       {% endif %}
-    </figure>
+    </div>
   </div>
   {% endif %}
 </div>

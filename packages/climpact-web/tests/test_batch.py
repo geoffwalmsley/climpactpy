@@ -236,6 +236,21 @@ def test_station_statuses_and_reasons():
     assert result.extra_files == ["capital.txt", "unused.txt"]
 
 
+def test_station_files_with_na_are_ready(tmp_path):
+    """NA is a missing value, as R's read.table reads it, in the check and in the core."""
+    from climpact.io.station import read_station_file
+
+    lines = station().splitlines()
+    lines[3] = "2000 1 4 NA 20 NA"
+    text = "\n".join(lines) + "\n"
+    result = check.check_batch((HEADER + row("na.txt")).encode(), {"na.txt": text.encode()})
+    assert [s.status for s in result.stations] == ["ready"]
+    path = tmp_path / "na.txt"
+    path.write_text(text)
+    df = read_station_file(path)
+    assert df["prcp"].isna().sum() == 1 and df["tmin"].isna().sum() == 1
+
+
 def test_parameter_rules_match_the_core():
     """The check refuses exactly what climpact.batch.validate_params refuses."""
     from dataclasses import replace

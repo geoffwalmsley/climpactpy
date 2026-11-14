@@ -118,7 +118,7 @@ def station_pages() -> dict[str, str]:
               "max_upload_mb": settings.MAX_UPLOAD_MB}  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
-        b"1961 1 3 NA 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
+        b"1961 1 3 na 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
     )
     form = MetadataForm(views.initial_metadata(sample), summary=sample.summary)
     form.is_valid()
@@ -180,7 +180,7 @@ def batch_pages() -> dict[str, str]:
         "alice_springs_1961-2020.txt": sydney,
         "darwin_1961-2020.txt": sydney,
         "perth_airport_1961-2020.txt": b"1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
-        + b"1961 1 3 NA 29.8 17.1\n",
+        + b"1961 1 3 na 29.8 17.1\n",
         "sydney.txt": sydney,
         "notes.txt": b"x",
     }

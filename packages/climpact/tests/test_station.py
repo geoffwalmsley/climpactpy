@@ -41,6 +41,27 @@ def test_missing_values_header_and_commas(tmp_path):
     assert df["tmin"].iloc[1] == 14.0
 
 
+def test_na_is_missing_as_in_r_read_table(tmp_path):
+    # read.table's default na.strings = "NA": exactly "NA" is missing in any column; NaN
+    # (any case) is a missing number too; Inf is a number (checked with R 4 in reference/r).
+    path = write(
+        tmp_path,
+        "2000 1 1 NA 25 NaN\n2000 1 2 0.5 NA nan\n2000 1 3 0 Inf 10\nNA 1 4 0 20 10\n",
+    )
+    df = read_station_file(path)
+    assert len(df) == 3  # an NA year is not a valid date, so the row is dropped
+    assert df["prcp"].isna().tolist() == [True, False, False]
+    assert df["tmax"].isna().tolist() == [False, True, False]
+    assert df["tmin"].isna().tolist() == [True, True, False]
+    assert np.isinf(df["tmax"].iloc[2])
+
+
+def test_lower_case_na_is_an_error_as_in_r(tmp_path):
+    path = write(tmp_path, "2000 1 1 na 25 15\n")
+    with pytest.raises(ValueError):
+        read_station_file(path)
+
+
 def test_invalid_dates_are_dropped(tmp_path):
     path = write(tmp_path, "2001 2 28 0 20 10\n2001 2 29 0 21 11\n2001 3 1 0 22 12\n")
     df = read_station_file(path)

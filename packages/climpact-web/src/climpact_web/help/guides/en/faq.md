@@ -4,8 +4,8 @@ summary: Answers to common questions, and what to do when something does not wor
 ## My file is refused {#file-refused}
 
 Climpact lists each problem with the line of your file. The usual causes are a value
-missing from a line, `NA` or a blank instead of -99.9, a comma used as the decimal mark,
-or a spreadsheet loaded instead of text. See
+missing from a line, a blank or a code such as `N/A` instead of -99.9 (`NA` is accepted),
+a comma used as the decimal mark, or a spreadsheet loaded instead of text. See
 [Common problems](guide:station-file#common-problems).
 
 ## Some years have no index value {#years-missing}

@@ -2298,7 +2298,8 @@ file must be text-identical.
 | The time axis is padded to whole years; padded days count as missing | same |
 | `northern.hemisphere = latitude > 0`, so latitude 0 is treated as Southern Hemisphere | same (`StationMetadata.northern_hemisphere`); matters for gsl and heatwaves |
 | `qualityControlCheck` stops with "Years are not in ascending order" when they are not | the check runs after the merge, which sorts the rows, so it never fires; Python has no such check either |
-| `read_user_file` reads the columns with `read.table`, whose default `na.strings = "NA"` makes an `NA` value missing | `read_station_rows` raises `ValueError` on `NA` (numpy cannot convert it); the web app's step 1 refuses the file and asks for -99.9 at the line (#76); reading `NA` as missing is #99. Files written as Climpact documents them (-99.9) are unaffected |
+| `read_user_file` reads the columns with `read.table(colClasses = rep("real", 6))`, whose default `na.strings = "NA"` makes the field `NA` (exactly; `na`, `N/A`, `+NA` stop R with "scan() expected 'a real'") missing in any column. `NaN` in any case is read as a missing number too, and `Inf`/`infinity` (any case) as infinite numbers. An `NA` in the year, month or day makes the date invalid, so the row is dropped (and in the first row's first field it makes the row a header). Checked with the R image in `reference/r` | same (`io.station.read_station_rows` reads `NA` as NaN, `NA_STRING`; Python's `float` already reads `NaN` and `Inf` as R does and refuses `na`). The web app's step 1 and the batch pre-flight (`stations/station_file.py`, used by `batch/check.py`) accept `NA` as missing too; they still refuse `Inf` and offer "-99.9 (or NA, in capitals)" for `na`, `N/A`, `NULL`, `-` and `.` (#99). The help guides keep -99.9 as the recommended code |
+| `scan` reads hexadecimal numbers (`0x10` is 16) and refuses digit separators (`1_0`) | Python's `float` does the opposite: `0x10` is an error and `1_0` is 10. Neither appears in a real station file; not changed |
 | A UTF-8 byte-order mark is kept by `readLines`, so the first row's first field is not an integer and the first data row is skipped as a header | same in the core; the web app stores uploads without the BOM, so it keeps that row |
 
 ### Output files
@@ -3229,8 +3230,9 @@ card, the retention note, the file format in a disclosure and the session's rece
 analyses. `station_file.inspect_station_bytes` checks the file before anything is saved:
 
 - *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
-  data rows, a line without six values, a value that is not a number ("NA" and similar
-  get "write missing values as -99.9"; a comma inside a number gets a note that commas
+  data rows, a line without six values, a value that is not a number (`NA` is accepted as
+  missing, as R reads it; "na", "N/A" and similar get "write missing values as -99.9 (or
+  NA, in capitals)"; a comma inside a number gets a note that commas
   separate values), no valid date, the last row dated before the first. Each names the
   **line of the file** (blank and header lines counted) and shows the line; at most 10
   are listed, with a count of the rest. The lines are walked with the core reader's rules

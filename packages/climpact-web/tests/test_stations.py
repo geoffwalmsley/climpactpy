@@ -136,11 +136,11 @@ BAD_FILES = {
         "Line 2: “abc” in the precipitation column is not a number.",
         "2000 1 3 abc 21 11",
     ),
-    "na_value": (
-        "2000 1 1 0 20 10\n2000 1 2 0 NA 11\n",
-        "Line 2: “NA” in the maximum temperature column is not a number. "
-        "Write missing values as -99.9.",
-        "2000 1 2 0 NA 11",
+    "lower_case_na": (  # only "NA" is missing (R's read.table refuses "na" too)
+        "2000 1 1 0 20 10\n2000 1 2 0 na 11\n",
+        "Line 2: “na” in the maximum temperature column is not a number. "
+        "Write missing values as -99.9 (or NA, in capitals).",
+        "2000 1 2 0 na 11",
     ),
     "empty": ("", "The file is empty.", None),
     "header_only": (HEADER, "The file has no data rows, only a header.", None),
@@ -181,7 +181,7 @@ def test_bad_files_are_refused_with_a_readable_message(client, case):
 
 @pytest.mark.parametrize(
     "case",
-    ["short_row", "long_row", "text_value", "na_value", "no_valid_dates", "last_before_first"],
+    ["short_row", "long_row", "text_value", "lower_case_na", "no_valid_dates", "last_before_first"],
 )
 def test_every_core_reader_error_has_its_own_message(case, tmp_path):
     """The core raises for each of these files; the web app explains each one itself
@@ -248,6 +248,17 @@ def test_rows_outside_the_first_and_last_dates_are_reported():
     inspection = inspect_station_bytes(text.encode())
     assert "1 row is dated outside the range" in inspection.warnings[0]
     assert "(line 2)" in inspection.warnings[0]
+
+
+def test_na_is_read_as_missing_as_r_does():
+    """R's read.table (na.strings = "NA") reads NA as missing, in the core and here."""
+    text = "2000 1 1 0 20 10\n2000 1 2 NA NA 11\n2000 1 3 0.2 21 NA\nNA 1 4 0 20 10\n"
+    inspection = inspect_station_bytes(text.encode())
+    assert inspection.ok, inspection.problems
+    missing = {v["key"]: v["missing"] for v in inspection.summary["variables"]}
+    assert missing == {"prcp": 1, "tmax": 1, "tmin": 1}
+    assert inspection.summary["last_date"] == "2000-01-03"  # the NA year is dropped
+    assert "(line 4: NA-1-4)" in inspection.warnings[0]
 
 
 def test_a_variable_with_no_values_is_reported():

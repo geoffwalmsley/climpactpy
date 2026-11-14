@@ -110,3 +110,22 @@ jobs:
           print(r.status_code, r.json())
           assert r.status_code == 200 and r.json()['database'] == 'ok'
           "
+      - name: Run a station job through the worker (claims with SELECT ... FOR UPDATE SKIP LOCKED)
+        run: |
+          climpact-web manage shell -c "
+          import shutil
+          from climpact_web.jobs.models import Job
+          job = Job.objects.create(kind='station', owner='ci', params={
+              'station_file': 'station.txt',
+              'metadata': {'name': 'madrid', 'latitude': 40.4, 'base_start': 1971, 'base_end': 2000},
+              'zip': True})
+          job.input_dir.mkdir(parents=True)
+          shutil.copy('reference/input/madrid_retiro_1961-2020.txt', job.input_dir / 'station.txt')
+          "
+          climpact-web manage runworker --once
+          climpact-web manage shell -c "
+          from climpact_web.jobs.models import Job
+          job = Job.objects.get()
+          print(job.status, job.step, job.total, job.result.get('zip'))
+          assert job.status == 'succeeded' and job.step == job.total, job.log
+          "

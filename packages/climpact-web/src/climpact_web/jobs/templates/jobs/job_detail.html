@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% blocktranslate with title=job.title|default:job.kind %}{{ title }} · Climpact{% endblocktranslate %}{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>{% if job.title %}{{ job.title }}{% else %}{% translate "Calculation" %}{% endif %}</h1>
+  {% include "jobs/_progress.html" %}
+  <p><a href="{% url 'jobs:list' %}">{% translate "All your calculations" %}</a></p>
+</section>
+{% endblock %}

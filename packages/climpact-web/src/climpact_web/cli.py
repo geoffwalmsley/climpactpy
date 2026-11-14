@@ -2,8 +2,9 @@
 
 ``climpact-web`` starts the app for one user on their own computer (local mode): it
 prepares the data folder (database, secret key, run files), applies database migrations,
-serves the app with waitress on localhost and opens it in the browser. Everything it
-needs ships in the package, so it works without a network connection.
+starts a background worker (a child process running ``manage runworker``, restarted if it
+crashes), serves the app with waitress on localhost and opens it in the browser.
+Everything it needs ships in the package, so it works without a network connection.
 
 ``climpact-web manage <command> ...`` runs a Django management command (``migrate``,
 ``collectstatic``, ``makemessages``, ...) with the app's settings, for hosted deployments
@@ -17,8 +18,11 @@ import ipaddress
 import os
 import secrets
 import signal
+import socket
+import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -67,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--threads", type=int, default=4, help="number of request threads (default 4)"
+    )
+    parser.add_argument(
+        "--no-worker",
+        action="store_true",
+        help="do not start the background worker (run 'climpact-web manage runworker' yourself)",
     )
     parser.add_argument("--version", action="version", version=climpact_web.__version__)
     return parser
@@ -118,6 +127,90 @@ def _stop(signum, frame):
     raise KeyboardInterrupt
 
 
+class WorkerProcess:
+    """The background worker as a child process of ``climpact-web`` (local mode).
+
+    A child process rather than a thread: a calculation that crashes or runs out of memory
+    does not take the web server with it, and the worker's imports (xclim, matplotlib)
+    stay out of the server. If the worker exits unexpectedly its running job is marked
+    failed and a new worker is started; :meth:`stop` asks it to stop (the running job is
+    interrupted and queued again) and kills it if it has not stopped in ``timeout``
+    seconds.
+    """
+
+    RESTART_DELAY = 2.0
+    MAX_RESTARTS = 5  # within RESTART_WINDOW seconds, then give up
+    RESTART_WINDOW = 60.0
+
+    def __init__(self, env: dict[str, str] | None = None):
+        self.env = env
+        self.proc: subprocess.Popen | None = None
+        self.name = ""
+        self.stopping = threading.Event()
+        self.restarts: list[float] = []
+        self.count = 0
+        self.thread = threading.Thread(target=self._watch, name="climpact-web-worker", daemon=True)
+
+    def _spawn(self) -> None:
+        self.count += 1
+        self.name = f"{socket.gethostname()}:{os.getpid()}/worker-{self.count}"
+        kwargs = {}
+        if sys.platform == "win32":  # so stop() can send CTRL_BREAK_EVENT to it alone
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        self.proc = subprocess.Popen(
+            [sys.executable, "-m", "climpact_web", "manage", "runworker", "--name", self.name],
+            env=self.env,
+            **kwargs,
+        )
+
+    def start(self) -> None:
+        self._spawn()
+        self.thread.start()
+
+    def _watch(self) -> None:
+        from django.db import connections
+
+        from climpact_web.jobs.worker import release_jobs_of
+
+        while True:
+            code = self.proc.wait()
+            if self.stopping.is_set():
+                return
+            print(
+                f"The background worker stopped unexpectedly (exit status {code}).", file=sys.stderr
+            )
+            try:
+                release_jobs_of(self.name, crashed=True)
+            finally:
+                connections.close_all()
+            now = time.monotonic()
+            self.restarts = [t for t in self.restarts if now - t < self.RESTART_WINDOW] + [now]
+            if len(self.restarts) > self.MAX_RESTARTS:
+                print("The background worker keeps stopping; not restarting it.", file=sys.stderr)
+                return
+            if self.stopping.wait(self.RESTART_DELAY):
+                return
+            self._spawn()
+
+    def stop(self, timeout: float = 15.0) -> None:
+        from climpact_web.jobs.worker import release_jobs_of
+
+        self.stopping.set()
+        if self.proc is None:
+            return
+        if self.proc.poll() is None:
+            if sys.platform == "win32":
+                self.proc.send_signal(signal.CTRL_BREAK_EVENT)
+            else:
+                self.proc.terminate()  # SIGTERM: interrupt the job at its next step
+            try:
+                self.proc.wait(timeout)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+        release_jobs_of(self.name, crashed=False)  # a job still marked running: queue it again
+
+
 def serve(args: argparse.Namespace) -> int:
     if args.data_dir is not None:
         os.environ["CLIMPACT_WEB_DATA_DIR"] = str(args.data_dir.expanduser().resolve())
@@ -159,6 +252,10 @@ def serve(args: argparse.Namespace) -> int:
             server = create_server(app, port=DEFAULT_PORT, **options)
         except OSError:  # the default port is taken: let the system pick a free one
             server = create_server(app, port=0, **options)
+    worker = None
+    if not hosted and not args.no_worker:
+        worker = WorkerProcess()
+        worker.start()
     port = getattr(server, "effective_port", None) or server.effective_listen[0][1]
     url = browser_url(args.host, port)
 
@@ -174,6 +271,8 @@ def serve(args: argparse.Namespace) -> int:
         pass
     finally:
         server.close()
+        if worker is not None:
+            worker.stop()
     return 0
 
 

@@ -1,0 +1,57 @@
+{% load i18n %}
+<div id="job-progress" class="stack job-progress" data-status="{{ job.status }}"
+  {% if not job.is_finished %}hx-get="{% url 'jobs:progress' job.pk %}"
+  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
+  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  <p class="job-progress__status">{% if stage_label and not job.is_finished %}{% blocktranslate with status=job.get_status_display %}<strong>{{ status }}</strong>: {{ stage_label }}{% endblocktranslate %}{% else %}<strong>{{ job.get_status_display }}</strong>{% endif %}</p>
+
+  {% if job.status == "queued" or job.status == "running" %}
+  <progress id="job-progress-bar" max="100" value="{{ job.percent }}" aria-describedby="job-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
+  <p id="job-progress-text">
+    {% if job.total %}{% blocktranslate with step=job.step total=job.total percent=job.percent %}Step {{ step }} of {{ total }} ({{ percent }}%){% endblocktranslate %}{% endif %}
+    {% if elapsed %}{% blocktranslate %}Time so far: {{ elapsed }}.{% endblocktranslate %}{% endif %}
+    {% if remaining %}{% blocktranslate %}About {{ remaining }} left.{% endblocktranslate %}{% endif %}
+  </p>
+  {% if job.cancel_requested %}<p>{% translate "Cancelling…" %}</p>{% endif %}
+  {% if worker_missing %}
+  <p class="message message--error">{% translate "No calculation worker is running, so this job cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." %}</p>
+  {% endif %}
+  {% if job.can_cancel %}
+  <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}
+    <button type="submit" class="button button--secondary">{% translate "Cancel" %}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {% if job.status == "succeeded" %}
+  <p role="status">{% blocktranslate %}Finished in {{ elapsed }}.{% endblocktranslate %}</p>
+  {% if zip_file %}
+  <p><a class="button" href="{% url 'jobs:file' job.pk zip_file %}">{% translate "Download all results (zip)" %}</a></p>
+  {% endif %}
+  {% if files %}
+  <details>
+    <summary>{% blocktranslate count counter=files|length %}{{ counter }} file{% plural %}{{ counter }} files{% endblocktranslate %}</summary>
+    <ul class="job-files">
+      {% for name in files %}<li><a href="{% url 'jobs:file' job.pk name %}">{{ name }}</a></li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+  {% endif %}
+
+  {% if job.status == "failed" %}
+  <div class="message message--error" role="alert">
+    <p>{% translate "The calculation failed." %}</p>
+    <p>{{ job.error }}</p>
+  </div>
+  {% endif %}
+  {% if job.status == "cancelled" %}<p role="status">{% translate "The calculation was cancelled." %}</p>{% endif %}
+  {% if job.can_retry %}
+  <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}
+    <button type="submit" class="button">{% translate "Try again" %}</button>
+  </form>
+  {% endif %}
+
+  {% if job.is_finished %}
+  <p>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results and uploaded files are deleted on {{ date }}.{% endblocktranslate %}</p>
+  {% endif %}
+</div>

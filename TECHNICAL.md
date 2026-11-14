@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check (see [Web front end](#web-front-end)) | the screens: design system (#71), jobs (#73), charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention (see [Web front end](#web-front-end) and [Background jobs](#background-jobs)) | the screens: design system (#71), charts (#75), steps 1-4 (#76-#78, #90), downloads (#79), batch (#80), help (#81), gridded (#85) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2509,7 +2509,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69); the screens follow in
-#71 (design system), #73 (jobs), #75 (charts), #76-#78 and #90 (steps 1-4), #79
+#71 (design system), #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts), #76-#78 and #90 (steps 1-4), #79
 (downloads), #80 (batch), #81 (help), #85 (gridded), #82 (size budget) and #83
 (accessibility).
 
@@ -2523,7 +2523,8 @@ packages/climpact-web/src/climpact_web/
                      their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
-  cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`)
+  cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
+                     the background worker as a child process in local mode
   core/              the UI shell app (label `core`): home page, /healthz, the context
                      processor `site`
     templates/       base.html (the page shell), 404.html, 413.html, 500.html,
@@ -2532,14 +2533,30 @@ packages/climpact-web/src/climpact_web/
       css/main.css   hand-written stylesheet: design tokens as CSS custom properties,
                      light and dark, logical properties only (right-to-left layouts)
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
+  jobs/              background jobs (label `jobs`, see [Background jobs](#background-jobs))
+    models.py        Job (the queue and its progress), Worker (running workers)
+    registry.py      runner registry, JobContext, JobError, JobCancelled, JobInterrupted
+    runners.py       the built-in runners: station, batch, sector, gridded-thresholds,
+                     gridded-indices (thin wrappers of the core functions)
+    worker.py        claiming, progress writes, heartbeats, dead-worker detection, the
+                     worker loop (JobWorker)
+    retention.py     purge_expired: old jobs and their folders
+    storage.py       LocalJobStorage: the per-job folders (the S3 hook for #12)
+    stages.py        readable names of the core's progress stages
+    views.py, urls.py, forms.py  /jobs/: list, a minimal station form, job page,
+                     progress fragment, cancel, retry, file downloads
+    context_processors.py  `job_retention_days` for every template
+    management/commands/  runworker, purgejobs
+    templates/jobs/  job_list.html, job_detail.html, _progress.html, station_form.html
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
-  test_*.py          settings, views and security, i18n, static files, the command
+  test_*.py          settings, views and security, i18n, static files, the command, jobs
+                     (test_jobs.py) and the worker as a real process (test_worker_process.py)
 ```
 
-Planned apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
-worker and progress pages, #73), `stations` (single-station steps 1-4 and batch, #76-#80,
+Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
+worker and progress pages, #73), and planned `stations` (single-station steps 1-4 and batch, #76-#80,
 #90) and `gridded` (#85). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
@@ -2554,12 +2571,13 @@ design system (#71) builds on `main.css`.
 | | `local` (default) | `hosted` |
 | --- | --- | --- |
 | Started by | `climpact-web` (waitress on 127.0.0.1) | a WSGI server chosen in #12, on `climpact_web.wsgi:application` |
-| Database | SQLite, `<data dir>/db.sqlite3`, migrated on every start | `DATABASE_URL` (Postgres; the `postgres` extra installs psycopg); migrations run by the deployment |
+| Database | SQLite, `<data dir>/db.sqlite3` (WAL journal, 20 s busy timeout, `IMMEDIATE` transactions, as the server and the worker both write), migrated on every start | `DATABASE_URL` (Postgres; the `postgres` extra installs psycopg); migrations run by the deployment |
 | Secret key | `CLIMPACT_WEB_SECRET_KEY`, else `<data dir>/secret_key` (written on first start, mode 0600) | `CLIMPACT_WEB_SECRET_KEY`, required |
 | Allowed hosts | localhost, 127.0.0.1, [::1] (`*` when started with a non-loopback `--host`) | `CLIMPACT_WEB_ALLOWED_HOSTS`, required |
 | Static files | WhiteNoise serves them straight from the package (`WHITENOISE_USE_FINDERS`), no `collectstatic` | `collectstatic` into `CLIMPACT_WEB_STATIC_ROOT` (required), WhiteNoise's compressed, hashed storage |
 | HTTPS | none (localhost) | secure session and CSRF cookies, redirect to HTTPS, `X-Forwarded-Proto` from the proxy trusted; `/healthz` exempt from the redirect |
-| Uploads and results | `<data dir>/media`; runs under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT` (S3 is decided in #73) |
+| Uploads and results | `<data dir>/media`; job folders under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT`, a filesystem every worker and web process shares (S3: a documented hook, see [Background jobs](#background-jobs), for #12) |
+| Background worker | started by `climpact-web` as a child process, restarted if it crashes | one or more `climpact-web manage runworker` processes, run by the deployment (#12) |
 
 The data folder is `CLIMPACT_WEB_DATA_DIR` or `--data-dir`, else the user data folder from
 platformdirs (`~/Library/Application Support/climpact-web` on macOS,
@@ -2579,7 +2597,12 @@ the variable.
 | `DATABASE_URL` | SQLite in the data folder | any URL dj-database-url reads, e.g. `postgres://user:pw@host:5432/db`; required in hosted mode |
 | `CLIMPACT_WEB_DEBUG` | `false` | Django `DEBUG` |
 | `CLIMPACT_WEB_STATIC_ROOT` | none | `collectstatic` target; required in hosted mode |
-| `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and run folders (`RUNS_DIR` is `media/runs`) |
+| `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
+| `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
+| `CLIMPACT_WEB_JOB_HEARTBEAT_SECONDS` | `10` | seconds between worker heartbeats |
+| `CLIMPACT_WEB_JOB_STALE_SECONDS` | `60` | seconds without a heartbeat before a running job counts as dead |
+| `CLIMPACT_WEB_JOB_POLL_SECONDS` | `1` | seconds between a worker's checks for queued jobs |
+| `CLIMPACT_WEB_JOB_STORAGE` | `climpact_web.jobs.storage.LocalJobStorage` | class that manages job folders |
 | `CLIMPACT_WEB_MAX_UPLOAD_MB` | `50` | largest request body, uploads included |
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age; set once the domain is final (#12) |
@@ -2608,8 +2631,9 @@ station file; gridded runs read netCDF files from disk in local mode (#85). Uplo
 
 Options: `--host` (default 127.0.0.1; 0.0.0.0 serves the network, with a warning),
 `--port` (default 8000, or a free port if 8000 is taken), `--no-browser`, `--data-dir`,
-`--threads` (default 4). Ctrl+C or SIGTERM stops the server cleanly (exit status 0). The
-command prints the address and the data folder.
+`--threads` (default 4), `--no-worker` (do not start the background worker). Ctrl+C or
+SIGTERM stops the server and the worker cleanly (exit status 0). The command prints the
+address and the data folder.
 
 A hosted deployment runs `climpact-web manage migrate` and
 `climpact-web manage collectstatic --no-input` with the hosted variables set, then serves
@@ -2643,7 +2667,145 @@ defaults, hosted with a Postgres `DATABASE_URL`, each required hosted variable m
 on a fresh data folder, fetches `/healthz`, `/` and a static file, and stops it with
 SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
 runs hosted mode against a Postgres 16 service container: `check --deploy`, `migrate`,
-`collectstatic` and `/healthz`.
+`collectstatic` and `/healthz`, then queues a station job (Madrid) and runs it with
+`runworker --once`, which claims it with `SELECT ... FOR UPDATE SKIP LOCKED`.
+`test_worker_process.py` runs the worker as a real process on a SQLite file: killed with
+SIGKILL in the middle of a station run, the job is failed by `purgejobs` once the heartbeat
+is stale, and after a retry a new worker runs it to the end; stopped with SIGTERM, the job
+is queued again. `test_cli.py` checks that `climpact-web` starts a worker and stops it.
+
+### Background jobs
+
+Calculations never run in a web request: a view queues a **job** and a **worker** process
+runs it, reporting progress through the core's callbacks (#72, see
+[Progress reporting](#progress-reporting)).
+
+**Choice of backend (#73).** The queue is the database: a `Job` table and a worker that
+polls it (`climpact-web manage runworker`). The development machine may not install
+system services, and the local install should not need any, so Redis (RQ, Celery) was
+ruled out (issue comment of 2026-11-14). Django's tasks framework is not in Django 5.2
+(it arrives in Django 6.0, which needs Python 3.12, and ships no production backend). The
+`django-tasks` package's database backend was considered, but the progress pages need
+stage progress, heartbeats and cancel requests on the job row anyway, so it would add a
+dependency without removing much code; the worker is about 400 lines in `jobs/worker.py`.
+It works the same on SQLite (local) and Postgres (hosted).
+
+**The `Job` model** (`jobs/models.py`): a UUID primary key (unguessable URLs); `kind` (the
+runner); `owner` (a random token kept in the browser session, `jobs_owner`: only that
+session sees the job; a token rather than the session key, so rotating the session key
+does not orphan jobs); `params` (JSON); `title`; `status` (`queued`, `running`,
+`succeeded`, `failed`, `cancelled`); `stage`, `step`, `total` (the last progress callback;
+`percent` from them); `created_at`, `started_at`, `finished_at`, `heartbeat_at`; `worker`;
+`attempts`; `cancel_requested`; `error` (the message for the user); `log` (the operator
+log: one timestamped line per attempt, the outcome, the run time, and the traceback of a
+failure); `result` (JSON from the runner: files written, zip). The job's folder is
+`<RUNS_DIR>/<id>/` with `input/` (uploads) and `output/` (what the core writes). The
+`Worker` table lists running workers (`name`, `started_at`, `seen_at`).
+
+**Runners** (`jobs/registry.py`, `jobs/runners.py`). `@register("kind")` maps a kind to a
+function `runner(ctx: JobContext) -> dict`. The context has the params, the folders, the
+progress callback and `input_file(name)` (which refuses names outside `input/`). The
+built-in runners call the same core functions as the command line, so the files are the
+same: `station` (`run_station`, with plots and zip), `batch` (`run_batch`; one progress
+count for the whole batch, the sum of each station's last step over the sum of their
+`pipeline_stages` + `plot_steps` totals; a failed station counts as done; `workers`
+defaults to 1), `sector` (`run_sector_correlation` on the station file and index tables
+of a finished `station` job), `gridded-thresholds` and `gridded-indices`
+(`write_grid_thresholds`, `write_grid_indices`; input files are read in place from the
+paths given, local mode). The parameters of each are in the module docstring. The
+batch, sector and gridded runners are complete and tested but no screen creates them yet
+(#80, #90, #85). The core is imported inside each runner, so the web server never imports
+xclim.
+
+**The worker** (`jobs/worker.py`, `JobWorker`) runs one job at a time:
+
+- *Claiming* is atomic. Where the database has `SELECT ... FOR UPDATE SKIP LOCKED`
+  (Postgres), the oldest unlocked queued row is locked and marked running in one
+  transaction. Elsewhere (SQLite) a conditional `UPDATE ... SET status='running' WHERE
+  id=? AND status='queued'` takes a candidate; a worker whose update changes no row tries
+  the next. Each claim increments `attempts`.
+- *Progress* from the core is kept in memory and written at most every
+  `JOB_PROGRESS_INTERVAL` (0.5 s) and at the last step, with
+  `UPDATE ... WHERE status='running' AND cancel_requested=false`: a station run with plots
+  has 113 stages in a few seconds, which costs a handful of writes. The update changing no
+  row means the job was cancelled.
+- *Heartbeat*: a thread updates the running job's `heartbeat_at` and the worker's
+  `seen_at` every `JOB_HEARTBEAT_SECONDS` (10), and picks up a cancel request, so it is
+  noticed even during a long stage.
+- *Dead workers*: a running job whose heartbeat is older than `JOB_STALE_SECONDS` (60) is
+  marked failed ("The calculation stopped unexpectedly ... You can try again."), with a
+  retry offered. Any worker checks every heartbeat interval (`reap_stale`), and so does the
+  progress fragment when it is asked about a running job, so an open page never waits for
+  ever, even with no worker left. In local mode `climpact-web` knows at once when its
+  worker child exits unexpectedly: it fails that worker's running job and starts a new
+  worker after 2 s (at most 5 restarts a minute).
+- *Cancel*: a queued job is cancelled at once; a running one at its next progress step,
+  where the callback raises `JobCancelled`. `JobCancelled` and `JobInterrupted` derive from
+  `BaseException`, like `KeyboardInterrupt`, because `run_batch` catches `Exception` per
+  station and would otherwise carry on with the next one. With batch `workers` > 1, the
+  stations already handed to the pool still finish before the cancel takes effect.
+- *Stopping*: SIGTERM or Ctrl+C (CTRL_BREAK on Windows) sets a flag that raises
+  `JobInterrupted` at the next step; the job is queued again (not failed) and runs on the
+  next start. `climpact-web` waits 15 s for its worker to stop, then kills it and queues
+  its job again itself.
+- *Failures*: `JobError` and `ValueError` (the core's validation errors, e.g.
+  `validate_params`, `BatchMetadataError`, `SectorCorrelationError`) are shown to the user
+  as their message, with the job folder's path removed; `FileNotFoundError` names only the
+  file; `MemoryError` says so; anything else shows a generic message naming the job id,
+  and the traceback goes to the operator log and the `climpact_web.jobs` logger. A
+  traceback is never shown in the browser. The stage where a failed run stopped is kept.
+  Messages are stored in English at the time of failure (the core's messages are English
+  too); translating them is left to the translation work.
+- *Retry* (`Job.retry`) queues a failed or cancelled job again with the same inputs and
+  parameters, at the back of the queue; its output folder is emptied when it starts.
+
+In local mode `climpact-web` starts the worker as a **child process**
+(`python -m climpact_web manage runworker --name <host>:<pid>/worker-<n>`) rather than a
+thread: a crash or an out-of-memory error in a calculation does not take the web server
+down, and the worker's imports (xclim, matplotlib) stay out of the server process.
+Hosted mode runs `runworker` processes alongside the web servers (#12); more workers
+claim different jobs. `runworker --once` runs the jobs waiting now and exits.
+
+**Pages** (`/jobs/`). `jobs/` lists the session's jobs; `jobs/station/new` is a minimal
+form (station file, name, coordinates, base period, plots, zip) so a run can be started
+from the browser now: the single-station steps (#76-#78) replace it. The station name is
+restricted to letters, digits, spaces and `.()-_` (it becomes folder and file names), and
+the upload is saved as `input/station.txt`, never under a name from the browser.
+`jobs/<id>/` is the job page; `jobs/<id>/progress` the progress fragment;
+`jobs/<id>/cancel` and `jobs/<id>/retry` (POST); `jobs/<id>/files/<path>` downloads an
+output file of a finished job (paths outside `output/` give 404). Any other session gets
+404, as for a job that does not exist. The templates use plain semantic markup (a
+`<progress>` bar, the existing `main.css` classes) until the design system (#71) restyles
+them.
+
+**Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
+server chooses: `hx-trigger="load delay:<n>s, visibilitychange[!document.hidden] from:document"`
+with `hx-vals='js:{hidden: document.hidden}'`. The delay is 1 s for the first 10 s of a
+run, 2 s up to a minute and 5 s after; 30 s while the tab is hidden, and a poll at once
+when it is shown again. A finished job's fragment has no `hx-get`, so polling stops. It
+shows the status, the readable stage (`jobs/stages.py`: `indices:climpact:spi` is
+"Calculating indices (spi)"), step *n* of *total* with the percentage, the time so far and
+a linear estimate of the time left (from the second step and 2 s on), for a queued job a
+warning when no worker has been seen for `JOB_STALE_SECONDS`, and the cancel, retry and download controls.
+Each GET is a plain request, so polling works through proxies and survives a dropped
+connection (the next poll carries on).
+
+**Retention** (`jobs/retention.py`). A finished job and its folder are deleted
+`JOB_RETENTION_DAYS` (default 7, `CLIMPACT_WEB_RETENTION_DAYS`) after it finished; a queued
+job that never ran, that long after it was created. Running jobs are never deleted. Folders
+under `RUNS_DIR` named like a job id but belonging to none (an interrupted upload) are
+deleted once older than the period. The worker purges at start and every hour
+(`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
+stale jobs), for cron in a deployment. Every template gets `job_retention_days` (context
+processor `climpact_web.jobs.context_processors.jobs`), for the upload page (#76) to state
+the period; the job page shows the deletion date.
+
+**Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads,
+empties `output/` before a run, resolves download paths and deletes a job's folder. The
+core reads and writes ordinary files, so a worker always works on a local folder. For AWS
+(#12) the job folders can live on shared storage (EFS) with this class unchanged, or a
+subclass can copy `input/` down from S3 before a run and `output/` up after it and serve
+downloads from S3; `CLIMPACT_WEB_JOB_STORAGE` names the class.
 
 ## Development
 
@@ -2662,7 +2824,7 @@ python3 -m venv .venv
   suite, parity included); `web` installs both packages, runs
   `pytest packages/climpact-web`, `climpact-web manage check` and
   `makemigrations --check`. `web-postgres` runs hosted mode against a Postgres 16 service
-  container (see [Web front end](#web-front-end)).
+  container, including a station job through the worker (see [Tests](#tests)).
 - Start the web app with `.venv/bin/climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with

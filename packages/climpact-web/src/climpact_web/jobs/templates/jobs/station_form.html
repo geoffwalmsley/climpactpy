@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Calculate indices for a station · Climpact" %}{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>{% translate "Calculate indices for a station" %}</h1>
+  <p>{% blocktranslate count days=job_retention_days %}Your file and the results are kept for {{ days }} day after the calculation finishes, then deleted.{% plural %}Your file and the results are kept for {{ days }} days after the calculation finishes, then deleted.{% endblocktranslate %}</p>
+  <form method="post" enctype="multipart/form-data" class="stack">
+    {% csrf_token %}
+    {{ form.as_div }}
+    <p><button type="submit" class="button">{% translate "Start the calculation" %}</button></p>
+  </form>
+</section>
+{% endblock %}

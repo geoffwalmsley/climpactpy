@@ -24,6 +24,10 @@ def test_static_files_in_package():
         "icons/favicon.svg",
         "chart-palette.json",
         "vendor/htmx/htmx.min.js",
+        "css/charts.css",
+        "js/charts.js",
+        "vendor/uplot/uPlot.iife.min.js",
+        "vendor/uplot/uPlot.min.css",
     ):
         assert (STATIC / name).is_file(), name
 
@@ -36,7 +40,16 @@ def test_vendored_htmx_matches_readme():
 
 
 @pytest.mark.parametrize(
-    "name", ["main.css", "theme-dark.css", "patterns.css", "stations.css", "batch.css", "help.css"]
+    "name",
+    [
+        "main.css",
+        "theme-dark.css",
+        "patterns.css",
+        "stations.css",
+        "batch.css",
+        "help.css",
+        "charts.css",
+    ],
 )
 def test_css_uses_logical_properties(name):
     """Right-to-left languages: no physical left/right/top/bottom in the stylesheets."""

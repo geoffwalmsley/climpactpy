@@ -10,7 +10,8 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
 ``station`` (``climpact run``)
     ``station_file``; ``metadata``: ``name``, ``latitude``, ``longitude``,
     ``base_start``, ``base_end``; ``params``: :class:`climpact.config.IndexParams` fields,
-    ``custom`` as ``{"variable", "operator", "threshold"}`` or null; ``plots``, ``zip``;
+    ``custom`` as ``{"variable", "operator", "threshold"}`` or null; ``plots``, ``zip``,
+    ``report`` (the PDF report, :mod:`climpact.report`, to ``output/<station>_report.pdf``);
     optional ``plot_title`` (printed on every plot instead of the station title, R's
     "Plot title" of step 3); optional ``modules``:
     ``{"qc": [...], "homogeneity": ..., "indices": [...]}``.
@@ -25,6 +26,7 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``modules``; ``folder``, the name of the batch folder in ``output/`` and of its zip
     (default ``batch``; the batch page uses the metadata file's name, as R);
     ``station_zips`` (also zip each finished station to ``output/stations/<name>.zip``);
+    ``report`` (each finished station's PDF report to ``output/reports/<name>_report.pdf``);
     ``skipped``, stations left out before the run (``[{"name", "station_file",
     "error"}]``), whose error is written to ``<folder>/<name>.errors.txt`` like a failed
     station's. Each station's progress is written to ``output/stations.json``
@@ -164,13 +166,16 @@ def run_station_job(ctx: JobContext) -> dict:
         zip=bool(p.get("zip")),
         qc=qc_params(p.get("qc")),
         plot_title=p.get("plot_title") or None,
+        report=bool(p.get("report")),
     )
     archive = written.pop("zip", None)
+    report = written.pop("report", None)
     return {
         "station": metadata.name,
         "files": _relative(written.values(), ctx.output_dir),
         "skipped": list(skipped),
         "zip": _relative([archive], ctx.output_dir)[0] if archive else None,
+        "report": _relative([report], ctx.output_dir)[0] if report else None,
     }
 
 
@@ -207,11 +212,11 @@ def run_qc_job(ctx: JobContext) -> dict:
     }
 
 
-def station_steps(params, modules, plots: bool) -> int:
+def station_steps(params, modules, plots: bool, report: bool = False) -> int:
     """The number of progress steps of one ``run_station`` (without zip)."""
     from climpact.modules import pipeline_stages, resolve
 
-    total = len(pipeline_stages(resolve(modules))) + 2
+    total = len(pipeline_stages(resolve(modules))) + 2 + (1 if report else 0)
     if plots:
         from climpact.plots import plot_steps
 
@@ -307,7 +312,7 @@ def run_batch_job(ctx: JobContext) -> dict:
     skipped = _skipped_stations(p.get("skipped"), {s.name for s in stations})
     custom = custom_index(p.get("custom"))
     modules = module_selection(p.get("modules"))
-    plots, zip_ = bool(p.get("plots")), bool(p.get("zip"))
+    plots, zip_, report = bool(p.get("plots")), bool(p.get("zip")), bool(p.get("report"))
     folder = safe_station_name(p.get("folder") or "batch")
 
     # One count for the whole batch: each station's steps, then the zip. Stations may
@@ -315,7 +320,8 @@ def run_batch_job(ctx: JobContext) -> dict:
     from dataclasses import replace
 
     totals = {
-        s.name: station_steps(replace(s.params, custom=custom), modules, plots) for s in stations
+        s.name: station_steps(replace(s.params, custom=custom), modules, plots, report)
+        for s in stations
     }
     total = sum(totals.values()) + (1 if zip_ else 0)
     done = dict.fromkeys(totals, 0)
@@ -351,6 +357,7 @@ def run_batch_job(ctx: JobContext) -> dict:
         modules=modules,
         progress=progress,
         plots=plots,
+        report_dir=ctx.output_dir / "reports" if report else None,
     )
     station_zips = {}
     if p.get("station_zips"):  # each station on its own, beside the batch folder
@@ -376,6 +383,10 @@ def run_batch_job(ctx: JobContext) -> dict:
             "error_file": _relative([r.error_file], ctx.output_dir)[0] if r.error_file else None,
             "folder": _relative([folder_path], ctx.output_dir)[0] if r.ok else None,
             "zip": station_zips.get(r.name),
+            "report": _relative([report_path], ctx.output_dir)[0]
+            if r.ok
+            and (report_path := ctx.output_dir / "reports" / f"{r.name}_report.pdf").is_file()
+            else None,
         }
 
     return {

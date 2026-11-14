@@ -141,6 +141,11 @@ def station_sector(client) -> str:
     return url
 
 
+def station_downloads(client) -> str:
+    """The downloads page of the run with every index (#79): each table's link and size."""
+    return station_results(client).replace("/results", "/downloads")
+
+
 def batch_check(client) -> str:
     return client.post("/batch/sample")["Location"]
 
@@ -201,6 +206,7 @@ PAGES = {
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
     "station index": Page(station_index, charts=True),  # the index's chart (#78)
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
+    "station downloads": Page(station_downloads),  # every file with its size (#79)
     "batch start": Page(lambda client: "/batch/"),
     "batch check": Page(batch_check),
     "batch results": Page(batch_results),

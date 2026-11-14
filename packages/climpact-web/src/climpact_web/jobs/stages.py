@@ -13,6 +13,7 @@ _LABELS = {
     "homogeneity": lambda: _("Checking homogeneity"),
     "indices": lambda: _("Calculating indices"),
     "plots": lambda: _("Drawing plots"),
+    "report": lambda: _("Writing the PDF report"),
     "rechunk": lambda: _("Preparing the input files"),
     "thresholds": lambda: _("Calculating thresholds"),
     "correlate": lambda: _("Calculating correlations"),

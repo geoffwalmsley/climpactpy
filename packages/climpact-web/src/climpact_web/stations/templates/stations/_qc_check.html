@@ -10,5 +10,5 @@ Parameters: check (qc_review.Check), page (its qc_review.Page), analysis, job.
   <p>{{ check.description }}</p>
   {% help_topic check.help_id %}
   {% if check.rows %}{% include "stations/_qc_table.html" with selected="" %}{% endif %}
-  {% if check.file %}<p class="small"><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "download" %} {% blocktranslate with name=check.file_name %}Download {{ name }}{% endblocktranslate %}</a></p>{% endif %}
+  {% if check.file %}<p class="small"><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "download" %} {% blocktranslate with name=check.file_name size=job|file_size:check.file|filesizeformat %}Download {{ name }} ({{ size }}){% endblocktranslate %}</a></p>{% endif %}
 </section>

@@ -7,7 +7,8 @@ station of an R batch metadata file (see :mod:`climpact.batch`). Both take ``--q
 ``--homogeneity`` and ``--indices`` to select the modules a run uses, and
 ``climpact modules`` lists the modules available (see :mod:`climpact.modules`). Both
 take ``--plots`` to draw R's index plots and combined PDF and ``--zip`` to zip the
-outputs, as R's download does (see :mod:`climpact.plots`).
+outputs, as R's download does (see :mod:`climpact.plots`), and ``--report`` to write a PDF
+report of each station (see :mod:`climpact.report`).
 ``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
 (see :mod:`climpact.gridded`). ``climpact gridded-indices <netCDF files> --out <dir>``
@@ -115,7 +116,7 @@ def _module_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _output_arguments(parser: argparse.ArgumentParser, zip_help: str) -> None:
+def _output_arguments(parser: argparse.ArgumentParser, zip_help: str, report_help: str) -> None:
     group = parser.add_argument_group("plots and archive")
     group.add_argument(
         "--plots",
@@ -124,16 +125,18 @@ def _output_arguments(parser: argparse.ArgumentParser, zip_help: str) -> None:
         "does (needs matplotlib: pip install climpactpy[plots])",
     )
     group.add_argument("--zip", action="store_true", help=zip_help)
+    group.add_argument("--report", action="store_true", help=report_help)
 
 
 def _plots_available(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    if args.plots:
+    flags = [f for f in ("plots", "report") if getattr(args, f, False)]
+    if flags:
         from climpact.plots import require_matplotlib
 
         try:
             require_matplotlib()
         except ImportError as exc:
-            parser.error(f"--plots: {exc}")
+            parser.error(f"--{flags[0]}: {exc}")
 
 
 def _names(text: str) -> tuple[str, ...]:
@@ -201,7 +204,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     custom.add_argument("--no-custom", action="store_true", help="skip the custom index")
     _module_arguments(run)
-    _output_arguments(run, "also zip the station folder to OUT/NAME.zip, as R's download")
+    _output_arguments(
+        run,
+        "also zip the station folder to OUT/NAME.zip, as R's download",
+        "also write a PDF report (cover with the settings, quality-control summary, a page "
+        "per index with its plot and trends) to OUT/NAME_report.pdf (needs matplotlib)",
+    )
     run.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     batch = commands.add_parser(
@@ -242,7 +250,12 @@ def _parser() -> argparse.ArgumentParser:
         "or <= (default: none, as in R's batch mode)",
     )
     _module_arguments(batch)
-    _output_arguments(batch, "also zip the whole output folder to OUT.zip next to it, as R does")
+    _output_arguments(
+        batch,
+        "also zip the whole output folder to OUT.zip next to it, as R does",
+        "also write each station's PDF report to OUT_reports/NAME_report.pdf next to OUT "
+        "(needs matplotlib)",
+    )
     batch.add_argument("--progress", action="store_true", help=_PROGRESS_HELP)
 
     grid = commands.add_parser(
@@ -435,14 +448,23 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         progress=progress,
         plots=args.plots,
         zip=args.zip,
+        report=args.report,
     )
     archive = written.pop("zip", None)
+    report = written.pop("report", None)
     print(f"Wrote {len(written)} files to {args.out / metadata.name}")
     if archive is not None:
         print(f"Zipped them to {archive}")
+    if report is not None:
+        print(f"Wrote the report to {report}")
     if skipped:
         print(f"Not written (no data in any period): {', '.join(skipped)}")
     return 0
+
+
+def _batch_report_dir(out: Path) -> Path:
+    """``OUT_reports`` next to the batch folder, so the batch zip keeps R's layout."""
+    return out.parent / f"{out.name}_reports"
 
 
 def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -493,11 +515,14 @@ def batch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         progress=progress,
         plots=args.plots,
         zip=args.zip,
+        report_dir=_batch_report_dir(args.out) if args.report else None,
     )
     failed = [r for r in results if not r.ok]
     print(f"Done: {total - len(failed)} of {total} stations processed, {len(failed)} failed")
     if args.zip:
         print(f"Zipped the output folder to {args.out.parent / (args.out.name + '.zip')}")
+    if args.report:
+        print(f"Wrote the stations' reports to {_batch_report_dir(args.out)}")
     for result in failed:
         print(f"  {result.name}: see {result.error_file}")
     return 1 if failed else 0

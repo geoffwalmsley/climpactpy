@@ -87,9 +87,13 @@ def poll_delay(job: Job, hidden: bool, now: dt.datetime | None = None) -> int:
 
 def progress_context(request, job: Job) -> dict:
     now = timezone.now()
-    files = []
+    files, zip_file = [], None
     if job.status == Status.SUCCEEDED:
-        files = list(job.result.get("files", []))
+        names = list(job.result.get("files", []))
+        if report := job.result.get("report"):  # the PDF report, beside the station (#79)
+            names.insert(0, report)
+        files = [{"name": n, "size": output_size(job, n)} for n in names]
+        zip_file = job.result.get("zip")
     remaining = job.remaining(now)
     return {
         "job": job,
@@ -98,9 +102,16 @@ def progress_context(request, job: Job) -> dict:
         "remaining": format_duration(remaining) if remaining is not None else "",
         "delay": poll_delay(job, request.GET.get("hidden") == "true", now),
         "worker_missing": job.status == Status.QUEUED and not worker_running(now),
-        "zip_file": job.result.get("zip") if job.status == Status.SUCCEEDED else None,
+        "zip_file": zip_file,
+        "zip_size": output_size(job, zip_file) if zip_file else 0,
         "files": files,
     }
+
+
+def output_size(job: Job, relative: str) -> int:
+    """Size in bytes of a file of the job's output, 0 when it is not there (#79)."""
+    path = get_storage().output_file(job, relative)
+    return path.stat().st_size if path is not None else 0
 
 
 @require_safe

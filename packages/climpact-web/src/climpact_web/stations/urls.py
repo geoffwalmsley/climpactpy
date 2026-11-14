@@ -1,6 +1,6 @@
 from django.urls import path
 
-from climpact_web.stations import views, views_indices, views_sector
+from climpact_web.stations import views, views_downloads, views_indices, views_sector
 
 app_name = "stations"
 
@@ -46,4 +46,6 @@ urlpatterns = [
     path(
         "<uuid:analysis_id>/sector/progress", views_sector.sector_progress, name="sector_progress"
     ),
+    # The downloads page (#79): stations/views_downloads.py.
+    path("<uuid:analysis_id>/downloads", views_downloads.downloads, name="downloads"),
 ]

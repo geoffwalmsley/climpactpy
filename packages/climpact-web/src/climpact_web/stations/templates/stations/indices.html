@@ -84,12 +84,13 @@
       <h2 class="card__title" id="output-title">{% translate "Files" %}</h2>
       {% include "components/field.html" with field=form.plots %}
       {% include "components/field.html" with field=form.zip %}
+      {% include "components/field.html" with field=form.report %}
     </section>
 
     <div class="form__actions cluster">
       {% translate "Calculate indices" as run_label %}
       {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" %}
-      <span class="small muted">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots." %}</span>
+      <span class="small muted">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots and the report." %}</span>
     </div>
   </form>
 

@@ -43,14 +43,14 @@ components' classes.
     </div>
   </div>
   {% if zip_file %}
-  <p>{% translate "Download all results (zip)" as zip_label %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
+  <p>{% blocktranslate with size=zip_size|filesizeformat asvar zip_label %}Download all results (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
   {% endif %}
   {% if files %}
   <details class="disclosure">
     <summary>{% icon "folder" %}<span>{% blocktranslate count counter=files|length %}{{ counter }} file{% plural %}{{ counter }} files{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
       <ul class="job-files file-list">
-        {% for name in files %}<li><a href="{% url 'jobs:file' job.pk name %}">{{ name }}</a></li>{% endfor %}
+        {% for f in files %}<li><a href="{% url 'jobs:file' job.pk f.name %}">{{ f.name }}</a> <span class="small muted">{{ f.size|filesizeformat }}</span></li>{% endfor %}
       </ul>
     </div>
   </details>

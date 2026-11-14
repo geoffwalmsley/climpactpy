@@ -44,7 +44,7 @@ views.qc_context (review, job, analysis).
       {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" size="lg" %}
     </form>
     <a class="button button--secondary button--lg" href="#fix">{% icon "upload" %}<span>{% translate "Correct the file and upload it again" %}</span></a>
-    {% if review.zip %}<a class="button button--ghost" href="{% url 'jobs:file' job.pk review.zip %}" download>{% icon "download" %}<span>{% translate "Quality-control files (zip)" %}</span></a>{% endif %}
+    {% if review.zip %}<a class="button button--ghost" href="{% url 'jobs:file' job.pk review.zip %}" download>{% icon "download" %}<span>{% blocktranslate with size=job|file_size:review.zip|filesizeformat %}Quality-control files (zip, {{ size }}){% endblocktranslate %}</span></a>{% endif %}
   </div>
   <p class="small muted">{% blocktranslate with temp=review.params.iqr_temp|floatformat:"-2" prec=review.params.iqr_prec|floatformat:"-2" pmax=review.params.prec_max|floatformat:"-2" tmax=review.params.temp_max|floatformat:"-2" days=review.params.flatline_days jump=review.params.jump|floatformat:"-2" trimmed %}
     Checked with outlier ranges of {{ temp }} (temperature) and {{ prec }} (precipitation)

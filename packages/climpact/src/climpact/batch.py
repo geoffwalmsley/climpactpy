@@ -192,6 +192,8 @@ def run_station(
     zip: bool = False,
     qc: QCParams | None = None,
     plot_title: str | None = None,
+    report: bool = False,
+    report_path: str | Path | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
@@ -199,22 +201,25 @@ def run_station(
     ones). ``plots`` also draws R's index plots and combined PDF
     (:func:`climpact.plots.write_plots`, needs matplotlib), and ``zip`` then zips the
     station folder to ``<out_dir>/<station>.zip`` (:func:`climpact.plots.zip_station`).
+    ``report`` also writes the PDF report (:func:`climpact.report.write_report`, needs
+    matplotlib) to ``report_path``, by default ``<out_dir>/<station>_report.pdf``, beside the
+    station folder so the zip keeps R's file list.
     ``plot_title`` replaces the station title at the top of every plot;
     ``qc`` holds the quality-control thresholds (default: the R app's, :class:`QCParams`).
     With no index modules (``ModuleSelection(indices=())``) only the QC files are written,
     as the R app's quality-control step does.
     ``progress(stage, step, total)`` is called after each stage: ``read``, the stages of
     :func:`~climpact.modules.pipeline_stages`, ``write``, then with ``plots`` the stages of
-    :func:`~climpact.plots.plot_steps` and with ``zip`` a last ``zip`` (see
-    :mod:`climpact.progress`). Returns the files written, keyed by output key (plots as
-    ``plots/<name>``, the zip file as ``zip``), and the output keys not written (missing
-    in every period).
+    :func:`~climpact.plots.plot_steps`, with ``report`` a ``report`` and with ``zip`` a last
+    ``zip`` (see :mod:`climpact.progress`). Returns the files written, keyed by output key
+    (plots as ``plots/<name>``, the report as ``report``, the zip file as ``zip``), and the
+    output keys not written (missing in every period).
     """
     from climpact.io.output_files import write_outputs
     from climpact.modules import pipeline_stages, resolve, run_pipeline
     from climpact.station import load_station
 
-    if plots:
+    if plots or report:
         from climpact.plots import plot_steps, require_matplotlib
 
         require_matplotlib()  # fail before the run, not after it
@@ -224,6 +229,7 @@ def run_station(
     if progress is not None:
         steps.total = len(pipeline_stages(loaded)) + 2
         steps.total += len(plot_steps(params)) if plots else 0
+        steps.total += 1 if report else 0
         steps.total += 1 if zip else 0
 
         def pipeline_progress(stage: str, step: int, _total: int) -> None:
@@ -240,6 +246,13 @@ def run_station(
 
         drawn = write_plots(tables, metadata, params, out_dir, steps.done, title=plot_title)
         written.update({f"plots/{name}": path for name, path in drawn.items()})
+    if report:
+        from climpact.report import write_report
+
+        written["report"] = write_report(
+            out_dir, metadata, params, report_path, qc=qc, title=plot_title, date=date
+        )
+        steps.done("report")
     if zip:
         from climpact.plots import zip_station
 
@@ -257,6 +270,7 @@ def _process(
     date: dt.date | None,
     modules: ModuleSelection | None,
     plots: bool = False,
+    report_dir: Path | None = None,
     progress: BatchProgress | None = None,
 ) -> StationResult:
     """Run one station, turning any exception into a failed result."""
@@ -268,6 +282,8 @@ def _process(
             progress(station.name, stage, step, total)
 
     try:
+        from climpact.report import report_file
+
         validate_params(station.params)
         path = data_dir / station.station_file
         if not path.is_file():
@@ -281,6 +297,8 @@ def _process(
             modules,
             station_progress,
             plots=plots,
+            report=report_dir is not None,
+            report_path=None if report_dir is None else report_file(report_dir, station.name),
         )
     except Exception as exc:  # noqa: BLE001 - reported per station, the batch carries on
         detail = "".join(traceback.format_exception_only(exc)).strip()
@@ -330,6 +348,7 @@ def run_batch(
     progress: BatchProgress | None = None,
     plots: bool = False,
     zip: bool = False,
+    report_dir: str | Path | None = None,
 ) -> list[StationResult]:
     """Run every station and write its outputs to ``<out_dir>/<station>/``.
 
@@ -352,9 +371,11 @@ def run_batch(
     ``plots`` draws each station's plots and combined PDF, as :func:`run_station` does.
     ``zip`` zips the whole batch folder once every station has finished, to
     ``<out_dir>.zip`` next to it (:func:`climpact.plots.zip_batch`), as R's batch
-    download does.
+    download does. ``report_dir`` writes each station's PDF report
+    (:func:`climpact.report.write_report`) to ``<report_dir>/<station>_report.pdf``; it
+    should be outside ``out_dir``, which is zipped as R's batch folder.
     """
-    if plots:
+    if plots or report_dir is not None:
         from climpact.plots import require_matplotlib
 
         require_matplotlib()  # fail before the batch, not in every station
@@ -364,7 +385,11 @@ def run_batch(
     for station in stations:
         _error_file(out_dir, station.name).unlink(missing_ok=True)
 
-    args = [(s, data_dir, out_dir, base_start, base_end, date, modules, plots) for s in stations]
+    report_dir = Path(report_dir) if report_dir is not None else None
+    args = [
+        (s, data_dir, out_dir, base_start, base_end, date, modules, plots, report_dir)
+        for s in stations
+    ]
     workers = min(workers or multiprocessing.cpu_count(), max(len(stations), 1))
     results: dict[str, StationResult] = {}
 

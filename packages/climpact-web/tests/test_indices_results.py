@@ -482,7 +482,7 @@ def test_downloads_and_next_step(client):
     analysis, job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert f"/jobs/{job.pk}/files/{STATION}/trend/{STATION}_trend.csv" in html
-    assert f'href="/jobs/{job.pk}/"' in html
+    assert f'href="/station/{analysis.pk}/downloads"' in html
     assert f'href="/station/{analysis.pk}/sector"' in html
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
     assert "Kept until" in html

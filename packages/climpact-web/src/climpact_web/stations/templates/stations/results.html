@@ -22,9 +22,11 @@
   <div class="cluster results-actions">
     {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
     {% include "components/button.html" with label=change_label href=indices_url variant="secondary" icon="sliders" %}
-    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip as zip_url %}{% translate "Download everything (zip)" as zip_label %}
+    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download everything (zip, {{ size }}){% endblocktranslate %}
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
-    <a href="#downloads">{% translate "Other downloads" %}</a>
+    {% if downloads.report %}{% url 'jobs:file' downloads.job.pk downloads.report.path as report_url %}{% blocktranslate with size=downloads.report.size|filesizeformat asvar report_label %}PDF report ({{ size }}){% endblocktranslate %}
+    {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}{% endif %}
+    <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "All downloads" %}</a>
   </div>
 
   {% if run.skipped %}
@@ -98,9 +100,9 @@
     <section class="card stack" id="downloads" aria-labelledby="downloads-title">
       <h2 class="card__title" id="downloads-title">{% translate "Downloads" %}</h2>
       <ul class="link-list">
-        {% if downloads.zip %}<li><a href="{% url 'jobs:file' downloads.job.pk downloads.zip %}">{% translate "Everything, in Climpact for R's folder layout (zip)" %}</a></li>{% endif %}
-        {% for f in downloads.files %}<li><a href="{% url 'jobs:file' downloads.job.pk f.path %}">{{ f.label }}</a></li>{% endfor %}
-        <li><a href="{% url 'jobs:detail' downloads.job.pk %}">{% translate "Every file of this calculation" %}</a></li>
+        {% if downloads.zip %}<li><a href="{% url 'jobs:file' downloads.job.pk downloads.zip.path %}">{% blocktranslate with size=downloads.zip.size|filesizeformat %}Everything, in Climpact for R's folder layout (zip, {{ size }}){% endblocktranslate %}</a></li>{% endif %}
+        {% for f in downloads.files %}<li><a href="{% url 'jobs:file' downloads.job.pk f.path %}">{% blocktranslate with label=f.label kind=f.kind|upper size=f.size|filesizeformat %}{{ label }} ({{ kind }}, {{ size }}){% endblocktranslate %}</a></li>{% endfor %}
+        <li><a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Every file, with each index's table and plot" %}</a></li>
       </ul>
       {% help_topic "results.files" %}
       <p class="small muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>

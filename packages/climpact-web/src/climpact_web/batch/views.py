@@ -51,7 +51,7 @@ SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_METADATA = "climpact.sample.batch.metadata.txt"
 RECENT_BATCHES = 5
 # A rough guide for the time estimate, measured on a laptop: seconds per station.
-SECONDS_PER_STATION = {True: 10, False: 4}
+SECONDS_PER_STATION = {True: 13, False: 4}  # with plots and the PDF report (#79), without
 JOB_METADATA = "batch_metadata.txt"
 JOB_STATIONS = "stations"
 
@@ -359,6 +359,7 @@ def run_batch(request, run_id):
         "plots": run.plots,
         "zip": True,
         "station_zips": True,
+        "report": run.plots,  # each station's PDF report, with the plots (#79)
         "folder": run.folder_name,
         "skipped": skipped,
     }
@@ -451,6 +452,8 @@ def results_context(request, run: BatchRun) -> dict:
                 "stage_label": stage_label(s.get("stage", "")) if state == "running" else "",
                 "percent": int(100 * s["step"] / s["total"]) if s.get("total") else 0,
                 "opened_url": opened.get(s["name"]),
+                "zip_size": _size(job, s.get("zip")),
+                "report_size": _size(job, s.get("report")),
             }
         )
     finished = job.status == Status.SUCCEEDED
@@ -473,7 +476,16 @@ def results_context(request, run: BatchRun) -> dict:
         "delay": poll_delay(job, request.GET.get("hidden") == "true", now),
         "worker_missing": job.status == Status.QUEUED and not worker_running(now),
         "zip_file": job.result.get("zip") if finished else None,
+        "zip_size": _size(job, job.result.get("zip")) if finished else 0,
     }
+
+
+def _size(job, relative: str | None) -> int:
+    """The size of a file of the job's output (0 when there is none), for the buttons."""
+    if not relative:
+        return 0
+    path = job.output_dir / relative
+    return path.stat().st_size if path.is_file() else 0
 
 
 def opened_analyses(run: BatchRun) -> dict[str, str]:

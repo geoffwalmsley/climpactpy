@@ -309,7 +309,7 @@ def test_design_snapshots(tmp_path):
             assert "icons.svg#" not in html and '<symbol id="upload"' in html
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()
     assert "Step 9 of 14" in (out / "job-running.html").read_text()
-    assert "Download all results (zip)" in (out / "job-finished.html").read_text()
+    assert "Download all results (zip, 7.1\xa0MB)" in (out / "job-finished.html").read_text()
     assert "Line 3 has 5 values" in (out / "station-upload-problems.html").read_text()
     assert "1936-01-01 to 2015-12-31" in (out / "station-load.html").read_text()
     assert "has no data: the file covers" in (out / "station-load-errors.html").read_text()

@@ -35,9 +35,9 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data, step 2, the quality checks, steps 3 and 4, the indices and results, and step 5, sector data; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the downloads page (#79) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station steps 1 to 5 (load data, the quality checks, the index parameters, the results, sector data) and the downloads page with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -46,6 +46,7 @@ The Python port writes every ported output as a Climpact-format CSV file, text-i
 to R's apart from the `Date_of_calculation` line (see [Writing output files](#writing-output-files)).
 With `--plots` it also draws R's index plots and combined PDF, under R's file names, and
 with `--zip` zips the outputs as R's download does (see [Plots and zip archive](#plots-and-zip-archive)).
+With `--report` it writes a PDF report of each station beside the zip (see [PDF report](#pdf-report)).
 
 ## Repository layout
 
@@ -60,7 +61,8 @@ packages/
                      Its dependencies are the scientific stack only (xclim, xarray, numpy,
                      pandas, scipy, dask, netCDF4); extras `plots` and `dev`
   climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/): a Django
-                     project, depends on the core (see [Web front end](#web-front-end))
+                     project, depends on the core with its `plots` extra (matplotlib, for
+                     the plots and the PDF report; see [Web front end](#web-front-end))
 reference/           the R reference outputs and the scripts that make them, shared at the root
 ruff.toml            ruff settings for the whole repository (each package's pyproject.toml
                      extends it)
@@ -85,6 +87,7 @@ src/climpact/
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   plots.py           index plots (PNG), the combined PDF and the zip archives (matplotlib,
                      optional: the `plots` extra)
+  report.py          the PDF report of a station run: write_report(), report_file() (#79)
   progress.py        progress callbacks: Progress, BatchProgress, Steps (see Progress reporting)
   sector.py          sector correlation (R's step 4): sector_correlation(),
                      write_sector_correlation(), run_sector_correlation()
@@ -476,7 +479,7 @@ stops calling it.
 | Function | Stages, in order |
 | --- | --- |
 | `modules.run_pipeline(run, modules, progress)`, `outputs.build_all(run, modules, progress)` | `qc:<module>` for each QC module, `homogeneity:<module>`, then `indices:<module>` for each index module. A module with a `progress_steps()` method reports its own steps instead (`<kind>:<module>:<step>`); the built-in index module reports each product (`indices:climpact:spi`, ..., `indices:climpact:trend_file`). `modules.pipeline_stages(modules)` lists them. The built-in modules give 20 stages. |
-| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules (5 with no index modules, `ModuleSelection(indices=())`, as the web app's QC job runs it: `read`, `qc:climpact`, `homogeneity:none`, `write`, `zip`). With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
+| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules (5 with no index modules, `ModuleSelection(indices=())`, as the web app's QC job runs it: `read`, `qc:climpact`, `homogeneity:none`, `write`, `zip`). With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), with `report=True` a `report` (`climpact.report`), and with `zip=True` a last `zip`: 113 in all (114 with the report) |
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
 | `gridded.write_grid_thresholds(..., progress=)` | `rechunk` once per time slab if the input is rechunked first (see [Rechunking](#rechunking-inputs-chunked-by-time-step)), then `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
 | `gridded.write_grid_indices(..., progress=)` | `rechunk` once per time slab if rechunked, then `indices` once per block |
@@ -606,6 +609,60 @@ standard PDF font (no embedding) each saved about 1 s. The PNGs total 6.8 MB (R'
 the PDF 0.8 MB. Zipping the Sydney folder takes about 0.5 s. Plots are drawn in the
 station's own process: a worker process would cost more than it saves, as importing
 `climpact` imports xclim (about 2 s).
+
+### PDF report
+
+Climpact for R has no report: its downloads are the zip and `<station>_all_plots.pdf`.
+`climpact.report.write_report(out_dir, metadata, params, path=None, qc=None, title=None,
+date=None, progress=None)` (#79) writes one, read back from the files a run wrote to
+`<out>/<station>/`, so it can also be made later for any run whose folder is kept:
+
+1. a cover: station, coordinates, period of the data (from `qc/nastatistics`), base
+   period, date, software versions, every `IndexParams` value and the `QCParams`
+   thresholds (`qc`, default R's; the report states them, it cannot read them back);
+2. the contents, two columns per page, each entry a link to its page;
+3. the quality-control summary (`qc_summary`): the rows each `qc/` file lists, with what
+   the check looks for, and the years with missing days (up to four columns of them, the
+   rest referred to `qc/nastatistics`);
+4. a page per index, in R's order: the plotted series of `plots.index_plots` grouped by
+   `index_key` (`day_of_txx_MON` -> `txx`, `3month_spi_MON` -> `3month_spi`, as the web
+   dashboard's cards). The first series is drawn by the same `plots._Canvas` as the PNGs,
+   into a `SubFigure` of the page (`_Canvas` takes an optional `figure`); below it a table
+   of Sen's slope, 95% interval and Mann-Kendall p of each series with a trend, then the
+   index's DJF, MAM, JJA and SON rows of the trend file (which have no p-value).
+   "Significant" means the interval excludes zero, as in the trends guide and the web app;
+5. "Plots not drawn": the plot stages with no values, if any.
+
+Pages are A4 landscape in Helvetica, one of the standard PDF fonts (no font embedded),
+so the text is English and Latin-1 only, as the plots are. `run_station(..., report=True)`
+writes it to `<out>/<station>_report.pdf` (`report_file`; `report_path` to choose), after
+the plots and before the zip, with a `report` progress stage; it is **beside** the station
+folder, so `zip_station` keeps R's file list. `run_batch(..., report_dir=...)` writes
+`<report_dir>/<station>_report.pdf` from each worker process; `report_dir` should be
+outside the batch folder, which `zip_batch` zips. `climpact run --report` writes
+`OUT/NAME_report.pdf`, `climpact batch --report` writes `OUT_reports/NAME_report.pdf`.
+`--report` without matplotlib is a command-line error, as `--plots` is.
+
+**Accessibility.** matplotlib cannot write a tagged PDF (no structure tree), so the report
+is not PDF/UA. It has what can be added without another library: the document title,
+author, subject and keywords; `/Lang (en)`; `DisplayDocTitle`; bookmarks for the cover,
+contents, quality control and every index (`PageMode /UseOutlines`); link annotations
+from the contents; and real text, which can be searched, copied and read aloud.
+matplotlib writes neither bookmarks nor internal links, so `_add_navigation` uses
+`PdfPages`' private `PdfFile` (checked on matplotlib 3.11): it appends link annotations
+to the pages' annotation lists, which matplotlib writes when the file is closed, and
+writes the catalogue object a second time, later in the file, with the outline and the
+language (the cross-reference table records the last offset). If those internals change,
+the report is written without bookmarks and links and a warning is logged.
+`tests/test_report.py` checks the cross-reference table, the outline in the last
+catalogue, the links and the metadata; the Sydney report also opens in macOS PDFKit with
+its 82 pages, 4 top-level bookmarks (78 index bookmarks under "Indices") and working
+contents links.
+
+**Size and speed.** The Sydney run: 82 pages (cover, 2 contents pages, quality control, 78
+indices), 440-460 KB, written in 2.6 s (Apple M-series). `tests/parity/test_plots.py`
+checks that the Sydney zip, made after the report, unpacks to exactly R's file list (the
+reference output folder and `plot-files.txt`).
 
 ## Sector correlation
 
@@ -2258,6 +2315,7 @@ file must be text-identical.
 | `write.precindex.csv` writes the four SPI (SPEI) files with `time, spi` columns and no standardised column, all four unless every value is missing | reproduced (`_PRECINDEX_FILE`, `_PRECINDEX_DESCRIPTIONS`) |
 | The trend file is written with `cat(paste(..., sep = ","))`: no spaces after commas, `NA` for missing, numbers as `as.character` | reproduced (`_SEPARATORS`, `_NA_TOKENS`); the reader treats `NA` as missing in numeric columns |
 | `index.calc` writes a PNG per plotted series and `<station>_all_plots.pdf`; the app zips the station folder | written with `--plots` and `--zip`, under R's names; drawn differently (see [Plots and zip archive](#plots-and-zip-archive)) |
+| No report | `--report` (and the web app, by default) also writes `<station>_report.pdf` (`climpact.report`, #79), beside the station folder, so the zip's file list is still R's (checked for Sydney by `tests/parity/test_plots.py`); see [PDF report](#pdf-report) |
 
 ### Sector correlation
 
@@ -2527,7 +2585,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
 (#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-5, described in [Single-station steps](#single-station-steps)), #79
-(downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
+(downloads, described there too), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
 (accessibility).
 
 ### Layout
@@ -2623,6 +2681,10 @@ packages/climpact-web/src/climpact_web/
                      lines, years in common with the station); SectorForm
     sector_plots.py  step 5's results: a sector job's files read back; the bar chart and
                      scatter plots as inline SVG
+    downloads.py     the downloads page's model (#79): the zip, report, plots PDF, summary
+                     and QC files, the sector comparison's files, each index's tables and
+                     PNGs, with their sizes
+    views_downloads.py  the downloads page (#79)
     views_sector.py  step 5: the form, the sector job, its progress and results, the sample
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB);
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
@@ -2630,7 +2692,8 @@ packages/climpact-web/src/climpact_web/
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; indices.html, _indices_unit.html
                      (step 3), results_progress.html, _results_progress.html, results.html,
-                     result.html (step 4), sector.html, _sector_progress.html,
+                     result.html (step 4), downloads.html, _download_link.html (#79),
+                     sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
     models.py        BatchRun: one batch's files, check result, options and job
@@ -2689,12 +2752,13 @@ packages/climpact-web/tests/
                      step 1 (test_stations.py), step 2 (test_qc_review.py), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
-                     steps 3 and 4 (test_indices_results.py) and step 5 (test_sector_web.py)
+                     steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
+                     the downloads page and the PDF report jobs (test_downloads.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
-worker and progress pages, #73), `stations` (single-station steps, #76-#78; the downloads
-page follows in #79; step 5, sector data, is #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
+worker and progress pages, #73), `stations` (single-station steps, #76-#78, the downloads
+page, #79, and step 5, sector data, #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2974,12 +3038,13 @@ failure); `result` (JSON from the runner: files written, zip). The job's folder 
 function `runner(ctx: JobContext) -> dict`. The context has the params, the folders, the
 progress callback and `input_file(name)` (which refuses names outside `input/`). The
 built-in runners call the same core functions as the command line, so the files are the
-same: `station` (`run_station`, with plots and zip; `qc` takes the QC thresholds, so the
+same: `station` (`run_station`, with plots, zip and the PDF report, `report`, whose path
+is the result's `report`; `qc` takes the QC thresholds, so the
 QC files of a full run match step 2), `qc` (`run_station` with no index modules and the
 thresholds given: only the `qc/` files and their zip, as the R app's step 2 writes; the
 runner's result also maps each output key to its file, `reports`), `batch` (`run_batch`; one progress
 count for the whole batch, the sum of each station's last step over the sum of their
-`pipeline_stages` + `plot_steps` totals; a failed station counts as done; `workers`
+`pipeline_stages` + `plot_steps` (+ 1 for the report) totals; a failed station counts as done; `workers`
 defaults to 1; each station's own progress goes to `output/stations.json`, see
 [Batch page](#batch-page)), `sector` (`run_sector_correlation` on a station file and the index
 tables of a finished `station` job, or of one station of a `batch` job; its result also
@@ -3107,7 +3172,7 @@ imports or network requests.
 The single-station flow (#76-#79, #90) replaces the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76),
 2 (#77), 3 and 4 (#78: parameters, calculation, results) and 5 (#90: sector data) are
-built; the downloads page (#79) adds pages to the same object. R's step 4, sector
+built, and the downloads page (#79). R's step 4, sector
 correlation, is step 5 here, because the results have a step of their own.
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
@@ -3144,7 +3209,8 @@ step 3 (`stations:indices`) and `.../indices/validate` (htmx, POST); `.../result
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
 sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's sample
-sector file (`stations:sector_sample`).
+sector file (`stations:sector_sample`); `.../downloads` the downloads page
+(`stations:downloads`, #79).
 
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
@@ -3281,7 +3347,8 @@ settings, else the batch station's metadata line (`origin`), else the defaults. 
 opens once step 1 is complete, whether or not the quality checks have finished; step 2's
 "Continue" leads here once they have, and until then an info alert recommends them.
 "Calculate indices" queues a `station` job (the `station` runner: QC files, every index,
-and the plots and zip unless unticked) with step 2's thresholds (`qc`, from the analysis's
+and the plots, the zip and the PDF report unless unticked; "Write a PDF report" is on by
+default and remembered with the other settings) with step 2's thresholds (`qc`, from the analysis's
 `qc_params`), so the full run's QC files match step 2's, as `indices_job`, and goes to
 step 4.
 
@@ -3314,9 +3381,10 @@ only" filter the cards as you type (`js/results.js`, which also keeps the filter
 URL); without JavaScript the same GET form filters on the server. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. Below the cards: downloads (the zip, the
-PDF of all plots, the trend, thresholds and missing-value files, and every file on the job
-page; #79 builds the full downloads page), the settings used, and step 5. Building the
+the percentiles, or else the missing-data rules. Above the cards: "Download everything (zip, *size*)", "PDF report (*size*)" and a link to
+the downloads page. Below the cards: downloads (the zip, the report, the PDF of all plots,
+the trend, thresholds and missing-value files, each with its format and size, and the
+downloads page), the settings used, and step 5. Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
@@ -3332,6 +3400,30 @@ bar chart where the table has them (`stations:result_anomalies`, an `index` payl
 of the trend file for the index (yearly, monthly, the seasons, the SPI and SPEI months) as
 written; downloads of the CSV and of the core's PNG; and links to the previous and next
 index. The daily EHF and ECF pages list the ten highest days instead of a chart.
+
+**Downloads (#79)** (`stations:downloads`, `stations/downloads.py`, `downloads.html`).
+R's step 3 gives one link to the zip of the station folder (`singleStationStep3.R`,
+`zipFiles`; the folder's path in the local app); the page here lists every file of the
+finished run (or of the batch station, `origin`), each button labelled with its format and
+size (Django's `filesizeformat`, in the interface language), for slow connections:
+
+- *The whole run*: the zip (unchanged R layout, `zip_station`), the PDF report (see
+  [PDF report](#pdf-report)) and `<station>_all_plots.pdf`; one that was not made (unticked
+  in step 3, or a job older than the report) says so and links to step 3.
+- *Chart images as you see them*: where the charts' PNG and SVG export is (the toolbar of
+  each index page's chart, #75; it saves the current zoom) and a link to the first chart.
+  The index page's downloads card repeats the hint.
+- *Summary and quality-control files*: trend, thresholds, missing values and the eight QC
+  files.
+- *Each index*: grouped as the dashboard, in disclosures (the first open): for each series
+  its table (CSV; the `day_of_` series point to the index's table, which holds the dates)
+  and its PNG. Below 40rem each row becomes a block with its buttons side by side.
+
+Everything is a file the job wrote; the page only reads sizes (`stat`). The sizes are on
+every other download button too: the dashboard and index page, the QC page (the
+`file_size` filter in `core/templatetags/ui.py`), the job page (each file and the zip,
+`jobs.views.output_size`) and the batch results (the zips and each station's report). The
+Sydney page is 111 KB of HTML, 37.5 KB gzipped with its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
 links to step 3 with `?index=<key>`; the key travels in a hidden field to the results URL
@@ -3355,6 +3447,7 @@ R behaviour not copied in steps 3 and 4, and why:
 | A plot title is required | optional; empty uses the station title, as R's default does |
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
+| One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the downloads page (#79) |
 | Results: a carousel of the PNGs and a link to the folder or zip | a card per index table with sparkline, trend and significance, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
@@ -3494,25 +3587,29 @@ left out. Then each station:
 
 **Options.** The R screen's base period (here 1971-2000 by default) and, in the local
 install only, the number of cores ("Stations to calculate at the same time", 1 to the
-number of cores, R's messages for both limits), plus a "Draw the plots" checkbox (on).
+number of cores, R's messages for both limits), plus a "Draw the plots of every index and
+write each station's PDF report" checkbox (on).
 An htmx fragment (`batch:options`) re-checks them as they change: the base period's order,
 ready stations whose data cover 359 days or fewer of it (`MIN_BASE_DAYS`: their
-percentile indices cannot be calculated) and a rough time estimate (10 s a station with
-plots, 4 s without, divided by the stations at a time; R's modal says about a minute a
+percentile indices cannot be calculated) and a rough time estimate (13 s a station with
+plots and report, 4 s without, divided by the stations at a time; R's modal says about a minute a
 station per core).
 
 **The job.** `batch:run` writes a metadata file in R's format with only the ready
 stations (`check.metadata_text`, numbers written so they read back the same) and copies
 their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
-`station_zips`, `folder` (the metadata file's name without its extension, as R names the
+`station_zips`, `report` (with the plots), `folder` (the metadata file's name without its extension, as R names the
 batch folder and zip) and `skipped` (the other stations and why). The runner writes each
 skipped station's reason to `<folder>/<station>.errors.txt`, so the zip lists it like a
 failed station; runs `run_batch` (a failing station fails alone, its error in R's error
 file); zips each finished station to `output/stations/<station>.zip` (as R's
-single-station zip) and the whole batch folder to `output/<folder>.zip`. During the run
+single-station zip) and the whole batch folder to `output/<folder>.zip`; with `report`,
+`run_batch` writes each station's PDF report to `output/reports/<station>_report.pdf`,
+outside the batch folder, so the zip keeps R's layout. During the run
 `BatchStatus` writes each station's state to `output/stations.json` (atomically, when a
 station starts or ends and at most every 0.5 s), which the progress fragment reads; at the
-end the job's `result` lists each station with its files, error, error file and zip. A
+end the job's `result` lists each station with its files, error, error file, zip and
+report. The results page offers each station's zip and report with their sizes. A
 station's error is shown without the exception's class name or the job folder's path.
 
 **Per-station dashboards (#78).** Each finished station can be opened as a
@@ -3534,8 +3631,8 @@ R behaviour not copied, and why:
 | Number of cores defaults to 1 | up to 4, one core left free and no more than the stations; 1 when hosted (where the option is hidden, as in R) |
 | A station listed but not uploaded is skipped silently; problems appear only after the run, in error files | the check lists every station's status and reasons before the run; stations not ready are left out with an error file saying why |
 | A bad parameter or malformed metadata line stops the whole batch | a malformed metadata file is reported line by line before the run; a bad parameter leaves out only its station |
-| Plots are always drawn | a checkbox, on by default (plots are about two thirds of the run time) |
-| One zip of the batch folder | the same zip, and each station's own zip |
+| Plots are always drawn | a checkbox, on by default (plots and reports are about two thirds of the run time) |
+| One zip of the batch folder | the same zip, each station's own zip and its PDF report |
 | Station files only as separate uploads | separate files or zips, with the metadata file in the zip if wanted |
 
 ### Help
@@ -3805,7 +3902,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.2 KB for the quality-check results (#77) |
+| Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.4 KB for the quality-check results (#77) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
 | Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
@@ -3818,7 +3915,9 @@ quality-check results page (the Sydney sample checked: every section, the four c
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
 year). #78 added `results.css` (2 KB) and `results.js` (1 KB); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
-run: 42 bars, four scatter plots and their tables as inline SVG, no chart code).
+run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
+downloads page (the same run as the dashboard: every table and file with its size) and
+its rules to `results.css`.
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
 temporary folder, renders each page type with the real views (creating the session's
@@ -3829,7 +3928,7 @@ supports it; Brotli is printed as well. The pages measured: landing; station ste
 with the sample loaded, step 2 with the checks queued and with their results, step 3 (the
 parameters), the step 4 dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code), step 5's results (#90); batch start, check and results (queued); the job list
+index's page (TXx, with the chart code), step 5's results (#90), the downloads page of the dashboard's run (#79); batch start, check and results (queued); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
 largest map drawn, values all different); the help index, a guide, the indices guide, the
 topic list and a search; and the 404 page. The pattern library is left out (development
@@ -3838,14 +3937,15 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
-| station quality results (#77) | 371.8 | 44.1 | 109.2 | 102.1 |
+| station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
 | station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
 | station results, 80 indices | 190.8 | 37.7 | 69.2 | 65.7 |
 | station index (TXx, with chart code) | 18.8 | 4.5 | 68.4 | 61.4 |
 | station sector results (#90) | 110.6 | 14.7 | 45.2 | 41.8 |
+| station downloads, 114 tables (#79) | 110.6 | 6.8 | 37.5 | 34.1 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station indices (step 3) | 28.3 | 5.3 | 35.9 | 32.5 |
+| station indices (step 3) | 28.8 | 5.4 | 36.1 | 32.7 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
 | landing | 13.4 | 4.1 | 34.9 | 31.5 |
 | batch check | 18.6 | 4.4 | 34.1 | 30.8 |
@@ -4066,7 +4166,7 @@ move redraws in 18-37 ms. Pages and charts were checked in light and dark themes
 together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
 [Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
-quality-check results (109.2 KB, #77), a station index's page (68.4 KB, #78) and the
+quality-check results (109.4 KB, #77), a station index's page (68.6 KB, #78) and the
 gridded results (121.6 KB at worst), all under the 300 KB page budget. The results
 dashboard (#78) has no chart code: its sparklines are inline SVG.
 
@@ -4125,7 +4225,7 @@ python3 -m venv .venv
 - Correlate sector data with a station already run with
   `.venv/bin/climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
 - Run a station from the command line with
-  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip]`
+  `.venv/bin/climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip] [--report]`
   (`climpact run --help` lists the options), or a batch with
   `.venv/bin/climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
 - Python 3.11+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the

@@ -140,8 +140,11 @@ class OptionsForm(forms.Form):
         widget=forms.NumberInput(attrs={"inputmode": "numeric"}),
     )
     plots = forms.BooleanField(
-        label=_("Draw the plots of every index"),
-        help_text=_("Plots take about two thirds of the time. The tables are written either way."),
+        label=_("Draw the plots of every index and write each station's PDF report"),
+        help_text=_(
+            "Plots and reports take about two thirds of the time. The tables are written "
+            "either way."
+        ),
         required=False,
     )
 

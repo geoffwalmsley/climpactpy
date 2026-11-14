@@ -66,9 +66,11 @@ def job_pages() -> dict[str, str]:
     finished = Job(kind="station", title="Sydney Observatory Hill", status=Status.SUCCEEDED,
                    step=14, total=14, created_at=ago(minutes=5), started_at=ago(minutes=4),
                    finished_at=ago(minutes=2), result={"zip": "Sydney.zip"})  # fmt: skip
-    files = ["Sydney/indices/Sydney_txx_ANN.csv", "Sydney/indices/Sydney_tnn_ANN.csv",
-             "Sydney/plots/Sydney_txx_ANN.png", "Sydney/trend/Sydney_trend.csv",
-             "Sydney/qc/Sydney_tmax_outliers.csv", "Sydney.zip"]  # fmt: skip
+    files = [{"name": n, "size": size} for n, size in (
+        ("Sydney_report.pdf", 467_000), ("Sydney/indices/Sydney_txx_ANN.csv", 4_200),
+        ("Sydney/indices/Sydney_tnn_ANN.csv", 4_100), ("Sydney/plots/Sydney_txx_ANN.png", 61_000),
+        ("Sydney/trend/Sydney_trend.csv", 14_000), ("Sydney/qc/Sydney_tmax_outliers.csv", 9_000),
+        ("Sydney.zip", 7_400_000))]  # fmt: skip
     failed = Job(kind="station", title="Perth Airport", status=Status.FAILED, stage="failed",
                  created_at=ago(hours=1), started_at=ago(minutes=59), finished_at=ago(minutes=59),
                  error="Line 1204 has 3 values; each line needs year, month, day, "
@@ -87,7 +89,7 @@ def job_pages() -> dict[str, str]:
                         progress(running, elapsed="1 min 12 s", remaining="40 s")),
         "job-finished": ("jobs/job_detail.html",
                          progress(finished, elapsed="2 min 3 s", zip_file="Sydney.zip",
-                                  files=files)),
+                                  zip_size=7_400_000, files=files)),
         "job-failed": ("jobs/job_detail.html", progress(failed, elapsed="1 s")),
         "jobs": ("jobs/job_list.html", {"jobs": [queued, running, finished, failed]}),
     }  # fmt: skip

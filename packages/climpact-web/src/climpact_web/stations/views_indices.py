@@ -73,10 +73,10 @@ def batch_custom(job: Job | None) -> dict | None:
     return (job.params or {}).get("custom") if job is not None else None
 
 
-def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, str]:
+def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, bool, str]:
     """The parameters to start the form from: the last calculation's, else the batch
     station's (``origin``), else the defaults. Returns (params, plot title, plots, zip,
-    where they come from)."""
+    report, where they come from)."""
     job = analysis.indices_job
     if job is not None and job.kind == "station":
         p = job.params or {}
@@ -85,14 +85,15 @@ def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, s
             p.get("plot_title") or "",
             bool(p.get("plots", True)),
             bool(p.get("zip", True)),
+            bool(p.get("report", True)),
             "job",
         )
     origin = analysis.origin or {}
     if origin.get("params"):
         params = dict(origin["params"])
         params["custom"] = batch_custom(batch_job(analysis))
-        return params, "", True, True, "batch"
-    return {}, "", True, True, "default"
+        return params, "", True, True, True, "batch"
+    return {}, "", True, True, True, "default"
 
 
 # ---- step 3: the parameters ------------------------------------------------------------
@@ -137,7 +138,7 @@ def indices(request, analysis_id):
     if not _ready(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
     title = _station_title(analysis)
-    params, plot_title, plots, zip_, source = previous_params(analysis)
+    params, plot_title, plots, zip_, report, source = previous_params(analysis)
     if request.method == "POST":
         form = IndexParamsForm(request.POST, station_title=title)
         if form.is_valid():
@@ -148,7 +149,7 @@ def indices(request, analysis_id):
                 url += "?" + urlencode({"index": index})
             return redirect(url) if job else redirect("stations:load", analysis_id=analysis.pk)
     else:
-        initial = initial_from_params(params, plot_title, plots, zip_)
+        initial = initial_from_params(params, plot_title, plots, zip_, report)
         initial["index"] = request.GET.get("index", "")[:INDEX_KEY_MAX]
         form = IndexParamsForm(initial=initial, station_title=title)
     if analysis.step == Step.QC:
@@ -169,6 +170,7 @@ def queue_indices(request, analysis: StationAnalysis, form: IndexParamsForm) -> 
         "plot_title": data["plot_title"],
         "plots": data["plots"],
         "zip": data["zip"],
+        "report": data["report"],
     }
     with analysis.station_file.open("rb") as handle:
         job = create_job(
@@ -197,7 +199,7 @@ def indices_validate(request, analysis_id):
 
 # ---- step 4: progress and the dashboard -------------------------------------------------
 
-PHASES = ("read", "qc", "homogeneity", "indices", "write", "plots", "zip")
+PHASES = ("read", "qc", "homogeneity", "indices", "write", "plots", "report", "zip")
 
 
 def phases(job: Job) -> list[dict]:
@@ -210,13 +212,10 @@ def phases(job: Job) -> list[dict]:
         "indices": _("Calculate the indices"),
         "write": _("Write the result files"),
         "plots": _("Draw the plots"),
+        "report": _("Write the PDF report"),
         "zip": _("Make the zip file"),
     }
-    wanted = [
-        p
-        for p in PHASES
-        if (p != "plots" or job.params.get("plots")) and (p != "zip" or job.params.get("zip"))
-    ]
+    wanted = [p for p in PHASES if p not in ("plots", "report", "zip") or job.params.get(p)]
     head = (job.stage or "").split(":")[0]
     current = wanted.index(head) if head in wanted else (-1 if job.status == Status.QUEUED else 0)
     out = []
@@ -356,26 +355,13 @@ def params_summary(source) -> list[dict]:
 
 
 def downloads(source) -> dict:
-    """Links to the run's files, for the downloads card (#79 builds the full page)."""
-    job = source.job
-    out = {"job": job, "files": []}
-    if source.from_batch:
-        entry = next((s for s in job.result.get("stations", []) if s["name"] == source.station), {})
-        zip_file = entry.get("zip")
-    else:
-        zip_file = job.result.get("zip")
-    if zip_file:
-        out["zip"] = zip_file
-    candidates = [
-        (_("All plots (PDF)"), ("plots", f"{source.station}_all_plots.pdf")),
-        (_("Trends of every index (CSV)"), ("trend", f"{source.station}_trend.csv")),
-        (_("Percentile thresholds (CSV)"), ("thres", f"{source.station}_thres.csv")),
-        (_("Missing values by year (CSV)"), ("qc", f"{source.station}_nastatistics.csv")),
-    ]
-    for label, parts in candidates:
-        if path := source.file_if_exists(*parts):
-            out["files"].append({"label": label, "path": path})
-    return out
+    """The main downloads with their sizes, for the dashboard's downloads card; the
+    downloads page (``stations:downloads``, #79) lists every file."""
+    from climpact_web.stations.downloads import main_downloads, summary_downloads
+
+    main = main_downloads(source)
+    files = [d for d in (main["report"], main["all_plots"]) if d] + summary_downloads(source)
+    return {"job": source.job, "zip": main["zip"], "report": main["report"], "files": files}
 
 
 def dashboard_context(request, analysis, source, run) -> dict:
@@ -454,7 +440,9 @@ def result(request, analysis_id, key):
         "next": following,
         "trend_rows": results_model.trend_rows(source, card.key) if not card.daily else [],
         "csv_path": source.table_file(name.removeprefix("day_of_")),
+        "csv_size": _size(source.index_source.table_path(name.removeprefix("day_of_"))),
         "png_path": source.plot_file(name),
+        "png_size": _size(source.station_dir / "plots" / f"{source.station}_{name}.png"),
         "from_batch": source.from_batch and analysis.indices_job is None,
     }
     if plot is not None:
@@ -471,6 +459,10 @@ def result(request, analysis_id, key):
         ):
             context["anomaly_url"] = reverse("stations:result_anomalies", args=[analysis.pk, name])
     return render(request, "stations/result.html", context)
+
+
+def _size(path) -> int:
+    return path.stat().st_size if path.is_file() else 0
 
 
 def series_stats(plot) -> list[dict]:

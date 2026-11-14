@@ -556,7 +556,8 @@ HAND_WRITTEN = (
         _("What is in the download"),
         _(
             "Folders for the quality checks (qc), index tables (indices), plots, "
-            "thresholds (thres), trends (trend) and sector correlation (corr)."
+            "thresholds (thres), trends (trend) and sector correlation (corr). The PDF "
+            "report is a separate download."
         ),
         "indices",
         "the-index-files",

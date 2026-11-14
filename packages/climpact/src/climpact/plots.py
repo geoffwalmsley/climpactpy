@@ -322,21 +322,25 @@ class _Canvas:
 
     _LEFT, _RIGHT, _BOTTOM = 0.085, 0.97, 0.2
 
-    def __init__(self, metadata: StationMetadata, title: str | None = None) -> None:
+    def __init__(self, metadata: StationMetadata, title: str | None = None, figure=None) -> None:
+        """``figure``: draw into this (sub)figure, e.g. a part of a report page
+        (:mod:`climpact.report`), instead of a figure of its own."""
         require_matplotlib()
         from matplotlib.backends.backend_agg import FigureCanvasAgg
         from matplotlib.collections import PolyCollection
         from matplotlib.figure import Figure
         from matplotlib.transforms import blended_transform_factory
 
-        fig = self.figure = Figure(figsize=(_WIDTH, _HEIGHT), dpi=_DPI, facecolor="white")
-        FigureCanvasAgg(fig)
+        if figure is None:
+            figure = Figure(figsize=(_WIDTH, _HEIGHT), dpi=_DPI, facecolor="white")
+            FigureCanvasAgg(figure)
+        fig = self.figure = figure
         left, right = self._LEFT, self._RIGHT
         heading = title or station_title(metadata)
         fig.text(left, 0.945, heading, color=_INK_2, fontsize=10)
         self.title = fig.text(left, 0.915, "", color=_INK, fontsize=12.5, weight="bold", va="top")
         self.trend_text = fig.text(left, 0.105, "", color=_INK, fontsize=10.5)
-        fig.text(
+        self.footer = fig.text(
             right,
             0.025,
             f"climpactpy {__version__}  ·  Climpact {CLIMPACT_VERSION}",

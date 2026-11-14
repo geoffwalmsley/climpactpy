@@ -35,3 +35,12 @@ def times(count, default=3):
     if count is None or count == "":
         return range(default)
     return range(int(count))
+
+
+@register.filter
+def file_size(job, relative):
+    """Size in bytes of the file ``relative`` of a job's output, for download buttons
+    (#79): ``{{ job|file_size:path|filesizeformat }}``; 0 when there is none."""
+    from climpact_web.jobs.views import output_size
+
+    return output_size(job, relative) if job is not None and relative else 0

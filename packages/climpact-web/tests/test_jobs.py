@@ -2,6 +2,7 @@
 retention."""
 
 import datetime as dt
+import re
 import threading
 import uuid
 from pathlib import Path
@@ -177,7 +178,7 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
 
     fragment = client.get(f"/jobs/{job.pk}/progress").content.decode()
     assert "hx-get" not in fragment  # finished: polling stops
-    assert "Download all results (zip)" in fragment
+    assert re.search(r"Download all results \(zip, [0-9.]+\xa0[KM]B\)", fragment)
     download = client.get(f"/jobs/{job.pk}/files/Testville.zip")
     assert download.status_code == 200
     assert download["Content-Disposition"].startswith("attachment")

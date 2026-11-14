@@ -201,6 +201,16 @@ class IndexParamsForm(forms.Form):
         required=False,
         initial=True,
     )
+    report = forms.BooleanField(
+        label=_("Write a PDF report"),
+        help_text=_(
+            "One PDF to read, print or send: the station and settings, what the quality "
+            "checks found, and a page per index with its plot and trends. Not in Climpact "
+            "for R; it is a separate download, so the zip keeps R's layout."
+        ),
+        required=False,
+        initial=True,
+    )
     # The index the user was looking at, so that they return to it after recalculating.
     index = forms.CharField(required=False, widget=forms.HiddenInput, max_length=100)
 
@@ -344,7 +354,9 @@ class IndexParamsForm(forms.Form):
         return names
 
 
-def initial_from_params(params: dict | None, plot_title: str = "", plots=True, zip=True) -> dict:
+def initial_from_params(
+    params: dict | None, plot_title: str = "", plots=True, zip=True, report=True
+) -> dict:
     """Form values from a job's ``params`` (or a batch station's), defaults elsewhere."""
     params = dict(params or {})
     initial = {name: params[name] for name in PARAM_FIELDS if name in params}
@@ -358,4 +370,5 @@ def initial_from_params(params: dict | None, plot_title: str = "", plots=True, z
     initial["plot_title"] = plot_title
     initial["plots"] = plots
     initial["zip"] = zip
+    initial["report"] = report
     return initial

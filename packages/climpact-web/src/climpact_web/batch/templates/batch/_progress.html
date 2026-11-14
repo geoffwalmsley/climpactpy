@@ -2,8 +2,9 @@
 The batch's progress and, once it has finished, its results: polled by htmx (outerHTML
 swap) while the job is queued or running, as the job page's fragment is. Parameters:
 run, job, rows (each station: name, state, step, total, stage_label, percent,
-error_text, skip_lines, zip, folder, error_file), counts, total_stations, stage_label,
-elapsed, remaining, delay, worker_missing, zip_file; opened_url for a station already opened as a single station.
+error_text, skip_lines, zip, zip_size, report, report_size, folder, error_file), counts,
+total_stations, stage_label,
+elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a station already opened as a single station.
 {% endcomment %}
 <div id="batch-progress" class="stack batch-progress" data-status="{{ job.status }}"
   {% if not job.is_finished %}hx-get="{% url 'batch:progress' run.pk %}"
@@ -47,7 +48,7 @@ elapsed, remaining, delay, worker_missing, zip_file; opened_url for a station al
     </div>
   </div>
   {% if zip_file %}
-  <p>{% translate "Download everything (zip)" as zip_label %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
+  <p>{% blocktranslate with size=zip_size|filesizeformat asvar zip_label %}Download everything (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
   {% endif %}
   {% endif %}
 
@@ -98,7 +99,8 @@ elapsed, remaining, delay, worker_missing, zip_file; opened_url for a station al
         {% if job.status == "succeeded" %}
         <div class="cluster batch-item__actions">
           {% if row.state == "done" %}
-          {% if row.zip %}{% translate "Download (zip)" as station_zip %}{% url 'jobs:file' job.pk row.zip as station_zip_url %}{% include "components/button.html" with label=station_zip href=station_zip_url icon="download" size="sm" variant="secondary" %}{% endif %}
+          {% if row.zip %}{% blocktranslate with size=row.zip_size|filesizeformat asvar station_zip %}Download (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.zip as station_zip_url %}{% include "components/button.html" with label=station_zip href=station_zip_url icon="download" size="sm" variant="secondary" %}{% endif %}
+          {% if row.report %}{% blocktranslate with size=row.report_size|filesizeformat asvar station_report %}PDF report ({{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.report as station_report_url %}{% include "components/button.html" with label=station_report href=station_report_url icon="download" size="sm" variant="secondary" %}{% endif %}
           {% if row.opened_url %}
           <a class="button button--ghost button--sm" href="{{ row.opened_url }}">{% icon "chart" %}<span>{% translate "Open as a single station" %}</span></a>
           {% else %}

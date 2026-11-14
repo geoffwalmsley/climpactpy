@@ -484,7 +484,7 @@ def opened_analyses(run: BatchRun) -> dict[str, str]:
     for analysis in StationAnalysis.objects.filter(owner=run.owner, origin__batch=str(run.pk)).only(
         "id", "origin"
     ):
-        out[analysis.origin.get("station", "")] = reverse("stations:load", args=[analysis.pk])
+        out[analysis.origin.get("station", "")] = reverse("stations:results", args=[analysis.pk])
     return out
 
 
@@ -535,7 +535,7 @@ def open_station(request, run_id, name):
         owner=run.owner, origin__batch=str(run.pk), origin__station=name
     ).first()
     if existing:
-        return redirect("stations:load", analysis_id=existing.pk)
+        return redirect("stations:results", analysis_id=existing.pk)
     path = job.input_dir / JOB_STATIONS / station["station_file"]
     if not path.is_file():
         raise Http404
@@ -570,4 +570,4 @@ def open_station(request, run_id, name):
         _("%(name)s is open as a single station, with its data and details from the batch.")
         % {"name": name},
     )
-    return redirect("stations:load", analysis_id=analysis.pk)
+    return redirect("stations:results", analysis_id=analysis.pk)

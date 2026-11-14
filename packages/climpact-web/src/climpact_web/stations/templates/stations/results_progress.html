@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Calculating indices" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating indices" %}{% else %}{% translate "Results" %}{% endif %}</h1>
+    <p class="lead">{% blocktranslate with name=analysis.station_name start=analysis.base_start end=analysis.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
+  </header>
+  {% if missing_outputs %}
+  {% translate "This calculation finished without index tables (it may have been started with only the quality checks). Calculate the indices to see them here." as missing_message %}
+  {% include "components/alert.html" with kind="warning" title="" message=missing_message %}
+  <p>{% url 'stations:indices' analysis.pk as indices_url %}{% translate "Calculate indices" as run_label %}{% include "components/button.html" with label=run_label href=indices_url icon_end="arrow-right" %}</p>
+  {% else %}
+  <section class="card stack" aria-labelledby="progress-title">
+    <h2 class="card__title" id="progress-title">{% translate "Progress" %}</h2>
+    {% include "stations/_results_progress.html" %}
+    <noscript><p class="small">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
+  </section>
+  <p class="small muted">{% translate "You can leave this page: the calculation carries on, and this page's address shows the results when it has finished." %}</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% block title %}{% translate "Compare with sector data" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  <header class="stack stack--sm">
+    <h1>{% translate "Compare with sector data" %}</h1>
+    <p class="lead">{% translate "Optional: how the indices relate to yearly data from a sector such as crop yields or hospital admissions." %}</p>
+  </header>
+  {% translate "This screen is not available yet. The command line can already do it: climpact sector-correlation." as soon %}
+  {% include "components/alert.html" with kind="info" title="" message=soon %}
+  <p class="cluster">{% if job %}<a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a>{% else %}<a href="{% url 'stations:indices' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Calculate the indices first" %}</a>{% endif %}</p>
+</div>
+{% endblock %}

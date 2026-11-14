@@ -41,6 +41,8 @@ ASSET_BUDGETS = {
     "css/stations.css": 1 * KB,
     "css/qc.css": 1.5 * KB,  # the quality-check step (#77)
     "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
+    "css/results.css": 2 * KB,  # station steps 3 and 4 (#78)
+    "js/results.js": 1 * KB,  # the results dashboard's filters (#78)
     "css/batch.css": 1 * KB,
     "css/gridded.css": 1.5 * KB,
     "css/patterns.css": 1 * KB,
@@ -93,6 +95,35 @@ def station_qc_results(client) -> str:
     url = station_qc(client)
     run_job(claim("budget"), None)
     return url
+
+
+def station_indices(client) -> str:
+    return station_qc(client).replace("/quality", "/indices")
+
+
+def station_results(client) -> str:
+    """The dashboard of a finished run with every index: R's reference output for the
+    Sydney sample (114 index tables, 80 cards with sparklines)."""
+    import shutil
+
+    from climpact_web.jobs.models import Job, Status
+    from climpact_web.stations.models import StationAnalysis
+
+    url = station_indices(client)
+    analysis = StationAnalysis.objects.get()
+    station = "sydney_observatory_hill_1936-2015"
+    job = Job.objects.create(kind="station", owner=analysis.owner, status=Status.SUCCEEDED,
+                             params={"params": {}, "plots": True, "zip": True},
+                             result={"station": station, "skipped": []})  # fmt: skip
+    reference = Path(__file__).resolve().parents[3] / "reference" / "output" / "lat0" / station
+    shutil.copytree(reference, job.output_dir / station)
+    analysis.indices_job = job
+    analysis.save()
+    return url.replace("/indices", "/results")
+
+
+def station_index(client) -> str:
+    return station_results(client) + "/txx"
 
 
 def batch_check(client) -> str:
@@ -151,6 +182,9 @@ PAGES = {
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
     "station quality": Page(station_qc),  # the checks queued
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
+    "station indices": Page(station_indices),
+    "station results, 80 indices": Page(station_results),  # sparklines, no chart code
+    "station index": Page(station_index, charts=True),  # the index's chart (#78)
     "batch start": Page(lambda client: "/batch/"),
     "batch check": Page(batch_check),
     "batch results": Page(batch_results),
@@ -285,6 +319,7 @@ def test_chart_code_only_on_chart_pages():
     assert [name for name, page in PAGES.items() if page.charts] == [
         "station sample loaded",
         "station quality results",
+        "station index",
         "gridded results, 100x100 grid",
     ]
     assert "landing" in PAGES and not PAGES["landing"].charts

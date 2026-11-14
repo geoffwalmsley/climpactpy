@@ -219,6 +219,27 @@ def test_run_station_with_plots_and_zip(station_file, tmp_path):
     assert {n for n in names if not n.endswith("/")} == files
 
 
+@needs_matplotlib
+def test_plot_title_replaces_the_station_title(monkeypatch, tmp_path):
+    """R's "Plot title" (step 3) is printed at the top of every plot instead of the
+    station title."""
+    texts = []
+    real = plots._Canvas.__init__
+
+    def spy(self, metadata, title=None):
+        real(self, metadata, title)
+        texts.append(self.figure.texts[0].get_text())
+
+    monkeypatch.setattr(plots._Canvas, "__init__", spy)
+    tables = {"indices/tmm_ANN": _annual([30.0, 31.0, 30.5])}
+    metadata = StationMetadata("stn", latitude=-10)
+    plots.write_plots(tables, metadata, IndexParams(custom=None), tmp_path, title="My plots")
+    assert texts == ["My plots", "My plots"]  # the PNG and the PDF canvas
+    texts.clear()
+    plots.write_plots(tables, metadata, IndexParams(custom=None), tmp_path)
+    assert texts == [station_title(metadata)] * 2
+
+
 def test_zip_station_leaves_out_zip_files(tmp_path):
     folder = tmp_path / "stn"
     (folder / "indices").mkdir(parents=True)

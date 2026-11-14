@@ -33,7 +33,6 @@ from climpact_web.stations.forms import (
     QC_DEFAULTS,
     MetadataForm,
     QCParamsForm,
-    RunAllForm,
     UploadForm,
 )
 from climpact_web.stations.models import STATION_FILE, Source, StationAnalysis, Step
@@ -529,53 +528,3 @@ def qc_continue(request, analysis_id):
     analysis.touch()
     analysis.save()
     return redirect("stations:indices", analysis_id=analysis.pk)
-
-
-# ---- Step 3 placeholder ------------------------------------------------------------------
-
-
-@never_cache
-@require_safe
-def indices(request, analysis_id):
-    """Step 3, Calculate indices: the screen comes with #78. Until then the page can run
-    the whole calculation with the default index parameters (and the QC thresholds of
-    step 2)."""
-    analysis = get_analysis(request, analysis_id)
-    if not analysis.reached(Step.INDICES) or not analysis.metadata_complete:
-        return redirect("stations:qc", analysis_id=analysis.pk)
-    return render(
-        request,
-        "stations/indices.html",
-        {
-            "analysis": analysis,
-            "steps": station_steps("indices", analysis.step_urls()),
-            "run_form": RunAllForm(),
-        },
-    )
-
-
-@require_POST
-def run_all(request, analysis_id):
-    """Queue the whole station calculation (QC, indices, plots, zip) with the default
-    index parameters and the analysis's QC thresholds."""
-    analysis = get_analysis(request, analysis_id)
-    if not analysis.metadata_complete or not analysis.station_file.is_file():
-        return redirect("stations:load", analysis_id=analysis.pk)
-    form = RunAllForm(request.POST)
-    form.is_valid()  # two optional checkboxes: always valid
-    params = {
-        "station_file": STATION_FILE,
-        "metadata": analysis.metadata,
-        "params": {},
-        "qc": QCParamsForm.initial_for(analysis.qc_params),
-        "plots": form.cleaned_data["plots"],
-        "zip": form.cleaned_data["zip"],
-    }
-    with analysis.station_file.open("rb") as handle:
-        job = create_job(
-            request, "station", params, {STATION_FILE: File(handle)}, title=analysis.station_name
-        )
-    analysis.indices_job = job
-    analysis.touch()
-    analysis.save()
-    return redirect(reverse("jobs:detail", args=[job.pk]))

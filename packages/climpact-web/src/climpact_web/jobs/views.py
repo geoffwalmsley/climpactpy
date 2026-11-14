@@ -130,17 +130,29 @@ def job_progress(request, job_id):
     return render(request, "jobs/_progress.html", progress_context(request, job))
 
 
+def _back(request, job_id):
+    """Back to the page the form was on (``next``, a URL of this site), else the job."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    target = request.POST.get("next", "")
+    if target and url_has_allowed_host_and_scheme(
+        target, {request.get_host()}, request.is_secure()
+    ):
+        return redirect(target)
+    return redirect("jobs:detail", job_id=job_id)
+
+
 @require_POST
 def job_cancel(request, job_id):
     get_job(request, job_id).request_cancel()
-    return redirect("jobs:detail", job_id=job_id)
+    return _back(request, job_id)
 
 
 @require_POST
 def job_retry(request, job_id):
     """Run a failed or cancelled job again, with the same inputs and parameters."""
     get_job(request, job_id).retry()
-    return redirect("jobs:detail", job_id=job_id)
+    return _back(request, job_id)
 
 
 @require_safe

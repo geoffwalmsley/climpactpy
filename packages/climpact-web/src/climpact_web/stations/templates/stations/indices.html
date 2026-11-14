@@ -1,44 +1,98 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
-{% comment %}
-Step 3 placeholder until the indices screen (#78): what was loaded, and the whole
-calculation with the default index parameters and the quality-control thresholds of step 2.
-{% endcomment %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Calculate indices" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% translate "Calculate indices" %}</h1>
-    <p class="lead">{% blocktranslate with name=analysis.station_name %}{{ name }}: data checked.{% endblocktranslate %}</p>
+    <p class="lead">{% blocktranslate with name=analysis.station_name start=analysis.base_start end=analysis.base_end trimmed %}
+      {{ name }}, base period {{ start }} to {{ end }}. Every index is calculated; these
+      settings change the few that take a number of days, a temperature or an amount.
+      Leave them as they are unless you need those indices.
+    {% endblocktranslate %}</p>
   </header>
-  {% translate "The screen for choosing indices and their settings is not available yet. Until it is, you can run the whole calculation with the default settings: the quality-control files (with your thresholds), every index, the plots and a zip of the results." as soon %}
-  {% include "components/alert.html" with kind="info" title="" message=soon %}
 
-  <section class="card stack" aria-labelledby="loaded-title">
-    <h2 class="card__title" id="loaded-title">{% translate "What you loaded" %}</h2>
-    <dl class="summary-list">
-      <dt>{% translate "Station" %}</dt><dd>{{ analysis.station_name }}</dd>
-      <dt>{% translate "Location" %}</dt><dd>{% blocktranslate with lat=analysis.latitude lon=analysis.longitude %}{{ lat }}° N, {{ lon }}° E{% endblocktranslate %}</dd>
-      <dt>{% translate "Base period" %}</dt><dd>{% blocktranslate with start=analysis.base_start end=analysis.base_end %}{{ start }} to {{ end }}{% endblocktranslate %}</dd>
-      <dt>{% translate "Data" %}</dt><dd>{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date name=analysis.file_name %}{{ first }} to {{ last }}, from {{ name }}{% endblocktranslate %}</dd>
-    </dl>
-    <p><a href="{% url 'stations:qc' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the quality checks" %}</a></p>
-  </section>
+  {% if not qc_done %}
+  {% url 'stations:qc' analysis.pk as qc_url %}
+  <div class="alert alert--info" role="note">
+    {% icon "info" %}
+    <div class="alert__body">
+      <p>{% blocktranslate trimmed %}The quality checks have not been run for this data, or have not finished. You can calculate the indices now, as in Climpact for R, but <a href="{{ qc_url }}">checking the data first</a> is recommended.{% endblocktranslate %}</p>
+    </div>
+  </div>
+  {% endif %}
+  {% if source == "batch" %}
+  {% translate "The settings start from this station's line in the batch metadata file." as batch_note %}
+  {% include "components/alert.html" with kind="info" title="" message=batch_note %}
+  {% elif source == "job" %}
+  <p class="cluster small muted">{% icon "refresh" %}<span>{% translate "These are the settings of your last calculation." %}</span>{% if has_results %} <a href="{% url 'stations:results' analysis.pk %}">{% translate "Back to the results" %}</a>{% endif %}</p>
+  {% endif %}
 
-  <section class="card stack" aria-labelledby="run-title">
-    <h2 class="card__title" id="run-title">{% translate "Calculate everything now" %}</h2>
-    {% if analysis.indices_job %}
-    <p>{% translate "A calculation for this station has been started." %} <a href="{% url 'jobs:detail' analysis.indices_job.pk %}">{% translate "Follow its progress and download the results" %}</a></p>
-    {% endif %}
-    <form method="post" action="{% url 'stations:run_all' analysis.pk %}" class="stack">
-      {% csrf_token %}
-      {% include "components/field.html" with field=run_form.plots %}
-      {% include "components/field.html" with field=run_form.zip %}
-      {% if analysis.indices_job %}{% translate "Calculate again" as run_label %}{% else %}{% translate "Calculate with the default settings" as run_label %}{% endif %}
-      {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" %}
-    </form>
-  </section>
+  <form method="post" action="{% url 'stations:indices' analysis.pk %}" class="form stack stack--lg" novalidate>
+    {% csrf_token %}
+    {{ form.index }}
+    {% include "components/form_errors.html" %}
+
+    <section class="card stack" aria-labelledby="plots-title">
+      <h2 class="card__title" id="plots-title">{% translate "Plots" %}</h2>
+      {% include "stations/_indices_unit.html" with group="plot_title" %}
+    </section>
+
+    <section class="card stack" aria-labelledby="spells-title">
+      <h2 class="card__title" id="spells-title">{% translate "Spell lengths" %}</h2>
+      <p class="small muted">{% translate "How many days in a row count towards these indices." %}</p>
+      <div class="param-grid">
+        {% include "stations/_indices_unit.html" with group="wsdi_days" %}
+        {% include "stations/_indices_unit.html" with group="csdi_days" %}
+        {% include "stations/_indices_unit.html" with group="rx_days" %}
+        {% include "stations/_indices_unit.html" with group="txtn_days" %}
+      </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="degree-title">
+      <h2 class="card__title" id="degree-title">{% translate "Degree days" %}</h2>
+      <p class="small muted">{% translate "The base temperatures heating, cooling and growing degree days are counted from." %}</p>
+      <div class="param-grid">
+        {% include "stations/_indices_unit.html" with group="hdd_base" %}
+        {% include "stations/_indices_unit.html" with group="cdd_base" %}
+        {% include "stations/_indices_unit.html" with group="gdd_base" %}
+      </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="prcp-title">
+      <h2 class="card__title" id="prcp-title">{% translate "Precipitation and drought" %}</h2>
+      <div class="param-grid">
+        {% include "stations/_indices_unit.html" with group="rnnmm" %}
+        {% include "stations/_indices_unit.html" with group="spei_months" %}
+      </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="custom-title">
+      <h2 class="card__title" id="custom-title">{% translate "Your own index" %}</h2>
+      {% include "stations/_indices_unit.html" with group="custom" %}
+    </section>
+
+    <section class="card stack" aria-labelledby="ehf-title">
+      <h2 class="card__title" id="ehf-title">{% translate "Heatwave definition" %}</h2>
+      <p>{% translate "Heatwaves are found from the 90th percentiles of TX and TN, and from the excess heat factor (EHF) as defined by Nairn and Fawcett (2013). Climpact uses this EHF definition for every station; there is nothing to choose." %}</p>
+      {% help_topic "index.hwEHF" %}
+    </section>
+
+    <section class="card stack" aria-labelledby="output-title">
+      <h2 class="card__title" id="output-title">{% translate "Files" %}</h2>
+      {% include "components/field.html" with field=form.plots %}
+      {% include "components/field.html" with field=form.zip %}
+    </section>
+
+    <div class="form__actions cluster">
+      {% translate "Calculate indices" as run_label %}
+      {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" %}
+      <span class="small muted">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots." %}</span>
+    </div>
+  </form>
+
+  <p class="cluster small"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the data or the station details" %}</a></p>
 </div>
 {% endblock %}

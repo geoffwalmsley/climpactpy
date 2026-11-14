@@ -419,8 +419,10 @@ def test_continue_to_the_indices(client, checked):
     checked.refresh_from_db()
     assert checked.step == Step.INDICES
     page = client.get(f"/station/{checked.pk}/indices").content.decode()
-    assert f'action="/station/{checked.pk}/indices/run-all"' in page
-    client.post(f"/station/{checked.pk}/indices/run-all", {"zip": "on"})
+    assert f'action="/station/{checked.pk}/indices"' in page
+    from test_indices_results import defaults
+
+    client.post(f"/station/{checked.pk}/indices", defaults())
     job = Job.objects.get(kind="station")
     assert job.params["qc"] == QC_DEFAULTS
 
@@ -429,7 +431,9 @@ def test_continue_needs_finished_checks(client):
     analysis = start(client)
     response = client.post(f"/station/{analysis.pk}/quality/continue")
     assert response["Location"] == f"/station/{analysis.pk}/quality"
-    assert client.get(f"/station/{analysis.pk}/indices")["Location"].endswith("/quality")
+    # Step 3 itself stays open (#78): it says the checks have not finished.
+    page = client.get(f"/station/{analysis.pk}/indices").content.decode()
+    assert "quality checks have not been run for this data, or have not finished" in page
 
 
 def test_other_sessions_get_404(client, checked):

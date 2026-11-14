@@ -1,0 +1,67 @@
+{% load i18n ui %}{% comment %}
+The indices job's progress, polled by htmx while it is queued or running
+(stations:results_progress, outerHTML swap). When the job succeeds the view answers with
+HX-Redirect to the dashboard (or the index the user came from), so the fragment never
+shows a finished run. Built from the progress and stages components.
+Parameters: job, analysis, phases, index, and jobs.views.progress_context.
+{% endcomment %}
+<div id="results-progress" class="stack" data-status="{{ job.status }}"
+  {% if not job.is_finished %}hx-get="{% url 'stations:results_progress' analysis.pk %}{% if index %}?index={{ index|urlencode }}{% endif %}"
+  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
+  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  {% if job.status == "queued" or job.status == "running" %}
+  <div class="progress">
+    <div class="progress__header">
+      <span id="results-progress-label">{% if stage_label %}{{ stage_label }}{% else %}{{ job.get_status_display }}{% endif %}</span>
+      {% if job.total %}<span class="progress__value">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</span>{% endif %}
+    </div>
+    <progress max="100"{% if job.total %} value="{{ job.percent }}"{% endif %} aria-labelledby="results-progress-label" aria-describedby="results-progress-text">{% blocktranslate with percent=job.percent %}{{ percent }}%{% endblocktranslate %}</progress>
+    <p class="progress__note" id="results-progress-text">
+      {% if job.total %}{% blocktranslate with step=job.step total=job.total %}Step {{ step }} of {{ total }}.{% endblocktranslate %}{% else %}{{ job.get_status_display }}{% endif %}
+      {% if elapsed %}{% blocktranslate %}Time so far: {{ elapsed }}.{% endblocktranslate %}{% endif %}
+      {% if remaining %}{% blocktranslate %}About {{ remaining }} left.{% endblocktranslate %}{% endif %}
+    </p>
+  </div>
+  {% translate "Stages of the calculation" as stages_label %}
+  {% include "components/stages.html" with label=stages_label stages=phases %}
+  {% if worker_missing %}
+  {% translate "No calculation worker is running, so this job cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
+  {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
+  {% endif %}
+  {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+  {% if job.can_cancel %}
+  <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
+    {% translate "Cancel" as cancel_label %}
+    {% include "components/button.html" with label=cancel_label type="submit" variant="secondary" size="sm" icon="close" %}
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {% if job.status == "failed" %}
+  {% translate "Stages of the calculation" as stages_label %}
+  {% include "components/stages.html" with label=stages_label stages=phases %}
+  <div class="alert alert--error" role="alert">
+    {% icon "error" %}
+    <div class="alert__body">
+      <h2 class="alert__title">{% translate "The calculation failed." %}</h2>
+      <p>{{ job.error }}</p>
+    </div>
+  </div>
+  {% endif %}
+  {% if job.status == "cancelled" %}
+  {% translate "The calculation was cancelled." as cancelled_message %}
+  {% include "components/alert.html" with kind="info" message=cancelled_message live="polite" title="" %}
+  {% endif %}
+  {% if job.is_finished %}
+  <div class="cluster">
+    {% if job.can_retry %}
+    <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
+      {% translate "Try again" as retry_label %}
+      {% include "components/button.html" with label=retry_label type="submit" icon="refresh" %}
+    </form>
+    {% endif %}
+    {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
+    {% include "components/button.html" with label=change_label href=indices_url variant="secondary" icon="sliders" %}
+  </div>
+  {% endif %}
+</div>

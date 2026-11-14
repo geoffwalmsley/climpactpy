@@ -191,6 +191,7 @@ def run_station(
     plots: bool = False,
     zip: bool = False,
     qc: QCParams | None = None,
+    plot_title: str | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
@@ -198,6 +199,7 @@ def run_station(
     ones). ``plots`` also draws R's index plots and combined PDF
     (:func:`climpact.plots.write_plots`, needs matplotlib), and ``zip`` then zips the
     station folder to ``<out_dir>/<station>.zip`` (:func:`climpact.plots.zip_station`).
+    ``plot_title`` replaces the station title at the top of every plot;
     ``qc`` holds the quality-control thresholds (default: the R app's, :class:`QCParams`).
     With no index modules (``ModuleSelection(indices=())``) only the QC files are written,
     as the R app's quality-control step does.
@@ -236,7 +238,7 @@ def run_station(
     if plots:
         from climpact.plots import write_plots
 
-        drawn = write_plots(tables, metadata, params, out_dir, steps.done)
+        drawn = write_plots(tables, metadata, params, out_dir, steps.done, title=plot_title)
         written.update({f"plots/{name}": path for name, path in drawn.items()})
     if zip:
         from climpact.plots import zip_station

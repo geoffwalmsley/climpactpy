@@ -1,0 +1,34 @@
+{% load i18n ui %}{% comment %}
+One page of a check's table (#77), also the htmx fragment of stations:qc_table. Each row
+has the date the file reports; "Show on chart" (shown by qc.js) moves the chart of the
+row's variable to that date, and a flag clicked on a chart selects its rows here.
+Parameters: analysis, check, page, selected (an ISO date to mark).
+{% endcomment %}{% url 'stations:qc_table' analysis.pk check.key as table_src %}
+<div class="qc-table stack stack--sm" id="qc-table-{{ check.key }}" data-qc-table="{{ check.key }}" data-src="{{ table_src }}">
+  <div class="table-wrap" role="region" aria-labelledby="qc-table-{{ check.key }}-caption" tabindex="0" data-qc-region>
+    <table class="table">
+      <caption id="qc-table-{{ check.key }}-caption">{% blocktranslate with title=check.title first=page.first last=page.last total=check.rows|length trimmed %}{{ title }}: rows {{ first }} to {{ last }} of {{ total }}{% endblocktranslate %}</caption>
+      <thead><tr>
+        <th scope="col">{% translate "Date" %}</th>
+        {% for label, numeric in check.header %}<th scope="col"{% if numeric %} class="num"{% endif %}>{{ label }}</th>{% endfor %}
+        <th scope="col" class="qc-table__show" data-qc-js hidden><span class="visually-hidden">{% translate "Chart" %}</span></th>
+      </tr></thead>
+      <tbody>
+        {% for row in page.rows %}
+        <tr data-date="{{ row.date }}" tabindex="-1"{% if row.date == selected %} class="is-selected" aria-current="true"{% endif %}>
+          <th scope="row" class="qc-table__date">{{ row.date }}</th>
+          {% for cell in row.cells %}<td class="{% if cell.numeric %}num{% endif %}{% if cell.strong %} qc-flagged{% endif %}">{% if cell.missing %}<span class="muted">{{ cell.text }}</span>{% elif cell.strong %}<strong>{{ cell.text }}</strong>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}
+          <td class="qc-table__show" data-qc-js hidden><button type="button" class="button button--ghost button--sm" data-qc-show data-date="{{ row.date }}" data-chart="{{ row.chart_id }}">{% icon "chart" %}<span>{% translate "Show on chart" %}</span><span class="visually-hidden"> {{ row.date }}</span></button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.pages > 1 %}
+  <nav class="qc-pager" aria-label="{% blocktranslate with title=check.title %}Pages of {{ title }}{% endblocktranslate %}">
+    {% if page.previous %}<a class="button button--secondary button--sm" href="?{{ check.key }}_page={{ page.previous }}#{{ check.anchor }}" hx-get="{{ table_src }}?page={{ page.previous }}" hx-target="#qc-table-{{ check.key }}" hx-swap="outerHTML">{% icon "arrow-left" %}<span>{% translate "Previous" %}</span></a>{% endif %}
+    <span class="small muted">{% blocktranslate with number=page.number pages=page.pages %}Page {{ number }} of {{ pages }}{% endblocktranslate %}</span>
+    {% if page.next %}<a class="button button--secondary button--sm" href="?{{ check.key }}_page={{ page.next }}#{{ check.anchor }}" hx-get="{{ table_src }}?page={{ page.next }}" hx-target="#qc-table-{{ check.key }}" hx-swap="outerHTML"><span>{% translate "Next" %}</span>{% icon "arrow-right" %}</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>

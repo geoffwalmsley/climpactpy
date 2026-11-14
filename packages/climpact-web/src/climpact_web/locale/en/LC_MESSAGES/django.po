@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 04:40+0000\n"
+"POT-Creation-Date: 2026-11-14 05:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -186,7 +186,7 @@ msgstr ""
 msgid "It is %(value)s."
 msgstr ""
 
-#: batch/check.py:417 stations/forms.py:150
+#: batch/check.py:417 stations/forms.py:264
 msgid ""
 "Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
 "which decides the season used for the growing season length and heatwaves."
@@ -275,29 +275,29 @@ msgstr ""
 msgid "Choose the files to add."
 msgstr ""
 
-#: batch/forms.py:114 gridded/forms.py:257 stations/forms.py:113
+#: batch/forms.py:114 gridded/forms.py:257 stations/forms.py:227
 msgid "First year"
 msgstr ""
 
-#: batch/forms.py:118 stations/forms.py:117
+#: batch/forms.py:118 stations/forms.py:231
 msgid "Enter the first year of the base period."
 msgstr ""
 
 #: batch/forms.py:119 batch/forms.py:120 batch/forms.py:121
-#: stations/forms.py:118
+#: stations/forms.py:232
 msgid "Enter a year, e.g. 1971."
 msgstr ""
 
-#: batch/forms.py:126 gridded/forms.py:258 stations/forms.py:123
+#: batch/forms.py:126 gridded/forms.py:258 stations/forms.py:237
 msgid "Last year"
 msgstr ""
 
-#: batch/forms.py:130 stations/forms.py:127
+#: batch/forms.py:130 stations/forms.py:241
 msgid "Enter the last year of the base period."
 msgstr ""
 
 #: batch/forms.py:131 batch/forms.py:132 batch/forms.py:133
-#: stations/forms.py:128
+#: stations/forms.py:242
 msgid "Enter a year, e.g. 2000."
 msgstr ""
 
@@ -336,7 +336,7 @@ msgstr ""
 msgid "You cannot use more than %(count)d on this computer."
 msgstr ""
 
-#: batch/forms.py:175 gridded/forms.py:439 stations/forms.py:159
+#: batch/forms.py:175 gridded/forms.py:439 stations/forms.py:273
 msgid "The last year must not be before the first year."
 msgstr ""
 
@@ -351,7 +351,7 @@ msgstr ""
 #: batch/templates/batch/_options.html:9 core/views.py:104
 #: gridded/templates/gridded/setup.html:109
 #: stations/templates/stations/_unit.html:18
-#: stations/templates/stations/qc.html:20
+#: stations/templates/stations/indices.html:24
 msgid "Base period"
 msgstr ""
 
@@ -395,11 +395,15 @@ msgstr[1] ""
 #: gridded/templates/gridded/_progress.html:23
 #: gridded/templates/gridded/_progress.html:25
 #: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
+#: stations/templates/stations/_qc_distributions.html:46
+#: stations/templates/stations/_qc_progress.html:13
+#: stations/templates/stations/_qc_progress.html:15
 #, python-format
 msgid "%(percent)s%%"
 msgstr ""
 
 #: batch/templates/batch/_progress.html:21
+#: stations/templates/stations/_qc_progress.html:17
 #, python-format
 msgid "%(stage)s."
 msgstr ""
@@ -407,6 +411,7 @@ msgstr ""
 #: batch/templates/batch/_progress.html:22
 #: gridded/templates/gridded/_progress.html:28
 #: jobs/templates/jobs/_progress.html:20
+#: stations/templates/stations/_qc_progress.html:18
 #, python-format
 msgid "Time so far: %(elapsed)s."
 msgstr ""
@@ -645,7 +650,7 @@ msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
 #: batch/templates/batch/check.html:89 core/views.py:102
-#: stations/templates/stations/qc.html:18
+#: stations/templates/stations/indices.html:22
 msgid "Station"
 msgstr ""
 
@@ -926,179 +931,198 @@ msgid ""
 "batch."
 msgstr ""
 
-#: charts/data.py:66 core/forms.py:24 gridded/forms.py:139
+#: charts/data.py:68 core/forms.py:24 gridded/forms.py:139
 #: stations/station_file.py:57
 msgid "Maximum temperature"
 msgstr ""
 
-#: charts/data.py:67
+#: charts/data.py:69 stations/qc_review.py:66 stations/qc_review.py:393
+#: stations/templates/stations/_qc_missing.html:21
 msgid "TX"
 msgstr ""
 
-#: charts/data.py:73 core/forms.py:24 gridded/forms.py:140
+#: charts/data.py:75 core/forms.py:24 gridded/forms.py:140
 #: stations/station_file.py:58
 msgid "Minimum temperature"
 msgstr ""
 
-#: charts/data.py:74
+#: charts/data.py:76 stations/qc_review.py:66 stations/qc_review.py:393
+#: stations/templates/stations/_qc_missing.html:22
 msgid "TN"
 msgstr ""
 
-#: charts/data.py:80 gridded/forms.py:141 gridded/forms.py:228
-#: help/indices.py:112 stations/station_file.py:56
+#: charts/data.py:82 gridded/forms.py:141 gridded/forms.py:228
+#: help/indices.py:112 stations/qc_review.py:58 stations/station_file.py:56
 msgid "Precipitation"
 msgstr ""
 
-#: charts/data.py:81
+#: charts/data.py:83 stations/qc_review.py:66 stations/qc_review.py:393
+#: stations/templates/stations/_qc_missing.html:20
 msgid "PR"
 msgstr ""
 
-#: charts/data.py:82
+#: charts/data.py:84 stations/forms.py:115 stations/qc_plots.py:208
 msgid "mm"
 msgstr ""
 
-#: charts/data.py:92
+#: charts/data.py:89
+msgid "Diurnal temperature range"
+msgstr ""
+
+#: charts/data.py:90 stations/qc_review.py:66
+msgid "DTR"
+msgstr ""
+
+#: charts/data.py:101
 msgid "Outlier (monthly box plot)"
 msgstr ""
 
-#: charts/data.py:93
+#: charts/data.py:102
 msgid "Too large"
 msgstr ""
 
-#: charts/data.py:94
+#: charts/data.py:103
 msgid "TN at or above TX"
 msgstr ""
 
-#: charts/data.py:95 charts/data.py:96
+#: charts/data.py:104 charts/data.py:105
 msgid "Large day-to-day change"
 msgstr ""
 
-#: charts/data.py:97 charts/data.py:98
+#: charts/data.py:106 charts/data.py:107
 msgid "Repeated values"
 msgstr ""
 
-#: charts/data.py:166 help/topics.py:284
+#: charts/data.py:108
+msgid "Repeated date"
+msgstr ""
+
+#: charts/data.py:195 stations/templates/stations/_summary.html:55
+msgid "Temperature (°C)"
+msgstr ""
+
+#: charts/data.py:196
+msgid "Precipitation (mm)"
+msgstr ""
+
+#: charts/data.py:197
+msgid "Diurnal temperature range (°C)"
+msgstr ""
+
+#: charts/data.py:202 help/topics.py:284
 #: stations/templates/stations/_summary.html:45
 msgid "Daily series"
 msgstr ""
 
-#: charts/data.py:171 stations/templates/stations/_summary.html:55
-msgid "Temperature (°C)"
-msgstr ""
-
-#: charts/data.py:172
-msgid "Precipitation (mm)"
-msgstr ""
-
-#: charts/data.py:176
+#: charts/data.py:209
 msgid "Flagged by the quality checks"
 msgstr ""
 
-#: charts/data.py:194
+#: charts/data.py:227
 #, python-format
 msgid "%(first)s to %(last)s, %(days)s days."
 msgstr ""
 
-#: charts/data.py:204
+#: charts/data.py:237
 #, python-format
 msgid "%(n)s day missing"
 msgid_plural "%(n)s days missing"
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:208
+#: charts/data.py:241
 #, python-format
 msgid "%(label)s: no data."
 msgstr ""
 
-#: charts/data.py:221
+#: charts/data.py:254
 #, python-format
 msgid "%(label)s: wettest day %(high)s %(unit)s on %(high_date)s; %(missing)s."
 msgstr ""
 
-#: charts/data.py:224
+#: charts/data.py:257
 #, python-format
 msgid ""
 "%(label)s: from %(low)s %(unit)s on %(low_date)s to %(high)s %(unit)s on "
 "%(high_date)s; %(missing)s."
 msgstr ""
 
-#: charts/data.py:232
+#: charts/data.py:265
 #, python-format
 msgid "%(n)s value flagged by the quality checks."
 msgid_plural "%(n)s values flagged by the quality checks."
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:239
+#: charts/data.py:272
 msgid "No values flagged by the quality checks."
 msgstr ""
 
-#: charts/data.py:337
+#: charts/data.py:370
 msgid "Calendar day"
 msgstr ""
 
-#: charts/data.py:349
+#: charts/data.py:382
 msgid "Day"
 msgstr ""
 
-#: charts/data.py:365
+#: charts/data.py:398
 msgid "Sen's slope trend"
 msgstr ""
 
-#: charts/data.py:411
+#: charts/data.py:444
 #, python-format
 msgid "day %(n)s"
 msgstr ""
 
-#: charts/data.py:420
+#: charts/data.py:453
 #, python-format
 msgid "%(first)s to %(last)s."
 msgstr ""
 
-#: charts/data.py:425
+#: charts/data.py:458
 #, python-format
 msgid ""
 "Highest %(high)s%(unit)s in %(high_at)s, lowest %(low)s%(unit)s in "
 "%(low_at)s."
 msgstr ""
 
-#: charts/data.py:438
+#: charts/data.py:471
 #, python-format
 msgid "%(n)s of %(total)s values missing."
 msgid_plural "%(n)s of %(total)s values missing."
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:453
+#: charts/data.py:486
 #, python-format
 msgid "Trend: rising by %(slope)s%(unit)s per decade"
 msgstr ""
 
-#: charts/data.py:455
+#: charts/data.py:488
 #, python-format
 msgid "Trend: falling by %(slope)s%(unit)s per decade"
 msgstr ""
 
-#: charts/data.py:457
+#: charts/data.py:490
 #, python-format
 msgid "Trend: no change (0%(unit)s per decade)"
 msgstr ""
 
-#: charts/data.py:459
+#: charts/data.py:492
 #, python-format
 msgid "(95%% confidence interval %(lower)s to %(upper)s)."
 msgstr ""
 
-#: charts/data.py:461
+#: charts/data.py:494
 msgid "The interval excludes zero: significant at the 5% level."
 msgstr ""
 
-#: charts/data.py:463
+#: charts/data.py:496
 msgid "The interval includes zero: not significant at the 5% level."
 msgstr ""
 
-#: charts/data.py:471
+#: charts/data.py:504
 msgid ""
 "No trend: it needs at least 10 values and 70% of the series to be present."
 msgstr ""
@@ -1129,11 +1153,13 @@ msgid ""
 msgstr ""
 
 #: charts/templatetags/charts.py:36
+#: stations/templates/stations/_qc_table.html:12
 msgid "Date"
 msgstr ""
 
 #: charts/templatetags/charts.py:37 core/views.py:78
 #: gridded/templates/gridded/_explore.html:37
+#: stations/templates/stations/_qc_missing.html:19
 #: stations/templates/stations/_summary.html:76
 msgid "Year"
 msgstr ""
@@ -1150,7 +1176,7 @@ msgstr ""
 msgid "Date of the event"
 msgstr ""
 
-#: charts/templatetags/charts.py:41
+#: charts/templatetags/charts.py:41 stations/qc_review.py:512
 msgid "Flagged"
 msgstr ""
 
@@ -1158,7 +1184,8 @@ msgstr ""
 msgid "Trend"
 msgstr ""
 
-#: charts/templatetags/charts.py:43
+#: charts/templatetags/charts.py:43 stations/qc_review.py:198
+#: stations/qc_review.py:391
 msgid "missing"
 msgstr ""
 
@@ -1174,7 +1201,7 @@ msgstr ""
 msgid "Exported from Climpact"
 msgstr ""
 
-#: core/forms.py:10 stations/forms.py:75
+#: core/forms.py:10 stations/forms.py:189
 msgid "Station name"
 msgstr ""
 
@@ -1183,7 +1210,7 @@ msgid "Used in output file names. Defaults to the file name."
 msgstr ""
 
 #: core/forms.py:15 gridded/templates/gridded/_explore.html:95
-#: gridded/templates/gridded/setup.html:36 stations/forms.py:87
+#: gridded/templates/gridded/setup.html:36 stations/forms.py:201
 msgid "Latitude"
 msgstr ""
 
@@ -1271,12 +1298,15 @@ msgid "Load data"
 msgstr ""
 
 #: core/navigation.py:84 core/templates/core/home.html:66 stations/models.py:46
-#: stations/templates/stations/qc.html:3 stations/templates/stations/qc.html:9
+#: stations/templates/stations/qc.html:10
+#: stations/templates/stations/qc.html:19
 msgid "Check quality"
 msgstr ""
 
 #: core/navigation.py:85 core/templates/core/home.html:71
 #: core/templates/core/patterns.html:88 stations/models.py:47
+#: stations/templates/stations/indices.html:7
+#: stations/templates/stations/indices.html:13
 msgid "Calculate indices"
 msgstr ""
 
@@ -1430,6 +1460,9 @@ msgstr ""
 #: core/templates/components/chart_frame.html:53
 #: core/templates/components/chart_frame.html:58
 #: gridded/templates/gridded/_explore.html:90
+#: stations/templates/stations/_qc_box_plot.html:8
+#: stations/templates/stations/_qc_distributions.html:41
+#: stations/templates/stations/_qc_distributions.html:64
 msgid "View as table"
 msgstr ""
 
@@ -1478,7 +1511,7 @@ msgstr[1] ""
 msgid "%(label)s: %(errors)s"
 msgstr ""
 
-#: core/templates/components/progress.html:6 stations/views.py:179
+#: core/templates/components/progress.html:6 stations/views.py:187
 #, python-format
 msgid "%(value)s%%"
 msgstr ""
@@ -2173,7 +2206,7 @@ msgstr ""
 msgid "Quality control"
 msgstr ""
 
-#: core/views.py:93
+#: core/views.py:93 stations/templates/stations/qc.html:105
 msgid "Thresholds"
 msgstr ""
 
@@ -2360,7 +2393,7 @@ msgstr ""
 msgid "Enter %(max)s or less."
 msgstr ""
 
-#: gridded/forms.py:220
+#: gridded/forms.py:220 stations/qc_plots.py:209 stations/qc_review.py:59
 msgid "Maximum temperature (TX)"
 msgstr ""
 
@@ -2369,7 +2402,7 @@ msgstr ""
 msgid "Choose the variable."
 msgstr ""
 
-#: gridded/forms.py:224
+#: gridded/forms.py:224 stations/qc_plots.py:210 stations/qc_review.py:60
 msgid "Minimum temperature (TN)"
 msgstr ""
 
@@ -3082,7 +3115,7 @@ msgstr ""
 msgid "%(lo)s to %(hi)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:37 stations/forms.py:100
+#: gridded/templates/gridded/setup.html:37 stations/forms.py:214
 msgid "Longitude"
 msgstr ""
 
@@ -3901,7 +3934,8 @@ msgstr ""
 msgid "Drought"
 msgstr ""
 
-#: help/indices.py:136
+#: help/indices.py:136 stations/forms.py:135 stations/qc_plots.py:300
+#: stations/qc_plots.py:335
 msgid "days"
 msgstr ""
 
@@ -3977,6 +4011,7 @@ msgid "No thanks"
 msgstr ""
 
 #: help/templates/help/_tour.html:15 help/templates/help/guide.html:32
+#: stations/templates/stations/_qc_table.html:31
 msgid "Next"
 msgstr ""
 
@@ -4011,6 +4046,7 @@ msgid "Other guides"
 msgstr ""
 
 #: help/templates/help/guide.html:31
+#: stations/templates/stations/_qc_table.html:29
 msgid "Previous"
 msgstr ""
 
@@ -4250,7 +4286,7 @@ msgid ""
 "tables and trend file are written either way."
 msgstr ""
 
-#: help/topics.py:179
+#: help/topics.py:179 stations/qc_review.py:37
 msgid "Outliers"
 msgstr ""
 
@@ -4271,7 +4307,7 @@ msgid ""
 "Usually a typing error or swapped columns."
 msgstr ""
 
-#: help/topics.py:200
+#: help/topics.py:200 stations/qc_review.py:35
 msgid "Values too large"
 msgstr ""
 
@@ -4281,7 +4317,7 @@ msgid ""
 "-50 °C. They may be real, but check them."
 msgstr ""
 
-#: help/topics.py:210
+#: help/topics.py:210 stations/qc_review.py:36
 msgid "Repeated dates"
 msgstr ""
 
@@ -4291,7 +4327,7 @@ msgid ""
 "of a repeated date; remove the others."
 msgstr ""
 
-#: help/topics.py:220
+#: help/topics.py:220 stations/qc_review.py:38
 msgid "Jumps in maximum temperature"
 msgstr ""
 
@@ -4301,7 +4337,7 @@ msgid ""
 "before."
 msgstr ""
 
-#: help/topics.py:227
+#: help/topics.py:227 stations/qc_review.py:39
 msgid "Jumps in minimum temperature"
 msgstr ""
 
@@ -4311,7 +4347,7 @@ msgid ""
 "before."
 msgstr ""
 
-#: help/topics.py:234
+#: help/topics.py:234 stations/qc_review.py:40
 msgid "Repeated maximum temperatures"
 msgstr ""
 
@@ -4321,7 +4357,7 @@ msgid ""
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:244
+#: help/topics.py:244 stations/qc_review.py:41
 msgid "Repeated minimum temperatures"
 msgstr ""
 
@@ -4331,7 +4367,7 @@ msgid ""
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:254
+#: help/topics.py:254 stations/templates/stations/qc.html:93
 msgid "Missing days per year"
 msgstr ""
 
@@ -4341,7 +4377,8 @@ msgid ""
 "than 15 missing days, or a month with more than 3, gets no index value."
 msgstr ""
 
-#: help/topics.py:264
+#: help/topics.py:264 stations/templates/stations/_qc_distributions.html:14
+#: stations/templates/stations/_qc_distributions.html:33
 msgid "Decimal values"
 msgstr ""
 
@@ -4378,7 +4415,7 @@ msgid ""
 "indices."
 msgstr ""
 
-#: help/topics.py:306
+#: help/topics.py:306 stations/forms.py:91
 msgid "Outlier range for temperature"
 msgstr ""
 
@@ -4388,7 +4425,7 @@ msgid ""
 "as an outlier. Default 3; a smaller number flags more values."
 msgstr ""
 
-#: help/topics.py:316
+#: help/topics.py:316 stations/forms.py:101
 msgid "Outlier range for precipitation"
 msgstr ""
 
@@ -4398,7 +4435,7 @@ msgid ""
 "to count as an outlier. Default 5."
 msgstr ""
 
-#: help/topics.py:326
+#: help/topics.py:326 stations/forms.py:111
 msgid "Largest daily precipitation"
 msgstr ""
 
@@ -4408,7 +4445,7 @@ msgid ""
 "200."
 msgstr ""
 
-#: help/topics.py:333
+#: help/topics.py:333 stations/forms.py:118
 msgid "Largest temperature"
 msgstr ""
 
@@ -4418,7 +4455,7 @@ msgid ""
 "checking. Default 50."
 msgstr ""
 
-#: help/topics.py:343
+#: help/topics.py:343 stations/forms.py:128
 msgid "Days without change"
 msgstr ""
 
@@ -4964,7 +5001,7 @@ msgstr ""
 msgid "%(h)d h %(m)d min"
 msgstr ""
 
-#: settings.py:165
+#: settings.py:167
 msgid "English"
 msgstr ""
 
@@ -4983,83 +5020,136 @@ msgstr ""
 msgid "The file is empty."
 msgstr ""
 
-#: stations/forms.py:49
+#: stations/forms.py:61
+#, python-format
+msgid "Enter a number of at least %(min)s."
+msgstr ""
+
+#: stations/forms.py:63
+#, python-format
+msgid "Enter a number from %(min)s to %(max)s."
+msgstr ""
+
+#: stations/forms.py:93
+msgid ""
+"The number of interquartile ranges beyond the monthly box at which a "
+"temperature counts as an outlier. Default 3."
+msgstr ""
+
+#: stations/forms.py:98 stations/forms.py:108
+msgid "IQR"
+msgstr ""
+
+#: stations/forms.py:103
+msgid ""
+"The number of interquartile ranges beyond the monthly box (days with rain "
+"only) at which precipitation counts as an outlier. Default 5."
+msgstr ""
+
+#: stations/forms.py:112
+msgid ""
+"Daily precipitation above this amount is flagged for checking. Default 200."
+msgstr ""
+
+#: stations/forms.py:120
+msgid ""
+"A temperature above this value, or below its negative, is flagged for "
+"checking. Default 50."
+msgstr ""
+
+#: stations/forms.py:130
+msgid ""
+"A maximum or minimum temperature that stays the same for more than this many "
+"days in a row is flagged. Default 5."
+msgstr ""
+
+#: stations/forms.py:139
+msgid "Day-to-day temperature change"
+msgstr ""
+
+#: stations/forms.py:141
+msgid ""
+"A maximum or minimum temperature that changes by this amount or more from "
+"one day to the next is flagged. Default 20."
+msgstr ""
+
+#: stations/forms.py:163
 msgid "Draw plots"
 msgstr ""
 
-#: stations/forms.py:50
+#: stations/forms.py:164
 msgid "A plot of every index. They take about two thirds of the time."
 msgstr ""
 
-#: stations/forms.py:55
+#: stations/forms.py:169
 msgid "Make a zip file of the results"
 msgstr ""
 
-#: stations/forms.py:56
+#: stations/forms.py:170
 msgid ""
 "Every result file in one download, in the folder layout of Climpact for R."
 msgstr ""
 
-#: stations/forms.py:77
+#: stations/forms.py:191
 msgid "Used in the names of the result files."
 msgstr ""
 
-#: stations/forms.py:81
+#: stations/forms.py:195
 msgid ""
 "Use letters, digits, spaces and . ( ) - _ only, not starting with a dot."
 msgstr ""
 
-#: stations/forms.py:84
+#: stations/forms.py:198
 msgid "Enter a station name."
 msgstr ""
 
-#: stations/forms.py:90
+#: stations/forms.py:204
 msgid "Decimal degrees, e.g. -40.992. Negative south of the equator."
 msgstr ""
 
-#: stations/forms.py:92
+#: stations/forms.py:206
 msgid "Enter the latitude."
 msgstr ""
 
-#: stations/forms.py:93
+#: stations/forms.py:207
 msgid "Enter the latitude as a number of degrees, e.g. -40.992."
 msgstr ""
 
-#: stations/forms.py:94 stations/forms.py:95
+#: stations/forms.py:208 stations/forms.py:209
 msgid "Latitude must be between -90 and 90."
 msgstr ""
 
-#: stations/forms.py:103
+#: stations/forms.py:217
 msgid "Decimal degrees, e.g. 148.346. Negative west of Greenwich."
 msgstr ""
 
-#: stations/forms.py:105
+#: stations/forms.py:219
 msgid "Enter the longitude."
 msgstr ""
 
-#: stations/forms.py:106
+#: stations/forms.py:220
 msgid "Enter the longitude as a number of degrees, e.g. 148.346."
 msgstr ""
 
-#: stations/forms.py:107 stations/forms.py:108
+#: stations/forms.py:221 stations/forms.py:222
 msgid "Longitude must be between -180 and 180."
 msgstr ""
 
-#: stations/forms.py:168
+#: stations/forms.py:282
 #, python-format
 msgid ""
 "The base period %(start)s-%(end)s has no data: the file covers %(first)s to "
 "%(last)s. Choose years within that range."
 msgstr ""
 
-#: stations/forms.py:179
+#: stations/forms.py:293
 msgid ""
 "Less than a year of the base period is covered by the data, so the "
 "percentile thresholds and the indices that use them (TX90p, WSDI, R95p and "
 "others) cannot be calculated."
 msgstr ""
 
-#: stations/forms.py:189
+#: stations/forms.py:303
 #, python-format
 msgid ""
 "The file covers only %(covered)d year of the base period (%(first)s to "
@@ -5076,6 +5166,339 @@ msgstr ""
 
 #: stations/models.py:39
 msgid "From a batch"
+msgstr ""
+
+#: stations/qc_plots.py:208
+msgid "Precipitation, days with rain"
+msgstr ""
+
+#: stations/qc_plots.py:211 stations/qc_review.py:61
+msgid "Diurnal temperature range (DTR)"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "Jan"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "Feb"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "Mar"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "Apr"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "May"
+msgstr ""
+
+#: stations/qc_plots.py:221
+msgid "Jun"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Jul"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Aug"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Sep"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Oct"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Nov"
+msgstr ""
+
+#: stations/qc_plots.py:222
+msgid "Dec"
+msgstr ""
+
+#: stations/qc_plots.py:236
+#, python-format
+msgid "%(variable)s by month"
+msgstr ""
+
+#: stations/qc_plots.py:256
+#, python-format
+msgid "%(variable)s by year"
+msgstr ""
+
+#: stations/qc_plots.py:294
+#, python-format
+msgid "Decimals of %(variable)s"
+msgstr ""
+
+#: stations/qc_plots.py:324
+msgid "40+"
+msgstr ""
+
+#: stations/qc_plots.py:325
+msgid "Days by amount of precipitation (1 mm or more)"
+msgstr ""
+
+#: stations/qc_plots.py:328 stations/qc_review.py:336
+#, python-format
+msgid "%(low)s to %(high)s"
+msgstr ""
+
+#: stations/qc_plots.py:328
+msgid "over 40"
+msgstr ""
+
+#: stations/qc_review.py:34
+msgid "Minimum at or above maximum"
+msgstr ""
+
+#: stations/qc_review.py:327
+#, python-format
+msgid "%(variable)s, high"
+msgstr ""
+
+#: stations/qc_review.py:327
+#, python-format
+msgid "%(variable)s, low"
+msgstr ""
+
+#: stations/qc_review.py:334
+#, python-format
+msgid "up to %(high)s"
+msgstr ""
+
+#: stations/qc_review.py:450 stations/templates/stations/_summary.html:8
+#, python-format
+msgid "%(first)s to %(last)s"
+msgstr ""
+
+#: stations/qc_review.py:464
+msgid ""
+"Days where the minimum temperature is equal to or higher than the maximum."
+msgstr ""
+
+#: stations/qc_review.py:466
+#, python-format
+msgid ""
+"Precipitation above %(prec)s mm or below 0 mm, and temperatures above "
+"%(temp)s °C or below -%(temp)s °C."
+msgstr ""
+
+#: stations/qc_review.py:471
+msgid ""
+"Dates given on more than one row of the file. The indices use the last row "
+"of each date."
+msgstr ""
+
+#: stations/qc_review.py:475
+#, python-format
+msgid ""
+"Values outside the usual range for their calendar month: more than %(temp)s "
+"interquartile ranges beyond the monthly box for temperatures and DTR, and "
+"more than %(prec)s for precipitation (days with rain only)."
+msgstr ""
+
+#: stations/qc_review.py:481
+#, python-format
+msgid ""
+"Days where the maximum temperature changes by %(jump)s °C or more to the "
+"next day. The date is the first of the two days."
+msgstr ""
+
+#: stations/qc_review.py:486
+#, python-format
+msgid ""
+"Days where the minimum temperature changes by %(jump)s °C or more to the "
+"next day. The date is the first of the two days."
+msgstr ""
+
+#: stations/qc_review.py:491
+#, python-format
+msgid ""
+"The same maximum temperature on more than %(days)s days in a row. The date "
+"is the second-last day of the run."
+msgstr ""
+
+#: stations/qc_review.py:496
+#, python-format
+msgid ""
+"The same minimum temperature on more than %(days)s days in a row. The date "
+"is the second-last day of the run."
+msgstr ""
+
+#: stations/qc_review.py:506
+msgid "PR (mm)"
+msgstr ""
+
+#: stations/qc_review.py:506 stations/qc_review.py:523
+msgid "TX (°C)"
+msgstr ""
+
+#: stations/qc_review.py:506 stations/qc_review.py:524
+msgid "TN (°C)"
+msgstr ""
+
+#: stations/qc_review.py:508
+msgid "TX − TN (°C)"
+msgstr ""
+
+#: stations/qc_review.py:510
+msgid "Rows"
+msgstr ""
+
+#: stations/qc_review.py:510
+msgid "Values on each row, in file order"
+msgstr ""
+
+#: stations/qc_review.py:512
+msgid "DTR (°C)"
+msgstr ""
+
+#: stations/qc_review.py:512
+msgid "Usual range for the month"
+msgstr ""
+
+#: stations/qc_review.py:516
+msgid "TX that day"
+msgstr ""
+
+#: stations/qc_review.py:516
+msgid "TX next day"
+msgstr ""
+
+#: stations/qc_review.py:516 stations/qc_review.py:520
+msgid "Next day"
+msgstr ""
+
+#: stations/qc_review.py:516 stations/qc_review.py:520
+msgid "Change (°C)"
+msgstr ""
+
+#: stations/qc_review.py:520
+msgid "TN that day"
+msgstr ""
+
+#: stations/qc_review.py:520
+msgid "TN next day"
+msgstr ""
+
+#: stations/qc_review.py:523 stations/qc_review.py:524
+msgid "Equal values"
+msgstr ""
+
+#: stations/qc_review.py:523 stations/qc_review.py:524
+#: stations/templates/stations/_qc_distributions.html:45
+#: stations/templates/stations/_qc_distributions.html:68
+#: stations/templates/stations/_summary.html:12
+msgid "Days"
+msgstr ""
+
+#: stations/qc_review.py:657
+#, python-format
+msgid ""
+"%(n)s day with the minimum temperature at or above the maximum: usually a "
+"typing error or swapped columns."
+msgid_plural ""
+"%(n)s days with the minimum temperature at or above the maximum: usually "
+"typing errors or swapped columns."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:673
+#, python-format
+msgid "%(n)s day with a value beyond the limits for a plausible value."
+msgid_plural "%(n)s days with values beyond the limits for plausible values."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:687
+#, python-format
+msgid ""
+"%(n)s date is given on more than one row; the indices would use the last."
+msgid_plural ""
+"%(n)s dates are given on more than one row; the indices would use the last "
+"row of each."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:702
+#, python-format
+msgid ""
+"%(n)s value outside the usual range for its month. It may be a real extreme."
+msgid_plural ""
+"%(n)s values outside the usual range for their month. Many may be real "
+"extremes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:717
+#, python-format
+msgid "%(n)s large change in temperature from one day to the next."
+msgid_plural "%(n)s large changes in temperature from one day to the next."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:731
+#, python-format
+msgid ""
+"%(n)s run of the same temperature on many days in a row: a value may have "
+"been copied forward."
+msgid_plural ""
+"%(n)s runs of the same temperature on many days in a row: values may have "
+"been copied forward."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:747
+#, python-format
+msgid ""
+"%(n)s year has too much missing data for annual index values (more than 15 "
+"days, or more than 3 days in a month, for at least one variable)."
+msgid_plural ""
+"%(n)s years have too much missing data for annual index values (more than 15 "
+"days, or more than 3 days in a month, for at least one variable)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:761
+msgid "Some values are probably errors"
+msgstr ""
+
+#: stations/qc_review.py:763
+msgid ""
+"What the checks found includes values that are almost always mistakes in the "
+"data. We suggest you correct the file and upload it again before you "
+"continue. The decision is yours: the indices can be calculated from the data "
+"as it is, and flagged values are used unchanged."
+msgstr ""
+
+#: stations/qc_review.py:773
+msgid "Some values are worth a look"
+msgstr ""
+
+#: stations/qc_review.py:775
+msgid ""
+"The checks flagged values that may be genuine extremes or may be errors. "
+"Look at them below. If they are correct, continue; if not, correct the file "
+"and upload it again. Flagged values are used unchanged."
+msgstr ""
+
+#: stations/qc_review.py:783
+msgid "The checks found nothing to look at"
+msgstr ""
+
+#: stations/qc_review.py:785
+msgid ""
+"No value was flagged and every year has enough data for annual index values. "
+"It is still worth a look at the daily charts before you continue."
 msgstr ""
 
 #: stations/station_file.py:45
@@ -5228,6 +5651,281 @@ msgstr[1] ""
 msgid "Correct the file and load it again. Nothing was saved."
 msgstr ""
 
+#: stations/templates/stations/_qc_box_plot.html:6
+#: stations/templates/stations/_qc_distributions.html:39
+msgid "No data."
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:13
+msgid "Group"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:14
+msgid "Values"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:15
+msgid "Lower whisker"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:16
+msgid "Lower quartile"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:17
+msgid "Median"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:18
+msgid "Upper quartile"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:19
+msgid "Upper whisker"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:20
+msgid "Beyond the whiskers"
+msgstr ""
+
+#: stations/templates/stations/_qc_box_plot.html:22
+msgid "no data"
+msgstr ""
+
+#: stations/templates/stations/_qc_check.html:8
+#, python-format
+msgid "%(counter)s found"
+msgid_plural "%(counter)s found"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_qc_check.html:8
+msgid "None found"
+msgstr ""
+
+#: stations/templates/stations/_qc_check.html:13
+#: stations/templates/stations/_qc_missing.html:39
+#, python-format
+msgid "Download %(name)s"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:8
+msgid "Distributions"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:9
+msgid ""
+"The plots of the quality-control step of Climpact for R, to spot values or "
+"years that stand out, rounding by observers and changes in how precipitation "
+"was measured."
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:11
+msgid "Distribution plots"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:12
+#: stations/templates/stations/_qc_distributions.html:19
+msgid "By month"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:13
+#: stations/templates/stations/_qc_distributions.html:26
+msgid "By year"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:15
+#: stations/templates/stations/_qc_distributions.html:57
+msgid "Precipitation amounts"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:21
+msgid ""
+"One box per calendar month: the box spans the middle half of the values, the "
+"line is the median, and the whiskers end at the outlier range set in the "
+"thresholds. Circled values beyond them are the outliers listed above."
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:27
+msgid ""
+"One box per year, whiskers at 4 interquartile ranges for precipitation and 3 "
+"for temperatures (as in Climpact for R). A year that stands out may hold "
+"wrong values or a change at the station."
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:45
+msgid "Decimal"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:45
+msgid "Share"
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:61
+#, python-format
+msgid ""
+"%(counter)s day of 1 mm or more. Each bar is 2 mm wide and labelled with its "
+"upper limit."
+msgid_plural ""
+"%(counter)s days of 1 mm or more. Each bar is 2 mm wide and labelled with "
+"its upper limit."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_qc_distributions.html:62
+msgid "No day with 1 mm or more."
+msgstr ""
+
+#: stations/templates/stations/_qc_distributions.html:68
+msgid "Amount (mm)"
+msgstr ""
+
+#: stations/templates/stations/_qc_form.html:8
+msgid ""
+"The defaults are those of Climpact for R. Smaller numbers flag more values."
+msgstr ""
+
+#: stations/templates/stations/_qc_form.html:17
+msgid "Check again with these thresholds"
+msgstr ""
+
+#: stations/templates/stations/_qc_form.html:17
+msgid "Run the quality checks"
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:8
+#: stations/templates/stations/_qc_summary.html:18
+msgid "Missing data"
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:13
+#, python-format
+msgid "%(counter)s of %(total)s years has missing days."
+msgid_plural "%(counter)s of %(total)s years have missing days."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_qc_missing.html:14
+msgid ""
+"Years marked “no annual value” have more than 15 missing days, or a month "
+"with more than 3, so their annual indices are left missing (monthly indices "
+"only for the months concerned)."
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:17
+msgid "Missing days per year, and months with more than 3 missing days"
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:28
+#, python-format
+msgid "(%(counter)s month)"
+msgid_plural "(%(counter)s months)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_qc_missing.html:28
+msgid "no annual value"
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:34
+msgid "Years not listed have no missing days."
+msgstr ""
+
+#: stations/templates/stations/_qc_missing.html:36
+msgid "No day is missing in any variable."
+msgstr ""
+
+#: stations/templates/stations/_qc_progress.html:12
+msgid "Running the quality checks"
+msgstr ""
+
+#: stations/templates/stations/_qc_progress.html:12
+msgid "Waiting to run the quality checks"
+msgstr ""
+
+#: stations/templates/stations/_qc_progress.html:19
+msgid "The checks usually take a few seconds; the results appear here."
+msgstr ""
+
+#: stations/templates/stations/_qc_progress.html:23
+msgid ""
+"No calculation worker is running, so the checks cannot start yet. If you run "
+"Climpact yourself, restart it with the climpact-web command."
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:18
+msgid "Usually an error"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:18
+msgid "Worth a look"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:27
+msgid "Values flagged by each check"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:28
+msgid "Check"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:28
+msgid "Found"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:33
+msgid "none"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:43
+msgid "Continue to the indices"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:46
+#: stations/templates/stations/qc.html:111
+msgid "Correct the file and upload it again"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:47
+msgid "Quality-control files (zip)"
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:49
+#, python-format
+msgid ""
+"Checked with outlier ranges of %(temp)s (temperature) and %(prec)s "
+"(precipitation) interquartile ranges, limits of %(pmax)s mm and %(tmax)s °C, "
+"runs of more than %(days)s equal values and day-to-day changes of %(jump)s "
+"°C."
+msgstr ""
+
+#: stations/templates/stations/_qc_summary.html:53
+msgid "Change the thresholds"
+msgstr ""
+
+#: stations/templates/stations/_qc_table.html:10
+#, python-format
+msgid "%(title)s: rows %(first)s to %(last)s of %(total)s"
+msgstr ""
+
+#: stations/templates/stations/_qc_table.html:14
+msgid "Chart"
+msgstr ""
+
+#: stations/templates/stations/_qc_table.html:21
+msgid "Show on chart"
+msgstr ""
+
+#: stations/templates/stations/_qc_table.html:28
+#, python-format
+msgid "Pages of %(title)s"
+msgstr ""
+
+#: stations/templates/stations/_qc_table.html:30
+#, python-format
+msgid "Page %(number)s of %(pages)s"
+msgstr ""
+
 #: stations/templates/stations/_retention.html:4
 #, python-format
 msgid ""
@@ -5256,17 +5954,8 @@ msgstr[1] ""
 msgid "Your data"
 msgstr ""
 
-#: stations/templates/stations/_summary.html:8
-#, python-format
-msgid "%(first)s to %(last)s"
-msgstr ""
-
 #: stations/templates/stations/_summary.html:10
 msgid "Years"
-msgstr ""
-
-#: stations/templates/stations/_summary.html:12
-msgid "Days"
 msgstr ""
 
 #: stations/templates/stations/_summary.html:12
@@ -5351,6 +6040,70 @@ msgid ""
 "suggests 1971 to 2000."
 msgstr ""
 
+#: stations/templates/stations/indices.html:14
+#, python-format
+msgid "%(name)s: data checked."
+msgstr ""
+
+#: stations/templates/stations/indices.html:16
+msgid ""
+"The screen for choosing indices and their settings is not available yet. "
+"Until it is, you can run the whole calculation with the default settings: "
+"the quality-control files (with your thresholds), every index, the plots and "
+"a zip of the results."
+msgstr ""
+
+#: stations/templates/stations/indices.html:20
+msgid "What you loaded"
+msgstr ""
+
+#: stations/templates/stations/indices.html:23
+msgid "Location"
+msgstr ""
+
+#: stations/templates/stations/indices.html:23
+#, python-format
+msgid "%(lat)s° N, %(lon)s° E"
+msgstr ""
+
+#: stations/templates/stations/indices.html:24
+#, python-format
+msgid "%(start)s to %(end)s"
+msgstr ""
+
+#: stations/templates/stations/indices.html:25
+msgid "Data"
+msgstr ""
+
+#: stations/templates/stations/indices.html:25
+#, python-format
+msgid "%(first)s to %(last)s, from %(name)s"
+msgstr ""
+
+#: stations/templates/stations/indices.html:27
+msgid "Back to the quality checks"
+msgstr ""
+
+#: stations/templates/stations/indices.html:31
+msgid "Calculate everything now"
+msgstr ""
+
+#: stations/templates/stations/indices.html:33
+msgid "A calculation for this station has been started."
+msgstr ""
+
+#: stations/templates/stations/indices.html:33
+msgid "Follow its progress and download the results"
+msgstr ""
+
+#: stations/templates/stations/indices.html:39
+msgid "Calculate again"
+msgstr ""
+
+#: stations/templates/stations/indices.html:39
+msgid "Calculate with the default settings"
+msgstr ""
+
 #: stations/templates/stations/load.html:3
 #: stations/templates/stations/load.html:9
 msgid "Check the data and describe the station"
@@ -5388,74 +6141,100 @@ msgid "Continue to quality checks"
 msgstr ""
 
 #: stations/templates/stations/load.html:49
+#: stations/templates/stations/qc.html:130
 msgid "Delete this data now"
 msgstr ""
 
 #: stations/templates/stations/load.html:51
+#: stations/templates/stations/qc.html:132
 msgid "Start again with another station"
-msgstr ""
-
-#: stations/templates/stations/qc.html:10
-#, python-format
-msgid "%(name)s: data and station details saved."
-msgstr ""
-
-#: stations/templates/stations/qc.html:12
-msgid ""
-"The quality-check screen is not available yet. Until it is, you can run the "
-"whole calculation with the default settings: the quality-control files, "
-"every index, the plots and a zip of the results."
-msgstr ""
-
-#: stations/templates/stations/qc.html:16
-msgid "What you loaded"
-msgstr ""
-
-#: stations/templates/stations/qc.html:19
-msgid "Location"
-msgstr ""
-
-#: stations/templates/stations/qc.html:19
-#, python-format
-msgid "%(lat)s° N, %(lon)s° E"
 msgstr ""
 
 #: stations/templates/stations/qc.html:20
 #, python-format
-msgid "%(start)s to %(end)s"
-msgstr ""
-
-#: stations/templates/stations/qc.html:21
-msgid "Data"
-msgstr ""
-
-#: stations/templates/stations/qc.html:21
-#, python-format
-msgid "%(first)s to %(last)s, from %(name)s"
-msgstr ""
-
-#: stations/templates/stations/qc.html:23
-msgid "Change the data or the station details"
-msgstr ""
-
-#: stations/templates/stations/qc.html:27
-msgid "Calculate everything now"
-msgstr ""
-
-#: stations/templates/stations/qc.html:29
-msgid "A calculation for this station has been started."
-msgstr ""
-
-#: stations/templates/stations/qc.html:29
-msgid "Follow its progress and download the results"
+msgid ""
+"%(name)s, %(first)s to %(last)s. Climpact checks every value for likely "
+"errors. It does not change your data: you look at what it finds and decide "
+"whether to correct the file or to continue."
 msgstr ""
 
 #: stations/templates/stations/qc.html:35
-msgid "Calculate again"
+msgid "The checks could not be run."
 msgstr ""
 
-#: stations/templates/stations/qc.html:35
-msgid "Calculate with the default settings"
+#: stations/templates/stations/qc.html:37
+msgid ""
+"Check the thresholds below and run the checks again, or upload a corrected "
+"file."
+msgstr ""
+
+#: stations/templates/stations/qc.html:41
+msgid "The checks were stopped. Run them again below."
+msgstr ""
+
+#: stations/templates/stations/qc.html:44
+msgid ""
+"The checks have not been run on this file yet. Choose the thresholds below, "
+"or keep the defaults, and run them."
+msgstr ""
+
+#: stations/templates/stations/qc.html:54
+msgid "Daily values"
+msgstr ""
+
+#: stations/templates/stations/qc.html:57
+msgid ""
+"Flagged values are circled. Click a circle to find it in the tables below; "
+"“Show on chart” in a table brings you back to the day here. Drag across a "
+"chart to zoom in."
+msgstr ""
+
+#: stations/templates/stations/qc.html:59
+msgid "Variable shown"
+msgstr ""
+
+#: stations/templates/stations/qc.html:75
+msgid "What the checks found"
+msgstr ""
+
+#: stations/templates/stations/qc.html:78
+msgid "Usually errors in the data"
+msgstr ""
+
+#: stations/templates/stations/qc.html:78
+msgid "May be genuine: worth a look"
+msgstr ""
+
+#: stations/templates/stations/qc.html:88
+msgid "Quality-control files"
+msgstr ""
+
+#: stations/templates/stations/qc.html:89
+msgid "The same files as Climpact for R writes in its qc folder, as CSV."
+msgstr ""
+
+#: stations/templates/stations/qc.html:90
+msgid "Download all quality-control files (zip)"
+msgstr ""
+
+#: stations/templates/stations/qc.html:101
+msgid "Change the thresholds and check again"
+msgstr ""
+
+#: stations/templates/stations/qc.html:112
+msgid ""
+"Climpact does not edit data. To correct a value, change it in your file (or "
+"write it as -99.9 if it is wrong and the right value is not known), then "
+"upload the corrected file here. The station details and the thresholds are "
+"kept, and the checks run again straight away."
+msgstr ""
+
+#: stations/templates/stations/qc.html:120
+msgid "Upload and check again"
+msgstr ""
+
+#: stations/templates/stations/qc.html:124
+msgid "Change the station details or the base period"
 msgstr ""
 
 #: stations/templates/stations/upload.html:3
@@ -5539,14 +6318,29 @@ msgstr ""
 msgid "%(name)s, changed %(when)s ago"
 msgstr ""
 
-#: stations/views.py:155
+#: stations/views.py:163
 msgid "The new file is loaded."
 msgstr ""
 
-#: stations/views.py:178
+#: stations/views.py:186
 msgid "under 0.1%"
 msgstr ""
 
-#: stations/views.py:292
+#: stations/views.py:303
 msgid "The station data were deleted."
+msgstr ""
+
+#: stations/views.py:330
+#, python-format
+msgid "%(name)s: quality checks"
+msgstr ""
+
+#: stations/views.py:510
+msgid ""
+"The new file is loaded, but the station details need a change before the "
+"checks can run."
+msgstr ""
+
+#: stations/views.py:517
+msgid "The new file is loaded. The checks are running again."
 msgstr ""

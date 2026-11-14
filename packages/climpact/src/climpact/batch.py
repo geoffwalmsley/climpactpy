@@ -26,7 +26,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from queue import Empty
 
-from climpact.config import CustomIndex, IndexParams, StationMetadata
+from climpact.config import CustomIndex, IndexParams, QCParams, StationMetadata
 from climpact.modules import ModuleSelection
 from climpact.progress import BatchProgress, Progress, Steps
 
@@ -190,6 +190,7 @@ def run_station(
     progress: Progress | None = None,
     plots: bool = False,
     zip: bool = False,
+    qc: QCParams | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Build and write every output for one station, as ``climpact run`` does.
 
@@ -197,6 +198,9 @@ def run_station(
     ones). ``plots`` also draws R's index plots and combined PDF
     (:func:`climpact.plots.write_plots`, needs matplotlib), and ``zip`` then zips the
     station folder to ``<out_dir>/<station>.zip`` (:func:`climpact.plots.zip_station`).
+    ``qc`` holds the quality-control thresholds (default: the R app's, :class:`QCParams`).
+    With no index modules (``ModuleSelection(indices=())``) only the QC files are written,
+    as the R app's quality-control step does.
     ``progress(stage, step, total)`` is called after each stage: ``read``, the stages of
     :func:`~climpact.modules.pipeline_stages`, ``write``, then with ``plots`` the stages of
     :func:`~climpact.plots.plot_steps` and with ``zip`` a last ``zip`` (see
@@ -223,7 +227,7 @@ def run_station(
         def pipeline_progress(stage: str, step: int, _total: int) -> None:
             steps.done(stage)
 
-    run = load_station(station_file, metadata, params)
+    run = load_station(station_file, metadata, params, qc)
     steps.done("read")
     tables = run_pipeline(run, loaded, pipeline_progress).tables
     written = write_outputs(tables, metadata, params, out_dir, date)

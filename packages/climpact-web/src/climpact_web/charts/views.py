@@ -92,25 +92,35 @@ def json_response(request, key: tuple, files: list[Path], build: Callable[[], di
 
 
 def analysis_qc_params(analysis):
-    """The QC thresholds of an analysis: the defaults until the QC step (#77) stores the
-    user's (it then returns a :class:`~climpact.config.QCParams` built from them)."""
-    return None
+    """The QC thresholds the flags are found with: those of the analysis's latest quality
+    check (#77), so the chart flags what its tables list, else the thresholds entered (R's
+    defaults until changed)."""
+    from climpact_web.jobs.runners import qc_params
+
+    job = analysis.qc_job
+    return qc_params(job.params.get("qc") if job is not None else analysis.qc_params)
 
 
 @gzip_page
 @require_safe
 def station_daily(request, analysis_id):
-    """The daily series of a station analysis, with the values the QC checks flag."""
+    """The daily series of a station analysis, with the values the QC checks flag;
+    ``?variable=`` (``tmax``, ``tmin``, ``dtr``, ``prcp``) gives one variable alone."""
     analysis = get_analysis(request, analysis_id)
+    variable = request.GET.get("variable") or None
+    if variable is not None and variable not in data.DAILY_VARIABLES:
+        raise Http404
     params = analysis_qc_params(analysis)
     title = analysis.station_name or analysis.file_name
 
     def build():
-        payload = data.daily_payload(analysis.station_file, params, title=title)
+        payload = data.daily_payload(analysis.station_file, params, title=title, variable=variable)
         payload["csv"] = reverse("stations:series", args=[analysis.pk])
+        if variable:
+            payload["name"] = f"{title}_{variable}"
         return payload
 
-    key = ("daily", str(analysis.pk), repr(params), title)
+    key = ("daily", str(analysis.pk), repr(params), title, variable)
     return json_response(request, key, [analysis.station_file], build)
 
 

@@ -1,0 +1,77 @@
+{% load i18n ui help %}{% comment %}
+The distribution plots (#77) that replace the plots of R's quality-control step: monthly
+box plots (fourboxes), box plots by year (boxseries), decimal values (roundcheck) and
+the precipitation histogram. Drawn on the server (qc_plots.py), each with its table.
+Context: monthly, annual, decimals, histogram.
+{% endcomment %}
+<section class="card stack" id="distributions" aria-labelledby="distributions-title">
+  <h2 class="card__title" id="distributions-title">{% translate "Distributions" %}</h2>
+  <p>{% translate "The plots of the quality-control step of Climpact for R, to spot values or years that stand out, rounding by observers and changes in how precipitation was measured." %}</p>
+  <div class="tabs" data-tabs>
+    <ul class="tabs__list" aria-label="{% translate 'Distribution plots' %}">
+      <li><a class="tabs__tab" href="#dist-monthly" id="dist-monthly-tab">{% translate "By month" %}</a></li>
+      <li><a class="tabs__tab" href="#dist-annual" id="dist-annual-tab">{% translate "By year" %}</a></li>
+      <li><a class="tabs__tab" href="#dist-decimals" id="dist-decimals-tab">{% translate "Decimal values" %}</a></li>
+      <li><a class="tabs__tab" href="#dist-precipitation" id="dist-precipitation-tab">{% translate "Precipitation amounts" %}</a></li>
+    </ul>
+
+    <section class="tabs__panel stack" id="dist-monthly">
+      <h3 class="tabs__panel-heading">{% translate "By month" %}</h3>
+      {% help_topic "qc.outliers" %}
+      <p class="small muted">{% translate "One box per calendar month: the box spans the middle half of the values, the line is the median, and the whiskers end at the outlier range set in the thresholds. Circled values beyond them are the outliers listed above." %}</p>
+      <div class="qc-plots">{% for plot in monthly %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
+    </section>
+
+    <section class="tabs__panel stack" id="dist-annual">
+      <h3 class="tabs__panel-heading">{% translate "By year" %}</h3>
+      <p class="small muted">{% translate "One box per year, whiskers at 4 interquartile ranges for precipitation and 3 for temperatures (as in Climpact for R). A year that stands out may hold wrong values or a change at the station." %}</p>
+      {% help_topic "qc.homogeneity" %}
+      <div class="qc-plots qc-plots--wide">{% for plot in annual %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
+    </section>
+
+    <section class="tabs__panel stack" id="dist-decimals">
+      <h3 class="tabs__panel-heading">{% translate "Decimal values" %}</h3>
+      {% help_topic "qc.rounding" %}
+      <div class="qc-plots">
+        {% for plot in decimals %}
+        <figure class="qc-figure stack stack--sm" aria-labelledby="dist-dec-{{ plot.key }}">
+          <figcaption id="dist-dec-{{ plot.key }}" class="qc-figure__title">{{ plot.title }}</figcaption>
+          {% if plot.svg %}{{ plot.svg }}{% else %}<p class="muted">{% translate "No data." %}</p>{% endif %}
+          <details class="disclosure">
+            <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
+            <div class="disclosure__body">
+              <div class="table-wrap" role="region" aria-label="{{ plot.title }}" tabindex="0">
+                <table class="table">
+                  <thead><tr><th scope="col">{% translate "Decimal" %}</th><th scope="col" class="num">{% translate "Days" %}</th><th scope="col" class="num">{% translate "Share" %}</th></tr></thead>
+                  <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count }}</td><td class="num">{% blocktranslate with percent=row.percent %}{{ percent }}%{% endblocktranslate %}</td></tr>{% endfor %}</tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </figure>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="tabs__panel stack" id="dist-precipitation">
+      <h3 class="tabs__panel-heading">{% translate "Precipitation amounts" %}</h3>
+      {% help_topic "qc.precip_histogram" %}
+      <figure class="qc-figure stack stack--sm" aria-labelledby="dist-hist-title">
+        <figcaption id="dist-hist-title" class="qc-figure__title">{{ histogram.title }}</figcaption>
+        <p class="small muted">{% blocktranslate count counter=histogram.total trimmed %}{{ counter }} day of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% plural %}{{ counter }} days of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% endblocktranslate %}</p>
+        {% if histogram.svg %}{{ histogram.svg }}{% else %}<p class="muted">{% translate "No day with 1 mm or more." %}</p>{% endif %}
+        <details class="disclosure">
+          <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
+          <div class="disclosure__body">
+            <div class="table-wrap" role="region" aria-label="{{ histogram.title }}" tabindex="0">
+              <table class="table">
+                <thead><tr><th scope="col">{% translate "Amount (mm)" %}</th><th scope="col" class="num">{% translate "Days" %}</th></tr></thead>
+                <tbody>{% for row in histogram.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count }}</td></tr>{% endfor %}</tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </figure>
+    </section>
+  </div>
+</section>

@@ -95,8 +95,9 @@ def job_pages() -> dict[str, str]:
 
 
 def station_pages() -> dict[str, str]:
-    """Step 1 of the single-station flow (#76), with the sample data, rendered without a
-    database."""
+    """Steps 1 and 2 of the single-station flow (#76, #77: before the checks have run) and
+    the step 3 placeholder, with the sample data, rendered without a database. The results
+    of the checks need a finished job's files; their screenshots are in the PR (#77)."""
     from climpact_web.core.navigation import station_steps
     from climpact_web.stations import views
     from climpact_web.stations.forms import MetadataForm, RunAllForm, UploadForm
@@ -137,9 +138,11 @@ def station_pages() -> dict[str, str]:
         "station-load": ("stations/load.html", views.load_context(request, sample, form)),
         "station-load-errors": ("stations/load.html",
                                 views.load_context(request, uploaded, errors)),
-        "station-qc": ("stations/qc.html",
-                       {"analysis": sample, "steps": station_steps("qc", sample.step_urls()),
-                        "run_form": RunAllForm()}),
+        "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
+        "station-indices": ("stations/indices.html",
+                            {"analysis": sample,
+                             "steps": station_steps("indices", sample.step_urls()),
+                             "run_form": RunAllForm()}),
     }  # fmt: skip
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 

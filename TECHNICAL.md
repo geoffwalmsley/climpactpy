@@ -34,10 +34,10 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Spell durations | wsdi, csdi, wsdid, csdid (`wsdi1`, `csdi1`), txdtnd, txbdtnbd (`tx2tn2`, `txb2tnb2`) | |
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
-| Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are out of scope (#9) |
+| Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | web step 4 for sector correlation (#90) |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the screens: steps 2-4 (#77, #78, #90), downloads (#79) |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station step 1, load data, and step 2, the quality checks; interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | the screens: steps 3-4 (#78, #90), downloads (#79) |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -476,7 +476,7 @@ stops calling it.
 | Function | Stages, in order |
 | --- | --- |
 | `modules.run_pipeline(run, modules, progress)`, `outputs.build_all(run, modules, progress)` | `qc:<module>` for each QC module, `homogeneity:<module>`, then `indices:<module>` for each index module. A module with a `progress_steps()` method reports its own steps instead (`<kind>:<module>:<step>`); the built-in index module reports each product (`indices:climpact:spi`, ..., `indices:climpact:trend_file`). `modules.pipeline_stages(modules)` lists them. The built-in modules give 20 stages. |
-| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules. With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
+| `batch.run_station(..., progress=)` | `read` (`load_station`), the pipeline's stages, `write` (`write_outputs`): 22 for the built-in modules (5 with no index modules, `ModuleSelection(indices=())`, as the web app's QC job runs it: `read`, `qc:climpact`, `homogeneity:none`, `write`, `zip`). With `plots=True`, then one stage per row of `climate.indices.csv` and per custom-index frequency (`plots:fd_ANN`, ..., `plots:hw`, `plots:spei`, ...; `plots.plot_steps(params)`, 90 for the defaults), and with `zip=True` a last `zip`: 113 in all |
 | `batch.run_batch(..., progress=)` | a `BatchProgress`, `progress(station, stage, step, total)`: each station's `run_station` stages, with its name |
 | `gridded.write_grid_thresholds(..., progress=)` | `rechunk` once per time slab if the input is rechunked first (see [Rechunking](#rechunking-inputs-chunked-by-time-step)), then `thresholds` once per block (this replaces the earlier `progress(done, total)`) |
 | `gridded.write_grid_indices(..., progress=)` | `rechunk` once per time slab if rechunked, then `indices` once per block |
@@ -2320,6 +2320,18 @@ behaviour is reproduced, and every QC file is text-identical to R's on all 16 ru
 | Sections in the order `Prec up`, `TX up`, `TX low`, `TN up`, `TN low`, `DTR up`, `DTR low`, each a quoted title line followed by its rows month by month (merged-row order within a month), each row with all four values. A section is written even when empty; a variable missing throughout (for precipitation, with no non-zero value) has no sections. A month without values has no box and lists nothing | reproduced (`FileFormat.sections`, from the categorical `Section` column `qc.outliers` returns) |
 | The rows are `cbind`ed with the dates, so the values go through `as.character` (15 significant digits): DTR is written as, say, `8.2` although `tx - tn` is 8.200000000000001 | the table holds the values as written, so `qc/outliers` passes the `EXACT` tier as well as the text comparison |
 
+**QC plots and the app's step 2 (#77).** R's quality-control step also draws plots
+(`createPlots`/`pplotts`: daily series and the precipitation histogram;
+`fourboxes`, `roundcheck`, `boxseries` in `services/check/`) as PNG and PDF files, combined
+into `<station>_QC_PLOTS.pdf`. The core does not write them (the QC CSV files are what the
+parity suite compares); the web app's step 2 shows the same plots on screen instead
+(interactive daily charts per variable, and `stations/qc_plots.py` for the box plots,
+decimals and histogram, see [Single-station steps](#single-station-steps)), so a station
+run from the web or the command line has no QC plot files. R's step 2 writes the
+thresholds file as well (`thres/`); the web QC job writes only `qc/`, and the thresholds
+file comes with the indices (step 3). R's per-station QC zip holds the `qc` folder; the
+web QC job's `<station>.zip` holds `<station>/qc/`, the same files.
+
 R's `round(x, 1)` (`nmath/fround.c`, R >= 4.0.0) is not Python's: it picks the nearer of
 `floor(x * 10) / 10` and `ceil(x * 10) / 10` computed in doubles (ties to even), so
 `round(0.45, 1)` is 0.4 in R and 0.5 in Python. `r_round` ports it; on 813 changes printed
@@ -2511,7 +2523,7 @@ The web app (epic #11) replaces the R Shiny app (`climpact/ui`, `climpact/module
 **Django + htmx**, server-rendered with Django templates (decided in #11). The
 `climpact-web` package depends on the core and calls it as a library; the core never
 imports `climpact_web`. This section describes the skeleton (#69) and the design system
-(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-4; step 1 is described in [Single-station steps](#single-station-steps)), #79
+(#71); the screens follow in #73 (jobs, described in [Background jobs](#background-jobs)), #75 (charts, described in [Charts](#charts)), #76-#78 and #90 (steps 1-4; steps 1 and 2 are described in [Single-station steps](#single-station-steps)), #79
 (downloads), #80 (batch, described in [Batch page](#batch-page)), #81 (help, described in [Help](#help)), #85 (gridded, described in [Gridded pages](#gridded-pages)), #82 (size budget, described in [Size budget](#size-budget)) and #83
 (accessibility).
 
@@ -2548,6 +2560,7 @@ packages/climpact-web/src/climpact_web/
       css/theme-dark.css  dark values of the colour tokens
       css/patterns.css    pattern library page only
       css/stations.css    the single-station pages (and the batch pages)
+      css/qc.css          step 2, the quality checks (#77)
       css/batch.css       the batch pages (and the gridded file and job cards)
       css/gridded.css     the gridded pages only: file browser, set-up form, map
       css/help.css        help topics (every page) and the help pages and tour (#81)
@@ -2556,6 +2569,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
+      js/qc.js       step 2's results: links the check tables and the daily charts (#77)
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
       vendor/htmx/   htmx 2.0.11, vendored; README.md records its source URL and SHA-256
@@ -2564,7 +2578,7 @@ packages/climpact-web/src/climpact_web/
   jobs/              background jobs (label `jobs`, see [Background jobs](#background-jobs))
     models.py        Job (the queue and its progress), Worker (running workers)
     registry.py      runner registry, JobContext, JobError, JobCancelled, JobInterrupted
-    runners.py       the built-in runners: station, batch, sector, gridded-thresholds,
+    runners.py       the built-in runners: station, qc, batch, sector, gridded-thresholds,
                      gridded-indices (thin wrappers of the core functions)
     worker.py        claiming, progress writes, heartbeats, dead-worker detection, the
                      worker loop (JobWorker)
@@ -2582,14 +2596,20 @@ packages/climpact-web/src/climpact_web/
     models.py        StationAnalysis: one station going through the steps
     station_file.py  checks an uploaded file (plain-language problems at file lines,
                      warnings) and summarises its data
-    forms.py         UploadForm, MetadataForm (step 1), RunAllForm (step 2 placeholder)
+    forms.py         UploadForm, MetadataForm (step 1), QCParamsForm and QC_DEFAULTS (step 2),
+                     RunAllForm (step 3 placeholder)
+    qc_review.py     step 2's results: reads the qc job's files back, adds context from the
+                     station rows, missing data per year, the summary
+    qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
                      fallback
     retention.py     purge_expired_analyses, registered with the jobs app's purge
     views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
-                     daily CSV, delete, the step 2 placeholder
+                     daily CSV, delete; step 2: the checks, thresholds, progress, table
+                     pages, re-upload, continue; the step 3 placeholder
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB)
-    templates/stations/  upload.html, load.html, qc.html, _unit.html (a field group
+    templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
+                     indices.html (step 3 placeholder), _unit.html (a field group
                      validated by htmx), _summary.html, _problems.html, _retention.html
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
     models.py        BatchRun: one batch's files, check result, options and job
@@ -2645,14 +2665,14 @@ packages/climpact-web/tests/
   conftest.py        prints the page sizes measured by test_page_budget.py
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
-                     step 1 (test_stations.py), the batch page (test_batch.py), the
+                     step 1 (test_stations.py), step 2 (test_qc_review.py), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py) and the charts (test_charts.py)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
-worker and progress pages, #73), `stations` (single-station steps, #76; steps 2-4
-follow in #77-#79, #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
+worker and progress pages, #73), `stations` (single-station steps, #76, #77; steps 3-4
+follow in #78, #79, #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
 includes every file under `src/climpact_web`; checked by building the wheel). There is no
@@ -2857,7 +2877,8 @@ under the original 30 KB aim with every component kept.
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
 job and the job list), the single-station step 1 pages (upload, upload with file
-problems, the sample loaded, metadata errors, the step 2 placeholder) and the batch pages
+problems, the sample loaded, metadata errors), step 2 before the checks have run, the
+step 3 placeholder, and the batch pages
 (start, a check with every station status, a running batch, finished results) and the help
 pages (index, a guide, the indices guide, the topic list, a search), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
@@ -2931,7 +2952,10 @@ failure); `result` (JSON from the runner: files written, zip). The job's folder 
 function `runner(ctx: JobContext) -> dict`. The context has the params, the folders, the
 progress callback and `input_file(name)` (which refuses names outside `input/`). The
 built-in runners call the same core functions as the command line, so the files are the
-same: `station` (`run_station`, with plots and zip), `batch` (`run_batch`; one progress
+same: `station` (`run_station`, with plots and zip; `qc` takes the QC thresholds, so the
+QC files of a full run match step 2), `qc` (`run_station` with no index modules and the
+thresholds given: only the `qc/` files and their zip, as the R app's step 2 writes; the
+runner's result also maps each output key to its file, `reports`), `batch` (`run_batch`; one progress
 count for the whole batch, the sum of each station's last step over the sum of their
 `pipeline_stages` + `plot_steps` totals; a failed station counts as done; `workers`
 defaults to 1; each station's own progress goes to `output/stations.json`, see
@@ -3056,8 +3080,8 @@ imports or network requests.
 ### Single-station steps
 
 The single-station flow (#76-#79, #90) replaces the R app's tabs
-(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Step 1 (#76) is
-built; the later steps add pages to the same object.
+(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76)
+and 2 (#77) are built; the later steps add pages to the same object.
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
 through the steps: a UUID primary key; `owner` (the session's job owner token, so a
@@ -3067,22 +3091,27 @@ session sees its analyses and its jobs, and any other session gets 404); `source
 missing, days with data per year, monthly means for the preview); `warnings` (about the
 file); the metadata `station_name`, `latitude`, `longitude` (null until given),
 `base_start`, `base_end` (R's defaults, 1971 and 2000); `step`, the furthest step reached
-(`upload`, `qc`, `indices`, `results`, `sector`, the keys of `STATION_STEPS`); and
-`qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
+(`upload`, `qc`, `indices`, `results`, `sector`, the keys of `STATION_STEPS`);
+`qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
+defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
 (not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
 its own `input/` when queued, so analyses and jobs expire independently. Changing the
 file or any metadata value clears the job links and sets `step` back (`reset_later_steps`),
 so the later steps run again. `step_urls()` gives the step indicator a link for each step
-reached whose URL exists; #77-#79 and #90 add `stations:indices`, `stations:results` and
-`stations:sector` (all `/station/<id>/...`) and set the job links.
+reached whose URL exists; #77 added `stations:indices` (a placeholder until #78), and #79
+and #90 add `stations:results` and `stations:sector` (all `/station/<id>/...`) and set the
+job links.
 
 **URLs.** `/station/` upload page (`stations:upload`); `/station/sample` (POST) loads the
 sample; `/station/sample.txt` downloads it (R links to the sample file too);
 `/station/<id>/load` step 1 (`stations:load`); `.../load/validate` (htmx, POST);
 `.../file` (POST) loads a different file into the analysis; `.../series.csv` the daily
-series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`) and
-`.../quality/run-all` (POST).
+series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`), `.../quality/run`
+(POST: save the thresholds and run the checks), `.../quality/progress` (htmx),
+`.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
+`.../quality/file` (POST: the corrected file), `.../quality/continue` (POST); `.../indices`
+step 3 placeholder (`stations:indices`) and `.../indices/run-all` (POST).
 
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
@@ -3141,11 +3170,67 @@ whole form is posted and the page shows every error with the error summary.
 "Continue to quality checks" saves the metadata, moves `step` to `qc` and redirects to
 step 2.
 
-**Step 2 placeholder.** Until #77, `stations:qc` shows what was loaded and offers the
-whole calculation with the default parameters (the `station` runner: QC files, every
-index, plots and zip, each of the last two a checkbox), recorded as `indices_job`; this
-is what #73's minimal form did. #77 replaces the page with the quality-check screen and
-its own job.
+**Step 2: the quality checks (#77).** Replaces the R app's step 2
+(`singleStationStep2UI.R`, `singleStationStep2.R`, `services/quality_control_checks.R`) and
+its QC plots. R shows six thresholds, a "Check Data Quality" button, a slideshow of the
+QC PNGs and the folder or zip of the QC files, and enables "Next" once the checks ran
+without errors; the user corrects the file outside the app and loads it again.
+
+- *Thresholds* (`QCParamsForm`): R's six numeric inputs with its defaults, limits and
+  tooltips: `iqr_temp` (3, 1-10), `iqr_prec` (5, at least 1), `prec_max` (200 mm, 0-1500),
+  `temp_max` (50 °C, 0-60), `flatline_days` (5, 3-15), `jump` (20 °C, 5-30), each with its
+  `qcparam.*` help topic. `QC_DEFAULTS` repeats `QCParams`' defaults so the web server
+  does not import the core (a test checks they agree). Saved on the analysis
+  (`qc_params`); changing them after step 3 was reached sends the analysis back to step 2,
+  since the full run's QC files use them too (the `station` runner's `qc` parameter).
+- *The job*: "Continue" in step 1 queues a `qc` job at once with the saved thresholds (R
+  waits for a click), so the results are usually there when the page opens; changing the
+  thresholds or uploading a corrected file queues another, cancelling one still waiting.
+  The page polls `.../quality/progress` (progress bar, stage, time) and reloads when the
+  job has finished (`HX-Refresh`; a `<noscript>` refresh without JavaScript). A failed or
+  cancelled check says so and offers the form again.
+- *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
+  user downloads, so every row of every file is on the screen. A summary first: the
+  verdict (`clear`, `review` or `errors`), what each finding means, a count per check
+  linking to its section, and the choice: "Continue to the indices", "Correct the file and
+  upload it again", the zip. The wording leaves the decision to the user: TN >= TX, values
+  too large and repeated dates are "usually an error" and the summary suggests correcting
+  the file; outliers, jumps and flat runs "may be genuine"; years without annual values
+  under the climdex rules are listed. Continuing is always possible once the checks have
+  run (R also allows it whatever they found).
+- *Daily charts*: one per variable (TX, TN, DTR, precipitation) in tabs, from
+  `charts:station_daily?variable=`, with the flags of the job's thresholds as rings. "Show
+  on chart" in a table row opens the row's chart and moves it to the date (marked with a
+  dashed line, focus on the chart); a click on a ring selects the rows of that date in the
+  tables of the checks that flagged it, loading the table page that holds it. See
+  [Charts](#charts) for the API.
+- *A section per check*, grouped as usually errors or worth a look, each with what it
+  looks for (with the thresholds used), its help topic, its table in pages of 25 (htmx;
+  plain links with `?<check>_page=` without JavaScript) and its file. The tables add what
+  the files leave out: both days and the change for jumps (the TX file holds the change and
+  the TN file the day's value, R's slip, see [Quality control](#quality-control)), the dates
+  a flat run covers, the usual range of the month for an outlier (the whiskers of
+  `qc.boxplot_stats`), each row of a repeated date (one table row per date). The flagged
+  value is in bold.
+- *Missing data*: `qc/nastatistics` (missing days per year and variable) for the years
+  with any, with the months that have more than 3 missing days and the years left without
+  an annual value (more than 15 days, or such a month: [Missing data](#missing-data)).
+- *Distributions* (`qc_plots`, inline SVG with a table each), R's QC plots: monthly box
+  plots (`fourboxes`, whiskers at the thresholds, so the values beyond them are the
+  outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation and 3
+  for temperatures, as R), decimal values (`roundcheck`) and the precipitation histogram
+  (days of 1 mm or more in 2 mm bins to 40 mm and one above, as `plotToFile`).
+- *Correct and upload again* (`.../quality/file`): the corrected file replaces the old
+  one, the station details and thresholds are kept and the checks run again; if the base
+  period no longer fits the new data, step 1 opens to change it. A file with problems is
+  refused with the same messages as in step 1, and the previous results stay.
+- *Downloads*: each QC file and their zip (`<station>.zip`, the station's `qc/` folder,
+  as R's QC zip).
+
+**Step 3 placeholder.** Until #78, `stations:indices` shows what was loaded and offers the
+whole calculation with the default index parameters and step 2's thresholds (the
+`station` runner: QC files, every index, plots and zip, each of the last two a checkbox),
+recorded as `indices_job`; #78 replaces the page.
 
 **Retention.** An analysis is deleted, with its folder, `JOB_RETENTION_DAYS` after it was
 last changed (`updated_at`), unless one of its jobs is queued or running
@@ -3293,8 +3378,8 @@ logged and nothing is shown, so a typo cannot break a page in production.
 | --- | --- |
 | Step 1 (#76, applied) | `station.file`, `station.name`, `station.latitude`, `station.longitude`, `station.base_period` |
 | Batch (#80, applied) | `batch.metadata_file`, `batch.station_files`, `batch.base_period`, `batch.workers`, `batch.plots` |
-| QC checks and plots (#77): `qc.<file>` as in `QC_REPORTS` | `qc.outliers`, `qc.tmaxmin`, `qc.toolarge`, `qc.duplicates`, `qc.tx_jumps`, `qc.tn_jumps`, `qc.tx_flatline`, `qc.tn_flatline`, `qc.nastatistics`, `qc.rounding` (decimal histograms), `qc.precip_histogram`, `qc.daily_series`, `qc.homogeneity` |
-| QC thresholds (#77): `QCParams` fields | `qcparam.iqr_temp`, `qcparam.iqr_prec`, `qcparam.prec_max`, `qcparam.temp_max`, `qcparam.flatline_days`, `qcparam.jump` |
+| QC checks and plots (#77, applied): `qc.<file>` as in `QC_REPORTS` | `qc.outliers`, `qc.tmaxmin`, `qc.toolarge`, `qc.duplicates`, `qc.tx_jumps`, `qc.tn_jumps`, `qc.tx_flatline`, `qc.tn_flatline`, `qc.nastatistics`, `qc.rounding` (decimal histograms), `qc.precip_histogram`, `qc.daily_series`, `qc.homogeneity` |
+| QC thresholds (#77, applied): `QCParams` fields | `qcparam.iqr_temp`, `qcparam.iqr_prec`, `qcparam.prec_max`, `qcparam.temp_max`, `qcparam.flatline_days`, `qcparam.jump` |
 | Index settings (#78): `IndexParams` fields | `param.plot_title`, `param.wsdi_days`, `param.csdi_days`, `param.rx_days`, `param.txtn_days`, `param.hdd_base`, `param.cdd_base`, `param.gdd_base`, `param.rnnmm`, `param.spei_months`, `param.custom` (variable, operator and threshold) |
 | Indices (#78) | `index.<short name>` for every short name of `climate.indices.csv` (`index.txx`, `index.rxdday`, `index.hw`, `index.hwEHF`, `index.spi` ...); `index_topic_for_output(name)` maps an output name to its id: `rx3day_ANN` to `index.rxdday`, `TX90-HWN_ANN` to `index.hw`, `3month_spi_MON` to `index.spi`, a custom index such as `TXge40` to `param.custom` |
 | Trends and results (#78, #79) | `trend.sen_slope`, `trend.confidence`, `trend.significance`, `trend.minimum_data`, `trend.seasons`, `results.missing_value`, `results.standardised`, `results.thresholds`, `results.files` |
@@ -3526,15 +3611,18 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 120.2 KB at most (gridded results, worst-case map, with the chart code) |
+| Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.2 KB for the quality-check results (#77) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded and the gridded results |
+| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results and the gridded results |
 | Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
-9.2 of 14 KB, `charts.css` 0.5 of 1.5 KB, uPlot's CSS 0.7 of 1 KB, gzipped. To add a page, add a
-function returning its URL to `PAGES`.
+10.6 of 14 KB (with #77's additions), `charts.css` 0.5 of 1.5 KB, uPlot's CSS 0.7 of 1 KB, gzipped. To add a page, add a
+function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
+quality-check results page (the Sydney sample checked: every section, the four chart
+frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
+year).
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
 temporary folder, renders each page type with the real views (creating the session's
@@ -3542,7 +3630,7 @@ analysis, batch, job or gridded run first), asks for it with `Accept-Encoding: g
 and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the file itself
 if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
 supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
-with the sample loaded, and step 2; batch start, check and results (queued); the job list
+with the sample loaded, step 2 with the checks queued and with their results; batch start, check and results (queued); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
 largest map drawn, values all different); the help index, a guide, the indices guide, the
 topic list and a search; and the 404 page. The pattern library is left out (development
@@ -3550,8 +3638,9 @@ only). The sizes print at the end of the test run, largest first; on this branch
 
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 120.2 | 113.4 |
-| station step 1, sample loaded | 81.9 | 20.7 | 81.9 | 75.3 |
+| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
+| station quality results (#77) | 371.8 | 44.1 | 109.2 | 102.1 |
+| station step 1, sample loaded | 81.9 | 20.7 | 83.2 | 76.5 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
@@ -3664,7 +3753,7 @@ pages (another session's analysis or job is 404):
 
 | URL name | Path | Payload |
 | --- | --- | --- |
-| `charts:station_daily` | `/charts/station/<analysis>/daily.json` | `daily`: the analysis's station file, with QC flags |
+| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77) |
 | `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
 | `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
 | `gridded:series_json` | `/gridded/<run>/series.json?file=&var=&scale=&cell=y,x` | `index`: a gridded run's clicked-cell series (`data.series_payload`, no trend) |
@@ -3680,17 +3769,20 @@ the gridded results do; the sector screen (#90) can do the same.
 **Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
 
 - `daily`: `start` (first date) and `days`; `series`, one per variable (`tmax`, `tmin`,
-  `prcp`) with `label`, `short`, `unit`, `panel`, `token` (the `--chart-*` colour) and
+  `prcp`, or the one asked for; `dtr` is TX - TN, token `--chart-7`) with `label`, `short`, `unit`, `panel`, `token` (the `--chart-*` colour) and
   `values`, one per day, `null` where missing; `flags.points`, `[day, variable, check]`.
   The x values are implicit (day *i* is `start` + *i*), so only values travel. The days are
   the core's `merged_rows` (every date from the first row to the last; a repeated date takes
   its last row, as the indices and the CSV download do; a test checks the payload against
   the CSV). The flags come from the core's QC checks (`climpact.qc`: `outliers`,
-  `too_large`, `tmax_le_tmin`, `jumps`, `flatline`) run on the same rows with the
-  analysis's `QCParams` (the defaults until #77 stores the user's, through
-  `views.analysis_qc_params`), each placed on the value the check reports: the outlier's
-  variable (a DTR outlier on both temperatures), each value over the `toolarge` limits, both
-  temperatures for `tmaxmin`, the date a jump or flatline is reported on.
+  `too_large`, `tmax_le_tmin`, `jumps`, `flatline`, `duplicate_dates`) run on the same rows
+  with the thresholds of the analysis's latest quality check, else those entered in step 2
+  (`views.analysis_qc_params`), each placed on the value the check reports: the outlier's
+  variable (a DTR outlier on both temperatures and on DTR), each value over the `toolarge`
+  limits, both temperatures and DTR for `tmaxmin`, the date a jump or flatline is reported
+  on, and every variable of a repeated date (`duplicates`; no ring where the day's last row
+  is missing, but the read-out and table view list it). `panels` names the panels of the
+  series present (temperature, DTR, precipitation).
 - `index`: `x` (decimal years, mid-month for monthly series, day of the year for
   `tx95t`), `y`, `dates` (the event dates of `txx`, `rx1day` ...), `title`, `units`,
   `axis`, `step`, `bars` (SPI and SPEI), and `trend` (`slope`, `lower`, `upper`,
@@ -3719,8 +3811,8 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
 - *Lazy loading*: a frame's data is fetched when it comes within 200px of the viewport
   (`IntersectionObserver`; at once where there is none). Until then the frame's skeleton
   shows; a failed fetch replaces it with a message pointing to the CSV.
-- *Daily*: two panels sharing the x axis, cursor and zoom: temperature (TX and TN lines) and
-  precipitation (bars); flagged values as hollow rings in `--chart-flag`, told apart by
+- *Daily*: a panel per kind of variable present, sharing the x axis, cursor and zoom:
+  temperature (TX and TN lines), DTR, precipitation (bars); flagged values as hollow rings in `--chart-flag`, told apart by
   shape; missing days as gaps. *Index*: a line (with hollow markers for annual series),
   the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and dry
   (`--chart-2`), as in the static plots.
@@ -3740,6 +3832,15 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
   undocumented `_splits` and `_values`, with a fallback).
 - *Themes*: colours come from `Climpact.chartPalette()`; on `climpact:themechange` the
   charts are redrawn at the same zoom. Width follows the container (`ResizeObserver`).
+- *Picking and focusing a date* (#77, daily charts): `ClimpactCharts.focusDate(frame or
+  id, "YYYY-MM-DD", {span: days})` shows `span` days (default 61) around the date, marks it
+  with a dashed vertical line (`--chart-flag`), shows its read-out and announces the range;
+  it loads the chart first if it has not been drawn (returns a Promise).
+  `ClimpactCharts.get(frame or id)` returns the chart. A click on a daily chart that is not
+  a drag dispatches `climpact:chartpick` on the figure (bubbling) with `{date, index,
+  checks, flagged}`: the nearest flagged day within 8px (`checks` the QC check keys that
+  flagged it), else the day under the pointer; the day is marked. The QC screen's `qc.js`
+  uses both.
 - Dates and numbers use the page language (`Intl`); dates are UTC. The plot area is
   `dir="ltr"`: time runs left to right in right-to-left languages too, as in printed charts.
 
@@ -3755,11 +3856,12 @@ headless Chrome at 390px wide with the CPU throttled 4x (a mid-range phone), eac
 move redraws in 18-37 ms. Pages and charts were checked in light and dark themes and at
 390px; screenshots are in the review folder of the PR.
 
-**Size.** `charts.js` is about 31.8 KB (9.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
-together 31.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
+**Size.** `charts.js` is about 35 KB (10.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
+together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
-[Size budget](#size-budget)): step 1 with data (81.9 KB gzipped in total) and the gridded
-results (120.2 KB at worst), both under the 300 KB page budget.
+[Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
+quality-check results (109.2 KB, #77) and the gridded results (121.6 KB at worst), all
+under the 300 KB page budget.
 
 **Tests** (`tests/test_charts.py`): the vendored files' hashes; `charts.js` makes one
 request (the data URL) and has no other dependencies; chart assets only on
@@ -3771,8 +3873,17 @@ JSON, 304 on `If-None-Match` and `If-Modified-Since`, new validators after a fil
 changes, gzip, 404 for another session, an unfinished job, an unknown series or station;
 batch stations; the pattern library examples; the frame's markup, and that a page's own
 `summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
-against the netCDF values, its 304, SPI bars and the chart on the results page. The drawing itself has no
-browser tests (no browser is installed for them; #83); it was checked by hand as above.
+against the netCDF values, its 304, SPI bars and the chart on the results page.
+`test_qc_review.py` (#77) checks that every flag of the `qc_stress` station's QC files is
+on the chart of its variable and in its table (every page), the per-variable payloads, the
+thresholds against `QCParams` and R's limits, the job's files against R's, the summary,
+the missing-data rules, the table pages and the page of a date, re-uploading a corrected
+file (the details and thresholds kept), continuing to step 3 and 404 for another session.
+The drawing itself has no
+browser tests (no browser is installed for them; #83); it was checked by hand as above. #77's linking (a table row to the chart, a ring to its
+table rows on another page, the pager's focus) and the QC page at 390px and in both themes
+were checked in headless Chrome over the DevTools protocol; screenshots are in the PR's
+review folder.
 
 **Pattern library.** "Interactive charts" shows the four kinds (daily with flags, annual
 with trend, monthly, SPI bars) from the Sydney sample, through the same views. The design

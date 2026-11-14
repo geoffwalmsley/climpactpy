@@ -119,7 +119,7 @@ def test_qc_flags_follow_the_core_checks(sample_file):
     rows = merged_rows(read_station_file(sample_file))
     flags = set(data.qc_flags(rows))
     # The sample's one TN >= TX day and its TX jumps (qc/tmaxmin.csv, qc/tx_jumps.csv).
-    assert {("1988-11-16", "tmax", "tmaxmin"), ("1988-11-16", "tmin", "tmaxmin")} <= flags
+    assert {("1988-11-16", v, "tmaxmin") for v in ("tmax", "tmin", "dtr")} <= flags
     jumps = {d for d, v, c in flags if c == "tx_jumps"}
     assert jumps == {"1946-11-06", "1973-02-06", "2006-01-01", "2013-01-18"}
     assert {d for d, v, c in flags if c == "toolarge"} == {
@@ -131,7 +131,8 @@ def test_qc_flags_follow_the_core_checks(sample_file):
     assert all(v == "prcp" for d, v, c in flags if c == "toolarge")
     outliers = qc.outliers(rows, QCParams())
     sections = outliers["Section"].astype(str)
-    expected = sections.str.startswith("DTR").sum() * 2 + (~sections.str.startswith("DTR")).sum()
+    # A DTR outlier is flagged on both temperatures and on DTR (#77).
+    expected = sections.str.startswith("DTR").sum() * 3 + (~sections.str.startswith("DTR")).sum()
     listed = [f for f in data.qc_flags(rows) if f[2] == "outliers"]
     assert len(listed) == expected
     # Stricter thresholds flag more.

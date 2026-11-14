@@ -40,9 +40,123 @@ class UploadForm(forms.Form):
     )
 
 
+# R's defaults (load_data_qc), the same as climpact.config.QCParams (checked by a test;
+# the web server does not import the core, which imports xclim).
+QC_DEFAULTS = {
+    "iqr_temp": 3.0,
+    "iqr_prec": 5.0,
+    "prec_max": 200.0,
+    "temp_max": 50.0,
+    "flatline_days": 5,
+    "jump": 20.0,
+}
+
+
+def _qc_number(label, help_text, minimum, maximum, unit="", integer=False):
+    field_class = forms.IntegerField if integer else forms.FloatField
+    limits = {"min_value": minimum}
+    if maximum is not None:
+        limits["max_value"] = maximum
+    if maximum is None:
+        range_text = _("Enter a number of at least %(min)s.") % {"min": minimum}
+    else:
+        range_text = _("Enter a number from %(min)s to %(max)s.") % {
+            "min": minimum,
+            "max": maximum,
+        }
+    attrs = {"inputmode": "numeric" if integer else "decimal"}
+    if not integer:
+        attrs["step"] = "any"
+    field = field_class(
+        label=label,
+        help_text=help_text,
+        **limits,
+        error_messages={
+            "required": range_text,
+            "invalid": range_text,
+            "min_value": range_text,
+            "max_value": range_text,
+        },
+        widget=forms.NumberInput(attrs=attrs),
+    )
+    field.unit = unit
+    return field
+
+
+class QCParamsForm(forms.Form):
+    """The quality-control thresholds: the six of the R app's step 2
+    (``singleStationStep2UI.R``), with its defaults, limits and explanations."""
+
+    iqr_temp = _qc_number(
+        _("Outlier range for temperature"),
+        _(
+            "The number of interquartile ranges beyond the monthly box at which a "
+            "temperature counts as an outlier. Default 3."
+        ),
+        1,
+        10,
+        _("IQR"),
+    )
+    iqr_prec = _qc_number(
+        _("Outlier range for precipitation"),
+        _(
+            "The number of interquartile ranges beyond the monthly box (days with rain "
+            "only) at which precipitation counts as an outlier. Default 5."
+        ),
+        1,
+        None,
+        _("IQR"),
+    )
+    prec_max = _qc_number(
+        _("Largest daily precipitation"),
+        _("Daily precipitation above this amount is flagged for checking. Default 200."),
+        0,
+        1500,
+        _("mm"),
+    )
+    temp_max = _qc_number(
+        _("Largest temperature"),
+        _(
+            "A temperature above this value, or below its negative, is flagged for "
+            "checking. Default 50."
+        ),
+        0,
+        60,
+        "°C",
+    )
+    flatline_days = _qc_number(
+        _("Days without change"),
+        _(
+            "A maximum or minimum temperature that stays the same for more than this "
+            "many days in a row is flagged. Default 5."
+        ),
+        3,
+        15,
+        _("days"),
+        integer=True,
+    )
+    jump = _qc_number(
+        _("Day-to-day temperature change"),
+        _(
+            "A maximum or minimum temperature that changes by this amount or more from "
+            "one day to the next is flagged. Default 20."
+        ),
+        5,
+        30,
+        "°C",
+    )
+
+    @classmethod
+    def initial_for(cls, stored: dict | None) -> dict:
+        return {**QC_DEFAULTS, **{k: v for k, v in (stored or {}).items() if k in QC_DEFAULTS}}
+
+    def changed_from_defaults(self) -> bool:
+        return any(self.cleaned_data[k] != v for k, v in QC_DEFAULTS.items())
+
+
 class RunAllForm(forms.Form):
-    """The whole calculation with default parameters, from the placeholder of step 2 until
-    the quality (#77) and indices (#78) steps exist. A checkbox left unticked is absent
+    """The whole calculation with default index parameters, from the placeholder of step
+    3 until the indices step (#78) exists. A checkbox left unticked is absent
     from the request, so both default to ticked on the page."""
 
     plots = forms.BooleanField(

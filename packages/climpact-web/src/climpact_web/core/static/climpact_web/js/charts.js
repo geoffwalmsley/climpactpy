@@ -6,10 +6,21 @@
  * read-out, the table view and the CSV link. No build step, no other dependencies:
  * needs uPlot (vendor/uplot) loaded first and reads window.Climpact.chartPalette() (ui.js).
  *
- * Payload kinds (see charts/data.py): "daily" (tmax/tmin and prcp panels, QC flags as
- * rings, missing values as gaps) and "index" (a line with the trend, or bars for SPI/SPEI).
- * window.ClimpactCharts.hydrate(scope) draws the charts inside scope (done on page load
- * and on htmx:load).
+ * Payload kinds (see charts/data.py): "daily" (a panel per kind of variable present:
+ * temperature, DTR, precipitation; QC flags as rings, missing values as gaps) and "index"
+ * (a line with the trend, or bars for SPI/SPEI).
+ *
+ * API (window.ClimpactCharts):
+ *   hydrate(scope)            draw the charts inside scope (done on page load, htmx:load)
+ *   get(figureOrId)           the chart of a frame (null before hydrate)
+ *   focusDate(figureOrId, isoDate, {span: days})
+ *                             daily charts: show span days (default 61) centred on the
+ *                             date and mark it with a vertical line; loads the chart first
+ *                             if it has not been drawn. Returns a Promise.
+ * Event: a click on a daily chart (not a drag) dispatches "climpact:chartpick" on the
+ * figure (bubbling), detail {date: "YYYY-MM-DD", index, checks: [QC check keys],
+ * flagged}: the nearest flagged day within 8px, else the day under the pointer. The
+ * clicked day is marked as by focusDate.
  */
 (function () {
   "use strict";
@@ -72,12 +83,17 @@
     });
     var flagValues = {};
     var flagInfo = {};
+    var flagChecks = {};
     p.flags.points.forEach(function (f) {
       var s = byKey[f[1]];
       if (!s) return;
       if (!flagValues[f[1]]) flagValues[f[1]] = new Array(n).fill(null);
       flagValues[f[1]][f[0]] = s.values[f[0]];
-      (flagInfo[f[0]] = flagInfo[f[0]] || []).push(s.short + ": " + (p.flags.checks[f[2]] || f[2]));
+      var text = s.short + ": " + (p.flags.checks[f[2]] || f[2]);
+      var info = (flagInfo[f[0]] = flagInfo[f[0]] || []);
+      if (info.indexOf(text) < 0) info.push(text);
+      var checks = (flagChecks[f[0]] = flagChecks[f[0]] || []);
+      if (checks.indexOf(f[2]) < 0) checks.push(f[2]);
     });
     function panel(key, label, keys, bars) {
       var series = keys.map(function (k) {
@@ -95,19 +111,28 @@
       return { label: s.label, token: s.token };
     });
     if (p.flags.points.length) legend.push({ label: p.flags.label, token: "--chart-flag", ring: true });
+    var panels = [];
+    ["temperature", "dtr", "precipitation"].forEach(function (key) {
+      var keys = p.series.filter(function (s) {
+        return s.panel === key;
+      }).map(function (s) {
+        return s.key;
+      });
+      if (keys.length) panels.push(panel(key, p.panels[key], keys, key === "precipitation"));
+    });
     return {
       kind: "daily",
       time: true,
       step: "day",
       x: x,
       minSpan: 7 * DAY,
-      panels: [
-        panel("temperature", p.panels.temperature, ["tmax", "tmin"], false),
-        panel("precipitation", p.panels.precipitation, ["prcp"], true)
-      ],
-      weights: [0.6, 0.4],
+      panels: panels,
+      weights: panels.length === 2 ? [0.6, 0.4] : panels.map(function () {
+        return 1 / panels.length;
+      }),
       legend: legend,
       flagInfo: flagInfo,
+      flagChecks: flagChecks,
       label: function (v) {
         return dayFormat.format(new Date(v * 1000));
       }
@@ -255,6 +280,28 @@
           function (u) {
             chart.hover(u.cursor.idx);
           }
+        ],
+        draw: [
+          function (u) {
+            if (chart.marked == null) return;
+            var pos = u.valToPos(chart.marked, "x", true);
+            if (pos < u.bbox.left || pos > u.bbox.left + u.bbox.width) return;
+            var ctx = u.ctx, r = u.bbox;
+            ctx.save();
+            ctx.strokeStyle = colour(pal, "--chart-flag");
+            ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
+            ctx.setLineDash([4 * (window.devicePixelRatio || 1), 3 * (window.devicePixelRatio || 1)]);
+            ctx.beginPath();
+            ctx.moveTo(pos, r.top);
+            ctx.lineTo(pos, r.top + r.height);
+            ctx.stroke();
+            ctx.restore();
+          }
+        ],
+        ready: [
+          function (u) {
+            if (model.kind === "daily") chart.listen(u);
+          }
         ]
       }
     };
@@ -284,6 +331,7 @@
 
   Chart.prototype.load = function () {
     var self = this;
+    this.requested = true;
     fetch(this.el.getAttribute("data-chart-src"), { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) {
         if (!r.ok) throw new Error(r.status);
@@ -296,6 +344,11 @@
         self.fill();
         self.draw();
         self.wire();
+        self.loaded = true;
+        (self.waiting || []).forEach(function (resolve) {
+          resolve(self);
+        });
+        self.waiting = null;
       })
       .catch(function () {
         self.plotEl.innerHTML = "";
@@ -447,6 +500,61 @@
     while (lo < x.length && x[lo] < r[0]) lo++;
     while (hi >= 0 && x[hi] > r[1]) hi--;
     return [lo, hi];
+  };
+
+  /* ---- Picking and focusing a date (daily charts) ---- */
+
+  function isoDay(seconds) {
+    return new Date(seconds * 1000).toISOString().slice(0, 10);
+  }
+
+  Chart.prototype.ready = function () {
+    var self = this;
+    if (this.loaded) return Promise.resolve(this);
+    return new Promise(function (resolve) {
+      (self.waiting = self.waiting || []).push(resolve);
+      if (!self.requested) {
+        self.requested = true;
+        if (observer) observer.unobserve(self.el);
+        self.load();
+      }
+    });
+  };
+
+  Chart.prototype.mark = function (x) {
+    this.marked = x;
+    this.plots.forEach(function (u) {
+      u.redraw(false);
+    });
+  };
+
+  Chart.prototype.focusDate = function (iso, span) {
+    var x = Date.parse(iso + "T00:00:00Z") / 1000;
+    var half = Math.floor((span || 61) / 2) * DAY;
+    this.setRange(x - half, x + half);
+    this.mark(x);
+    var idx = Math.round((x - this.model.x[0]) / DAY);
+    if (idx >= 0 && idx < this.model.x.length) this.hover(idx);
+    if (this.status) this.status.textContent = t("showing", { from: this.model.label(x - half), to: this.model.label(x + half) });
+  };
+
+  Chart.prototype.listen = function (u) {
+    var self = this, downX = null;
+    u.over.addEventListener("mousedown", function (e) {
+      downX = e.clientX;
+    });
+    u.over.addEventListener("click", function (e) {
+      if (downX == null || Math.abs(e.clientX - downX) > 3 || u.cursor.left == null) return;
+      var model = self.model, left = u.cursor.left, best = null;
+      var lo = u.posToIdx(left - 8), hi = u.posToIdx(left + 8);
+      for (var i = Math.max(0, lo); i <= Math.min(model.x.length - 1, hi); i++) {
+        if (model.flagChecks[i] && (best == null || Math.abs(u.valToPos(model.x[i], "x") - left) < Math.abs(u.valToPos(model.x[best], "x") - left))) best = i;
+      }
+      var idx = best != null ? best : u.cursor.idx;
+      if (idx == null) return;
+      self.mark(model.x[idx]);
+      self.el.dispatchEvent(new CustomEvent("climpact:chartpick", { bubbles: true, detail: { date: isoDay(model.x[idx]), index: idx, checks: model.flagChecks[idx] || [], flagged: best != null } }));
+    });
   };
 
   /* ---- Table view: the values in view ---- */
@@ -801,7 +909,24 @@
     });
   });
 
-  window.ClimpactCharts = { hydrate: hydrate };
+  function chartOf(target) {
+    var el = typeof target === "string" ? doc.getElementById(target) : target;
+    if (el && !el._chart) hydrate(el.parentNode || doc);
+    return el && el._chart ? el._chart : null;
+  }
+
+  window.ClimpactCharts = {
+    hydrate: hydrate,
+    get: chartOf,
+    focusDate: function (target, iso, options) {
+      var chart = chartOf(target);
+      if (!chart) return Promise.reject(new Error("no chart"));
+      return chart.ready().then(function (c) {
+        if (c.model && c.model.kind === "daily") c.focusDate(iso, options && options.span);
+        return c;
+      });
+    }
+  };
   if (doc.readyState === "loading") {
     doc.addEventListener("DOMContentLoaded", function () {
       hydrate(doc);

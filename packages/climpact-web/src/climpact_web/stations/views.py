@@ -1,6 +1,7 @@
 """The single-station steps. Step 1 (#76): load the station file, or the sample, and give
-the station's metadata. The later steps (#77-#79, #90) add their pages to the same
-analysis (``/station/<id>/...``).
+the station's metadata. Step 2 (#77): the quality checks, run as a ``qc`` job, and their
+results (:mod:`.qc_review`, :mod:`.qc_plots`). The later steps (#78, #79, #90) add their
+pages to the same analysis (``/station/<id>/...``); step 3 is a placeholder until #78.
 
 An analysis is visible only to the browser session that created it, like a job: any
 other session gets 404.
@@ -25,9 +26,16 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 
 from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.forms import safe_station_name
+from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
 from climpact_web.stations import preview
-from climpact_web.stations.forms import MetadataForm, RunAllForm, UploadForm
+from climpact_web.stations.forms import (
+    QC_DEFAULTS,
+    MetadataForm,
+    QCParamsForm,
+    RunAllForm,
+    UploadForm,
+)
 from climpact_web.stations.models import STATION_FILE, Source, StationAnalysis, Step
 from climpact_web.stations.station_file import (
     Inspection,
@@ -238,6 +246,9 @@ def load(request, analysis_id):
             analysis.advance_to(Step.QC)
             analysis.touch()
             analysis.save()
+            if analysis.qc_job is None:
+                # Run the checks at once with the thresholds kept (R's defaults at first).
+                queue_qc(request, analysis)
             return redirect("stations:qc", analysis_id=analysis.pk)
     else:
         if analysis.metadata_complete:
@@ -293,23 +304,251 @@ def delete(request, analysis_id):
     return redirect("stations:upload")
 
 
-# ---- Step 2 placeholder ------------------------------------------------------------------
+# ---- Step 2: quality control (#77) ----------------------------------------------------
+
+
+def qc_job_params(analysis: StationAnalysis) -> dict:
+    return {
+        "station_file": STATION_FILE,
+        "metadata": analysis.metadata,
+        "qc": QCParamsForm.initial_for(analysis.qc_params),
+    }
+
+
+def queue_qc(request, analysis: StationAnalysis) -> Job:
+    """Queue the quality checks of the analysis's file with its thresholds, replacing a
+    check still waiting or running."""
+    old = analysis.qc_job
+    if old is not None and old.can_cancel:
+        old.request_cancel()
+    with analysis.station_file.open("rb") as handle:
+        job = create_job(
+            request,
+            "qc",
+            qc_job_params(analysis),
+            {STATION_FILE: File(handle)},
+            title=_("%(name)s: quality checks") % {"name": analysis.station_name},
+        )
+    analysis.qc_job = job
+    analysis.touch()
+    analysis.save()
+    return job
+
+
+def step_two_ready(analysis: StationAnalysis) -> bool:
+    return (
+        analysis.reached(Step.QC) and analysis.metadata_complete and analysis.station_file.is_file()
+    )
+
+
+def check_pages(request, review) -> dict[str, object]:
+    """The page of each check's table: ``?<check>_page=`` (the pager without htmx)."""
+    pages = {}
+    for check in review.checks:
+        try:
+            number = int(request.GET.get(f"{check.key}_page", 1))
+        except ValueError:
+            number = 1
+        pages[check.key] = check.page(number)
+    return pages
+
+
+def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
+    from climpact_web.jobs.views import progress_context
+
+    job = analysis.qc_job
+    context = {
+        "analysis": analysis,
+        "steps": station_steps("qc", analysis.step_urls()),
+        "qc_form": extra.pop("qc_form", None)
+        or QCParamsForm(initial=QCParamsForm.initial_for(analysis.qc_params)),
+        "replace_form": extra.pop("replace_form", None) or UploadForm(),
+        "job": job,
+    }
+    if job is not None:
+        context.update(progress_context(request, job))
+    if job is not None and job.status == Status.SUCCEEDED:
+        from climpact_web.stations import qc_plots, qc_review
+
+        try:
+            review = qc_review.review(job, analysis.station_file)
+        except FileNotFoundError:
+            review = None
+        if review is not None:
+            pages = check_pages(request, review)
+            context.update(
+                review=review,
+                check_groups=[
+                    {
+                        "kind": kind,
+                        "items": [
+                            {"check": c, "page": pages[c.key]}
+                            for c in review.checks
+                            if c.kind == kind
+                        ],
+                    }
+                    for kind in ("error", "review")
+                ],
+                charts=[
+                    {
+                        "variable": v,
+                        "id": qc_review.chart_id(v),
+                        "label": qc_review.variable_labels()[v],
+                    }
+                    for v in qc_review.CHART_VARIABLES
+                ],
+                monthly=qc_plots.monthly_boxes(review.rows, review.params),
+                annual=qc_plots.annual_boxes(review.rows),
+                decimals=qc_plots.decimals(review.rows),
+                histogram=qc_plots.precipitation_histogram(review.rows),
+            )
+    context.update(extra)
+    return context
 
 
 @never_cache
 @require_safe
 def qc(request, analysis_id):
-    """Step 2, Check quality: the screen comes with #77. Until then the page confirms
-    what was loaded and can run the whole calculation with the default parameters."""
+    """Step 2, Check quality: the thresholds, the checks run as a job, and their results."""
     analysis = get_analysis(request, analysis_id)
-    if not analysis.reached(Step.QC) or not analysis.metadata_complete:
+    if not step_two_ready(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
+    return render(request, "stations/qc.html", qc_context(request, analysis))
+
+
+@require_POST
+def qc_run(request, analysis_id):
+    """Save the thresholds and run the checks (again)."""
+    analysis = get_analysis(request, analysis_id)
+    if not step_two_ready(analysis):
+        return redirect("stations:load", analysis_id=analysis.pk)
+    form = QCParamsForm(request.POST)
+    if not form.is_valid():
+        return render(request, "stations/qc.html", qc_context(request, analysis, qc_form=form))
+    values = {k: form.cleaned_data[k] for k in QC_DEFAULTS}
+    if values != QCParamsForm.initial_for(analysis.qc_params):
+        # The QC files of a later full run must use the new thresholds too.
+        analysis.qc_params = values
+        if analysis.reached(Step.INDICES):
+            analysis.step = Step.QC
+            analysis.indices_job = analysis.sector_job = None
+    queue_qc(request, analysis)
+    return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
+
+
+@never_cache
+@require_safe
+def qc_progress(request, analysis_id):
+    """The checks' progress, polled by htmx; once they have finished the page reloads to
+    show the results."""
+    analysis = get_analysis(request, analysis_id)
+    job = analysis.qc_job
+    if job is None:
+        raise Http404
+    if job.status == Status.RUNNING:
+        from climpact_web.jobs.worker import reap_stale
+
+        if reap_stale():
+            job.refresh_from_db()
+    if job.is_finished:
+        if request.headers.get("HX-Request"):
+            response = HttpResponse(status=204)
+            response["HX-Refresh"] = "true"
+            return response
+        return redirect("stations:qc", analysis_id=analysis.pk)
+    return render(request, "stations/_qc_progress.html", qc_context(request, analysis))
+
+
+@never_cache
+@require_safe
+def qc_table(request, analysis_id, check):
+    """One page of a check's table (htmx): ``?page=``, or ``?date=`` for the page holding
+    that date (a flag picked on a chart)."""
+    from climpact_web.stations import qc_review
+
+    analysis = get_analysis(request, analysis_id)
+    job = analysis.qc_job
+    if check not in qc_review.CHECK_KEYS or job is None or job.status != Status.SUCCEEDED:
+        raise Http404
+    review = qc_review.review(job, analysis.station_file)
+    item = review.check(check)
+    date = request.GET.get("date", "")
+    if date:
+        number = item.page_of(date)
+    else:
+        try:
+            number = int(request.GET.get("page", 1))
+        except ValueError:
+            number = 1
+    context = {"analysis": analysis, "check": item, "page": item.page(number), "selected": date}
+    return render(request, "stations/_qc_table.html", context)
+
+
+@require_POST
+def qc_replace(request, analysis_id):
+    """Fix the file and upload it again: the station details and thresholds are kept and
+    the checks run again on the new file."""
+    analysis = get_analysis(request, analysis_id)
+    if not analysis.metadata_complete:
+        return redirect("stations:load", analysis_id=analysis.pk)
+    form = UploadForm(request.POST, request.FILES)
+    inspection = None
+    if form.is_valid():
+        uploaded = form.cleaned_data["station_file"]
+        inspection = inspect_station_bytes(read_upload(uploaded))
+        if inspection.ok:
+            metadata = MetadataForm(initial_metadata(analysis), summary=inspection.summary)
+            analysis.source = Source.UPLOAD
+            apply_inspection(analysis, inspection, uploaded.name)
+            if not metadata.is_valid():
+                # The base period no longer fits the data: back to step 1 to change it.
+                messages.warning(
+                    request,
+                    _(
+                        "The new file is loaded, but the station details need a change "
+                        "before the checks can run."
+                    ),
+                )
+                return redirect("stations:load", analysis_id=analysis.pk)
+            analysis.advance_to(Step.QC)
+            queue_qc(request, analysis)
+            messages.success(request, _("The new file is loaded. The checks are running again."))
+            return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
+    context = qc_context(request, analysis, replace_form=form, inspection=inspection)
+    return render(request, "stations/qc.html", context)
+
+
+@require_POST
+def qc_continue(request, analysis_id):
+    """Go on to the indices, whatever the checks found: the user decides."""
+    analysis = get_analysis(request, analysis_id)
+    job = analysis.qc_job
+    if job is None or job.status != Status.SUCCEEDED or not step_two_ready(analysis):
+        return redirect("stations:qc", analysis_id=analysis.pk)
+    analysis.advance_to(Step.INDICES)
+    analysis.touch()
+    analysis.save()
+    return redirect("stations:indices", analysis_id=analysis.pk)
+
+
+# ---- Step 3 placeholder ------------------------------------------------------------------
+
+
+@never_cache
+@require_safe
+def indices(request, analysis_id):
+    """Step 3, Calculate indices: the screen comes with #78. Until then the page can run
+    the whole calculation with the default index parameters (and the QC thresholds of
+    step 2)."""
+    analysis = get_analysis(request, analysis_id)
+    if not analysis.reached(Step.INDICES) or not analysis.metadata_complete:
+        return redirect("stations:qc", analysis_id=analysis.pk)
     return render(
         request,
-        "stations/qc.html",
+        "stations/indices.html",
         {
             "analysis": analysis,
-            "steps": station_steps("qc", analysis.step_urls()),
+            "steps": station_steps("indices", analysis.step_urls()),
             "run_form": RunAllForm(),
         },
     )
@@ -318,7 +557,7 @@ def qc(request, analysis_id):
 @require_POST
 def run_all(request, analysis_id):
     """Queue the whole station calculation (QC, indices, plots, zip) with the default
-    index parameters, as the job pages' minimal form did before step 1 existed."""
+    index parameters and the analysis's QC thresholds."""
     analysis = get_analysis(request, analysis_id)
     if not analysis.metadata_complete or not analysis.station_file.is_file():
         return redirect("stations:load", analysis_id=analysis.pk)
@@ -328,6 +567,7 @@ def run_all(request, analysis_id):
         "station_file": STATION_FILE,
         "metadata": analysis.metadata,
         "params": {},
+        "qc": QCParamsForm.initial_for(analysis.qc_params),
         "plots": form.cleaned_data["plots"],
         "zip": form.cleaned_data["zip"],
     }

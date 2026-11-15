@@ -1,0 +1,134 @@
+name: Image
+
+# The climpact-web image (#120, #122), called by ci.yml (every pull request and main) and
+# release.yml: a linux/amd64 build with the layer cache, a smoke test against a Postgres
+# service (migrate, check --deploy, web /healthz and Docker's health check, a station job
+# through the worker), a Grype report (reported, never fails) and the registry tags. It
+# never pushes: release.yml's publish job pushes the image this job saves. The steps are
+# in scripts/image.sh.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z); empty for a dry run with v<the package version>
+        type: string
+        default: ""
+      prerelease:
+        description: The release is marked pre-release (no `latest` tag)
+        type: boolean
+        default: false
+      save-cache:
+        description: Save the layer cache when its key missed (not on releases)
+        type: boolean
+        default: false
+      artifact:
+        description: Keep the tested image as the `image` artifact, for the publish job
+        type: boolean
+        default: false
+    outputs:
+      tags:
+        description: The registry tags, space-separated
+        value: ${{ jobs.image.outputs.tags }}
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: climpact
+          POSTGRES_PASSWORD: climpact
+          POSTGRES_DB: climpact
+        options: >-
+          --health-cmd "pg_isready -U climpact"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Registry tags
+        id: tags
+        env:
+          TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          scripts/image.sh tags-selftest
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' packages/climpact-web/src/climpact_web/__init__.py)
+          if [ -z "$TAG" ]; then
+            TAG="v$version"
+            echo "Dry run: the tags release $TAG would push"
+          fi
+          tags=$(scripts/image.sh tags "$TAG" "$PRERELEASE" | tr '\n' ' ' | sed 's/ $//')
+          echo "Tags: $tags"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Restore the layer cache
+        # Keyed on what the dependency layers are built from; a source change reuses them.
+        # Caches saved on main are readable by pull requests and release tags.
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/buildx-cache
+          key: image-buildx-${{ hashFiles('Dockerfile', '.dockerignore', 'uv.lock', 'pyproject.toml', 'packages/*/pyproject.toml') }}
+          restore-keys: image-buildx-
+      - name: Build (linux/amd64)
+        env:
+          SAVE_CACHE: ${{ inputs.save-cache && steps.cache.outputs.cache-hit != 'true' }}
+          IMAGE_VERSION: ${{ steps.tags.outputs.version }}
+          IMAGE_REVISION: ${{ github.sha }}
+        run: |
+          docker buildx create --use --name climpact --driver docker-container
+          if [ -d "$RUNNER_TEMP/buildx-cache" ]; then
+            export BUILDX_CACHE_FROM="$RUNNER_TEMP/buildx-cache"
+          fi
+          if [ "$SAVE_CACHE" = true ]; then  # export a cache only when it will be saved
+            export BUILDX_CACHE_TO="$RUNNER_TEMP/buildx-cache-new"
+          fi
+          scripts/image.sh build climpact-web:ci
+          # The cache's path is part of its key, so save the new cache under the old path
+          if [ -n "${BUILDX_CACHE_TO:-}" ]; then
+            rm -rf "$RUNNER_TEMP/buildx-cache"
+            mv "$BUILDX_CACHE_TO" "$RUNNER_TEMP/buildx-cache"
+          fi
+      - name: Save the layer cache
+        if: inputs.save-cache && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/buildx-cache
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Smoke test against Postgres
+        env:
+          SMOKE_NETWORK: ${{ job.services.postgres.network }}
+          SMOKE_DATABASE_URL: postgres://climpact:climpact@postgres:5432/climpact
+        run: scripts/image.sh smoke climpact-web:ci
+      - name: Vulnerability scan (report only)
+        run: scripts/image.sh scan climpact-web:ci
+      - name: Tag locally (pushes nothing)
+        env:
+          TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            docker tag climpact-web:ci "ghcr.io/geoffwalmsley/climpact-web:$tag"
+          done
+          docker image ls ghcr.io/geoffwalmsley/climpact-web
+      - name: Save the tested image
+        if: inputs.artifact
+        run: docker save climpact-web:ci -o "$RUNNER_TEMP/climpact-web.tar"
+      - name: Keep the tested image for the publish job
+        if: inputs.artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}/climpact-web.tar
+          retention-days: 1
+          if-no-files-found: error

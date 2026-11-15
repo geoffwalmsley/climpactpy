@@ -58,6 +58,13 @@ RUN CLIMPACT_WEB_MODE=hosted \
 # numpy/scipy's OpenBLAS), so no system packages are added.
 FROM ${PYTHON_IMAGE} AS runtime
 
+# The source label links the package on ghcr.io to the repository (#122); CI adds the
+# version and revision labels at build time (scripts/image.sh).
+LABEL org.opencontainers.image.title="climpact-web" \
+      org.opencontainers.image.description="Climpact climate indices web app (Python port of Climpact)" \
+      org.opencontainers.image.source="https://github.com/geoffwalmsley/climpactpy" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
+
 RUN groupadd --system --gid 10001 climpact \
  && useradd --system --uid 10001 --gid climpact --no-create-home --home-dir /tmp \
         --shell /usr/sbin/nologin climpact \

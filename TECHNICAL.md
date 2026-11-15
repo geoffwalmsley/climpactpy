@@ -4570,6 +4570,14 @@ uv run pytest
 - CI installs uv with `astral-sh/setup-uv` (pinned to a commit SHA, uv 0.13.8, with its
   cache), sets the job's Python with its `python-version` input, and installs with
   `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
+- Every action in `.github/workflows/` is pinned to a full commit SHA, with the release
+  tag in a comment (`actions/checkout` v4.3.1, `actions/upload-artifact` v4.6.2,
+  `astral-sh/setup-uv` v10.3.3), so a moved or compromised tag cannot change what CI runs.
+  The repository's Actions settings are meant to enforce this ("require actions to be
+  pinned to a full-length commit SHA", allowing only GitHub-owned actions and
+  `astral-sh/setup-uv`), so an unpinned or unlisted action fails the run. To upgrade
+  one, change the SHA and the tag comment together, using the commit the release tag
+  points to (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`).
 - CI has five jobs. `secrets` (#138) runs gitleaks over the whole git history
   (`gitleaks git --log-opts="--all" --redact`, checkout with `fetch-depth: 0`) with the
   default rules and the allowlist in `.gitleaks.toml`. It downloads the pinned gitleaks

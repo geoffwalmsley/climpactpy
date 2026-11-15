@@ -4,7 +4,7 @@
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <nav class="flex flex-wrap items-center gap-3 text-sm result-nav" aria-label="{% translate 'Results' %}">
+  <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Results' %}">
     <a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
   </nav>
 
@@ -80,7 +80,7 @@
     <p class="text-sm text-text-muted">{% translate "The table of each index (CSV) and Climpact's plot of each series (PNG). The days of occurrence are columns of the index's table." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
     {% for section in sections %}
     <details class="disclosure download-group"{% if forloop.first %} open{% endif %}>
-      <summary><span>{{ section.label }}</span> <span class="text-sm text-text-muted">{% blocktranslate count counter=section.cards|length %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+      <summary class="font-semibold"><span>{{ section.label }}</span> <span class="text-sm text-text-muted">{% blocktranslate count counter=section.cards|length %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body table-wrap" role="region" aria-label="{{ section.label }}" tabindex="0">
         <table class="table download-table">
           <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Table" %}</th><th scope="col">{% translate "Plot" %}</th></tr></thead>

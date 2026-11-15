@@ -104,6 +104,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "climpact_web.middleware.StaticFilesMiddleware",  # WhiteNoise
+    "climpact_web.middleware.PrivateCacheMiddleware",  # no shared caching of the rest
     "climpact_web.middleware.CompressionMiddleware",  # gzip for pages and fragments
     "climpact_web.middleware.UploadSizeLimitMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -245,6 +246,9 @@ if IS_HOSTED:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = int(env("HSTS_SECONDS", "0"))
+    # Sent only when SECURE_HSTS_SECONDS > 0. Every subdomain of climpact.app is HTTPS
+    # anyway (the .app TLD is on the browsers' HSTS preload list); no `preload` needed.
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # The health check is fetched by the load balancer over plain HTTP.
     SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
 

@@ -1,0 +1,2 @@
+(http.request.uri.path wildcard "/admin*")
+or (http.request.uri.path wildcard "/patterns/*")

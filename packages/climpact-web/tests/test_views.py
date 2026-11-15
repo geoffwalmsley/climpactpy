@@ -35,6 +35,34 @@ def test_security_headers(client):
     assert response["Referrer-Policy"] == "same-origin"
 
 
+@override_settings(SECURE_HSTS_SECONDS=31536000, SECURE_HSTS_INCLUDE_SUBDOMAINS=True)
+def test_hsts_header_over_https(client):
+    """Hosted mode behind the tunnel: the request arrived over HTTPS (#124)."""
+    response = client.get("/", secure=True)
+    assert response["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+
+
+@pytest.mark.parametrize("url", ["/", "/station/sample.txt", "/batch/sample-metadata.txt"])
+def test_answers_are_private_unless_they_say_otherwise(client, url):
+    """Cloudflare caches .csv, .png, .pdf and .zip answers that carry no Cache-Control,
+    whatever the cookies, so everything the app sends without one is marked private
+    (#124): a visitor's downloads never sit in a shared cache."""
+    response = client.get(url)
+    assert response.status_code == 200
+    assert response["Cache-Control"] == "private"
+
+
+def test_own_cache_control_is_kept(client):
+    response = client.get("/healthz")  # never_cache
+    assert "no-store" in response["Cache-Control"]
+
+
+def test_static_files_keep_their_cache_control(client):
+    response = client.get("/static/climpact_web/vendor/htmx/htmx.min.js")
+    assert response.status_code == 200
+    assert "private" not in response.get("Cache-Control", "")
+
+
 def test_healthz(client):
     response = client.get("/healthz")
     assert response.status_code == 200

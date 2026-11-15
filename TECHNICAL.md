@@ -83,7 +83,9 @@ docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthchec
 .dockerignore        keeps everything but the two packages' sources, the pyproject files
                      and uv.lock out of the image's build context
 deploy/              the hosted stack on one Droplet (#121): `compose.yaml` and
-                     `.env.example` (see [Compose stack](#compose-stack))
+                     `.env.example` (see [Compose stack](#compose-stack)); the Droplet's
+                     `cloud-init.yaml` and the runbook `README.md` (#123; see
+                     [Hosting: Droplet and tunnel](#hosting-droplet-and-tunnel))
 scripts/image.sh     builds, smoke-tests, scans, tags and pushes the image, for CI and
                      releases (#122; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio))
 .github/workflows/   `ci.yml` (every pull request and main), `image.yml` (the image job
@@ -3125,6 +3127,70 @@ marked the job failed 66 s after its last heartbeat (`JOB_STALE_SECONDS` 60), wi
 retry offered. Without the override `docker compose ps` lists no published ports and the
 web container cannot reach the internet. With a dummy token `cloudflared` starts
 (read-only) and refuses the token.
+
+#### Hosting: Droplet and tunnel
+
+**Decision (user, 2026-11-14): DigitalOcean, not AWS** (#12). The original specification
+asked for AWS. The user changed it to DigitalOcean, deployed from GitHub, with Cloudflare
+in front to block abuse and spam. Very few people will use the app, so the cheapest setup
+that works was chosen: one DigitalOcean Droplet (Basic Regular, 1 vCPU / 2 GB / 50 GB, $12/mo) running
+the [Compose stack](#compose-stack), with Cloudflare's free plan in front (WAF, rate
+limiting, bot protection; #124) and a Cloudflare Tunnel as the only way in. The expected
+cost is about $12/mo plus the domain (`climpact.app`, about $10/yr), and +20% for optional
+Droplet backups. Rejected: DigitalOcean App Platform (about $30+/mo for two 1 GB
+containers, a dev database and Spaces, and no shared disk, so job files would need an S3
+storage class); a managed database ($15/mo); Redis (#119, the database queue stays);
+Terraform/OpenTofu (not worth it for one Droplet and one tunnel;
+revisit if WMO wants infrastructure as code). GitHub Releases drive deployment (#122,
+#126); merges to `main` deploy nothing.
+
+**Provisioning (#123).** `deploy/cloud-init.yaml` is the Droplet's user data (Ubuntu 24.04
+LTS) and `deploy/README.md` is the runbook, written to be repeated by hand, for example in
+WMO's accounts. Nothing account-side is automated. DigitalOcean accepts user data only when
+a Droplet is created: a rebuild keeps the original user data, so a Droplet made without it
+is destroyed and created again. The user data holds no secrets, because it can be read from
+the metadata service and is stored by DigitalOcean. cloud-init:
+
+| Part | Does |
+| --- | --- |
+| `deploy` user | sudo without password (it has no password), `docker` group; gets the SSH keys chosen at creation, copied from root by `climpact-bootstrap` (`disable_root: false`, so they are copied without cloud-init's prefix) |
+| SSH | `sshd_config.d/10-climpact.conf`: no root login, keys only, `AllowUsers deploy`; read before cloud-init's `50-cloud-init.conf`, and sshd keeps the first value |
+| Docker | Docker's apt repository; `climpact-bootstrap` downloads the signing key and stops unless the file holds exactly one primary key with fingerprint `9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88`; then `docker-ce`, `containerd.io`, `docker-compose-plugin`. `daemon.json`: `live-restore`, `json-file` logs rotated at 10 MB × 3 |
+| Swap | 2 GB `/swapfile`, `vm.swappiness = 10` |
+| Updates | `unattended-upgrades` daily for Ubuntu's security pocket and Docker's repository (`origin=Docker,label=Docker CE`), reboot at 03:30 UTC when needed; `live-restore` keeps the containers up while Docker upgrades |
+| `/opt/climpact` | owned by `deploy`, 0750; `compose.yaml` and `.env.example` fetched from `main` at first boot |
+| `climpact-use vX.Y.Z` | fetches `compose.yaml` and `.env.example` from that release's tag, pulls `ghcr.io/geoffwalmsley/climpact-web:X.Y.Z` and sets `CLIMPACT_IMAGE` to it in `.env`, so the Compose file and the image come from the same release; `climpact-use main` fetches the files only |
+| `climpact-init-env` | makes `.env` (0600, `deploy`) from `.env.example` and fills only empty values: a new secret key (`secrets.token_urlsafe(50)`), Postgres password (`openssl rand -hex 32`), `COMPOSE_PROFILES=tunnel` (so a plain `docker compose up` includes `cloudflared`), and the tunnel token at a hidden prompt; prints which values are set, never the values |
+| `climpact-image-prune.timer` | weekly `docker image prune --all --filter until=720h` |
+
+The ticket's "purge timer" is the Compose `purge` service (see [Compose stack](#compose-stack)),
+and app updates are releases (#126), so cloud-init installs no timer for either. No host
+firewall (ufw): the DigitalOcean Cloud Firewall has no inbound rules (one SSH rule for the
+admin's IP only while it is needed), applied by the tag `climpact`, so a new Droplet is
+covered from its first boot. Nothing publishes a port, and the tunnel is outbound. The
+tunnel's public hostname `climpact.app` routes to `http://web:8000`, and Cloudflare creates
+its proxied CNAME. No DNS record may point at the Droplet's IP. Break-glass access: the SSH
+rule for the admin's IP; DigitalOcean's Droplet Console, which needs port 22 open to all
+because its source addresses are not published; or the Recovery Console after a root
+password reset, which root can use because root is refused only over SSH.
+
+**Tested locally** (2026-11-15, without the DigitalOcean or Cloudflare accounts):
+`cloud-init schema` (cloud-init 26.2 in `ubuntu:24.04`) reports the file valid, and
+shellcheck finds nothing in the three scripts. A full cloud-init run in a privileged
+`ubuntu:24.04` container (arm64) with a NoCloud seed and a test SSH key, with swap and
+`package_upgrade` left out and `CLIMPACT_BOOTSTRAP_NO_SYSTEMD=1` (no systemd in the
+container), created `deploy` with the key, Docker 29.9 and Compose 5.7 from the verified
+repository, `/opt/climpact` with the files from `main`, and the apt settings; `sshd -T`
+gives `permitrootlogin no`, `passwordauthentication no`, `allowusers deploy`. The only
+cloud-init error was `set_passwords`, which needs systemd. This test found that Docker's
+key file holds a subkey with its own `fpr` line, and the check compares only the primary
+key. `climpact-init-env` filled the secrets, kept the Postgres password on a second run,
+and left `.env` at 0600. `climpact-use v0.1.0` stopped with a clear message, because the
+release does not exist yet; with `curl` and `docker` stubbed it pinned `CLIMPACT_IMAGE` and
+replaced the pin on the next version. `docker compose config --services` lists
+`cloudflared` once `COMPOSE_PROFILES=tunnel` is in `.env`. Not yet tested on a real
+Droplet: swap, the services, unattended upgrades, the tunnel and the closed IP. Those are
+the runbook's steps 3, 7 and 8, done once v0.1.0 (#131) has published the first image.
 
 ### Image in CI and on ghcr.io
 

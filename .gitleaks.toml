@@ -1,0 +1,28 @@
+# gitleaks configuration (#138). Read automatically by `gitleaks git` / `gitleaks dir` run
+# from the repository root, and by the `secrets` job in .github/workflows/ci.yml.
+#
+# The default gitleaks rules, plus a narrow allowlist of confirmed false positives. Each
+# entry matches only the exact placeholder value (regexTarget = "secret", anchored ^...$),
+# so a real credential anywhere, in the same file or not, is still reported. There are no
+# `paths` on purpose: in gitleaks 8.30 a global allowlist's `paths` skip the whole file
+# even with condition = "AND", and `regexTarget = "line"` also matches across the whole
+# file, so either would hide real secrets added to these files. Add an entry only after
+# triaging a finding in a pull request; never allowlist a whole directory or rule.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Placeholder password 'pw' in example Postgres URLs: the DATABASE_URL row of TECHNICAL.md and packages/climpact-web/tests/test_settings.py (#138 triage)"
+regexTarget = "secret"
+regexes = [
+    '''^pw$''',
+]
+
+[[allowlists]]
+description = "CI-only throwaway values in .github/workflows/ci.yml for the web-postgres job's localhost service container: its Postgres password and Django secret key (#138 triage)"
+regexTarget = "secret"
+regexes = [
+    '''^climpact$''',
+    '''^ci-only-secret-key-not-used-anywhere-else-[0-9a-f]+$''',
+]

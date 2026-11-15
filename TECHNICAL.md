@@ -4570,7 +4570,16 @@ uv run pytest
 - CI installs uv with `astral-sh/setup-uv` (pinned to a commit SHA, uv 0.13.8, with its
   cache), sets the job's Python with its `python-version` input, and installs with
   `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
-- CI has four jobs. `core` and `web` run on Python 3.12, 3.13 and 3.14: `core` checks
+- CI has five jobs. `secrets` (#138) runs gitleaks over the whole git history
+  (`gitleaks git --log-opts="--all" --redact`, checkout with `fetch-depth: 0`) with the
+  default rules and the allowlist in `.gitleaks.toml`. It downloads the pinned gitleaks
+  release binary and installs it only if its SHA-256 matches the hash in `ci.yml` (no
+  third-party action, read-only token, checkout pinned to a commit SHA); upgrade the
+  version and hash together. `.gitleaks.toml` allowlists only exact placeholder values
+  (`regexTarget = "secret"`, anchored), never paths: in gitleaks 8.30 a global allowlist's
+  `paths` skip the whole file even with `condition = "AND"`, so they would hide a real
+  secret added to that file. Run the same scan locally with `gitleaks git
+  --log-opts="--all" --redact .`. `core` and `web` run on Python 3.12, 3.13 and 3.14: `core` checks
   `uv lock --check`, installs only the core with its dev group (`uv sync --locked
   --package climpactpy`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core

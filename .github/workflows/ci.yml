@@ -6,6 +6,35 @@ on:
   pull_request:
 
 jobs:
+  secrets:
+    # gitleaks over the whole git history (#138), with the allowlist in .gitleaks.toml.
+    # The pinned release binary, installed only if its SHA-256 matches the hash below (from
+    # the release's gitleaks_<version>_checksums.txt); no third-party action, no licence key,
+    # read-only token. --redact keeps any finding's value out of the (public) log.
+    # Upgrade only in a deliberate pull request that changes VERSION and SHA256 together.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks (pinned, checksum verified)
+        run: |
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$tarball"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" version
+      - name: Scan the git history
+        run: |
+          "$RUNNER_TEMP/gitleaks" git --log-opts="--all" --redact --no-banner --verbose .
+
   core:
     # The core package on its own: installed without climpact-web, full suite including
     # the R parity tests.

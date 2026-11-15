@@ -50,6 +50,53 @@ def test_prepare_data_dir(tmp_path):
     assert (data / "secret_key").read_text() == key
 
 
+def test_proxy_options(monkeypatch):
+    from waitress.adjustments import Adjustments
+
+    monkeypatch.delenv("CLIMPACT_WEB_TRUSTED_PROXY", raising=False)
+    assert cli.proxy_options() == {}
+    monkeypatch.setenv("CLIMPACT_WEB_TRUSTED_PROXY", " * ")
+    options = cli.proxy_options()
+    assert options["trusted_proxy"] == "*"
+    assert options["trusted_proxy_headers"] == {"x-forwarded-proto", "x-forwarded-for"}
+    adjustments = Adjustments(**options)  # waitress accepts them
+    assert adjustments.trusted_proxy == "*" and adjustments.clear_untrusted_proxy_headers
+
+
+def test_proxy_headers_reach_django(monkeypatch):
+    """Behind a trusted proxy, waitress turns X-Forwarded-Proto into the request's scheme,
+    so hosted mode's HTTPS redirect sees the original HTTPS request."""
+    from waitress.proxy_headers import proxy_headers_middleware
+
+    monkeypatch.setenv("CLIMPACT_WEB_TRUSTED_PROXY", "*")
+    options = cli.proxy_options()
+    seen = {}
+
+    def app(environ, start_response):
+        seen.update(environ)
+        return []
+
+    wrapped = proxy_headers_middleware(
+        app,
+        trusted_proxy=options["trusted_proxy"],
+        trusted_proxy_count=options["trusted_proxy_count"],
+        trusted_proxy_headers=options["trusted_proxy_headers"],
+        clear_untrusted=options["clear_untrusted_proxy_headers"],
+    )
+    environ = {
+        "REMOTE_ADDR": "172.18.0.5",
+        "REMOTE_PORT": "40000",
+        "SERVER_NAME": "climpact.app",
+        "SERVER_PORT": "8000",
+        "wsgi.url_scheme": "http",
+        "HTTP_X_FORWARDED_PROTO": "https",
+        "HTTP_X_FORWARDED_FOR": "203.0.113.7",
+    }
+    wrapped(environ, lambda *a: None)
+    assert seen["wsgi.url_scheme"] == "https"
+    assert seen["REMOTE_ADDR"] == "203.0.113.7"
+
+
 def test_serves_local_mode(tmp_path):
     """Start `climpact-web --no-browser` on a free port, fetch pages, stop it."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("CLIMPACT_WEB_")}

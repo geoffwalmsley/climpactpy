@@ -4,9 +4,11 @@ Each job has its own folder, ``<RUNS_DIR>/<job id>/``, with ``input/`` (uploads)
 ``output/`` (what the core writes). The core reads and writes ordinary files, so the
 worker always works on a local folder.
 
-Only the local filesystem is implemented. Hosted mode on AWS (#12) can keep job folders on
-shared storage (EFS) with this class unchanged, or subclass it to copy ``input/`` down from
-S3 before a run and ``output/`` up after it, and to serve downloads from S3; set
+Only the local filesystem is implemented, and it is all hosted mode needs: the deployment
+(#12) is a single host where the web and worker containers mount the same Docker volume at
+``CLIMPACT_WEB_MEDIA_ROOT``, so both see every job folder. A deployment without a shared
+filesystem could subclass this to copy ``input/`` down from object storage before a run
+and ``output/`` up after it, and to serve downloads from there; set
 ``CLIMPACT_WEB_JOB_STORAGE`` to the subclass's dotted path.
 """
 

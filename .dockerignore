@@ -1,0 +1,15 @@
+# Only what the image build needs: the workspace's pyproject files, uv.lock, the two
+# packages' sources and docker/. Everything else stays out of the build context (#120).
+*
+!pyproject.toml
+!uv.lock
+!docker/
+!packages/climpact/pyproject.toml
+!packages/climpact/README.md
+!packages/climpact/src/
+!packages/climpact-web/pyproject.toml
+!packages/climpact-web/README.md
+!packages/climpact-web/src/
+**/__pycache__
+**/*.pyc
+**/.DS_Store

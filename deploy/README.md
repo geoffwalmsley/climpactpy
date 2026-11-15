@@ -20,6 +20,8 @@ by its IP address, so nobody can get around Cloudflare.
 | `cloud-init.yaml` | The Droplet's user data: the `deploy` user, Docker, swap, SSH hardening, automatic security updates, `/opt/climpact` and the helper commands |
 | `compose.yaml` | The stack: `web`, `worker`, `db` (Postgres 16), `purge`, `cloudflared` (#121) |
 | `.env.example` | The stack's settings. The real `.env` exists only on the Droplet |
+| `cloudflare/*.txt` | The Cloudflare rule expressions, pasted into the dashboard (see [Cloudflare edge settings](#cloudflare-edge-settings)) |
+| `check-edge.sh` | Checks the edge settings from your own computer |
 
 The design and the reasons behind it are in `TECHNICAL.md` › Deployment.
 
@@ -211,6 +213,269 @@ download one index CSV and the zip. If anything fails, look at the logs on the D
    the tunnel, so the firewall doesn't touch it.
 
 Done. Record the date, the Droplet's region and the release in #123.
+
+## Cloudflare edge settings
+
+The site has no user accounts, so anyone can upload files and start CPU-heavy jobs on a
+1-vCPU Droplet. Cloudflare's free plan is the first line of defence (#124); the app's own
+limits and Turnstile are the second (#125). Everything here is set in the Cloudflare
+dashboard for the `climpact.app` zone, and nothing in it touches the Droplet except step E2.
+Budget **about 30 minutes**. The menu names are those of Cloudflare's dashboard and
+documentation in November 2026. Cloudflare renames screens from time to time, so search
+the dashboard (⌘K) for the setting's name if a menu has moved.
+
+**Rule expressions are in files.** Each rule below takes its expression from a file in
+`deploy/cloudflare/`, so there is nothing to retype. In the rule form, click **Edit
+expression** (under the field/operator/value builder), clear the box, and paste the file's
+contents: the expression itself, not the file's name. Typing the file name into the
+builder's *Value* box makes a rule that matches only that literal path, which never happens. Copy from the file's *Raw* view on GitHub, or with
+`pbcopy < deploy/cloudflare/<file>.txt`. A test checks the expressions against every URL
+the app serves (`packages/climpact-web/tests/test_deploy_files.py`). If the app gains a URL
+that starts a job, add it to `rate-limit.txt` and paste the expression again.
+
+What the free plan allows, and what this uses: 5 WAF custom rules (2 used), 1 rate
+limiting rule (1), 10 cache rules (2), 10 redirect rules (1).
+
+### E1. HTTPS and TLS (2 min)
+
+**SSL/TLS › Overview:** the encryption mode must not be *Off* (otherwise the options below
+are hidden). Leave it as it is. The tunnel carries the traffic to the Droplet, so the mode
+doesn't change anything there.
+
+**SSL/TLS › Edge Certificates:**
+
+- **Always Use HTTPS:** On.
+- **Minimum TLS Version:** **TLS 1.2**. Not 1.3: some older systems that the app's users
+  may have still lack TLS 1.3.
+- **TLS 1.3:** On (the default).
+- **HTTP Strict Transport Security (HSTS):** leave it **off**. The app sends the header
+  itself (E2), and two headers would conflict.
+
+The universal edge certificate covers `climpact.app` and `*.climpact.app`, so `www` needs
+no certificate of its own.
+
+### E2. HSTS from the app (2 min, on the Droplet)
+
+`climpact.app` is HTTPS-only anyway, because the whole `.app` TLD is on the browsers' HSTS
+preload list. The app also sends `Strict-Transport-Security: max-age=31536000;
+includeSubDomains`, for browsers without the preload list. `.env.example` sets
+`CLIMPACT_WEB_HSTS_SECONDS=31536000`. But `climpact-init-env` never changes a value that
+is already set, so a `.env` made before #124 still holds `0`. Next time SSH is open (step 2's
+temporary rule), as `deploy`:
+
+```sh
+cd /opt/climpact
+sed -i 's/^CLIMPACT_WEB_HSTS_SECONDS=.*/CLIMPACT_WEB_HSTS_SECONDS=31536000/' .env
+grep HSTS .env                 # CLIMPACT_WEB_HSTS_SECONDS=31536000
+docker compose up -d --wait    # recreates web, worker and purge with the new setting
+```
+
+Releases up to v0.1.0 send `max-age=31536000` without `includeSubDomains`. The release
+after #124 adds it, and also sends `Cache-Control: private` on every answer that doesn't
+set its own (see E7).
+
+### E3. Redirect `www.climpact.app` to `https://climpact.app` (5 min)
+
+A redirect rule fires only for a hostname whose traffic goes through Cloudflare, and
+`www` has had no DNS record since the parking `CNAME` was deleted (#123). So it needs a
+**proxied placeholder record** first. Traffic to it never leaves Cloudflare, because the
+rule answers first.
+
+1. **DNS › Records › Add record:** type **AAAA**, name **`www`**, IPv6 address **`100::`**
+   (a reserved discard address; Cloudflare's documented placeholder for redirect-only
+   hostnames), proxy status **Proxied** (orange cloud), TTL Auto. **Save.** Proxied
+   records answer IPv4 and IPv6 clients alike, from Cloudflare's addresses.
+2. **Rules › Overview › Create rule › Redirect Rule** (if a template list appears,
+   *Redirect from WWW to root* fills in the same values. Check them against these):
+   - **Rule name:** `www to apex`.
+   - **When incoming requests match:** **Wildcard pattern**.
+   - **Request URL:** `http*://www.climpact.app/*`
+   - **Target URL:** `https://climpact.app/${2}` (`${1}` is the `s` of `https`, `${2}` the
+     path).
+   - **Status code:** **301**. **Preserve query string:** on.
+   - **Deploy.**
+
+Don't add `www.climpact.app` to `CLIMPACT_WEB_ALLOWED_HOSTS` or to the tunnel. The
+request never reaches the app.
+
+### E4. WAF managed rules (1 min)
+
+**Security › Settings**, filter **Web application exploits**. The **Cloudflare Free
+Managed Ruleset** must be **On**. Cloudflare normally deploys it on free zones by itself.
+If it shows as off, turn it on and keep the default settings. The free plan can't
+configure it further.
+
+### E5. WAF custom rules (5 min)
+
+**Security › Security rules › Create rule › Custom rules**, twice:
+
+| Rule name | Edit expression: paste the **contents** of | Action |
+| --- | --- | --- |
+| `Block scanner paths` | `deploy/cloudflare/waf-block.txt` | **Block** |
+| `Challenge admin paths` | `deploy/cloudflare/waf-challenge.txt` | **Managed Challenge** |
+
+**Deploy** each one. `waf-block.txt` blocks paths the app never serves: `*.php`, `*.asp`,
+`*.aspx`, `*.jsp` and `*.cgi`, WordPress paths (`/wp-*`, `.../wp-admin`, `wp-content`,
+`wp-includes`), `/cgi-bin/`, and any path segment starting with a dot (`/.env`,
+`/.git/...`), except `/.well-known/`. `waf-challenge.txt` challenges `/admin*` (the app has
+no admin site, but scanners look for one) and `/patterns/` (the pattern library, a 404 in
+hosted mode unless `CLIMPACT_WEB_PATTERN_LIBRARY` is set). Neither rule matches a page of
+the app (tested). Don't add a geo or ASN rule unless the analytics show abuse from one place.
+
+### E6. Rate limiting the job-starting requests (5 min)
+
+**Security › Security rules › Create rule › Rate limiting rules:**
+
+- **Rule name:** `Job-starting requests`.
+- **When incoming requests match:** click **Edit expression** and paste the **contents** of
+  `deploy/cloudflare/rate-limit.txt` (not its name).
+- **With the same characteristics:** **IP** (the only choice on the free plan).
+- **When rate exceeds:** **10** requests per **10 seconds**.
+- **Then take action:** **Block**, with the default response (HTTP 429).
+- **Duration:** **10 seconds**. The free plan offers only 10 s for both the period and
+  the duration.
+- **Deploy.**
+
+**Why a list of paths, and not "POSTs to `/station/`":** the free plan's rule can match the
+**path only, not the method**. Its counter would therefore count every GET under a prefix like
+`/station/`. The job pages poll their progress with htmx once a second
+(`.../quality/progress`, `.../results/progress`, `/jobs/<id>/progress`,
+`/batch/<id>/progress`), and form fields are checked with htmx POSTs as they change
+(`.../load/validate`, `.../indices/validate`, `/batch/<id>/options`). A prefix rule would
+block an ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only
+the URLs that take an upload or start a job (upload and sample, *load*, *replace file*,
+*run quality checks*, *replace file after QC*, *continue*, *indices*, *sector*, batch
+upload, add files and run, job retry, and gridded upload and sample, which are off in
+hosted mode). Their GETs are page loads. A person filling in the forms makes 2–4 of these
+requests in 10 seconds, and a script making a burst makes many more. Tune the number from
+**Security › Analytics** once there is traffic.
+
+### E7. Caching `/static/` at the edge (5 min)
+
+**Caching › Cache Rules › Create rule**, twice:
+
+| Rule name | Edit expression: paste the **contents** of | Settings |
+| --- | --- | --- |
+| `Static files` | `deploy/cloudflare/cache-static.txt` | **Cache eligibility:** Eligible for cache. **Edge TTL:** *Use cache-control header if present, use default Cloudflare caching behavior if not*. **Browser TTL:** *Respect origin* |
+| `Bypass everything else` | `deploy/cloudflare/cache-bypass.txt` | **Cache eligibility:** Bypass cache |
+
+**Deploy** each one. The two expressions never match the same request, so their order
+doesn't matter. Static files have content hashes in their names
+(`climpact.36cde401c4f6.css`), and WhiteNoise sends them with `Cache-Control: public,
+max-age=315360000, immutable`, so caching them for as long as the origin says is safe. A
+new release has new names.
+
+The bypass rule matters because, by default, Cloudflare caches answers by file extension
+alone (`.csv`, `.png`, `.pdf`, `.zip`, ...) when the origin sends no `Cache-Control`, and
+it ignores cookies when it does. The job downloads (`/jobs/<id>/files/...`) belong to one
+visitor's session and must never be cached. The app also marks every such answer
+`Cache-Control: private` (from the release after #124), so either one alone is enough.
+
+### E8. Bot Fight Mode (1 min)
+
+**Security › Settings**, filter **Bot traffic** › **Bot fight mode:** On.
+
+Bot Fight Mode challenges traffic that Cloudflare scores as automated. It **cannot be
+skipped** by a custom rule, so nothing exempts the app's own requests. It also injects a
+small script into the HTML pages (JavaScript detections, under `/cdn-cgi/challenge-platform/`).
+The app sets no Content-Security-Policy, so nothing blocks that script. If one is ever
+added, it must allow that path. A real browser that loaded the page passes the
+detections, so its htmx requests carry the clearance and aren't challenged.
+
+**What to watch for (htmx):** htmx swaps in only 2xx answers. If the edge ever answers a
+poll with a challenge (HTTP 403 and the header `cf-mitigated: challenge`) or a 429, htmx
+drops it, so **the progress bar stops moving while the job carries on** on the worker. A
+validation POST that is challenged simply shows no inline message. Reloading the page
+recovers, because a full page load can solve the challenge. To check:
+
+- In the browser, run a station analysis with the sample data (upload → QC → indices →
+  results → downloads) with the developer tools' **Network** tab open, filtered on
+  `progress` and `validate`. Every request should be **200**. A 403 or 429 there is the
+  edge, not the app.
+- **Security › Analytics › Events** for the first days: look for events on `/station/`,
+  `/batch/` or `/jobs/` paths from real visitors (service *Bot fight mode*, *Rate limiting
+  rules* or *Custom rules*).
+
+If Bot Fight Mode challenges real visitors' htmx requests, turn it **off**. It has no
+exceptions on the free plan, and the rate limit plus Turnstile (#125) still guard the jobs.
+Record the decision in #124.
+
+### E9. Turnstile widget (3 min; the keys are for #125)
+
+Turnstile is set per account, not per zone. Go to the account home, then **Turnstile ›
+Add widget**:
+
+- **Widget name:** `climpact`.
+- **Hostname management:** add **`climpact.app`** (pick it from the account's zones).
+  For local testing #125 uses Cloudflare's published test keys, not this widget.
+- **Widget mode:** **Managed**.
+- **Pre-clearance support:** **No**.
+- **Create.**
+
+The page then shows the **site key** and the **secret key**. Store both in the password
+manager (one item, `climpact.app Turnstile`). **Don't put them anywhere else yet**: not
+in the repository, not in an issue, not in `.env`. #125 adds the settings that read them,
+and the runbook will say where they go. The keys can be shown again later under the
+widget's settings, and the secret can be rotated there.
+
+### E10. Check it (5 min)
+
+From your computer, in a checkout of the repository:
+
+```sh
+bash deploy/check-edge.sh            # everything except the rate limit
+bash deploy/check-edge.sh --burst    # also fires 25 POSTs at /jobs/<made-up id>/retry
+```
+
+The burst's POSTs carry no CSRF token, so the app refuses each one (403) before doing
+anything. No job starts, and the rate limit blocks your IP address on the job-starting
+paths only, for 10 seconds. Once everything is applied, every line reads `PASS`:
+
+```
+PASS  TLS 1.2 accepted
+PASS  TLS 1.1 refused (also passes if your curl cannot speak TLS 1.1)
+PASS  http:// -> https://climpact.app/station/?x=1
+PASS  https://www.climpact.app/help/?x=1 -> 301 https://climpact.app/help/?x=1
+PASS  http://www.climpact.app/help/?x=1 ends at 200 https://climpact.app/help/?x=1
+PASS  HSTS: max-age=31536000; includeSubDomains
+PASS  home page 200, not challenged
+PASS  second request for /static/climpact_web/css/climpact.<hash>.css: cf-cache-status: HIT
+PASS  / not cached at the edge (cf-cache-status: DYNAMIC; cache-control: private)
+PASS  /station/sample.txt not cached at the edge (cf-cache-status: DYNAMIC; cache-control: private)
+PASS  /wp-login.php blocked (403)
+PASS  /.env blocked (403)
+PASS  /.git/config blocked (403)
+PASS  /cgi-bin/test blocked (403)
+PASS  /.well-known/ not blocked (404 from the app)
+PASS  /admin/ challenged (cf-mitigated: challenge)
+PASS  GET /station/ 200
+PASS  GET /batch/ 200
+PASS  GET /help/ 200
+PASS  GET /jobs/ 200
+PASS  htmx-style poll reaches the app (404 for a made-up job)
+      25 POSTs to /jobs/<id>/retry: 403 403 403 403 403 403 403 403 403 403 429 429 429 429 429 429 429 429 429 429 429 429 429 429 429
+PASS  burst blocked by the rate limit (429 after about 10 requests)
+      waiting 12 s for the block to end...
+PASS  after the block: 403 from the app again (no CSRF token)
+
+All checks passed.
+```
+
+Until the release after #124 is deployed, the HSTS line is a `NOTE` (no
+`includeSubDomains`) and `cache-control` reads `none`. Both are fine. The cache status may
+read `BYPASS` instead of `DYNAMIC`. Anything but `HIT` passes. The burst should give about ten
+403s (from the app), then 429s (from Cloudflare). Cloudflare updates its counters
+asynchronously, so the first 429 can come anywhere from the 11th request to about the
+15th. That is why the script sends 25, one after another: a burst sent all at once can
+slip through before the counter catches up. If **all** 15 are 403, the rule
+isn't matching. Check that it is deployed, wait a minute after deploying for it to reach
+every data centre, and run the script again.
+
+If **every** check that fetches a page fails with `cf-mitigated: challenge`, Bot Fight
+Mode is classing `curl` from your network as a bot. That is not what browsers see: check
+the pages in a browser instead (E8), and run the script from another network if you want a
+clean run. Then do the browser walk-through of E8 and record the date and the results in
+#124.
 
 ## Running it
 

@@ -85,7 +85,9 @@ docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthchec
 deploy/              the hosted stack on one Droplet (#121): `compose.yaml` and
                      `.env.example` (see [Compose stack](#compose-stack)); the Droplet's
                      `cloud-init.yaml` and the runbook `README.md` (#123; see
-                     [Hosting: Droplet and tunnel](#hosting-droplet-and-tunnel))
+                     [Hosting: Droplet and tunnel](#hosting-droplet-and-tunnel)); the
+                     Cloudflare rule expressions `cloudflare/*.txt` and `check-edge.sh`
+                     (#124; see [Cloudflare edge](#cloudflare-edge))
 scripts/image.sh     builds, smoke-tests, scans, tags and pushes the image, for CI and
                      releases (#122; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio))
 .github/workflows/   `ci.yml` (every pull request and main), `image.yml` (the image job
@@ -2894,13 +2896,17 @@ the variable.
 | `CLIMPACT_WEB_GRIDDED_HOSTED` | `false` | hosted mode: offer gridded runs (`GRIDDED_ENABLED`; always on in local mode) |
 | `CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` | `200` | largest request body under `/gridded/` (netCDF uploads), when gridded runs are offered |
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
-| `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age; set once the domain is final (#12) |
+| `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age, sent with `includeSubDomains` when above 0; `deploy/.env.example` sets `31536000` (#124) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
 | `CLIMPACT_WEB_TRUSTED_PROXY` | none (`*` in the image) | the `climpact-web` server (waitress) trusts `X-Forwarded-Proto` and `X-Forwarded-For` from this address (`*`: any peer) and takes the request's scheme and client address from them; read by `cli.proxy_options`, not by the settings |
 
 Both modes also set `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
 `Cross-Origin-Opener-Policy: same-origin`, HttpOnly SameSite=Lax session cookies and
-Django's CSRF protection; htmx requests send the CSRF token from the `hx-headers` on
+Django's CSRF protection. `PrivateCacheMiddleware` (below WhiteNoise, so static files keep
+their one-year cache) adds `Cache-Control: private` to every answer that sets no
+`Cache-Control` of its own: Cloudflare caches answers by extension (`.csv`, `.png`, `.pdf`,
+`.zip`) when the origin says nothing, whatever the cookies, and the job downloads belong
+to one session (#124); htmx requests send the CSRF token from the `hx-headers` on
 `<body>`. Server errors are logged to the console by `django.request`. pint's warnings
 about xclim redefining its units are silenced (`pint.util` at ERROR).
 
@@ -3091,8 +3097,8 @@ capabilities and set `no-new-privileges`.
 committed; `.gitignore` lists it) and passes each service only what it needs: the app
 gets `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS` (default `climpact.app`),
 `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` (default `https://climpact.app`),
-`CLIMPACT_WEB_HSTS_SECONDS`, `CLIMPACT_WEB_MAX_UPLOAD_MB`, `CLIMPACT_WEB_RETENTION_DAYS`,
-`CLIMPACT_WEB_LOG_LEVEL` and `DATABASE_URL`; `db` gets `POSTGRES_PASSWORD`; `cloudflared`
+`CLIMPACT_WEB_HSTS_SECONDS` (default `31536000`), `CLIMPACT_WEB_MAX_UPLOAD_MB`,
+`CLIMPACT_WEB_RETENTION_DAYS`, `CLIMPACT_WEB_LOG_LEVEL` and `DATABASE_URL`; `db` gets `POSTGRES_PASSWORD`; `cloudflared`
 gets `TUNNEL_TOKEN`. `DATABASE_URL` defaults to
 `postgres://climpact:${POSTGRES_PASSWORD}@db:5432/climpact`, so the password is set once
 and must be URL-safe (`openssl rand -hex 32`). `CLIMPACT_IMAGE`, the secret key and the
@@ -3135,7 +3141,7 @@ asked for AWS. The user changed it to DigitalOcean, deployed from GitHub, with C
 in front to block abuse and spam. Very few people will use the app, so the cheapest setup
 that works was chosen: one DigitalOcean Droplet (Basic Regular, 1 vCPU / 2 GB / 50 GB, $12/mo) running
 the [Compose stack](#compose-stack), with Cloudflare's free plan in front (WAF, rate
-limiting, bot protection; #124) and a Cloudflare Tunnel as the only way in. The expected
+limiting, bot protection; see [Cloudflare edge](#cloudflare-edge)) and a Cloudflare Tunnel as the only way in. The expected
 cost is about $12/mo plus the domain (`climpact.app`, about $10/yr), and +20% for optional
 Droplet backups. Rejected: DigitalOcean App Platform (about $30+/mo for two 1 GB
 containers, a dev database and Spaces, and no shared disk, so job files would need an S3
@@ -3191,6 +3197,38 @@ replaced the pin on the next version. `docker compose config --services` lists
 `cloudflared` once `COMPOSE_PROFILES=tunnel` is in `.env`. Not yet tested on a real
 Droplet: swap, the services, unattended upgrades, the tunnel and the closed IP. Those are
 the runbook's steps 3, 7 and 8, done once v0.1.0 (#131) has published the first image.
+
+#### Cloudflare edge
+
+The zone's settings (#124) are applied by hand in the Cloudflare dashboard (free plan),
+from `deploy/README.md` › *Cloudflare edge settings*; nothing account-side is automated.
+The rule expressions are files in `deploy/cloudflare/` (plain ASCII, pasted into the
+expression editor), and `deploy/check-edge.sh` checks the result from outside with curl.
+
+| Setting | Value |
+| --- | --- |
+| TLS | Always Use HTTPS; minimum TLS 1.2; Cloudflare's HSTS off (the app sends `max-age=31536000; includeSubDomains`) |
+| `www` | proxied `AAAA www → 100::` placeholder and a 301 redirect rule `http*://www.climpact.app/*` → `https://climpact.app/${2}`, query string kept |
+| WAF | Cloudflare Free Managed Ruleset; custom rules: block `waf-block.txt` (`*.php` and similar, WordPress paths, `/cgi-bin/`, dot segments except `/.well-known/`), managed challenge `waf-challenge.txt` (`/admin*`, `/patterns/`) |
+| Rate limit | the one free rule: `rate-limit.txt`, 10 requests per 10 s per IP, then block (429) for 10 s |
+| Bots | Bot Fight Mode on |
+| Cache | `/static/*` eligible for cache, edge TTL from `Cache-Control`; everything else bypasses the cache |
+| Turnstile | a Managed widget for `climpact.app`; its keys are kept in the password manager for #125 |
+
+The free plan's rate-limiting rule can match the path, but **not the method**, so a rule on
+"POSTs to `/station/`" would also count the htmx polls (`.../progress`, about once a second
+while a job runs) and the htmx validation POSTs. `rate-limit.txt` therefore lists the
+exact paths that take an upload or start a job. `test_deploy_files.py` reads the five
+expression files with a small evaluator (`wildcard`: whole value, case-insensitive;
+`contains`; `and`/`or`/`not`), runs them against a sample path for every URL pattern of
+the app, and checks that the rate limit counts exactly the job-starting views, that the
+WAF rules match no page except `/patterns/`, and that only `/static/` is cached. A new
+job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
+would freeze a progress bar until the page is reloaded; the runbook says how to watch for
+this, and to turn Bot Fight Mode off if it happens to real visitors. The same test checks
+that `.env.example` and the `compose.yaml` default send HSTS for a year, and keep
+`CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies.
 
 ### Image in CI and on ghcr.io
 

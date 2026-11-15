@@ -1,16 +1,34 @@
 name: Release
 
-# Publishing a GitHub Release vX.Y.Z publishes the climpact-web image to
-# ghcr.io/geoffwalmsley/climpact-web (#122): tagged X.Y.Z, and `latest` unless the release
-# is a pre-release. Nothing else pushes: merges to main and pull requests build and test the
-# image (ci.yml) but never push it. TECHNICAL.md › Deployment › "Image in CI".
+# Publishing a GitHub Release vX.Y.Z releases everything (#131, #122; RELEASING.md):
 #
-# Hand-off to #131: the PyPI jobs (version check, tests, build, TestPyPI/PyPI with Trusted
-# Publishing) go before these, and `image` then gets `needs: [<the PyPI publish job>]`, so
-# the image is published only after the packages are.
+#   version ─┬─ test ──┬─ testpypi ── testpypi-check ─┬─ pypi ─┬─ assets
+#            └─ build ─┘                              │        │
+#                                                     └────────┴─ image ── publish
 #
-# A pull request that changes this file runs the `image` job as a dry run (the tags of
-# v<the package version>, the artifact saved); `publish` runs only for a release.
+# - version: the tag equals both packages' __version__ (and climpact-web's pin on the
+#   core), the release's pre-release box matches the version, and the tagged commit is on
+#   main. Fails before anything is built or uploaded.
+# - test: the full suite (with the R parity tests) on the tagged commit.
+# - build: the sdists and wheels of climpact and climpact-web, checked (contents, metadata,
+#   twine check) and smoke-tested from a clean virtualenv; kept as the `dists` artifact.
+# - testpypi, then (unless a pre-release) pypi: upload those files with `uv publish` and
+#   Trusted Publishing (OIDC): no API token is stored anywhere. Each is the only job with
+#   `id-token: write`, in its own environment; `pypi` requires the maintainer's approval.
+# - testpypi-check: TestPyPI serves exactly the built files; the wheels downloaded from it
+#   are smoke-tested again.
+# - assets: the dists attached to the GitHub Release (the only job with `contents: write`).
+# - image, publish: the climpact-web image (#122), published to
+#   ghcr.io/geoffwalmsley/climpact-web only after the packages: after PyPI for a release,
+#   after TestPyPI for a pre-release. Tagged X.Y.Z, and `latest` unless a pre-release.
+#
+# Pre-releases (v0.2.0rc1, with GitHub's pre-release box) go to TestPyPI and push the
+# image without `latest`; they never reach PyPI. Merges to main and pull requests publish
+# nothing. A re-run skips files an index already has (uv publish --check-url).
+#
+# A pull request that changes this file runs a dry run: version (with v<the package
+# version>), build, and the `image` job (the artifact saved); nothing is tested twice
+# (ci.yml) or uploaded.
 on:
   release:
     types: [published]
@@ -26,9 +44,241 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  version:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          python-version: "3.12"
+      - name: Tag, versions and pre-release box agree
+        id: check
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          core=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' packages/climpact/src/climpact/__init__.py)
+          web=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' packages/climpact-web/src/climpact_web/__init__.py)
+          pin=$(sed -n 's/^ *"climpact\[plots\]==\([^"]*\)".*/\1/p' packages/climpact-web/pyproject.toml)
+          is_pre=$(uv run --no-project --with packaging==26.0 python -I -c \
+            "import sys; from packaging.version import Version; print(str(Version(sys.argv[1]).is_prerelease).lower())" "$core")
+          if [ "$EVENT" != release ]; then
+            TAG="v$core"
+            PRERELEASE=$is_pre
+            echo "Dry run as release $TAG"
+          fi
+          echo "tag $TAG; climpact $core, climpact-web $web, pin climpact[plots]==$pin; pre-release box $PRERELEASE"
+          fail=0
+          if [ "$TAG" != "v$core" ] || [ "$TAG" != "v$web" ] || [ "$TAG" != "v$pin" ]; then
+            echo "::error title=Version mismatch::tag $TAG, but climpact $core, climpact-web $web, pin $pin (RELEASING.md: bump them with scripts/set_version.py)"
+            fail=1
+          fi
+          if [ "$PRERELEASE" != "$is_pre" ]; then
+            echo "::error title=Pre-release mismatch::version $core is_prerelease=$is_pre, but the release's pre-release box is $PRERELEASE"
+            fail=1
+          fi
+          if [ "$EVENT" = release ]; then
+            git fetch --quiet origin main
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error title=Not on main::the tagged commit $GITHUB_SHA is not on main"
+              fail=1
+            fi
+          fi
+          [ "$fail" = 0 ] || exit 1
+          echo "version=$core" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$is_pre" >> "$GITHUB_OUTPUT"
+
+  test:
+    # The full suite on the tagged commit (CI has run it on main already; this is the
+    # release's own record). Releases only.
+    if: github.event_name == 'release'
+    needs: version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          python-version: "3.12"
+      - name: Install both packages
+        run: uv sync --locked
+      - name: Lint
+        run: |
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+      - name: Test
+        run: uv run --no-sync pytest -q
+
+  build:
+    needs: version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          python-version: "3.12"
+      - name: Build the sdists and wheels
+        # --no-sources: built from the publishable metadata alone, not the workspace.
+        run: uv build --all-packages --no-sources --no-create-gitignore --clear -o dist
+      - name: Check contents and metadata
+        run: |
+          uv run --no-project python -I scripts/check_dists.py dist --version "$VERSION"
+          uvx twine@7.0.0 check --strict dist/*
+          sha256sum dist/*
+      - name: Smoke-test the wheels in a clean virtualenv
+        run: scripts/smoke_dists.sh dist 3.12
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: dists
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
+
+  testpypi:
+    # Every release, pre-releases too. Trusted Publishing: TestPyPI's publisher for each
+    # project names this repository, release.yml and the environment `testpypi`.
+    if: github.event_name == 'release'
+    needs: [version, test, build]
+    runs-on: ubuntu-24.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/climpact-web/${{ needs.version.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dists
+          path: dist
+      - name: Upload to TestPyPI
+        run: >-
+          uv publish --trusted-publishing always
+          --publish-url https://test.pypi.org/legacy/
+          --check-url https://test.pypi.org/simple/
+          dist/*
+
+  testpypi-check:
+    # TestPyPI serves the built files, and the wheels downloaded from it install and run.
+    needs: [version, testpypi]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          python-version: "3.12"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dists
+          path: ${{ runner.temp }}/dist
+      - name: TestPyPI serves the built files
+        run: >-
+          uv run --no-project python -I scripts/fetch_published.py https://test.pypi.org
+          "$VERSION" "$RUNNER_TEMP/dist" "$RUNNER_TEMP/testpypi"
+      - name: Smoke-test the wheels from TestPyPI
+        run: scripts/smoke_dists.sh "$RUNNER_TEMP/testpypi" 3.12
+
+  pypi:
+    # Releases only, never pre-releases; waits for the maintainer's approval (the `pypi`
+    # environment's required reviewer). PyPI's publisher for each project names this
+    # repository, release.yml and the environment `pypi`.
+    if: github.event_name == 'release' && needs.version.outputs.prerelease == 'false'
+    needs: [version, testpypi-check]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/climpact-web/${{ needs.version.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: false
+          ignore-empty-workdir: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dists
+          path: dist
+      - name: Upload to PyPI
+        run: >-
+          uv publish --trusted-publishing always
+          --check-url https://pypi.org/simple/
+          dist/*
+
+  assets:
+    # Attach the published dists to the GitHub Release: after PyPI, or after TestPyPI for
+    # a pre-release.
+    if: >-
+      !cancelled() && github.event_name == 'release'
+      && needs.testpypi-check.result == 'success'
+      && (needs.pypi.result == 'success'
+          || (needs.pypi.result == 'skipped' && needs.version.outputs.prerelease == 'true'))
+    needs: [version, testpypi-check, pypi]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dists
+          path: dist
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+
   image:
     # Build from the release tag, smoke-test, scan and keep the tested image as an
-    # artifact; read-only token.
+    # artifact; read-only token. On a release, only once the packages are published (PyPI,
+    # or TestPyPI for a pre-release); on a pull request, a dry run after the build.
+    if: >-
+      !cancelled() && needs.build.result == 'success'
+      && (github.event_name == 'pull_request'
+          || (needs.testpypi-check.result == 'success'
+              && (needs.pypi.result == 'success'
+                  || (needs.pypi.result == 'skipped'
+                      && needs.version.outputs.prerelease == 'true'))))
+    needs: [version, build, testpypi-check, pypi]
     permissions:
       contents: read
     uses: ./.github/workflows/image.yml
@@ -40,7 +290,8 @@ jobs:
   publish:
     # Push the image the `image` job tested, with the workflow's own GITHUB_TOKEN; the only
     # job with `packages: write`, and no registry secret is stored anywhere.
-    if: github.event_name == 'release'
+    if: >-
+      !cancelled() && github.event_name == 'release' && needs.image.result == 'success'
     needs: image
     runs-on: ubuntu-24.04
     permissions:

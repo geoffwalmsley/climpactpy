@@ -1,10 +1,10 @@
-"""Example climpactpy plugin: one QC, one homogeneity and one index module.
+"""Example climpact plugin: one QC, one homogeneity and one index module.
 
 - ``example_qc`` lists, per year, the days with TX above 35 degC (``qc/example_hot_days``).
 - ``example_shift`` "detects" a break in TX on 1 January of the middle year, writes it to
   ``homogeneity/example_breaks`` and returns TX before the break raised by 1 degC, so the
   indices are calculated from adjusted data. It takes options (``adjustment``, the
-  amount added, and ``variable``, the variable adjusted), which climpactpy passes to
+  amount added, and ``variable``, the variable adjusted), which climpact passes to
   ``homogenise`` as the keyword argument ``options``.
 - ``example_indices`` writes the annual mean of TX (``indices/example_txmean_ANN``).
 

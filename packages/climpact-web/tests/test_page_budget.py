@@ -167,7 +167,7 @@ def gridded_results_large_grid(client) -> str:
     from climpact_web.jobs.models import Job, Status
 
     run = GriddedRun.objects.get(pk=gridded_setup(client).split("/")[2])
-    name = "txx_ANN_climpactpy_historical_NA_1991-2010.nc"
+    name = "txx_ANN_climpact_historical_NA_1991-2010.nc"
     job = Job.objects.create(kind="gridded-indices", owner=run.owner, status=Status.SUCCEEDED,
                              step=1, total=1, result={"files": [name]})  # fmt: skip
     job.output_dir.mkdir(parents=True)

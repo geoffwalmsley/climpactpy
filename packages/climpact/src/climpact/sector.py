@@ -47,7 +47,7 @@ import numpy as np
 import pandas as pd
 
 from climpact.io.climpact_csv import MISSING_VALUE, format_r_number, read_climpact_csv
-from climpact.io.output_files import is_all_missing
+from climpact.io.output_files import is_all_missing, software_credit
 from climpact.progress import Progress, Steps
 from climpact.rnumerics import r_mean, r_round
 
@@ -631,12 +631,12 @@ class _Drawer:
         ax.tick_params(length=3, labelsize=10)
 
     def _footer(self, fig, right: float) -> None:
-        from climpact import __version__, plots
+        from climpact import plots
 
         fig.text(
             right,
             0.02,
-            f"climpactpy {__version__}  ·  Climpact {plots.CLIMPACT_VERSION}",
+            software_credit(),
             color=plots._INK_3,
             fontsize=8,
             ha="right",

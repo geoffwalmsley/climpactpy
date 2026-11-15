@@ -3,12 +3,27 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "climpactpy"
-description = "Python port of Climpact: indices of daily climate extremes for station and gridded data"
+name = "climpact"
+description = "Climpact for Python: indices of daily climate extremes for station and gridded data (a port of the R Climpact)"
 readme = "README.md"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dynamic = ["version"]
+authors = [{ name = "Geoff Walmsley" }]
+maintainers = [{ name = "Geoff Walmsley" }]
+keywords = ["climate", "climate extremes", "ETCCDI", "ET-SCI", "Climpact", "indices"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
 dependencies = [
     "xclim>=1.0,<1.1",
     "xarray>=2025.1",
@@ -29,7 +44,7 @@ plots = [
 ]
 
 [dependency-groups]
-# The core's development tools (PEP 735; `uv sync --package climpactpy`, or
+# The core's development tools (PEP 735; `uv sync --package climpact`, or
 # `pip install --group dev` with pip 25.1+). The root pyproject.toml's group has these too.
 dev = [
     "pytest>=8",
@@ -39,6 +54,9 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/geoffwalmsley/climpactpy"
+Issues = "https://github.com/geoffwalmsley/climpactpy/issues"
+Changelog = "https://github.com/geoffwalmsley/climpactpy/blob/main/CHANGELOG.md"
+"Technical notes" = "https://github.com/geoffwalmsley/climpactpy/blob/main/TECHNICAL.md"
 "Original R Climpact" = "https://github.com/ARCCSS-extremes/climpact"
 
 [tool.hatch.version]
@@ -46,6 +64,11 @@ path = "src/climpact/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/climpact"]
+
+[tool.hatch.build.targets.sdist]
+# The source and the metadata files only: the tests need the repository's reference/ data
+# and are run from a checkout (scripts/check_dists.py checks the contents).
+include = ["/src/climpact", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

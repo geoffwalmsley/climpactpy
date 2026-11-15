@@ -10,7 +10,7 @@ architecture, parity testing and the differences between the Python and R implem
   `uv run ruff`, `uv run climpact-web`. Never install packages globally, and use uv only
   for the project environment.
 - The repository holds two packages, both workspace members: the core in
-  `packages/climpact` (distribution `climpactpy`; `src/climpact`, its tests and the R
+  `packages/climpact` (distribution `climpact`; `src/climpact`, its tests and the R
   parity suite) and the web front end in `packages/climpact-web` (`climpact_web`). The
   core must never import `climpact_web`. `uv sync` installs both, editable, with the dev
   tools of the root `pyproject.toml`'s `dev` group.
@@ -19,7 +19,7 @@ architecture, parity testing and the differences between the Python and R implem
   fails when `uv.lock` is stale (`uv lock --check`).
 - `uv run pytest` from the root runs both packages' tests; `uv run pytest
   packages/climpact` runs the core alone (CI runs it without the web package installed:
-  `uv sync --package climpactpy`).
+  `uv sync --package climpact`).
 - The web stylesheet is built with the pinned standalone Tailwind CLI: after changing a
   template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
   `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install

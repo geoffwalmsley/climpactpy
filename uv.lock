@@ -12,14 +12,14 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "climpact",
     "climpact-web",
-    "climpactpy",
 ]
 
 [manifest.dependency-groups]
 dev = [
+    { name = "climpact", editable = "packages/climpact" },
     { name = "climpact-web", editable = "packages/climpact-web" },
-    { name = "climpactpy", editable = "packages/climpact" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-django", specifier = ">=4.9" },
@@ -229,56 +229,7 @@ wheels = [
 ]
 
 [[package]]
-name = "climpact-web"
-source = { editable = "packages/climpact-web" }
-dependencies = [
-    { name = "brotli" },
-    { name = "climpactpy", extra = ["plots"] },
-    { name = "dj-database-url" },
-    { name = "django" },
-    { name = "markdown" },
-    { name = "platformdirs" },
-    { name = "waitress" },
-    { name = "whitenoise" },
-]
-
-[package.optional-dependencies]
-postgres = [
-    { name = "psycopg", extra = ["binary"] },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-django" },
-    { name = "ruff" },
-    { name = "websocket-client" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "brotli", specifier = ">=1.1" },
-    { name = "climpactpy", extras = ["plots"], editable = "packages/climpact" },
-    { name = "dj-database-url", specifier = ">=2.2" },
-    { name = "django", specifier = ">=6.0,<6.1" },
-    { name = "markdown", specifier = ">=3.6" },
-    { name = "platformdirs", specifier = ">=4.2" },
-    { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
-    { name = "waitress", specifier = ">=3.0" },
-    { name = "whitenoise", specifier = ">=6.7" },
-]
-provides-extras = ["postgres"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-django", specifier = ">=4.9" },
-    { name = "ruff", specifier = ">=0.8" },
-    { name = "websocket-client", specifier = ">=1.8" },
-]
-
-[[package]]
-name = "climpactpy"
+name = "climpact"
 source = { editable = "packages/climpact" }
 dependencies = [
     { name = "dask" },
@@ -320,6 +271,55 @@ dev = [
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.8" },
+]
+
+[[package]]
+name = "climpact-web"
+source = { editable = "packages/climpact-web" }
+dependencies = [
+    { name = "brotli" },
+    { name = "climpact", extra = ["plots"] },
+    { name = "dj-database-url" },
+    { name = "django" },
+    { name = "markdown" },
+    { name = "platformdirs" },
+    { name = "waitress" },
+    { name = "whitenoise" },
+]
+
+[package.optional-dependencies]
+postgres = [
+    { name = "psycopg", extra = ["binary"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-django" },
+    { name = "ruff" },
+    { name = "websocket-client" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brotli", specifier = ">=1.1" },
+    { name = "climpact", extras = ["plots"], editable = "packages/climpact" },
+    { name = "dj-database-url", specifier = ">=2.2" },
+    { name = "django", specifier = ">=6.0,<6.1" },
+    { name = "markdown", specifier = ">=3.6" },
+    { name = "platformdirs", specifier = ">=4.2" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
+    { name = "waitress", specifier = ">=3.0" },
+    { name = "whitenoise", specifier = ">=6.7" },
+]
+provides-extras = ["postgres"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-django", specifier = ">=4.9" },
+    { name = "ruff", specifier = ">=0.8" },
+    { name = "websocket-client", specifier = ">=1.8" },
 ]
 
 [[package]]

@@ -80,7 +80,10 @@ only indices it computes (`indices`, `;`-separated; empty: all but the excluded)
 that uses another's thresholds file comes after it.
 
 The R outputs go to `gridded/output/<run>/`: `thresholds.nc`, `indices/<index>_<FREQ>_climpactpy_historical_NA_<years>.nc`
-(R's names from the default template `var_daily_climpactpy_historical_NA_<first>-<last year>.nc`),
+(R's names from the template `var_daily_climpactpy_historical_NA_<first>-<last year>.nc`, the
+Python default when these runs were made; since the distribution was renamed `climpact` (#131)
+the default is `var_daily_climpact_historical_NA_...`, and the parity tests take the template
+from the reference file names),
 `r-package-versions.csv` and `climpact-commit.txt`. The wrappers are scripts with hard-coded
 settings, so `r/run_gridded_thresholds.R` and `r/run_gridded_indices.R` make their calls with
 the run's files, names, base period (and thresholds file) and the wrappers' fixed settings

@@ -687,7 +687,7 @@ HAND_WRITTEN = (
         _("Output file names"),
         _(
             "One netCDF file per index and time scale, named in the CMIP5 style, for "
-            "example r20mm_ANN_climpactpy_historical_NA_1991-2010.nc."
+            "example r20mm_ANN_climpact_historical_NA_1991-2010.nc."
         ),
         "gridded",
         "output-files",

@@ -1,8 +1,8 @@
-# An example third-party climpactpy plugin, used by tests/test_modules.py.
+# An example third-party climpact plugin, used by tests/test_modules.py.
 #
-# It is a package of its own: it depends on climpactpy and registers one module of each
-# kind through climpactpy's entry point groups. `pip install` (or `uv pip install`) it
-# next to climpactpy and `climpact modules` lists it. The tests install it into a
+# It is a package of its own: it depends on climpact and registers one module of each
+# kind through climpact's entry point groups. `pip install` (or `uv pip install`) it
+# next to climpact and `climpact modules` lists it. The tests install it into a
 # temporary folder by writing its distribution metadata (the `example_plugin` fixture in
 # tests/test_modules.py), which needs no build step or network.
 [build-system]
@@ -12,9 +12,9 @@ build-backend = "hatchling.build"
 [project]
 name = "climpact-example-plugin"
 version = "0.1.0"
-description = "Example QC, homogeneity and index modules for climpactpy"
+description = "Example QC, homogeneity and index modules for climpact"
 requires-python = ">=3.11"
-dependencies = ["climpactpy"]
+dependencies = ["climpact"]
 
 [project.entry-points."climpact.qc"]
 example_qc = "climpact_example_plugin:HotDaysQC"

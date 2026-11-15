@@ -399,11 +399,11 @@ def test_command_line(tmp_path, capsys):
     assert main(args) == 0
     names = sorted(p.name for p in out.glob("*.nc"))
     assert names == [
-        "fd_ANN_climpactpy_historical_NA_1971-1976.nc",
-        "fd_MON_climpactpy_historical_NA_1971-1976.nc",
-        "hw_ANN_climpactpy_historical_NA_1971-1976.nc",
-        "rx4day_ANN_climpactpy_historical_NA_1971-1976.nc",
-        "rx4day_MON_climpactpy_historical_NA_1971-1976.nc",
+        "fd_ANN_climpact_historical_NA_1971-1976.nc",
+        "fd_MON_climpact_historical_NA_1971-1976.nc",
+        "hw_ANN_climpact_historical_NA_1971-1976.nc",
+        "rx4day_ANN_climpact_historical_NA_1971-1976.nc",
+        "rx4day_MON_climpact_historical_NA_1971-1976.nc",
     ]
     with pytest.raises(SystemExit):
         main(["gridded-indices", str(path), "--out", str(out), "--indices", "nope"])

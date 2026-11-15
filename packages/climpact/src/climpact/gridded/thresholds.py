@@ -49,7 +49,7 @@ from climpact.calendars import (
     year_range,
 )
 from climpact.gridded.io import GriddedInput
-from climpact.io.output_files import CLIMPACT_VERSION
+from climpact.io.output_files import CLIMPACT_VERSION, SOFTWARE_NAME
 from climpact.products.ehf import excess_factors
 from climpact.progress import Progress
 from climpact.thresholds import (
@@ -251,7 +251,7 @@ def _etccdi_attrs(
         attrs["file_created_by_userid"] = getpass.getuser()
     except Exception:  # noqa: BLE001 - no user name (e.g. in a container): leave it out
         pass
-    attrs["climpactpy_version"] = __version__
+    attrs["climpact_python_version"] = __version__
     attrs["climdex.pcic_version"] = CLIMDEX_PCIC_VERSION
     attrs["Climpact_version"] = CLIMPACT_VERSION
     attrs["Climpact_github"] = CLIMPACT_GITHUB
@@ -274,7 +274,7 @@ def create_thresholds_file(
     ny, nx = inp.shape
     by = max(inp.data.chunks[inp.y_dim])
     bx = max(inp.data.chunks[inp.x_dim])
-    history = f"Created by climpactpy {__version__} on {time_module.ctime()}"
+    history = f"Created by {SOFTWARE_NAME} {__version__} on {time_module.ctime()}"
 
     with netCDF4.Dataset(inp.exemplar) as src:
         src_time = src.variables[inp.time_dim]

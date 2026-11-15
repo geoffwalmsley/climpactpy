@@ -55,9 +55,9 @@ jobs:
       - name: uv.lock is up to date
         run: uv lock --check
       - name: Install the core package only
-        # The climpactpy member with its own dev group, not the workspace root's group
+        # The climpact member with its own dev group, not the workspace root's group
         # (which adds climpact-web)
-        run: uv sync --locked --package climpactpy
+        run: uv sync --locked --package climpact
       - name: Lint
         run: |
           uv run --no-sync ruff check .
@@ -220,6 +220,32 @@ jobs:
         run: |
           uv sync --locked --package climpact-web --extra postgres
           uv run --no-sync pytest packages/climpact-web/tests/test_queue_postgres.py -v -rs
+
+  dist:
+    # The sdists and wheels of climpact and climpact-web, built and checked as a release
+    # builds them (#131, release.yml's `build` job): the wheels' file lists (printed) against
+    # the tracked sources, no tests or reference data, the core pinned to the web package's
+    # version, twine check, and a smoke test from a clean virtualenv. Uploads nothing.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: true
+          python-version: "3.12"
+      - name: Build the sdists and wheels
+        run: uv build --all-packages --no-sources --no-create-gitignore --clear -o dist
+      - name: Check contents and metadata
+        run: |
+          uv run --no-project python -I scripts/check_dists.py dist
+          uvx twine@7.0.0 check --strict dist/*
+      - name: Smoke-test the wheels in a clean virtualenv
+        run: scripts/smoke_dists.sh dist 3.12
 
   image:
     # The production image (#120, #122), built and tested exactly as a release builds it

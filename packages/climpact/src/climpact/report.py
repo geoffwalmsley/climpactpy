@@ -23,7 +23,7 @@ The PDF has a title, author, subject and language, bookmarks for every section a
 and links from the contents; its text is real text in the standard Helvetica font, so it
 can be searched, copied and read aloud. matplotlib cannot write a tagged PDF (a structure
 tree), so the report is not PDF/UA. The text is English, as the plots and output files
-are. Needs matplotlib (``pip install climpactpy[plots]``).
+are. Needs matplotlib (``pip install climpact[plots]``).
 """
 
 from __future__ import annotations
@@ -39,10 +39,9 @@ from pathlib import Path
 
 import numpy as np
 
-from climpact import __version__
 from climpact.config import IndexParams, QCParams, StationMetadata
 from climpact.io.climpact_csv import format_r_number, read_climpact_csv
-from climpact.io.output_files import CLIMPACT_VERSION
+from climpact.io.output_files import SOFTWARE_NAME, software_credit
 from climpact.plots import (
     _INK,
     _INK_2,
@@ -345,8 +344,8 @@ class _Report:
     @property
     def footer(self) -> str:
         return (
-            f"{self.metadata.name}  ·  Climpact report  ·  climpactpy {__version__}, "
-            f"Climpact {CLIMPACT_VERSION}  ·  {self.date.isoformat()}"
+            f"{self.metadata.name}  ·  Climpact report  ·  {software_credit()}  ·  "
+            f"{self.date.isoformat()}"
         )
 
     def new_page(self, target: str | None = None) -> _Page:
@@ -408,7 +407,7 @@ def _cover(report: _Report, summary: QCSummary, n_indices: int) -> None:
         ("Base period", f"{m.base_start} to {m.base_end}"),
         ("Indices plotted", str(n_indices)),
         ("Calculated", report.date.strftime("%d %B %Y").lstrip("0")),
-        ("Software", f"climpactpy {__version__}, a Python port of Climpact {CLIMPACT_VERSION}"),
+        ("Software", software_credit()),
     ]
     y = _H - 2.95
     for label, value in facts:
@@ -749,11 +748,11 @@ def write_report(
     tmp = path.with_name(path.name + ".part")
     info = {
         "Title": f"{station}: Climpact report",
-        "Author": "climpactpy",
+        "Author": SOFTWARE_NAME,
         "Subject": f"Climate extremes indices of {station}, base period "
         f"{metadata.base_start}-{metadata.base_end}",
         "Keywords": "Climpact, climate extremes, indices, ETCCDI, ET-SCI",
-        "Creator": f"climpactpy {__version__}",
+        "Creator": software_credit(),
     }
     with matplotlib.rc_context(_RC_PDF), _quiet_font_manager():
         _cover(report, summary, len(indices))

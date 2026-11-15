@@ -113,7 +113,7 @@ WRAPPER_PARAMS = IndexParams(
     rnnmm=30.0,
     custom=None,
 )
-DEFAULT_TEMPLATE = "var_daily_climpactpy_historical_NA_{start}-{end}.nc"
+DEFAULT_TEMPLATE = "var_daily_climpact_historical_NA_{start}-{end}.nc"
 # Indices computed by their own functions (gridded.heatwaves, gridded.drought), and only
 # when asked for: they take most of a cell's time.
 SEPARATE = ("hw", "hwEHF", "spi", "spei")
@@ -861,7 +861,7 @@ def write_grid_indices(
     and frequency to ``out_dir`` (``create.indices.from.files``). Returns the paths.
 
     ``template`` is the CMIP5-style file name the output names follow (default
-    ``var_daily_climpactpy_historical_NA_<first year>-<last year>.nc``). With
+    ``var_daily_climpact_historical_NA_<first year>-<last year>.nc``). With
     ``thresholds_file`` (written by ``climpact gridded-thresholds``), its thresholds are
     used instead of computing them; the data must then have no day in the base period.
     ``indices`` limits the output to those indices, by short name as in

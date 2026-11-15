@@ -1,18 +1,30 @@
 # climpactpy
 
-A Python port of [Climpact](https://github.com/ARCCSS-extremes/climpact), the R software for calculating indices of daily climate extremes.
+Climpact for Python: a Python port of [Climpact](https://github.com/ARCCSS-extremes/climpact), the R software for calculating indices of daily climate extremes.
+
+## Installing
+
+```sh
+pip install 'climpact[plots]'   # the core and the `climpact` command (plots: matplotlib)
+pip install climpact-web        # the browser app, run with `climpact-web`
+```
+
+Python 3.12 or later. The container image of the web app is
+`ghcr.io/geoffwalmsley/climpact-web`. Both packages and the image are published together,
+from GitHub Releases: see [RELEASING.md](RELEASING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Repository layout
 
-The repository holds two Python packages:
+The repository holds two Python packages, released together with one version number:
 
-- `packages/climpact`: the core package (distribution `climpactpy`, imported as
+- `packages/climpact`: the core package (distribution `climpact` on PyPI, imported as
   `climpact`), with its tests and the R parity suite. It has no web dependencies:
   `pip install ./packages/climpact` installs only the core.
-- `packages/climpact-web`: the web front end (`climpact_web`, Django + htmx), which
-  depends on the core. Only the skeleton so far: the screens are being built (epic #11).
+- `packages/climpact-web`: the web front end (distribution `climpact-web`, imported as
+  `climpact_web`, Django + htmx), which depends on the core at the same version.
 
-`reference/` (the R reference outputs) is shared at the root.
+The repository keeps its name, `climpactpy`, which was also the core's distribution name
+until #131. `reference/` (the R reference outputs) is shared at the root.
 
 ## Development
 

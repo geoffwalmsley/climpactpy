@@ -25,8 +25,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from climpact import __version__
 from climpact.config import CustomIndex, IndexParams, StationMetadata
+from climpact.io.output_files import software_credit
 from climpact.modules import (
     DEFAULT_HOMOGENEITY,
     DEFAULT_INDICES,
@@ -140,7 +140,7 @@ def _output_arguments(parser: argparse.ArgumentParser, zip_help: str, report_hel
         "--plots",
         action="store_true",
         help="also draw a PNG of every index and the combined PDF in NAME/plots/, as R "
-        "does (needs matplotlib: pip install climpactpy[plots])",
+        "does (needs matplotlib: pip install 'climpact[plots]')",
     )
     group.add_argument("--zip", action="store_true", help=zip_help)
     group.add_argument("--report", action="store_true", help=report_help)
@@ -228,7 +228,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="climpact", description="Climpact indices of daily climate extremes."
     )
-    parser.add_argument("--version", action="version", version=f"climpactpy {__version__}")
+    parser.add_argument("--version", action="version", version=software_credit())
     commands = parser.add_subparsers(dest="command", required=True)
 
     run = commands.add_parser(
@@ -365,7 +365,7 @@ def _parser() -> argparse.ArgumentParser:
         "--template",
         default=None,
         help="output file name template in CMIP5 form, var_freq_model_emissions_run_"
-        "start-end.nc (R's file.template; default: var_daily_climpactpy_historical_NA_"
+        "start-end.nc (R's file.template; default: var_daily_climpact_historical_NA_"
         "<first year>-<last year>.nc)",
     )
     gi.add_argument("--tmax", default="tasmax", help="TX variable name (" + _DEFAULT + ")")

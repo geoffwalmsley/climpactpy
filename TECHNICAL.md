@@ -2952,8 +2952,11 @@ analysis.
 **Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
 "Menu" `<details class="site-menu">` after the theme toggle holds the same links
 (`base.html`), so the header stays one row (69px at 390px, was 153px) and the menu works
-without JavaScript. Its panel drops over the page below the header. Below 23rem the button
-shows its icon only; "Menu" stays its accessible name.
+without JavaScript. Its panel drops over the page below the header. The row does not wrap
+(`flex-wrap: nowrap`, the brand may shrink), and below 23rem the brand shows its mark only
+and the button its icon only, with "Climpact" and "Menu" kept as their accessible names, so
+the row fits at 320px whatever the system's fonts (CI's Linux fonts are wider than macOS's;
+`test_accessibility.py` also checks the row with a wide font).
 
 **Number and date formats (#115).** Counts are shown with the thousands grouped in the
 interface language (`29,220` in English) everywhere: the `count` template filter
@@ -2981,7 +2984,7 @@ window, and headings break long words (station names). Only logical properties a
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
 under `forced-colors`.
 
-**Size.** `main.css` and `theme-dark.css` together are about 37.6 KB (7.9 KB gzipped);
+**Size.** `main.css` and `theme-dark.css` together are about 37.8 KB (8.0 KB gzipped);
 `ui.js` is about 13 KB. Tests hold them under 38 KB (8.5 KB gzipped; 36 KB until #115
 added the phone menu) and 14 KB (12 KB until #83 added the announcer and focus keeping). The
 issue aimed for under 30 KB of CSS; the full component set, both token sets and the

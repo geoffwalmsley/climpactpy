@@ -891,6 +891,20 @@ def test_primary_actions_in_the_first_screen_and_errors_still_focused(chrome, si
         c.viewport(1280, 900)
 
 
+def header_is_one_row(c: Chrome) -> bool:
+    """The phone header's brand, tools and menu button share one row (their vertical
+    centres within 4px) and nothing in it overflows the window."""
+    return c.evaluate(
+        "(function () { var h = document.querySelector('.site-header__inner');"
+        " var mid = ['.brand', '.site-header__tools', '.site-menu > summary'].map(function (s) {"
+        " var r = document.querySelector(s).getBoundingClientRect();"
+        " return r.top + r.height / 2; });"
+        " return Math.max.apply(null, mid) - Math.min.apply(null, mid) <= 4"
+        " && h.scrollWidth <= h.clientWidth"
+        " && document.documentElement.scrollWidth <= window.innerWidth; })()"
+    )
+
+
 def test_polish_layout_menu_and_flag_toggle(chrome, site):
     """#115: the step indicator starts where the header and the content do; below 600px
     the main links are in a one-row header's "Menu" (a <details>, so it works without
@@ -906,7 +920,7 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
             first_step = c.evaluate(left.format(json.dumps(".steps__item")))
             assert first_step == c.evaluate(left.format(json.dumps("main h1"))), width
         # 390px: one row of header, the links behind the menu, then shown by it.
-        assert c.evaluate("document.querySelector('.site-header').offsetHeight") < 90
+        assert header_is_one_row(c)
         assert not c.evaluate(visible.format(json.dumps(".site-nav")))
         assert c.evaluate(visible.format(json.dumps(".site-menu > summary")))
         assert not c.evaluate(visible.format(json.dumps(".site-menu__panel a")))
@@ -915,8 +929,17 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         assert c.evaluate("document.querySelector('.site-menu').open") is True
         assert c.evaluate(visible.format(json.dumps(".site-menu__panel a[aria-current=page]")))
         assert run_axe(c) == []
+        c.evaluate("document.querySelector('.site-menu').open = false")
         c.viewport(320, 900)
-        assert c.evaluate("document.querySelector('.site-header').offsetHeight") < 90
+        assert header_is_one_row(c)
+        # Font metrics differ between systems (CI's Linux fonts are wider than macOS's):
+        # with a wide font the row still holds, at both widths.
+        c.evaluate("document.body.style.fontFamily = 'Verdana, \"DejaVu Sans\", sans-serif';"
+                   "document.body.style.letterSpacing = '0.04em'")  # fmt: skip
+        for width in (320, 390):
+            c.viewport(width, 900)
+            assert header_is_one_row(c), width
+        c.evaluate("document.body.removeAttribute('style')")
 
         c.viewport(1280, 900)
         c.navigate(site["station results"])

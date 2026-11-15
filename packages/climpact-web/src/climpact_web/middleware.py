@@ -1,5 +1,6 @@
 """Request-level middleware for climpact-web."""
 
+import logging
 from pathlib import Path
 
 from django.conf import settings
@@ -7,6 +8,10 @@ from django.middleware.gzip import GZipMiddleware
 from django.shortcuts import render
 from django.utils.cache import patch_cache_control
 from whitenoise.middleware import WhiteNoiseMiddleware
+
+from climpact_web.core.limits import Refused, client_ip
+
+limits_logger = logging.getLogger("climpact_web.limits")
 
 # Responses worth compressing: pages, htmx fragments, chart data, CSV (#82).
 COMPRESSIBLE_TYPES = ("text/", "application/json", "image/svg+xml")
@@ -89,3 +94,32 @@ class UploadSizeLimitMiddleware:
         if length > limit:
             return render(request, "413.html", {"max_upload_mb": limit_mb}, status=413)
         return self.get_response(request)
+
+
+class RefusalMiddleware:
+    """Answer a request refused by the hosted site's limits (:mod:`climpact_web.core.limits`)
+    with a page saying why in plain language, and log the refusal with the client's address
+    and the reason, so the Cloudflare rules can be tuned from the logs."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_exception(self, request, exception):
+        if not isinstance(exception, Refused):
+            return None
+        limits_logger.warning(
+            "Refused %s %s from %s: %s",
+            request.method,
+            request.path,
+            client_ip(request),
+            exception.reason,
+        )
+        response = render(
+            request, "refused.html", {"message": exception.message}, status=exception.status
+        )
+        if exception.retry_after:
+            response["Retry-After"] = str(exception.retry_after)
+        return response

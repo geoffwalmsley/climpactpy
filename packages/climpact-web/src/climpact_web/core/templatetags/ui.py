@@ -61,3 +61,40 @@ def count(value):
         except (TypeError, ValueError):
             return value
     return number_format(value, force_grouping=True)
+
+
+TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js"
+
+
+@register.simple_tag(takes_context=True)
+def turnstile(context):
+    """Cloudflare Turnstile's widget, for a form that uploads a file or starts a job
+    (#125): nothing unless Turnstile is on (hosted mode, both keys set; see
+    :mod:`climpact_web.core.limits`). The widget adds the ``cf-turnstile-response`` field the
+    view checks; it usually passes without asking anything, and is keyboard and screen
+    reader accessible. Cloudflare's script is added once per page, with the first widget."""
+    from django.conf import settings
+    from django.utils.translation import get_language
+    from django.utils.translation import gettext as _
+
+    from climpact_web.core.limits import turnstile_enabled
+
+    if not turnstile_enabled():
+        return ""
+    widget = format_html(
+        '<div class="cf-turnstile" data-sitekey="{}" data-language="{}" data-size="flexible">'
+        "</div><noscript><p>{}</p></noscript>",
+        settings.TURNSTILE_SITE_KEY,
+        get_language() or "auto",
+        _(
+            "This form checks that you are a person before it is sent, which needs "
+            "JavaScript. Turn JavaScript on to continue."
+        ),
+    )
+    request = context.get("request")
+    if request is not None and getattr(request, "_turnstile_script", False):
+        return widget
+    if request is not None:
+        request._turnstile_script = True
+    script = format_html('<script src="{}" async defer></script>', TURNSTILE_SCRIPT)
+    return widget + script

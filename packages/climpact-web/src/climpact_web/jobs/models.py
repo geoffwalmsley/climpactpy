@@ -39,6 +39,9 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kind = models.CharField(max_length=50)
     owner = models.CharField(max_length=64, db_index=True)
+    # Hosted mode: the client that started the job, for the per-client quotas
+    # (climpact_web.core.limits.client_key); blank in local mode.
+    client = models.CharField(max_length=64, blank=True, db_index=True)
     params = models.JSONField(default=dict, blank=True)
     title = models.CharField(max_length=200, blank=True)
 
@@ -156,6 +159,21 @@ class Job(models.Model):
         """When the job and its files are deleted (see :mod:`climpact_web.jobs.retention`)."""
         start = self.finished_at or self.created_at
         return start + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
+
+
+class JobStart(models.Model):
+    """A job started (or retried) in hosted mode, kept for two days: the per-client daily
+    quota counts these rather than jobs, which the user can delete."""
+
+    client = models.CharField(max_length=64)
+    kind = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["client", "created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.kind} job started by {self.client} at {self.created_at}"
 
 
 class Worker(models.Model):

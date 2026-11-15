@@ -114,6 +114,7 @@ correct the file. Context from views.qc_context.
     <form method="post" action="{% url 'stations:qc_replace' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
       {% csrf_token %}
       {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
+      {% turnstile %}
       <div>
         {% translate "Upload and check again" as replace_label %}
         {% include "components/button.html" with label=replace_label type="submit" variant="secondary" icon="upload" %}

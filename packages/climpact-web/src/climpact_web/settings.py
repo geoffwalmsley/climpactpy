@@ -113,6 +113,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "climpact_web.middleware.RefusalMiddleware",  # the hosted limits' refusals (#125)
 ]
 
 ROOT_URLCONF = "climpact_web.urls"
@@ -215,6 +216,32 @@ JOB_PROGRESS_INTERVAL = 0.5
 JOB_CLEANUP_INTERVAL = 3600
 # Where job folders live (the hook for S3 in hosted mode, #12).
 JOB_STORAGE = env("JOB_STORAGE", "climpact_web.jobs.storage.LocalJobStorage")
+
+# Abuse limits for the hosted site (#125; TECHNICAL.md, "Security of the hosted site").
+# None of them applies in local mode. Cloudflare Turnstile (a check that the visitor is a
+# person) guards the forms that upload files or start a job, and is on only when both of
+# its keys are set (Cloudflare dashboard > Turnstile > the widget). The quotas count jobs
+# per client address, read from Cloudflare's CF-Connecting-IP header (the origin is
+# reachable only through the tunnel); 0 turns a limit off.
+TURNSTILE_SITE_KEY = env("TURNSTILE_SITE_KEY", "")
+TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", "")
+if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
+    raise ImproperlyConfigured(
+        "Set both CLIMPACT_WEB_TURNSTILE_SITE_KEY and CLIMPACT_WEB_TURNSTILE_SECRET_KEY, or neither"
+    )
+TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+TURNSTILE_TIMEOUT = 10  # seconds to wait for Cloudflare's answer
+# Jobs waiting or running for one client address, and jobs started by it in 24 hours.
+MAX_ACTIVE_JOBS_PER_IP = int(env("MAX_ACTIVE_JOBS_PER_IP", "2"))
+MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "30"))
+# No new jobs while more than this many wait in the queue, or while MEDIA_ROOT's disk has
+# less than this much free space (uploads are refused too).
+MAX_QUEUED_JOBS = int(env("MAX_QUEUED_JOBS", "20"))
+MIN_FREE_DISK_GB = float(env("MIN_FREE_DISK_GB", "2"))
+# Wall-clock limit on one job: the worker stops it at its next progress step, and fails it
+# outright (exiting, to be restarted) if it is still running a grace period later.
+JOB_TIME_LIMIT_MINUTES = float(env("JOB_TIME_LIMIT_MINUTES", "60"))
+JOB_TIME_LIMIT_GRACE_SECONDS = 60.0
 
 # Largest request body accepted, uploads included (UploadSizeLimitMiddleware answers 413).
 # Station files are a few MB; gridded files are read from disk in local mode (#85).

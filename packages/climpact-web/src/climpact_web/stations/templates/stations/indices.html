@@ -34,6 +34,7 @@
     {{ form.index }}
     {% include "components/form_errors.html" %}
 
+    {% turnstile %}
     <div class="flex flex-wrap items-center gap-3 results-actions">
       {% translate "Calculate with these settings" as top_label %}
       {% include "components/button.html" with label=top_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}

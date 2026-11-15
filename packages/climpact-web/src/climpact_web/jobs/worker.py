@@ -16,6 +16,12 @@ runworker``); in local mode ``climpact-web`` starts one as a child process. More
   it is noticed even during a long stage. A running job whose heartbeat is older than
   ``JOB_STALE_SECONDS`` belonged to a worker that died: :func:`reap_stale` marks it failed,
   with a retry offered.
+- **Time limit** (hosted mode, ``JOB_TIME_LIMIT_MINUTES``, #125): a job still running
+  after the limit is stopped at its next progress step and fails with
+  :data:`TIME_LIMIT_MESSAGE`. A stage that reports no progress for a long time cannot be
+  stopped that way, so once the limit plus ``JOB_TIME_LIMIT_GRACE_SECONDS`` has passed the
+  heartbeat thread fails the job itself and ends the worker process (its container is
+  restarted, and the worker's other threads and child processes go with it).
 - **Cancel** takes effect at the next progress step: the callback raises
   :class:`~climpact_web.jobs.registry.JobCancelled`. **Stopping** the worker (SIGTERM,
   Ctrl+C) interrupts the running job the same way and queues it again, so it runs on the
@@ -43,6 +49,7 @@ from climpact_web.jobs.registry import (
     JobContext,
     JobError,
     JobInterrupted,
+    JobTimedOut,
     get_runner,
 )
 from climpact_web.jobs.storage import get_storage
@@ -61,6 +68,23 @@ UNEXPECTED_MESSAGE = (
     "administrator (job {id}). You can try again."
 )
 MEMORY_MESSAGE = "The calculation ran out of memory. Try a smaller file or fewer outputs."
+TIME_LIMIT_MESSAGE = (
+    "The calculation was stopped because it ran for longer than this site allows "
+    "({minutes:g} minutes). Try fewer stations or outputs, or install Climpact on your own "
+    "computer, which has no time limit."
+)
+
+
+def time_limit_seconds() -> float | None:
+    """The wall-clock limit on one job, in seconds: hosted mode only; None for none."""
+    minutes = settings.JOB_TIME_LIMIT_MINUTES
+    if not settings.IS_HOSTED or minutes <= 0:
+        return None
+    return minutes * 60
+
+
+def time_limit_message() -> str:
+    return TIME_LIMIT_MESSAGE.format(minutes=settings.JOB_TIME_LIMIT_MINUTES)
 
 
 def worker_name(pid: int | None = None) -> str:
@@ -173,13 +197,22 @@ def _requeue(job: Job, log: str) -> int:
 class ProgressWriter:
     """The progress callback given to the core: keeps the latest step and writes it to the
     job row at most every ``interval`` seconds. Raises :class:`JobCancelled` when the job
-    is cancelled and :class:`JobInterrupted` when the worker is stopping."""
+    is cancelled, :class:`JobInterrupted` when the worker is stopping and
+    :class:`JobTimedOut` after ``deadline`` (``time.monotonic()``; None for no limit)."""
 
-    def __init__(self, job: Job, stop: threading.Event, cancel: threading.Event, interval: float):
+    def __init__(
+        self,
+        job: Job,
+        stop: threading.Event,
+        cancel: threading.Event,
+        interval: float,
+        deadline: float | None = None,
+    ):
         self.job = job
         self.stop = stop
         self.cancel = cancel
         self.interval = interval
+        self.deadline = deadline
         self.last_write = 0.0
         self.stage, self.step, self.total = "", 0, 0
         self.stages: list[str] = []  # every stage reported, for the operator log
@@ -192,6 +225,8 @@ class ProgressWriter:
         if self.cancel.is_set():
             raise JobCancelled
         now = time.monotonic()
+        if self.deadline is not None and now >= self.deadline:
+            raise JobTimedOut
         if now - self.last_write >= self.interval or step == total:
             self.flush()
             self.last_write = now
@@ -206,13 +241,15 @@ class ProgressWriter:
 
 class Heartbeat(threading.Thread):
     """Every ``interval`` seconds: the worker's ``seen_at`` and, while a job runs, its
-    ``heartbeat_at``; sets ``cancel`` when the user has cancelled that job."""
+    ``heartbeat_at``; sets ``cancel`` when the user has cancelled that job, and stops a job
+    that has run past its ``hard_deadline`` (``time.monotonic()``) with :meth:`hard_stop`."""
 
     def __init__(self, worker: str, interval: float):
         super().__init__(name="climpact-web-heartbeat", daemon=True)
         self.worker = worker
         self.interval = interval
         self.job_id = None
+        self.hard_deadline: float | None = None
         self.cancel = threading.Event()
         self.finished = threading.Event()
 
@@ -224,6 +261,23 @@ class Heartbeat(threading.Thread):
             Job.objects.filter(pk=job_id, status=Status.RUNNING).update(heartbeat_at=now)
             if Job.objects.filter(pk=job_id, cancel_requested=True).exists():
                 self.cancel.set()
+            deadline = self.hard_deadline
+            if deadline is not None and time.monotonic() >= deadline:
+                self.hard_stop(job_id)
+
+    def hard_stop(self, job_id) -> None:
+        """A job that ran past its time limit and did not stop at a progress step: fail it
+        and end the worker process at once (the main thread is stuck in the job, and
+        Python cannot interrupt it). Docker restarts the worker."""
+        limit = settings.JOB_TIME_LIMIT_MINUTES
+        fail_jobs(
+            list(Job.objects.filter(pk=job_id)),
+            time_limit_message(),
+            f"still running {settings.JOB_TIME_LIMIT_GRACE_SECONDS:g} s after the "
+            f"{limit:g} min time limit: failed, worker process ended",
+        )
+        logger.error("Job %s ran past the time limit; ending worker %s", job_id, self.worker)
+        os._exit(3)
 
     def run(self) -> None:
         try:
@@ -260,7 +314,11 @@ def run_job(
     cancel.clear()
     if heartbeat:
         heartbeat.job_id = job.pk
-    progress = ProgressWriter(job, stop, cancel, settings.JOB_PROGRESS_INTERVAL)
+    limit = time_limit_seconds()
+    deadline = time.monotonic() + limit if limit is not None else None
+    progress = ProgressWriter(job, stop, cancel, settings.JOB_PROGRESS_INTERVAL, deadline)
+    if heartbeat and deadline is not None:
+        heartbeat.hard_deadline = deadline + settings.JOB_TIME_LIMIT_GRACE_SECONDS
     ctx = JobContext(
         job_id=str(job.pk),
         params=job.params,
@@ -281,6 +339,10 @@ def run_job(
     except JobCancelled:
         outcome = {"status": Status.CANCELLED, "error": ""}
         note = "cancelled"
+    except JobTimedOut:
+        outcome = {"status": Status.FAILED, "error": time_limit_message()}
+        note = f"stopped at the {settings.JOB_TIME_LIMIT_MINUTES:g} min time limit"
+        logger.warning("Job %s stopped at the time limit", job.pk)
     except BaseException as exc:
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             _requeue(job, f"worker stopping ({exc.__class__.__name__}): queued again")
@@ -305,6 +367,7 @@ def run_job(
     finally:
         if heartbeat:
             heartbeat.job_id = None
+            heartbeat.hard_deadline = None
     seconds = time.monotonic() - started
     log = Job.objects.get(pk=job.pk).log + _log_line(
         f"{note} after {seconds:.1f} s, {len(progress.stages)} progress steps"

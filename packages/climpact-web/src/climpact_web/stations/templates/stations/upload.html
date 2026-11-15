@@ -19,6 +19,7 @@
       {% include "components/dropzone.html" with field=form.station_file hint=hint %}
       <p class="text-sm text-text-muted" id="format-hint">{{ form.station_file.help_text }}</p>
       {% help_topic "station.file" %}
+      {% turnstile %}
       <div>
         {% translate "Load the file" as load_label %}
         {% include "components/button.html" with label=load_label type="submit" icon_end="arrow-right" size="lg" %}

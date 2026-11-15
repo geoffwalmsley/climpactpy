@@ -141,3 +141,30 @@ def test_deploy_settings_fit_cloudflare():
     upload = int(re.search(r"^CLIMPACT_WEB_MAX_UPLOAD_MB=(\d+)$", env, re.M).group(1))
     default = int(re.search(r"CLIMPACT_WEB_MAX_UPLOAD_MB:-(\d+)\}", compose).group(1))
     assert upload <= 100 and default <= 100
+
+
+ABUSE_SETTINGS = [
+    "CLIMPACT_WEB_TURNSTILE_SITE_KEY",
+    "CLIMPACT_WEB_TURNSTILE_SECRET_KEY",
+    "CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP",
+    "CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP",
+    "CLIMPACT_WEB_MAX_QUEUED_JOBS",
+    "CLIMPACT_WEB_MIN_FREE_DISK_GB",
+    "CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES",
+]
+
+
+def test_abuse_limit_settings_reach_the_app():
+    """#125: every limit is in .env.example (Turnstile keys empty) and passed to the app by
+    compose.yaml, and web alone of the app's services can reach Cloudflare's siteverify."""
+    env = (DEPLOY / ".env.example").read_text()
+    compose = (DEPLOY / "compose.yaml").read_text()
+    for name in ABUSE_SETTINGS:
+        assert re.search(rf"^{name}=", env, re.M), name
+        assert f"{name}: ${{{name}:-" in compose, name
+    assert re.search(r"^CLIMPACT_WEB_TURNSTILE_SECRET_KEY=$", env, re.M)
+    services = compose.split("\nservices:\n", 1)[1].split("\nnetworks:\n", 1)[0]
+    blocks = dict(re.findall(r"^  (\w+):\n(.*?)(?=^  \w+:\n|\Z)", services, re.M | re.S))
+    assert "networks: [backend, egress]" in blocks["web"]
+    for name in ("worker", "migrate", "purge", "db"):
+        assert "egress" not in blocks[name], name

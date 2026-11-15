@@ -24,6 +24,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core.limits import disk_required, human_required
 from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Job, Status
@@ -86,6 +87,7 @@ def read_upload(uploaded) -> bytes:
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def upload(request):
     """Start: upload a station file (or choose the sample)."""
     inspection = None
@@ -122,6 +124,7 @@ def upload_context(request, form, inspection=None) -> dict:
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
+@disk_required
 def sample(request):
     """One click: an analysis of the Sydney sample with its metadata filled in."""
     if request.method != "POST":
@@ -145,6 +148,7 @@ def sample_file(request):
 
 
 @require_POST
+@human_required
 def replace_file(request, analysis_id):
     """Load a different file into the analysis, keeping the metadata."""
     analysis = get_analysis(request, analysis_id)
@@ -230,6 +234,7 @@ def load_context(request, analysis: StationAnalysis, form: MetadataForm) -> dict
 
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def load(request, analysis_id):
     """Step 1's main page: what is in the file, and the station metadata."""
     analysis = get_analysis(request, analysis_id)
@@ -416,6 +421,7 @@ def qc(request, analysis_id):
 
 
 @require_POST
+@human_required
 def qc_run(request, analysis_id):
     """Save the thresholds and run the checks (again)."""
     analysis = get_analysis(request, analysis_id)
@@ -484,6 +490,7 @@ def qc_table(request, analysis_id, check):
 
 
 @require_POST
+@human_required
 def qc_replace(request, analysis_id):
     """Fix the file and upload it again: the station details and thresholds are kept and
     the checks run again on the new file."""

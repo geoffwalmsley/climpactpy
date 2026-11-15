@@ -415,23 +415,44 @@ If Bot Fight Mode challenges real visitors' htmx requests, turn it **off**. It h
 exceptions on the free plan, and the rate limit plus Turnstile (#125) still guard the jobs.
 Record the decision in #124.
 
-### E9. Turnstile widget (3 min; the keys are for #125)
+### E9. Turnstile widget and keys (5 min)
 
 Turnstile is set per account, not per zone. Go to the account home, then **Turnstile ›
 Add widget**:
 
 - **Widget name:** `climpact`.
 - **Hostname management:** add **`climpact.app`** (pick it from the account's zones).
-  For local testing #125 uses Cloudflare's published test keys, not this widget.
 - **Widget mode:** **Managed**.
 - **Pre-clearance support:** **No**.
 - **Create.**
 
 The page then shows the **site key** and the **secret key**. Store both in the password
-manager (one item, `climpact.app Turnstile`). **Don't put them anywhere else yet**: not
-in the repository, not in an issue, not in `.env`. #125 adds the settings that read them,
-and the runbook will say where they go. The keys can be shown again later under the
-widget's settings, and the secret can be rotated there.
+manager (one item, `climpact.app Turnstile`). Never put them in the repository or an
+issue. The keys can be shown again later under the widget's settings, and the secret can
+be rotated there.
+
+**Put them in `.env`** (from the release with #125; earlier images ignore them). Open SSH as
+in step 2, then `nano /opt/climpact/.env` and set both lines (add them if the file predates
+#125; `.env.example` has them with a comment):
+
+```sh
+CLIMPACT_WEB_TURNSTILE_SITE_KEY=<site key>
+CLIMPACT_WEB_TURNSTILE_SECRET_KEY=<secret key>
+```
+
+then `cd /opt/climpact && docker compose up -d --wait` and close SSH. Set both or neither:
+with one alone the app refuses to start. Empty, Turnstile is off and the forms work as
+before. To check: open **https://climpact.app/station/** in a browser. A small Cloudflare
+box appears above **Load the file**; it usually ticks itself without asking anything. Run
+the sample station through to the results (each step that starts a calculation shows the
+box). A **Not accepted** page saying the check failed means the keys don't match the
+widget, or the hostname isn't on the widget's list.
+
+The app checks each token with Cloudflare (`challenges.cloudflare.com`), so `web` is the
+one service with a route out (the `egress` network in `compose.yaml`). The app sends no
+Content-Security-Policy, so nothing blocks Cloudflare's script or its frame; if one is
+ever added, it must allow `https://challenges.cloudflare.com` in `script-src` and
+`frame-src`.
 
 ### E10. Check it (5 min)
 
@@ -515,6 +536,27 @@ ghcr.io, and a database migration that cannot be undone will say so in the relea
   needs no network. Root can log in there, though not over SSH.
 
 **Logs:** `docker compose logs -f web worker` (rotated at 10 MB × 3 per container).
+
+**Abuse limits** (#125; the settings are in `.env`, each described there): besides
+Turnstile (E9), the app refuses a new job when the visitor (by IP address) already has 2
+waiting or running, or has started 30 in 24 hours; it refuses new jobs for everyone while
+more than 20 wait or while the disk has less than 2 GB free ("busy, try later", so nothing
+fails halfway); and the worker stops a job that runs longer than 60 minutes. Every
+refusal is logged by `web` with the address and the reason:
+
+```sh
+docker compose logs web | grep Refused
+# Refused POST /station/<id>/load from 203.0.113.7: active-quota:2
+```
+
+The reasons are `turnstile-missing`, `turnstile-failed:<Cloudflare's codes>`,
+`turnstile-unavailable` (Cloudflare didn't answer), `active-quota:<n>`,
+`daily-quota:<n>`, `queue-full:<n>` and `disk-low:<free MB>`. Many refusals from one
+address point to a script, so block it, or lower the rate limit (E6). Real visitors hitting
+`active-quota` or `daily-quota` mean the limit is too tight, so raise it in `.env` and run
+`docker compose up -d`. `disk-low` needs space: check `df -h /` and the size of the media
+volume (`docker system df -v`). The worker logs `stopped at the time limit` for a job it
+stopped.
 Bootstrap log: `/var/log/cloud-init-output.log`. DigitalOcean's Monitoring graphs CPU,
 memory and disk.
 
@@ -530,6 +572,8 @@ Nothing updates the app: that is a release (#126).
 - Tunnel token: in Cloudflare open the tunnel › **Refresh token** (or create a new
   tunnel), put the new token in `.env` (`nano /opt/climpact/.env`), then
   `docker compose up -d`.
+- Turnstile secret key: **Turnstile ›** the widget **› Settings › Rotate secret key**, put
+  the new one in `.env`, then `docker compose up -d`.
 - Django secret key: replace it in `.env` and `docker compose up -d`. This signs out any
   open sessions, nothing else.
 - Postgres password: the database keeps the password it was created with, so changing

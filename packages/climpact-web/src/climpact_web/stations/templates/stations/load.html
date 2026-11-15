@@ -44,6 +44,7 @@
         {% include "stations/_unit.html" with group="longitude" %}
       </div>
       {% include "stations/_unit.html" with group="base_period" %}
+      {% turnstile %}
       <div class="form__actions">
         {% translate "Continue to quality checks" as continue_label %}
         {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" size="lg" %}

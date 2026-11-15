@@ -28,6 +28,14 @@ x-app: &app
     CLIMPACT_WEB_MAX_UPLOAD_MB: ${CLIMPACT_WEB_MAX_UPLOAD_MB:-50}
     CLIMPACT_WEB_RETENTION_DAYS: ${CLIMPACT_WEB_RETENTION_DAYS:-7}
     CLIMPACT_WEB_LOG_LEVEL: ${CLIMPACT_WEB_LOG_LEVEL:-INFO}
+    # Abuse limits (#125): Turnstile is off while its keys are empty.
+    CLIMPACT_WEB_TURNSTILE_SITE_KEY: ${CLIMPACT_WEB_TURNSTILE_SITE_KEY:-}
+    CLIMPACT_WEB_TURNSTILE_SECRET_KEY: ${CLIMPACT_WEB_TURNSTILE_SECRET_KEY:-}
+    CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP: ${CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP:-2}
+    CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP: ${CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP:-30}
+    CLIMPACT_WEB_MAX_QUEUED_JOBS: ${CLIMPACT_WEB_MAX_QUEUED_JOBS:-20}
+    CLIMPACT_WEB_MIN_FREE_DISK_GB: ${CLIMPACT_WEB_MIN_FREE_DISK_GB:-2}
+    CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES: ${CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES:-60}
     DATABASE_URL: ${DATABASE_URL:-postgres://climpact:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/climpact}
   volumes:
     - media:/var/lib/climpact/media
@@ -88,6 +96,9 @@ services:
       migrate:
         condition: service_completed_successfully
     # The image's HEALTHCHECK fetches /healthz (app and database up).
+    # egress: the only way out of the app, for Turnstile's siteverify check
+    # (challenges.cloudflare.com, #125). The worker, migrate and purge stay on backend only.
+    networks: [backend, egress]
     deploy:
       resources:
         limits:
@@ -158,10 +169,11 @@ services:
     logging: *logging
 
 networks:
-  # No route out: the app and the database talk only to each other and to cloudflared.
+  # No route out: the database, the worker and the one-off jobs talk only to each other,
+  # to web and to cloudflared (web also joins egress, for Turnstile).
   backend:
     internal: true
-  # cloudflared's way out to Cloudflare.
+  # The way out to the internet: cloudflared's to Cloudflare, and web's for Turnstile.
   egress: {}
 
 volumes:

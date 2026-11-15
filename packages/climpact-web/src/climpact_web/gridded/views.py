@@ -42,6 +42,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core.limits import disk_required, human_required
 from climpact_web.core.navigation import gridded_steps
 from climpact_web.gridded import inspection, maps
 from climpact_web.gridded.forms import (
@@ -222,6 +223,7 @@ def create_run(request, source: str, paths: list[str]) -> GriddedRun:
 
 @gridded_enabled
 @require_POST
+@human_required
 def upload(request):
     """Uploaded netCDF files, kept in the run's own folder."""
     form = UploadForm(request.POST, request.FILES)
@@ -254,6 +256,7 @@ def upload(request):
 
 @gridded_enabled
 @require_http_methods(["GET", "HEAD", "POST"])
+@disk_required
 def sample(request):
     """One click: a 3 x 4 cut of Climpact's sample grid (south-eastern Australia,
     1991-2010), read in place from the package."""
@@ -451,6 +454,7 @@ def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: st
 @never_cache
 @gridded_enabled
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def setup(request, run_id):
     run = get_run(request, run_id)
     if request.method != "POST":

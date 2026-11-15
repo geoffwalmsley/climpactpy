@@ -113,6 +113,7 @@
         {% include "components/dropzone.html" with field=add_form.station_files hint=files_hint multiple=True %}
         <p class="text-sm text-text-muted">{{ add_form.station_files.help_text }}</p>
         {% include "components/field.html" with field=add_form.metadata_file help="batch.metadata_file" %}
+        {% turnstile %}
         <div>
           {% translate "Load and check again" as add_label %}
           {% include "components/button.html" with label=add_label type="submit" variant="secondary" icon="refresh" %}
@@ -127,6 +128,7 @@
       {% csrf_token %}
       {% include "components/form_errors.html" with form=options %}
       {% include "batch/_options.html" %}
+      {% if counts.ready %}{% turnstile %}{% endif %}
       <div class="form__actions">
         {% if counts.ready %}
         {% blocktranslate count counter=counts.ready asvar run_label trimmed %}Calculate {{ counter }} station{% plural %}Calculate {{ counter }} stations{% endblocktranslate %}

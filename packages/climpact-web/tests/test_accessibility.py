@@ -125,16 +125,23 @@ def wait_for(
     c: Chrome, predicate: str, timeout: float = 600, what: str = "", heard: list | None = None
 ) -> None:
     """Wait until a JavaScript expression is true (pages may navigate meanwhile); with
-    ``heard``, collect what the page's announcer (#announcer) says meanwhile."""
+    ``heard``, collect what the page's announcer (#announcer) says meanwhile, including
+    once more when the expression comes true: the swap that makes it true may also have
+    announced (a job's end), after the announcer was last read."""
+
+    def listen() -> None:
+        if heard is not None:
+            said = c.evaluate("(document.getElementById('announcer') || {}).textContent")
+            if said and (not heard or heard[-1] != said):
+                heard.append(said)
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            if heard is not None:
-                said = c.evaluate("(document.getElementById('announcer') || {}).textContent")
-                if said and (not heard or heard[-1] != said):
-                    heard.append(said)
+            listen()
             if c.evaluate(predicate):
                 c.settle()
+                listen()
                 return
         except DevToolsError:
             pass  # the page is navigating

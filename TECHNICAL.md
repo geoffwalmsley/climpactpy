@@ -693,6 +693,25 @@ catalogue, the links and the metadata; the Sydney report also opens in macOS PDF
 its 82 pages, 4 top-level bookmarks (78 index bookmarks under "Indices") and working
 contents links.
 
+**Tagged PDF (PDF/UA): not planned, left to WMO (#110).** Neither the report nor
+`<station>_all_plots.pdf` is a tagged PDF. Both also use the standard Helvetica font
+without embedding it (`_RC_PDF`, `pdf.use14corefonts`), which PDF/UA does not allow.
+The same information is accessible on the web app's results pages (headings, tables, a
+table view for every chart) and in the CSV files, and the accessibility statement
+(`/help/accessibility/`, "Known limitations") says so. On 2026-11-15 the user decided not
+to make the PDFs PDF/UA: whether a tagged PDF is required depends on the accessibility
+policy of whoever hosts the tool, so it is WMO's decision if they adopt it. #110 records
+the options compared:
+- Typst (the `typst` package, Apache-2.0, native wheels with no Python dependencies,
+  about 79 MB installed) writes a full structure tree and refuses to compile a PDF/UA-1
+  document that breaks a rule it checks, such as a plot with no alternative text. It is
+  the recommended route if a tagged PDF is needed.
+- fpdf2 tags only images, ReportLab's open-source edition writes no tags, and WeasyPrint
+  needs system libraries.
+- Adding tags to matplotlib's PDF afterwards would be fragile.
+
+veraPDF (`--flavour ua1`) is the suggested checker.
+
 **Size and speed.** The Sydney run: 82 pages (cover, 2 contents pages, quality control, 78
 indices), 440-460 KB, written in 2.6 s (Apple M-series). `tests/parity/test_plots.py`
 checks that the Sydney zip, made after the report, unpacks to exactly R's file list (the

@@ -269,7 +269,7 @@ def test_sydney_wheat_matches_the_command_line_and_r(client, tmp_path, detrend):
     for index, cor, _category in rows:
         assert f'/results/{index.strip(chr(34))}">' in table
         assert f'<td class="num">{cor}</td>' in table
-    assert html.count('class="sector-plot__bar"') == 42
+    assert html.count('class="sector-plot__bar ') == 42
     assert html.count('class="sector-plot__fit"') == 4
 
     from climpact.io.station import read_station_rows
@@ -312,7 +312,7 @@ def test_bars_in_order_of_strength_and_colours(client):
     table = html.split('aria-label="Correlation with each index"')[-1].split("</table>")[0]
     values = [abs(float(v)) for v in re.findall(r'<td class="num">(-?[\d.]+)</td>', table)]
     assert values == sorted(values, reverse=True)
-    assert "var(--chart-tmax)" in html and "var(--chart-prcp)" in html
+    assert "swatch-chart-tmax" in html and "swatch-chart-prcp" in html
     assert "Temperature" in html and "Precipitation" in html
 
 
@@ -441,7 +441,7 @@ def test_bar_chart_draws_na_and_both_signs():
         sector_plots.Bar("cdd", "CDD", -0.45, "precipitation"),
     ]
     svg = str(sector_plots.bar_svg(bars, "t"))
-    assert svg.count('class="sector-plot__bar"') == 2 and ">NA</text>" in svg
+    assert svg.count('class="sector-plot__bar ') == 2 and ">NA</text>" in svg
     assert "<title>FD: NA (Temperature)</title>" in svg and ">-0.45</text>" in svg
     assert sector_plots._symmetric_ticks([0.3, -0.45])[0] == -0.6
 

@@ -28,6 +28,7 @@
   .sector-plot__label { fill: var(--color-text); font-size: 11px; }
   .sector-plot__value { fill: var(--color-text); font-size: 10px; }
   .sector-plot__value--na { fill: var(--color-text-muted); }
+  .sector-plot__bar { fill: var(--swatch); } /* from its swatch-chart-* class (#137) */
   .sector-plot g:hover .sector-plot__bar { fill-opacity: 0.75; }
   .sector-plot__fit { stroke: var(--chart-trend); stroke-width: 2; }
   .sector-plot__point { fill: var(--chart-tmax); fill-opacity: 0.8; stroke: var(--color-surface); stroke-width: 0.75; }

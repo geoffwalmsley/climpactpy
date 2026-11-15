@@ -82,7 +82,9 @@
     font-weight: var(--font-weight-semibold);
   }
 
+  /* The variable's colour comes from a swatch-chart-* class on the SVG (#137). */
   .qc-plot {
+    --plot-colour: var(--swatch);
     display: block;
     inline-size: 100%;
     block-size: auto;

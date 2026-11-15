@@ -124,10 +124,10 @@
     min-inline-size: 0;
   }
 
+  /* The SVG's width attribute is the map's natural width: never wider, shrunk to fit. */
   .gmap svg {
     display: block;
-    inline-size: 100%;
-    max-inline-size: var(--gmap-width, 100%);
+    max-inline-size: 100%;
     max-block-size: 70vh;
     block-size: auto;
   }

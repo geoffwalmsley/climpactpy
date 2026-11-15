@@ -185,4 +185,159 @@
   .chart__legend-toggle[aria-pressed="false"] .chart__swatch {
     opacity: 0.4;
   }
+
+  /* Content Security Policy (#137): no style attributes, so the CSS custom properties that
+     templates used to set inline come from classes. swatch-<token>: --swatch for every
+     --chart-* token (the |token_name filter writes the class; test_csp.py checks each token
+     has one). chart-height-<length>: a chart frame's and its skeleton's height, one class
+     per height the templates use (test_csp.py checks those too). */
+  .swatch-chart-1 {
+    --swatch: var(--chart-1);
+  }
+
+  .swatch-chart-2 {
+    --swatch: var(--chart-2);
+  }
+
+  .swatch-chart-3 {
+    --swatch: var(--chart-3);
+  }
+
+  .swatch-chart-4 {
+    --swatch: var(--chart-4);
+  }
+
+  .swatch-chart-5 {
+    --swatch: var(--chart-5);
+  }
+
+  .swatch-chart-6 {
+    --swatch: var(--chart-6);
+  }
+
+  .swatch-chart-7 {
+    --swatch: var(--chart-7);
+  }
+
+  .swatch-chart-8 {
+    --swatch: var(--chart-8);
+  }
+
+  .swatch-chart-tmax {
+    --swatch: var(--chart-tmax);
+  }
+
+  .swatch-chart-tmin {
+    --swatch: var(--chart-tmin);
+  }
+
+  .swatch-chart-prcp {
+    --swatch: var(--chart-prcp);
+  }
+
+  .swatch-chart-trend {
+    --swatch: var(--chart-trend);
+  }
+
+  .swatch-chart-trend-band {
+    --swatch: var(--chart-trend-band);
+  }
+
+  .swatch-chart-flag {
+    --swatch: var(--chart-flag);
+  }
+
+  .swatch-chart-grid {
+    --swatch: var(--chart-grid);
+  }
+
+  .swatch-chart-axis {
+    --swatch: var(--chart-axis);
+  }
+
+  .swatch-chart-seq-1 {
+    --swatch: var(--chart-seq-1);
+  }
+
+  .swatch-chart-seq-2 {
+    --swatch: var(--chart-seq-2);
+  }
+
+  .swatch-chart-seq-3 {
+    --swatch: var(--chart-seq-3);
+  }
+
+  .swatch-chart-seq-4 {
+    --swatch: var(--chart-seq-4);
+  }
+
+  .swatch-chart-seq-5 {
+    --swatch: var(--chart-seq-5);
+  }
+
+  .swatch-chart-div-1 {
+    --swatch: var(--chart-div-1);
+  }
+
+  .swatch-chart-div-2 {
+    --swatch: var(--chart-div-2);
+  }
+
+  .swatch-chart-div-3 {
+    --swatch: var(--chart-div-3);
+  }
+
+  .swatch-chart-div-4 {
+    --swatch: var(--chart-div-4);
+  }
+
+  .swatch-chart-div-5 {
+    --swatch: var(--chart-div-5);
+  }
+
+  .swatch-chart-div-6 {
+    --swatch: var(--chart-div-6);
+  }
+
+  .swatch-chart-div-7 {
+    --swatch: var(--chart-div-7);
+  }
+
+  .chart-height-8rem {
+    --chart-height: 8rem;
+    --skeleton-height: 8rem;
+  }
+
+  .chart-height-14rem {
+    --chart-height: 14rem;
+    --skeleton-height: 14rem;
+  }
+
+  .chart-height-16rem {
+    --chart-height: 16rem;
+    --skeleton-height: 16rem;
+  }
+
+  .chart-height-18rem {
+    --chart-height: 18rem;
+    --skeleton-height: 18rem;
+  }
+
+  .chart-height-22rem {
+    --chart-height: 22rem;
+    --skeleton-height: 22rem;
+  }
+
+  .chart-height-24rem {
+    --chart-height: 24rem;
+    --skeleton-height: 24rem;
+  }
+
+  /* Without JavaScript, a chart that loads its data shows its fallback (the image or the
+     note in <noscript>), not the skeleton. */
+  @media (scripting: none) {
+    [data-chart-src] .skeleton {
+      display: none;
+    }
+  }
 }

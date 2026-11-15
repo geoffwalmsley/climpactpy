@@ -38,6 +38,14 @@ def times(count, default=3):
 
 
 @register.filter
+def token_name(token):
+    """A design token's name without its dashes, for the class that sets it (#137):
+    ``swatch-{{ "--chart-tmax"|token_name }}`` is ``swatch-chart-tmax``, a class in
+    charts.css, because the Content Security Policy allows no style attributes."""
+    return str(token).removeprefix("--")
+
+
+@register.filter
 def file_size(job, relative):
     """Size in bytes of the file ``relative`` of a job's output, for download buttons
     (#79): ``{{ job|file_size:path|filesizeformat }}``; 0 when there is none."""

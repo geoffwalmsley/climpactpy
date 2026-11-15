@@ -51,7 +51,7 @@
         {% for title, tokens in palette_groups %}
         <h3>{{ title }}</h3>
         <ul class="swatches">
-          {% for token in tokens %}<li><span style="--swatch: var({{ token }})"></span><code>{{ token }}</code></li>{% endfor %}
+          {% for token in tokens %}<li><span class="swatch-{{ token|token_name }}"></span><code>{{ token }}</code></li>{% endfor %}
         </ul>
         {% endfor %}
       </div>

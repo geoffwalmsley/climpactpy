@@ -7,8 +7,8 @@ Parameters: job, analysis, phases, and jobs.views.progress_context.
 {% endcomment %}
 <div id="sector-progress" class="stack" data-status="{{ job.status }}"
   {% if not job.is_finished %}hx-get="{% url 'stations:sector_progress' analysis.pk %}"
-  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
-  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
   {% if job.status == "queued" or job.status == "running" %}
   <div class="progress">
     <div class="progress__header">

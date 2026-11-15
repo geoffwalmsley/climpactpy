@@ -1,8 +1,9 @@
 /*
  * climpact-web UI behaviour (#71). Progressive enhancement only: every page works without
  * this file, which adds the theme toggle, tabs, drag and drop on file inputs, dialogs and
- * toasts, announcements of polled progress and focus kept across htmx swaps (#83). Runs
- * on page load and again on content htmx swaps in. No dependencies.
+ * toasts, announcements of polled progress and focus kept across htmx swaps (#83), and
+ * tells polled progress whether the tab is hidden (#137). Runs on page load and again on
+ * content htmx swaps in. No dependencies.
  *
  * window.Climpact:
  *   toast(message, kind)   show a toast; kind is "info", "success", "warning" or "error".
@@ -327,6 +328,22 @@
     }
     focusKey = null;
     if (el && doc.activeElement !== el) el.focus();
+  });
+
+  /* ---- Progress polls (#137) ----
+   * A polled progress fragment (data-poll-hidden) polls again as soon as the tab is shown
+   * (hx-trigger "climpact:visible from:document") and tells the server whether the tab is
+   * hidden, so it can poll less often. Done here rather than with htmx's JavaScript
+   * filters and js: values, which need eval, forbidden by the Content Security Policy. */
+  doc.addEventListener("visibilitychange", function () {
+    if (!doc.hidden) doc.dispatchEvent(new CustomEvent("climpact:visible"));
+  });
+
+  doc.addEventListener("htmx:configRequest", function (event) {
+    var elt = event.detail.elt;
+    if (elt && elt.hasAttribute && elt.hasAttribute("data-poll-hidden")) {
+      event.detail.parameters.hidden = String(doc.hidden);
+    }
   });
 
   function init(scope) {

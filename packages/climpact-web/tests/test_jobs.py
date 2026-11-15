@@ -196,8 +196,8 @@ def test_progress_fragment_polls_until_finished():
     client = owned_client()
     job = make_job(status=Status.QUEUED)
     html = client.get(f"/jobs/{job.pk}/progress").content.decode()
-    assert 'hx-trigger="load delay:1s, visibilitychange[!document.hidden] from:document"' in html
-    assert "hx-vals='js:{hidden: document.hidden}'" in html
+    assert 'hx-trigger="load delay:1s, climpact:visible from:document"' in html
+    assert "data-poll-hidden" in html and "js:" not in html  # no eval under the CSP (#137)
     hidden = client.get(f"/jobs/{job.pk}/progress?hidden=true").content.decode()
     assert "load delay:30s" in hidden  # backs off while the tab is hidden
     Job.objects.filter(pk=job.pk).update(status=Status.CANCELLED, finished_at=timezone.now())

@@ -37,7 +37,7 @@ bars_svg, order, categories.
       {{ title }}: correlation of your data with {{ counter }} index{% plural %}{{ title }}: correlation of your data with {{ counter }} indices
     {% endblocktranslate %}</figcaption>
     <ul class="m-0 flex list-none flex-wrap gap-4 p-0 text-sm" aria-label="{% translate 'Legend' %}">
-      {% for c in categories %}<li class="flex items-center gap-2"><span class="inline-block size-[0.9rem] rounded-sm forced-colors:border forced-colors:border-[CanvasText]" style="background: var({{ c.token }})" aria-hidden="true"></span>{{ c.label }}</li>{% endfor %}
+      {% for c in categories %}<li class="flex items-center gap-2"><span class="inline-block size-[0.9rem] rounded-sm forced-colors:border forced-colors:border-[CanvasText] bg-(--swatch) swatch-{{ c.token|token_name }}" aria-hidden="true"></span>{{ c.label }}</li>{% endfor %}
     </ul>
     <div class="overflow-x-auto [&_.sector-plot]:min-w-[34rem]" role="region" aria-label="{% translate 'Correlation with each index' %}: {% translate 'chart' %}" tabindex="0">{{ bars_svg }}</div>
     {% if results.missing %}<p class="text-sm text-text-muted">{% blocktranslate trimmed with names=results.missing_names count counter=results.missing|length %}

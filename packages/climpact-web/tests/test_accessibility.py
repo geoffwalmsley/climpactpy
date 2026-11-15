@@ -35,6 +35,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -80,13 +81,16 @@ def chrome():
     browser.close()
 
 
-@pytest.fixture(scope="module")
-def server(tmp_path_factory):
-    """``climpact-web`` on a free port with its worker, in a fresh data folder."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("CLIMPACT_WEB_")}
-    env.pop("DJANGO_SETTINGS_MODULE", None)
-    env["CLIMPACT_WEB_PATTERN_LIBRARY"] = "true"
-    data = tmp_path_factory.mktemp("a11y-data")
+@contextmanager
+def running_app(data: Path, **env: str):
+    """``climpact-web`` on a free port with its worker, in the data folder ``data``, with
+    extra environment variables; yields its URL."""
+    inherited = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith("CLIMPACT_WEB_") and k != "DJANGO_SETTINGS_MODULE"
+    }
+    env = {**inherited, "CLIMPACT_WEB_PATTERN_LIBRARY": "true", **env}
     proc = subprocess.Popen(
         [sys.executable, "-m", "climpact_web", "--no-browser", "--port", "0"]
         + ["--data-dir", str(data)],
@@ -107,12 +111,21 @@ def server(tmp_path_factory):
     if not url:
         proc.kill()
         pytest.fail("climpact-web did not start:\n" + "".join(output))
-    yield url
-    proc.terminate()
     try:
-        proc.wait(30)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+        yield url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(30)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+@pytest.fixture(scope="module")
+def server(tmp_path_factory):
+    """``climpact-web`` on a free port with its worker, in a fresh data folder."""
+    with running_app(tmp_path_factory.mktemp("a11y-data")) as url:
+        yield url
 
 
 # What happened while the jobs ran, for the tests of progress pages: axe on each progress
@@ -983,3 +996,65 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         assert c.evaluate(shown.format(label, "true"))
     finally:
         c.viewport(1280, 900)
+
+
+# ---- Content Security Policy (#137) --------------------------------------------------------
+
+
+def policy_of(c: Chrome) -> str | None:
+    return c.evaluate(
+        "fetch(location.href).then(function (r) {"
+        " return r.headers.get('content-security-policy') })",
+        await_promise=True,
+    )
+
+
+def test_no_content_security_policy_violations(chrome, site):
+    """No page breaks the Content Security Policy (#137). The violations are collected for
+    the whole module (browser.py), so this covers every page and flow the tests above went
+    through: the station steps, the htmx progress polls, the results filters, the charts,
+    the sector comparison, the batch, the grid, help, the jobs and the error pages. Every
+    page is opened once more, here, in case this test runs on its own."""
+    c = chrome
+    for page in site.values():
+        open_page(c, page)
+    c.navigate(site["station results"])
+    policy = policy_of(c)
+    assert policy and "script-src 'self'" in policy and "unsafe-inline" not in policy
+    assert not c.csp_violations, json.dumps(c.csp_violations, indent=2)
+
+
+@pytest.fixture(scope="module")
+def turnstile_server(tmp_path_factory, chrome):
+    """The app with Turnstile on (Cloudflare's test keys; turnstile_test_settings.py)."""
+    tests = str(Path(__file__).parent)
+    path = os.pathsep.join(filter(None, [tests, os.environ.get("PYTHONPATH")]))
+    env = {"DJANGO_SETTINGS_MODULE": "turnstile_test_settings", "PYTHONPATH": path}
+    with running_app(tmp_path_factory.mktemp("csp-turnstile"), **env) as url:
+        yield url
+
+
+def test_turnstile_widget_within_the_policy(chrome, turnstile_server):
+    """With Turnstile on, its widget loads and passes (Cloudflare's test keys) under the
+    policy hosted mode then sends, with no violation. Needs to reach Cloudflare: skipped
+    when challenges.cloudflare.com cannot be reached, unless the widget was blocked."""
+    import urllib.request
+
+    c = chrome
+    c.csp_violations.clear()
+    c.navigate(urljoin(turnstile_server, "/station/"))
+    assert "https://challenges.cloudflare.com" in (policy_of(c) or "")
+    token = "(document.querySelector('[name=cf-turnstile-response]') || {}).value"
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline and not c.evaluate(token) and not c.csp_violations:
+        time.sleep(0.25)
+    assert not c.csp_violations, json.dumps(c.csp_violations, indent=2)
+    if not c.evaluate(token):
+        try:
+            urllib.request.urlopen(
+                "https://challenges.cloudflare.com/turnstile/v0/api.js", timeout=10
+            )
+        except OSError as exc:
+            pytest.skip(f"Cloudflare Turnstile cannot be reached from here ({exc})")
+        pytest.fail("the Turnstile widget did not give a token within 30 s")
+    assert c.evaluate("typeof window.turnstile === 'object'")

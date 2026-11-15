@@ -25,7 +25,7 @@ series and the days with data in each year. Parameters from views.summary_contex
       <tbody>
         {% for variable in variables %}
         <tr>
-          <th scope="row"><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span> {{ variable.label }}</th>
+          <th scope="row"><span class="chart__swatch swatch-{{ variable.token|token_name }}" aria-hidden="true"></span> {{ variable.label }}</th>
           <td class="num">{{ variable.present|count }}</td>
           <td class="num">{{ variable.missing|count }}</td>
           <td class="num">{{ variable.percent_text }}</td>
@@ -60,7 +60,7 @@ series and the days with data in each year. Parameters from views.summary_contex
     </div>
     {% endfor %}
     <ul class="chart__legend">
-      {% for variable in variables %}<li><span class="chart__swatch" style="--swatch: var({{ variable.token }})" aria-hidden="true"></span>{{ variable.label }}</li>{% endfor %}
+      {% for variable in variables %}<li><span class="chart__swatch swatch-{{ variable.token|token_name }}" aria-hidden="true"></span>{{ variable.label }}</li>{% endfor %}
     </ul>
   </figure>
   </noscript>

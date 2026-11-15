@@ -3493,10 +3493,12 @@ catalogue's order. This ranking is the web app's; R's results page has no summar
 Sydney sample has 22 significant trends, led by TNm, TMm and GDDgrow10. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. The action row at the top: "Change the settings", "Download everything (zip, *size*)",
-"PDF report (*size*)", a link to the downloads page and the optional step 5, "Compare
+the percentiles, or else the missing-data rules. The action row at the top: "Change the settings", "Download all (zip, *size*)",
+"PDF report (*size*)", "Choose files" (a link to the downloads page) and the optional step 5, "Compare
 with sector data" (#113 moved it up from the bottom). Only the zip is a full-size button;
-the other three are small (`size="sm"`), which keeps the row on one line at 1280px (#115). Below the groups: downloads (the
+the other three are small (`size="sm"`), and the labels are short ("Download all", not
+"Download everything", on every page that offers the zip), which keeps the row on one line
+at 1280px with wider fonts too (#115; CI's Linux fonts wrapped the longer labels). Below the groups: downloads (the
 zip, the report, the PDF of all plots, the trend, thresholds and missing-value files, each
 with its format and size, and the downloads page) and the settings used. Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
@@ -3667,7 +3669,7 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
 3. `/batch/<id>/results`: one `batch` job for the ready stations. A fragment polled by
    htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
    each station (waiting, calculating with its own bar and stage, finished, failed, left
-   out). When it has finished: a summary, "Download everything (zip)", and for each
+   out). When it has finished: a summary, "Download all (zip)", and for each
    station its zip and "Open as a single station", or its error and error file;
    failures are listed first. The cancel and retry controls are the job's.
 
@@ -3932,7 +3934,7 @@ ignored.
    the oldest queued job first) with htmx-polled progress, including "Preparing the input
    files" while the input is rechunked. When the last job finishes the fragment answers
    `HX-Refresh` so the map appears. Then each job's files to download (a table with the
-   index, frequency and size), "Download everything (zip)" (`ZIP_STORED`, built in a
+   index, frequency and size), "Download all (zip)" (`ZIP_STORED`, built in a
    temporary file), and the explorer.
 
 **Options, against R's screens:**

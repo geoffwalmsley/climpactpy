@@ -531,7 +531,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     assert "2 of 3 stations calculated" in html
     assert "1 station failed; its error is below." in html
     assert "1 station was left out before the run." in html
-    assert f"/jobs/{job.pk}/files/stations.zip" in html and "Download everything (zip, " in html
+    assert f"/jobs/{job.pk}/files/stations.zip" in html and "Download all (zip, " in html
     assert f"/jobs/{job.pk}/files/stations/a.zip" in html
     assert f"/jobs/{job.pk}/files/stations/b.errors.txt" in html
     assert "No file named missing.txt was uploaded." in html

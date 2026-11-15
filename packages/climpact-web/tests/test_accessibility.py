@@ -943,11 +943,16 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
 
         c.viewport(1280, 900)
         c.navigate(site["station results"])
-        tops = c.evaluate(
+        middles = (
             "[...document.querySelectorAll('.results-actions > *')]"
             ".map(e => Math.round(e.getBoundingClientRect().top + e.offsetHeight / 2))"
         )
+        tops = c.evaluate(middles)
         assert max(tops) - min(tops) <= 2, tops
+        c.evaluate("document.body.style.fontFamily = 'Verdana, \"DejaVu Sans\", sans-serif'")
+        tops = c.evaluate(middles)  # one line with a wide font too (CI's Linux fonts)
+        assert max(tops) - min(tops) <= 2, tops
+        c.evaluate("document.body.removeAttribute('style')")
 
         c.navigate(site["station sample loaded"])
         wait_for(c, "!!document.querySelector('#daily-chart [data-chart-flags]')", 60)

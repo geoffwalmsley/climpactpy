@@ -22,11 +22,11 @@
   <div class="cluster results-actions">
     {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
     {% include "components/button.html" with label=change_label href=indices_url|add:"?settings=open#settings" variant="secondary" size="sm" icon="sliders" %}
-    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download everything (zip, {{ size }}){% endblocktranslate %}
+    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
     {% if downloads.report %}{% url 'jobs:file' downloads.job.pk downloads.report.path as report_url %}{% blocktranslate with size=downloads.report.size|filesizeformat asvar report_label %}PDF report ({{ size }}){% endblocktranslate %}
     {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" size="sm" %}{% endif %}
-    <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "All downloads" %}</a>
+    <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Choose files" %}</a>
     {% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
     {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}
   </div>

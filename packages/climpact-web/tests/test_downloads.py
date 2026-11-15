@@ -96,7 +96,7 @@ def test_dashboard_and_index_page_show_sizes(client):
     analysis, job = finished_analysis(client)
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert re.search(rf"Download everything \(zip, {SIZE}\)", html)
+    assert re.search(rf"Download all \(zip, {SIZE}\)", html)
     assert re.search(rf"PDF report \({SIZE}\)", html)
     assert re.search(rf"All plots \(PDF, {SIZE}\)", html)
     assert re.search(rf"Trends \(CSV, {SIZE}\)", html)
@@ -184,7 +184,7 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
     assert re.search(rf"PDF report \({SIZE}\)", html)
     assert re.search(rf"Download \(zip, {SIZE}\)", html)
-    assert re.search(rf"Download everything \(zip, {SIZE}\)", html)
+    assert re.search(rf"Download all \(zip, {SIZE}\)", html)
 
 
 def test_downloads_page_lists_the_sector_comparison(client):

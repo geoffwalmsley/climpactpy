@@ -24,11 +24,15 @@ names, behaviour or results.
 ## 2. Get the current parity numbers
 
 ```sh
-uv run pytest -q 2>&1 | tail -6
+uv run pytest -q 2>&1 | tee "$TMPDIR/pytest.log" | tail -n 15
+cat .parity-summary.txt
 ```
 
-Record the `R parity` summary lines (`lat0: N/117 ...`, `sydney: N/117 ...`) and the test
-totals. Do not copy numbers from an earlier run.
+The test run writes the whole `R parity` summary and the test totals to
+`.parity-summary.txt` at the repository root. The section is too long for a `tail` of the
+output, so read it from the file, and don't re-run the suite to see it. Check that the
+file's header (timestamp, pytest command) is from this run. Do not copy numbers from an
+earlier run.
 
 ## 3. Update each affected section
 

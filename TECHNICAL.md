@@ -1357,7 +1357,11 @@ uv run pytest packages/climpact/tests/parity    # parity only
 ```
 
 Files that no product builds are reported as `xfail` ("not yet ported"); there are none
-now. A summary is printed at the end:
+now. A summary is printed at the end. The same lines, with a header giving the time, the
+pytest command, the Python version and the test totals, are written to
+`.parity-summary.txt` at the repository root (git-ignored;
+`packages/climpact/tests/parity/conftest.py`). The section is longer than a `tail` of the
+output shows, so read the file rather than running the suite again:
 
 ```
 =================================== R parity ===================================

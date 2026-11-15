@@ -14,3 +14,6 @@ reference/.ghcn-cache/
 
 # The standalone Tailwind CLI (scripts/fetch-tailwind.sh, #118)
 bin/
+
+# The R parity summary the test run writes (tests/parity/conftest.py)
+.parity-summary.txt

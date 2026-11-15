@@ -24,6 +24,7 @@
         {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
         {% if not local %}{% help_topic "gridded.files" %}{% endif %}
         {% if local %}<p class="text-sm text-text-muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
+        {% turnstile %}
         <div>
           {% translate "Upload and check" as upload_label %}
           {% include "components/button.html" with label=upload_label type="submit" icon="upload" variant=local|yesno:"secondary,primary" %}

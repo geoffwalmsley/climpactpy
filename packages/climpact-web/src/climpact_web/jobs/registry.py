@@ -32,6 +32,11 @@ class JobCancelled(BaseException):  # noqa: N818  (control flow, not an error)
     ``except Exception`` in a batch does not catch it and carry on."""
 
 
+class JobTimedOut(BaseException):  # noqa: N818
+    """Raised from the progress callback when the job has run past the hosted site's time
+    limit (``JOB_TIME_LIMIT_MINUTES``, #125); the job fails with a message saying so."""
+
+
 class JobInterrupted(BaseException):  # noqa: N818
     """Raised from the progress callback when the worker is asked to stop; the job is
     queued again."""

@@ -26,6 +26,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
 
+from climpact_web.core.limits import human_required
 from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, progress_context
@@ -123,6 +124,7 @@ def initial(analysis: StationAnalysis, job: Job | None) -> dict:
 
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def sector(request, analysis_id):
     """Step 5: the sector file and plot settings, the job's progress, then its results."""
     analysis = get_analysis(request, analysis_id)

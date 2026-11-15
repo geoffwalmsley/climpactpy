@@ -7,4 +7,8 @@ class JobsConfig(AppConfig):
     verbose_name = "Background jobs"
 
     def ready(self) -> None:
+        from climpact_web.core.limits import purge_job_starts
         from climpact_web.jobs import runners  # noqa: F401  registers the built-in runners
+        from climpact_web.jobs.retention import register_purger
+
+        register_purger(purge_job_starts)  # the daily quota's records (#125)

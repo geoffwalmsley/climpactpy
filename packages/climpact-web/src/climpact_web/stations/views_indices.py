@@ -31,6 +31,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core.limits import human_required
 from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
@@ -132,6 +133,7 @@ def output_names(form: IndexParamsForm) -> dict[str, str]:
 
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def indices(request, analysis_id):
     """Step 3: the index parameters, then "Calculate indices" queues a station job."""
     analysis = get_analysis(request, analysis_id)

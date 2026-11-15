@@ -76,6 +76,7 @@
         {% include "components/field.html" with field=form.y_label help="sector.y_label" %}
         {% include "components/field.html" with field=form.detrend help="sector.detrend" %}
       </div>
+      {% turnstile %}
       <div class="flex flex-wrap items-center gap-3">
         {% translate "Calculate correlations" as run_label %}
         {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}

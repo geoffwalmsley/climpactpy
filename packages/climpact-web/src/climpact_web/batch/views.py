@@ -32,6 +32,7 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 from climpact_web.batch import check
 from climpact_web.batch.forms import AddFilesForm, OptionsForm, UploadForm, cpu_count
 from climpact_web.batch.models import BatchRun, Source
+from climpact_web.core.limits import disk_required, human_required
 from climpact_web.core.navigation import batch_steps
 from climpact_web.jobs.models import Status
 from climpact_web.jobs.runners import STATIONS_FILE
@@ -129,6 +130,7 @@ def default_workers(stations: int) -> int:
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
+@human_required
 def start(request):
     """Upload the metadata file and the station files."""
     if request.method == "POST":
@@ -168,6 +170,7 @@ def create_run(request, metadata, station_files) -> BatchRun:
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
+@disk_required
 def sample(request):
     """One click: R's sample batch (two Sydney stations), checked and ready to start."""
     if request.method != "POST":
@@ -281,6 +284,7 @@ def check_page(request, run_id):
 
 
 @require_POST
+@human_required
 def add_files(request, run_id):
     """Add or replace station files, or replace the metadata file, then check again."""
     run = get_run(request, run_id)
@@ -324,6 +328,7 @@ def options(request, run_id):
 
 
 @require_POST
+@human_required
 def run_batch(request, run_id):
     """Queue the batch: one job for the ready stations."""
     run = get_run(request, run_id)

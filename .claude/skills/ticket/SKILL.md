@@ -104,6 +104,6 @@ or "No change: everything that passes now still passes".
 4. **Docs:** update `TECHNICAL.md` in the same branch using the `update-technical-docs` skill.
 5. **PR:** commit and push only when the user asks. Open the PR against `main` with **`Closes #N`** in the body, the parity summary from the test run (before → after), and the Documentation note. That's what lets the automations close the issue and move the card to Done on merge. Then move the card to **In review**. Link the PR in T3 (`link_pull_request`).
    - **Stacked PRs:** if the base isn't `main`, the `Closes` link won't fire. After merging, check the issue closed, and that the commits actually reached `main`, since a stacked PR can merge into its parent branch after the parent has already merged.
-6. **Done:** after the merge, confirm the issue is closed and the card is in Done. Move any Backlog cards it unblocked to Ready. Leave a short comment listing anything left over, and file follow-ups as new tickets.
+6. **Done:** merge with a merge commit (`gh pr merge <N> --merge --delete-branch`), never squash or rebase (see `CLAUDE.md`). After the merge, confirm the issue is closed and the card is in Done. Move any Backlog cards it unblocked to Ready. Leave a short comment listing anything left over, and file follow-ups as new tickets.
 
 Report honestly: if an acceptance criterion wasn't verified (for example, a file passes only at a looser tier than planned), leave it unticked and say why in the issue.

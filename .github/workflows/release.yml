@@ -1,0 +1,100 @@
+name: Release
+
+# Publishing a GitHub Release vX.Y.Z publishes the climpact-web image to
+# ghcr.io/geoffwalmsley/climpact-web (#122): tagged X.Y.Z, and `latest` unless the release
+# is a pre-release. Nothing else pushes: merges to main and pull requests build and test the
+# image (ci.yml) but never push it. TECHNICAL.md › Deployment › "Image in CI".
+#
+# Hand-off to #131: the PyPI jobs (version check, tests, build, TestPyPI/PyPI with Trusted
+# Publishing) go before these, and `image` then gets `needs: [<the PyPI publish job>]`, so
+# the image is published only after the packages are.
+#
+# A pull request that changes this file runs the `image` job as a dry run (the tags of
+# v<the package version>, the artifact saved); `publish` runs only for a release.
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    # Build from the release tag, smoke-test, scan and keep the tested image as an
+    # artifact; read-only token.
+    permissions:
+      contents: read
+    uses: ./.github/workflows/image.yml
+    with:
+      tag: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+      prerelease: ${{ github.event_name == 'release' && github.event.release.prerelease }}
+      artifact: true
+
+  publish:
+    # Push the image the `image` job tested, with the workflow's own GITHUB_TOKEN; the only
+    # job with `packages: write`, and no registry secret is stored anywhere.
+    if: github.event_name == 'release'
+    needs: image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/geoffwalmsley/climpact-web
+      TAGS: ${{ needs.image.outputs.tags }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+      - name: Load the tested image
+        run: docker load -i "$RUNNER_TEMP/climpact-web.tar"
+      - name: Log in to ghcr.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Push
+        run: |
+          # shellcheck disable=SC2086  # TAGS is a space-separated list
+          scripts/image.sh publish climpact-web:ci "$IMAGE" $TAGS
+          digest=$(docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' \
+            "$IMAGE:${TAGS%% *}" | grep -m1 "^$IMAGE@")
+          {
+            echo "### Image published"
+            echo
+            for tag in $TAGS; do echo "- \`$IMAGE:$tag\`"; done
+            echo
+            echo "Digest: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Log out
+        if: always()
+        run: docker logout ghcr.io
+      - name: Delete untagged versions
+        # Release tags are kept, for rollback. A version is left untagged only when a tag
+        # is pushed again (a re-run release); delete those. Safe while the image is a single
+        # platform manifest without attestations (scripts/image.sh builds with
+        # --provenance=false --sbom=false): a multi-platform image's per-platform manifests
+        # are untagged versions too, and must not be deleted. Never fails the release.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSIONS: /users/geoffwalmsley/packages/container/climpact-web/versions
+        run: |
+          if ! ids=$(gh api --paginate "$VERSIONS?per_page=100" \
+              --jq '.[] | select(.metadata.container.tags | length == 0) | .id'); then
+            echo "::warning title=Untagged versions::could not list the package versions"
+            exit 0
+          fi
+          for id in $ids; do
+            gh api -X DELETE "$VERSIONS/$id" && echo "deleted untagged version $id" \
+              || echo "::warning title=Untagged versions::could not delete version $id"
+          done

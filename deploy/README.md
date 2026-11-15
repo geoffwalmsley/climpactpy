@@ -24,9 +24,8 @@ by its IP address, so nobody can get around Cloudflare.
 The design and the reasons behind it are in `TECHNICAL.md` › Deployment.
 
 > **The app image comes from a GitHub Release.** `ghcr.io/geoffwalmsley/climpact-web` is
-> pushed only when a release `vX.Y.Z` is published (#122). Until the first release
-> (**v0.1.0**, #131) exists there is nothing to run. You can do steps 1–5 now. Step 6
-> (`docker compose up`) has to wait for the release.
+> pushed only when a release `vX.Y.Z` is published (#122). The first was **v0.1.0**
+> (2026-11-15).
 
 ## What you need
 
@@ -115,26 +114,41 @@ systemctl list-timers climpact-image-prune.timer apt-daily-upgrade.timer
 ## 4. Create the Cloudflare Tunnel (about 10 min)
 
 In the Cloudflare dashboard, open **Zero Trust** (the first visit asks for a team name, and
-the free plan is enough), then **Networks › Tunnels**:
+the free plan is enough), then **Networks › Tunnels**. The screens below are as of
+November 2026; Cloudflare renames them from time to time.
 
-1. **Create a tunnel** › type **Cloudflared** › name `climpact` › **Save tunnel**.
-2. On *Install and run a connector*, choose **Docker**. The page shows a command ending in
-   `--token eyJ...`. **Copy only the token** (the long `eyJ...` string). It is the
-   `TUNNEL_TOKEN` for step 5. Don't run the command: Compose runs `cloudflared`. Treat
-   the token like a password, because anyone holding it can serve the site.
-3. **Next** › *Route traffic* › **Public hostname** (shown as *Published application
-   routes* in newer dashboards):
-   - **Subdomain:** empty. **Domain:** `climpact.app`. **Path:** empty.
-   - **Service:** type **HTTP**, URL **`web:8000`**.
-   - **Save**. Cloudflare creates the proxied DNS record (a CNAME to
-     `<tunnel-id>.cfargotunnel.com`) itself.
+1. **Create Tunnel** › name `climpact` › **Create Tunnel**. Note the **Tunnel ID** it shows
+   (a UUID; not a secret).
+2. Under *Setup Environment* choose **Docker**. *Run tunnel with Docker* shows a command
+   ending in `--token eyJ...`. Copy it with the copy button and keep **only the token** (the
+   long `eyJ...` string) somewhere temporary: it is the `TUNNEL_TOKEN` for step 5. Don't run
+   the command: Compose runs `cloudflared`. Treat the token like a password, because anyone
+   holding it can serve the site.
+3. **Leave this page open.** *Continue* stays greyed out until the connector has connected,
+   which happens in step 6. Do steps 5 and 6 now, then come back to step 4.4.
+4. After step 6 the page shows the connection and *Continue* unlocks. **Continue** ›
+   **Add published application** (older dashboards: *Public hostname*):
+   - **Subdomain:** empty. **Domain:** `climpact.app`. **Path:** empty. *Full hostname*
+     reads `climpact.app`.
+   - **Service URL:** **`http://web:8000`**. The scheme is required, and it is `http`,
+     not `https`: Cloudflare serves HTTPS to visitors, and `cloudflared` talks plain HTTP to
+     `web` on the Droplet's internal network.
+   - *Additional application settings:* leave the defaults (no Host header override).
+   - **Add route**.
+   If the page was closed, the same form is under **Networks › Tunnels › climpact ›
+   Published application routes › Add**.
+5. Cloudflare normally creates the DNS record itself. If it says *"the DNS record could not
+   be created automatically"*, a record for `climpact.app` already exists, usually the
+   registrar's parking page carried over when DNS moved to Cloudflare. In the zone's
+   **DNS › Records**:
+   - Delete the `A`, `AAAA` or `CNAME` records named `climpact.app`, and a `www` record
+     that points at a parking page (`www` gets its redirect in #124). Keep `MX` and `TXT`
+     records: they are e-mail, not the website.
+   - **Add record:** type **CNAME**, name **`@`**, target
+     **`<tunnel-id>.cfargotunnel.com`**, proxy status **Proxied** (orange cloud).
 
-   If it says a record already exists, go to the zone's **DNS › Records**, delete the
-   existing `A`, `AAAA` or `CNAME` record for `climpact.app`, and save the route again.
    **No DNS record may point at the Droplet's IP.** A record like that would publish the
-   origin's address. (`www.climpact.app` and its redirect are set up in #124.)
-
-The tunnel shows as *Inactive* until `cloudflared` runs in step 6.
+   origin's address.
 
 ## 5. Make the `.env` with the secrets (about 2 min)
 
@@ -158,9 +172,9 @@ in `.env` (allowed host, upload limit, retention) have the right defaults for
 
 ## 6. Start the stack: after the release is published (about 5 min)
 
-**Waits for the first GitHub Release (v0.1.0, #131).** Check that the release exists at
-<https://github.com/geoffwalmsley/climpactpy/releases>, and that its *Release* workflow has
-finished (it pushes the image).
+Use the latest release from <https://github.com/geoffwalmsley/climpactpy/releases> (its
+*Release* workflow must have finished, because that is what pushes the image). The first
+was **v0.1.0**, published on 2026-11-15.
 
 ```sh
 climpact-use v0.1.0
@@ -180,7 +194,8 @@ If the pull fails with *denied* or *unauthorized*, the package may still be priv
 package created by a workflow can start private): on GitHub open the profile's
 **Packages › climpact-web › Package settings › Change visibility › Public**, once.
 
-In Cloudflare the tunnel should now show as **Healthy**.
+In Cloudflare the tunnel should now show as connected (**Healthy**). Go back to step 4.4
+to add the route and its DNS record.
 
 ## 7. Smoke test (about 5 min)
 

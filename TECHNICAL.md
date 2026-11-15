@@ -75,6 +75,8 @@ Dockerfile           the production image of the web app (#120; see [Deployment]
 docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthcheck.py`
 .dockerignore        keeps everything but the two packages' sources, the pyproject files
                      and uv.lock out of the image's build context
+deploy/              the hosted stack on one Droplet (#121): `compose.yaml` and
+                     `.env.example` (see [Compose stack](#compose-stack))
 ```
 
 The core never imports `climpact_web`: `tests/test_layout.py` checks every Python file in
@@ -3022,6 +3024,93 @@ the worker because loading the URLconf imports the core (xclim, pandas, matplotl
 numba). With Postgres, `cloudflared` and the OS, the stack peaks around 1.2–1.3 GB (about
 1.5 GB with the Rosetta figures), so the 2 GB Droplet chosen in #12, with swap, is
 comfortable for one worker, and 1 GB is not.
+
+#### Compose stack
+
+`deploy/compose.yaml` (#121) runs the whole hosted app on the Droplet with Docker Compose
+(project name `climpact`); `deploy/.env.example` lists its settings.
+
+```sh
+cd deploy && cp .env.example .env && chmod 600 .env   # fill in the image and the secrets
+docker compose --profile tunnel up -d --wait          # on the Droplet
+docker compose up -d --wait                           # without the tunnel, e.g. locally
+```
+
+| Service | Runs | Memory limit |
+| --- | --- | --- |
+| `db` | `postgres:16-alpine`, data in the `pgdata` volume, health check `pg_isready` | 192 MB |
+| `migrate` | the image's `migrate` role once, after `db` is healthy; exits 0 | 512 MB |
+| `web` | the `web` role; the image's `/healthz` health check | 768 MB |
+| `worker` | the `worker` role (one `runworker`); 30 s to stop, so the running job is queued again | 1 GB |
+| `purge` | a shell loop: the `purge` role (`purgejobs`) at start and then every 24 h | 512 MB |
+| `cloudflared` | `cloudflare/cloudflared` `tunnel --no-autoupdate run`, only with the `tunnel` profile; starts once `web` is healthy | 128 MB |
+
+`web` and `worker` start only after `migrate` has succeeded
+(`service_completed_successfully`). Every long-running service has
+`restart: unless-stopped` and `json-file` logs rotated at 10 MB × 3. The limits follow the
+measurements above (the worker peaked at 423 MiB natively, 524 MiB under Rosetta; web at
+254/467 MiB; Postgres at 59 MiB) with room for larger stations and for `/tmp` uploads,
+which count against the container's memory. They add up to more than 2 GB, but they are
+caps, not reservations: they stop one runaway job from taking Postgres and the web server
+with it, and the Droplet's swap covers short peaks. Measured with the stack idle after a
+Sydney run (arm64): web 283 MiB, worker 375 MiB, Postgres 41 MiB, `purge` 7 MiB.
+
+**Images.** Postgres and cloudflared are pinned by tag and digest in `compose.yaml` (update
+both together). The app image comes from `CLIMPACT_IMAGE` in `.env`: the release's image
+from the registry, pinned by version (#122). Compose never builds it.
+
+**Networks and ports.** No service publishes a port on the host. The app containers and
+`db` share `backend`, an `internal` network with no route out; only `cloudflared` is also
+on `egress`, to dial out to Cloudflare. The tunnel's public hostname (`climpact.app`) is
+routed to `http://web:8000` in the tunnel's configuration at Cloudflare (#123), so the
+Droplet needs no inbound traffic at all.
+
+**Hardening.** The app containers and `db` run with a read-only root filesystem; the app
+gets a 256 MB tmpfs at `/tmp` and the `media` volume (job folders, shared by `web`,
+`worker` and `purge`, so `LocalJobStorage` works unchanged), `db` gets tmpfs at
+`/var/run/postgresql` and `/tmp`. The app containers and `cloudflared` drop all
+capabilities and set `no-new-privileges`.
+
+**Environment.** Compose reads `deploy/.env` (mode 0600, only on the Droplet, never
+committed; `.gitignore` lists it) and passes each service only what it needs: the app
+gets `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS` (default `climpact.app`),
+`CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` (default `https://climpact.app`),
+`CLIMPACT_WEB_HSTS_SECONDS`, `CLIMPACT_WEB_MAX_UPLOAD_MB`, `CLIMPACT_WEB_RETENTION_DAYS`,
+`CLIMPACT_WEB_LOG_LEVEL` and `DATABASE_URL`; `db` gets `POSTGRES_PASSWORD`; `cloudflared`
+gets `TUNNEL_TOKEN`. `DATABASE_URL` defaults to
+`postgres://climpact:${POSTGRES_PASSWORD}@db:5432/climpact`, so the password is set once
+and must be URL-safe (`openssl rand -hex 32`). `CLIMPACT_IMAGE`, the secret key and the
+password are required (Compose stops with a message); `TUNNEL_TOKEN` is not, because
+Compose reads the whole file even when the `tunnel` profile is off.
+`CLIMPACT_WEB_GRIDDED_HOSTED` is not passed, so gridded runs stay off (#12).
+
+**Purge.** The worker already purges at start and every hour; the `purge` service keeps a
+daily `purgejobs` (expired jobs, and jobs whose worker died) running when no worker is.
+A shell loop in a container was simpler than a host systemd timer: nothing to install on
+the Droplet, and it starts and stops with the stack. Its Python process exists only while
+purging. The image's health check would look for the web server, so the service's health
+check is `true`, which lets `up --wait` finish.
+
+**Behind the tunnel.** `cloudflared` sends `X-Forwarded-Proto: https`, which waitress
+trusts (`CLIMPACT_WEB_TRUSTED_PROXY=*` in the image), so hosted mode's HTTPS redirect,
+secure session and CSRF cookies and CSRF origin checks work; plain HTTP gets a 301 to
+`https://climpact.app/`. For the client address, waitress takes the last entry of
+`X-Forwarded-For` (`trusted_proxy_count` 1). Cloudflare's edge appends the visitor's
+address there, the same address as in `CF-Connecting-IP`, so a value the visitor sends in
+the header is ignored: with `X-Forwarded-For: 203.0.113.9, 198.51.100.7`, `REMOTE_ADDR`
+is `198.51.100.7`. Nothing in the app reads the client address yet (#125 will). Check on
+the real tunnel (#123) that `cloudflared` adds no entry of its own.
+
+**Tested locally** (2026-11-15, arm64 build of the image, Docker Desktop 29 with Compose
+2.40, the tunnel profile off, a scratch override publishing `web` on loopback): the Sydney
+sample through the web pages (QC, then the station run with plots, PDF report and zip in
+15 s, then the results, downloads and sector pages and the downloads); `docker compose
+restart` (migrate runs again with nothing to apply, every service healthy, results kept);
+`docker compose kill worker` during a station run, then `up -d worker`: the new worker
+marked the job failed 66 s after its last heartbeat (`JOB_STALE_SECONDS` 60), with the
+retry offered. Without the override `docker compose ps` lists no published ports and the
+web container cannot reach the internet. With a dummy token `cloudflared` starts
+(read-only) and refuses the token.
 
 ### Design system
 

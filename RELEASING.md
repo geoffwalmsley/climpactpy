@@ -44,21 +44,38 @@ Do these once, in the web UIs. Nothing here goes in the repository.
    | Environment name | `testpypi` |
 
    and press *Add*.
-3. Add a second pending publisher, identical except **PyPI Project Name `climpact-web`**.
+3. Add **only `climpact`** for now. PyPI and TestPyPI refuse a second pending publisher with
+   the same repository, workflow and environment ("already been registered for a different
+   project name"). `climpact-web`'s publisher is added during the first release: see
+   *The first upload to each index* below.
 
 ### 2. PyPI: pending publishers
 
 1. Sign in at <https://pypi.org/> (two-factor authentication is required).
-2. Open <https://pypi.org/manage/account/publishing/> and add two **GitHub** pending
-   publishers as above, with **Environment name `pypi`**:
+2. Open <https://pypi.org/manage/account/publishing/> and add one **GitHub** pending
+   publisher as above, with **Environment name `pypi`**:
 
    | Field | Value |
    | --- | --- |
-   | PyPI Project Name | `climpact`, then `climpact-web` |
+   | PyPI Project Name | `climpact` (`climpact-web` comes later, as above) |
    | Owner | `geoffwalmsley` |
    | Repository name | `climpactpy` |
    | Workflow name | `release.yml` |
    | Environment name | `pypi` |
+
+### The first upload to each index
+
+The release uploads the files in name order, so `climpact` goes first. On the first release
+to an index (`v0.1.0rc1` for TestPyPI, `v0.1.0` for PyPI):
+
+1. The upload job creates `climpact`, then fails on `climpact-web` with "Non-user identities
+   cannot create new projects". This is expected, once.
+2. `climpact`'s publisher is now an ordinary one, so the index accepts a pending publisher for
+   **`climpact-web`** with the same repository, workflow and environment. Add it.
+3. In the run, *Re-run failed jobs* (and approve `pypi` again on PyPI). The upload skips the
+   files the index already has and the rest of the run continues.
+
+Later releases upload both packages in one go.
 
 A pending publisher does not reserve the name: whoever uploads first creates the project.
 Both names were free on 2026-11-14; check again just before the first release. The first
@@ -129,7 +146,7 @@ The same steps for every version; the first two are below.
 4. **Check** the result:
 
    ```sh
-   python3 -m venv /tmp/climpact-rc && . /tmp/climpact-rc/bin/activate
+   python3.12 -m venv /tmp/climpact-rc   # any Python 3.12 or newer && . /tmp/climpact-rc/bin/activate
    pip install --index-url https://test.pypi.org/simple/ \
      --extra-index-url https://pypi.org/simple/ climpact-web==0.1.0rc1
    climpact --version          # Climpact for Python 0.1.0rc1 (port of Climpact 3.4.3)

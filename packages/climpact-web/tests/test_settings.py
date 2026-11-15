@@ -79,6 +79,15 @@ def test_hosted(load_settings):
     assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE and s.SECURE_SSL_REDIRECT
     assert s.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
     assert s.STORAGES["staticfiles"]["BACKEND"] == "climpact_web.core.storage.StaticFilesStorage"
+    assert s.SECURE_HSTS_SECONDS == 0  # off unless the deployment sets it
+
+
+def test_hosted_hsts(load_settings):
+    """deploy/.env.example sets a year (#124); Django then sends includeSubDomains too."""
+    s = load_settings(**HOSTED, CLIMPACT_WEB_HSTS_SECONDS="31536000")
+    assert s.SECURE_HSTS_SECONDS == 31536000
+    assert s.SECURE_HSTS_INCLUDE_SUBDOMAINS is True
+    assert not getattr(s, "SECURE_HSTS_PRELOAD", False)
 
 
 @pytest.mark.parametrize(

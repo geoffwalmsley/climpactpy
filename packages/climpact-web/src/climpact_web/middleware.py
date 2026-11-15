@@ -5,6 +5,7 @@ from pathlib import Path
 from django.conf import settings
 from django.middleware.gzip import GZipMiddleware
 from django.shortcuts import render
+from django.utils.cache import patch_cache_control
 from whitenoise.middleware import WhiteNoiseMiddleware
 
 # Responses worth compressing: pages, htmx fragments, chart data, CSV (#82).
@@ -19,6 +20,27 @@ class StaticFilesMiddleware(WhiteNoiseMiddleware):
     def add_files(self, root, prefix=None):
         if Path(root).is_dir():
             super().add_files(root, prefix)
+
+
+class PrivateCacheMiddleware:
+    """Mark every answer that says nothing about caching as ``Cache-Control: private``.
+
+    Cloudflare caches some answers by file extension alone (``.csv``, ``.png``, ``.pdf``,
+    ``.zip``, ...) when the origin sends no ``Cache-Control``, and it ignores ``Vary:
+    Cookie``. The job downloads (``/jobs/<id>/files/...``) and the station's
+    ``series.csv`` belong to one visitor's session, so a shared cache must never keep
+    them. Answers that set their own ``Cache-Control`` keep it. It sits below WhiteNoise,
+    so static files (hashed names, cached for a year) never pass through it.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if not response.has_header("Cache-Control"):
+            patch_cache_control(response, private=True)
+        return response
 
 
 class CompressionMiddleware(GZipMiddleware):

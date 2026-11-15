@@ -2678,7 +2678,9 @@ packages/climpact-web/src/climpact_web/
   wsgi.py            WSGI application, for waitress and hosted servers
   middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
                      (GRIDDED_MAX_UPLOAD_MB under /gridded/); StaticFilesMiddleware
-                     (WhiteNoise); CompressionMiddleware (gzip for text answers, #82)
+                     (WhiteNoise); CompressionMiddleware (gzip for text answers, #82);
+                     PrivateCacheMiddleware; RefusalMiddleware (the page and log line for
+                     a request the hosted limits refuse, #125)
   cli.py, __main__.py  the `climpact-web` command (also `python -m climpact_web`); starts
                      the background worker as a child process in local mode
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
@@ -2695,9 +2697,12 @@ packages/climpact-web/src/climpact_web/
     storage.py       the static files storage: hashed names, gzip and Brotli copies,
                      minified CSS (StaticFilesStorage, LocalStaticFilesStorage; #82)
     forms.py         PatternDemoForm, the example form on the pattern library
-    templatetags/ui.py  `{% icon %}` and the `times` filter
+    limits.py        the hosted site's abuse limits (#125): client_ip, Turnstile
+                     (verify_turnstile, human_required), the quotas (check_job_quotas),
+                     the disk guard (check_disk, disk_required), Refused
+    templatetags/ui.py  `{% icon %}`, `{% turnstile %}` and the `times` filter
     management/commands/design_snapshots.py  static HTML copies of the pages for review
-    templates/       base.html (the page shell), 404.html, 413.html, 500.html,
+    templates/       base.html (the page shell), 404.html, 413.html, 500.html, refused.html,
                      core/home.html (landing), core/patterns.html (pattern library),
                      core/language_switcher.html, components/*.html (the components)
     static/climpact_web/
@@ -2718,8 +2723,10 @@ packages/climpact-web/src/climpact_web/
       vendor/uplot/  uPlot 1.6.32 (JS, CSS, MIT LICENSE), vendored; README.md records the
                      source URLs and SHA-256s
   jobs/              background jobs (label `jobs`, see [Background jobs](#background-jobs))
-    models.py        Job (the queue and its progress), Worker (running workers)
-    registry.py      runner registry, JobContext, JobError, JobCancelled, JobInterrupted
+    models.py        Job (the queue and its progress), JobStart (the daily quota's
+                     records, #125), Worker (running workers)
+    registry.py      runner registry, JobContext, JobError, JobCancelled, JobTimedOut,
+                     JobInterrupted
     runners.py       the built-in runners: station, qc, batch, sector, gridded-thresholds,
                      gridded-indices (thin wrappers of the core functions)
     worker.py        claiming, progress writes, heartbeats, dead-worker detection, the
@@ -2898,6 +2905,13 @@ the variable.
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age, sent with `includeSubDomains` when above 0; `deploy/.env.example` sets `31536000` (#124) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
+| `CLIMPACT_WEB_TURNSTILE_SITE_KEY` | none | hosted mode: Cloudflare Turnstile's site key; Turnstile is on only when both keys are set, and one without the other is an error (#125) |
+| `CLIMPACT_WEB_TURNSTILE_SECRET_KEY` | none | hosted mode: Turnstile's secret key, for the siteverify check |
+| `CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP` | `2` | hosted mode: jobs one client may have waiting or running at once; `0` is no limit |
+| `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` | `30` | hosted mode: jobs (and retries) one client may start in 24 hours; `0` is no limit |
+| `CLIMPACT_WEB_MAX_QUEUED_JOBS` | `20` | hosted mode: no new job while this many wait; `0` is no limit |
+| `CLIMPACT_WEB_MIN_FREE_DISK_GB` | `2` | hosted mode: no upload and no new job while `MEDIA_ROOT`'s disk has less free space; `0` turns it off |
+| `CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES` | `60` | hosted mode: wall-clock limit on one job; `0` is none (see [Background jobs](#background-jobs)) |
 | `CLIMPACT_WEB_TRUSTED_PROXY` | none (`*` in the image) | the `climpact-web` server (waitress) trusts `X-Forwarded-Proto` and `X-Forwarded-For` from this address (`*`: any peer) and takes the request's scheme and client address from them; read by `cli.proxy_options`, not by the settings |
 
 Both modes also set `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
@@ -2909,6 +2923,8 @@ their one-year cache) adds `Cache-Control: private` to every answer that sets no
 to one session (#124); htmx requests send the CSRF token from the `hx-headers` on
 `<body>`. Server errors are logged to the console by `django.request`. pint's warnings
 about xclim redefining its units are silenced (`pint.util` at ERROR).
+
+See [Security of the hosted site](#security-of-the-hosted-site) for the limits.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
 `UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
@@ -3082,8 +3098,10 @@ final release; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)). Th
 is public, so the Droplet pulls it without credentials. Compose never builds it.
 
 **Networks and ports.** No service publishes a port on the host. The app containers and
-`db` share `backend`, an `internal` network with no route out; only `cloudflared` is also
-on `egress`, to dial out to Cloudflare. The tunnel's public hostname (`climpact.app`) is
+`db` share `backend`, an `internal` network with no route out. Two services are also on
+`egress`: `cloudflared`, to dial out to Cloudflare, and `web`, to check Turnstile tokens
+with `challenges.cloudflare.com` (#125). The worker, `migrate`, `purge` and `db` have no
+route out. The tunnel's public hostname (`climpact.app`) is
 routed to `http://web:8000` in the tunnel's configuration at Cloudflare (#123), so the
 Droplet needs no inbound traffic at all.
 
@@ -3213,7 +3231,7 @@ expression editor), and `deploy/check-edge.sh` checks the result from outside wi
 | Rate limit | the one free rule: `rate-limit.txt`, 10 requests per 10 s per IP, then block (429) for 10 s |
 | Bots | Bot Fight Mode on |
 | Cache | `/static/*` eligible for cache, edge TTL from `Cache-Control`; everything else bypasses the cache |
-| Turnstile | a Managed widget for `climpact.app`; its keys are kept in the password manager for #125 |
+| Turnstile | a Managed widget for `climpact.app`; its keys go in `.env` (see [Security of the hosted site](#security-of-the-hosted-site)) |
 
 The free plan's rate-limiting rule can match the path, but **not the method**, so a rule on
 "POSTs to `/station/`" would also count the htmx polls (`.../progress`, about once a second
@@ -3229,6 +3247,72 @@ would freeze a progress bar until the page is reloaded; the runbook says how to 
 this, and to turn Bot Fight Mode off if it happens to real visitors. The same test checks
 that `.env.example` and the `compose.yaml` default send HSTS for a year, and keep
 `CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies.
+
+### Security of the hosted site
+
+The hosted site has no accounts, so the edge (Cloudflare, above) stops floods, and the app
+limits what one visitor can make the single worker do (#125). Everything in
+`core/limits.py` is off in local mode (`IS_HOSTED` false), so the offline install and
+the tests are unchanged; the settings are in [Settings](#settings).
+
+**The client address.** `client_ip` reads Cloudflare's `CF-Connecting-IP` in hosted mode
+only. The header can be trusted there because the origin is reachable only through the
+Cloudflare Tunnel (no published port, [Compose stack](#compose-stack)), and Cloudflare
+sets it. Anywhere else it is ignored, since anyone could send it, and `REMOTE_ADDR` is
+used. A header that is not an IP address is ignored too. The quotas count by
+`client_key`: the IPv4 address, or the /64 network of an IPv6 address, because one
+connection usually gets a whole /64.
+
+**Turnstile.** On when hosted and both `CLIMPACT_WEB_TURNSTILE_SITE_KEY` and
+`_SECRET_KEY` are set. `{% turnstile %}` (`core/templatetags/ui.py`) renders the widget
+(`<div class="cf-turnstile" data-size="flexible">`, in the page's language) above the submit
+button, with a `<noscript>` note that the check needs JavaScript, and adds Cloudflare's
+`api.js` once per page, so pages without such a form load nothing from Cloudflare. The
+views whose POST uploads a file or starts a job are wrapped in `human_required`: station
+upload, replace file, step 1's details (which queue the checks), run the checks, replace
+the file after the checks, the indices and the sector run; batch upload, add files and
+run; gridded upload and set-up. The decorator posts the widget's `cf-turnstile-response`
+to `https://challenges.cloudflare.com/turnstile/v0/siteverify` (form-encoded, with
+`remoteip`, 10 s timeout) once per request. A missing or rejected token gets a 400; no
+answer from Cloudflare gets a 503 (fail closed, logged as an error). The sample-data buttons
+(`disk_required`) and job retry need no token: the samples copy a bundled file and start
+nothing, and a retry uploads nothing, while the disk guard and the quotas still apply. The
+app sends no Content-Security-Policy, so the script and its frame are not blocked;
+`Referrer-Policy: same-origin`, `COOP: same-origin` and `X-Frame-Options: DENY` don't
+affect the widget (they govern this site's pages, not Cloudflare's frame). Managed mode
+usually passes without a question. Cloudflare states the widget meets WCAG AA (its docs
+have said 2.1 AA and, more recently, 2.2), a claim made by Cloudflare itself, not checked
+by this project's audit (#83), which runs with Turnstile off. Nothing else on the pages
+changes.
+
+**Quotas and guards.** `create_job` calls `check_job_quotas` before it writes anything, and
+the retry view calls it before re-queuing. In order:
+
+| Check | Refused when | Answer |
+| --- | --- | --- |
+| disk (`check_disk`, also every `human_required` and `disk_required` POST) | `MEDIA_ROOT`'s disk (or its nearest existing parent) has under `MIN_FREE_DISK_GB` free | 503, "busy, try again in a few minutes", `Retry-After: 600` |
+| queue | `MAX_QUEUED_JOBS` or more jobs wait (not cancelled) | 503, the same message, `Retry-After: 300` |
+| active jobs | the client has `MAX_ACTIVE_JOBS_PER_IP` or more jobs waiting or running (not cancelled) | 429, how many, and to wait or cancel one |
+| daily jobs | the client has started `MAX_DAILY_JOBS_PER_IP` or more jobs in 24 hours (`JobStart` rows) | 429, try tomorrow or install Climpact locally |
+
+Refusals come before the job is created, so no job fails halfway. The checks are counts,
+not locks: two requests at the same moment can both pass, so a quota can be overrun by a
+job or two. A refusal raises `Refused` (reason, message, status, `Retry-After`);
+`RefusalMiddleware` renders `refused.html` (the message in a warning alert, and links to
+the jobs and the home page) and logs a warning to `climpact_web.limits`: `Refused POST
+/station/<id>/load from 203.0.113.7: active-quota:2`. The reasons are
+`turnstile-missing`, `turnstile-failed:<codes>`, `turnstile-unavailable`,
+`active-quota:<n>`, `daily-quota:<n>`, `queue-full:<n>` and `disk-low:<MB>`, and
+`deploy/README.md` says how to use them to tune the Cloudflare rules. A refused step 1
+leaves the station details saved, so sending the form again queues the checks.
+
+**Job time limit.** See *Time limit* in [Background jobs](#background-jobs).
+
+`test_limits.py` covers each of these: the address in either mode, the widget's markup,
+missing, forged, too long and valid tokens, Cloudflare unreachable, each quota and guard
+(and that local mode has none), retries, the purge of `JobStart`, the soft time limit,
+and the heartbeat's hard stop. `test_deploy_files.py` checks that `.env.example` and
+`compose.yaml` carry every setting, and that `web` is the only app service on `egress`.
 
 ### Image in CI and on ghcr.io
 
@@ -3704,11 +3788,15 @@ session sees the job; a token rather than the session key, so rotating the sessi
 does not orphan jobs); `params` (JSON); `title`; `status` (`queued`, `running`,
 `succeeded`, `failed`, `cancelled`); `stage`, `step`, `total` (the last progress callback;
 `percent` from them); `created_at`, `started_at`, `finished_at`, `heartbeat_at`; `worker`;
-`attempts`; `cancel_requested`; `error` (the message for the user); `log` (the operator
+`attempts`; `cancel_requested`; `client` (hosted mode: the client address that started
+the job, for the quotas, #125; blank in local mode); `error` (the message for the user); `log` (the operator
 log: one timestamped line per attempt, the outcome, the run time, and the traceback of a
 failure); `result` (JSON from the runner: files written, zip). The job's folder is
 `<RUNS_DIR>/<id>/` with `input/` (uploads) and `output/` (what the core writes). The
-`Worker` table lists running workers (`name`, `started_at`, `seen_at`).
+`Worker` table lists running workers (`name`, `started_at`, `seen_at`). `JobStart` (hosted
+mode) records each job started or retried (`client`, `kind`, `created_at`) for the daily
+quota, which counts these rather than jobs because a user can delete jobs; a purger
+deletes the rows older than two days.
 
 **Runners** (`jobs/registry.py`, `jobs/runners.py`). `@register("kind")` maps a kind to a
 function `runner(ctx: JobContext) -> dict`. The context has the params, the folders, the
@@ -3773,8 +3861,17 @@ xclim.
   traceback is never shown in the browser. The stage where a failed run stopped is kept.
   Messages are stored in English at the time of failure (the core's messages are English
   too); translating them is left to the translation work.
+- *Time limit* (hosted mode, `JOB_TIME_LIMIT_MINUTES`, default 60, #125): past the limit
+  the progress callback raises `JobTimedOut` (a `BaseException`, like `JobCancelled`) and
+  the job fails with `TIME_LIMIT_MESSAGE`, retry offered. A stage that reports no progress
+  can't be interrupted from Python, so once the limit plus `JOB_TIME_LIMIT_GRACE_SECONDS`
+  (60) has passed, the heartbeat thread fails the job itself (`Heartbeat.hard_stop`) and
+  ends the worker process with `os._exit(3)`. Docker restarts it (`restart:
+  unless-stopped`), and batch pool processes end with the container's main process. No
+  limit in local mode.
 - *Retry* (`Job.retry`) queues a failed or cancelled job again with the same inputs and
-  parameters, at the back of the queue; its output folder is emptied when it starts.
+  parameters, at the back of the queue; its output folder is emptied when it starts. In
+  hosted mode it counts as a new job for the quotas.
 
 In local mode `climpact-web` starts the worker as a **child process**
 (`python -m climpact_web manage runworker --name <host>:<pid>/worker-<n>`) rather than a

@@ -6,13 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: calc(var(--spacing) * 3);
   cursor: pointer;
   list-style: none;
 }
 
 .sector-settings > summary::-webkit-details-marker { display: none; }
-.sector-settings[open] > summary { margin-block-end: var(--space-4); }
+.sector-settings[open] > summary { margin-block-end: calc(var(--spacing) * 4); }
 .sector-settings[open] > summary .icon { transform: rotate(180deg); }
 
 .sector-head {
@@ -20,37 +20,37 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
+  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
 }
 
 .sector-order { margin: 0; }
 
 .sector-plots {
   display: grid;
-  gap: var(--space-5);
+  gap: calc(var(--spacing) * 5);
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 }
 
 .sector-figure { margin: 0; min-inline-size: 0; }
 .sector-figure__title { font-weight: 600; }
-.sector-caption { display: grid; gap: var(--space-1); }
+.sector-caption { display: grid; gap: calc(var(--spacing) * 1); }
 
 /* The bar chart keeps a readable size on a phone: its region scrolls sideways instead. */
 .sector-scroll { overflow-x: auto; }
 .sector-scroll > .sector-plot { min-inline-size: 34rem; }
 .sector-fit { font-family: var(--font-mono); font-size: var(--text-sm); }
-.sector-fit__r2 { margin-inline-start: var(--space-3); }
+.sector-fit__r2 { margin-inline-start: calc(var(--spacing) * 3); }
 
 .sector-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: calc(var(--spacing) * 4);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.sector-legend li { display: flex; align-items: center; gap: var(--space-2); }
+.sector-legend li { display: flex; align-items: center; gap: calc(var(--spacing) * 2); }
 
 .sector-legend__swatch {
   display: inline-block;

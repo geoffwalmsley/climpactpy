@@ -3,7 +3,7 @@
 
 .param-grid {
   display: grid;
-  gap: var(--space-5);
+  gap: calc(var(--spacing) * 5);
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
   align-items: start;
 }
@@ -24,14 +24,14 @@
 
 .skipped-list {
   display: grid;
-  gap: var(--space-1);
-  padding-inline-start: var(--space-5);
+  gap: calc(var(--spacing) * 1);
+  padding-inline-start: calc(var(--spacing) * 5);
 }
 
 /* Filters */
 .results-filter {
   display: grid;
-  gap: var(--space-4);
+  gap: calc(var(--spacing) * 4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   align-items: end;
 }
@@ -50,7 +50,7 @@
 
 .results-filter input[type="search"] {
   inline-size: 100%;
-  padding-inline-start: var(--space-8);
+  padding-inline-start: calc(var(--spacing) * 8);
 }
 
 .results-filter__submit[hidden] {
@@ -60,7 +60,7 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: calc(var(--spacing) * 2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -70,7 +70,7 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--control-height-sm);
-  padding-inline: var(--space-3);
+  padding-inline: calc(var(--spacing) * 3);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-full);
   background: var(--color-surface);
@@ -89,7 +89,7 @@
 .chip--current {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
-  font-weight: var(--weight-medium);
+  font-weight: var(--font-weight-medium);
 }
 
 .chip:has(input:focus-visible) {
@@ -108,9 +108,9 @@
 .trend-list__item {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+  gap: calc(var(--spacing) * 1) calc(var(--spacing) * 4);
   align-items: center;
-  padding-block: var(--space-2);
+  padding-block: calc(var(--spacing) * 2);
   border-block-end: 1px solid var(--color-border);
 }
 
@@ -142,12 +142,12 @@
 }
 
 .results-section > .index-grid {
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4) calc(var(--spacing) * 4);
 }
 
 .index-grid {
   display: grid;
-  gap: var(--space-4);
+  gap: calc(var(--spacing) * 4);
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
   margin: 0;
   padding: 0;
@@ -158,8 +158,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: calc(var(--spacing) * 2);
+  padding: calc(var(--spacing) * 4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -216,19 +216,19 @@
 .index-card__trend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: calc(var(--spacing) * 2);
   align-items: center;
   margin-block-start: auto;
   font-size: var(--text-sm);
 }
 
 .trend {
-  font-weight: var(--weight-medium);
+  font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
 }
 
 .trend::before {
-  margin-inline-end: var(--space-1);
+  margin-inline-end: calc(var(--spacing) * 1);
   content: "→";
   content: "→" / "";
 }
@@ -293,22 +293,22 @@
 
 .results-footer {
   display: grid;
-  gap: var(--space-5);
+  gap: calc(var(--spacing) * 5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   align-items: start;
 }
 
 .link-list {
   display: grid;
-  gap: var(--space-2);
+  gap: calc(var(--spacing) * 2);
   margin: 0;
-  padding-inline-start: var(--space-5);
+  padding-inline-start: calc(var(--spacing) * 5);
 }
 
 .settings-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2) var(--space-4);
+  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
   margin: 0;
   font-size: var(--text-sm);
 }
@@ -345,7 +345,7 @@
 /* The downloads page (#79). */
 .download-grid {
   display: grid;
-  gap: var(--space-5);
+  gap: calc(var(--spacing) * 5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   margin: 0;
   padding: 0;
@@ -383,12 +383,12 @@
   .download-table td {
     display: block;
     border: 0;
-    padding: var(--space-1) var(--space-3);
+    padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
   }
 
   .download-table tr {
     border-block-end: 1px solid var(--color-border);
-    padding-block: var(--space-2);
+    padding-block: calc(var(--spacing) * 2);
   }
 
   .download-table .download-cell {

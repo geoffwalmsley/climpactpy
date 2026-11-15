@@ -14,7 +14,7 @@
   padding-inline: 0;
   color: var(--color-accent);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--font-weight-medium);
 }
 
 .help-topic--compact summary:hover span {
@@ -22,8 +22,8 @@
 }
 
 .help-topic--compact .disclosure__body {
-  margin-block-start: var(--space-1);
-  padding: var(--space-3) var(--space-4);
+  margin-block-start: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   border-inline-start: 3px solid var(--color-accent);
   border-radius: var(--radius-sm);
   background: var(--color-accent-soft);
@@ -32,12 +32,12 @@
 }
 
 .help-topic .disclosure__body p {
-  margin-block: 0 var(--space-2);
+  margin-block: 0 calc(var(--spacing) * 2);
 }
 
 .field-set > .help-topic,
 .field > .help-topic {
-  margin-block-start: var(--space-1);
+  margin-block-start: calc(var(--spacing) * 1);
 }
 
 /* == Help pages == */
@@ -66,17 +66,17 @@
 
 .help-results {
   display: grid;
-  gap: var(--space-4);
-  max-inline-size: var(--prose-width);
+  gap: calc(var(--spacing) * 4);
+  max-inline-size: var(--container-prose);
 }
 
 .help-results li > a {
-  font-weight: var(--weight-medium);
-  margin-inline-end: var(--space-2);
+  font-weight: var(--font-weight-medium);
+  margin-inline-end: calc(var(--spacing) * 2);
 }
 
 .help-results p {
-  margin-block: var(--space-1) 0;
+  margin-block: calc(var(--spacing) * 1) 0;
 }
 
 .help-groups ul {
@@ -85,9 +85,9 @@
 }
 
 .help-topic-list > div {
-  padding-block: var(--space-3);
+  padding-block: calc(var(--spacing) * 3);
   border-block-end: 1px solid var(--color-border);
-  scroll-margin-block-start: var(--space-16);
+  scroll-margin-block-start: calc(var(--spacing) * 16);
 }
 
 .help-topic-list > div:target {
@@ -95,26 +95,26 @@
 }
 
 .help-topic-list dt {
-  font-weight: var(--weight-medium);
+  font-weight: var(--font-weight-medium);
 }
 
 .help-topic-list dd {
-  margin: var(--space-1) 0 0;
+  margin: calc(var(--spacing) * 1) 0 0;
   color: var(--color-text-muted);
-  max-inline-size: var(--prose-width);
+  max-inline-size: var(--container-prose);
 }
 
 /* Guide: contents beside the text on wide screens, above it on narrow ones. */
 .help-guide {
   display: grid;
-  gap: var(--space-6);
+  gap: calc(var(--spacing) * 6);
   grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 64rem) {
   .help-guide {
     grid-template-columns: 15rem minmax(0, 1fr);
-    column-gap: var(--space-10);
+    column-gap: calc(var(--spacing) * 10);
   }
 
   .help-guide > .breadcrumb,
@@ -125,15 +125,15 @@
 
   .help-toc {
     position: sticky;
-    inset-block-start: var(--space-4);
+    inset-block-start: calc(var(--spacing) * 4);
     align-self: start;
-    max-block-size: calc(100vh - var(--space-8));
+    max-block-size: calc(100vh - calc(var(--spacing) * 8));
     overflow-y: auto;
   }
 }
 
 .help-toc {
-  padding: var(--space-4);
+  padding: calc(var(--spacing) * 4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -141,31 +141,31 @@
 }
 
 .help-toc__title {
-  margin-block: 0 var(--space-2);
+  margin-block: 0 calc(var(--spacing) * 2);
   font-size: var(--text-sm);
 }
 
 .help-toc ol {
   margin: 0;
-  padding-inline-start: var(--space-4);
+  padding-inline-start: calc(var(--spacing) * 4);
 }
 
 .help-toc li + li,
 .help-toc ol ol {
-  margin-block-start: var(--space-1);
+  margin-block-start: calc(var(--spacing) * 1);
 }
 
 .help-toc ol ol {
   list-style: none;
-  padding-inline-start: var(--space-3);
+  padding-inline-start: calc(var(--spacing) * 3);
 }
 
 .help-article :is(h2, h3, h4) {
-  scroll-margin-block-start: var(--space-4);
+  scroll-margin-block-start: calc(var(--spacing) * 4);
 }
 
 .help-article h2 {
-  margin-block-start: var(--space-10);
+  margin-block-start: calc(var(--spacing) * 10);
 }
 
 .help-article h2:first-child {
@@ -173,7 +173,7 @@
 }
 
 .help-article h4 {
-  margin-block: var(--space-6) var(--space-1);
+  margin-block: calc(var(--spacing) * 6) calc(var(--spacing) * 1);
   font-size: var(--text-base);
 }
 
@@ -185,25 +185,25 @@
 
 .help-article pre {
   overflow-x: auto;
-  padding: var(--space-3) var(--space-4);
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
   font-size: var(--text-sm);
 }
 
 .help-article .table-wrap {
-  margin-block: var(--space-4);
+  margin-block: calc(var(--spacing) * 4);
 }
 
 .help-article .index-facts {
-  margin-block-start: var(--space-1);
+  margin-block-start: calc(var(--spacing) * 1);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
 .help-article blockquote {
   margin-inline: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   border-inline-start: 3px solid var(--color-accent);
   background: var(--color-accent-soft);
 }
@@ -216,14 +216,14 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding-block-start: var(--space-6);
+  gap: calc(var(--spacing) * 4);
+  padding-block-start: calc(var(--spacing) * 6);
   border-block-start: 1px solid var(--color-border);
 }
 
 .help-pager__link {
   display: grid;
-  gap: var(--space-1);
+  gap: calc(var(--spacing) * 1);
 }
 
 .help-pager__link--next {
@@ -246,7 +246,7 @@
   position: absolute;
   z-index: 40;
   inline-size: min(22rem, calc(100vw - 2rem));
-  padding: var(--space-4) var(--space-5);
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -255,25 +255,25 @@
 
 .tour--docked {
   position: fixed;
-  inset-inline: var(--space-4);
-  inset-block-end: var(--space-4);
+  inset-inline: calc(var(--spacing) * 4);
+  inset-block-end: calc(var(--spacing) * 4);
   inline-size: auto;
 }
 
 .tour__title {
-  margin-block: 0 var(--space-2);
+  margin-block: 0 calc(var(--spacing) * 2);
   font-size: var(--text-md);
 }
 
 .tour__text {
-  margin-block: 0 var(--space-4);
+  margin-block: 0 calc(var(--spacing) * 4);
 }
 
 .tour__footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: calc(var(--spacing) * 2);
 }
 
 .tour__count {

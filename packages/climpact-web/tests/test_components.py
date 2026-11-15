@@ -239,7 +239,8 @@ def test_landing_page(client):
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
-    assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
+    # One stylesheet carries both themes (#118): data-theme on <html> picks one.
+    assert "/static/climpact_web/css/climpact.css" in html and "theme-dark" not in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     assert re.findall(r'href="([^"]+)"', nav) == [
         "/station/",
@@ -318,7 +319,7 @@ def test_design_snapshots(tmp_path):
     for name in names:
         for suffix in ("", "-dark"):
             html = (out / f"{name}{suffix}.html").read_text()
-            assert 'href="static/climpact_web/css/main.css"' in html
+            assert 'href="static/climpact_web/css/climpact.css"' in html
             assert '"/static/' not in html
             assert "icons.svg#" not in html and '<symbol id="upload"' in html
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()

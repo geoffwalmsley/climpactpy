@@ -7,11 +7,11 @@
   <meta name="color-scheme" content="light dark">
   <title>{% block title %}{% translate "Climpact" %}{% endblock %}{% block title_suffix %} &middot; {% translate "Climpact" %}{% endblock %}</title>
   <link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'climpact_web/css/climpact.css' %}">
   <link rel="stylesheet" href="{% static 'climpact_web/css/main.css' %}">
-  <link rel="stylesheet" href="{% static 'climpact_web/css/theme-dark.css' %}" media="(prefers-color-scheme: dark)" id="theme-dark">
   <link rel="stylesheet" href="{% static 'climpact_web/css/help.css' %}">
   {# The theme the user picked (ui.js), applied before the page paints. #}
-  <script>try{var t=localStorage.getItem("climpact-theme");if(t==="dark"||t==="light"){document.getElementById("theme-dark").media=t==="dark"?"all":"not all";document.documentElement.dataset.theme=t}}catch(e){}</script>
+  <script>try{var t=localStorage.getItem("climpact-theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
   <script src="{% static 'climpact_web/vendor/htmx/htmx.min.js' %}" defer></script>
   <script src="{% static 'climpact_web/js/ui.js' %}" defer></script>
   {% block head %}{% endblock %}

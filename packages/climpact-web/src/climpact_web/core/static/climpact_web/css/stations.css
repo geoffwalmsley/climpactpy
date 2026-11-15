@@ -3,21 +3,21 @@
 
 .station-start {
   display: grid;
-  gap: var(--space-5);
+  gap: calc(var(--spacing) * 5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   align-items: start;
 }
 
 .file-problems {
   display: grid;
-  gap: var(--space-2);
-  padding-inline-start: var(--space-5);
+  gap: calc(var(--spacing) * 2);
+  padding-inline-start: calc(var(--spacing) * 5);
 }
 
 .file-problems__line {
   display: block;
-  margin-block-start: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  margin-block-start: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
   overflow-x: auto;
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -28,7 +28,7 @@
 }
 
 .file-example {
-  padding: var(--space-3);
+  padding: calc(var(--spacing) * 3);
   overflow-x: auto;
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
@@ -38,19 +38,19 @@
 
 .recent-list {
   display: grid;
-  gap: var(--space-2);
-  padding-inline-start: var(--space-5);
+  gap: calc(var(--spacing) * 2);
+  padding-inline-start: calc(var(--spacing) * 5);
 }
 
 .stat-row {
   display: grid;
-  gap: var(--space-4);
+  gap: calc(var(--spacing) * 4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
 }
 
 .field-set {
   display: grid;
-  gap: var(--space-3);
+  gap: calc(var(--spacing) * 3);
   min-inline-size: 0;
   margin: 0;
   padding: 0;
@@ -59,17 +59,17 @@
 
 .field-set legend {
   padding: 0;
-  font-weight: var(--weight-medium);
+  font-weight: var(--font-weight-medium);
 }
 
 .field-group {
   display: grid;
-  gap: var(--space-2);
+  gap: calc(var(--spacing) * 2);
 }
 
 .field__warning {
   display: flex;
-  gap: var(--space-1);
+  gap: calc(var(--spacing) * 1);
   margin: 0;
   color: var(--color-text);
   font-size: var(--text-sm);
@@ -83,13 +83,13 @@
 
 .series-preview {
   display: grid;
-  gap: var(--space-3);
+  gap: calc(var(--spacing) * 3);
   margin: 0;
 }
 
 .series-preview__panel {
   display: grid;
-  gap: var(--space-1);
+  gap: calc(var(--spacing) * 1);
 }
 
 .series-preview__label {
@@ -121,7 +121,7 @@
 }
 
 .year-table__gap {
-  font-weight: var(--weight-bold);
+  font-weight: var(--font-weight-bold);
 }
 
 /* File and station names are often one long word (sydney_observatory_hill_1936-2015.txt):

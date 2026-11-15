@@ -84,13 +84,13 @@ def test_serves_local_mode(tmp_path):
             assert "<html" in html
         # Static files were collected on start (#82): the page links the hashed copy, sent
         # Brotli-compressed with a one-year cache; the plain name still works.
-        css = re.search(r'href="/(static/climpact_web/css/main\.[0-9a-f]{12}\.css)"', html)
+        css = re.search(r'href="/(static/climpact_web/css/climpact\.[0-9a-f]{12}\.css)"', html)
         assert css, html[:2000]
         request = urllib.request.Request(url + css.group(1), headers={"Accept-Encoding": "br"})
         with urllib.request.urlopen(request, timeout=10) as r:
             assert r.headers["Content-Encoding"] == "br"
             assert "immutable" in r.headers["Cache-Control"]
-        with urllib.request.urlopen(url + "static/climpact_web/css/main.css", timeout=10) as r:
+        with urllib.request.urlopen(url + "static/climpact_web/css/climpact.css", timeout=10) as r:
             assert r.status == 200
         # Pages are gzipped for browsers that accept it.
         request = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})

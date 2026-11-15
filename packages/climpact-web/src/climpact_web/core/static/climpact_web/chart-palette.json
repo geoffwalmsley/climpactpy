@@ -1,5 +1,5 @@
 {
-  "about": "climpact-web chart colours, generated from the --chart-* tokens in css/main.css and css/theme-dark.css by climpact_web.core.tokens. Categorical colours are assigned in this fixed order, never cycled.",
+  "about": "climpact-web chart colours, generated from the --chart-* tokens in tailwind/theme.css and tailwind/base.css by climpact_web.core.tokens. Categorical colours are assigned in this fixed order, never cycled.",
   "light": {
     "categorical": [
       "#2a78d6",

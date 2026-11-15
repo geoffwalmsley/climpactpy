@@ -16,7 +16,7 @@ def test_home(client):
     assert response.status_code == 200
     html = response.content.decode()
     assert '<html lang="en" dir="ltr">' in html
-    assert "/static/climpact_web/css/main.css" in html
+    assert "/static/climpact_web/css/climpact.css" in html
     assert "/static/climpact_web/vendor/htmx/htmx.min.js" in html
     assert 'href="#main"' in html  # skip link
     assert "X-CSRFToken" in html  # htmx requests carry the CSRF token
@@ -85,7 +85,7 @@ def test_csrf_enforced():
 
 def test_static_files_served_from_the_package(client):
     """WhiteNoise serves the packaged static files without collectstatic (local mode)."""
-    for path in ("climpact_web/css/main.css", "climpact_web/vendor/htmx/htmx.min.js"):
+    for path in ("climpact_web/css/climpact.css", "climpact_web/vendor/htmx/htmx.min.js"):
         response = client.get(f"/static/{path}")
         assert response.status_code == 200, path
         b"".join(response.streaming_content)

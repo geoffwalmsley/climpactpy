@@ -1,0 +1,57 @@
+/*
+ * climpact-web stylesheet (#71, #118): the Tailwind CSS source. Built by the standalone
+ * Tailwind CLI (pinned in scripts/fetch-tailwind.sh) into
+ * static/climpact_web/css/climpact.css, which is committed, so installs and the core-only
+ * CI job need no Tailwind:
+ *
+ *     scripts/build-css.sh            # build once (CI checks the committed file is current)
+ *     scripts/build-css.sh --watch    # rebuild on every change while developing
+ *
+ * Layers, lowest first: theme (the tokens, theme.css), base (dark tokens and element
+ * styles, base.css), vendor (uPlot's stylesheet), components (the repeated pieces,
+ * components/), utilities (Tailwind's, generated only for the class names found in the
+ * @source files below).
+ *
+ * Class names Tailwind cannot see: the components are plain CSS, emitted whether or not a
+ * file names them, so classes built in Python or JavaScript (batch-item--{{ status }},
+ * gmap__c3, the SVG plots' classes) must be component classes, or written out in full in a
+ * scanned file, or listed with @source inline(). Logical properties only (right-to-left);
+ * see TECHNICAL.md, "Design system".
+ */
+@layer theme, base, vendor, components, utilities;
+
+@import "./theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+@source "../../**/templates/**/*.html";
+@source "../static/climpact_web/js/*.js";
+/* Words in the templates that are not utilities here: component classes that would also
+   make a Tailwind utility (table, container), and words in text or attributes (ring,
+   filter ...) that would add unused utilities. */
+@source not inline("table container ring filter transform resize visible static m-2");
+
+/* dark: the OS preference unless the theme toggle chose light, or the toggle chose dark. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:not([data-theme="light"]) {
+      @slot;
+    }
+  }
+
+  &[data-theme="dark"] {
+    @slot;
+  }
+}
+
+/* Grids of cards and fields that wrap to as many columns as fit: grid-cols-fill-64 makes
+   columns of at least 16rem (64 spacing steps), never wider than the container;
+   grid-cols-fit-* is the same with auto-fit (the columns stretch when there are few). */
+@utility grid-cols-fill-* {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, --spacing(--value(integer))), 1fr));
+}
+
+@utility grid-cols-fit-* {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, --spacing(--value(integer))), 1fr));
+}
+
+@import "./base.css";

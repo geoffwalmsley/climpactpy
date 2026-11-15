@@ -357,9 +357,10 @@ def test_load_page_summarises_the_data(client):
     # Sydney: 29220 days; 7 precipitation and 58 temperature values missing
     cells = re.sub(r"\s+", " ", html)
     assert (
-        '<td class="num">29213</td> <td class="num">7</td> <td class="num">under 0.1%</td>' in cells
+        '<td class="num">29,213</td> <td class="num">7</td> <td class="num">under 0.1%</td>'
+        in cells
     )
-    assert '<td class="num">29162</td> <td class="num">58</td> <td class="num">0.2%</td>' in cells
+    assert '<td class="num">29,162</td> <td class="num">58</td> <td class="num">0.2%</td>' in cells
     assert html.count('<svg viewBox="0 0 960 170" role="img"') == 2  # the static preview
     assert "CHART HOOK" not in html  # a template comment, for #75/#77
     assert "Days with data in each year" in html and '<th scope="row">1936</th>' in html

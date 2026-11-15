@@ -43,7 +43,7 @@ Context: monthly, annual, decimals, histogram.
               <div class="table-wrap" role="region" aria-label="{{ plot.title }}" tabindex="0">
                 <table class="table">
                   <thead><tr><th scope="col">{% translate "Decimal" %}</th><th scope="col" class="num">{% translate "Days" %}</th><th scope="col" class="num">{% translate "Share" %}</th></tr></thead>
-                  <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count }}</td><td class="num">{% blocktranslate with percent=row.percent %}{{ percent }}%{% endblocktranslate %}</td></tr>{% endfor %}</tbody>
+                  <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count|count }}</td><td class="num">{% blocktranslate with percent=row.percent %}{{ percent }}%{% endblocktranslate %}</td></tr>{% endfor %}</tbody>
                 </table>
               </div>
             </div>
@@ -58,7 +58,7 @@ Context: monthly, annual, decimals, histogram.
       {% help_topic "qc.precip_histogram" %}
       <figure class="qc-figure stack stack--sm" aria-labelledby="dist-hist-title">
         <figcaption id="dist-hist-title" class="qc-figure__title">{{ histogram.title }}</figcaption>
-        <p class="small muted">{% blocktranslate count counter=histogram.total trimmed %}{{ counter }} day of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% plural %}{{ counter }} days of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% endblocktranslate %}</p>
+        <p class="small muted">{% blocktranslate count counter=histogram.total with total=histogram.total|count trimmed %}{{ total }} day of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% plural %}{{ total }} days of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% endblocktranslate %}</p>
         {% if histogram.svg %}{{ histogram.svg }}{% else %}<p class="muted">{% translate "No day with 1 mm or more." %}</p>{% endif %}
         <details class="disclosure">
           <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
@@ -66,7 +66,7 @@ Context: monthly, annual, decimals, histogram.
             <div class="table-wrap" role="region" aria-label="{{ histogram.title }}" tabindex="0">
               <table class="table">
                 <thead><tr><th scope="col">{% translate "Amount (mm)" %}</th><th scope="col" class="num">{% translate "Days" %}</th></tr></thead>
-                <tbody>{% for row in histogram.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count }}</td></tr>{% endfor %}</tbody>
+                <tbody>{% for row in histogram.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.count|count }}</td></tr>{% endfor %}</tbody>
               </table>
             </div>
           </div>

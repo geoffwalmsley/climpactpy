@@ -37,7 +37,7 @@ where problems cluster.
 You can change the two multiples (3 and 5) before running the checks. A smaller number
 flags more values.
 
-## Maximum below minimum {#maximum-below-minimum}
+## Minimum at or above maximum {#maximum-below-minimum}
 
 Days where the minimum temperature is **equal to or higher than** the maximum. These are
 nearly always errors: swapped columns, a typing error, or readings from different days.

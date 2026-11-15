@@ -720,3 +720,42 @@ def test_sparklines_are_small_and_keep_gaps():
     bars = results_model.sparkline([0.5, -1.0] * 600, bars=True)  # monthly SPI: columns
     assert bars["pos"].count("M") <= results_model.SPARK_WIDTH and bars["neg"]
     assert results_model.sparkline([float("nan")] * 3) == {}
+
+
+def test_change_the_settings_on_the_results_opens_them(client):
+    """#115: the results page's "Change the settings" lands on the settings open, without
+    JavaScript, even when the last run used the defaults (which start closed)."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    actions = re.search(r'<div class="cluster results-actions">.*?</div>', html, re.S).group(0)
+    link = f"/station/{analysis.pk}/indices?settings=open#settings"
+    assert f'href="{link}"' in actions
+    assert " open" in _settings(client.get(link).content.decode())
+    assert " open" not in _settings(client.get(f"/station/{analysis.pk}/indices").content.decode())
+
+
+def test_index_page_chart_title_is_the_cleaned_definition(client):
+    """#115: the chart title is the code and the cleaned definition (°C), as the page's
+    subtitle, not R's raw plot subtitle."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/results/su").content.decode()
+    title = re.search(r'<h2 class="chart__title" id="index-chart-title">(.*?)</h2>', html).group(1)
+    assert title == "SU: Annual number of days when TX &gt; 25 °C"
+    assert "degrees_C" not in title
+    monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
+    assert re.search(r'id="index-chart-title">TXx: [^<]*</h2>', monthly)
+
+
+def test_step_names_and_headings_match(client):
+    """#115: each step's heading is the step's name or starts with it."""
+    analysis, _job = finished_analysis(client)
+    for path, h1 in [
+        (f"/station/{analysis.pk}/load", "Load data: check it and describe the station"),
+        (f"/station/{analysis.pk}/indices", "Calculate indices"),
+        (f"/station/{analysis.pk}/results", "Results and downloads"),
+    ]:
+        html = client.get(path).content.decode()
+        assert f"<h1>{h1}</h1>" in html
+        steps = re.search(r'<ol class="steps container">.*?</ol>', html, re.S).group(0)
+        step = re.search(r'aria-current="step">.*?</span>\s*([^<]+)', steps, re.S).group(1)
+        assert h1.startswith(step.strip()), (path, step)

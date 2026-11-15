@@ -6,7 +6,7 @@
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
-    <h1>{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating indices" %}{% else %}{% translate "Results" %}{% endif %}</h1>
+    <h1>{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating indices" %}{% else %}{% translate "Results and downloads" %}{% endif %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name start=analysis.base_start end=analysis.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
   </header>
   {% if missing_outputs %}

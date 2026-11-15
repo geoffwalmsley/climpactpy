@@ -16,7 +16,7 @@
     <h1>{{ card.title }}</h1>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
     <p class="small muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
-    {% help_topic card.topic %}
+    {% blocktranslate with code=card.code asvar topic_question %}How is {{ code }} defined?{% endblocktranslate %}{% help_topic card.topic summary=topic_question %}
     {% if card.param_topic %}
     <p class="small">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>; you come back to this index afterwards.{% endblocktranslate %}</p>
     {% endif %}
@@ -49,7 +49,7 @@
   {% if chart_url %}
   {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
   {% url 'jobs:file' job.pk csv_path as csv_url %}
-  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=series.description data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
+  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=chart_title data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
   {% help_topic "trend.sen_slope" %}
   {% endif %}
 
@@ -66,7 +66,7 @@
   {% if card.daily %}
   <section class="card stack" aria-labelledby="daily-title">
     <h2 class="card__title" id="daily-title">{% translate "Daily values" %}</h2>
-    <p>{% blocktranslate with days=card.daily.days first=card.daily.first last=card.daily.last missing=card.daily.missing positive=card.daily.positive trimmed %}
+    <p>{% blocktranslate with days=card.daily.days|count first=card.daily.first last=card.daily.last missing=card.daily.missing positive=card.daily.positive trimmed %}
       {{ days }} days from {{ first }} to {{ last }}: {{ positive }} above zero, {{ missing }} missing. Climpact for R does not plot this table; the ten highest days are below and the CSV has them all.
     {% endblocktranslate %}</p>
     <div class="table-wrap" role="region" aria-labelledby="daily-caption" tabindex="0">

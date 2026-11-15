@@ -52,7 +52,6 @@
     return numberFormats[d].format(v);
   }
 
-  var dayFormat = new Intl.DateTimeFormat(lang, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
   var monthFormat = new Intl.DateTimeFormat(lang, { year: "numeric", month: "short", timeZone: "UTC" });
 
   function palette() {
@@ -134,7 +133,7 @@
       flagInfo: flagInfo,
       flagChecks: flagChecks,
       label: function (v) {
-        return dayFormat.format(new Date(v * 1000));
+        return isoDay(v); // ISO dates, as the tables and the files (#115)
       }
     };
   }
@@ -182,7 +181,15 @@
 
   /* ---- uPlot options ---- */
 
-  function uSeries(s, pal) {
+  /* A hex colour with transparency: the QC rings, so the series shows through (#115). */
+  function translucent(c, a) {
+    var m = /^#([0-9a-f]{6})$/i.exec(c);
+    if (!m) return c;
+    var n = parseInt(m[1], 16);
+    return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+  }
+
+  function uSeries(s, pal, flagsHidden) {
     var c = colour(pal, s.token);
     var out = { label: s.label, stroke: c, width: s.thin ? 1 : 1.5, spanGaps: !!s.trend, points: { show: false } };
     if (s.bars) {
@@ -199,7 +206,8 @@
       out.paths = function () {
         return null;
       };
-      out.points = { show: true, size: 9, width: 1.5, fill: "transparent", stroke: c, space: 0 };
+      out.points = { show: true, size: 7, width: 1.25, fill: "transparent", stroke: translucent(c, 0.75), space: 0 };
+      out.show = !flagsHidden;
     }
     return out;
   }
@@ -269,7 +277,7 @@
         { stroke: pal.text_muted, grid: grid, ticks: { stroke: pal.roles.grid }, font: font, labelFont: font, label: panel.label, labelSize: 18, size: 52 }
       ],
       series: [{}].concat(panel.series.map(function (s) {
-        return uSeries(s, pal);
+        return uSeries(s, pal, chart.flagsHidden);
       })),
       hooks: {
         setScale: [
@@ -373,14 +381,28 @@
     var legend = el.querySelector("[data-chart-legend]");
     if (legend) {
       legend.innerHTML = "";
+      var self = this;
       model.legend.forEach(function (item) {
         var li = doc.createElement("li");
         var sw = doc.createElement("span");
         sw.className = "chart__swatch" + (item.ring ? " chart__swatch--ring" : "") + (item.dash ? " chart__swatch--dash" : "") + (item.box ? " chart__swatch--box" : "");
         sw.style.setProperty("--swatch", "var(" + item.token + ")");
         sw.setAttribute("aria-hidden", "true");
-        li.appendChild(sw);
-        li.appendChild(doc.createTextNode(item.label));
+        // The QC flags' legend entry shows and hides the rings (#115).
+        var holder = li;
+        if (item.ring) {
+          holder = doc.createElement("button");
+          holder.type = "button";
+          holder.className = "chart__legend-toggle";
+          holder.setAttribute("aria-pressed", self.flagsHidden ? "false" : "true");
+          holder.setAttribute("data-chart-flags", "");
+          holder.addEventListener("click", function () {
+            self.showFlags(holder.getAttribute("aria-pressed") !== "true");
+          });
+          li.appendChild(holder);
+        }
+        holder.appendChild(sw);
+        holder.appendChild(doc.createTextNode(item.label));
         legend.appendChild(li);
       });
       legend.hidden = false;
@@ -539,6 +561,18 @@
     if (this.status) this.status.textContent = t("showing", { from: this.model.label(x - half), to: this.model.label(x + half) });
   };
 
+  /* Show or hide the QC rings on every panel (the legend's toggle, #115). */
+  Chart.prototype.showFlags = function (show) {
+    this.flagsHidden = !show;
+    this.plots.forEach(function (u) {
+      u.series.forEach(function (s, i) {
+        if (i && s.label === this.payload.flags.label) u.setSeries(i, { show: show });
+      }, this);
+    }, this);
+    var button = this.el.querySelector("[data-chart-flags]");
+    if (button) button.setAttribute("aria-pressed", show ? "true" : "false");
+  };
+
   Chart.prototype.listen = function (u) {
     var self = this, downX = null;
     u.over.addEventListener("mousedown", function (e) {
@@ -549,7 +583,7 @@
       var model = self.model, left = u.cursor.left, best = null;
       var lo = u.posToIdx(left - 8), hi = u.posToIdx(left + 8);
       for (var i = Math.max(0, lo); i <= Math.min(model.x.length - 1, hi); i++) {
-        if (model.flagChecks[i] && (best == null || Math.abs(u.valToPos(model.x[i], "x") - left) < Math.abs(u.valToPos(model.x[best], "x") - left))) best = i;
+        if (!self.flagsHidden && model.flagChecks[i] && (best == null || Math.abs(u.valToPos(model.x[i], "x") - left) < Math.abs(u.valToPos(model.x[best], "x") - left))) best = i;
       }
       var idx = best != null ? best : u.cursor.idx;
       if (idx == null) return;
@@ -675,7 +709,9 @@
     });
     var x = pad;
     ctx.font = 12 * ratio + "px " + family;
+    var flagsHidden = this.flagsHidden;
     this.model.legend.forEach(function (item) {
+      if (item.ring && flagsHidden) return;
       var c = colour(pal, item.token);
       ctx.fillStyle = c;
       ctx.strokeStyle = c;
@@ -753,6 +789,7 @@
       g.push("<text " + attr({ transform: "translate(12," + (bb.top + bb.height / 2) + ") rotate(-90)", "text-anchor": "middle" }) + ">" + esc(panel.label) + "</text>");
       g.push('<g clip-path="url(#clip' + pi + ')">');
       panel.series.forEach(function (s) {
+        if (s.flag && self.flagsHidden) return;
         g.push(svgSeries(s, model.x, vis, px, py, colour(pal, s.token), pal, bb));
       });
       g.push("</g></g>");
@@ -762,6 +799,7 @@
     });
     var x = pad, legend = [];
     model.legend.forEach(function (item) {
+      if (item.ring && self.flagsHidden) return;
       var c = colour(pal, item.token);
       legend.push(item.ring ? "<circle " + attr({ cx: x + 7, cy: y0 + 12, r: 4.5, fill: "none", stroke: c, "stroke-width": 1.5 }) + "/>" : item.dash ? "<line " + attr({ x1: x, x2: x + 14, y1: y0 + 11.5, y2: y0 + 11.5, stroke: c, "stroke-width": 3, "stroke-dasharray": "6 3" }) + "/>" : "<rect " + attr({ x: x, y: y0 + 10, width: 14, height: item.box ? 10 : 3, fill: c }) + "/>");
       legend.push("<text " + attr({ x: x + 20, y: y0 + 16, fill: pal.text_muted }) + ">" + esc(item.label) + "</text>");
@@ -784,7 +822,7 @@
     if (s.flag || s.markers) {
       for (i = vis[0]; i <= vis[1]; i++) {
         v = s.values[i];
-        if (v != null) out.push("<circle " + attr({ cx: px(x[i]), cy: py(v), r: s.flag ? 4 : 2.5, fill: s.flag ? "none" : pal.surface, stroke: c, "stroke-width": 1.5 }) + "/>");
+        if (v != null) out.push("<circle " + attr({ cx: px(x[i]), cy: py(v), r: s.flag ? 3.5 : 2.5, fill: s.flag ? "none" : pal.surface, stroke: c, "stroke-opacity": s.flag ? 0.75 : 1, "stroke-width": s.flag ? 1.25 : 1.5 }) + "/>");
       }
       if (s.flag) return out.join("");
     }

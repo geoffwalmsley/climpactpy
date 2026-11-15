@@ -102,7 +102,7 @@ def test_no_raw_colours_outside_tokens():
 
 
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's).
-CSS_BUDGET = 36_000  # bytes, main.css + theme-dark.css, uncompressed
+CSS_BUDGET = 38_000  # bytes, main.css + theme-dark.css, uncompressed (36,000 before #115's menu)
 CSS_GZIP_BUDGET = 8_500
 JS_BUDGET = 14_000  # ui.js, uncompressed (12 KB before #83)
 

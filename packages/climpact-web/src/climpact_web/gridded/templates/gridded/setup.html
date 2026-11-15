@@ -31,7 +31,7 @@
         {% if file.ok %}
         <dl class="gridded-facts">
           <div><dt>{% translate "Grid" %}</dt><dd>{% blocktranslate with ny=file.ny nx=file.nx %}{{ ny }} × {{ nx }} cells{% endblocktranslate %}</dd></div>
-          <div><dt>{% translate "Dates" %}</dt><dd>{% blocktranslate with first=file.first last=file.last days=file.days %}{{ first }} to {{ last }} ({{ days }} days){% endblocktranslate %}</dd></div>
+          <div><dt>{% translate "Dates" %}</dt><dd>{% blocktranslate with first=file.first last=file.last days=file.days|count %}{{ first }} to {{ last }} ({{ days }} days){% endblocktranslate %}</dd></div>
           <div><dt>{% translate "Calendar" %}</dt><dd>{{ file.calendar }}</dd></div>
           {% if file.y_range %}<div><dt>{% translate "Latitude" %}</dt><dd>{% blocktranslate with lo=file.y_range.0 hi=file.y_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}
           {% if file.x_range %}<div><dt>{% translate "Longitude" %}</dt><dd>{% blocktranslate with lo=file.x_range.0 hi=file.x_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}

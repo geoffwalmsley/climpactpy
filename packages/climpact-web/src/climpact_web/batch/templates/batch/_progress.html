@@ -48,7 +48,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
     </div>
   </div>
   {% if zip_file %}
-  <p>{% blocktranslate with size=zip_size|filesizeformat asvar zip_label %}Download everything (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
+  <p>{% blocktranslate with size=zip_size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk zip_file as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
   {% endif %}
   {% endif %}
 

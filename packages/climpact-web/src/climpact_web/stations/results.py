@@ -454,6 +454,16 @@ def _definition(description: str, key: str) -> str:
     return _(catalogue.plain(text))
 
 
+def chart_title(card: Card, series: Series) -> str:
+    """The index page's chart title (#115): the code as Climpact spells it and the
+    cleaned definition of the series shown (``SU: Annual number of days when TX > 25
+    °C``), not R's raw plot subtitle (``su: ... 25 degrees_C``)."""
+    definition = _definition(series.description, card.key)
+    if definition.startswith(card.code):
+        return definition
+    return _("%(code)s: %(definition)s") % {"code": card.code, "definition": definition}
+
+
 @dataclass
 class RunResults:
     cards: list[Card]

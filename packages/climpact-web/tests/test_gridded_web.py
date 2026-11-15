@@ -322,7 +322,7 @@ def test_setup_checks_fragment(client):
     html = client.post(
         f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
     ).content.decode()
-    assert "7305 days of the base period" in html and "index files will be written" in html
+    assert "7,305 days of the base period" in html and "index files will be written" in html
     assert client.post(f"/gridded/{run.pk}/checks", setup_data(run)).status_code == 400
 
 
@@ -415,7 +415,7 @@ def test_sample_run_end_to_end(client, tmp_path):
     response = client.get(f"/gridded/{run.pk}/progress?was_active=1", HTTP_HX_REQUEST="true")
     assert response["HX-Refresh"] == "true"
     html = client.get(f"/gridded/{run.pk}/progress").content.decode()
-    assert "hx-get" not in html and "Download everything" in html
+    assert "hx-get" not in html and "Download all" in html
 
     html = client.get(f"/gridded/{run.pk}/results").content.decode()
     assert "Explore the indices" in html and "txx, 2010" in html  # txx annual, last year

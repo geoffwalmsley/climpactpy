@@ -44,3 +44,20 @@ def file_size(job, relative):
     from climpact_web.jobs.views import output_size
 
     return output_size(job, relative) if job is not None and relative else 0
+
+
+@register.filter
+def count(value):
+    """A count as every screen shows one (#115): localised, with the thousands grouped
+    (``29220`` -> ``29,220`` in English), as the chart summaries. Anything that is not a
+    whole number is returned unchanged."""
+    from django.utils.formats import number_format
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        try:
+            if isinstance(value, bool) or float(value) != int(float(value)):
+                return value
+            value = int(float(value))
+        except (TypeError, ValueError):
+            return value
+    return number_format(value, force_grouping=True)

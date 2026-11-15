@@ -30,7 +30,7 @@ views.qc_context (review, job, analysis).
         {% for check in review.checks %}
         <tr>
           <th scope="row"><a href="#{{ check.anchor }}">{{ check.title }}</a></th>
-          <td class="num">{% if check.count %}<strong>{{ check.count }}</strong>{% else %}<span class="muted">{% translate "none" %}</span>{% endif %}</td>
+          <td class="num">{% if check.count %}<strong>{{ check.count|count }}</strong>{% else %}<span class="muted">{% translate "none" %}</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

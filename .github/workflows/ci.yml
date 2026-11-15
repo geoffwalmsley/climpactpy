@@ -220,3 +220,12 @@ jobs:
         run: |
           uv sync --locked --package climpact-web --extra postgres
           uv run --no-sync pytest packages/climpact-web/tests/test_queue_postgres.py -v -rs
+
+  image:
+    # The production image (#120, #122), built and tested exactly as a release builds it
+    # (image.yml); pushes nothing. Only a published release pushes (release.yml).
+    permissions:
+      contents: read
+    uses: ./.github/workflows/image.yml
+    with:
+      save-cache: true

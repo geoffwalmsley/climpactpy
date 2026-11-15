@@ -24,22 +24,22 @@ bars_svg, order, categories.
 </section>
 
 <section class="card stack" aria-labelledby="sector-bars-title" id="correlations">
-  <div class="sector-head">
+  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
     <h2 class="card__title" id="sector-bars-title">{% translate "Correlation with each index" %}</h2>
-    <p class="sector-order flex flex-wrap items-center gap-3 text-sm" aria-label="{% translate 'Order of the bars' %}">
+    <p class="m-0 flex flex-wrap items-center gap-3 text-sm" aria-label="{% translate 'Order of the bars' %}">
       {% if order == "strength" %}<a href="?#correlations">{% translate "Climpact's order" %}</a><strong aria-current="true">{% translate "Strongest first" %}</strong>
       {% else %}<strong aria-current="true">{% translate "Climpact's order" %}</strong><a href="?order=strength#correlations">{% translate "Strongest first" %}</a>{% endif %}
     </p>
   </div>
   {% help_topic "sector.correlation" %}
-  <figure class="sector-figure stack stack--sm" aria-labelledby="sector-bars-caption">
-    <figcaption id="sector-bars-caption" class="sector-figure__title">{% blocktranslate trimmed with title=results.title count counter=bars|length %}
+  <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="sector-bars-caption">
+    <figcaption id="sector-bars-caption" class="font-semibold">{% blocktranslate trimmed with title=results.title count counter=bars|length %}
       {{ title }}: correlation of your data with {{ counter }} index{% plural %}{{ title }}: correlation of your data with {{ counter }} indices
     {% endblocktranslate %}</figcaption>
-    <ul class="sector-legend text-sm" aria-label="{% translate 'Legend' %}">
-      {% for c in categories %}<li><span class="sector-legend__swatch" style="background: var({{ c.token }})" aria-hidden="true"></span>{{ c.label }}</li>{% endfor %}
+    <ul class="m-0 flex list-none flex-wrap gap-4 p-0 text-sm" aria-label="{% translate 'Legend' %}">
+      {% for c in categories %}<li class="flex items-center gap-2"><span class="inline-block size-[0.9rem] rounded-sm forced-colors:border forced-colors:border-[CanvasText]" style="background: var({{ c.token }})" aria-hidden="true"></span>{{ c.label }}</li>{% endfor %}
     </ul>
-    <div class="sector-scroll" role="region" aria-label="{% translate 'Correlation with each index' %}: {% translate 'chart' %}" tabindex="0">{{ bars_svg }}</div>
+    <div class="overflow-x-auto [&_.sector-plot]:min-w-[34rem]" role="region" aria-label="{% translate 'Correlation with each index' %}: {% translate 'chart' %}" tabindex="0">{{ bars_svg }}</div>
     {% if results.missing %}<p class="text-sm text-text-muted">{% blocktranslate trimmed with names=results.missing_names count counter=results.missing|length %}
       NA: no correlation for {{ counter }} index, {{ names }}: a missing value or no variation in the years in common.{% plural %}NA: no correlation for {{ counter }} indices, {{ names }}: a missing value or no variation in the years in common.
     {% endblocktranslate %}</p>{% endif %}
@@ -65,12 +65,12 @@ bars_svg, order, categories.
 <section class="card stack" aria-labelledby="sector-scatter-title" id="scatter-plots">
   <h2 class="card__title" id="sector-scatter-title">{% translate "Your data against the station's temperatures" %}</h2>
   {% help_topic "sector.regression" %}
-  <div class="sector-plots">
+  <div class="grid gap-5 grid-cols-fill-88">
     {% for s in results.scatters %}
-    <figure class="sector-figure stack stack--sm" aria-labelledby="scatter-{{ s.name }}-title" aria-describedby="scatter-{{ s.name }}-fit">
-      <figcaption class="sector-caption">
-        <span id="scatter-{{ s.name }}-title" class="sector-figure__title">{{ s.label }}</span>
-        <span id="scatter-{{ s.name }}-fit" class="sector-fit">{% if s.equation %}{{ s.equation }} <span class="sector-fit__r2">{% blocktranslate with r2=s.r_squared_text %}R² = {{ r2 }}{% endblocktranslate %}</span>{% else %}{% translate "No regression: fewer than two years with both values." %}{% endif %}</span>
+    <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="scatter-{{ s.name }}-title" aria-describedby="scatter-{{ s.name }}-fit">
+      <figcaption class="grid gap-1">
+        <span id="scatter-{{ s.name }}-title" class="font-semibold">{{ s.label }}</span>
+        <span id="scatter-{{ s.name }}-fit" class="font-mono text-sm">{% if s.equation %}{{ s.equation }} <span class="ms-3">{% blocktranslate with r2=s.r_squared_text %}R² = {{ r2 }}{% endblocktranslate %}</span>{% else %}{% translate "No regression: fewer than two years with both values." %}{% endif %}</span>
       </figcaption>
       {{ s.svg }}
       <details class="disclosure">

@@ -8,7 +8,6 @@
   <title>{% block title %}{% translate "Climpact" %}{% endblock %}{% block title_suffix %} &middot; {% translate "Climpact" %}{% endblock %}</title>
   <link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'climpact_web/css/climpact.css' %}">
-  <link rel="stylesheet" href="{% static 'climpact_web/css/help.css' %}">
   {# The theme the user picked (ui.js), applied before the page paints. #}
   <script>try{var t=localStorage.getItem("climpact-theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
   <script src="{% static 'climpact_web/vendor/htmx/htmx.min.js' %}" defer></script>

@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
 {% block title %}{% translate "Check the stations" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -43,7 +42,7 @@
     <div class="section__header">
       <h2 id="stations-title">{% translate "Stations" %}</h2>
     </div>
-    <div class="stat-row batch-stats">
+    <div class="grid gap-4 grid-cols-fit-28">
       {% translate "Listed" as listed_label %}{% include "components/stat.html" with label=listed_label value=counts.listed %}
       {% translate "Ready" as ready_label %}{% include "components/stat.html" with label=ready_label value=counts.ready %}
       {% translate "File missing" as missing_label %}{% include "components/stat.html" with label=missing_label value=counts.missing %}

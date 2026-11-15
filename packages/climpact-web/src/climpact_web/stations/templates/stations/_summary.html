@@ -4,7 +4,7 @@ series and the days with data in each year. Parameters from views.summary_contex
 {% endcomment %}
 <section class="card stack" aria-labelledby="data-title">
   <h2 class="card__title" id="data-title">{% translate "Your data" %}</h2>
-  <div class="stat-row">
+  <div class="grid gap-4 grid-cols-fit-40">
     {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
     {% include "components/stat.html" with label=period_label value=period note="" %}
     {% translate "Years" as years_label %}
@@ -68,7 +68,7 @@ series and the days with data in each year. Parameters from views.summary_contex
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "Days with data in each year" %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
-      <div class="table-wrap year-table" role="region" aria-labelledby="years-caption" tabindex="0">
+      <div class="table-wrap max-h-96" role="region" aria-labelledby="years-caption" tabindex="0">
         <table class="table">
           <caption id="years-caption">{% translate "Days with data in each year, and the share of the year's days" %}</caption>
           <thead><tr>
@@ -79,7 +79,7 @@ series and the days with data in each year. Parameters from views.summary_contex
             {% for year in years %}
             <tr>
               <th scope="row">{{ year.year }}</th>
-              {% for cell in year.cells %}<td class="num{% if cell.percent < 100 %} year-table__gap{% endif %}">{% blocktranslate with days=cell.value percent=cell.percent %}{{ days }} <span class="text-text-muted">({{ percent }}%)</span>{% endblocktranslate %}</td>{% endfor %}
+              {% for cell in year.cells %}<td class="num{% if cell.percent < 100 %} font-bold{% endif %}">{% blocktranslate with days=cell.value percent=cell.percent %}{{ days }} <span class="text-text-muted">({{ percent }}%)</span>{% endblocktranslate %}</td>{% endfor %}
             </tr>
             {% endfor %}
           </tbody>

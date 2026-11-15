@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Load station data" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -12,7 +11,7 @@
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" %}{% endif %}
 
-  <div class="station-start">
+  <div class="grid gap-5 grid-cols-fit-80 items-start">
     <form method="post" action="{% url 'stations:upload' %}" enctype="multipart/form-data" class="card stack" novalidate>
       {% csrf_token %}
       <h2 class="card__title">{% translate "Your station file" %}</h2>
@@ -63,7 +62,7 @@
   {% if recent %}
   <section class="stack stack--sm" aria-labelledby="recent-title">
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
-    <ul class="recent-list">
+    <ul class="grid gap-2 ps-5 wrap-anywhere">
       {% for item in recent %}
       <li><a href="{% url 'stations:load' item.pk %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}

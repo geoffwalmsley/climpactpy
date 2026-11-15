@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Downloads: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -18,15 +17,15 @@
 
   <section class="stack" aria-labelledby="whole-title">
     <h2 id="whole-title">{% translate "The whole run" %}</h2>
-    <ul class="download-grid" role="list">
+    <ul class="m-0 grid gap-5 p-0 grid-cols-fit-64" role="list">
       {% for key, d in main.items %}
-      <li class="card stack stack--sm download-card">
+      <li class="card stack stack--sm">
         {% if d %}
         <h3 class="card__title">{{ d.label }}</h3>
         <p class="text-sm">{{ d.note }}</p>
         {% url 'jobs:file' job.pk d.path as d_url %}
         {% blocktranslate with kind=d.kind|upper size=d.size|filesizeformat asvar d_label %}Download ({{ kind }}, {{ size }}){% endblocktranslate %}
-        <p class="download-card__action">{% if key == "zip" %}{% include "components/button.html" with label=d_label href=d_url icon="download" %}{% else %}{% include "components/button.html" with label=d_label href=d_url icon="download" variant="secondary" %}{% endif %}</p>
+        <p class="mt-auto">{% if key == "zip" %}{% include "components/button.html" with label=d_label href=d_url icon="download" %}{% else %}{% include "components/button.html" with label=d_label href=d_url icon="download" variant="secondary" %}{% endif %}</p>
         {% else %}
         <h3 class="card__title">{% if key == "zip" %}{% translate "Everything" %}{% elif key == "report" %}{% translate "Report" %}{% else %}{% translate "All plots" %}{% endif %}</h3>
         <p class="text-sm text-text-muted">{% if key == "zip" %}{% translate "Not made: the zip was switched off in the settings." %}{% elif key == "report" %}{% translate "Not made in this calculation: the report was switched off, or the calculation is older than the report." %}{% else %}{% translate "Not made: the plots were switched off in the settings." %}{% endif %}</p>

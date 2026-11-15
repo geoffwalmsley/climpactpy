@@ -15,7 +15,7 @@
 
   <section class="stack" aria-labelledby="guides-title">
     <h2 id="guides-title">{% translate "Guides" %}</h2>
-    <ol class="grid gap-5 grid-cols-fill-64 help-guides">
+    <ol class="grid list-none gap-5 p-0 grid-cols-fill-64">
       {% for guide in guides %}
       <li class="card card--link">
         <h3 class="card__title"><a href="{{ guide.url }}">{{ guide.title }}</a></h3>
@@ -59,7 +59,7 @@
     <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Sector data: Climpact for R's sample is yearly wheat yields for New South Wales, 1922 to 1999 (wheat_yield_nsw_1922-1999.csv).{% endblocktranslate %} <a href="{% url 'help:guide' 'sector' %}">{% translate "About sector data" %}</a></p>
   </section>
 
-  <section class="flex flex-wrap items-center gap-3 help-more" aria-label="{% translate 'More help' %}">
+  <section class="flex flex-wrap items-center gap-3" aria-label="{% translate 'More help' %}">
     <a class="button button--secondary" href="{% url 'help:topics' %}">{% icon "book" %}<span>{% translate "All help topics, A to Z" %}</span></a>
     <a class="button button--ghost" href="{% url 'core:home' %}?tour=1">{% icon "play" %}<span>{% translate "Take the tour of the start page" %}</span></a>
   </section>

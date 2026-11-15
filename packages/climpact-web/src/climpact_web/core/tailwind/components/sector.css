@@ -1,0 +1,41 @@
+/* Step 5 of a station, sector data (#90): the settings disclosure, and the bar chart and
+   scatter plots drawn on the server (stations/sector_plots.py writes these class names). */
+@layer components {
+  .sector-settings > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(3);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .sector-settings > summary::-webkit-details-marker { display: none; }
+  .sector-settings[open] > summary { margin-block-end: --spacing(4); }
+  .sector-settings[open] > summary .icon { transform: rotate(180deg); }
+
+  .sector-plot {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    direction: ltr;
+  }
+
+  .sector-plot__grid { stroke: var(--chart-grid); stroke-width: 1; }
+  .sector-plot__zero { stroke: var(--chart-axis); stroke-width: 1.25; }
+  .sector-plot__tick { fill: var(--color-text-muted); font-size: 11px; }
+  .sector-plot--scatter .sector-plot__tick { font-size: 13px; }
+  .sector-plot__label { fill: var(--color-text); font-size: 11px; }
+  .sector-plot__value { fill: var(--color-text); font-size: 10px; }
+  .sector-plot__value--na { fill: var(--color-text-muted); }
+  .sector-plot g:hover .sector-plot__bar { fill-opacity: 0.75; }
+  .sector-plot__fit { stroke: var(--chart-trend); stroke-width: 2; }
+  .sector-plot__point { fill: var(--chart-tmax); fill-opacity: 0.8; stroke: var(--color-surface); stroke-width: 0.75; }
+  .sector-plot__point:hover { fill-opacity: 1; stroke: var(--chart-trend); stroke-width: 1.5; }
+
+  @media (forced-colors: active) {
+    .sector-plot__bar { fill: CanvasText !important; }
+    .sector-plot__point { fill: CanvasText; }
+    .sector-plot__fit, .sector-plot__zero { stroke: CanvasText; }
+  }
+}

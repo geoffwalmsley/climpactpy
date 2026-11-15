@@ -306,7 +306,6 @@ def test_pattern_library(client):
     for section in ("tables", "tabs", "steps", "progress", "loading", "help", "charts"):
         assert f'id="{section}"' in html
     assert 'aria-invalid="true"' in html and "data-error-summary" in html
-    assert "/static/climpact_web/css/patterns.css" in html
     assert not re.search(r'(src|href)="(https?:)?//', html)  # nothing from the network
 
 

@@ -19,23 +19,23 @@ Context: monthly, annual, decimals, histogram.
       <h3 class="tabs__panel-heading">{% translate "By month" %}</h3>
       {% help_topic "qc.outliers" %}
       <p class="text-sm text-text-muted">{% translate "One box per calendar month: the box spans the middle half of the values, the line is the median, and the whiskers end at the outlier range set in the thresholds. Circled values beyond them are the outliers listed above." %}</p>
-      <div class="qc-plots">{% for plot in monthly %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
+      <div class="grid gap-5 grid-cols-fill-96">{% for plot in monthly %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
     </section>
 
     <section class="tabs__panel stack" id="dist-annual">
       <h3 class="tabs__panel-heading">{% translate "By year" %}</h3>
       <p class="text-sm text-text-muted">{% translate "One box per year, whiskers at 4 interquartile ranges for precipitation and 3 for temperatures (as in Climpact for R). A year that stands out may hold wrong values or a change at the station." %}</p>
       {% help_topic "qc.homogeneity" %}
-      <div class="qc-plots qc-plots--wide">{% for plot in annual %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
+      <div class="grid grid-cols-1 gap-5">{% for plot in annual %}{% include "stations/_qc_box_plot.html" %}{% endfor %}</div>
     </section>
 
     <section class="tabs__panel stack" id="dist-decimals">
       <h3 class="tabs__panel-heading">{% translate "Decimal values" %}</h3>
       {% help_topic "qc.rounding" %}
-      <div class="qc-plots">
+      <div class="grid gap-5 grid-cols-fill-96">
         {% for plot in decimals %}
-        <figure class="qc-figure stack stack--sm" aria-labelledby="dist-dec-{{ plot.key }}">
-          <figcaption id="dist-dec-{{ plot.key }}" class="qc-figure__title">{{ plot.title }}</figcaption>
+        <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="dist-dec-{{ plot.key }}">
+          <figcaption id="dist-dec-{{ plot.key }}" class="font-semibold">{{ plot.title }}</figcaption>
           {% if plot.svg %}{{ plot.svg }}{% else %}<p class="text-text-muted">{% translate "No data." %}</p>{% endif %}
           <details class="disclosure">
             <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
@@ -56,8 +56,8 @@ Context: monthly, annual, decimals, histogram.
     <section class="tabs__panel stack" id="dist-precipitation">
       <h3 class="tabs__panel-heading">{% translate "Precipitation amounts" %}</h3>
       {% help_topic "qc.precip_histogram" %}
-      <figure class="qc-figure stack stack--sm" aria-labelledby="dist-hist-title">
-        <figcaption id="dist-hist-title" class="qc-figure__title">{{ histogram.title }}</figcaption>
+      <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="dist-hist-title">
+        <figcaption id="dist-hist-title" class="font-semibold">{{ histogram.title }}</figcaption>
         <p class="text-sm text-text-muted">{% blocktranslate count counter=histogram.total with total=histogram.total|count trimmed %}{{ total }} day of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% plural %}{{ total }} days of 1 mm or more. Each bar is 2 mm wide and labelled with its upper limit.{% endblocktranslate %}</p>
         {% if histogram.svg %}{{ histogram.svg }}{% else %}<p class="text-text-muted">{% translate "No day with 1 mm or more." %}</p>{% endif %}
         <details class="disclosure">

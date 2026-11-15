@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Gridded data" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/gridded.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -12,7 +11,7 @@
 
   {% include "components/form_errors.html" with form=upload_form %}
 
-  <div class="gridded-start">
+  <div class="grid items-start gap-5 grid-cols-fit-88 *:min-w-0">
     {% if local %}
     {% include "gridded/_chooser.html" %}
     {% endif %}
@@ -63,7 +62,7 @@
   {% if recent %}
   <section class="stack stack--sm" aria-labelledby="recent-title">
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
-    <ul class="recent-list">
+    <ul class="grid gap-2 ps-5 wrap-anywhere">
       {% for item in recent %}
       <li><a href="{% if item.jobs %}{% url 'gridded:results' item.pk %}{% else %}{% url 'gridded:setup' item.pk %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with when=item.updated_at|timesince %}changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}

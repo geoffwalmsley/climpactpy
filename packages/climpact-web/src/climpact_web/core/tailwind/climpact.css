@@ -71,3 +71,11 @@
 @import "./components/charts.css";
 @import "./components/dialog.css";
 @import "./components/home.css";
+@import "./components/help.css";
+@import "./components/stations.css";
+@import "./components/batch.css";
+@import "./components/patterns.css";
+@import "./components/sector.css";
+@import "./components/results.css";
+@import "./components/qc.css";
+@import "./components/gridded.css";

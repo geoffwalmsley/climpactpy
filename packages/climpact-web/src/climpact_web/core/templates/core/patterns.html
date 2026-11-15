@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui charts %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/patterns.css' %}">{% chart_scripts %}{% endblock %}
+{% block head %}{% chart_scripts %}{% endblock %}
 {% block content %}
 <header class="section__header">
   <p class="eyebrow">{% translate "Design system" %}</p>
@@ -13,9 +13,9 @@
   {% endblocktranslate %}</p>
 </header>
 
-<div class="patterns">
-  <nav class="patterns__toc" aria-label="{% translate 'Components' %}">
-    <ul>
+<div class="grid gap-8 *:min-w-0 xl:grid-cols-[13rem_1fr]">
+  <nav class="xl:sticky xl:top-4 xl:self-start" aria-label="{% translate 'Components' %}">
+    <ul class="m-0 list-none p-0 text-sm [&_a]:block [&_a]:py-1">
       <li><a href="#colour">{% translate "Colour" %}</a></li>
       <li><a href="#type">{% translate "Typography" %}</a></li>
       <li><a href="#icons">{% translate "Icons" %}</a></li>
@@ -61,7 +61,7 @@
       <h2 id="type-title">{% translate "Typography" %}</h2>
       <div class="pattern__demo stack">
         <p class="eyebrow">{% translate "Eyebrow" %}</p>
-        <p class="pattern__h1">{% translate "Heading 1: station results" %}</p>
+        <p class="text-2xl leading-tight font-bold tracking-[-0.01em]">{% translate "Heading 1: station results" %}</p>
         <h2>{% translate "Heading 2: temperature indices" %}</h2>
         <h3>{% translate "Heading 3: warm days" %}</h3>
         <h4>{% translate "Heading 4: trend" %}</h4>

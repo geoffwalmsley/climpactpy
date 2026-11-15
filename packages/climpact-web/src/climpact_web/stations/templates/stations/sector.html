@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Compare with sector data" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/sector.css' %}"><script src="{% static 'climpact_web/js/sector.js' %}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/sector.js' %}" defer></script>{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">

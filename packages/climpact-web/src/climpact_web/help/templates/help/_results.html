@@ -5,12 +5,12 @@ results.
 {% if query %}
 <p class="text-sm text-text-muted" data-announce="now">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
 {% if results %}
-<ol class="help-results">
+<ol class="grid max-w-prose list-none gap-4 p-0">
   {% for result in results %}
   <li>
-    <a href="{{ result.url }}">{{ result.title }}</a>
+    <a class="me-2 font-medium" href="{{ result.url }}">{{ result.title }}</a>
     <span class="text-sm text-text-muted">{{ result.context }}</span>
-    <p class="text-sm">{{ result.excerpt }}</p>
+    <p class="mt-1 mb-0 text-sm">{{ result.excerpt }}</p>
   </li>
   {% endfor %}
 </ol>

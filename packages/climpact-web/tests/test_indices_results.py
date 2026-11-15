@@ -367,7 +367,7 @@ def test_progress_while_running_then_the_results(client):
     assert (
         response.status_code == 204 and response["HX-Redirect"] == f"/station/{analysis.pk}/results"
     )
-    assert 'class="index-grid"' in client.get(f"/station/{analysis.pk}/results").content.decode()
+    assert "data-results-section" in client.get(f"/station/{analysis.pk}/results").content.decode()
 
 
 def test_a_failed_calculation_shows_why_and_offers_the_settings(client):
@@ -620,7 +620,7 @@ def test_plain_names_of_indices_that_share_a_catalogue_entry():
 
 def _groups(html: str) -> dict[str, str]:
     """Each group's <details> start tag, by group key."""
-    pattern = r'(<details class="disclosure results-section" id="group-([\w-]+)"[^>]*>)'
+    pattern = r'(<details class="disclosure" id="group-([\w-]+)"[^>]*>)'
     return {key: tag for tag, key in re.findall(pattern, html)}
 
 

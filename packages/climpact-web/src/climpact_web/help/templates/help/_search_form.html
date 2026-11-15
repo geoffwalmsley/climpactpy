@@ -2,10 +2,10 @@
 The help search: a GET form (works without JavaScript); htmx shows results as you type in
 #help-results when the page has it. Parameters: query, live (search as you type).
 {% endcomment %}
-<form class="help-search" method="get" action="{% url 'help:search' %}" role="search">
+<form method="get" action="{% url 'help:search' %}" role="search">
   <label class="field__label" for="help-q">{% translate "Search the help" %}</label>
-  <div class="flex flex-wrap items-center gap-3 help-search__row">
-    <div class="search">
+  <div class="flex flex-wrap items-stretch gap-3">
+    <div class="search flex-[1_1_16rem]">
       {% icon "search" %}
       <input type="search" id="help-q" name="q" value="{{ query }}" placeholder="{% translate 'For example: base period, outliers, TX90p' %}" autocomplete="off"{% if live %} hx-get="{% url 'help:search' %}" hx-trigger="input changed delay:300ms, search" hx-target="#help-results"{% endif %}>
     </div>

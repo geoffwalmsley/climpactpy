@@ -57,7 +57,7 @@ def test_downloads_page_lists_every_file_with_its_size(client):
         assert f"{files}{STATION}/indices/{STATION}_{name}.csv" in html, name
     assert f"{files}{STATION}/plots/{STATION}_txx_ANN.png" in html
     links = re.findall(
-        r'class="button button--secondary button--sm download-link"[^>]*>.*?</a>', html
+        r'class="button button--secondary button--sm download-link[^"]*"[^>]*>.*?</a>', html
     )
     assert len(links) > len(index_files())
     assert all(re.search(SIZE, link) for link in links)
@@ -207,5 +207,5 @@ def test_downloads_page_lists_the_sector_comparison(client):
     pngs = [f for f in sector.result["files"] if f.endswith(".png")]
     assert pngs and all(f'href="{files}{f}"' in html for f in pngs)
     section = html.split('id="sector-title"')[1].split("</section>")[0]
-    links = re.findall(r'download-link"[^>]*>.*?</a>', section, re.S)
+    links = re.findall(r'download-link[^"]*"[^>]*>.*?</a>', section, re.S)
     assert links and all(re.search(SIZE, link) for link in links)

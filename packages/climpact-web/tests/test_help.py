@@ -359,7 +359,7 @@ def test_search_finds_guide_sections_and_topics(client):
 
 def test_search_is_live_with_htmx_and_works_without_it(client):
     html = client.get("/help/").content.decode()
-    assert re.search(r'<form class="help-search" method="get" action="/help/search/"', html)
+    assert re.search(r'<form method="get" action="/help/search/"', html)
     assert 'hx-get="/help/search/"' in html and 'hx-target="#help-results"' in html
 
 

@@ -74,3 +74,34 @@ def test_scripts_have_no_dependencies(name):
 def test_tour_script_stays_small():
     """tour.js loads on the landing page (#81)."""
     assert (STATIC / "js" / "tour.js").stat().st_size < 8 * 1024
+
+
+# Class names in the templates that no stylesheet rule needs: hooks for scripts and tests,
+# and words a template puts after a modifier prefix (alert--{{ kind }} and the like).
+HOOK_CLASSES = {
+    "batch-progress", "download-group", "download-link", "empty-filter", "file-browser__folder",
+    "gmap__cell--selected", "gmap__svg", "gridded-checks__problems", "gridded-explore__help",
+    "gridded-map", "gridded-series", "help-page", "index-card__daily", "index-card__meta",
+    "job-files", "job-page", "job-progress", "numeric", "param", "qc-charts", "qc-check",
+    "qc-page", "result-nav", "results-actions", "results-filter__significant",
+    "sector-settings__summary", "series-nav", "tabs", "tabs__panel-heading", "trend-summary",
+    "alert--info", "invalid", "ready", "success", "warning",
+}  # fmt: skip
+
+
+def test_every_template_class_is_styled():
+    """Each class a template names is in the compiled stylesheet (#118): a utility Tailwind
+    generated, or a component; so a mistyped or unscanned utility fails here rather than
+    leaving an element unstyled. Rebuild with scripts/build-css.sh after adding classes."""
+    css = (STATIC / "css" / "climpact.css").read_text()
+    styled = {re.sub(r"\\(.)", r"\1", m) for m in re.findall(r"\.((?:\\.|[\w-])+)", css)}
+    unstyled = set()
+    for path in TEMPLATES:
+        for value in re.findall(r'class="([^"]*)"', path.read_text()):
+            value = re.sub(r"\{%.*?%\}|\{\{.*?\}\}", " ", value)  # template tags: dynamic
+            unstyled |= {
+                f"{path.name}: {name}"
+                for name in value.split()
+                if name not in styled and name not in HOOK_CLASSES and not name.endswith("--")
+            }
+    assert not unstyled, sorted(unstyled)

@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Calculate indices" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -40,9 +39,9 @@
       {% include "components/button.html" with label=top_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
     </div>
 
-    <details class="disclosure settings-disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
+    <details class="disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
       <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="text-sm text-text-muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
-      <div class="disclosure__body stack stack--lg">
+      <div class="disclosure__body stack stack--lg text-inherit">
         <section class="card stack" aria-labelledby="plots-title">
           <h2 class="card__title" id="plots-title">{% translate "Plots" %}</h2>
           {% include "stations/_indices_unit.html" with group="plot_title" %}
@@ -51,7 +50,7 @@
         <section class="card stack" aria-labelledby="spells-title">
           <h2 class="card__title" id="spells-title">{% translate "Spell lengths" %}</h2>
           <p class="text-sm text-text-muted">{% translate "How many days in a row count towards these indices." %}</p>
-          <div class="param-grid">
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="wsdi_days" %}
             {% include "stations/_indices_unit.html" with group="csdi_days" %}
             {% include "stations/_indices_unit.html" with group="rx_days" %}
@@ -62,7 +61,7 @@
         <section class="card stack" aria-labelledby="degree-title">
           <h2 class="card__title" id="degree-title">{% translate "Degree days" %}</h2>
           <p class="text-sm text-text-muted">{% translate "The base temperatures heating, cooling and growing degree days are counted from." %}</p>
-          <div class="param-grid">
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="hdd_base" %}
             {% include "stations/_indices_unit.html" with group="cdd_base" %}
             {% include "stations/_indices_unit.html" with group="gdd_base" %}
@@ -71,7 +70,7 @@
 
         <section class="card stack" aria-labelledby="prcp-title">
           <h2 class="card__title" id="prcp-title">{% translate "Precipitation and drought" %}</h2>
-          <div class="param-grid">
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="rnnmm" %}
             {% include "stations/_indices_unit.html" with group="spei_months" %}
           </div>

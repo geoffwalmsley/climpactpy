@@ -6,7 +6,7 @@ runs the checks again. Context: analysis, qc_form, review.
   {% csrf_token %}
   {% include "components/form_errors.html" with form=qc_form %}
   <p class="text-sm text-text-muted">{% translate "The defaults are those of Climpact for R. Smaller numbers flag more values." %}</p>
-  <div class="qc-form-grid">
+  <div class="grid items-start gap-x-5 gap-y-4 grid-cols-fill-64">
     {% for field in qc_form %}
     {% with topic="qcparam."|add:field.name %}
     {% include "components/field.html" with field=field unit=field.field.unit narrow=True help=topic %}

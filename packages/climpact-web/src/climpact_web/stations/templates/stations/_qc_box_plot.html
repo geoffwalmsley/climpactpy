@@ -1,8 +1,8 @@
 {% load i18n ui %}{% comment %}
 A box plot figure with its table (#77). Parameter: plot (qc_plots._plot).
 {% endcomment %}
-<figure class="qc-figure stack stack--sm" aria-labelledby="box-{{ plot.title|slugify }}">
-  <figcaption id="box-{{ plot.title|slugify }}" class="qc-figure__title">{{ plot.title }}</figcaption>
+<figure class="stack stack--sm m-0 min-w-0" aria-labelledby="box-{{ plot.title|slugify }}">
+  <figcaption id="box-{{ plot.title|slugify }}" class="font-semibold">{{ plot.title }}</figcaption>
   {% if plot.svg %}{{ plot.svg }}{% else %}<p class="text-text-muted">{% translate "No data." %}</p>{% endif %}
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>

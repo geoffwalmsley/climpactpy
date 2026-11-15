@@ -484,7 +484,7 @@ def test_htmx_validates_one_group_as_it_changes(client):
     url = f"/station/{analysis.pk}/load/validate"
     fragment = client.post(url, {**metadata(latitude="123", longitude=""), "group": "latitude"})
     text = fragment.content.decode()
-    assert text.lstrip().startswith('<div class="field-group" id="group-latitude"')
+    assert text.lstrip().startswith('<div class="grid gap-2" id="group-latitude"')
     assert "Latitude must be between -90 and 90." in text
     assert "Enter the longitude." not in text  # only the group that changed
     assert "<html" not in text

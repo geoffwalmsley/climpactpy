@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
 {% block title %}{% blocktranslate with title=card.title name=card.name station=analysis.station_name %}{{ title }} ({{ name }}): {{ station }}{% endblocktranslate %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
+{% block head %}{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -31,7 +31,7 @@
   {% endif %}
 
   {% if stats %}
-  <div class="stat-row">
+  <div class="grid gap-4 grid-cols-fit-40">
     {% if trend.valid %}
     {% blocktranslate with slope=trend.slope_text units=card.units asvar trend_value %}{{ slope }} {{ units }}{% endblocktranslate %}
     {% blocktranslate with lower=trend.lower_text upper=trend.upper_text asvar trend_note %}per decade; 95% interval {{ lower }} to {{ upper }}{% endblocktranslate %}
@@ -107,7 +107,7 @@
 
   <section class="card stack" aria-labelledby="files-title">
     <h2 class="card__title" id="files-title">{% translate "Downloads" %}</h2>
-    <ul class="link-list">
+    <ul class="m-0 grid gap-2 ps-5">
       <li><a href="{% url 'jobs:file' job.pk csv_path %}" download>{% blocktranslate with size=csv_size|filesizeformat %}The table (CSV, {{ size }}){% endblocktranslate %}</a></li>
       {% if png_path %}<li><a href="{% url 'jobs:file' job.pk png_path %}" download>{% blocktranslate with size=png_size|filesizeformat %}Climpact's plot of this series (PNG, {{ size }}){% endblocktranslate %}</a></li>{% endif %}
       {% if source.station %}<li><a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Everything else: the zip, the PDF report and every file" %}</a></li>{% endif %}

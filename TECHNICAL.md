@@ -71,6 +71,10 @@ ruff.toml            ruff settings for the whole repository (each package's pypr
                      extends it)
 pytest.ini           `pytest` from the root runs both packages' tests; each package's
                      pyproject.toml has the same settings for running it alone
+Dockerfile           the production image of the web app (#120; see [Deployment](#deployment))
+docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthcheck.py`
+.dockerignore        keeps everything but the two packages' sources, the pyproject files
+                     and uv.lock out of the image's build context
 ```
 
 The core never imports `climpact_web`: `tests/test_layout.py` checks every Python file in
@@ -2837,14 +2841,14 @@ Node and no Tailwind (see [Stylesheet and Tailwind](#stylesheet-and-tailwind)).
 
 | | `local` (default) | `hosted` |
 | --- | --- | --- |
-| Started by | `climpact-web` (waitress on 127.0.0.1) | a WSGI server chosen in #12, on `climpact_web.wsgi:application` |
+| Started by | `climpact-web` (waitress on 127.0.0.1) | the image's `web` role: `climpact-web --host 0.0.0.0` (waitress), behind a TLS-terminating proxy (see [Deployment](#deployment)) |
 | Database | SQLite, `<data dir>/db.sqlite3` (WAL journal, 20 s busy timeout, `IMMEDIATE` transactions, as the server and the worker both write), migrated on every start | `DATABASE_URL` (Postgres; the `postgres` extra installs psycopg); migrations run by the deployment |
 | Secret key | `CLIMPACT_WEB_SECRET_KEY`, else `<data dir>/secret_key` (written on first start, mode 0600) | `CLIMPACT_WEB_SECRET_KEY`, required |
 | Allowed hosts | localhost, 127.0.0.1, [::1] (`*` when started with a non-loopback `--host`) | `CLIMPACT_WEB_ALLOWED_HOSTS`, required |
 | Static files | `climpact-web` runs `collectstatic` into `<data dir>/static` on every start (hashed, compressed copies, `LocalStaticFilesStorage`); WhiteNoise serves them, and its finders serve any file not collected straight from the package. With `DEBUG`, nothing is collected | `collectstatic` into `CLIMPACT_WEB_STATIC_ROOT` (required) at deployment, `StaticFilesStorage`; see [Size budget](#size-budget) |
 | HTTPS | none (localhost) | secure session and CSRF cookies, redirect to HTTPS, `X-Forwarded-Proto` from the proxy trusted; `/healthz` exempt from the redirect |
-| Uploads and results | `<data dir>/media`; job folders under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT`, a filesystem every worker and web process shares (S3: a documented hook, see [Background jobs](#background-jobs), for #12) |
-| Background worker | started by `climpact-web` as a child process, restarted if it crashes | one or more `climpact-web manage runworker` processes, run by the deployment (#12) |
+| Uploads and results | `<data dir>/media`; job folders under `media/runs` | `CLIMPACT_WEB_MEDIA_ROOT`, a filesystem every worker and web process shares (in the image, a Docker volume mounted by both containers) |
+| Background worker | started by `climpact-web` as a child process, restarted if it crashes | one or more `climpact-web manage runworker` processes (the image's `worker` role) |
 
 The data folder is `CLIMPACT_WEB_DATA_DIR` or `--data-dir`, else the user data folder from
 platformdirs (`~/Library/Application Support/climpact-web` on macOS,
@@ -2877,6 +2881,7 @@ the variable.
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age; set once the domain is final (#12) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
+| `CLIMPACT_WEB_TRUSTED_PROXY` | none (`*` in the image) | the `climpact-web` server (waitress) trusts `X-Forwarded-Proto` and `X-Forwarded-For` from this address (`*`: any peer) and takes the request's scheme and client address from them; read by `cli.proxy_options`, not by the settings |
 
 Both modes also set `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
 `Cross-Origin-Opener-Policy: same-origin`, HttpOnly SameSite=Lax session cookies and
@@ -2919,9 +2924,104 @@ address and the data folder.
 
 A hosted deployment runs `climpact-web manage migrate` and
 `climpact-web manage collectstatic --no-input` with the hosted variables set, then serves
-`climpact_web.wsgi:application`; the server, containers and AWS set-up are #12. Load
-balancers check **`/healthz`**: 200 and `{"status": "ok", "database": "ok", "version":
+`climpact_web.wsgi:application`; the production image does all three (see
+[Deployment](#deployment)). Load balancers and the image's `HEALTHCHECK` check **`/healthz`**: 200 and `{"status": "ok", "database": "ok", "version":
 ..., "core_version": ...}` when the database answers, 503 otherwise; never cached.
+
+### Deployment
+
+The hosted app runs from one container image (#120), built by the root `Dockerfile` for
+`linux/amd64` (DigitalOcean Droplets are amd64):
+
+```sh
+docker buildx build --platform linux/amd64 -t climpact-web --load .
+```
+
+**Build.** Two stages on `python:3.12-slim` (trixie), pinned by tag and digest, with uv
+copied from `ghcr.io/astral-sh/uv` (pinned the same way, the version CI uses). The builder
+runs `uv sync --frozen --package climpact-web --extra postgres --no-default-groups
+--no-editable` into `/opt/venv`, first with `--no-install-workspace` from the pyproject
+files and `uv.lock` alone (a layer reused until the lock changes), then again with the two
+packages' sources, which installs them as ordinary wheels; no dev group and no tests go in.
+Byte code is compiled at install (`UV_COMPILE_BYTECODE`), as the image runs with
+`PYTHONDONTWRITEBYTECODE` and a read-only root. The third-party packages' own `tests`
+folders (about 150 MB, never imported) are deleted. The builder then runs `collectstatic`
+into `/opt/climpact/static` (dummy hosted settings for that one step; the image is
+self-contained) and builds matplotlib's font cache into `/opt/climpact/mplconfig`. The
+runtime stage copies only `/opt/venv` and `/opt/climpact`: the wheels bundle their native
+libraries (matplotlib's FreeType, netCDF4/h5py's HDF5, psycopg's libpq, OpenBLAS), so no
+system packages are installed. `.dockerignore` admits only the pyproject files, `uv.lock`,
+`docker/` and the packages' `src` folders and READMEs.
+
+**Roles.** `docker/entrypoint.sh` takes the role as its first argument and `exec`s it, so
+the Python process is PID 1 and gets `docker stop`'s SIGTERM (the web server and the worker
+both stop cleanly on it, exit status 0):
+
+| Role | Runs |
+| --- | --- |
+| `web` (default) | `climpact-web --host 0.0.0.0 --port 8000 --threads 4 --no-browser`: waitress in hosted mode (no migrate, collectstatic or worker); `CLIMPACT_WEB_PORT` and `CLIMPACT_WEB_THREADS` change the port and threads |
+| `worker [args]` | `climpact-web manage runworker [args]` |
+| `migrate` | `climpact-web manage migrate --no-input` |
+| `purge` | `climpact-web manage purgejobs` (for a daily run) |
+| `manage <command> ...` | any management command |
+| anything else | run as a command (e.g. `sh`) |
+
+waitress, not gunicorn: it is already a dependency (the local server), it is one process
+with threads, which suits a small Droplet, and `climpact-web` already passes it the upload
+limit. Behind Cloudflare's tunnel the TLS is terminated by `cloudflared`, which sends
+`X-Forwarded-Proto: https`; waitress drops forwarded headers from peers it does not trust,
+so without `CLIMPACT_WEB_TRUSTED_PROXY` hosted mode would redirect every request to HTTPS
+again. The image sets it to `*` because only the tunnel can reach port 8000 (it is never
+published on the host); set it to the proxy's address where other hosts can reach the
+container.
+
+**Environment.** The image sets `CLIMPACT_WEB_MODE=hosted`,
+`CLIMPACT_WEB_STATIC_ROOT=/opt/climpact/static`, `CLIMPACT_WEB_DATA_DIR=/var/lib/climpact`,
+`CLIMPACT_WEB_MEDIA_ROOT=/var/lib/climpact/media`, `CLIMPACT_WEB_TRUSTED_PROXY=*`,
+`MPLBACKEND=Agg`, `MPLCONFIGDIR=/tmp/matplotlib`, `HOME=/tmp`,
+`XDG_CACHE_HOME=/tmp/.cache`, `PYTHONDONTWRITEBYTECODE=1` and `PYTHONUNBUFFERED=1`. The
+deployment must set `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS` and
+`DATABASE_URL`, and in practice `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` (the origin behind the
+proxy, `https://climpact.app`) and `CLIMPACT_WEB_HSTS_SECONDS`; gridded runs stay off
+(`CLIMPACT_WEB_GRIDDED_HOSTED` unset). Every variable is in [Settings](#settings).
+
+**Filesystem.** The processes run as `climpact` (uid and gid 10001), and the image works
+with a read-only root filesystem (`--read-only`). Two paths must be writable: a volume at
+`/var/lib/climpact/media` shared by the web and worker containers (a new named volume
+takes the folder's `climpact` ownership from the image), and a tmpfs at `/tmp`, for
+uploads over 2.5 MB and matplotlib's cache: the entrypoint copies the font cache built into
+the image to `MPLCONFIGDIR` when that folder does not exist, because matplotlib needs it
+writable and would otherwise rebuild it on every start.
+
+**Health check.** The image's `HEALTHCHECK` runs `docker/healthcheck.py` every 30 s: for
+the web role it fetches `/healthz` on 127.0.0.1 with the first name in
+`CLIMPACT_WEB_ALLOWED_HOSTS` as the `Host` header (Django refuses other hosts); the worker
+and one-off roles (PID 1 runs `manage`) always count as healthy.
+
+**Size and memory** (measured 2026-11-15, image of #120, on an arm64 Mac with Docker
+Desktop 29). The amd64 image is 312 MB compressed (`docker save | gzip`; 297 MiB), under
+DigitalOcean's 500 MB free registry tier. The largest parts are pyarrow and llvmlite
+(about 170 MB each uncompressed, from xclim's dependencies), scipy and pandas. Memory of the
+web and worker processes (`VmRSS`/`VmHWM` of PID 1, and the container's peak `docker
+stats` usage) for the Sydney sample (80 years) driven through the web pages: quality
+checks, then the station run with plots, the PDF report and the zip, then the results,
+downloads and sector pages and the downloads; Postgres 16 peaked at 59 MiB:
+
+| | idle RSS | peak RSS | peak container |
+| --- | --- | --- | --- |
+| web, amd64 under Rosetta | 510 MiB | 563 MiB | 467 MiB |
+| worker, amd64 under Rosetta | 504 MiB | 671 MiB | 524 MiB |
+| web, arm64 native | 363 MiB | 407 MiB | 254 MiB |
+| worker, arm64 native | 364 MiB | 516 MiB | 423 MiB |
+
+The amd64 image runs under Rosetta on the Mac, whose translations count in the process's
+memory (`/run/rosetta` is mapped into it); the same Dockerfile built for arm64 and run
+natively shows the overhead, so a Droplet's amd64 numbers should be close to the arm64
+rows. The run took 26 s under Rosetta and 15 s natively. The web process idles as high as
+the worker because loading the URLconf imports the core (xclim, pandas, matplotlib,
+numba). With Postgres, `cloudflared` and the OS, the stack peaks around 1.2–1.3 GB (about
+1.5 GB with the Rosetta figures), so the 2 GB Droplet chosen in #12, with swap, is
+comfortable for one worker, and 1 GB is not.
 
 ### Design system
 
@@ -3181,7 +3281,10 @@ runs hosted mode against a Postgres 16 service container: `check --deploy`, `mig
 `test_worker_process.py` runs the worker as a real process on a SQLite file: killed with
 SIGKILL in the middle of a station run, the job is failed by `purgejobs` once the heartbeat
 is stale, and after a retry a new worker runs it to the end; stopped with SIGTERM, the job
-is queued again. `test_cli.py` checks that `climpact-web` starts a worker and stops it.
+is queued again. `test_cli.py` checks that `climpact-web` starts a worker and stops it. `test_cli.py::test_proxy_options` and
+`test_proxy_headers_reach_django` check the waitress options for a trusted proxy and that
+`X-Forwarded-Proto` then becomes the request's scheme. The image itself is not built in CI
+yet (#122).
 `test_queue_postgres.py` (#119) runs only when `DATABASE_URL` is a Postgres URL (the test
 settings drop it for their own in-memory SQLite database and keep it as
 `CLIMPACT_TEST_POSTGRES_URL`), so it skips locally and runs in `web-postgres`, where
@@ -3366,10 +3469,12 @@ its analyses this way, so the jobs app knows nothing of them).
 folder, one plain word chosen by the code, puts it in `input/<folder>/`; `create_job` takes
 such files as `"<folder>/<name>"` keys),
 empties `output/` before a run, resolves download paths and deletes a job's folder. The
-core reads and writes ordinary files, so a worker always works on a local folder. For AWS
-(#12) the job folders can live on shared storage (EFS) with this class unchanged, or a
-subclass can copy `input/` down from S3 before a run and `output/` up after it and serve
-downloads from S3; `CLIMPACT_WEB_JOB_STORAGE` names the class.
+core reads and writes ordinary files, so a worker always works on a local folder. The
+hosted deployment (#12) is one host whose web and worker containers mount the same Docker
+volume at `CLIMPACT_WEB_MEDIA_ROOT`, so this class works unchanged. A deployment without a
+shared filesystem could subclass it to copy `input/` down from object storage before a run
+and `output/` up after it and serve downloads from there; `CLIMPACT_WEB_JOB_STORAGE` names
+the class.
 
 Browser tests of the finished pages are in `test_accessibility.py` (#83, see
 [Accessibility](#accessibility)). `test_components.py` renders every component with sample parameters and
@@ -4043,7 +4148,7 @@ The gridded pages (#85) replace the R app's two gridded screens
 
 **Where it is offered** (decided 2026-11-14, recorded in #85). On in local mode, as in R.
 Off in hosted mode unless `CLIMPACT_WEB_GRIDDED_HOSTED` is set (large uploads, long jobs
-and storage cost; to be revisited for AWS in #12), with uploads limited to
+and storage cost; to be revisited only with a bigger Droplet, #12), with uploads limited to
 `CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` (200 by default). `settings.GRIDDED_ENABLED` holds the
 result: with it off every `/gridded/` URL is 404 and the landing page and header leave
 Gridded out. Paths on the server's disk are only ever accepted in local mode: in hosted

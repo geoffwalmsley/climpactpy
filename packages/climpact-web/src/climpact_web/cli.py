@@ -116,6 +116,27 @@ def browser_url(host: str, port: int) -> str:
     return f"http://{host}:{port}/"
 
 
+def proxy_options() -> dict:
+    """waitress options for a reverse proxy in front of the server (hosted mode).
+
+    ``CLIMPACT_WEB_TRUSTED_PROXY`` is the proxy's address, or ``*`` for any peer (only
+    when nothing but the proxy can reach the server, as in the container behind
+    Cloudflare's tunnel, #120). waitress then takes the scheme and the client address from
+    the proxy's ``X-Forwarded-Proto`` and ``X-Forwarded-For``; without it, waitress drops
+    those headers, so behind a TLS-terminating proxy every request would look like plain
+    HTTP and be redirected to HTTPS again and again. Unset: no proxy is trusted.
+    """
+    proxy = os.environ.get("CLIMPACT_WEB_TRUSTED_PROXY", "").strip()
+    if not proxy:
+        return {}
+    return {
+        "trusted_proxy": proxy,
+        "trusted_proxy_count": 1,
+        "trusted_proxy_headers": {"x-forwarded-proto", "x-forwarded-for"},
+        "clear_untrusted_proxy_headers": True,
+    }
+
+
 def manage(argv: list[str]) -> int:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", SETTINGS_MODULE)
     from django.core.management import execute_from_command_line
@@ -246,6 +267,7 @@ def serve(args: argparse.Namespace) -> int:
         "threads": args.threads,
         "max_request_body_size": max(settings.MAX_UPLOAD_BYTES, settings.GRIDDED_MAX_UPLOAD_BYTES),
         "ident": "climpact-web",
+        **proxy_options(),
     }
     app = get_wsgi_application()
     if args.port is not None:

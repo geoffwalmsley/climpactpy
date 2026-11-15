@@ -7,6 +7,8 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+## 0.1.0rc1 - 2026-11-15
+
 The first release: the Python port of Climpact 3.4.3 and its web app.
 
 - `climpact`: the Climpact indices of daily climate extremes for stations (single and

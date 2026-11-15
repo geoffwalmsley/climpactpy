@@ -68,6 +68,19 @@ def with_file_format(table: pd.DataFrame, file_format: FileFormat) -> pd.DataFra
 # Climpact R version whose output files this port reproduces (``software_id``).
 CLIMPACT_VERSION = "3.4.3"
 
+# How this port names itself in plots, reports, netCDF metadata and `climpact --version`.
+# Never plain "Climpact", so its outputs are told apart from R Climpact's (#131).
+SOFTWARE_NAME = "Climpact for Python"
+
+
+def software_credit() -> str:
+    """``Climpact for Python X.Y.Z (port of Climpact 3.4.3)``: this package's version and
+    the R Climpact version it ports."""
+    from climpact import __version__
+
+    return f"{SOFTWARE_NAME} {__version__} (port of Climpact {CLIMPACT_VERSION})"
+
+
 # Rows of climate.indices.csv written by their own functions rather than write.index.csv.
 _NOT_INDEX_FILES = {"hw", "hwEHF", "spei", "spi"}
 

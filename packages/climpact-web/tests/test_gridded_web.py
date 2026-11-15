@@ -305,7 +305,7 @@ def test_setup_page_shows_the_files_and_defaults(client):
     assert "3 × 4 cells" in html and "1991-01-01 to 2010-12-31" in html
     assert '<option value="tmax" selected>' in html and '<option value="precip" selected>' in html
     assert 'value="1991"' in html and 'value="2010"' in html  # R's gridded default
-    assert "var_daily_climpactpy_historical_NA_1991-2010.nc" in html
+    assert "var_daily_climpact_historical_NA_1991-2010.nc" in html
     assert "climpact.sampledata.gridded.3x4.1991-2010.thresholds.1991-2010.nc" in html
     assert "Nairn and Fawcett" in html
     assert 'name="indices" value="txx" checked' in html
@@ -404,8 +404,8 @@ def test_sample_run_end_to_end(client, tmp_path):
         "climpact.sampledata.gridded.3x4.1991-2010.thresholds.1991-2010.nc"
     ]
     names = sorted(run.indices_job.result["files"])
-    assert "rx3day_ANN_climpactpy_historical_NA_1991-2010.nc" in names
-    assert "spi_MON_climpactpy_historical_NA_1991-2010.nc" in names
+    assert "rx3day_ANN_climpact_historical_NA_1991-2010.nc" in names
+    assert "spi_MON_climpact_historical_NA_1991-2010.nc" in names
     assert len(names) == 9  # txx, fd, rx1day, rx3day: MON and ANN; spi: MON
     assert sorted(p.name for p in copy_to.iterdir()) == sorted(
         names + run.thresholds_job.result["files"]
@@ -421,10 +421,10 @@ def test_sample_run_end_to_end(client, tmp_path):
     assert "Explore the indices" in html and "txx, 2010" in html  # txx annual, last year
     assert 'class="gmap__svg"' in html and html.count('class="gmap__cell') == 12
     assert "View as table" in html and "Choose a cell" in html
-    assert "rx3day_ANN_climpactpy_historical_NA_1991-2010.nc" in html
+    assert "rx3day_ANN_climpact_historical_NA_1991-2010.nc" in html
 
     # A chosen cell, time step and file, as htmx asks for them.
-    spi = "spi_MON_climpactpy_historical_NA_1991-2010.nc"
+    spi = "spi_MON_climpact_historical_NA_1991-2010.nc"
     response = client.get(
         f"/gridded/{run.pk}/explore",
         {"file": spi, "t": 5, "scale": 2, "cell": "0,1"},
@@ -437,7 +437,7 @@ def test_sample_run_end_to_end(client, tmp_path):
     assert "cell=0%2C1" in response["HX-Push-Url"] and "/results?" in response["HX-Push-Url"]
 
     # The values shown are the file's.
-    path = run.indices_job.output_dir / "txx_ANN_climpactpy_historical_NA_1991-2010.nc"
+    path = run.indices_job.output_dir / "txx_ANN_climpact_historical_NA_1991-2010.nc"
     with netCDF4.Dataset(path) as nc:
         expected = np.ma.filled(nc["txx"][:, 2, 3].astype(float), np.nan)
     response = client.get(f"/gridded/{run.pk}/series.csv", {"file": path.name, "cell": "2,3"})
@@ -522,9 +522,9 @@ def test_indices_with_a_thresholds_file(client):
     (job,) = run_jobs()
     assert job.status == Status.SUCCEEDED, job.error
     assert sorted(job.result["files"]) == [
-        "r95p_ANN_climpactpy_historical_NA_2001-2020.nc",
-        "tx90p_ANN_climpactpy_historical_NA_2001-2020.nc",
-        "tx90p_MON_climpactpy_historical_NA_2001-2020.nc",
+        "r95p_ANN_climpact_historical_NA_2001-2020.nc",
+        "tx90p_ANN_climpact_historical_NA_2001-2020.nc",
+        "tx90p_MON_climpact_historical_NA_2001-2020.nc",
     ]
 
 

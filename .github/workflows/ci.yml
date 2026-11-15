@@ -55,9 +55,9 @@ jobs:
       - name: uv.lock is up to date
         run: uv lock --check
       - name: Install the core package only
-        # The climpactpy member with its own dev group, not the workspace root's group
+        # The climpact member with its own dev group, not the workspace root's group
         # (which adds climpact-web)
-        run: uv sync --locked --package climpactpy
+        run: uv sync --locked --package climpact
       - name: Lint
         run: |
           uv run --no-sync ruff check .

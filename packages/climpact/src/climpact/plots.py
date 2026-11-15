@@ -28,7 +28,7 @@ The plots show what R's show (station, coordinates, index definition, units, val
 missing values, trend line, slope with its bounds and the p-value) but are drawn
 differently: see TECHNICAL.md, "Differences between Python and R".
 
-matplotlib is an optional dependency (``pip install climpactpy[plots]``). It is imported
+matplotlib is an optional dependency (``pip install climpact[plots]``). It is imported
 only when plots are drawn, and drawn on an Agg canvas without ``pyplot``, so the
 caller's matplotlib backend is never changed.
 """
@@ -48,10 +48,9 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from climpact import __version__
 from climpact.config import IndexParams, StationMetadata
 from climpact.io.climpact_csv import format_r_number
-from climpact.io.output_files import CLIMPACT_VERSION, _index_definitions, index_files
+from climpact.io.output_files import _index_definitions, index_files, software_credit
 from climpact.products.trends import _value_column
 from climpact.trends import PlotTrend, plot_trend
 
@@ -276,7 +275,7 @@ def require_matplotlib():
         import matplotlib
     except ImportError:
         raise ImportError(
-            "plots need matplotlib: install it with `pip install climpactpy[plots]`"
+            "plots need matplotlib: install it with `pip install 'climpact[plots]'`"
         ) from None
     return matplotlib
 
@@ -343,7 +342,7 @@ class _Canvas:
         self.footer = fig.text(
             right,
             0.025,
-            f"climpactpy {__version__}  ·  Climpact {CLIMPACT_VERSION}",
+            software_credit(),
             color=_INK_3,
             fontsize=8,
             ha="right",

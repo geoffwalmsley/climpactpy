@@ -68,7 +68,7 @@ the base period, you do not need a thresholds file.
 
 One netCDF file per index and time scale, named in the CMIP5 style:
 `<index>_<ANN or MON>_<model>_<scenario>_<run>_<first year>-<last year>.nc`, for example
-`r20mm_ANN_climpactpy_historical_NA_1991-2010.nc`. Your institution's name and id, if
+`r20mm_ANN_climpact_historical_NA_1991-2010.nc`. Your institution's name and id, if
 given, are written into the files' attributes.
 
 The results page lists every file to download, with a zip of them all. It also maps an

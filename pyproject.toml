@@ -5,14 +5,14 @@
 members = ["packages/climpact", "packages/climpact-web"]
 
 [tool.uv.sources]
-climpactpy = { workspace = true }
+climpact = { workspace = true }
 climpact-web = { workspace = true }
 
 [dependency-groups]
 # Development: both packages with their own `dev` groups' tools. The core's group is
-# also installed on its own by CI's core job (`uv sync --package climpactpy`).
+# also installed on its own by CI's core job (`uv sync --package climpact`).
 dev = [
-    "climpactpy",
+    "climpact",
     "climpact-web",
     "pytest>=8",
     "pytest-django>=4.9",

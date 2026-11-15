@@ -4,14 +4,34 @@ build-backend = "hatchling.build"
 
 [project]
 name = "climpact-web"
-description = "Web front end for climpactpy (Climpact in Python)"
+description = "Climpact for Python on the web: a browser app for the Climpact climate extremes indices, hosted or on your own computer"
 readme = "README.md"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dynamic = ["version"]
+authors = [{ name = "Geoff Walmsley" }]
+maintainers = [{ name = "Geoff Walmsley" }]
+keywords = ["climate", "climate extremes", "ETCCDI", "ET-SCI", "Climpact", "django"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 6.0",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
 dependencies = [
-    "climpactpy[plots]",  # the core package (import name: climpact), with matplotlib
-    # for the plots and the PDF report (#79)
+    # The core package with matplotlib for the plots and the PDF report (#79), pinned to
+    # this package's own version: the two are released together with one version number
+    # (RELEASING.md), and a test checks the pin equals both __version__ values.
+    "climpact[plots]==0.0.1",
     "django>=6.0,<6.1",  # 6.0 (needs Python 3.12, the minimum since #117)
     "waitress>=3.0",  # the local server started by `climpact-web`
     "whitenoise>=6.7",  # static files: hashed, compressed copies (#82)
@@ -42,15 +62,25 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/geoffwalmsley/climpactpy"
+Issues = "https://github.com/geoffwalmsley/climpactpy/issues"
+Changelog = "https://github.com/geoffwalmsley/climpactpy/blob/main/CHANGELOG.md"
+"Technical notes" = "https://github.com/geoffwalmsley/climpactpy/blob/main/TECHNICAL.md"
 
 [tool.uv.sources]
-climpactpy = { workspace = true }
+climpact = { workspace = true }
 
 [tool.hatch.version]
 path = "src/climpact_web/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/climpact_web"]
+# The Tailwind sources: only scripts/build-css.sh reads them; the built stylesheet is in
+# core/static/.
+exclude = ["src/climpact_web/core/tailwind"]
+
+[tool.hatch.build.targets.sdist]
+# As the wheel, plus the Tailwind sources; no tests or docs (they run from a checkout).
+include = ["/src/climpact_web", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

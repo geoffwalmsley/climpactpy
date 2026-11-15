@@ -23,7 +23,7 @@ AUTHOR = {"institution": "climpactpy reference", "institution_id": "CPY"}  # as 
 RUN_DEPENDENT = {"file_created", "file_created_by_userid", "history"}
 # Global attributes only R writes, and only Python writes.
 R_ONLY = {"R_version"}
-PYTHON_ONLY = {"climpactpy_version"}
+PYTHON_ONLY = {"climpact_python_version"}
 
 
 def _variables(run: str) -> list[str]:

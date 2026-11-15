@@ -4866,7 +4866,7 @@ msgstr ""
 #: help/topics.py:675
 msgid ""
 "One netCDF file per index and time scale, named in the CMIP5 style, for "
-"example r20mm_ANN_climpactpy_historical_NA_1991-2010.nc."
+"example r20mm_ANN_climpact_historical_NA_1991-2010.nc."
 msgstr ""
 
 #: help/topics.py:683

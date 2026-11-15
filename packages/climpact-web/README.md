@@ -1,30 +1,31 @@
 # climpact-web
 
-The web front end for [climpactpy](https://github.com/geoffwalmsley/climpactpy), a Python
-port of Climpact: a Django + htmx app. It depends on the core package (`climpactpy`,
-imported as `climpact`); the core never imports it.
-
-The skeleton, the design system and the landing page exist so far; the screens are
-tracked under epic #11. With `CLIMPACT_WEB_DEBUG=true` (or
-`CLIMPACT_WEB_PATTERN_LIBRARY=true`) the pattern library at `/patterns/` shows every UI
-component.
+The browser app for [Climpact for Python](https://pypi.org/project/climpact/) (the
+`climpact` package, a Python port of the R
+[Climpact](https://github.com/ARCCSS-extremes/climpact)): calculate the indices of daily
+climate extremes for a station, a batch of stations or gridded data, check the data
+quality and download the results, plots and report. A Django + htmx app. It depends on
+`climpact` at exactly the same version; the core never imports it.
 
 ## Running it on your computer
 
 ```sh
-pip install ./packages/climpact-web
+pip install climpact-web
 climpact-web
 ```
 
-In a checkout of the repository, `uv sync` then `uv run climpact-web` does the same with
-the locked versions.
+Python 3.12 or later. In a checkout of the
+[repository](https://github.com/geoffwalmsley/climpactpy), `uv sync` then
+`uv run climpact-web` does the same with the locked versions.
 
 `climpact-web` keeps its database and results in your user data folder, applies database
 migrations, starts a background worker for the calculations, serves the app on
 http://127.0.0.1:8000/ and opens it in the browser. It needs no network connection.
 Options: `--no-browser`, `--port`, `--host`, `--data-dir`, `--threads`, `--no-worker`;
 `climpact-web manage <command>` runs a Django management command. Uploads and results are
-deleted after 7 days (`CLIMPACT_WEB_RETENTION_DAYS`).
+deleted after 7 days (`CLIMPACT_WEB_RETENTION_DAYS`). With `CLIMPACT_WEB_DEBUG=true` (or
+`CLIMPACT_WEB_PATTERN_LIBRARY=true`) the pattern library at `/patterns/` shows every UI
+component.
 
 ## Changing the styles
 
@@ -52,4 +53,7 @@ run `climpact-web manage migrate` and `climpact-web manage collectstatic`, and s
 `climpact_web.wsgi:application`. Run one or more `climpact-web manage runworker`
 processes for the background jobs. The health check is `/healthz`.
 
-All settings are listed in TECHNICAL.md, section "Web front end".
+All settings are listed in the
+[technical notes](https://github.com/geoffwalmsley/climpactpy/blob/main/TECHNICAL.md),
+section "Web front end". The production container image is
+`ghcr.io/geoffwalmsley/climpact-web`.

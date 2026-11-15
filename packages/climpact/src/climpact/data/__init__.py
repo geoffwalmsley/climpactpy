@@ -1,1 +1,1 @@
-"""Data files shipped with climpactpy (copied from Climpact R)."""
+"""Data files shipped with Climpact for Python (copied from Climpact R)."""

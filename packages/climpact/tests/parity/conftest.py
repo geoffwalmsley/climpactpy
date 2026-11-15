@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import sys
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -32,7 +35,7 @@ def pytest_terminal_summary(terminalreporter):
                 counts.setdefault((test, run), Counter())[kind] += 1
     if not counts:
         return
-    terminalreporter.section("R parity")
+    lines: list[str] = []
     order = {
         "test_parity": 0,
         "test_csv_text": 1,
@@ -44,30 +47,71 @@ def pytest_terminal_summary(terminalreporter):
         total = sum(c.values())
         known = f", {c['known bug']} known bugs" if c["known bug"] else ""
         if test == "test_parity":
-            terminalreporter.write_line(
+            lines.append(
                 f"{run}: {c['passed']}/{total} reference files reproduced, "
                 f"{c['failed']} failing{known}, {c['xfailed']} not yet ported"
             )
         elif test == "test_csv_text":
-            terminalreporter.write_line(
+            lines.append(
                 f"{run}: {c['passed']}/{total} written CSV files text-identical to R, "
                 f"{c['failed']} differing{known}"
             )
         elif test == "test_sector":
-            terminalreporter.write_line(
+            lines.append(
                 f"{run}: {c['passed']}/{total} sector correlation CSV files matching R, "
                 f"{c['failed']} differing{known}"
             )
         elif test == "test_gridded":
-            terminalreporter.write_line(
+            lines.append(
                 f"{run}: {c['passed']}/{total} thresholds netCDF variables identical to R, "
                 f"{c['failed']} differing{known}"
             )
         else:
-            terminalreporter.write_line(
+            lines.append(
                 f"{run}: {c['passed']}/{total} index netCDF variables identical to R, "
                 f"{c['failed']} differing{known}, {c['xfailed']} not yet ported"
             )
+    terminalreporter.section("R parity")
+    for line in lines:
+        terminalreporter.write_line(line)
+    path = _write_summary_file(terminalreporter, lines)
+    terminalreporter.write_line(f"(also written to {path})")
+
+
+# At the repository root (this file is packages/climpact/tests/parity/conftest.py),
+# whichever directory pytest picked as its rootdir.
+SUMMARY_FILE = Path(__file__).resolve().parents[4] / ".parity-summary.txt"
+
+
+def _write_summary_file(terminalreporter, lines: list[str]):
+    """Write the parity lines and the test totals to ``.parity-summary.txt`` at the repo root.
+
+    The terminal section is longer than a ``tail`` of the output shows, so the whole
+    summary is kept in a file: run the suite once, then read the file instead of running
+    the suite again to see the summary. The header records when and how it was made, so a
+    stale file (from a run that didn't collect the parity tests) is easy to spot.
+    """
+    stats = terminalreporter.stats
+    totals = ", ".join(
+        f"{len(stats[key])} {key}"
+        for key in ("failed", "passed", "skipped", "xfailed", "xpassed", "error")
+        if stats.get(key)
+    )
+    args = " ".join(terminalreporter.config.invocation_params.args) or "(no arguments)"
+    stamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
+    text = "\n".join(
+        [
+            f"# R parity summary, written {stamp}",
+            f"# pytest {args}",
+            f"# Python {sys.version.split()[0]}",
+            f"# Test totals: {totals or 'none'}",
+            "",
+            *lines,
+            "",
+        ]
+    )
+    SUMMARY_FILE.write_text(text, encoding="utf-8")
+    return SUMMARY_FILE
 
 
 @pytest.fixture(scope="session")

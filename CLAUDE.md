@@ -24,9 +24,23 @@ architecture, parity testing and the differences between the Python and R implem
   template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
   `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install
   Tailwind any other way) and commit `css/climpact.css`; CI fails when it is stale.
-- Changes go through pull requests; do not commit to `main`.
+- Changes go through pull requests; do not commit to `main`. Merge pull requests with a
+  **merge commit** (`gh pr merge <N> --merge --delete-branch`), never squash or rebase, so
+  the branch's commits are kept on `main` as they were written. Every commit on the branch
+  therefore lands on `main`: keep each one signed, with a meaningful message, and tidy up
+  "fix typo"-style commits before the PR is merged.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
-  `pytest`, and report the R parity summary printed at the end of the test run.
+  `pytest`, and report the R parity summary.
+- **Run the full suite once, and get the parity summary from the file, not by running it
+  again.** The summary is about 60 lines, too long for a `tail` of the output, so the test
+  run also writes it, with the test totals, to `.parity-summary.txt` at the repository root
+  (git-ignored). Run `uv run pytest -q 2>&1 | tee "$TMPDIR/pytest.log" | tail -n 15`, then
+  `cat .parity-summary.txt`; if the tail doesn't show every failure, read them from the log
+  (`grep -E "^(FAILED|ERROR)" "$TMPDIR/pytest.log"`) instead of re-running. Check that the
+  file's header (timestamp and command) is from this run: a run that doesn't collect the
+  parity tests leaves an older file in place. For a "before" summary, copy the file aside
+  (for example `cp .parity-summary.txt "$TMPDIR/parity-before.txt"`) before changing the
+  code.
 
 ## Tickets
 

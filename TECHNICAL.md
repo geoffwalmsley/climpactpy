@@ -38,7 +38,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
 | Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station steps 1 to 5 (load data, the quality checks, the index parameters, the results, sector data) and the downloads page with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
-| Modules | QC, homogeneity and index module interfaces, third-party modules as plugins (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
+| Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -83,10 +83,12 @@ Paths in the rest of this document (`src/climpact/...`, `tests/...`) are relativ
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
                      `climpact gridded-thresholds` and `climpact gridded-indices` (a netCDF
-                     grid), `climpact modules` (list the modules available),
+                     grid), `climpact modules` (list the modules available
+                     and their options),
                      `climpact sector-correlation` (sector data against a station already run)
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
-                     points); run_pipeline(): QC -> homogeneity -> indices
+                     points); module options (Option); run_pipeline(): QC ->
+                     homogeneity -> indices
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   plots.py           index plots (PNG), the combined PDF and the zip archives (matplotlib,
                      optional: the `plots` extra)
@@ -395,19 +397,47 @@ and `climpact batch` (comma-separated, run in order; leaving out `climpact` drop
 built-in files). An unknown name, or a name installed twice, is an error before any
 station runs.
 
+**Module options** (#63). A module declares the options it accepts in an `options`
+attribute, a sequence of `Option(name, type, default, help, choices, required)`; `type`
+is `str`, `int`, `float` or `bool`. A module that declares options gets them as the
+keyword argument `options` of `build` or `homogenise`: a dict with a value for every
+declared option (the user's, else the default). Modules without an `options` attribute
+are called as before; the built-in modules take none.
+
+- **Choosing them.** `ModuleSelection.options` is `{kind: {module name: {option:
+  value}}}`, plain values, so batch workers receive it with the names. On the command
+  line, `climpact run` and `climpact batch` take `--module-option [KIND:]NAME.OPTION=VALUE`
+  (repeatable; `KIND` is needed only when two selected modules of different kinds share a
+  name, as the built-in QC and index modules `climpact` do) and `--module-options FILE`, a
+  TOML file of `[KIND.NAME]` tables; `--module-option` overrides the file.
+- **Checking them.** `resolve()` checks every option (`option_values`) and raises
+  `ModuleOptionError` for options of a kind or module not selected, an option the module
+  does not declare, a missing `required` option, a value of the wrong type or not among
+  `choices`. Strings (from the command line) are parsed to the option's type (`bool`:
+  true/false, yes/no, on/off, 1/0); other values must have the type already (an int is
+  accepted for a float). The command line reports the error before any station runs, and
+  `run_batch` calls `resolve()` before starting the stations, so a bad option fails the
+  batch rather than each station. The checked values are kept in `Modules.options`, keyed
+  by `(kind, name)`.
+- **Listing them.** `climpact modules` loads each module and prints its options under
+  it (type, default, choices and help); a plugin that fails to load is reported and the
+  listing goes on.
+
 **Example plugin.** `tests/plugins/climpact_example_plugin` is a separate package with its
 own `pyproject.toml` and one module of each kind: `example_qc` (`qc/example_hot_days`),
 `example_shift` (a break in TX in the middle year, `homogeneity/example_breaks`, and TX
-before it raised by 1 °C) and `example_indices` (`indices/example_txmean_ANN`).
+before it raised by 1 °C; options `adjustment` and `variable`) and `example_indices`
+(`indices/example_txmean_ANN`).
 `tests/test_modules.py` installs it into a temporary folder on `sys.path` by writing its
 `.dist-info` (entry points from its `pyproject.toml`; no build step or network), then
 checks that it is discovered, runs through `run_pipeline`, the command line and a
 two-process batch, that QC tables come from the original data and the built-in indices
-from the adjusted data.
+from the adjusted data, and that module options reach the module from `run_pipeline`,
+`climpact run`, `climpact batch` and a two-process `run_batch`, with bad options rejected
+before any station runs.
 
-Not yet supported: module options (a module reads `run.params` and `run.qc` or its own
-defaults), and trend rows for plugin indices (the trend file covers the built-in indices
-only).
+Not yet supported: trend rows for plugin indices (the trend file covers the built-in
+indices only).
 
 ## Batch processing
 
@@ -415,7 +445,8 @@ only).
 (`climpact.batch.stations.r`, `server/batch_stations.R`). Options: `--base-start`,
 `--base-end` (default 1971-2000, applied to every station, as R's command-line
 arguments), `--workers` (processes; R's `cores_to_use`), `--custom VAR OP VALUE`, and
-`--qc`, `--homogeneity`, `--indices` (see [Modules and plugins](#modules-and-plugins)),
+`--qc`, `--homogeneity`, `--indices`, `--module-option`, `--module-options` (see
+[Modules and plugins](#modules-and-plugins)),
 `--plots` (each station's plots, as `climpact run --plots`) and `--zip` (the whole output
 folder to `<out>.zip` once every station has finished; see
 [Plots and zip archive](#plots-and-zip-archive)).

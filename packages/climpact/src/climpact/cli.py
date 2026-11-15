@@ -5,7 +5,8 @@ and writes them as Climpact CSV files to ``<dir>/<station>/{indices,qc,thres}/``
 app does. ``climpact batch <metadata file> <data dir> --out <dir>`` does the same for every
 station of an R batch metadata file (see :mod:`climpact.batch`). Both take ``--qc``,
 ``--homogeneity`` and ``--indices`` to select the modules a run uses, and
-``climpact modules`` lists the modules available (see :mod:`climpact.modules`). Both
+``--module-option`` and ``--module-options`` to set their options; ``climpact modules``
+lists the modules available and their options (see :mod:`climpact.modules`). Both
 take ``--plots`` to draw R's index plots and combined PDF and ``--zip`` to zip the
 outputs, as R's download does (see :mod:`climpact.plots`), and ``--report`` to write a PDF
 report of each station (see :mod:`climpact.report`).
@@ -31,6 +32,7 @@ from climpact.modules import (
     DEFAULT_INDICES,
     DEFAULT_QC,
     KINDS,
+    ModuleOptionError,
     ModuleSelection,
     UnknownModuleError,
 )
@@ -114,6 +116,22 @@ def _module_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="NAMES",
         help="comma-separated index modules, run in order (default: %(default)s)",
     )
+    group.add_argument(
+        "--module-option",
+        action="append",
+        default=[],
+        metavar="[KIND:]NAME.OPTION=VALUE",
+        help="set an option of a selected module, e.g. example_shift.adjustment=2; "
+        "KIND (qc, homogeneity or indices) is needed only when modules of two kinds share "
+        "NAME. Repeat for several options",
+    )
+    group.add_argument(
+        "--module-options",
+        type=Path,
+        metavar="FILE",
+        help="TOML file of module options, one table per module: [KIND.NAME] then "
+        "OPTION = VALUE lines; --module-option overrides it",
+    )
 
 
 def _output_arguments(parser: argparse.ArgumentParser, zip_help: str, report_help: str) -> None:
@@ -143,16 +161,65 @@ def _names(text: str) -> tuple[str, ...]:
     return tuple(name.strip() for name in text.split(",") if name.strip())
 
 
+def _options_file(path: Path) -> dict[str, dict[str, dict]]:
+    """The module options of a TOML file: ``[KIND.NAME]`` tables of ``OPTION = VALUE``."""
+    import tomllib
+
+    try:
+        data = tomllib.loads(path.read_text())
+    except OSError as exc:
+        raise ModuleOptionError(f"cannot read {path}: {exc.strerror}") from None
+    except tomllib.TOMLDecodeError as exc:
+        raise ModuleOptionError(f"{path}: {exc}") from None
+    options: dict[str, dict[str, dict]] = {}
+    for kind, by_module in data.items():
+        if not isinstance(by_module, dict) or not all(
+            isinstance(v, dict) for v in by_module.values()
+        ):
+            raise ModuleOptionError(f"{path}: expected [{kind}.NAME] tables of options")
+        options[kind] = {name: dict(values) for name, values in by_module.items()}
+    return options
+
+
+def _parse_module_option(text: str, selection: ModuleSelection) -> tuple[str, str, str, str]:
+    """``(kind, module, option, value)`` of a ``[KIND:]NAME.OPTION=VALUE`` argument."""
+    target, sep, value = text.partition("=")
+    module, dot, option = target.strip().rpartition(".")
+    if not (sep and dot and module and option):
+        raise ModuleOptionError(f"--module-option {text!r}: expected [KIND:]NAME.OPTION=VALUE")
+    kind, colon, name = module.partition(":")
+    if colon:
+        if kind not in KINDS:
+            raise ModuleOptionError(
+                f"--module-option {text!r}: unknown kind {kind!r} (kinds: {', '.join(KINDS)})"
+            )
+        return kind, name, option, value.strip()
+    kinds = [k for k in KINDS if module in selection.names(k)]
+    if not kinds:
+        raise ModuleOptionError(f"--module-option {text!r}: no module {module!r} is selected")
+    if len(kinds) > 1:
+        raise ModuleOptionError(
+            f"--module-option {text!r}: {module!r} is a selected {' and '.join(kinds)} module; "
+            f"write {kinds[0]}:{module}.{option}=..."
+        )
+    return kinds[0], module, option, value.strip()
+
+
 def _modules(args: argparse.Namespace, parser: argparse.ArgumentParser) -> ModuleSelection:
-    """The selected modules, checked to be available."""
+    """The selected modules and their options, checked to be available and valid."""
     from climpact.modules import resolve
 
     selection = ModuleSelection(
         qc=_names(args.qc), homogeneity=args.homogeneity, indices=_names(args.indices)
     )
     try:
+        options = _options_file(args.module_options) if args.module_options else {}
+        for text in args.module_option:
+            kind, name, option, value = _parse_module_option(text, selection)
+            options.setdefault(kind, {}).setdefault(name, {})[option] = value
+        selection = ModuleSelection(selection.qc, selection.homogeneity, selection.indices, options)
         resolve(selection)
-    except (UnknownModuleError, TypeError) as exc:
+    except (UnknownModuleError, ModuleOptionError, TypeError) as exc:
         parser.error(str(exc))
     return selection
 
@@ -387,7 +454,8 @@ def _parser() -> argparse.ArgumentParser:
         "modules",
         help="list the QC, homogeneity and index modules available",
         description="List the built-in modules and the plugins installed through the "
-        "climpact.qc, climpact.homogeneity and climpact.indices entry points.",
+        "climpact.qc, climpact.homogeneity and climpact.indices entry points, with the "
+        "options each takes.",
     )
     return parser
 
@@ -670,13 +738,28 @@ def sector_correlation_command(args: argparse.Namespace, parser: argparse.Argume
     return 0
 
 
+def _describe_option(option) -> str:
+    text = f"{option.name} ({option.type.__name__}"
+    text += ", required)" if option.required else f", default {option.default!r})"
+    if option.choices is not None:
+        text += f" one of {', '.join(map(str, option.choices))}"
+    return f"{text}: {option.help}" if option.help else text
+
+
 def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    from climpact.modules import available
+    from climpact.modules import available, load, module_options
 
     for kind in KINDS:
         print(f"{kind}:")
         for name, source in available(kind).items():
             print(f"  {name} ({source})")
+            try:
+                options = module_options(load(kind, name))
+            except Exception as exc:  # a broken plugin should not hide the others
+                print(f"    cannot load: {exc}")
+                continue
+            for option in options:
+                print(f"    {_describe_option(option)}")
     return 0
 
 

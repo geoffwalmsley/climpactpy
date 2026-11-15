@@ -7,6 +7,27 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+## 0.1.1 - 2026-11-16
+
+Changes to the hosted web app (`climpact-web` in hosted mode, and its image). `climpact`
+itself and the local `climpact-web` are unchanged.
+
+- Abuse limits for the hosted site (#125), all off in local mode: Cloudflare Turnstile on
+  the forms that upload a file or start a job (on when `CLIMPACT_WEB_TURNSTILE_SITE_KEY`
+  and `_SECRET_KEY` are set); per-visitor quotas on jobs waiting or running and on jobs
+  started in 24 hours, counted by Cloudflare's `CF-Connecting-IP`; no new jobs while the
+  queue is full or the disk is low; a wall-clock limit on one job (60 minutes). Refusals
+  show a plain page and are logged with the address and the reason. New settings:
+  `CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP`, `_MAX_DAILY_JOBS_PER_IP`, `_MAX_QUEUED_JOBS`,
+  `_MIN_FREE_DISK_GB`, `_JOB_TIME_LIMIT_MINUTES`. A database migration
+  (`jobs/0002_abuse_limits`) runs on upgrade.
+- Hosted mode sends `Strict-Transport-Security` with `includeSubDomains`, and every answer
+  without its own `Cache-Control` is marked `private`, so Cloudflare never caches a
+  visitor's downloads (#124).
+- Deployment: `deploy/compose.yaml` passes the new settings and puts `web` on the
+  `egress` network (for Turnstile's check), `deploy/.env.example` sends HSTS for a year,
+  and the runbook covers the Cloudflare edge settings and the Turnstile keys.
+
 ## 0.1.0 - 2026-11-15
 
 The first release on PyPI. The same code as 0.1.0rc1, which was published to TestPyPI

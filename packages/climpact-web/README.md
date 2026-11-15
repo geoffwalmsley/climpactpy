@@ -26,6 +26,24 @@ Options: `--no-browser`, `--port`, `--host`, `--data-dir`, `--threads`, `--no-wo
 `climpact-web manage <command>` runs a Django management command. Uploads and results are
 deleted after 7 days (`CLIMPACT_WEB_RETENTION_DAYS`).
 
+## Changing the styles
+
+The stylesheet is written for Tailwind CSS and built by the standalone Tailwind CLI (#118);
+the built file, `core/static/climpact_web/css/climpact.css`, is committed, so running or
+installing the app needs no Tailwind. To change a template's classes or the source in
+`core/tailwind/`, from the repository root:
+
+```sh
+scripts/fetch-tailwind.sh                     # once: the pinned CLI into bin/, checksum checked
+scripts/build-css.sh --watch                  # rebuild on every change
+CLIMPACT_WEB_DEBUG=true uv run climpact-web   # in another terminal: changes show on reload
+scripts/build-css.sh                          # one build before committing
+```
+
+CI rebuilds the stylesheet and fails if the committed file differs. Utilities go in the
+templates; repeated pieces, and classes built in Python or JavaScript, are components in
+`core/tailwind/components/`. See TECHNICAL.md, "Stylesheet and Tailwind".
+
 ## Hosted mode
 
 Set `CLIMPACT_WEB_MODE=hosted`, `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS`,

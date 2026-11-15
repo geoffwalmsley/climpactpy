@@ -1,0 +1,105 @@
+/* Step 2, Check quality (#77): the summary (qc-summary--{{ level }} is built in the
+   template), the check tables linked to the charts, the missing-values table, and the
+   distribution plots drawn on the server (stations/qc_plots.py writes the qc-plot
+   classes). */
+@layer components {
+  .qc-summary {
+    padding: --spacing(5);
+    border: 1px solid var(--color-border);
+    border-inline-start: 6px solid var(--color-success);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .qc-summary--review { border-inline-start-color: var(--color-warning); }
+  .qc-summary--errors { border-inline-start-color: var(--color-danger); }
+
+  .qc-summary__head {
+    display: flex;
+    gap: --spacing(3);
+    align-items: flex-start;
+  }
+
+  .qc-summary__head > .icon {
+    flex: none;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    color: var(--color-success);
+  }
+
+  .qc-summary--review .qc-summary__head > .icon { color: var(--color-warning); }
+  .qc-summary--errors .qc-summary__head > .icon { color: var(--color-danger); }
+
+  .qc-summary__title {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  /* position: the visually hidden text in the rows stays inside the scrolling region. */
+  .qc-table .table-wrap { position: relative; max-block-size: 32rem; }
+
+  .qc-table__date {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .qc-table__show { text-align: end; }
+
+  .qc-table tr.is-selected > * {
+    background: var(--color-accent-soft);
+  }
+
+  .qc-table tr.is-selected > :first-child {
+    box-shadow: inset 4px 0 0 var(--color-accent);
+  }
+
+  [dir="rtl"] .qc-table tr.is-selected > :first-child {
+    box-shadow: inset -4px 0 0 var(--color-accent);
+  }
+
+  .qc-table tr:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+  .qc-flagged strong { color: var(--color-danger); }
+
+  .qc-pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(3);
+    align-items: center;
+  }
+
+  .qc-missing .table-wrap,
+  .qc-missing { max-block-size: 28rem; }
+
+  .qc-missing__short { background: var(--color-warning-soft); }
+
+  .qc-missing__tag {
+    display: block;
+    color: var(--color-warning);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .qc-plot {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    direction: ltr;
+  }
+
+  .qc-plot__grid { stroke: var(--chart-grid); stroke-width: 1; }
+  .qc-plot__tick { fill: var(--color-text-muted); font-size: 11px; }
+  .qc-plot__box { fill: var(--plot-colour); fill-opacity: 0.25; stroke: var(--plot-colour); stroke-width: 1.25; }
+  .qc-plot__median { stroke: var(--color-text); stroke-width: 2; }
+  .qc-plot__whisker { stroke: var(--plot-colour); stroke-width: 1.25; }
+  .qc-plot__out { fill: none; stroke: var(--chart-flag); stroke-width: 1.25; }
+  .qc-plot__bar { fill: var(--plot-colour); }
+
+  @media (forced-colors: active) {
+    .qc-table tr.is-selected > * { outline: 2px solid Highlight; }
+    .qc-plot__box, .qc-plot__whisker, .qc-plot__out { stroke: CanvasText; }
+    .qc-plot__bar { fill: CanvasText; }
+  }
+}

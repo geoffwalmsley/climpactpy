@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}"><script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -19,7 +19,7 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
-  <div class="cluster results-actions">
+  <div class="flex flex-wrap items-center gap-3 results-actions">
     {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
     {% include "components/button.html" with label=change_label href=indices_url|add:"?settings=open#settings" variant="secondary" size="sm" icon="sliders" %}
     {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
@@ -34,7 +34,7 @@
   <section class="card stack trend-summary" aria-labelledby="trends-title">
     <h2 class="card__title" id="trends-title">{% translate "Significant trends" %}</h2>
     {% if significant_cards %}
-    <p class="small muted">{% blocktranslate with n=significant_cards|length total=total trimmed %}
+    <p class="text-sm text-text-muted">{% blocktranslate with n=significant_cards|length total=total trimmed %}
       {{ n }} of {{ total }} indices changed significantly. Largest change first, measured against how much each index varies from year to year.
     {% endblocktranslate %}</p>
     <ol class="trend-list" role="list">
@@ -58,7 +58,7 @@
     <div class="alert__body">
       <h2 class="alert__title">{% blocktranslate count counter=run.skipped|length trimmed %}{{ counter }} index could not be calculated{% plural %}{{ counter }} indices could not be calculated{% endblocktranslate %}</h2>
       <p>{% translate "Climpact does not write a table whose values are all missing. These are not shown below:" %}</p>
-      <ul class="skipped-list">
+      <ul class="grid gap-1 ps-5 [&_code]:text-xs">
         {% for item in run.skipped %}<li>{% blocktranslate with name=item.name tables=item.tables_text reason=item.reason %}<strong>{{ name }}</strong> ({{ tables }}): {{ reason }}{% endblocktranslate %}</li>{% endfor %}
       </ul>
       {% help_topic "results.missing_value" %}
@@ -87,32 +87,32 @@
       {% include "components/button.html" with label=filter_label type="submit" variant="secondary" size="sm" %}
     </div>
   </form>
-  <p class="small muted" id="results-count" aria-live="polite" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}</p>
+  <p class="text-sm text-text-muted" id="results-count" aria-live="polite" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}</p>
 
   {% for section in sections %}
-  <details class="disclosure results-section" id="group-{{ section.key }}" data-results-section{% if section.open %} open{% if filtering %} data-auto-open{% endif %}{% endif %}{% if section.hidden %} hidden{% endif %}>
+  <details class="disclosure" id="group-{{ section.key }}" data-results-section{% if section.open %} open{% if filtering %} data-auto-open{% endif %}{% endif %}{% if section.hidden %} hidden{% endif %}>
     <summary>
-      <h2 class="results-section__title">{{ section.label }}</h2>
-      <span class="results-section__count">{% if section.significant %}{% blocktranslate count counter=section.cards|length with n=section.significant trimmed %}{{ counter }} index · {{ n }} significant{% plural %}{{ counter }} indices · {{ n }} significant{% endblocktranslate %}{% else %}{% blocktranslate count counter=section.cards|length trimmed %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}{% endif %}</span>
+      <h2 class="m-0 text-lg">{{ section.label }}</h2>
+      <span class="text-sm font-normal text-text-muted">{% if section.significant %}{% blocktranslate count counter=section.cards|length with n=section.significant trimmed %}{{ counter }} index · {{ n }} significant{% plural %}{{ counter }} indices · {{ n }} significant{% endblocktranslate %}{% else %}{% blocktranslate count counter=section.cards|length trimmed %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}{% endif %}</span>
       {% icon "chevron-down" %}
     </summary>
-    <ul class="index-grid" role="list">
+    <ul class="m-0 grid list-none gap-4 px-4 pt-2 pb-4 grid-cols-fill-64" role="list">
       {% for card in section.cards %}
       <li class="index-card" data-family="{{ card.family }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
         <h3 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h3>
         <p class="index-card__units"><code class="index-code">{{ card.code }}</code>{% if card.units %} {{ card.units }}{% endif %}</p>
         <p class="index-card__definition">{{ card.definition }}</p>
         {% if card.spark %}{% include "stations/_spark.html" %}
-        {% elif card.daily %}<p class="index-card__daily small">{% blocktranslate with days=card.daily.days|count high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
+        {% elif card.daily %}<p class="index-card__daily text-sm">{% blocktranslate with days=card.daily.days|count high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
         <p class="index-card__trend">
           {% if card.trend.valid %}
           <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
           {% if card.trend.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}{% translate "Not significant" as sig %}{% include "components/badge.html" with label=sig %}{% endif %}
-          {% elif card.trend %}<span class="small muted">{% translate "No trend: too few values" %}</span>
-          {% elif card.daily %}<span class="small muted">{% translate "Daily values, no trend" %}</span>
-          {% else %}<span class="small muted">{% translate "No trend line" %}</span>{% endif %}
+          {% elif card.trend %}<span class="text-sm text-text-muted">{% translate "No trend: too few values" %}</span>
+          {% elif card.daily %}<span class="text-sm text-text-muted">{% translate "Daily values, no trend" %}</span>
+          {% else %}<span class="text-sm text-text-muted">{% translate "No trend line" %}</span>{% endif %}
         </p>
-        <p class="index-card__meta small muted">{% if card.latest %}{% blocktranslate with when=card.latest.when value=card.latest.text units=card.units series=card.series_text %}Latest: {{ value }} {{ units }} in {{ when }} · {{ series }}{% endblocktranslate %}{% else %}{{ card.series_text }}{% endif %}</p>
+        <p class="index-card__meta text-sm text-text-muted">{% if card.latest %}{% blocktranslate with when=card.latest.when value=card.latest.text units=card.units series=card.series_text %}Latest: {{ value }} {{ units }} in {{ when }} · {{ series }}{% endblocktranslate %}{% else %}{{ card.series_text }}{% endif %}</p>
       </li>
       {% endfor %}
     </ul>
@@ -120,16 +120,16 @@
   {% endfor %}
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
 
-  <div class="results-footer">
+  <div class="grid items-start gap-5 grid-cols-fit-72">
     <section class="card stack" id="downloads" aria-labelledby="downloads-title">
       <h2 class="card__title" id="downloads-title">{% translate "Downloads" %}</h2>
-      <ul class="link-list">
+      <ul class="m-0 grid gap-2 ps-5">
         {% if downloads.zip %}<li><a href="{% url 'jobs:file' downloads.job.pk downloads.zip.path %}">{% blocktranslate with size=downloads.zip.size|filesizeformat %}Everything, in Climpact for R's folder layout (zip, {{ size }}){% endblocktranslate %}</a></li>{% endif %}
         {% for f in downloads.files %}<li><a href="{% url 'jobs:file' downloads.job.pk f.path %}">{% blocktranslate with label=f.label kind=f.kind|upper size=f.size|filesizeformat %}{{ label }} ({{ kind }}, {{ size }}){% endblocktranslate %}</a></li>{% endfor %}
         <li><a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Every file, with each index's table and plot" %}</a></li>
       </ul>
       {% help_topic "results.files" %}
-      <p class="small muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
+      <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
     </section>
     <section class="card stack" aria-labelledby="params-title">
       <h2 class="card__title" id="params-title">{% translate "Settings used" %}</h2>

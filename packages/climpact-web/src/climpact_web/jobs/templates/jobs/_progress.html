@@ -21,7 +21,7 @@ components' classes.
       {% if remaining %}{% blocktranslate %}About {{ remaining }} left.{% endblocktranslate %}{% endif %}
     </p>
   </div>
-  {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+  {% if job.cancel_requested %}<p class="flex flex-wrap items-center gap-3 text-text-muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
   {% if worker_missing %}
   {% translate "No calculation worker is running, so this job cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
   {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
@@ -50,7 +50,7 @@ components' classes.
     <summary>{% icon "folder" %}<span>{% blocktranslate count counter=files|length %}{{ counter }} file{% plural %}{{ counter }} files{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
       <ul class="job-files file-list">
-        {% for f in files %}<li><a href="{% url 'jobs:file' job.pk f.name %}">{{ f.name }}</a> <span class="small muted">{{ f.size|filesizeformat }}</span></li>{% endfor %}
+        {% for f in files %}<li><a href="{% url 'jobs:file' job.pk f.name %}">{{ f.name }}</a> <span class="text-sm text-text-muted">{{ f.size|filesizeformat }}</span></li>{% endfor %}
       </ul>
     </div>
   </details>
@@ -78,6 +78,6 @@ components' classes.
   {% endif %}
 
   {% if job.is_finished %}
-  <p class="small muted cluster">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results and uploaded files are deleted on {{ date }}.{% endblocktranslate %}</span></p>
+  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results and uploaded files are deleted on {{ date }}.{% endblocktranslate %}</span></p>
   {% endif %}
 </div>

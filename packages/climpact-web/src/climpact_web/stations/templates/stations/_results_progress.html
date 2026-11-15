@@ -28,7 +28,7 @@ Parameters: job, analysis, phases, index, and jobs.views.progress_context.
   {% translate "No calculation worker is running, so this job cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
   {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
   {% endif %}
-  {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+  {% if job.cancel_requested %}<p class="flex flex-wrap items-center gap-3 text-text-muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
   {% if job.can_cancel %}
   <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
     {% translate "Cancel" as cancel_label %}
@@ -53,7 +53,7 @@ Parameters: job, analysis, phases, index, and jobs.views.progress_context.
   {% include "components/alert.html" with kind="info" message=cancelled_message live="polite" title="" %}
   {% endif %}
   {% if job.is_finished %}
-  <div class="cluster">
+  <div class="flex flex-wrap items-center gap-3">
     {% if job.can_retry %}
     <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
       {% translate "Try again" as retry_label %}

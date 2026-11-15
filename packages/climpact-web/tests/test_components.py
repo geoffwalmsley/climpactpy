@@ -80,7 +80,7 @@ def test_button_variants():
     assert link.startswith('<a href="/next/"') and link.endswith("</a>")
     assert "disabled" in render("button", label="Go", href="/x/", disabled=True)
     icon_only = render("button", label="Refresh", icon="refresh", icon_only=True)
-    assert '<span class="visually-hidden">Refresh</span>' in icon_only
+    assert '<span class="sr-only">Refresh</span>' in icon_only
     assert 'aria-busy="true"' in render("button", label="Go", busy=True)
     assert "button--block" in render("button", label="Go", full_width=True)
 
@@ -239,7 +239,8 @@ def test_landing_page(client):
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html
-    assert 'id="theme-dark"' in html and 'media="(prefers-color-scheme: dark)"' in html
+    # One stylesheet carries both themes (#118): data-theme on <html> picks one.
+    assert "/static/climpact_web/css/climpact.css" in html and "theme-dark" not in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     assert re.findall(r'href="([^"]+)"', nav) == [
         "/station/",
@@ -305,7 +306,6 @@ def test_pattern_library(client):
     for section in ("tables", "tabs", "steps", "progress", "loading", "help", "charts"):
         assert f'id="{section}"' in html
     assert 'aria-invalid="true"' in html and "data-error-summary" in html
-    assert "/static/climpact_web/css/patterns.css" in html
     assert not re.search(r'(src|href)="(https?:)?//', html)  # nothing from the network
 
 
@@ -318,7 +318,7 @@ def test_design_snapshots(tmp_path):
     for name in names:
         for suffix in ("", "-dark"):
             html = (out / f"{name}{suffix}.html").read_text()
-            assert 'href="static/climpact_web/css/main.css"' in html
+            assert 'href="static/climpact_web/css/climpact.css"' in html
             assert '"/static/' not in html
             assert "icons.svg#" not in html and '<symbol id="upload"' in html
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()
@@ -327,7 +327,7 @@ def test_design_snapshots(tmp_path):
     assert "Line 3 has 5 values" in (out / "station-upload-problems.html").read_text()
     assert "1936-01-01 to 2015-12-31" in (out / "station-load.html").read_text()
     assert "has no data: the file covers" in (out / "station-load-errors.html").read_text()
-    assert (out / "static" / "climpact_web" / "css" / "main.css").is_file()
+    assert (out / "static" / "climpact_web" / "css" / "climpact.css").is_file()
     assert (out / "static" / "climpact_web" / "js" / "ui.js").is_file()
 
 

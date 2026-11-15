@@ -1,9 +1,10 @@
-"""The design tokens in the stylesheets, read back as data (#71).
+"""The design tokens in the stylesheet source, read back as data (#71, #118).
 
-The CSS custom properties in ``css/main.css`` (light) and ``css/theme-dark.css`` (dark) are
-the one source of the colours. This module parses them for the tests (WCAG contrast of
-every text/background pair) and writes ``chart-palette.json``, the chart colours for code
-that cannot read CSS: the static plots and PDF report (#74, #79) and chart exports (#75).
+The Tailwind theme (``tailwind/theme.css``, light) and the ``@variant dark`` block of
+``tailwind/base.css`` (dark) are the one source of the colours. This module parses them
+for the tests (WCAG contrast of every text/background pair) and writes
+``chart-palette.json``, the chart colours for code that cannot read CSS: the static plots
+and PDF report (#74, #79) and chart exports (#75).
 In the browser, charts read the live values with ``Climpact.chartPalette()`` (ui.js).
 
 Regenerate the JSON after changing a ``--chart-*`` token::
@@ -15,20 +16,24 @@ import json
 import re
 from pathlib import Path
 
-STATIC = Path(__file__).resolve().parent / "static" / "climpact_web"
-LIGHT_CSS = STATIC / "css" / "main.css"
-DARK_CSS = STATIC / "css" / "theme-dark.css"
+HERE = Path(__file__).resolve().parent
+STATIC = HERE / "static" / "climpact_web"
+TAILWIND = HERE / "tailwind"
+LIGHT_CSS = TAILWIND / "theme.css"
+DARK_CSS = TAILWIND / "base.css"
+# The blocks that hold the tokens: the theme, and the dark variant's values.
+BLOCKS = {LIGHT_CSS: r"@theme\s+static\s*\{", DARK_CSS: r"@variant\s+dark\s*\{"}
 CHART_PALETTE_JSON = STATIC / "chart-palette.json"
 
 CHART_ROLES = ("tmax", "tmin", "prcp", "trend", "trend-band", "flag", "grid", "axis")
 
 
 def read_tokens(path: Path) -> dict[str, str]:
-    """``--name: value`` pairs from the first ``:root { ... }`` block of a stylesheet."""
+    """``--name: value`` pairs from the token block of theme.css or base.css (BLOCKS)."""
     css = re.sub(r"/\*.*?\*/", "", path.read_text(), flags=re.S)
-    block = re.search(r":root\s*\{(.*?)\}", css, flags=re.S)
+    block = re.search(BLOCKS[path] + r"(.*?)\}", css, flags=re.S)
     if block is None:
-        raise ValueError(f"no :root block in {path}")
+        raise ValueError(f"no token block in {path}")
     return {
         name: " ".join(value.split())
         for name, value in re.findall(r"--([\w-]+)\s*:\s*([^;]+);", block.group(1))
@@ -54,9 +59,9 @@ def chart_palette() -> dict:
     """The chart colours for each theme, as written to chart-palette.json."""
     palette = {
         "about": (
-            "climpact-web chart colours, generated from the --chart-* tokens in css/main.css "
-            "and css/theme-dark.css by climpact_web.core.tokens. Categorical colours are "
-            "assigned in this fixed order, never cycled."
+            "climpact-web chart colours, generated from the --chart-* tokens in "
+            "tailwind/theme.css and tailwind/base.css by climpact_web.core.tokens. "
+            "Categorical colours are assigned in this fixed order, never cycled."
         )
     }
     for theme, tokens in theme_tokens().items():

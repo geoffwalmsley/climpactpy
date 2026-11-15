@@ -39,12 +39,9 @@
     }
   }
 
+  /* The stylesheet's dark tokens follow data-theme on <html>: "dark", "light", or none for
+     the OS preference (#118). */
   function setTheme(theme) {
-    var link = doc.getElementById("theme-dark");
-    if (link) {
-      link.media =
-        theme === "dark" ? "all" : theme === "light" ? "not all" : "(prefers-color-scheme: dark)";
-    }
     if (theme) root.setAttribute("data-theme", theme);
     else root.removeAttribute("data-theme");
     try {
@@ -133,7 +130,7 @@
         panels[i].setAttribute("aria-labelledby", tab.id);
         panels[i].setAttribute("tabindex", "0");
         var heading = panels[i].querySelector(".tabs__panel-heading");
-        if (heading) heading.classList.add("visually-hidden");
+        if (heading) heading.classList.add("sr-only");
       });
 
       function select(index, focus) {

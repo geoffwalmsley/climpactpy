@@ -6,7 +6,7 @@ The stages of a job and where it is. Parameters: label (names the list), stages 
   {% for stage in stages %}
   <li class="stages__item stages__item--{{ stage.state }}"{% if stage.state == "current" %} aria-current="step"{% endif %}>
     {% if stage.state == "done" %}{% icon "check-circle" %}{% elif stage.state == "current" %}<span class="spinner" aria-hidden="true"></span>{% elif stage.state == "failed" %}{% icon "error" %}{% else %}{% icon "circle" %}{% endif %}
-    <span>{{ stage.label }}<span class="visually-hidden"> {% if stage.state == "done" %}{% translate "(done)" %}{% elif stage.state == "current" %}{% translate "(in progress)" %}{% elif stage.state == "failed" %}{% translate "(failed)" %}{% else %}{% translate "(not started)" %}{% endif %}</span></span>
+    <span>{{ stage.label }}<span class="sr-only"> {% if stage.state == "done" %}{% translate "(done)" %}{% elif stage.state == "current" %}{% translate "(in progress)" %}{% elif stage.state == "failed" %}{% translate "(failed)" %}{% else %}{% translate "(not started)" %}{% endif %}</span></span>
   </li>
   {% endfor %}
 </ol>

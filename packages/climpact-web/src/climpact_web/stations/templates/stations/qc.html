@@ -8,9 +8,7 @@ missing data per year, the distribution plots, the downloads, and the way back t
 correct the file. Context from views.qc_context.
 {% endcomment %}
 {% block title %}{% translate "Check quality" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}">
-<link rel="stylesheet" href="{% static 'climpact_web/css/qc.css' %}">
-{% if review %}{% chart_scripts %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
+{% block head %}{% if review %}{% chart_scripts %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
 {% if job and not job.is_finished %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
@@ -50,11 +48,11 @@ correct the file. Context from views.qc_context.
 
   {% if review %}
   <section class="stack" id="daily" aria-labelledby="daily-title">
-    <div class="qc-section-head">
+    <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
       <h2 id="daily-title">{% translate "Daily values" %}</h2>
       {% help_topic "qc.daily_series" %}
     </div>
-    <p class="muted">{% translate "Flagged values are circled. Click a circle to find it in the tables below; “Show on chart” in a table brings you back to the day here. Drag across a chart to zoom in." %}</p>
+    <p class="text-text-muted">{% translate "Flagged values are circled. Click a circle to find it in the tables below; “Show on chart” in a table brings you back to the day here. Drag across a chart to zoom in." %}</p>
     <div class="tabs qc-charts" data-tabs>
       <ul class="tabs__list" aria-label="{% translate 'Variable shown' %}">
         {% for chart in charts %}<li><a class="tabs__tab" href="#{{ chart.id }}-panel" id="{{ chart.id }}-panel-tab">{{ chart.label }}</a></li>{% endfor %}
@@ -75,7 +73,7 @@ correct the file. Context from views.qc_context.
     <h2 id="checks-title">{% translate "What the checks found" %}</h2>
     {% for group in check_groups %}
     <div class="stack">
-      <h3 class="qc-group-title">{% if group.kind == "error" %}{% translate "Usually errors in the data" %}{% else %}{% translate "May be genuine: worth a look" %}{% endif %}</h3>
+      <h3 class="mt-4 text-base tracking-[0.02em] text-text-muted uppercase">{% if group.kind == "error" %}{% translate "Usually errors in the data" %}{% else %}{% translate "May be genuine: worth a look" %}{% endif %}</h3>
       {% for item in group.items %}{% include "stations/_qc_check.html" with check=item.check page=item.page %}{% endfor %}
     </div>
     {% endfor %}
@@ -88,9 +86,9 @@ correct the file. Context from views.qc_context.
     <h2 class="card__title" id="downloads-title">{% translate "Quality-control files" %}</h2>
     <p>{% translate "The same files as Climpact for R writes in its qc folder, as CSV." %}</p>
     {% if review.zip %}<p>{% url "jobs:file" job.pk review.zip as zip_url %}{% blocktranslate with size=job|file_size:review.zip|filesizeformat asvar zip_label %}Download all quality-control files (zip, {{ size }}){% endblocktranslate %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" variant="secondary" %}</p>{% endif %}
-    <ul class="file-list qc-files">
-      {% for check in review.checks %}{% if check.file %}<li><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "file" %} {{ check.file_name }}</a> <span class="muted small">{% blocktranslate with title=check.title size=job|file_size:check.file|filesizeformat %}{{ title }}, {{ size }}{% endblocktranslate %}</span></li>{% endif %}{% endfor %}
-      {% if review.nastatistics_file %}<li><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "file" %} {{ review.nastatistics_name }}</a> <span class="muted small">{% blocktranslate with size=job|file_size:review.nastatistics_file|filesizeformat %}Missing days per year, {{ size }}{% endblocktranslate %}</span></li>{% endif %}
+    <ul class="file-list grid gap-1">
+      {% for check in review.checks %}{% if check.file %}<li><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "file" %} {{ check.file_name }}</a> <span class="text-text-muted text-sm">{% blocktranslate with title=check.title size=job|file_size:check.file|filesizeformat %}{{ title }}, {{ size }}{% endblocktranslate %}</span></li>{% endif %}{% endfor %}
+      {% if review.nastatistics_file %}<li><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "file" %} {{ review.nastatistics_name }}</a> <span class="text-text-muted text-sm">{% blocktranslate with size=job|file_size:review.nastatistics_file|filesizeformat %}Missing days per year, {{ size }}{% endblocktranslate %}</span></li>{% endif %}
     </ul>
   </section>
   {% endif %}
@@ -121,15 +119,15 @@ correct the file. Context from views.qc_context.
         {% include "components/button.html" with label=replace_label type="submit" variant="secondary" icon="upload" %}
       </div>
     </form>
-    <p class="small"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the station details or the base period" %}</a></p>
+    <p class="text-sm"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the station details or the base period" %}</a></p>
   </section>
 
   {% include "stations/_retention.html" %}
-  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="cluster">
+  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="small" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
+    <a class="text-sm" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
   </form>
 </div>
 {% endblock %}

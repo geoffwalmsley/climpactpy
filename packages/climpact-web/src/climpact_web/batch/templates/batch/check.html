@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
 {% block title %}{% translate "Check the stations" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -43,7 +42,7 @@
     <div class="section__header">
       <h2 id="stations-title">{% translate "Stations" %}</h2>
     </div>
-    <div class="stat-row batch-stats">
+    <div class="grid gap-4 grid-cols-fit-28">
       {% translate "Listed" as listed_label %}{% include "components/stat.html" with label=listed_label value=counts.listed %}
       {% translate "Ready" as ready_label %}{% include "components/stat.html" with label=ready_label value=counts.ready %}
       {% translate "File missing" as missing_label %}{% include "components/stat.html" with label=missing_label value=counts.missing %}
@@ -58,7 +57,7 @@
           {% elif station.status == "missing" %}{% translate "File missing" as label %}{% include "components/badge.html" with label=label kind="warning" icon="file" %}
           {% else %}{% translate "Has problems" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
         </div>
-        <p class="batch-item__meta small muted">
+        <p class="batch-item__meta text-sm text-text-muted">
           {% blocktranslate with file=station.station_file line=station.line lat=station.latitude lon=station.longitude trimmed %}
             {{ file }} · line {{ line }} of the metadata file · {{ lat }}° N, {{ lon }}° E
           {% endblocktranslate %}{% if station.summary %}{% blocktranslate with first=station.summary.first_date last=station.summary.last_date %} · data {{ first }} to {{ last }}{% endblocktranslate %}{% endif %}
@@ -67,7 +66,7 @@
         <ul class="file-problems batch-item__problems">
           {% for problem in station.problems %}<li>{{ problem.message }}{% if problem.text %}<code class="file-problems__line">{{ problem.text }}</code>{% endif %}</li>{% endfor %}
         </ul>
-        {% with hidden=station.problem_count|add:0 shown=station.problems|length %}{% if hidden > shown %}<p class="small">{% translate "And more lines like these." %}</p>{% endif %}{% endwith %}
+        {% with hidden=station.problem_count|add:0 shown=station.problems|length %}{% if hidden > shown %}<p class="text-sm">{% translate "And more lines like these." %}</p>{% endif %}{% endwith %}
         {% endif %}
         {% for warning in station.warnings %}
         <p class="field__warning">{% icon "warning" %}<span>{{ warning }}</span></p>
@@ -76,7 +75,7 @@
       {% endfor %}
     </ul>
     {% if report.extra_files %}
-    <p class="small muted">{% blocktranslate count counter=report.extra_files|length with names=report.extra_files|join:", " trimmed %}Not in the metadata file, so not used: {{ names }}.{% plural %}Not in the metadata file, so not used: {{ names }}.{% endblocktranslate %}</p>
+    <p class="text-sm text-text-muted">{% blocktranslate count counter=report.extra_files|length with names=report.extra_files|join:", " trimmed %}Not in the metadata file, so not used: {{ names }}.{% plural %}Not in the metadata file, so not used: {{ names }}.{% endblocktranslate %}</p>
     {% endif %}
 
     <details class="disclosure">
@@ -98,7 +97,7 @@
             </tbody>
           </table>
         </div>
-        <p class="small muted">{% translate "As in Climpact for R, batch runs calculate no custom index." %}</p>
+        <p class="text-sm text-text-muted">{% translate "As in Climpact for R, batch runs calculate no custom index." %}</p>
       </div>
     </details>
   </section>
@@ -112,7 +111,7 @@
         {% include "components/form_errors.html" with form=add_form %}
         {% blocktranslate asvar files_hint with size=max_upload_mb %}Up to {{ size }} MB in all.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=add_form.station_files hint=files_hint multiple=True %}
-        <p class="small muted">{{ add_form.station_files.help_text }}</p>
+        <p class="text-sm text-text-muted">{{ add_form.station_files.help_text }}</p>
         {% include "components/field.html" with field=add_form.metadata_file help="batch.metadata_file" %}
         <div>
           {% translate "Load and check again" as add_label %}
@@ -138,19 +137,19 @@
         {% endif %}
       </div>
       {% if counts.ready and not_ready %}
-      <p class="small">{% blocktranslate count counter=not_ready trimmed %}{{ counter }} station with a missing file or problems will be left out, and listed with its reasons in the results and the zip.{% plural %}{{ counter }} stations with missing files or problems will be left out, and listed with their reasons in the results and the zip.{% endblocktranslate %}</p>
+      <p class="text-sm">{% blocktranslate count counter=not_ready trimmed %}{{ counter }} station with a missing file or problems will be left out, and listed with its reasons in the results and the zip.{% plural %}{{ counter }} stations with missing files or problems will be left out, and listed with their reasons in the results and the zip.{% endblocktranslate %}</p>
       {% elif not counts.ready %}
-      <p class="small">{% translate "Load the missing files, or correct the files with problems and load them again, to start." %}</p>
+      <p class="text-sm">{% translate "Load the missing files, or correct the files with problems and load them again, to start." %}</p>
       {% endif %}
     </form>
   </section>
 
   {% include "batch/_retention.html" %}
-  <form method="post" action="{% url 'batch:delete' run.pk %}" class="cluster">
+  <form method="post" action="{% url 'batch:delete' run.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete these files now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="small" href="{% url 'batch:start' %}">{% translate "Start again with another batch" %}</a>
+    <a class="text-sm" href="{% url 'batch:start' %}">{% translate "Start again with another batch" %}</a>
   </form>
 </div>
 {% endblock %}

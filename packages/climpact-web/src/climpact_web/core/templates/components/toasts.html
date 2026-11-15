@@ -1,12 +1,12 @@
 {% load i18n ui %}{# Toast region: ui.js adds toasts here (Climpact.toast(), or an HX-Trigger "toast" event). #}
-<ul class="toasts" id="toasts" aria-live="polite" aria-relevant="additions"></ul>
+<ul class="toasts print:hidden" id="toasts" aria-live="polite" aria-relevant="additions"></ul>
 {# Announcements of content htmx swaps in, e.g. a calculation's stage (ui.js, #83). #}
-<p class="visually-hidden" id="announcer" role="status" aria-live="polite" aria-atomic="true"></p>
+<p class="sr-only" id="announcer" role="status" aria-live="polite" aria-atomic="true"></p>
 <template id="toast-template">
   <li class="alert toast">
     <span data-toast-icon></span>
     <div class="alert__body"><p data-toast-message></p></div>
-    <button type="button" class="button button--ghost button--sm button--icon alert__close" data-toast-close>{% icon "close" %}<span class="visually-hidden">{% translate "Dismiss" %}</span></button>
+    <button type="button" class="button button--ghost button--sm button--icon alert__close" data-toast-close>{% icon "close" %}<span class="sr-only">{% translate "Dismiss" %}</span></button>
   </li>
 </template>
 <template id="toast-icons">{% icon "info" %}{% icon "check-circle" %}{% icon "warning" %}{% icon "error" %}</template>

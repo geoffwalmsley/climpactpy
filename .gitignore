@@ -11,3 +11,6 @@ __pycache__/
 dist/
 build/
 reference/.ghcn-cache/
+
+# The standalone Tailwind CLI (scripts/fetch-tailwind.sh, #118)
+bin/

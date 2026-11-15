@@ -6,5 +6,5 @@ level, default 3), muted, footer (small text at the bottom), badge_label and bad
   {% if icon %}<span class="card__icon">{% icon icon %}</span>{% endif %}
   <h{{ level|default:3 }} class="card__title">{% if href %}<a href="{{ href }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</h{{ level|default:3 }}>
   {% if text %}<p class="card__body">{{ text }}</p>{% endif %}
-  {% if badge_label or footer %}<div class="card__footer cluster">{% if badge_label %}{% include "components/badge.html" with label=badge_label kind=badge_kind icon="" %}{% endif %}{% if footer %}<span class="small muted">{{ footer }}</span>{% endif %}</div>{% endif %}
+  {% if badge_label or footer %}<div class="card__footer flex flex-wrap items-center gap-3">{% if badge_label %}{% include "components/badge.html" with label=badge_label kind=badge_kind icon="" %}{% endif %}{% if footer %}<span class="text-sm text-text-muted">{{ footer }}</span>{% endif %}</div>{% endif %}
 </article>

@@ -1,0 +1,197 @@
+/* The gridded pages (#85): the folder browser, what a file holds, the set-up form's
+   conditional fields, and the map drawn on the server (the colour classes gmap__c1 ...
+   gmap__c5 are chosen in gridded/maps.py, so they stay component classes). */
+@layer components {
+  /* The folder browser: a scrolling list of buttons. */
+  .file-browser {
+    display: grid;
+    gap: --spacing(2);
+    padding: --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+  }
+
+  .file-browser__head {
+    display: flex;
+    gap: --spacing(2);
+    align-items: center;
+    overflow-wrap: anywhere;
+  }
+
+  .file-browser__head code {
+    font-size: var(--text-sm);
+  }
+
+  .file-browser__list {
+    display: grid;
+    max-block-size: 16rem;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .file-browser__item {
+    display: flex;
+    gap: --spacing(2);
+    align-items: center;
+    inline-size: 100%;
+    min-block-size: 2.25rem;
+    padding: --spacing(1) --spacing(2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+  }
+
+  .file-browser__item:hover {
+    background: var(--color-accent-soft);
+  }
+
+  .file-browser__item:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -2px;
+  }
+
+  .file-browser__item--file .icon {
+    color: var(--color-accent);
+  }
+
+  .file-browser__add {
+    margin-inline-start: auto;
+    color: var(--color-accent);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .file-browser__empty {
+    padding: --spacing(2);
+  }
+
+  /* What a file holds. */
+  .gridded-facts {
+    display: grid;
+    gap: --spacing(2) --spacing(5);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    margin: 0;
+  }
+
+  .gridded-facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .gridded-facts dd {
+    margin: 0;
+  }
+
+  .gridded-checks {
+    padding: --spacing(3);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+  }
+
+  .gridded-checks p,
+  .gridded-checks ul {
+    margin: 0;
+  }
+
+  /* Fields shown only for some choices: hidden with :has() where the browser supports it,
+     so the form needs no script; every field shows (with its hint) where it does not. */
+  .gridded-setup:has([name="task"][value="thresholds"]:checked) [data-for~="indices"],
+  .gridded-setup:has([name="task"][value="indices"]:checked) [data-for~="thresholds"],
+  .gridded-setup:has([name="task"][value="thresholds"]:checked) [data-for~="source"],
+  .gridded-setup:has([name="task"][value="both"]:checked) [data-for~="source"],
+  .gridded-setup:has([name="thresholds_source"][value="compute"]:checked) [data-for~="file"] {
+    display: none;
+  }
+
+  /* Grid items default to min-inline-size: auto, so a wide table inside would widen the
+     column (and the page) instead of scrolling in its own region (the panels and the start
+     page's columns have min-w-0 on their children for the same reason). */
+  .gridded-explore,
+  .gridded-explore .chart > * {
+    min-inline-size: 0;
+  }
+
+  .gridded-explore .chart {
+    grid-template-columns: minmax(0, 1fr);
+    min-inline-size: 0;
+  }
+
+  .gmap svg {
+    display: block;
+    inline-size: 100%;
+    max-inline-size: var(--gmap-width, 100%);
+    max-block-size: 70vh;
+    block-size: auto;
+  }
+
+  .gmap__cell {
+    stroke: var(--color-surface);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+  }
+
+  .gmap a:hover .gmap__cell {
+    stroke: var(--color-text);
+    stroke-width: 2;
+  }
+
+  .gmap__selection {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 3;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+
+  .gmap__tick {
+    fill: var(--color-text-muted);
+    font-size: 11px;
+  }
+
+  .gmap__c1 { fill: var(--chart-seq-1); background: var(--chart-seq-1); }
+  .gmap__c2 { fill: var(--chart-seq-2); background: var(--chart-seq-2); }
+  .gmap__c3 { fill: var(--chart-seq-3); background: var(--chart-seq-3); }
+  .gmap__c4 { fill: var(--chart-seq-4); background: var(--chart-seq-4); }
+  .gmap__c5 { fill: var(--chart-seq-5); background: var(--chart-seq-5); }
+
+  .gmap__na {
+    fill: var(--color-surface-sunken);
+    background: var(--color-surface-sunken);
+  }
+
+  .gmap__legend {
+    flex-wrap: wrap;
+  }
+
+  .gmap__swatch {
+    display: inline-block;
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline-end: --spacing(1);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    vertical-align: middle;
+  }
+
+  @media (forced-colors: active) {
+    .gmap__selection {
+      stroke: CanvasText;
+    }
+  }
+
+  /* File names in the checks (e.g. txx_ANN_climpactpy_historical_NA_1991-2010.nc) break
+     anywhere rather than widen the page at 320 px (#83). */
+  .gridded-checks span {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+}

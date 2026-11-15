@@ -28,7 +28,7 @@ Parameters: job, analysis, phases, and jobs.views.progress_context.
   {% translate "No calculation worker is running, so this job cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
   {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
   {% endif %}
-  {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+  {% if job.cancel_requested %}<p class="flex flex-wrap items-center gap-3 text-text-muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
   {% if job.can_cancel %}
   <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:sector' analysis.pk %}">
     {% translate "Cancel" as cancel_label %}

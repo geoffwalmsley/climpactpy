@@ -1,0 +1,21 @@
+/* The landing page's numbered steps: each card's title takes the step's number. */
+@layer components {
+  .flow {
+    display: grid;
+    gap: --spacing(5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: flow;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+
+  .flow__item {
+    counter-increment: flow;
+  }
+
+  .flow__item h3::before {
+    content: counter(flow) ". ";
+    color: var(--color-accent);
+  }
+}

@@ -1,0 +1,268 @@
+/* Help (#81): the help topic beside a field, the guide pages (their text is Markdown
+   rendered on the server, so it is styled through .help-article), and the first-run tour
+   (js/tour.js builds its elements). */
+@layer components {
+  /* == Help topic beside a field: a quiet link-style summary that opens in place == */
+  .help-topic--compact {
+    border: 0;
+    background: none;
+  }
+
+  .help-topic--compact summary {
+    display: inline-flex;
+    min-block-size: 2rem;
+    padding-inline: 0;
+    color: var(--color-accent);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-topic--compact summary:hover span {
+    text-decoration: underline;
+  }
+
+  .help-topic--compact .disclosure__body {
+    margin-block-start: --spacing(1);
+    padding: --spacing(3) --spacing(4);
+    border-inline-start: 3px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+
+  .help-topic .disclosure__body p {
+    margin-block: 0 --spacing(2);
+  }
+
+  .field-set > .help-topic,
+  .field > .help-topic {
+    margin-block-start: --spacing(1);
+  }
+
+  /* == Help pages == */
+  .breadcrumb a::after {
+    content: " /";
+    color: var(--color-text-muted);
+  }
+
+  .help-groups ul {
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-topic-list > div {
+    padding-block: --spacing(3);
+    border-block-end: 1px solid var(--color-border);
+    scroll-margin-block-start: --spacing(16);
+  }
+
+  .help-topic-list > div:target {
+    background: var(--color-accent-soft);
+  }
+
+  .help-topic-list dt {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-topic-list dd {
+    margin: --spacing(1) 0 0;
+    color: var(--color-text-muted);
+    max-inline-size: var(--container-prose);
+  }
+
+  /* Guide: contents beside the text on wide screens, above it on narrow ones. */
+  .help-guide {
+    display: grid;
+    gap: --spacing(6);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 64rem) {
+    .help-guide {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      column-gap: --spacing(10);
+    }
+
+    .help-guide > .breadcrumb,
+    .help-guide__header,
+    .help-pager {
+      grid-column: 1 / -1;
+    }
+
+    .help-toc {
+      position: sticky;
+      inset-block-start: --spacing(4);
+      align-self: start;
+      max-block-size: calc(100vh - --spacing(8));
+      overflow-y: auto;
+    }
+  }
+
+  .help-toc {
+    padding: --spacing(4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+  }
+
+  .help-toc__title {
+    margin-block: 0 --spacing(2);
+    font-size: var(--text-sm);
+  }
+
+  .help-toc ol {
+    margin: 0;
+    padding-inline-start: --spacing(4);
+  }
+
+  .help-toc li + li,
+  .help-toc ol ol {
+    margin-block-start: --spacing(1);
+  }
+
+  .help-toc ol ol {
+    list-style: none;
+    padding-inline-start: --spacing(3);
+  }
+
+  .help-article :is(h2, h3, h4) {
+    scroll-margin-block-start: --spacing(4);
+  }
+
+  .help-article h2 {
+    margin-block-start: --spacing(10);
+  }
+
+  .help-article h2:first-child {
+    margin-block-start: 0;
+  }
+
+  .help-article h4 {
+    margin-block: --spacing(6) --spacing(1);
+    font-size: var(--text-base);
+  }
+
+  .help-article :is(h2, h3, h4):target {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+  }
+
+  .help-article pre {
+    overflow-x: auto;
+    padding: --spacing(3) --spacing(4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    font-size: var(--text-sm);
+  }
+
+  .help-article .table-wrap {
+    margin-block: --spacing(4);
+  }
+
+  .help-article .index-facts {
+    margin-block-start: --spacing(1);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .help-article blockquote {
+    margin-inline: 0;
+    padding: --spacing(3) --spacing(4);
+    border-inline-start: 3px solid var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .help-article blockquote > :last-child {
+    margin-block-end: 0;
+  }
+
+  .help-pager {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: --spacing(4);
+    padding-block-start: --spacing(6);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .help-pager__link {
+    display: grid;
+    gap: --spacing(1);
+  }
+
+  .help-pager__link--next {
+    margin-inline-start: auto;
+    text-align: end;
+  }
+
+  /* == First-run tour (js/tour.js) == */
+  .tour-invite[hidden] {
+    display: none;
+  }
+
+  .tour-target {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 6px;
+    border-radius: var(--radius-sm);
+  }
+
+  .tour {
+    position: absolute;
+    z-index: 40;
+    inline-size: min(22rem, calc(100vw - 2rem));
+    padding: --spacing(4) --spacing(5);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .tour--docked {
+    position: fixed;
+    inset-inline: --spacing(4);
+    inset-block-end: --spacing(4);
+    inline-size: auto;
+  }
+
+  .tour__title {
+    margin-block: 0 --spacing(2);
+    font-size: var(--text-md);
+  }
+
+  .tour__text {
+    margin-block: 0 --spacing(4);
+  }
+
+  .tour__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2);
+  }
+
+  .tour__count {
+    margin-inline-end: auto;
+  }
+
+  @media (forced-colors: active) {
+    .tour-target {
+      outline-color: Highlight;
+    }
+  }
+
+  /* The title takes focus so screen readers start there; it is not a control. */
+  .tour__title:focus {
+    outline: none;
+  }
+
+  .tour-invite .alert__body {
+    align-items: center;
+  }
+
+  .tour-invite p {
+    margin: 0;
+  }
+}

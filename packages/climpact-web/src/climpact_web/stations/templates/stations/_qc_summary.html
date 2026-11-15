@@ -12,9 +12,9 @@ views.qc_context (review, job, analysis).
     </div>
   </div>
   {% if review.summary.reasons %}
-  <ul class="qc-reasons" role="list">
+  <ul class="m-0 grid list-none gap-2 p-0" role="list">
     {% for reason in review.summary.reasons %}
-    <li class="qc-reasons__item qc-reasons__item--{{ reason.kind }}">
+    <li class="flex flex-wrap items-baseline gap-2">
       {% if reason.kind == "error" %}{% translate "Usually an error" as kind_label %}{% include "components/badge.html" with label=kind_label kind="danger" %}{% elif reason.kind == "review" %}{% translate "Worth a look" as kind_label %}{% include "components/badge.html" with label=kind_label kind="warning" %}{% else %}{% translate "Missing data" as kind_label %}{% include "components/badge.html" with label=kind_label kind="info" %}{% endif %}
       <a href="#{{ reason.anchor }}">{{ reason.text }}</a>
     </li>
@@ -23,21 +23,21 @@ views.qc_context (review, job, analysis).
   {% endif %}
 
   <div class="table-wrap" role="region" aria-labelledby="qc-counts-caption" tabindex="0">
-    <table class="table qc-counts">
+    <table class="table max-w-[32rem]">
       <caption id="qc-counts-caption">{% translate "Values flagged by each check" %}</caption>
       <thead><tr><th scope="col">{% translate "Check" %}</th><th scope="col" class="num">{% translate "Found" %}</th></tr></thead>
       <tbody>
         {% for check in review.checks %}
         <tr>
           <th scope="row"><a href="#{{ check.anchor }}">{{ check.title }}</a></th>
-          <td class="num">{% if check.count %}<strong>{{ check.count|count }}</strong>{% else %}<span class="muted">{% translate "none" %}</span>{% endif %}</td>
+          <td class="num">{% if check.count %}<strong>{{ check.count|count }}</strong>{% else %}<span class="text-text-muted">{% translate "none" %}</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-  <div class="qc-actions">
+  <div class="flex flex-wrap items-center gap-3">
     <form method="post" action="{% url 'stations:qc_continue' analysis.pk %}">
       {% csrf_token %}
       {% translate "Continue to the indices" as continue_label %}
@@ -46,7 +46,7 @@ views.qc_context (review, job, analysis).
     <a class="button button--secondary button--lg" href="#fix">{% icon "upload" %}<span>{% translate "Correct the file and upload it again" %}</span></a>
     {% if review.zip %}<a class="button button--ghost" href="{% url 'jobs:file' job.pk review.zip %}" download>{% icon "download" %}<span>{% blocktranslate with size=job|file_size:review.zip|filesizeformat %}Quality-control files (zip, {{ size }}){% endblocktranslate %}</span></a>{% endif %}
   </div>
-  <p class="small muted">{% blocktranslate with temp=review.params.iqr_temp|floatformat:"-2" prec=review.params.iqr_prec|floatformat:"-2" pmax=review.params.prec_max|floatformat:"-2" tmax=review.params.temp_max|floatformat:"-2" days=review.params.flatline_days jump=review.params.jump|floatformat:"-2" trimmed %}
+  <p class="text-sm text-text-muted">{% blocktranslate with temp=review.params.iqr_temp|floatformat:"-2" prec=review.params.iqr_prec|floatformat:"-2" pmax=review.params.prec_max|floatformat:"-2" tmax=review.params.temp_max|floatformat:"-2" days=review.params.flatline_days jump=review.params.jump|floatformat:"-2" trimmed %}
     Checked with outlier ranges of {{ temp }} (temperature) and {{ prec }} (precipitation)
     interquartile ranges, limits of {{ pmax }} mm and {{ tmax }} °C, runs of more than {{ days }}
     equal values and day-to-day changes of {{ jump }} °C.{% endblocktranslate %}

@@ -5,7 +5,7 @@ index will be written under. Without JavaScript the form is checked when it is s
 Parameters: form (IndexParamsForm), group (a key of IndexParamsForm.UNITS), analysis,
 names (IndexParamsForm.output_names()).
 {% endcomment %}
-<div class="field-group param" id="param-{{ group }}" hx-post="{% url 'stations:indices_validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
+<div class="grid gap-2 param" id="param-{{ group }}" hx-post="{% url 'stations:indices_validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
   {% if group == "plot_title" %}
   {% include "components/field.html" with field=form.plot_title help="param.plot_title" %}
   {% elif group == "wsdi_days" %}
@@ -32,7 +32,7 @@ names (IndexParamsForm.output_names()).
     <p class="field__hint" id="custom-hint">{% translate "Counts the days each year and month when a variable is above or below a value you choose, for example the days when TX ≥ 40 °C." %}</p>
     {% help_topic "param.custom" %}
     {% include "components/field.html" with field=form.custom_enabled %}
-    <div class="form__row param-custom">
+    <div class="form__row items-end grid-cols-fit-60">
       {% include "components/field.html" with field=form.custom_variable %}
       {% include "components/field.html" with field=form.custom_operator %}
       {% if form.custom_variable.value == "PR" %}{% translate "mm" as unit %}{% else %}{% translate "°C" as unit %}{% endif %}
@@ -41,7 +41,7 @@ names (IndexParamsForm.output_names()).
   </fieldset>
   {% endif %}
   {% for key, name in names.items %}{% if key == group %}
-  <p class="param__name small muted">{% translate "Written as" %} <code>{{ name }}</code></p>
+  <p class="text-sm text-text-muted [&_code]:text-xs">{% translate "Written as" %} <code>{{ name }}</code></p>
   {% endif %}{% endfor %}
   {% for key, notes in form.warnings.items %}{% if key == group %}{% for note in notes %}
   <p class="field__warning">{% icon "warning" %}<span>{{ note }}</span></p>

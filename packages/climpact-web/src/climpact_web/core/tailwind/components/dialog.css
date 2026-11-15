@@ -1,0 +1,44 @@
+@layer components {
+  /* == Dialog == */
+  .dialog {
+    inline-size: min(36rem, calc(100% - 2 * --spacing(4)));
+    max-block-size: calc(100% - 2 * --spacing(4));
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .dialog::backdrop {
+    background: rgb(8 12 18 / 0.55);
+  }
+
+  .dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(4);
+    padding: --spacing(4) --spacing(5);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .dialog__title {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  .dialog__body {
+    padding: --spacing(5);
+  }
+
+  .dialog__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: --spacing(3);
+    padding: --spacing(4) --spacing(5);
+    border-block-start: 1px solid var(--color-border);
+  }
+}

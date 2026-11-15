@@ -11,7 +11,7 @@ problems, summary, coverage, outputs, form.
   </ul>
   {% endif %}
   {% if summary.first %}
-  <p class="cluster small">{% icon "grid" %}<span>{% blocktranslate with ny=summary.ny nx=summary.nx cells=summary.cells first=summary.first last=summary.last calendar=summary.calendar trimmed %}
+  <p class="flex flex-wrap items-center gap-3 text-sm">{% icon "grid" %}<span>{% blocktranslate with ny=summary.ny nx=summary.nx cells=summary.cells first=summary.first last=summary.last calendar=summary.calendar trimmed %}
     {{ ny }} × {{ nx }} grid ({{ cells }} cells), {{ first }} to {{ last }}, {{ calendar }} calendar.
   {% endblocktranslate %}</span></p>
   {% endif %}
@@ -20,10 +20,10 @@ problems, summary, coverage, outputs, form.
   {% elif coverage.days < coverage.min %}
   <p class="field__warning">{% icon "warning" %}<span>{% blocktranslate with days=coverage.days|count min=coverage.min|count %}The data cover {{ days }} days of the base period; at least {{ min }} are needed to calculate the thresholds.{% endblocktranslate %}</span></p>
   {% else %}
-  <p class="cluster small">{% icon "check" %}<span>{% blocktranslate with days=coverage.days|count %}The data cover {{ days }} days of the base period.{% endblocktranslate %}</span></p>
+  <p class="flex flex-wrap items-center gap-3 text-sm">{% icon "check" %}<span>{% blocktranslate with days=coverage.days|count %}The data cover {{ days }} days of the base period.{% endblocktranslate %}</span></p>
   {% endif %}
   {% endif %}
   {% if outputs.count and form.task.value != "thresholds" %}
-  <p class="cluster small">{% icon "file" %}<span>{% blocktranslate count counter=outputs.count with example=outputs.examples.0 trimmed %}{{ counter }} index file will be written, e.g. {{ example }}.{% plural %}{{ counter }} index files will be written, e.g. {{ example }}.{% endblocktranslate %}</span></p>
+  <p class="flex flex-wrap items-center gap-3 text-sm">{% icon "file" %}<span>{% blocktranslate count counter=outputs.count with example=outputs.examples.0 trimmed %}{{ counter }} index file will be written, e.g. {{ example }}.{% plural %}{{ counter }} index files will be written, e.g. {{ example }}.{% endblocktranslate %}</span></p>
   {% endif %}
 </div>

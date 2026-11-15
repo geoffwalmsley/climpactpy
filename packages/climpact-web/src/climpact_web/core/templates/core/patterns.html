@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui charts %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/patterns.css' %}">{% chart_scripts %}{% endblock %}
+{% block head %}{% chart_scripts %}{% endblock %}
 {% block content %}
 <header class="section__header">
   <p class="eyebrow">{% translate "Design system" %}</p>
@@ -13,9 +13,9 @@
   {% endblocktranslate %}</p>
 </header>
 
-<div class="patterns">
-  <nav class="patterns__toc" aria-label="{% translate 'Components' %}">
-    <ul>
+<div class="grid gap-8 *:min-w-0 xl:grid-cols-[13rem_1fr]">
+  <nav class="xl:sticky xl:top-4 xl:self-start" aria-label="{% translate 'Components' %}">
+    <ul class="m-0 list-none p-0 text-sm [&_a]:block [&_a]:py-1">
       <li><a href="#colour">{% translate "Colour" %}</a></li>
       <li><a href="#type">{% translate "Typography" %}</a></li>
       <li><a href="#icons">{% translate "Icons" %}</a></li>
@@ -40,7 +40,7 @@
   <div>
     <section class="pattern" id="colour" aria-labelledby="colour-title">
       <h2 id="colour-title">{% translate "Colour" %}</h2>
-      <p class="prose">{% blocktranslate trimmed %}
+      <p class="max-w-prose">{% blocktranslate trimmed %}
         One accent and neutral surfaces. Every text and background pair meets WCAG AA in both
         themes (checked by a test from the token values). Chart colours are colour-blind safe
         and assigned in a fixed order; status colours are never used for data series and
@@ -61,17 +61,17 @@
       <h2 id="type-title">{% translate "Typography" %}</h2>
       <div class="pattern__demo stack">
         <p class="eyebrow">{% translate "Eyebrow" %}</p>
-        <p class="pattern__h1">{% translate "Heading 1: station results" %}</p>
+        <p class="text-2xl leading-tight font-bold tracking-[-0.01em]">{% translate "Heading 1: station results" %}</p>
         <h2>{% translate "Heading 2: temperature indices" %}</h2>
         <h3>{% translate "Heading 3: warm days" %}</h3>
         <h4>{% translate "Heading 4: trend" %}</h4>
         <p class="lead">{% translate "A lead paragraph introduces a page in a sentence or two." %}</p>
-        <p class="prose">{% blocktranslate trimmed %}
+        <p class="max-w-prose">{% blocktranslate trimmed %}
           Body text uses the system font of each device, so nothing is downloaded and every
           script the operating system supports displays. Lines are kept to a readable length.
           <a href="#type">A link</a> and <code>inline code</code>.
         {% endblocktranslate %}</p>
-        <p class="small muted">{% translate "Small, muted text for notes and captions." %}</p>
+        <p class="text-sm text-text-muted">{% translate "Small, muted text for notes and captions." %}</p>
       </div>
     </section>
 
@@ -87,13 +87,13 @@
       <h2 id="buttons-title">{% translate "Buttons" %}</h2>
       {% translate "Calculate indices" as l_primary %}{% translate "Back" as l_secondary %}{% translate "Reset" as l_ghost %}{% translate "Delete run" as l_danger %}{% translate "Download all" as l_download %}{% translate "Working" as l_busy %}{% translate "Not yet" as l_disabled %}{% translate "Next step" as l_next %}{% translate "Refresh" as l_icon %}{% translate "Small" as l_small %}
       <div class="pattern__demo stack">
-        <div class="cluster">
+        <div class="flex flex-wrap items-center gap-3">
           {% include "components/button.html" with label=l_primary %}
           {% include "components/button.html" with label=l_secondary variant="secondary" %}
           {% include "components/button.html" with label=l_ghost variant="ghost" %}
           {% include "components/button.html" with label=l_danger variant="danger" %}
         </div>
-        <div class="cluster">
+        <div class="flex flex-wrap items-center gap-3">
           {% include "components/button.html" with label=l_next size="lg" icon_end="arrow-right" %}
           {% include "components/button.html" with label=l_download icon="download" variant="secondary" href="#buttons" %}
           {% include "components/button.html" with label=l_small size="sm" variant="secondary" %}
@@ -125,7 +125,7 @@
           {% include "components/field.html" with field=form.notes %}
           <div class="search">
             {% icon "search" %}
-            <label class="visually-hidden" for="pattern-search">{% translate "Search indices" %}</label>
+            <label class="sr-only" for="pattern-search">{% translate "Search indices" %}</label>
             <input type="search" id="pattern-search" placeholder="{% translate 'Search indices' %}">
           </div>
           <div class="form__actions">
@@ -163,7 +163,7 @@
     <section class="pattern" id="overlays" aria-labelledby="overlays-title">
       <h2 id="overlays-title">{% translate "Toasts and dialogs" %}</h2>
       <p>{% translate "Toasts confirm something that happened in the background and disappear on their own; errors stay until dismissed. Dialogs ask for a decision and keep focus inside until closed." %}</p>
-      <div class="pattern__demo cluster">
+      <div class="pattern__demo flex flex-wrap items-center gap-3">
         <button type="button" class="button button--secondary" data-toast-demo="success" data-message="{% translate 'Station file uploaded.' %}">{% translate "Show a toast" %}</button>
         <button type="button" class="button button--secondary" data-toast-demo="error" data-message="{% translate 'The worker stopped. Try again.' %}">{% translate "Show an error toast" %}</button>
         <button type="button" class="button button--danger" data-dialog-open="pattern-dialog">{% translate "Delete run" %}</button>
@@ -177,7 +177,7 @@
       {% translate "TXx: hottest day" as c1_title %}{% translate "Annual maximum of daily maximum temperature." as c1_text %}{% translate "+0.21 °C per decade" as c1_badge %}
       {% translate "Batch" as c2_title %}{% translate "Process many stations in one run." as c2_text %}
       {% translate "Gridded" as c3_title %}{% translate "Indices on netCDF grids, on your own computer." as c3_text %}{% translate "Available soon" as soon %}
-      <div class="grid">
+      <div class="grid gap-5 grid-cols-fill-64">
         {% include "components/card.html" with title=c1_title text=c1_text icon="thermometer" badge_label=c1_badge badge_kind="info" %}
         {% include "components/card.html" with title=c2_title text=c2_text icon="layers" href="#cards" %}
         {% include "components/card.html" with title=c3_title text=c3_text icon="grid" muted=True badge_label=soon %}
@@ -190,13 +190,13 @@
       {% translate "Days missing" as s1_l %}{% translate "1.2%" as s1_v %}{% translate "345 of 29,220" as s1_n %}
       {% translate "Trend" as s2_l %}{% translate "+0.21 °C" as s2_v %}{% translate "per decade, 1936 to 2015" as s2_n %}
       <div class="pattern__demo stack">
-        <div class="cluster">
+        <div class="flex flex-wrap items-center gap-3">
           {% include "components/badge.html" with label=b1 kind="success" icon="check" %}
           {% include "components/badge.html" with label=b2 kind="warning" icon="warning" %}
           {% include "components/badge.html" with label=b3 kind="danger" icon="error" %}
           {% include "components/badge.html" with label=b4 icon="" %}
         </div>
-        <div class="grid">
+        <div class="grid gap-5 grid-cols-fill-64">
           {% include "components/stat.html" with label=s1_l value=s1_v note=s1_n %}
           {% include "components/stat.html" with label=s2_l value=s2_v note=s2_n %}
         </div>
@@ -236,7 +236,7 @@
       <div class="pattern__demo stack">
         {% include "components/progress.html" with id="pattern-progress" label=p_label value=45 note=p_note %}
         {% include "components/progress.html" with id="pattern-progress-2" label=p_label2 value=None note=p_note2 %}
-        <div class="grid">
+        <div class="grid gap-5 grid-cols-fill-64">
           {% include "components/stages.html" with label=st_label stages=stages %}
           {% include "components/stages.html" with label=st_label stages=stages_failed %}
         </div>
@@ -246,11 +246,11 @@
     <section class="pattern" id="loading" aria-labelledby="loading-title">
       <h2 id="loading-title">{% translate "Loading and empty states" %}</h2>
       {% translate "No runs yet" as e_title %}{% translate "Runs you start appear here while they are kept." as e_text %}{% translate "Start a run" as e_action %}
-      <div class="grid grid--wide">
+      <div class="grid gap-5 grid-cols-fill-88">
         <div class="pattern__demo">{% include "components/skeleton.html" with lines=4 %}</div>
         <div class="pattern__demo">{% include "components/skeleton.html" with chart_block=True height="8rem" lines=2 %}</div>
       </div>
-      <div style="margin-block-start: var(--space-5)">
+      <div class="mt-5">
         {% include "components/empty_state.html" with icon="folder" title=e_title text=e_text action_label=e_action action_href="#loading" %}
       </div>
     </section>

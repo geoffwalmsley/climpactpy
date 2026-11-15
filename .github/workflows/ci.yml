@@ -56,7 +56,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install both packages
         run: uv sync --locked
+      - name: Compiled stylesheet is up to date
+        # The pinned standalone Tailwind CLI (#118), installed only if its SHA-256 matches;
+        # css/climpact.css is committed, so rebuilding it must change nothing.
+        run: |
+          scripts/fetch-tailwind.sh
+          scripts/build-css.sh
+          git diff --exit-code -- packages/climpact-web/src/climpact_web/core/static/climpact_web/css/
       - name: Test
+        env:
+          CLIMPACT_REQUIRE_TAILWIND: "1"
         run: >-
           uv run --no-sync pytest packages/climpact-web
           --ignore=packages/climpact-web/tests/test_page_budget.py

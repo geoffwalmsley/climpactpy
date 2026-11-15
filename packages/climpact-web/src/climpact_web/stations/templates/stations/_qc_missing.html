@@ -4,7 +4,7 @@ no annual value with more than 15 missing days, or a month with more than 3).
 Context: review, job.
 {% endcomment %}
 <section class="card stack" id="missing-data" aria-labelledby="missing-title">
-  <div class="qc-section-head">
+  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
     <h2 class="card__title" id="missing-title">{% translate "Missing data" %}</h2>
     {% help_topic "qc.nastatistics" %}
   </div>
@@ -25,16 +25,16 @@ Context: review, job.
         {% for year in missing %}
         <tr>
           <th scope="row">{{ year.year }}</th>
-          {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days }}{% if cell.months %} <span class="muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %}<span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="muted">{{ cell.days }}</span>{% endif %}</td>{% endfor %}
+          {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days }}{% if cell.months %} <span class="text-text-muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %}<span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="text-text-muted">{{ cell.days }}</span>{% endif %}</td>{% endfor %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p class="small muted">{% translate "Years not listed have no missing days." %}</p>
+  <p class="text-sm text-text-muted">{% translate "Years not listed have no missing days." %}</p>
   {% else %}
-  <p class="cluster">{% icon "check-circle" %}<span>{% translate "No day is missing in any variable." %}</span></p>
+  <p class="flex flex-wrap items-center gap-3">{% icon "check-circle" %}<span>{% translate "No day is missing in any variable." %}</span></p>
   {% endif %}
   {% endwith %}
-  {% if review.nastatistics_file %}<p class="small"><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "download" %} {% blocktranslate with name=review.nastatistics_name size=job|file_size:review.nastatistics_file|filesizeformat %}Download {{ name }} ({{ size }}){% endblocktranslate %}</a></p>{% endif %}
+  {% if review.nastatistics_file %}<p class="text-sm"><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "download" %} {% blocktranslate with name=review.nastatistics_name size=job|file_size:review.nastatistics_file|filesizeformat %}Download {{ name }} ({{ size }}){% endblocktranslate %}</a></p>{% endif %}
 </section>

@@ -645,7 +645,7 @@
   };
 
   function cell(v, digits) {
-    return v == null ? "<span class='muted'>" + esc(t("missing")) + "</span>" : esc(num(v, digits == null ? 3 : digits));
+    return v == null ? "<span class='text-text-muted'>" + esc(t("missing")) + "</span>" : esc(num(v, digits == null ? 3 : digits));
   }
 
   function esc(s) {

@@ -233,7 +233,7 @@ def test_htmx_checks_one_group_and_warns(client):
     assert client.post(url, {**defaults(), "group": "nope"}).status_code == 400
 
 
-DEFAULTS_NOTE = '<span class="small muted">Climpact'
+DEFAULTS_NOTE = '<span class="text-sm text-text-muted">Climpact'
 
 
 def _settings(html: str) -> str:
@@ -367,7 +367,7 @@ def test_progress_while_running_then_the_results(client):
     assert (
         response.status_code == 204 and response["HX-Redirect"] == f"/station/{analysis.pk}/results"
     )
-    assert 'class="index-grid"' in client.get(f"/station/{analysis.pk}/results").content.decode()
+    assert "data-results-section" in client.get(f"/station/{analysis.pk}/results").content.decode()
 
 
 def test_a_failed_calculation_shows_why_and_offers_the_settings(client):
@@ -551,7 +551,7 @@ def test_significant_trends_lead_the_dashboard_largest_first(client):
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     summary = _summary(html)
     # First thing after the action row; before the filters and the groups.
-    assert html.index('class="cluster results-actions"') < html.index(summary)
+    assert html.index('results-actions"') < html.index(summary)
     assert html.index(summary) < html.index("data-results-filter")
     keys = re.findall(rf'href="/station/{analysis.pk}/results/([^"#?]+)"', summary)
     cards = re.findall(r'<li class="index-card"(?:(?!</li>).)*?</li>', html, re.S)
@@ -620,7 +620,7 @@ def test_plain_names_of_indices_that_share_a_catalogue_entry():
 
 def _groups(html: str) -> dict[str, str]:
     """Each group's <details> start tag, by group key."""
-    pattern = r'(<details class="disclosure results-section" id="group-([\w-]+)"[^>]*>)'
+    pattern = r'(<details class="disclosure" id="group-([\w-]+)"[^>]*>)'
     return {key: tag for tag, key in re.findall(pattern, html)}
 
 
@@ -655,7 +655,7 @@ def test_downloads_and_next_step(client):
     assert f"/jobs/{job.pk}/files/{STATION}/trend/{STATION}_trend.csv" in html
     assert f'href="/station/{analysis.pk}/downloads"' in html
     # The optional step 5 is in the action row at the top (#113).
-    actions = re.search(r'<div class="cluster results-actions">.*?</div>', html, re.S).group(0)
+    actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     assert f'href="/station/{analysis.pk}/sector"' in actions
     assert "Compare with sector data" in actions
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
@@ -727,7 +727,7 @@ def test_change_the_settings_on_the_results_opens_them(client):
     JavaScript, even when the last run used the defaults (which start closed)."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    actions = re.search(r'<div class="cluster results-actions">.*?</div>', html, re.S).group(0)
+    actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     link = f"/station/{analysis.pk}/indices?settings=open#settings"
     assert f'href="{link}"' in actions
     assert " open" in _settings(client.get(link).content.decode())
@@ -756,6 +756,6 @@ def test_step_names_and_headings_match(client):
     ]:
         html = client.get(path).content.decode()
         assert f"<h1>{h1}</h1>" in html
-        steps = re.search(r'<ol class="steps container">.*?</ol>', html, re.S).group(0)
+        steps = re.search(r'<ol class="steps [^"]*">.*?</ol>', html, re.S).group(0)
         step = re.search(r'aria-current="step">.*?</span>\s*([^<]+)', steps, re.S).group(1)
         assert h1.startswith(step.strip()), (path, step)

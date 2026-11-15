@@ -1,0 +1,246 @@
+/*
+ * Dark theme tokens and the base element styles (#71, #118).
+ *
+ * Tailwind's Preflight reset is not used: these base styles were written as the reset, and
+ * Preflight would also strip list bullets, make icons block-level and restyle form
+ * controls. Logical properties only (right-to-left), checked by test_static.py.
+ */
+
+/* The dark theme: the OS preference unless the toggle (ui.js) chose light, or the toggle
+   chose dark. Only token values here, one copy of each; the `dark` variant is defined in
+   climpact.css. Every colour token changes (test_design_tokens.py). */
+@layer base {
+  :root {
+    color-scheme: light;
+
+    @variant dark {
+      color-scheme: dark;
+      --color-page: #0d1218;
+      --color-surface: #151c24;
+      --color-surface-sunken: #0a0e13;
+      --color-text: #e5ebf1;
+      --color-text-muted: #a3afbb;
+      --color-border: #2b3540;
+      --color-border-strong: #7a8794;
+      --color-accent: #6db3f2;
+      --color-accent-hover: #96c8f6;
+      --color-accent-soft: #132a40;
+      --color-accent-contrast: #08111b;
+      --color-focus: #8ab4f8;
+      --color-success: #5cc97e;
+      --color-success-soft: #10291a;
+      --color-warning: #e9b04a;
+      --color-warning-soft: #2e2410;
+      --color-danger: #ff8c82;
+      --color-danger-soft: #351513;
+      --color-danger-contrast: #1a0806;
+      --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+      --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.6);
+      --chart-1: #3987e5;
+      --chart-2: #d95926;
+      --chart-3: #199e70;
+      --chart-4: #c98500;
+      --chart-5: #d55181;
+      --chart-6: #008300;
+      --chart-7: #9085e9;
+      --chart-8: #e66767;
+      --chart-tmax: #e66767;
+      --chart-tmin: #3987e5;
+      --chart-prcp: #199e70;
+      --chart-trend: #e5ebf1;
+      --chart-trend-band: #1c3a5c;
+      --chart-flag: #e5ebf1;
+      --chart-grid: #26303a;
+      --chart-axis: #7a8794;
+      --chart-seq-1: #0d366b;
+      --chart-seq-2: #1c5cab;
+      --chart-seq-3: #3987e5;
+      --chart-seq-4: #86b6ef;
+      --chart-seq-5: #cde2fb;
+      --chart-div-1: #5598e7;
+      --chart-div-2: #2f6bb8;
+      --chart-div-3: #1d3b60;
+      --chart-div-4: #3a4048;
+      --chart-div-5: #6b2a2a;
+      --chart-div-6: #c94646;
+      --chart-div-7: #f08a84;
+    }
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-block-size: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-page);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    overflow-wrap: break-word;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: var(--leading-tight);
+    font-weight: var(--font-weight-bold);
+    margin-block: 0 --spacing(3);
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+  }
+
+  h4 {
+    font-size: var(--text-md);
+  }
+
+  p,
+  ul,
+  ol,
+  dl {
+    margin-block: 0 --spacing(4);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-underline-offset: 0.15em;
+  }
+
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+
+  code,
+  kbd,
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  code {
+    padding: 0.1em 0.3em;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+  }
+
+  pre {
+    overflow-x: auto;
+    padding: --spacing(4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+  }
+
+  hr {
+    border: 0;
+    border-block-start: 1px solid var(--color-border);
+    margin-block: --spacing(8);
+  }
+
+  img,
+  svg {
+    max-inline-size: 100%;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  /* Form controls: every text input, select and textarea, so forms need no classes. */
+  input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]),
+  select,
+  textarea {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-block-size: var(--control-height);
+    padding: --spacing(2) --spacing(3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  textarea {
+    min-block-size: 6rem;
+    resize: vertical;
+  }
+
+  input[type="file"] {
+    max-inline-size: 100%;
+    font: inherit;
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--color-text-muted);
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline-offset: 0;
+  }
+
+  [aria-invalid="true"] {
+    border-color: var(--color-danger) !important;
+    border-width: 2px !important;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media print {
+    body {
+      background: white;
+      color: black;
+    }
+  }
+}

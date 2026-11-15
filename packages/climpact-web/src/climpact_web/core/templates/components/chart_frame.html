@@ -17,13 +17,13 @@ built from the data when opened.
       <h{{ heading|default:3 }} class="chart__title" id="{{ id }}-title">{{ title }}</h{{ heading|default:3 }}>
       {% if summary or data_url %}<p class="chart__summary" id="{{ id }}-summary" data-chart-summary>{{ summary }}</p>{% endif %}
     </div>
-    <div class="cluster">
+    <div class="flex flex-wrap items-center gap-3">
       {% if csv_href or data_url %}<a class="button button--secondary button--sm" href="{{ csv_href }}" download data-chart-csv{% if not csv_href %} hidden{% endif %}>{% icon "download" %}<span>{% translate "CSV" %}</span></a>{% endif %}
     </div>
   </div>
   {% if legend %}<ul class="chart__legend">{% for item in legend %}<li><span class="chart__swatch" style="--swatch: var({{ item.token }})" aria-hidden="true"></span>{{ item.label }}</li>{% endfor %}</ul>{% elif data_url %}<ul class="chart__legend" data-chart-legend hidden></ul>{% endif %}
   {% if data_url %}
-  <div class="chart__toolbar cluster" role="toolbar" aria-label="{% translate 'Chart controls' %}" aria-controls="{{ id }}-plot" data-chart-toolbar hidden>
+  <div class="chart__toolbar flex flex-wrap items-center gap-3" role="toolbar" aria-label="{% translate 'Chart controls' %}" aria-controls="{{ id }}-plot" data-chart-toolbar hidden>
     <div class="chart__tools">
       <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-in" title="{% translate 'Zoom in' %}">{% translate "Zoom in" as zoom_in %}{% icon "zoom-in" zoom_in %}</button>
       <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-out" title="{% translate 'Zoom out' %}">{% translate "Zoom out" as zoom_out %}{% icon "zoom-out" zoom_out %}</button>
@@ -44,8 +44,8 @@ built from the data when opened.
   {% if data_url %}
   <div>
     <p class="chart__readout" data-chart-readout aria-hidden="true">&nbsp;</p>
-    <p class="visually-hidden" id="{{ id }}-keys">{% translate "Keyboard: plus and minus zoom, the arrow keys move earlier and later, 0 shows the whole series." %}</p>
-    <p class="visually-hidden" role="status" data-chart-status></p>
+    <p class="sr-only" id="{{ id }}-keys">{% translate "Keyboard: plus and minus zoom, the arrow keys move earlier and later, 0 shows the whole series." %}</p>
+    <p class="sr-only" role="status" data-chart-status></p>
   </div>
   {% endif %}
   {% if table_template %}

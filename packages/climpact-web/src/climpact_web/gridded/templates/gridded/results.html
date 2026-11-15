@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui charts %}
 {% block title %}{% if all_done %}{% translate "Gridded results" %}{% else %}{% translate "Calculating the grid" %}{% endif %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/batch.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/gridded.css' %}">{% chart_scripts %}{% endblock %}
+{% block head %}{% chart_scripts %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -19,7 +19,7 @@
   </section>
   {% endif %}
 
-  <p class="cluster">
+  <p class="flex flex-wrap items-center gap-3">
     <a href="{% url 'gridded:setup' run.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the parameters and calculate again" %}</a>
     <a href="{% url 'gridded:start' %}">{% translate "Start with other files" %}</a>
   </p>

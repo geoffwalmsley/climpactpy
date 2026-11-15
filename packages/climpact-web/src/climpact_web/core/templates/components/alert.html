@@ -10,6 +10,6 @@ handled by ui.js), live ("polite" or "assertive" for alerts added after the page
     <p>{{ message }}{% if action_href %} <a href="{{ action_href }}">{{ action_label }}</a>{% endif %}</p>
   </div>
   {% if dismissible %}
-  <button type="button" class="button button--ghost button--sm button--icon alert__close" data-dismiss>{% icon "close" %}<span class="visually-hidden">{% translate "Dismiss" %}</span></button>
+  <button type="button" class="button button--ghost button--sm button--icon alert__close" data-dismiss>{% icon "close" %}<span class="sr-only">{% translate "Dismiss" %}</span></button>
   {% endif %}
 </div>

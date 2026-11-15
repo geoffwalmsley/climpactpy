@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
 {% block title %}{% translate "Calculating indices" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -17,9 +16,9 @@
   <section class="card stack" aria-labelledby="progress-title">
     <h2 class="card__title" id="progress-title">{% translate "Progress" %}</h2>
     {% include "stations/_results_progress.html" %}
-    <noscript><p class="small">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
+    <noscript><p class="text-sm">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
   </section>
-  <p class="small muted">{% translate "You can leave this page: the calculation carries on, and this page's address shows the results when it has finished." %}</p>
+  <p class="text-sm text-text-muted">{% translate "You can leave this page: the calculation carries on, and this page's address shows the results when it has finished." %}</p>
   {% endif %}
 </div>
 {% endblock %}

@@ -35,19 +35,13 @@ HTML_RAW_BUDGET = 2048 * KB  # any page's HTML before compression: what the brow
 # Gzipped size of each static file as served (stylesheets minified). Every stylesheet,
 # script, SVG and JSON file in the package needs an entry.
 ASSET_BUDGETS = {
-    "css/main.css": 7 * KB,  # tokens, base styles and every component (#71)
-    "css/theme-dark.css": 1 * KB,
-    "css/help.css": 1.5 * KB,  # every page: any screen can show a help topic (#81)
-    "css/stations.css": 1 * KB,
-    "css/qc.css": 1.5 * KB,  # the quality-check step (#77)
+    # One stylesheet on every page (#118): the tokens, base styles, every component and
+    # the utilities the templates use, built by Tailwind (it replaced main.css, the
+    # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
+    "css/climpact.css": 12.5 * KB,
     "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
-    "css/results.css": 2 * KB,  # station steps 3 and 4 (#78)
     "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
-    "css/sector.css": 1.5 * KB,  # station step 5, sector data (#90)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
-    "css/batch.css": 1 * KB,
-    "css/gridded.css": 1.5 * KB,
-    "css/patterns.css": 1 * KB,
     "js/ui.js": 4 * KB,
     "js/tour.js": 3 * KB,  # the landing page only
     "js/gridded.js": 1 * KB,
@@ -57,12 +51,11 @@ ASSET_BUDGETS = {
     "chart-palette.json": 1.5 * KB,  # not linked by pages; for code that cannot read CSS
     # The interactive charts (#75), on chart pages only.
     "js/charts.js": 14 * KB,
-    "css/charts.css": 1.5 * KB,
     "vendor/uplot/uPlot.iife.min.js": 24 * KB,
     "vendor/uplot/uPlot.min.css": 1 * KB,
 }
 # Static files that only chart pages may link (#75).
-CHART_ASSETS = ("climpact_web/js/charts", "climpact_web/css/charts", "climpact_web/vendor/uplot/")
+CHART_ASSETS = ("climpact_web/js/charts", "climpact_web/vendor/uplot/")
 
 STATIC = Path(climpact_web.__file__).parent / "core" / "static" / "climpact_web"
 STATIC_LINK = re.compile(r'(?:href|src)="/static/([^"#?]+)')
@@ -387,13 +380,14 @@ def test_static_files_are_compressed_and_cached_for_a_year(client, deployed):
 
     client = Client()  # a new client: WhiteNoise reads the collected files when created
     html = client.get("/").content.decode()
-    main = re.search(r'href="/static/(climpact_web/css/main\.[0-9a-f]{12}\.css)"', html).group(1)
+    css = r'href="/static/(climpact_web/css/climpact\.[0-9a-f]{12}\.css)"'
+    main = re.search(css, html).group(1)
     response = client.get(f"/static/{main}", HTTP_ACCEPT_ENCODING="gzip, br")
     assert response["Content-Encoding"] == "br"
     assert response["Cache-Control"] == "max-age=315360000, public, immutable"
     response = client.get(f"/static/{main}", HTTP_ACCEPT_ENCODING="gzip")
     assert response["Content-Encoding"] == "gzip"
-    response = client.get("/static/climpact_web/css/main.css")
+    response = client.get("/static/climpact_web/css/climpact.css")
     assert "immutable" not in response["Cache-Control"]
 
 

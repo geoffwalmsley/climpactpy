@@ -15,7 +15,7 @@
 
   <section class="stack" aria-labelledby="guides-title">
     <h2 id="guides-title">{% translate "Guides" %}</h2>
-    <ol class="grid help-guides">
+    <ol class="grid list-none gap-5 p-0 grid-cols-fill-64">
       {% for guide in guides %}
       <li class="card card--link">
         <h3 class="card__title"><a href="{{ guide.url }}">{{ guide.title }}</a></h3>
@@ -27,8 +27,8 @@
 
   <section class="stack" aria-labelledby="samples-title">
     <h2 id="samples-title">{% translate "Sample data" %}</h2>
-    <p class="prose">{% translate "Each way of running Climpact has a sample, so you can see the whole process before preparing your own files." %}</p>
-    <div class="grid">
+    <p class="max-w-prose">{% translate "Each way of running Climpact has a sample, so you can see the whole process before preparing your own files." %}</p>
+    <div class="grid gap-5 grid-cols-fill-64">
       <section class="card stack" aria-labelledby="sample-station-title">
         <span class="card__icon">{% icon "station" %}</span>
         <h3 class="card__title" id="sample-station-title">{% translate "Single station" %}</h3>
@@ -36,7 +36,7 @@
         {% if station_sample %}
         <form method="post" action="{{ station_sample }}">{% csrf_token %}{% translate "Use the sample station" as l %}{% include "components/button.html" with label=l type="submit" variant="secondary" icon="play" %}</form>
         {% endif %}
-        {% if station_file %}<p class="small"><a href="{{ station_file }}" download>{% icon "download" %} {% translate "Download the sample station file" %}</a></p>{% endif %}
+        {% if station_file %}<p class="text-sm"><a href="{{ station_file }}" download>{% icon "download" %} {% translate "Download the sample station file" %}</a></p>{% endif %}
       </section>
       <section class="card stack" aria-labelledby="sample-batch-title">
         <span class="card__icon">{% icon "layers" %}</span>
@@ -45,21 +45,21 @@
         {% if batch_sample %}
         <form method="post" action="{{ batch_sample }}">{% csrf_token %}{% translate "Use the sample batch" as l %}{% include "components/button.html" with label=l type="submit" variant="secondary" icon="play" %}</form>
         {% endif %}
-        {% if batch_metadata %}<p class="small"><a href="{{ batch_metadata }}" download>{% icon "download" %} {% translate "Download the sample metadata file" %}</a></p>{% endif %}
+        {% if batch_metadata %}<p class="text-sm"><a href="{{ batch_metadata }}" download>{% icon "download" %} {% translate "Download the sample metadata file" %}</a></p>{% endif %}
       </section>
       {% if show_gridded %}
       <section class="card stack" aria-labelledby="sample-gridded-title">
         <span class="card__icon">{% icon "grid" %}</span>
         <h3 class="card__title" id="sample-gridded-title">{% translate "Gridded" %}</h3>
         <p class="card__body">{% translate "Climpact for R's sample grid, climpact.sampledata.gridded.1991-2010.nc: 24 by 19 cells over Australia, 1991 to 2010." %}</p>
-        {% if gridded_url %}<p class="small"><a href="{{ gridded_url }}">{% translate "Open the gridded screen" %}</a></p>{% else %}<p class="small muted">{% translate "The gridded screen is not available yet. Until then, use the climpact command line." %}</p>{% endif %}
+        {% if gridded_url %}<p class="text-sm"><a href="{{ gridded_url }}">{% translate "Open the gridded screen" %}</a></p>{% else %}<p class="text-sm text-text-muted">{% translate "The gridded screen is not available yet. Until then, use the climpact command line." %}</p>{% endif %}
       </section>
       {% endif %}
     </div>
-    <p class="small muted">{% blocktranslate trimmed %}Sector data: Climpact for R's sample is yearly wheat yields for New South Wales, 1922 to 1999 (wheat_yield_nsw_1922-1999.csv).{% endblocktranslate %} <a href="{% url 'help:guide' 'sector' %}">{% translate "About sector data" %}</a></p>
+    <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Sector data: Climpact for R's sample is yearly wheat yields for New South Wales, 1922 to 1999 (wheat_yield_nsw_1922-1999.csv).{% endblocktranslate %} <a href="{% url 'help:guide' 'sector' %}">{% translate "About sector data" %}</a></p>
   </section>
 
-  <section class="cluster help-more" aria-label="{% translate 'More help' %}">
+  <section class="flex flex-wrap items-center gap-3" aria-label="{% translate 'More help' %}">
     <a class="button button--secondary" href="{% url 'help:topics' %}">{% icon "book" %}<span>{% translate "All help topics, A to Z" %}</span></a>
     <a class="button button--ghost" href="{% url 'core:home' %}?tour=1">{% icon "play" %}<span>{% translate "Take the tour of the start page" %}</span></a>
   </section>

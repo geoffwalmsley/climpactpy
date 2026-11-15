@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Calculate indices" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -27,7 +26,7 @@
   {% translate "The settings start from this station's line in the batch metadata file." as batch_note %}
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% elif source == "job" %}
-  <p class="cluster small muted">{% icon "refresh" %}<span>{% translate "These are the settings of your last calculation." %}</span>{% if has_results %} <a href="{% url 'stations:results' analysis.pk %}">{% translate "Back to the results" %}</a>{% endif %}</p>
+  <p class="flex flex-wrap items-center gap-3 text-sm text-text-muted">{% icon "refresh" %}<span>{% translate "These are the settings of your last calculation." %}</span>{% if has_results %} <a href="{% url 'stations:results' analysis.pk %}">{% translate "Back to the results" %}</a>{% endif %}</p>
   {% endif %}
 
   <form method="post" action="{% url 'stations:indices' analysis.pk %}" class="form stack stack--lg" novalidate>
@@ -35,14 +34,14 @@
     {{ form.index }}
     {% include "components/form_errors.html" %}
 
-    <div class="cluster results-actions">
+    <div class="flex flex-wrap items-center gap-3 results-actions">
       {% translate "Calculate with these settings" as top_label %}
       {% include "components/button.html" with label=top_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
     </div>
 
-    <details class="disclosure settings-disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
-      <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="small muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
-      <div class="disclosure__body stack stack--lg">
+    <details class="disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
+      <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="text-sm text-text-muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
+      <div class="disclosure__body stack stack--lg text-inherit">
         <section class="card stack" aria-labelledby="plots-title">
           <h2 class="card__title" id="plots-title">{% translate "Plots" %}</h2>
           {% include "stations/_indices_unit.html" with group="plot_title" %}
@@ -50,8 +49,8 @@
 
         <section class="card stack" aria-labelledby="spells-title">
           <h2 class="card__title" id="spells-title">{% translate "Spell lengths" %}</h2>
-          <p class="small muted">{% translate "How many days in a row count towards these indices." %}</p>
-          <div class="param-grid">
+          <p class="text-sm text-text-muted">{% translate "How many days in a row count towards these indices." %}</p>
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="wsdi_days" %}
             {% include "stations/_indices_unit.html" with group="csdi_days" %}
             {% include "stations/_indices_unit.html" with group="rx_days" %}
@@ -61,8 +60,8 @@
 
         <section class="card stack" aria-labelledby="degree-title">
           <h2 class="card__title" id="degree-title">{% translate "Degree days" %}</h2>
-          <p class="small muted">{% translate "The base temperatures heating, cooling and growing degree days are counted from." %}</p>
-          <div class="param-grid">
+          <p class="text-sm text-text-muted">{% translate "The base temperatures heating, cooling and growing degree days are counted from." %}</p>
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="hdd_base" %}
             {% include "stations/_indices_unit.html" with group="cdd_base" %}
             {% include "stations/_indices_unit.html" with group="gdd_base" %}
@@ -71,7 +70,7 @@
 
         <section class="card stack" aria-labelledby="prcp-title">
           <h2 class="card__title" id="prcp-title">{% translate "Precipitation and drought" %}</h2>
-          <div class="param-grid">
+          <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="rnnmm" %}
             {% include "stations/_indices_unit.html" with group="spei_months" %}
           </div>
@@ -97,13 +96,13 @@
       {% include "components/field.html" with field=form.report %}
     </section>
 
-    <div class="form__actions cluster">
+    <div class="form__actions flex flex-wrap items-center gap-3">
       {% translate "Calculate indices" as run_label %}
       {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" %}
-      <span class="small muted" id="run-time">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots and the report." %}</span>
+      <span class="text-sm text-text-muted" id="run-time">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots and the report." %}</span>
     </div>
   </form>
 
-  <p class="cluster small"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the data or the station details" %}</a></p>
+  <p class="flex flex-wrap items-center gap-3 text-sm"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the data or the station details" %}</a></p>
 </div>
 {% endblock %}

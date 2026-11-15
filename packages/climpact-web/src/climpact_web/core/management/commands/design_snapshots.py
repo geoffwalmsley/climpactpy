@@ -249,10 +249,7 @@ def batch_pages() -> dict[str, str]:
 
 
 def dark(html: str) -> str:
-    html = html.replace("<html ", '<html data-theme="dark" ', 1)
-    return html.replace(
-        'media="(prefers-color-scheme: dark)" id="theme-dark"', 'media="all" id="theme-dark"'
-    )
+    return html.replace("<html ", '<html data-theme="dark" ', 1)
 
 
 class Command(BaseCommand):

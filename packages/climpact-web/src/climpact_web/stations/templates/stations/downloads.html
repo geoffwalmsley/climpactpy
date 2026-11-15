@@ -1,11 +1,10 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Downloads: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'climpact_web/css/stations.css' %}"><link rel="stylesheet" href="{% static 'climpact_web/css/results.css' %}">{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <nav class="cluster small result-nav" aria-label="{% translate 'Results' %}">
+  <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Results' %}">
     <a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
   </nav>
 
@@ -13,24 +12,24 @@
     <p class="eyebrow">{{ analysis.station_name }}</p>
     <h1>{% translate "Downloads" %}</h1>
     <p class="lead">{% translate "Every file of this calculation, with its size. The zip has them all in Climpact for R's folder layout; the PDF report is the easiest to read and share." %}</p>
-    <p class="small muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; the links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>
+    <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; the links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>
   </header>
 
   <section class="stack" aria-labelledby="whole-title">
     <h2 id="whole-title">{% translate "The whole run" %}</h2>
-    <ul class="download-grid" role="list">
+    <ul class="m-0 grid gap-5 p-0 grid-cols-fit-64" role="list">
       {% for key, d in main.items %}
-      <li class="card stack stack--sm download-card">
+      <li class="card stack stack--sm">
         {% if d %}
         <h3 class="card__title">{{ d.label }}</h3>
-        <p class="small">{{ d.note }}</p>
+        <p class="text-sm">{{ d.note }}</p>
         {% url 'jobs:file' job.pk d.path as d_url %}
         {% blocktranslate with kind=d.kind|upper size=d.size|filesizeformat asvar d_label %}Download ({{ kind }}, {{ size }}){% endblocktranslate %}
-        <p class="download-card__action">{% if key == "zip" %}{% include "components/button.html" with label=d_label href=d_url icon="download" %}{% else %}{% include "components/button.html" with label=d_label href=d_url icon="download" variant="secondary" %}{% endif %}</p>
+        <p class="mt-auto">{% if key == "zip" %}{% include "components/button.html" with label=d_label href=d_url icon="download" %}{% else %}{% include "components/button.html" with label=d_label href=d_url icon="download" variant="secondary" %}{% endif %}</p>
         {% else %}
         <h3 class="card__title">{% if key == "zip" %}{% translate "Everything" %}{% elif key == "report" %}{% translate "Report" %}{% else %}{% translate "All plots" %}{% endif %}</h3>
-        <p class="small muted">{% if key == "zip" %}{% translate "Not made: the zip was switched off in the settings." %}{% elif key == "report" %}{% translate "Not made in this calculation: the report was switched off, or the calculation is older than the report." %}{% else %}{% translate "Not made: the plots were switched off in the settings." %}{% endif %}</p>
-        <p class="small"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
+        <p class="text-sm text-text-muted">{% if key == "zip" %}{% translate "Not made: the zip was switched off in the settings." %}{% elif key == "report" %}{% translate "Not made in this calculation: the report was switched off, or the calculation is older than the report." %}{% else %}{% translate "Not made: the plots were switched off in the settings." %}{% endif %}</p>
+        <p class="text-sm"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
         {% endif %}
       </li>
       {% endfor %}
@@ -47,7 +46,7 @@
     <h2 id="summary-title">{% translate "Summary and quality-control files" %}</h2>
     <div class="table-wrap" role="region" aria-labelledby="summary-caption" tabindex="0">
       <table class="table download-table">
-        <caption id="summary-caption" class="visually-hidden">{% translate "Summary and quality-control files to download" %}</caption>
+        <caption id="summary-caption" class="sr-only">{% translate "Summary and quality-control files to download" %}</caption>
         <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Contents" %}</th><th scope="col">{% translate "Download" %}</th></tr></thead>
         <tbody>
           {% for d in summary %}<tr><th scope="row">{{ d.label }}</th><td>{{ d.note }}</td><td>{% include "stations/_download_link.html" with d=d job=job %}</td></tr>{% endfor %}
@@ -55,42 +54,42 @@
         </tbody>
       </table>
     </div>
-    {% if qc and analysis.qc_job %}<p class="small"><a href="{% url 'stations:qc' analysis.pk %}">{% translate "See what the quality checks found" %}</a></p>{% endif %}
+    {% if qc and analysis.qc_job %}<p class="text-sm"><a href="{% url 'stations:qc' analysis.pk %}">{% translate "See what the quality checks found" %}</a></p>{% endif %}
   </section>
 
   {% if sector %}
   <section class="stack" aria-labelledby="sector-title">
     <h2 id="sector-title">{% translate "Sector comparison" %}</h2>
-    <p class="small muted">{% translate "The files of step 5, in Climpact for R's corr folder: the correlation of each index with your sector data, and the scatter plots." %}</p>
+    <p class="text-sm text-text-muted">{% translate "The files of step 5, in Climpact for R's corr folder: the correlation of each index with your sector data, and the scatter plots." %}</p>
     {% if sector.zip %}<p>{% include "stations/_download_link.html" with d=sector.zip job=sector.job %}</p>{% endif %}
     {% if sector.files %}
     <div class="table-wrap" role="region" aria-labelledby="sector-caption" tabindex="0">
       <table class="table download-table">
-        <caption id="sector-caption" class="visually-hidden">{% translate "Sector comparison files to download" %}</caption>
+        <caption id="sector-caption" class="sr-only">{% translate "Sector comparison files to download" %}</caption>
         <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Download" %}</th></tr></thead>
         <tbody>{% for d in sector.files %}<tr><th scope="row">{{ d.label }}</th><td>{% include "stations/_download_link.html" with d=d job=sector.job %}</td></tr>{% endfor %}</tbody>
       </table>
     </div>
     {% endif %}
-    <p class="small"><a href="{% url 'stations:sector' analysis.pk %}">{% translate "See the sector comparison" %}</a></p>
+    <p class="text-sm"><a href="{% url 'stations:sector' analysis.pk %}">{% translate "See the sector comparison" %}</a></p>
   </section>
   {% endif %}
 
   <section class="stack" aria-labelledby="indices-title">
     <h2 id="indices-title">{% translate "Each index" %}</h2>
-    <p class="small muted">{% translate "The table of each index (CSV) and Climpact's plot of each series (PNG). The days of occurrence are columns of the index's table." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
+    <p class="text-sm text-text-muted">{% translate "The table of each index (CSV) and Climpact's plot of each series (PNG). The days of occurrence are columns of the index's table." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
     {% for section in sections %}
     <details class="disclosure download-group"{% if forloop.first %} open{% endif %}>
-      <summary><span>{{ section.label }}</span> <span class="small muted">{% blocktranslate count counter=section.cards|length %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+      <summary class="font-semibold"><span>{{ section.label }}</span> <span class="text-sm text-text-muted">{% blocktranslate count counter=section.cards|length %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body table-wrap" role="region" aria-label="{{ section.label }}" tabindex="0">
         <table class="table download-table">
           <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Table" %}</th><th scope="col">{% translate "Plot" %}</th></tr></thead>
           <tbody>
             {% for item in section.cards %}{% for row in item.rows %}<tr>
               {% if forloop.first %}<th scope="rowgroup" rowspan="{{ item.rows|length }}"><a href="{% url 'stations:result' analysis.pk item.card.key %}">{{ item.card.name }}</a></th>{% endif %}
-              <td>{{ row.series.label }} <span class="small muted">{{ row.series.name }}</span></td>
-              <td class="download-cell">{% if row.csv %}{% include "stations/_download_link.html" with d=row.csv job=job %}{% else %}<span class="small muted">{% translate "in the index's table" %}</span>{% endif %}</td>
-              <td class="download-cell">{% if row.png %}{% include "stations/_download_link.html" with d=row.png job=job %}{% else %}<span class="small muted">{% translate "none" %}</span>{% endif %}</td>
+              <td>{{ row.series.label }} <span class="text-sm text-text-muted">{{ row.series.name }}</span></td>
+              <td class="download-cell">{% if row.csv %}{% include "stations/_download_link.html" with d=row.csv job=job %}{% else %}<span class="text-sm text-text-muted">{% translate "in the index's table" %}</span>{% endif %}</td>
+              <td class="download-cell">{% if row.png %}{% include "stations/_download_link.html" with d=row.png job=job %}{% else %}<span class="text-sm text-text-muted">{% translate "none" %}</span>{% endif %}</td>
             </tr>{% endfor %}{% endfor %}
           </tbody>
         </table>

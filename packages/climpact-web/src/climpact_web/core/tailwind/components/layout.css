@@ -1,0 +1,98 @@
+/* Icons, the vertical rhythm of a page and the type pieces used on many pages. One-off
+   layout (rows, grids, widths, muted or small text) is written with utilities in the
+   templates: flex flex-wrap items-center gap-3, grid grid-cols-fill-64, text-text-muted,
+   text-sm, sr-only, max-w-prose. */
+@layer components {
+  .icon {
+    inline-size: 1.25em;
+    block-size: 1.25em;
+    flex: none;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -0.25em;
+  }
+
+  .icon--flip:dir(rtl),
+  [dir="rtl"] .icon--flip {
+    transform: scaleX(-1);
+  }
+
+  /* A stack: its children one under the other with one gap, their own margins dropped. */
+  .stack > * {
+    margin-block: 0;
+  }
+
+  .stack > * + * {
+    margin-block-start: var(--stack-gap, --spacing(4));
+  }
+
+  .stack--lg {
+    --stack-gap: --spacing(8);
+  }
+
+  .stack--sm {
+    --stack-gap: --spacing(2);
+  }
+
+  .lead {
+    font-size: var(--text-md);
+    color: var(--color-text-muted);
+    max-inline-size: var(--container-prose);
+  }
+
+  .eyebrow {
+    margin-block-end: --spacing(2);
+    color: var(--color-accent);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .section {
+    padding-block: --spacing(12);
+  }
+
+  .section + .section {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .section__header {
+    margin-block-end: --spacing(6);
+  }
+
+  .skip-link {
+    position: absolute;
+    inset-inline-start: --spacing(2);
+    inset-block-start: -10rem;
+    z-index: 20;
+    padding: --spacing(2) --spacing(4);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+
+  .skip-link:focus {
+    inset-block-start: --spacing(2);
+    color: var(--color-accent-contrast);
+  }
+
+  .file-list {
+    margin: 0;
+    padding-inline-start: --spacing(5);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    columns: 2 20rem;
+  }
+
+  /* File and station names are often one long word (sydney_observatory_hill_1936-2015.txt):
+     let them wrap rather than widen the page on a phone. */
+  .station-page .lead,
+  .station-page .alert__body,
+  .station-page .summary-list dd {
+    overflow-wrap: anywhere;
+  }
+}

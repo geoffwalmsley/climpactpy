@@ -20,6 +20,10 @@ architecture, parity testing and the differences between the Python and R implem
 - `uv run pytest` from the root runs both packages' tests; `uv run pytest
   packages/climpact` runs the core alone (CI runs it without the web package installed:
   `uv sync --package climpactpy`).
+- The web stylesheet is built with the pinned standalone Tailwind CLI: after changing a
+  template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
+  `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install
+  Tailwind any other way) and commit `css/climpact.css`; CI fails when it is stale.
 - Changes go through pull requests; do not commit to `main`.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
   `pytest`, and report the R parity summary printed at the end of the test run.

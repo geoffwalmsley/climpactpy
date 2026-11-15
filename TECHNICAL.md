@@ -2642,7 +2642,12 @@ packages/climpact-web/src/climpact_web/
     navigation.py    the app's destinations (header links, landing page) and the
                      single-station, batch and gridded steps (`station_steps`,
                      `batch_steps`, `gridded_steps`) for the step indicator
-    tokens.py        reads the design tokens back from the CSS; writes chart-palette.json
+    tokens.py        reads the design tokens back from the Tailwind source; writes
+                     chart-palette.json
+    tailwind/        the stylesheet's source (#118): climpact.css (the entry: layers,
+                     sources, the dark variant, custom utilities), theme.css (the tokens,
+                     @theme), base.css (dark token values, element styles),
+                     components/*.css (the repeated pieces, @layer components)
     storage.py       the static files storage: hashed names, gzip and Brotli copies,
                      minified CSS (StaticFilesStorage, LocalStaticFilesStorage; #82)
     forms.py         PatternDemoForm, the example form on the pattern library
@@ -2652,17 +2657,9 @@ packages/climpact-web/src/climpact_web/
                      core/home.html (landing), core/patterns.html (pattern library),
                      core/language_switcher.html, components/*.html (the components)
     static/climpact_web/
-      css/main.css   tokens (light), base styles, layout and every component
-      css/theme-dark.css  dark values of the colour tokens
-      css/patterns.css    pattern library page only
-      css/stations.css    the single-station pages (and the batch pages)
-      css/qc.css          step 2, the quality checks (#77)
-      css/batch.css       the batch pages (and the gridded file and job cards)
-      css/gridded.css     the gridded pages only: file browser, set-up form, map
-      css/help.css        help topics (every page) and the help pages and tour (#81)
-      css/charts.css      the interactive charts (#75), chart pages only
-      css/results.css     station steps 3 and 4 (#78): parameters, dashboard cards, sparklines
-      css/sector.css      station step 5, sector data (#90): settings, bar chart, scatter plots
+      css/climpact.css  the one stylesheet, built from tailwind/ by the Tailwind CLI and
+                     committed (#118): tokens, both themes, base styles, every component,
+                     uPlot's stylesheet and the utilities the templates use
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts,
                      the announcer and focus kept across htmx swaps (#83)
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
@@ -2805,9 +2802,11 @@ worker and progress pages, #73), `stations` (single-station steps, #76-#78, the 
 page, #79, and step 5, sector data, #90), `batch` (#80), `gridded` (#85), `help` (#81) and `charts` (#75). `core` keeps what every page shares.
 
 Templates and static files live inside the package, so the wheel carries them (hatchling
-includes every file under `src/climpact_web`; checked by building the wheel). There is no
-build step and no Node: the user decided against Tailwind on 2026-11-14 (#69), so the
-design system (#71) is hand-written CSS with custom-property tokens.
+includes every file under `src/climpact_web`; checked by building the wheel). The
+stylesheet is built with the standalone Tailwind CLI (#118; Tailwind was first dropped in
+#69 because nothing could be installed, and installed with the user on 2026-11-14), but
+the built file is committed, so installing or running the app needs no build step, no
+Node and no Tailwind (see [Stylesheet and Tailwind](#stylesheet-and-tailwind)).
 
 ### Modes
 
@@ -2879,6 +2878,16 @@ uv run climpact-web --no-browser --port 9000 --data-dir /tmp/cw
 uv run climpact-web manage <command>     # any Django management command with these settings
 ```
 
+Changing a template's classes or the stylesheet source needs the stylesheet rebuilt (see
+[Stylesheet and Tailwind](#stylesheet-and-tailwind)):
+
+```sh
+scripts/fetch-tailwind.sh                # once: the pinned Tailwind CLI into bin/ (checksum checked)
+scripts/build-css.sh --watch             # rebuild css/climpact.css on every change
+CLIMPACT_WEB_DEBUG=true uv run climpact-web   # in another terminal: edits show on reload
+scripts/build-css.sh                     # one build, before committing (CI checks it is current)
+```
+
 Options: `--host` (default 127.0.0.1; 0.0.0.0 serves the network, with a warning),
 `--port` (default 8000, or a free port if 8000 is taken), `--no-browser`, `--data-dir`,
 `--threads` (default 4), `--no-worker` (do not start the background worker). Ctrl+C or
@@ -2905,18 +2914,37 @@ system supports displays. Icons are a sprite drawn for this project
 with `{% icon "name" %}` (decorative, `aria-hidden`) or `{% icon "name" "Label" %}`
 (announced as an image).
 
-**Tokens.** CSS custom properties on `:root` in `css/main.css`: colours (`--color-*`),
-chart colours (`--chart-*`), type scale (`--text-*`), spacing (`--space-*`), radii,
-control heights and widths. Components use only tokens: a test fails on a hex colour
-outside the token block. `css/theme-dark.css` holds the dark values and nothing else;
-`base.html` loads it with `media="(prefers-color-scheme: dark)"`. The theme toggle in the
-header (system, light, dark) sets that `media` to `all` or `not all` and stores the
-choice in `localStorage` (`climpact-theme`); a two-line inline script in `<head>` applies
-the stored choice before the page paints. Without JavaScript the system setting applies
-and the toggle stays hidden. The toggle sets `data-theme` on `<html>` and fires
-`climpact:themechange` on `document`, so charts can redraw.
+**Tokens.** The Tailwind theme, `@theme static` in `core/tailwind/theme.css` (#118),
+emitted as CSS custom properties on `:root`: colours (`--color-*`), chart colours
+(`--chart-*`), type scale (`--text-*`), the spacing step, radii, shadows, widths,
+breakpoints and control heights. Where Tailwind has a namespace for a token it is also a
+utility (`--color-surface` gives `bg-surface`, `text-surface`, `border-surface`;
+`--text-sm` gives `text-sm`; `--radius-md` gives `rounded-md`). Tailwind's default theme
+is not loaded, so these are the only colours, sizes and breakpoints there are. The values
+are those of #71; #118 renamed only what Tailwind names differently:
 
-**Contrast.** `tests/test_design_tokens.py` reads the token values from both stylesheets
+| Before #118 | Since #118 | Utility |
+| --- | --- | --- |
+| `--space-1` ... `--space-16` (0.25rem steps) | `--spacing: 0.25rem`; `--spacing(N)` in the components | `p-4`, `gap-5`, `mt-12` (same values) |
+| `--weight-medium`, `--weight-bold` | `--font-weight-medium`, `--font-weight-bold` (and `-normal`, `-semibold`) | `font-medium`, `font-bold` |
+| `--leading`, `--leading-tight` | `--leading-normal`, `--leading-tight` | `leading-tight` |
+| `--content-width`, `--prose-width` | `--container-content`, `--container-prose` | `max-w-content`, `max-w-prose` |
+| (media queries in rem) | `--breakpoint-sm` 40rem, `-md` 52rem, `-lg` 60rem, `-xl` 64rem | `sm:`, `max-sm:` ... |
+
+Components use only tokens: a test fails on a hex colour in the source outside the two
+token blocks. The dark values are one `@variant dark { ... }` block in `base.css`; the
+`dark` variant is defined in `climpact.css` as "the OS prefers dark and the toggle did not
+choose light, or the toggle chose dark", so the built file carries the dark block twice
+(`@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) }` and
+`:root[data-theme=dark]`), from one source. The theme toggle in the header (system, light,
+dark) sets `data-theme` on `<html>` (or removes it for the system setting) and stores the
+choice in `localStorage` (`climpact-theme`); a one-line inline script in `<head>` applies
+the stored choice before the page paints. Before #118 the dark values were a separate
+`theme-dark.css` whose `media` attribute the toggle switched. Without JavaScript the system
+setting applies and the toggle stays hidden. The toggle fires `climpact:themechange` on
+`document`, so charts can redraw.
+
+**Contrast.** `tests/test_design_tokens.py` reads the token values from the theme and the dark block
 and computes WCAG 2.1 contrast ratios for every pairing the components use, in both
 themes: text, muted text, links and status text on each surface and on each tinted alert
 background (4.5:1), button labels on their fills (4.5:1), and input borders, focus rings,
@@ -3011,20 +3039,80 @@ type is checked by `test_accessibility.py`, see [Accessibility](#accessibility))
 tables scroll inside their own region. Grids that hold forms and charts use a
 `minmax(0, 1fr)` column, so content such as a drawn chart cannot hold them wider than the
 window, and headings break long words (station names). Only logical properties are used: a test fails on
-`left`, `right`, `top`, `bottom`, `width` or `height` properties in any stylesheet.
+`left`, `right`, `top`, `bottom`, `width` or `height` properties in the stylesheet source,
+and on inline-axis utilities that do not flip in templates (`pl-`, `mr-`, `left-`,
+`text-right` ...; `ps-`, `me-`, `start-`, `text-end` instead).
 Motion is reduced under `prefers-reduced-motion`; borders are drawn in system colours
 under `forced-colors`.
 
-**Size.** `main.css` and `theme-dark.css` together are about 37.8 KB (8.0 KB gzipped);
-`ui.js` is about 13 KB. Tests hold them under 38 KB (8.5 KB gzipped; 36 KB until #115
-added the phone menu) and 14 KB (12 KB until #83 added the announcer and focus keeping). The
-issue aimed for under 30 KB of CSS; the full component set, both token sets and the
-comments put it above that. `help.css` (about 5.9 KB, 1.6 KB gzipped) is a separate
-stylesheet loaded on every page, since any screen can show a help topic and `main.css` is
-at its limit; `tour.js` (about 6.5 KB) loads on the landing page only. Tests hold them
-under 7 KB and 8 KB. Whole-page budgets are in [Size budget](#size-budget) (#82); as served,
-stylesheets are minified, and `main.css` is 28.4 KB (5.8 KB gzipped, 5.2 KB Brotli),
-under the original 30 KB aim with every component kept.
+**Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
+11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
+gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
+stylesheets). Tests hold it under 70 KB and 12.5 KB gzipped. `ui.js` is about
+13 KB, held under 14 KB (12 KB until #83 added the announcer and focus keeping);
+`tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
+budgets are in [Size budget](#size-budget) (#82).
+
+### Stylesheet and Tailwind
+
+Since #118 the stylesheet is written for Tailwind CSS v4 and built by its standalone CLI.
+
+**The CLI.** One executable, Tailwind CSS v4.3.3, from the official
+`tailwindlabs/tailwindcss` GitHub release; no npm, no `node_modules`, no Python wrapper,
+nothing installed globally. `scripts/fetch-tailwind.sh` downloads it for the platform
+(macOS arm64 or x64, Linux x64 or arm64) into `bin/tailwindcss` (git-ignored) and installs
+it only if its SHA-256 matches the hash pinned in the script, copied from the release's
+`sha256sums.txt` (Tailwind publishes no artifact attestations, so the pin is the integrity
+control). The user reviewed and approved this method on 2026-11-14 (#118); v4.3.4 and
+v4.3.5 were then under two weeks old and were skipped. Upgrade only in a pull request that
+changes the version and every hash together.
+
+**Build.** `scripts/build-css.sh` runs `bin/tailwindcss --input climpact.css --output
+../static/climpact_web/css/climpact.css --minify` in `core/tailwind/`;
+`scripts/build-css.sh --watch` rebuilds on every change to a template, script or source
+file while developing. Run it beside `CLIMPACT_WEB_DEBUG=true uv run climpact-web`: with
+`DEBUG` nothing is collected and WhiteNoise rereads the files, so each rebuild shows on the
+next page load (without `DEBUG`, `climpact-web` collects the static files when it starts,
+so a rebuild shows after a restart). The built file is committed,
+so `pip`/`uv` installs, the `core` CI job and the containers need no Tailwind; the `web`
+CI job fetches the pinned CLI, rebuilds and fails if the committed file differs, and
+`test_design_tokens.py::test_compiled_css_is_up_to_date` does the same locally when
+`bin/tailwindcss` exists (skipped otherwise, required in CI with
+`CLIMPACT_REQUIRE_TAILWIND`).
+
+**Layers.** `climpact.css` declares `@layer theme, base, vendor, components, utilities`:
+the tokens (`theme.css`); dark token values and element styles (`base.css`); uPlot's own
+stylesheet (`vendor/uplot/uPlot.min.css`, imported, so chart pages no longer link it and
+the chart styles can restyle its overlays from a higher layer); the components
+(`components/*.css`); Tailwind's utilities, generated only for the class names found in the
+templates and scripts (`@source`). Tailwind's Preflight reset is not used: the base styles
+were written as the reset, and Preflight would strip list bullets, make the inline SVG
+icons block-level and restyle form controls, which the "same look" aim of #118 ruled out.
+
+**Components and utilities.** What is repeated, or written by Python, JavaScript or
+Markdown, is a component class in `@layer components` (BEM names as before: the header and
+menu, stepper, buttons, form fields, alerts, progress and stages, cards and badges,
+tables, tabs, disclosures, chart frame, dialog; the file problems and field sets shared by
+the station, batch and gridded pages; batch items, index cards, sparklines, the help
+article and the tour; the SVG plots' classes written in `qc_plots.py`, `sector_plots.py`
+and `maps.py`). One-off layout is written with utilities in the templates (`flex flex-wrap
+items-center gap-3`, `grid gap-5 grid-cols-fill-64`, `text-sm text-text-muted`, `sr-only`,
+`max-w-prose`, `print:hidden`). Two custom utilities, `grid-cols-fill-N` and
+`grid-cols-fit-N`, make wrapping grids with columns of at least N spacing steps
+(`repeat(auto-fill | auto-fit, minmax(min(100%, N * 0.25rem), 1fr))`). Components are
+plain CSS, emitted whether or not a scanned file names them, so classes built at run time
+(`batch-item--{{ status }}`, `gmap__c3`) must be component classes, written out in full in a
+template or script, or listed with `@source inline()`. Words in the templates that would
+make unwanted utilities (`table`, `container`, `ring` ...) are excluded with `@source not
+inline()`. `test_static.py::test_every_template_class_is_styled` fails when a template
+names a class that is neither generated nor a component (apart from a short list of
+script and test hooks), so a mistyped utility, or one in a file Tailwind does not scan,
+fails in CI.
+
+**Visual parity.** The migration aimed at the same look, not a redesign: screenshots of
+every main page (station steps, results, an index, downloads, sector, batch, gridded,
+help, jobs, the pattern library; desktop and phone, light and dark) before and after are
+in the pull request (see its notes for the differences found).
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
@@ -3063,7 +3151,7 @@ temporary folder, so tests never touch the user's data; the database is SQLite i
 defaults, hosted with a Postgres `DATABASE_URL`, each required hosted variable missing).
 `test_cli.py::test_serves_local_mode` starts `python -m climpact_web --no-browser --port 0`
 on a fresh data folder, fetches `/healthz`, `/` (gzipped when asked) and the collected,
-hashed `main.css` (Brotli, immutable cache) and its plain name, and stops it with SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
+hashed `climpact.css` (Brotli, immutable cache) and its plain name, and stops it with SIGTERM. Postgres is not installed on the development machine; CI's `web-postgres` job
 runs hosted mode against a Postgres 16 service container: `check --deploy`, `migrate`,
 `collectstatic` and `/healthz`, then queues a station job (Madrid) and runs it with
 `runworker --once`, which claims it with `SELECT ... FOR UPDATE SKIP LOCKED`.
@@ -3806,7 +3894,7 @@ anchor). A screen shows one with
 ```
 
 which renders a `<details>` (no JavaScript): the title as a quiet link-style summary
-(`help-topic--compact`, in `css/help.css`), and when opened the text in a tinted panel
+(`help-topic--compact`, in `core/tailwind/components/help.css`), and when opened the text in a tinted panel
 with "More in the guide: ..." linking to the section. `variant="block"` gives the bordered
 `disclosure` instead, `summary="..."` replaces the title. A topic can also have a
 `question`, which the in-place link says instead of the title when the title would repeat or
@@ -4060,12 +4148,12 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
 | Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.4 KB for the quality-check results (#77) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, `charts.css`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `main.css` 5.8 of 7 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
+| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.4 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
-10.6 of 14 KB (with #77's additions), `charts.css` 0.5 of 1.5 KB, uPlot's CSS 0.7 of 1 KB, gzipped. To add a page, add a
+10.6 of 14 KB (with #77's additions), uPlot's CSS 0.7 of 1 KB (vendored as released; since #118 it is built into `climpact.css` and no page links it), gzipped. To add a page, add a
 function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
 quality-check results page (the Sydney sample checked: every section, the four chart
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
@@ -4073,7 +4161,10 @@ year). #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (the same run as the dashboard: every table and file with its size) and
-its rules to `results.css`.
+its rules to `results.css`. #118 replaced every stylesheet with the one built by Tailwind
+(`climpact.css`, 12.5 KB budget): pages that loaded few page stylesheets grew by 2 to 5 KB
+gzipped (the landing page from 34.9 to 39.8 KB), since the one file carries every page's
+components, and it is fetched once and cached for every page after.
 
 **How it is measured.** The test runs `collectstatic` with the deployment storage into a
 temporary folder, renders each page type with the real views (creating the session's
@@ -4108,8 +4199,8 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | station step 1, empty | 11.6 | 3.3 | 32.5 | 29.3 |
 | job list | 5.3 | 1.8 | 30.4 | 27.3 |
 
-About 30 KB of every page is shared and cached after the first: htmx (16.9 KB), `main.css`
-(5.8 KB), `ui.js` (3.2 KB), the icon sprite, `help.css` and the dark theme.
+About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
+`climpact.css` (11.4 KB), `ui.js` (3.2 KB) and the icon sprite.
 
 **Compression and caching.**
 
@@ -4128,8 +4219,8 @@ About 30 KB of every page is shared and cached after the first: htmx (16.9 KB), 
 - *Minified CSS*: the storage strips comments and whitespace from stylesheets as it saves
   them (`minify_css`): strings are kept, and spaces are removed only next to `{ } ; ,`, so
   selectors such as `.a :focus` keep their meaning; a test checks that every stylesheet
-  keeps the same sequence of selectors and declarations. This saves 1.2 KB gzipped on
-  `main.css`. Scripts are not minified: htmx comes minified, and minifying `ui.js` would
+  keeps the same sequence of selectors and declarations. Since #118 the stylesheet arrives
+  minified by Tailwind, and this pass changes little. Scripts are not minified: htmx comes minified, and minifying `ui.js` would
   need a JavaScript minifier for about 1 KB gzipped; the sources stay readable.
 - *Pages*: `CompressionMiddleware` is Django's `GZipMiddleware` limited to text answers
   (HTML, htmx fragments, JSON, CSV, SVG); streamed files (zips, netCDF, PNG) are left
@@ -4173,7 +4264,8 @@ screens show the same series as interactive charts.
 
 **Pieces.** uPlot 1.6.32, vendored in `vendor/uplot/` (MIT; version, source URLs and
 SHA-256s in its README, checked by `test_charts.py`); `js/charts.js`, a plain script
-with no build step that hydrates the design system's `chart_frame`; `css/charts.css`; the
+with no build step that hydrates the design system's `chart_frame`; the chart styles
+(`core/tailwind/components/charts.css`, in the one stylesheet); the
 `charts` app, whose JSON views give each chart its data. ECharts was not added: every chart
 the screens need (lines, bars, markers, a trend overlay, two synchronised panels) is a time
 series uPlot draws, and a trimmed ECharts build is several times uPlot's size against the
@@ -4202,7 +4294,7 @@ plot area, default 16rem; the daily chart splits it 60/40 between its panels), `
 `table_template`, and for an interactive chart `data_url` and `image_src` (a static image,
 such as the run's PNG, shown instead without JavaScript). A summary, legend or CSV link
 left out is filled in from the data; without `table_template` the table view is built from
-the data. `{% chart_scripts %}` writes uPlot's stylesheet, `charts.css`, uPlot and
+the data. `{% chart_scripts %}` writes uPlot and
 `charts.js` (deferred) and `#climpact-chart-text`, the script's strings in the interface
 language. Only pages that include it load chart code: the landing page and the upload page
 do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
@@ -4459,7 +4551,9 @@ uv run pytest
   `uv lock --check`, installs only the core with its dev group (`uv sync --locked
   --package climpactpy`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
-  suite, parity included); `web` installs both packages (`uv sync --locked`), runs
+  suite, parity included); `web` installs both packages (`uv sync --locked`), fetches the
+  pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
+  the committed `css/climpact.css` differs (#118), runs
   `pytest packages/climpact-web` (without the size budget and the accessibility tests), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
   [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service

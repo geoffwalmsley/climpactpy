@@ -1,6 +1,6 @@
 #cloud-config
 # User data for the climpact Droplet (#123): Ubuntu 24.04 LTS, DigitalOcean.
-# Paste this whole file into "Additional options › Add initialization scripts" when
+# Paste this whole file into "Additional options > Add initialization scripts" when
 # creating the Droplet; deploy/README.md is the runbook. It holds no secrets: user data
 # is readable from the Droplet's metadata service and stored by DigitalOcean, so the
 # secrets are generated on the server afterwards (climpact-init-env).

@@ -57,7 +57,11 @@ did, **destroy it and create a new one**. Do not rebuild it.
      password. The key ends up on the `deploy` user, and root cannot log in over SSH.
    - **Additional options:** tick **Monitoring** (free). Tick **Add initialization scripts
      (free)** and paste the whole of `deploy/cloud-init.yaml` (from the release's tag, or
-     `main`) into the box. It must start with `#cloud-config`.
+     `main`) into the box. It must start with `#cloud-config`. Copy it from the file's
+     *Raw* view on GitHub, or with
+     `curl -fsSL https://raw.githubusercontent.com/geoffwalmsley/climpactpy/vX.Y.Z/deploy/cloud-init.yaml | pbcopy`.
+     The file is plain ASCII on purpose: a paste that garbles even one character makes
+     cloud-init ignore the whole file (step 3 shows it as `recoverable_errors`).
    - **Hostname:** `climpact`. **Tags:** `climpact`. **Project:** create or choose a
      project called `climpact`.
    - **Backups:** optional (+20%). Jobs expire after 7 days and the app keeps nothing
@@ -88,6 +92,11 @@ The first boot installs updates and Docker, so give it 5–10 minutes. Then:
 ssh deploy@<droplet-ip>
 cloud-init status --wait --long      # wait for "status: done"; "error" means read the log
 ```
+
+`status: done` must come with **no** `recoverable_errors`. A warning like *Failed loading
+yaml blob … empty cloud config* means the pasted user data was garbled and nothing was set
+up (root can still log in, and there is no `deploy` user): destroy the Droplet and create
+it again with a clean paste.
 
 If it reports an error, read `/var/log/cloud-init-output.log`. Lines starting
 `climpact-bootstrap:` come from this setup. Then check:

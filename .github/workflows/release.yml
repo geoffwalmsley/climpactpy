@@ -4,7 +4,7 @@ name: Release
 #
 #   version ─┬─ test ──┬─ testpypi ── testpypi-check ─┬─ pypi ─┬─ assets
 #            └─ build ─┘                              │        │
-#                                                     └────────┴─ image ── publish
+#                                                     └────────┴─ image ── publish ── deploy
 #
 # - version: the tag equals both packages' __version__ (and climpact-web's pin on the
 #   core), the release's pre-release box matches the version, and the tagged commit is on
@@ -21,10 +21,12 @@ name: Release
 # - image, publish: the climpact-web image (#122), published to
 #   ghcr.io/geoffwalmsley/climpact-web only after the packages: after PyPI for a release,
 #   after TestPyPI for a pre-release. Tagged X.Y.Z, and `latest` unless a pre-release.
+# - deploy (#126): unless a pre-release, asks climpact.app's deploy hook to deploy X.Y.Z
+#   and waits until https://climpact.app/healthz reports it (environment `production`).
 #
 # Pre-releases (v0.2.0rc1, with GitHub's pre-release box) go to TestPyPI and push the
-# image without `latest`; they never reach PyPI. Merges to main and pull requests publish
-# nothing. A re-run skips files an index already has (uv publish --check-url).
+# image without `latest`; they never reach PyPI and never deploy. Merges to main and pull
+# requests publish and deploy nothing. A re-run skips files an index already has (uv publish --check-url).
 #
 # A pull request that changes this file runs a dry run: version (with v<the package
 # version>), build, and the `image` job (the artifact saved); nothing is tested twice
@@ -349,3 +351,44 @@ jobs:
             gh api -X DELETE "$VERSIONS/$id" && echo "deleted untagged version $id" \
               || echo "::warning title=Untagged versions::could not delete version $id"
           done
+
+  deploy:
+    # Last: deploy the release to climpact.app (#126). Final releases only: never a
+    # pre-release, a merge to main or a pull request. POSTs the signed version to the
+    # Droplet's deploy hook (through the Cloudflare Tunnel), which answers 202 and deploys
+    # in the background (deploy/update.sh: migrate, start, check, roll back on failure);
+    # then waits for https://climpact.app/healthz to report the version, so the job is
+    # green only once the release is live. The `production` environment allows only `v*`
+    # tags and holds DEPLOY_WEBHOOK_SECRET. Re-run this job to deploy the release again.
+    if: >-
+      !cancelled() && github.event_name == 'release'
+      && !github.event.release.prerelease
+      && needs.version.outputs.prerelease == 'false'
+      && needs.publish.result == 'success'
+    needs: [version, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://climpact.app
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: deploy/call-hook.sh
+          sparse-checkout-cone-mode: false
+      - name: Ask the Droplet to deploy
+        env:
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+        run: sh deploy/call-hook.sh post "$VERSION"
+      - name: Wait for climpact.app to report the version
+        run: |
+          sh deploy/call-hook.sh wait "$VERSION"
+          echo "### Deployed $VERSION to https://climpact.app" >> "$GITHUB_STEP_SUMMARY"

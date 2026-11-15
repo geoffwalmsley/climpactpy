@@ -11,8 +11,12 @@
 #   - Docker Engine and the Compose plugin from Docker's apt repository, whose signing key
 #     is checked against its fingerprint
 #   - 2 GB of swap, unattended security upgrades (with a 03:30 UTC reboot when needed)
-#   - /opt/climpact with compose.yaml and .env.example from the repository, and the
-#     helpers climpact-use (pin a release) and climpact-init-env (make .env)
+#   - /opt/climpact with update.sh (deploys a release, #126), compose.yaml, .env.example
+#     and deploy-hook.py from the repository's main, and the helper climpact-init-env
+#     (make .env)
+#   - the deploy hook's drop folder and the systemd units climpact-deploy.path and
+#     climpact-deploy.service (from `update.sh --install-hook`), which deploy a release
+#     when the release workflow asks
 #   - a weekly timer that removes app images unused for 30 days
 # The daily purgejobs runs in the Compose stack (the `purge` service), not here.
 #
@@ -131,6 +135,7 @@ write_files:
       DOCKER_KEY_FPR=9DC858229FC7DD38854AE2D88D81803C0EBFCD88
       DOCKER_KEY_URL=https://download.docker.com/linux/ubuntu/gpg
       DIR=/opt/climpact
+      REPO=geoffwalmsley/climpactpy
       # Tests in a container set CLIMPACT_BOOTSTRAP_NO_SYSTEMD=1.
       NO_SYSTEMD="${CLIMPACT_BOOTSTRAP_NO_SYSTEMD:-}"
 
@@ -171,11 +176,21 @@ write_files:
       fi
       [ -s /home/deploy/.ssh/authorized_keys ] || log "WARNING: deploy has no SSH key; add one with the Recovery Console"
 
-      # 4. /opt/climpact, with the Compose files from main until a release is pinned.
+      # 4. /opt/climpact: update.sh and the deploy files from main until a release is
+      #    deployed (update.sh X.Y.Z), and the deploy hook's folder and systemd units.
       install -d -m 0750 -o deploy -g deploy "$DIR"
-      if [ ! -f "$DIR/compose.yaml" ]; then
-        runuser -u deploy -- /usr/local/bin/climpact-use main \
-          || log "WARNING: could not fetch the Compose files; run 'climpact-use main' later"
+      if [ ! -f "$DIR/update.sh" ]; then
+        if runuser -u deploy -- curl -fsSL --retry 5 --retry-connrefused \
+          "https://raw.githubusercontent.com/$REPO/main/deploy/update.sh" -o "$DIR/update.sh"; then
+          chmod 0755 "$DIR/update.sh"
+        else
+          log "WARNING: could not fetch update.sh; see deploy/README.md step 3"
+        fi
+      fi
+      if [ -x "$DIR/update.sh" ]; then
+        [ -f "$DIR/compose.yaml" ] || runuser -u deploy -- "$DIR/update.sh" --fetch main \
+          || log "WARNING: could not fetch the deploy files; run '$DIR/update.sh --fetch main' later"
+        "$DIR/update.sh" --install-hook || log "WARNING: the deploy hook is not installed"
       fi
 
       # 5. Services.
@@ -191,57 +206,6 @@ write_files:
       fi
       log "done"
 
-  - path: /usr/local/bin/climpact-use
-    permissions: "0755"
-    content: |
-      #!/bin/sh
-      # climpact-use vX.Y.Z | main
-      #
-      # Fetches compose.yaml and .env.example from that tag (or main) of the repository
-      # into /opt/climpact. For a release tag it also pins CLIMPACT_IMAGE in .env to the
-      # image of that release and pulls it, so the Compose file and the image always come
-      # from the same release. Then: cd /opt/climpact && docker compose up -d --wait
-      set -eu
-      REPO="${CLIMPACT_REPO:-geoffwalmsley/climpactpy}"
-      IMAGE_REPO="${CLIMPACT_IMAGE_REPO:-ghcr.io/geoffwalmsley/climpact-web}"
-      DIR="${CLIMPACT_DIR:-/opt/climpact}"
-
-      die() { echo "climpact-use: $*" >&2; exit 1; }
-      ref="${1:-}"
-      case "$ref" in
-        main) version= ;;
-        v[0-9]*.[0-9]*.[0-9]*) version="${ref#v}" ;;
-        *) die "usage: climpact-use vX.Y.Z | main" ;;
-      esac
-      [ "$(id -un)" = deploy ] || die "run as deploy (sudo -iu deploy)"
-      cd "$DIR"
-
-      tmp=$(mktemp -d)
-      trap 'rm -rf "$tmp"' EXIT
-      for f in compose.yaml .env.example; do
-        url="https://raw.githubusercontent.com/$REPO/$ref/deploy/$f"
-        curl -fsSL --retry 3 "$url" -o "$tmp/$f" \
-          || die "could not fetch $url (is $ref published?)"
-      done
-      mv "$tmp/compose.yaml" "$tmp/.env.example" "$DIR/"
-      echo "climpact-use: compose.yaml and .env.example from $REPO@$ref"
-
-      [ -n "$version" ] || exit 0
-      image="$IMAGE_REPO:$version"
-      docker pull -q "$image" >/dev/null \
-        || die "could not pull $image: is the release's image published, and the package public?"
-      if [ -f .env ]; then
-        umask 077
-        K=CLIMPACT_IMAGE V="$image" awk '
-          index($0, ENVIRON["K"] "=") == 1 { print ENVIRON["K"] "=" ENVIRON["V"]; done = 1; next }
-          { print }
-          END { if (!done) print ENVIRON["K"] "=" ENVIRON["V"] }' .env > .env.new
-        mv .env.new .env
-        echo "climpact-use: CLIMPACT_IMAGE=$image in .env"
-      else
-        echo "climpact-use: no .env yet; run climpact-init-env, then climpact-use $ref again"
-      fi
-
   - path: /usr/local/bin/climpact-init-env
     permissions: "0755"
     content: |
@@ -251,6 +215,7 @@ write_files:
       # Makes /opt/climpact/.env from .env.example (mode 0600, owned by deploy) and fills
       # in what is still empty: a new Django secret key and Postgres password, the
       # Cloudflare Tunnel token (asked for, not echoed), and COMPOSE_PROFILES=tunnel.
+      # DEPLOY_WEBHOOK_SECRET is not made here: it must equal the GitHub secret (#126).
       # Never changes a value already set: the Postgres password must stay the one the
       # database volume was created with. Prints which settings are set, never values.
       set -eu
@@ -260,7 +225,7 @@ write_files:
       cd "$DIR"
       umask 077
       if [ ! -f .env ]; then
-        [ -f .env.example ] || die "no .env.example in $DIR; run climpact-use main first"
+        [ -f .env.example ] || die "no .env.example in $DIR; run $DIR/update.sh --fetch main first"
         cp .env.example .env
       fi
       chmod 600 .env
@@ -284,11 +249,11 @@ write_files:
         [ -z "$token" ] || set_ TUNNEL_TOKEN "$token"
       fi
 
-      for k in CLIMPACT_IMAGE CLIMPACT_WEB_SECRET_KEY POSTGRES_PASSWORD TUNNEL_TOKEN COMPOSE_PROFILES; do
+      for k in CLIMPACT_IMAGE CLIMPACT_WEB_SECRET_KEY POSTGRES_PASSWORD TUNNEL_TOKEN COMPOSE_PROFILES DEPLOY_WEBHOOK_SECRET; do
         v=$(get "$k")
         case "$v" in
           "") echo "  $k: MISSING" ;;
-          *X.Y.Z) echo "  $k: placeholder; run climpact-use vX.Y.Z" ;;
+          *X.Y.Z) echo "  $k: placeholder; $DIR/update.sh X.Y.Z sets it" ;;
           *) echo "  $k: set" ;;
         esac
       done

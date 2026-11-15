@@ -4,6 +4,7 @@ import fnmatch
 import re
 from pathlib import Path
 
+import pytest
 from django.urls import URLPattern, URLResolver, get_resolver
 
 DEPLOY = Path(__file__).resolve().parents[3] / "deploy"
@@ -57,21 +58,26 @@ RATE_LIMITED = {
 
 
 def cloudflare_rule(name: str):
-    """The expression in deploy/cloudflare/<name>.txt as a function of the path. Handles
-    the subset of Cloudflare's rules language the files use: `wildcard` (whole value,
-    case-insensitive, `*` matches anything including `/`), `contains`, `and`, `or`,
-    `not` and parentheses."""
+    """The expression in deploy/cloudflare/<name>.txt as a function of the path (and the
+    method, GET unless given). Handles the subset of Cloudflare's rules language the files
+    use: `wildcard` (whole value, case-insensitive, `*` matches anything including `/`),
+    `contains`, `eq` (exact), the path and method fields, `and`, `or`, `not` and
+    parentheses."""
     text = (CLOUDFLARE / f"{name}.txt").read_text()
     field = r"http\.request\.uri\.path"
     code = re.sub(field + r' wildcard ("[^"]*")', r"_wildcard(path, \1)", text)
     code = re.sub(field + r' contains ("[^"]*")', r"(\1 in path)", code)
+    code = re.sub(field + r' eq ("[^"]*")', r"(path == \1)", code)
+    code = re.sub(r'http\.request\.method eq ("[^"]*")', r"(method == \1)", code)
     assert "http." not in code, f"{name}.txt uses a field or operator the test can't read"
 
     def wildcard(path, pattern):
         return fnmatch.fnmatchcase(path.lower(), pattern.lower())
 
     compiled = compile(f"({code})", name, "eval")
-    return lambda path: eval(compiled, {"__builtins__": {}, "_wildcard": wildcard, "path": path})
+    return lambda path, method="GET": eval(
+        compiled, {"__builtins__": {}, "_wildcard": wildcard, "path": path, "method": method}
+    )
 
 
 def app_paths() -> dict[str, str]:
@@ -177,3 +183,77 @@ def test_csp_report_only_switch_reaches_the_app():
     compose = (DEPLOY / "compose.yaml").read_text()
     assert re.search(r"^CLIMPACT_WEB_CSP_REPORT_ONLY=false$", env, re.M)
     assert "CLIMPACT_WEB_CSP_REPORT_ONLY: ${CLIMPACT_WEB_CSP_REPORT_ONLY:-false}" in compose
+
+
+# ---- Deploy on release (#126) ----------------------------------------------------------
+
+
+def compose_services() -> dict[str, str]:
+    compose = (DEPLOY / "compose.yaml").read_text()
+    services = compose.split("\nservices:\n", 1)[1].split("\nnetworks:\n", 1)[0]
+    return dict(re.findall(r"^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", services, re.M | re.S))
+
+
+def test_cloudflare_lets_the_deploy_call_through():
+    """The workflow's POST to /_deploy is matched by no blocking, challenging or rate
+    limiting rule, and the skip rule matches that request and nothing the app serves."""
+    skip = cloudflare_rule("waf-skip-deploy")
+    assert skip("/_deploy", "POST")
+    assert not skip("/_deploy", "GET") and not skip("/_deploy/", "POST")
+    for name, path in app_paths().items():
+        for method in ("GET", "POST"):
+            assert not skip(path, method), name
+    for rule in ("waf-block", "waf-challenge", "rate-limit", "cache-static"):
+        assert not cloudflare_rule(rule)("/_deploy", "POST"), rule
+    assert cloudflare_rule("cache-bypass")("/_deploy")
+    assert "_deploy" not in " ".join(app_paths().values())
+
+
+def test_deploy_hook_service_is_locked_down():
+    blocks = compose_services()
+    hook = blocks["deploy-hook"]
+    assert "networks: [backend]" in hook  # no route out
+    assert "read_only: true" in hook and "cap_drop: [ALL]" in hook
+    assert 'user: "10001:10001"' in hook
+    assert "DEPLOY_WEBHOOK_SECRET: ${DEPLOY_WEBHOOK_SECRET:-}" in hook
+    compose = (DEPLOY / "compose.yaml").read_text()
+    assert "docker.sock" not in compose and "ports:" not in compose
+    # The secret reaches the hook only.
+    assert compose.count("DEPLOY_WEBHOOK_SECRET") == 2
+    # The same Python image as the app's Dockerfile, so the two are updated together.
+    dockerfile = (DEPLOY.parent / "Dockerfile").read_text()
+    python = re.search(r"^ARG PYTHON_IMAGE=(\S+)$", dockerfile, re.M).group(1)
+    assert f"image: {python}" in hook
+    assert re.search(r"^DEPLOY_WEBHOOK_SECRET=$", (DEPLOY / ".env.example").read_text(), re.M)
+
+
+def test_worker_has_time_to_hand_back_its_job():
+    worker = compose_services()["worker"]
+    seconds = int(re.search(r"stop_grace_period: (\d+)s", worker).group(1))
+    assert seconds >= 120
+
+
+def test_release_deploys_only_final_releases():
+    yaml = pytest.importorskip("yaml")  # PyYAML comes with xclim
+
+    workflow = yaml.safe_load((DEPLOY.parent / ".github/workflows/release.yml").read_text())
+    jobs = workflow["jobs"]
+    deploy = jobs["deploy"]
+    assert set(deploy["needs"]) == {"version", "publish"}
+    condition = " ".join(deploy["if"].split())
+    for part in (
+        "github.event_name == 'release'",
+        "!github.event.release.prerelease",
+        "needs.version.outputs.prerelease == 'false'",
+        "needs.publish.result == 'success'",
+    ):
+        assert part in condition
+    assert deploy["environment"]["name"] == "production"
+    assert deploy["permissions"] == {"contents": "read"}
+    # Nothing else depends on it: it is the last job.
+    assert not [name for name, job in jobs.items() if "deploy" in (job.get("needs") or [])]
+    # Only releases (and dry runs of this file on pull requests) start the workflow.
+    triggers = workflow.get("on") or workflow.get(True)
+    assert set(triggers) == {"release", "pull_request"}
+    steps = " ".join(str(step.get("run", "")) for step in deploy["steps"])
+    assert "call-hook.sh post" in steps and "call-hook.sh wait" in steps

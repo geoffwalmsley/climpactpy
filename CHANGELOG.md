@@ -7,6 +7,13 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+- Deploy on release (#126): publishing a final GitHub Release deploys it to climpact.app.
+  The release workflow's new `deploy` job sends a signed request through the Cloudflare
+  Tunnel to a deploy hook on the Droplet, which runs `deploy/update.sh` (fetch, pull,
+  migrate, start, health check, automatic rollback) and waits until `/healthz` reports the
+  new version. `update.sh` replaces `climpact-use`. The worker now gets 120 s to hand back
+  its running job when stopped. The app and the packages are unchanged.
+
 ## 0.1.1 - 2026-11-16
 
 Changes to the hosted web app (`climpact-web` in hosted mode, and its image). `climpact`

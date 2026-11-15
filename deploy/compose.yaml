@@ -1,0 +1,169 @@
+# The hosted climpact-web stack on one Droplet (#121): web, worker, Postgres, the daily
+# purge and the Cloudflare Tunnel connector. See TECHNICAL.md › Deployment › Compose stack.
+#
+#   cp .env.example .env && chmod 600 .env   # then fill it in
+#   docker compose --profile tunnel up -d    # on the Droplet
+#   docker compose up -d                     # without the tunnel (local testing)
+#
+# Nothing publishes a port on the host: the app is reached only through the tunnel, which
+# connects out to Cloudflare. Every image is pinned by tag and digest (update both
+# together); the app image comes from CLIMPACT_IMAGE in .env.
+
+name: climpact
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Shared by every service that runs the app image (web, worker, migrate, purge).
+x-app: &app
+  image: ${CLIMPACT_IMAGE:?set CLIMPACT_IMAGE in .env}
+  environment: &app-env
+    CLIMPACT_WEB_SECRET_KEY: ${CLIMPACT_WEB_SECRET_KEY:?set CLIMPACT_WEB_SECRET_KEY in .env}
+    CLIMPACT_WEB_ALLOWED_HOSTS: ${CLIMPACT_WEB_ALLOWED_HOSTS:-climpact.app}
+    CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS: ${CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS:-https://climpact.app}
+    CLIMPACT_WEB_HSTS_SECONDS: ${CLIMPACT_WEB_HSTS_SECONDS:-0}
+    CLIMPACT_WEB_MAX_UPLOAD_MB: ${CLIMPACT_WEB_MAX_UPLOAD_MB:-50}
+    CLIMPACT_WEB_RETENTION_DAYS: ${CLIMPACT_WEB_RETENTION_DAYS:-7}
+    CLIMPACT_WEB_LOG_LEVEL: ${CLIMPACT_WEB_LOG_LEVEL:-INFO}
+    DATABASE_URL: ${DATABASE_URL:-postgres://climpact:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/climpact}
+  volumes:
+    - media:/var/lib/climpact/media
+  tmpfs:
+    - /tmp:size=256m,mode=1777
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  networks: [backend]
+  logging: *logging
+
+services:
+  db:
+    image: postgres:16-alpine@sha256:f377d590e5474681d4d7838635031a2b50647923b7abfa803ce9b5ff35d5c663
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: climpact
+      POSTGRES_DB: climpact
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    read_only: true
+    shm_size: 64m
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "climpact", "-d", "climpact"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+    logging: *logging
+
+  # One-off: apply migrations, then exit; web and worker start only once it has succeeded.
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  web:
+    <<: *app
+    command: ["web"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # The image's HEALTHCHECK fetches /healthz (app and database up).
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # SIGTERM interrupts the running job and queues it again; give it time to do so.
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # Daily purgejobs (expired jobs and their folders, and jobs whose worker died). The
+  # worker also purges hourly; this keeps the daily run going when the worker is down.
+  # The shell sleeps between runs, so the Python process exists only while purging.
+  purge:
+    <<: *app
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - trap 'exit 0' TERM INT;
+        while :; do climpact-entrypoint purge || echo "purge failed" >&2;
+        sleep 86400 & wait $$!; done
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # The image's check would look for a web server; a running shell is healthy, so
+    # `docker compose up --wait` works.
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5m
+      start_period: 10s
+      start_interval: 1s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # The Cloudflare Tunnel connector: dials out to Cloudflare and forwards the public
+  # hostname (configured on the tunnel, in Cloudflare) to http://web:8000. Off unless the
+  # `tunnel` profile is on, so the stack runs locally without a tunnel token.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.11.0@sha256:b94b96edf2c9c4360f8879c8580cfaa99077f19c849ec595ca2f711b27d4f344
+    profiles: [tunnel]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    restart: unless-stopped
+    environment:
+      # Not `:?`: Compose reads the whole file even when the profile is off.
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [backend, egress]
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    logging: *logging
+
+networks:
+  # No route out: the app and the database talk only to each other and to cloudflared.
+  backend:
+    internal: true
+  # cloudflared's way out to Cloudflare.
+  egress: {}
+
+volumes:
+  pgdata: {}
+  media: {}

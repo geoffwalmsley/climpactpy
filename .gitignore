@@ -17,3 +17,6 @@ bin/
 
 # The R parity summary the test run writes (tests/parity/conftest.py)
 .parity-summary.txt
+
+# The Droplet's real env file for deploy/compose.yaml (#121); never committed
+deploy/.env

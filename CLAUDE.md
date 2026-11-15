@@ -24,9 +24,10 @@ architecture, parity testing and the differences between the Python and R implem
   template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
   `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install
   Tailwind any other way) and commit `css/climpact.css`; CI fails when it is stale.
-- Changes go through pull requests; do not commit to `main`. Merge pull requests with a
-  **merge commit** (`gh pr merge <N> --merge --delete-branch`), never squash or rebase, so
-  the branch's commits are kept on `main` as they were written. Every commit on the branch
+- Changes go through pull requests; do not commit to `main`. **Only the user merges pull
+  requests.** Never run `gh pr merge`, even when CI is green: take the PR to green CI and
+  In review, then say it is ready. The user merges with a **merge commit**, never squash or
+  rebase, so the branch's commits are kept on `main` as they were written. Every commit on the branch
   therefore lands on `main`: keep each one signed, with a meaningful message, and tidy up
   "fix typo"-style commits before the PR is merged.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and

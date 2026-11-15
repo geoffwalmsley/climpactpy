@@ -3,7 +3,9 @@
 - ``example_qc`` lists, per year, the days with TX above 35 degC (``qc/example_hot_days``).
 - ``example_shift`` "detects" a break in TX on 1 January of the middle year, writes it to
   ``homogeneity/example_breaks`` and returns TX before the break raised by 1 degC, so the
-  indices are calculated from adjusted data.
+  indices are calculated from adjusted data. It takes options (``adjustment``, the
+  amount added, and ``variable``, the variable adjusted), which climpactpy passes to
+  ``homogenise`` as the keyword argument ``options``.
 - ``example_indices`` writes the annual mean of TX (``indices/example_txmean_ANN``).
 
 Entry points may name a class (called with no arguments) or a module object; the QC and
@@ -16,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from climpact.io.output_files import FileFormat, with_file_format
-from climpact.modules import HomogeneityResult
+from climpact.modules import HomogeneityResult, Option
 
 ADJUSTMENT = 1.0
 
@@ -33,16 +35,22 @@ class HotDaysQC:
 
 class Shift:
     name = "example_shift"
+    options = (
+        Option("adjustment", float, ADJUSTMENT, "degC added before the break"),
+        Option("variable", str, "tasmax", "variable adjusted", choices=("tasmax", "tasmin")),
+    )
 
-    def homogenise(self, run, tables):
+    def homogenise(self, run, tables, options):
+        amount, var = options["adjustment"], options["variable"]
         years = run.data["time.year"].values
         break_year = int((years[0] + years[-1] + 1) // 2)
         before = years < break_year
         adjusted = run.data.copy()
-        adjusted["tasmax"] = run.data["tasmax"].where(~before, run.data["tasmax"] + ADJUSTMENT)
+        adjusted[var] = run.data[var].where(~before, run.data[var] + amount)
         adjusted["tas"] = (adjusted["tasmax"] + adjusted["tasmin"]) / 2
+        label = {"tasmax": "TX", "tasmin": "TN"}[var]
         breaks = pd.DataFrame(
-            {"Date": [f"{break_year}-01-01"], "Variable": ["TX"], "Adjustment": [ADJUSTMENT]}
+            {"Date": [f"{break_year}-01-01"], "Variable": [label], "Adjustment": [amount]}
         )
         fmt = FileFormat("Breaks found and the adjustment applied before them", sep=",")
         return HomogeneityResult(

@@ -1,7 +1,9 @@
 """The module interfaces, plugin discovery and the QC -> homogeneity -> indices pipeline."""
 
+import re
 import shutil
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +20,9 @@ from climpact.modules import (
     HomogeneityModule,
     HomogeneityResult,
     IndexModule,
+    ModuleOptionError,
     ModuleSelection,
+    Option,
     QCModule,
     UnknownModuleError,
     resolve,
@@ -247,3 +251,166 @@ def test_adjusted_run_keeps_station_attributes(run):
     assert adjusted is not run
     assert adjusted.data.attrs == run.data.attrs
     assert adjusted.metadata == run.metadata
+
+
+# Module options
+
+
+def _with_options(**shift_options):
+    return replace(WITH_PLUGINS, options={"homogeneity": {"example_shift": shift_options}})
+
+
+def test_option_conversion():
+    alpha = Option("alpha", float, 0.05)
+    assert alpha.convert("0.1") == 0.1
+    assert alpha.convert(1) == 1.0 and isinstance(alpha.convert(1), float)
+    with pytest.raises(ValueError, match="expected float"):
+        alpha.convert("high")
+    flag = Option("flag", bool, False)
+    assert flag.convert("yes") is True and flag.convert("0") is False
+    with pytest.raises(ValueError, match="expected true or false"):
+        flag.convert("maybe")
+    count = Option("count", int, 3)
+    assert count.convert("4") == 4
+    with pytest.raises(ValueError, match="expected int"):
+        count.convert(True)
+    with pytest.raises(ValueError, match="not one of a, b"):
+        Option("mode", str, "a", choices=("a", "b")).convert("c")
+    with pytest.raises(TypeError):
+        Option("bad", list)
+
+
+def test_options_are_checked_by_resolve(example_plugin):
+    loaded = resolve(WITH_PLUGINS)
+    assert loaded.options == {
+        ("homogeneity", "example_shift"): {"adjustment": 1.0, "variable": "tasmax"}
+    }
+    loaded = resolve(_with_options(adjustment="2.5"))
+    assert loaded.options[("homogeneity", "example_shift")]["adjustment"] == 2.5
+
+    with pytest.raises(ModuleOptionError, match="has no option 'alpha'.*adjustment, variable"):
+        resolve(_with_options(alpha=0.05))
+    with pytest.raises(ModuleOptionError, match="'adjustment': expected float"):
+        resolve(_with_options(adjustment="lots"))
+    with pytest.raises(ModuleOptionError, match="'variable'.*not one of"):
+        resolve(_with_options(variable="pr"))
+    with pytest.raises(ModuleOptionError, match="has no option 'x'.*options: none"):
+        resolve(replace(WITH_PLUGINS, options={"qc": {"climpact": {"x": 1}}}))
+    with pytest.raises(ModuleOptionError, match="indices module 'example_qc', not selected"):
+        resolve(replace(WITH_PLUGINS, options={"indices": {"example_qc": {}}}))
+    with pytest.raises(ModuleOptionError, match="unknown kind 'plots'"):
+        resolve(replace(WITH_PLUGINS, options={"plots": {}}))
+
+
+def test_required_option(run):
+    class Needs:
+        name = "needs"
+        options = (Option("reference", str, required=True),)
+
+        def homogenise(self, run, tables, options):
+            return HomogeneityResult()
+
+    with pytest.raises(ModuleOptionError, match="'reference' is required"):
+        modules.option_values("homogeneity", Needs(), None)
+    assert modules.option_values("homogeneity", Needs(), {"reference": "a.txt"}) == {
+        "reference": "a.txt"
+    }
+
+
+def test_pipeline_passes_options(example_plugin, run):
+    tables = run_pipeline(run, _with_options(adjustment=2.0, variable="tasmin")).tables
+    breaks = tables["homogeneity/example_breaks"]
+    assert breaks["Variable"].tolist() == ["TN"] and breaks["Adjustment"].tolist() == [2.0]
+    builtin = run_pipeline(run).tables
+    shifted = tables["indices/tnx_ANN"]["val"].to_numpy() - builtin["indices/tnx_ANN"]["val"]
+    np.testing.assert_allclose(shifted, [2, 2, 0, 0])
+
+
+def test_cli_module_options(example_plugin, station_file, tmp_path, capsys):
+    assert main(["modules"]) == 0
+    listing = capsys.readouterr().out
+    assert "adjustment (float, default 1.0): degC added before the break" in listing
+    assert "variable (str, default 'tasmax') one of tasmax, tasmin" in listing
+
+    toml = tmp_path / "options.toml"
+    toml.write_text('[homogeneity.example_shift]\nadjustment = 3\nvariable = "tasmin"\n')
+    out = tmp_path / "out"
+    args = ["run", str(station_file), "--out", str(out), "--lat", "-20"]
+    args += ["--homogeneity", "example_shift", "--module-options", str(toml)]
+    args += ["--module-option", "example_shift.adjustment=0.5"]  # overrides the file
+    assert main(args) == 0
+    breaks = read_climpact_csv(
+        out / "plugstation" / "homogeneity" / "plugstation_example_breaks.csv"
+    )
+    assert breaks.data["Variable"].tolist() == ["TN"]
+    assert breaks.data["Adjustment"].tolist() == [0.5]
+
+
+@pytest.mark.parametrize(
+    ("option", "error"),
+    [
+        ("example_shift.alpha=1", "has no option 'alpha'"),
+        ("example_shift.adjustment=big", "expected float"),
+        ("example_shift=1", "expected \\[KIND:\\]NAME.OPTION=VALUE"),
+        ("nope.alpha=1", "no module 'nope' is selected"),
+        ("climpact.x=1", "selected qc and indices module; write qc:climpact.x"),
+        ("indices:climpact.x=1", "indices module 'climpact' has no option 'x'"),
+        ("plots:climpact.x=1", "unknown kind 'plots'"),
+    ],
+)
+def test_cli_rejects_bad_module_options(
+    example_plugin, station_file, tmp_path, capsys, option, error
+):
+    out = tmp_path / "out"
+    args = ["run", str(station_file), "--out", str(out), "--homogeneity", "example_shift"]
+    with pytest.raises(SystemExit):
+        main([*args, "--module-option", option])
+    assert re.search(error, capsys.readouterr().err)
+    assert not out.exists()  # nothing ran
+
+
+def test_cli_rejects_bad_options_file(station_file, tmp_path, capsys):
+    toml = tmp_path / "options.toml"
+    toml.write_text("adjustment = 3\n")
+    with pytest.raises(SystemExit):
+        main(
+            ["run", str(station_file), "--out", str(tmp_path / "o"), "--module-options", str(toml)]
+        )
+    assert "expected [adjustment.NAME] tables" in capsys.readouterr().err
+
+
+def test_batch_workers_receive_options(example_plugin, station_file, tmp_path):
+    stations = [BatchStation(station_file.name, -20, 0, IndexParams(custom=None), 2)]
+    out = tmp_path / "out"
+    selection = _with_options(adjustment="2")
+    results = run_batch(stations, station_file.parent, out, workers=2, modules=selection)
+    assert results[0].ok, results[0].error
+    breaks = read_climpact_csv(
+        out / "plugstation" / "homogeneity" / "plugstation_example_breaks.csv"
+    )
+    assert breaks.data["Adjustment"].tolist() == [2.0]
+
+
+def test_batch_rejects_bad_options_before_running(example_plugin, station_file, tmp_path):
+    stations = [BatchStation(station_file.name, -20, 0, IndexParams(custom=None), 2)]
+    out = tmp_path / "out"
+    with pytest.raises(ModuleOptionError, match="has no option 'alpha'"):
+        run_batch(stations, station_file.parent, out, modules=_with_options(alpha=1))
+    assert not out.exists()
+
+
+def test_cli_batch_module_option(example_plugin, station_file, tmp_path):
+    meta = tmp_path / "meta.txt"
+    meta.write_text(
+        "station_file latitude longitude wsdin csdin Tb_HDD Tb_CDD Tb_GDD rxnday rnnmm txtn "
+        f"SPEI\n{station_file.name} -20 0 3 3 18 18 10 3 30 2 24\n"
+    )
+    out = tmp_path / "batch"
+    args = ["batch", str(meta), str(station_file.parent), "--out", str(out), "--workers", "2"]
+    args += ["--base-start", "2000", "--base-end", "2003"]
+    args += ["--homogeneity", "example_shift", "--module-option", "example_shift.adjustment=4"]
+    assert main(args) == 0
+    breaks = read_climpact_csv(
+        out / "plugstation" / "homogeneity" / "plugstation_example_breaks.csv"
+    )
+    assert breaks.data["Adjustment"].tolist() == [4.0]

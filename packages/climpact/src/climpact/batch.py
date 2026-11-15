@@ -357,8 +357,10 @@ def run_batch(
     stop the others: its error is written to ``<out_dir>/<station>.errors.txt``, and an
     error file left by an earlier run is removed first, as R does. ``custom`` is the
     custom index calculated for every station (R calculates none in batch mode).
-    ``modules`` selects the QC, homogeneity and index modules (default: the built-in
-    ones); each worker process loads them itself.
+    ``modules`` selects the QC, homogeneity and index modules and their options
+    (default: the built-in ones); they are checked here, so an unknown module or a bad
+    option raises before any station runs, and each worker process then loads them
+    itself.
     ``on_result`` is called as each station finishes. Results are returned in metadata
     order.
 
@@ -375,6 +377,9 @@ def run_batch(
     (:func:`climpact.report.write_report`) to ``<report_dir>/<station>_report.pdf``; it
     should be outside ``out_dir``, which is zipped as R's batch folder.
     """
+    from climpact.modules import resolve
+
+    resolve(modules)  # fail before the batch, not in every station
     if plots or report_dir is not None:
         from climpact.plots import require_matplotlib
 

@@ -22,5 +22,5 @@ checked when the form is sent. Parameters: run, options (OptionsForm), coverage,
   {% endif %}
   {% if options.workers %}{% include "components/field.html" with field=options.workers narrow=True help="batch.workers" %}{% endif %}
   {% include "components/field.html" with field=options.plots help="batch.plots" %}
-  {% if estimate %}<p class="small muted cluster" data-announce="now">{% icon "clock" %}<span>{% blocktranslate %}This should take {{ estimate }}, as a rough guide.{% endblocktranslate %}</span></p>{% endif %}
+  {% if estimate %}<p class="text-sm text-text-muted flex flex-wrap items-center gap-3" data-announce="now">{% icon "clock" %}<span>{% blocktranslate %}This should take {{ estimate }}, as a rough guide.{% endblocktranslate %}</span></p>{% endif %}
 </div>

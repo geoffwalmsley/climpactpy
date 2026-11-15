@@ -80,7 +80,7 @@ def test_button_variants():
     assert link.startswith('<a href="/next/"') and link.endswith("</a>")
     assert "disabled" in render("button", label="Go", href="/x/", disabled=True)
     icon_only = render("button", label="Refresh", icon="refresh", icon_only=True)
-    assert '<span class="visually-hidden">Refresh</span>' in icon_only
+    assert '<span class="sr-only">Refresh</span>' in icon_only
     assert 'aria-busy="true"' in render("button", label="Go", busy=True)
     assert "button--block" in render("button", label="Go", full_width=True)
 
@@ -328,7 +328,7 @@ def test_design_snapshots(tmp_path):
     assert "Line 3 has 5 values" in (out / "station-upload-problems.html").read_text()
     assert "1936-01-01 to 2015-12-31" in (out / "station-load.html").read_text()
     assert "has no data: the file covers" in (out / "station-load-errors.html").read_text()
-    assert (out / "static" / "climpact_web" / "css" / "main.css").is_file()
+    assert (out / "static" / "climpact_web" / "css" / "climpact.css").is_file()
     assert (out / "static" / "climpact_web" / "js" / "ui.js").is_file()
 
 

@@ -14,7 +14,7 @@
       calculates the ET-SCI indices and their trends, and gives you charts, tables and files
       in the same layout as Climpact in R.
     {% endblocktranslate %}</p>
-    <div class="cluster hero__actions" id="hero-actions">
+    <div class="flex flex-wrap items-center gap-3 hero__actions" id="hero-actions">
       {% translate "Start with your data" as start_label %}
       {% translate "Try with sample data" as sample_label %}
       {% if start_url %}
@@ -30,11 +30,11 @@
       {% endif %}
     </div>
     {% if not start_url %}
-    <p class="small muted">{% blocktranslate trimmed %}
+    <p class="text-sm text-text-muted">{% blocktranslate trimmed %}
       The upload screens are being built. Until then, use the <code>climpact</code> command line.
     {% endblocktranslate %}</p>
     {% else %}
-    <p class="small muted">{% translate "The sample is Sydney Observatory Hill, 1936 to 2015." %}</p>
+    <p class="text-sm text-text-muted">{% translate "The sample is Sydney Observatory Hill, 1936 to 2015." %}</p>
     {% endif %}
   </div>
   <figure class="hero__figure">
@@ -83,7 +83,7 @@
   <div class="section__header">
     <h2 id="ways-title">{% translate "Other ways to run Climpact" %}</h2>
   </div>
-  <div class="grid">
+  <div class="grid gap-5 grid-cols-fill-64">
     {% for way in ways %}
     {% translate "Available soon" as soon %}
     {% if way.url %}
@@ -99,7 +99,7 @@
 </section>
 
 <section class="section" aria-labelledby="about-title">
-  <div class="prose">
+  <div class="max-w-prose">
     <h2 id="about-title">{% translate "About the indices" %}</h2>
     <p>{% blocktranslate trimmed %}
       The indices describe how often, how long and how intensely extremes occur: the hottest

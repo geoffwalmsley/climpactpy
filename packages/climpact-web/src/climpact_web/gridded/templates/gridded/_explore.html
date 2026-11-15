@@ -85,7 +85,7 @@ hydrates the new chart on htmx:load.
         {% if map.has_missing %}<li><span class="gmap__swatch gmap__na" aria-hidden="true"></span>{% translate "No value" %}</li>{% endif %}
       </ul>
       {% if not map.bins %}<p class="field__warning">{% icon "info" %}<span>{% blocktranslate with when=time_label %}No cell has a value for {{ when }}. Choose another time.{% endblocktranslate %}</span></p>{% endif %}
-      {% if map.stride > 1 %}<p class="small muted">{% blocktranslate with n=map.stride %}The grid is large: the map shows every {{ n }}th row and column. The CSV has every cell.{% endblocktranslate %}</p>{% endif %}
+      {% if map.stride > 1 %}<p class="text-sm text-text-muted">{% blocktranslate with n=map.stride %}The grid is large: the map shows every {{ n }}th row and column. The CSV has every cell.{% endblocktranslate %}</p>{% endif %}
       <details class="disclosure">
         <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
         <div class="disclosure__body">

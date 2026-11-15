@@ -15,18 +15,18 @@ bars_svg, order, categories.
   {% if results.years %}{% blocktranslate trimmed count counter=job.params.common|default:0 with first=results.years.0 last=results.years.1 %}
     {{ counter }} year in common, {{ first }} to {{ last }}.{% plural %}{{ counter }} years in common, {{ first }} to {{ last }}.
   {% endblocktranslate %}{% endif %}</p>
-  <div class="cluster">
+  <div class="flex flex-wrap items-center gap-3">
     {% if results.zip %}{% url 'jobs:file' job.pk results.zip as zip_url %}{% translate "Download the correlation files (zip)" as zip_label %}
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
     <a href="{% url 'jobs:detail' job.pk %}">{% translate "Every file of this comparison" %}</a>
   </div>
-  <p class="small muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
+  <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
 </section>
 
 <section class="card stack" aria-labelledby="sector-bars-title" id="correlations">
   <div class="sector-head">
     <h2 class="card__title" id="sector-bars-title">{% translate "Correlation with each index" %}</h2>
-    <p class="sector-order cluster small" aria-label="{% translate 'Order of the bars' %}">
+    <p class="sector-order flex flex-wrap items-center gap-3 text-sm" aria-label="{% translate 'Order of the bars' %}">
       {% if order == "strength" %}<a href="?#correlations">{% translate "Climpact's order" %}</a><strong aria-current="true">{% translate "Strongest first" %}</strong>
       {% else %}<strong aria-current="true">{% translate "Climpact's order" %}</strong><a href="?order=strength#correlations">{% translate "Strongest first" %}</a>{% endif %}
     </p>
@@ -36,11 +36,11 @@ bars_svg, order, categories.
     <figcaption id="sector-bars-caption" class="sector-figure__title">{% blocktranslate trimmed with title=results.title count counter=bars|length %}
       {{ title }}: correlation of your data with {{ counter }} index{% plural %}{{ title }}: correlation of your data with {{ counter }} indices
     {% endblocktranslate %}</figcaption>
-    <ul class="sector-legend small" aria-label="{% translate 'Legend' %}">
+    <ul class="sector-legend text-sm" aria-label="{% translate 'Legend' %}">
       {% for c in categories %}<li><span class="sector-legend__swatch" style="background: var({{ c.token }})" aria-hidden="true"></span>{{ c.label }}</li>{% endfor %}
     </ul>
     <div class="sector-scroll" role="region" aria-label="{% translate 'Correlation with each index' %}: {% translate 'chart' %}" tabindex="0">{{ bars_svg }}</div>
-    {% if results.missing %}<p class="small muted">{% blocktranslate trimmed with names=results.missing_names count counter=results.missing|length %}
+    {% if results.missing %}<p class="text-sm text-text-muted">{% blocktranslate trimmed with names=results.missing_names count counter=results.missing|length %}
       NA: no correlation for {{ counter }} index, {{ names }}: a missing value or no variation in the years in common.{% plural %}NA: no correlation for {{ counter }} indices, {{ names }}: a missing value or no variation in the years in common.
     {% endblocktranslate %}</p>{% endif %}
     <details class="disclosure">
@@ -54,12 +54,12 @@ bars_svg, order, categories.
         </div>
       </div>
     </details>
-    <p class="cluster small">
+    <p class="flex flex-wrap items-center gap-3 text-sm">
       <a href="{% url 'jobs:file' job.pk results.correlation_file %}">{% icon "download" %} {% translate "Table (CSV)" %}</a>
       {% if results.correlation_png %}<a href="{% url 'jobs:file' job.pk results.correlation_png %}">{% icon "image" %} {% translate "Image (PNG)" %}</a>{% endif %}
     </p>
   </figure>
-  <p class="small muted">{% translate "Missing index values are correlated as the number -99.9, as in Climpact for R, which can distort the correlation of an index with missing years. Correlation shows association, not cause." %}</p>
+  <p class="text-sm text-text-muted">{% translate "Missing index values are correlated as the number -99.9, as in Climpact for R, which can distort the correlation of an index with missing years. Correlation shows association, not cause." %}</p>
 </section>
 
 <section class="card stack" aria-labelledby="sector-scatter-title" id="scatter-plots">
@@ -84,7 +84,7 @@ bars_svg, order, categories.
           </div>
         </div>
       </details>
-      <p class="cluster small">
+      <p class="flex flex-wrap items-center gap-3 text-sm">
         <a href="{% url 'jobs:file' job.pk s.file %}">{% icon "download" %} {% translate "Table (CSV)" %}</a>
         {% if s.png %}<a href="{% url 'jobs:file' job.pk s.png %}">{% icon "image" %} {% translate "Image (PNG)" %}</a>{% endif %}
       </p>

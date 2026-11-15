@@ -24,7 +24,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
       {% if remaining %}{% blocktranslate %}About {{ remaining }} left.{% endblocktranslate %}{% endif %}
     </p>
   </div>
-  {% if job.cancel_requested %}<p class="cluster muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
+  {% if job.cancel_requested %}<p class="flex flex-wrap items-center gap-3 text-text-muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
   {% if worker_missing %}
   {% translate "No calculation worker is running, so this batch cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
   {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
@@ -89,7 +89,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
         {% if row.state == "running" %}
         <div class="batch-item__progress progress">
           <progress max="100" value="{{ row.percent }}" aria-label="{% blocktranslate with name=row.name %}Progress of {{ name }}{% endblocktranslate %}">{{ row.percent }}</progress>
-          <span class="small muted">{{ row.stage_label }}</span>
+          <span class="text-sm text-text-muted">{{ row.stage_label }}</span>
         </div>
         {% endif %}
         {% if row.state == "failed" and row.error_text %}<p class="batch-item__error">{{ row.error_text }}</p>{% endif %}
@@ -97,7 +97,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
         <ul class="file-problems batch-item__problems">{% for line in row.skip_lines %}<li>{{ line }}</li>{% endfor %}</ul>
         {% endif %}
         {% if job.status == "succeeded" %}
-        <div class="cluster batch-item__actions">
+        <div class="flex flex-wrap items-center gap-3 batch-item__actions">
           {% if row.state == "done" %}
           {% if row.zip %}{% blocktranslate with size=row.zip_size|filesizeformat asvar station_zip %}Download (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.zip as station_zip_url %}{% include "components/button.html" with label=station_zip href=station_zip_url icon="download" size="sm" variant="secondary" %}{% endif %}
           {% if row.report %}{% blocktranslate with size=row.report_size|filesizeformat asvar station_report %}PDF report ({{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.report as station_report_url %}{% include "components/button.html" with label=station_report href=station_report_url icon="download" size="sm" variant="secondary" %}{% endif %}
@@ -110,7 +110,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
           </form>
           {% endif %}
           {% elif row.error_file %}
-          <a class="small" href="{% url 'jobs:file' job.pk row.error_file %}">{% icon "file" %} {% blocktranslate with name=row.name %}{{ name }}.errors.txt{% endblocktranslate %}</a>
+          <a class="text-sm" href="{% url 'jobs:file' job.pk row.error_file %}">{% icon "file" %} {% blocktranslate with name=row.name %}{{ name }}.errors.txt{% endblocktranslate %}</a>
           {% endif %}
         </div>
         {% endif %}
@@ -121,6 +121,6 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   {% endif %}
 
   {% if job.is_finished %}
-  <p class="small muted cluster">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
+  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
   {% endif %}
 </div>

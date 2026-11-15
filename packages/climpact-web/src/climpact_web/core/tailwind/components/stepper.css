@@ -1,0 +1,117 @@
+@layer components {
+  /* == Step indicator == */
+  .steps-bar {
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .steps {
+    display: flex;
+    gap: --spacing(2);
+    margin-block: 0;
+    padding-block: --spacing(4);
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .steps__item {
+    flex: 1 1 0;
+    min-inline-size: 0;
+    counter-increment: step;
+  }
+
+  .steps__link {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2);
+    min-block-size: var(--control-height);
+    padding-block-start: --spacing(2);
+    border-block-start: 4px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--leading-tight);
+    text-decoration: none;
+  }
+
+  a.steps__link:hover {
+    color: var(--color-text);
+  }
+
+  .steps__marker {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    flex: none;
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .steps__marker::before {
+    content: counter(step);
+  }
+
+  .steps__item--complete .steps__link {
+    border-color: var(--color-accent);
+    color: var(--color-text);
+  }
+
+  .steps__item--complete .steps__marker {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+
+  .steps__item--complete .steps__marker::before {
+    content: "";
+    inline-size: 0.7rem;
+    block-size: 0.4rem;
+    border-block-end: 2px solid currentcolor;
+    border-inline-start: 2px solid currentcolor;
+    transform: translateY(-0.1rem) rotate(-45deg);
+  }
+
+  .steps__item--current .steps__link {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .steps__item--current .steps__marker {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .steps__optional {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-muted);
+  }
+
+  /* On narrow screens only the current step's label is shown; the others keep their marker. */
+  @media (max-width: 40rem) {
+    .steps__item:not(.steps__item--current) {
+      flex: 0 0 auto;
+    }
+
+    .steps__item:not(.steps__item--current) .steps__label {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .steps__item--current .steps__link {
+      border-color: Highlight;
+    }
+  }
+}

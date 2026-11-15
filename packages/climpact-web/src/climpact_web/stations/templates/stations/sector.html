@@ -31,7 +31,7 @@
   <section class="card stack" aria-labelledby="progress-title">
     <h2 class="card__title" id="progress-title">{% translate "Calculating correlations" %}</h2>
     {% include "stations/_sector_progress.html" %}
-    <noscript><p class="small">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
+    <noscript><p class="text-sm">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
   </section>
   {% elif job.status == "failed" %}
   <div class="alert alert--error" role="alert" id="sector-error">
@@ -62,21 +62,21 @@
       {% csrf_token %}
       <div class="stack">
         <h3>{% translate "Sector data" %}</h3>
-        <p class="small">{% translate "Climpact correlates yearly sector data with the indices calculated in the previous step. Only yearly data can be used." %}</p>
+        <p class="text-sm">{% translate "Climpact correlates yearly sector data with the indices calculated in the previous step. Only yearly data can be used." %}</p>
         {% blocktranslate asvar hint %}CSV, one line per year.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=form.sector_file hint=hint %}
-        <p class="small muted">{{ form.sector_file.help_text }}</p>
+        <p class="text-sm text-text-muted">{{ form.sector_file.help_text }}</p>
         {% help_topic "sector.file" %}
-        <p class="small">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use Climpact for R's sample, yearly wheat yields for New South Wales, 1922 to 1999, which goes with the Sydney sample station: the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
+        <p class="text-sm">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use Climpact for R's sample, yearly wheat yields for New South Wales, 1922 to 1999, which goes with the Sydney sample station: the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
       </div>
       <div class="stack">
         <h3>{% translate "Plot attributes" %}</h3>
-        <p class="small muted">{% translate "Climpact fills in a title and a y-axis label from the station and the file name; you can change them." %}</p>
+        <p class="text-sm text-text-muted">{% translate "Climpact fills in a title and a y-axis label from the station and the file name; you can change them." %}</p>
         {% include "components/field.html" with field=form.title help="sector.title" %}
         {% include "components/field.html" with field=form.y_label help="sector.y_label" %}
         {% include "components/field.html" with field=form.detrend help="sector.detrend" %}
       </div>
-      <div class="cluster">
+      <div class="flex flex-wrap items-center gap-3">
         {% translate "Calculate correlations" as run_label %}
         {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
         {% translate "Use the sample data" as sample_label %}
@@ -85,7 +85,7 @@
     </form>
   </details>
 
-  <p class="cluster"><a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a> <a href="{% url 'help:guide' 'sector' %}">{% translate "Guide: sector correlation" %}</a></p>
+  <p class="flex flex-wrap items-center gap-3"><a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a> <a href="{% url 'help:guide' 'sector' %}">{% translate "Guide: sector correlation" %}</a></p>
   {% endif %}
 </div>
 {% endblock %}

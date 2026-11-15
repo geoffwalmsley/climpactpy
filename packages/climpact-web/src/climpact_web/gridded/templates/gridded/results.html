@@ -19,7 +19,7 @@
   </section>
   {% endif %}
 
-  <p class="cluster">
+  <p class="flex flex-wrap items-center gap-3">
     <a href="{% url 'gridded:setup' run.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the parameters and calculate again" %}</a>
     <a href="{% url 'gridded:start' %}">{% translate "Start with other files" %}</a>
   </p>

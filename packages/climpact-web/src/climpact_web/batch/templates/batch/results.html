@@ -14,7 +14,7 @@
 
   <details class="disclosure">
     <summary>{% icon "folder" %}<span>{% translate "What is in the zip" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body prose">
+    <div class="disclosure__body max-w-prose">
       <p>{% translate "The results for each station are in a folder of their own, as Climpact for R writes them. A station that could not be calculated has a file named after it ending in .errors.txt, with the reason." %}</p>
       <ul>
         <li>{% translate "plots: an image of each index (when plots were drawn), and all of them in one PDF;" %}</li>
@@ -26,7 +26,7 @@
     </div>
   </details>
 
-  <p class="cluster">
+  <p class="flex flex-wrap items-center gap-3">
     <a href="{% url 'batch:check' run.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the files or options and calculate again" %}</a>
     <a href="{% url 'batch:start' %}">{% translate "Start a new batch" %}</a>
   </p>

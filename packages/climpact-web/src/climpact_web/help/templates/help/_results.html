@@ -3,14 +3,14 @@ Search results (help:search, also swapped into #help-results by htmx). Parameter
 results.
 {% endcomment %}
 {% if query %}
-<p class="small muted" data-announce="now">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
+<p class="text-sm text-text-muted" data-announce="now">{% blocktranslate count counter=results|length with query=query trimmed %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}</p>
 {% if results %}
 <ol class="help-results">
   {% for result in results %}
   <li>
     <a href="{{ result.url }}">{{ result.title }}</a>
-    <span class="small muted">{{ result.context }}</span>
-    <p class="small">{{ result.excerpt }}</p>
+    <span class="text-sm text-text-muted">{{ result.context }}</span>
+    <p class="text-sm">{{ result.excerpt }}</p>
   </li>
   {% endfor %}
 </ol>

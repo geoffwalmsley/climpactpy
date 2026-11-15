@@ -130,7 +130,7 @@
         panels[i].setAttribute("aria-labelledby", tab.id);
         panels[i].setAttribute("tabindex", "0");
         var heading = panels[i].querySelector(".tabs__panel-heading");
-        if (heading) heading.classList.add("visually-hidden");
+        if (heading) heading.classList.add("sr-only");
       });
 
       function select(index, focus) {

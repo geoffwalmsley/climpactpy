@@ -79,7 +79,7 @@ series and the days with data in each year. Parameters from views.summary_contex
             {% for year in years %}
             <tr>
               <th scope="row">{{ year.year }}</th>
-              {% for cell in year.cells %}<td class="num{% if cell.percent < 100 %} year-table__gap{% endif %}">{% blocktranslate with days=cell.value percent=cell.percent %}{{ days }} <span class="muted">({{ percent }}%)</span>{% endblocktranslate %}</td>{% endfor %}
+              {% for cell in year.cells %}<td class="num{% if cell.percent < 100 %} year-table__gap{% endif %}">{% blocktranslate with days=cell.value percent=cell.percent %}{{ days }} <span class="text-text-muted">({{ percent }}%)</span>{% endblocktranslate %}</td>{% endfor %}
             </tr>
             {% endfor %}
           </tbody>
@@ -94,7 +94,7 @@ series and the days with data in each year. Parameters from views.summary_contex
       <form method="post" action="{% url 'stations:replace_file' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
         {% csrf_token %}
         {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
-        <p class="small muted">{% translate "The station details below are kept. Later steps start again with the new file." %}</p>
+        <p class="text-sm text-text-muted">{% translate "The station details below are kept. Later steps start again with the new file." %}</p>
         <div>
           {% translate "Load this file instead" as replace_label %}
           {% include "components/button.html" with label=replace_label type="submit" variant="secondary" %}

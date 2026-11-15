@@ -24,7 +24,7 @@
         {% blocktranslate asvar hint with size=max_upload_mb %}netCDF, up to {{ size }} MB in all. One file with all three variables, or one file for each.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
         {% if not local %}{% help_topic "gridded.files" %}{% endif %}
-        {% if local %}<p class="small muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
+        {% if local %}<p class="text-sm text-text-muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
         <div>
           {% translate "Upload and check" as upload_label %}
           {% include "components/button.html" with label=upload_label type="submit" icon="upload" variant=local|yesno:"secondary,primary" %}
@@ -40,7 +40,7 @@
           {% translate "Use the sample grid" as sample_label %}
           {% include "components/button.html" with label=sample_label type="submit" variant="secondary" icon="play" %}
         </form>
-        <p class="small"><a href="{% url 'gridded:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
+        <p class="text-sm"><a href="{% url 'gridded:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
       </section>
     </div>
   </div>
@@ -49,7 +49,7 @@
 
   <details class="disclosure">
     <summary>{% icon "help" %}<span>{% translate "What the files must contain" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body prose">
+    <div class="disclosure__body max-w-prose">
       <p>{% translate "CF netCDF files (netCDF-3 or netCDF-4) with daily values on a grid, as Climpact for R reads them:" %}</p>
       <ul>
         <li>{% translate "maximum and minimum temperature in K or degrees_C, and precipitation in kg m-2 d-1, kg m-2 s-1 or mm/day;" %}</li>
@@ -65,7 +65,7 @@
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
     <ul class="recent-list">
       {% for item in recent %}
-      <li><a href="{% if item.jobs %}{% url 'gridded:results' item.pk %}{% else %}{% url 'gridded:setup' item.pk %}{% endif %}">{{ item }}</a> <span class="small muted">{% blocktranslate with when=item.updated_at|timesince %}changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% if item.jobs %}{% url 'gridded:results' item.pk %}{% else %}{% url 'gridded:setup' item.pk %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with when=item.updated_at|timesince %}changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

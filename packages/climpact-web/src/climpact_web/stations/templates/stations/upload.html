@@ -18,7 +18,7 @@
       <h2 class="card__title">{% translate "Your station file" %}</h2>
       {% blocktranslate asvar hint with size=max_upload_mb %}Text or CSV, up to {{ size }} MB.{% endblocktranslate %}
       {% include "components/dropzone.html" with field=form.station_file hint=hint %}
-      <p class="small muted" id="format-hint">{{ form.station_file.help_text }}</p>
+      <p class="text-sm text-text-muted" id="format-hint">{{ form.station_file.help_text }}</p>
       {% help_topic "station.file" %}
       <div>
         {% translate "Load the file" as load_label %}
@@ -35,7 +35,7 @@
         {% translate "Use the sample data" as sample_label %}
         {% include "components/button.html" with label=sample_label type="submit" variant="secondary" icon="play" %}
       </form>
-      <p class="small"><a href="{% url 'stations:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
+      <p class="text-sm"><a href="{% url 'stations:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
     </section>
   </div>
 
@@ -43,7 +43,7 @@
 
   <details class="disclosure">
     <summary>{% icon "help" %}<span>{% translate "What the file must look like" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body prose">
+    <div class="disclosure__body max-w-prose">
       <p>{% translate "One row per day, in date order, with six columns separated by spaces, tabs or commas:" %}</p>
       <ol>
         <li>{% translate "year, month and day (whole numbers);" %}</li>
@@ -65,7 +65,7 @@
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
     <ul class="recent-list">
       {% for item in recent %}
-      <li><a href="{% url 'stations:load' item.pk %}">{{ item }}</a> <span class="small muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% url 'stations:load' item.pk %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

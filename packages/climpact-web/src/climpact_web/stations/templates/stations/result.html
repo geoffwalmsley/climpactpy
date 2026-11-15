@@ -5,7 +5,7 @@
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <nav class="cluster small result-nav" aria-label="{% translate 'Indices' %}">
+  <nav class="flex flex-wrap items-center gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
     <a href="{% url 'stations:results' analysis.pk %}?group={{ card.group }}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
     {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
     {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next">{% blocktranslate with name=next.name %}Next: {{ name }}{% endblocktranslate %}</a>{% endif %}
@@ -15,10 +15,10 @@
     <p class="eyebrow"><code class="index-code">{{ card.code }}</code></p>
     <h1>{{ card.title }}</h1>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
-    <p class="small muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
+    <p class="text-sm text-text-muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
     {% blocktranslate with code=card.code asvar topic_question %}How is {{ code }} defined?{% endblocktranslate %}{% help_topic card.topic summary=topic_question %}
     {% if card.param_topic %}
-    <p class="small">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>; you come back to this index afterwards.{% endblocktranslate %}</p>
+    <p class="text-sm">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>; you come back to this index afterwards.{% endblocktranslate %}</p>
     {% endif %}
   </header>
 
@@ -56,7 +56,7 @@
   {% if anomaly_url %}
   <section class="stack" aria-labelledby="anomaly-heading">
     <h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>
-    <p class="small muted">{% translate "Each value's distance from the mean of all years, in standard deviations, as in the table's last column." %}</p>
+    <p class="text-sm text-text-muted">{% translate "Each value's distance from the mean of all years, in standard deviations, as in the table's last column." %}</p>
     {% translate "Standardised anomalies" as anomaly_title %}
     {% include "components/chart_frame.html" with id="anomaly-chart" title=anomaly_title data_url=anomaly_url height="14rem" only %}
     {% help_topic "results.standardised" %}
@@ -82,10 +82,10 @@
   {% if trend_rows %}
   <section class="card stack" aria-labelledby="trend-title">
     <h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>
-    <p class="small muted">{% translate "The rows of the trend file for this index, as written: Sen's slope per year (per month for the monthly row) and its 95% confidence interval." %}</p>
+    <p class="text-sm text-text-muted">{% translate "The rows of the trend file for this index, as written: Sen's slope per year (per month for the monthly row) and its 95% confidence interval." %}</p>
     <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
       <table class="table">
-        <caption id="trend-caption" class="visually-hidden">{% translate "The trend file's rows for this index" %}</caption>
+        <caption id="trend-caption" class="sr-only">{% translate "The trend file's rows for this index" %}</caption>
         <thead><tr>
           <th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Years" %}</th>
           <th scope="col" class="numeric">{% translate "Lower bound" %}</th><th scope="col" class="numeric">{% translate "Slope" %}</th><th scope="col" class="numeric">{% translate "Upper bound" %}</th>
@@ -93,7 +93,7 @@
         </tr></thead>
         <tbody>
           {% for row in trend_rows %}<tr>
-            <th scope="row">{{ row.label }} <span class="small muted">{{ row.per }}</span></th><td>{% blocktranslate with start=row.start end=row.end %}{{ start }} to {{ end }}{% endblocktranslate %}</td>
+            <th scope="row">{{ row.label }} <span class="text-sm text-text-muted">{{ row.per }}</span></th><td>{% blocktranslate with start=row.start end=row.end %}{{ start }} to {{ end }}{% endblocktranslate %}</td>
             {% if row.valid %}<td class="numeric">{{ row.lower|floatformat:"-4" }}</td><td class="numeric">{{ row.slope|floatformat:"-4" }}</td><td class="numeric">{{ row.upper|floatformat:"-4" }}</td>
             <td>{% if row.significant %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
             {% else %}<td class="numeric" colspan="3">{% translate "Too few values" %}</td><td></td>{% endif %}
@@ -112,7 +112,7 @@
       {% if png_path %}<li><a href="{% url 'jobs:file' job.pk png_path %}" download>{% blocktranslate with size=png_size|filesizeformat %}Climpact's plot of this series (PNG, {{ size }}){% endblocktranslate %}</a></li>{% endif %}
       {% if source.station %}<li><a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Everything else: the zip, the PDF report and every file" %}</a></li>{% endif %}
     </ul>
-    {% if chart_url %}<p class="small muted">{% translate "The chart as you see it: zoom to the years you want, then PNG or SVG above the chart saves that view." %} <a href="#index-chart">{% translate "Go to the chart" %}</a></p>{% endif %}
+    {% if chart_url %}<p class="text-sm text-text-muted">{% translate "The chart as you see it: zoom to the years you want, then PNG or SVG above the chart saves that view." %} <a href="#index-chart">{% translate "Go to the chart" %}</a></p>{% endif %}
   </section>
 </div>
 {% endblock %}

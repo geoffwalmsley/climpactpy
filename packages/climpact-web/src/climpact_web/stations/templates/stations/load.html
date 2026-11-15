@@ -11,7 +11,7 @@
   </header>
 
   {% if form.is_bound and not form.errors and not form.warnings %}{# details already valid, e.g. the sample or a re-visit (#114) #}
-  <div class="cluster results-actions">
+  <div class="flex flex-wrap items-center gap-3 results-actions">
     {% translate "Details look right: continue to quality checks" as top_label %}
     {% include "components/button.html" with label=top_label type="submit" form_id="station-details" icon_end="arrow-right" size="lg" %}
     <a href="#details-title">{% translate "Check the station details" %}</a>
@@ -52,11 +52,11 @@
   </section>
 
   {% include "stations/_retention.html" %}
-  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="cluster">
+  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="small" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
+    <a class="text-sm" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
   </form>
 </div>
 {% endblock %}

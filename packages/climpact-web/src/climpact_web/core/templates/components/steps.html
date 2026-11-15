@@ -4,14 +4,14 @@ climpact_web.core.navigation.station_steps or batch_steps(current, urls); label 
 the navigation's name when a page shows more than one). Completed steps link back when
 they have a URL. On narrow screens only the current step's label shows.
 {% endcomment %}
-<nav class="steps-bar" aria-label="{% if label %}{{ label }}{% else %}{% translate 'Progress through the steps' %}{% endif %}">
-  <ol class="steps container">
+<nav class="steps-bar print:hidden" aria-label="{% if label %}{{ label }}{% else %}{% translate 'Progress through the steps' %}{% endif %}">
+  <ol class="steps mx-auto w-full max-w-content px-4 sm:px-6">
     {% for step in steps %}
     <li class="steps__item steps__item--{{ step.state }}">
       {% if step.url %}<a class="steps__link" href="{{ step.url }}">{% else %}<span class="steps__link"{% if step.state == "current" %} aria-current="step"{% endif %}>{% endif %}
         <span class="steps__marker" aria-hidden="true"></span>
         <span class="steps__label">
-          <span class="visually-hidden">{% blocktranslate with number=step.number total=steps|length %}Step {{ number }} of {{ total }}:{% endblocktranslate %} </span>{{ step.label }}{% if step.optional %}<span class="steps__optional">{% translate "Optional" %}</span>{% endif %}{% if step.state == "complete" %}<span class="visually-hidden"> {% translate "(done)" %}</span>{% endif %}
+          <span class="sr-only">{% blocktranslate with number=step.number total=steps|length %}Step {{ number }} of {{ total }}:{% endblocktranslate %} </span>{{ step.label }}{% if step.optional %}<span class="steps__optional">{% translate "Optional" %}</span>{% endif %}{% if step.state == "complete" %}<span class="sr-only"> {% translate "(done)" %}</span>{% endif %}
         </span>
       {% if step.url %}</a>{% else %}</span>{% endif %}
     </li>

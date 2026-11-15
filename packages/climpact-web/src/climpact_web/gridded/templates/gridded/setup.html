@@ -26,7 +26,7 @@
           {% if file.ok %}{% translate "Readable" as label %}{% include "components/badge.html" with label=label kind="success" icon="check" %}
           {% else %}{% translate "Cannot be used" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
         </div>
-        {% if local and run.source == "path" %}<p class="batch-item__meta small muted"><code>{{ file.path }}</code></p>{% endif %}
+        {% if local and run.source == "path" %}<p class="batch-item__meta text-sm text-text-muted"><code>{{ file.path }}</code></p>{% endif %}
         {% if file.problem %}<p class="batch-item__error">{{ file.problem }}</p>{% endif %}
         {% if file.ok %}
         <dl class="gridded-facts">
@@ -84,7 +84,7 @@
     <section class="card stack" aria-labelledby="task-title">
       <h2 class="card__title" id="task-title">{% translate "2. What to calculate" %}</h2>
       {% include "components/field.html" with field=form.task %}
-      <ul class="small muted gridded-task-help">
+      <ul class="text-sm text-text-muted gridded-task-help">
         <li>{% translate "Indices: one netCDF file per index and frequency (monthly, annual), as Climpact for R writes them." %}</li>
         <li>{% translate "Thresholds file only: the base-period percentiles of every cell, to calculate indices for other data later, e.g. a future scenario with thresholds from a historical run." %}</li>
         <li>{% translate "Thresholds file, then indices: both, one after the other." %}</li>
@@ -96,9 +96,9 @@
           {% else %}
           {% blocktranslate asvar thresholds_hint with size=max_upload_mb %}netCDF, up to {{ size }} MB.{% endblocktranslate %}
           {% include "components/dropzone.html" with field=form.thresholds_upload hint=thresholds_hint %}
-          {% if form.thresholds_uploaded %}<p class="small">{% blocktranslate with name=form.thresholds_uploaded %}Loaded: {{ name }}. Choose another file to replace it.{% endblocktranslate %}</p>{% endif %}
+          {% if form.thresholds_uploaded %}<p class="text-sm">{% blocktranslate with name=form.thresholds_uploaded %}Loaded: {{ name }}. Choose another file to replace it.{% endblocktranslate %}</p>{% endif %}
           {% endif %}
-          <p class="small muted">{% translate "A thresholds file is only for data with no day in its base period (enter that base period below), as in Climpact for R." %}</p>
+          <p class="text-sm text-text-muted">{% translate "A thresholds file is only for data with no day in its base period (enter that base period below), as in Climpact for R." %}</p>
         </div>
       </div>
     </section>
@@ -134,14 +134,14 @@
         <p class="field__hint" id="indices-hint">{% translate "All are chosen; leave them all to calculate every index, as Climpact for R does when the list is empty. The heatwave, SPI and SPEI indices (marked) take most of the time." %}</p>
         {% help_topic "gridded.indices" %}
         {% with field=form.indices %}{% include "components/field_errors.html" %}{% endwith %}
-        <div class="cluster" data-check-tools hidden>
+        <div class="flex flex-wrap items-center gap-3" data-check-tools hidden>
           <button type="button" class="button button--ghost button--sm" data-check-all="indices">{% translate "Choose all" %}</button>
           <button type="button" class="button button--ghost button--sm" data-check-none="indices">{% translate "Choose none" %}</button>
         </div>
         <div class="gridded-indices">
           {% for group in index_groups %}
           <fieldset class="field-set gridded-indices__group">
-            <legend class="small">{{ group.label }}</legend>
+            <legend class="text-sm">{{ group.label }}</legend>
             {% for item in group.items %}
             <label class="check"><input type="checkbox" name="indices" value="{{ item.value }}"{% if item.checked %} checked{% endif %}> <span>{{ item.label }}{% if item.slow %} <span class="badge">{% translate "slow" %}</span>{% endif %}</span></label>
             {% endfor %}
@@ -152,7 +152,7 @@
       <details class="disclosure">
         <summary>{% icon "sliders" %}<span>{% translate "Index parameters" %}</span>{% icon "chevron-down" %}</summary>
         <div class="disclosure__body stack">
-          <p class="small muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>
+          <p class="text-sm text-text-muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>
           <div class="gridded-params">
             {% include "components/field.html" with field=form.wsdi_days narrow=True help="param.wsdi_days" %}
             {% include "components/field.html" with field=form.csdi_days narrow=True help="param.csdi_days" %}
@@ -163,7 +163,7 @@
             {% include "components/field.html" with field=form.gdd_base narrow=True help="param.gdd_base" %}
             {% include "components/field.html" with field=form.rnnmm narrow=True help="param.rnnmm" %}
           </div>
-          <p class="small muted">{% translate "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also lists Perkins and Alexander (2013), but its calculation accepts only Nairn and Fawcett." %}</p>
+          <p class="text-sm text-text-muted">{% translate "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also lists Perkins and Alexander (2013), but its calculation accepts only Nairn and Fawcett." %}</p>
         </div>
       </details>
     </section>
@@ -182,15 +182,15 @@
       {% translate "Start the calculation" as run_label %}
       {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
     </div>
-    <p class="small muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to it from Your calculations." %}</p>
+    <p class="text-sm text-text-muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to it from Your calculations." %}</p>
   </form>
 
   {% include "gridded/_retention.html" %}
-  <form method="post" action="{% url 'gridded:delete' run.pk %}" class="cluster">
+  <form method="post" action="{% url 'gridded:delete' run.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Forget this run" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="small" href="{% url 'gridded:start' %}">{% translate "Choose other files" %}</a>
+    <a class="text-sm" href="{% url 'gridded:start' %}">{% translate "Choose other files" %}</a>
   </form>
 </div>
 {% endblock %}

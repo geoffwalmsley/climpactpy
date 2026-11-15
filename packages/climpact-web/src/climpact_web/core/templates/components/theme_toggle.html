@@ -1,6 +1,6 @@
 {% load i18n ui %}{# Light/dark/system theme. Hidden until ui.js runs; without JS the system setting applies. #}
 <div class="theme-toggle" role="group" aria-label="{% translate 'Colour theme' %}" data-theme-toggle hidden>
-  <button type="button" data-theme-value="" aria-pressed="true" title="{% translate 'Use the system theme' %}">{% icon "monitor" %}<span class="visually-hidden">{% translate "Use the system theme" %}</span></button>
-  <button type="button" data-theme-value="light" aria-pressed="false" title="{% translate 'Light theme' %}">{% icon "sun" %}<span class="visually-hidden">{% translate "Light theme" %}</span></button>
-  <button type="button" data-theme-value="dark" aria-pressed="false" title="{% translate 'Dark theme' %}">{% icon "moon" %}<span class="visually-hidden">{% translate "Dark theme" %}</span></button>
+  <button type="button" data-theme-value="" aria-pressed="true" title="{% translate 'Use the system theme' %}">{% icon "monitor" %}<span class="sr-only">{% translate "Use the system theme" %}</span></button>
+  <button type="button" data-theme-value="light" aria-pressed="false" title="{% translate 'Light theme' %}">{% icon "sun" %}<span class="sr-only">{% translate "Light theme" %}</span></button>
+  <button type="button" data-theme-value="dark" aria-pressed="false" title="{% translate 'Dark theme' %}">{% icon "moon" %}<span class="sr-only">{% translate "Dark theme" %}</span></button>
 </div>

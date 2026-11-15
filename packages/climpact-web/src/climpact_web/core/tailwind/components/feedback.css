@@ -1,0 +1,301 @@
+@layer components {
+  /* == Alerts and toasts == */
+  .alert {
+    display: flex;
+    gap: --spacing(3);
+    padding: --spacing(4);
+    border: 1px solid var(--alert-color, var(--color-accent));
+    border-inline-start-width: 4px;
+    border-radius: var(--radius-md);
+    background: var(--alert-soft, var(--color-accent-soft));
+    color: var(--color-text);
+  }
+
+  .alert > .icon {
+    margin-block-start: 0.15em;
+    color: var(--alert-color, var(--color-accent));
+  }
+
+  .alert__body ul {
+    margin: 0;
+    padding-inline-start: --spacing(5);
+  }
+
+  .alert__body > :last-child {
+    margin-block-end: 0;
+  }
+
+  .alert__title {
+    margin-block-end: --spacing(1);
+    font-size: var(--text-base);
+  }
+
+  .alert__close {
+    margin-inline-start: auto;
+    align-self: flex-start;
+  }
+
+  .alert--success {
+    --alert-color: var(--color-success);
+    --alert-soft: var(--color-success-soft);
+  }
+
+  .alert--warning {
+    --alert-color: var(--color-warning);
+    --alert-soft: var(--color-warning-soft);
+  }
+
+  .alert--error,
+  .alert--danger {
+    --alert-color: var(--color-danger);
+    --alert-soft: var(--color-danger-soft);
+  }
+
+  .messages {
+    display: grid;
+    gap: --spacing(3);
+    margin-block: 0 --spacing(6);
+    padding: 0;
+    list-style: none;
+  }
+
+  .toasts {
+    position: fixed;
+    inset-block-end: --spacing(4);
+    inset-inline-end: --spacing(4);
+    z-index: 30;
+    display: grid;
+    gap: --spacing(2);
+    inline-size: min(24rem, calc(100% - 2 * --spacing(4)));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .toast {
+    box-shadow: var(--shadow-overlay);
+    animation: toast-in var(--duration) ease-out;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+}
+@layer components {
+  /* == Progress, stages, skeletons, spinner == */
+  .progress {
+    display: grid;
+    gap: --spacing(2);
+  }
+
+  .progress__header {
+    display: flex;
+    justify-content: space-between;
+    gap: --spacing(4);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .progress__value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .progress progress {
+    appearance: none;
+    inline-size: 100%;
+    block-size: 0.75rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
+    overflow: hidden;
+    color: var(--color-accent);
+  }
+
+  .progress progress::-webkit-progress-bar {
+    background: transparent;
+  }
+
+  .progress progress::-webkit-progress-value {
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    transition: inline-size var(--duration);
+  }
+
+  .progress progress::-moz-progress-bar {
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+  }
+
+  .progress progress:indeterminate {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--color-accent) 40%,
+        var(--color-accent) 60%,
+        transparent 100%
+      )
+      var(--color-surface-sunken) no-repeat;
+    background-size: 40% 100%;
+    animation: indeterminate 1.4s ease-in-out infinite;
+  }
+
+  .progress progress:indeterminate::-webkit-progress-bar {
+    background: transparent;
+  }
+
+  .progress progress:indeterminate::-moz-progress-bar {
+    background: transparent;
+  }
+
+  @keyframes indeterminate {
+    from {
+      background-position: -40% 0;
+    }
+
+    to {
+      background-position: 140% 0;
+    }
+  }
+
+  .progress__note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .stages {
+    display: grid;
+    align-content: start;
+    gap: --spacing(2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stages__item {
+    display: flex;
+    align-items: center;
+    gap: --spacing(3);
+    color: var(--color-text-muted);
+  }
+
+  .stages__item .icon {
+    color: var(--color-border-strong);
+  }
+
+  .stages__item--done {
+    color: var(--color-text);
+  }
+
+  .stages__item--done .icon {
+    color: var(--color-success);
+  }
+
+  .stages__item--current {
+    color: var(--color-text);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .stages__item--current .icon {
+    color: var(--color-accent);
+  }
+
+  .stages__item--failed .icon {
+    color: var(--color-danger);
+  }
+
+  .spinner {
+    display: inline-block;
+    inline-size: 1.25em;
+    block-size: 1.25em;
+    border: 2px solid var(--color-border);
+    border-block-start-color: var(--color-accent);
+    border-radius: var(--radius-full);
+    vertical-align: -0.25em;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .skeleton {
+    display: grid;
+    gap: --spacing(3);
+  }
+
+  .skeleton__line,
+  .skeleton__block {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+        90deg,
+        var(--color-surface-sunken) 0%,
+        var(--color-border) 50%,
+        var(--color-surface-sunken) 100%
+      )
+      0 0 / 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  .skeleton__line {
+    block-size: 0.9rem;
+  }
+
+  .skeleton__line:last-child {
+    inline-size: 60%;
+  }
+
+  .skeleton__block {
+    block-size: var(--skeleton-height, 12rem);
+    border-radius: var(--radius-md);
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 100% 0;
+    }
+
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  /* == Empty state, disclosure, chart frame == */
+  .empty-state {
+    display: grid;
+    justify-items: center;
+    gap: --spacing(2);
+    padding: --spacing(10) --spacing(4);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    text-align: center;
+  }
+
+  .empty-state__icon {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    color: var(--color-text-muted);
+  }
+
+  .empty-state__title {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  .empty-state__text {
+    max-inline-size: 32rem;
+    margin: 0 0 --spacing(2);
+    color: var(--color-text-muted);
+  }
+
+  .disclosure {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  @media (forced-colors: active) {
+    .alert {
+      border: 1px solid CanvasText;
+    }
+  }
+}

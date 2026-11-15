@@ -1,0 +1,158 @@
+@layer components {
+  /* == Cards, badges, stats == */
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(3);
+    padding: --spacing(5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .card > * {
+    margin: 0;
+  }
+
+  .card__icon {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  .card__title {
+    font-size: var(--text-lg);
+  }
+
+  .card__title a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .card__body {
+    color: var(--color-text-muted);
+  }
+
+  .card__footer {
+    margin-block-start: auto;
+    padding-block-start: --spacing(2);
+  }
+
+  /* A whole card that is one link: the title's link covers the card. */
+  .card--link {
+    position: relative;
+    transition: border-color var(--duration), box-shadow var(--duration);
+  }
+
+  .card--link:hover {
+    border-color: var(--color-accent);
+  }
+
+  .card--link .card__title a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  .card--link:focus-within {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .card--link .card__title a:focus-visible {
+    outline: none;
+  }
+
+  .card--muted {
+    box-shadow: none;
+    background: var(--color-surface-sunken);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1);
+    padding: 0.1rem --spacing(2);
+    border: 1px solid var(--badge-color, var(--color-border-strong));
+    border-radius: var(--radius-full);
+    background: var(--badge-soft, var(--color-surface-sunken));
+    color: var(--color-text);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+  }
+
+  .badge .icon {
+    color: var(--badge-color, var(--color-text-muted));
+  }
+
+  .badge--info {
+    --badge-color: var(--color-accent);
+    --badge-soft: var(--color-accent-soft);
+  }
+
+  .badge--success {
+    --badge-color: var(--color-success);
+    --badge-soft: var(--color-success-soft);
+  }
+
+  .badge--warning {
+    --badge-color: var(--color-warning);
+    --badge-soft: var(--color-warning-soft);
+  }
+
+  .badge--danger {
+    --badge-color: var(--color-danger);
+    --badge-soft: var(--color-danger-soft);
+  }
+
+  .stat {
+    display: grid;
+    align-content: start;
+    gap: --spacing(1);
+  }
+
+  .stat__label {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .stat__value {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--leading-tight);
+  }
+
+  .stat__note {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .summary-list {
+    display: grid;
+    grid-template-columns: minmax(8rem, max-content) 1fr;
+    gap: --spacing(2) --spacing(6);
+  }
+
+  .summary-list dt {
+    color: var(--color-text-muted);
+  }
+
+  .summary-list dd {
+    margin: 0;
+    font-weight: var(--font-weight-medium);
+  }
+
+  @media (forced-colors: active) {
+    .card,
+    .badge {
+      border: 1px solid CanvasText;
+    }
+  }
+}

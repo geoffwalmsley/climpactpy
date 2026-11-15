@@ -144,7 +144,7 @@
       var footer = doc.createElement("div");
       footer.className = "tour__footer";
       var count = doc.createElement("span");
-      count.className = "tour__count small muted";
+      count.className = "tour__count text-sm text-text-muted";
       count.textContent = label("count").replace("{step}", i + 1).replace("{total}", steps.length);
       footer.appendChild(count);
       if (i < steps.length - 1) footer.appendChild(button(label("skip"), "ghost", close));

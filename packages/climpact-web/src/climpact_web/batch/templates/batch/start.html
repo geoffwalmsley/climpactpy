@@ -18,11 +18,11 @@
       <h2 class="card__title">{% translate "Your batch" %}</h2>
       {% translate "One text file." as metadata_hint %}
       {% include "components/dropzone.html" with field=form.metadata_file hint=metadata_hint %}
-      <p class="small muted">{{ form.metadata_file.help_text }}</p>
+      <p class="text-sm text-text-muted">{{ form.metadata_file.help_text }}</p>
       {% help_topic "batch.metadata_file" %}
       {% blocktranslate asvar files_hint with size=max_upload_mb %}Several files or a zip, up to {{ size }} MB in all.{% endblocktranslate %}
       {% include "components/dropzone.html" with field=form.station_files hint=files_hint multiple=True %}
-      <p class="small muted">{{ form.station_files.help_text }}</p>
+      <p class="text-sm text-text-muted">{{ form.station_files.help_text }}</p>
       {% help_topic "batch.station_files" %}
       <div>
         {% translate "Check the stations" as load_label %}
@@ -40,7 +40,7 @@
           {% translate "Use the sample batch" as sample_label %}
           {% include "components/button.html" with label=sample_label type="submit" variant="secondary" icon="play" %}
         </form>
-        <p class="small"><a href="{% url 'batch:sample_metadata' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample metadata file ({{ sample_metadata }}) to use as a template{% endblocktranslate %}</a></p>
+        <p class="text-sm"><a href="{% url 'batch:sample_metadata' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample metadata file ({{ sample_metadata }}) to use as a template{% endblocktranslate %}</a></p>
       </section>
       <section class="card stack" aria-labelledby="time-title">
         <span class="card__icon">{% icon "clock" %}</span>
@@ -54,7 +54,7 @@
 
   <details class="disclosure">
     <summary>{% icon "help" %}<span>{% translate "What the metadata file must look like" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body prose">
+    <div class="disclosure__body max-w-prose">
       <p>{% translate "A text file with a first line of column names, then one line per station, the values separated by spaces or tabs. It is the batch metadata file of Climpact for R, so files prepared for it work here unchanged. Lines starting with # are ignored." %}</p>
       <pre class="file-example"><code>station_file	latitude	longitude	wsdin	csdin	Tb_HDD	Tb_CDD	Tb_GDD	rxnday	rnnmm	txtn	SPEI
 sydney_observatory_hill_1936-2015.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24</code></pre>
@@ -76,7 +76,7 @@ sydney_observatory_hill_1936-2015.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24</code
     <h2 id="recent-title">{% translate "Your recent batches" %}</h2>
     <ul class="recent-list">
       {% for item in recent %}
-      <li><a href="{% if item.job_id %}{% url 'batch:results' item.pk %}{% else %}{% url 'batch:check' item.pk %}{% endif %}">{{ item }}</a> <span class="small muted">{% blocktranslate count counter=item.stations|length with when=item.updated_at|timesince trimmed %}{{ counter }} station, changed {{ when }} ago{% plural %}{{ counter }} stations, changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% if item.job_id %}{% url 'batch:results' item.pk %}{% else %}{% url 'batch:check' item.pk %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate count counter=item.stations|length with when=item.updated_at|timesince trimmed %}{{ counter }} station, changed {{ when }} ago{% plural %}{{ counter }} stations, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

@@ -3,7 +3,7 @@ A box plot figure with its table (#77). Parameter: plot (qc_plots._plot).
 {% endcomment %}
 <figure class="qc-figure stack stack--sm" aria-labelledby="box-{{ plot.title|slugify }}">
   <figcaption id="box-{{ plot.title|slugify }}" class="qc-figure__title">{{ plot.title }}</figcaption>
-  {% if plot.svg %}{{ plot.svg }}{% else %}<p class="muted">{% translate "No data." %}</p>{% endif %}
+  {% if plot.svg %}{{ plot.svg }}{% else %}<p class="text-text-muted">{% translate "No data." %}</p>{% endif %}
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
@@ -19,7 +19,7 @@ A box plot figure with its table (#77). Parameter: plot (qc_plots._plot).
             <th scope="col" class="num">{% translate "Upper whisker" %}</th>
             <th scope="col" class="num">{% translate "Beyond the whiskers" %}</th>
           </tr></thead>
-          <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.n|count }}</td>{% if row.stats %}{% for v in row.stats %}<td class="num">{{ v }}</td>{% endfor %}{% else %}<td class="num muted" colspan="5">{% translate "no data" %}</td>{% endif %}<td class="num">{{ row.outliers|count }}</td></tr>{% endfor %}</tbody>
+          <tbody>{% for row in plot.rows %}<tr><th scope="row">{{ row.label }}</th><td class="num">{{ row.n|count }}</td>{% if row.stats %}{% for v in row.stats %}<td class="num">{{ v }}</td>{% endfor %}{% else %}<td class="num text-text-muted" colspan="5">{% translate "no data" %}</td>{% endif %}<td class="num">{{ row.outliers|count }}</td></tr>{% endfor %}</tbody>
         </table>
       </div>
     </div>

@@ -41,7 +41,7 @@ names (IndexParamsForm.output_names()).
   </fieldset>
   {% endif %}
   {% for key, name in names.items %}{% if key == group %}
-  <p class="param__name small muted">{% translate "Written as" %} <code>{{ name }}</code></p>
+  <p class="param__name text-sm text-text-muted">{% translate "Written as" %} <code>{{ name }}</code></p>
   {% endif %}{% endfor %}
   {% for key, notes in form.warnings.items %}{% if key == group %}{% for note in notes %}
   <p class="field__warning">{% icon "warning" %}<span>{{ note }}</span></p>

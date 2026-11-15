@@ -21,6 +21,9 @@
 @layer theme, base, vendor, components, utilities;
 
 @import "./theme.css" layer(theme);
+/* uPlot's own small stylesheet (#75), in a layer below the components so that the chart
+   styles (components/charts.css) restyle its overlays in the tokens. */
+@import "../static/climpact_web/vendor/uplot/uPlot.min.css" layer(vendor);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 
 @source "../../**/templates/**/*.html";
@@ -55,3 +58,16 @@
 }
 
 @import "./base.css";
+@import "./components/layout.css";
+@import "./components/header.css";
+@import "./components/stepper.css";
+@import "./components/buttons.css";
+@import "./components/forms.css";
+@import "./components/feedback.css";
+@import "./components/cards.css";
+@import "./components/tables.css";
+@import "./components/tabs.css";
+@import "./components/disclosure.css";
+@import "./components/charts.css";
+@import "./components/dialog.css";
+@import "./components/home.css";

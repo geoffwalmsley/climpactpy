@@ -1,0 +1,38 @@
+@layer components {
+  .disclosure summary {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2);
+    min-block-size: var(--control-height);
+    padding-inline: --spacing(4);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .disclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .disclosure summary .icon {
+    color: var(--color-accent);
+    transition: transform var(--duration);
+  }
+
+  .disclosure summary .icon:last-child {
+    margin-inline-start: auto;
+  }
+
+  .disclosure[open] summary .icon:last-child {
+    transform: rotate(180deg);
+  }
+
+  .disclosure__body {
+    padding: 0 --spacing(4) --spacing(4);
+    color: var(--color-text-muted);
+  }
+
+  .disclosure__body > :last-child {
+    margin-block-end: 0;
+  }
+}

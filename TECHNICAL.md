@@ -3061,8 +3061,10 @@ with it, and the Droplet's swap covers short peaks. Measured with the stack idle
 Sydney run (arm64): web 283 MiB, worker 375 MiB, Postgres 41 MiB, `purge` 7 MiB.
 
 **Images.** Postgres and cloudflared are pinned by tag and digest in `compose.yaml` (update
-both together). The app image comes from `CLIMPACT_IMAGE` in `.env`: the release's image
-from the registry, pinned by version (#122). Compose never builds it.
+both together). The app image comes from `CLIMPACT_IMAGE` in `.env`:
+`ghcr.io/geoffwalmsley/climpact-web` with a release's version tag, or `latest` (the last
+final release; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)). The package
+is public, so the Droplet pulls it without credentials. Compose never builds it.
 
 **Networks and ports.** No service publishes a port on the host. The app containers and
 `db` share `backend`, an `internal` network with no route out; only `cloudflared` is also

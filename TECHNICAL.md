@@ -56,7 +56,8 @@ virtualenv with both installed editable (see [Development](#development); #68, #
 
 ```
 packages/
-  climpact/          the core package: distribution `climpactpy`, imported as `climpact`.
+  climpact/          the core package: distribution `climpact` (`climpactpy` until #131),
+                     imported as `climpact`.
                      Its dependencies are the scientific stack only (xclim, xarray, numpy,
                      pandas, scipy, dask, netCDF4); extra `plots`, dependency group `dev`
   climpact-web/      the web front end, `climpact_web` (src/climpact_web, tests/): a Django
@@ -71,6 +72,12 @@ ruff.toml            ruff settings for the whole repository (each package's pypr
                      extends it)
 pytest.ini           `pytest` from the root runs both packages' tests; each package's
                      pyproject.toml has the same settings for running it alone
+LICENSE              the GNU GPL v3 text; each package has a copy (hatch's `license-files`
+                     cannot reach outside the package; a test checks they match)
+RELEASING.md         how a release is made, and the one-time PyPI/GitHub setup (#131)
+CHANGELOG.md         one entry per release of both packages
+scripts/             build-css.sh, fetch-tailwind.sh, image.sh; set_version.py,
+                     check_dists.py, smoke_dists.sh, fetch_published.py (the releases)
 Dockerfile           the production image of the web app (#120; see [Deployment](#deployment))
 docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthcheck.py`
 .dockerignore        keeps everything but the two packages' sources, the pyproject files
@@ -568,7 +575,7 @@ are byte-identical.
 `climpact.plots` draws the plots R draws in `index.calc` (`services/calculate_indices.R`,
 `plot.call` and `plot.hw` in `services/plot_indices.R`, `plot.precindex` in
 `services/plot_prec_index.R`) and zips the outputs as `services/zipFiles.R`. matplotlib is
-an optional dependency (`pip install climpactpy[plots]`; it is in the `dev` dependency groups too). It is imported
+an optional dependency (`pip install 'climpact[plots]'`; it is in the `dev` dependency groups too). It is imported
 only when plots are drawn, on an Agg canvas without `pyplot`, so a caller's matplotlib
 backend is never changed. `climpact run --plots --zip` and `climpact batch --plots --zip`
 use it; `run_station(..., plots=True, zip=True)` and `run_batch(...)` take the same flags,
@@ -970,7 +977,7 @@ input files' read cache is netCDF-C's default (64 MB per variable). See
 which calls `create.indices.from.files` in the same modified climdex.pcic.ncdf. Options
 follow the wrapper's settings: input files and variable names as for the thresholds,
 `--template` (R's `file.template`, the CMIP5-style name the outputs follow; default
-`var_daily_climpactpy_historical_NA_<first year>-<last year>.nc`), `--base-start`,
+`var_daily_climpact_historical_NA_<first year>-<last year>.nc`), `--base-start`,
 `--base-end`, `--indices` (R's `indices`, by short name: `fd`, `rxdday`, `wsdid`, ...),
 `--thresholds` (R's `thresholds.files`, a file from `climpact gridded-thresholds`),
 `--institution`, `--institution-id`, `--workers` (`cores`), `--max-values`
@@ -1280,7 +1287,7 @@ R's dimensions, type, missing values and values exactly (`EXACT`: R stores doubl
 unlike the CSV files no rounding is involved). `test_gridded_layout` checks the dimensions
 (sizes and unlimited), the order of the dimensions and variables, and every attribute, apart
 from `history`, `file_created` and `file_created_by_userid`, R's `R_version` and Python's
-`climpactpy_version`, and the time units of `grid_sample` (see
+`climpact_python_version`, and the time units of `grid_sample` (see
 [Gridded data](#gridded-data-1)).
 
 `tests/parity/test_gridded_indices.py` writes each run's index files (one-row blocks,
@@ -2412,7 +2419,7 @@ exercise only those said to be):
 | Bounds variables of X and Y (`lat_bnds`, ...) are copied (Climpact's README says inputs must not have them) | not copied; `time_bnds` uses a dimension `bnds` |
 | Non-standard calendars: PCICt supports `365_day`/`noleap` and `360_day` (and stops on others) | supported the same way (#66), including R's `%Y-%j` threshold dates in `noleap` leap years, `climdex.hw`'s threshold lookup by month and day of 2001, and `day_of_<index>` numbers read as standard dates (see [Non-standard calendars](#non-standard-calendars)); `all_leap` and `julian` raise `NotImplementedError`. Identical on `grid_filled_noleap`, `grid_filled_360day` and `grid_sample_360day` |
 | Units udunits cannot convert to kg m-2 d-1 (`mm/day`) stop the run | `mm/day`, `mm d-1`, `mm day-1` and `mm` are accepted as kg m-2 d-1 |
-| `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpactpy_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by climpactpy <version> on <date>` |
+| `put.ETCCDI.atts` writes `R_version` and `climdex.pcic_version` (1.2.0); `history` says `Created by climdex.pcic 1.2.0 on <date>` | no `R_version`; `climpact_python_version` instead; `climdex.pcic_version` is 1.2.0 (the version reproduced, as `Climpact_version` 3.4.3); `history` says `Created by Climpact for Python <version> on <date>` |
 | Only TX, TN or precipitation alone: `get.thresholds.metadata` still lists all 21 variables and writing stops | all three variables are required, checked when the files are opened |
 | R writes an uncompressed file with one chunk per day | compressed (zlib), chunked by block; the content is the same |
 | R reads each stripe straight from the input files, however they are chunked: with files chunked by time step, every stripe decompresses the whole file | inputs chunked by time step are copied once to a temporary file laid out by block (`GriddedInput.block_reader`, see [Rechunking](#rechunking-inputs-chunked-by-time-step)); the values read are identical |
@@ -3151,8 +3158,10 @@ locally, in CI and in a release:
   (`needs: image`) loads that artifact, logs in with `echo "$GITHUB_TOKEN" | docker login
   ghcr.io --password-stdin`, pushes the tags, writes the digest to the job summary, logs
   out and deletes untagged package versions. A pull request that changes `release.yml`
-  runs its `image` job as a dry run; `publish` runs only for a release. #131 adds the PyPI
-  jobs before these, and `image` will then need the PyPI publish job.
+  runs its `image` job as a dry run; `publish` runs only for a release. Since #131 the
+  PyPI jobs come first, and `image` runs only after the packages are published: after
+  `pypi` for a release, after `testpypi-check` for a pre-release (see
+  [Releases and PyPI](#releases-and-pypi)).
 
 **What pushes.** Only a published release: `vX.Y.Z` pushes `:X.Y.Z` and moves `:latest` to
 it (`latest` follows the last published final release, so publishing an older patch moves
@@ -3190,7 +3199,82 @@ dry-run tags passing. The publish path was checked locally (2026-11-15, Docker D
 29): `docker save` → `docker load` → `scripts/image.sh publish` to a local `registry:2`
 pushed `0.1.0` and `latest` for `v0.1.0`, and only `0.2.0rc1` for a pre-release
 `v0.2.0rc1`, as one OCI manifest each. The first real release is the first end-to-end run
-of `publish` and the untagged cleanup.
+of `publish` and the untagged cleanup: by the user's decision (2026-11-15) that is
+#131's first release, the pre-release `v0.1.0rc1`, so the first image is `:0.1.0rc1`
+(#123 waits for it).
+
+### Releases and PyPI
+
+Both packages are on PyPI, released together from a GitHub Release (#131; user decisions
+of 2026-11-14). The steps for the maintainer, including the one-time setup of the
+publishers and environments, are in `RELEASING.md`.
+
+**Names.** The core's distribution is `climpact`, so the pip name, the import name and the
+command match (`pip install climpact`); it was `climpactpy` until #131 and was never
+published under that name. The web app is `climpact-web`. The GitHub repository keeps the
+name `climpactpy`, which the URLs, the Kanban and the reference data (the gridded R runs'
+template `var_daily_climpactpy_historical_NA_...` and author `climpactpy reference`, see
+`reference/README.md`) still carry. The name `climpact` implies the official software, so
+PyPI ownership moves to WMO at handover (#12). Everything the port writes names it
+**Climpact for Python** with the R version it ports, never plain "Climpact":
+`io.output_files.software_credit()` gives `Climpact for Python X.Y.Z (port of Climpact
+3.4.3)`, used by `climpact --version`, the plot and sector plot footers and the PDF
+report's footer, cover and `Creator`; the report's `Author` and the gridded netCDF
+`history` use `SOFTWARE_NAME`, and the netCDF attribute is `climpact_python_version`.
+
+**Versions.** One version number for both, SemVer in its PEP 440 form, starting at
+`0.1.0`; tags are `vX.Y.Z`. The version is in three places: `climpact.__version__`,
+`climpact_web.__version__` (hatch reads each package's version from it) and climpact-web's
+dependency `climpact[plots]==X.Y.Z`. The pin is written in `pyproject.toml` rather than
+generated at build time; `[tool.uv.sources]` still resolves it to the workspace member in
+development. `scripts/set_version.py X.Y.Z` sets all three, `packages/climpact-web/tests/test_packaging.py`
+checks they agree, and `release.yml` checks the tag against them. A release is a bump pull
+request (`set_version.py`, `uv lock`, a `CHANGELOG.md` entry), then a GitHub Release
+`vX.Y.Z` from `main`. `a`/`b`/`rc` versions are pre-releases: GitHub's pre-release box must
+match the version (`packaging.version.Version.is_prerelease`), and they go to TestPyPI only.
+
+**Package contents.** hatchling builds both. The wheels hold the package folder: the core
+its modules and `data/climate.indices.csv`; climpact-web its templates, static files (the
+committed, built `css/climpact.css` included), help guides, sample data and outputs,
+migrations and locale, but not `core/tailwind/` (only `scripts/build-css.sh` and the token
+tests read it). Static files are shipped as sources: local mode collects them into the
+data folder on start, hosted mode runs `collectstatic` (the image does it at build time).
+The sdists hold `src/`, `README.md`, `LICENSE` and `pyproject.toml` only; the tests are not
+shipped, as they need the repository's `reference/` data. Metadata: the PEP 639 licence
+expression `GPL-3.0-or-later` with `license-files`, classifiers (Python 3.12-3.14, Science/
+Research, Atmospheric Science, OS independent; Django 6.0 for the web), project URLs and
+the package READMEs, written for PyPI with absolute links. `scripts/check_dists.py`
+compares each wheel's file list with the files git tracks under `src/` (printing it),
+rejects tests, reference data and bytecode, and checks the names, versions and the pin;
+`scripts/smoke_dists.sh` installs the wheels in a clean virtualenv away from the checkout
+and checks `climpact --version`, the imports and versions, that `climpact-web` starts and
+answers `/healthz` with the database ok, and that its stylesheet is collected and served.
+Both run in CI's `dist` job and in every release. The builds use `uv build --no-sources`,
+so they depend only on the publishable metadata, and are byte-for-byte reproducible from
+the same commit and hatchling version (checked locally).
+
+**`release.yml`.** Triggered by `release: published` only (and, as a dry run of `version`,
+`build` and `image`, by a pull request changing the file):
+
+| Job | Does |
+| --- | --- |
+| `version` | tag = `v` + both `__version__` values + the pin; pre-release box = `is_prerelease`; the tagged commit is on `main`. Fails before any build or upload |
+| `test` | `uv sync --locked`, ruff and the full suite (parity included) on the tagged commit, Python 3.12 |
+| `build` | `uv build --all-packages --no-sources`, `check_dists.py`, `twine check --strict` (twine 7.0.0, which reads metadata 2.5), `smoke_dists.sh`; the files as the `dists` artifact |
+| `testpypi` | needs `test` and `build`; `uv publish --trusted-publishing always` to TestPyPI, environment `testpypi` |
+| `testpypi-check` | `scripts/fetch_published.py`: TestPyPI's JSON API lists both files of both packages with the built SHA-256s (waits up to 10 minutes); the downloaded wheels go through `smoke_dists.sh` |
+| `pypi` | releases only, not pre-releases; environment `pypi`, which requires the maintainer's approval; `uv publish` to PyPI |
+| `assets` | `gh release upload` of the four files (`contents: write`), after `pypi`, or `testpypi-check` for a pre-release |
+| `image`, `publish` | the image (see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)), after the same jobs as `assets` |
+
+Uploads use `uv publish` with Trusted Publishing (OIDC), not `pypa/gh-action-pypi-publish`:
+the repository's Actions settings allow only GitHub-owned actions and `astral-sh/setup-uv`.
+No API token is stored. Only `testpypi` and `pypi` have `id-token: write`, each in its own
+environment, so the publishers on the two indexes name different environments (both
+limited to `v*` tags, see `RELEASING.md`), and only real PyPI waits for approval. Both pass
+`--check-url`, so a re-run skips files an index already has. Unlike the PyPA action,
+`uv publish` does not make PEP 740 attestations, so the uploads carry none (attestations
+were out of #131's scope). Concurrency `release-<ref>`, never cancelled.
 
 ### Design system
 
@@ -4362,7 +4446,7 @@ ignored.
 | Variable names typed in, defaults `precip`, `tmax`, `tmin` | chosen from the files' daily grid variables; guessed from R's defaults, then CMIP and other common names, then units and standard names; checked at once |
 | Two screens: indices, or thresholds | "What to calculate": indices, thresholds file only, or thresholds file then indices (two jobs on the same files; the indices compute their own thresholds, as R's indices screen does) |
 | Thresholds file for the indices (`thresholdFiles`, several allowed) | "Read them from a thresholds file": one file, by path (local) or upload (hosted); refused when the data have a day in its base period, as `check_thresholds_file` (and R) require |
-| Output file name pattern, default `var_daily_climpact.sample_historical_NA_1991-2010.nc` | the same CMIP5 form, checked (six parts, years, `.nc`), default the core's `var_daily_climpactpy_historical_NA_<first>-<last>.nc`; example names shown |
+| Output file name pattern, default `var_daily_climpact.sample_historical_NA_1991-2010.nc` | the same CMIP5 form, checked (six parts, years, `.nc`), default the core's `var_daily_climpact_historical_NA_<first>-<last>.nc`; example names shown |
 | Thresholds output file name, default `sample_data.thresholds.1991-2010.nc` | default `<first file's name>.thresholds.<base start>-<base end>.nc`; letters, digits and `._+-` only |
 | Output written to `www/output/<institute ID>_ncdf` (or `_thres`) inside the app | each job's own folder, downloaded from the page; local mode can also copy the files to a chosen folder (`copy_to`) |
 | Institute name and ID, required | the same |
@@ -4827,7 +4911,7 @@ uv run pytest
 
 - The repository is a [uv](https://docs.astral.sh/uv/) workspace (#116; it replaced the
   two editable pip installs of #68). The root `pyproject.toml` is not a package: it lists
-  the members `packages/climpact` (distribution `climpactpy`) and `packages/climpact-web`,
+  the members `packages/climpact` (distribution `climpact`) and `packages/climpact-web`,
   and has a `dev` dependency group with both members and every development tool.
   `uv sync` makes `.venv` from `uv.lock` with both packages editable and that group;
   commands run through `uv run`. Each member also has its own `dev` group (PEP 735,
@@ -4855,7 +4939,7 @@ uv run pytest
   `astral-sh/setup-uv`), so an unpinned or unlisted action fails the run. To upgrade
   one, change the SHA and the tag comment together, using the commit the release tag
   points to (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`).
-- CI has six jobs. `secrets` (#138) runs gitleaks over the whole git history
+- CI has seven jobs. `secrets` (#138) runs gitleaks over the whole git history
   (`gitleaks git --log-opts="--all" --redact`, checkout with `fetch-depth: 0`) with the
   default rules and the allowlist in `.gitleaks.toml`. It downloads the pinned gitleaks
   release binary and installs it only if its SHA-256 matches the hash in `ci.yml` (no
@@ -4866,7 +4950,7 @@ uv run pytest
   secret added to that file. Run the same scan locally with `gitleaks git
   --log-opts="--all" --redact .`. `core` and `web` run on Python 3.12, 3.13 and 3.14: `core` checks
   `uv lock --check`, installs only the core with its dev group (`uv sync --locked
-  --package climpactpy`), runs ruff, checks that `climpact_web` is neither installed nor
+  --package climpact`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
   suite, parity included); `web` installs both packages (`uv sync --locked`), fetches the
   pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
@@ -4883,8 +4967,11 @@ uv run pytest
   the report and screenshots as the `accessibility-report` artifact (see
   [Accessibility](#accessibility)). `image` calls the reusable `image.yml`, which builds
   the production image, smoke-tests it against Postgres and scans it, pushing nothing;
-  `release.yml` runs on a published GitHub Release and is the only workflow that pushes
-  (see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)).
+  `dist` builds both packages' sdists and wheels as a release does and checks them
+  (`scripts/check_dists.py`, `twine check`, `scripts/smoke_dists.sh`; see
+  [Releases and PyPI](#releases-and-pypi)). `release.yml` runs on a published GitHub
+  Release and is the only workflow that uploads or pushes (see
+  [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)).
 - Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with

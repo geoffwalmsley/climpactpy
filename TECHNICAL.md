@@ -77,6 +77,10 @@ docker/              its entrypoint (`entrypoint.sh`, the roles) and `healthchec
                      and uv.lock out of the image's build context
 deploy/              the hosted stack on one Droplet (#121): `compose.yaml` and
                      `.env.example` (see [Compose stack](#compose-stack))
+scripts/image.sh     builds, smoke-tests, scans, tags and pushes the image, for CI and
+                     releases (#122; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio))
+.github/workflows/   `ci.yml` (every pull request and main), `image.yml` (the image job
+                     both use) and `release.yml` (a published GitHub Release)
 ```
 
 The core never imports `climpact_web`: `tests/test_layout.py` checks every Python file in
@@ -3002,7 +3006,8 @@ and one-off roles (PID 1 runs `manage`) always count as healthy.
 
 **Size and memory** (measured 2026-11-15, image of #120, on an arm64 Mac with Docker
 Desktop 29). The amd64 image is 312 MB compressed (`docker save | gzip`; 297 MiB), under
-DigitalOcean's 500 MB free registry tier. The largest parts are pyarrow and llvmlite
+the free tier of most registries (it is published on ghcr.io as a public package, whose
+storage and pulls are free). The largest parts are pyarrow and llvmlite
 (about 170 MB each uncompressed, from xclim's dependencies), scipy and pandas. Memory of the
 web and worker processes (`VmRSS`/`VmHWM` of PID 1, and the container's peak `docker
 stats` usage) for the Sydney sample (80 years) driven through the web pages: quality
@@ -3111,6 +3116,79 @@ marked the job failed 66 s after its last heartbeat (`JOB_STALE_SECONDS` 60), wi
 retry offered. Without the override `docker compose ps` lists no published ports and the
 web container cannot reach the internet. With a dummy token `cloudflared` starts
 (read-only) and refuses the token.
+
+### Image in CI and on ghcr.io
+
+The image of [Deployment](#deployment) is built and tested on every pull request and push
+to `main`, and published only when a GitHub Release is published (#122; user decisions of
+2026-11-14 and 2026-11-15). The registry is the **GitHub Container Registry**,
+`ghcr.io/geoffwalmsley/climpact-web`, as a public package: the repository is public, so
+storage and pulls cost nothing, CI pushes with the workflow's own `GITHUB_TOKEN`, and the
+Droplet pulls without credentials. It replaced the DigitalOcean Container Registry planned
+in #12.
+
+**One script, three workflows.** `scripts/image.sh` holds the steps, so they run the same
+locally, in CI and in a release:
+
+| Step | Does |
+| --- | --- |
+| `build <image>` | `docker buildx build --platform linux/amd64 --provenance=false --sbom=false --load`, with a local layer cache (`BUILDX_CACHE_FROM`/`_TO`) and the version and revision as OCI labels |
+| `smoke <image>` | runs the image as deployed (`--read-only`, tmpfs `/tmp`, a media volume, the hosted variables) against an empty Postgres on `SMOKE_NETWORK`: `migrate`; `manage check --deploy` (fails on errors only: the HSTS warning is expected); the `web` role, whose `/healthz` must report the database ok, whose landing page must answer 200 behind `X-Forwarded-Proto: https` and 301 without it, running as uid 10001 on a read-only root, until Docker's `HEALTHCHECK` reports healthy; the built-in Sydney sample as a station job (with the zip) through `worker --once`; and a clean exit 0 on `docker stop` |
+| `scan <image>` | Grype (`anchore/grype` v0.121.0, its official image pinned by digest) over `docker save`'s archive: the table in the log, the counts by severity and the critical findings in the job summary, and a warning annotation when there are criticals; never fails the build (yet) |
+| `tags <git tag> <prerelease>` | the registry tags: `X.Y.Z` for `vX.Y.Z`, plus `latest` only when the release is not marked pre-release and has no `a`/`b`/`rc` suffix; any other tag shape fails. `tags-selftest` checks it on fixed cases |
+| `publish <image> <repo> <tags>` | `docker tag` and `docker push` each tag |
+
+- `image.yml` is a reusable workflow (`workflow_call`) with a Postgres 16 service: tags,
+  restore the layer cache, build, smoke test, scan, tag locally, and with `artifact: true`
+  keep the tested image (`docker save`) as the one-day `image` artifact. It never pushes and
+  its token is read-only.
+- `ci.yml`'s `image` job calls it with `save-cache: true`, as a dry run: the tags are those
+  `v<climpact_web.__version__>` would get.
+- `release.yml` runs on `release: published`. Its `image` job calls `image.yml` with the
+  release's tag and pre-release flag, building from the tagged commit; its `publish` job
+  (`needs: image`) loads that artifact, logs in with `echo "$GITHUB_TOKEN" | docker login
+  ghcr.io --password-stdin`, pushes the tags, writes the digest to the job summary, logs
+  out and deletes untagged package versions. A pull request that changes `release.yml`
+  runs its `image` job as a dry run; `publish` runs only for a release. #131 adds the PyPI
+  jobs before these, and `image` will then need the PyPI publish job.
+
+**What pushes.** Only a published release: `vX.Y.Z` pushes `:X.Y.Z` and moves `:latest` to
+it (`latest` follows the last published final release, so publishing an older patch moves
+it back); a pre-release pushes only its version tag and never `latest`, so it does not
+deploy (#126 deploys `latest`). Merges to `main` and pull requests push nothing. The image
+pushed is the one the smoke test and scan ran on, carried between the jobs as the
+artifact, not a rebuild.
+
+**Credentials.** Every job has `contents: read` only, except `publish`, which adds
+`packages: write`; there is no stored registry secret or personal token. Checkouts use
+`persist-credentials: false`. Only GitHub-owned actions and `astral-sh/setup-uv` are
+allowed (see [Development](#development)), so the image steps use the `docker` CLI on the
+runner rather than Docker's own actions, and Grype runs from its container image.
+
+**Layer cache.** `actions/cache` keeps buildx's local cache (`type=local`, `mode=max`, so
+the builder stage's dependency layer is included) under a key hashed from the
+`Dockerfile`, `.dockerignore`, `uv.lock` and the `pyproject.toml` files. A run whose key
+hits reuses the dependency layers and rebuilds only the sources (a minute or so); `ci.yml`
+saves a new cache only when the key misses, and releases only restore. Caches saved on
+`main` are readable by every pull request and release tag. The GitHub Actions cache
+backend (`type=gha`) is not used, because its runtime token reaches only actions, not `run`
+steps, and the action that exposes it is third-party.
+
+**Registry upkeep.** Release tags are kept, for rollback. The image is a single-platform
+manifest with no attestations, so each release is exactly one package version; an
+untagged version appears only when a tag is pushed again (a re-run), and `publish` deletes
+those (warning, not failing, if the token may not). This is safe only while the image is
+single-platform: a multi-platform image's per-platform manifests are untagged versions too.
+The package's `org.opencontainers.image.source` label (in the `Dockerfile`) links it to the
+repository. A package that `GITHUB_TOKEN` creates may start private: after the first
+release, check its visibility under the package's settings and make it public once.
+
+**Testing it without a release.** A pull request shows the build, smoke test, scan and the
+dry-run tags passing. The publish path was checked locally (2026-11-15, Docker Desktop
+29): `docker save` → `docker load` → `scripts/image.sh publish` to a local `registry:2`
+pushed `0.1.0` and `latest` for `v0.1.0`, and only `0.2.0rc1` for a pre-release
+`v0.2.0rc1`, as one OCI manifest each. The first real release is the first end-to-end run
+of `publish` and the untagged cleanup.
 
 ### Design system
 
@@ -3372,8 +3450,9 @@ SIGKILL in the middle of a station run, the job is failed by `purgejobs` once th
 is stale, and after a retry a new worker runs it to the end; stopped with SIGTERM, the job
 is queued again. `test_cli.py` checks that `climpact-web` starts a worker and stops it. `test_cli.py::test_proxy_options` and
 `test_proxy_headers_reach_django` check the waitress options for a trusted proxy and that
-`X-Forwarded-Proto` then becomes the request's scheme. The image itself is not built in CI
-yet (#122).
+`X-Forwarded-Proto` then becomes the request's scheme. The image itself is built and
+smoke-tested in CI's `image` job against Postgres too (see
+[Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)).
 `test_queue_postgres.py` (#119) runs only when `DATABASE_URL` is a Postgres URL (the test
 settings drop it for their own in-memory SQLite database and keep it as
 `CLIMPACT_TEST_POSTGRES_URL`), so it skips locally and runs in `web-postgres`, where
@@ -4766,14 +4845,15 @@ uv run pytest
   `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
 - Every action in `.github/workflows/` is pinned to a full commit SHA, with the release
   tag in a comment (`actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.2,
-  `astral-sh/setup-uv` v10.3.3, all running on Node 24), so a moved or compromised tag
+  `actions/download-artifact` v8.0.2, `actions/cache` v6.1.0 (its `restore` and `save`
+  sub-actions), `astral-sh/setup-uv` v10.3.3, all running on Node 24), so a moved or compromised tag
   cannot change what CI runs.
   The repository's Actions settings are meant to enforce this ("require actions to be
   pinned to a full-length commit SHA", allowing only GitHub-owned actions and
   `astral-sh/setup-uv`), so an unpinned or unlisted action fails the run. To upgrade
   one, change the SHA and the tag comment together, using the commit the release tag
   points to (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`).
-- CI has five jobs. `secrets` (#138) runs gitleaks over the whole git history
+- CI has six jobs. `secrets` (#138) runs gitleaks over the whole git history
   (`gitleaks git --log-opts="--all" --redact`, checkout with `fetch-depth: 0`) with the
   default rules and the allowlist in `.gitleaks.toml`. It downloads the pinned gitleaks
   release binary and installs it only if its SHA-256 matches the hash in `ci.yml` (no
@@ -4799,7 +4879,10 @@ uv run pytest
   preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
   `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps
   the report and screenshots as the `accessibility-report` artifact (see
-  [Accessibility](#accessibility)).
+  [Accessibility](#accessibility)). `image` calls the reusable `image.yml`, which builds
+  the production image, smoke-tests it against Postgres and scans it, pushing nothing;
+  `release.yml` runs on a published GitHub Release and is the only workflow that pushes
+  (see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)).
 - Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with

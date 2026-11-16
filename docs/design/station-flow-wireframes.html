@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station flow wireframes</title>
+<!--
+  Low-fidelity wireframes for the station-flow redesign (#171, #172). Not app code: a
+  standalone page for review. Values are from the Sydney sample where known; numbers
+  marked "illustrative" are placeholders. Colours are DESIGN.md's light tokens.
+-->
+<style>
+  :root {
+    --page: #f5f7f9; --surface: #fff; --sunken: #eef2f5; --text: #16202b; --muted: #4d5966;
+    --border: #d8dee4; --strong: #78838f; --accent: #0a5aa8; --accent-soft: #e5eff9;
+    --success: #17773a; --success-soft: #e7f4ea; --warning: #8a5300; --warning-soft: #fdf3dc;
+    --danger: #b3261e; --danger-soft: #fbeae8; --note: #6250d6; --note-soft: #efedfb;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .doc { max-width: 76rem; margin: 0 auto; padding: 32px 16px 80px; }
+  .doc > h1 { font-size: 28px; margin: 0 0 4px; }
+  .doc > p.lead { color: var(--muted); max-width: 46rem; margin: 0 0 8px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 40px; }
+  .toc a { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); color: var(--accent); text-decoration: none; font-size: 14px; }
+
+  section.wf { margin: 0 0 64px; }
+  section.wf > h2 { font-size: 22px; margin: 0 0 4px; }
+  section.wf > p.why { color: var(--muted); margin: 0 0 16px; max-width: 52rem; }
+  .board { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 20px; align-items: start; }
+  @media (max-width: 60rem) { .board { grid-template-columns: 1fr; } }
+
+  /* The "screen" */
+  .screen { background: var(--page); border: 1px solid var(--strong); border-radius: 12px;
+    overflow: hidden; box-shadow: 0 8px 32px rgb(16 24 32 / .12); }
+  .chrome { display: flex; align-items: center; gap: 18px; padding: 10px 18px;
+    background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+  .chrome b { color: var(--text); font-size: 15px; }
+  .chrome .on { color: var(--accent); font-weight: 600; }
+  .inner { padding: 20px 22px 26px; }
+
+  .station { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 4px; }
+  .station h3 { font-size: 22px; margin: 0; }
+  .meta { color: var(--muted); font-size: 13.5px; }
+  .meta a, a.link { color: var(--accent); }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 14px 0 18px; overflow-x: auto; }
+  .tab { padding: 8px 14px; font-size: 14px; color: var(--muted); border-bottom: 3px solid transparent;
+    white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+  .tab.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .panel + .panel, .stack > * + * { margin-top: 14px; }
+  h4 { font-size: 16px; margin: 0 0 6px; }
+  h5 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 8px; }
+  .small { font-size: 13px; color: var(--muted); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px;
+    border-radius: 8px; border: 1px solid var(--strong); background: var(--surface); color: var(--text);
+    font: inherit; font-size: 14px; font-weight: 500; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.ghost { border-color: transparent; color: var(--accent); padding: 0 8px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 1px 8px;
+    border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .b-ok { color: var(--success); background: var(--success-soft); }
+  .b-warn { color: var(--warning); background: var(--warning-soft); }
+  .b-bad { color: var(--danger); background: var(--danger-soft); }
+  .b-info { color: var(--accent); background: var(--accent-soft); }
+
+  .verdict { border-inline-start: 5px solid var(--warning); }
+  .verdict .big { font-size: 20px; font-weight: 650; margin: 0 0 4px; }
+  .bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--success-soft);
+    border: 1px solid var(--border); margin: 10px 0 4px; }
+  .bar span { display: block; }
+
+  .row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 9rem; gap: 14px; align-items: center;
+    padding: 10px 0; border-top: 1px solid var(--border); }
+  .row:first-of-type { border-top: 0; }
+  .row .what { font-size: 14px; }
+  .row .when { font-family: var(--mono); font-size: 13px; }
+  @media (max-width: 40rem) { .row { grid-template-columns: 1fr; gap: 4px; } }
+
+  .group { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+    padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .group:first-of-type { border-top: 0; }
+  .chev { color: var(--muted); }
+
+  .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 48rem) { .theme-grid { grid-template-columns: 1fr; } }
+  .theme h4 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .theme .headline { font-size: 15px; margin: 0 0 10px; }
+  .trend { display: grid; grid-template-columns: minmax(0, 1fr) auto 72px; gap: 10px; align-items: center;
+    font-size: 13.5px; padding: 5px 0; border-top: 1px dashed var(--border); }
+  .trend code { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .theme.quiet { background: var(--sunken); }
+  svg.spark { display: block; }
+
+  .stale { position: relative; }
+  .stale .content { opacity: .45; filter: grayscale(.6); }
+  .banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between;
+    background: var(--warning-soft); border: 1px solid var(--warning); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; font-size: 14px; }
+
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 12px; }
+  .fields .f:first-child { grid-column: 1 / -1; }
+  .f label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .input { height: 38px; border: 1px solid var(--strong); border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; padding: 0 10px; font-size: 14px; gap: 6px; }
+  .input .u { margin-inline-start: auto; color: var(--muted); font-size: 12px; }
+  .info { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent); font-size: 11px; font-weight: 700; vertical-align: middle; }
+
+  .with-drawer { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; }
+  .drawer { background: var(--surface); border-inline-start: 1px solid var(--border); padding: 18px; font-size: 13.5px; }
+  .drawer h4 { display: flex; justify-content: space-between; }
+  @media (max-width: 48rem) { .with-drawer { grid-template-columns: 1fr; } .drawer { border-inline-start: 0; border-top: 1px solid var(--border); } }
+
+  /* Annotations */
+  .n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+    background: var(--note); color: #fff; font-size: 11px; font-weight: 700; vertical-align: middle; margin-inline: 4px; }
+  .notes { background: var(--note-soft); border: 1px solid var(--note); border-radius: 12px; padding: 14px 16px; font-size: 13.5px; }
+  .notes h4 { color: var(--note); }
+  .notes ol { margin: 0; padding-inline-start: 0; list-style: none; }
+  .notes li { margin: 0 0 10px; display: grid; grid-template-columns: 26px 1fr; }
+  .notes li .n { margin: 2px 0 0; }
+  .gap { color: var(--danger); font-weight: 600; }
+  .decide { background: var(--surface); border: 2px solid var(--note); border-radius: 12px; padding: 18px 20px; }
+  .decide li { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>Station flow redesign: wireframes</h1>
+  <p class="lead">Low fidelity, for #172 (epic #171). Each screen answers one of the user's three questions: <em>is this my station</em>, <em>is the data fit to use</em>, <em>what changed</em>. Purple numbers <span class="n">1</span> point to the notes beside each screen. Sydney Observatory Hill sample; numbers marked <em>illustrative</em> are placeholders.</p>
+  <nav class="toc">
+    <a href="#confirm">1. Load and confirm</a><a href="#quality">2. Quality worklist</a>
+    <a href="#results">3. Results by theme</a><a href="#stale">4. Workspace: out-of-date results</a>
+    <a href="#decisions">Decisions</a>
+  </nav>
+
+  <!-- 1 ─────────────────────────────────────────────────────────────── -->
+  <section class="wf" id="confirm">
+    <h2>1. Load and confirm the station</h2>
+    <p class="why">Replaces the Load step (2,650 px today, with the details form below the chart and the continue button above it). One compact panel: what we read, then the four details that change the results, then one button.</p>
+    <div class="board">
+      <div class="screen">
+        <div class="chrome"><b>Climpact</b><span class="on">Single station</span><span>Batch</span><span>Gridded</span><span>Help</span><span>Your calculations</span></div>
+        <div class="with-drawer">
+          <div class="inner">
+            <div class="station"><h3>sydney_observatory_hill_1936-2015.txt</h3><a class="link meta" href="#">Use a different file</a></div>
+            <p class="meta">Read 29,220 days, 1936-01-01 to 2015-12-31 · 58 days missing (0.2%) <span class="n">1</span></p>
+            <div class="tabs"><span class="tab on">Data</span><span class="tab">Quality</span><span class="tab">Results</span><span class="tab">Files</span><span class="n">2</span></div>
+
+            <div class="panel">
+              <h4>Describe the station <span class="info">i</span> <span class="n">3</span></h4>
+              <p class="small" style="margin:0 0 12px">These change the results. Check them before going on.</p>
+              <div class="fields">
+                <div class="f"><label>Station name</label><div class="input">sydney_observatory_hill_1936-2015</div></div>
+                <div class="f"><label>Latitude</label><div class="input">-33.86<span class="u">°N</span></div></div>
+                <div class="f"><label>Longitude</label><div class="input">151.21<span class="u">°E</span></div></div>
+                <div class="f"><label>Base period</label><div class="input">1971 – 2000</div></div>
+              </div>
+              <div class="actions" style="margin-top:16px"><span class="btn primary">Check quality →</span><span class="n">4</span></div>
+            </div>
+
+            <div class="panel">
+              <h4>Daily values</h4>
+              <svg class="spark" viewBox="0 0 600 90" width="100%" height="90" aria-hidden="true">
+                <path d="M0 40 L20 30 L40 45 L60 28 L80 42 L100 26 L120 44 L140 30 L160 46 L180 27 L200 43 L220 29 L240 45 L260 25 L280 42 L300 30 L320 47 L340 28 L360 41 L380 26 L400 44 L420 29 L440 46 L460 24 L480 43 L500 27 L520 45 L540 22 L560 41 L580 25 L600 40" fill="none" stroke="#e34948" stroke-width="1.5"/>
+                <path d="M0 62 L20 55 L40 66 L60 52 L80 64 L100 50 L120 66 L140 54 L160 68 L180 51 L200 64 L220 53 L240 67 L260 50 L280 63 L300 55 L320 68 L340 52 L360 63 L380 50 L400 66 L420 54 L440 67 L460 49 L480 64 L500 52 L520 66 L540 48 L560 62 L580 50 L600 61" fill="none" stroke="#2a78d6" stroke-width="1.5"/>
+              </svg>
+              <p class="small" style="margin:6px 0 0">TX and TN, 1936 to 2015. No quality flags here: they belong to the next section. <span class="n">5</span> <a class="link" href="#">View as table</a></p>
+            </div>
+          </div>
+          <aside class="drawer">
+            <h4>About the station details <span class="small">✕</span></h4>
+            <p><b>Latitude</b> decides the hemisphere, so which months are summer and how the growing season is counted.</p>
+            <p><b>Base period</b>: the years the percentile thresholds come from. 30 years within your data; Climpact for R suggests 1971 to 2000.</p>
+            <p><b>Name</b> is used in the result file names.</p>
+            <a class="link" href="#">More in the guide</a>
+            <span class="n">3</span>
+          </aside>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Notes</h4>
+        <ol>
+          <li><span class="n">1</span><span>What we read, in one line. The missing-values table and days-per-year move to Quality.</span></li>
+          <li><span class="n">2</span><span>Workspace sections replace the five-step stepper. Later sections are reachable once their input exists. Uses <code>tabs</code> with a status dot. <b>Decision A</b>: tabs; the stepper goes.</span></li>
+          <li><span class="n">3</span><span>One ⓘ per section opens a side panel with all its help, instead of four help links and four hints. No existing component fits: <code>dialog</code> is modal and <code>disclosure</code> opens in place. A new <code>drawer</code> component was approved (Decision E).</span></li>
+          <li><span class="n">4</span><span>One primary button, below the fields it confirms. For the sample, details are filled in, but the button stays below them.</span></li>
+          <li><span class="n">5</span><span>Uses the existing <code>chart_frame</code>, without flags.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 ─────────────────────────────────────────────────────────────── -->
+  <section class="wf" id="quality">
+    <h2>2. Quality: a short worklist</h2>
+    <p class="why">Replaces an 8,300 px page that shows the findings four times and opens red for 5 of 87,660 values. Verdict first, then only what needs a look, smallest set first. Everything else is one click away under Details.</p>
+    <div class="board">
+      <div class="screen">
+        <div class="chrome"><b>Climpact</b><span class="on">Single station</span><span>Batch</span><span>Help</span></div>
+        <div class="inner">
+          <div class="station"><h3>Sydney Observatory Hill</h3><span class="meta">33.86°S 151.21°E · 1936–2015 · base 1971–2000 · <a href="#">Edit</a></span></div>
+          <div class="tabs"><span class="tab">Data <span class="dot" style="background:var(--success)"></span></span><span class="tab on">Quality</span><span class="tab">Results</span><span class="tab">Files</span></div>
+
+          <div class="panel verdict">
+            <p class="big">Usable. 5 values look wrong. <span class="n">1</span></p>
+            <p style="margin:0">Fix them in your file if you can, or go on: they are used as they are. 403 more values are unusual but may be real.</p>
+            <div class="bar" title="share of values"><span style="width:0.6%;background:var(--danger)"></span><span style="width:2.2%;background:var(--warning)"></span></div>
+            <p class="small" style="margin:0">87,660 values checked · 5 look wrong (under 0.01%) · 403 worth a look (0.5%) · 1 year too incomplete for annual values</p>
+            <div class="actions" style="margin-top:14px"><span class="btn primary">Use this data →</span><span class="btn">Upload a corrected file</span><span class="n">2</span></div>
+          </div>
+
+          <div class="panel">
+            <h4>Look wrong <span class="badge b-bad">5</span> <span class="info">i</span></h4>
+            <p class="small" style="margin:0 0 8px">Almost always typing errors or swapped columns. <span class="n">3</span></p>
+            <div class="row"><span class="when">1988-11-16</span><span class="what">Minimum 12.6 °C equals the maximum 12.6 °C</span>
+              <svg viewBox="0 0 140 36" width="140" height="36" aria-label="Week around 1988-11-16"><path d="M0 12 L20 10 L40 14 L60 22 L80 11 L100 13 L120 9 L140 12" fill="none" stroke="#e34948"/><path d="M0 28 L20 27 L40 29 L60 22 L80 28 L100 27 L120 26 L140 28" fill="none" stroke="#2a78d6"/><circle cx="60" cy="22" r="5" fill="none" stroke="#16202b" stroke-width="1.5"/></svg></div>
+            <div class="row"><span class="when">1986-08-06</span><span class="what">Rain 327.6 mm, over the 200 mm limit</span>
+              <svg viewBox="0 0 140 36" width="140" height="36" aria-hidden="true"><path d="M10 34 V30 M30 34 V26 M50 34 V33 M70 34 V3 M90 34 V22 M110 34 V31 M130 34 V33" stroke="#14936a" stroke-width="5"/><circle cx="70" cy="6" r="5" fill="none" stroke="#16202b" stroke-width="1.5"/></svg></div>
+            <div class="row"><span class="when">1990-02-03</span><span class="what">Rain 243.6 mm, over the 200 mm limit</span><span class="small">chart</span></div>
+            <div class="row"><span class="when">1984-11-09</span><span class="what">Rain 234.6 mm, over the 200 mm limit</span><span class="small">chart</span></div>
+            <div class="row"><span class="when">1942-03-28</span><span class="what">Rain 280.7 mm, over the 200 mm limit</span><span class="small">chart</span></div>
+          </div>
+
+          <div class="panel">
+            <h4>Worth a look <span class="badge b-warn">403</span> <span class="info">i</span></h4>
+            <p class="small" style="margin:0 0 8px">Unusual for the time of year. Many are real extremes. Grouped so you can see patterns. <span class="n">4</span></p>
+            <div class="group"><span>Heavy rain days, mostly January to March</span><span class="small">380 · <em>illustrative</em></span><span class="chev">▸</span></div>
+            <div class="group"><span>Hot days (TX), mostly November to February</span><span class="small">11</span><span class="chev">▸</span></div>
+            <div class="group"><span>Wide daily range (DTR), January to March</span><span class="small">4</span><span class="chev">▸</span></div>
+            <div class="group"><span>Large day-to-day changes in TX (20 °C or more)</span><span class="small">4</span><span class="chev">▸</span></div>
+            <div class="group"><span>One year has too much missing data for annual values</span><span class="small">1</span><span class="chev">▸</span></div>
+          </div>
+
+          <p class="small" style="margin:14px 2px"><span class="badge b-ok">✓ 4 checks found nothing</span> repeated dates · TN jumps · repeated TX · repeated TN <span class="n">5</span></p>
+
+          <div class="panel" style="padding:12px 20px"><span class="chev">▸</span> <b>Details</b> <span class="small">daily charts, distributions by month and year, missing days per year, thresholds used (3 / 5 IQR, 200 mm, 50 °C, 20 °C) and how to change them</span> <span class="n">6</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Notes</h4>
+        <ol>
+          <li><span class="n">1</span><span>The verdict says whether the data can be used, not whether anything was found. Amber here: 5 values is under 0.1%. Levels and thresholds: <b>Decision B</b>; on red the buttons swap, and "Use this data anyway" stays available. Built from <code>alert</code> plus a proportion bar (new, small, CSS only).</span></li>
+          <li><span class="n">2</span><span>The one decision on the page sits with the verdict. "Upload a corrected file" opens the file picker; no drop zone at the bottom.</span></li>
+          <li><span class="n">3</span><span>Each likely error has a sparkline of its week with the value ringed, so it can be judged without the 80-year chart. Reuses the results sparkline (<code>_spark.html</code>); clicking opens the full chart zoomed there.</span></li>
+          <li><span class="n">4</span><span>Outliers grouped by variable, direction and season instead of a 16-page table. Opening a group shows its rows and a box plot for those months. Counts are illustrative until computed.</span></li>
+          <li><span class="n">5</span><span>Checks that found nothing: one line, not four cards each with an empty-CSV download.</span></li>
+          <li><span class="n">6</span><span>Everything from today's page stays reachable under Details. QC CSV files move to Files (#176).</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 ─────────────────────────────────────────────────────────────── -->
+  <section class="wf" id="results">
+    <h2>3. Results: findings by theme</h2>
+    <p class="why">Replaces a list sorted by effect size that mixes Mean TN, growing degree days and tropical nights, with codes beside each. Lead with what changed, in the terms people ask about; the full catalogue follows.</p>
+    <div class="board">
+      <div class="screen">
+        <div class="chrome"><b>Climpact</b><span class="on">Single station</span><span>Batch</span><span>Help</span></div>
+        <div class="inner">
+          <div class="station"><h3>Sydney Observatory Hill</h3><span class="meta">1936–2015 · base 1971–2000 · defaults · <a href="#">Adjust and recalculate</a></span><span class="n">1</span></div>
+          <div class="tabs"><span class="tab">Data</span><span class="tab">Quality <span class="dot" style="background:var(--warning)"></span></span><span class="tab on">Results</span><span class="tab">Files</span></div>
+
+          <p style="font-size:17px;margin:0 0 14px"><b>22 of 80 indices changed significantly since 1936.</b> Warmer days and nights; no clear change in rainfall or drought. <span class="n">2</span></p>
+
+          <div class="theme-grid">
+            <div class="panel theme">
+              <h4>Heat <span class="badge b-info">9 of 33 changed</span></h4>
+              <p class="headline">More hot days and warm nights, and more heatwave days.</p>
+              <div class="trend"><span>Hot days <code>TX90p</code></span><b>+0.65 pp/decade</b><svg class="spark" viewBox="0 0 72 20" width="72" height="20"><path d="M0 15 L12 13 L24 14 L36 11 L48 9 L60 7 L72 4" fill="none" stroke="#2a78d6" stroke-width="1.5"/></svg></div>
+              <div class="trend"><span>Tropical nights <code>TR</code></span><b>+4.65 days/decade</b><svg class="spark" viewBox="0 0 72 20" width="72" height="20"><path d="M0 16 L12 15 L24 13 L36 12 L48 9 L60 8 L72 3" fill="none" stroke="#2a78d6" stroke-width="1.5"/></svg></div>
+              <div class="trend"><span>Mean of daily max <code>TXm</code></span><b>+0.19 °C/decade</b><svg class="spark" viewBox="0 0 72 20" width="72" height="20"><path d="M0 14 L12 14 L24 12 L36 11 L48 10 L60 8 L72 6" fill="none" stroke="#2a78d6" stroke-width="1.5"/></svg></div>
+              <a class="link small" href="#">6 more in Heat</a> <span class="n">3</span>
+            </div>
+            <div class="panel theme">
+              <h4>Cold <span class="badge b-info">5 of 12 changed</span></h4>
+              <p class="headline">Fewer cold nights and cool days.</p>
+              <div class="trend"><span>Cold nights <code>TN10p</code></span><b>−1.93 pp/decade</b><svg class="spark" viewBox="0 0 72 20" width="72" height="20"><path d="M0 4 L12 6 L24 7 L36 10 L48 12 L60 14 L72 16" fill="none" stroke="#2a78d6" stroke-width="1.5"/></svg></div>
+              <div class="trend"><span>Cool days <code>TX10p</code></span><b>−1.84 pp/decade</b><svg class="spark" viewBox="0 0 72 20" width="72" height="20"><path d="M0 5 L12 6 L24 9 L36 10 L48 12 L60 13 L72 15" fill="none" stroke="#2a78d6" stroke-width="1.5"/></svg></div>
+              <a class="link small" href="#">3 more in Cold</a>
+            </div>
+            <div class="panel theme quiet">
+              <h4>Rain <span class="badge b-ok">no clear change</span></h4>
+              <p class="headline">None of 14 rainfall indices changed significantly. <span class="n">4</span></p>
+              <a class="link small" href="#">See the 14 rainfall indices</a>
+            </div>
+            <div class="panel theme quiet">
+              <h4>Drought <span class="badge b-ok">no clear change</span></h4>
+              <p class="headline">None of 8 drought indices changed significantly.</p>
+              <a class="link small" href="#">See the 8 drought indices</a>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px;padding:12px 20px">
+            <h5 style="margin:0 0 6px">Also measured <span class="n">7</span></h5>
+            <div class="group"><span><b>Averages</b>: mean TX, TN, TM up; daily range (DTR) no clear change</span><span class="small">+0.19 °C/decade (TMm)</span><span class="chev">▸</span></div>
+            <div class="group"><span><b>Growing season and degree days</b>: more cooling and growing degree days, fewer heating</span><span class="small">3 of 8 changed · <em>illustrative</em></span><span class="chev">▸</span></div>
+            <div class="group"><span><b>Your own index</b>: TN &gt; 0 (TNgt0)</span><span class="small">no clear change · <em>illustrative</em></span><span class="chev">▸</span></div>
+          </div>
+
+          <div class="panel" style="margin-top:16px">
+            <div class="actions" style="justify-content:space-between">
+              <h4 style="margin:0">All 80 indices</h4>
+              <span class="input" style="width:16rem;color:var(--muted)">Filter by name or code</span>
+            </div>
+            <p class="small" style="margin:8px 0 0">The full catalogue as today, by family, collapsed. <span class="n">5</span></p>
+          </div>
+          <div class="actions" style="margin-top:16px"><span class="btn primary">Download all (zip, 8.0 MB)</span><span class="btn ghost">Compare with sector data</span><span class="n">6</span></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Notes</h4>
+        <ol>
+          <li><span class="n">1</span><span>Settings are a line in the station header: "defaults" or what was changed. "Adjust and recalculate" opens the settings form (today's step 3) in place (#178).</span></li>
+          <li><span class="n">2</span><span>One-sentence answer generated from the themes. Template text, not free-form: "Warmer days and nights" comes from which themes changed and in which direction.</span></li>
+          <li><span class="n">3</span><span>Each theme shows its top 3 significant indices by standardised change, with plain names first, units always, and percentage points for percentage indices (#173). Trends are from the Sydney run; the "N of M changed" counts per theme are illustrative until the theme set is agreed.</span></li>
+          <li><span class="n">4</span><span>No change is a finding, shown in a quieter panel. A user checking rainfall learns the answer without opening 14 indices.</span></li>
+          <li><span class="n">5</span><span>Today's family accordions stay as the "browse everything" level, with a filter.</span></li>
+          <li><span class="n">6</span><span>One primary action. Report, plots and single files are in Files (#176). Sector comparison is a tool here, not step 5.</span></li>
+          <li><span class="n">7</span><span>Indices that don't belong to one of the four themes (Decision C): averages and daily range, growing season and degree days, and the user's own index. One line each, opening to their indices.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 ─────────────────────────────────────────────────────────────── -->
+  <section class="wf" id="stale">
+    <h2>4. Workspace: results out of date</h2>
+    <p class="why">Today, changing the file or the base period resets every later step and sends the user back to the start. In the workspace, earlier work stays and is marked out of date; one click brings it up to date.</p>
+    <div class="board">
+      <div class="screen">
+        <div class="chrome"><b>Climpact</b><span class="on">Single station</span><span>Batch</span><span>Help</span></div>
+        <div class="inner">
+          <div class="station"><h3>Sydney Observatory Hill</h3><span class="meta">1936–2015 · base <b>1981–2010</b> (changed) · <a href="#">Edit</a></span></div>
+          <div class="tabs"><span class="tab">Data</span><span class="tab">Quality <span class="dot" style="background:var(--warning)"></span></span><span class="tab on">Results <span class="badge b-warn">out of date</span></span><span class="tab">Files <span class="badge b-warn">out of date</span></span><span class="n">1</span></div>
+
+          <div class="banner"><span><b>You changed the base period to 1981–2010.</b> These results use 1971–2000. <span class="n">2</span></span><span class="actions"><span class="btn primary">Recalculate (about 10 s)</span><span class="btn ghost">Undo the change</span></span></div>
+
+          <div class="stale">
+            <div class="content">
+              <p style="font-size:17px;margin:0 0 14px"><b>22 of 80 indices changed significantly since 1936.</b></p>
+              <div class="theme-grid">
+                <div class="panel"><h4>Heat</h4><p class="small">More hot days and warm nights…</p></div>
+                <div class="panel"><h4>Cold</h4><p class="small">Fewer cold nights and cool days.</p></div>
+              </div>
+            </div>
+          </div>
+          <p class="small" style="margin:12px 2px 0">Quality is unchanged: the base period does not affect the checks, so it keeps its state. <span class="n">3</span></p>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Notes</h4>
+        <ol>
+          <li><span class="n">1</span><span>Each section shows its own state. Only what depends on the change is marked: base period affects Results and Files, not Quality. A new file affects all three.</span></li>
+          <li><span class="n">2</span><span>Old results stay visible, faded, until the new run finishes, so the user can compare. Recalculate replaces them; Undo restores the old details. With speculative calculation (#178) the run can start straight away and the banner shows progress instead.</span></li>
+          <li><span class="n">3</span><span>Staleness is computed from stored inputs (file hash, details, thresholds, settings) for each job, so it holds across tabs and in hosted mode (#179).</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- Decisions ─────────────────────────────────────────────────────── -->
+  <section class="wf" id="decisions">
+    <h2>Decisions (16 November 2026)</h2>
+    <div class="decide">
+      <ol>
+        <li><b>A. Workspace navigation: tabs.</b> Sections are tabs under the station header, each with a status dot. The five-step stepper is removed (#179).</li>
+        <li><b>B. Quality verdict: three levels, and the user can always go on.</b> Only the "look wrong" checks set the level; values that are unusual but may be real are counted in the text and never change it (#174).
+          <ul>
+            <li><b>Green, "Ready to use"</b>: nothing looks wrong. Primary: "Use this data".</li>
+            <li><b>Amber, "Usable. N values look wrong"</b>: up to 0.1% of the values checked look wrong (about 88 in an 80-year record). Primary: "Use this data"; secondary: "Upload a corrected file".</li>
+            <li><b>Red, "Fix the file first"</b>: more than 0.1% look wrong, or more than 10% of years are too incomplete for annual values. Primary: "Upload a corrected file"; secondary: <b>"Use this data anyway"</b>.</li>
+          </ul>
+          A base period with no usable data is already rejected by the station details form, so it never reaches this screen. Both thresholds can be tuned in #174 against the QC stress inputs (<code>reference/make_qc_stress.py</code>). No per-row "checked" state for now.</li>
+        <li><b>C. Themes: Heat, Cold, Rain, Drought, then an "Also measured" strip</b> (#175).
+          <ul>
+            <li><b>Heat</b>: SU, TR, TXge30, TXge35, TXx, TNx, TX90p, TN90p, TX95t, WSDI, WSDId, TXdTNd, and the TX90 and EHF heatwave indices.</li>
+            <li><b>Cold</b>: FD, TNlt2, TNltm2, TNltm20, ID, TNn, TXn, TX10p, TN10p, CSDI, CSDId, TXbdTNbd.</li>
+            <li><b>Rain</b>: PRCPTOT, SDII, R10mm, R20mm, Rnnmm, Rx1day, Rx5day, Rxdday, CWD, R95p, R99p, R95pTOT, R99pTOT.</li>
+            <li><b>Drought</b>: SPI, SPEI and CDD (consecutive dry days).</li>
+            <li><b>Also measured</b>, one compact line each:
+              <ul>
+                <li><b>Averages</b>: TXm, TNm, TMm, TXgt50p and DTR, the daily temperature range. Averages aren't extremes, so they fit neither Heat nor Cold; mean temperature feeds the one-sentence summary.</li>
+                <li><b>Growing season and degree days</b>: GSL, GDDgrow, HDDheat, CDDcold, TMge5, TMlt5, TMge10, TMlt10. These come from the station's temperatures; no crop or energy data is needed.</li>
+                <li><b>Your own index</b>, with its definition (for example "TN &gt; 0"). It could measure anything, so it isn't themed.</li>
+              </ul></li>
+          </ul></li>
+        <li><b>D. Speculative calculation: on in both modes</b>, including climpact.app (#178).</li>
+        <li><b>E. <code>drawer</code> component: approved.</b> A side panel for section help. It isn't modal: it sits beside the content on wide screens and below it on phones. Escape closes it and focus returns to the ⓘ (#177).</li>
+      </ol>
+    </div>
+  </section>
+</div>
+</body>
+</html>

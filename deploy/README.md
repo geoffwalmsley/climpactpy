@@ -8,7 +8,8 @@ finish its first boot.
 
 ```
 visitor ──https──▶ Cloudflare edge ◀──tunnel (outbound only)── cloudflared ──▶ web:8000
-                   (WAF, rate limit)                            └──── the Droplet ────┘
+                   (WAF, rate limit)                              │   /_deploy ──▶ deploy-hook:9000
+                                                                  └──── the Droplet ────┘
 ```
 
 The Droplet accepts **no inbound connections**. `cloudflared` dials out to Cloudflare, and
@@ -22,6 +23,9 @@ by its IP address, so nobody can get around Cloudflare.
 | `.env.example` | The stack's settings. The real `.env` exists only on the Droplet |
 | `cloudflare/*.txt` | The Cloudflare rule expressions, pasted into the dashboard (see [Cloudflare edge settings](#cloudflare-edge-settings)) |
 | `check-edge.sh` | Checks the edge settings from your own computer |
+| `update.sh` | Deploys a release on the Droplet (`/opt/climpact/update.sh X.Y.Z`): files, image, migrations, health check, automatic rollback. The only way to update or roll back |
+| `deploy-hook.py` | The deploy hook: the `deploy-hook` service that the release workflow calls at `https://climpact.app/_deploy` (see [Deploy on release](#deploy-on-release)) |
+| `call-hook.sh` | The workflow's side: signs and sends the deploy request, then waits for `/healthz` to report the version |
 
 The design and the reasons behind it are in `TECHNICAL.md` › Deployment.
 
@@ -107,8 +111,10 @@ docker version && docker compose version     # works without sudo: deploy is in 
 swapon --show                                # /swapfile, 2G
 sudo sshd -T | grep -E '^(permitrootlogin|passwordauthentication|allowusers) '
                                              # no / no / deploy
-ls -la /opt/climpact                         # compose.yaml and .env.example, owned by deploy
+ls -la /opt/climpact                         # update.sh, compose.yaml, .env.example, deploy-hook.py
+                                             # owned by deploy, and hook/ (owner 10001, group deploy)
 systemctl list-timers climpact-image-prune.timer apt-daily-upgrade.timer
+systemctl status climpact-deploy.path        # active (waiting): the deploy hook's watcher
 ```
 
 `ssh root@<droplet-ip>` must be refused.
@@ -138,7 +144,8 @@ November 2026; Cloudflare renames them from time to time.
    - *Additional application settings:* leave the defaults (no Host header override).
    - **Add route**.
    If the page was closed, the same form is under **Networks › Tunnels › climpact ›
-   Published application routes › Add**.
+   Published application routes › Add**. The second route, for the deploy hook, is
+   added in [Deploy on release](#deploy-on-release) › D2.
 5. Cloudflare normally creates the DNS record itself. If it says *"the DNS record could not
    be created automatically"*, a record for `climpact.app` already exists, usually the
    registrar's parking page carried over when DNS moved to Cloudflare. In the zone's
@@ -168,29 +175,31 @@ prints which settings are set, never their values, and it never changes a value 
 already set. Run it again at any time. The secrets exist only in that file: not in the
 repository, not in the user data, not at DigitalOcean.
 
-`CLIMPACT_IMAGE` still reads `...:X.Y.Z` at this point. Step 6 sets it. The other settings
+`CLIMPACT_IMAGE` still reads `...:X.Y.Z` at this point. Step 6 sets it.
+`DEPLOY_WEBHOOK_SECRET` is left empty for now (it shows as `MISSING`): it is set in
+[Deploy on release](#deploy-on-release) › D1. The other settings
 in `.env` (allowed host, upload limit, retention) have the right defaults for
 `climpact.app`, and each one is described in the file.
 
 ## 6. Start the stack: after the release is published (about 5 min)
 
 Use the latest release from <https://github.com/geoffwalmsley/climpactpy/releases> (its
-*Release* workflow must have finished, because that is what pushes the image). The first
-was **v0.1.0**, published on 2026-11-15.
+*Release* workflow must have finished, because that is what pushes the image), written
+without the `v`:
 
 ```sh
-climpact-use v0.1.0
-cd /opt/climpact && docker compose up -d --wait
-docker compose ps        # db, web, worker, purge, cloudflared up; migrate exited (0)
+/opt/climpact/update.sh 0.1.2
+cd /opt/climpact && docker compose ps   # db, web, worker, purge, deploy-hook, cloudflared up
 ```
 
-`climpact-use vX.Y.Z` is how the image tag is pinned. It fetches `compose.yaml` and
-`.env.example` from the release's git tag, sets
-`CLIMPACT_IMAGE=ghcr.io/geoffwalmsley/climpact-web:X.Y.Z` in `.env`, and pulls that image.
-The Compose file and the image therefore always come from the same release. You can also
-edit the `CLIMPACT_IMAGE` line by hand. The image tag is the version without the `v`
-(`0.1.0`). `latest` follows the last final release, but a pinned version is the better
-choice, because the site then changes only when someone deploys a new one.
+`update.sh X.Y.Z` is the one way to put a release on the Droplet. It fetches
+`compose.yaml`, `.env.example`, `deploy-hook.py` and `update.sh` itself from the release's
+git tag, pulls `ghcr.io/geoffwalmsley/climpact-web:X.Y.Z`, pins `CLIMPACT_IMAGE` to it in
+`.env`, runs the migrations, starts the stack and waits until `/healthz` reports `X.Y.Z`.
+The Compose file and the image therefore always come from the same release. Don't edit the
+`CLIMPACT_IMAGE` line by hand, and don't use `latest`: the site should change only when a
+release is deployed. On the very first deploy a failure leaves the stack as it is (there is
+nothing to roll back to); read the messages and `docker compose logs web`.
 
 If the pull fails with *denied* or *unauthorized*, the package may still be private (a
 package created by a workflow can start private): on GitHub open the profile's
@@ -205,7 +214,7 @@ From your computer:
 
 ```sh
 curl -sS https://climpact.app/healthz
-# {"status": "ok", "database": "ok", "version": "0.1.0", ...}: the release's version
+# {"status": "ok", "database": "ok", "version": "0.1.2", ...}: the release's version
 curl -sSI http://climpact.app/ | head -n 3      # a redirect to https://
 ```
 
@@ -248,7 +257,7 @@ builder's *Value* box makes a rule that matches only that literal path, which ne
 the app serves (`packages/climpact-web/tests/test_deploy_files.py`). If the app gains a URL
 that starts a job, add it to `rate-limit.txt` and paste the expression again.
 
-What the free plan allows, and what this uses: 5 WAF custom rules (2 used), 1 rate
+What the free plan allows, and what this uses: 5 WAF custom rules (3 used), 1 rate
 limiting rule (1), 10 cache rules (2), 10 redirect rules (1).
 
 ### E1. HTTPS and TLS (2 min)
@@ -322,14 +331,22 @@ configure it further.
 
 ### E5. WAF custom rules (5 min)
 
-**Security › Security rules › Create rule › Custom rules**, twice:
+**Security › Security rules › Create rule › Custom rules**, three times:
 
 | Rule name | Edit expression: paste the **contents** of | Action |
 | --- | --- | --- |
+| `Let the deploy call through` | `deploy/cloudflare/waf-skip-deploy.txt` | **Skip** (see below) |
 | `Block scanner paths` | `deploy/cloudflare/waf-block.txt` | **Block** |
 | `Challenge admin paths` | `deploy/cloudflare/waf-challenge.txt` | **Managed Challenge** |
 
-**Deploy** each one. `waf-block.txt` blocks paths the app never serves: `*.php`, `*.asp`,
+**Deploy** each one. The skip rule (#126) matches only `POST /_deploy`, the release
+workflow's call to the deploy hook, which comes from a GitHub Actions runner in a cloud
+provider's address range and could otherwise be challenged. For its action choose
+**Skip**, and tick **All remaining custom rules**, **All rate limiting rules** and **All
+managed rules**, and under *More components to skip* (if offered) **Browser Integrity
+Check** and **Security Level**. Keep **Log matching requests** on. It must be **first** in
+the list of custom rules (drag it to the top, or use *Place at: First*). It lets nothing
+else through: the hook still checks the request's signature, and refuses everything else. `waf-block.txt` blocks paths the app never serves: `*.php`, `*.asp`,
 `*.aspx`, `*.jsp` and `*.cgi`, WordPress paths (`/wp-*`, `.../wp-admin`, `wp-content`,
 `wp-includes`), `/cgi-bin/`, and any path segment starting with a dot (`/.env`,
 `/.git/...`), except `/.well-known/`. `waf-challenge.txt` challenges `/admin*` (the app has
@@ -391,11 +408,16 @@ visitor's session and must never be cached. The app also marks every such answer
 **Security › Settings**, filter **Bot traffic** › **Bot fight mode:** On.
 
 Bot Fight Mode challenges traffic that Cloudflare scores as automated. It **cannot be
-skipped** by a custom rule, so nothing exempts the app's own requests. It also injects a
-small script into the HTML pages (JavaScript detections, under `/cdn-cgi/challenge-platform/`).
-The app sets no Content-Security-Policy, so nothing blocks that script. If one is ever
-added, it must allow that path. A real browser that loaded the page passes the
-detections, so its htmx requests carry the clearance and aren't challenged.
+skipped** by a custom rule, so nothing exempts the app's own requests, nor the release
+workflow's call to the deploy hook (see [Deploy on release](#deploy-on-release) › D5). It
+also injects a small script into the HTML pages (JavaScript detections, under
+`/cdn-cgi/challenge-platform/`). The app's Content Security Policy (#137) allows
+same-origin scripts (`script-src 'self'`), which covers files under that path, but no
+inline script: if the browser console shows a Content Security Policy violation for
+Cloudflare's script (E9's report-only check shows it without blocking anything), the
+detections are blocked, so report it in an issue. A real browser that loaded the page and
+passed the detections sends the clearance with its htmx requests, so they aren't
+challenged.
 
 **What to watch for (htmx):** htmx swaps in only 2xx answers. If the edge ever answers a
 poll with a challenge (HTTP 403 and the header `cf-mitigated: challenge`) or a 429, htmx
@@ -522,18 +544,163 @@ the pages in a browser instead (E8), and run the script from another network if 
 clean run. Then do the browser walk-through of E8 and record the date and the results in
 #124.
 
-## Running it
+## Deploy on release
 
-**Update to a new release** (until #126 deploys releases automatically): open SSH as in
-step 2, then
+Publishing a **final** GitHub Release deploys it to climpact.app by itself (#126). A merge
+to `main` or a pre-release deploys nothing. The release workflow's last job, `deploy`,
+sends a signed request to `https://climpact.app/_deploy`. The tunnel passes it to the
+`deploy-hook` service, which checks the signature and leaves the version in
+`/opt/climpact/hook/request`. A systemd unit on the Droplet (`climpact-deploy.path`) sees
+the file and runs `/opt/climpact/update.sh X.Y.Z` as `deploy`, one deploy at a time:
+
+1. fetch the release's `compose.yaml`, `.env.example`, `deploy-hook.py` and `update.sh`,
+   and pull its image (if this fails, nothing has changed);
+2. run the migrations, then `docker compose up -d --wait`;
+3. ask `/healthz` inside the `web` container until it reports `X.Y.Z` (3 minutes at most);
+4. if 2 or 3 fails, put the previous release back and log **ROLLED BACK**;
+5. remove old app images (the new and the previous one are kept).
+
+Meanwhile the `deploy` job polls `https://climpact.app/healthz` and goes green only once
+it reports the new version (10 minutes at most). A rolled-back deploy fails the job. The
+Droplet still accepts **no inbound connections**: the request comes through the tunnel.
+Design and details: `TECHNICAL.md` › Deployment › Deploy on release.
+
+Set it up once, in this order (about 20 minutes). D1–D3 are in GitHub and Cloudflare; D4
+needs SSH (step 2's temporary rule).
+
+### D1. The secret, on both sides (5 min)
+
+The request is signed with a shared secret, `DEPLOY_WEBHOOK_SECRET`. Make it on your own
+computer, and never put it in the repository, an issue or a chat:
 
 ```sh
-climpact-use vX.Y.Z && cd /opt/climpact && docker compose up -d --wait
+openssl rand -hex 32        # copy the output; it is the secret
 ```
 
-and close SSH again. Migrations run on their own (the `migrate` service) before `web` and
-`worker` start. **Roll back** the same way with the earlier version. Release images stay on
-ghcr.io, and a database migration that cannot be undone will say so in the release notes.
+1. **GitHub › the repository › Settings › Environments › New environment**: name
+   **`production`**. Under *Deployment branches and tags* choose **Selected branches and
+   tags** › *Add deployment branch or tag rule* › **Ref type: Tag**, pattern **`v*`**.
+   No reviewers (the job should run unattended). Under **Environment secrets › Add
+   environment secret**: name `DEPLOY_WEBHOOK_SECRET`, value the secret. Save.
+   The tag rule means only a run for a release tag can use the environment and read the
+   secret.
+2. **On the Droplet** (in D4): `nano /opt/climpact/.env` and set
+   `DEPLOY_WEBHOOK_SECRET=<the secret>` (add the line if the file predates #126).
+
+Keep it in the password manager too (one item, `climpact.app deploy hook`). To rotate it,
+see [Running it](#running-it) › *Rotate a secret*.
+
+### D2. The tunnel route for `/_deploy` (3 min)
+
+**Zero Trust › Networks › Tunnels › climpact › Published application routes › Add**:
+
+- **Subdomain:** empty. **Domain:** `climpact.app`. **Path:** **`_deploy`**.
+- **Service URL:** **`http://deploy-hook:9000`**.
+- **Add route** (or *Save*).
+
+Routes are matched **top to bottom**, so the new one must be **above** the existing
+`climpact.app` route without a path (`http://web:8000`), or the request goes to the app.
+If it was added below, drag it up; if the dashboard can't reorder, delete the catch-all
+route and add it again (same values as step 4.4), so that it comes last. The path is a
+regular expression matched anywhere in the path; the app has no other path containing
+`_deploy`, and the hook answers 404 to anything but exactly `/_deploy`. No new DNS record
+is needed.
+
+### D3. The Cloudflare skip rule (3 min)
+
+Add the custom rule **`Let the deploy call through`** from E5
+(`deploy/cloudflare/waf-skip-deploy.txt`, action **Skip**, first in the list). No other
+rule needs changing: none of the block, challenge, rate-limit or cache rules matches
+`POST /_deploy` (tested), and the *Bypass everything else* cache rule plus the hook's
+`Cache-Control: no-store` keep it out of the cache.
+
+### D4. On the Droplet: the hook and its watcher (5 min)
+
+A Droplet created from this `cloud-init.yaml` already has `update.sh`, the drop folder and
+the systemd units; skip to the `.env` line. The Droplet made before #126 needs them once.
+Open SSH (step 2's rule), then as `deploy`:
+
+```sh
+cd /opt/climpact
+curl -fsSL https://raw.githubusercontent.com/geoffwalmsley/climpactpy/main/deploy/update.sh -o update.sh
+chmod 0755 update.sh
+sudo ./update.sh --install-hook     # hook/ and climpact-deploy.path; prints "installed"
+sudo rm -f /usr/local/bin/climpact-use   # replaced by update.sh
+nano .env                           # DEPLOY_WEBHOOK_SECRET=<the secret from D1>
+./update.sh --fetch main            # main's compose.yaml, with the deploy-hook service
+docker compose up -d --wait         # starts deploy-hook; the app keeps its image
+docker compose ps                   # deploy-hook up
+systemctl status climpact-deploy.path   # active (waiting)
+```
+
+`--fetch main` changes only the Compose files (the next release replaces them with its
+own); `CLIMPACT_IMAGE` stays as it is. Close SSH again.
+
+### D5. Check it (5 min, then one release)
+
+From your own computer, a request without a valid signature must be refused **by the
+hook** (the JSON says `"hook": "climpact-deploy"`) and change nothing:
+
+```sh
+curl -sS -i -X POST https://climpact.app/_deploy -d '{"version": "0.0.0"}' | sed -n '1p;$p'
+# HTTP/2 401
+# {"hook": "climpact-deploy", "status": "bad signature"}
+curl -sS -o /dev/null -w '%{http_code}\n' https://climpact.app/_deploy    # 405
+bash deploy/check-edge.sh            # still all PASS
+```
+
+| You get | Meaning |
+| --- | --- |
+| 401 with `"hook": "climpact-deploy"` | Right. |
+| 503 with `"hook": "climpact-deploy"` | The hook has no secret: D1 step 2, then `docker compose up -d deploy-hook`. |
+| 404 (the app's HTML page), or any answer without `"hook"` | The request reached the app: the route (D2) is missing or below the catch-all. |
+| 502 or 530 from Cloudflare | The route exists but `deploy-hook` isn't running: `docker compose ps`, `docker compose logs deploy-hook`. |
+| 403 with header `cf-mitigated: challenge` | Cloudflare challenged it from your network (see below). |
+
+Then **publish a patch release** (`RELEASING.md`). After `publish`, the `deploy` job runs:
+*Ask the Droplet to deploy* should print `HTTP 202`, and *Wait for climpact.app to report
+the version* should end with `climpact.app runs X.Y.Z`. To watch the Droplet side, open
+SSH and run `journalctl -u climpact-deploy -f`.
+
+**If the job says Cloudflare challenged the request:** Bot Fight Mode (E8) is classing
+`curl` from GitHub's runners as a bot. It can't be exempted on the free plan, so turn it
+**off** (**Security › Settings › Bot traffic › Bot fight mode**), record that in #126, and
+**re-run** the `deploy` job. The signature, the rate limit and Turnstile still protect the
+site.
+
+### Deploying and rolling back by hand
+
+- **Again, or after fixing something:** in GitHub Actions, open the release's *Release*
+  run and **Re-run** the `deploy` job. It deploys the same version again.
+- **A specific version** (also to roll back): open SSH, `/opt/climpact/update.sh X.Y.Z`.
+  It prints each step and ends with `deployed X.Y.Z` or **ROLLED BACK**. Releases 0.1.1
+  and older lack the deploy hook: rolling back to one keeps the current `deploy-hook.py`
+  and `update.sh`, but its `compose.yaml` has no `deploy-hook` service, so the next
+  release must then be deployed by hand.
+- **Migrations are not undone** by a rollback. A release whose migrations the previous
+  release can't work with says so in its notes, and rolling it back then needs a database
+  restore.
+
+**When a deploy fails** (the `deploy` job is red):
+
+| The job says | Look at |
+| --- | --- |
+| *refused the signature* | The two copies of `DEPLOY_WEBHOOK_SECRET` (D1) differ, or the Droplet's clock is off by over 5 minutes (`timedatectl`). |
+| *not from the deploy hook* / *the tunnel could not reach* | D2 and `docker compose ps` (D5's table). |
+| *still reports X after 600 s* | The Droplet rolled back or is still working: `journalctl -u climpact-deploy`, `tail -n 50 /opt/climpact/deploy.log`, `docker compose logs --tail 100 web`. **ROLLED BACK** means the old release is serving again. |
+
+Each deploy's steps go to the journal (`journalctl -u climpact-deploy` for the hook's
+deploys, `journalctl -t climpact-deploy` for those run by hand) and one line each to
+`/opt/climpact/deploy.log`.
+
+## Running it
+
+**Update to a new release:** publish it. The release workflow deploys every final
+release by itself (see [Deploy on release](#deploy-on-release)). To deploy or roll back by
+hand, re-run the release's `deploy` job in GitHub Actions, or open SSH as in step 2 and
+run `/opt/climpact/update.sh X.Y.Z` (an earlier version to roll back; release images stay
+on ghcr.io), then close SSH. A database migration that the previous release can't work
+with will say so in the release notes.
 
 **Get a shell when the firewall is closed** (break glass):
 - Usual way: add the temporary SSH rule for your IP (step 2), then `ssh deploy@<ip>`.
@@ -575,7 +742,7 @@ and the stack comes back by itself (`restart: unless-stopped`). Docker's `live-r
 keeps the containers running while Docker itself is upgraded. A weekly timer
 (`climpact-image-prune.timer`) deletes images no container has used for 30 days. Expired
 jobs are purged by the stack itself (the worker every hour, the `purge` service daily).
-Nothing updates the app: that is a release (#126).
+Nothing updates the app except a release (see [Deploy on release](#deploy-on-release)).
 
 **Rotate a secret:**
 - Tunnel token: in Cloudflare open the tunnel › **Refresh token** (or create a new
@@ -585,13 +752,17 @@ Nothing updates the app: that is a release (#126).
   the new one in `.env`, then `docker compose up -d`.
 - Django secret key: replace it in `.env` and `docker compose up -d`. This signs out any
   open sessions, nothing else.
+- Deploy hook secret: make a new one (`openssl rand -hex 32`), set it in GitHub (D1)
+  and in `.env`, then `docker compose up -d deploy-hook`. Until both match, deploys fail
+  with *refused the signature* and nothing else changes.
 - Postgres password: the database keeps the password it was created with, so changing
   `.env` alone breaks the app. Change it inside Postgres first
   (`docker compose exec db psql -U climpact -c "ALTER USER climpact PASSWORD '<new>'"`),
   then in `.env`, then `docker compose up -d`.
 
-**Start again from nothing:** destroy the Droplet and repeat steps 1–3 and 5–8. The
-Cloud Firewall (by tag) and the tunnel stay. The tunnel's token is shown again under the
+**Start again from nothing:** destroy the Droplet and repeat steps 1–3 and 5–8, and D1
+(the secret in the new `.env`; GitHub keeps its copy). The Cloud Firewall (by tag), the
+tunnel and its routes stay. The tunnel's token is shown again under the
 tunnel's **Configure** page (the Docker install command), or use **Refresh token**.
 
 ## Moving it to other accounts (handover)

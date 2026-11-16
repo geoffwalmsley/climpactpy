@@ -16,6 +16,8 @@ and then PyPI, attaches the built files to the release, and pushes the
   `latest`, so they don't deploy.
 - Releases go to TestPyPI, then, after the maintainer approves the `pypi` deployment, to
   PyPI. The image is pushed as `X.Y.Z` and `latest`.
+- A final release is then **deployed to climpact.app** by the workflow's last job,
+  `deploy` (#126; `deploy/README.md` › "Deploy on release"); pre-releases are not.
 - No API token exists anywhere: both indexes accept uploads from `release.yml` through
   **Trusted Publishing** (OpenID Connect), and the image is pushed with the workflow's own
   `GITHUB_TOKEN`.
@@ -96,6 +98,10 @@ In the repository, *Settings → Environments → New environment*:
 The tag rule means only a run for a `v*` tag (a release) can use the environment, so no
 branch or pull request can reach the publish jobs. Add no secrets to either environment.
 
+A third environment, **`production`**, belongs to the `deploy` job: the same tag rule, no
+reviewers, and the environment secret `DEPLOY_WEBHOOK_SECRET`. Its setup, with the
+Droplet and Cloudflare sides, is in `deploy/README.md` › "Deploy on release".
+
 Optionally, a tag ruleset (*Settings → Rules → Rulesets → New tag ruleset*, target
 `v*`, restrict creations, updates and deletions, bypass for yourself) stops anyone else
 from creating release tags.
@@ -142,6 +148,10 @@ The same steps for every version; the first two are below.
      `pypi`, *Approve and deploy*.
    - `assets` attaches the four files to the GitHub Release; `image` builds, smoke-tests
      and scans the image; `publish` pushes it to ghcr.io.
+   - `deploy` (final releases only) asks climpact.app to deploy the version and waits
+     until `https://climpact.app/healthz` reports it. If it fails, see
+     `deploy/README.md` › "Deploy on release"; the site keeps (or rolls back to) the
+     previous release.
 
 4. **Check** the result:
 

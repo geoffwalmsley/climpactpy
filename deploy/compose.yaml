@@ -1,8 +1,8 @@
 # The hosted climpact-web stack on one Droplet (#121): web, worker, Postgres, the daily
-# purge and the Cloudflare Tunnel connector. See TECHNICAL.md › Deployment › Compose stack.
+# purge, the deploy hook (#126) and the Cloudflare Tunnel connector. See TECHNICAL.md › Deployment › Compose stack.
 #
 #   cp .env.example .env && chmod 600 .env   # then fill it in
-#   docker compose --profile tunnel up -d    # on the Droplet
+#   docker compose --profile tunnel up -d    # on the Droplet (update.sh does this)
 #   docker compose up -d                     # without the tunnel (local testing)
 #
 # Nothing publishes a port on the host: the app is reached only through the tunnel, which
@@ -112,8 +112,12 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    # SIGTERM interrupts the running job and queues it again; give it time to do so.
-    stop_grace_period: 30s
+    # SIGTERM (a deploy, a reboot) sets the worker's stop flag: the running job stops at
+    # its next progress step and is queued again, and the next worker runs it. A stage
+    # that reports no progress can't be interrupted, so allow two minutes; past that,
+    # Docker kills the worker, and the next one marks the job failed (no heartbeat for
+    # JOB_STALE_SECONDS) with a retry offered.
+    stop_grace_period: 120s
     deploy:
       resources:
         limits:
@@ -145,8 +149,37 @@ services:
         limits:
           memory: 512m
 
+  # The deploy hook (#126): https://climpact.app/_deploy, routed here by the tunnel. It
+  # checks the release workflow's signature and drops the version into ./hook, where
+  # the host's climpact-deploy.path unit picks it up and runs update.sh. The hook itself
+  # runs nothing, has no route out and no Docker socket. Same Python base image as the
+  # app's Dockerfile (pinned by tag and digest; update both together), so its layers are
+  # already on the Droplet. ./hook comes from `sudo update.sh --install-hook`.
+  deploy-hook:
+    image: python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+    command: ["python", "-I", "/opt/deploy-hook.py"]
+    restart: unless-stopped
+    user: "10001:10001"
+    environment:
+      # Not `:?`: without it the hook answers 503 and the rest of the stack still runs.
+      DEPLOY_WEBHOOK_SECRET: ${DEPLOY_WEBHOOK_SECRET:-}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./deploy-hook.py:/opt/deploy-hook.py:ro
+      - ./hook:/run/hook
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    logging: *logging
+
   # The Cloudflare Tunnel connector: dials out to Cloudflare and forwards the public
-  # hostname (configured on the tunnel, in Cloudflare) to http://web:8000. Off unless the
+  # hostname (configured on the tunnel, in Cloudflare) to http://web:8000, and its path
+  # _deploy to http://deploy-hook:9000. Off unless the
   # `tunnel` profile is on, so the stack runs locally without a tunnel token.
   cloudflared:
     image: cloudflare/cloudflared:2026.11.0@sha256:b94b96edf2c9c4360f8879c8580cfaa99077f19c849ec595ca2f711b27d4f344
@@ -170,8 +203,8 @@ services:
     logging: *logging
 
 networks:
-  # No route out: the database, the worker and the one-off jobs talk only to each other,
-  # to web and to cloudflared (web also joins egress, for Turnstile).
+  # No route out: the database, the worker, the deploy hook and the one-off jobs talk
+  # only to each other, to web and to cloudflared (web also joins egress, for Turnstile).
   backend:
     internal: true
   # The way out to the internet: cloudflared's to Cloudflare, and web's for Turnstile.

@@ -87,7 +87,9 @@ deploy/              the hosted stack on one Droplet (#121): `compose.yaml` and
                      `cloud-init.yaml` and the runbook `README.md` (#123; see
                      [Hosting: Droplet and tunnel](#hosting-droplet-and-tunnel)); the
                      Cloudflare rule expressions `cloudflare/*.txt` and `check-edge.sh`
-                     (#124; see [Cloudflare edge](#cloudflare-edge))
+                     (#124; see [Cloudflare edge](#cloudflare-edge)); `update.sh`,
+                     `deploy-hook.py` and `call-hook.sh`, which deploy a release (#126;
+                     see [Deploy on release](#deploy-on-release))
 scripts/image.sh     builds, smoke-tests, scans, tags and pushes the image, for CI and
                      releases (#122; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio))
 .github/workflows/   `ci.yml` (every pull request and main), `image.yml` (the image job
@@ -3151,8 +3153,9 @@ docker compose up -d --wait                           # without the tunnel, e.g.
 | `db` | `postgres:16-alpine`, data in the `pgdata` volume, health check `pg_isready` | 192 MB |
 | `migrate` | the image's `migrate` role once, after `db` is healthy; exits 0 | 512 MB |
 | `web` | the `web` role; the image's `/healthz` health check | 768 MB |
-| `worker` | the `worker` role (one `runworker`); 30 s to stop, so the running job is queued again | 1 GB |
+| `worker` | the `worker` role (one `runworker`); 120 s to stop, so the running job is queued again (see [Deploy on release](#deploy-on-release)) | 1 GB |
 | `purge` | a shell loop: the `purge` role (`purgejobs`) at start and then every 24 h | 512 MB |
+| `deploy-hook` | `deploy/deploy-hook.py` (bind-mounted, read-only) on the app Dockerfile's `python:3.12-slim` base image, as uid 10001; drops deploy requests into `./hook` (#126, [Deploy on release](#deploy-on-release)) | 64 MB |
 | `cloudflared` | `cloudflare/cloudflared` `tunnel --no-autoupdate run`, only with the `tunnel` profile; starts once `web` is healthy | 128 MB |
 
 `web` and `worker` start only after `migrate` has succeeded
@@ -3165,19 +3168,22 @@ caps, not reservations: they stop one runaway job from taking Postgres and the w
 with it, and the Droplet's swap covers short peaks. Measured with the stack idle after a
 Sydney run (arm64): web 283 MiB, worker 375 MiB, Postgres 41 MiB, `purge` 7 MiB.
 
-**Images.** Postgres and cloudflared are pinned by tag and digest in `compose.yaml` (update
-both together). The app image comes from `CLIMPACT_IMAGE` in `.env`:
-`ghcr.io/geoffwalmsley/climpact-web` with a release's version tag, or `latest` (the last
-final release; see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)). The package
+**Images.** Postgres, cloudflared and the deploy hook's Python are pinned by tag and digest
+in `compose.yaml` (update both together; the hook's is the `Dockerfile`'s `PYTHON_IMAGE`,
+and a test checks they match, so its layers are already on the Droplet). The app image
+comes from `CLIMPACT_IMAGE` in `.env`: `ghcr.io/geoffwalmsley/climpact-web` with a
+release's version tag, pinned by `update.sh` (see [Deploy on release](#deploy-on-release)
+and [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)). The package
 is public, so the Droplet pulls it without credentials. Compose never builds it.
 
 **Networks and ports.** No service publishes a port on the host. The app containers and
 `db` share `backend`, an `internal` network with no route out. Two services are also on
 `egress`: `cloudflared`, to dial out to Cloudflare, and `web`, to check Turnstile tokens
-with `challenges.cloudflare.com` (#125). The worker, `migrate`, `purge` and `db` have no
-route out. The tunnel's public hostname (`climpact.app`) is
-routed to `http://web:8000` in the tunnel's configuration at Cloudflare (#123), so the
-Droplet needs no inbound traffic at all.
+with `challenges.cloudflare.com` (#125). The worker, `migrate`, `purge`, `deploy-hook`
+and `db` have no route out. The tunnel's public hostname (`climpact.app`) is
+routed to `http://web:8000` in the tunnel's configuration at Cloudflare (#123), and its
+path `_deploy` to `http://deploy-hook:9000` (#126), so the Droplet needs no inbound
+traffic at all.
 
 **Hardening.** The app containers and `db` run with a read-only root filesystem; the app
 gets a 256 MB tmpfs at `/tmp` and the `media` volume (job folders, shared by `web`,
@@ -3191,7 +3197,7 @@ gets `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS` (default `climpact.
 `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` (default `https://climpact.app`),
 `CLIMPACT_WEB_HSTS_SECONDS` (default `31536000`), `CLIMPACT_WEB_MAX_UPLOAD_MB`,
 `CLIMPACT_WEB_RETENTION_DAYS`, `CLIMPACT_WEB_LOG_LEVEL` and `DATABASE_URL`; `db` gets `POSTGRES_PASSWORD`; `cloudflared`
-gets `TUNNEL_TOKEN`. `DATABASE_URL` defaults to
+gets `TUNNEL_TOKEN`; `deploy-hook` gets `DEPLOY_WEBHOOK_SECRET` (#126). `DATABASE_URL` defaults to
 `postgres://climpact:${POSTGRES_PASSWORD}@db:5432/climpact`, so the password is set once
 and must be URL-safe (`openssl rand -hex 32`). `CLIMPACT_IMAGE`, the secret key and the
 password are required (Compose stops with a message); `TUNNEL_TOKEN` is not, because
@@ -3256,13 +3262,15 @@ the metadata service and is stored by DigitalOcean. cloud-init:
 | Docker | Docker's apt repository; `climpact-bootstrap` downloads the signing key and stops unless the file holds exactly one primary key with fingerprint `9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88`; then `docker-ce`, `containerd.io`, `docker-compose-plugin`. `daemon.json`: `live-restore`, `json-file` logs rotated at 10 MB × 3 |
 | Swap | 2 GB `/swapfile`, `vm.swappiness = 10` |
 | Updates | `unattended-upgrades` daily for Ubuntu's security pocket and Docker's repository (`origin=Docker,label=Docker CE`), reboot at 03:30 UTC when needed; `live-restore` keeps the containers up while Docker upgrades |
-| `/opt/climpact` | owned by `deploy`, 0750; `compose.yaml` and `.env.example` fetched from `main` at first boot |
-| `climpact-use vX.Y.Z` | fetches `compose.yaml` and `.env.example` from that release's tag, pulls `ghcr.io/geoffwalmsley/climpact-web:X.Y.Z` and sets `CLIMPACT_IMAGE` to it in `.env`, so the Compose file and the image come from the same release; `climpact-use main` fetches the files only |
+| `/opt/climpact` | owned by `deploy`, 0750; `update.sh` fetched from `main` at first boot, which then fetches `compose.yaml`, `.env.example` and `deploy-hook.py` from `main` (`update.sh --fetch main`) |
+| `update.sh --install-hook` | the deploy hook's drop folder `/opt/climpact/hook` (uid 10001, group `deploy`, 2770) and the systemd units `climpact-deploy.path` and `climpact-deploy.service` (#126; see [Deploy on release](#deploy-on-release)) |
+| `update.sh X.Y.Z` | deploys release `vX.Y.Z`: its Compose files and image, migrations, health check, rollback (#126). It replaced #123's `climpact-use vX.Y.Z`, which only fetched the files and pinned the image |
 | `climpact-init-env` | makes `.env` (0600, `deploy`) from `.env.example` and fills only empty values: a new secret key (`secrets.token_urlsafe(50)`), Postgres password (`openssl rand -hex 32`), `COMPOSE_PROFILES=tunnel` (so a plain `docker compose up` includes `cloudflared`), and the tunnel token at a hidden prompt; prints which values are set, never the values |
 | `climpact-image-prune.timer` | weekly `docker image prune --all --filter until=720h` |
 
 The ticket's "purge timer" is the Compose `purge` service (see [Compose stack](#compose-stack)),
-and app updates are releases (#126), so cloud-init installs no timer for either. No host
+and app updates are releases, which the release workflow pushes to the Droplet's deploy
+hook (#126), so cloud-init installs no timer for either. No host
 firewall (ufw): the DigitalOcean Cloud Firewall has no inbound rules (one SSH rule for the
 admin's IP only while it is needed), applied by the tag `climpact`, so a new Droplet is
 covered from its first boot. Nothing publishes a port, and the tunnel is outbound. The
@@ -3283,9 +3291,9 @@ gives `permitrootlogin no`, `passwordauthentication no`, `allowusers deploy`. Th
 cloud-init error was `set_passwords`, which needs systemd. This test found that Docker's
 key file holds a subkey with its own `fpr` line, and the check compares only the primary
 key. `climpact-init-env` filled the secrets, kept the Postgres password on a second run,
-and left `.env` at 0600. `climpact-use v0.1.0` stopped with a clear message, because the
-release does not exist yet; with `curl` and `docker` stubbed it pinned `CLIMPACT_IMAGE` and
-replaced the pin on the next version. `docker compose config --services` lists
+and left `.env` at 0600. `climpact-use v0.1.0` (since replaced by `update.sh`, #126)
+stopped with a clear message, because the release did not exist yet; with `curl` and
+`docker` stubbed it pinned `CLIMPACT_IMAGE` and replaced the pin on the next version. `docker compose config --services` lists
 `cloudflared` once `COMPOSE_PROFILES=tunnel` is in `.env`. Not yet tested on a real
 Droplet: swap, the services, unattended upgrades, the tunnel and the closed IP. Those are
 the runbook's steps 3, 7 and 8, done once v0.1.0 (#131) has published the first image.
@@ -3301,7 +3309,7 @@ expression editor), and `deploy/check-edge.sh` checks the result from outside wi
 | --- | --- |
 | TLS | Always Use HTTPS; minimum TLS 1.2; Cloudflare's HSTS off (the app sends `max-age=31536000; includeSubDomains`) |
 | `www` | proxied `AAAA www → 100::` placeholder and a 301 redirect rule `http*://www.climpact.app/*` → `https://climpact.app/${2}`, query string kept |
-| WAF | Cloudflare Free Managed Ruleset; custom rules: block `waf-block.txt` (`*.php` and similar, WordPress paths, `/cgi-bin/`, dot segments except `/.well-known/`), managed challenge `waf-challenge.txt` (`/admin*`, `/patterns/`) |
+| WAF | Cloudflare Free Managed Ruleset; custom rules: skip `waf-skip-deploy.txt` (`POST /_deploy`, first: skips the other custom rules, the managed rules, rate limiting, Browser Integrity Check and Security Level; #126), block `waf-block.txt` (`*.php` and similar, WordPress paths, `/cgi-bin/`, dot segments except `/.well-known/`), managed challenge `waf-challenge.txt` (`/admin*`, `/patterns/`) |
 | Rate limit | the one free rule: `rate-limit.txt`, 10 requests per 10 s per IP, then block (429) for 10 s |
 | Bots | Bot Fight Mode on |
 | Cache | `/static/*` eligible for cache, edge TTL from `Cache-Control`; everything else bypasses the cache |
@@ -3310,17 +3318,192 @@ expression editor), and `deploy/check-edge.sh` checks the result from outside wi
 The free plan's rate-limiting rule can match the path, but **not the method**, so a rule on
 "POSTs to `/station/`" would also count the htmx polls (`.../progress`, about once a second
 while a job runs) and the htmx validation POSTs. `rate-limit.txt` therefore lists the
-exact paths that take an upload or start a job. `test_deploy_files.py` reads the five
+exact paths that take an upload or start a job. `test_deploy_files.py` reads the six
 expression files with a small evaluator (`wildcard`: whole value, case-insensitive;
-`contains`; `and`/`or`/`not`), runs them against a sample path for every URL pattern of
+`contains`; `eq` on the path or the method; `and`/`or`/`not`), runs them against a sample path for every URL pattern of
 the app, and checks that the rate limit counts exactly the job-starting views, that the
-WAF rules match no page except `/patterns/`, and that only `/static/` is cached. A new
+WAF rules match no page except `/patterns/`, that only `/static/` is cached, and that the
+deploy hook's `POST /_deploy` is matched by the skip rule and by no block, challenge or
+rate-limit rule (and the skip rule by nothing the app serves). A new
 job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this, and to turn Bot Fight Mode off if it happens to real visitors. The same test checks
 that `.env.example` and the `compose.yaml` default send HSTS for a year, and keep
 `CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies.
+
+#### Deploy on release
+
+Publishing a final GitHub Release deploys it to climpact.app with no manual step (#126;
+user decisions: merges to `main` never deploy, 2026-11-14; the release workflow calls a
+webhook through the existing tunnel rather than the Droplet polling, 2026-11-15). The
+Droplet still accepts no inbound connections: the call comes in through the Cloudflare
+Tunnel like every other request.
+
+```
+release.yml deploy ──POST /_deploy (signed)──▶ Cloudflare ──tunnel──▶ deploy-hook (container)
+                                                                     │ writes hook/request
+     ◀──polls /healthz until it reports X.Y.Z──                      ▼
+                                            climpact-deploy.path ─▶ update.sh --hook (host)
+```
+
+| Piece | Where | Does |
+| --- | --- | --- |
+| `deploy` job | `.github/workflows/release.yml` | last job; `deploy/call-hook.sh post X.Y.Z`, then `call-hook.sh wait X.Y.Z` |
+| `deploy-hook` | Compose service running `deploy/deploy-hook.py` | checks the signature and the version, writes the version to `hook/request`, answers 202 |
+| `climpact-deploy.path` / `.service` | systemd units on the host, written by `update.sh --install-hook` | `PathExists=/opt/climpact/hook/request` starts the oneshot service, as `deploy`: `update.sh --hook` |
+| `update.sh` | `/opt/climpact/update.sh`, from `deploy/update.sh` | fetch, pull, migrate, start, check, roll back, prune |
+
+**Why the hook only drops a file.** The listener is the one piece the internet can reach,
+so it holds no privilege: it runs as uid 10001 on a read-only root, drops all
+capabilities, sits only on the `backend` network (no route out) and has no Docker socket.
+All it can do is write a validated `X.Y.Z` into the folder `/opt/climpact/hook`
+(owner 10001, group `deploy`, mode 2770, so the host's `deploy` user can read and delete
+the file). The host's path unit does the deploy. Rejected: a listener on the host, which
+would put an HTTP parser that the internet reaches in a process that can run Docker (the
+`docker` group is root-equivalent), and needs the tunnel to reach the host's bridge
+address; a listener container with the Docker socket mounted, for the same reason;
+`adnanh/webhook`, one more image and configuration language for what 150 lines of
+standard-library Python do.
+
+**The request.** `POST /_deploy` with the body `{"version": "X.Y.Z"}`, the header
+`X-Climpact-Timestamp: <unix seconds>` and `X-Climpact-Signature: sha256=<hex>`, an
+HMAC-SHA256 of `<timestamp>.<body>` keyed with `DEPLOY_WEBHOOK_SECRET` (the GitHub secret
+and the Droplet's `.env` hold the same value). The hook answers, always as JSON with
+`"hook": "climpact-deploy"` (so `call-hook.sh` can tell it from the app or the edge),
+`Cache-Control: no-store` and `Content-Security-Policy: default-src 'none';
+frame-ancestors 'none'` (the app's policy, [Content Security Policy](#content-security-policy),
+comes from Django, which the hook doesn't run):
+
+| Answer | When |
+| --- | --- |
+| 202 | valid: the version is in `hook/request` (a newer request replaces one not yet picked up) |
+| 401 | no or wrong signature, or a timestamp more than 300 s from the hook's clock (so a captured request can't be replayed later to roll the site back); nothing is written |
+| 400 | signed, but the body is not a JSON object whose `version` matches `[0-9]+\.[0-9]+\.[0-9]+` (ASCII digits only, whole string) |
+| 503 | `DEPLOY_WEBHOOK_SECRET` is empty or shorter than 32 characters on the Droplet |
+| 404, 405, 411, 413 | another path; another method than POST; no `Content-Length`; a body over 1 KB |
+
+The signature is checked with `hmac.compare_digest` before the body is parsed. Nothing in
+the body but `version` is read, and nothing but `update.sh <version>` can be triggered.
+`update.sh --hook` reads at most 64 bytes of the request, deletes it and checks the
+version again before using it. The hook handles SIGTERM itself (it is PID 1).
+
+**One at a time.** systemd never starts a unit that is already running; a request that
+arrives during a deploy stays in `hook/request`, and when the service finishes the path
+unit sees it and starts the next run. `update.sh` also takes an `flock` on
+`/opt/climpact/.deploy.lock`, so a deploy started by hand waits for one started by the
+hook and the other way round (up to an hour).
+
+**`update.sh X.Y.Z`** (as `deploy`; `vX.Y.Z` also works; the same steps for the hook, by
+hand, or a rollback to an older release):
+
+1. Fetch `compose.yaml`, `.env.example`, `deploy-hook.py` and `update.sh` from tag
+   `vX.Y.Z` on `raw.githubusercontent.com` into a staging folder, and `docker pull
+   ghcr.io/geoffwalmsley/climpact-web:X.Y.Z` (a public package: no credential on the
+   Droplet, unlike the read-only registry token the ticket planned for a DigitalOcean
+   registry). A failure here changes nothing. Releases before `deploy-hook.py` and
+   `update.sh` existed (0.1.1 and older) lack those two: the current copies are kept.
+2. Copy the current files and `CLIMPACT_IMAGE` to `.previous/`; move the new files in (by
+   rename, so the running script keeps reading its own copy) and pin `CLIMPACT_IMAGE` in
+   `.env`.
+3. `docker compose run --rm -T migrate`, then `docker compose up -d --wait` (Compose
+   recreates only what changed; the `migrate` dependency runs again with nothing to do).
+   If `deploy-hook.py` changed, `docker compose restart deploy-hook` (a file bind mount
+   keeps the old inode until the container restarts).
+4. `docker compose exec web python` fetches `http://127.0.0.1:8000/healthz` (with the
+   first allowed host as `Host`) until it reports `X.Y.Z`, for up to 180 s.
+5. If step 3 or 4 fails: restore `.previous/`, `up -d --wait`, check that `/healthz`
+   answers with the old version, and log `ROLLED BACK to ...` (or `ROLLBACK ... FAILED
+   TOO`); exit 1. On the very first deploy there is nothing to roll back to.
+6. On success, remove the `climpact-web` images other than the new and the previous one,
+   and dangling images.
+
+It logs to stderr and one line per step to `/opt/climpact/deploy.log`; run by the
+service, stderr is in the journal (`journalctl -u climpact-deploy`), and run by hand it
+also logs with `logger` (`journalctl -t climpact-deploy`). Other modes:
+`--fetch vX.Y.Z|main` (files only; cloud-init uses `--fetch main`) and, as root,
+`--install-hook`. It replaced `climpact-use` (#123), so there is one way to change what
+runs.
+
+**Migrations are not reversed.** A rollback restores the previous image and Compose files
+but keeps the database as the new release's migrations left it (reversing them would need
+each migration's target, and data migrations may not reverse). So a release's migrations
+must keep working with the previous release's code (add columns and tables; drop or rename
+them a release later), or its release notes must say that a rollback needs a database
+restore. Django runs each migration in a transaction on Postgres, so a migration that
+fails leaves nothing half-applied.
+
+**The worker on SIGTERM.** `runworker` sets the worker's stop flag; the running job
+raises `JobInterrupted` at its next progress step and is queued again, and the new worker
+runs it from the start. A stage that reports no progress can't be interrupted, so the
+worker's `stop_grace_period` went from 30 s to 120 s; if Docker still has to kill it, the
+job stays `running` until the new worker's `reap_stale` marks it failed (no heartbeat for
+`JOB_STALE_SECONDS`, 60 s) with a retry offered. The worker is recreated only when its
+image or settings change, which is every release.
+
+**The `deploy` job.** It needs `version` and `publish` and runs only when the event is a
+release, the release is not a pre-release (checked both on the event and on the version),
+and `publish` succeeded; a merge to `main` doesn't start `release.yml` at all, and a pull
+request that changes it skips the job. Its environment is `production` (URL
+https://climpact.app), which the owner limits to `v*` tags and which holds
+`DEPLOY_WEBHOOK_SECRET` as an environment secret. Permissions `contents: read` only (a
+sparse checkout of `deploy/call-hook.sh`), concurrency group `deploy-production`, never
+cancelled, 20 minutes at most. `call-hook.sh` needs only `sh`, `curl` and `openssl`:
+`post` signs with `openssl dgst -sha256 -hmac` and POSTs (retrying network errors and
+5xx), succeeding only on 202, and otherwise says which side failed: a Cloudflare challenge
+(`cf-mitigated: challenge`), an answer that isn't the hook's (no tunnel route, or an edge
+rule), a tunnel error (502/530: the service isn't running), a refused signature, or no
+secret on the Droplet. `wait` polls `https://climpact.app/healthz` every 10 s for up to
+10 minutes; the job is green only once it reports the new version. A rolled-back deploy
+keeps reporting the old version, so the job fails at the timeout. Re-running the job
+deploys the same release again.
+
+**Cloudflare.** The tunnel's published application route for `climpact.app` with path
+`_deploy` sends the call to `http://deploy-hook:9000`; it must come before the catch-all
+route to `web`. The path is an unanchored regular expression, so it would also match any
+other path containing `_deploy`: the app has none, and the hook answers 404 to anything
+but `/_deploy`. No existing custom rule, rate limit or cache rule matches `POST /_deploy`
+(tested), and `cache-bypass.txt` covers it, but the runner's addresses are a cloud
+provider's, so the zone's Security Level or the managed rules could still challenge it:
+`waf-skip-deploy.txt` is a Skip rule for `POST /_deploy` only, placed first. **Bot Fight
+Mode can't be skipped** by any rule on the free plan, and it may class `curl` from a
+GitHub-hosted runner as a bot, for the POST and for the `/healthz` polls. If it does,
+`call-hook.sh` fails at once with that diagnosis, and the fix is to turn Bot Fight Mode
+off (the runbook already allows that, #124); the signature, the rate limit and Turnstile
+still guard the site.
+
+**Tests.** `test_deploy_hook.py` runs the hook on loopback: 202 and the request file for
+a signed request (and the latest request wins); 401 and no file for a missing signature,
+a wrong secret, a changed body, a timestamp too old or in the future and a malformed one;
+400 for versions such as `1.2`, `1.2.3rc1`, `v1.2.3`, `1.2.3\n`, Arabic-Indic digits or a
+number, and for signed bodies without a version; 404, 405 and 413; 503 without a secret;
+`no-store` on every answer. `call-hook.sh post` against that hook checks that openssl's
+signature is what the hook expects, and that a wrong secret is reported as such; `wait`
+runs against a stand-in `/healthz` whose version changes after a few polls, and times
+out when it never does. `update.sh` runs in a temporary folder with stub `docker`, `curl`
+and `logger` on `PATH`: a deploy (file contents, `.previous/`, the order pull → migrate
+→ up → restart hook → health check, the pruning), a tag name, a failed pull and a
+missing release (nothing changed, no Compose call), a failed health check and a failed
+migration (files and image rolled back, the old version checked), a failed rollback,
+an older release without the hook files, invalid versions and arguments (no Docker call),
+`--hook` with a good, a malicious and no request, and `--install-hook` refusing to run
+without root. With util-linux `flock` (Linux, so CI), a second deploy started during a
+first one waits for the lock and runs after it. `test_deploy_files.py` checks the
+Cloudflare skip rule, that the hook service is locked down (`backend` only, read-only, no
+capabilities, uid 10001, the only service with the secret, no Docker socket and no
+published port anywhere, the `Dockerfile`'s Python image), the worker's grace period, and
+`release.yml`'s `deploy` job (last, final releases only, `production`, `contents: read`).
+
+**Tested locally** (2026-11-16, Docker Desktop 29): the `update.sh` tests, including the
+lock test, in `python:3.12-slim` (Debian, so `sh` is dash and `flock` is util-linux); the
+hook in that image as Compose runs it (read-only, uid 10001, all capabilities dropped) with
+a setgid drop folder: an unsigned POST got 401, `call-hook.sh post 0.1.2` got 202 and the
+folder held `request` (mode 0640) with `0.1.2`, and `docker stop` took 0.2 s;
+`docker compose config` accepts the new `compose.yaml`; shellcheck finds nothing in
+`update.sh`, `call-hook.sh` and cloud-init's two scripts; actionlint passes `release.yml`.
+Not tested here: systemd's path unit, the tunnel route, the edge rules and Bot Fight Mode
+against a GitHub runner, which need the Droplet and the Cloudflare account; the first
+release after this change is their test (see the runbook).
 
 ### Security of the hosted site
 
@@ -3429,8 +3612,9 @@ locally, in CI and in a release:
 
 **What pushes.** Only a published release: `vX.Y.Z` pushes `:X.Y.Z` and moves `:latest` to
 it (`latest` follows the last published final release, so publishing an older patch moves
-it back); a pre-release pushes only its version tag and never `latest`, so it does not
-deploy (#126 deploys `latest`). Merges to `main` and pull requests push nothing. The image
+it back); a pre-release pushes only its version tag and never `latest`. The Droplet runs
+an exact version, never `latest`: the `deploy` job (#126) deploys a final release's
+`X.Y.Z`, and pre-releases are not deployed. Merges to `main` and pull requests push nothing. The image
 pushed is the one the smoke test and scan ran on, carried between the jobs as the
 artifact, not a rebuild.
 
@@ -3530,6 +3714,7 @@ the same commit and hatchling version (checked locally).
 | `pypi` | releases only, not pre-releases; environment `pypi`, which requires the maintainer's approval; `uv publish` to PyPI |
 | `assets` | `gh release upload` of the four files (`contents: write`), after `pypi`, or `testpypi-check` for a pre-release |
 | `image`, `publish` | the image (see [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)), after the same jobs as `assets` |
+| `deploy` | last, final releases only (not a pre-release, a merge or a pull request): asks climpact.app's deploy hook to deploy `X.Y.Z` and waits for `/healthz` to report it; environment `production` (see [Deploy on release](#deploy-on-release)) |
 
 Uploads use `uv publish` with Trusted Publishing (OIDC), not `pypa/gh-action-pypi-publish`:
 the repository's Actions settings allow only GitHub-owned actions and `astral-sh/setup-uv`.
@@ -5250,8 +5435,9 @@ uv run pytest
   `dist` builds both packages' sdists and wheels as a release does and checks them
   (`scripts/check_dists.py`, `twine check`, `scripts/smoke_dists.sh`; see
   [Releases and PyPI](#releases-and-pypi)). `release.yml` runs on a published GitHub
-  Release and is the only workflow that uploads or pushes (see
-  [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio)).
+  Release and is the only workflow that uploads, pushes or deploys (see
+  [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio) and
+  [Deploy on release](#deploy-on-release)).
 - Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with

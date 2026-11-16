@@ -1,0 +1,1 @@
+(http.request.uri.path eq "/_deploy" and http.request.method eq "POST")

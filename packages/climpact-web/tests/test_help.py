@@ -73,11 +73,20 @@ def test_hosted_help_index_has_no_gridded_sample(client):
     assert "climpact.sampledata.gridded" not in client.get("/help/").content.decode()
 
 
-def test_header_links_to_help(client):
+def test_header_help_button_opens_the_pages_guide(client):
+    """#197: the Help button at the end of the header leads to the guide of the page shown,
+    or to the help's index; it is a labelled pill, not a link among the destinations."""
     html = client.get("/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert 'href="/help/" data-nav="help"' in nav
-    assert 'aria-current="page"' in client.get("/help/trends/").content.decode()
+    assert "/help/" not in nav
+    button = re.search(r'<a class="help-button" id="app-help"[^>]*>.*?</a>', html, re.S)
+    assert 'href="/help/" aria-label="Help"' in button.group(0)
+    assert ">Help</span>" in button.group(0)
+    html = client.get("/help/trends/").content.decode()
+    assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
+    for url, guide in [("/station/", "station-file"), ("/batch/", "batch")]:
+        html = client.get(url).content.decode()
+        assert re.search(rf'id="app-help" href="/help/{guide}/" aria-label="Help: [^"]+"', html)
 
 
 def test_links_to_pages_that_do_not_exist_keep_their_text(settings):
@@ -243,13 +252,17 @@ def test_field_component_has_no_help_link_of_its_own():
 
 
 def test_section_help_is_a_link_and_a_button_for_the_drawer():
-    """#177: the ⓘ is a link to the section's help page, for browsers without JavaScript,
-    and a hidden button that drawer.js shows, which opens the drawer with the help in the
-    <template> beside it. Both are named "Help: <section>"."""
+    """#177: the Help button is a link to the section's help page, for browsers without
+    JavaScript, and a hidden button that drawer.js shows, which opens the drawer with the
+    help in the <template> beside it. Both show the word Help (#197) and are named
+    "Help: <section>"."""
     html = render_topic('{% section_help "load.details" %}')
-    link = re.search(r'<a class="help-button" href="([^"]+)" data-help-link>.*?</a>', html, re.S)
+    link = re.search(
+        r'<a class="help-button" href="([^"]+)" data-help-link[^>]*>.*?</a>', html, re.S
+    )
     assert link.group(1) == "/help/sections/load.details/"
-    assert '<span class="sr-only">Help: Station details</span>' in link.group(0)
+    assert 'aria-label="Help: Station details"' in link.group(0)
+    assert "<span>Help</span>" in link.group(0)
     button = re.search(r'<button type="button" class="help-button"[^>]*>', html).group(0)
     assert 'data-drawer-open="help-load-details"' in button
     assert 'aria-controls="help-drawer"' in button and 'aria-expanded="false"' in button
@@ -270,7 +283,7 @@ def test_section_help_is_a_link_and_a_button_for_the_drawer():
 def test_section_help_with_the_screens_own_topics():
     html = render_topic('{% section_help "result.index" topics="index.txx" title="TXx" %}')
     assert 'href="/help/sections/result.index/?topics=index.txx"' in html
-    assert '<span class="sr-only">Help: TXx</span>' in html
+    assert 'aria-label="Help: TXx"' in html
     first, then = 'data-help-topic="index.txx"', 'data-help-topic="trend.sen_slope"'
     assert html.index(first) < html.index(then)
     assert 'id="help-result-index-index-txx"' in html

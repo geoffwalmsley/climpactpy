@@ -9,10 +9,10 @@ calculated it holds the quality-control files alone. Context from views_download
 {% endcomment %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Files: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
+<div class="stack stack--xl station-page">
+  {% include "stations/_workspace.html" with heading=True %}
   <div class="stack stack--sm">
-    {% include "stations/_workspace.html" with heading=True %}
-    <div class="with-help"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
+    <div class="section-header"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
     <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
     {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
   </div>
@@ -26,8 +26,8 @@ calculated it holds the quality-control files alone. Context from views_download
   {% endif %}
 
   {% if source %}
-  <section class="stack" aria-labelledby="whole-title">
-    <h2 id="whole-title">{% translate "The whole calculation" %}</h2>
+  <section class="page-section stack" aria-labelledby="whole-title">
+    <div class="section-header"><h2 id="whole-title">{% translate "The whole calculation" %}</h2></div>
     <ul class="m-0 grid gap-5 p-0 grid-cols-fit-64" role="list">
       <li class="card stack stack--sm">
         <h3 class="card__title">{% translate "Everything" %}</h3>
@@ -55,8 +55,8 @@ calculated it holds the quality-control files alone. Context from views_download
   </section>
 
   {% if summary %}
-  <section class="stack" aria-labelledby="summary-title">
-    <h2 id="summary-title">{% translate "Summary files" %}</h2>
+  <section class="page-section stack" aria-labelledby="summary-title">
+    <div class="section-header"><h2 id="summary-title">{% translate "Summary files" %}</h2></div>
     <div class="table-wrap" role="region" aria-labelledby="summary-caption" tabindex="0">
       <table class="table download-table">
         <caption id="summary-caption" class="sr-only">{% translate "Summary files to download" %}</caption>
@@ -69,8 +69,8 @@ calculated it holds the quality-control files alone. Context from views_download
   {% endif %}
 
   {% if quality %}
-  <section class="stack" id="quality-files" aria-labelledby="quality-title">
-    <h2 id="quality-title">{% translate "Quality checks" %}</h2>
+  <section class="page-section stack" id="quality-files" aria-labelledby="quality-title">
+    <div class="section-header"><h2 id="quality-title">{% translate "Quality checks" %}</h2></div>
     <p class="text-sm text-text-muted">{% translate "What each check found, and the days missing per year, as CSV." %}{% if quality.job != job and source %} {% translate "The zip of the calculation has the same files." %}{% endif %}</p>
     {% if quality.zip %}<p>{% url 'jobs:file' quality.job.pk quality.zip.path as d_href %}{% include "components/download_link.html" with d=quality.zip href=d_href %}</p>{% endif %}
     {% if quality.files %}
@@ -89,15 +89,15 @@ calculated it holds the quality-control files alone. Context from views_download
   {% endif %}
 
   {% if source %}
-  <section class="stack" aria-labelledby="plots-title">
-    <h2 id="plots-title">{% translate "Plots" %}</h2>
+  <section class="page-section stack" aria-labelledby="plots-title">
+    <div class="section-header"><h2 id="plots-title">{% translate "Plots" %}</h2></div>
     {% if main.all_plots %}<p>{% url 'jobs:file' job.pk main.all_plots.path as d_href %}{% include "components/download_link.html" with d=main.all_plots href=d_href %} <span class="text-sm text-text-muted">{% translate "All the plots in one PDF." %}</span></p>
     {% else %}<p class="text-sm text-text-muted">{% translate "Not made. The plots were switched off in the settings." %}</p>{% endif %}
   </section>
 
   {% if sector %}
-  <section class="stack" aria-labelledby="sector-title">
-    <h2 id="sector-title">{% translate "Sector comparison" %}</h2>
+  <section class="page-section stack" aria-labelledby="sector-title">
+    <div class="section-header"><h2 id="sector-title">{% translate "Sector comparison" %}</h2></div>
     {% if sector.zip %}<p>{% url 'jobs:file' sector.job.pk sector.zip.path as d_href %}{% include "components/download_link.html" with d=sector.zip href=d_href %}</p>{% endif %}
     {% if sector.files %}
     <div class="table-wrap" role="region" aria-labelledby="sector-caption" tabindex="0">
@@ -112,8 +112,8 @@ calculated it holds the quality-control files alone. Context from views_download
   </section>
   {% endif %}
 
-  <section class="stack" aria-labelledby="indices-title">
-    <h2 id="indices-title">{% translate "Each index" %}</h2>
+  <section class="page-section stack" aria-labelledby="indices-title">
+    <div class="section-header"><h2 id="indices-title">{% translate "Each index" %}</h2></div>
     <p class="text-sm text-text-muted">{% translate "A table (CSV) per index and a plot (PNG) per series." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
     <div class="stack stack--sm">
       {% for section in sections %}
@@ -138,8 +138,8 @@ calculated it holds the quality-control files alone. Context from views_download
   </section>
 
   {% if others %}
-  <section class="stack" aria-labelledby="others-title">
-    <h2 id="others-title">{% translate "Other files" %}</h2>
+  <section class="page-section stack" aria-labelledby="others-title">
+    <div class="section-header"><h2 id="others-title">{% translate "Other files" %}</h2></div>
     <details class="disclosure download-group">
       <summary><span>{% translate "The calculation's other files" %}</span> <span class="text-sm text-text-muted">{% blocktranslate count counter=others|length %}{{ counter }} file{% plural %}{{ counter }} files{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body table-wrap" role="region" aria-labelledby="others-title" tabindex="0">

@@ -3,11 +3,9 @@
 {% block title %}{% blocktranslate with name=analysis.station_name|default:analysis.file_name %}Data: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% chart_scripts %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
-  <div class="stack stack--sm">
-    {% include "stations/_workspace.html" with heading=True %}
-    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data from {{ name }}. The details are filled in.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check the details and the data.{% endblocktranslate %}{% endif %}</p>
-  </div>
+<div class="stack stack--xl station-page">
+  {% include "stations/_workspace.html" with heading=True %}
+  <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data from {{ name }}. The details are filled in.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check the details and the data.{% endblocktranslate %}{% endif %}</p>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
@@ -23,8 +21,8 @@
   {% endif %}
 
   {% comment %}The details first, with the one button below them; the data they describe after (#173).{% endcomment %}
-  <section class="card stack" aria-labelledby="details-title">
-    <div class="with-help"><h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>{% section_help "load.details" %}</div>
+  <section class="page-section stack" aria-labelledby="details-title">
+    <div class="section-header"><h2 id="details-title">{% translate "Station details" %}</h2>{% section_help "load.details" %}</div>
     <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" id="station-details" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" %}

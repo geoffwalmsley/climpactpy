@@ -1,12 +1,14 @@
-"""``{% section_help "id" %}``: a section's ⓘ and its help for the drawer (#177);
-``{% help_topic "id" %}``: a help topic shown in place (#81).
+"""``{% section_help "id" %}``: a section's Help button and its help for the drawer (#177,
+#197); ``{% help_topic "id" %}``: a help topic shown in place (#81).
 
-``section_help`` renders the ⓘ beside a section heading: a link to the section's help page
-(``help:section``), which ``js/drawer.js`` swaps for a button that opens the drawer
-(``components/drawer.html``), and the help itself in a ``<template>`` the drawer copies.
-``topics="index.txx"`` adds topics of the screen's own before the section's (an index
-page adds its index), and ``title=`` names the help after something else than the
-section (the index's code). An unknown id fails as ``help_topic``'s does.
+``section_help`` renders the labelled Help pill at the end of a section header
+(``<div class="section-header">``: the heading, an optional note, then this): a link to
+the section's help page (``help:section``), which ``js/drawer.js`` swaps for a button that
+opens the drawer (``components/drawer.html``), and the help itself in a ``<template>`` the
+drawer copies. ``label="How to read this"`` replaces the word "Help" where a specific
+question helps. ``topics="index.txx"`` adds topics of the screen's own before the
+section's (an index page adds its index), and ``title=`` names the help after something
+else than the section (the index's code). An unknown id fails as ``help_topic``'s does.
 
 Renders a ``<details>`` disclosure (no JavaScript needed) with the topic's title as the
 summary, its explanation, and a link to the guide section with more. Options:
@@ -42,7 +44,7 @@ def _strict() -> bool:
 
 
 @register.inclusion_tag("help/_section_help.html")
-def section_help(section_id, topics=None, title=None):
+def section_help(section_id, topics=None, title=None, label=None):
     try:
         section = get_section(section_id)
         extra = parse_topics(topics)
@@ -61,6 +63,7 @@ def section_help(section_id, topics=None, title=None):
         "url": url,
         "element_id": element_id.lower(),
         "title": title or section.title,
+        "label": label,
     }
 
 

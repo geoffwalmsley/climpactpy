@@ -17,12 +17,12 @@ Context: analysis, form, open_settings, settings_source; submit_label (default
       {% include "components/form_errors.html" %}
 
       <section class="stack settings-panel__group" aria-labelledby="plots-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="plots-title">{% translate "Plots" %}</h3>{% section_help "calculate.plots" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="plots-title">{% translate "Plots" %}</h3>{% section_help "calculate.plots" %}</div>
         {% include "stations/_indices_unit.html" with group="plot_title" %}
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="spells-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="spells-title">{% translate "Spell lengths" %}</h3>{% section_help "calculate.spells" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="spells-title">{% translate "Spell lengths" %}</h3>{% section_help "calculate.spells" %}</div>
         <div class="grid items-start gap-5 grid-cols-fill-60">
           {% include "stations/_indices_unit.html" with group="wsdi_days" %}
           {% include "stations/_indices_unit.html" with group="csdi_days" %}
@@ -32,7 +32,7 @@ Context: analysis, form, open_settings, settings_source; submit_label (default
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="degree-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="degree-title">{% translate "Degree days" %}</h3>{% section_help "calculate.degree" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="degree-title">{% translate "Degree days" %}</h3>{% section_help "calculate.degree" %}</div>
         <div class="grid items-start gap-5 grid-cols-fill-60">
           {% include "stations/_indices_unit.html" with group="hdd_base" %}
           {% include "stations/_indices_unit.html" with group="cdd_base" %}
@@ -41,7 +41,7 @@ Context: analysis, form, open_settings, settings_source; submit_label (default
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="prcp-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="prcp-title">{% translate "Precipitation and drought" %}</h3>{% section_help "calculate.prcp" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="prcp-title">{% translate "Precipitation and drought" %}</h3>{% section_help "calculate.prcp" %}</div>
         <div class="grid items-start gap-5 grid-cols-fill-60">
           {% include "stations/_indices_unit.html" with group="rnnmm" %}
           {% include "stations/_indices_unit.html" with group="spei_months" %}
@@ -49,17 +49,17 @@ Context: analysis, form, open_settings, settings_source; submit_label (default
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="custom-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="custom-title">{% translate "Your own index" %}</h3>{% section_help "calculate.custom" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="custom-title">{% translate "Your own index" %}</h3>{% section_help "calculate.custom" %}</div>
         {% include "stations/_indices_unit.html" with group="custom" %}
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="ehf-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="ehf-title">{% translate "Heatwave definition" %}</h3>{% section_help "calculate.ehf" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="ehf-title">{% translate "Heatwave definition" %}</h3>{% section_help "calculate.ehf" %}</div>
         <p>{% translate "Heatwaves use the excess heat factor of Nairn and Fawcett (2013). There is nothing to choose." %}</p>
       </section>
 
       <section class="stack settings-panel__group" aria-labelledby="output-title">
-        <div class="with-help"><h3 class="m-0 text-base" id="output-title">{% translate "Files" %}</h3>{% section_help "calculate.files" %}</div>
+        <div class="section-header"><h3 class="m-0 text-base" id="output-title">{% translate "Files" %}</h3>{% section_help "calculate.files" %}</div>
         {% include "components/field.html" with field=form.plots %}
         {% include "components/field.html" with field=form.zip %}
         {% include "components/field.html" with field=form.report %}

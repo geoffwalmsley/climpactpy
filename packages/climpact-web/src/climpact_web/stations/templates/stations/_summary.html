@@ -2,8 +2,8 @@
 What is in the station file (step 1): period, days missing per variable, a preview of the
 series and the days with data in each year. Parameters from views.summary_context.
 {% endcomment %}
-<section class="card stack" aria-labelledby="data-title">
-  <div class="with-help"><h2 class="card__title" id="data-title">{% translate "Your data" %}</h2>{% section_help "load.data" %}</div>
+<section class="page-section stack" aria-labelledby="data-title">
+  <div class="section-header"><h2 id="data-title">{% translate "Your data" %}</h2><p class="section-header__note">{% translate "Missing values and the daily series" %}</p>{% section_help "load.data" %}</div>
   <div class="grid gap-4 grid-cols-fit-40">
     {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
     {% include "components/stat.html" with label=period_label value=period note="" %}

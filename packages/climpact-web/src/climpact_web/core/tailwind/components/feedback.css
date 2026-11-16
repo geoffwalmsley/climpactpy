@@ -287,10 +287,18 @@
     color: var(--color-text-muted);
   }
 
+  /* A disclosure is a row between hairlines, not a box (#197, one surface level). */
   .disclosure {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
+    border-block: 1px solid var(--color-border);
+  }
+
+  .disclosure + .disclosure {
+    border-block-start: 0;
+  }
+
+  /* Disclosures one after another are one list of rows. */
+  .stack > .disclosure + .disclosure {
+    margin-block-start: 0;
   }
 
   @media (forced-colors: active) {

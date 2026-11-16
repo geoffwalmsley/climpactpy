@@ -1,0 +1,148 @@
+/* One surface level (#197, proposal 5 of docs/design/redesign-proposals.html): sections
+   are separated by space and a heading, not cards; the page's one answer sits in a tinted
+   band; small uppercase labels name groups. And the station workspace's header, which
+   stays in view as the page scrolls (stations/_workspace.html). */
+@layer components {
+  /* Between the sections of a page: 48px, as the mockups. */
+  .stack--xl {
+    --stack-gap: --spacing(12);
+  }
+
+  /* A section of a page: its heading and content on the page itself, with no frame. */
+  .page-section {
+    min-inline-size: 0;
+  }
+
+  /* == The answer band: the page's one answer (the Quality verdict, the Results summary).
+     A tint, not a card: no border and no shadow. From the mockups' .answer. == */
+  .answer-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(3) --spacing(6);
+    padding: --spacing(4) --spacing(5);
+    border-radius: var(--radius-lg);
+    background: var(--band-bg, var(--color-surface));
+  }
+
+  .answer-band > p:not(.answer-band__number) {
+    flex: 1 1 18rem;
+    margin: 0;
+    max-inline-size: 36rem;
+    font-size: var(--text-base);
+  }
+
+  /* The larger number where there is an answer ("22 of 80 changed"). */
+  .answer-band__number {
+    display: grid;
+    flex: none;
+    gap: --spacing(1);
+    margin: 0;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .answer-band__number small {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--leading-tight);
+  }
+
+  @media (forced-colors: active) {
+    .answer-band {
+      border: 1px solid CanvasText;
+    }
+  }
+
+  /* == Group label: small, uppercase and muted, it names a group without a box. == */
+  .group-label {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.06em;
+    line-height: var(--leading-tight);
+    text-transform: uppercase;
+  }
+
+  /* == The workspace header: the station's name, the line under it, the page's actions,
+     and the section tabs. From the mockups' .wshead. == */
+  .workspace-header {
+    display: grid;
+    gap: --spacing(3);
+    padding-block-start: --spacing(4);
+    background: var(--color-page);
+  }
+
+  .workspace-header__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: --spacing(3) --spacing(4);
+  }
+
+  .workspace-header__title {
+    flex: 1 1 16rem;
+    min-inline-size: 0;
+  }
+
+  .workspace-header__name {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--leading-tight);
+    overflow-wrap: anywhere;
+  }
+
+  .workspace-header__name--line {
+    font-size: var(--text-md);
+  }
+
+  .workspace-header__sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 --spacing(4);
+    margin: --spacing(1) 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .workspace-header__file {
+    overflow-wrap: anywhere;
+  }
+
+  .workspace-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2);
+  }
+
+  .workspace-header .tabs__list {
+    margin: 0;
+  }
+
+  /* The page under the header: its lead follows closely, then the sections. */
+  .station-page > .workspace-header + * {
+    margin-block-start: --spacing(6);
+  }
+
+  /* Sticky where there is room for it: not on phones (#203 makes their header one line)
+     or in a short window, where it would hide most of the page. The scroll padding keeps
+     an element that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/workspace.js
+     keeps --workspace-header-height to the header's real height. */
+  @media (min-width: 40rem) and (min-height: 30rem) {
+    .workspace-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 10;
+    }
+
+    :root:has(.workspace-header) {
+      scroll-padding-block-start: calc(var(--workspace-header-height, 9rem) + --spacing(4));
+    }
+  }
+}

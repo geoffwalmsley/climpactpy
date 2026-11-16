@@ -6,8 +6,7 @@ page), review, analysis.
 {% endcomment %}
 <section class="stack" id="worth-a-look" aria-labelledby="worth-title">
   <div class="qc-section-head">
-    <div class="with-help"><h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2>{% section_help "quality.worth" %}</div>
-    <p class="text-text-muted">{% translate "Unusual values. Many are real extremes." %}</p>
+    <div class="section-header"><h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2><p class="section-header__note">{% translate "Unusual values. Many are real extremes." %}</p>{% section_help "quality.worth" %}</div>
   </div>
   <div class="qc-groups">
     {% for item in groups %}{% with group=item.group check=item.group.check %}

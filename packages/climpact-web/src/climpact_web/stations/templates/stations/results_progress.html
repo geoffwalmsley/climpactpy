@@ -2,11 +2,9 @@
 {% load i18n static ui %}
 {% block title %}{% if job.status == "queued" or job.status == "running" %}{% blocktranslate with name=analysis.station_name %}Calculating indices: {{ name }}{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endif %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
-  <div class="stack stack--sm">
-    {% include "stations/_workspace.html" with heading=True %}
-    <p class="lead">{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating the indices." %}{% else %}{% translate "The indices are not calculated yet." %}{% endif %}</p>
-  </div>
+<div class="stack stack--xl station-page">
+  {% include "stations/_workspace.html" with heading=True %}
+  <p class="lead">{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating the indices." %}{% else %}{% translate "The indices are not calculated yet." %}{% endif %}</p>
   {% if no_run or missing_outputs %}
   {% comment %}Nothing to show: the run was refused or cancelled before it started, or it wrote
   no index tables. The settings are open, with one button to calculate.{% endcomment %}

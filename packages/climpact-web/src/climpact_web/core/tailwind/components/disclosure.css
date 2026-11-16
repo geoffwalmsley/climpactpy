@@ -4,7 +4,7 @@
     align-items: center;
     gap: --spacing(2);
     min-block-size: var(--control-height);
-    padding-inline: --spacing(4);
+    padding-inline: 0;
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     list-style: none;
@@ -28,7 +28,7 @@
   }
 
   .disclosure__body {
-    padding: 0 --spacing(4) --spacing(4);
+    padding: 0 0 --spacing(4);
     color: var(--color-text-muted);
   }
 

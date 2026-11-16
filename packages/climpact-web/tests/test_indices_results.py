@@ -569,7 +569,9 @@ def test_filters_without_javascript(client):
 
 def _findings(html: str) -> str:
     return re.search(
-        r'<section class="stack" aria-labelledby="findings-title">.*?id="catalogue"', html, re.S
+        r'<section class="page-section stack" aria-labelledby="findings-title">.*?id="catalogue"',
+        html,
+        re.S,
     ).group(0)
 
 
@@ -626,7 +628,7 @@ def test_findings_by_theme_lead_the_results(client):
     assert "Your own index: Number of days where TN > 0 TNgt0. No significant change." in also
     assert f'href="{url}/TNgt0"' in findings
     # The order of the trends is said where it is used, and explained in its help (#177).
-    assert "up to three significant trends, largest first." in findings
+    assert "Up to three significant trends per theme, largest first" in findings
     assert "Largest means the trend per decade divided by" in findings  # the ⓘ's help
 
 
@@ -987,13 +989,16 @@ def test_each_section_is_a_tab_named_in_the_title(client):
         ("/downloads", "files", "Files"),
     ]:
         html = client.get(base + path).content.decode()
-        assert f'<h1 class="m-0">{STATION}</h1>' in html, path
+        assert f'<h1 class="workspace-header__name">{STATION}</h1>' in html, path
         assert f"<title>{title}: {STATION}" in html, path
         current = re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html)
         assert current == [tab], path
         assert html.count("<h1") == 1 and "steps__item" not in html, path
     html = client.get(base + "/results/txx").content.decode()
-    assert "<h1>Max TX</h1>" in html and '<p class="m-0 font-semibold' in html
+    assert (
+        "<h1>Max TX</h1>" in html
+        and '<p class="workspace-header__name workspace-header__name--line">' in html
+    )
     assert re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html) == ["results"]
 
 
@@ -1024,7 +1029,7 @@ def test_every_section_of_the_station_pages_has_its_help(client):
     # The index page's help leads with the index itself.
     html = client.get(base + "/results/txx").content.decode()
     assert 'href="/help/sections/result.index/?topics=index.txx"' in html
-    assert '<span class="sr-only">Help: TXx</span>' in html
+    assert 'aria-label="Help: TXx"' in html
 
 
 # ---- speculative runs: cancel and replace (#178) -------------------------------------------

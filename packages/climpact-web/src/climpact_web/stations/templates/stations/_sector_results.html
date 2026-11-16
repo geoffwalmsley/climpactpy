@@ -5,8 +5,8 @@ The charts are inline SVG drawn by stations/sector_plots.py, each with its table
 the core's PNG. Context: analysis, job, results (sector_plots.SectorResults), bars,
 bars_svg, order, categories.
 {% endcomment %}
-<section class="card stack" aria-labelledby="sector-summary-title" id="sector-results">
-  <h2 class="card__title" id="sector-summary-title">{% translate "Results" %}</h2>
+<section class="page-section stack" aria-labelledby="sector-summary-title" id="sector-results">
+  <div class="section-header"><h2 id="sector-summary-title">{% translate "Results" %}</h2></div>
   <p>{% if results.detrended %}{% blocktranslate trimmed with data=job.params.column|default:results.column file=job.params.file_name station=results.station %}
     <strong>{{ data }}</strong> from {{ file }}, detrended, against {{ station }}.
   {% endblocktranslate %}{% else %}{% blocktranslate trimmed with data=job.params.column|default:results.column file=job.params.file_name station=results.station %}
@@ -23,13 +23,14 @@ bars_svg, order, categories.
   <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</p>
 </section>
 
-<section class="card stack" aria-labelledby="sector-bars-title" id="correlations">
-  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-    <div class="with-help"><h2 class="card__title" id="sector-bars-title">{% translate "Correlation with each index" %}</h2>{% section_help "sector.correlation" %}</div>
-    <p class="m-0 flex flex-wrap items-center gap-3 text-sm" aria-label="{% translate 'Order of the bars' %}">
+<section class="page-section stack" aria-labelledby="sector-bars-title" id="correlations">
+  <div class="section-header">
+    <h2 id="sector-bars-title">{% translate "Correlation with each index" %}</h2>
+    <p class="section-header__note flex flex-wrap items-center gap-3" aria-label="{% translate 'Order of the bars' %}">
       {% if order == "strength" %}<a href="?#correlations">{% translate "Climpact's order" %}</a><strong aria-current="true">{% translate "Strongest first" %}</strong>
       {% else %}<strong aria-current="true">{% translate "Climpact's order" %}</strong><a href="?order=strength#correlations">{% translate "Strongest first" %}</a>{% endif %}
     </p>
+    {% section_help "sector.correlation" %}
   </div>
   <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="sector-bars-caption">
     <figcaption id="sector-bars-caption" class="font-semibold">{% blocktranslate trimmed with title=results.title count counter=bars|length %}
@@ -61,8 +62,8 @@ bars_svg, order, categories.
   <p class="text-sm text-text-muted">{% translate "Missing index values count as -99.9, as in Climpact for R. This can distort the correlation. Correlation is not cause." %}</p>
 </section>
 
-<section class="card stack" aria-labelledby="sector-scatter-title" id="scatter-plots">
-  <div class="with-help"><h2 class="card__title" id="sector-scatter-title">{% translate "Your data against the station's temperatures" %}</h2>{% section_help "sector.scatter" %}</div>
+<section class="page-section stack" aria-labelledby="sector-scatter-title" id="scatter-plots">
+  <div class="section-header"><h2 id="sector-scatter-title">{% translate "Your data against the station's temperatures" %}</h2>{% section_help "sector.scatter" %}</div>
   <div class="grid gap-5 grid-cols-fill-88">
     {% for s in results.scatters %}
     <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="scatter-{{ s.name }}-title" aria-describedby="scatter-{{ s.name }}-fit">

@@ -41,11 +41,11 @@ def home_tour() -> list[dict[str, str]]:
             ),
         },
         {
-            "target": ".site-nav a[data-nav='help']",
+            "target": "#app-help",
             "title": _("Help when you need it"),
             "text": _(
-                "Guides to station files, base periods, quality checks, indices and trends. "
-                "Look for the question-mark links next to fields for a short explanation."
+                "Help opens the guide to the page you are on. Each section has a Help "
+                "button of its own, at the end of its heading, for a short explanation."
             ),
         },
         {

@@ -24,7 +24,8 @@ Taken with the approval of the mockups (#171):
 - **Primary buttons are ink.** Near-black, near-white in the dark theme; blue is no longer
   the action colour (see [Colour](#colour)).
 - **The station title comes from the station name** the user gives, not the file name;
-  the file name moves to the line under it. **Target:** #201.
+  the file name moves to the line under it (#197). **Target:** #201 asks for the name on
+  the first page.
 
 ## Who it is for
 
@@ -114,14 +115,19 @@ font size only; line height is `--leading-normal` 1.6 for text and `--leading-ti
 | --- | --- | --- |
 | `--text-hero` | clamp(2rem … 3rem) | Home page heading only |
 | `--text-2xl` | 2rem | Page title (h1) |
-| `--text-xl` | 1.5rem | Section heading (h2) |
-| `--text-lg` | 1.25rem | Card title, stat value |
+| `--text-xl` | 1.5rem | Section heading (h2) outside a station; a station's name in its workspace header |
+| `--text-lg` | 1.25rem | Card title, stat value; a section heading (h2) in a section header and on a station's pages |
 | `--text-md` | 1.125rem | Lead paragraph under a title |
 | `--text-base` | 1rem | Body, controls |
 | `--text-sm` | 0.875rem | Table cells, hints, help links |
-| `--text-xs` | 0.8125rem | Badges, captions, footer |
+| `--text-xs` | 0.8125rem | Badges, captions, footer, group labels, the Help pill |
 
 Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
+
+Small uppercase labels name groups (`group-label`, stat labels: `--text-xs`, 600,
+letter-spacing 0.06em, muted); they group without adding boxes. Where a page has an
+answer, its number is large (`--text-2xl`, 650, in the answer band), with the rest smaller
+and muted.
 
 ## Layout
 
@@ -134,18 +140,22 @@ Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
 - **Page frame:** header (logo, main destinations, theme toggle) → step indicator for the
   batch and gridded flows → title and one-line lead → content → footer. A station is a
   workspace instead: its name as the h1, a line with its years and base period, then the
-  section tabs (Data, Quality, Results, Files), then the section's content. **Target:**
-  the h1 is the station name the user gives, with the file name on the line under it
-  (#201); the Data tab folds into Quality and the inputs move to the Inputs panel
-  (#198); the workspace header (name, tabs, page actions) stays in view as the page
-  scrolls (#197).
+  section tabs (Data, Quality, Results, Files), then the section's content. The h1 is the
+  station name the user gives, with the file name on the line under it. The workspace
+  header (name, that line, the page's actions, the tabs) stays in view as the page
+  scrolls, from 40rem wide; the page's scroll padding keeps a focused element out from
+  under it (WCAG 2.4.11). **Target:** the Data tab folds into Quality and the inputs move
+  to the Inputs panel (#198).
+- **Sections:** one surface level. A page's sections sit on the page, 48px apart
+  (`stack--xl`), each under a section header; a box marks only one object (a theme tile,
+  a chart, a progress card). The page's one answer is a tinted band (`answer-band`).
 - **Controls:** `--control-height` 2.75rem (2.25rem small), so touch targets reach 44px.
 
 ## Depth and shape
 
 | Level | Token | Used for |
 | --- | --- | --- |
-| 0 | none | Page background, content inside a card |
+| 0 | none | Page background, a page's sections, content inside a card, the answer band (a tint, no border or shadow) |
 | 1 | `--shadow-raised` | Cards and panels on the page |
 | 2 | `--shadow-overlay` | Dialogs, toasts, the tour |
 
@@ -165,19 +175,22 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `button` | Primitive | Action, or a link styled as one. Primary is ink | primary, secondary, ghost, danger; lg, sm; icon, icon only |
 | `badge` | Primitive | Status in words, never colour alone. Info is neutral; `hue` is a theme's pill (its hue on its tint) | info, success, warning, danger, hue |
 | `hue-dot`, `hue-*` | Primitive | A theme's colour: `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought`, `hue-other` on a block set `--hue` and `--hue-soft` for what is inside it; `hue-dot` is its dot, always beside the theme's or index's name | — |
-| `stat` | Primitive | One number with label and note | — |
+| `stat` | Primitive | One number with label and note; the label is a group label | — |
+| `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Also measured") | — |
+| `section-header` | Component | A section's heading, an optional muted note (`section-header__note`), then the Help pill (`{% section_help %}`) at the end of the row. The pill is 30px high with a ringed question mark and a word: "Help", or a question where it helps (`label="How to read this"`) | with note, with a specific label |
+| `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. The Quality verdict keeps its status tint | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
 | `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
 | `card` | Component | Grouped content; whole-card link | link, muted, with badge |
 | `alert`, `messages`, `toasts` | Component | Page and transient feedback | info, success, warning, error; dismissible; live |
-| `disclosure` | Component | Help that opens in place (`<details>`) | — |
+| `disclosure` | Component | Content that opens in place (`<details>`): a row between hairlines, not a box | — |
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
-| `drawer` | Component | A section's help in a side panel, opened by the ⓘ beside the section's heading (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the ⓘ. Without JS the ⓘ links to the same help on its own page | — |
-| `table`, `summary_list` | Component | Data in a keyboard-scrollable region; key–value pairs | empty state |
+| `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. The Help pill in the app bar opens the page's guide | — |
+| `table`, `summary_list` | Component | Data in a keyboard-scrollable region, hairline rows and no frame; key–value pairs | empty state |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
-| `workspace_tabs` | Component | A station's sections as tabs under its name. Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
+| `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky workspace header (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
 | `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines | changed, quiet (no change) |
@@ -235,8 +248,7 @@ keyboard. This is not optional.
 - **Make help visible.** A section header is its title, an optional muted note, then a
   labelled Help button at the end of the row (a pill with a word, specific where it helps:
   "How to read this"). At most one per section, none on sections that explain
-  themselves; a Help button in the app bar opens the page's guide. **Target:** #197 (today
-  an ⓘ after the heading).
+  themselves; a Help button in the app bar opens the page's guide.
 - **Group findings by what people ask about.** Results lead with one paragraph, then a
   headline per theme (Heat, Cold, Rain, Drought) and an "Also measured" line for the
   rest; the full catalogue follows. **Target:** #200: the answer in a tinted band, the
@@ -248,16 +260,16 @@ keyboard. This is not optional.
 
 ### Don't
 
-- **Don't put cards inside cards.** One surface level on the page; separate groups inside
-  a card with spacing and headings, not another border and shadow. **Target:** #197:
-  sections are separated by space and a heading, not boxes. A box marks only something
-  that is one object (a theme tile, a finding); the page's one answer sits in a tinted
-  band; tables have hairline rows and no frame.
+- **Don't put cards inside cards.** One surface level on the page: sections are
+  separated by space and a heading, not boxes. A box marks only something that is one
+  object (a theme tile, a chart, a finding); the page's one answer sits in a tinted band;
+  tables have hairline rows and no frame, and disclosures are rows between hairlines.
+  Inside a card, separate groups with spacing and headings, not another border.
 - **Don't offer downloads everywhere.** Files live in one Files section
   (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
   PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
   under Details; an index page has only its chart's exports.
-- **Don't put a help link under every field.** One ⓘ per section opens that section's help
+- **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer; a field keeps a hint only when its value isn't self-explanatory. Section
   help lives in `help/sections.py`: notes plus the fields' help topics.
 - **Don't show a step's results before the step.** QC flags belong to Quality, not to the

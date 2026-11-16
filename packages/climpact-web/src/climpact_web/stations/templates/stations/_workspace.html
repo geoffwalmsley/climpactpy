@@ -1,13 +1,24 @@
-{% load i18n %}{% comment %}
-The station workspace's header (#179): the station's name, its years and base period with
-a link to change them on Data, and the section tabs. On the four section pages the name is
-the page's h1 (``heading``); on a page inside a section (an index, the sector comparison)
-it is a line above that page's own h1.
-Context: analysis, workspace_tabs, workspace_current (stations.workspace.context), heading.
+{% load i18n static %}{% comment %}
+The station workspace's header (#179, #197): the station's name, a line with the file, its
+years and base period and a link to change them on Data, the page's actions, then the
+section tabs. It stays in view as the page scrolls (sticky, from 40rem wide), so it must be
+a direct child of the page's .station-page; the page's scroll-padding keeps a focused
+element out from under it (WCAG 2.4.11), kept to the header's height by js/workspace.js. On the four section pages the name is the page's
+h1 (``heading``); on a page inside a section (an index, the sector comparison) it is a line
+above that page's own h1. The title is the station name the user gave, the file name when
+there is none yet.
+Context: analysis, workspace_tabs, workspace_current (stations.workspace.context), heading,
+actions (optional: a template with the page's actions, such as Download all).
 {% endcomment %}
-<header class="stack stack--sm">
-  {% if heading %}<h1 class="m-0">{{ analysis.station_name|default:analysis.file_name }}</h1>
-  {% else %}<p class="m-0 font-semibold text-text-muted">{{ analysis.station_name|default:analysis.file_name }}</p>{% endif %}
-  <p class="flex flex-wrap gap-x-4 text-sm text-text-muted">{% if analysis.summary.first_year %}<span>{% blocktranslate with first=analysis.summary.first_year last=analysis.summary.last_year %}{{ first }}–{{ last }}{% endblocktranslate %}</span>{% endif %}{% if analysis.metadata_complete %}<span>{% blocktranslate with start=analysis.base_start end=analysis.base_end %}base period {{ start }}–{{ end }}{% endblocktranslate %}</span>{% endif %}{% if workspace_current != "data" %}<span><a href="{% url 'stations:load' analysis.pk %}">{% translate "Edit the details" %}</a></span>{% endif %}</p>
-</header>
-{% include "components/workspace_tabs.html" with tabs=workspace_tabs %}
+<div class="workspace-header" data-workspace-header>
+  <div class="workspace-header__row">
+    <div class="workspace-header__title">
+      {% if heading %}<h1 class="workspace-header__name">{{ analysis.station_name|default:analysis.file_name }}</h1>
+      {% else %}<p class="workspace-header__name workspace-header__name--line">{{ analysis.station_name|default:analysis.file_name }}</p>{% endif %}
+      <p class="workspace-header__sub">{% if analysis.summary.first_year %}<span>{% blocktranslate with first=analysis.summary.first_year last=analysis.summary.last_year %}{{ first }}–{{ last }}{% endblocktranslate %}</span>{% endif %}{% if analysis.metadata_complete %}<span>{% blocktranslate with start=analysis.base_start end=analysis.base_end %}base period {{ start }}–{{ end }}{% endblocktranslate %}</span>{% endif %}{% if analysis.station_name %}<span class="workspace-header__file">{{ analysis.file_name }}</span>{% endif %}{% if workspace_current != "data" %}<span><a href="{% url 'stations:load' analysis.pk %}">{% translate "Edit the details" %}</a></span>{% endif %}</p>
+    </div>
+    {% if actions %}<div class="workspace-header__actions">{% include actions %}</div>{% endif %}
+  </div>
+  {% include "components/workspace_tabs.html" with tabs=workspace_tabs %}
+  <script src="{% static 'climpact_web/js/workspace.js' %}" defer></script>
+</div>

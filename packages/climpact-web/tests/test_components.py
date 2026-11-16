@@ -253,9 +253,10 @@ def test_landing_page(client):
         "/station/",
         "/batch/",
         "/gridded/",
-        "/help/",
         "/jobs/",
     ]
+    # Help is the header's Help button since #197, leading to the help or the page's guide.
+    assert re.search(r'<a class="help-button" id="app-help" href="/help/"', html)
     # Below 600px a <details> menu (no JavaScript) holds the same links (#115).
     menu = re.search(r'<details class="site-menu">.*?</details>', html, re.S).group(0)
     assert re.search(r"<summary[^>]*>.*Menu.*</summary>", menu, re.S)
@@ -291,8 +292,10 @@ def test_destinations_link_once_their_urls_exist(client):
     page = client.get("/help/index/")
     assert page.status_code == 200
     items = navigation.nav_items(page.wsgi_request)
-    assert [i["label"] for i in items] == ["Single station", "Batch", "Help", "Your calculations"]
-    assert items[2]["current"]
+    # Help is the header's Help button since #197, not a link among the destinations.
+    assert [i["label"] for i in items] == ["Single station", "Batch", "Your calculations"]
+    help_button = navigation.page_help(page.wsgi_request)
+    assert help_button == {"url": "/help/index/", "title": None, "current": True}
 
 
 # ---- Pattern library -------------------------------------------------------------------

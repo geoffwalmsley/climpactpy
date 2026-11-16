@@ -1,9 +1,12 @@
 {% load i18n ui %}{% comment %}
-A section's ⓘ ({% section_help %} in templatetags/help.py, #177). Without JavaScript, a
-link to the section's help page; ui.js hides the link and shows the button, which opens
-the drawer with the content of the <template> (components/drawer.html). Parameters:
-section, title, topics, guide_links, url, element_id.
-{% endcomment %}{% if section %}{% blocktranslate with title=title asvar help_name %}Help: {{ title }}{% endblocktranslate %}
-<a class="help-button" href="{{ url }}" data-help-link>{% icon "info" %}<span class="sr-only">{{ help_name }}</span></a>
-<button type="button" class="help-button" data-drawer-open="{{ element_id }}" aria-controls="help-drawer" aria-expanded="false" hidden>{% icon "info" %}<span class="sr-only">{{ help_name }}</span></button>
+A section's Help button (#177, #197; {% section_help %} in templatetags/help.py): a pill
+with a word ("Help", or the label given, such as "How to read this") at the end of the
+section header. Without JavaScript, a link to the section's help page; drawer.js hides the
+link and shows the button, which opens the drawer with the content of the <template>
+(components/drawer.html). The accessible name starts with the visible label and adds the
+section (WCAG 2.5.3). Parameters: section, title, label, topics, guide_links, url,
+element_id.
+{% endcomment %}{% if section %}{% blocktranslate with title=title asvar help_name %}Help: {{ title }}{% endblocktranslate %}{% if label %}{% blocktranslate with label=label title=title asvar pill_name %}{{ label }}: {{ title }}{% endblocktranslate %}{% else %}{% translate "Help" as label %}{% blocktranslate with title=title asvar pill_name %}Help: {{ title }}{% endblocktranslate %}{% endif %}
+<a class="help-button" href="{{ url }}" data-help-link aria-label="{{ pill_name }}"><span class="help-button__mark" aria-hidden="true"></span><span>{{ label }}</span></a>
+<button type="button" class="help-button" data-drawer-open="{{ element_id }}" aria-controls="help-drawer" aria-expanded="false" aria-label="{{ pill_name }}" hidden><span class="help-button__mark" aria-hidden="true"></span><span>{{ label }}</span></button>
 <template id="{{ element_id }}" data-title="{{ help_name }}">{% include "help/_section_body.html" %}</template>{% endif %}

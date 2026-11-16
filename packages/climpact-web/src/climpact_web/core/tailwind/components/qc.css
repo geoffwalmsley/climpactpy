@@ -2,8 +2,23 @@
    and the decision), the "look wrong" rows with their small charts, the "worth a look"
    groups, the Details disclosure, the tables linked to the charts, the missing-values
    table, and the distribution plots drawn on the server (stations/qc_plots.py writes the
-   qc-plot classes). Each list is one surface with dividers, never cards in cards. */
+   qc-plot classes). Each list is rows between hairlines on the page, never a box (#197). */
 @layer components {
+  /* The verdict is the page's answer: a band in its status's tint, no frame (#197). The
+     icon and the title say the level in shape and words. */
+  .qc-verdict.answer-band {
+    --band-bg: var(--alert-soft);
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: --spacing(3);
+    border: 0;
+  }
+
+  .qc-verdict.answer-band > .alert__body {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
   .qc-verdict__title {
     margin: 0;
     font-size: var(--text-xl);
@@ -41,6 +56,8 @@
 
   .qc-section-head > * { margin: 0; }
 
+  .qc-section-head > .section-header { flex: 1 1 100%; }
+
   /* A count beside a heading or a group's title: plain, the words say the severity. */
   .qc-count {
     display: inline-block;
@@ -56,15 +73,12 @@
     vertical-align: middle;
   }
 
-  /* One surface for a list; rows separated by dividers. */
+  /* A list is rows between hairlines on the page; no frame (#197). */
   .qc-findings,
   .qc-groups,
   .qc-details {
     padding: 0;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-raised);
+    border-block: 1px solid var(--color-border);
     list-style: none;
   }
 
@@ -81,7 +95,7 @@
     grid-template-columns: 1fr auto;
     gap: --spacing(1) --spacing(4);
     align-items: center;
-    padding: --spacing(3) --spacing(4) --spacing(1);
+    padding: --spacing(3) --spacing(2) --spacing(1);
   }
 
   .qc-finding:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
@@ -153,7 +167,7 @@
     gap: --spacing(3);
     align-items: center;
     min-block-size: var(--control-height);
-    padding: --spacing(3) --spacing(4);
+    padding: --spacing(3) --spacing(2);
     cursor: pointer;
     list-style: none;
   }
@@ -191,8 +205,8 @@
     font-weight: var(--font-weight-normal);
   }
 
-  .qc-group__body { padding: 0 --spacing(4) --spacing(4); }
-  .qc-details__body { padding: --spacing(2) --spacing(4) --spacing(5); }
+  .qc-group__body { padding: 0 --spacing(2) --spacing(4); }
+  .qc-details__body { padding: --spacing(2) 0 --spacing(5); }
 
   .qc-months th,
   .qc-months td { padding-inline: --spacing(2); }

@@ -3,13 +3,13 @@
 {% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
-  <div class="stack stack--sm">
-    {% include "stations/_workspace.html" with heading=True %}
-    {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
-    link to change them in place.{% endcomment %}
-    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
-  </div>
+<div class="stack stack--xl station-page">
+  {% comment %}One primary action, the zip, in the workspace header; the Files page is the one
+  secondary link (#173, #197). Every other file is listed there, not here (#176).{% endcomment %}
+  {% include "stations/_workspace.html" with heading=True actions="stations/_results_actions.html" %}
+  {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
+  link to change them in place.{% endcomment %}
+  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
 
   {% comment %}Out of date after a change (#179): the banner says what changed, with the new
   run's progress, or "Recalculate". The results stay below it until the new ones are ready.{% endcomment %}
@@ -37,33 +37,25 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
-  <div class="{% if stale %}stale-content {% endif %}stack stack--lg">
-  {% comment %}One primary action, the zip; the Files page is the one secondary link (#173). Every
-  other file is listed there, not here (#176).{% endcomment %}
-  <div class="flex flex-wrap items-center gap-3 results-actions">
-    {% url 'stations:downloads' analysis.pk as files_url %}{% translate "All files and the report" as files_label %}
-    {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
-    {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}
-    {% include "components/button.html" with label=files_label href=files_url variant="secondary" icon_end="arrow-right" %}
-    {% else %}
-    {% include "components/button.html" with label=files_label href=files_url icon_end="arrow-right" %}
-    {% endif %}
-  </div>
+  <div class="{% if stale %}stale-content {% endif %}stack stack--xl">
 
   {% comment %}Answer first (#175): one sentence from the themes, a headline per theme, then
-  the indices in no theme, one line each. Built in stations/themes.py from the trends.{% endcomment %}
-  <section class="stack" aria-labelledby="findings-title">
-    <div class="with-help"><h2 id="findings-title">{% translate "What changed" %}</h2>{% section_help "results.findings" %}</div>
-    <p class="findings__answer">{{ summary_sentences|join:" " }}</p>
+  the indices in no theme, one line each. Built in stations/themes.py from the trends. The
+  answer is the page's one tinted band, its number large (#197).{% endcomment %}
+  <section class="page-section stack" aria-labelledby="findings-title">
+    <div class="section-header"><h2 id="findings-title">{% translate "What changed" %}</h2><p class="section-header__note">{% translate "Up to three significant trends per theme, largest first" %}</p>{% translate "How to read this" as read_label %}{% section_help "results.findings" label=read_label %}</div>
+    <div class="answer-band">
+      <p class="answer-band__number">{{ significant_count }}<small>{% blocktranslate count counter=total trimmed %}of {{ counter }} index changed significantly{% plural %}of {{ counter }} indices changed significantly{% endblocktranslate %}</small></p>
+      <p class="findings__answer">{{ summary_sentences|join:" " }}</p>
+    </div>
     <div class="theme-grid">
       {% for t in headline_themes %}
       {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label hue=t.hue badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
       {% endfor %}
     </div>
-    <p class="text-sm text-text-muted">{% translate "Each theme shows up to three significant trends, largest first." %}</p>
     {% if also_measured %}
-    <section class="card stack" aria-labelledby="also-title">
-      <h3 class="card__title" id="also-title">{% translate "Also measured" %}</h3>
+    <section class="stack stack--sm" aria-labelledby="also-title">
+      <h3 class="group-label" id="also-title">{% translate "Also measured" %}</h3>
       <ul class="also-measured" role="list">
         {% for t in also_measured %}
         <li>
@@ -89,8 +81,8 @@
   </div>
   {% endif %}
 
-  <section class="stack" id="catalogue" aria-labelledby="catalogue-title">
-  <div class="with-help"><h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>{% section_help "results.catalogue" %}</div>
+  <section class="page-section stack" id="catalogue" aria-labelledby="catalogue-title">
+  <div class="section-header"><h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>{% section_help "results.catalogue" %}</div>
   <form class="results-filter card" method="get" action="{% url 'stations:results' analysis.pk %}" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
     <div class="results-filter__search">
       <label class="field__label" for="results-q">{% translate "Find an index" %}</label>
@@ -149,8 +141,8 @@
 
   {% include "stations/_settings_form.html" %}
 
-  <section class="card stack" aria-labelledby="sector-title">
-    <h2 class="card__title" id="sector-title">{% translate "Compare with sector data" %}</h2>
+  <section class="page-section stack stack--sm" aria-labelledby="sector-title">
+    <div class="section-header"><h2 id="sector-title">{% translate "Compare with sector data" %}</h2></div>
     <p class="text-sm text-text-muted">{% translate "Optional. See how yearly data such as crop yields relates to the indices." %}</p>
     <p>{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
     {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>

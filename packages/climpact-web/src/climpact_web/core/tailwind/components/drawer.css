@@ -67,32 +67,94 @@
     list-style: none;
   }
 
-  /* == The ⓘ beside a heading (with-help keeps them on one line) == */
-  .with-help {
+  /* == Section header (#197): the heading, an optional muted note, then the Help pill
+     pinned to the end of the row, so it sits in the same place on every section. From
+     the mockups' .sh and .helpbtn (docs/design/redesign-proposals.html, proposal 3). == */
+  .section-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: --spacing(1);
+    gap: --spacing(2) --spacing(3);
   }
 
+  .section-header > * {
+    margin: 0;
+  }
+
+  .section-header > :is(h2, h3) {
+    min-inline-size: 0;
+  }
+
+  /* A section's h2 on a page with one surface level (#197): smaller than the page's h1,
+     larger than the groups inside it. */
+  .section-header > h2,
+  :where(.station-page) h2 {
+    font-size: var(--text-lg);
+  }
+
+  .section-header__note {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .section-header > .help-button {
+    margin-inline-start: auto;
+  }
+
+  /* The Help pill: a word in a 30px pill (a 24px target or more, WCAG 2.5.8), the
+     question mark in a ring before it. */
   .help-button {
-    display: inline-grid;
+    display: inline-flex;
     flex: none;
-    place-items: center;
-    inline-size: 2rem;
-    block-size: 2rem;
-    border: 1px solid transparent;
+    align-items: center;
+    gap: --spacing(1.5);
+    min-block-size: 1.875rem;
+    padding-inline: --spacing(2.5);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-full);
-    background: none;
-    color: var(--color-ink);
+    background: var(--color-surface);
+    color: var(--color-ink-hover);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
     cursor: pointer;
   }
 
-  .help-button:hover,
-  .help-button[aria-expanded="true"] {
+  .help-button:hover {
+    border-color: var(--color-border-strong);
     background: var(--color-surface-sunken);
+    color: var(--color-ink);
   }
 
-  .help-button[aria-expanded="true"] {
-    border-color: currentColor;
+  .help-button[aria-expanded="true"],
+  .help-button[aria-current="page"] {
+    border-color: var(--color-ink);
+    color: var(--color-ink);
+  }
+
+  .help-button__mark {
+    display: grid;
+    flex: none;
+    place-items: center;
+    inline-size: 1rem;
+    block-size: 1rem;
+    border: 1.5px solid currentColor;
+    border-radius: var(--radius-full);
+    font-size: 0.625rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+  }
+
+  /* The question mark is drawn, not text: it is decoration beside the word. */
+  .help-button__mark::before {
+    content: "?";
+  }
+
+  @media (forced-colors: active) {
+    .help-button {
+      border-color: ButtonText;
+    }
   }
 }

@@ -905,6 +905,40 @@ def test_help_drawer_by_keyboard(chrome, site):
         c.viewport(1280, 900)
 
 
+def test_sticky_workspace_header_never_covers_focus(chrome, site):
+    """#197: the workspace header (name, tabs, actions) stays at the top as the page
+    scrolls, and Tab never leaves the focused element under it (WCAG 2.4.11): the page's
+    scroll padding is the header's height. On a phone it scrolls away with the page."""
+    c = chrome
+    c.viewport(1280, 700)
+    try:
+        for name in ("station results", "station quality results"):
+            c.navigate(site[name])
+            c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+            header = "document.querySelector('[data-workspace-header]')"
+            assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
+            for _ in range(80):
+                c.press("Tab")
+                time.sleep(0.02)
+                hidden = c.evaluate(
+                    f"(function () {{ var h = {header}, a = document.activeElement;"
+                    " if (!a || h.contains(a) || a === document.body) return false;"
+                    " var r = a.getBoundingClientRect(), b = h.getBoundingClientRect();"
+                    " if (r.height === 0) return false;"
+                    " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
+                )
+                assert not hidden, (
+                    name,
+                    c.evaluate("document.activeElement.outerHTML.slice(0, 120)"),
+                )
+            assert c.evaluate("window.scrollY") > 300, name  # the page scrolled under it
+            assert abs(c.evaluate(f"{header}.getBoundingClientRect().top")) <= 1, name
+        c.viewport(320, 700)
+        assert c.evaluate(f"getComputedStyle({header}).position") == "static"
+    finally:
+        c.viewport(1280, 900)
+
+
 def test_help_reachable_from_every_section_of_the_station_pages(chrome, site):
     """#177: every ⓘ on every station page opens the drawer with its section's help."""
     c = chrome

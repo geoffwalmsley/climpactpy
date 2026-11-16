@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy
+from django.utils.translation import gettext_lazy, ngettext
 
 from climpact_web.jobs.models import Job, Status
 from climpact_web.stations.models import StationAnalysis, Step
@@ -421,15 +421,14 @@ def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
         from climpact_web.stations.views import sheet_context
 
         out.update(inputs_panel(analysis, path))
-        out["input_sheets"] = [sheet_context(analysis, key) for key in SHEETS]
+        out["input_sheets"] = [sheet_context(analysis, key) for key in sheet_keys(analysis)]
     return out
 
 
 # ---- the Inputs panel (#198) -------------------------------------------------------------
 
-# The panel's inputs: each with the names of :func:`differences` it covers. The file,
-# station and base period are edited in a side sheet (``stations:edit_input``); the
-# thresholds and index settings, until #199, where they are edited now.
+# The panel's inputs: each with the names of :func:`differences` it covers. Each is edited
+# in a side sheet (``stations:edit_input``; the thresholds and index settings since #199).
 PANEL_INPUTS = (
     ("file", gettext_lazy("File"), ("file",)),
     ("station", gettext_lazy("Station"), ("name", "location")),
@@ -437,7 +436,15 @@ PANEL_INPUTS = (
     ("thresholds", gettext_lazy("Quality thresholds"), ("qc",)),
     ("settings", gettext_lazy("Index settings"), ("settings",)),
 )
-SHEETS = ("file", "station", "base-period")
+SHEETS = tuple(key for key, _label, _names in PANEL_INPUTS)
+
+
+def sheet_keys(analysis: StationAnalysis) -> tuple[str, ...]:
+    """The sheets the station's pages have: all of them once the data is in use; before
+    "Use this data" not the index settings, which only the results use (#198)."""
+    if committed(analysis):
+        return SHEETS
+    return tuple(key for key in SHEETS if key != "settings")
 
 
 def affected(names) -> list[str]:
@@ -475,6 +482,8 @@ def impact(key: str) -> list[str]:
         sentences = [impact_sentence(names)]
     if key == "file":
         sentences.append(_("The station details and thresholds are kept."))
+    elif key == "settings":
+        sentences.append(_("About half a minute for 80 years of data."))
     sentences.append(_("What is shown now stays until its replacement is ready."))
     return sentences
 
@@ -487,21 +496,41 @@ def changed_inputs(analysis: StationAnalysis) -> set[str]:
     return names
 
 
-def settings_are_defaults(analysis: StationAnalysis) -> bool:
-    """Whether the latest run asked for (or the batch's) uses the default index settings.
-    From the settings form's defaults, without importing the core."""
+def thresholds_changed(analysis: StationAnalysis) -> int:
+    """How many of the quality-control thresholds differ from R's defaults."""
+    from climpact_web.stations.forms import QC_DEFAULTS
+
+    values = qc_values(analysis)
+    return sum(1 for key, default in QC_DEFAULTS.items() if values.get(key) != default)
+
+
+def settings_changed(analysis: StationAnalysis) -> int:
+    """How many index settings and output options of the latest run asked for (or the
+    batch's) differ from the defaults: each parameter, the custom index, a plot title of
+    the user's, and each of the plots, zip and report switched off. From the settings
+    form's defaults, without importing the core."""
     from climpact_web.stations.calculation import previous_params
     from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
 
-    params = previous_params(analysis)[0]
+    params, plot_title, plots, zip_, report, _source = previous_params(analysis)
     fields = IndexParamsForm.base_fields
-    for name in PARAM_FIELDS:
-        if name in params and params[name] != fields[name].initial:
-            return False
+    count = sum(
+        1 for name in PARAM_FIELDS if name in params and params[name] != fields[name].initial
+    )
     default_custom = {
         key: fields[f"custom_{key}"].initial for key in ("variable", "operator", "threshold")
     }
-    return "custom" not in params or params["custom"] == default_custom
+    if "custom" in params and params["custom"] != default_custom:
+        count += 1
+    count += bool(plot_title) + (not plots) + (not zip_) + (not report)
+    return count
+
+
+def changed_text(count: int) -> str:
+    """A panel summary: "Defaults", or how many values were changed."""
+    if not count:
+        return _("Defaults")
+    return ngettext("%(count)s changed", "%(count)s changed", count) % {"count": count}
 
 
 @dataclass
@@ -511,7 +540,6 @@ class PanelInput:
     value: str
     edit_url: str
     edit_label: str
-    sheet: bool  # edited in a side sheet; else a link to where it is edited (#199)
     changed: bool
 
 
@@ -522,47 +550,39 @@ class PanelRun:
     job: Job
 
 
-def _with_next(url: str, path: str) -> str:
+def sheet_url(analysis: StationAnalysis, key: str, path: str = "") -> str:
+    """The address of the sheet ``key`` as a page (``stations:edit_input``), where its Edit
+    leads without JavaScript; ``path``, where applying returns."""
     from django.utils.http import urlencode
 
+    url = reverse("stations:edit_input", args=[analysis.pk, key])
     return f"{url}?{urlencode({'next': path})}" if path else url
 
 
 def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     """The Inputs panel (#198): each input with its value, its edit link and whether it
-    changed since what is shown; the checks and run under way for the new inputs; and the
-    sheets' forms (``stations/_input_sheets.html``)."""
+    changed since what is shown; the checks and run under way for the new inputs; and
+    each sheet's page by key (``input_urls``), for the links on the page that open a
+    sheet (``components/button.html``'s ``sheet``, #199)."""
     from django.utils.formats import number_format
-
-    from climpact_web.stations.forms import QC_DEFAULTS
 
     summary = analysis.summary or {}
     days = summary.get("days") or 0
     count = len(summary.get("variables") or [])
     changed = changed_inputs(analysis)
-    pk = analysis.pk
     values = {
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
         "station": f"{analysis.latitude:g}°, {analysis.longitude:g}°",
         "base-period": f"{analysis.base_start}–{analysis.base_end}",
-        "thresholds": _("Defaults") if qc_values(analysis) == QC_DEFAULTS else _("Changed"),
-        "settings": _("Defaults") if settings_are_defaults(analysis) else _("Changed"),
+        "thresholds": changed_text(thresholds_changed(analysis)),
+        "settings": changed_text(settings_changed(analysis)),
     }
-    results_url = reverse("stations:results", args=[pk])
-    links = {
-        "thresholds": reverse("stations:qc", args=[pk]) + "#thresholds",
-        "settings": results_url + "?settings=open#adjust",
-    }
+    sheets = sheet_keys(analysis)
     items = []
     for key, label, names in PANEL_INPUTS:
-        sheet = key in SHEETS
-        if sheet:
-            url = _with_next(reverse("stations:edit_input", args=[pk, key]), path)
-        elif key == "settings" and not committed(analysis):
-            url = ""  # the settings are changed on Results, once the data is in use
-        else:
-            url = links[key]
+        # No Edit for the index settings before "Use this data": only the results use them.
+        url = sheet_url(analysis, key, path) if key in sheets else ""
         items.append(
             PanelInput(
                 key=key,
@@ -570,7 +590,6 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
                 value=values[key],
                 edit_url=url,
                 edit_label=_("Replace") if key == "file" else _("Edit"),
-                sheet=sheet,
                 changed=bool(changed.intersection(names)),
             )
         )
@@ -580,4 +599,5 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     if committed(analysis) and _active(analysis.indices_job):
         label = _("Recalculating") if shown_run(analysis) else _("Calculating the indices")
         runs.append(PanelRun("run", label, analysis.indices_job))
-    return {"inputs": items, "input_runs": runs, "input_next": path}
+    urls = {item.key: item.edit_url for item in items if item.edit_url}
+    return {"inputs": items, "input_runs": runs, "input_next": path, "input_urls": urls}

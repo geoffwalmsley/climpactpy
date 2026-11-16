@@ -3,11 +3,12 @@ The Inputs panel's side sheets (#198): one modal <dialog> per input edited here,
 its Edit link (js/sheet.js; without JavaScript the link is the form's own page). Modal,
 unlike the help drawer: the form is being edited, so the page behind is inert and focus
 stays in the sheet until Apply, Cancel, the close button, Escape or a click on the
-backdrop (DESIGN.md, "Components"). Closing discards what was typed.
-Context: analysis, input_sheets (views.sheet_context each), input_next.
+backdrop (DESIGN.md, "Components"). Closing discards what was typed. ``open_sheet`` (an
+old "Adjust and recalculate" address, #199) opens its sheet as the page loads.
+Context: analysis, input_sheets (views.sheet_context each), input_next, open_sheet.
 {% endcomment %}
 {% for sheet in input_sheets %}
-<dialog class="sheet" id="sheet-{{ sheet.key }}" aria-labelledby="sheet-{{ sheet.key }}-title" data-sheet>
+<dialog class="sheet" id="sheet-{{ sheet.key }}" aria-labelledby="sheet-{{ sheet.key }}-title" data-sheet{% if open_sheet.key == sheet.key %} data-sheet-autoopen{% endif %}>
   <div class="sheet__panel">
     <div class="sheet__header">
       <h2 class="sheet__title" id="sheet-{{ sheet.key }}-title">{{ sheet.title }}</h2>

@@ -1,0 +1,6 @@
+{% load i18n %}{% comment %}
+"Run the checks" on Quality when they failed, were stopped or have not run (#199): a link
+that opens the Quality thresholds sheet, whose Apply runs them with the thresholds shown;
+without JavaScript, the sheet's page. Context: input_urls (workspace.inputs_panel).
+{% endcomment %}{% if input_urls.thresholds %}{% translate "Run the checks" as run_label %}
+<p>{% include "components/button.html" with label=run_label href=input_urls.thresholds sheet="thresholds" variant="secondary" icon="play" size="sm" %}</p>{% endif %}

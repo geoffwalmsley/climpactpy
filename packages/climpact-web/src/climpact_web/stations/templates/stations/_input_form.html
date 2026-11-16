@@ -1,11 +1,13 @@
-{% load i18n ui %}{% comment %}
-The form of one input of the Inputs panel (#198): only that input's fields, what applying
-will update, then one primary button, Apply, and Cancel. In a side sheet
+{% load i18n ui help %}{% comment %}
+The form of one input of the Inputs panel (#198, #199): only that input's fields, what
+applying will update, then one primary button, Apply, and Cancel. In a side sheet
 (stations/_input_sheets.html, ``in_sheet``) Cancel closes it; on its own page
-(stations/input_edit.html) Cancel returns to ``next``. The station's fields are checked as
-they change, as on the first visit (stations/_unit.html).
-Context: analysis, sheet (views.sheet_context: key, title, intro, form, impact), next,
-form_id, in_sheet.
+(stations/input_edit.html) Cancel returns to ``next``. The body scrolls between the
+header and the foot, so Apply stays in view however long the form (the index settings).
+The station's fields are checked as they change, as on the first visit
+(stations/_unit.html), and so are the index settings (stations/_indices_unit.html).
+Context: analysis, sheet (views.sheet_context: key, title, intro, form, impact,
+settings_source), next, form_id, in_sheet.
 {% endcomment %}
 <form method="post" action="{% url 'stations:edit_input' analysis.pk sheet.key %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
   {% csrf_token %}
@@ -21,8 +23,17 @@ form_id, in_sheet.
       {% include "stations/_unit.html" with group="latitude" form=sheet.form %}
       {% include "stations/_unit.html" with group="longitude" form=sheet.form %}
     </div>
-    {% else %}
+    {% elif sheet.key == "base-period" %}
     {% include "stations/_unit.html" with group="base_period" form=sheet.form %}
+    {% elif sheet.key == "thresholds" %}
+    {% section_help "quality.thresholds" inline=True %}
+    <div class="settings-group__fields">
+      {% for field in sheet.form %}
+      {% include "components/field.html" with field=field unit=field.field.unit narrow=True %}
+      {% endfor %}
+    </div>
+    {% elif sheet.key == "settings" %}
+    {% include "stations/_settings_fields.html" with form=sheet.form settings_source=sheet.settings_source heading=in_sheet|yesno:"h3,h2" %}
     {% endif %}
     <div class="impact" id="{{ form_id }}-impact">{% icon "refresh" %}<p>{% for sentence in sheet.impact %}{% if forloop.first %}<strong>{{ sentence }}</strong>{% else %} {{ sentence }}{% endif %}{% endfor %}</p></div>
     {% turnstile %}

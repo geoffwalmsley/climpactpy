@@ -1,0 +1,6 @@
+{% comment %}
+In the head of a page opened at an old "Adjust and recalculate" address (``?settings=open``,
+or the old Calculate step's, #199): with JavaScript the sheet opens as the page loads
+(``data-sheet-autoopen``, js/sheet.js); without it the page goes on to the sheet's own page.
+Context: open_sheet (views_indices.open_sheet: key, url).
+{% endcomment %}{% if open_sheet %}<noscript><meta http-equiv="refresh" content="0; url={{ open_sheet.url }}"></noscript>{% endif %}

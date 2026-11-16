@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% include "stations/_open_sheet.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page">
   {% comment %}One primary action, the zip, in the workspace header; the Files page is the one
@@ -12,8 +12,8 @@
   {% include "stations/_inputs.html" %}
   <div class="workspace__main stack stack--xl">
   {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
-  link to change them in place.{% endcomment %}
-  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
+  link that opens the Index settings sheet (#199). ``adjust``, the old form's anchor.{% endcomment %}
+  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" id="adjust" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the settings" %}</a></p>
 
   {% comment %}Out of date after a change (#179): the banner says what changed, with the new
   run's progress, or "Recalculate". The results stay below it until the new ones are ready.{% endcomment %}
@@ -37,7 +37,7 @@
   {% endif %}
 
   {% if from_batch %}
-  {% translate "These results are from the batch run. Adjust and recalculate to calculate them here." as batch_note %}
+  {% translate "These results are from the batch run. Change the index settings to calculate them here." as batch_note %}
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
@@ -142,8 +142,6 @@
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
   </section>
   </div>
-
-  {% include "stations/_settings_form.html" %}
 
   <section class="page-section stack stack--sm" aria-labelledby="sector-title">
     <div class="section-header"><h2 id="sector-title">{% translate "Compare with sector data" %}</h2></div>

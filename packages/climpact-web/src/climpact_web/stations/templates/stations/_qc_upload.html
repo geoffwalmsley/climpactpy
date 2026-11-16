@@ -1,9 +1,0 @@
-{% load i18n %}{% comment %}
-"Upload a corrected file" (#174): a button that opens the file picker and runs the checks
-again on the chosen file, keeping the station details and thresholds, and the hint the
-file input is described by. Parameters: variant, hint_only (the hint alone), button_only
-(the button alone). Context: analysis, replace_form.
-{% endcomment %}{% if not hint_only %}{% url 'stations:qc_replace' analysis.pk as replace_url %}{% translate "Upload a corrected file" as upload_label %}{% translate "Upload and check again" as upload_submit %}{% include "components/file_button.html" with action=replace_url field=replace_form.station_file label=upload_label submit_label=upload_submit variant=variant %}{% endif %}
-{% if not button_only %}<p class="text-sm text-text-muted" id="{{ replace_form.station_file.auto_id }}_helptext">{% blocktranslate trimmed %}
-  Correct the values, or write -99.9 if you do not know them. The checks run again on the
-  new file.{% endblocktranslate %}</p>{% endif %}

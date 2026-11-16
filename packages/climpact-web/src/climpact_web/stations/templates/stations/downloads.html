@@ -41,7 +41,7 @@ calculated it holds the quality-control files alone. Context from views_download
         <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}</p>
         {% else %}
         <p class="text-sm text-text-muted">{% translate "Not made. The zip was switched off in the settings." %}</p>
-        <p class="text-sm"><a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
+        {% if input_urls.settings %}<p class="text-sm"><a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the index settings" %}</a></p>{% endif %}
         {% endif %}
       </li>
       <li class="card stack stack--sm">
@@ -52,7 +52,7 @@ calculated it holds the quality-control files alone. Context from views_download
         <p class="mt-auto">{% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}</p>
         {% else %}
         <p class="text-sm text-text-muted">{% translate "Not made. The report was switched off, or this calculation is older than the report." %}</p>
-        <p class="text-sm"><a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
+        {% if input_urls.settings %}<p class="text-sm"><a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the index settings" %}</a></p>{% endif %}
         {% endif %}
       </li>
     </ul>

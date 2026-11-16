@@ -5,8 +5,8 @@ The station flow has no Calculate step since #178. Once the user confirms the st
 details, the checks are queued (:func:`queue_qc`) and :func:`speculate` queues a
 calculation with the settings the form would start from (:func:`previous_params`: the
 defaults, or the last run's). It runs while the user looks at the quality checks, so "Use
-this data" usually opens finished results. The settings are "Adjust and recalculate" on
-Results, which queues an ordinary run (:func:`queue_station_run`).
+this data" usually opens finished results. The settings are the Inputs panel's Index
+settings sheet (#199), which queues an ordinary run (:func:`queue_station_run`).
 
 A speculative run is a job with ``params["speculative"]`` true (``jobs.models.SPECULATIVE``).
 In hosted mode it is queued only when the worker has room
@@ -169,7 +169,7 @@ def queue_qc(request, analysis: StationAnalysis) -> Job:
 
 
 def queue_station_run(request, analysis: StationAnalysis, form: IndexParamsForm) -> Job | None:
-    """Queue the calculation the user asked for ("Adjust and recalculate", or "Use this
+    """Queue the calculation the user asked for (the Index settings sheet, or "Use this
     data" without a speculative run). A run of this analysis still waiting or running is
     cancelled, as this one replaces it; finished results stay on the page until the new
     run has finished (:data:`REPLACES`). The caller saves the analysis."""
@@ -197,7 +197,7 @@ def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
     if not (analysis.metadata_complete and analysis.station_file.is_file()):
         return None
     if analysis.origin and analysis.indices_job is None:
-        return None  # the batch's results are shown; "Adjust and recalculate" is there
+        return None  # the batch's results are shown; the Index settings sheet recalculates
     form = bound_settings(analysis, previous)
     if not form.is_valid():  # a batch line's settings the form no longer accepts
         return None

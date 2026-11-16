@@ -48,7 +48,7 @@ ASSET_BUDGETS = {
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
     "js/workspace.js": 0.5 * KB,  # the station workspace's sticky header (#197)
-    "js/sheet.js": 1 * KB,  # the Inputs panel's side sheets (#198)
+    "js/sheet.js": 1.5 * KB,  # the Inputs panel's side sheets (#198), old addresses (#199)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only

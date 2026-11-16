@@ -1,16 +1,17 @@
-"""Results (#78, #79): the calculation's progress, the results dashboard, each index's own
-page, and "Adjust and recalculate" (#178). The sector comparison is in ``views_sector``.
+"""Results (#78, #79): the calculation's progress, the results dashboard and each index's
+own page. The sector comparison is in ``views_sector``. The index settings are edited in
+the Inputs panel's sheet since #199 (``views.edit_input``), not on Results.
 
 URLs (all ``/station/<id>/...``, private to the session like the other steps):
 
-``indices``                 the old Calculate step's address: GET goes to "Adjust and
-                            recalculate" on Results (old links, bookmarks), POST is that
-                            form's submission and queues a new run; with
-                            ``recalculate=1`` and no settings, it is "Recalculate" on
-                            out-of-date results (#179)
-``indices/validate``        htmx: one group of the settings checked as it changes
+``indices``                 the old Calculate step's address: GET (old links, bookmarks)
+                            opens Results with the Index settings sheet; POST is
+                            "Recalculate" on out-of-date results (#179): the current
+                            inputs with the latest settings
+``indices/validate``        htmx: one group of the settings sheet checked as it changes
 ``results``                 progress while the job runs, then the dashboard; a
-                            recalculation keeps the last results under its progress
+                            recalculation keeps the last results under its progress;
+                            ``?settings=open`` (old links) opens the Index settings sheet
 ``results/progress``        htmx: the progress fragment; when the job ends it reloads the
                             page (or opens the index the user came from)
 ``results/<key>``           one index: chart, trend, anomalies, tables, downloads
@@ -43,7 +44,7 @@ from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import progress_context
 from climpact_web.stations import calculation, themes, workspace
 from climpact_web.stations import results as results_model
-from climpact_web.stations.calculation import previous_params, station_title
+from climpact_web.stations.calculation import station_title
 from climpact_web.stations.forms_indices import IndexParamsForm
 from climpact_web.stations.models import StationAnalysis, Step
 from climpact_web.stations.views import get_analysis, step_two_ready
@@ -70,13 +71,13 @@ def results_url(analysis, index: str = "") -> str:
 
 
 def adjust_url(analysis, index: str = "") -> str:
-    """Results with "Adjust and recalculate" open; ``index``, the index page the user came
-    from, is where the new results open."""
+    """Results with the Index settings sheet open (#199): the old "Adjust and recalculate"
+    address. ``index``, the index page the user came from, is where applying returns."""
     query = {"settings": "open", **({"back": index} if index else {})}
-    return f"{reverse('stations:results', args=[analysis.pk])}?{urlencode(query)}#adjust"
+    return f"{reverse('stations:results', args=[analysis.pk])}?{urlencode(query)}"
 
 
-# ---- Adjust and recalculate --------------------------------------------------------------
+# ---- the old Calculate step, and "Recalculate" -------------------------------------------
 
 
 @never_cache
@@ -84,31 +85,23 @@ def adjust_url(analysis, index: str = "") -> str:
 @human_required
 def indices(request, analysis_id):
     """The address of the Calculate step before #178. GET (an old link or bookmark) opens
-    "Adjust and recalculate" on Results; POST is that form: queue a run with the settings,
-    which replaces the results when it finishes."""
+    the Index settings sheet over Results (#199). POST is "Recalculate" on out-of-date
+    results (#179): the current inputs with the latest settings. The settings themselves
+    are applied from the sheet (``views.edit_input``)."""
     analysis = get_analysis(request, analysis_id)
     if not _ready(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
     if request.method != "POST":
         return redirect(adjust_url(analysis, index))
-    if request.POST.get("recalculate"):
-        # "Recalculate" on out-of-date results: the current inputs, the latest settings.
-        restore_if_cancelled(analysis)
-        calculation.recalculate(request, analysis)
-        analysis.touch()
-        analysis.save()
-        return redirect(results_url(analysis))
-    form = IndexParamsForm(request.POST, station_title=station_title(analysis))
-    if not form.is_valid():
-        return render_results(request, analysis, form)
-    job = calculation.queue_station_run(request, analysis, form)
-    if job is None:
-        return redirect("stations:load", analysis_id=analysis.pk)
-    analysis.advance_to(Step.RESULTS)
+    if not request.POST.get("recalculate"):
+        # A settings form from before #199: the settings are in the sheet now.
+        return redirect(workspace.sheet_url(analysis, "settings", results_url(analysis)))
+    restore_if_cancelled(analysis)
+    calculation.recalculate(request, analysis)
     analysis.touch()
     analysis.save()
-    return redirect(results_url(analysis, form.cleaned_data.get("index", "")[:INDEX_KEY_MAX]))
+    return redirect(results_url(analysis))
 
 
 @require_POST
@@ -180,18 +173,17 @@ def load_results(analysis, source):
     )
 
 
-def settings_context(request, analysis, form=None) -> dict:
-    """The "Adjust and recalculate" form: the settings of the results shown (or of the run
-    in progress), open when asked for (``?settings=open``) or when it has errors."""
-    previous = previous_params(analysis)
-    if form is None:
-        back = request.GET.get("back", "")[:INDEX_KEY_MAX]
-        form = calculation.settings_form(analysis, previous, index=back)
-    return {
-        "form": form,
-        "settings_source": previous[5],
-        "open_settings": form.is_bound or request.GET.get("settings") == "open",
-    }
+def open_sheet(request, analysis) -> tuple[dict | None, str]:
+    """``?settings=open``, the old "Adjust and recalculate" address (#199): the Index
+    settings sheet opens as the page loads (js/sheet.js), and without JavaScript the page
+    goes on to the sheet's own page. Applying returns to the index the user came from
+    (``back``), else to Results. Returns (the sheet to open, or None; where applying
+    returns)."""
+    if request.GET.get("settings") != "open":
+        return None, request.path
+    back = request.GET.get("back", "")[:INDEX_KEY_MAX]
+    target = results_url(analysis, back)
+    return {"key": "settings", "url": workspace.sheet_url(analysis, "settings", target)}, target
 
 
 @never_cache
@@ -206,18 +198,19 @@ def results(request, analysis_id):
     return render_results(request, analysis)
 
 
-def render_results(request, analysis, form=None):
+def render_results(request, analysis):
     """The results page: the dashboard, with a recalculation's progress above it, or the
-    progress of the first run, or (with ``form``) the settings' errors."""
+    progress of the first run."""
     restore_if_cancelled(analysis)
     job, source = current_source(analysis)
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
+    sheet, back = open_sheet(request, analysis)
     context = {
         "analysis": analysis,
         "job": job,
-        **workspace.context(analysis, "results", request.path),
+        **workspace.context(analysis, "results", back),
         "index": index,
-        **settings_context(request, analysis, form),
+        "open_sheet": sheet,
     }
     if job is None or source is None:
         if job is None:  # nothing calculated: the run was refused, say, or cancelled
@@ -234,7 +227,7 @@ def render_results(request, analysis, form=None):
         running = None
     # ?index= opens that index; while a recalculation runs the page stays here, under its
     # progress, which opens the index once the new results are ready.
-    if index and form is None and (running is None or running.is_finished):
+    if index and (running is None or running.is_finished):
         card = run.find(index)
         if card is not None:
             return redirect("stations:result", analysis_id=analysis.pk, key=card.key)

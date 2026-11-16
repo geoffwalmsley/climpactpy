@@ -1,4 +1,5 @@
-"""The index settings form (#78), "Adjust and recalculate" on Results since #178.
+"""The index settings form (#78): the Inputs panel's Index settings sheet since #199
+("Adjust and recalculate" on Results from #178).
 
 Every field of the R app's step 3 (``climpact/modules/singleStationStep3UI.R``): the plot
 title, d for WSDId, CSDId, Rxdday and TXdTNd/TXbdTNbd, the base temperatures of HDDheat,

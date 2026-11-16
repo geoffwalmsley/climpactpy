@@ -122,23 +122,27 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert Job.objects.count() == 2
 
 
-def test_while_the_checks_run_the_thresholds_are_tucked_away(client):
-    """#114: the checks start by themselves, so the page says they are running and the
-    thresholds form is behind "Change the thresholds", not a "Run" button in view."""
+def without_sheets(page: str) -> str:
+    """The page without the Inputs panel's sheets (#198, #199): what is on the page itself."""
+    return re.sub(r"<dialog.*?</dialog>", "", page, flags=re.S)
+
+
+def test_while_the_checks_run_the_thresholds_are_in_the_inputs_panel(client):
+    """#114, #199: the checks start by themselves, so the page says they are running. The
+    thresholds are not on the page: the Inputs panel's sheet has them."""
     analysis = start(client)
     page = client.get(f"/station/{analysis.pk}/quality").content.decode()
     assert "Running the quality checks…" in page and "Waiting to run" not in page
-    assert "Run the quality checks" not in page
-    details = re.search(r'<details class="disclosure"[^>]*>\s*<summary>.*?</summary>', page, re.S)
-    assert details and "Change the thresholds<" in details.group(0)
-    assert " open" not in details.group(0).split(">")[0]
-    assert page.index("<summary>", details.start()) < page.index('name="iqr_temp"')
-    assert "Restart the checks with these thresholds" in page
-    # Before any check (no job) the form is in view, to run them by hand.
+    assert 'name="iqr_temp"' in page and 'name="iqr_temp"' not in without_sheets(page)
+    assert "<form" not in without_sheets(page).split('id="your-data"')[0]
+    # Before any check (no job) the page offers to run them: the thresholds sheet does.
     analysis.qc_job = None
     analysis.save()
     page = client.get(f"/station/{analysis.pk}/quality").content.decode()
-    assert "Run the quality checks" in page and "Change the thresholds<" not in page
+    assert "The checks have not run on this file yet." in page
+    sheet = f"/station/{analysis.pk}/inputs/thresholds?next=%2Fstation%2F{analysis.pk}%2Fquality"
+    assert f'href="{sheet}" data-sheet-open="sheet-thresholds"' in page
+    assert "<span>Run the checks</span>" in page
 
 
 def test_qc_job_writes_the_qc_files_like_r(checked):
@@ -438,8 +442,8 @@ def test_months_that_hold_most_rows():
 def test_results_page(client, checked):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     assert "Usable. 21 values look wrong." in page
-    # One decision: "Use this data" is the one primary button; "Upload a corrected file"
-    # opens the file picker (no drop zone), keeping the re-upload behind it.
+    # One decision: "Use this data" is the one primary button; "Replace file" opens the
+    # Inputs panel's File sheet (#199), so the drop zone is only in that sheet.
     verdict = page[
         page.index('class="alert alert--warning qc-verdict answer-band"') : page.index(
             'id="look-wrong"'
@@ -447,10 +451,15 @@ def test_results_page(client, checked):
     ]
     assert f'action="/station/{checked.pk}/quality/continue"' in verdict
     assert verdict.count('class="button"') == 1 and "<span>Use this data</span>" in verdict
-    assert f'action="/station/{checked.pk}/quality/file"' in verdict
-    assert "data-file-button" in verdict and "Upload a corrected file" in verdict
-    assert 'id="id_station_file_helptext"' in verdict  # what choosing a file does
-    assert "data-dropzone" not in re.sub(r"<dialog.*?</dialog>", "", page, flags=re.S)
+    file_sheet = f"/station/{checked.pk}/inputs/file?next=%2Fstation%2F{checked.pk}%2Fquality"
+    assert f'<a href="{file_sheet}" data-sheet-open="sheet-file"' in verdict
+    assert 'class="button button--secondary"' in verdict and "<span>Replace file</span>" in verdict
+    assert "then replace the file" in verdict  # what to do first
+    assert "data-dropzone" not in without_sheets(page)
+    # No forms on the page but the decision and "Delete" (#199): the thresholds and the
+    # file are changed in the Inputs panel's sheets.
+    actions = re.findall(r'<form[^>]* action="([^"]+)"', without_sheets(page))
+    assert actions == [f"/station/{checked.pk}/quality/continue", f"/station/{checked.pk}/delete"]
     # The worklist, then everything else under Details.
     order = ["look-wrong", "worth-a-look", "missing-data", "details"]
     assert [page.index(f'id="{i}"') for i in order] == sorted(
@@ -465,6 +474,10 @@ def test_results_page(client, checked):
         assert page.index(src) > page.index('id="details"')
     assert "js/qc.js" in page and "js/charts.js" in page
     assert 'id="distributions"' in page and 'id="thresholds"' in page
+    # Details says which thresholds the checks used, and opens their sheet.
+    thresholds = without_sheets(page).split('id="thresholds"')[1].split("</section>")[0]
+    assert "The checks use R's default thresholds." in thresholds
+    assert 'data-sheet-open="sheet-thresholds"' in thresholds and "<input" not in thresholds
     # The files are in Files, not here (#176): one link under Details, no download.
     job = checked.qc_job
     assert f"/jobs/{job.pk}/files/" not in page and " download>" not in page
@@ -487,9 +500,8 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
     assert 'id="look-wrong"' not in page and 'id="worth-a-look"' not in page
     assert "Ready to use" in page
-    # Green: "Use this data" alone; the upload button is under Details.
-    assert "Upload a corrected file" in page.split('id="details"')[1]
-    assert "Upload a corrected file" not in page.split('id="details"')[0]
+    # Green: "Use this data" alone; the file is replaced from the Inputs panel (#199).
+    assert "Replace file</span>" not in without_sheets(page)
 
 
 def test_pages_without_javascript(client, checked):
@@ -515,10 +527,18 @@ def test_table_page_of_a_date(client, checked):
     )
 
 
+def sheet_post(client, analysis, key, data, next_page="quality"):
+    """Apply the Inputs panel's sheet ``key`` from a station page (#198, #199)."""
+    return client.post(
+        f"/station/{analysis.pk}/inputs/{key}",
+        {**data, "next": f"/station/{analysis.pk}/{next_page}"},
+    )
+
+
 def test_new_thresholds_run_the_checks_again(client, checked):
     data = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "jump": "15"}
-    response = client.post(f"/station/{checked.pk}/quality/run", data)
-    assert response["Location"] == f"/station/{checked.pk}/quality#qc-status"
+    response = sheet_post(client, checked, "thresholds", data)
+    assert response["Location"] == f"/station/{checked.pk}/quality"
     checked.refresh_from_db()
     assert checked.qc_params["jump"] == 15.0 and checked.qc_job.params["qc"]["jump"] == 15.0
     job = run_next()
@@ -528,28 +548,47 @@ def test_new_thresholds_run_the_checks_again(client, checked):
     flags = chart_flags(client, checked, "tmax")
     listed = {r.date for r in review.check("tx_jumps").rows}
     assert {d for d, c in flags if c == "tx_jumps"} == listed
+    # The panel says how many were changed, and Details too.
+    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    panel = page.split('data-input="thresholds"')[1].split("</div>")[0]
+    assert '<dd class="inputs-panel__value">1 changed</dd>' in panel
+    assert "The checks use R's default thresholds, with 1 changed." in page
 
 
-def test_bad_thresholds_are_shown_on_the_page(client, checked):
+def test_the_same_thresholds_run_failed_checks_again(client, checked):
+    """#199: Apply on the thresholds sheet is how the checks run again once they failed or
+    were stopped; with the checks done it queues nothing."""
+    data = {k: str(v) for k, v in QC_DEFAULTS.items()}
+    sheet_post(client, checked, "thresholds", data)
+    assert Job.objects.count() == 2  # the checks and the speculative run, nothing more
+    job = checked.qc_job
+    job.status = Status.FAILED
+    job.save()
+    sheet_post(client, checked, "thresholds", data)
+    checked.refresh_from_db()
+    assert checked.qc_job != job and checked.qc_job.status == Status.QUEUED
+
+
+def test_bad_thresholds_are_shown_on_the_sheet_page(client, checked):
     data = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "temp_max": "99"}
-    response = client.post(f"/station/{checked.pk}/quality/run", data)
+    response = sheet_post(client, checked, "thresholds", data)
     assert response.status_code == 200
-    assert "Enter a number from 0 to 60." in response.content.decode()
+    page = response.content.decode()
+    assert "Enter a number from 0 to 60." in page and 'id="input-form"' in page
     assert Job.objects.count() == 2  # the checks and the speculative run, nothing more
 
 
-def test_reupload_reruns_the_checks_and_keeps_the_details(client, checked):
-    """Acceptance: re-uploading a fixed file reruns QC without re-entering metadata."""
+def test_replaced_file_reruns_the_checks_and_keeps_the_details(client, checked):
+    """Acceptance: replacing the file with a fixed one reruns QC without re-entering
+    metadata (the File sheet, #198, #199)."""
     data = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "iqr_temp": "4"}
-    client.post(f"/station/{checked.pk}/quality/run", data)
+    sheet_post(client, checked, "thresholds", data)
     run_next()
     fixed = STRESS.read_text().replace("1963\t7\t2\t200.1\t", "1963\t7\t2\t20.1\t")
     assert fixed != STRESS.read_text()
-    response = client.post(
-        f"/station/{checked.pk}/quality/file",
-        {"station_file": SimpleUploadedFile("fixed.txt", fixed.encode())},
-    )
-    assert response["Location"] == f"/station/{checked.pk}/quality#qc-status"
+    upload = {"station_file": SimpleUploadedFile("fixed.txt", fixed.encode())}
+    response = sheet_post(client, checked, "file", upload)
+    assert response["Location"] == f"/station/{checked.pk}/quality"
     checked.refresh_from_db()
     assert checked.station_name == "qc_stress_1961-2020" and checked.latitude == 52.38
     assert checked.qc_params["iqr_temp"] == 4.0
@@ -560,11 +599,9 @@ def test_reupload_reruns_the_checks_and_keeps_the_details(client, checked):
     assert "1963-07-02" not in [r.date for r in review.check("toolarge").rows]
 
 
-def test_reupload_of_a_bad_file_shows_its_problems(client, checked):
-    response = client.post(
-        f"/station/{checked.pk}/quality/file",
-        {"station_file": SimpleUploadedFile("bad.txt", b"not a station file\n")},
-    )
+def test_a_bad_replacement_file_shows_its_problems(client, checked):
+    upload = {"station_file": SimpleUploadedFile("bad.txt", b"not a station file\n")}
+    response = sheet_post(client, checked, "file", upload)
     assert response.status_code == 200
     page = response.content.decode()
     assert "file-problems" in page
@@ -600,8 +637,11 @@ def test_other_sessions_get_404(client, checked):
     other = Client()
     for url in ("quality", "quality/progress", "quality/checks/outliers"):
         assert other.get(f"/station/{checked.pk}/{url}").status_code == 404
-    for url in ("quality/run", "quality/file", "quality/continue"):
+    for url in ("inputs/thresholds", "inputs/file", "quality/continue"):
         assert other.post(f"/station/{checked.pk}/{url}").status_code == 404
+    # The old forms' addresses are gone (#199).
+    for url in ("quality/run", "quality/file"):
+        assert client.post(f"/station/{checked.pk}/{url}").status_code == 404
 
 
 def test_failed_checks_say_so(client):
@@ -611,7 +651,9 @@ def test_failed_checks_say_so(client):
     job.save()
     page = client.get(f"/station/{analysis.pk}/quality").content.decode()
     assert "The checks could not be run." in page and "Something went wrong." in page
-    assert f'action="/station/{analysis.pk}/quality/run"' in page
+    # "Run the checks" opens the thresholds sheet, whose Apply runs them (#199).
+    alert = page.split('class="alert alert--error"')[1].split("</div>\n    </div>")[0]
+    assert 'data-sheet-open="sheet-thresholds"' in alert and "Run the checks" in alert
 
 
 # ---- Distribution plots ------------------------------------------------------------------------
@@ -681,4 +723,5 @@ def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
         "quality.thresholds",
         "load.data",  # "Your data" (#198)
     ]
-    assert "help-topic--compact" not in page
+    # The thresholds sheet's help opens in place, the drawer being behind it (#199).
+    assert "help-topic--compact" not in without_sheets(page)

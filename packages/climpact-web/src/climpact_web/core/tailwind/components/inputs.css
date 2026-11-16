@@ -205,6 +205,26 @@
     border-block-start: 1px solid var(--color-border);
   }
 
+  /* A sheet's groups of fields (the index settings, #199), each under a rule rather than
+     put in a card (DESIGN.md: no cards inside cards), the first too, apart from the
+     intro. Narrow fields go two to a row in the sheet, more on the sheet's own page. */
+  .settings-group {
+    padding-block-start: --spacing(4);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .settings-group__title {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  .settings-group__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+    align-items: start;
+    gap: --spacing(4);
+  }
+
   /* On its own page (no JavaScript): the form at reading width, its foot in the flow. */
   .edit-input {
     max-inline-size: var(--container-prose);

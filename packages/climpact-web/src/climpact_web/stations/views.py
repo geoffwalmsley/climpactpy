@@ -49,6 +49,7 @@ from climpact_web.stations.forms import (
     StationForm,
     UploadForm,
 )
+from climpact_web.stations.forms_indices import IndexParamsForm
 from climpact_web.stations.models import Source, StationAnalysis, Step
 from climpact_web.stations.station_file import (
     Inspection,
@@ -360,9 +361,7 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
         "analysis": analysis,
         **workspace.context(analysis, "quality", request.path),
         **summary_context(analysis),  # "Your data", Data's summary before #198
-        "qc_form": extra.pop("qc_form", None)
-        or QCParamsForm(initial=QCParamsForm.initial_for(analysis.qc_params)),
-        "replace_form": extra.pop("replace_form", None) or UploadForm(),
+        "thresholds_changed": workspace.thresholds_changed(analysis),
         "job": job,
         "shown": shown,
         # The checks shown are not of the current inputs, or newer ones are on the way
@@ -418,33 +417,12 @@ def remember_verdict(job, level: str) -> None:
 @never_cache
 @require_safe
 def qc(request, analysis_id):
-    """Step 2, Check quality: the thresholds, the checks run as a job, and their results."""
+    """Quality: the checks run as a job and their results. The thresholds are in the
+    Inputs panel (#199)."""
     analysis = get_analysis(request, analysis_id)
     if not step_two_ready(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
     return render(request, "stations/qc.html", qc_context(request, analysis))
-
-
-@require_POST
-@human_required
-def qc_run(request, analysis_id):
-    """Save the thresholds and run the checks (again)."""
-    analysis = get_analysis(request, analysis_id)
-    if not step_two_ready(analysis):
-        return redirect("stations:load", analysis_id=analysis.pk)
-    form = QCParamsForm(request.POST)
-    if not form.is_valid():
-        return render(request, "stations/qc.html", qc_context(request, analysis, qc_form=form))
-    values = {k: form.cleaned_data[k] for k in QC_DEFAULTS}
-    if values != QCParamsForm.initial_for(analysis.qc_params):
-        # The checks and the run of the old thresholds are replaced (the QC files of the
-        # full run use the thresholds too), with the same settings (#178); their results
-        # stay, out of date, until then (#179).
-        analysis.qc_params = values
-        calculation.bring_up_to_date(request, analysis)
-    else:
-        queue_qc(request, analysis)  # the same thresholds: run the checks again
-    return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
 
 
 @never_cache
@@ -498,42 +476,6 @@ def qc_table(request, analysis_id, check):
 
 
 @require_POST
-@human_required
-def qc_replace(request, analysis_id):
-    """Fix the file and upload it again: the station details and thresholds are kept and
-    the checks and the run start again on the new file. The old file's checks and
-    results stay, out of date, until then (#179)."""
-    analysis = get_analysis(request, analysis_id)
-    if not analysis.metadata_complete:
-        return redirect("stations:load", analysis_id=analysis.pk)
-    form = UploadForm(request.POST, request.FILES)
-    inspection = None
-    if form.is_valid():
-        uploaded = form.cleaned_data["station_file"]
-        inspection = inspect_station_bytes(read_upload(uploaded))
-        if inspection.ok:
-            metadata = MetadataForm(initial_metadata(analysis), summary=inspection.summary)
-            analysis.source = Source.UPLOAD
-            apply_inspection(analysis, inspection, uploaded.name)
-            if not metadata.is_valid():
-                # The base period no longer fits the data: back to step 1 to change it.
-                messages.warning(
-                    request,
-                    _(
-                        "The new file is loaded, but the station details need a change "
-                        "before the checks can run."
-                    ),
-                )
-                return redirect("stations:load", analysis_id=analysis.pk)
-            analysis.advance_to(Step.QC)
-            calculation.bring_up_to_date(request, analysis)
-            messages.success(request, _("The new file is loaded. The checks are running again."))
-            return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
-    context = qc_context(request, analysis, replace_form=form, inspection=inspection)
-    return render(request, "stations/qc.html", context)
-
-
-@require_POST
 def qc_continue(request, analysis_id):
     """ "Use this data", whatever the checks found (the user decides): straight to the
     results, calculated with the default settings while the user looked at the checks
@@ -579,6 +521,14 @@ INPUT_SHEETS = {
         _lazy("Base period"),
         _lazy("The years the percentile indices are compared with."),
     ),
+    "thresholds": (
+        _lazy("Quality thresholds"),
+        _lazy("The limits the quality checks flag values beyond. R's defaults suit most data."),
+    ),
+    "settings": (
+        _lazy("Index settings"),
+        _lazy("The choices some indices depend on, and the files a run writes."),
+    ),
 }
 
 
@@ -601,8 +551,16 @@ def next_url(request, analysis: StationAnalysis) -> str:
 def input_form(analysis: StationAnalysis, key: str, data=None, files=None):
     """The form of the sheet ``key``: unbound with the saved values, or bound to ``data``."""
     if key == "file":
-        # Its own ids: Quality's "Correct the file" has a file field too.
+        # Its own ids, apart from the first visit's file field.
         return UploadForm(data, files, auto_id="sheet_%s")
+    if key == "thresholds":
+        if data is not None:
+            return QCParamsForm(data)
+        return QCParamsForm(initial=QCParamsForm.initial_for(analysis.qc_params))
+    if key == "settings":
+        if data is not None:
+            return IndexParamsForm(data, station_title=calculation.station_title(analysis))
+        return calculation.settings_form(analysis)
     form_class = StationForm if key == "station" else BasePeriodForm
     if data is not None:
         return form_class(data, summary=analysis.summary)
@@ -613,14 +571,43 @@ def input_form(analysis: StationAnalysis, key: str, data=None, files=None):
 
 
 def sheet_context(analysis: StationAnalysis, key: str, form=None) -> dict:
-    """One sheet's context: its key, title, form and what applying it will update."""
-    return {
+    """One sheet's context: its key, title, form and what applying it will update; for the
+    index settings, where they come from (``settings_source``: a batch's line, say)."""
+    context = {
         "key": key,
         "title": INPUT_SHEETS[key][0],
         "intro": INPUT_SHEETS[key][1],
         "form": form if form is not None else input_form(analysis, key),
         "impact": workspace.impact(key),
     }
+    if key == "settings":
+        context["settings_source"] = calculation.previous_params(analysis)[5]
+    return context
+
+
+def apply_thresholds(request, analysis: StationAnalysis, form: QCParamsForm) -> None:
+    """Apply the Quality thresholds sheet. New thresholds replace the checks and the run
+    (the run's QC files use them too), whose results stay, out of date, until then (#179).
+    The same thresholds run the checks again when the shown ones failed, were stopped or
+    never ran: Apply is how the user runs them again since the form left Quality (#199)."""
+    values = {k: form.cleaned_data[k] for k in QC_DEFAULTS}
+    if values != QCParamsForm.initial_for(analysis.qc_params):
+        analysis.qc_params = values
+        calculation.bring_up_to_date(request, analysis)
+        return
+    job = analysis.qc_job
+    if job is None or job.status in (Status.FAILED, Status.CANCELLED):
+        queue_qc(request, analysis)
+
+
+def apply_settings(request, analysis: StationAnalysis, form) -> None:
+    """Apply the Index settings sheet: queue a run with them, which replaces the results
+    shown when it has finished (#178, "Adjust and recalculate" on Results until #199)."""
+    workspace.restore_if_cancelled(analysis)
+    calculation.queue_station_run(request, analysis, form)
+    analysis.advance_to(Step.RESULTS)
+    analysis.touch()
+    analysis.save()
 
 
 def apply_file(request, analysis: StationAnalysis, form: UploadForm):
@@ -651,15 +638,19 @@ def apply_file(request, analysis: StationAnalysis, form: UploadForm):
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
 def edit_input(request, analysis_id, key):
-    """An input of the Inputs panel (#198): the file, the station or the base period. The
-    panel's Edit opens this form in a side sheet; without JavaScript, or when the sheet's
-    form has errors, it is this page. Applying keeps what depends on the input, marked out
-    of date, and queues its replacement (#179); then back to the page it was opened from."""
+    """An input of the Inputs panel (#198, #199): the file, the station, the base period,
+    the quality thresholds or the index settings. The panel's Edit opens this form in a
+    side sheet; without JavaScript, or when the sheet's form has errors, it is this page.
+    Applying keeps what depends on the input, marked out of date, and queues its
+    replacement (#179); then back to the page it was opened from. The index settings only
+    once the data is in use ("Use this data"): before, only the results use them."""
     analysis = get_analysis(request, analysis_id)
     if key not in INPUT_SHEETS:
         raise Http404
     if not workspace.set_up(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
+    if key not in workspace.sheet_keys(analysis):
+        return redirect("stations:qc", analysis_id=analysis.pk)
     inspection = None
     if request.method == "POST":
         form = input_form(analysis, key, request.POST, request.FILES)
@@ -668,6 +659,12 @@ def edit_input(request, analysis_id, key):
                 inspection, response = apply_file(request, analysis, form)
                 if response is not None:
                     return response
+            elif key == "thresholds":
+                apply_thresholds(request, analysis, form)
+                return redirect(next_url(request, analysis))
+            elif key == "settings":
+                apply_settings(request, analysis, form)
+                return redirect(next_url(request, analysis))
             else:
                 for name, value in form.cleaned_data.items():
                     setattr(analysis, name, value)

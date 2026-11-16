@@ -88,8 +88,8 @@ SECTIONS = (
         [
             _("Climpact never changes your data. You decide whether to correct the file."),
             _(
-                "When you upload a corrected file, the checks run again. Your station "
-                "details and thresholds are kept."
+                "When you replace the file with a corrected one, the checks run again. "
+                "Your station details and thresholds are kept."
             ),
             Note(_("Nothing looks wrong."), _("Ready to use")),
             Note(
@@ -180,10 +180,10 @@ SECTIONS = (
         ],
         [
             _("The defaults are those of Climpact for R. Smaller numbers flag more values."),
-            _("Change them and check again. The verdict and lists update."),
+            _("Change them in Your inputs. The checks run again and the verdict updates."),
         ],
     ),
-    # ---- Results: "Adjust and recalculate" (the Calculate step until #178) ------------------
+    # ---- The Index settings sheet (#199; "Adjust and recalculate" on Results, #178) --------
     S("calculate.plots", _("Plots"), ["param.plot_title"]),
     S(
         "calculate.spells",

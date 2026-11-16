@@ -1,5 +1,6 @@
-"""The downloads of a station run (#79): the downloads page, sizes on the buttons, the PDF
-report written by the station and batch jobs."""
+"""The downloads of a station (#79, #176): the Files page with every file, sizes on the
+buttons, one "Download all" elsewhere, the PDF report written by the station and batch
+jobs."""
 
 import re
 import shutil
@@ -50,8 +51,10 @@ def test_downloads_page_lists_every_file_with_its_size(client):
     assert f'href="{files}{STATION}.zip"' in html
     assert f'href="{files}{STATION}_report.pdf"' in html
     assert f'href="{files}{STATION}/plots/{STATION}_all_plots.pdf"' in html
-    assert re.search(rf"Download \(ZIP, {SIZE}\)", html)
-    assert re.search(rf"Download \(PDF, {SIZE}\)", html)
+    assert re.search(rf"Download all \(zip, {SIZE}\)", html)
+    assert re.search(rf"Download the report \(PDF, {SIZE}\)", html)
+    # One primary action, the zip (#176).
+    assert html.count('class="button"') == 1
     # Every index table, each with its size, and the PNG drawn.
     for name in index_files():
         assert f"{files}{STATION}/indices/{STATION}_{name}.csv" in html, name
@@ -63,8 +66,15 @@ def test_downloads_page_lists_every_file_with_its_size(client):
     assert all(re.search(SIZE, link) for link in links)
     for name in ("trend", "thres", "nastatistics", "outliers", "tmaxmin"):
         assert f"_{name}.csv" in html
-    # Where the chart images of the current view are.
-    assert "PNG (a picture) or SVG" in html and "#index-chart" in html
+    # A file no group names (here the reference run's comparison) is under Other files.
+    other = html.split('id="others-title"')[1]
+    assert f'href="{files}{STATION}/comparison_summary.csv"' in other
+    # Where the chart images of the current view are: one line, no link to a chart (#176).
+    assert "use PNG or SVG above its chart" in html and "#index-chart" not in html
+    # The index groups are closed disclosures, each with its count and total size.
+    groups = re.findall(r"<details class=\"disclosure download-group\"[^>]*>", html)
+    assert groups and not any(" open" in g for g in groups)
+    assert re.search(rf"\d+ indices, {SIZE}", html)
     # Every link works.
     for href in sorted(set(re.findall(rf'href="({files}[^"]+)"', html)))[:5]:
         assert client.get(href).status_code == 200
@@ -92,24 +102,28 @@ def test_downloads_page_redirects_and_is_private(client):
     assert response["Location"] == f"/station/{analysis.pk}/indices"
 
 
-def test_dashboard_and_index_page_show_sizes(client):
+def test_dashboard_and_index_page_offer_one_download(client):
+    """Results offer the zip and a link to Files, nothing else; an index page only its
+    chart's own exports (#173, #176)."""
     analysis, job = finished_analysis(client)
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
-    # The header: one primary action, the zip, and one secondary link, to the downloads
-    # page (#173).
+    # The header: one primary action, the zip, and one secondary link, to Files (#173).
     actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     assert actions.count('class="button"') == 1 and "Download all (zip" in actions
     assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
     assert f'href="/station/{analysis.pk}/downloads"' in actions
-    assert re.search(rf"All plots \(PDF, {SIZE}\)", html)
-    assert re.search(rf"Trends \(CSV, {SIZE}\)", html)
-    assert f'href="/station/{analysis.pk}/downloads"' in html
+    # No other file on the page (#176): the zip is its only download.
+    files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
+    assert files == [f"{STATION}.zip"]
+    assert 'id="downloads"' not in html and "Kept until" in html
     page = client.get(f"/station/{analysis.pk}/results/txx").content.decode()
-    assert re.search(rf"The table \(CSV, {SIZE}\)", page)
-    assert re.search(rf"plot of this series \(PNG, {SIZE}\)", page)
-    assert "PNG or SVG above the chart saves that view" in page
+    # The chart's CSV is the page's one file link; the PNG plot is the no-script image.
+    links = re.findall(rf'<a [^>]*href="/jobs/{job.pk}/files/([^"]+)"', page)
+    assert links == [f"{STATION}/indices/{STATION}_txx_ANN.csv"]
+    assert "data-chart-csv" in page and 'id="files-title"' not in page
+    assert f'href="/station/{analysis.pk}/downloads"' not in page
 
 
 def test_report_path_of_a_batch_station(client, tmp_path):
@@ -213,3 +227,66 @@ def test_downloads_page_lists_the_sector_comparison(client):
     section = html.split('id="sector-title"')[1].split("</section>")[0]
     links = re.findall(r'download-link[^"]*"[^>]*>.*?</a>', section, re.S)
     assert links and all(re.search(SIZE, link) for link in links)
+
+
+def test_files_page_reaches_every_file_of_the_station(client):
+    """Every file a user could download before #176 is reachable from Files: each file the
+    quality check and the calculation wrote (walked on disk), each member of the zip, and
+    every file linked from the Results, index and Quality pages."""
+    from test_indices_results import finish, ready_analysis
+    from test_qc_review import run_next
+
+    analysis = ready_analysis(client)
+    qc_job = run_next()  # step 1's "Continue" queued the quality checks
+    assert qc_job.kind == "qc" and qc_job.status == Status.SUCCEEDED, qc_job.error
+    job = Job.objects.create(
+        kind="station",
+        owner=analysis.owner,
+        params={"station_file": "station.txt", "params": {}, "plots": True, "zip": True},
+    )
+    finish(job)
+    complete(job)
+    analysis.refresh_from_db()
+    analysis.indices_job = job
+    analysis.save()
+    html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
+    linked = set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', html))
+    qc_names = {h.rsplit("/", 1)[1] for h in linked if h.startswith(f"/jobs/{qc_job.pk}/")}
+
+    def reachable(j, path) -> bool:
+        rel = path.relative_to(j.output_dir).as_posix()
+        # The run's own copy of a quality-control file is offered from the quality check,
+        # which wrote the same file with the same thresholds.
+        return f"/jobs/{j.pk}/files/{rel}" in linked or (
+            j == job and path.parent.name == "qc" and path.name in qc_names
+        )
+
+    for j in (qc_job, job):
+        on_disk = [p for p in j.output_dir.rglob("*") if p.is_file()]
+        assert on_disk
+        missing = [str(p.relative_to(j.output_dir)) for p in on_disk if not reachable(j, p)]
+        assert not missing, f"{j.kind} files not on the Files page: {missing}"
+    with zipfile.ZipFile(job.output_dir / f"{STATION}.zip") as archive:
+        members = {n.rsplit("/", 1)[-1] for n in archive.namelist() if not n.endswith("/")}
+    linked_names = {h.rsplit("/", 1)[1] for h in linked}
+    assert members and members <= linked_names
+    # Whatever another page links to is on Files too.
+    for page in ("results", "results/txx", "quality"):
+        other = client.get(f"/station/{analysis.pk}/{page}").content.decode()
+        assert set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', other)) <= linked, page
+    assert all(client.get(h).status_code == 200 for h in sorted(linked)[:3])
+
+
+def test_files_page_before_the_indices_holds_the_quality_files(client):
+    """After the quality checks and before a calculation, Files has their files (#176)."""
+    from test_indices_results import ready_analysis
+    from test_qc_review import run_next
+
+    analysis = ready_analysis(client)
+    qc_job = run_next()
+    html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
+    assert 'id="quality-files"' in html and "Download all" not in html
+    for rel in [*qc_job.result["files"], qc_job.result["zip"]]:
+        assert f'href="/jobs/{qc_job.pk}/files/{rel}"' in html, rel
+    assert f'href="/station/{analysis.pk}/indices"' in html
+    assert "Step 2 of 4" in html

@@ -1,0 +1,3 @@
+{% load i18n ui %}{% comment %}A file to download, with its format and size (#79), as a small secondary button; the
+label is for screen readers, so a row's heading can name the file. Parameters: d (a
+stations.downloads.Download, or anything with label, kind and size), href.{% endcomment %}<a class="button button--secondary button--sm download-link whitespace-nowrap" href="{{ href }}" download>{% icon "download" %}<span>{% blocktranslate with kind=d.kind|upper label=d.label size=d.size|filesizeformat %}{{ kind }}<span class="sr-only"> {{ label }}</span>, {{ size }}{% endblocktranslate %}</span></a>

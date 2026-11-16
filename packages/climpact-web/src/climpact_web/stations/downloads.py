@@ -1,8 +1,10 @@
-"""The downloads of a finished station run (#79): the zip in Climpact for R's layout, the
-PDF report, the combined plots PDF, the summary and quality-control files, and each index's
-table and plot, every one with its size, for slow connections.
+"""The station's Files section (#79, #176): every file a user can download, in one place.
+The zip in Climpact for R's layout, the PDF report, the summary files, the quality-control
+files, the plots and each index's table and plot, every one with its size, for slow
+connections. Other pages link here instead of listing files (DESIGN.md, "Don't offer
+downloads everywhere").
 
-Everything is a file the job wrote; nothing is made in the request. The chart images of
+Everything is a file a job wrote; nothing is made in the request. The chart images of
 the current view (PNG and SVG) are made in the browser by the index pages' charts
 (``js/charts.js``); this page says where to find them.
 """
@@ -25,6 +27,10 @@ class Download:
     size: int  # bytes
     kind: str  # zip, pdf, csv, png
     note: str = ""
+
+    @property
+    def name(self) -> str:
+        return Path(self.path).name
 
 
 def _download(source: RunSource, path: Path, label: str, kind: str, note: str = ""):
@@ -98,12 +104,13 @@ def main_downloads(source: RunSource) -> dict:
     }
 
 
-# The run's other files: (folder, file name without the station prefix, label, contents).
+# The run's summary files: (folder, file name without the station prefix, label, contents).
 SUMMARY_FILES = (
     ("trend", "trend", gettext_lazy("Trends"), gettext_lazy("Sen's slope of every index")),
     ("thres", "thres", gettext_lazy("Thresholds"), gettext_lazy("Base-period percentiles")),
-    ("qc", "nastatistics", gettext_lazy("Missing values"), gettext_lazy("Days missing per year")),
 )
+# The files of the qc folder: (file name without the station prefix, label), in the order
+# of the Quality page.
 QC_FILES = (
     ("tmaxmin", gettext_lazy("TX at or below TN")),
     ("toolarge", gettext_lazy("Values too large")),
@@ -113,7 +120,9 @@ QC_FILES = (
     ("tn_jumps", gettext_lazy("Jumps in TN")),
     ("tx_flatline", gettext_lazy("Flat runs in TX")),
     ("tn_flatline", gettext_lazy("Flat runs in TN")),
+    ("nastatistics", gettext_lazy("Missing values")),
 )
+QC_ORDER = {name: i for i, (name, _label) in enumerate(QC_FILES)}
 
 
 def summary_downloads(source: RunSource) -> list[Download]:
@@ -126,11 +135,68 @@ def summary_downloads(source: RunSource) -> list[Download]:
 
 
 def qc_downloads(source: RunSource) -> list[Download]:
+    """The run's own ``qc/`` files (also in its zip)."""
     out = []
     for name, label in QC_FILES:
         path = source.station_dir / "qc" / f"{source.station}_{name}.csv"
         if d := _download(source, path, str(label), "csv"):
             out.append(d)
+    return out
+
+
+def _qc_label(path: Path, station: str) -> str:
+    name = path.stem.removeprefix(f"{station}_")
+    return str(dict(QC_FILES).get(name, path.name))
+
+
+def quality_downloads(analysis, source: RunSource | None) -> dict | None:
+    """The quality-control files: those of the Quality page's check (the ``qc`` job, #77),
+    every file it wrote and its zip; or, with no such check (a station from a batch run),
+    the run's own ``qc/`` files. None when there are neither."""
+    from climpact_web.jobs.models import Status
+
+    qc_job = analysis.qc_job
+    if qc_job is not None and qc_job.status == Status.SUCCEEDED:
+        root = qc_job.output_dir
+        station = qc_job.result.get("station", "")
+        files = []
+        for rel in qc_job.result.get("files", []):
+            path = root / rel
+            if path.is_file():
+                kind = path.suffix.lstrip(".")
+                files.append(Download(_qc_label(path, station), rel, path.stat().st_size, kind))
+        files.sort(key=lambda d: QC_ORDER.get(Path(d.path).stem.removeprefix(f"{station}_"), 99))
+        zip_file = None
+        if (rel := qc_job.result.get("zip")) and (root / rel).is_file():
+            zip_file = Download(_("Quality-control files"), rel, (root / rel).stat().st_size, "zip")
+        if not files and zip_file is None:
+            return None
+        return {"job": qc_job, "zip": zip_file, "files": files, "size": totals(files)}
+    if source is None:
+        return None
+    files = qc_downloads(source)
+    if not files:
+        return None
+    return {"job": source.job, "zip": None, "files": files, "size": totals(files)}
+
+
+def other_downloads(source: RunSource, listed: set[str], covered: set[str]) -> list[Download]:
+    """Every other file in the station's folder: not ``listed`` (paths relative to the
+    job's output) and not ``covered`` (file names offered from another job, the quality
+    check's), so that every file the run wrote can be downloaded from the Files page."""
+    out = []
+    for path in sorted(p for p in source.station_dir.rglob("*") if p.is_file()):
+        rel = source.relative(path)
+        if rel in listed or path.name in covered:
+            continue
+        out.append(
+            Download(
+                rel.removeprefix(f"{source.station}/"),
+                rel,
+                path.stat().st_size,
+                path.suffix.lstrip(".") or "file",
+            )
+        )
     return out
 
 
@@ -156,7 +222,10 @@ def index_downloads(source: RunSource, run: RunResults) -> list[dict]:
                     }
                 )
             cards.append({"card": card, "rows": rows})
-        sections.append({"key": section["key"], "label": section["label"], "cards": cards})
+        size = totals(d for c in cards for r in c["rows"] for d in (r["csv"], r["png"]))
+        sections.append(
+            {"key": section["key"], "label": section["label"], "cards": cards, "size": size}
+        )
     return sections
 
 

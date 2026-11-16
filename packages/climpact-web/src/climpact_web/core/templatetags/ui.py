@@ -46,15 +46,6 @@ def token_name(token):
 
 
 @register.filter
-def file_size(job, relative):
-    """Size in bytes of the file ``relative`` of a job's output, for download buttons
-    (#79): ``{{ job|file_size:path|filesizeformat }}``; 0 when there is none."""
-    from climpact_web.jobs.views import output_size
-
-    return output_size(job, relative) if job is not None and relative else 0
-
-
-@register.filter
 def count(value):
     """A count as every screen shows one (#115): localised, with the thousands grouped
     (``29220`` -> ``29,220`` in English), as the chart summaries. Anything that is not a

@@ -87,6 +87,14 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        "file_rows": [
+            {
+                "name": name,
+                "csv": {"label": f"{name} table", "kind": "csv", "size": csv},
+                "png": {"label": f"{name} plot", "kind": "png", "size": png},
+            }
+            for name, csv, png in (("TXx", 3_400, 7_600), ("TNn", 3_300, 7_400))
+        ],
         "stages": [
             {"label": _("Read station file"), "state": "done"},
             {"label": _("Quality control"), "state": "done"},

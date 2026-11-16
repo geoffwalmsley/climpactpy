@@ -783,7 +783,8 @@ def test_groups_are_collapsed_until_filtered_or_linked(client):
 def test_downloads_and_next_step(client):
     analysis, job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert f"/jobs/{job.pk}/files/{STATION}/trend/{STATION}_trend.csv" in html
+    # The files are on the Files page, not here (#176).
+    assert f"/jobs/{job.pk}/files/" not in html
     assert f'href="/station/{analysis.pk}/downloads"' in html
     # Without a zip, the link to the downloads page is the header's one action (#173;
     # with a zip, test_downloads.test_dashboard_and_index_page_show_sizes).

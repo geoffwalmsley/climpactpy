@@ -104,7 +104,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "django.middleware.csp.ContentSecurityPolicyMiddleware",  # SECURE_CSP below (#137)
+    "climpact_web.middleware.ContentSecurityPolicyMiddleware",  # SECURE_CSP below (#137)
     "climpact_web.middleware.StaticFilesMiddleware",  # WhiteNoise
     "climpact_web.middleware.PrivateCacheMiddleware",  # no shared caching of the rest
     "climpact_web.middleware.CompressionMiddleware",  # gzip for pages and fragments
@@ -290,20 +290,33 @@ if IS_HOSTED:
 # base.html). The one inline element is the stand-alone 500 page's <style>, allowed by its
 # hash (test_csp.py checks it matches the template).
 ERROR_PAGE_STYLE_HASH = "'sha256-3QU1IXV6xmQNVSeg+4AUl4ZTe0tAt89iFQwqOK7Wp70='"
+# Cloudflare Web Analytics (#164): the beacon script Cloudflare's edge adds to every page
+# when the zone's automatic setup is on, and the address it reports to without a version
+# in its settings (with one, as injected, it reports to /cdn-cgi/rum on this origin).
+WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com"
+WEB_ANALYTICS_REPORT_ORIGIN = "https://cloudflareinsights.com"
 
 
-def content_security_policy(turnstile: bool) -> dict[str, list[str]]:
-    """The policy's directives; with ``turnstile``, Cloudflare Turnstile's script and the
-    challenge frame it shows are allowed from its origin."""
-    extra = [TURNSTILE_ORIGIN] if turnstile else []
+def content_security_policy(turnstile: bool, analytics: bool = False) -> dict[str, list[str]]:
+    """The policy's directives.
+
+    ``script-src`` always has a per-response nonce (``CSP.NONCE``; #164). No template uses
+    it: it is there for the scripts Cloudflare's edge injects (JavaScript detections), to
+    which Cloudflare copies the nonce it finds in the header. With ``turnstile``, Cloudflare
+    Turnstile's script and the challenge frame it shows are allowed from its origin; with
+    ``analytics``, Cloudflare Web Analytics' beacon script and its reports.
+    """
+    turnstile_src = [TURNSTILE_ORIGIN] if turnstile else []
+    script_analytics = [WEB_ANALYTICS_SCRIPT_ORIGIN] if analytics else []
+    connect_analytics = [WEB_ANALYTICS_REPORT_ORIGIN] if analytics else []
     return {
         "default-src": [CSP.SELF],
-        "script-src": [CSP.SELF, *extra],
+        "script-src": [CSP.SELF, CSP.NONCE, *turnstile_src, *script_analytics],
         "style-src": [CSP.SELF, ERROR_PAGE_STYLE_HASH],
         "img-src": [CSP.SELF, "data:"],
         "font-src": [CSP.SELF],
-        "connect-src": [CSP.SELF],
-        "frame-src": extra or [CSP.NONE],
+        "connect-src": [CSP.SELF, *connect_analytics],
+        "frame-src": turnstile_src or [CSP.NONE],
         "object-src": [CSP.NONE],
         "base-uri": [CSP.NONE],
         "form-action": [CSP.SELF],
@@ -312,8 +325,13 @@ def content_security_policy(turnstile: bool) -> dict[str, list[str]]:
 
 
 # Turnstile is on in hosted mode with both keys set (core/limits.py, turnstile_enabled).
+# CLIMPACT_WEB_CF_WEB_ANALYTICS (hosted mode, on by default): allow Cloudflare Web
+# Analytics; false when the zone's Web Analytics is off. Never in local mode, where no
+# Cloudflare edge adds the beacon.
+WEB_ANALYTICS = IS_HOSTED and env_bool("CF_WEB_ANALYTICS", True)
 CSP_POLICY = content_security_policy(
-    turnstile=IS_HOSTED and bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY)
+    turnstile=IS_HOSTED and bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY),
+    analytics=WEB_ANALYTICS,
 )
 # CLIMPACT_WEB_CSP_REPORT_ONLY: report violations (in the browser console) without
 # blocking anything, for a first deployment; the policy is enforced by default.

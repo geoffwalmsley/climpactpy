@@ -14,7 +14,12 @@ from test_settings import HOSTED, load_settings  # noqa: F401 (a fixture)
 
 import climpact_web
 from climpact_web.core import tokens
-from climpact_web.settings import TURNSTILE_ORIGIN, content_security_policy
+from climpact_web.settings import (
+    TURNSTILE_ORIGIN,
+    WEB_ANALYTICS_REPORT_ORIGIN,
+    WEB_ANALYTICS_SCRIPT_ORIGIN,
+    content_security_policy,
+)
 
 PACKAGE = Path(climpact_web.__file__).parent
 TEMPLATES = sorted(PACKAGE.glob("**/templates/**/*.html"))
@@ -33,11 +38,23 @@ def directives(header: str) -> dict[str, list[str]]:
     return out
 
 
+NONCE = re.compile(r"'nonce-[A-Za-z0-9_-]{22}'")
+
+
+def nonce_of(policy: dict[str, list[str]]) -> str:
+    """The one nonce in ``script-src`` (the header carries it in place of CSP.NONCE)."""
+    nonces = [v for v in policy["script-src"] if NONCE.fullmatch(v)]
+    assert len(nonces) == 1, policy["script-src"]
+    return nonces[0]
+
+
 def assert_strict(policy: dict[str, list[str]]) -> None:
     for name, values in policy.items():
         assert CSP.UNSAFE_INLINE not in values, name
         assert CSP.UNSAFE_EVAL not in values, name
         assert CSP.UNSAFE_HASHES not in values, name
+        if name != "script-src":
+            assert not any(NONCE.fullmatch(v) for v in values), name
     assert policy["default-src"] == ["'self'"]
     assert policy["object-src"] == ["'none'"]
     assert policy["base-uri"] == ["'none'"]
@@ -55,7 +72,7 @@ def test_every_response_has_an_enforced_policy(client, path):
     assert "Content-Security-Policy-Report-Only" not in response
     policy = directives(response["Content-Security-Policy"])
     assert_strict(policy)
-    assert policy["script-src"] == ["'self'"]
+    assert policy["script-src"] == ["'self'", nonce_of(policy)]
     assert policy["style-src"][0] == "'self'"
     assert policy["img-src"] == ["'self'", "data:"]
     assert policy["connect-src"] == ["'self'"]
@@ -72,10 +89,68 @@ def test_turnstile_pages_allow_cloudflare(client):
     with override_settings(SECURE_CSP=policy):
         header = directives(client.get("/station/")["Content-Security-Policy"])
     assert_strict(header)
-    assert header["script-src"] == ["'self'", TURNSTILE_ORIGIN]
+    assert header["script-src"] == ["'self'", nonce_of(header), TURNSTILE_ORIGIN]
     assert header["frame-src"] == [TURNSTILE_ORIGIN]
     assert header["connect-src"] == ["'self'"]
     assert TURNSTILE_ORIGIN not in header["style-src"]
+
+
+@pytest.mark.django_db
+def test_every_page_gets_a_fresh_nonce(client):
+    """Each HTML page's header has its own nonce, though no template reads it (Django adds
+    one only when something does), so Cloudflare always has one to copy to the scripts its
+    edge injects (#164). No page is cached, so no page is served with an old nonce."""
+    seen = set()
+    for path in ["/", "/", "/station/", "/help/", "/no-such-page/"]:
+        response = client.get(path)
+        assert response["Content-Type"].startswith("text/html")
+        seen.add(nonce_of(directives(response["Content-Security-Policy"])))
+        assert "private" in response["Cache-Control"] or "no-cache" in response["Cache-Control"]
+    assert len(seen) == 5
+
+
+@pytest.mark.django_db
+def test_report_only_header_has_the_nonce(client, settings):
+    """Report-only mode (the first deployment) sends the nonce too, in the header Cloudflare
+    reads (it ignores nonces in meta tags)."""
+    settings.SECURE_CSP, settings.SECURE_CSP_REPORT_ONLY = {}, content_security_policy(False)
+    response = client.get("/")
+    assert "Content-Security-Policy" not in response
+    assert_strict(policy := directives(response["Content-Security-Policy-Report-Only"]))
+    nonce_of(policy)
+
+
+def test_non_html_answers_get_no_nonce(rf, settings):
+    """A nonce is forced only on HTML pages; other answers keep Django's lazy behaviour."""
+    from django.http import HttpResponse
+
+    from climpact_web.middleware import ContentSecurityPolicyMiddleware
+
+    settings.SECURE_CSP = content_security_policy(False)
+    middleware = ContentSecurityPolicyMiddleware(
+        lambda request: HttpResponse("{}", content_type="application/json")
+    )
+    policy = directives(middleware(rf.get("/x.json"))["Content-Security-Policy"])
+    assert policy["script-src"] == ["'self'"]
+
+
+@pytest.mark.django_db
+def test_web_analytics_allowance(client):
+    """With Web Analytics allowed (hosted mode), Cloudflare's beacon script and reports are
+    allowed from its two hosts and nothing else changes."""
+    policy = content_security_policy(turnstile=True, analytics=True)
+    with override_settings(SECURE_CSP=policy):
+        header = directives(client.get("/")["Content-Security-Policy"])
+    assert_strict(header)
+    assert header["script-src"] == [
+        "'self'",
+        nonce_of(header),
+        TURNSTILE_ORIGIN,
+        WEB_ANALYTICS_SCRIPT_ORIGIN,
+    ]
+    assert header["connect-src"] == ["'self'", WEB_ANALYTICS_REPORT_ORIGIN]
+    assert header["frame-src"] == [TURNSTILE_ORIGIN]
+    assert header["img-src"] == ["'self'", "data:"]
 
 
 def test_the_error_page_style_hash_matches(settings):
@@ -90,11 +165,25 @@ def test_the_error_page_style_hash_matches(settings):
 
 
 def test_policy_enforced_by_default_in_both_modes(load_settings):  # noqa: F811
-    for env in ({}, HOSTED):
+    for env, hosted in (({}, False), (HOSTED, True)):
         s = load_settings(**env)
-        assert s.SECURE_CSP == content_security_policy(turnstile=False)
+        # Web Analytics is allowed by default in hosted mode, never in local mode.
+        assert s.SECURE_CSP == content_security_policy(turnstile=False, analytics=hosted)
         assert s.SECURE_CSP_REPORT_ONLY == {}
-        assert "django.middleware.csp.ContentSecurityPolicyMiddleware" in s.MIDDLEWARE
+        assert CSP.NONCE in s.SECURE_CSP["script-src"]
+        assert "climpact_web.middleware.ContentSecurityPolicyMiddleware" in s.MIDDLEWARE
+        assert "django.middleware.csp.ContentSecurityPolicyMiddleware" not in s.MIDDLEWARE
+
+
+def test_web_analytics_switch(load_settings):  # noqa: F811
+    """CLIMPACT_WEB_CF_WEB_ANALYTICS=false drops the allowance in hosted mode; in local
+    mode it never applies."""
+    off = load_settings(**HOSTED, CLIMPACT_WEB_CF_WEB_ANALYTICS="false")
+    assert off.SECURE_CSP == content_security_policy(turnstile=False)
+    assert WEB_ANALYTICS_SCRIPT_ORIGIN not in off.SECURE_CSP["script-src"]
+    assert off.SECURE_CSP["connect-src"] == [CSP.SELF]
+    local = load_settings(CLIMPACT_WEB_CF_WEB_ANALYTICS="true")
+    assert local.SECURE_CSP == content_security_policy(turnstile=False)
 
 
 def test_report_only_switch(load_settings):  # noqa: F811
@@ -105,7 +194,7 @@ def test_report_only_switch(load_settings):  # noqa: F811
 
 def test_turnstile_keys_extend_the_policy_in_hosted_mode_only(load_settings):  # noqa: F811
     hosted = load_settings(**HOSTED, **TURNSTILE_KEYS)
-    assert hosted.SECURE_CSP == content_security_policy(turnstile=True)
+    assert hosted.SECURE_CSP == content_security_policy(turnstile=True, analytics=True)
     assert TURNSTILE_ORIGIN in hosted.SECURE_CSP["script-src"]
     assert hosted.SECURE_CSP["frame-src"] == [TURNSTILE_ORIGIN]
     # Turnstile is never on in local mode (core/limits.py), so neither is Cloudflare.

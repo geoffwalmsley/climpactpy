@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179: Data, Quality, Results and Files as tabs, with results kept and marked out of date after a change; the index settings and the sector comparison as actions on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198: Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet, with results kept and marked out of date after a change; the index settings and the sector comparison as actions on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2774,6 +2774,8 @@ packages/climpact-web/src/climpact_web/
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
       js/workspace.js  keeps the page's scroll padding to the height of the station's
                      sticky workspace header (#197), loaded by stations/_workspace.html
+      js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), loaded by
+                     stations/_inputs.html
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
                      loaded with the widget only
@@ -2810,12 +2812,15 @@ packages/climpact-web/src/climpact_web/
                      [Single-station steps](#single-station-steps))
     models.py        StationAnalysis: one station's workspace; file_digest
     workspace.py     the sections each job shows, staleness from the jobs' recorded
-                     inputs, settle, the tabs' states (#179)
+                     inputs, settle, the tabs' states (#179), the Inputs panel and what
+                     each sheet updates (#198)
     calculation.py   queueing the checks and the run, speculative runs, recalculate,
                      bring_up_to_date after a change (#178, #179)
     station_file.py  checks an uploaded file (plain-language problems at file lines,
                      warnings) and summarises its data
-    forms.py         UploadForm, MetadataForm (step 1), QCParamsForm and QC_DEFAULTS (step 2)
+    forms.py         UploadForm, MetadataForm (the details) and its parts for the Station
+                     and Base period sheets (StationForm, BasePeriodForm, #198),
+                     QCParamsForm and QC_DEFAULTS (the thresholds)
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
                      station rows, missing data per year, the verdict and its limits, the
                      "look wrong" findings and the "worth a look" groups (#174)
@@ -2925,8 +2930,9 @@ packages/climpact-web/tests/
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
-                     Data (test_stations.py), Quality (test_qc_review.py), the workspace
-                     and staleness (test_workspace.py, #179), the batch page (test_batch.py), the
+                     the first visit (test_stations.py), Quality (test_qc_review.py), the
+                     workspace, staleness and the Inputs panel's edits (test_workspace.py,
+                     #179, #198), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
@@ -4070,11 +4076,13 @@ a comment listing its parameters. Labels are passed in already translated
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
 | `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
-| `workspace_tabs` | a station's sections, Data, Quality, Results and Files (#179), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date" and "Running", screen-reader only for the others. A section not available yet is a `span`, not a link. The four section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
+| `workspace_tabs` | a station's sections, Quality, Results and Files (#179; Data until #198), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date" and "Running", screen-reader only for the others. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
 | `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
+| Inputs panel | (#198, `components/inputs.css`, `stations/_inputs.html`) an `aside` named "Your inputs": a `dl` of rows (`inputs-panel__item`: muted name, semibold value, one link at the end), on `--color-surface-sunken`; a changed row has `--color-warning-soft` and the word; runs beneath in `runbox progress` boxes. Beside the content (16rem) when `.station-page`, a container, is at least 52rem wide, sticky under the workspace header; above it otherwise |
+| Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. Shown on `/patterns/` with the panel |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
 | One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame: hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
@@ -4133,11 +4141,12 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 77 KB (74 KB until #197 added the section header, one
+stylesheets). Tests hold it under 81 KB (77 KB until #198 added the Inputs panel and the
+side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
-status marks and the out-of-date block; it is 76.8 KB) and 14 KB gzipped (13.5 KB until
-#197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
+status marks and the out-of-date block; it is 80.7 KB) and 14.75 KB gzipped (14 KB until
+#198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
@@ -4484,9 +4493,12 @@ imports or network requests.
 
 The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Since #179 a
-station is a workspace of four sections, shown as tabs under its name (decision A): Data
-(#76, load the file and confirm the details), Quality (#77), Results (#78, #79) and Files
-(#79, #176). There are no steps and no step indicator. R's step 3, the index settings, is
+station is a workspace of sections, shown as tabs under its name (decision A): since #198
+Quality (#77, with what is in the file, "Your data", at its foot), Results (#78, #79)
+and Files (#79, #176), beside the Inputs panel, where everything the user gave is changed
+("Inputs panel" below). The first visit confirms the details on a page of its own,
+`stations:load` (Data until #198: the details form, "Your data" and a form to use a
+different file), until #201's setup page. There are no steps and no step indicator. R's step 3, the index settings, is
 "Adjust and recalculate" on Results since #178: the indices are calculated with the
 defaults while the user looks at the quality checks ("Speculative calculation" below).
 R's step 4, sector correlation (#90), is an action on Results since #173, and its page
@@ -4538,16 +4550,17 @@ finished, else the checks it replaces; `shown_run` is `indices_job` if it has fi
 else the run it replaces, else the batch's results (`origin`). The replaced job is named in
 the new job's `params["replaces"]` (#178's recalculation, now for the checks too,
 `workspace.replaces_for` carrying it from a job still waiting). After a change,
-`calculation.bring_up_to_date` (called by Data's form, a corrected file on Quality and new
-thresholds) runs `workspace.settle`, which cancels what is still queued or running for the
+`calculation.bring_up_to_date` (called by the first visit's details form, the Inputs
+panel's sheets, a corrected file on Quality and new thresholds) runs `workspace.settle`, which cancels what is still queued or running for the
 old inputs and, when an input was changed back, links the finished job of those inputs again
 instead of calculating it twice; then it queues the checks and the run that are not of the
 current inputs. A replacement run is speculative before "Use this data" and an ordinary job
 (the user's own, counted by the hosted limits) after it; a refusal by the limits is logged
-and leaves the results out of date with "Recalculate". A new file loaded on Data waits for
-the details to be confirmed, as the name may follow the file's; meanwhile Quality says its
-checks are out of date and links to Data. After a confirmed change that leaves the checks
-current (the base period, the location), Data goes straight to Results.
+and leaves the results out of date with "Recalculate". A new file, from the File sheet,
+Quality's "Correct the file" or the details page's form, queues the new checks and run at
+once when the details still fit it; when the base period no longer fits the new data, the
+details page asks for a new one first. The File sheet keeps the station name; the details
+page's form renames a station still named after its old file, as before.
 
 The pages show it: Quality keeps the old checks under an out-of-date banner (the new checks'
 progress, or their failure), with no "Use this data" until the new checks have finished
@@ -4561,25 +4574,68 @@ the section is current again. The Quality tab keeps the verdict's level in the c
 `result["verdict"]` (`views.remember_verdict`) so its tab can say "Needs attention" on red.
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
-`stations/_workspace.html` draws the header (the station's name as the h1 of the four
-section pages, a line with its years, base period and file name, "Edit the details",
+`stations/_workspace.html` draws the header (the station's name as the h1 of the three
+section pages and the details page, a line with its years, base period and file name,
 the page's actions: Results' "Download all" and "All files and the report",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
-station name given on Data, the file name only when there is none. Since #197 the header
+station name given, the file name only when there is none. Since #197 the header
 is sticky (`workspace-header`, a direct child of `.station-page`) from 40rem wide and
 30rem high; narrower or shorter, where it would hide most of the page, it scrolls away
 (#203 makes the phone header one line). The page's `scroll-padding-block-start` is the
 header's height plus 1rem, so an element that takes focus, or a `#fragment`, is never
 under it (WCAG 2.4.11); `js/workspace.js` keeps `--workspace-header-height` to the
-header's real height with a `ResizeObserver` (9rem without JavaScript). The states (`workspace.section_states`): Data `todo`
-until the details are confirmed, then `done`, or `attention` when they no longer fit the
-data; Quality `locked` until then, `stale`, `running`, `attention` (failed, stopped, or a red
+header's real height with a `ResizeObserver` (9rem without JavaScript). The states (`workspace.section_states`): Quality
+`locked` until the details are confirmed, `stale`, `running`, `attention` (failed, stopped, or a red
 verdict) or `done`; Results `locked` until "Use this data", then `stale`, `running`,
 `attention` (the first run failed) or `done`; Files `locked` until there are checks or
 results, `stale` when either is. Each tab is its own page, so the existing URLs stay as
 they were (the Cloudflare rate-limit rules name them), the pages stay as light as before,
 and they work without JavaScript; they are therefore links with `aria-current="page"`,
-not an ARIA tablist.
+not an ARIA tablist. The details page has no current tab.
+
+**Inputs panel (#198, `stations/_inputs.html`).** `workspace.context` adds the panel to
+every section page once the station is set up (`workspace.set_up`: the details confirmed,
+complete and fitting the data), and to the index and sector pages. `workspace.inputs_panel`
+lists, in `PANEL_INPUTS` order: the file (its days and variables, "Replace"), the station
+(latitude and longitude), the base period, the quality thresholds and the index settings
+("Defaults" or "Changed": `qc_values` against `QC_DEFAULTS`, and
+`workspace.settings_are_defaults`, which compares the latest run's parameters with the
+settings form's initial values, without importing the core). Each has one link. The first
+three open a side sheet; the thresholds and index settings link to their forms on Quality
+and Results until #199 gives them sheets. An input is highlighted, "· changed", when one
+of the `differences` names it covers differs between the current inputs and the checks
+or results shown (`workspace.changed_inputs`). Under the list, the checks and the run of
+the new inputs show their progress (`stations/_input_runs.html`, a run only after "Use
+this data"), polled by htmx from `stations:inputs_progress`, which answers `HX-Refresh`
+once they have all finished.
+
+Each sheet is a modal `<dialog>` (`stations/_input_sheets.html`, `js/sheet.js`) with only
+its input's form (`stations/_input_form.html`): the File sheet the `UploadForm` (its own
+ids, `auto_id="sheet_%s"`, as Quality has a file field too), the Station sheet
+`StationForm` (name, latitude, longitude) and the Base period sheet `BasePeriodForm`, both
+`MetadataForm` restricted to their fields and checked against the data the same way, their
+fields validated as they change by `stations:validate`. The sheet says what applying will
+update, from the dependency rules (`workspace.impact` from `workspace.affected`:
+Quality if `QC_INPUTS` has one of the input's names, Results if `RUN_INPUTS` has, Files
+with either; the station's location updates Results and Files, its name Quality too).
+Then one primary button, Apply, and Cancel. It posts to `stations:edit_input`
+(`/station/<id>/inputs/<file|station|base-period>`), which applies the change, calls
+`bring_up_to_date` and returns to the page it came from (`next`, only one of this
+station's pages). Without JavaScript the Edit link is that address: a page with the same
+form (`stations/input_edit.html`), where a form with errors also returns. The sheet is
+modal, unlike the help drawer (DESIGN.md): focus starts on the first field and stays
+inside, Escape, Cancel, the close button or the backdrop closes it and discards what was
+typed, and focus returns to the Edit link. The forms keep their Turnstile widget, as
+`edit_input` is `human_required`.
+
+**The Data tab folds into Quality (#198).** Data's summary (`_summary.html`: the period,
+missing values by variable, the daily series and the days with data per year) is the last
+section of Quality, "Your data" (`id="your-data"`), so the Quality page loads the chart
+code. Once the station is set up, a GET of `stations:load` (Data's address) redirects to
+`.../quality#your-data`; before that, and when a new file no longer fits the details, it
+is the details page. The station's own address, `/station/<id>/`, opens Results after
+"Use this data", Quality once set up, else the details page; the upload page's recent
+analyses link to it.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
 `stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
@@ -5298,8 +5354,8 @@ holds. An unknown section or topic fails as `help_topic` does. The station pages
 
 | Page | Sections |
 | --- | --- |
-| Load (upload, step 1) | `upload.file`, `load.details`, `load.data` |
-| Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds` |
+| Upload, the first visit's details | `upload.file`, `load.details`, `load.data` |
+| Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, and `load.data` for "Your data" (#198) |
 | Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
 | Results, an index, Files | `results.findings`, `results.catalogue`; `result.index`, `result.anomalies`, `result.trends`; `files.page` |
 | Sector | `sector.data`, `sector.plot`, `sector.correlation`, `sector.scatter` |
@@ -5558,8 +5614,8 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 13.6 of 14 KB (13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | the first visit's details with data loaded, Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.2 of 14.5 KB (14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 0.8 of 1 KB (station pages only, #198), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`

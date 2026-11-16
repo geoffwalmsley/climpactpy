@@ -129,6 +129,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
+| `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest | changed, quiet (no change) |
+| `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in a flow; done steps link back | — |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 
@@ -167,6 +169,11 @@ keyboard. This is not optional.
   trends of percentage indices).
 - **Plain names first, codes second.** "Hot days" with `TX90p` beside it, never the
   code alone.
+- **Group findings by what people ask about.** Results lead with one paragraph, then a
+  headline per theme (Heat, Cold, Rain, Drought) and an "Also measured" line for the
+  rest; the full catalogue follows. "No significant change" is a finding, shown in a
+  quiet panel, not left out. Findings are template sentences built from the data, never
+  written by hand for a station. The theme mapping lives in `stations/themes.py`.
 - **Never change the user's data, and say so.** The app reports; the user decides.
 
 ### Don't

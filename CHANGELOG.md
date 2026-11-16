@@ -7,6 +7,10 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+- Turnstile (#169): the texts of the "checking that you are a person" line moved from
+  `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
+  reads `data-retry` as its own setting and warned in the console on every form page.
+
 ## 0.1.3 - 2026-11-16
 
 Changes to the hosted web app and the deployment docs. `climpact` itself is unchanged.

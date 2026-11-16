@@ -20,6 +20,12 @@ architecture, parity testing and the differences between the Python and R implem
 - `uv run pytest` from the root runs both packages' tests; `uv run pytest
   packages/climpact` runs the core alone (CI runs it without the web package installed:
   `uv sync --package climpact`).
+- The tests run in parallel with pytest-xdist (`-n auto --dist loadgroup` in `addopts`,
+  about 80 s locally instead of 8 minutes). Add `-n 0` to run them in one process, for
+  debugging (`--pdb` does so by itself). Tests that share a cached session- or
+  module-scoped build must stay in one `xdist_group` (added at collection in the
+  `conftest.py` files; TECHNICAL.md, "Running the tests in parallel"). Keep `pytest<9.2`
+  until a pytest-xdist release fixes `--dist loadgroup` for pytest 9.2 (pytest-xdist#1386).
 - The browser accessibility checks (`packages/climpact-web/tests/test_accessibility.py`,
   marker `browser`, about 4.5 minutes, needs Chrome) are deselected by default
   (`-m "not browser"` in `addopts`); CI's `web-accessibility` job runs them. Run them

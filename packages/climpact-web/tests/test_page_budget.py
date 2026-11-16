@@ -218,7 +218,10 @@ PAGES = {
     "not found": Page(lambda client: "/no-such-page/", status=404),
 }
 # Measured sizes, printed at the end of the run (conftest.py).
-MEASURED: dict[str, dict] = {}
+# The name of the user property each page budget test records its sizes in, for the table
+# conftest.py prints. A property travels on the test report, so the table is printed under
+# pytest-xdist too, where the tests run in worker processes and the summary in the main one.
+SIZES_PROPERTY = "page_sizes"
 
 
 # ---- Measuring ---------------------------------------------------------------------------
@@ -289,11 +292,22 @@ def measure(client, root: Path, url: str, status: int) -> dict:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("name", list(PAGES))
-def test_page_within_budget(client, deployed, name):
+def test_page_within_budget(client, deployed, name, record_property):
     page = PAGES[name]
     url = page.url(client)
     sizes = measure(client, deployed, url, page.status)
-    MEASURED[name] = sizes
+    record_property(
+        SIZES_PROPERTY,
+        {
+            "page": name,
+            **{key: sizes[key] for key in ("html_raw", "html_gz", "raw", "gz", "br")},
+            "budgets": {
+                "landing": FIRST_PAGE_BUDGET,
+                "page": PAGE_BUDGET,
+                "html_raw": HTML_RAW_BUDGET,
+            },
+        },
+    )
     budget = FIRST_PAGE_BUDGET if name == "landing" else PAGE_BUDGET
     assert sizes["gz"] <= budget, (
         f"{name} ({url}) downloads {sizes['gz'] / KB:.1f} KB gzipped, over its budget of "

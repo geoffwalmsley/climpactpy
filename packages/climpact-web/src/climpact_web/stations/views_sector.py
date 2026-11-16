@@ -28,10 +28,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
 
 from climpact_web.core.limits import human_required
-from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, progress_context
-from climpact_web.stations import sector_plots
+from climpact_web.stations import sector_plots, workspace
 from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
 from climpact_web.stations.sector_file import (
     R_NO_COMMON_DATA,
@@ -133,8 +132,10 @@ def sector(request, analysis_id):
     indices_job, source = current_source(analysis)
     context = {
         "analysis": analysis,
-        "steps": station_steps("results", analysis.step_urls()),
+        **workspace.context(analysis, "results"),
         "indices_job": indices_job,
+        # The comparison uses the results shown, out of date after a change (#179).
+        "stale": source is not None and bool(workspace.run_changes(analysis, indices_job)),
         "source": source,
         "sample_name": SAMPLE_NAME,
         "r_no_common_data": R_NO_COMMON_DATA,
@@ -161,7 +162,7 @@ def sector(request, analysis_id):
         {
             "form": form,
             "job": job,
-            "from_batch": source.from_batch and analysis.indices_job is None,
+            "from_batch": source.from_batch,
         }
     )
     if job is not None and not job.is_finished:

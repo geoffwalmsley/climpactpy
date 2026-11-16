@@ -1,19 +1,25 @@
-"""Queueing a station's index calculation (#78), and the speculative run (#178).
+"""Queueing a station's quality checks and index calculation (#77, #78), the speculative
+run (#178), and bringing the workspace up to date after a change (#179).
 
 The station flow has no Calculate step since #178. Once the user confirms the station
-details, :func:`speculate` queues a calculation with the settings the form would start
-from (:func:`previous_params`: the defaults, or the last run's). It runs while the user
-looks at the quality checks, so "Use this data" usually opens finished results. The
-settings are "Adjust and recalculate" on Results, which queues an ordinary run
-(:func:`queue_station_run`) that replaces the results when it finishes.
+details, the checks are queued (:func:`queue_qc`) and :func:`speculate` queues a
+calculation with the settings the form would start from (:func:`previous_params`: the
+defaults, or the last run's). It runs while the user looks at the quality checks, so "Use
+this data" usually opens finished results. The settings are "Adjust and recalculate" on
+Results, which queues an ordinary run (:func:`queue_station_run`).
 
 A speculative run is a job with ``params["speculative"]`` true (``jobs.models.SPECULATIVE``).
-It is cancelled whenever the file, the station details or the quality thresholds change
-(``StationAnalysis.reset_later_steps``, :func:`speculate` replacing it), so a run of old
-data is never shown as the results, and it becomes an ordinary job when the user chooses to
-use the data (:func:`commit`). In hosted mode it is queued only when the worker has room
+In hosted mode it is queued only when the worker has room
 (``core.limits.check_speculative_quotas``); a refusal is silent, and "Use this data" then
-queues the run.
+queues the run (:func:`commit`), which makes it an ordinary job.
+
+A change to the file, the station details or the thresholds (#179) keeps every job: each
+records its inputs, and :mod:`.workspace` shows its results as out of date.
+:func:`bring_up_to_date` cancels what is still queued for the old inputs and queues the
+checks and the run again, each naming the finished job it replaces
+(``workspace.REPLACES``), whose results stay on the page until the new ones are ready. The
+replacement run is speculative until the user has chosen to use the data, and an ordinary
+job after that, as the user's own calculation.
 """
 
 from __future__ import annotations
@@ -21,19 +27,17 @@ from __future__ import annotations
 import logging
 
 from django.core.files import File
+from django.utils.translation import gettext as _
 
 from climpact_web.core.limits import Refused
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, promote
-from climpact_web.stations.forms import QCParamsForm
+from climpact_web.stations import workspace
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
-from climpact_web.stations.models import STATION_FILE, StationAnalysis
+from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
+from climpact_web.stations.workspace import REPLACES, batch_job
 
 logger = logging.getLogger("climpact_web.stations")
-
-# The station job's ``params`` key naming the finished job a recalculation replaces: its
-# results stay on the page, under the progress, until the new run has finished.
-REPLACES = "replaces"
 
 
 def station_title(analysis: StationAnalysis) -> str:
@@ -44,14 +48,6 @@ def station_title(analysis: StationAnalysis) -> str:
     return core_title(
         StationMetadata(analysis.station_name, analysis.latitude or 0.0, analysis.longitude or 0.0)
     )
-
-
-def batch_job(analysis: StationAnalysis) -> Job | None:
-    """The finished batch job an analysis was opened from, if it is still kept."""
-    job_id = (analysis.origin or {}).get("job")
-    if not job_id:
-        return None
-    return Job.objects.filter(pk=job_id, owner=analysis.owner, status=Status.SUCCEEDED).first()
 
 
 def batch_custom(job: Job | None) -> dict | None:
@@ -112,7 +108,7 @@ def station_params(analysis: StationAnalysis, form: IndexParamsForm) -> dict:
         "station_file": STATION_FILE,
         "metadata": analysis.metadata,
         "params": form.job_params(),
-        "qc": QCParamsForm.initial_for(analysis.qc_params),  # step 2's thresholds (#77)
+        "qc": workspace.qc_values(analysis),  # Quality's thresholds (#77)
         "plot_title": data["plot_title"],
         "plots": data["plots"],
         "zip": data["zip"],
@@ -129,7 +125,47 @@ def _create(request, analysis: StationAnalysis, params: dict, speculative=False)
             {STATION_FILE: File(handle)},
             title=analysis.station_name,
             speculative=speculative,
+            inputs=workspace.job_inputs(analysis, "station", params),
         )
+
+
+# ---- the quality checks (#77) ------------------------------------------------------------
+
+
+def qc_job_params(analysis: StationAnalysis) -> dict:
+    return {
+        "station_file": STATION_FILE,
+        "metadata": analysis.metadata,
+        "qc": workspace.qc_values(analysis),
+    }
+
+
+def queue_qc(request, analysis: StationAnalysis) -> Job:
+    """Queue the quality checks of the analysis's file with its thresholds, replacing a
+    check still waiting or running. The checks shown until it has finished are named in
+    its ``replaces`` (#179)."""
+    old = analysis.qc_job
+    params = qc_job_params(analysis)
+    if replaces := workspace.replaces_for(old):
+        params[REPLACES] = replaces
+    with analysis.station_file.open("rb") as handle:
+        job = create_job(
+            request,
+            "qc",
+            params,
+            {STATION_FILE: File(handle)},
+            title=_("%(name)s: quality checks") % {"name": analysis.station_name},
+            inputs=workspace.job_inputs(analysis, "qc", params),
+        )
+    if old is not None and old.can_cancel:
+        old.request_cancel()
+    analysis.qc_job = job
+    analysis.touch()
+    analysis.save()
+    return job
+
+
+# ---- the index calculation (#78, #178) ---------------------------------------------------
 
 
 def queue_station_run(request, analysis: StationAnalysis, form: IndexParamsForm) -> Job | None:
@@ -141,11 +177,8 @@ def queue_station_run(request, analysis: StationAnalysis, form: IndexParamsForm)
         return None
     params = station_params(analysis, form)
     old = analysis.indices_job
-    if old is not None and old.kind == "station":
-        if old.status == Status.SUCCEEDED:
-            params[REPLACES] = str(old.pk)
-        elif (old.params or {}).get(REPLACES):
-            params[REPLACES] = old.params[REPLACES]  # still the last finished results
+    if old is not None and old.kind == "station" and (replaces := workspace.replaces_for(old)):
+        params[REPLACES] = replaces  # the last finished results, shown until this finishes
     job = _create(request, analysis, params)
     if old is not None and old.can_cancel:
         old.request_cancel()
@@ -159,6 +192,7 @@ def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
     nothing queued, when the data cannot be calculated yet, when the analysis shows a
     batch's results (``origin``), or when the hosted limits have no room. The caller saves
     the analysis."""
+    old = analysis.indices_job
     analysis.cancel_speculative()
     if not (analysis.metadata_complete and analysis.station_file.is_file()):
         return None
@@ -167,8 +201,11 @@ def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
     form = bound_settings(analysis, previous)
     if not form.is_valid():  # a batch line's settings the form no longer accepts
         return None
+    params = station_params(analysis, form)
+    if old is not None and old.kind == "station" and (replaces := workspace.replaces_for(old)):
+        params[REPLACES] = replaces
     try:
-        job = _create(request, analysis, station_params(analysis, form), speculative=True)
+        job = _create(request, analysis, params, speculative=True)
     except Refused as refused:
         logger.info("No speculative run for analysis %s: %s", analysis.pk, refused.reason)
         analysis.indices_job = None
@@ -191,3 +228,73 @@ def commit(request, analysis: StationAnalysis) -> Job | None:
     if not form.is_valid():
         return None
     return queue_station_run(request, analysis, form)
+
+
+def recalculate(request, analysis: StationAnalysis) -> Job | None:
+    """ "Recalculate" on out-of-date results (#179): bring the run waiting for the current
+    inputs forward (a speculative one becomes the user's), or queue one with the latest
+    settings. The caller saves the analysis."""
+    job = analysis.indices_job
+    if (
+        job is not None
+        and job.kind == "station"
+        and job.can_cancel
+        and not workspace.pending_changes(analysis, job, "station")
+    ):
+        promote(request, job)
+        return job
+    form = bound_settings(analysis)
+    if not form.is_valid():
+        return None
+    return queue_station_run(request, analysis, form)
+
+
+def replace_run(request, analysis: StationAnalysis, previous=None) -> Job | None:
+    """Queue the run of the current inputs with the latest settings (``previous``, else
+    :func:`previous_params`): a speculative one before "Use this data", the user's own
+    after it. None when the hosted limits refuse it: the results then say they are out of
+    date, with a "Recalculate" button. The caller saves the analysis."""
+    if not workspace.committed(analysis):
+        return speculate(request, analysis, previous)
+    if not (analysis.metadata_complete and analysis.station_file.is_file()):
+        return None
+    form = bound_settings(analysis, previous)
+    if not form.is_valid():
+        return None
+    try:
+        return queue_station_run(request, analysis, form)
+    except Refused as refused:
+        logger.info("No replacement run for analysis %s: %s", analysis.pk, refused.reason)
+        return None
+
+
+def bring_up_to_date(request, analysis: StationAnalysis) -> tuple[bool, bool]:
+    """After a change to the file, the station details or the thresholds (#179): cancel
+    what was queued for the old inputs (:func:`workspace.settle`), then queue the checks and
+    the run of the new ones, when the data can be checked and the details fit it. The
+    results of the old inputs stay shown, out of date, until then. Returns whether the
+    checks and the run were queued. Saves the analysis."""
+    previous = previous_params(analysis)
+    workspace.settle(analysis)
+    queued_qc = queued_run = False
+    ready = (
+        analysis.reached(Step.QC)
+        and analysis.station_file.is_file()
+        and workspace.details_valid(analysis)
+    )
+    if ready:
+        qc = analysis.qc_job
+        if qc is None or workspace.pending_changes(analysis, qc, "qc"):
+            queue_qc(request, analysis)
+            queued_qc = True
+        run = analysis.indices_job
+        if run is None:  # none yet, or a batch's results (origin)
+            batch = workspace.batch_job(analysis)
+            needed = batch is None or bool(workspace.run_changes(analysis, batch))
+        else:
+            needed = bool(workspace.pending_changes(analysis, run, "station"))
+        if needed:
+            queued_run = replace_run(request, analysis, previous) is not None
+    analysis.touch()
+    analysis.save()
+    return queued_qc, queued_run

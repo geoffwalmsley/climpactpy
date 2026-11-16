@@ -539,6 +539,7 @@ def open_station(request, run_id, name):
     from climpact_web.stations.models import Source as StationSource
     from climpact_web.stations.models import StationAnalysis, Step
     from climpact_web.stations.station_file import inspect_station_bytes
+    from climpact_web.stations.workspace import current_inputs
 
     run = get_run(request, run_id)
     job = run.job
@@ -580,8 +581,11 @@ def open_station(request, run_id, name):
                 "outputs": result.get("folder"),
             },
         )
-        analysis.save()
         analysis.save_station_text(inspection.text)
+        # The batch's results were produced from these inputs: the workspace shows them as
+        # out of date once one changes (#179).
+        analysis.origin["inputs"] = current_inputs(analysis)
+        analysis.save()
     messages.success(
         request,
         _("%(name)s is open as a single station, with its data and details from the batch.")

@@ -4,10 +4,13 @@ from climpact_web.stations import views, views_downloads, views_indices, views_s
 
 app_name = "stations"
 
-# The step URLs of an analysis, named as in core.navigation.STATION_STEPS; the downloads
-# page (#79) adds its own.
+# An analysis's sections (#179): Data is ``load``, Quality ``quality``, Results ``results``
+# and Files ``downloads``, the addresses of the steps they replace, so links and bookmarks
+# keep working. ``/station/<id>/`` opens the furthest section reached, and the old
+# Calculate step (``indices``) Results' "Adjust and recalculate".
 urlpatterns = [
     path("", views.upload, name="upload"),
+    path("<uuid:analysis_id>/", views.workspace_home, name="workspace"),
     path("sample", views.sample, name="sample"),
     path("sample.txt", views.sample_file, name="sample_file"),
     path("sample-sector.csv", views_sector.sector_sample, name="sector_sample"),

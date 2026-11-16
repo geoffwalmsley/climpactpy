@@ -81,7 +81,8 @@ def test_upload_page_works_without_javascript(client):
         r'<div class="alert alert--info".*?kept for 7 days after your last change', html, re.S
     )
     assert alert
-    assert 'aria-current="step"' in html and "Load data" in html
+    # No step indicator, and no workspace tabs before there is a station (#179).
+    assert 'aria-current="step"' not in html and "Station sections" not in html
 
 
 @pytest.mark.django_db
@@ -322,7 +323,7 @@ def test_load_page_details_come_before_the_one_continue_button(client):
     ).group(0)
     assert len(re.findall(r'<button type="submit"', form)) == 1
     assert form.index('name="base_start"') < form.index("<span>Check quality</span>")
-    assert html.index("<h1>") < html.index('id="details-title"') < html.index('id="data-title"')
+    assert html.index("<h1") < html.index('id="details-title"') < html.index('id="data-title"')
     data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(f"/station/{analysis.pk}/load", data)["Location"].endswith("/quality")
@@ -508,8 +509,11 @@ def test_continue_saves_and_goes_to_quality_checks(client):
     assert analysis.metadata == {"name": "Testville", "latitude": -33.9, "longitude": 151.2,
                                  "base_start": 2000, "base_end": 2001}  # fmt: skip
     page = client.get(response["Location"]).content.decode()
-    assert "Check quality" in page and f'href="/station/{analysis.pk}/load"' in page
-    assert '<a class="steps__link" href="/station/' in page  # step 1 links back
+    # The workspace tabs (#179): Quality current, Data links back, Results not yet.
+    quality = r'href="/station/[^"]+/quality" data-tab="quality"[^>]*aria-current="page"'
+    assert re.search(quality, page)
+    assert f'href="/station/{analysis.pk}/load" data-tab="data"' in page
+    assert re.search(r'<span class="tabs__tab" data-tab="results" data-state="locked">', page)
 
 
 @pytest.mark.django_db
@@ -524,14 +528,17 @@ def test_quality_page_needs_step_one_first(client):
 
 
 @pytest.mark.django_db
-def test_changing_metadata_resets_the_later_steps(client):
+def test_changing_metadata_replaces_only_what_depends_on_it(client):
     """Confirming the details queues the checks and a speculative run of the indices
-    (#178); changing them cancels that run and queues both again."""
+    (#178). Changing them (#179) keeps both jobs: the checks, which do not depend on the
+    location, stay current; the run is cancelled and queued again for the new details."""
     analysis = loaded(client)
     client.post(f"/station/{analysis.pk}/load", metadata())
     analysis.refresh_from_db()
     first_qc, first_run = analysis.qc_job, analysis.indices_job
     assert first_qc.kind == "qc" and first_run.kind == "station" and first_run.is_speculative
+    assert first_qc.inputs["file"] == analysis.file_hash != ""
+    assert first_run.inputs["metadata"] == analysis.metadata
     # the same metadata again: nothing to redo
     client.post(f"/station/{analysis.pk}/load", metadata())
     analysis.refresh_from_db()
@@ -540,13 +547,20 @@ def test_changing_metadata_resets_the_later_steps(client):
     client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30"))
     analysis.refresh_from_db()
     assert analysis.step == Step.QC
-    assert analysis.qc_job != first_qc  # the checks run again (#77)
+    assert analysis.qc_job == first_qc  # the checks do not use the latitude
     run = analysis.indices_job
     assert run != first_run and run.params["metadata"]["latitude"] == -30
+    assert run.inputs["metadata"]["latitude"] == -30 and run.is_speculative
     first_run.refresh_from_db()
     assert first_run.status == Status.CANCELLED  # never shown, never left running
+    # A new name changes the checks' file names: they run again, replacing the old ones.
+    client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30", station_name="New"))
+    analysis.refresh_from_db()
+    assert analysis.qc_job != first_qc and "replaces" not in analysis.qc_job.params
+    first_qc.refresh_from_db()
+    assert first_qc.status == Status.CANCELLED  # it had not run: nothing to keep
     # The jobs themselves are kept, with their own retention.
-    assert Job.objects.count() == 4
+    assert Job.objects.count() == 5
 
 
 @pytest.mark.django_db
@@ -558,7 +572,10 @@ def test_replacing_the_file_keeps_the_metadata(client):
     analysis.refresh_from_db()
     # the name followed the file name, as it was still the default; the rest is kept
     assert (analysis.station_name, analysis.latitude) == ("second", -33.9)
-    assert analysis.summary["first_date"] == "1980-01-01" and analysis.step == Step.UPLOAD
+    # The work is kept (#179): the checks and results show as out of date until the new
+    # details are confirmed.
+    assert analysis.summary["first_date"] == "1980-01-01" and analysis.step == Step.QC
+    assert analysis.qc_job is not None and analysis.qc_job.inputs["file"] != analysis.file_hash
     client.post(
         f"/station/{analysis.pk}/load",
         metadata(station_name="My name", base_start="1980", base_end="1980"),

@@ -1,13 +1,17 @@
-"""The single-station flow's data model (#76).
+"""The single-station workspace's data model (#76, #179).
 
-A :class:`StationAnalysis` is one station going through the steps: Load data (#76),
-Check quality (#77) and Results and downloads (#79), with the index settings (#78, #178)
-and the optional sector comparison (#90) as actions on Results. It holds the uploaded file
-(in its own folder), the station metadata, a summary of the data, the furthest step
-reached and links to the background jobs each later step starts. Like a job it belongs to
-the browser session that created it (the same owner token as
+A :class:`StationAnalysis` is one station's workspace: Data (#76), Quality (#77), Results
+(#78, #79) and Files (#176), with the index settings (#178) and the optional sector
+comparison (#90) as actions on Results. It holds the uploaded file (in its own folder)
+and its hash, the station metadata, the quality-control thresholds, a summary of the
+data, the furthest step reached and links to the background jobs of each section. Like a
+job it belongs to the browser session that created it (the same owner token as
 :class:`climpact_web.jobs.models.Job`), and is deleted ``JOB_RETENTION_DAYS`` after it was
 last changed (:mod:`.retention`).
+
+A change to the file, the metadata or the thresholds keeps the jobs: each job records the
+inputs it was produced from (``Job.inputs``), and :mod:`.workspace` compares them with the
+analysis's to show the results as out of date until their replacement has finished.
 
 The analysis keeps its own copy of the file: a job copies the file into its own
 ``input/`` folder when it is queued, so jobs and analyses expire independently.
@@ -16,12 +20,12 @@ The analysis keeps its own copy of the file: a job copies the file into its own
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import uuid
 from pathlib import Path
 
 from django.conf import settings
 from django.db import models
-from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -41,11 +45,11 @@ class Source(models.TextChoices):
 
 
 class Step(models.TextChoices):
-    """The furthest step reached: the keys of ``core.navigation.STATION_STEPS``, with
-    ``indices`` and ``sector`` between and after them. ``indices`` means the user has
-    chosen to use the data ("Use this data" on Quality); it was the Calculate step's until
-    #178 made the settings an action on Results. ``sector`` is the sector comparison, an
-    action on Results rather than a step in the indicator (#173)."""
+    """The furthest point reached: ``upload`` (a file is loaded), ``qc`` (the station
+    details are confirmed, so the checks run), ``indices`` (the user chose to use the
+    data, "Use this data" on Quality, so Results show), then ``results`` and ``sector``
+    (Results and the sector comparison were opened). It only ever moves forward since
+    #179: a later change makes the results out of date instead of going back."""
 
     UPLOAD = "upload", _("Load data")
     QC = "qc", _("Check quality")
@@ -56,14 +60,10 @@ class Step(models.TextChoices):
 
 STEP_ORDER = [s.value for s in Step]
 
-# The URL of each step that has a page of its own, with the analysis id (``indices`` has
-# none since #178).
-STEP_URL_NAMES = {
-    "upload": "stations:load",
-    "qc": "stations:qc",
-    "results": "stations:results",
-    "sector": "stations:sector",
-}
+
+def file_digest(text: str) -> str:
+    """The SHA-256 of a station file's text, as kept on disk: the ``file`` input."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 class StationAnalysis(models.Model):
@@ -75,6 +75,7 @@ class StationAnalysis(models.Model):
     source = models.CharField(max_length=10, choices=Source.choices, default=Source.UPLOAD)
     file_name = models.CharField(max_length=255, blank=True)  # as uploaded, for display only
     summary = models.JSONField(default=dict, blank=True)  # station_file.summarise()
+    file_hash = models.CharField(max_length=64, blank=True)  # file_digest() of the file
     warnings = models.JSONField(default=list, blank=True)  # about the file, shown in step 1
 
     # Station metadata (climpact.config.StationMetadata); null until given.
@@ -92,12 +93,13 @@ class StationAnalysis(models.Model):
 
     # A station opened from a batch's results (#80): {"batch": batch id, "job": the batch
     # job's id, "station": its name, "params": the IndexParams fields of its metadata
-    # line, "outputs": its folder in the batch job's output/}. Empty otherwise. The
-    # indices step (#78) can start from these parameters, and show the batch's results.
+    # line, "outputs": its folder in the batch job's output/, "inputs": the inputs the
+    # batch's results were produced from (#179)}. Empty otherwise. Results show the
+    # batch's results until the station is calculated here, starting from these settings.
     origin = models.JSONField(default=dict, blank=True)
 
-    # The jobs the later steps start. A job outlives a change to the file or metadata only
-    # as a record: the links are cleared (reset_later_steps) so the steps run again.
+    # The jobs of the sections. A change to an input keeps them (#179): their results show
+    # as out of date until a job of the new inputs replaces them (workspace.py).
     qc_job = models.ForeignKey(
         "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -125,8 +127,10 @@ class StationAnalysis(models.Model):
         return self.folder / STATION_FILE
 
     def save_station_text(self, text: str) -> None:
+        """Write the station file and set :attr:`file_hash` (the caller saves)."""
         self.folder.mkdir(parents=True, exist_ok=True)
         self.station_file.write_text(text, encoding="utf-8")
+        self.file_hash = file_digest(text)
 
     def delete_files(self) -> None:
         import shutil
@@ -157,14 +161,6 @@ class StationAnalysis(models.Model):
         if not self.reached(step):
             self.step = step
 
-    def reset_later_steps(self) -> None:
-        """After the file or the metadata changes, every later step must run again. A
-        speculative calculation of the old data still waiting or running is cancelled
-        (#178), so it never shows as the results and leaves no orphan job."""
-        self.cancel_speculative()
-        self.step = Step.UPLOAD
-        self.qc_job = self.indices_job = self.sector_job = None
-
     def cancel_speculative(self) -> None:
         """Cancel the indices job if it is a speculative run not finished yet (#178)."""
         job = self.indices_job
@@ -177,19 +173,3 @@ class StationAnalysis(models.Model):
     @property
     def expires_at(self) -> dt.datetime:
         return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
-
-    def step_url(self, step: str) -> str | None:
-        if step not in STEP_URL_NAMES:
-            return None
-        try:
-            return reverse(STEP_URL_NAMES[step], args=[self.pk])
-        except NoReverseMatch:
-            return None
-
-    def step_urls(self) -> dict[str, str]:
-        """Links for the step indicator: every step reached that has a page."""
-        urls = {}
-        for step in STEP_ORDER:
-            if self.reached(step) and (url := self.step_url(step)):
-                urls[step] = url
-        return urls

@@ -52,6 +52,7 @@ def create_job(
     files: dict | None = None,
     title: str = "",
     speculative: bool = False,
+    inputs: dict | None = None,
 ) -> Job:
     """Queue a job for this session, with its uploaded files (``{name: UploadedFile}``)
     saved into its ``input/`` folder; a key ``"<folder>/<name>"`` saves into a folder of
@@ -64,7 +65,8 @@ def create_job(
 
     A ``speculative`` job (#178) is checked against the limits for speculative runs instead
     (:func:`~climpact_web.core.limits.check_speculative_quotas`) and is not counted as a
-    start for the daily quota until it is promoted (:func:`promote`)."""
+    start for the daily quota until it is promoted (:func:`promote`). ``inputs`` records
+    what the job is produced from (``Job.inputs``, the station workspace's, #179)."""
     if speculative:
         check_speculative_quotas(request)
         params = {**params, SPECULATIVE: True}
@@ -79,6 +81,7 @@ def create_job(
             client=client,
             params=params,
             title=title[:200],
+            inputs=inputs or {},
         )
         storage.create(job)
         for key, uploaded in (files or {}).items():

@@ -1,7 +1,7 @@
 """The Files section of a station (#79, #176): ``/station/<id>/downloads``.
 
 Private to the session like the other steps. It lists every file of the analysis: the
-quality-control files of the Quality page's check, and the files of the finished
+quality-control files of the checks Quality shows, and the files of the finished
 calculation (or of its batch station, ``origin``), each with its size. Before the indices
 are calculated it holds the quality-control files alone.
 """
@@ -14,9 +14,8 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
 
-from climpact_web.core.navigation import station_steps
-from climpact_web.jobs.models import Status
 from climpact_web.stations import downloads as model
+from climpact_web.stations import workspace
 from climpact_web.stations.views import get_analysis
 from climpact_web.stations.views_indices import current_source, load_results
 
@@ -26,10 +25,10 @@ from climpact_web.stations.views_indices import current_source, load_results
 def downloads(request, analysis_id):
     analysis = get_analysis(request, analysis_id)
     job, source = current_source(analysis)
-    qc_done = analysis.qc_job is not None and analysis.qc_job.status == Status.SUCCEEDED
+    qc_done = workspace.shown_qc(analysis) is not None
     if job is None and not qc_done:
         return redirect("stations:results", analysis_id=analysis.pk)
-    if job is not None and source is None:  # still running, or no tables: step 4 says which
+    if job is not None and source is None and not qc_done:  # Results say why
         return redirect("stations:results", analysis_id=analysis.pk)
     quality = model.quality_downloads(analysis, source)
     context = {
@@ -37,7 +36,10 @@ def downloads(request, analysis_id):
         "job": job,
         "source": source,
         "quality": quality,
-        "steps": station_steps("results" if source else "qc", analysis.step_urls()),
+        **workspace.context(analysis, "files"),
+        # Files of out-of-date checks or results (#179) are still listed, with a note.
+        "stale_results": source is not None and bool(workspace.run_changes(analysis, job)),
+        "stale_quality": bool(workspace.qc_changes(analysis, workspace.shown_qc(analysis))),
     }
     if source is not None:
         from climpact_web.stations.views_sector import sector_job
@@ -65,7 +67,7 @@ def downloads(request, analysis_id):
             "summary": summary,
             "sections": sections,
             "others": model.other_downloads(source, listed, covered),
-            "from_batch": source.from_batch and analysis.indices_job is None,
+            "from_batch": source.from_batch,
             "plots_made": bool(job.params.get("plots", True)),
             "sector": model.sector_downloads(sector_job(analysis, source)),
         }

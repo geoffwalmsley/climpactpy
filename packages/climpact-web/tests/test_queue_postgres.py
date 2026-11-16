@@ -3,6 +3,9 @@ each with its own database connection, claim jobs with ``SELECT ... FOR UPDATE S
 LOCKED``. Every job runs exactly once, none is claimed twice, and the job of a worker that
 is killed is failed by the other workers' stale-heartbeat reaper and runs again on retry.
 
+It also checks the station workspace's migrations (#179) on Postgres: the inputs of
+existing jobs are backfilled, and JSON lookups on them work (``migration_backfill.py``).
+
 Runs when ``DATABASE_URL`` points at Postgres (CI's ``web-postgres`` job; the test settings
 keep it as ``CLIMPACT_TEST_POSTGRES_URL``) and skips otherwise. It creates a database of
 its own on that server and drops it at the end. With ``CLIMPACT_TEST_POSTGRES_REQUIRED``
@@ -260,3 +263,16 @@ def test_several_workers_run_each_job_once_and_recover_a_killed_one(env, tmp_pat
     assert all(code == 0 for code in exits.values()), {
         name: (tmp_path / f"{name}.log").read_text() for name in exits
     }
+
+
+def test_workspace_migrations_backfill_on_postgres(env, tmp_path):
+    """The workspace migrations (#179) back and forward on Postgres, with the same checks
+    as on SQLite (``test_workspace.py``)."""
+    tests = Path(__file__).resolve().parent
+    code = f"import sys; sys.path.insert(0, {str(tests)!r})\n" + (
+        "from django.conf import settings\n"
+        "from migration_backfill import check\n"
+        "check(settings.MEDIA_ROOT)\n"
+        "print('backfill ok')\n"
+    )
+    assert "backfill ok" in django_script(env, code)

@@ -38,15 +38,17 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 13.5 KB before the section header and the workspace header (#197), 13 KB before #196,
-    # 12.5 KB before the help drawer (#177)
-    "css/climpact.css": 14 * KB,
+    # 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the section
+    # header and the workspace header (#197), 13 KB before #196, 12.5 KB before the help
+    # drawer (#177)
+    "css/climpact.css": 14.5 * KB,
     "js/qc.js": 2 * KB,  # the quality checks: worklist and tables linked to the charts (#77, #174)
     "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
     "js/workspace.js": 0.5 * KB,  # the station workspace's sticky header (#197)
+    "js/sheet.js": 1 * KB,  # the Inputs panel's side sheets (#198)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only
@@ -205,7 +207,7 @@ PAGES = {
     "landing": Page(lambda client: "/"),
     "station upload": Page(lambda client: "/station/"),
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
-    "station quality": Page(station_qc),  # the checks queued
+    "station quality": Page(station_qc, charts=True),  # the checks queued; "Your data" (#198)
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
     "station calculating": Page(station_calculating),  # with the settings form (#178)
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
@@ -359,6 +361,7 @@ def test_chart_code_only_on_chart_pages():
     is checked page by page in test_page_within_budget."""
     assert [name for name, page in PAGES.items() if page.charts] == [
         "station sample loaded",
+        "station quality",  # "Your data"'s daily series (#198)
         "station quality results",
         "station index",
         "gridded results, 100x100 grid",

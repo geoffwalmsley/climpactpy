@@ -284,6 +284,26 @@
       </div>
     </section>
 
+    <section class="pattern" id="inputs-panel" aria-labelledby="inputs-panel-title">
+      <h2 id="inputs-panel-title">{% translate "Inputs panel and side sheet" %}</h2>
+      <p>{% translate "Everything the user gave, beside a station's sections, each with one link to change it. An input changed since the results shown is tinted and says so, and the run of the new inputs shows its progress beneath the list. Edit opens a side sheet with only that input's form: modal, so focus stays inside it until Apply, Cancel or Escape. It says what applying will update before the user applies it. Without JavaScript Edit is a page with the same form." %}</p>
+      <div class="pattern__demo grid gap-6 grid-cols-fit-64">
+        <div class="stack">
+          {% include "stations/_inputs.html" with inputs=inputs_demo input_runs=None %}
+          <div class="runbox progress">
+            <p class="runbox__title" id="demo-run">{% translate "Recalculating" %}</p>
+            <p class="runbox__note" id="demo-run-note">{% blocktranslate with percent=62 %}{{ percent }}% done{% endblocktranslate %}</p>
+            <progress max="100" value="62" aria-labelledby="demo-run" aria-describedby="demo-run-note"></progress>
+          </div>
+        </div>
+        <div>
+          {% translate "Open the sheet" as sheet_open_label %}
+          <p><a href="#inputs-panel" class="button button--secondary" data-sheet-open="sheet-base-period" aria-haspopup="dialog">{{ sheet_open_label }}</a></p>
+        </div>
+      </div>
+      {% include "stations/_input_sheets.html" with input_sheets=sheet_demo_list analysis=demo_analysis input_next="/patterns/" %}
+    </section>
+
     <section class="pattern" id="stale" aria-labelledby="stale-title">
       <h2 id="stale-title">{% translate "Out-of-date results" %}</h2>
       <p>{% translate "After the user changes an input, the results stay on the page under this banner until new ones replace them. It says what changed and what happens next. While the new run is on the way it shows its progress; otherwise it offers one action. The results below keep their full contrast: an edge marks them, and their sparklines and charts are greyed." %}</p>

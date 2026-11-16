@@ -111,7 +111,8 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert job.params["metadata"]["name"] == "qc_stress_1961-2020"
     page = client.get(f"/station/{analysis.pk}/quality").content.decode()
     assert 'id="qc-progress"' in page and f"/station/{analysis.pk}/quality/progress" in page
-    assert "chart_scripts" not in page and "uPlot" not in page  # no charts until results
+    # No checks' charts until results; the daily series of "Your data" (#198) is there.
+    assert 'id="daily-chart"' in page and 'id="qc-chart' not in page
     # The indices are queued too, with the default settings, behind the checks (#178).
     run = analysis.indices_job
     assert run.kind == "station" and run.is_speculative and run.params["qc"] == QC_DEFAULTS
@@ -449,7 +450,7 @@ def test_results_page(client, checked):
     assert f'action="/station/{checked.pk}/quality/file"' in verdict
     assert "data-file-button" in verdict and "Upload a corrected file" in verdict
     assert 'id="id_station_file_helptext"' in verdict  # what choosing a file does
-    assert "data-dropzone" not in page
+    assert "data-dropzone" not in re.sub(r"<dialog.*?</dialog>", "", page, flags=re.S)
     # The worklist, then everything else under Details.
     order = ["look-wrong", "worth-a-look", "missing-data", "details"]
     assert [page.index(f'id="{i}"') for i in order] == sorted(
@@ -678,5 +679,6 @@ def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
         "quality.daily",
         "quality.distributions",
         "quality.thresholds",
+        "load.data",  # "Your data" (#198)
     ]
     assert "help-topic--compact" not in page

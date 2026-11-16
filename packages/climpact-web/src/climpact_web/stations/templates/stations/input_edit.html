@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+One input of the Inputs panel on its own page (#198): where its Edit leads without
+JavaScript, and where a sheet's form returns with its errors. Context from views.edit_input.
+{% endcomment %}
+{% block title %}{% blocktranslate with title=sheet.title name=analysis.station_name %}{{ title }}: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--xl station-page">
+  {% include "stations/_workspace.html" %}
+  <div class="stack edit-input">
+    <h1 class="sheet__title">{{ sheet.title }}</h1>
+    {% if inspection and not inspection.ok %}{% include "stations/_problems.html" %}{% endif %}
+    {% include "stations/_input_form.html" with form_id="input-form" in_sheet=False %}
+  </div>
+</div>
+{% endblock %}

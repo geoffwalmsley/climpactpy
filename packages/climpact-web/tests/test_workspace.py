@@ -1,7 +1,8 @@
-"""The station workspace (#179): the section tabs and their states, results kept and marked
-out of date after a change to each input until their replacement has finished, the
-workspace's addresses, two browser tabs on one analysis in hosted mode, retention, and the
-migration that records the inputs."""
+"""The station workspace (#179, #198): the section tabs and their states, the Inputs panel
+and its edits, results kept and marked out of date after a change to each input until
+their replacement has finished, the workspace's addresses (Data's leading to Quality), two
+browser tabs on one analysis in hosted mode, retention, and the migration that records the
+inputs."""
 
 import datetime as dt
 import re
@@ -45,7 +46,7 @@ def in_use(client) -> tuple[StationAnalysis, Job, Job]:
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job, analysis.step) == (qc, run, Step.RESULTS)
     assert workspace.section_states(analysis) == {
-        "data": "done", "quality": "done", "results": "done", "files": "done",
+        "quality": "done", "results": "done", "files": "done",
     }  # fmt: skip
     return analysis, qc, run
 
@@ -61,6 +62,17 @@ def page(client, analysis, path="results") -> str:
     return response.content.decode()
 
 
+def edit(client, analysis, key, data, back="results"):
+    """Apply an input's sheet (#198) opened on the page ``back``; returns the response."""
+    base = f"/station/{analysis.pk}"
+    return client.post(f"{base}/inputs/{key}", {**data, "next": f"{base}/{back}"})
+
+
+def changed(html) -> set[str]:
+    """The inputs the panel highlights as changed."""
+    return set(re.findall(r'data-input="([\w-]+)" data-changed', html))
+
+
 def assert_kept(*jobs):
     """The jobs of the old inputs are kept, finished: nothing was deleted or reset."""
     for job in jobs:
@@ -74,8 +86,8 @@ def assert_kept(*jobs):
 def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
-    response = client.post(f"{base}/load", {**DETAILS, "base_start": "1981", "base_end": "2010"})
-    # The checks do not use the base period: straight to the results it changes.
+    response = edit(client, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
+    # The checks do not use the base period: back to the results it changes.
     assert response["Location"] == f"{base}/results"
     analysis.refresh_from_db()
     new = analysis.indices_job
@@ -88,8 +100,10 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     assert "You changed the base period to 1981–2010. These results use 1971–2000." in html
     assert 'class="stale-content' in html and "data-results-section" in html  # still shown
     assert 'id="results-progress"' in html
-    assert states(html) == {"data": "done", "quality": "done", "results": "stale",
-                            "files": "stale"}  # fmt: skip
+    assert states(html) == {"quality": "done", "results": "stale", "files": "stale"}
+    # The panel highlights the base period, with the run's progress beneath it.
+    assert changed(html) == {"base-period"} and 'data-run="run"' in html
+    assert "Base period · changed" in html and 'data-run="qc"' not in html
     assert "out of date" in page(client, analysis, "results/txx")
     assert "Some files are out of date" in page(client, analysis, "downloads")
     assert "Out of date" not in page(client, analysis, "quality").split('data-tab="results"')[0]
@@ -98,6 +112,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     html = page(client, analysis)
     assert "out of date" not in html and 'class="stale-content' not in html
     assert states(html)["results"] == "done" and "base period 1981–2010" in html
+    assert changed(html) == set() and "data-run=" not in html
 
 
 def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(client):
@@ -117,8 +132,8 @@ def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(cli
     assert "Checking again" in html and "You loaded a different station file." in html
     assert 'id="qc-progress"' in html and 'id="qc-verdict-title"' in html
     assert "/quality/continue" not in html
-    assert states(html) == {"data": "done", "quality": "stale", "results": "stale",
-                            "files": "stale"}  # fmt: skip
+    assert states(html) == {"quality": "stale", "results": "stale", "files": "stale"}
+    assert changed(html) == {"file"}
     assert client.post(f"{base}/quality/continue")["Location"] == f"{base}/quality"
     # The new checks finish (the worker takes them first): Quality is current again.
     assert run_next() == new_qc
@@ -140,13 +155,14 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     assert_kept(qc, run)
     html = page(client, analysis, "quality")
     assert "You changed the quality-control thresholds." in html and "Checking again" in html
+    assert changed(html) == {"thresholds"} and 'data-run="qc"' in html
     html = page(client, analysis)
     assert "You changed the quality-control thresholds." in html
     assert states(html)["results"] == "stale" and "data-results-section" in html
     assert run_next() == new_qc
     finish(new_run)
-    assert states(page(client, analysis)) == {"data": "done", "quality": "done",
-                                              "results": "done", "files": "done"}  # fmt: skip
+    assert states(page(client, analysis)) == {"quality": "done", "results": "done",
+                                              "files": "done"}  # fmt: skip
 
 
 def test_new_settings_mark_results_out_of_date_until_replaced(client):
@@ -160,6 +176,7 @@ def test_new_settings_mark_results_out_of_date_until_replaced(client):
     html = page(client, analysis)
     assert "You changed the settings." in html and "Results are out of date. Recalculating" in html
     assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
+    assert changed(html) == {"settings"}
     finish(new, rename={"rx3day": "rx7day"})
     html = page(client, analysis)
     assert "out of date" not in html and "Days for Rxdday 7 days" in html
@@ -168,11 +185,10 @@ def test_new_settings_mark_results_out_of_date_until_replaced(client):
 def test_changing_a_detail_back_shows_the_old_results_again(client):
     """Undoing a change links the results of those inputs again, without a new run."""
     analysis, _qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
-    client.post(f"{base}/load", {**DETAILS, "base_start": "1981", "base_end": "2010"})
+    edit(client, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
     analysis.refresh_from_db()
     pending = analysis.indices_job
-    client.post(f"{base}/load", DETAILS)
+    edit(client, analysis, "base-period", {"base_start": "1971", "base_end": "2000"})
     analysis.refresh_from_db()
     pending.refresh_from_db()
     assert analysis.indices_job == run and pending.status == Status.CANCELLED
@@ -185,7 +201,9 @@ def test_out_of_date_results_without_a_run_offer_recalculate(client, settings):
     action, "Recalculate", which queues the run of the current inputs."""
     analysis, _qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
-    client.post(f"{base}/load", {**DETAILS, "latitude": "-10"})
+    edit(
+        client, analysis, "station", {"station_name": STATION, "latitude": "-10", "longitude": "0"}
+    )
     analysis.refresh_from_db()
     client.post(f"/jobs/{analysis.indices_job.pk}/cancel")
     html = page(client, analysis)
@@ -202,20 +220,123 @@ def test_out_of_date_results_without_a_run_offer_recalculate(client, settings):
     assert new.params["replaces"] == str(run.pk)
 
 
-def test_new_file_on_data_marks_sections_out_of_date_until_confirmed(client):
+@pytest.mark.parametrize("address", ["inputs/file", "file"])
+def test_replaced_file_marks_sections_out_of_date_until_replaced(client, address):
+    """The File sheet's Replace (#198), and the details page's form to use a different
+    file once the station is set up: the checks and the run of the new file are queued
+    at once, the old ones kept, out of date."""
     analysis, qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
-    client.post(f"{base}/file", {"station_file": _station_upload()})
+    response = client.post(
+        f"{base}/{address}", {"station_file": _station_upload(), "next": f"{base}/downloads"}
+    )
+    assert response["Location"] == (f"{base}/downloads" if address != "file" else f"{base}/load")
     analysis.refresh_from_db()
-    assert (analysis.qc_job, analysis.indices_job) == (qc, run)  # kept; nothing queued yet
+    assert analysis.qc_job.params["replaces"] == str(qc.pk)
+    assert analysis.indices_job.params["replaces"] == str(run.pk)
+    assert_kept(qc, run)
+    html = page(client, analysis, "downloads")
+    assert states(html) == {"quality": "stale", "results": "stale", "files": "stale"}
+    # The old Data form renames a station named after its file; the sheet keeps the name.
+    assert changed(html) - {"station"} == {"file"}
+    assert ("station" in changed(html)) == (address == "file")
+    assert 'data-run="qc"' in html and 'data-run="run"' in html
+
+
+def test_new_station_name_checks_again_and_new_location_does_not(client):
+    """The Station sheet: the latitude and longitude change only the results; the name
+    the checks too, whose files are named after it. Its sheet says so before applying."""
+    analysis, qc, run = in_use(client)
+    html = page(client, analysis)
+    sheet = re.search(r'<dialog class="sheet" id="sheet-station".*?</dialog>', html, re.S).group(0)
+    assert "Updates Results and Files. Quality stays as it is." in sheet
+    assert "A new station name updates Quality too" in sheet
+    edit(
+        client, analysis, "station", {"station_name": STATION, "latitude": "-10", "longitude": "5"}
+    )
+    analysis.refresh_from_db()
+    assert analysis.qc_job == qc and analysis.indices_job != run
+    assert (analysis.latitude, analysis.longitude) == (-10, 5)
+    html = page(client, analysis)
+    assert changed(html) == {"station"} and "−10°" not in html and "-10°, 5°" in html
+    edit(
+        client,
+        analysis,
+        "station",
+        {"station_name": "renamed", "latitude": "-10", "longitude": "5"},
+    )
+    analysis.refresh_from_db()
+    assert analysis.qc_job != qc and analysis.station_name == "renamed"
+    assert states(page(client, analysis))["quality"] == "stale"
+
+
+def test_each_sheet_says_what_applying_updates(client):
+    """From the dependency rules of #179 (workspace.QC_INPUTS, RUN_INPUTS)."""
+    analysis, _qc, _run = in_use(client)
     html = page(client, analysis, "quality")
-    assert "The checks are out of date" in html and f'href="{base}/load"' in html
-    assert states(html) == {"data": "done", "quality": "stale", "results": "stale",
-                            "files": "stale"}  # fmt: skip
-    # Confirming the details checks the new file and calculates it again.
-    assert client.post(f"{base}/load", DETAILS)["Location"] == f"{base}/quality"
+    sheets = dict(
+        re.findall(r'<dialog class="sheet" id="sheet-([\w-]+)"(.*?)</dialog>', html, re.S)
+    )
+    assert set(sheets) == {"file", "station", "base-period"}
+    assert "Updates Quality, Results and Files." in sheets["file"]
+    assert "Updates Results and Files. Quality stays as it is." in sheets["base-period"]
+    for key, sheet in sheets.items():
+        # One primary button, Apply, and Cancel; the form posts to the edit page.
+        assert sheet.count('class="button"') == 1 and ">Apply<" in sheet and ">Cancel<" in sheet
+        assert f'action="/station/{analysis.pk}/inputs/{key}"' in sheet
+        assert f'name="next" value="/station/{analysis.pk}/quality"' in sheet
+    assert workspace.affected(["qc"]) == ["quality", "results", "files"]
+    assert workspace.affected(["settings"]) == ["results", "files"]
+
+
+def test_the_panel_lists_every_input_on_every_section(client):
+    analysis, _qc, _run = in_use(client)
+    base = f"/station/{analysis.pk}"
+    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+        html = page(client, analysis, path)
+        inputs = re.findall(r'data-input="([\w-]+)"', html)
+        assert inputs == ["file", "station", "base-period", "thresholds", "settings"], path
+        # The edits are links: each sheet's page without JavaScript.
+        assert f'href="{base}/inputs/base-period?next=%2Fstation%2F{analysis.pk}%2F' in html
+        assert 'data-sheet-open="sheet-base-period"' in html
+        assert 'id="sheet-base-period"' in html
+    html = page(client, analysis)
+    assert "29,220 days · 3 variables" in html or re.search(r"[\d,]+ days · 3 variables", html)
+    assert "1971–2000" in html and html.count(">Defaults<") == 2
+    # The thresholds and settings are edited where they are until #199.
+    assert f'href="{base}/quality#thresholds"' in html
+    assert f'href="{base}/results?settings=open#adjust"' in html
+
+
+def test_the_edit_pages_work_without_javascript(client):
+    """Each Edit is a link to a page with the sheet's form; an invalid form comes back to
+    it with its errors, and Cancel and a valid form go back to the page it came from."""
+    analysis, _qc, run = in_use(client)
+    base = f"/station/{analysis.pk}"
+    for key, title in [("file", "Replace the file"), ("station", "Station"),
+                       ("base-period", "Base period")]:  # fmt: skip
+        html = page(client, analysis, f"inputs/{key}?next={base}/downloads")
+        assert f'<h1 class="sheet__title">{title}</h1>' in html
+        assert f'href="{base}/downloads"' in html and ">Cancel<" in html  # Cancel goes back
+        assert "<dialog" not in html and "data-sheet-close" not in html
+    html = page(client, analysis, "inputs/station")
+    assert f'value="{STATION}"' in html and 'name="base_start"' not in html
+    response = edit(client, analysis, "base-period", {"base_start": "2010", "base_end": "1990"})
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert (
+        "The last year must not be before the first year." in html and "data-error-summary" in html
+    )
+    response = edit(client, analysis, "file", {})
+    assert response.status_code == 200 and "Choose a station file." in response.content.decode()
     analysis.refresh_from_db()
-    assert analysis.qc_job != qc and analysis.indices_job != run
+    assert analysis.indices_job == run  # nothing changed
+    # Only this station's pages are returned to.
+    outside = {"base_start": "1971", "base_end": "2000", "next": "https://evil.example/"}
+    response = client.post(f"{base}/inputs/base-period", outside)
+    assert response["Location"] == f"{base}/results"
+    assert client.get(f"{base}/inputs/nothing").status_code == 404
+    assert Client().get(f"{base}/inputs/station").status_code == 404
 
 
 # ---- the tabs ------------------------------------------------------------------------------
@@ -225,16 +346,18 @@ def test_tabs_follow_the_workspace_from_the_first_visit(client):
     load = client.post("/station/sample")["Location"]
     analysis = StationAnalysis.objects.get()
     html = client.get(load).content.decode()
-    assert states(html) == {"data": "todo", "quality": "locked", "results": "locked",
-                            "files": "locked"}  # fmt: skip
+    assert states(html) == {"quality": "locked", "results": "locked", "files": "locked"}
     # A tab not available yet is not a link; each says its status in words.
     assert '<span class="tabs__tab" data-tab="results" data-state="locked">' in html
     assert '<span class="sr-only">Not available yet</span>' in html
-    assert re.search(r'data-tab="data"[^>]*aria-current="page"', html)
+    # The first visit's details: no section is current, and no Inputs panel yet.
+    assert 'aria-current="page"' not in html.split("tabs__list")[1].split("</nav>")[0]
+    assert "data-inputs-panel" not in html and 'name="base_start"' in html
+    assert client.get(f"/station/{analysis.pk}/inputs/station")["Location"] == load
     client.post(load, DETAILS)
     html = page(client, analysis, "quality")
-    assert states(html) == {"data": "done", "quality": "running", "results": "locked",
-                            "files": "locked"}  # fmt: skip
+    assert states(html) == {"quality": "running", "results": "locked", "files": "locked"}
+    assert "data-inputs-panel" in html and 'data-run="qc"' in html
     assert "<span>Running</span>" in html  # the word shows for a state that needs the user
     run_next()
     html = page(client, analysis, "quality")
@@ -265,10 +388,14 @@ def test_old_step_addresses_lead_to_their_tabs(client):
     finish(analysis.indices_job)
     client.post(f"{base}/quality/continue")
     assert client.get(f"{base}/")["Location"] == f"{base}/results"
-    # Each step's address is its tab's (Data, Quality, Results, Files), kept as it was.
-    for path, tab in [("load", "data"), ("quality", "quality"), ("results", "results"),
-                      ("downloads", "files")]:  # fmt: skip
+    # Each step's address is its tab's (Quality, Results, Files), kept as it was; Data's
+    # leads to "Your data" on Quality (#198).
+    for path, tab in [("quality", "quality"), ("results", "results"), ("downloads", "files")]:
         assert re.search(rf'data-tab="{tab}"[^>]*aria-current="page"', page(client, analysis, path))
+    assert client.get(f"{base}/load")["Location"] == f"{base}/quality#your-data"
+    html = page(client, analysis, "quality")
+    assert 'id="your-data"' in html and "Missing values by variable" in html
+    assert 'data-tab="data"' not in html
     # The old Calculate step leads to "Adjust and recalculate" on Results (#178).
     response = client.get(f"{base}/indices?index=txx")
     assert response["Location"] == f"{base}/results?settings=open&back=txx#adjust"
@@ -294,7 +421,7 @@ def test_two_tabs_see_the_same_state_from_what_is_stored(client, settings, monke
     base = f"/station/{analysis.pk}"
     session_before = dict(first.session.items())
     assert states(page(second, analysis))["results"] == "done"
-    first.post(f"{base}/load", {**DETAILS, "base_start": "1981", "base_end": "2010"})
+    edit(first, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
     assert dict(first.session.items()) == session_before  # nothing about it in the session
     html = page(second, analysis)
     assert "You changed the base period to 1981–2010" in html and states(html)["results"] == "stale"

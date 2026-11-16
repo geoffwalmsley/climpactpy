@@ -1,0 +1,37 @@
+{% load i18n ui %}{% comment %}
+The form of one input of the Inputs panel (#198): only that input's fields, what applying
+will update, then one primary button, Apply, and Cancel. In a side sheet
+(stations/_input_sheets.html, ``in_sheet``) Cancel closes it; on its own page
+(stations/input_edit.html) Cancel returns to ``next``. The station's fields are checked as
+they change, as on the first visit (stations/_unit.html).
+Context: analysis, sheet (views.sheet_context: key, title, intro, form, impact), next,
+form_id, in_sheet.
+{% endcomment %}
+<form method="post" action="{% url 'stations:edit_input' analysis.pk sheet.key %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="sheet__body stack">
+    <p class="sheet__intro">{{ sheet.intro }}</p>
+    {% include "components/form_errors.html" with form=sheet.form %}
+    {% if sheet.key == "file" %}
+    {% include "components/dropzone.html" with field=sheet.form.station_file hint="" %}
+    {% elif sheet.key == "station" %}
+    {% include "stations/_unit.html" with group="station_name" form=sheet.form %}
+    <div class="form__row">
+      {% include "stations/_unit.html" with group="latitude" form=sheet.form %}
+      {% include "stations/_unit.html" with group="longitude" form=sheet.form %}
+    </div>
+    {% else %}
+    {% include "stations/_unit.html" with group="base_period" form=sheet.form %}
+    {% endif %}
+    <div class="impact" id="{{ form_id }}-impact">{% icon "refresh" %}<p>{% for sentence in sheet.impact %}{% if forloop.first %}<strong>{{ sentence }}</strong>{% else %} {{ sentence }}{% endif %}{% endfor %}</p></div>
+    {% turnstile %}
+  </div>
+  <div class="sheet__foot">
+    {% translate "Apply" as apply_label %}
+    {% include "components/button.html" with label=apply_label type="submit" describedby=form_id|add:"-impact" %}
+    {% translate "Cancel" as cancel_label %}
+    {% if in_sheet %}<button type="button" class="button button--ghost" data-sheet-close>{{ cancel_label }}</button>
+    {% else %}{% include "components/button.html" with label=cancel_label href=next variant="ghost" %}{% endif %}
+  </div>
+</form>

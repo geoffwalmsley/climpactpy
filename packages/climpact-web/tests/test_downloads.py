@@ -54,8 +54,8 @@ def test_downloads_page_lists_every_file_with_its_size(client):
     assert f'href="{files}{STATION}/plots/{STATION}_all_plots.pdf"' in html
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
     assert re.search(rf"Download the report \(PDF, {SIZE}\)", html)
-    # One primary action, the zip (#176).
-    assert html.count('class="button"') == 1
+    # One primary action, the zip (#176); the Inputs panel's sheets have their own (#198).
+    assert re.sub(r"<dialog.*?</dialog>", "", html, flags=re.S).count('class="button"') == 1
     # Every index table, each with its size, and the PNG drawn.
     for name in index_files():
         assert f"{files}{STATION}/indices/{STATION}_{name}.csv" in html, name

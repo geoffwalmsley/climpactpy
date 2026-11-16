@@ -215,7 +215,7 @@ def render_results(request, analysis, form=None):
     context = {
         "analysis": analysis,
         "job": job,
-        **workspace.context(analysis, "results"),
+        **workspace.context(analysis, "results", request.path),
         "index": index,
         **settings_context(request, analysis, form),
     }
@@ -483,7 +483,7 @@ def result(request, analysis_id, key):
         "source": source,
         "card": card,
         "series": series,
-        **workspace.context(analysis, "results"),
+        **workspace.context(analysis, "results", request.path),
         "stale": bool(workspace.run_changes(analysis, job)),
         "previous": previous,
         "next": following,

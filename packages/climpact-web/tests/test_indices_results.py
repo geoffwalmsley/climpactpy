@@ -983,7 +983,6 @@ def test_each_section_is_a_tab_named_in_the_title(client):
     analysis, _job = finished_analysis(client)
     base = f"/station/{analysis.pk}"
     for path, tab, title in [
-        ("/load", "data", "Data"),
         ("/quality", "quality", "Quality"),
         ("/results", "results", "Results"),
         ("/downloads", "files", "Files"),
@@ -1063,20 +1062,18 @@ def test_a_corrected_file_replaces_the_speculative_run(client):
     assert (new.input_dir / "station.txt").read_bytes() == analysis.station_file.read_bytes()
 
 
-def test_a_new_file_on_load_cancels_the_run_until_the_details_are_confirmed(client):
+@pytest.mark.parametrize("address", ["file", "inputs/file"])
+def test_a_new_file_replaces_the_speculative_run_at_once(client, address):
+    """Once the details are confirmed, a new file from the details page or the Inputs
+    panel (#198) queues the checks and the run of the new file straight away."""
     analysis = ready_analysis(client)
     old = analysis.indices_job
-    client.post(f"/station/{analysis.pk}/file", {"station_file": _station_upload()})
+    client.post(f"/station/{analysis.pk}/{address}", {"station_file": _station_upload()})
     analysis.refresh_from_db()
     old.refresh_from_db()
-    # Cancelled, and kept as the analysis's run (of the old file) until the details are
-    # confirmed (#179).
-    assert old.status == Status.CANCELLED and analysis.indices_job == old
-    data = {"station_name": STATION, "latitude": "0", "longitude": "0",
-            "base_start": "1971", "base_end": "2000"}  # fmt: skip
-    client.post(f"/station/{analysis.pk}/load", data)
-    analysis.refresh_from_db()
-    assert analysis.indices_job.is_speculative and analysis.indices_job != old
+    assert old.status == Status.CANCELLED
+    new = analysis.indices_job
+    assert new != old and new.is_speculative and new.status == Status.QUEUED
 
 
 def test_new_thresholds_replace_the_run_and_keep_the_settings(client):

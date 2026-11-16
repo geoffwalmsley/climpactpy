@@ -509,10 +509,12 @@ def test_continue_saves_and_goes_to_quality_checks(client):
     assert analysis.metadata == {"name": "Testville", "latitude": -33.9, "longitude": 151.2,
                                  "base_start": 2000, "base_end": 2001}  # fmt: skip
     page = client.get(response["Location"]).content.decode()
-    # The workspace tabs (#179): Quality current, Data links back, Results not yet.
+    # The workspace tabs (#179): Quality current, Results not yet; no Data tab, its summary
+    # is Quality's "Your data", and the details are in the Inputs panel (#198).
     quality = r'href="/station/[^"]+/quality" data-tab="quality"[^>]*aria-current="page"'
     assert re.search(quality, page)
-    assert f'href="/station/{analysis.pk}/load" data-tab="data"' in page
+    assert 'data-tab="data"' not in page and 'id="your-data"' in page
+    assert f'href="/station/{analysis.pk}/inputs/base-period?next=' in page
     assert re.search(r'<span class="tabs__tab" data-tab="results" data-state="locked">', page)
 
 
@@ -603,7 +605,7 @@ def test_delete_now(client):
 def test_upload_page_lists_recent_analyses(client):
     analysis = loaded(client, name="perth.txt")
     html = client.get("/station/").content.decode()
-    assert "Continue where you left off" in html and f'href="/station/{analysis.pk}/load"' in html
+    assert "Continue where you left off" in html and f'href="/station/{analysis.pk}/"' in html
     assert "Continue where you left off" not in Client().get("/station/").content.decode()
 
 

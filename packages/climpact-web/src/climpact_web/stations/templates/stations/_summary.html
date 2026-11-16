@@ -1,8 +1,11 @@
 {% load i18n ui help %}{% comment %}
-What is in the station file (step 1): period, days missing per variable, a preview of the
-series and the days with data in each year. Parameters from views.summary_context.
+What is in the station file: period, days missing per variable, a preview of the series
+and the days with data in each year. On Quality, below the checks, and on the first
+visit's details page, where it ends with the form to use a different file (``replace``;
+afterwards the Inputs panel replaces the file, #198). Parameters from
+views.summary_context, replace, replace_form, replace_open.
 {% endcomment %}
-<section class="page-section stack" aria-labelledby="data-title">
+<section class="page-section stack" id="your-data" aria-labelledby="data-title" tabindex="-1">
   <div class="section-header"><h2 id="data-title">{% translate "Your data" %}</h2><p class="section-header__note">{% translate "Missing values and the daily series" %}</p>{% section_help "load.data" %}</div>
   <div class="grid gap-4 grid-cols-fit-40">
     {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
@@ -13,9 +16,9 @@ series and the days with data in each year. Parameters from views.summary_contex
     {% include "components/stat.html" with label=days_label value=summary.days|count note=days_note %}
   </div>
 
-  <div class="table-wrap" role="region" aria-labelledby="missing-caption" tabindex="0">
+  <div class="table-wrap" role="region" aria-labelledby="data-missing-caption" tabindex="0">
     <table class="table">
-      <caption id="missing-caption">{% translate "Missing values by variable" %}</caption>
+      <caption id="data-missing-caption">{% translate "Missing values by variable" %}</caption>
       <thead><tr>
         <th scope="col">{% translate "Variable" %}</th>
         <th scope="col" class="num">{% translate "Days with data" %}</th>
@@ -88,6 +91,7 @@ series and the days with data in each year. Parameters from views.summary_contex
     </div>
   </details>
 
+  {% if replace %}
   <details class="disclosure"{% if replace_open %} open{% endif %}>
     <summary>{% icon "upload" %}<span>{% translate "Use a different file" %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
@@ -103,4 +107,5 @@ series and the days with data in each year. Parameters from views.summary_contex
       </form>
     </div>
   </details>
+{% endif %}
 </section>

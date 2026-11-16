@@ -1,9 +1,11 @@
-"""The single-station workspace (#179): Data (#76), load the station file, or the sample,
-and give the station's metadata; Quality (#77), the quality checks, run as a ``qc`` job,
-and their results (:mod:`.qc_review`, :mod:`.qc_plots`). Results and Files (#78, #79,
-#90, #176) add their pages to the same analysis (``/station/<id>/...``,
-:mod:`.views_indices`, :mod:`.views_downloads`). Each page shows the section tabs
-(:mod:`.workspace`).
+"""The single-station workspace (#179, #198): upload the station file, or the sample, and
+confirm the station's details on the first visit (``load``, until #201's setup page);
+Quality (#77), the quality checks, run as a ``qc`` job, their results (:mod:`.qc_review`,
+:mod:`.qc_plots`) and what is in the file ("Your data", Data's summary before #198).
+Results and Files (#78, #79, #90, #176) add their pages to the same analysis
+(``/station/<id>/...``, :mod:`.views_indices`, :mod:`.views_downloads`). Each section's
+page shows the section tabs and the Inputs panel (:mod:`.workspace`), whose Edit opens a
+side sheet, or without JavaScript a page, with that input's form (:func:`edit_input`).
 
 Confirming the details also queues the indices with the default settings (#178,
 :mod:`.calculation`), so they are calculated while the user looks at the quality checks.
@@ -29,6 +31,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
@@ -40,8 +43,10 @@ from climpact_web.stations import calculation, preview, workspace
 from climpact_web.stations.calculation import queue_qc
 from climpact_web.stations.forms import (
     QC_DEFAULTS,
+    BasePeriodForm,
     MetadataForm,
     QCParamsForm,
+    StationForm,
     UploadForm,
 )
 from climpact_web.stations.models import Source, StationAnalysis, Step
@@ -172,6 +177,9 @@ def replace_file(request, analysis_id):
                 analysis.station_name = default_name(uploaded.name)
             analysis.source = Source.UPLOAD
             apply_inspection(analysis, inspection, uploaded.name)
+            if workspace.set_up(analysis):
+                # Already in use: the checks and the run of the new file (#179, #198).
+                calculation.bring_up_to_date(request, analysis)
             messages.success(request, _("The new file is loaded."))
             return redirect("stations:load", analysis_id=analysis.pk)
     metadata = MetadataForm(initial=initial_metadata(analysis), summary=analysis.summary)
@@ -237,7 +245,7 @@ def load_context(request, analysis: StationAnalysis, form: MetadataForm) -> dict
         "form": form,
         "replace_form": UploadForm(),
         "details_saved": workspace.committed(analysis),
-        **workspace.context(analysis, "data"),
+        **workspace.context(analysis, "setup"),
         **summary_context(analysis),
     }
 
@@ -246,11 +254,16 @@ def load_context(request, analysis: StationAnalysis, form: MetadataForm) -> dict
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
 def load(request, analysis_id):
-    """Data: what is in the file, and the station metadata. Confirming the details runs
-    the checks with the thresholds kept (R's defaults at first) and the indices with the
-    default settings behind them (#178). After a change, only what depends on it runs
-    again, and the results of the old details stay, out of date, until then (#179)."""
+    """The first visit's details (Data before #198): what is in the file, and the station
+    metadata. Confirming the details runs the checks with the thresholds kept (R's
+    defaults at first) and the indices with the default settings behind them (#178).
+    Once the details are confirmed and fit the data the station is set up, and this
+    address, Data's, leads to Quality's "Your data" (#198); a later change is made in the
+    Inputs panel (:func:`edit_input`), and only what depends on it runs again, the results
+    of the old details staying, out of date, until then (#179)."""
     analysis = get_analysis(request, analysis_id)
+    if request.method != "POST" and workspace.set_up(analysis):
+        return redirect(reverse("stations:qc", args=[analysis.pk]) + "#your-data")
     if request.method == "POST":
         form = MetadataForm(request.POST, summary=analysis.summary)
         if form.is_valid():
@@ -345,7 +358,8 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
     changes = workspace.qc_changes(analysis, shown)
     context = {
         "analysis": analysis,
-        **workspace.context(analysis, "quality"),
+        **workspace.context(analysis, "quality", request.path),
+        **summary_context(analysis),  # "Your data", Data's summary before #198
         "qc_form": extra.pop("qc_form", None)
         or QCParamsForm(initial=QCParamsForm.initial_for(analysis.qc_params)),
         "replace_form": extra.pop("replace_form", None) or UploadForm(),
@@ -544,3 +558,145 @@ def qc_continue(request, analysis_id):
 def workspace_home(request, analysis_id):
     """``/station/<id>/``: the furthest section the workspace has reached (#179)."""
     return redirect(workspace.home_url(get_analysis(request, analysis_id)))
+
+
+# ---- the Inputs panel's sheets (#198) ----------------------------------------------------
+
+# Each sheet's title and the line under it (stations/_input_form.html).
+INPUT_SHEETS = {
+    "file": (
+        _lazy("Replace the file"),
+        _lazy("Load a corrected or longer file of this station."),
+    ),
+    "station": (
+        _lazy("Station"),
+        _lazy(
+            "The name titles the results and names their files. The latitude decides the "
+            "seasons of the growing season length and heatwaves."
+        ),
+    ),
+    "base-period": (
+        _lazy("Base period"),
+        _lazy("The years the percentile indices are compared with."),
+    ),
+}
+
+
+def next_url(request, analysis: StationAnalysis) -> str:
+    """Where an edit returns: the page it was opened from (``next``), one of this station's,
+    else the workspace's home."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    target = request.POST.get("next") or request.GET.get("next") or ""
+    own = f"/station/{analysis.pk}/"
+    if (
+        target.startswith(own)
+        and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()})
+        and not target.startswith(own + "inputs/")
+    ):
+        return target
+    return workspace.home_url(analysis)
+
+
+def input_form(analysis: StationAnalysis, key: str, data=None, files=None):
+    """The form of the sheet ``key``: unbound with the saved values, or bound to ``data``."""
+    if key == "file":
+        # Its own ids: Quality's "Correct the file" has a file field too.
+        return UploadForm(data, files, auto_id="sheet_%s")
+    form_class = StationForm if key == "station" else BasePeriodForm
+    if data is not None:
+        return form_class(data, summary=analysis.summary)
+    values = {k: v for k, v in initial_metadata(analysis).items() if k in form_class.FIELDS}
+    form = form_class(values, summary=analysis.summary)
+    form.is_valid()  # bound, to show the saved values' warnings
+    return form
+
+
+def sheet_context(analysis: StationAnalysis, key: str, form=None) -> dict:
+    """One sheet's context: its key, title, form and what applying it will update."""
+    return {
+        "key": key,
+        "title": INPUT_SHEETS[key][0],
+        "intro": INPUT_SHEETS[key][1],
+        "form": form if form is not None else input_form(analysis, key),
+        "impact": workspace.impact(key),
+    }
+
+
+def apply_file(request, analysis: StationAnalysis, form: UploadForm):
+    """Replace the file from the File sheet. Returns (inspection, response): a redirect
+    when the file was loaded, else the inspection whose problems the page shows."""
+    uploaded = form.cleaned_data["station_file"]
+    inspection = inspect_station_bytes(read_upload(uploaded))
+    if not inspection.ok:
+        return inspection, None
+    analysis.source = Source.UPLOAD  # the station details are kept, its name too
+    apply_inspection(analysis, inspection, uploaded.name)
+    if not workspace.details_valid(analysis):
+        # The base period no longer fits the data: the details page asks for a new one.
+        messages.warning(
+            request,
+            _(
+                "The new file is loaded, but the station details need a change before the "
+                "checks can run."
+            ),
+        )
+        return inspection, redirect("stations:load", analysis_id=analysis.pk)
+    calculation.bring_up_to_date(request, analysis)
+    messages.success(request, _("The new file is loaded. The checks and results are updated."))
+    return inspection, redirect(next_url(request, analysis))
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD", "POST"])
+@human_required
+def edit_input(request, analysis_id, key):
+    """An input of the Inputs panel (#198): the file, the station or the base period. The
+    panel's Edit opens this form in a side sheet; without JavaScript, or when the sheet's
+    form has errors, it is this page. Applying keeps what depends on the input, marked out
+    of date, and queues its replacement (#179); then back to the page it was opened from."""
+    analysis = get_analysis(request, analysis_id)
+    if key not in INPUT_SHEETS:
+        raise Http404
+    if not workspace.set_up(analysis):
+        return redirect("stations:load", analysis_id=analysis.pk)
+    inspection = None
+    if request.method == "POST":
+        form = input_form(analysis, key, request.POST, request.FILES)
+        if form.is_valid():
+            if key == "file":
+                inspection, response = apply_file(request, analysis, form)
+                if response is not None:
+                    return response
+            else:
+                for name, value in form.cleaned_data.items():
+                    setattr(analysis, name, value)
+                calculation.bring_up_to_date(request, analysis)
+                return redirect(next_url(request, analysis))
+    else:
+        form = None
+    context = {
+        "analysis": analysis,
+        **workspace.context(analysis, "setup"),
+        "sheet": sheet_context(analysis, key, form),
+        "next": next_url(request, analysis),
+        "inspection": inspection,
+        "file_name": request.FILES["station_file"].name if "station_file" in request.FILES else "",
+    }
+    return render(request, "stations/input_edit.html", context)
+
+
+@never_cache
+@require_safe
+def inputs_progress(request, analysis_id):
+    """The Inputs panel's runs (#198), polled by htmx while the checks or a run of new
+    inputs are under way; once they have all finished the page reloads to show them."""
+    analysis = get_analysis(request, analysis_id)
+    if not workspace.set_up(analysis):
+        raise Http404
+    panel = workspace.inputs_panel(analysis)
+    if not panel["input_runs"]:
+        response = HttpResponse(status=204)
+        response["HX-Refresh"] = "true"
+        return response
+    return render(request, "stations/_input_runs.html", {"analysis": analysis, **panel})

@@ -43,7 +43,7 @@
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
     <ul class="grid gap-2 ps-5 wrap-anywhere">
       {% for item in recent %}
-      <li><a href="{% url 'stations:load' item.pk %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% url 'stations:workspace' item.pk %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

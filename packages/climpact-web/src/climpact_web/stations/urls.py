@@ -4,10 +4,12 @@ from climpact_web.stations import views, views_downloads, views_indices, views_s
 
 app_name = "stations"
 
-# An analysis's sections (#179): Data is ``load``, Quality ``quality``, Results ``results``
-# and Files ``downloads``, the addresses of the steps they replace, so links and bookmarks
-# keep working. ``/station/<id>/`` opens the furthest section reached, and the old
-# Calculate step (``indices``) Results' "Adjust and recalculate".
+# An analysis's sections (#179, #198): Quality ``quality``, Results ``results`` and Files
+# ``downloads``, the addresses of the steps they replace, so links and bookmarks keep
+# working. ``load`` is the first visit's details, and once they are confirmed Data's old
+# address leads to Quality's "Your data". ``inputs/<key>`` is a sheet of the Inputs panel
+# as a page. ``/station/<id>/`` opens the furthest section reached, and the old Calculate
+# step (``indices``) Results' "Adjust and recalculate".
 urlpatterns = [
     path("", views.upload, name="upload"),
     path("<uuid:analysis_id>/", views.workspace_home, name="workspace"),
@@ -17,6 +19,8 @@ urlpatterns = [
     path("<uuid:analysis_id>/load", views.load, name="load"),
     path("<uuid:analysis_id>/load/validate", views.validate, name="validate"),
     path("<uuid:analysis_id>/file", views.replace_file, name="replace_file"),
+    path("<uuid:analysis_id>/inputs/progress", views.inputs_progress, name="inputs_progress"),
+    path("<uuid:analysis_id>/inputs/<slug:key>", views.edit_input, name="edit_input"),
     path("<uuid:analysis_id>/series.csv", views.series, name="series"),
     path("<uuid:analysis_id>/delete", views.delete, name="delete"),
     path("<uuid:analysis_id>/quality", views.qc, name="qc"),

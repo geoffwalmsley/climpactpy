@@ -11,6 +11,10 @@ calculated it holds the quality-control files alone. Context from views_download
 {% block content %}
 <div class="stack stack--xl station-page">
   {% include "stations/_workspace.html" with heading=True %}
+  {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
+  <div class="workspace">
+  {% include "stations/_inputs.html" %}
+  <div class="workspace__main stack stack--xl">
   <div class="stack stack--sm">
     <div class="section-header"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
     <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
@@ -156,5 +160,8 @@ calculated it holds the quality-control files alone. Context from views_download
   {% else %}
   <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
+  </div>
+  </div>
 </div>
+{% include "stations/_input_sheets.html" %}
 {% endblock %}

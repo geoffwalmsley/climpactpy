@@ -90,6 +90,7 @@
 
   /* File and station names are often one long word (sydney_observatory_hill_1936-2015.txt):
      let them wrap rather than widen the page on a phone. */
+  .station-page h1,
   .station-page .lead,
   .station-page .alert__body,
   .station-page .summary-list dd {

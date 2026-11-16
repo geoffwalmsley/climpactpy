@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); single-station steps 1 to 5 (load data, the quality checks, the index parameters, the results, sector data) and the downloads page with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179: Data, Quality, Results and Files as tabs, with results kept and marked out of date after a change; the index settings and the sector comparison as actions on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2745,8 +2745,8 @@ packages/climpact-web/src/climpact_web/
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
                      the context processor `site`
     navigation.py    the app's destinations (header links, landing page) and the
-                     single-station, batch and gridded steps (`station_steps`,
-                     `batch_steps`, `gridded_steps`) for the step indicator
+                     batch and gridded steps (`batch_steps`, `gridded_steps`) for the
+                     step indicator (the single station has tabs since #179)
     tokens.py        reads the design tokens back from the Tailwind source; writes
                      chart-palette.json
     tailwind/        the stylesheet's source (#118): climpact.css (the entry: layers,
@@ -2804,9 +2804,13 @@ packages/climpact-web/src/climpact_web/
     context_processors.py  `job_retention_days` for every template
     management/commands/  runworker, purgejobs
     templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html
-  stations/          the single-station steps (label `stations`, see
+  stations/          the single-station workspace (label `stations`, see
                      [Single-station steps](#single-station-steps))
-    models.py        StationAnalysis: one station going through the steps
+    models.py        StationAnalysis: one station's workspace; file_digest
+    workspace.py     the sections each job shows, staleness from the jobs' recorded
+                     inputs, settle, the tabs' states (#179)
+    calculation.py   queueing the checks and the run, speculative runs, recalculate,
+                     bring_up_to_date after a change (#178, #179)
     station_file.py  checks an uploaded file (plain-language problems at file lines,
                      warnings) and summarises its data
     forms.py         UploadForm, MetadataForm (step 1), QCParamsForm and QC_DEFAULTS (step 2)
@@ -2918,7 +2922,8 @@ packages/climpact-web/tests/
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
-                     step 1 (test_stations.py), step 2 (test_qc_review.py), the batch page (test_batch.py), the
+                     Data (test_stations.py), Quality (test_qc_review.py), the workspace
+                     and staleness (test_workspace.py, #179), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
@@ -4007,7 +4012,9 @@ a comment listing its parameters. Labels are passed in already translated
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Results and downloads (the sector comparison is an action on Results, not a step, #173, and so are the index settings, #178; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data", "Results and downloads") |
+| `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
+| `workspace_tabs` | a station's sections, Data, Quality, Results and Files (#179), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date" and "Running", screen-reader only for the others. A section not available yet is a `span`, not a link. The four section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
+| `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
@@ -4022,8 +4029,8 @@ URL name each later ticket adds (`stations:upload`,
 `stations:sample` (#76), `batch:start` (#80), `gridded:start` (#85), `help:index` (#81) and `jobs:list` all exist now). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered when `GRIDDED_ENABLED` is
 set: always in local mode, as in R, and in hosted mode only with
-`CLIMPACT_WEB_GRIDDED_HOSTED`. The step URLs (`stations:qc` and so on) are named in `STATION_STEPS` for the same
-reason. "Try with sample data" is a one-button POST form, since it creates the session's
+`CLIMPACT_WEB_GRIDDED_HOSTED`. The batch and gridded step URLs are named in `BATCH_STEPS`
+and `GRIDDED_STEPS` for the same reason. "Try with sample data" is a one-button POST form, since it creates the session's
 analysis.
 
 **Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
@@ -4067,7 +4074,9 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 70 KB and 13 KB gzipped (12.5 KB until #177 added the drawer). `ui.js` is about
+stylesheets). Tests hold it under 71 KB (70 KB until #179 added the workspace tabs' status marks and the
+out-of-date block; it is 70.2 KB) and 13 KB gzipped (12.5 KB until #177 added the
+drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
@@ -4196,7 +4205,9 @@ than one worker must have taken jobs. Then the worker running a long job is kill
 SIGKILL: the surviving workers' `reap_stale` fails it ("no heartbeat" in the log, not
 before the stale time), a retry runs it on another worker (`attempts` 2, one marker per
 attempt), and 8 more jobs queued meanwhile run once each. The survivors stop cleanly on
-SIGTERM.
+SIGTERM. A second test runs the station workspace's migrations (#179) back and forward on
+its own Postgres database and checks the backfill (`migration_backfill.py`, which
+`test_workspace.py` also runs on SQLite).
 
 ### Background jobs
 
@@ -4247,7 +4258,9 @@ does not orphan jobs); `params` (JSON); `title`; `status` (`queued`, `running`,
 `attempts`; `cancel_requested`; `client` (hosted mode: the client address that started
 the job, for the quotas, #125; blank in local mode); `error` (the message for the user); `log` (the operator
 log: one timestamped line per attempt, the outcome, the run time, and the traceback of a
-failure); `result` (JSON from the runner: files written, zip). The job's folder is
+failure); `result` (JSON from the runner: files written, zip); `inputs` (#179, JSON: the
+inputs a station workspace's `qc` or `station` job was made from, for staleness, see
+[Single-station steps](#single-station-steps); empty for other jobs). The job's folder is
 `<RUNS_DIR>/<id>/` with `input/` (uploads) and `output/` (what the core writes). The
 `Worker` table lists running workers (`name`, `started_at`, `seen_at`). `JobStart` (hosted
 mode) records each job started or retried (`client`, `kind`, `created_at`) for the daily
@@ -4408,15 +4421,16 @@ imports or network requests.
 
 ### Single-station steps
 
-The single-station flow (#76-#79, #90, #178) replaces the R app's tabs
-(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). It has three
-steps (`STATION_STEPS`): Load data (#76), Check quality (#77) and Results and downloads
-(#78, #79), with the Files page (#79, #176). R's step 3, the index settings, is not a step
-since #178: the indices are calculated with the defaults while the user looks at the
-quality checks ("Speculative calculation" in [Single-station steps](#single-station-steps)), and the settings are
-"Adjust and recalculate" on Results. R's step 4, sector correlation (#90), is not a step
-either since #173: Results offers it as an action, and its page shows Results as the
-current step.
+The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
+(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Since #179 a
+station is a workspace of four sections, shown as tabs under its name (decision A): Data
+(#76, load the file and confirm the details), Quality (#77), Results (#78, #79) and Files
+(#79, #176). There are no steps and no step indicator. R's step 3, the index settings, is
+"Adjust and recalculate" on Results since #178: the indices are calculated with the
+defaults while the user looks at the quality checks ("Speculative calculation" below).
+R's step 4, sector correlation (#90), is an action on Results since #173, and its page
+shows the Results tab as current. A change to an input keeps the work and marks what
+depends on it out of date ("Workspace and staleness" below).
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
 through the steps: a UUID primary key; `owner` (the session's job owner token, so a
@@ -4425,35 +4439,104 @@ session sees its analyses and its jobs, and any other session gets 404); `source
 `station_file.summarise`: first and last dates, days, per variable the days present and
 missing, days with data per year, monthly means for the preview); `warnings` (about the
 file); the metadata `station_name`, `latitude`, `longitude` (null until given),
-`base_start`, `base_end` (R's defaults, 1971 and 2000); `step`, the furthest step reached
-(`upload`, `qc`, `indices`, `results`, `sector`: the keys of `STATION_STEPS`, with
-`indices` meaning the user chose "Use this data", and `sector`, neither of them a step
-in the indicator; the values are unchanged since #78, so no migration);
+`base_start`, `base_end` (R's defaults, 1971 and 2000); `file_hash` (#179, the SHA-256
+of the station file as kept, `models.file_digest`, set by `save_station_text`); `step`,
+the furthest point reached (`upload`, `qc` once the details are confirmed, `indices` once
+the user chose "Use this data", then `results` and `sector`). It only moves forward since
+#179;
 `qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
 defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
 (not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
-its own `input/` when queued, so analyses and jobs expire independently. Changing the
-file or any metadata value clears the job links and sets `step` back (`reset_later_steps`),
-so the later steps run again; a speculative run still waiting or running is cancelled
-first (`cancel_speculative`). `step_urls()` gives the step indicator a link for each step
-reached that has a page (`STEP_URL_NAMES`; `indices` has none since #178). The speculative
-run and "Adjust and recalculate" set `indices_job`, the sector comparison `sector_job`. The
-index parameters are not stored on the analysis: they are the `params` of its
-`indices_job` (or of its batch station, `origin`), so the model needed no migration.
+its own `input/` when queued, so analyses and jobs expire independently. A change to the
+file or the metadata keeps the job links (#179; `reset_later_steps` is gone): each job
+records the inputs it was made from in `Job.inputs`, and the workspace compares them with
+the analysis's. The checks set `qc_job`, the speculative run and "Adjust and recalculate"
+`indices_job`, the sector comparison `sector_job`. The index parameters are not stored on
+the analysis: they are the `params` (and `inputs["settings"]`) of its `indices_job`, or
+its batch station's (`origin`, whose `inputs` records what the batch's results were made
+from).
+
+**Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
+which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
+`file` (the hash), `metadata` (name, latitude, longitude, base period), `qc` (the
+thresholds with R's defaults filled in, `workspace.qc_values`) and, for a `station` run,
+`settings` (`workspace.settings_of`: the `IndexParams` fields, plot title, plots, zip and
+report). `workspace.differences` names what differs between a job's inputs and the
+analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`. The checks depend
+on the file, the thresholds and the name (their files are named after the station); a run
+on all of them, with the settings of the latest run asked for (`wanted_run_inputs`). An
+input a job did not record (a batch's results have no `settings`) never differs. A section
+is out of date when the job it shows differs (`qc_changes`, `run_changes`). This is
+computed from the database alone, never from the session, so it is the same in every
+browser tab open on the analysis and in hosted mode (a test changes the base period in one
+tab and reads it in another).
+
+A section shows the latest finished job of its kind: `shown_qc` is `qc_job` if it has
+finished, else the checks it replaces; `shown_run` is `indices_job` if it has finished,
+else the run it replaces, else the batch's results (`origin`). The replaced job is named in
+the new job's `params["replaces"]` (#178's recalculation, now for the checks too,
+`workspace.replaces_for` carrying it from a job still waiting). After a change,
+`calculation.bring_up_to_date` (called by Data's form, a corrected file on Quality and new
+thresholds) runs `workspace.settle`, which cancels what is still queued or running for the
+old inputs and, when an input was changed back, links the finished job of those inputs again
+instead of calculating it twice; then it queues the checks and the run that are not of the
+current inputs. A replacement run is speculative before "Use this data" and an ordinary job
+(the user's own, counted by the hosted limits) after it; a refusal by the limits is logged
+and leaves the results out of date with "Recalculate". A new file loaded on Data waits for
+the details to be confirmed, as the name may follow the file's; meanwhile Quality says its
+checks are out of date and links to Data. After a confirmed change that leaves the checks
+current (the base period, the location), Data goes straight to Results.
+
+The pages show it: Quality keeps the old checks under an out-of-date banner (the new checks'
+progress, or their failure), with no "Use this data" until the new checks have finished
+(`qc_continue` refuses out-of-date checks); Results keeps the old results in a
+`stale-content` block under a banner that says what changed ("You changed the base period
+to 1981–2010. These results use 1971–2000.") and shows the new run's progress, or offers
+"Recalculate" (`.../indices` POST with `recalculate=1`: `calculation.recalculate` promotes a
+waiting run of the current inputs, or queues one with the latest settings); an index page,
+the sector comparison and Files say so too. When the replacement finishes it is shown and
+the section is current again. The Quality tab keeps the verdict's level in the checks'
+`result["verdict"]` (`views.remember_verdict`) so its tab can say "Needs attention" on red.
+
+**Tabs (#179).** `workspace.sections` gives each section its address and state, and
+`stations/_workspace.html` draws the header (the station's name as the h1 of the four
+section pages, its years and base period, "Edit the details") and
+`components/workspace_tabs.html`. The states (`workspace.section_states`): Data `todo`
+until the details are confirmed, then `done`, or `attention` when they no longer fit the
+data; Quality `locked` until then, `stale`, `running`, `attention` (failed, stopped, or a red
+verdict) or `done`; Results `locked` until "Use this data", then `stale`, `running`,
+`attention` (the first run failed) or `done`; Files `locked` until there are checks or
+results, `stale` when either is. Each tab is its own page, so the existing URLs stay as
+they were (the Cloudflare rate-limit rules name them), the pages stay as light as before,
+and they work without JavaScript; they are therefore links with `aria-current="page"`,
+not an ARIA tablist.
+
+**Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
+`stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
+`stations/0005_backfill_workspace_inputs` fills them for existing analyses: the hash of
+each analysis's file on disk, and for its linked `qc` and `station` jobs (and the run a
+recalculation replaces) the inputs in their own `params`, with that hash. Before #179 a
+change cleared the links, so a linked job was always of the analysis's current inputs: the
+backfill keeps them current. A batch station gets `origin["inputs"]`. The values the
+migration needs (R's QC defaults) are copied into it. `tests/migration_backfill.py` checks
+it on SQLite (`test_workspace.py`) and on Postgres (`test_queue_postgres.py`).
 
 **URLs.** `/station/` upload page (`stations:upload`); `/station/sample` (POST) loads the
 sample; `/station/sample.txt` downloads it (R links to the sample file too);
-`/station/<id>/load` step 1 (`stations:load`); `.../load/validate` (htmx, POST);
+`/station/<id>/` (`stations:workspace`, #179) the furthest section reached (Results after
+"Use this data", else Quality once the details are confirmed, else Data);
+`/station/<id>/load` Data (`stations:load`); `.../load/validate` (htmx, POST);
 `.../file` (POST) loads a different file into the analysis; `.../series.csv` the daily
-series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`), `.../quality/run`
+series; `.../delete` (POST); `.../quality` Quality (`stations:qc`), `.../quality/run`
 (POST: save the thresholds and run the checks), `.../quality/progress` (htmx),
 `.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
 `.../quality/file` (POST: the corrected file), `.../quality/continue` (POST: "Use this
 data"); `.../indices` (`stations:indices`), the Calculate step's address until #178: GET
 redirects to `.../results?settings=open#adjust` (with `&back=<key>` for an old
 `?index=<key>`), so links in emails, bookmarks and "Your calculations" keep working, and
-POST is the "Adjust and recalculate" form; `.../indices/validate` (htmx, POST);
+POST is the "Adjust and recalculate" form, or with `recalculate=1` "Recalculate" on
+out-of-date results (#179); `.../indices/validate` (htmx, POST);
 `.../results` (`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
@@ -4536,9 +4619,9 @@ without errors; the user corrects the file outside the app and loads it again.
   `temp_max` (50 °C, 0-60), `flatline_days` (5, 3-15), `jump` (20 °C, 5-30), each with its
   `qcparam.*` help topic. `QC_DEFAULTS` repeats `QCParams`' defaults so the web server
   does not import the core (a test checks they agree). Saved on the analysis
-  (`qc_params`); changing them sends the analysis back to step 2 and replaces its run with
-  a speculative one with the same settings (#178), since the full run's QC files use them
-  too (the `station` runner's `qc` parameter).
+  (`qc_params`); changing them replaces the checks and the run, with the same settings
+  (#178), since the full run's QC files use them too (the `station` runner's `qc`
+  parameter). The old checks and results stay, out of date, meanwhile (#179).
 - *The job*: "Continue" in step 1 queues a `qc` job at once with the saved thresholds (R
   waits for a click), so the results are usually there when the page opens; changing the
   thresholds or uploading a corrected file queues another, cancelling one still waiting.
@@ -4610,8 +4693,9 @@ without errors; the user corrects the file outside the app and loads it again.
 - *Upload a corrected file* (`.../quality/file`): a button that opens the file picker
   (`components/file_button.html`) and sends the chosen file at once, with a line saying
   so; without JavaScript, a file input and a submit button. The corrected file replaces
-  the old one, the station details and thresholds are kept and the checks run again; if
-  the base period no longer fits the new data, step 1 opens to change it. A file with
+  the old one, the station details and thresholds are kept and the checks and the run
+  start again, the old ones shown out of date until then (#179); if the base period no
+  longer fits the new data, Data opens to change it. A file with
   problems is refused with the same messages as in step 1, and the previous results stay.
 - *Files* (under Details): one link to the quality-control files on the Files page
   (`#quality-files`). Since #176 the Quality page offers no download itself; each QC file
@@ -4630,16 +4714,19 @@ sets the key to false and records the start for the daily quota) and the page go
 straight to Results, which shows the dashboard if it has finished and its progress if not.
 Without a run (refused, cancelled), one is queued then. Until "Use this data", no page shows
 it: Results redirects to Quality, an index page and Files act as if there were no run
-(`views_indices.committed`).
+(`workspace.committed`).
 
-A run of old data is never shown. Changing the details on Load or loading another file
-(`reset_later_steps`), uploading a corrected file on Quality (`qc_replace`) or changing the
-thresholds (`qc_run`) cancels a speculative run still waiting or running
-(`Job.request_cancel`: at once if queued, at the next progress step if running) and, except
-for a new file on Load (the details must be confirmed again), queues another. The thresholds
-case keeps the last run's settings. "Your calculations" leaves the cancelled ones out. An
-analysis opened from a batch (`origin`) gets no speculative run: it shows the batch's
-results until it is recalculated here.
+A run of old inputs is never shown as current. Changing the details on Data, loading another
+file, uploading a corrected file on Quality (`qc_replace`) or changing the thresholds
+(`qc_run`) cancels a run still waiting or running for the old inputs (`workspace.settle`,
+`Job.request_cancel`: at once if queued, at the next progress step if running) and, except
+for a new file on Data (the details must be confirmed again), queues another
+(`calculation.bring_up_to_date`), keeping the last run's settings. Before "Use this data"
+the replacement is speculative; after it, the finished results stay on the page, out of
+date, until it has finished (#179). "Your calculations" leaves the cancelled speculative
+runs out. An analysis opened from a batch (`origin`) gets no speculative run: it shows the
+batch's results until it is recalculated here, or until a change makes them out of date,
+which queues its own run.
 
 How it fits the hosted limits ([Security of the hosted site](#security-of-the-hosted-site)):
 the worker takes a speculative run only when no other job waits (`claim`), it is queued
@@ -4704,12 +4791,14 @@ calculated yet and opens the form with a "Calculate" button.
 
 **Results: a recalculation** keeps the results it replaces (`params["replaces"]`) on the
 page, with its progress in a panel above them ("Recalculating", then "The results below use
-the previous settings"); `current_source` serves the replaced run to Results, the index
+the previous settings"); `views_indices.current_source` (from `workspace.shown_run`) serves the replaced run to Results, the index
 pages, Files and the sector comparison meanwhile. When it succeeds, the fragment's
 `HX-Redirect` shows the new results; when it fails, the panel says so with "Try again";
 when it is cancelled, the analysis's `indices_job` goes back to the replaced run
-(`restore_if_cancelled`). Staleness after a change to the details (#179) is not part of
-this: such a change still clears the results.
+(`workspace.restore_if_cancelled`; for a batch station, back to the batch's results). A
+recalculation with new settings is a change of input (#179): the results it replaces show
+the out-of-date banner ("You changed the settings.") with its progress inside, rather than
+this panel, which stays for a run of the same inputs.
 
 **Results: the dashboard** (`stations/results.py`, `results.html`). Every index table of
 the run is on it: the core's `climpact.plots.index_plots` gives the plotted series (with
@@ -4964,7 +5053,10 @@ last changed (`updated_at`), unless one of its jobs is queued or running
 (`stations/retention.py`, run with every purge of expired jobs); folders under
 `stations/` that belong to no analysis are deleted once older than the period. The pages
 state the period and the date the analysis will be deleted, and "Delete this data now"
-deletes it at once.
+deletes it at once. The rules are unchanged by #179: jobs kept as out of date (the run a
+newer one replaces) are ordinary jobs, purged `JOB_RETENTION_DAYS` after they finished; a
+purged replaced run is simply no longer shown, and Results shows the new run's progress
+instead (`test_workspace.py::test_retention_purges_out_of_date_jobs_as_before`).
 
 ### Batch page
 
@@ -5714,9 +5806,11 @@ machine (`tests/browser.py`: headless, a temporary profile, the DevTools protoco
 WebSocket with `websocket-client`; nothing is downloaded or installed). Chrome is found
 from `CHROME`, then the usual install paths and `PATH`; without it the tests skip with a
 message, unless `CLIMPACT_A11Y_REQUIRE_CHROME` is set (CI). The `site` fixture goes
-through the Sydney sample station (steps 1 to 5 with the sample sector file), the sample
+through the Sydney sample station (every section, a recalculation, the sector comparison
+with the sample sector file), a second sample station whose base period is changed and its
+new run cancelled (Results out of date under "Recalculate", #179), the sample
 batch and the 3 x 4 sample grid (thresholds, then `txx`, `fd` and `spi`) in the browser, so
-the worker runs real jobs (about a minute), and collects 36 pages and states, including
+the worker runs real jobs (about a minute), and collects 37 pages and states, including
 forms answered with errors, the 413 page (a real over-limit upload) and the 500 page
 (rendered from its template). The `audit` fixture opens each page once and reads:
 
@@ -5731,7 +5825,9 @@ forms answered with errors, the 413 page (a real over-limit upload) and the 500 
 
 While the jobs run the fixture also runs axe on each progress page, records what the
 announcer says, and checks that focus on the batch's Cancel button survives the polls.
-Widget tests work the tabs, dialog, drop zone (Space opens the file chooser, caught with
+Widget tests work the tabs, the workspace tabs (#179: one Tab stop each in order, named
+with their status in words, `aria-current="page"` on the current one, Enter opens a
+section, a section not yet available is no Tab stop), dialog, drop zone (Space opens the file chooser, caught with
 `Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
 gridded explorer by keyboard, and the quality worklist (#174): a group opens and closes
 from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a

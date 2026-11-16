@@ -2,9 +2,9 @@
 {% load i18n static ui help charts %}
 {% block title %}{% blocktranslate with title=card.title name=card.name station=analysis.station_name %}{{ title }} ({{ name }}): {{ station }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
+  {% include "stations/_workspace.html" %}
   <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
     <a href="{% url 'stations:results' analysis.pk %}?group={{ card.group }}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
     {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
@@ -20,6 +20,11 @@
     <p class="text-sm">{% url 'stations:results' analysis.pk as results_url %}{% blocktranslate with url=results_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?settings=open&amp;back={{ key }}#adjust">Change it and recalculate</a>. You come back here afterwards.{% endblocktranslate %}</p>
     {% endif %}
   </header>
+
+  {% if stale %}
+  {% translate "These results are out of date. They are from before your last change." as stale_message %}{% url 'stations:results' analysis.pk as results_url %}{% translate "See what changed" as results_label %}
+  {% include "components/alert.html" with kind="warning" title="" message=stale_message action_href=results_url action_label=results_label %}
+  {% endif %}
 
   {% if card.series|length > 1 %}
   <nav class="series-nav" aria-label="{% translate 'Series' %}">

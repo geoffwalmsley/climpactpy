@@ -102,9 +102,8 @@ def station_pages() -> dict[str, str]:
     the indices being calculated, with "Adjust and recalculate" (#78, #178), with the sample
     data, rendered without a database. The results of the checks and of the indices need a
     finished job's files; their screenshots are in the PRs (#77, #78)."""
-    from climpact_web.core.navigation import station_steps
     from climpact_web.jobs.models import Job, Status
-    from climpact_web.stations import calculation, views, views_indices
+    from climpact_web.stations import calculation, views, views_indices, workspace
     from climpact_web.stations.forms import MetadataForm, UploadForm
     from climpact_web.stations.models import Source, StationAnalysis, Step
     from climpact_web.stations.station_file import inspect_station_bytes
@@ -115,7 +114,7 @@ def station_pages() -> dict[str, str]:
                              summary=inspection.summary, updated_at=timezone.now(),
                              **views.SAMPLE_METADATA)  # fmt: skip
     upload = {"form": UploadForm(), "inspection": None, "file_name": "", "recent": [],
-              "steps": station_steps("upload"), "sample_name": views.SAMPLE_NAME,
+              "sample_name": views.SAMPLE_NAME,
               "max_upload_mb": settings.MAX_UPLOAD_MB}  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
@@ -149,7 +148,7 @@ def station_pages() -> dict[str, str]:
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
         "station-calculating": ("stations/results_progress.html", {
             "analysis": sample, "job": running, "phases": views_indices.phases(running),
-            "steps": station_steps("results"), "stage_label": "Calculating indices (txx)",
+            **workspace.context(sample, "results"), "stage_label": "Calculating indices (txx)",
             "elapsed": "4 s", "remaining": "", "delay": 1, "worker_missing": False,
             "form": calculation.settings_form(sample), "settings_source": "default",
             "open_settings": False}),

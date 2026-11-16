@@ -23,11 +23,11 @@ def home_tour() -> list[dict[str, str]]:
         },
         {
             "target": "#how-title",
-            "title": _("Three steps"),
+            "title": _("One station, four tabs"),
             "text": _(
-                "Load the data and check its quality. The indices are calculated while you "
-                "check, so the results are ready to explore and download. Comparing with "
-                "sector data is optional."
+                "Data, Quality, Results and Files. The indices are calculated while you "
+                "check the quality, so the results are ready to explore. Change anything "
+                "later: what it affects is marked out of date and calculated again."
             ),
         },
         {

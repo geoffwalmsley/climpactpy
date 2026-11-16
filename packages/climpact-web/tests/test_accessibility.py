@@ -260,14 +260,15 @@ def site(chrome, server):
         submit(c, "form[action$='/indices']")
 
     pages["station adjust, errors"] = adjust_errors
-    # Recalculate: the progress above the results it replaces, then the new results.
+    # Recalculate: the results it replaces, marked out of date (#179), under its progress,
+    # then the new results.
     c.navigate(pages["station adjust"])
     c.evaluate("document.querySelector('[name=rx_days]').value = '4'")
     submit(c, "form[action$='/indices']")
     heard = while_running(c, "station run")
     wait_for(c, "!!document.querySelector('[data-results-filter]')"
-             " && !document.querySelector('.recalculation')", what="the station run",
-             heard=heard)  # fmt: skip
+             " && !document.querySelector('[data-stale-banner], .recalculation')",
+             what="the station run", heard=heard)  # fmt: skip
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
     pages["station downloads"] = results.replace("/results", "/downloads")
@@ -279,6 +280,29 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('.sector-plot')", what="the sector comparison",
              heard=heard)  # fmt: skip
     pages["station sector results"] = sector
+
+    # Out of date (#179), on a second sample station so the pages above keep their state:
+    # a new base period on Data, its run's progress over the old results, then that run
+    # cancelled, which leaves the old results out of date under "Recalculate".
+    c.navigate(open_url("/station/"))
+    submit(c, "form[action$='/station/sample']")
+    second = here(c)
+    submit(c, "form.form[action$='/load']")
+    wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
+             what="the second station's checks")  # fmt: skip
+    submit(c, "form[action$='/quality/continue']")
+    wait_for(c, "!!document.querySelector('[data-results-filter]')"
+             " && !document.querySelector('[data-stale-banner]')",
+             what="the second station's run")  # fmt: skip
+    c.navigate(second)
+    c.evaluate("document.querySelector('[name=base_start]').value = '1981';"
+               "document.querySelector('[name=base_end]').value = '2010'")  # fmt: skip
+    submit(c, "form.form[action$='/load']")
+    while_running(c, "station results, updating")
+    submit(c, "[data-stale-banner] form[action$='/cancel']")
+    wait_for(c, "!!document.querySelector('[data-stale-banner] input[name=recalculate]')",
+             what="the out-of-date results")  # fmt: skip
+    pages["station results, out of date"] = here(c).split("#")[0]
 
     # The jobs.
     pages["jobs"] = open_url("/jobs/")
@@ -753,6 +777,44 @@ def test_tabs_by_keyboard(chrome, site):
     )
 
 
+def test_workspace_tabs_by_keyboard(chrome, site):
+    """The workspace tabs (#179): links in a named navigation, one Tab stop each in order,
+    each named with its status in words; the current one is aria-current="page", and
+    Enter opens a section. A tab not available yet is not a Tab stop."""
+    c = chrome
+    c.navigate(site["station results, out of date"])
+    tabs = (
+        "Array.prototype.map.call(document.querySelectorAll('nav[aria-label=\"Station"
+        " sections\"] [data-tab]'), function (t) { return [t.dataset.tab, t.tagName,"
+        " t.textContent.replace(/\\s+/g, ' ').trim(), t.getAttribute('aria-current')] })"
+    )
+    found = c.evaluate(tabs)
+    assert [t[0] for t in found] == ["data", "quality", "results", "files"]
+    assert all(t[1] == "A" for t in found)
+    assert found[2][2] == "Results Out of date" and found[2][3] == "page"
+    assert found[0][2] == "Data Done" and found[3][2] == "Files Out of date"
+    focus(c, "[data-tab=data]")
+    for key in ("quality", "results", "files"):
+        c.press("Tab")
+        assert c.evaluate("document.activeElement.dataset.tab") == key
+    c.press("Tab", shift=True)
+    c.press("Tab", shift=True)
+    assert c.evaluate("document.activeElement.dataset.tab") == "quality"
+    c.press("Enter")
+    c.settle(0.5)
+    assert here(c).split("#")[0].endswith("/quality")
+    assert c.evaluate("document.querySelector('[aria-current=page][data-tab]').dataset.tab") == (
+        "quality"
+    )
+    # The first visit (the pattern library's example): only Data is a link.
+    c.navigate(site["pattern library"])
+    first = "nav[aria-label='Example: the first visit']"
+    assert c.evaluate(
+        f"Array.prototype.map.call(document.querySelectorAll({json.dumps(first + ' [data-tab]')}),"
+        " function (t) { return t.tagName + ':' + t.tabIndex })"
+    ) == ["A:0", "SPAN:-1", "SPAN:-1", "SPAN:-1"]
+
+
 def test_dialog_by_keyboard(chrome, site):
     """The dialog opens from the keyboard with focus inside, keeps focus inside, closes
     with Escape and gives focus back to the button that opened it."""
@@ -1077,7 +1139,8 @@ def header_is_one_row(c: Chrome) -> bool:
 
 
 def test_polish_layout_menu_and_flag_toggle(chrome, site):
-    """#115: the step indicator starts where the header and the content do; below 600px
+    """#115: the workspace tabs (#179; the step indicator before) start where the header and
+    the content do; below 600px
     the main links are in a one-row header's "Menu" (a <details>, so it works without
     JavaScript); the results' action row is one line at 1280px; the Load page's daily chart
     has no QC rings (#173), and the quality checks' charts toggle theirs from the legend, by
@@ -1089,8 +1152,8 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         for width in (1280, 390):
             c.viewport(width, 900)
             c.navigate(site["station sample loaded"])
-            first_step = c.evaluate(left.format(json.dumps(".steps__item")))
-            assert first_step == c.evaluate(left.format(json.dumps("main h1"))), width
+            first_tab = c.evaluate(left.format(json.dumps("main [data-tab]")))
+            assert first_tab == c.evaluate(left.format(json.dumps("main h1"))), width
         # 390px: one row of header, the links behind the menu, then shown by it.
         assert header_is_one_row(c)
         assert not c.evaluate(visible.format(json.dumps(".site-nav")))

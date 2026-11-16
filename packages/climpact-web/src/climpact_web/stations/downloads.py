@@ -147,10 +147,10 @@ def quality_downloads(analysis, source: RunSource | None) -> dict | None:
     """The quality-control files: those of the Quality page's check (the ``qc`` job, #77),
     every file it wrote and its zip; or, with no such check (a station from a batch run),
     the run's own ``qc/`` files. None when there are neither."""
-    from climpact_web.jobs.models import Status
+    from climpact_web.stations.workspace import shown_qc
 
-    qc_job = analysis.qc_job
-    if qc_job is not None and qc_job.status == Status.SUCCEEDED:
+    qc_job = shown_qc(analysis)  # out of date while new checks run (#179)
+    if qc_job is not None:
         root = qc_job.output_dir
         station = qc_job.result.get("station", "")
         files = []

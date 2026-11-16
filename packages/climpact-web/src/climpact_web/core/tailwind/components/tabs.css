@@ -33,7 +33,7 @@
     color: var(--color-text);
   }
 
-  .tabs__tab[aria-selected="true"] {
+  .tabs__tab:is([aria-selected="true"], [aria-current="page"]) {
     border-block-end-color: var(--color-accent);
     color: var(--color-accent);
   }
@@ -46,8 +46,33 @@
     margin-block-start: 0;
   }
 
+  /* == Workspace tabs (#179) == */
+  /* A station's sections: the tabs above as links to their own pages (flex-wrap, m-0 on
+     the list), the current one aria-current="page", each with a status mark (an icon of
+     its own shape, and a word). */
+  .status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .status-dot--done {
+    color: var(--color-success);
+  }
+
+  .status-dot--attention,
+  .status-dot--stale {
+    color: var(--color-warning);
+  }
+
+  .status-dot--running {
+    color: var(--color-accent);
+  }
+
   @media (forced-colors: active) {
-    .tabs__tab[aria-selected="true"] {
+    .tabs__tab:is([aria-selected="true"], [aria-current="page"]) {
       border-color: Highlight;
     }
   }

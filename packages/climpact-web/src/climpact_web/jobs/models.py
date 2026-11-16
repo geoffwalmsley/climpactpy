@@ -81,6 +81,11 @@ class Job(models.Model):
     error = models.TextField(blank=True)
     log = models.TextField(blank=True)
     result = models.JSONField(default=dict, blank=True)
+    # The inputs the job was produced from, recorded when it is queued, so a station
+    # workspace can tell when its results are out of date (#179): ``file`` (the station
+    # file's SHA-256), ``metadata``, ``qc`` (the thresholds) and, for a station run,
+    # ``settings``. Empty for the jobs that do not track them (batch, gridded, sector).
+    inputs = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

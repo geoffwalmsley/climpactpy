@@ -8,20 +8,22 @@ of listing files (DESIGN.md, "Don't offer downloads everywhere"). Before the ind
 calculated it holds the quality-control files alone. Context from views_downloads.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Files: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Back' %}">
-    {% if source %}<a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Results" %}</a>
-    {% else %}<a href="{% url 'stations:qc' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Quality checks" %}</a>{% endif %}
-  </nav>
-
-  <header class="stack stack--sm">
-    <p class="eyebrow">{{ analysis.station_name }}</p>
-    <div class="with-help"><h1>{% translate "Files" %}</h1>{% section_help "files.page" %}</div>
+  <div class="stack stack--sm">
+    {% include "stations/_workspace.html" with heading=True %}
+    <div class="with-help"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
     <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
     {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
-  </header>
+  </div>
+
+  {% if stale_results or stale_quality %}
+  {% comment %}Out of date after a change (#179): the files stay until they are replaced.{% endcomment %}
+  {% translate "Some files are out of date" as stale_title %}
+  {% if stale_results %}{% translate "The files of the indices are from before your last change. They are replaced when the new results are ready." as stale_note %}{% url 'stations:results' analysis.pk as stale_href %}{% translate "See the results" as stale_label %}
+  {% else %}{% translate "The quality-control files are from before your last change. They are replaced when the new checks are ready." as stale_note %}{% url 'stations:qc' analysis.pk as stale_href %}{% translate "See the checks" as stale_label %}{% endif %}
+  {% include "components/stale_banner.html" with id="files-stale" title=stale_title note=stale_note action_href=stale_href action_label=stale_label %}
+  {% endif %}
 
   {% if source %}
   <section class="stack" aria-labelledby="whole-title">

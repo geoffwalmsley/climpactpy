@@ -1,14 +1,19 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
-{% block title %}{% translate "Compare with sector data" %}{% endblock %}
+{% block title %}{% blocktranslate with name=analysis.station_name %}Compare with sector data: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/sector.js' %}" defer></script>{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
+  {% include "stations/_workspace.html" %}
   <header class="stack stack--sm">
     <h1>{% translate "Compare with sector data" %}</h1>
     <p class="lead">{% translate "Optional. Compare yearly data, such as crop yields, with the station's indices." %}</p>
   </header>
+
+  {% if stale %}
+  {% translate "These results are out of date. The comparison uses them as they are. Compare again once they are up to date." as stale_message %}{% url 'stations:results' analysis.pk as results_url %}{% translate "See the results" as results_label %}
+  {% include "components/alert.html" with kind="warning" title="" message=stale_message action_href=results_url action_label=results_label %}
+  {% endif %}
 
   {% if not source %}
   {% if indices_job and not indices_job.is_finished %}

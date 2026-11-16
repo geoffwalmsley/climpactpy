@@ -248,7 +248,7 @@ def test_adjust_and_recalculate_on_the_results(client):
     button, after the fields, is described by the run-time note. No cards inside it."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    header = re.search(r"<header class=\"stack stack--sm\">.*?</header>", html, re.S).group(0)
+    header = re.search(r"<p [^>]*data-settings-line>.*?</p>", html, re.S).group(0)
     assert "Climpact&#x27;s default settings." in header
     assert f'href="/station/{analysis.pk}/results?settings=open#adjust"' in header
     assert " open" not in _settings(html)
@@ -279,7 +279,7 @@ def test_the_header_names_the_settings_that_were_changed(client):
     )
     finish(Job.objects.latest("created_at"))
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    header = re.search(r"<header class=\"stack stack--sm\">.*?</header>", html, re.S).group(0)
+    header = re.search(r"<p [^>]*data-settings-line>.*?</p>", html, re.S).group(0)
     assert "Settings changed: Days for Rxdday 7 days, Custom threshold index none." in header
     assert 'name="rx_days" value="7"' in html and " open" not in _settings(html)
 
@@ -849,10 +849,12 @@ def test_trend_and_stat_units():
 
 
 def test_sector_comparison_is_not_a_step(client):
-    """#173: the sector page shows Results as the current step of four."""
+    """#173: the sector page is part of Results: its tab is the current one (#179)."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/sector").content.decode()
-    assert "Step 3 of 3: </span>Results and downloads" in html and "of 4:" not in html
+    assert re.search(r'data-tab="results" data-state="done" aria-current="page"', html)
+    assert len(re.findall(r'data-tab="\w+"[^>]*aria-current', html)) == 1
+    assert "steps__item" not in html
 
 
 def test_recalculating_keeps_the_user_on_the_same_index(client):
@@ -942,18 +944,27 @@ def test_index_page_chart_title_is_the_cleaned_definition(client):
     assert re.search(r'id="index-chart-title">TXx: [^<]*</h2>', monthly)
 
 
-def test_step_names_and_headings_match(client):
-    """#115: each step's heading is the step's name or starts with it."""
+def test_each_section_is_a_tab_named_in_the_title(client):
+    """#179: each section page has the station's name as its h1, the tabs under it with
+    its own current, and the section's name in the page title. The index and sector pages
+    belong to Results, with their own h1."""
     analysis, _job = finished_analysis(client)
-    for path, h1 in [
-        (f"/station/{analysis.pk}/load", "Load data"),
-        (f"/station/{analysis.pk}/results", "Results and downloads"),
+    base = f"/station/{analysis.pk}"
+    for path, tab, title in [
+        ("/load", "data", "Data"),
+        ("/quality", "quality", "Quality"),
+        ("/results", "results", "Results"),
+        ("/downloads", "files", "Files"),
     ]:
-        html = client.get(path).content.decode()
-        assert f"<h1>{h1}</h1>" in html
-        steps = re.search(r'<ol class="steps [^"]*">.*?</ol>', html, re.S).group(0)
-        step = re.search(r'aria-current="step">.*?</span>\s*([^<]+)', steps, re.S).group(1)
-        assert h1.startswith(step.strip()), (path, step)
+        html = client.get(base + path).content.decode()
+        assert f'<h1 class="m-0">{STATION}</h1>' in html, path
+        assert f"<title>{title}: {STATION}" in html, path
+        current = re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html)
+        assert current == [tab], path
+        assert html.count("<h1") == 1 and "steps__item" not in html, path
+    html = client.get(base + "/results/txx").content.decode()
+    assert "<h1>Max TX</h1>" in html and '<p class="m-0 font-semibold' in html
+    assert re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html) == ["results"]
 
 
 def test_every_section_of_the_station_pages_has_its_help(client):
@@ -989,12 +1000,17 @@ def test_every_section_of_the_station_pages_has_its_help(client):
 # ---- speculative runs: cancel and replace (#178) -------------------------------------------
 
 
-def _station_upload(name="fixed.txt"):
+def _station_upload(name="fixed.txt", changed=True):
+    """The sample file, without its last day unless ``changed`` is false: a corrected file
+    (the same bytes are the same file, which changes nothing, #179)."""
     from django.core.files.uploadedfile import SimpleUploadedFile
 
     from climpact_web.stations.views import sample_bytes
 
-    return SimpleUploadedFile(name, sample_bytes())
+    data = sample_bytes()
+    if changed:
+        data = data[: data.rstrip(b"\n").rfind(b"\n") + 1]
+    return SimpleUploadedFile(name, data)
 
 
 def test_a_corrected_file_replaces_the_speculative_run(client):
@@ -1018,7 +1034,9 @@ def test_a_new_file_on_load_cancels_the_run_until_the_details_are_confirmed(clie
     client.post(f"/station/{analysis.pk}/file", {"station_file": _station_upload()})
     analysis.refresh_from_db()
     old.refresh_from_db()
-    assert old.status == Status.CANCELLED and analysis.indices_job is None
+    # Cancelled, and kept as the analysis's run (of the old file) until the details are
+    # confirmed (#179).
+    assert old.status == Status.CANCELLED and analysis.indices_job == old
     data = {"station_name": STATION, "latitude": "0", "longitude": "0",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     client.post(f"/station/{analysis.pk}/load", data)
@@ -1028,7 +1046,9 @@ def test_a_new_file_on_load_cancels_the_run_until_the_details_are_confirmed(clie
 
 def test_new_thresholds_replace_the_run_and_keep_the_settings(client):
     """The full run writes the QC files too, so new thresholds replace it; the settings of
-    the last calculation are kept, not reset to the defaults."""
+    the last calculation are kept, not reset to the defaults. The data is in use, so the
+    replacement is the user's own run, and the results stay, out of date, meanwhile
+    (#179)."""
     from climpact_web.stations.forms import QC_DEFAULTS
 
     analysis, old = finished_analysis(client)
@@ -1040,10 +1060,12 @@ def test_new_thresholds_replace_the_run_and_keep_the_settings(client):
     client.post(f"/station/{analysis.pk}/quality/run", thresholds)
     analysis.refresh_from_db()
     new = analysis.indices_job
-    assert new.is_speculative and new.params["qc"]["iqr_temp"] == 4.0
-    assert new.params["params"]["rx_days"] == 7 and analysis.step == Step.QC
-    # The results wait for "Use this data" again.
-    assert client.get(f"/station/{analysis.pk}/results")["Location"].endswith("/quality")
+    assert not new.is_speculative and new.params["qc"]["iqr_temp"] == 4.0
+    assert new.params["params"]["rx_days"] == 7 and analysis.step == Step.RESULTS
+    assert new.params["replaces"] == str(adjusted.pk)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    assert "Results are out of date. Recalculating" in html and "data-results-section" in html
+    assert "You changed the quality-control thresholds." in html
 
 
 def test_use_this_data_after_the_run_was_cancelled_queues_a_new_one(client):

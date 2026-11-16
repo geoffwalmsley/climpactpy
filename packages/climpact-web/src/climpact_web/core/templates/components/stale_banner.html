@@ -1,0 +1,19 @@
+{% load i18n ui %}{% comment %}
+Out-of-date banner (#179): results kept on the page after an input changed. It says what
+changed since they were made and what happens next. While their replacement is on the way
+(``updating``) it is an info alert with the progress inside (``body``); otherwise a warning
+alert with one action, usually "Recalculate". The results below it stay readable at full
+contrast, inside a ``stale-content`` block (an edge, and sparklines greyed).
+Parameters: id, title, changes (sentences), note, updating, body (a template included
+inside, with the page's context), action_label and action_href (an optional link).
+{% endcomment %}
+<section class="alert {% if updating %}alert--info{% else %}alert--warning{% endif %}" id="{{ id }}" aria-labelledby="{{ id }}-title" tabindex="-1" data-stale-banner>
+  {% if updating %}{% icon "refresh" %}{% else %}{% icon "clock" %}{% endif %}
+  <div class="alert__body stack stack--sm">
+    <h2 class="alert__title" id="{{ id }}-title">{{ title }}</h2>
+    {% if changes %}<p>{{ changes|join:" " }}</p>{% endif %}
+    {% if note %}<p>{{ note }}</p>{% endif %}
+    {% if body %}{% include body %}{% endif %}
+    {% if action_href %}<p><a href="{{ action_href }}">{{ action_label }}</a></p>{% endif %}
+  </div>
+</section>

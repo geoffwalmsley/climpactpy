@@ -5,7 +5,9 @@ URLs (all ``/station/<id>/...``, private to the session like the other steps):
 
 ``indices``                 the old Calculate step's address: GET goes to "Adjust and
                             recalculate" on Results (old links, bookmarks), POST is that
-                            form's submission and queues a new run
+                            form's submission and queues a new run; with
+                            ``recalculate=1`` and no settings, it is "Recalculate" on
+                            out-of-date results (#179)
 ``indices/validate``        htmx: one group of the settings checked as it changes
 ``results``                 progress while the job runs, then the dashboard; a
                             recalculation keeps the last results under its progress
@@ -18,7 +20,8 @@ There is no Calculate step since #178: the indices are calculated with the defau
 settings while the user looks at the quality checks (:mod:`.calculation`), and "Use this
 data" opens the results. The results come from the analysis's ``indices_job``; an analysis
 opened from a batch's results (#80, ``origin``) shows the batch's outputs for that station
-until it is calculated again here.
+until it is calculated again here. After a change to an input the results stay, marked out
+of date, until the run that replaces them has finished (#179, :mod:`.workspace`).
 """
 
 from __future__ import annotations
@@ -35,16 +38,22 @@ from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.core.limits import human_required
-from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import progress_context
-from climpact_web.stations import calculation, themes
+from climpact_web.stations import calculation, themes, workspace
 from climpact_web.stations import results as results_model
-from climpact_web.stations.calculation import batch_job, previous_params, station_title
+from climpact_web.stations.calculation import previous_params, station_title
 from climpact_web.stations.forms_indices import IndexParamsForm
 from climpact_web.stations.models import StationAnalysis, Step
 from climpact_web.stations.views import get_analysis, step_two_ready
+from climpact_web.stations.workspace import (
+    batch_job,
+    committed,
+    replaced_job,
+    restore_if_cancelled,
+    shown_run,
+)
 
 INDEX_KEY_MAX = 100
 
@@ -83,6 +92,13 @@ def indices(request, analysis_id):
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
     if request.method != "POST":
         return redirect(adjust_url(analysis, index))
+    if request.POST.get("recalculate"):
+        # "Recalculate" on out-of-date results: the current inputs, the latest settings.
+        restore_if_cancelled(analysis)
+        calculation.recalculate(request, analysis)
+        analysis.touch()
+        analysis.save()
+        return redirect(results_url(analysis))
     form = IndexParamsForm(request.POST, station_title=station_title(analysis))
     if not form.is_valid():
         return render_results(request, analysis, form)
@@ -145,51 +161,17 @@ def phases(job: Job) -> list[dict]:
     return out
 
 
-def replaced_job(analysis: StationAnalysis, job: Job) -> Job | None:
-    """The finished run a recalculation replaces, while it is still kept (#178)."""
-    job_id = (job.params or {}).get(calculation.REPLACES)
-    if not job_id:
-        return None
-    return Job.objects.filter(
-        pk=job_id, owner=analysis.owner, kind="station", status=Status.SUCCEEDED
-    ).first()
-
-
-def restore_if_cancelled(analysis: StationAnalysis) -> None:
-    """A cancelled recalculation leaves the results it would have replaced in place."""
-    job = analysis.indices_job
-    if job is not None and job.status == Status.CANCELLED:
-        replaced = replaced_job(analysis, job)
-        if replaced is not None:
-            analysis.indices_job = replaced
-            analysis.save(update_fields=["indices_job"])
-
-
-def committed(analysis: StationAnalysis) -> bool:
-    """Whether the user has chosen to use the data ("Use this data"), or opened the
-    station from a batch's results. Before that, a run (the speculative one, #178) is not
-    shown anywhere, Files included."""
-    return analysis.reached(Step.INDICES) or bool(analysis.origin)
-
-
 def current_source(analysis: StationAnalysis):
-    """(job, RunSource or None): the analysis's own calculation (while a recalculation
-    runs, the finished run it replaces), else its batch's; (None, None) before the user
-    has chosen to use the data."""
+    """(job, RunSource or None): the results shown (:func:`workspace.shown_run`), else the
+    run in progress (no source yet); (None, None) before the user has chosen to use the
+    data, or with nothing calculated."""
     if not committed(analysis):
         return None, None
-    job = analysis.indices_job
+    job = shown_run(analysis)
     if job is not None:
-        if job.status == Status.SUCCEEDED:
-            return job, results_model.run_source(job)
-        replaced = replaced_job(analysis, job)
-        if replaced is not None:
-            return replaced, results_model.run_source(replaced)
-        return job, None
-    bjob = batch_job(analysis)
-    if bjob is not None:
-        return bjob, results_model.run_source(bjob, analysis.origin.get("station"))
-    return None, None
+        station = analysis.origin.get("station") if job.kind == "batch" else None
+        return job, results_model.run_source(job, station)
+    return analysis.indices_job, None
 
 
 def load_results(analysis, source):
@@ -233,7 +215,7 @@ def render_results(request, analysis, form=None):
     context = {
         "analysis": analysis,
         "job": job,
-        "steps": station_steps("results", analysis.step_urls()),
+        **workspace.context(analysis, "results"),
         "index": index,
         **settings_context(request, analysis, form),
     }
@@ -261,6 +243,7 @@ def render_results(request, analysis, form=None):
         analysis.save(update_fields=["step"])
     if running is not None:  # a recalculation, under way or failed
         context["recalculation"] = {**progress_context(request, running), "phases": phases(running)}
+    context["stale"] = stale_context(analysis, job, running)
     context.update(dashboard_context(request, analysis, source, run))
     return render(request, "stations/results.html", context)
 
@@ -281,7 +264,9 @@ def results_progress(request, analysis_id):
         if reap_stale():
             job.refresh_from_db()
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
-    cancelled_recalculation = job.status == Status.CANCELLED and replaced_job(analysis, job)
+    cancelled_recalculation = job.status == Status.CANCELLED and (
+        replaced_job(analysis, job) or batch_job(analysis)
+    )
     if job.status == Status.SUCCEEDED or cancelled_recalculation:
         response = HttpResponse(status=204)
         response["HX-Redirect"] = results_url(analysis, index)
@@ -392,7 +377,22 @@ def dashboard_context(request, analysis, source, run) -> dict:
         "significant_count": sum(1 for c in run.cards if c.significant),
         "settings_line": settings_line(source.params),
         "downloads": downloads(source),
-        "from_batch": source.from_batch and analysis.indices_job is None,
+        "from_batch": source.from_batch,
+    }
+
+
+def stale_context(analysis, shown, running) -> dict | None:
+    """The out-of-date banner of the results shown (#179): what changed since they were
+    calculated, in words, and whether a run of the new inputs is on the way (``running``,
+    its progress then shows in the banner) or has to be asked for ("Recalculate"). None
+    when they are current."""
+    changes = workspace.run_changes(analysis, shown)
+    if not changes:
+        return None
+    return {
+        "changes": workspace.change_sentences(analysis, shown, changes),
+        "replacing": running is not None and not running.is_finished,
+        "details_valid": workspace.details_valid(analysis),
     }
 
 
@@ -482,14 +482,15 @@ def result(request, analysis_id, key):
         "source": source,
         "card": card,
         "series": series,
-        "steps": station_steps("results", analysis.step_urls()),
+        **workspace.context(analysis, "results"),
+        "stale": bool(workspace.run_changes(analysis, job)),
         "previous": previous,
         "next": following,
         "trend_rows": results_model.trend_rows(source, card.key) if not card.daily else [],
         "csv_path": source.table_file(name.removeprefix("day_of_")),
         "csv_size": _size(source.index_source.table_path(name.removeprefix("day_of_"))),
         "png_path": source.plot_file(name),
-        "from_batch": source.from_batch and analysis.indices_job is None,
+        "from_batch": source.from_batch,
         "chart_title": results_model.chart_title(card, series),
     }
     if plot is not None:

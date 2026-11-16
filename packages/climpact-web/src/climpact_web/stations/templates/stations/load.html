@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static ui charts help %}
-{% block title %}{% translate "Load data" %}{% endblock %}
+{% block title %}{% blocktranslate with name=analysis.station_name|default:analysis.file_name %}Data: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% chart_scripts %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <header class="stack stack--sm">
-    <h1>{% translate "Load data" %}</h1>
+  <div class="stack stack--sm">
+    {% include "stations/_workspace.html" with heading=True %}
     <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data from {{ name }}. The details are filled in.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check the details and the data.{% endblocktranslate %}{% endif %}</p>
-  </header>
+  </div>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
@@ -37,7 +36,8 @@
       {% include "stations/_unit.html" with group="base_period" %}
       {% turnstile %}
       <div class="form__actions">
-        {% translate "Check quality" as continue_label %}
+        {% comment %}Once the data is in use, saving changes only what depends on the details (#179).{% endcomment %}
+        {% if details_saved %}{% translate "Save the details" as continue_label %}{% else %}{% translate "Check quality" as continue_label %}{% endif %}
         {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" size="lg" %}
       </div>
     </form>

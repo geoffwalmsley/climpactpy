@@ -124,7 +124,9 @@ def test_dashboard_and_index_page_offer_one_download(client):
     links = re.findall(rf'<a [^>]*href="/jobs/{job.pk}/files/([^"]+)"', page)
     assert links == [f"{STATION}/indices/{STATION}_txx_ANN.csv"]
     assert "data-chart-csv" in page and 'id="files-title"' not in page
-    assert f'href="/station/{analysis.pk}/downloads"' not in page
+    # Files is reached by its tab (#179), the only link to it.
+    assert page.count(f'href="/station/{analysis.pk}/downloads"') == 1
+    assert f'href="/station/{analysis.pk}/downloads" data-tab="files"' in page
 
 
 def test_report_path_of_a_batch_station(client, tmp_path):
@@ -291,5 +293,8 @@ def test_files_page_before_the_indices_holds_the_quality_files(client):
     assert 'id="quality-files"' in html and "Download all" not in html
     for rel in [*qc_job.result["files"], qc_job.result["zip"]]:
         assert f'href="/jobs/{qc_job.pk}/files/{rel}"' in html, rel
-    assert f'href="/station/{analysis.pk}/results"' in html
-    assert "Step 2 of 3" in html
+    # The tabs (#179): Files current, Quality done, Results not until "Use this data".
+    assert f'href="/station/{analysis.pk}/qc"' not in html
+    assert f'href="/station/{analysis.pk}/quality" data-tab="quality"' in html
+    assert re.search(r'data-tab="files" data-state="done" aria-current="page"', html)
+    assert 'data-tab="results" data-state="locked"' in html

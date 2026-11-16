@@ -2,25 +2,32 @@
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
-  <header class="stack stack--sm">
-    <h1>{% translate "Results and downloads" %}</h1>
-    <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_year last=analysis.summary.last_year start=analysis.base_start end=analysis.base_end count counter=total trimmed %}
-      {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} index.
-    {% plural %}
-      {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} indices.
-    {% endblocktranslate %}</p>
+  <div class="stack stack--sm">
+    {% include "stations/_workspace.html" with heading=True %}
     {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
     link to change them in place.{% endcomment %}
-    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted">{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
-  </header>
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
+  </div>
 
-  {% if recalculation %}
+  {% comment %}Out of date after a change (#179): the banner says what changed, with the new
+  run's progress, or "Recalculate". The results stay below it until the new ones are ready.{% endcomment %}
+  {% if stale %}
+  {% if stale.replacing %}
+  {% translate "Results are out of date. Recalculating" as stale_title %}{% translate "The results below are from before the change. The new results replace them when they are ready." as stale_note %}
+  {% include "components/stale_banner.html" with id="results-stale" title=stale_title changes=stale.changes note=stale_note updating=True body="stations/_recalculation.html" %}
+  {% elif recalculation %}
+  {% translate "Results are out of date. The recalculation failed" as stale_title %}{% translate "The results below are from before the change." as stale_note %}
+  {% include "components/stale_banner.html" with id="results-stale" title=stale_title changes=stale.changes note=stale_note body="stations/_recalculation.html" %}
+  {% else %}
+  {% translate "Results are out of date" as stale_title %}{% translate "The results below are from before the change. Recalculate to bring them up to date." as stale_note %}
+  {% include "components/stale_banner.html" with id="results-stale" title=stale_title changes=stale.changes note=stale_note body="stations/_recalculate_form.html" %}
+  {% endif %}
+  {% elif recalculation %}
   <section class="card stack recalculation" aria-labelledby="recalculation-title">
     <h2 class="card__title" id="recalculation-title">{% if recalculation.job.status == "failed" %}{% translate "The recalculation failed" %}{% else %}{% translate "Recalculating" %}{% endif %}</h2>
-    {% include "stations/_results_progress.html" with job=recalculation.job phases=recalculation.phases stage_label=recalculation.stage_label elapsed=recalculation.elapsed remaining=recalculation.remaining delay=recalculation.delay worker_missing=recalculation.worker_missing %}
+    {% include "stations/_recalculation.html" %}
     <p class="text-sm text-text-muted">{% if recalculation.job.is_finished %}{% translate "The results below use the previous settings." %}{% else %}{% translate "The results below use the previous settings. The new results replace them when they are ready." %}{% endif %}</p>
   </section>
   {% endif %}
@@ -30,6 +37,7 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
+  <div class="{% if stale %}stale-content {% endif %}stack stack--lg">
   {% comment %}One primary action, the zip; the Files page is the one secondary link (#173). Every
   other file is listed there, not here (#176).{% endcomment %}
   <div class="flex flex-wrap items-center gap-3 results-actions">
@@ -137,6 +145,7 @@
   {% endfor %}
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
   </section>
+  </div>
 
   {% include "stations/_settings_form.html" %}
 

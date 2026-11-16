@@ -1,0 +1,15 @@
+{% load i18n ui %}{% comment %}
+"Recalculate" on out-of-date results (#179): one button, the current data and details with
+the latest settings (views_indices.indices, ``recalculate=1``). When the details no longer
+fit the data, a link to Data instead. Context: analysis, stale.
+{% endcomment %}
+{% if stale.details_valid %}
+<form method="post" action="{% url 'stations:indices' analysis.pk %}" class="flex flex-wrap items-center gap-3">
+  {% csrf_token %}<input type="hidden" name="recalculate" value="1">
+  {% turnstile %}
+  {% translate "Recalculate" as recalculate_label %}
+  {% include "components/button.html" with label=recalculate_label type="submit" icon="refresh" %}
+</form>
+{% else %}
+<p><a href="{% url 'stations:load' analysis.pk %}">{% translate "Change the station details so they fit the data" %}</a></p>
+{% endif %}

@@ -31,7 +31,7 @@ dependencies = [
     # The core package with matplotlib for the plots and the PDF report (#79), pinned to
     # this package's own version: the two are released together with one version number
     # (RELEASING.md), and a test checks the pin equals both __version__ values.
-    "climpact[plots]==0.1.2",
+    "climpact[plots]==0.1.3",
     "django>=6.0,<6.1",  # 6.0 (needs Python 3.12, the minimum since #117)
     "waitress>=3.0",  # the local server started by `climpact-web`
     "whitenoise>=6.7",  # static files: hashed, compressed copies (#82)

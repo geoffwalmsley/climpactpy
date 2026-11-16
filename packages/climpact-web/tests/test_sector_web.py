@@ -42,8 +42,12 @@ def ready_analysis(client) -> StationAnalysis:
     data = {"station_name": STATION, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
-    Job.objects.filter(kind="qc").delete()  # step 1 queues the quality checks
-    return StationAnalysis.objects.get()
+    # Step 1 queues the quality checks and a speculative run of the indices (#178).
+    Job.objects.all().delete()
+    analysis = StationAnalysis.objects.get()
+    analysis.step = Step.INDICES  # "Use this data"
+    analysis.save()
+    return analysis
 
 
 def finished_analysis(client) -> tuple[StationAnalysis, Job]:
@@ -91,7 +95,7 @@ def test_needs_the_indices_first(client):
     analysis = ready_analysis(client)
     html = client.get(url(analysis)).content.decode()
     assert "Calculate the indices first" in html
-    assert f'href="/station/{analysis.pk}/indices"' in html
+    assert f'href="/station/{analysis.pk}/results"' in html
     assert 'name="sector_file"' not in html
 
 

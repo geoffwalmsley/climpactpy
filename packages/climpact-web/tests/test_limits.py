@@ -50,6 +50,7 @@ def hosted(settings, monkeypatch):
     settings.MAX_ACTIVE_JOBS_PER_IP = 2
     settings.MAX_DAILY_JOBS_PER_IP = 30
     settings.MAX_QUEUED_JOBS = 20
+    settings.SPECULATIVE_MAX_QUEUED = 3
     settings.MIN_FREE_DISK_GB = 2
     settings.TURNSTILE_SITE_KEY = settings.TURNSTILE_SECRET_KEY = ""
     monkeypatch.setattr(limits, "free_disk_bytes", lambda path: 100 * 1024**3)
@@ -198,8 +199,10 @@ def test_a_valid_token_lets_the_form_through(turnstile):
     assert client.post(url, metadata()).status_code == 400
     assert not Job.objects.exists()
     assert client.post(url, metadata(**{TOKEN_FIELD: "ok-2"})).status_code == 302
-    job = Job.objects.get()
-    assert (job.kind, job.client) == ("qc", IP)
+    job = Job.objects.get(kind="qc")
+    assert job.client == IP
+    run = Job.objects.get(kind="station")  # the speculative run (#178), same client
+    assert run.is_speculative and run.client == IP
 
 
 @pytest.mark.django_db
@@ -274,7 +277,10 @@ def test_active_jobs_per_client(hosted, caplog):
     assert response.status_code == 429
     assert "You already have 2 calculations waiting or running" in response.content.decode()
     assert f"from {IP}: active-quota:2" in caplog.text
-    assert Job.objects.count() == 2
+    # The two checks; the first one's speculative run (#178) is not counted, and took the
+    # client's last place, so the second has none (it is queued at "Use this data").
+    assert Job.objects.filter(kind="qc").count() == 2
+    assert Job.objects.filter(kind="station").count() == 1
     # Another address is not held up; a finished or cancelled job frees a place.
     assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
     first = Job.objects.filter(client=IP).first()
@@ -348,8 +354,59 @@ def test_no_quotas_in_local_mode(settings, client):
     settings.MIN_FREE_DISK_GB = 10**9
     for _ in range(3):
         assert start_qc(client).status_code == 302
-    assert Job.objects.count() == 3 and not JobStart.objects.exists()
+    # The checks and a speculative run each time (#178): no limit in local mode.
+    assert Job.objects.count() == 6 and not JobStart.objects.exists()
     assert set(Job.objects.values_list("client", flat=True)) == {""}
+
+
+# --- Speculative runs (#178) -----------------------------------------------------------------
+
+
+def speculative_jobs():
+    return Job.objects.filter(kind="station", params__speculative=True)
+
+
+@pytest.mark.django_db
+def test_speculative_runs_do_not_count_against_the_quotas(hosted):
+    """A speculative run takes no place in the client's quotas or the queue's until the
+    user asks for it; the daily count is charged when they do."""
+    hosted.MAX_QUEUED_JOBS = 2
+    client = visitor()
+    assert start_qc(client).status_code == 302
+    assert speculative_jobs().count() == 1
+    assert JobStart.objects.filter(client=IP).count() == 1  # the checks only
+    # The queue holds the checks and the speculative run: one ordinary job, room for one.
+    assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
+    analysis = StationAnalysis.objects.filter(owner="owner-a").get()
+    Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
+    assert client.post(f"/station/{analysis.pk}/quality/continue").status_code == 302
+    analysis.refresh_from_db()
+    assert not analysis.indices_job.is_speculative
+    assert JobStart.objects.filter(client=IP).count() == 2  # charged now
+
+
+@pytest.mark.django_db
+def test_speculative_runs_wait_for_a_quiet_queue(hosted, caplog):
+    """No speculative run while SPECULATIVE_MAX_QUEUED jobs wait: "Use this data" then
+    queues an ordinary one, within the usual limits."""
+    for n in range(3):
+        make_job(owner=f"o{n}", client=f"192.0.2.{n}")
+    client = visitor()
+    with caplog.at_level(logging.INFO, logger="climpact_web.stations"):
+        assert start_qc(client).status_code == 302
+    assert "speculative-queue:4" in caplog.text
+    assert not speculative_jobs().exists()
+    analysis = StationAnalysis.objects.get()
+    assert analysis.indices_job is None
+    Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
+    client.post(f"/station/{analysis.pk}/quality/continue")
+    analysis.refresh_from_db()
+    job = analysis.indices_job
+    assert job.kind == "station" and job.status == Status.QUEUED and not job.is_speculative
+    hosted.SPECULATIVE_MAX_QUEUED = 0  # off
+    Job.objects.all().delete()
+    assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
+    assert not speculative_jobs().exists()
 
 
 @pytest.mark.django_db

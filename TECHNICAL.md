@@ -2527,7 +2527,7 @@ parity suite compares); the web app's step 2 shows the same plots on screen inst
 decimals and histogram, see [Single-station steps](#single-station-steps)), so a station
 run from the web or the command line has no QC plot files. R's step 2 writes the
 thresholds file as well (`thres/`); the web QC job writes only `qc/`, and the thresholds
-file comes with the indices (step 3). R's per-station QC zip holds the `qc` folder; the
+file comes with the indices (the station run). R's per-station QC zip holds the `qc` folder; the
 web QC job's `<station>.zip` holds `<station>/qc/`, the same files.
 
 R's `round(x, 1)` (`nmath/fround.c`, R >= 4.0.0) is not Python's: it picks the nearer of
@@ -2814,20 +2814,24 @@ packages/climpact-web/src/climpact_web/
                      station rows, missing data per year, the verdict and its limits, the
                      "look wrong" findings and the "worth a look" groups (#174)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
-    forms_indices.py IndexParamsForm (step 3): every IndexParams field, checked by the core's
-                     validate_params; the output name of each parameterised index
+    forms_indices.py IndexParamsForm ("Adjust and recalculate" on Results, #78, #178): every
+                     IndexParams field, checked by the core's validate_params
+    calculation.py   queueing the station run (#178): the speculative run with the default
+                     settings (speculate, commit), a recalculation (queue_station_run), the
+                     form's starting settings (previous_params, settings_form)
     preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
                      fallback
     retention.py     purge_expired_analyses, registered with the jobs app's purge
-    results.py       the results dashboard's model (step 4): one card per index table,
+    results.py       the results dashboard's model: one card per index table,
                      sparklines, trends, tables not written and why, trend-file rows; cached
     themes.py        the results page's themes (#175): the index-to-theme mapping (Heat,
                      Cold, Rain, Drought, "Also measured"), the findings written from the trends
     views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
                      daily CSV, delete; step 2: the checks, thresholds, progress, table
                      pages, re-upload, continue
-    views_indices.py steps 3 and 4: parameters (htmx field checks), the job, progress,
-                     dashboard, each index's page, anomalies JSON
+    views_indices.py Results: progress, the dashboard (with a recalculation's progress
+                     above it), "Adjust and recalculate" (htmx field checks), the old
+                     Calculate address, each index's page, anomalies JSON
     sector_file.py   step 5 (#90): checks a sector file (plain-language problems at file
                      lines, years in common with the station); SectorForm
     sector_plots.py  step 5's results: a sector job's files read back; the bar chart and
@@ -2841,9 +2845,10 @@ packages/climpact-web/src/climpact_web/
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
     templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
-                     _problems.html, _retention.html; indices.html, _indices_unit.html
-                     (step 3), results_progress.html, _results_progress.html, results.html,
-                     result.html (step 4), downloads.html (Files, #79, #176),
+                     _problems.html, _retention.html; _settings_form.html, _indices_unit.html
+                     ("Adjust and recalculate", #178), results_progress.html,
+                     _results_progress.html, results.html, result.html (Results),
+                     downloads.html (Files, #79, #176),
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
@@ -2986,6 +2991,7 @@ the variable.
 | `CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP` | `2` | hosted mode: jobs one client may have waiting or running at once; `0` is no limit |
 | `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` | `30` | hosted mode: jobs (and retries) one client may start in 24 hours; `0` is no limit |
 | `CLIMPACT_WEB_MAX_QUEUED_JOBS` | `20` | hosted mode: no new job while this many wait; `0` is no limit |
+| `CLIMPACT_WEB_SPECULATIVE_MAX_QUEUED` | `3` | hosted mode: no speculative station run (#178) while this many jobs wait; `0` turns speculative runs off |
 | `CLIMPACT_WEB_MIN_FREE_DISK_GB` | `2` | hosted mode: no upload and no new job while `MEDIA_ROOT`'s disk has less free space; `0` turns it off |
 | `CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES` | `60` | hosted mode: wall-clock limit on one job; `0` is none (see [Background jobs](#background-jobs)) |
 | `CLIMPACT_WEB_TRUSTED_PROXY` | none (`*` in the image) | the `climpact-web` server (waitress) trusts `X-Forwarded-Proto` and `X-Forwarded-For` from this address (`*`: any peer) and takes the request's scheme and client address from them; read by `cli.proxy_options`, not by the settings |
@@ -3725,6 +3731,14 @@ the retry view calls it before re-queuing. In order:
 | active jobs | the client has `MAX_ACTIVE_JOBS_PER_IP` or more jobs waiting or running (not cancelled) | 429, how many, and to wait or cancel one |
 | daily jobs | the client has started `MAX_DAILY_JOBS_PER_IP` or more jobs in 24 hours (`JobStart` rows) | 429, try tomorrow or install Climpact locally |
 
+The queue and active-jobs counts leave out speculative runs (#178, `jobs.models.ordinary_q`),
+and a speculative run records no `JobStart`: see "Speculative calculation" in [Single-station steps](#single-station-steps).
+A speculative run has its own check, `check_speculative_quotas`: the disk as above, fewer
+than `SPECULATIVE_MAX_QUEUED` (default 3) jobs of any kind waiting, and fewer than
+`MAX_ACTIVE_JOBS_PER_IP` jobs of the client's (speculative or not) waiting or running. Its
+refusal is silent (logged at INFO to `climpact_web.stations`); the run is then queued as an
+ordinary job at "Use this data", under the checks above.
+
 Refusals come before the job is created, so no job fails halfway. The checks are counts,
 not locks: two requests at the same moment can both pass, so a quota can be overrun by a
 job or two. A refusal raises `Refused` (reason, message, status, `Retry-After`);
@@ -3993,7 +4007,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads (the sector comparison is an action on Results, not a step, #173; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data", "Results and downloads") |
+| `steps` | the single-station step indicator: Load data, Check quality, Results and downloads (the sector comparison is an action on Results, not a step, #173, and so are the index settings, #178; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data", "Results and downloads") |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
@@ -4124,7 +4138,7 @@ in the pull request (see its notes for the differences found).
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
 job and the job list), the single-station step 1 pages (upload, upload with file
 problems, the sample loaded, metadata errors), step 2 before the checks have run, the
-step 3 placeholder, and the batch pages
+indices being calculated with "Adjust and recalculate" (#178), and the batch pages
 (start, a check with every station status, a running batch, finished results) and the help
 pages (index, a guide, the indices guide, the topic list, a search), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
@@ -4260,7 +4274,7 @@ with the core's `regression`, and the correlation table's file), `gridded-thresh
 paths given; `max_values`, `rechunk`, `tmp_dir` (default the job's folder) and
 `copy_to`, a folder the written files are also copied to). The parameters of each are in
 the module docstring. The batch page (#80) creates batch jobs, the gridded pages (#85)
-the gridded ones and step 5 of a station (#90) the sector ones. The `station` runner also takes `plot_title` (step 3's "Plot title", passed to
+the gridded ones and step 5 of a station (#90) the sector ones. The `station` runner also takes `plot_title` (the settings' "Plot title", passed to
 `run_station`). The core is imported inside each runner, so the web server never imports
 xclim.
 
@@ -4270,7 +4284,11 @@ xclim.
   (Postgres), the oldest unlocked queued row is locked and marked running in one
   transaction. Elsewhere (SQLite) a conditional `UPDATE ... SET status='running' WHERE
   id=? AND status='queued'` takes a candidate; a worker whose update changes no row tries
-  the next. Each claim increments `attempts`.
+  the next. Each claim increments `attempts`. Speculative runs (#178, `params["speculative"]`
+  true) are claimed only when no other job waits: `claim` tries the ordinary jobs, oldest
+  first, then the speculative ones, so a run nobody has asked for yet never holds up one
+  somebody has. The worker cannot be pre-empted: a speculative run already running
+  finishes (or is cancelled) first.
 - *Progress* from the core is kept in memory and written at most every
   `JOB_PROGRESS_INTERVAL` (0.5 s) and at the last step, with
   `UPDATE ... WHERE status='running' AND cancel_requested=false`: a station run with plots
@@ -4322,13 +4340,15 @@ down, and the worker's imports (xclim, matplotlib) stay out of the server proces
 Hosted mode runs `runworker` processes alongside the web servers (#12); more workers
 claim different jobs. `runworker --once` runs the jobs waiting now and exits.
 
-**Pages** (`/jobs/`). `jobs/` lists the session's jobs. Station runs are started from
+**Pages** (`/jobs/`). `jobs/` lists the session's jobs, except speculative runs that were
+cancelled (#178: replaced after a change to the data, never asked for; their own page still
+answers). Station runs are started from
 the single-station steps (see [Single-station steps](#single-station-steps)), which
 replaced #73's minimal form at `jobs/station/new`; the station file is copied into the
 job as `input/station.txt`, never under a name from the browser.
 `jobs/<id>/` is the job page; `jobs/<id>/progress` the progress fragment;
 `jobs/<id>/cancel` and `jobs/<id>/retry` (POST; a `next` field naming a URL of the site
-returns there instead of the job page, as step 4's progress does); `jobs/<id>/files/<path>` downloads an
+returns there instead of the job page, as the Results progress does); `jobs/<id>/files/<path>` downloads an
 output file of a finished job (paths outside `output/` give 404). Any other session gets
 404, as for a job that does not exist. The templates use the design system's components
 (see [Design system](#design-system)): a status badge (`jobs/_status.html`), the progress
@@ -4388,13 +4408,15 @@ imports or network requests.
 
 ### Single-station steps
 
-The single-station flow (#76-#79, #90) replaces the R app's tabs
-(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76),
-2 (#77), 3 and 4 (#78: parameters, calculation, results) and 5 (#90: sector data) are
-built, and the Files page (#79, #176). R's step 4, sector
-correlation, is step 5 here, because the results have a step of their own. Since #173 it
-is not in the step indicator (`STATION_STEPS` has the first four): Results offers it as an
-action, and its page shows Results as the current step. Its URL and page are unchanged.
+The single-station flow (#76-#79, #90, #178) replaces the R app's tabs
+(`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). It has three
+steps (`STATION_STEPS`): Load data (#76), Check quality (#77) and Results and downloads
+(#78, #79), with the Files page (#79, #176). R's step 3, the index settings, is not a step
+since #178: the indices are calculated with the defaults while the user looks at the
+quality checks ("Speculative calculation" in [Single-station steps](#single-station-steps)), and the settings are
+"Adjust and recalculate" on Results. R's step 4, sector correlation (#90), is not a step
+either since #173: Results offers it as an action, and its page shows Results as the
+current step.
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
 through the steps: a UUID primary key; `owner` (the session's job owner token, so a
@@ -4404,16 +4426,19 @@ session sees its analyses and its jobs, and any other session gets 404); `source
 missing, days with data per year, monthly means for the preview); `warnings` (about the
 file); the metadata `station_name`, `latitude`, `longitude` (null until given),
 `base_start`, `base_end` (R's defaults, 1971 and 2000); `step`, the furthest step reached
-(`upload`, `qc`, `indices`, `results`, the keys of `STATION_STEPS`, then `sector`);
+(`upload`, `qc`, `indices`, `results`, `sector`: the keys of `STATION_STEPS`, with
+`indices` meaning the user chose "Use this data", and `sector`, neither of them a step
+in the indicator; the values are unchanged since #78, so no migration);
 `qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
 defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
 (not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
 its own `input/` when queued, so analyses and jobs expire independently. Changing the
 file or any metadata value clears the job links and sets `step` back (`reset_later_steps`),
-so the later steps run again. `step_urls()` gives the step indicator a link for each step
-reached whose URL exists. #78 added `stations:indices` and `stations:results`, #90 `stations:sector`
-(all `/station/<id>/...`); step 3 sets `indices_job`, step 5 `sector_job`. The
+so the later steps run again; a speculative run still waiting or running is cancelled
+first (`cancel_speculative`). `step_urls()` gives the step indicator a link for each step
+reached that has a page (`STEP_URL_NAMES`; `indices` has none since #178). The speculative
+run and "Adjust and recalculate" set `indices_job`, the sector comparison `sector_job`. The
 index parameters are not stored on the analysis: they are the `params` of its
 `indices_job` (or of its batch station, `origin`), so the model needed no migration.
 
@@ -4424,9 +4449,12 @@ sample; `/station/sample.txt` downloads it (R links to the sample file too);
 series; `.../delete` (POST); `.../quality` step 2 (`stations:qc`), `.../quality/run`
 (POST: save the thresholds and run the checks), `.../quality/progress` (htmx),
 `.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
-`.../quality/file` (POST: the corrected file), `.../quality/continue` (POST); `.../indices`
-step 3 (`stations:indices`) and `.../indices/validate` (htmx, POST); `.../results` step 4
-(`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
+`.../quality/file` (POST: the corrected file), `.../quality/continue` (POST: "Use this
+data"); `.../indices` (`stations:indices`), the Calculate step's address until #178: GET
+redirects to `.../results?settings=open#adjust` (with `&back=<key>` for an old
+`?index=<key>`), so links in emails, bookmarks and "Your calculations" keep working, and
+POST is the "Adjust and recalculate" form; `.../indices/validate` (htmx, POST);
+`.../results` (`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
 sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's sample
@@ -4508,8 +4536,9 @@ without errors; the user corrects the file outside the app and loads it again.
   `temp_max` (50 °C, 0-60), `flatline_days` (5, 3-15), `jump` (20 °C, 5-30), each with its
   `qcparam.*` help topic. `QC_DEFAULTS` repeats `QCParams`' defaults so the web server
   does not import the core (a test checks they agree). Saved on the analysis
-  (`qc_params`); changing them after step 3 was reached sends the analysis back to step 2,
-  since the full run's QC files use them too (the `station` runner's `qc` parameter).
+  (`qc_params`); changing them sends the analysis back to step 2 and replaces its run with
+  a speculative one with the same settings (#178), since the full run's QC files use them
+  too (the `station` runner's `qc` parameter).
 - *The job*: "Continue" in step 1 queues a `qc` job at once with the saved thresholds (R
   waits for a click), so the results are usually there when the page opens; changing the
   thresholds or uploading a corrected file queues another, cancelling one still waiting.
@@ -4588,7 +4617,44 @@ without errors; the user corrects the file outside the app and loads it again.
   (`#quality-files`). Since #176 the Quality page offers no download itself; each QC file
   and their zip (`<station>.zip`, the station's `qc/` folder, as R's QC zip) are on Files.
 
-**Step 3: the index parameters (#78).** `IndexParamsForm` (`stations/forms_indices.py`) has
+**Speculative calculation (#178; decision D, on in local and hosted mode).** The Calculate
+step only confirmed defaults: every index is calculated, the defaults are almost always
+kept, and a run takes seconds. So when the station details are confirmed on Load,
+`calculation.speculate` queues a `station` job with the settings the form would start from
+(`previous_params`: the last run's, else the defaults), behind the quality checks, marked
+`params["speculative"] = True` (`jobs.models.SPECULATIVE`). It is the same job, with the
+same `IndexParams`, thresholds and files, that the Calculate button queued before, so the
+outputs are identical. "Use this data" on Quality (every verdict, "Use this data anyway"
+included) calls `calculation.commit`: the run becomes the user's own (`jobs.views.promote`
+sets the key to false and records the start for the daily quota) and the page goes
+straight to Results, which shows the dashboard if it has finished and its progress if not.
+Without a run (refused, cancelled), one is queued then. Until "Use this data", no page shows
+it: Results redirects to Quality, an index page and Files act as if there were no run
+(`views_indices.committed`).
+
+A run of old data is never shown. Changing the details on Load or loading another file
+(`reset_later_steps`), uploading a corrected file on Quality (`qc_replace`) or changing the
+thresholds (`qc_run`) cancels a speculative run still waiting or running
+(`Job.request_cancel`: at once if queued, at the next progress step if running) and, except
+for a new file on Load (the details must be confirmed again), queues another. The thresholds
+case keeps the last run's settings. "Your calculations" leaves the cancelled ones out. An
+analysis opened from a batch (`origin`) gets no speculative run: it shows the batch's
+results until it is recalculated here.
+
+How it fits the hosted limits ([Security of the hosted site](#security-of-the-hosted-site)):
+the worker takes a speculative run only when no other job waits (`claim`), it is queued
+only while fewer than `SPECULATIVE_MAX_QUEUED` jobs wait and the client has room under
+`MAX_ACTIVE_JOBS_PER_IP`, and it counts towards neither the queue cap, nor the client's
+active jobs, nor the daily quota until "Use this data". So it uses the worker's idle time:
+it never takes a place a user's job needs, and it delays another job by at most the rest of
+one run when the worker is already on it. A default Sydney run (80 years, plots, report and
+zip) takes 11.9 s on an Apple M-series laptop (2.4 s without plots, plus about 3 s of
+imports per worker start); the 1-vCPU Droplet is slower (the full flow took 15 s natively and
+26 s under Rosetta, "Size and memory" in [Deployment](#deployment)). Wasted runs, of users who leave
+at the checks or change the data, cost that worker time and the run's folder until the
+retention purge (a few MB, `JOB_RETENTION_DAYS`), never a user's quota.
+
+**Adjust and recalculate (#78, #178).** `IndexParamsForm` (`stations/forms_indices.py`) has
 every field of R's step 3 (`climpact/modules/singleStationStep3UI.R`): plot title, d for
 WSDId and CSDId (1 to 10), d for Rxdday and for TXdTNd/TXbdTNbd (1 or more), the base
 temperatures of HDDheat, CDDcold and GDDgrow, nn for Rnnmm (0 or more), the extra SPI/SPEI
@@ -4597,45 +4663,55 @@ DTR, operator, threshold), with R's defaults. The fields' own limits give plain 
 and `clean()` then runs the core's `climpact.batch.validate_params` (R's
 `validate_climdexInputParams`) on the `IndexParams` built from them, so the form accepts
 exactly what the core accepts (a test checks every boundary). Each field has its unit, a
-short hint with R's default. The fields are grouped (spell lengths, degree days,
-precipitation and drought, your own index, files), each group with an ⓘ whose help has
-the groups' `param.*` topics and how the index is named (with 3 days, WSDId is written as
-`wsdi3`; #177 moved this from a "Written as" line under each field). Each group is checked
-by htmx as it changes (`stations:indices_validate`, as step 1's groups), which shows
-warnings that do not stop the run: d = 6 for WSDId or CSDId, Rx1day/Rx5day, R10mm/R20mm
-and the 3, 6 and 12-month scales duplicate indices always calculated. R's station screen
-has no EHF definition (station runs always use Nairn and Fawcett 2013, the only one
-`climdex.hwEHF` accepts); the page says so. The form starts from the last calculation's
-settings, else the batch station's metadata line (`origin`), else the defaults.
-One "Calculate indices" button, at the end of the form, submits it (#173: #114's second
-button, "Calculate with these settings", above the settings, is gone); the parameter
-cards (plots, spell lengths, degree days, precipitation and drought, your own index and
-the heatwave note) sit in one "Change the settings" disclosure (`<details id="settings">`).
-It starts closed, labelled "Climpact's defaults", and the server opens it when the posted
-form has errors (so the error summary's links reach visible fields) or a setting differs
-from its default (`IndexParamsForm.settings_open`; the files card stays outside and does not
-count), or when the address asks for it with `?settings=open` (the results page's "Change
-the settings" link, `...indices?settings=open#settings`, #115), so it opens without
-JavaScript after a run with the defaults. The submit button at the end of the form stays, named "Calculate indices"; the
-first is described by the run-time note (#114). Step 3
-opens once step 1 is complete, whether or not the quality checks have finished; step 2's
-"Continue" leads here once they have, and until then an info alert recommends them.
-"Calculate indices" queues a `station` job (the `station` runner: QC files, every index,
-and the plots, the zip and the PDF report unless unticked; "Write a PDF report" is on by
-default and remembered with the other settings) with step 2's thresholds (`qc`, from the analysis's
-`qc_params`), so the full run's QC files match step 2's, as `indices_job`, and goes to
-step 4.
+short hint with R's default. The fields are grouped (plots, spell lengths, degree days,
+precipitation and drought, your own index, the heatwave note, files), each group with an ⓘ
+whose help has the groups' `param.*` topics and how the index is named (with 3 days, WSDId
+is written as `wsdi3`; #177). Each group is checked by htmx as it changes
+(`stations:indices_validate`), which shows warnings that do not stop the run: d = 6 for
+WSDId or CSDId, Rx1day/Rx5day, R10mm/R20mm and the 3, 6 and 12-month scales duplicate
+indices always calculated. R's station screen has no EHF definition (station runs always
+use Nairn and Fawcett 2013, the only one `climdex.hwEHF` accepts); the form says so.
 
-**Step 4: progress.** While the job is queued or running, `stations:results` shows its
+The form (`_settings_form.html`) is one closed disclosure, "Adjust and recalculate"
+(`<details id="adjust">`), after the catalogue on Results and below the progress while a
+run goes on; its groups are divided by rules, not cards (DESIGN.md: no cards inside
+cards). It starts from the settings of the results shown (`previous_params`: the last
+calculation's, else the batch station's metadata line, `origin`, else the defaults). The
+server opens it when the posted form has errors (the page is the results again, with the
+error summary) or when the address asks with `?settings=open` (the header's link, Files'
+"Adjust and recalculate" and the old Calculate address). The results' header names the
+settings in one line (`views_indices.settings_line`: "Climpact's default settings.", or
+"Settings changed:" and the settings that differ from `IndexParams()`), with the link that
+opens the form, as in the wireframes. Its one button, "Recalculate" (or "Calculate" when
+there is no run yet), is at the end, described by the run-time note. It queues a `station`
+job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
+PDF report unless unticked) with step 2's thresholds (`qc`, from `qc_params`), as
+`indices_job`, cancelling a run of the analysis still waiting or running. When the run it
+replaces had finished, the job's `params["replaces"]` names it, and Results keeps those
+results on the page until the new run has finished (below).
+
+**Results: progress.** While the first run is queued or running, `stations:results` shows its
 progress: a bar, step *n* of *total*, the time so far and left, and the stages of the run
 (read, quality checks, homogeneity, indices with the product being calculated, writing,
 plots, zip) with the `stages` component. The fragment (`stations:results_progress`) polls
 with the job page's delays; when the job succeeds it answers `HX-Redirect`, so the page
 becomes the dashboard. A failure shows the job's error, the stage it stopped at, "Try
-again" (returning to step 4) and "Change the settings". The results URL stays the same
-while the job is kept.
+again" (returning to Results) and "Adjust the settings". The results URL stays the same
+while the job is kept. "Adjust and recalculate" is below the progress, so the settings can
+be changed before the first run ends. With no run at all (a speculative run refused in
+hosted mode and the ordinary one too, or one cancelled), the page says the indices are not
+calculated yet and opens the form with a "Calculate" button.
 
-**Step 4: the dashboard** (`stations/results.py`, `results.html`). Every index table of
+**Results: a recalculation** keeps the results it replaces (`params["replaces"]`) on the
+page, with its progress in a panel above them ("Recalculating", then "The results below use
+the previous settings"); `current_source` serves the replaced run to Results, the index
+pages, Files and the sector comparison meanwhile. When it succeeds, the fragment's
+`HX-Redirect` shows the new results; when it fails, the panel says so with "Try again";
+when it is cancelled, the analysis's `indices_job` goes back to the replaced run
+(`restore_if_cancelled`). Staleness after a change to the details (#179) is not part of
+this: such a change still clears the results.
+
+**Results: the dashboard** (`stations/results.py`, `results.html`). Every index table of
 the run is on it: the core's `climpact.plots.index_plots` gives the plotted series (with
 their R descriptions, units and Sen's slope trends, as the PNGs and the charts), grouped
 into one card per index (`txx` with `txx_ANN`, `txx_MON` and the two `day_of_` series;
@@ -4720,14 +4796,14 @@ link is the primary button. The labels are short ("Download all", not "Download
 everything", on every page that offers the zip), which keeps the row on one line at
 1280px with wider fonts too (#115). The zip is the page's only download (#176: the
 downloads card that listed the report, the PDF of all plots and the summary files is gone;
-they are on Files). Below the groups: the settings used (with "Change the
-settings and calculate again", which opens them: `?settings=open#settings`) and "Compare
-with sector data", the sector comparison (#173; #113 had it in the action row). Building the
+they are on Files). Below the groups: "Adjust and recalculate" (the settings used are the
+header's one line since #178, replacing the "Settings used" card) and "Compare with sector
+data", the sector comparison (#173; #113 had it in the action row). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
 
-**Step 4: one index** (`stations:result`, `result.html`). The index's plain name as the
+**Results: one index** (`stations:result`, `result.html`). The index's plain name as the
 heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
 the trend per decade with its 95% interval and significance, and the highest, lowest and
 mean values with when, each with the series' units (#173: `results.with_units`, from the
@@ -4757,8 +4833,8 @@ under Details, an index page only its chart's exports. The groups, in order:
 
 - *The whole calculation*: the zip (unchanged R layout, `zip_station`; "Download all", the
   page's one primary button) and the PDF report (see [PDF report](#pdf-report)); one that
-  was not made (unticked in step 3, or a job older than the report) says so and links to
-  step 3.
+  was not made (unticked in the settings, or a job older than the report) says so and
+  links to "Adjust and recalculate".
 - *Summary files*: the trend and threshold files.
 - *Quality checks* (`downloads.quality_downloads`): the files of the Quality page's check
   (the `qc` job: each check's CSV and the missing values, in a closed disclosure, and
@@ -4777,9 +4853,9 @@ under Details, an index page only its chart's exports. The groups, in order:
 - *Other files* (`downloads.other_downloads`): any other file in the station's folder, so
   that every file the run wrote can be downloaded; empty for a normal run.
 
-After the quality checks and before a calculation, Files holds the quality checks alone,
-with a link to step 3; with neither, it redirects to step 3, and while a calculation runs,
-to step 4. `test_downloads.test_files_page_reaches_every_file_of_the_station` walks both
+After the quality checks and before a calculation (or before "Use this data", #178), Files
+holds the quality checks alone, with a link to Results; with neither, it redirects to
+Results, and while a calculation runs, to its progress there. `test_downloads.test_files_page_reaches_every_file_of_the_station` walks both
 jobs' output folders and the zip's members, and checks each is reachable from Files, and
 that every file link on Results, an index page and Quality is on Files too.
 
@@ -4789,23 +4865,25 @@ station's report) show sizes too. The Sydney page is 119 KB of HTML, 42.1 KB gzi
 its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
-links to step 3 with `?index=<key>`; the key travels in a hidden field to the results URL
-(`?index=`), and once the new run has finished the results page opens that index. When the
+links to "Adjust and recalculate" with `?settings=open&back=<key>`; the key travels in a
+hidden field to the results URL (`?index=`), which stays on the dashboard under the
+recalculation's progress, and once the new run has finished the results page opens that
+index. When the
 setting renames the index (`rx3day` to `rx7day`, a new SPI scale, a new custom index), it
 is found by `results.signature`, which keeps the parameterised index, the extra SPI/SPEI
 scale and the custom index together; an old index URL redirects the same way.
 
 **Batch stations.** An analysis opened from a batch's results (`origin`) shows that
 station's outputs in the batch job (`charts.views.job_stations`, its own `skipped_outputs`)
-on the same dashboard, with a note, until it is calculated again here; step 3 starts from
-its metadata line's parameters and the batch's custom index. "Open as a single station"
+on the same dashboard, with a note, until it is calculated again here; "Adjust and
+recalculate" starts from its metadata line's parameters and the batch's custom index. "Open as a single station"
 on the batch page now goes to this dashboard.
 
-R behaviour not copied in steps 3 and 4, and why:
+R behaviour not copied in R's steps 3 and 4 (the settings and the results), and why:
 
 | R step 3 | Python |
 | --- | --- |
-| Hidden until the quality checks have run without error | open once step 1 is complete, so the indices can be calculated while the checks run or without them; a note recommends finishing the checks first |
+| A step of its own, hidden until the quality checks have run without error, and nothing calculated until "Calculate" | no settings step (#178): the indices are calculated with the defaults as soon as the station details are confirmed, while the checks run; "Use this data" opens the results; the settings are "Adjust and recalculate" on Results |
 | Parameters checked only when "Calculate" is pressed, one `need()` message at a time | every field checked as it changes, with the core's rules and the output name |
 | A plot title is required | optional; empty uses the station title, as R's default does |
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
@@ -4819,7 +4897,7 @@ R behaviour not copied in steps 3 and 4, and why:
 `stations:sector`:
 
 - *Before the indices*: R's "Please calculate climate indices." becomes an info alert
-  with a link to step 3 (or to the progress while the indices job runs).
+  with a link to Results (or to the progress while the indices job runs).
 - *The form* (`SectorForm`, `sector_file.py`): R's inputs and defaults. The sector file
   (a drop zone around a file input; the help topic `sector.file`); "Title" (the station
   name, as R fills it in); "Label for y axis" (empty; `js/sector.js` fills it with the
@@ -5340,8 +5418,9 @@ analysis, batch, job or gridded run first), asks for it with `Accept-Encoding: g
 and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the file itself
 if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
 supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
-with the sample loaded, step 2 with the checks queued and with their results, step 3 (the
-parameters), the step 4 dashboard of a finished run with every index (R's `lat0`
+with the sample loaded, step 2 with the checks queued and with their results, Results
+while the first run goes on (with the closed "Adjust and recalculate" form, #178), the
+dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
 index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); batch start, check and results (queued); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
@@ -5354,13 +5433,13 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
 | station step 1, sample loaded (#114: with the top continue button) | 82.5 | 20.8 | 84.3 | 77.4 |
-| station results, 80 indices (#113: with the significant-trends summary) | 231.7 | 47.1 | 80.0 | 76.2 |
-| station index (TXx, with chart code) | 19.2 | 4.7 | 69.7 | 62.6 |
-| station sector results (#90) | 110.6 | 14.6 | 45.1 | 41.7 |
-| station Files, 114 tables (#79, #176) | 119.1 | 7.3 | 42.1 | 38.2 |
+| station results, 80 indices (#178: with "Adjust and recalculate") | 236.0 | 45.8 | 83.1 | 78.8 |
+| station index (TXx, with chart code) | 20.6 | 4.9 | 73.5 | 66.0 |
+| station sector results (#90) | 112.7 | 15.3 | 51.7 | 47.6 |
+| station Files, 114 tables (#79, #176) | 120.8 | 7.7 | 43.7 | 39.7 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station indices (step 3; #114: settings in a disclosure) | 30.0 | 5.6 | 37.3 | 33.7 |
+| station calculating (#178: progress and "Adjust and recalculate") | 35.8 | 6.5 | 42.5 | 38.4 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
 | landing | 13.4 | 4.1 | 34.9 | 31.5 |
 | batch check | 18.6 | 4.4 | 34.1 | 30.8 |
@@ -5606,7 +5685,8 @@ thresholds against `QCParams` and R's limits, the job's files against R's, the v
 (green, amber and red, both red triggers at and just over their limits, and the limits
 changed in one place), the findings and groups of the stress station, the missing-data
 rules, the table pages of the checks and groups and the page of a date, re-uploading a corrected
-file (the details and thresholds kept), continuing to step 3 and 404 for another session.
+file (the details and thresholds kept), "Use this data" opening the results of the
+speculative run (#178) and 404 for another session.
 The drawing itself was checked by hand as above; `test_accessibility.py` (#83) checks the
 charts' keyboard use, announcements, table view and that they redraw to fit when the
 window narrows. #77's linking (a table row to the chart, a ring to its

@@ -15,6 +15,13 @@ install and the tests behave as before. In hosted mode:
   wait.
 - **Disk** (:func:`check_disk`): no upload and no job while ``MEDIA_ROOT``'s disk has less
   than ``MIN_FREE_DISK_GB`` free.
+- **Speculative runs** (#178, :func:`check_speculative_quotas`): the station calculation
+  started with the defaults while the user looks at the quality checks. It is queued only
+  while fewer than ``SPECULATIVE_MAX_QUEUED`` jobs wait and the client has fewer than
+  ``MAX_ACTIVE_JOBS_PER_IP`` jobs waiting or running; it is left out of the other counts
+  above (the queue, the client's active jobs, the daily starts) until the user asks for it,
+  and the worker takes it only when no other job waits. A refusal is silent: the run is
+  queued as an ordinary job when the user chooses to use the data.
 
 A refusal raises :class:`Refused`; :class:`~climpact_web.middleware.RefusalMiddleware`
 logs it (client, reason, path, so the Cloudflare rules can be tuned) and answers with a
@@ -190,17 +197,22 @@ def check_job_quotas(request) -> None:
     full (hosted mode)."""
     if not settings.IS_HOSTED:
         return
-    from climpact_web.jobs.models import Job, JobStart, Status
+    from climpact_web.jobs.models import Job, JobStart, Status, ordinary_q
 
     check_disk()
     if settings.MAX_QUEUED_JOBS > 0:
-        queued = Job.objects.filter(status=Status.QUEUED, cancel_requested=False).count()
+        queued = Job.objects.filter(
+            ordinary_q(), status=Status.QUEUED, cancel_requested=False
+        ).count()
         if queued >= settings.MAX_QUEUED_JOBS:
             raise Refused(f"queue-full:{queued}", str(BUSY_MESSAGE), status=503, retry_after=300)
     key = client_key(request)
     if settings.MAX_ACTIVE_JOBS_PER_IP > 0:
         active = Job.objects.filter(
-            client=key, status__in=(Status.QUEUED, Status.RUNNING), cancel_requested=False
+            ordinary_q(),
+            client=key,
+            status__in=(Status.QUEUED, Status.RUNNING),
+            cancel_requested=False,
         ).count()
         limit = settings.MAX_ACTIVE_JOBS_PER_IP
         if active >= limit:
@@ -235,6 +247,34 @@ def check_job_quotas(request) -> None:
                 % {"count": today},
                 retry_after=3600,
             )
+
+
+def check_speculative_quotas(request) -> None:
+    """Refuse a speculative run (#178) unless the queue is short and the client is not
+    already using its share of the worker (hosted mode). The caller drops the run quietly."""
+    if not settings.IS_HOSTED:
+        return
+    from climpact_web.jobs.models import Job, Status
+
+    check_disk()
+    if settings.SPECULATIVE_MAX_QUEUED <= 0:
+        raise Refused("speculative-off", str(BUSY_MESSAGE), status=503)
+    queued = Job.objects.filter(status=Status.QUEUED, cancel_requested=False).count()
+    if queued >= settings.SPECULATIVE_MAX_QUEUED:
+        raise Refused(f"speculative-queue:{queued}", str(BUSY_MESSAGE), status=503)
+    if settings.MAX_ACTIVE_JOBS_PER_IP > 0:
+        active = Job.objects.filter(
+            client=client_key(request),
+            status__in=(Status.QUEUED, Status.RUNNING),
+            cancel_requested=False,
+        ).count()
+        if active >= settings.MAX_ACTIVE_JOBS_PER_IP:
+            raise Refused(f"speculative-active:{active}", str(BUSY_MESSAGE))
+
+
+def client_key_if_hosted(request) -> str:
+    """The client key stored on a job: blank in local mode, as :func:`record_job_start`."""
+    return client_key(request) if settings.IS_HOSTED else ""
 
 
 def record_job_start(request, kind: str) -> str:

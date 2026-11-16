@@ -240,6 +240,10 @@ MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "30"))
 # No new jobs while more than this many wait in the queue, or while MEDIA_ROOT's disk has
 # less than this much free space (uploads are refused too).
 MAX_QUEUED_JOBS = int(env("MAX_QUEUED_JOBS", "20"))
+# Hosted mode: a speculative station run (#178: the defaults calculated while the user looks
+# at the quality checks) is queued only while fewer than this many jobs wait; 0 turns it
+# off. Local mode always queues it.
+SPECULATIVE_MAX_QUEUED = int(env("SPECULATIVE_MAX_QUEUED", "3"))
 MIN_FREE_DISK_GB = float(env("MIN_FREE_DISK_GB", "2"))
 # Wall-clock limit on one job: the worker stops it at its next progress step, and fails it
 # outright (exiting, to be restarted) if it is still running a grace period later.

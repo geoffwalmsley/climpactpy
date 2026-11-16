@@ -62,7 +62,8 @@ unexpectedly, the page says so and offers to try again.
 
 ## Can I add my own indices? {#own-indices}
 
-One custom index, counting days above or below a value you choose, is on the indices step:
+One custom index, counting days above or below a value you choose, is in "Adjust and
+recalculate" on the results:
 see [Your own index](guide:indices#your-own-index). New indices for the ET-SCI set are
 agreed by the expert team.
 

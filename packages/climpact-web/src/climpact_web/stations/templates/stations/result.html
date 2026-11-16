@@ -17,7 +17,7 @@
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
     <p class="text-sm text-text-muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
     {% if card.param_topic %}
-    <p class="text-sm">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>. You come back here afterwards.{% endblocktranslate %}</p>
+    <p class="text-sm">{% url 'stations:results' analysis.pk as results_url %}{% blocktranslate with url=results_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?settings=open&amp;back={{ key }}#adjust">Change it and recalculate</a>. You come back here afterwards.{% endblocktranslate %}</p>
     {% endif %}
   </header>
 

@@ -10,6 +10,7 @@ import datetime as dt
 import secrets
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,8 +18,13 @@ from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_safe
 
-from climpact_web.core.limits import check_job_quotas, record_job_start
-from climpact_web.jobs.models import Job, Status
+from climpact_web.core.limits import (
+    check_job_quotas,
+    check_speculative_quotas,
+    client_key_if_hosted,
+    record_job_start,
+)
+from climpact_web.jobs.models import SPECULATIVE, Job, Status, ordinary_q
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.storage import get_storage
 from climpact_web.jobs.worker import worker_running
@@ -39,7 +45,14 @@ def owner_token(request) -> str:
     return token
 
 
-def create_job(request, kind: str, params: dict, files: dict | None = None, title: str = "") -> Job:
+def create_job(
+    request,
+    kind: str,
+    params: dict,
+    files: dict | None = None,
+    title: str = "",
+    speculative: bool = False,
+) -> Job:
     """Queue a job for this session, with its uploaded files (``{name: UploadedFile}``)
     saved into its ``input/`` folder; a key ``"<folder>/<name>"`` saves into a folder of
     ``input/`` (see :meth:`LocalJobStorage.save_input`). Workers see the job only when the
@@ -47,11 +60,19 @@ def create_job(request, kind: str, params: dict, files: dict | None = None, titl
 
     In hosted mode the queue, disk and per-client limits are checked first
     (:func:`~climpact_web.core.limits.check_job_quotas`), which may raise
-    :class:`~climpact_web.core.limits.Refused`."""
-    check_job_quotas(request)
+    :class:`~climpact_web.core.limits.Refused`.
+
+    A ``speculative`` job (#178) is checked against the limits for speculative runs instead
+    (:func:`~climpact_web.core.limits.check_speculative_quotas`) and is not counted as a
+    start for the daily quota until it is promoted (:func:`promote`)."""
+    if speculative:
+        check_speculative_quotas(request)
+        params = {**params, SPECULATIVE: True}
+    else:
+        check_job_quotas(request)
     storage = get_storage()
     with transaction.atomic():
-        client = record_job_start(request, kind)
+        client = client_key_if_hosted(request) if speculative else record_job_start(request, kind)
         job = Job.objects.create(
             kind=kind,
             owner=owner_token(request),
@@ -66,6 +87,18 @@ def create_job(request, kind: str, params: dict, files: dict | None = None, titl
                 folder, name = "", key
             storage.save_input(job, name, uploaded, folder)
     return job
+
+
+def promote(request, job: Job) -> None:
+    """Make a speculative job an ordinary one, now that the user has asked for it (#178):
+    the worker takes it in turn, the hosted limits count it, and its start counts for the
+    daily quota. Only the parameters change, so a worker running it is not disturbed."""
+    if not job.is_speculative:
+        return
+    params = {**job.params, SPECULATIVE: False}
+    if Job.objects.filter(pk=job.pk).update(params=params):
+        job.params = params
+        record_job_start(request, job.kind)
 
 
 def get_job(request, job_id) -> Job:
@@ -127,7 +160,11 @@ def output_size(job: Job, relative: str) -> int:
 
 @require_safe
 def job_list(request):
-    jobs = Job.objects.filter(owner=request.session.get(OWNER_KEY) or "-")
+    """The session's jobs, without the speculative runs that were cancelled (#178): they
+    were replaced after a change to the data, and the user never asked for them."""
+    jobs = Job.objects.filter(owner=request.session.get(OWNER_KEY) or "-").filter(
+        ordinary_q() | ~Q(status=Status.CANCELLED)
+    )
     return render(request, "jobs/job_list.html", {"jobs": jobs})
 
 

@@ -183,7 +183,7 @@ SECTIONS = (
             _("Change them and check again. The verdict and lists update."),
         ],
     ),
-    # ---- Calculate -----------------------------------------------------------------------
+    # ---- Results: "Adjust and recalculate" (the Calculate step until #178) ------------------
     S("calculate.plots", _("Plots"), ["param.plot_title"]),
     S(
         "calculate.spells",

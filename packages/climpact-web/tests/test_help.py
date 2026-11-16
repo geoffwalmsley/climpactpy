@@ -399,8 +399,8 @@ def test_indices_guide_has_an_entry_for_every_index(client):
     for info in indices.catalogue():
         assert info.anchor in ids, info.short
     assert '<h4 id="index-rxdday">Rxdday: User-defined consecutive days PR amount</h4>' in html
-    assert "You choose <em>d</em> on the indices step." in html
-    assert "You choose <em>nn</em> on the indices step." in html
+    assert "You choose <em>d</em> in Adjust and recalculate, on the results." in html
+    assert "You choose <em>nn</em> in Adjust and recalculate, on the results." in html
 
 
 @pytest.mark.parametrize(

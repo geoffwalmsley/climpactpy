@@ -6,7 +6,8 @@ Writes ``index.html`` (landing page), ``patterns.html`` (pattern library), ``404
 the job pages with example jobs (``job-running.html``, ``job-finished.html``,
 ``job-failed.html``, ``jobs.html``), the single-station step 1 pages with the sample data
 (``station-upload.html``, ``station-upload-problems.html``, ``station-load.html``,
-``station-load-errors.html``, ``station-qc.html``), the batch pages (``batch-start.html``,
+``station-load-errors.html``, ``station-qc.html``, and ``station-calculating.html``: the
+indices' progress with "Adjust and recalculate", #178), the batch pages (``batch-start.html``,
 ``batch-check.html``, ``batch-running.html``, ``batch-results.html``), the help pages
 (``help.html``, ``help-guide.html``, ``help-indices.html``, ``help-topics.html``,
 ``help-search.html``, #81) and a dark-theme copy of each
@@ -98,13 +99,13 @@ def job_pages() -> dict[str, str]:
 
 def station_pages() -> dict[str, str]:
     """Steps 1 and 2 of the single-station flow (#76, #77: before the checks have run) and
-    step 3 (the index parameters, #78), with the sample data, rendered without a database.
-    The results of the checks and of the indices need a finished job's files; their
-    screenshots are in the PRs (#77, #78)."""
+    the indices being calculated, with "Adjust and recalculate" (#78, #178), with the sample
+    data, rendered without a database. The results of the checks and of the indices need a
+    finished job's files; their screenshots are in the PRs (#77, #78)."""
     from climpact_web.core.navigation import station_steps
-    from climpact_web.stations import views, views_indices
+    from climpact_web.jobs.models import Job, Status
+    from climpact_web.stations import calculation, views, views_indices
     from climpact_web.stations.forms import MetadataForm, UploadForm
-    from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
     from climpact_web.stations.models import Source, StationAnalysis, Step
     from climpact_web.stations.station_file import inspect_station_bytes
 
@@ -134,6 +135,9 @@ def station_pages() -> dict[str, str]:
                           summary=uploaded.summary)  # fmt: skip
     errors.is_valid()
     sample.step = Step.QC
+    running = Job(kind="station", title=sample.station_name, status=Status.RUNNING,
+                  stage="indices:climpact:txx", step=9, total=14, started_at=timezone.now(),
+                  params={"plots": True, "zip": True, "report": True})  # fmt: skip
     pages = {
         "station-upload": ("stations/upload.html", upload),
         "station-upload-problems": ("stations/upload.html",
@@ -143,8 +147,12 @@ def station_pages() -> dict[str, str]:
         "station-load-errors": ("stations/load.html",
                                 views.load_context(request, uploaded, errors)),
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
-        "station-indices": ("stations/indices.html", views_indices.indices_context(
-            sample, IndexParamsForm(initial=initial_from_params({})), "default")),
+        "station-calculating": ("stations/results_progress.html", {
+            "analysis": sample, "job": running, "phases": views_indices.phases(running),
+            "steps": station_steps("results"), "stage_label": "Calculating indices (txx)",
+            "elapsed": "4 s", "remaining": "", "delay": 1, "worker_missing": False,
+            "form": calculation.settings_form(sample), "settings_source": "default",
+            "open_settings": False}),
     }  # fmt: skip
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 

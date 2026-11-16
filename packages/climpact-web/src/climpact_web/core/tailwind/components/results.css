@@ -1,6 +1,6 @@
-/* Steps 3 and 4 of a station (#78): the findings by theme (#175), the results filters and
+/* Results of a station (#78, #178): the findings by theme (#175), the results filters and
    chips, the trend lists, the index cards with their sparklines and trend arrows (trend--{{ direction }} is built in
-   the template), the settings list and the downloads table. */
+   the template), the settings panel, a recalculation's progress and the downloads table. */
 @layer components {
   /* Filters */
   .results-filter {
@@ -311,22 +311,16 @@
     stroke: var(--chart-2);
   }
 
-  .settings-list {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: --spacing(2) --spacing(4);
-    margin: 0;
-    font-size: var(--text-sm);
+  /* "Adjust and recalculate" (#178): the settings in one disclosure, its groups divided
+     by a rule rather than put in cards (DESIGN.md: no cards inside cards). */
+  .settings-panel__group + .settings-panel__group {
+    padding-block-start: --spacing(5);
+    border-block-start: 1px solid var(--color-border);
   }
 
-  .settings-list dt {
-    color: var(--color-text-muted);
-  }
-
-  .settings-list dd {
-    margin: 0;
-    font-variant-numeric: tabular-nums;
-    text-align: end;
+  /* A recalculation's progress above the results it replaces. */
+  .recalculation {
+    border-inline-start: 4px solid var(--color-accent);
   }
 
   @media (forced-colors: active) {

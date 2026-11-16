@@ -43,7 +43,7 @@ from django.conf import settings
 from django.db import close_old_connections, connection, connections, transaction
 from django.utils import timezone
 
-from climpact_web.jobs.models import Job, Status, Worker
+from climpact_web.jobs.models import Job, Status, Worker, ordinary_q, speculative_q
 from climpact_web.jobs.registry import (
     JobCancelled,
     JobContext,
@@ -106,7 +106,20 @@ def append_log(job_id, text: str) -> None:
 
 
 def claim(worker: str) -> Job | None:
-    """Take the oldest queued job for ``worker``, atomically; None if there is none."""
+    """Take the oldest queued job for ``worker``, atomically; None if there is none. A
+    speculative run (#178) is taken only when no other job waits, so it never delays a
+    calculation someone asked for."""
+    for queued in (
+        Job.objects.filter(ordinary_q(), status=Status.QUEUED, cancel_requested=False),
+        Job.objects.filter(speculative_q(), status=Status.QUEUED, cancel_requested=False),
+    ):
+        job = _claim_from(queued.order_by("created_at"), worker)
+        if job is not None:
+            return job
+    return None
+
+
+def _claim_from(queued, worker: str) -> Job | None:
     now = timezone.now()
     claimed = {
         "status": Status.RUNNING,
@@ -118,7 +131,6 @@ def claim(worker: str) -> Job | None:
         "step": 0,
         "total": 0,
     }
-    queued = Job.objects.filter(status=Status.QUEUED, cancel_requested=False).order_by("created_at")
     if connection.features.has_select_for_update_skip_locked:
         with transaction.atomic():
             job = queued.select_for_update(skip_locked=True).first()

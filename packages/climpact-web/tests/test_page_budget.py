@@ -95,8 +95,14 @@ def station_qc_results(client) -> str:
     return url
 
 
-def station_indices(client) -> str:
-    return station_qc(client).replace("/quality", "/indices")
+def station_calculating(client) -> str:
+    """Results while the run queued with the checks goes on, after "Use this data": the
+    progress and the closed "Adjust and recalculate" form (#178)."""
+    from climpact_web.stations.models import StationAnalysis, Step
+
+    url = station_qc(client)
+    StationAnalysis.objects.update(step=Step.INDICES)
+    return url.replace("/quality", "/results")
 
 
 def station_results(client) -> str:
@@ -107,7 +113,7 @@ def station_results(client) -> str:
     from climpact_web.jobs.models import Job, Status
     from climpact_web.stations.models import StationAnalysis
 
-    url = station_indices(client)
+    url = station_calculating(client)
     analysis = StationAnalysis.objects.get()
     station = "sydney_observatory_hill_1936-2015"
     job = Job.objects.create(kind="station", owner=analysis.owner, status=Status.SUCCEEDED,
@@ -117,7 +123,7 @@ def station_results(client) -> str:
     shutil.copytree(reference, job.output_dir / station)
     analysis.indices_job = job
     analysis.save()
-    return url.replace("/indices", "/results")
+    return url
 
 
 def station_index(client) -> str:
@@ -198,7 +204,7 @@ PAGES = {
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
     "station quality": Page(station_qc),  # the checks queued
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
-    "station indices": Page(station_indices),
+    "station calculating": Page(station_calculating),  # with the settings form (#178)
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
     "station index": Page(station_index, charts=True),  # the index's chart (#78)
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)

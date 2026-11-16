@@ -246,20 +246,28 @@ def site(chrome, server):
     table = c.evaluate("(document.querySelector('a[href*=\"/quality/checks/\"]') || {}).href")
     if table:
         pages["station quality table"] = table
+    # "Use this data" opens the results of the run queued with the checks (#178), or its
+    # progress until it has finished.
     submit(c, "form[action$='/quality/continue']")
-    pages["station indices"] = here(c)
+    wait_for(c, "!!document.querySelector('[data-results-filter]')",
+             what="the speculative station run")  # fmt: skip
+    results = pages["station results"] = here(c).split("?")[0].split("#")[0]
+    pages["station adjust"] = results + "?settings=open"  # no #adjust: a load each time
 
-    def indices_errors(c):
-        c.navigate(pages["station indices"])
+    def adjust_errors(c):
+        c.navigate(pages["station adjust"])
         c.evaluate("document.querySelector('[name=hdd_base]').value = 'warm'")
         submit(c, "form[action$='/indices']")
 
-    pages["station indices, errors"] = indices_errors
+    pages["station adjust, errors"] = adjust_errors
+    # Recalculate: the progress above the results it replaces, then the new results.
+    c.navigate(pages["station adjust"])
+    c.evaluate("document.querySelector('[name=rx_days]').value = '4'")
     submit(c, "form[action$='/indices']")
     heard = while_running(c, "station run")
-    wait_for(c, "!!document.querySelector('[data-results-filter]')", what="the station run",
+    wait_for(c, "!!document.querySelector('[data-results-filter]')"
+             " && !document.querySelector('.recalculation')", what="the station run",
              heard=heard)  # fmt: skip
-    results = pages["station results"] = here(c).split("?")[0]
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
     pages["station downloads"] = results.replace("/results", "/downloads")
@@ -771,7 +779,7 @@ STATION_PAGES = (
     "station upload",
     "station sample loaded",
     "station quality results",
-    "station indices",
+    "station adjust",
     "station results",
     "station index",
     "station downloads",
@@ -1032,8 +1040,10 @@ def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
         assert c.evaluate(
             f"{base}.getBoundingClientRect().bottom < {button}.getBoundingClientRect().top"
         )
-        c.navigate(site["station indices"])
-        assert c.evaluate("document.getElementById('settings').open") is False
+        c.navigate(site["station results"])
+        assert c.evaluate("document.getElementById('adjust').open") is False
+        c.navigate(site["station adjust"])
+        assert c.evaluate("document.getElementById('adjust').open") is True
         run = "form[action$='/indices'] button[type=submit]"
         assert c.evaluate(f"document.querySelectorAll({json.dumps(run)}).length") == 1
         files = "document.querySelector('[aria-labelledby=output-title]')"
@@ -1041,8 +1051,8 @@ def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
             f"{files}.getBoundingClientRect().bottom"
             f" < document.querySelector({json.dumps(run)}).getBoundingClientRect().top"
         )
-        open_page(c, site["station indices, errors"])
-        assert c.evaluate("document.getElementById('settings').open") is True
+        open_page(c, site["station adjust, errors"])
+        assert c.evaluate("document.getElementById('adjust').open") is True
         assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
         link = "[data-error-summary] a[href='#id_hdd_base']"
         c.evaluate(f"document.querySelector({json.dumps(link)}).click()")

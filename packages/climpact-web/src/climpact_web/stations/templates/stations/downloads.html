@@ -35,7 +35,7 @@ calculated it holds the quality-control files alone. Context from views_download
         <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}</p>
         {% else %}
         <p class="text-sm text-text-muted">{% translate "Not made. The zip was switched off in the settings." %}</p>
-        <p class="text-sm"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
+        <p class="text-sm"><a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
         {% endif %}
       </li>
       <li class="card stack stack--sm">
@@ -46,7 +46,7 @@ calculated it holds the quality-control files alone. Context from views_download
         <p class="mt-auto">{% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}</p>
         {% else %}
         <p class="text-sm text-text-muted">{% translate "Not made. The report was switched off, or this calculation is older than the report." %}</p>
-        <p class="text-sm"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
+        <p class="text-sm"><a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
         {% endif %}
       </li>
     </ul>
@@ -152,7 +152,7 @@ calculated it holds the quality-control files alone. Context from views_download
 
   <p class="text-sm"><a href="{% url 'jobs:detail' job.pk %}">{% translate "Every file of this calculation, as a list" %}</a></p>
   {% else %}
-  <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
+  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
 </div>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
-{% block title %}{% translate "Calculating indices" %}{% endblock %}
+{% block title %}{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating indices" %}{% else %}{% translate "Results and downloads" %}{% endif %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
@@ -8,10 +8,13 @@
     <h1>{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating indices" %}{% else %}{% translate "Results and downloads" %}{% endif %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name start=analysis.base_start end=analysis.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
   </header>
-  {% if missing_outputs %}
-  {% translate "This calculation finished without index tables. Calculate the indices to see them here." as missing_message %}
-  {% include "components/alert.html" with kind="warning" title="" message=missing_message %}
-  <p>{% url 'stations:indices' analysis.pk as indices_url %}{% translate "Calculate indices" as run_label %}{% include "components/button.html" with label=run_label href=indices_url icon_end="arrow-right" %}</p>
+  {% if no_run or missing_outputs %}
+  {% comment %}Nothing to show: the run was refused or cancelled before it started, or it wrote
+  no index tables. The settings are open, with one button to calculate.{% endcomment %}
+  {% if missing_outputs %}{% translate "This calculation finished without index tables. Calculate the indices again to see them here." as empty_message %}{% else %}{% translate "The indices are not calculated yet. Check the settings, then calculate." as empty_message %}{% endif %}
+  {% include "components/alert.html" with kind="info" title="" message=empty_message %}
+  {% translate "Calculate" as calculate_label %}
+  {% include "stations/_settings_form.html" with open_settings=True submit_label=calculate_label %}
   {% else %}
   <section class="card stack" aria-labelledby="progress-title">
     <h2 class="card__title" id="progress-title">{% translate "Progress" %}</h2>
@@ -19,6 +22,7 @@
     <noscript><p class="text-sm">{% translate "Reload this page to see the progress. The results appear here when they are ready." %}</p></noscript>
   </section>
   <p class="text-sm text-text-muted">{% translate "You can leave this page. The calculation carries on, and this address shows the results when it has finished." %}</p>
+  {% include "stations/_settings_form.html" %}
   {% endif %}
 </div>
 {% endblock %}

@@ -28,7 +28,7 @@ def downloads(request, analysis_id):
     job, source = current_source(analysis)
     qc_done = analysis.qc_job is not None and analysis.qc_job.status == Status.SUCCEEDED
     if job is None and not qc_done:
-        return redirect("stations:indices", analysis_id=analysis.pk)
+        return redirect("stations:results", analysis_id=analysis.pk)
     if job is not None and source is None:  # still running, or no tables: step 4 says which
         return redirect("stations:results", analysis_id=analysis.pk)
     quality = model.quality_downloads(analysis, source)

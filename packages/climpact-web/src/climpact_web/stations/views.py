@@ -1,7 +1,11 @@
 """The single-station steps. Step 1 (#76): load the station file, or the sample, and give
 the station's metadata. Step 2 (#77): the quality checks, run as a ``qc`` job, and their
-results (:mod:`.qc_review`, :mod:`.qc_plots`). The later steps (#78, #79, #90) add their
-pages to the same analysis (``/station/<id>/...``); step 3 is a placeholder until #78.
+results (:mod:`.qc_review`, :mod:`.qc_plots`). Results (#78, #79, #90) add their pages to
+the same analysis (``/station/<id>/...``, :mod:`.views_indices`).
+
+Confirming the details also queues the indices with the default settings (#178,
+:mod:`.calculation`), so they are calculated while the user looks at the quality checks;
+any later change to the file, the details or the thresholds replaces that run.
 
 An analysis is visible only to the browser session that created it, like a job: any
 other session gets 404.
@@ -31,7 +35,7 @@ from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
-from climpact_web.stations import preview
+from climpact_web.stations import calculation, preview
 from climpact_web.stations.forms import (
     QC_DEFAULTS,
     MetadataForm,
@@ -255,6 +259,10 @@ def load(request, analysis_id):
             if analysis.qc_job is None:
                 # Run the checks at once with the thresholds kept (R's defaults at first).
                 queue_qc(request, analysis)
+            if analysis.indices_job is None:
+                # And the indices with the default settings, behind the checks (#178).
+                calculation.speculate(request, analysis)
+                analysis.save()
             return redirect("stations:qc", analysis_id=analysis.pk)
     else:
         if analysis.metadata_complete:
@@ -426,13 +434,20 @@ def qc_run(request, analysis_id):
     if not form.is_valid():
         return render(request, "stations/qc.html", qc_context(request, analysis, qc_form=form))
     values = {k: form.cleaned_data[k] for k in QC_DEFAULTS}
-    if values != QCParamsForm.initial_for(analysis.qc_params):
-        # The QC files of a later full run must use the new thresholds too.
+    changed = values != QCParamsForm.initial_for(analysis.qc_params)
+    if changed:
+        # The QC files of the full run must use the new thresholds too.
         analysis.qc_params = values
         if analysis.reached(Step.INDICES):
             analysis.step = Step.QC
-            analysis.indices_job = analysis.sector_job = None
     queue_qc(request, analysis)
+    if changed:
+        # The run of the old thresholds is replaced, with the same settings (#178).
+        previous = calculation.previous_params(analysis)
+        analysis.cancel_speculative()
+        analysis.indices_job = analysis.sector_job = None
+        calculation.speculate(request, analysis, previous)
+        analysis.save()
     return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
 
 
@@ -515,6 +530,8 @@ def qc_replace(request, analysis_id):
                 return redirect("stations:load", analysis_id=analysis.pk)
             analysis.advance_to(Step.QC)
             queue_qc(request, analysis)
+            calculation.speculate(request, analysis)  # the old file's run was cancelled
+            analysis.save()
             messages.success(request, _("The new file is loaded. The checks are running again."))
             return redirect(reverse("stations:qc", args=[analysis.pk]) + "#qc-status")
     context = qc_context(request, analysis, replace_form=form, inspection=inspection)
@@ -523,12 +540,15 @@ def qc_replace(request, analysis_id):
 
 @require_POST
 def qc_continue(request, analysis_id):
-    """Go on to the indices, whatever the checks found: the user decides."""
+    """ "Use this data", whatever the checks found (the user decides): straight to the
+    results, calculated with the default settings while the user looked at the checks
+    (#178), or their progress. Without a speculative run, one is queued now."""
     analysis = get_analysis(request, analysis_id)
     job = analysis.qc_job
     if job is None or job.status != Status.SUCCEEDED or not step_two_ready(analysis):
         return redirect("stations:qc", analysis_id=analysis.pk)
-    analysis.advance_to(Step.INDICES)
+    calculation.commit(request, analysis)
+    analysis.advance_to(Step.RESULTS)
     analysis.touch()
     analysis.save()
-    return redirect("stations:indices", analysis_id=analysis.pk)
+    return redirect("stations:results", analysis_id=analysis.pk)

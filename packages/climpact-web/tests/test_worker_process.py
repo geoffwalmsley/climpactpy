@@ -1,5 +1,6 @@
 """The worker as a real process on a file database: killed in the middle of a job, the job
-fails with a retry (not a page that hangs), and the retried job completes."""
+fails with a retry (not a page that hangs), and the retried job completes. A speculative
+run (#178) waits for the jobs people asked for, and stops when it is cancelled."""
 
 import json
 import os
@@ -161,3 +162,55 @@ def test_stopping_the_worker_queues_its_job_again(env, tmp_path):
     row = job_row(db, job_id)
     assert (row["status"], row["step"]) == ("queued", 0)
     assert "queued again" in row["log"]
+
+
+def test_a_speculative_run_waits_for_the_other_jobs(env, tmp_path):
+    """#178: the worker takes a speculative run only when no other job waits, even an
+    older one."""
+    station = tmp_path / "station.txt"
+    station.write_text(station_text())
+    params = {"station_file": "station.txt", "metadata": {"name": "stn"}}
+    first = django_script(
+        env, CREATE_JOB, str(station), json.dumps({**params, "speculative": True})
+    )
+    speculative = first.stdout.strip().splitlines()[-1]
+    out = django_script(env, CREATE_JOB, str(station), json.dumps(params))
+    ordinary = out.stdout.strip().splitlines()[-1]
+    db = tmp_path / "data" / "db.sqlite3"
+    out = manage(env, "runworker", "--once")  # runs the queue, then stops
+    log = out.stdout + out.stderr
+    assert "Ran 2 job(s)." in log
+    assert log.index(f"Job {ordinary} (station) started") < log.index(
+        f"Job {speculative} (station) started"
+    )
+    assert job_row(db, ordinary)["status"] == job_row(db, speculative)["status"] == "succeeded"
+
+
+def test_a_cancelled_speculative_run_stops(env, tmp_path):
+    """#178: a change to the data cancels the speculative run; the worker stops it at its
+    next step rather than finishing a run nobody will see."""
+    station = tmp_path / "station.txt"
+    station.write_text(station_text())
+    params = {"station_file": "station.txt", "metadata": {"name": "stn", "base_start": 2000,
+              "base_end": 2001}, "plots": True, "zip": True, "speculative": True}  # fmt: skip
+    out = django_script(env, CREATE_JOB, str(station), json.dumps(params))
+    job_id = out.stdout.strip().splitlines()[-1]
+    db = tmp_path / "data" / "db.sqlite3"
+    worker = subprocess.Popen(
+        [sys.executable, "-m", "climpact_web", "manage", "runworker"],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        wait_for(lambda: job_row(db, job_id)["step"] > 0)
+        django_script(
+            env,
+            f"from climpact_web.jobs.models import Job; Job.objects.get(pk='{job_id}')"
+            ".request_cancel()",
+        )
+        row = wait_for(lambda: (r := job_row(db, job_id))["status"] == "cancelled" and r)
+        assert row["step"] < row["total"] and row["finished_at"]
+    finally:
+        worker.terminate()
+        worker.wait(timeout=30)

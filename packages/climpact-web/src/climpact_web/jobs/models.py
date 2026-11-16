@@ -24,6 +24,24 @@ class Status(models.TextChoices):
 
 FINISHED = (Status.SUCCEEDED, Status.FAILED, Status.CANCELLED)
 
+# The key of ``Job.params`` that marks a speculative run (#178): a station calculation
+# started with the default settings before the user asked for it, while they look at the
+# quality checks. It becomes an ordinary job (the key is set to false) when the user
+# chooses to use the data. Until then the worker takes it only when no other job waits,
+# the hosted limits do not count it, and "Your calculations" leaves it out once cancelled.
+SPECULATIVE = "speculative"
+
+
+def speculative_q() -> models.Q:
+    """Jobs that are still speculative (a JSON lookup, so no migration was needed)."""
+    return models.Q(**{f"params__{SPECULATIVE}": True})
+
+
+def ordinary_q() -> models.Q:
+    """Every other job. Not ``~speculative_q()``: in SQL that is unknown, so false, for the
+    jobs whose parameters do not have the key."""
+    return ~models.Q(params__has_key=SPECULATIVE) | models.Q(**{f"params__{SPECULATIVE}": False})
+
 
 class Job(models.Model):
     """A calculation run in the background.
@@ -90,6 +108,10 @@ class Job(models.Model):
     @property
     def is_finished(self) -> bool:
         return self.status in FINISHED
+
+    @property
+    def is_speculative(self) -> bool:
+        return bool((self.params or {}).get(SPECULATIVE))
 
     @property
     def can_cancel(self) -> bool:

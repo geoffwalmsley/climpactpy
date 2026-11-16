@@ -2772,6 +2772,8 @@ packages/climpact-web/src/climpact_web/
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
+      js/workspace.js  keeps the page's scroll padding to the height of the station's
+                     sticky workspace header (#197), loaded by stations/_workspace.html
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
                      loaded with the widget only
@@ -2885,7 +2887,8 @@ packages/climpact-web/src/climpact_web/
                      _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
-    sections.py      section help (#177): the topics and notes behind each section's ⓘ
+    sections.py      section help (#177): the topics and notes behind each section's Help
+                     button (#197; an ⓘ before)
     indices.py       the index catalogue from the core's climate.indices.csv (display names,
                      groups, parameters); writes index_messages.py
     index_messages.py  generated: the index names and definitions for makemessages
@@ -4053,7 +4056,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Component | Notes |
 | --- | --- |
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons; `form_id` (a submit button outside its form) and `describedby` (`aria-describedby`) |
-| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; no help link of its own (#177: the section's ⓘ has the help, and the hint is kept for values that need one); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
+| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; no help link of its own (#177: the section's Help button has the help, and the hint is kept for values that need one); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`) |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
@@ -4066,7 +4069,9 @@ a comment listing its parameters. Labels are passed in already translated
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
-| `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's ⓘ opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the ⓘ's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the ⓘ, unless focus has moved on to the page. See [Help](#help) |
+| `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
+| Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
+| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame: hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `theme_headline`, `spark` | a theme's finding on the results page (#175): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
@@ -4122,10 +4127,11 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 74 KB (71 KB until #196 added the colour roles, the theme hues and
+stylesheets). Tests hold it under 77 KB (74 KB until #197 added the section header, one
+surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
-status marks and the out-of-date block; it is 73.3 KB) and 13.5 KB gzipped (13 KB until
-#196; 12.5 KB until #177 added the drawer). `ui.js` is about
+status marks and the out-of-date block; it is 76.8 KB) and 14 KB gzipped (13.5 KB until
+#197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
@@ -4550,8 +4556,16 @@ the section is current again. The Quality tab keeps the verdict's level in the c
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the header (the station's name as the h1 of the four
-section pages, its years and base period, "Edit the details") and
-`components/workspace_tabs.html`. The states (`workspace.section_states`): Data `todo`
+section pages, a line with its years, base period and file name, "Edit the details",
+the page's actions: Results' "Download all" and "All files and the report",
+`stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
+station name given on Data, the file name only when there is none. Since #197 the header
+is sticky (`workspace-header`, a direct child of `.station-page`) from 40rem wide and
+30rem high; narrower or shorter, where it would hide most of the page, it scrolls away
+(#203 makes the phone header one line). The page's `scroll-padding-block-start` is the
+header's height plus 1rem, so an element that takes focus, or a `#fragment`, is never
+under it (WCAG 2.4.11); `js/workspace.js` keeps `--workspace-header-height` to the
+header's real height with a `ResizeObserver` (9rem without JavaScript). The states (`workspace.section_states`): Data `todo`
 until the details are confirmed, then `done`, or `attention` when they no longer fit the
 data; Quality `locked` until then, `stale`, `running`, `attention` (failed, stopped, or a red
 verdict) or `done`; Results `locked` until "Use this data", then `stale`, `running`,
@@ -4597,7 +4611,7 @@ sector file (`stations:sector_sample`); `.../downloads` the Files page
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
 card, the retention note (an info alert; on the later station pages, steps 1 and 2, it is
 a quiet line of small text with a lock icon at the foot of the page, #173), the session's
-recent analyses. The file format, with an example, is in the help of the file section's ⓘ
+recent analyses. The file format, with an example, is in the help of the file section's Help button
 (#177). `station_file.inspect_station_bytes` checks the file before anything is saved:
 
 - *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
@@ -4800,7 +4814,7 @@ and `clean()` then runs the core's `climpact.batch.validate_params` (R's
 `validate_climdexInputParams`) on the `IndexParams` built from them, so the form accepts
 exactly what the core accepts (a test checks every boundary). Each field has its unit, a
 short hint with R's default. The fields are grouped (plots, spell lengths, degree days,
-precipitation and drought, your own index, the heatwave note, files), each group with an ⓘ
+precipitation and drought, your own index, the heatwave note, files), each group with a Help button
 whose help has the groups' `param.*` topics and how the index is named (with 3 days, WSDId
 is written as `wsdi3`; #177). Each group is checked by htmx as it changes
 (`stations:indices_validate`), which shows warnings that do not stop the run: d = 6 for
@@ -5248,12 +5262,14 @@ logged and nothing is shown, so a typo cannot break a page in production.
 
 **Section help** (`help/sections.py`, #177, decision E). A field no longer has a help
 link of its own (`components/field.html` lost its `help=` parameter): each section of a
-screen has one ⓘ beside its heading, which opens the section's help in the drawer
+screen has one Help button at the end of its section header (#197; an ⓘ after the
+heading before), which opens the section's help in the drawer
 (`components/drawer.html`, see [Design system](#design-system)).
 
 ```django
-{% load help %}<div class="with-help"><h2 id="details-title">…</h2>{% section_help "load.details" %}</div>
+{% load help %}<div class="section-header"><h2 id="details-title">…</h2>{% section_help "load.details" %}</div>
 {% section_help "result.index" topics=card.help_topics title=card.code %}
+{% section_help "quality.verdict" label=levels_label %}  {# "What do the levels mean?" #}
 ```
 
 A `Section` (`S(...)` in `SECTIONS`) has an id `<page>.<section>`, the section's title, its
@@ -5262,7 +5278,8 @@ topic ids, a few short `Note`s (a sentence, with an optional heading) and option
 `help/sections/_station_file_format.html`). The tag renders, in `help/_section_help.html`:
 a link to `/help/sections/<id>/` (`help:section`, the same help on a page of its own, for
 browsers without JavaScript), a hidden button that `js/drawer.js` shows in place of the
-link, both named "Help: <title>" (visually hidden text beside the icon), and a
+link, both showing a ringed question mark and the word "Help" (or `label=`) and named
+"Help: <title>" (or "<label>: <title>", `aria-label`), and a
 `<template>` with the help (`help/_section_body.html`: the notes, the extra template, each
 topic's title and text, and one "More in the guide" link per guide, to the first of the
 section's topics in it). `topics=` puts the screen's own topics first (an index page adds
@@ -5357,8 +5374,8 @@ gridded screen once `gridded:start` exists. R's sector sample
 step (#90).
 
 **First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
-landing page (the start buttons, "How it works", other ways to run Climpact, Help and Your
-calculations in the header), passed as `json_script` data with translated text. On a first
+landing page (the start buttons, "How it works", other ways to run Climpact, the header's
+Help button and Your calculations in the header), passed as `json_script` data with translated text. On a first
 visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
 finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
 once. `/?tour=1` (the help index's "Take the tour" link) starts it at once. The tour box is
@@ -5383,13 +5400,16 @@ answers 200 and the anchor exists on the target page (over 300 links); every top
 and anchor exist; every id used in a template (`help_topic`) exists; every section used in a
 template (`section_help`) exists and its topics too, and no field is given a help topic;
 every form field of step 1 and the batch page has a hint (the base period's two years
-share the fieldset's hint, and the station name's help is its section's); the ⓘ's link,
+share the fieldset's hint, and the station name's help is its section's); the Help button's link,
 button and template; every section's help page, and `?topics=`; one hidden drawer on every
 page; the verdict's help states `VERDICT_LIMITS`; the step 1 and batch screens show their
 topics. `test_qc_review.py`, `test_indices_results.py` and `test_sector_web.py` check that
-each station page has its sections' ⓘ in order and no help link under a field, and the
-browser tests open the drawer by keyboard (Tab to the ⓘ, Enter, Escape, focus back) and
-from every ⓘ of every station page; the
+each station page has its sections' Help buttons in order and no help link under a field;
+`test_help.py` checks the header's Help button leads to the page's guide; and the
+browser tests open the drawer by keyboard (Tab to the Help button, Enter, Escape, focus
+back) and from every Help button of every station page, and Tab through Results and
+Quality with the workspace header stuck at the top and never over the focused element
+(WCAG 2.4.11); the
 catalogue covers every short name of `climate.indices.csv` exactly once, with a group,
 display name, units and an entry in the indices guide; output-name mapping;
 `index_messages.py` is current; search (full page and htmx fragment); the English fallback
@@ -5533,7 +5553,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 13.1 of 13.5 KB (13 KB before #196), `drawer.js` 1.0 of 1 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 13.6 of 14 KB (13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`

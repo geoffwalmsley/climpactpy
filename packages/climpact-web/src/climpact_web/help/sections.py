@@ -277,6 +277,15 @@ SECTIONS = (
         _("All indices"),
         ["trend.minimum_data", "results.missing_value", "trend.significance"],
         [
+            _(
+                "“Also measured” holds the averages, the growing season and degree days, "
+                "your own index and the daily heat and cold factors."
+            ),
+            _(
+                "Select a column header to sort by it, and again to reverse the order. A "
+                "trend sorts by its value in the index's own units; indices without a "
+                "trend stay last."
+            ),
             _("Climpact does not write a table whose values are all missing."),
         ],
     ),

@@ -1,11 +1,12 @@
 {% load i18n %}{% comment %}
-Results' page actions, in the workspace header (#197): one primary action, the zip, and the
-Files page as the one secondary link (#173). Every other file is listed there (#176).
+Results' page actions, in the workspace header (#200, the Results mockup): the sector
+comparison (secondary) and Download all (primary, the zip). Every other file is on the
+Files tab (#176); without a zip, its link takes Download all's place.
 Context: analysis, downloads.
-{% endcomment %}<div class="flex flex-wrap items-center gap-2 results-actions">{% url 'stations:downloads' analysis.pk as files_url %}{% translate "All files and the report" as files_label %}
+{% endcomment %}<div class="flex flex-wrap items-center gap-2 results-actions">{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
+{% include "components/button.html" with label=sector_label href=sector_url variant="secondary" %}
 {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
 {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}
-{% include "components/button.html" with label=files_label href=files_url variant="secondary" icon_end="arrow-right" %}
-{% else %}
+{% else %}{% url 'stations:downloads' analysis.pk as files_url %}{% translate "All files and the report" as files_label %}
 {% include "components/button.html" with label=files_label href=files_url icon_end="arrow-right" %}
 {% endif %}</div>

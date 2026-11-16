@@ -328,43 +328,136 @@ def downloads(source) -> dict:
     return {"job": source.job, "zip": main_downloads(source)["zip"]}
 
 
+# The catalogue's sortable columns (#200): the key of ?sort=, and the direction a first
+# click sorts in (names A to Z; the largest trends and the significant ones first).
+SORTS = {
+    "name": "ascending",
+    "code": "ascending",
+    "trend": "descending",
+    "significance": "descending",
+}
+
+
+def _significance_rank(card) -> int:
+    """2 significant, 1 a trend that is not, 0 no trend (too few values, daily tables)."""
+    if not (card.trend and card.trend.get("valid")):
+        return 0
+    return 2 if card.significant else 1
+
+
+def sort_cards(cards: list, sort: str, descending: bool) -> list:
+    """The catalogue's rows sorted by a column (``SORTS``), ties in the catalogue's order.
+    Rows without a trend stay last when sorting by the trend, whichever the direction."""
+    if sort == "name":
+        return sorted(cards, key=lambda c: c.title.casefold(), reverse=descending)
+    if sort == "code":
+        return sorted(cards, key=lambda c: c.code.casefold(), reverse=descending)
+    if sort == "significance":
+        return sorted(cards, key=_significance_rank, reverse=descending)
+    if sort == "trend":
+        with_trend = [c for c in cards if c.trend and c.trend.get("valid")]
+        without = [c for c in cards if c not in with_trend]
+        return sorted(with_trend, key=lambda c: c.trend["slope"], reverse=descending) + without
+    return list(cards)
+
+
+def _column_labels() -> dict[str, str]:
+    return {
+        "name": _("Index"),
+        "code": _("Code"),
+        "trend": _("Trend per decade"),
+        "significance": _("Significance"),
+    }
+
+
+def sort_sentence(column: str, descending: bool) -> str:
+    """What a sort is announced as: "Sorted by Trend per decade, descending." """
+    if descending:
+        return _("Sorted by %(column)s, descending.") % {"column": column}
+    return _("Sorted by %(column)s, ascending.") % {"column": column}
+
+
 def dashboard_context(request, analysis, source, run) -> dict:
+    """The Results page (#200): the answer, the theme tiles, and the catalogue as one
+    table, filtered by theme chip, "Significant only" and a search, and sorted by a column.
+    Without JavaScript the filters are a form sent to this page and the column headers are
+    links; js/results.js does the same in place."""
     q = request.GET.get("q", "").strip()[:100]
     theme = request.GET.get("theme", "")
     significant = request.GET.get("significant") == "1"
+    sort = request.GET.get("sort", "")
+    if sort not in SORTS:
+        sort = ""
+    direction = request.GET.get("dir", "")
+    if direction not in ("ascending", "descending"):
+        direction = SORTS.get(sort, "")
+    descending = direction == "descending"
     found = run.themes()
-    if theme not in {t.key for t in found}:
+    ordered = [c for s in run.sections() for c in s["cards"]]
+    chips = [
+        {"key": key, "label": label, "hue": themes.hue_of(key), "count": n}
+        for key, label in (
+            *((t.key, t.label) for t in found if t.theme.headline),
+            (themes.ALSO_MEASURED, _("Also measured")),
+        )
+        if (n := sum(1 for c in ordered if c.chip == key))
+    ]
+    if theme not in {c["key"] for c in chips}:
         theme = ""
-    sections = run.sections()
     words = q.lower().split()
-    filtering = bool(words or theme or significant)
-    # The "All indices" link of an index's page opens its group without JavaScript.
-    group = request.GET.get("group", "")
     shown = 0
-    for section in sections:
-        for card in section["cards"]:
-            card.hidden = bool(
-                (theme and card.theme != theme)
-                or (significant and not card.significant)
-                or any(w not in card.search_text for w in words)
-            )
-            shown += not card.hidden
-        section["hidden"] = all(c.hidden for c in section["cards"])
-        # Groups start collapsed, unless a filter shows what is in them or a link asks.
-        section["open"] = not section["hidden"] and (filtering or section["key"] == group)
-    first_year = (analysis.summary or {}).get("first_year", "")
+    for position, card in enumerate(ordered):
+        # What js/results.js sorts and filters by, as the server does.
+        card.position = position
+        card.sort_rank = _significance_rank(card)
+        card.sort_trend = repr(float(card.trend["slope"])) if card.sort_rank else ""
+        card.hidden = bool(
+            (theme and card.chip != theme)
+            or (significant and not card.significant)
+            or any(w not in card.search_text for w in words)
+        )
+        shown += not card.hidden
+    rows = sort_cards(ordered, sort, descending)
+    # Each header links to the page sorted by its column, the filters kept: the first
+    # click in the column's own direction, a second the other way.
+    filters = {k: v for k, v in (("q", q), ("theme", theme)) if v}
+    if significant:
+        filters["significant"] = "1"
+    labels = _column_labels()
+    page = reverse("stations:results", args=[analysis.pk])
+    columns = []
+    for key, first in SORTS.items():
+        state = direction if key == sort else ""
+        to = first
+        if state:
+            to = "ascending" if state == "descending" else "descending"
+        columns.append(
+            {
+                "key": key,
+                "label": labels[key],
+                "sort": state,
+                "first": first,
+                "href": f"{page}?{urlencode({**filters, 'sort': key, 'dir': to})}#catalogue",
+            }
+        )
+    summary = analysis.summary or {}
+    first_year = summary.get("first_year", "")
+    last_year = summary.get("last_year", "")
     return {
         "source": source,
         "run": run,
-        "sections": sections,
+        "rows": rows,
+        "columns": columns,
+        "sort": sort,
+        "direction": direction,
+        "sort_text": sort_sentence(labels[sort], descending) if sort else "",
+        "series_years": f"{first_year}–{last_year}" if first_year and last_year else "",
         "summary_sentences": themes.summary(run.cards, found, first_year),
         "headline_themes": [_theme_entry(analysis, t) for t in found if t.theme.headline],
-        "also_measured": [_theme_entry(analysis, t) for t in found if not t.theme.headline],
-        "themes": found,
+        "chips": chips,
         "q": q,
         "theme": theme,
         "significant": significant,
-        "filtering": filtering,
         "shown": shown,
         "total": len(run.cards),
         "significant_count": sum(1 for c in run.cards if c.significant),
@@ -390,11 +483,12 @@ def stale_context(analysis, shown, running) -> dict | None:
 
 
 def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
-    """A theme's headline (or "Also measured" line) for the template: its finding, its
-    largest significant trends as links, and a link to its indices in the catalogue."""
+    """A theme's tile for the template: its finding, its largest significant trends as
+    links (the value and its units apart, as the tile sets them), and a link to its
+    indices in the catalogue."""
     page = reverse("stations:results", args=[analysis.pk])
     n = len(found.cards)
-    entry = {
+    return {
         "key": found.key,
         "label": found.label,
         "hue": found.hue,
@@ -405,7 +499,10 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
                 "href": reverse("stations:result", args=[analysis.pk, card.key]),
                 "title": card.title,
                 "code": card.code,
-                "trend": themes.trend_text(card),
+                "value": card.trend["slope_text"],
+                # Short, so the trend keeps to one line: "pp / decade" (#200).
+                "units": short_units(card),
+                "units_title": card.trend_units if card.units == "%" else "",
                 "direction": card.trend["direction"],
                 "spark": card.spark,
             }
@@ -416,31 +513,13 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
             "See the %(n)s index in %(theme)s", "See all %(n)s indices in %(theme)s", n
         )
         % {"n": n, "theme": found.label},
-        "note": "",
     }
-    if found.key == "averages":
-        mean = next((c for c in found.cards if c.key == themes.MEAN_TEMPERATURE), None)
-        if mean is not None and mean.trend and mean.trend.get("valid"):
-            entry["note"] = _("Mean temperature (%(code)s): %(trend)s") % {
-                "code": mean.code,
-                "trend": themes.trend_text(mean),
-            }
-    elif found.key == "custom":
-        # The user's own index: its definition, and its trend in words.
-        card = found.cards[0]
-        entry["definition"] = card.definition
-        entry["code"] = card.code
-        entry["more_href"] = reverse("stations:result", args=[analysis.pk, card.key])
-        entry["more_label"] = _("Open %(code)s") % {"code": card.code}
-        if card.significant:
-            entry["finding"] = (
-                _("Increased significantly: %(trend)s.")
-                if card.trend["direction"] == "up"
-                else _("Decreased significantly: %(trend)s.")
-            ) % {"trend": themes.trend_text(card)}
-        elif card.trend and card.trend.get("valid"):
-            entry["finding"] = _("No significant change.")
-    return entry
+
+
+def short_units(card) -> str:
+    """A trend's units in a theme tile: "pp" for percentage points (spelt out in its
+    ``abbr``), the index's units otherwise."""
+    return _("pp") if card.units == "%" else card.trend_units
 
 
 # ---- one index ---------------------------------------------------------------------------

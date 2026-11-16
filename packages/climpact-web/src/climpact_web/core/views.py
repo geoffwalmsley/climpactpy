@@ -105,14 +105,15 @@ def pattern_context(form):
             {"label": _("Read station file"), "state": "done"},
             {"label": _("Quality control"), "state": "failed"},
         ],
-        # A theme headline (#175): two trends with their sparklines (SVG path data in a
+        # A theme tile (#175, #200): two trends with their sparklines (SVG path data in a
         # 240 x 60 box, as stations.results.sparkline draws them).
         "theme_items": [
             {
                 "href": "#findings",
                 "title": _("Tropical nights"),
                 "code": "TR",
-                "trend": _("+4.65 days per decade"),
+                "value": "+4.65",
+                "units": _("days"),
                 "direction": "up",
                 "spark": {
                     "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
@@ -123,7 +124,9 @@ def pattern_context(form):
                 "href": "#findings",
                 "title": _("Amount of warm nights"),
                 "code": "TN90p",
-                "trend": _("+1.31 percentage points per decade"),
+                "value": "+1.31",
+                "units": _("pp"),
+                "units_title": _("percentage points"),
                 "direction": "up",
                 "spark": {
                     "line": "M0 48L40 50L80 40L120 38L160 28L200 24L240 14",
@@ -131,6 +134,46 @@ def pattern_context(form):
                 },  # fmt: skip
             },
         ],
+        # The catalogue's chips (#200), as the Sydney sample's.
+        "chips_demo": [
+            {"key": "heat", "label": _("Heat"), "hue": "heat", "count": 30},
+            {"key": "cold", "label": _("Cold"), "hue": "cold", "count": 12},
+            {"key": "rain", "label": _("Rain"), "hue": "rain", "count": 13},
+            {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
+            {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
+        ],
+        "catalogue_years": "1936–2015",
+        "catalogue_counts": {"all": 80, "significant": 22},
+        # The catalogue table (#200): three rows, sorted by the trend.
+        "catalogue_demo": [
+            {
+                "title": _("Tropical nights"),
+                "code": "TR",
+                "hue": "heat",
+                "value": "+4.65",
+                "units": _("days"),
+                "direction": "up",
+                "significant": True,
+            },
+            {
+                "title": _("Amount of cold nights"),
+                "code": "TN10p",
+                "hue": "cold",
+                "value": "−1.93",
+                "units": _("percentage points"),
+                "direction": "down",
+                "significant": True,
+            },
+            {
+                "title": _("Annual total precipitation"),
+                "code": "PRCPTOT",
+                "hue": "rain",
+                "value": "−4.1",
+                "units": _("mm"),
+                "direction": "down",
+                "significant": False,
+            },
+        ],  # fmt: skip
         # The Inputs panel and a side sheet (#198).
         **inputs_demo(),
         # The workspace tabs (#179), one with every status and one as on a first visit.

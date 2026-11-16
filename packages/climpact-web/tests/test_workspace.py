@@ -98,7 +98,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     html = page(client, analysis)
     assert "Results are out of date. Recalculating" in html
     assert "You changed the base period to 1981–2010. These results use 1971–2000." in html
-    assert 'class="stale-content' in html and "data-results-section" in html  # still shown
+    assert 'class="stale-content' in html and "data-results-table" in html  # still shown
     assert 'id="results-progress"' in html
     assert states(html) == {"quality": "done", "results": "stale", "files": "stale"}
     # The panel highlights the base period, with the run's progress beneath it.
@@ -162,7 +162,7 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     assert "Quality thresholds · changed" in html and ">1 changed<" in html
     html = page(client, analysis)
     assert "You changed the quality-control thresholds." in html
-    assert states(html)["results"] == "stale" and "data-results-section" in html
+    assert states(html)["results"] == "stale" and "data-results-table" in html
     assert run_next() == new_qc
     finish(new_run)
     assert states(page(client, analysis)) == {"quality": "done", "results": "done",
@@ -337,7 +337,8 @@ def test_no_settings_forms_on_the_output_tabs(client):
     changed in the Inputs panel's sheets."""
     analysis, _qc, _run = in_use(client)
     base = f"/station/{analysis.pk}"
-    allowed = {f"{base}/quality/continue", f"{base}/delete", f"{base}/results", ""}
+    allowed = {f"{base}/quality/continue", f"{base}/delete", f"{base}/results",
+               f"{base}/results#catalogue", ""}  # fmt: skip
     for path in ("quality", "results", "downloads", "results/txx", "sector"):
         html = re.sub(r"<dialog.*?</dialog>", "", page(client, analysis, path), flags=re.S)
         forms = re.findall(r"<form([^>]*)>(.*?)</form>", html, re.S)

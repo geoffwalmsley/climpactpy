@@ -108,17 +108,18 @@ def test_downloads_page_redirects_and_is_private(client):
 
 
 def test_dashboard_and_index_page_offer_one_download(client):
-    """Results offer the zip and a link to Files, nothing else; an index page only its
-    chart's own exports (#173, #176)."""
+    """Results offer the zip, nothing else, the Files tab listing the rest; an index page
+    only its chart's own exports (#173, #176, #200)."""
     analysis, job = finished_analysis(client)
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
-    # The header: one primary action, the zip, and one secondary link, to Files (#173).
+    # The header (#200): one primary action, the zip, and the sector comparison.
     actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     assert actions.count('class="button"') == 1 and "Download all (zip" in actions
     assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
-    assert f'href="/station/{analysis.pk}/downloads"' in actions
+    assert f'href="/station/{analysis.pk}/sector"' in actions
+    assert f'href="/station/{analysis.pk}/downloads"' not in actions  # the Files tab
     # No other file on the page (#176): the zip is its only download.
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
     assert files == [f"{STATION}.zip"]

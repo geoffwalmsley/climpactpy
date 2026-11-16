@@ -81,9 +81,9 @@ def test_tour_script_stays_small():
 HOOK_CLASSES = {
     "batch-progress", "download-group", "download-link", "empty-filter", "file-browser__folder",
     "gmap__cell--selected", "gmap__svg", "gridded-checks__problems", "gridded-explore__help",
-    "gridded-map", "gridded-series", "help-page", "index-card__daily", "index-card__meta",
+    "gridded-map", "gridded-series", "help-page",
     "job-files", "job-page", "job-progress", "numeric", "param", "qc-charts", "qc-check",
-    "qc-page", "result-nav", "results-actions", "results-filter__significant",
+    "qc-page", "result-nav", "results-actions",
     "sector-settings__summary", "series-nav", "tabs", "tabs__panel-heading", "trend-summary",
     "alert--info", "invalid", "ready", "success", "warning",
 }  # fmt: skip

@@ -86,7 +86,7 @@ tokens only: a test fails on a hex colour outside the two token blocks.
   is neutral: an info alert or badge is ink on the sunken surface.
 - **Theme hues** mark data. Heat, Cold, Rain and Drought each have one hue, and the
   themes under "Also measured" share a neutral. The hue colours the theme tile's top
-  edge, its pill and dot, the filter chip's dot, the catalogue card's dot, the
+  edge, its pill and dot, the filter chip's dot, the catalogue row's dot, the
   sparklines and the index page's chart line (a `hue-<theme>` class on the block, from
   `stations.themes.hue_of`). The theme's name is always beside the hue.
 - Hover is a neutral change (the sunken surface, or a thicker underline on links), never
@@ -178,7 +178,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `badge` | Primitive | Status in words, never colour alone. Info is neutral; `hue` is a theme's pill (its hue on its tint) | info, success, warning, danger, hue |
 | `hue-dot`, `hue-*` | Primitive | A theme's colour: `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought`, `hue-other` on a block set `--hue` and `--hue-soft` for what is inside it; `hue-dot` is its dot, always beside the theme's or index's name | — |
 | `stat` | Primitive | One number with label and note; the label is a group label | — |
-| `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Also measured") | — |
+| `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Your inputs") | — |
 | `section-header` | Component | A section's heading, an optional muted note (`section-header__note`), then the Help pill (`{% section_help %}`) at the end of the row. The pill is 30px high with a ringed question mark and a word: "Help", or a question where it helps (`label="How to read this"`) | with note, with a specific label |
 | `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. The Quality verdict keeps its status tint | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
@@ -197,7 +197,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky workspace header (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines | changed, quiet (no change) |
+| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp / decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme" | changed, quiet (no change: the sunken surface, one sentence, no trends) |
+| Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
@@ -255,12 +256,12 @@ keyboard. This is not optional.
   labelled Help button at the end of the row (a pill with a word, specific where it helps:
   "How to read this"). At most one per section, none on sections that explain
   themselves; a Help button in the app bar opens the page's guide.
-- **Group findings by what people ask about.** Results lead with one paragraph, then a
-  headline per theme (Heat, Cold, Rain, Drought) and an "Also measured" line for the
-  rest; the full catalogue follows. **Target:** #200: the answer in a tinted band, the
-  theme tiles, then the 80 indices as one filterable, sortable table with no family
-  accordions. "No significant change" is a finding, shown in a
-  quiet panel, not left out. Findings are template sentences built from the data, never
+- **Group findings by what people ask about.** Results lead with the answer in a tinted
+  band (the count, and one paragraph whose first sentence is bold), then a tile per theme
+  (Heat, Cold, Rain, Drought), then the 80 indices as one table, filtered by theme chip
+  ("Also measured" for the rest), significance and search, and sortable by any column,
+  with no family accordions. "No significant change" is a finding, shown in a quiet
+  tile, not left out. Findings are template sentences built from the data, never
   written by hand for a station. The theme mapping lives in `stations/themes.py`.
 - **Never change the user's data, and say so.** The app reports; the user decides.
 
@@ -273,7 +274,8 @@ keyboard. This is not optional.
   Inside a card, separate groups with spacing and headings, not another border.
 - **Don't offer downloads everywhere.** Files live in one Files section
   (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
-  PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
+  PNG/SVG/CSV. Results have the zip, primary in the workspace header beside "Compare with
+  sector data", and the Files tab; Quality has one link to Files
   under Details; an index page has only its chart's exports.
 - **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when

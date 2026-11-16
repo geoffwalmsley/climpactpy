@@ -226,7 +226,7 @@
 
     <section class="pattern" id="findings" aria-labelledby="findings-title">
       <h2 id="findings-title">{% translate "Findings by theme" %}</h2>
-      <p class="text-sm text-text-muted">{% translate "A theme headline answers first: one sentence written from the trends, then up to three significant trends with plain names, codes, units and sparklines. With no significant trend it is quiet, because no change is a finding too." %}</p>
+      <p class="text-sm text-text-muted">{% translate "A theme tile answers first: one sentence written from the trends, then up to three significant trends, one line each: the plain name, the value with its units and a sparkline. With no significant trend it is quiet, on the sunken surface with one sentence, because no change is a finding too." %}</p>
       <p class="text-sm text-text-muted">{% translate "Each theme has its hue: the tile's edge, its pill, its dot, its sparklines and its index charts. The filter chips and the catalogue's dots use the same hues, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
       {% translate "Heat" as th1 %}{% translate "9 changed" as th1_badge %}{% translate "9 of 22 indices increased significantly." as th1_finding %}{% translate "See all 30 indices in Heat" as th1_more %}
       {% translate "Rain" as th2 %}{% translate "No clear change" as th2_badge %}{% translate "No significant change across 13 indices." as th2_finding %}{% translate "See all 13 indices in Rain" as th2_more %}
@@ -234,13 +234,39 @@
         {% include "components/theme_headline.html" with id="pattern-heat" title=th1 hue="heat" badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
         {% include "components/theme_headline.html" with id="pattern-rain" title=th2 hue="rain" badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
       </div>
-      <div class="pattern__demo chips mt-4" role="group" aria-label="{% translate 'Theme chips' %}">
-        <label class="chip"><input type="radio" name="pattern-theme" value="" checked><span>{% translate "All (80)" %}</span></label>
-        <label class="chip"><input type="radio" name="pattern-theme" value="heat"><span class="hue-dot hue-heat" aria-hidden="true"></span><span>{% translate "Heat (30)" %}</span></label>
-        <label class="chip"><input type="radio" name="pattern-theme" value="cold"><span class="hue-dot hue-cold" aria-hidden="true"></span><span>{% translate "Cold (12)" %}</span></label>
-        <label class="chip"><input type="radio" name="pattern-theme" value="rain"><span class="hue-dot hue-rain" aria-hidden="true"></span><span>{% translate "Rain (13)" %}</span></label>
-        <label class="chip"><input type="radio" name="pattern-theme" value="drought"><span class="hue-dot hue-drought" aria-hidden="true"></span><span>{% translate "Drought (9)" %}</span></label>
-        <label class="chip"><input type="radio" name="pattern-theme" value="averages"><span class="hue-dot hue-other" aria-hidden="true"></span><span>{% translate "Averages (5)" %}</span></label>
+      <h3 class="mt-6">{% translate "Catalogue" %}</h3>
+      <p class="text-sm text-text-muted">{% translate "Every index in one table under the tiles. Theme chips with their dot and count, Significant only and a search filter it as you type. Each column header sorts it: a link without JavaScript, a button with it, aria-sort on the sorted column and the result said in the live line. The table scrolls inside its region under a sticky header, so the page stays short." %}</p>
+      <div class="pattern__demo stack stack--sm">
+        <div class="filters" role="group" aria-label="{% translate 'Theme chips' %}">
+          <label class="chip"><input type="radio" name="pattern-theme" value=""><span>{% translate "All" %}</span> <span class="chip__count">{{ catalogue_counts.all }}</span></label>
+          {% for chip in chips_demo %}<label class="chip"><input type="radio" name="pattern-theme" value="{{ chip.key }}"{% if forloop.first %} checked{% endif %}><span class="hue-dot hue-{{ chip.hue }}" aria-hidden="true"></span><span>{{ chip.label }}</span> <span class="chip__count">{{ chip.count }}</span></label>
+          {% endfor %}
+          <label class="chip"><input type="checkbox" name="pattern-significant"><span>{% translate "Significant only" %}</span> <span class="chip__count">{{ catalogue_counts.significant }}</span></label>
+          <div class="search filters__search">{% icon "search" %}<label class="sr-only" for="pattern-catalogue-q">{% translate "Find an index" %}</label><input type="search" id="pattern-catalogue-q" placeholder="{% translate 'Find an index, e.g. TXx, frost' %}"></div>
+        </div>
+        <div class="table-wrap catalogue" role="region" aria-labelledby="pattern-catalogue-caption" tabindex="0">
+          <table class="table catalogue__table">
+            <caption class="sr-only" id="pattern-catalogue-caption">{% translate "Every index and its trend. Select a column header to sort by it." %}</caption>
+            <thead><tr>
+              <th scope="col"><a class="sort" href="#findings">{% translate "Index" %}</a></th>
+              <th scope="col"><a class="sort" href="#findings">{% translate "Code" %}</a></th>
+              <th scope="col" class="num" aria-sort="descending"><a class="sort" href="#findings">{% translate "Trend per decade" %}</a></th>
+              <th scope="col"><a class="sort" href="#findings">{% translate "Significance" %}</a></th>
+              <th scope="col" class="catalogue__spark">{{ catalogue_years }}</th>
+            </tr></thead>
+            <tbody>
+              {% for row in catalogue_demo %}
+              <tr class="hue-{{ row.hue }}">
+                <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="#findings">{{ row.title }}</a></th>
+                <td><code class="index-code">{{ row.code }}</code></td>
+                <td class="num"><span class="trend trend--{{ row.direction }}">{{ row.value }}</span> <span class="text-text-muted">{{ row.units }}</span></td>
+                <td>{% if row.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% endif %}</td>
+                <td class="catalogue__spark">{% include "components/spark.html" with spark=theme_items.0.spark %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 

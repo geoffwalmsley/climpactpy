@@ -266,6 +266,11 @@ class Card:
     order: int = 0
 
     @property
+    def help_topics(self) -> str:
+        """The topics of the index page's ⓘ (#177): the index, and its setting if any."""
+        return " ".join(t for t in (self.topic, self.param_topic) if t)
+
+    @property
     def search_text(self) -> str:
         return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
 

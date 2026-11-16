@@ -6,8 +6,8 @@ page), review, analysis.
 {% endcomment %}
 <section class="stack" id="worth-a-look" aria-labelledby="worth-title">
   <div class="qc-section-head">
-    <h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2>
-    <p class="text-text-muted">{% translate "Unusual values. Many are real extremes. They are grouped so you can see patterns." %}</p>
+    <div class="with-help"><h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2>{% section_help "quality.worth" %}</div>
+    <p class="text-text-muted">{% translate "Unusual values. Many are real extremes." %}</p>
   </div>
   <div class="qc-groups">
     {% for item in groups %}{% with group=item.group check=item.group.check %}
@@ -19,7 +19,6 @@ page), review, analysis.
       </summary>
       <div class="qc-group__body stack stack--sm">
         <p>{{ check.description }}</p>
-        {% help_topic check.help_id %}
         {% if group.by_month %}
         <div class="table-wrap" role="region" aria-labelledby="{{ check.anchor }}-months" tabindex="0">
           <table class="table qc-months">

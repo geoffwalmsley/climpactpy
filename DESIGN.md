@@ -117,7 +117,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `button` | Primitive | Action, or a link styled as one | primary, secondary, ghost, danger; lg, sm; icon, icon only |
 | `badge` | Primitive | Status in words, never colour alone | info, success, warning, danger |
 | `stat` | Primitive | One number with label and note | — |
-| `field`, `field_errors` | Component | Label, hint, input, unit, inline error, help topic | narrow, with unit |
+| `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
 | `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
@@ -125,6 +125,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `alert`, `messages`, `toasts` | Component | Page and transient feedback | info, success, warning, error; dismissible; live |
 | `disclosure` | Component | Help that opens in place (`<details>`) | — |
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
+| `drawer` | Component | A section's help in a side panel, opened by the ⓘ beside the section's heading (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the ⓘ. Without JS the ⓘ links to the same help on its own page | — |
 | `table`, `summary_list` | Component | Data in a keyboard-scrollable region; key–value pairs | empty state |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
@@ -166,7 +167,7 @@ keyboard. This is not optional.
   be real are counted and never change the level.
 - **Write short, plain sentences.** One idea per sentence; no chains of colons and
   semicolons; a verb on every button. Assume the reader is working in a second language.
-  **Target:** copy pass, #177.
+  A page opens with one or two sentences; anything longer goes in its section's help.
 - **Give units with every number,** including stats and trends (percentage points for
   trends of percentage indices).
 - **Plain names first, codes second.** "Hot days" with `TX90p` beside it, never the
@@ -187,8 +188,8 @@ keyboard. This is not optional.
   PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
   under Details; an index page has only its chart's exports.
 - **Don't put a help link under every field.** One ⓘ per section opens that section's help
-  in a side panel; a field keeps a hint only when its value isn't self-explanatory.
-  **Target:** #177.
+  in the drawer; a field keeps a hint only when its value isn't self-explanatory. Section
+  help lives in `help/sections.py`: notes plus the fields' help topics.
 - **Don't show a step's results before the step.** QC flags belong to Quality, not to the
   Load chart (it asks for `?flags=0`).
 - **Don't add a page or step without a decision on it.** A screen that only confirms

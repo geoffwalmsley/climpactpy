@@ -83,9 +83,9 @@ def test_downloads_page_lists_every_file_with_its_size(client):
 def test_downloads_page_says_what_was_not_made(client):
     analysis, job = finished_analysis(client)  # no plots, zip or report
     html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
-    assert "Not made: the zip was switched off" in html
-    assert "Not made in this calculation: the report" in html
-    assert "Not made: the plots were switched off" in html
+    assert "Not made. The zip was switched off" in html
+    assert "Not made. The report was switched off" in html
+    assert "Not made. The plots were switched off" in html
     assert f'href="/station/{analysis.pk}/indices"' in html
 
 
@@ -212,12 +212,12 @@ def test_downloads_page_lists_the_sector_comparison(client):
 
     analysis, _job = sector_analysis(client)
     page = f"/station/{analysis.pk}/downloads"
-    assert "Sector comparison" not in client.get(page).content.decode()
+    assert 'id="sector-title"' not in client.get(page).content.decode()
     client.post(f"/station/{analysis.pk}/sector", {"sample": "1", "detrend": "on"})
     sector = run_next()
     assert sector.status == Status.SUCCEEDED, sector.log
     html = client.get(page).content.decode()
-    assert "Sector comparison" in html
+    assert '<h2 id="sector-title">Sector comparison</h2>' in html
     files = f"/jobs/{sector.pk}/files/"
     csvs = [f for f in sector.result["files"] if f.endswith(".csv")]
     assert csvs and all(f'href="{files}{f}"' in html for f in csvs)

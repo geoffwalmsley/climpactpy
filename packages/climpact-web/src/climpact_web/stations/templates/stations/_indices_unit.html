@@ -1,36 +1,35 @@
-{% load i18n ui help %}{% comment %}
+{% load i18n ui %}{% comment %}
 One group of index parameters, checked as it changes: htmx posts the whole form with
-"group" and swaps in this group re-rendered (stations:indices_validate), with the name its
-index will be written under. Without JavaScript the form is checked when it is sent.
-Parameters: form (IndexParamsForm), group (a key of IndexParamsForm.UNITS), analysis,
-names (IndexParamsForm.output_names()).
+"group" and swaps in this group re-rendered (stations:indices_validate), with its
+warnings. How its index is named is in the section's help (#177). Without JavaScript the
+form is checked when it is sent. Parameters: form (IndexParamsForm), group (a key of
+IndexParamsForm.UNITS), analysis.
 {% endcomment %}
 <div class="grid gap-2 param" id="param-{{ group }}" hx-post="{% url 'stations:indices_validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
   {% if group == "plot_title" %}
-  {% include "components/field.html" with field=form.plot_title help="param.plot_title" %}
+  {% include "components/field.html" with field=form.plot_title %}
   {% elif group == "wsdi_days" %}
-  {% translate "days" as days %}{% include "components/field.html" with field=form.wsdi_days unit=days narrow=True help="param.wsdi_days" %}
+  {% translate "days" as days %}{% include "components/field.html" with field=form.wsdi_days unit=days narrow=True %}
   {% elif group == "csdi_days" %}
-  {% translate "days" as days %}{% include "components/field.html" with field=form.csdi_days unit=days narrow=True help="param.csdi_days" %}
+  {% translate "days" as days %}{% include "components/field.html" with field=form.csdi_days unit=days narrow=True %}
   {% elif group == "rx_days" %}
-  {% translate "days" as days %}{% include "components/field.html" with field=form.rx_days unit=days narrow=True help="param.rx_days" %}
+  {% translate "days" as days %}{% include "components/field.html" with field=form.rx_days unit=days narrow=True %}
   {% elif group == "txtn_days" %}
-  {% translate "days" as days %}{% include "components/field.html" with field=form.txtn_days unit=days narrow=True help="param.txtn_days" %}
+  {% translate "days" as days %}{% include "components/field.html" with field=form.txtn_days unit=days narrow=True %}
   {% elif group == "hdd_base" %}
-  {% include "components/field.html" with field=form.hdd_base unit="°C" narrow=True help="param.hdd_base" %}
+  {% include "components/field.html" with field=form.hdd_base unit="°C" narrow=True %}
   {% elif group == "cdd_base" %}
-  {% include "components/field.html" with field=form.cdd_base unit="°C" narrow=True help="param.cdd_base" %}
+  {% include "components/field.html" with field=form.cdd_base unit="°C" narrow=True %}
   {% elif group == "gdd_base" %}
-  {% include "components/field.html" with field=form.gdd_base unit="°C" narrow=True help="param.gdd_base" %}
+  {% include "components/field.html" with field=form.gdd_base unit="°C" narrow=True %}
   {% elif group == "rnnmm" %}
-  {% translate "mm" as mm %}{% include "components/field.html" with field=form.rnnmm unit=mm narrow=True help="param.rnnmm" %}
+  {% translate "mm" as mm %}{% include "components/field.html" with field=form.rnnmm unit=mm narrow=True %}
   {% elif group == "spei_months" %}
-  {% translate "months" as months %}{% include "components/field.html" with field=form.spei_months unit=months narrow=True help="param.spei_months" %}
+  {% translate "months" as months %}{% include "components/field.html" with field=form.spei_months unit=months narrow=True %}
   {% elif group == "custom" %}
   <fieldset class="field-set" aria-describedby="custom-hint">
     <legend>{% translate "Custom threshold index" %}</legend>
-    <p class="field__hint" id="custom-hint">{% translate "Counts the days each year and month when a variable is above or below a value you choose, for example the days when TX ≥ 40 °C." %}</p>
-    {% help_topic "param.custom" %}
+    <p class="field__hint" id="custom-hint">{% translate "Counts the days a variable is above or below a value, for example TX ≥ 40 °C." %}</p>
     {% include "components/field.html" with field=form.custom_enabled %}
     <div class="form__row items-end grid-cols-fit-60">
       {% include "components/field.html" with field=form.custom_variable %}
@@ -40,9 +39,6 @@ names (IndexParamsForm.output_names()).
     </div>
   </fieldset>
   {% endif %}
-  {% for key, name in names.items %}{% if key == group %}
-  <p class="text-sm text-text-muted [&_code]:text-xs">{% translate "Written as" %} <code>{{ name }}</code></p>
-  {% endif %}{% endfor %}
   {% for key, notes in form.warnings.items %}{% if key == group %}{% for note in notes %}
   <p class="field__warning">{% icon "warning" %}<span>{{ note }}</span></p>
   {% endfor %}{% endif %}{% endfor %}

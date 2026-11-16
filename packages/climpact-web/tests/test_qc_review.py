@@ -585,7 +585,7 @@ def test_continue_needs_finished_checks(client):
     assert response["Location"] == f"/station/{analysis.pk}/quality"
     # Step 3 itself stays open (#78): it says the checks have not finished.
     page = client.get(f"/station/{analysis.pk}/indices").content.decode()
-    assert "quality checks have not been run for this data, or have not finished" in page
+    assert "The quality checks have not run, or have not finished." in page
 
 
 def test_other_sessions_get_404(client, checked):
@@ -659,3 +659,19 @@ def test_chart_payload_rejects_unknown_variables(client, checked):
 def test_job_folder_cleanup_does_not_break_the_page(client, checked):
     shutil.rmtree(checked.qc_job.output_dir)
     assert client.get(f"/station/{checked.pk}/quality").status_code == 200
+
+
+def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
+    """#177: one ⓘ per section of the Quality page opens its help in the drawer; the
+    worklist groups and the thresholds have no help link of their own."""
+    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    assert re.findall(r'href="/help/sections/([^/"?]+)/', page) == [
+        "quality.verdict",
+        "quality.wrong",
+        "quality.worth",
+        "quality.missing",
+        "quality.daily",
+        "quality.distributions",
+        "quality.thresholds",
+    ]
+    assert "help-topic--compact" not in page

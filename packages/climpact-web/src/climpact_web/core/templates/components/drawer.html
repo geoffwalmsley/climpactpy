@@ -1,0 +1,15 @@
+{% load i18n ui %}{% comment %}
+The help drawer (#177, decision E): a side panel with one section's help, opened by the
+section's ⓘ ({% section_help %}). Not modal: the page stays usable, with no backdrop and
+no focus trap. Beside the content on wide screens, below it on narrow ones. Escape or
+the close button closes it, and focus goes back to the ⓘ that opened it. ui.js fills it
+from the ⓘ's <template>; without JavaScript it stays hidden and the ⓘ is a link to the
+help page instead. One per page, in base.html.
+{% endcomment %}
+<aside class="drawer print:hidden" id="help-drawer" aria-labelledby="help-drawer-title" data-drawer hidden>
+  <div class="drawer__header">
+    <h2 class="drawer__title" id="help-drawer-title" tabindex="-1" data-drawer-title>{% translate "Help" %}</h2>
+    <button type="button" class="button button--ghost button--sm button--icon" data-drawer-close>{% icon "close" %}<span class="sr-only">{% translate "Close the help" %}</span></button>
+  </div>
+  <div class="drawer__body" data-drawer-body></div>
+</aside>

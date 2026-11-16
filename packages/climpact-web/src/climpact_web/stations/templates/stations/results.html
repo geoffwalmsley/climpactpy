@@ -15,7 +15,7 @@
   </header>
 
   {% if from_batch %}
-  {% translate "These are this station's results from the batch run. Change the settings to calculate it again here." as batch_note %}
+  {% translate "These results are from the batch run. Change the settings to calculate again here." as batch_note %}
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
@@ -34,15 +34,14 @@
   {% comment %}Answer first (#175): one sentence from the themes, a headline per theme, then
   the indices in no theme, one line each. Built in stations/themes.py from the trends.{% endcomment %}
   <section class="stack" aria-labelledby="findings-title">
-    <h2 id="findings-title">{% translate "What changed" %}</h2>
+    <div class="with-help"><h2 id="findings-title">{% translate "What changed" %}</h2>{% section_help "results.findings" %}</div>
     <p class="findings__answer">{{ summary_sentences|join:" " }}</p>
     <div class="theme-grid">
       {% for t in headline_themes %}
       {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
       {% endfor %}
     </div>
-    <p class="text-sm text-text-muted">{% translate "Each theme shows up to three of its significant trends, largest first. Largest means the trend per decade divided by how much the index varies from year to year, so days, °C and mm can be compared." %}</p>
-    {% help_topic "trend.significance" %}
+    <p class="text-sm text-text-muted">{% translate "Each theme shows up to three significant trends, largest first." %}</p>
     {% if also_measured %}
     <section class="card stack" aria-labelledby="also-title">
       <h3 class="card__title" id="also-title">{% translate "Also measured" %}</h3>
@@ -63,17 +62,16 @@
     {% icon "warning" %}
     <div class="alert__body">
       <h2 class="alert__title">{% blocktranslate count counter=run.skipped|length trimmed %}{{ counter }} index could not be calculated{% plural %}{{ counter }} indices could not be calculated{% endblocktranslate %}</h2>
-      <p>{% translate "Climpact does not write a table whose values are all missing. These are not shown below:" %}</p>
+      <p>{% translate "All their values are missing, so they have no table:" %}</p>
       <ul class="grid gap-1 ps-5 [&_code]:text-xs">
         {% for item in run.skipped %}<li>{% blocktranslate with name=item.name tables=item.tables_text reason=item.reason %}<strong>{{ name }}</strong> ({{ tables }}): {{ reason }}{% endblocktranslate %}</li>{% endfor %}
       </ul>
-      {% help_topic "results.missing_value" %}
     </div>
   </div>
   {% endif %}
 
   <section class="stack" id="catalogue" aria-labelledby="catalogue-title">
-  <h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>
+  <div class="with-help"><h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>{% section_help "results.catalogue" %}</div>
   <form class="results-filter card" method="get" action="{% url 'stations:results' analysis.pk %}" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
     <div class="results-filter__search">
       <label class="field__label" for="results-q">{% translate "Find an index" %}</label>
@@ -139,11 +137,11 @@
     </section>
     <section class="card stack" aria-labelledby="sector-title">
       <h2 class="card__title" id="sector-title">{% translate "Compare with sector data" %}</h2>
-      <p class="text-sm text-text-muted">{% translate "Optional. Upload yearly sector data, such as crop yields, to see how they relate to these indices." %}</p>
+      <p class="text-sm text-text-muted">{% translate "Optional. See how yearly data such as crop yields relates to the indices." %}</p>
       <p>{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
       {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>
     </section>
   </div>
-  <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</span></p>
+  <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>
 </div>
 {% endblock %}

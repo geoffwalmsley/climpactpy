@@ -270,8 +270,8 @@ class SectorForm(forms.Form):
         label=gettext_lazy("Sector data file"),
         required=False,
         help_text=gettext_lazy(
-            "A CSV file of yearly values: a first line Year,<name of your data>, then one "
-            "line per year. Missing values are -99.9."
+            "CSV. A first line Year,<name of your data>, then one line per year. Missing "
+            "values are -99.9."
         ),
         widget=forms.ClearableFileInput(attrs={"accept": ACCEPT, "data-sector-file": ""}),
         error_messages={"empty": gettext_lazy("The file is empty.")},
@@ -280,24 +280,20 @@ class SectorForm(forms.Form):
         label=gettext_lazy("Title"),
         required=False,
         max_length=200,
-        help_text=gettext_lazy("Printed on the plots. Empty: the station name."),
+        help_text=gettext_lazy("Leave empty to use the station name."),
     )
     y_label = forms.CharField(
         label=gettext_lazy("Label for y axis"),
         required=False,
         max_length=200,
-        help_text=gettext_lazy(
-            "The name and units of your data. Empty: the file name up to its first _ or ."
-        ),
+        help_text=gettext_lazy("The name and units of your data, e.g. Wheat yield (t/ha)."),
         widget=forms.TextInput(attrs={"data-sector-label": ""}),
     )
     detrend = forms.BooleanField(
         label=gettext_lazy("Detrend data"),
         required=False,
         initial=True,
-        help_text=gettext_lazy(
-            "Removes the straight-line trend from your data before comparing (recommended)."
-        ),
+        help_text=gettext_lazy("Recommended."),
     )
 
     def __init__(self, *args, summary: dict | None = None, sample: bool = False, **kwargs):

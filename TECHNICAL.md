@@ -2771,6 +2771,7 @@ packages/climpact-web/src/climpact_web/
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts,
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
+      js/drawer.js   the help drawer (#177): opens a section's help beside the content
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
                      loaded with the widget only
@@ -2875,18 +2876,22 @@ packages/climpact-web/src/climpact_web/
                      _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
+    sections.py      section help (#177): the topics and notes behind each section's ⓘ
     indices.py       the index catalogue from the core's climate.indices.csv (display names,
                      groups, parameters); writes index_messages.py
     index_messages.py  generated: the index names and definitions for makemessages
     guides.py        guide pages from Markdown (language folders, English fallback), the
                      generated index catalogue, link resolution, search
     tour.py          the landing page's tour steps
-    views.py, urls.py  /help/: index, search, topics (A to Z), /help/<guide>/
-    templatetags/help.py  `{% help_topic "id" %}`
+    views.py, urls.py  /help/: index, search, topics (A to Z), /help/sections/<id>/,
+                     /help/<guide>/
+    templatetags/help.py  `{% section_help "id" %}`, `{% help_topic "id" %}`
     guides/en/*.md   the guides, in English (accessibility.md: the accessibility
                      statement, #83, linked from every page's footer)
-    templates/help/  index.html, guide.html, topics.html, search.html, _results.html,
-                     _search_form.html, _topic.html, _tour.html
+    templates/help/  index.html, guide.html, topics.html, search.html, section.html,
+                     _results.html, _search_form.html, _section_help.html,
+                     _section_body.html, _topic.html, _tour.html, sections/ (help that
+                     needs markup: the station file format)
   charts/            chart data for the interactive charts (label `charts`, see [Charts](#charts))
     data.py          the payloads: daily series with QC flags, index series with trend, summaries
     views.py, urls.py  /charts/: a station analysis's daily series, a finished job's index
@@ -3981,17 +3986,18 @@ a comment listing its parameters. Labels are passed in already translated
 | Component | Notes |
 | --- | --- |
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons; `form_id` (a submit button outside its form) and `describedby` (`aria-describedby`) |
-| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
+| `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; no help link of its own (#177: the section's ⓘ has the help, and the hint is kept for values that need one); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
 | `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`) |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads (the sector comparison is an action on Results, not a step, #173; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data: check it and describe the station", "Results and downloads") |
+| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads (the sector comparison is an action on Results, not a step, #173; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data", "Results and downloads") |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
+| `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's ⓘ opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the ⓘ's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the ⓘ, unless focus has moved on to the page. See [Help](#help) |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `theme_headline`, `spark` | a theme's finding on the results page (#175): title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
@@ -4047,7 +4053,7 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 70 KB and 12.5 KB gzipped. `ui.js` is about
+stylesheets). Tests hold it under 70 KB and 13 KB gzipped (12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
@@ -4430,8 +4436,9 @@ sector file (`stations:sector_sample`); `.../downloads` the Files page
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
 card, the retention note (an info alert; on the later station pages, steps 1 and 2, it is
-a quiet line of small text with a lock icon at the foot of the page, #173), the file
-format in a disclosure and the session's recent analyses. `station_file.inspect_station_bytes` checks the file before anything is saved:
+a quiet line of small text with a lock icon at the foot of the page, #173), the session's
+recent analyses. The file format, with an example, is in the help of the file section's ⓘ
+(#177). `station_file.inspect_station_bytes` checks the file before anything is saved:
 
 - *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
   data rows, a line without six values, a value that is not a number (`NA` is accepted as
@@ -4483,7 +4490,7 @@ base period). Each group is a `<div>` with `hx-post` to `.../load/validate`,
 server validates the whole form and returns only that group, re-rendered with its
 errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
 whole form is posted and the page shows every error with the error summary.
-"Continue to quality checks" saves the metadata, moves `step` to `qc` and redirects to
+"Check quality" saves the metadata, moves `step` to `qc` and redirects to
 step 2. The station details come first on the page, above the data summary and the
 chart, with this one button below the fields it confirms (#173). #114 had put a second
 button, "Details look right", under the heading when the details were already valid, so
@@ -4590,10 +4597,11 @@ DTR, operator, threshold), with R's defaults. The fields' own limits give plain 
 and `clean()` then runs the core's `climpact.batch.validate_params` (R's
 `validate_climdexInputParams`) on the `IndexParams` built from them, so the form accepts
 exactly what the core accepts (a test checks every boundary). Each field has its unit, a
-hint with R's default and its `param.*` help topic. The fields are grouped (spell lengths,
-degree days, precipitation and drought, your own index, files) and each group is checked
-by htmx as it changes (`stations:indices_validate`, as step 1's groups), which also shows
-the name the index will be written under (`rx3day`, `r30mm`, `24month_spi`, `TXge40`) and
+short hint with R's default. The fields are grouped (spell lengths, degree days,
+precipitation and drought, your own index, files), each group with an ⓘ whose help has
+the groups' `param.*` topics and how the index is named (with 3 days, WSDId is written as
+`wsdi3`; #177 moved this from a "Written as" line under each field). Each group is checked
+by htmx as it changes (`stations:indices_validate`, as step 1's groups), which shows
 warnings that do not stop the run: d = 6 for WSDId or CSDId, Rx1day/Rx5day, R10mm/R20mm
 and the 3, 6 and 12-month scales duplicate indices always calculated. R's station screen
 has no EHF definition (station runs always use Nairn and Fawcett 2013, the only one
@@ -4995,18 +5003,18 @@ R behaviour not copied, and why:
 The in-app help (#81) replaces the R app's long user guide
 (`climpact/www/user_guide/Climpact_user_guide.md`) and its per-tab "Instructions" boxes and
 hover tooltips (`bsTooltip` in `modules/singleStationStep2UI.R`, `singleStationStep3UI.R`).
-It has four parts, all in the `help` app: **contextual help topics** that open in place
-next to fields and results, **guide pages** written in Markdown, a **search** and an A-Z
+It has five parts, all in the `help` app: **contextual help topics**, **section help** that
+opens them in a drawer beside the page (#177), **guide pages** written in Markdown, a **search** and an A-Z
 **list of topics**, and a short optional **first-run tour** of the landing page. The
 standalone user guide and handover documents are #12.
 
 **Contextual help topics** (`help/topics.py`). A topic is an id, a title, one or two
 plain sentences and the guide section that says more (`Topic.url`, a guide and an
-anchor). A screen shows one with
+anchor). The station pages show topics through their sections' help (below). The batch and gridded
+pages still show some in place with
 
 ```django
-{% load help %}{% help_topic "station.base_period" %}
-{% include "components/field.html" with field=form.rx_days help="param.rx_days" %}
+{% load help %}{% help_topic "batch.metadata_file" %}
 ```
 
 which renders a `<details>` (no JavaScript): the title as a quiet link-style summary
@@ -5015,14 +5023,48 @@ with "More in the guide: ..." linking to the section. `variant="block"` gives th
 `disclosure` instead, `summary="..."` replaces the title. A topic can also have a
 `question`, which the in-place link says instead of the title when the title would repeat or
 contradict the heading it sits under (#115): the QC checks ("What counts as too large?"
-under "Values too large"), the missing days, the daily series. The index page asks "How is
-SU defined?" (`summary=`). The title stays the topic's name in the list of topics. An unknown id raises
+under "Values too large"), the missing days, the daily series. The title stays the topic's name in the list of topics. An unknown id raises
 `UnknownTopic` with `DEBUG` or `HELP_STRICT` (set in the test settings); otherwise it is
 logged and nothing is shown, so a typo cannot break a page in production.
 
-**Topic ids for the screens.** These are the contract with the later screens; the QC
-(#77), indices and results (#78), sector (#90) and gridded (#85) screens drop them in with
-`{% help_topic %}` or `help=`. All exist now and point at written guide sections.
+**Section help** (`help/sections.py`, #177, decision E). A field no longer has a help
+link of its own (`components/field.html` lost its `help=` parameter): each section of a
+screen has one ⓘ beside its heading, which opens the section's help in the drawer
+(`components/drawer.html`, see [Design system](#design-system)).
+
+```django
+{% load help %}<div class="with-help"><h2 id="details-title">…</h2>{% section_help "load.details" %}</div>
+{% section_help "result.index" topics=card.help_topics title=card.code %}
+```
+
+A `Section` (`S(...)` in `SECTIONS`) has an id `<page>.<section>`, the section's title, its
+topic ids, a few short `Note`s (a sentence, with an optional heading) and optionally an
+`extra` template for help that needs markup (the station file's format and example,
+`help/sections/_station_file_format.html`). The tag renders, in `help/_section_help.html`:
+a link to `/help/sections/<id>/` (`help:section`, the same help on a page of its own, for
+browsers without JavaScript), a hidden button that `js/drawer.js` shows in place of the
+link, both named "Help: <title>" (visually hidden text beside the icon), and a
+`<template>` with the help (`help/_section_body.html`: the notes, the extra template, each
+topic's title and text, and one "More in the guide" link per guide, to the first of the
+section's topics in it). `topics=` puts the screen's own topics first (an index page adds
+its index and its setting, `Card.help_topics`), `title=` names the help after them
+("Help: TXx"); the help page takes the same as `?topics=`. Long explanations moved from
+the pages into these notes (#177's copy pass): the verdict's three levels and their limits
+(`qc_review.VERDICT_LIMITS`, checked by a test), how the box plots are drawn, why the
+largest trends come first, how parameterised indices are named, what each group of files
+holds. An unknown section or topic fails as `help_topic` does. The station pages' ids:
+
+| Page | Sections |
+| --- | --- |
+| Load (upload, step 1) | `upload.file`, `load.details`, `load.data` |
+| Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds` |
+| Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
+| Results, an index, Files | `results.findings`, `results.catalogue`; `result.index`, `result.anomalies`, `result.trends`; `files.page` |
+| Sector | `sector.data`, `sector.plot`, `sector.correlation`, `sector.scatter` |
+| Batch and gridded (fields that had a help link) | `batch.options`, `gridded.task`, `gridded.output`, `gridded.settings`, `gridded.computing` |
+
+**Topic ids for the screens.** All exist and point at written guide sections; the
+sections above and the remaining `{% help_topic %}`s use them.
 
 | Family | Ids |
 | --- | --- |
@@ -5119,9 +5161,16 @@ are passed through `gettext` when shown.
 unresolved `guide:`/`url:` link; **no broken help link**: every link on the help pages,
 the landing page, step 1 and the batch pages that goes to `/help/` or an `#anchor`
 answers 200 and the anchor exists on the target page (over 300 links); every topic's guide
-and anchor exist; every id used in a template (`help_topic` or `help=`) exists; every form
-field of step 1 and the batch page has help text (the base period's two years share the
-fieldset's hint and topic); the step 1 and batch screens show their topics; the
+and anchor exist; every id used in a template (`help_topic`) exists; every section used in a
+template (`section_help`) exists and its topics too, and no field is given a help topic;
+every form field of step 1 and the batch page has a hint (the base period's two years
+share the fieldset's hint, and the station name's help is its section's); the ⓘ's link,
+button and template; every section's help page, and `?topics=`; one hidden drawer on every
+page; the verdict's help states `VERDICT_LIMITS`; the step 1 and batch screens show their
+topics. `test_qc_review.py`, `test_indices_results.py` and `test_sector_web.py` check that
+each station page has its sections' ⓘ in order and no help link under a field, and the
+browser tests open the drawer by keyboard (Tab to the ⓘ, Enter, Escape, focus back) and
+from every ⓘ of every station page; the
 catalogue covers every short name of `climate.indices.csv` exactly once, with a group,
 display name, units and an entry in the indices guide; output-name mapping;
 `index_messages.py` is current; search (full page and htmx fragment); the English fallback
@@ -5265,7 +5314,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 12.0 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 12.5 of 13 KB, `drawer.js` 1.0 of 1 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`

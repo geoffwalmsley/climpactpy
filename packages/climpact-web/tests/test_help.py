@@ -1,5 +1,6 @@
-"""In-app help (#81): guide pages, contextual help topics, the index catalogue, search,
-translations with English fallback, and the first-run tour."""
+"""In-app help (#81): guide pages, contextual help topics, section help in the drawer
+(#177), the index catalogue, search, translations with English fallback, and the
+first-run tour."""
 
 import json
 import re
@@ -11,10 +12,11 @@ import pytest
 from django.template import Context, Template
 from django.test import override_settings
 from django.utils import translation
+from django.utils.html import escape
 
 import climpact_web
 from climpact_web.batch import forms as batch_forms
-from climpact_web.help import guides, indices, topics
+from climpact_web.help import guides, indices, sections, topics
 from climpact_web.help.guides import GUIDE_ORDER, get_guide, search
 from climpact_web.help.topics import UnknownTopic, get_topic, index_topic_for_output
 from climpact_web.stations import forms as station_forms
@@ -164,9 +166,21 @@ def test_every_topic_used_in_a_template_exists():
     for template in TEMPLATES:
         source = template.read_text()
         used |= set(re.findall(r'{%\s*help_topic\s+"([^"]+)"', source))
-        used |= set(re.findall(r'\bhelp="([^"]+)"', source))
     assert used, "no help topics used"
     assert used <= topics.topic_ids(), used - topics.topic_ids()
+
+
+def test_every_section_used_in_a_template_exists_and_its_topics_too():
+    used = set()
+    for template in TEMPLATES:
+        source = template.read_text()
+        used |= set(re.findall(r'{%\s*section_help\s+"([^"]+)"', source))
+        # A field no longer takes a help topic of its own (#177).
+        assert not re.search(r'components/field\.html"[^%]*\bhelp=', source), template.name
+    assert used == sections.section_ids(), used ^ sections.section_ids()
+    for section in sections.SECTIONS:
+        assert section.topics or section.notes, section.id
+        assert set(section.topics) <= topics.topic_ids(), section.id
 
 
 # ---- Contextual help ---------------------------------------------------------------------
@@ -217,22 +231,109 @@ def test_unknown_topic_fails_in_tests_and_is_hidden_in_production(settings, capl
     assert "unknown help topic 'no.such'" in caplog.text
 
 
-def test_field_component_shows_a_help_topic():
+def test_field_component_has_no_help_link_of_its_own():
+    """#177: a field has its label, a short hint and its errors; its section's ⓘ has the
+    help."""
     form = station_forms.MetadataForm()
-    html = Template(
-        '{% include "components/field.html" with field=form.latitude help="station.latitude" %}'
-    ).render(Context({"form": form}))
-    assert 'data-help-topic="station.latitude"' in html
+    html = Template('{% include "components/field.html" with field=form.latitude %}').render(
+        Context({"form": form})
+    )
+    assert "help-topic" not in html and "help-button" not in html
+    assert 'id="id_latitude_helptext"' in html and "Negative south of the equator." in html
+
+
+def test_section_help_is_a_link_and_a_button_for_the_drawer():
+    """#177: the ⓘ is a link to the section's help page, for browsers without JavaScript,
+    and a hidden button that drawer.js shows, which opens the drawer with the help in the
+    <template> beside it. Both are named "Help: <section>"."""
+    html = render_topic('{% section_help "load.details" %}')
+    link = re.search(r'<a class="help-button" href="([^"]+)" data-help-link>.*?</a>', html, re.S)
+    assert link.group(1) == "/help/sections/load.details/"
+    assert '<span class="sr-only">Help: Station details</span>' in link.group(0)
+    button = re.search(r'<button type="button" class="help-button"[^>]*>', html).group(0)
+    assert 'data-drawer-open="help-load-details"' in button
+    assert 'aria-controls="help-drawer"' in button and 'aria-expanded="false"' in button
+    assert " hidden" in button
+    template = re.search(r'<template id="help-load-details"[^>]*>(.*)</template>', html, re.S)
+    assert 'data-title="Help: Station details"' in template.group(0)
+    body = template.group(1)
+    for topic_id in ("station.name", "station.latitude", "station.longitude"):
+        assert f'data-help-topic="{topic_id}"' in body
+    assert 'data-help-topic="station.base_period"' in body
+    assert "These details change the results." in body
+    # One link per guide the topics point to, to the first topic's section in it.
+    assert 'href="/help/station-file/#station-details"' in body
+    assert 'href="/help/base-period/"' in body
+    assert body.count("More in the guide:") == 2
+
+
+def test_section_help_with_the_screens_own_topics():
+    html = render_topic('{% section_help "result.index" topics="index.txx" title="TXx" %}')
+    assert 'href="/help/sections/result.index/?topics=index.txx"' in html
+    assert '<span class="sr-only">Help: TXx</span>' in html
+    first, then = 'data-help-topic="index.txx"', 'data-help-topic="trend.sen_slope"'
+    assert html.index(first) < html.index(then)
+    assert 'id="help-result-index-index-txx"' in html
+
+
+def test_unknown_section_fails_in_tests_and_is_hidden_in_production(settings, caplog):
+    with pytest.raises(sections.UnknownSection):
+        render_topic('{% section_help "no.such" %}')
+    with pytest.raises(UnknownTopic):
+        render_topic('{% section_help "load.details" topics="no.such" %}')
+    settings.HELP_STRICT = False
+    settings.DEBUG = False
+    assert render_topic('{% section_help "no.such" %}').strip() == ""
+    assert "unknown help section 'no.such'" in caplog.text
+
+
+@pytest.mark.parametrize("section", sections.SECTIONS, ids=lambda s: s.id)
+def test_every_section_has_a_help_page(client, section):
+    """Where the ⓘ leads without JavaScript: the same help on a page of its own."""
+    html = client.get(section.url).content.decode()
+    assert f"<h1>{escape(section.title)}</h1>" in html
+    for topic_id in section.topics:
+        assert f'data-help-topic="{topic_id}"' in html
+
+
+def test_section_help_page_with_topics_and_unknown_ones(client):
+    html = client.get("/help/sections/result.index/?topics=index.txx").content.decode()
+    assert "<h1>TXx: Max TX</h1>" in html and 'data-help-topic="index.txx"' in html
+    assert client.get("/help/sections/no.such/").status_code == 404
+    assert client.get("/help/sections/result.index/?topics=no.such").status_code == 404
+
+
+def test_every_page_has_one_hidden_drawer(client):
+    html = client.get("/").content.decode()
+    assert html.count('id="help-drawer"') == 1
+    drawer = re.search(r'<aside class="drawer[^"]*" id="help-drawer"[^>]*>', html).group(0)
+    assert "hidden" in drawer and 'aria-labelledby="help-drawer-title"' in drawer
+    assert "<dialog" not in drawer  # not modal
+    assert html.index("</main>") < html.index('id="help-drawer"') < html.index("<footer")
+    assert "js/drawer.js" in html
+
+
+def test_quality_verdict_help_states_the_verdict_limits():
+    """The limits in the verdict's help are those of qc_review.VERDICT_LIMITS."""
+    from climpact_web.stations.qc_review import VERDICT_LIMITS
+
+    text = " ".join(str(n.text) for n in sections.get_section("quality.verdict").notes)
+    assert f"{VERDICT_LIMITS.wrong_share:.1%}" in text
+    assert f"more than {VERDICT_LIMITS.short_years_share:.0%} of the years" in text
 
 
 def test_step_1_and_batch_screens_show_their_help(client):
     html = client.get("/station/").content.decode()
+    assert 'href="/help/sections/upload.file/"' in html
     assert 'data-help-topic="station.file"' in html
+    assert "year month day prcp tmax tmin" in html  # the example file, in the help
     assert 'href="/help/station-file/"' in html
     load = client.get(client.post("/station/sample")["Location"]).content.decode()
+    assert re.findall(r'href="/help/sections/([^/]+)/"', load) == ["load.details", "load.data"]
     for topic_id in ("station.name", "station.latitude", "station.longitude"):
         assert f'data-help-topic="{topic_id}"' in load
     assert 'data-help-topic="station.base_period"' in load
+    assert "help-topic--compact" not in load  # no help link under a field
     html = client.get("/batch/").content.decode()
     assert 'data-help-topic="batch.metadata_file"' in html
     assert 'data-help-topic="batch.station_files"' in html
@@ -241,8 +342,10 @@ def test_step_1_and_batch_screens_show_their_help(client):
         assert f'data-help-topic="{topic_id}"' in check
 
 
-# The base period's two year fields share the fieldset's hint and help topic.
+# The base period's two year fields share the fieldset's hint; the station name needs no
+# hint, its section's help says what it is used for (#177).
 FIELDSET_COVERED = {"base_start", "base_end"}
+SECTION_COVERED = {"station_name": ("load.details", "station.name")}
 
 
 @pytest.mark.parametrize(
@@ -258,6 +361,10 @@ FIELDSET_COVERED = {"base_start", "base_end"}
 )
 def test_every_form_field_has_help_text(form_class):
     for name, field in form_class().fields.items():
+        if name in SECTION_COVERED:
+            section_id, topic_id = SECTION_COVERED[name]
+            assert topic_id in sections.get_section(section_id).topics
+            continue
         assert field.help_text or name in FIELDSET_COVERED, f"{form_class.__name__}.{name}"
 
 

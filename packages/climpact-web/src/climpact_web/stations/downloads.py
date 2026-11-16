@@ -77,10 +77,7 @@ def main_downloads(source: RunSource) -> dict:
             zip_file,
             _("Everything"),
             "zip",
-            _(
-                "Every file of the run in Climpact for R's folder layout: indices, plots, "
-                "qc, thres and trend."
-            ),
+            _("Every file of the run, in the folder layout of Climpact for R."),
         )
         if zip_file
         else None,
@@ -89,10 +86,7 @@ def main_downloads(source: RunSource) -> dict:
             report_path(source),
             _("Report"),
             "pdf",
-            _(
-                "The station and settings, what the quality checks found, and a page per index "
-                "with its plot and trends, with a table of contents."
-            ),
+            _("The settings, the quality checks, and a page per index with its plot."),
         ),
         "all_plots": _download(
             source,

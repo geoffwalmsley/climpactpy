@@ -82,7 +82,7 @@
     </section>
 
     <section class="card stack" aria-labelledby="task-title">
-      <h2 class="card__title" id="task-title">{% translate "2. What to calculate" %}</h2>
+      <div class="with-help"><h2 class="card__title" id="task-title">{% translate "2. What to calculate" %}</h2>{% section_help "gridded.task" %}</div>
       {% include "components/field.html" with field=form.task %}
       <ul class="m-0 ps-5 text-sm text-text-muted">
         <li>{% translate "Indices: one netCDF file per index and frequency (monthly, annual), as Climpact for R writes them." %}</li>
@@ -90,7 +90,7 @@
         <li>{% translate "Thresholds file, then indices: both, one after the other." %}</li>
       </ul>
       <div class="stack" data-for="source">
-        {% include "components/field.html" with field=form.thresholds_source help="gridded.thresholds_file" %}
+        {% include "components/field.html" with field=form.thresholds_source %}
         <div data-for="source file" class="stack">
           {% if local %}{% include "components/field.html" with field=form.thresholds_path %}
           {% else %}
@@ -117,11 +117,11 @@
     </section>
 
     <section class="card stack" aria-labelledby="output-title">
-      <h2 class="card__title" id="output-title">{% translate "4. Output" %}</h2>
-      <div data-for="indices">{% include "components/field.html" with field=form.template help="gridded.output" %}</div>
+      <div class="with-help"><h2 class="card__title" id="output-title">{% translate "4. Output" %}</h2>{% section_help "gridded.output" %}</div>
+      <div data-for="indices">{% include "components/field.html" with field=form.template %}</div>
       <div data-for="thresholds">{% include "components/field.html" with field=form.thresholds_name %}</div>
       <div class="form__row">
-        {% include "components/field.html" with field=form.institution help="gridded.institution" %}
+        {% include "components/field.html" with field=form.institution %}
         {% include "components/field.html" with field=form.institution_id narrow=True %}
       </div>
       {% if form.copy_to %}{% include "components/field.html" with field=form.copy_to %}{% endif %}
@@ -152,16 +152,16 @@
       <details class="disclosure">
         <summary>{% icon "sliders" %}<span>{% translate "Index parameters" %}</span>{% icon "chevron-down" %}</summary>
         <div class="disclosure__body stack">
-          <p class="text-sm text-text-muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>
+          <div class="with-help"><p class="text-sm text-text-muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>{% section_help "gridded.settings" %}</div>
           <div class="grid gap-x-4 gap-y-3 grid-cols-fill-48">
-            {% include "components/field.html" with field=form.wsdi_days narrow=True help="param.wsdi_days" %}
-            {% include "components/field.html" with field=form.csdi_days narrow=True help="param.csdi_days" %}
-            {% include "components/field.html" with field=form.rx_days narrow=True help="param.rx_days" %}
-            {% include "components/field.html" with field=form.txtn_days narrow=True help="param.txtn_days" %}
-            {% include "components/field.html" with field=form.hdd_base narrow=True help="param.hdd_base" %}
-            {% include "components/field.html" with field=form.cdd_base narrow=True help="param.cdd_base" %}
-            {% include "components/field.html" with field=form.gdd_base narrow=True help="param.gdd_base" %}
-            {% include "components/field.html" with field=form.rnnmm narrow=True help="param.rnnmm" %}
+            {% include "components/field.html" with field=form.wsdi_days narrow=True %}
+            {% include "components/field.html" with field=form.csdi_days narrow=True %}
+            {% include "components/field.html" with field=form.rx_days narrow=True %}
+            {% include "components/field.html" with field=form.txtn_days narrow=True %}
+            {% include "components/field.html" with field=form.hdd_base narrow=True %}
+            {% include "components/field.html" with field=form.cdd_base narrow=True %}
+            {% include "components/field.html" with field=form.gdd_base narrow=True %}
+            {% include "components/field.html" with field=form.rnnmm narrow=True %}
           </div>
           <p class="text-sm text-text-muted">{% translate "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also lists Perkins and Alexander (2013), but its calculation accepts only Nairn and Fawcett." %}</p>
         </div>
@@ -171,8 +171,9 @@
     <details class="disclosure">
       <summary>{% icon "sliders" %}<span>{% translate "Advanced: memory, speed and temporary files" %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body stack">
-        {% if form.workers %}{% include "components/field.html" with field=form.workers narrow=True help="gridded.workers" %}{% endif %}
-        {% include "components/field.html" with field=form.max_values narrow=True help="gridded.max_values" %}
+        <div class="with-help"><p class="text-sm text-text-muted">{% translate "For large grids, or a computer short of memory." %}</p>{% section_help "gridded.computing" %}</div>
+        {% if form.workers %}{% include "components/field.html" with field=form.workers narrow=True %}{% endif %}
+        {% include "components/field.html" with field=form.max_values narrow=True %}
         {% include "components/field.html" with field=form.rechunk %}
         {% if form.tmp_dir %}{% include "components/field.html" with field=form.tmp_dir %}{% endif %}
       </div>

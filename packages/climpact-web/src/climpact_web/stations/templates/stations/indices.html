@@ -7,9 +7,8 @@
   <header class="stack stack--sm">
     <h1>{% translate "Calculate indices" %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name start=analysis.base_start end=analysis.base_end trimmed %}
-      {{ name }}, base period {{ start }} to {{ end }}. Every index is calculated; these
-      settings change the few that take a number of days, a temperature or an amount.
-      Leave them as they are unless you need those indices.
+      {{ name }}, base period {{ start }} to {{ end }}. Every index is calculated. The
+      defaults suit most uses.
     {% endblocktranslate %}</p>
   </header>
 
@@ -18,12 +17,12 @@
   <div class="alert alert--info" role="note">
     {% icon "info" %}
     <div class="alert__body">
-      <p>{% blocktranslate trimmed %}The quality checks have not been run for this data, or have not finished. You can calculate the indices now, as in Climpact for R, but <a href="{{ qc_url }}">checking the data first</a> is recommended.{% endblocktranslate %}</p>
+      <p>{% blocktranslate trimmed %}The quality checks have not run, or have not finished. You can calculate now, as in Climpact for R. But <a href="{{ qc_url }}">check the data first</a> if you can.{% endblocktranslate %}</p>
     </div>
   </div>
   {% endif %}
   {% if source == "batch" %}
-  {% translate "The settings start from this station's line in the batch metadata file." as batch_note %}
+  {% translate "The settings come from this station's line in the batch metadata file." as batch_note %}
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% elif source == "job" %}
   <p class="flex flex-wrap items-center gap-3 text-sm text-text-muted">{% icon "refresh" %}<span>{% translate "These are the settings of your last calculation." %}</span>{% if has_results %} <a href="{% url 'stations:results' analysis.pk %}">{% translate "Back to the results" %}</a>{% endif %}</p>
@@ -38,13 +37,12 @@
       <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="text-sm text-text-muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
       <div class="disclosure__body stack stack--lg text-inherit">
         <section class="card stack" aria-labelledby="plots-title">
-          <h2 class="card__title" id="plots-title">{% translate "Plots" %}</h2>
+          <div class="with-help"><h2 class="card__title" id="plots-title">{% translate "Plots" %}</h2>{% section_help "calculate.plots" %}</div>
           {% include "stations/_indices_unit.html" with group="plot_title" %}
         </section>
 
         <section class="card stack" aria-labelledby="spells-title">
-          <h2 class="card__title" id="spells-title">{% translate "Spell lengths" %}</h2>
-          <p class="text-sm text-text-muted">{% translate "How many days in a row count towards these indices." %}</p>
+          <div class="with-help"><h2 class="card__title" id="spells-title">{% translate "Spell lengths" %}</h2>{% section_help "calculate.spells" %}</div>
           <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="wsdi_days" %}
             {% include "stations/_indices_unit.html" with group="csdi_days" %}
@@ -54,8 +52,7 @@
         </section>
 
         <section class="card stack" aria-labelledby="degree-title">
-          <h2 class="card__title" id="degree-title">{% translate "Degree days" %}</h2>
-          <p class="text-sm text-text-muted">{% translate "The base temperatures heating, cooling and growing degree days are counted from." %}</p>
+          <div class="with-help"><h2 class="card__title" id="degree-title">{% translate "Degree days" %}</h2>{% section_help "calculate.degree" %}</div>
           <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="hdd_base" %}
             {% include "stations/_indices_unit.html" with group="cdd_base" %}
@@ -64,7 +61,7 @@
         </section>
 
         <section class="card stack" aria-labelledby="prcp-title">
-          <h2 class="card__title" id="prcp-title">{% translate "Precipitation and drought" %}</h2>
+          <div class="with-help"><h2 class="card__title" id="prcp-title">{% translate "Precipitation and drought" %}</h2>{% section_help "calculate.prcp" %}</div>
           <div class="grid items-start gap-5 grid-cols-fill-60">
             {% include "stations/_indices_unit.html" with group="rnnmm" %}
             {% include "stations/_indices_unit.html" with group="spei_months" %}
@@ -72,20 +69,19 @@
         </section>
 
         <section class="card stack" aria-labelledby="custom-title">
-          <h2 class="card__title" id="custom-title">{% translate "Your own index" %}</h2>
+          <div class="with-help"><h2 class="card__title" id="custom-title">{% translate "Your own index" %}</h2>{% section_help "calculate.custom" %}</div>
           {% include "stations/_indices_unit.html" with group="custom" %}
         </section>
 
         <section class="card stack" aria-labelledby="ehf-title">
-          <h2 class="card__title" id="ehf-title">{% translate "Heatwave definition" %}</h2>
-          <p>{% translate "Heatwaves are found from the 90th percentiles of TX and TN, and from the excess heat factor (EHF) as defined by Nairn and Fawcett (2013). Climpact uses this EHF definition for every station; there is nothing to choose." %}</p>
-          {% help_topic "index.hwEHF" %}
+          <div class="with-help"><h2 class="card__title" id="ehf-title">{% translate "Heatwave definition" %}</h2>{% section_help "calculate.ehf" %}</div>
+          <p>{% translate "Heatwaves use the excess heat factor of Nairn and Fawcett (2013). There is nothing to choose." %}</p>
         </section>
       </div>
     </details>
 
     <section class="card stack" aria-labelledby="output-title">
-      <h2 class="card__title" id="output-title">{% translate "Files" %}</h2>
+      <div class="with-help"><h2 class="card__title" id="output-title">{% translate "Files" %}</h2>{% section_help "calculate.files" %}</div>
       {% include "components/field.html" with field=form.plots %}
       {% include "components/field.html" with field=form.zip %}
       {% include "components/field.html" with field=form.report %}
@@ -95,7 +91,7 @@
     <div class="form__actions flex flex-wrap items-center gap-3">
       {% translate "Calculate indices" as run_label %}
       {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
-      <span class="text-sm text-text-muted" id="run-time">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots and the report." %}</span>
+      <span class="text-sm text-text-muted" id="run-time">{% translate "About half a minute for 80 years of data." %}</span>
     </div>
   </form>
 

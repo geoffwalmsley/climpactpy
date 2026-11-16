@@ -1,0 +1,13 @@
+{% load i18n %}{% comment %}
+A section's help (#177), in the drawer and on the section's own page: its notes, its
+extra template, its topics, and a link to each guide that says more. Parameters:
+section, topics, guide_links.
+{% endcomment %}<div class="drawer__content stack stack--sm">
+  {% for note in section.notes %}{% if note.title %}<h3 class="drawer__heading">{{ note.title }}</h3>{% endif %}<p>{{ note.text }}</p>{% endfor %}
+  {% if section.extra %}{% include section.extra %}{% endif %}
+  {% for topic in topics %}
+  <h3 class="drawer__heading" data-help-topic="{{ topic.id }}">{{ topic.title }}</h3>
+  <p>{{ topic.text }}</p>
+  {% endfor %}
+  {% if guide_links %}<ul class="drawer__links" role="list">{% for link in guide_links %}<li><a href="{{ link.url }}">{% blocktranslate with title=link.title %}More in the guide: {{ title }}{% endblocktranslate %}</a></li>{% endfor %}</ul>{% endif %}
+</div>

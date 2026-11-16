@@ -90,7 +90,7 @@ def sector_text(first=1980, years=15, value=lambda y: 1 + (y % 7) / 10) -> str:
 def test_needs_the_indices_first(client):
     analysis = ready_analysis(client)
     html = client.get(url(analysis)).content.decode()
-    assert "Calculate the climate indices first" in html
+    assert "Calculate the indices first" in html
     assert f'href="/station/{analysis.pk}/indices"' in html
     assert 'name="sector_file"' not in html
 
@@ -457,3 +457,20 @@ def test_scatter_line_is_the_least_squares_fit():
         and "<title>2004: 4, 9</title>" in svg
     )
     assert scatter.equation == "y = 2 x + 1" and scatter.r_squared_text == "1"
+
+
+def test_every_section_has_its_help(client):
+    """#177: the sector page's sections each have an ⓘ, the results' too."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(url(analysis)).content.decode()
+    assert re.findall(r'href="/help/sections/([^/"?]+)/', html) == ["sector.data", "sector.plot"]
+    assert "help-topic--compact" not in html
+    client.post(url(analysis), {"sample": "1", "detrend": "on"})
+    assert run_next().status == Status.SUCCEEDED
+    html = client.get(url(analysis)).content.decode()
+    assert re.findall(r'href="/help/sections/([^/"?]+)/', html) == [
+        "sector.correlation",
+        "sector.scatter",
+        "sector.data",
+        "sector.plot",
+    ]

@@ -1,0 +1,14 @@
+{% load i18n %}{% comment %}The station file format, in the help of the upload page's file section (#177).{% endcomment %}
+<h3 class="drawer__heading">{% translate "What the file must look like" %}</h3>
+<p>{% translate "One row per day, in date order. Six columns, separated by spaces, tabs or commas:" %}</p>
+<ol>
+  <li>{% translate "year, month and day (whole numbers)" %}</li>
+  <li>{% translate "precipitation in millimetres" %}</li>
+  <li>{% translate "maximum and minimum temperature in degrees Celsius" %}</li>
+</ol>
+<p>{% translate "Write a missing value as -99.9. A first row of column names is allowed. For example:" %}</p>
+<pre class="file-example"><code>year month day prcp tmax tmin
+1936 1 1 0.3 23.7 18.7
+1936 1 2 0.5 24.1 17.7
+1936 1 3 -99.9 25 19.7</code></pre>
+<p>{% translate "Files made for Climpact for R or RClimDex work here unchanged." %}</p>

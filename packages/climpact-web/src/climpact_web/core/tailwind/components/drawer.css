@@ -1,0 +1,98 @@
+/* The help drawer (#177, components/drawer.html) and the ⓘ that opens it. Not modal: on
+   wide screens the page and the drawer share a grid, the drawer in a column beside the
+   content that stays in view as the page scrolls; on narrow screens it follows the
+   content. */
+@layer components {
+  .drawer-layout {
+    display: grid;
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .drawer {
+    border-block-start: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  @media (min-width: 64rem) {
+    .drawer-layout--open {
+      grid-template-columns: minmax(0, 1fr) 22rem;
+    }
+
+    .drawer {
+      position: sticky;
+      inset-block-start: 0;
+      align-self: start;
+      max-block-size: 100vh;
+      overflow-y: auto;
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--color-border);
+    }
+  }
+
+  .drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: --spacing(3) --spacing(3) --spacing(3) --spacing(5);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .drawer__title {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  /* The title takes focus when the drawer opens, so screen readers start there. */
+  .drawer__title:focus {
+    outline: none;
+  }
+
+  .drawer__body {
+    padding: --spacing(4) --spacing(5) --spacing(6);
+    font-size: var(--text-sm);
+  }
+
+  .drawer__content :is(p, ol, ul) {
+    margin-block: 0;
+  }
+
+  .drawer__heading {
+    margin-block-start: --spacing(2);
+    font-size: var(--text-base);
+  }
+
+  .drawer__links {
+    padding: 0;
+    list-style: none;
+  }
+
+  /* == The ⓘ beside a heading (with-help keeps them on one line) == */
+  .with-help {
+    display: flex;
+    align-items: center;
+    gap: --spacing(1);
+  }
+
+  .help-button {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  .help-button:hover,
+  .help-button[aria-expanded="true"] {
+    background: var(--color-accent-soft);
+  }
+
+  .help-button[aria-expanded="true"] {
+    border-color: currentColor;
+  }
+}

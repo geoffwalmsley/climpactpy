@@ -763,9 +763,7 @@ def verdict(
         title = ngettext(
             "Usable. %(n)s value looks wrong.", "Usable. %(n)s values look wrong.", wrong
         ) % {"n": grouped(wrong)}
-        sentences = [
-            _("Fix them in your file if you can, or go on. Climpact uses the values as they are.")
-        ]
+        sentences = [_("Fix them in your file, or go on with the values as they are.")]
     else:
         level, title = "ready", _("Ready to use")
         sentences = [_("Nothing looks wrong.")]

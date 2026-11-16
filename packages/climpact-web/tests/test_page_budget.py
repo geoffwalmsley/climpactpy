@@ -38,11 +38,12 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    "css/climpact.css": 12.5 * KB,
+    "css/climpact.css": 13 * KB,  # 12.5 KB before the help drawer (#177)
     "js/qc.js": 2 * KB,  # the quality checks: worklist and tables linked to the charts (#77, #174)
     "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
+    "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only

@@ -13,10 +13,9 @@ Context from views.qc_context.
   <div class="qc-details__body stack stack--lg">
     <section class="stack" id="daily" aria-labelledby="daily-title">
       <div class="qc-section-head">
-        <h2 id="daily-title">{% translate "Daily values" %}</h2>
-        {% help_topic "qc.daily_series" %}
+        <div class="with-help"><h2 id="daily-title">{% translate "Daily values" %}</h2>{% section_help "quality.daily" %}</div>
       </div>
-      <p class="text-text-muted">{% translate "Flagged values are circled. Click a circle to find it in the lists above; “Show on chart” in a list brings you back to the day here. Drag across a chart to zoom in." %}</p>
+      <p class="text-text-muted">{% translate "Flagged values are circled." %}</p>
       <div class="tabs qc-charts" data-tabs>
         <ul class="tabs__list" aria-label="{% translate 'Variable shown' %}">
           {% for chart in charts %}<li><a class="tabs__tab" href="#{{ chart.id }}-panel" id="{{ chart.id }}-panel-tab">{{ chart.label }}</a></li>{% endfor %}
@@ -36,12 +35,7 @@ Context from views.qc_context.
     {% include "stations/_qc_distributions.html" %}
 
     <section class="stack" id="thresholds" aria-labelledby="thresholds-title">
-      <h2 id="thresholds-title">{% translate "Thresholds" %}</h2>
-      <p>{% blocktranslate with temp=review.params.iqr_temp|floatformat:"-2" prec=review.params.iqr_prec|floatformat:"-2" pmax=review.params.prec_max|floatformat:"-2" tmax=review.params.temp_max|floatformat:"-2" days=review.params.flatline_days jump=review.params.jump|floatformat:"-2" trimmed %}
-        Checked with outlier ranges of {{ temp }} (temperature) and {{ prec }} (precipitation)
-        interquartile ranges, limits of {{ pmax }} mm and {{ tmax }} °C, runs of more than {{ days }}
-        equal values and day-to-day changes of {{ jump }} °C. Change them and check again
-        below.{% endblocktranslate %}</p>
+      <div class="with-help"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
       {% include "stations/_qc_form.html" %}
     </section>
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static ui charts %}
+{% load i18n static ui charts help %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
 {% block head %}{% chart_scripts %}{% endblock %}
 {% block content %}
@@ -35,6 +35,7 @@
       <li><a href="#progress">{% translate "Progress" %}</a></li>
       <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
       <li><a href="#help">{% translate "Help in place" %}</a></li>
+      <li><a href="#drawer">{% translate "Section help drawer" %}</a></li>
       <li><a href="#charts">{% translate "Chart frame" %}</a></li>
       <li><a href="#interactive-charts">{% translate "Interactive charts" %}</a></li>
     </ul>
@@ -297,6 +298,12 @@
       <h2 id="help-title">{% translate "Help in place" %}</h2>
       {% translate "What is a base period?" as h_summary %}{% translate "The years used to calculate percentile thresholds, usually 1961 to 1990 or 1981 to 2010. The station needs enough data in those years." as h_text %}
       {% include "components/disclosure.html" with summary=h_summary text=h_text %}
+    </section>
+
+    <section class="pattern" id="drawer" aria-labelledby="drawer-title">
+      <div class="with-help"><h2 id="drawer-title">{% translate "Section help drawer" %}</h2>{% section_help "load.details" %}</div>
+      <p>{% translate "One ⓘ beside a section's heading opens that section's help in a side panel. The panel is not modal: the page stays usable. It sits beside the content on wide screens and below it on narrow ones. Escape or the close button closes it, and focus goes back to the ⓘ. Without JavaScript the ⓘ is a link to the same help on a page of its own." %}</p>
+      <p class="text-sm text-text-muted">{% translate "Fields have no help link of their own. They keep a short hint only when their value needs one." %}</p>
     </section>
 
     <section class="pattern" id="charts" aria-labelledby="charts-title">

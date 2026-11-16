@@ -85,6 +85,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install both packages
         run: uv sync --locked
+      - name: Install GNU gettext
+        # makemessages needs xgettext: test_catalogue.py checks the English message
+        # catalogue is current (#205)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
       - name: Compiled stylesheet is up to date
         # The pinned standalone Tailwind CLI (#118), installed only if its SHA-256 matches;
         # css/climpact.css is committed, so rebuilding it must change nothing.
@@ -95,6 +99,7 @@ jobs:
       - name: Test
         env:
           CLIMPACT_REQUIRE_TAILWIND: "1"
+          CLIMPACT_REQUIRE_GETTEXT: "1"
         # The browser accessibility checks are deselected by the default addopts
         # (-m "not browser"); web-accessibility runs them.
         run: >-

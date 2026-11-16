@@ -2939,7 +2939,8 @@ packages/climpact-web/tests/
                      SHA-256, MPL-2.0 licence)
   conftest.py        prints the page sizes measured by test_page_budget.py (from the
                      test reports); thread limits and xdist groups, as the core's
-  test_*.py          settings, views and security, i18n, static files, the command, jobs
+  test_*.py          settings, views and security, i18n, the message catalogue is current
+                     (test_catalogue.py, #205), static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
                      the New station page (test_stations.py, #201), Quality (test_qc_review.py), the
@@ -4259,7 +4260,16 @@ stylesheet uses logical properties only, so layouts mirror. Every template strin
 also fails on plain-text `aria-label`, `title`, `placeholder`, `alt` and `data-message`
 attributes, since screen readers and tooltips read those. To refresh the catalogue (needs
 GNU gettext's `xgettext`), run from `packages/climpact-web/src/climpact_web`:
-`uv run climpact-web manage makemessages -l en --no-obsolete`. To add a
+`uv run climpact-web manage makemessages -l en --no-obsolete`. A pull request that adds,
+changes or removes a user-facing string refreshes it. `tests/test_catalogue.py` (#205)
+keeps it current: it copies the package to a temporary folder, runs `makemessages -l en
+--no-obsolete` there and fails if the regenerated `django.po` has a message (context,
+`msgid`, `msgid_plural`) that the committed one lacks, or the other way round, listing them
+and the command. It compares the set of messages, not the file, so the `#:` location
+comments (which move whenever code above a string changes), the `POT-Creation-Date` header
+and gettext versions' line wrapping do not fail it; locations may lag until the next
+refresh. Without GNU gettext (`xgettext`, `msgmerge`, `msguniq`, `msgattrib`) it skips,
+unless `CLIMPACT_REQUIRE_GETTEXT` is set (CI), when it fails. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
 the `.po` file and run `compilemessages`. The help guides are translated as Markdown files, one folder per
 language, with English as the fallback (see [Help](#help)).
@@ -6282,8 +6292,10 @@ uv run pytest -m browser    # the browser accessibility checks, before a PR touc
   suite, parity included; like every test step, in parallel with the default `-n auto`,
   one worker per vCPU, see [Running the tests in parallel](#running-the-tests-in-parallel)); `web` installs both packages (`uv sync --locked`), fetches the
   pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
-  the committed `css/climpact.css` differs (#118), runs
-  `pytest packages/climpact-web` (without the size budget, which it `--ignore`s, and the
+  the committed `css/climpact.css` differs (#118), installs GNU gettext from apt and runs
+  `pytest packages/climpact-web` with `CLIMPACT_REQUIRE_GETTEXT=1`, so the message
+  catalogue check fails rather than skips without `xgettext` (#205; see
+  [Translations](#translations)) (without the size budget, which it `--ignore`s, and the
   accessibility tests, which the default `-m "not browser"` deselects), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
   [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service

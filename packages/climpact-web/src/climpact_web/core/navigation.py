@@ -39,7 +39,9 @@ DESTINATIONS = (
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
     Destination("batch", "batch:start", _("Batch"), "layers"),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
-    Destination("help", "help:index", _("Help"), "book"),
+    # Not a header link since #197: the Help button at the end of the header opens the
+    # current page's guide (page_help below), and the landing page links the help.
+    Destination("help", "help:index", _("Help"), "book", in_nav=False),
     Destination("jobs", "jobs:list", _("Your calculations"), "clock"),
 )
 
@@ -67,6 +69,43 @@ def nav_items(request) -> list[dict]:
                 {"key": d.key, "label": d.label, "url": url, "icon": d.icon, "current": current}
             )
     return items
+
+
+# ---- The header's Help button (#197) ---------------------------------------------------
+
+# The guide each page's Help button opens, by URL namespace and name; a namespace alone
+# covers its other pages. Pages without one open the help's index.
+PAGE_GUIDES = {
+    "stations:upload": "station-file",
+    "stations:load": "station-file",
+    "stations:qc": "quality-control",
+    "stations:results": "indices",
+    "stations:results_progress": "indices",
+    "stations:result": "indices",
+    "stations:downloads": "indices",
+    "stations:sector": "sector",
+    "stations": "station-file",
+    "batch": "batch",
+    "gridded": "gridded",
+}
+
+
+def page_help(request) -> dict | None:
+    """The header's Help button: the guide of the page shown, or the help's index."""
+    from climpact_web.help.guides import get_guide
+
+    match = getattr(request, "resolver_match", None) if request is not None else None
+    slug = None
+    if match is not None:
+        slug = PAGE_GUIDES.get(match.view_name) or PAGE_GUIDES.get(match.namespace)
+    guide = get_guide(slug) if slug else None
+    if guide is not None:
+        return {"url": guide.url, "title": guide.title, "current": False}
+    url = url_or_none("help:index")
+    if url is None:
+        return None
+    current = match is not None and match.namespace == "help"
+    return {"url": url, "title": None, "current": current}
 
 
 # ---- Step indicator --------------------------------------------------------------------

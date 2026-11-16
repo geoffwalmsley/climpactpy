@@ -13,7 +13,7 @@ Context from views.qc_context.
   <div class="qc-details__body stack stack--lg">
     <section class="stack" id="daily" aria-labelledby="daily-title">
       <div class="qc-section-head">
-        <div class="with-help"><h2 id="daily-title">{% translate "Daily values" %}</h2>{% section_help "quality.daily" %}</div>
+        <div class="section-header"><h2 id="daily-title">{% translate "Daily values" %}</h2>{% section_help "quality.daily" %}</div>
       </div>
       <p class="text-text-muted">{% translate "Flagged values are circled." %}</p>
       <div class="tabs qc-charts" data-tabs>
@@ -35,7 +35,7 @@ Context from views.qc_context.
     {% include "stations/_qc_distributions.html" %}
 
     <section class="stack" id="thresholds" aria-labelledby="thresholds-title">
-      <div class="with-help"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
+      <div class="section-header"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
       {% include "stations/_qc_form.html" %}
     </section>
 

@@ -665,7 +665,6 @@ def test_landing_page_and_header_link_to_batch(client):
         "/station/",
         "/batch/",
         "/gridded/",
-        "/help/",
         "/jobs/",
     ]
 

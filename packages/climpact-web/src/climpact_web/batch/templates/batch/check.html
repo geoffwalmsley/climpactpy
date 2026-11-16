@@ -124,7 +124,7 @@
   </details>
 
   <section class="card stack" aria-labelledby="options-title">
-    <div class="with-help"><h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>{% section_help "batch.options" %}</div>
+    <div class="section-header"><h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>{% section_help "batch.options" %}</div>
     <form method="post" action="{% url 'batch:run' run.pk %}" class="form" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" with form=options %}

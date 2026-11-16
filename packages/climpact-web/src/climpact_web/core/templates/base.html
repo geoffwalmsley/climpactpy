@@ -36,6 +36,10 @@
       </nav>
       {% endif %}
       <div class="site-header__tools">
+        {% if page_help %}{# The page's guide (#197): the help system's visible home. #}
+        {% if page_help.title %}{% blocktranslate with title=page_help.title asvar app_help_name %}Help: {{ title }}{% endblocktranslate %}{% else %}{% translate "Help" as app_help_name %}{% endif %}
+        <a class="help-button" id="app-help" href="{{ page_help.url }}" aria-label="{{ app_help_name }}"{% if page_help.current %} aria-current="page"{% endif %}><span class="help-button__mark" aria-hidden="true"></span><span class="site-header__help-label">{% translate "Help" %}</span></a>
+        {% endif %}
         {% include "components/theme_toggle.html" %}
         {% if show_language_switcher %}
         {% include "core/language_switcher.html" %}

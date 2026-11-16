@@ -11,6 +11,8 @@
   }
 
   .sector-settings > summary::-webkit-details-marker { display: none; }
+  .sector-settings > summary { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); }
+  .sector-settings[open] { padding-block-end: --spacing(6); }
   .sector-settings[open] > summary { margin-block-end: --spacing(4); }
   .sector-settings[open] > summary .icon { transform: rotate(180deg); }
 

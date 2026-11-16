@@ -20,7 +20,12 @@
     transform: scaleX(-1);
   }
 
-  /* A stack: its children one under the other with one gap, their own margins dropped. */
+  /* A stack: its children one under the other with one gap, their own margins dropped.
+     Each stack sets its own gap, so a stack inside a wider one keeps the default (#197). */
+  .stack {
+    --stack-gap: --spacing(4);
+  }
+
   .stack > * {
     margin-block: 0;
   }

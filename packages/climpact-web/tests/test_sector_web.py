@@ -304,7 +304,7 @@ def test_sydney_wheat_matches_the_command_line_and_r(client, tmp_path, detrend):
     assert f'href="/jobs/{job.pk}/files/{STATION}_corr.zip"' in html
     assert (
         "Change the file or the settings" in html
-        and '<details class="card sector-settings" id' in html
+        and '<details class="disclosure sector-settings" id' in html
     )
 
 

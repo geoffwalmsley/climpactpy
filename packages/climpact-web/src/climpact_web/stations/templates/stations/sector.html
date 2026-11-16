@@ -3,7 +3,7 @@
 {% block title %}{% blocktranslate with name=analysis.station_name %}Compare with sector data: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/sector.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
+<div class="stack stack--xl station-page">
   {% include "stations/_workspace.html" %}
   <header class="stack stack--sm">
     <h1>{% translate "Compare with sector data" %}</h1>
@@ -61,12 +61,12 @@
   {% if form.inspection and not form.inspection.ok %}{% include "stations/_problems.html" with inspection=form.inspection file_name=form.file_name %}
   {% elif form.errors %}{% include "components/form_errors.html" %}{% endif %}
 
-  <details class="card sector-settings"{% if not results or form.errors %} open{% endif %} id="settings">
-    <summary class="card__title sector-settings__summary">{% if results %}{% translate "Change the file or the settings" %}{% else %}{% translate "Sector data and plot settings" %}{% endif %}{% icon "chevron-down" %}</summary>
+  <details class="disclosure sector-settings"{% if not results or form.errors %} open{% endif %} id="settings">
+    <summary class="sector-settings__summary">{% if results %}{% translate "Change the file or the settings" %}{% else %}{% translate "Sector data and plot settings" %}{% endif %}{% icon "chevron-down" %}</summary>
     <form method="post" action="{% url 'stations:sector' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
       {% csrf_token %}
       <div class="stack">
-        <div class="with-help"><h3>{% translate "Sector data" %}</h3>{% section_help "sector.data" %}</div>
+        <div class="section-header"><h3>{% translate "Sector data" %}</h3>{% section_help "sector.data" %}</div>
         <p class="text-sm">{% translate "Only yearly data can be used." %}</p>
         {% blocktranslate asvar hint %}CSV, one line per year.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=form.sector_file hint=hint %}
@@ -74,7 +74,7 @@
         <p class="text-sm">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use the sample: yearly wheat yields for New South Wales, 1922 to 1999, to go with the Sydney station. Use the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
       </div>
       <div class="stack">
-        <div class="with-help"><h3>{% translate "Plot attributes" %}</h3>{% section_help "sector.plot" %}</div>
+        <div class="section-header"><h3>{% translate "Plot attributes" %}</h3>{% section_help "sector.plot" %}</div>
         {% include "components/field.html" with field=form.title %}
         {% include "components/field.html" with field=form.y_label %}
         {% include "components/field.html" with field=form.detrend %}

@@ -14,12 +14,10 @@ the new checks. Context from views.qc_context.
 {% block head %}{% if review %}{% chart_scripts %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
 {% if job and not job.is_finished %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page qc-page">
-  <div class="stack stack--sm">
-    {% include "stations/_workspace.html" with heading=True %}
-    <p class="lead">{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
-      The checks of the data from {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
-  </div>
+<div class="stack stack--xl station-page qc-page">
+  {% include "stations/_workspace.html" with heading=True %}
+  <p class="lead">{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
+    The checks of the data from {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
@@ -59,7 +57,7 @@ the new checks. Context from views.qc_context.
     {% if review %}{% include "stations/_qc_verdict.html" %}{% endif %}
   </div>
 
-  {% if review %}{% if stale %}<div class="stale-content stack stack--lg">{% endif %}
+  {% if review %}{% if stale %}<div class="stale-content stack stack--xl">{% endif %}
   {% if findings %}{% include "stations/_qc_findings.html" %}{% endif %}
   {% if groups %}{% include "stations/_qc_worth.html" %}{% endif %}
   {% with quiet=review.quiet %}{% if quiet %}
@@ -70,20 +68,20 @@ the new checks. Context from views.qc_context.
   {% include "stations/_qc_details.html" %}
   {% if stale %}</div>{% endif %}
   {% else %}
-  <section class="card stack" id="thresholds" aria-labelledby="thresholds-title">
+  <section class="page-section stack" id="thresholds" aria-labelledby="thresholds-title">
     {% if job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}
     <details class="disclosure"{% if qc_form.errors %} open{% endif %}>
       <summary>{% icon "sliders" %}<span id="thresholds-title">{% translate "Change the thresholds" %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body">{% include "stations/_qc_form.html" %}</div>
     </details>
     {% else %}
-    <div class="with-help"><h2 class="card__title" id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
+    <div class="section-header"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
     {% include "stations/_qc_form.html" %}
     {% endif %}
   </section>
 
-  <section class="stack stack--sm" id="fix" aria-labelledby="fix-title">
-    <h2 id="fix-title">{% translate "Correct the file" %}</h2>
+  <section class="page-section stack stack--sm" id="fix" aria-labelledby="fix-title">
+    <div class="section-header"><h2 id="fix-title">{% translate "Correct the file" %}</h2></div>
     {% include "stations/_qc_upload.html" with variant="secondary" %}
   </section>
   {% endif %}

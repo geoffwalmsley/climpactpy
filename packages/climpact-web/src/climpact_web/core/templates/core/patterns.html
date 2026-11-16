@@ -37,7 +37,8 @@
       <li><a href="#progress">{% translate "Progress" %}</a></li>
       <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
       <li><a href="#help">{% translate "Help in place" %}</a></li>
-      <li><a href="#drawer">{% translate "Section help drawer" %}</a></li>
+      <li><a href="#drawer">{% translate "Section header and help" %}</a></li>
+      <li><a href="#surfaces">{% translate "One surface level" %}</a></li>
       <li><a href="#charts">{% translate "Chart frame" %}</a></li>
       <li><a href="#interactive-charts">{% translate "Interactive charts" %}</a></li>
     </ul>
@@ -341,9 +342,27 @@
     </section>
 
     <section class="pattern" id="drawer" aria-labelledby="drawer-title">
-      <div class="with-help"><h2 id="drawer-title">{% translate "Section help drawer" %}</h2>{% section_help "load.details" %}</div>
-      <p>{% translate "One ⓘ beside a section's heading opens that section's help in a side panel. The panel is not modal: the page stays usable. It sits beside the content on wide screens and below it on narrow ones. Escape or the close button closes it, and focus goes back to the ⓘ. Without JavaScript the ⓘ is a link to the same help on a page of its own." %}</p>
-      <p class="text-sm text-text-muted">{% translate "Fields have no help link of their own. They keep a short hint only when their value needs one." %}</p>
+      <div class="section-header"><h2 id="drawer-title">{% translate "Section header and help" %}</h2>{% section_help "load.details" %}</div>
+      <p>{% translate "A section header is the section's title, an optional muted note, then a Help button at the end of the row, in the same place on every section. The button is a pill with a word: Help, or a question where one helps. It opens the section's help in a side panel. The panel is not modal: the page stays usable. It sits beside the content on wide screens and below it on narrow ones. Escape or the close button closes it, and focus goes back to the button. Without JavaScript the button is a link to the same help on a page of its own." %}</p>
+      <div class="pattern__demo stack">
+        <div class="section-header"><h3>{% translate "Look wrong" %}</h3><p class="section-header__note">{% translate "Almost always typing errors or swapped columns." %}</p>{% section_help "quality.wrong" %}</div>
+        <div class="section-header"><h3>{% translate "What changed" %}</h3><p class="section-header__note">{% translate "Up to three significant trends per theme, largest first" %}</p>{% translate "How to read this" as read_label %}{% section_help "results.findings" label=read_label %}</div>
+        <div class="section-header"><h3>{% translate "Missing data" %}</h3>{% section_help "quality.missing" %}</div>
+      </div>
+      <p class="text-sm text-text-muted">{% translate "At most one per section, and none on sections that explain themselves. Fields have no help link of their own. They keep a short hint only when their value needs one. The Help button at the end of the header opens the guide to the page shown." %}</p>
+    </section>
+
+    <section class="pattern" id="surfaces" aria-labelledby="surfaces-title">
+      <h2 id="surfaces-title">{% translate "One surface level" %}</h2>
+      <p>{% translate "Sections sit on the page, separated by space and a heading, not by cards. A box marks only one object, such as a theme tile or a chart. Tables have hairline rows and no frame. The page's one answer, the Quality verdict or the Results summary, sits in a tinted band, with its number large." %}</p>
+      <div class="pattern__demo stack">
+        <p class="group-label">{% translate "Your inputs" %}</p>
+        <div class="answer-band">
+          <p class="answer-band__number">{% blocktranslate with n=22 total=80 %}{{ n }}<small>of {{ total }} indices changed significantly</small>{% endblocktranslate %}</p>
+          <p>{% translate "22 of 80 indices changed significantly since 1936. Mean temperature rose by 0.19 °C per decade. Heat and cold changed; rain and drought did not." %}</p>
+        </div>
+      </div>
+      <p class="text-sm text-text-muted">{% translate "A station's workspace header, with its name, the file and years, the page's actions and the section tabs, stays in view as the page scrolls on screens 40rem wide or more. The page's scroll padding keeps a focused element out from under it." %}</p>
     </section>
 
     <section class="pattern" id="charts" aria-labelledby="charts-title">

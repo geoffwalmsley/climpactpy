@@ -440,7 +440,9 @@ def test_results_page(client, checked):
     # One decision: "Use this data" is the one primary button; "Upload a corrected file"
     # opens the file picker (no drop zone), keeping the re-upload behind it.
     verdict = page[
-        page.index('class="alert alert--warning qc-verdict"') : page.index('id="look-wrong"')
+        page.index('class="alert alert--warning qc-verdict answer-band"') : page.index(
+            'id="look-wrong"'
+        )
     ]
     assert f'action="/station/{checked.pk}/quality/continue"' in verdict
     assert verdict.count('class="button"') == 1 and "<span>Use this data</span>" in verdict

@@ -3,7 +3,7 @@
 {% block title %}{% blocktranslate with title=card.title name=card.name station=analysis.station_name %}{{ title }} ({{ name }}): {{ station }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
+<div class="stack stack--xl station-page">
   {% include "stations/_workspace.html" %}
   <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
     <a href="{% url 'stations:results' analysis.pk %}?group={{ card.group }}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
@@ -13,7 +13,7 @@
 
   <header class="stack stack--sm">
     <p class="eyebrow"><code class="index-code">{{ card.code }}</code></p>
-    <div class="with-help"><h1>{{ card.title }}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
+    <div class="section-header"><h1>{{ card.title }}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
     <p class="text-sm text-text-muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
     {% if card.param_topic %}
@@ -57,8 +57,8 @@
   {% endif %}
 
   {% if anomaly_url %}
-  <section class="stack" aria-labelledby="anomaly-heading">
-    <div class="with-help"><h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>{% section_help "result.anomalies" %}</div>
+  <section class="page-section stack" aria-labelledby="anomaly-heading">
+    <div class="section-header"><h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>{% section_help "result.anomalies" %}</div>
     <p class="text-sm text-text-muted">{% translate "Each value's distance from the mean of all years, in standard deviations." %}</p>
     {% translate "Standardised anomalies" as anomaly_title %}
     {% include "components/chart_frame.html" with id="anomaly-chart" title=anomaly_title data_url=anomaly_url height="14rem" only %}
@@ -66,8 +66,8 @@
   {% endif %}
 
   {% if card.daily %}
-  <section class="card stack" aria-labelledby="daily-title">
-    <h2 class="card__title" id="daily-title">{% translate "Daily values" %}</h2>
+  <section class="page-section stack" aria-labelledby="daily-title">
+    <div class="section-header"><h2 id="daily-title">{% translate "Daily values" %}</h2></div>
     <p>{% blocktranslate with days=card.daily.days|count first=card.daily.first last=card.daily.last missing=card.daily.missing positive=card.daily.positive trimmed %}
       {{ days }} days from {{ first }} to {{ last }}. {{ positive }} are above zero and {{ missing }} are missing. Climpact for R does not plot this table. The ten highest days are below, and the CSV has them all.
     {% endblocktranslate %}</p>
@@ -86,8 +86,8 @@
   {% endif %}
 
   {% if trend_rows %}
-  <section class="card stack" aria-labelledby="trend-title">
-    <div class="with-help"><h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>{% section_help "result.trends" %}</div>
+  <section class="page-section stack" aria-labelledby="trend-title">
+    <div class="section-header"><h2 id="trend-title">{% translate "Trends in the trend file" %}</h2>{% section_help "result.trends" %}</div>
     <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
       <table class="table">
         <caption id="trend-caption" class="sr-only">{% translate "The trend file's rows for this index" %}</caption>

@@ -6,10 +6,10 @@ file", with "Use this data anyway" beside it, so the user can always go on. Whil
 are out of date (#179, ``stale``) the decision waits for the new checks: no buttons.
 Context: review (review.verdict), analysis, replace_form, stale.
 {% endcomment %}{% with verdict=review.verdict %}
-<section class="alert alert--{{ verdict.alert_kind }} qc-verdict" aria-labelledby="qc-verdict-title">
+<section class="alert alert--{{ verdict.alert_kind }} qc-verdict answer-band" aria-labelledby="qc-verdict-title">
   {% if verdict.level == "ready" %}{% icon "check-circle" %}{% elif verdict.level == "fix" %}{% icon "error" %}{% else %}{% icon "warning" %}{% endif %}
   <div class="alert__body stack stack--sm">
-    <div class="with-help"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% section_help "quality.verdict" %}</div>
+    <div class="section-header"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% translate "What do the levels mean?" as levels_label %}{% section_help "quality.verdict" label=levels_label %}</div>
     <p>{{ verdict.message }}</p>
     <ul class="qc-verdict__facts" role="list">{% for fact in verdict.facts %}<li>{{ fact }}</li>{% endfor %}</ul>
     {% if not stale %}

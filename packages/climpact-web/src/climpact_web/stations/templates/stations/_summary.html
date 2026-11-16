@@ -94,7 +94,7 @@ series and the days with data in each year. Parameters from views.summary_contex
       <form method="post" action="{% url 'stations:replace_file' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
         {% csrf_token %}
         {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
-        <p class="text-sm text-text-muted">{% translate "The station details are kept. Later steps start again." %}</p>
+        <p class="text-sm text-text-muted">{% translate "The station details are kept. The checks and results are kept too, marked out of date, until they are calculated again." %}</p>
         {% turnstile %}
         <div>
           {% translate "Load this file instead" as replace_label %}

@@ -1,5 +1,6 @@
 """Where the app's main destinations live, for the header, the landing page and the step
-indicator (#71).
+indicator of the batch and gridded flows (#71). The single station has no steps since
+#179: its sections are tabs (``stations.workspace``).
 
 The screens arrive in later tickets (#76-#81, #85). Each destination names the URL its
 ticket will add; until that URL exists the destination resolves to ``None``, so the
@@ -79,17 +80,6 @@ class Step:
     optional: bool = False
 
 
-STATION_STEPS = (
-    Step("upload", _("Load data"), "stations:upload"),
-    Step("qc", _("Check quality"), "stations:qc"),
-    Step("results", _("Results and downloads"), "stations:results"),
-)
-# The sector comparison (#90) is not a step: it is an action on Results, and its page shows
-# the Results step as current (#173). Nor are the index settings (#178): the indices are
-# calculated with the defaults while the user checks the quality, and the settings are
-# "Adjust and recalculate" on Results.
-
-
 @dataclass
 class StepState:
     key: str
@@ -118,19 +108,14 @@ BATCH_STEPS = (
 )
 
 
-def station_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The single-station steps with ``current`` marked. Steps before it are complete and
-    link back when ``urls`` gives their address (a run's own URLs, from #76-#78)."""
-    return flow_steps(STATION_STEPS, current, urls)
-
-
 def batch_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The batch steps with ``current`` marked, as :func:`station_steps`."""
+    """The batch steps with ``current`` marked. Steps before it are complete and link back
+    when ``urls`` gives their address (a run's own URLs)."""
     return flow_steps(BATCH_STEPS, current, urls)
 
 
 def gridded_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The gridded steps with ``current`` marked, as :func:`station_steps`."""
+    """The gridded steps with ``current`` marked, as :func:`batch_steps`."""
     return flow_steps(GRIDDED_STEPS, current, urls)
 
 

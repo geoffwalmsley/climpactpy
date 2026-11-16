@@ -195,17 +195,16 @@ def test_theme_toggle_hidden_without_js():
 # ---- Step indicator --------------------------------------------------------------------
 
 
-def test_station_steps_states():
-    steps = navigation.station_steps("qc", urls={"upload": "/u/", "qc": "/q/"})
+def test_flow_steps_states():
+    steps = navigation.batch_steps("check", urls={"upload": "/u/", "check": "/c/"})
     assert [s.state for s in steps] == ["complete", "current", "upcoming"]
     assert [s.url for s in steps] == ["/u/", None, None]
     assert [s.number for s in steps] == [1, 2, 3]
-    # The sector comparison is an action on Results (#173), and so are the settings, with no
-    # Calculate step (#178).
-    keys = [s.key for s in steps]
-    assert keys == ["upload", "qc", "results"] and not any(s.optional for s in steps)
+    assert [s.key for s in navigation.gridded_steps("files")] == ["files", "setup", "results"]
     with pytest.raises(ValueError):
-        navigation.station_steps("nope")
+        navigation.batch_steps("nope")
+    # The single station has no steps since #179: its sections are tabs.
+    assert not hasattr(navigation, "station_steps")
 
 
 def test_count_filter_groups_thousands():
@@ -218,7 +217,7 @@ def test_count_filter_groups_thousands():
 
 
 def test_steps_component():
-    html = render("steps", steps=navigation.station_steps("qc", urls={"upload": "/u/"}))
+    html = render("steps", steps=navigation.batch_steps("check", urls={"upload": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
     assert 'aria-current="step"' in html and "Step 2 of 3:" in html
     assert "Optional" not in html

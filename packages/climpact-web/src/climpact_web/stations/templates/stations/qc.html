@@ -5,25 +5,39 @@ Step 2, Check quality (#77), as a short worklist (#174): the verdict and the one
 (use the data, or upload a corrected file), the values that look wrong each with the days
 around it, the groups worth a look, the checks that found nothing, the missing data, and
 everything else (daily charts, distributions, thresholds, files) under Details. While the
-checks run, or before they have run, the thresholds form and the progress. Context from
-views.qc_context.
+checks run, or before they have run, the thresholds form and the progress. After a change
+to the file, the thresholds or the name (#179) the checks shown stay, under a banner that
+says they are out of date and shows the new checks' progress, and the decision waits for
+the new checks. Context from views.qc_context.
 {% endcomment %}
-{% block title %}{% translate "Check quality" %}{% endblock %}
+{% block title %}{% blocktranslate with name=analysis.station_name %}Quality: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% if review %}{% chart_scripts %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
 {% if job and not job.is_finished %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page qc-page">
-  <header class="stack stack--sm">
-    <h1>{% translate "Check quality" %}</h1>
-    <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
-      {{ name }}, {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
-  </header>
+  <div class="stack stack--sm">
+    {% include "stations/_workspace.html" with heading=True %}
+    <p class="lead">{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
+      The checks of the data from {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
+  </div>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
   <div id="qc-status" class="stack" tabindex="-1">
-    {% if job and not job.is_finished %}
+    {% if stale %}
+    {% translate "The checks below are from before the change." as stale_note %}
+    {% if stale.replacing and not job.is_finished %}
+    {% translate "Checking again" as stale_title %}{% translate "The checks below are from before the change. The new checks replace them when they are ready." as stale_note %}
+    {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note updating=True body="stations/_qc_progress.html" %}
+    {% elif stale.replacing %}
+    {% if job.status == "failed" %}{% translate "The new checks could not be run" as stale_title %}{% else %}{% translate "The new checks were stopped" as stale_title %}{% endif %}
+    {% url 'stations:load' analysis.pk as data_url %}{% translate "Check the station details on Data and confirm them to run the checks again." as data_label %}
+    {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=job.error|default:stale_note action_href=data_url action_label=data_label %}
+    {% else %}
+    {% translate "The checks are out of date" as stale_title %}{% url 'stations:load' analysis.pk as data_url %}{% translate "Confirm the station details on Data to check the new file." as data_label %}
+    {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note action_href=data_url action_label=data_label %}
+    {% endif %}
+    {% elif job and not job.is_finished %}
     {% include "stations/_qc_progress.html" %}
     {% elif job.status == "failed" %}
     <div class="alert alert--error" role="alert">
@@ -45,7 +59,7 @@ views.qc_context.
     {% if review %}{% include "stations/_qc_verdict.html" %}{% endif %}
   </div>
 
-  {% if review %}
+  {% if review %}{% if stale %}<div class="stale-content stack stack--lg">{% endif %}
   {% if findings %}{% include "stations/_qc_findings.html" %}{% endif %}
   {% if groups %}{% include "stations/_qc_worth.html" %}{% endif %}
   {% with quiet=review.quiet %}{% if quiet %}
@@ -54,6 +68,7 @@ views.qc_context.
   {% endif %}{% endwith %}
   {% include "stations/_qc_missing.html" %}
   {% include "stations/_qc_details.html" %}
+  {% if stale %}</div>{% endif %}
   {% else %}
   <section class="card stack" id="thresholds" aria-labelledby="thresholds-title">
     {% if job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}

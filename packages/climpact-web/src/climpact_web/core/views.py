@@ -9,7 +9,7 @@ from django.views.decorators.http import require_safe
 import climpact
 import climpact_web
 from climpact_web.core.forms import PatternDemoForm
-from climpact_web.core.navigation import destination, station_steps
+from climpact_web.core.navigation import batch_steps, destination
 from climpact_web.help.tour import home_tour
 
 
@@ -37,7 +37,6 @@ def home(request):
         "start_url": destination("station").url,
         "sample_url": destination("sample").url,
         "ways": ways,
-        "steps": station_steps("upload"),
         "tour_steps": home_tour(),
     }
     return render(request, "core/home.html", context)
@@ -71,9 +70,9 @@ def pattern_context(form):
     ]
     return {
         "form": form,
-        "steps_first": station_steps("upload"),
-        "steps_middle": station_steps("qc", urls={"upload": "#"}),
-        "steps_last": station_steps("results", urls={k: "#" for k in ("upload", "qc")}),
+        "steps_first": batch_steps("upload"),
+        "steps_middle": batch_steps("check", urls={"upload": "#"}),
+        "steps_last": batch_steps("results", urls={k: "#" for k in ("upload", "check")}),
         "table_columns": [
             {"label": _("Year")},
             {"label": _("TXx (°C)"), "numeric": True},
@@ -132,6 +131,28 @@ def pattern_context(form):
                 },  # fmt: skip
             },
         ],
+        # The workspace tabs (#179), one with every status and one as on a first visit.
+        "workspace_demo": workspace_demo(
+            [
+                ("data", "done"),
+                ("quality", "attention"),
+                ("results", "stale"),
+                ("files", "running"),
+            ],
+            "results",
+        ),
+        "workspace_first": workspace_demo(
+            [("data", "todo"), ("quality", "locked"), ("results", "locked"), ("files", "locked")],
+            "data",
+        ),
+        "stale_changes": [
+            _("You changed the base period to %(new)s. These results use %(old)s.")
+            % {"new": "1981–2010", "old": "1971–2000"}
+        ],
+        "spark_line": {
+            "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
+            "trend": "M0 52L240 12",
+        },
         "summary_items": [
             (_("Station"), "Sydney Observatory Hill"),
             (_("Period"), _("1936 to 2015")),
@@ -221,3 +242,21 @@ def healthz(request):
         },
         status=200 if healthy else 503,
     )
+
+
+def workspace_demo(states, current):
+    """Workspace tabs for the pattern library: (section, state) pairs, as
+    ``stations.workspace.sections`` gives them."""
+    from climpact_web.stations.workspace import SECTIONS, Section
+
+    labels = {key: label for key, label, _url in SECTIONS}
+    return [
+        Section(
+            key,
+            str(labels[key]),
+            None if state == "locked" else "#workspace-tabs",
+            state,
+            key == current,
+        )  # fmt: skip
+        for key, state in states
+    ]

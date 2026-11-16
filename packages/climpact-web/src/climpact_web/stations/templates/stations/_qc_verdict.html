@@ -2,8 +2,9 @@
 The verdict and the one decision on the page (#174, decision B): green "Ready to use",
 amber "Usable. N values look wrong" or red "Fix the file first", with the counts against
 the values checked. One primary button: "Use this data", or on red "Upload a corrected
-file", with "Use this data anyway" beside it, so the user can always go on.
-Context: review (review.verdict), analysis, replace_form.
+file", with "Use this data anyway" beside it, so the user can always go on. While the checks
+are out of date (#179, ``stale``) the decision waits for the new checks: no buttons.
+Context: review (review.verdict), analysis, replace_form, stale.
 {% endcomment %}{% with verdict=review.verdict %}
 <section class="alert alert--{{ verdict.alert_kind }} qc-verdict" aria-labelledby="qc-verdict-title">
   {% if verdict.level == "ready" %}{% icon "check-circle" %}{% elif verdict.level == "fix" %}{% icon "error" %}{% else %}{% icon "warning" %}{% endif %}
@@ -11,6 +12,7 @@ Context: review (review.verdict), analysis, replace_form.
     <div class="with-help"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% section_help "quality.verdict" %}</div>
     <p>{{ verdict.message }}</p>
     <ul class="qc-verdict__facts" role="list">{% for fact in verdict.facts %}<li>{{ fact }}</li>{% endfor %}</ul>
+    {% if not stale %}
     <div class="qc-verdict__actions">
       {% url 'stations:qc_continue' analysis.pk as continue_url %}
       {% if verdict.level == "fix" %}
@@ -30,6 +32,7 @@ Context: review (review.verdict), analysis, replace_form.
       {% endif %}
     </div>
     {% if verdict.level != "ready" %}{% include "stations/_qc_upload.html" with hint_only=True %}{% endif %}
+    {% endif %}
   </div>
 </section>
 {% endwith %}

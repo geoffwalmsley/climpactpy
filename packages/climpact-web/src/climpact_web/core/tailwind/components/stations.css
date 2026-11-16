@@ -91,4 +91,15 @@
     fill: var(--color-text-muted);
     font-size: 12px;
   }
+
+  /* Results kept on the page while out of date (#179): the text keeps its full contrast;
+     an edge marks the block and its sparklines are greyed. */
+  .stale-content {
+    padding-inline-start: --spacing(4);
+    border-inline-start: 4px dashed var(--color-warning);
+  }
+
+  .stale-content .spark {
+    filter: grayscale(1);
+  }
 }

@@ -31,6 +31,8 @@
       <li><a href="#tables">{% translate "Tables" %}</a></li>
       <li><a href="#files">{% translate "File groups" %}</a></li>
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
+      <li><a href="#workspace-tabs">{% translate "Workspace tabs" %}</a></li>
+      <li><a href="#stale">{% translate "Out-of-date results" %}</a></li>
       <li><a href="#steps">{% translate "Step indicator" %}</a></li>
       <li><a href="#progress">{% translate "Progress" %}</a></li>
       <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
@@ -258,9 +260,35 @@
       {% include "components/tabs.html" with label=tabs_label tabs=tab_items %}
     </section>
 
+    <section class="pattern" id="workspace-tabs" aria-labelledby="workspace-tabs-title">
+      <h2 id="workspace-tabs-title">{% translate "Workspace tabs" %}</h2>
+      <p>{% translate "A station's sections, under its name. Each tab is a page of its own, so they are links, not an ARIA tablist. Each has a status: an icon of its own shape and a word, never colour alone. A section that is not available yet is not a link." %}</p>
+      <div class="stack">
+        {% translate "Example: every status" as workspace_label %}
+        {% include "components/workspace_tabs.html" with tabs=workspace_demo label=workspace_label %}
+        {% translate "Example: the first visit" as workspace_first_label %}
+        {% include "components/workspace_tabs.html" with tabs=workspace_first label=workspace_first_label %}
+      </div>
+    </section>
+
+    <section class="pattern" id="stale" aria-labelledby="stale-title">
+      <h2 id="stale-title">{% translate "Out-of-date results" %}</h2>
+      <p>{% translate "After the user changes an input, the results stay on the page under this banner until new ones replace them. It says what changed and what happens next. While the new run is on the way it shows its progress; otherwise it offers one action. The results below keep their full contrast: an edge marks them, and their sparklines and charts are greyed." %}</p>
+      <div class="pattern__demo stack">
+        {% translate "Results are out of date" as stale_title %}{% translate "The results below are from before the change. Recalculate to bring them up to date." as stale_note %}{% translate "Recalculate" as stale_action %}
+        {% include "components/stale_banner.html" with id="stale-demo" title=stale_title changes=stale_changes note=stale_note action_href="#stale" action_label=stale_action %}
+        {% translate "Results are out of date. Recalculating" as updating_title %}{% translate "The new results replace them when they are ready." as updating_note %}
+        {% include "components/stale_banner.html" with id="stale-demo-updating" title=updating_title changes=stale_changes note=updating_note updating=True %}
+        <div class="stale-content stack stack--sm">
+          <p>{% translate "22 of 80 indices changed significantly since 1936." %}</p>
+          {% include "components/spark.html" with spark=spark_line %}
+        </div>
+      </div>
+    </section>
+
     <section class="pattern" id="steps" aria-labelledby="steps-title">
       <h2 id="steps-title">{% translate "Step indicator" %}</h2>
-      <p>{% translate "Shown under the header during the single-station flow. Completed steps link back. On a narrow screen only the current step is named." %}</p>
+      <p>{% translate "Shown under the header during the batch and gridded flows. Completed steps link back. On a narrow screen only the current step is named. The single station uses workspace tabs instead." %}</p>
       <div class="stack">
         {% translate "Example: the first step" as steps_first_label %}{% translate "Example: a middle step" as steps_middle_label %}{% translate "Example: the last step" as steps_last_label %}
         {% include "components/steps.html" with steps=steps_first label=steps_first_label %}

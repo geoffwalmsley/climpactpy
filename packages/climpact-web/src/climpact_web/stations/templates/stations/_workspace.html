@@ -1,0 +1,13 @@
+{% load i18n %}{% comment %}
+The station workspace's header (#179): the station's name, its years and base period with
+a link to change them on Data, and the section tabs. On the four section pages the name is
+the page's h1 (``heading``); on a page inside a section (an index, the sector comparison)
+it is a line above that page's own h1.
+Context: analysis, workspace_tabs, workspace_current (stations.workspace.context), heading.
+{% endcomment %}
+<header class="stack stack--sm">
+  {% if heading %}<h1 class="m-0">{{ analysis.station_name|default:analysis.file_name }}</h1>
+  {% else %}<p class="m-0 font-semibold text-text-muted">{{ analysis.station_name|default:analysis.file_name }}</p>{% endif %}
+  <p class="flex flex-wrap gap-x-4 text-sm text-text-muted">{% if analysis.summary.first_year %}<span>{% blocktranslate with first=analysis.summary.first_year last=analysis.summary.last_year %}{{ first }}–{{ last }}{% endblocktranslate %}</span>{% endif %}{% if analysis.metadata_complete %}<span>{% blocktranslate with start=analysis.base_start end=analysis.base_end %}base period {{ start }}–{{ end }}{% endblocktranslate %}</span>{% endif %}{% if workspace_current != "data" %}<span><a href="{% url 'stations:load' analysis.pk %}">{% translate "Edit the details" %}</a></span>{% endif %}</p>
+</header>
+{% include "components/workspace_tabs.html" with tabs=workspace_tabs %}

@@ -7,12 +7,22 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+## 0.1.2 - 2026-11-16
+
+Changes to the web app and the deployment. `climpact` itself is unchanged.
+
+- Content Security Policy (#137): every page of `climpact-web` (local and hosted) sends an
+  enforced policy with no inline scripts or styles and no `eval`. The theme script, the
+  chart skeleton's no-JS style and the `style=` attributes moved to files and classes, and
+  htmx runs with eval and script tags off. Turnstile's `https://challenges.cloudflare.com`
+  is allowed only when its keys are set. New setting `CLIMPACT_WEB_CSP_REPORT_ONLY`
+  (default `false`): `true` reports violations in the browser console without blocking.
 - Deploy on release (#126): publishing a final GitHub Release deploys it to climpact.app.
   The release workflow's new `deploy` job sends a signed request through the Cloudflare
   Tunnel to a deploy hook on the Droplet, which runs `deploy/update.sh` (fetch, pull,
   migrate, start, health check, automatic rollback) and waits until `/healthz` reports the
   new version. `update.sh` replaces `climpact-use`. The worker now gets 120 s to hand back
-  its running job when stopped. The app and the packages are unchanged.
+  its running job when stopped.
 
 ## 0.1.1 - 2026-11-16
 

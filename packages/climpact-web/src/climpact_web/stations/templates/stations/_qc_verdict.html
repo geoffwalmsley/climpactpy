@@ -1,4 +1,4 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 The verdict and the one decision on the page (#174, decision B): green "Ready to use",
 amber "Usable. N values look wrong" or red "Fix the file first", with the counts against
 the values checked. One primary button: "Use this data", or on red "Upload a corrected
@@ -8,7 +8,7 @@ Context: review (review.verdict), analysis, replace_form.
 <section class="alert alert--{{ verdict.alert_kind }} qc-verdict" aria-labelledby="qc-verdict-title">
   {% if verdict.level == "ready" %}{% icon "check-circle" %}{% elif verdict.level == "fix" %}{% icon "error" %}{% else %}{% icon "warning" %}{% endif %}
   <div class="alert__body stack stack--sm">
-    <h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>
+    <div class="with-help"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% section_help "quality.verdict" %}</div>
     <p>{{ verdict.message }}</p>
     <ul class="qc-verdict__facts" role="list">{% for fact in verdict.facts %}<li>{{ fact }}</li>{% endfor %}</ul>
     <div class="qc-verdict__actions">

@@ -7,16 +7,16 @@
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% translate "Compare with sector data" %}</h1>
-    <p class="lead">{% translate "Optional: how yearly data from a sector such as crop yields or hospital admissions relates to the station's temperatures and indices." %}</p>
+    <p class="lead">{% translate "Optional. Compare yearly data, such as crop yields, with the station's indices." %}</p>
   </header>
 
   {% if not source %}
   {% if indices_job and not indices_job.is_finished %}
-  {% translate "The indices are still being calculated. Come back when they have finished." as wait_message %}
+  {% translate "The indices are still being calculated. Come back when they are ready." as wait_message %}
   {% include "components/alert.html" with kind="info" title="" message=wait_message %}
   <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "See the progress" %} {% icon "arrow-right" %}</a></p>
   {% else %}
-  {% translate "Calculate the climate indices first: the comparison uses them." as first_message %}
+  {% translate "Calculate the indices first. The comparison uses them." as first_message %}
   {% include "components/alert.html" with kind="info" title="" message=first_message %}
   <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
@@ -31,7 +31,7 @@
   <section class="card stack" aria-labelledby="progress-title">
     <h2 class="card__title" id="progress-title">{% translate "Calculating correlations" %}</h2>
     {% include "stations/_sector_progress.html" %}
-    <noscript><p class="text-sm">{% translate "Reload this page to see the progress; the results appear here when the calculation has finished." %}</p></noscript>
+    <noscript><p class="text-sm">{% translate "Reload this page to see the progress. The results appear here when they are ready." %}</p></noscript>
   </section>
   {% elif job.status == "failed" %}
   <div class="alert alert--error" role="alert" id="sector-error">
@@ -39,8 +39,8 @@
     <div class="alert__body">
       <h2 class="alert__title">{% translate "The correlations could not be calculated." %}</h2>
       <p>{% if r_error %}{% translate "Error:" %} {% endif %}{{ job.error }}</p>
-      {% if r_error %}<p>{% blocktranslate trimmed with min=10 %}This is Climpact for R's message: the station and your data need at least {{ min }} years in common, and each index at least one.{% endblocktranslate %}</p>{% endif %}
-      <p>{% translate "Check the file and the settings below, and calculate again." %}</p>
+      {% if r_error %}<p>{% blocktranslate trimmed with min=10 %}This is the message of Climpact for R. The station and your data need at least {{ min }} years in common, and each index at least one.{% endblocktranslate %}</p>{% endif %}
+      <p>{% translate "Check the file and the settings, then calculate again." %}</p>
     </div>
   </div>
   {% elif job.status == "cancelled" %}
@@ -61,20 +61,18 @@
     <form method="post" action="{% url 'stations:sector' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
       {% csrf_token %}
       <div class="stack">
-        <h3>{% translate "Sector data" %}</h3>
-        <p class="text-sm">{% translate "Climpact correlates yearly sector data with the indices calculated in the previous step. Only yearly data can be used." %}</p>
+        <div class="with-help"><h3>{% translate "Sector data" %}</h3>{% section_help "sector.data" %}</div>
+        <p class="text-sm">{% translate "Only yearly data can be used." %}</p>
         {% blocktranslate asvar hint %}CSV, one line per year.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=form.sector_file hint=hint %}
         <p class="text-sm text-text-muted">{{ form.sector_file.help_text }}</p>
-        {% help_topic "sector.file" %}
-        <p class="text-sm">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use Climpact for R's sample, yearly wheat yields for New South Wales, 1922 to 1999, which goes with the Sydney sample station: the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
+        <p class="text-sm">{% url 'stations:sector_sample' as sample_url %}{% blocktranslate trimmed %}No file to hand? Use the sample: yearly wheat yields for New South Wales, 1922 to 1999, to go with the Sydney station. Use the button below, or <a href="{{ sample_url }}" download>download {{ sample_name }}</a>.{% endblocktranslate %}</p>
       </div>
       <div class="stack">
-        <h3>{% translate "Plot attributes" %}</h3>
-        <p class="text-sm text-text-muted">{% translate "Climpact fills in a title and a y-axis label from the station and the file name; you can change them." %}</p>
-        {% include "components/field.html" with field=form.title help="sector.title" %}
-        {% include "components/field.html" with field=form.y_label help="sector.y_label" %}
-        {% include "components/field.html" with field=form.detrend help="sector.detrend" %}
+        <div class="with-help"><h3>{% translate "Plot attributes" %}</h3>{% section_help "sector.plot" %}</div>
+        {% include "components/field.html" with field=form.title %}
+        {% include "components/field.html" with field=form.y_label %}
+        {% include "components/field.html" with field=form.detrend %}
       </div>
       {% turnstile %}
       <div class="flex flex-wrap items-center gap-3">

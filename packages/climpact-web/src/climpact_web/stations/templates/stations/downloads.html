@@ -18,9 +18,9 @@ calculated it holds the quality-control files alone. Context from views_download
 
   <header class="stack stack--sm">
     <p class="eyebrow">{{ analysis.station_name }}</p>
-    <h1>{% translate "Files" %}</h1>
-    <p class="lead">{% if source %}{% translate "Every file of this station, with its size. The zip has the files of the calculation in Climpact for R's folder layout. The PDF report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks, with their size. The files of the indices appear here when you calculate them." %}{% endif %}</p>
-    {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}; the links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
+    <div class="with-help"><h1>{% translate "Files" %}</h1>{% section_help "files.page" %}</div>
+    <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
+    {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
   </header>
 
   {% if source %}
@@ -34,7 +34,7 @@ calculated it holds the quality-control files alone. Context from views_download
         {% url 'jobs:file' job.pk main.zip.path as zip_url %}{% blocktranslate with size=main.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
         <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}</p>
         {% else %}
-        <p class="text-sm text-text-muted">{% translate "Not made: the zip was switched off in the settings." %}</p>
+        <p class="text-sm text-text-muted">{% translate "Not made. The zip was switched off in the settings." %}</p>
         <p class="text-sm"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
         {% endif %}
       </li>
@@ -45,7 +45,7 @@ calculated it holds the quality-control files alone. Context from views_download
         {% url 'jobs:file' job.pk main.report.path as report_url %}{% blocktranslate with size=main.report.size|filesizeformat asvar report_label %}Download the report (PDF, {{ size }}){% endblocktranslate %}
         <p class="mt-auto">{% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" %}</p>
         {% else %}
-        <p class="text-sm text-text-muted">{% translate "Not made in this calculation: the report was switched off, or the calculation is older than the report." %}</p>
+        <p class="text-sm text-text-muted">{% translate "Not made. The report was switched off, or this calculation is older than the report." %}</p>
         <p class="text-sm"><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
         {% endif %}
       </li>
@@ -69,8 +69,8 @@ calculated it holds the quality-control files alone. Context from views_download
   {% if quality %}
   <section class="stack" id="quality-files" aria-labelledby="quality-title">
     <h2 id="quality-title">{% translate "Quality checks" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "The rows each check found, and the days missing per year: the files Climpact for R writes in its qc folder, as CSV." %}{% if quality.job != job and source %} {% translate "From the checks on the Quality page; the zip of the calculation has the same files." %}{% endif %}</p>
-    {% if quality.zip %}<p>{% url 'jobs:file' quality.job.pk quality.zip.path as d_href %}{% include "components/download_link.html" with d=quality.zip href=d_href %} <span class="text-sm text-text-muted">{% translate "Every quality-control file in one zip." %}</span></p>{% endif %}
+    <p class="text-sm text-text-muted">{% translate "What each check found, and the days missing per year, as CSV." %}{% if quality.job != job and source %} {% translate "The zip of the calculation has the same files." %}{% endif %}</p>
+    {% if quality.zip %}<p>{% url 'jobs:file' quality.job.pk quality.zip.path as d_href %}{% include "components/download_link.html" with d=quality.zip href=d_href %}</p>{% endif %}
     {% if quality.files %}
     <details class="disclosure download-group">
       <summary><span>{% translate "Each check's file" %}</span> <span class="text-sm text-text-muted">{% blocktranslate with size=quality.size|filesizeformat count counter=quality.files|length %}{{ counter }} file, {{ size }}{% plural %}{{ counter }} files, {{ size }}{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
@@ -89,15 +89,13 @@ calculated it holds the quality-control files alone. Context from views_download
   {% if source %}
   <section class="stack" aria-labelledby="plots-title">
     <h2 id="plots-title">{% translate "Plots" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "Climpact's plot of each series is in its row under Each index. To save a chart as you see it, open the index and use PNG or SVG above its chart." %}</p>
-    {% if main.all_plots %}<p>{% url 'jobs:file' job.pk main.all_plots.path as d_href %}{% include "components/download_link.html" with d=main.all_plots href=d_href %} <span class="text-sm text-text-muted">{% translate "All the plots in one PDF, a page each, in Climpact for R's order." %}</span></p>
-    {% else %}<p class="text-sm text-text-muted">{% translate "Not made: the plots were switched off in the settings." %}</p>{% endif %}
+    {% if main.all_plots %}<p>{% url 'jobs:file' job.pk main.all_plots.path as d_href %}{% include "components/download_link.html" with d=main.all_plots href=d_href %} <span class="text-sm text-text-muted">{% translate "All the plots in one PDF." %}</span></p>
+    {% else %}<p class="text-sm text-text-muted">{% translate "Not made. The plots were switched off in the settings." %}</p>{% endif %}
   </section>
 
   {% if sector %}
   <section class="stack" aria-labelledby="sector-title">
     <h2 id="sector-title">{% translate "Sector comparison" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "The files of the sector comparison, in Climpact for R's corr folder: the correlation of each index with your sector data, and the scatter plots." %}</p>
     {% if sector.zip %}<p>{% url 'jobs:file' sector.job.pk sector.zip.path as d_href %}{% include "components/download_link.html" with d=sector.zip href=d_href %}</p>{% endif %}
     {% if sector.files %}
     <div class="table-wrap" role="region" aria-labelledby="sector-caption" tabindex="0">
@@ -114,7 +112,7 @@ calculated it holds the quality-control files alone. Context from views_download
 
   <section class="stack" aria-labelledby="indices-title">
     <h2 id="indices-title">{% translate "Each index" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "The table of each index (CSV) and Climpact's plot of each series (PNG). The days of occurrence are columns of the index's table." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
+    <p class="text-sm text-text-muted">{% translate "A table (CSV) per index and a plot (PNG) per series." %}{% if not plots_made %} {% translate "The plots were switched off in the settings." %}{% endif %}</p>
     <div class="stack stack--sm">
       {% for section in sections %}
       <details class="disclosure download-group">
@@ -156,6 +154,5 @@ calculated it holds the quality-control files alone. Context from views_download
   {% else %}
   <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
-  {% help_topic "results.files" %}
 </div>
 {% endblock %}

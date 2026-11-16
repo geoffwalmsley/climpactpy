@@ -1,15 +1,15 @@
-{% load i18n ui %}{% comment %}
+{% load i18n ui help %}{% comment %}
 What is in the station file (step 1): period, days missing per variable, a preview of the
 series and the days with data in each year. Parameters from views.summary_context.
 {% endcomment %}
 <section class="card stack" aria-labelledby="data-title">
-  <h2 class="card__title" id="data-title">{% translate "Your data" %}</h2>
+  <div class="with-help"><h2 class="card__title" id="data-title">{% translate "Your data" %}</h2>{% section_help "load.data" %}</div>
   <div class="grid gap-4 grid-cols-fit-40">
     {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
     {% include "components/stat.html" with label=period_label value=period note="" %}
     {% translate "Years" as years_label %}
     {% include "components/stat.html" with label=years_label value=year_count note="" %}
-    {% translate "Days" as days_label %}{% translate "from the first row to the last" as days_note %}
+    {% translate "Days" as days_label %}{% translate "first row to last" as days_note %}
     {% include "components/stat.html" with label=days_label value=summary.days|count note=days_note %}
   </div>
 
@@ -47,7 +47,7 @@ series and the days with data in each year. Parameters from views.summary_contex
   <figure class="series-preview" aria-labelledby="preview-title">
     <figcaption class="stack stack--sm">
       <h3 class="chart__title" id="preview-title">{% translate "Monthly overview" %}</h3>
-      <p class="chart__summary">{% translate "Monthly mean maximum and minimum temperature, and monthly total precipitation. Months with fewer than 20 days of data are left as gaps." %}</p>
+      <p class="chart__summary">{% translate "Monthly mean maximum and minimum temperature, and monthly total precipitation. Months with fewer than 20 days of data are gaps." %}</p>
     </figcaption>
     {% for panel in panels %}
     <div class="series-preview__panel">
@@ -94,7 +94,7 @@ series and the days with data in each year. Parameters from views.summary_contex
       <form method="post" action="{% url 'stations:replace_file' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
         {% csrf_token %}
         {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
-        <p class="text-sm text-text-muted">{% translate "The station details above are kept. Later steps start again with the new file." %}</p>
+        <p class="text-sm text-text-muted">{% translate "The station details are kept. Later steps start again." %}</p>
         {% turnstile %}
         <div>
           {% translate "Load this file instead" as replace_label %}

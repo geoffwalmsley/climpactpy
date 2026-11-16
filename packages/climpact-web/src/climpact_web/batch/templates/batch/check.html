@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui help %}
 {% block title %}{% translate "Check the stations" %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
@@ -112,7 +112,8 @@
         {% blocktranslate asvar files_hint with size=max_upload_mb %}Up to {{ size }} MB in all.{% endblocktranslate %}
         {% include "components/dropzone.html" with field=add_form.station_files hint=files_hint multiple=True %}
         <p class="text-sm text-text-muted">{{ add_form.station_files.help_text }}</p>
-        {% include "components/field.html" with field=add_form.metadata_file help="batch.metadata_file" %}
+        {% include "components/field.html" with field=add_form.metadata_file %}
+        {% help_topic "batch.metadata_file" %}
         {% turnstile %}
         <div>
           {% translate "Load and check again" as add_label %}
@@ -123,7 +124,7 @@
   </details>
 
   <section class="card stack" aria-labelledby="options-title">
-    <h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>
+    <div class="with-help"><h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>{% section_help "batch.options" %}</div>
     <form method="post" action="{% url 'batch:run' run.pk %}" class="form" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" with form=options %}

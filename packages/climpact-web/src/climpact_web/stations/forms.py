@@ -28,9 +28,8 @@ class UploadForm(forms.Form):
     station_file = forms.FileField(
         label=_("Station file"),
         help_text=_(
-            "A text file of daily data with six columns: year, month, day, precipitation "
-            "(mm), maximum and minimum temperature (°C), separated by spaces, tabs or "
-            "commas. Missing values are -99.9."
+            "Six columns: year, month, day, precipitation (mm), maximum and minimum "
+            "temperature (°C). Missing values are -99.9."
         ),
         widget=forms.ClearableFileInput(attrs={"accept": ACCEPT}),
         error_messages={
@@ -89,47 +88,35 @@ class QCParamsForm(forms.Form):
 
     iqr_temp = _qc_number(
         _("Outlier range for temperature"),
-        _(
-            "The number of interquartile ranges beyond the monthly box at which a "
-            "temperature counts as an outlier. Default 3."
-        ),
+        _("Default 3."),
         1,
         10,
         _("IQR"),
     )
     iqr_prec = _qc_number(
         _("Outlier range for precipitation"),
-        _(
-            "The number of interquartile ranges beyond the monthly box (days with rain "
-            "only) at which precipitation counts as an outlier. Default 5."
-        ),
+        _("Default 5."),
         1,
         None,
         _("IQR"),
     )
     prec_max = _qc_number(
         _("Largest daily precipitation"),
-        _("Daily precipitation above this amount is flagged for checking. Default 200."),
+        _("Default 200."),
         0,
         1500,
         _("mm"),
     )
     temp_max = _qc_number(
         _("Largest temperature"),
-        _(
-            "A temperature above this value, or below its negative, is flagged for "
-            "checking. Default 50."
-        ),
+        _("Default 50."),
         0,
         60,
         "°C",
     )
     flatline_days = _qc_number(
         _("Days without change"),
-        _(
-            "A maximum or minimum temperature that stays the same for more than this "
-            "many days in a row is flagged. Default 5."
-        ),
+        _("Default 5."),
         3,
         15,
         _("days"),
@@ -137,10 +124,7 @@ class QCParamsForm(forms.Form):
     )
     jump = _qc_number(
         _("Day-to-day temperature change"),
-        _(
-            "A maximum or minimum temperature that changes by this amount or more from "
-            "one day to the next is flagged. Default 20."
-        ),
+        _("Default 20."),
         5,
         30,
         "°C",
@@ -169,7 +153,6 @@ class MetadataForm(forms.Form):
     station_name = forms.CharField(
         label=_("Station name"),
         max_length=100,
-        help_text=_("Used in the names of the result files."),
         validators=[
             RegexValidator(
                 STATION_NAME,
@@ -182,7 +165,7 @@ class MetadataForm(forms.Form):
         label=_("Latitude"),
         min_value=-90,
         max_value=90,
-        help_text=_("Decimal degrees, e.g. -40.992. Negative south of the equator."),
+        help_text=_("Decimal degrees. Negative south of the equator."),
         error_messages={
             "required": _("Enter the latitude."),
             "invalid": _("Enter the latitude as a number of degrees, e.g. -40.992."),
@@ -195,7 +178,7 @@ class MetadataForm(forms.Form):
         label=_("Longitude"),
         min_value=-180,
         max_value=180,
-        help_text=_("Decimal degrees, e.g. 148.346. Negative west of Greenwich."),
+        help_text=_("Decimal degrees. Negative west of Greenwich."),
         error_messages={
             "required": _("Enter the longitude."),
             "invalid": _("Enter the longitude as a number of degrees, e.g. 148.346."),

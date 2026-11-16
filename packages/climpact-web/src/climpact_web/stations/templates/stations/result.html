@@ -13,12 +13,11 @@
 
   <header class="stack stack--sm">
     <p class="eyebrow"><code class="index-code">{{ card.code }}</code></p>
-    <h1>{{ card.title }}</h1>
+    <div class="with-help"><h1>{{ card.title }}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
     <p class="text-sm text-text-muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
-    {% blocktranslate with code=card.code asvar topic_question %}How is {{ code }} defined?{% endblocktranslate %}{% help_topic card.topic summary=topic_question %}
     {% if card.param_topic %}
-    <p class="text-sm">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>; you come back to this index afterwards.{% endblocktranslate %}</p>
+    <p class="text-sm">{% url 'stations:indices' analysis.pk as indices_url %}{% blocktranslate with url=indices_url key=card.key|urlencode trimmed %}This index depends on a setting. <a href="{{ url }}?index={{ key }}">Change it and calculate again</a>. You come back here afterwards.{% endblocktranslate %}</p>
     {% endif %}
   </header>
 
@@ -50,16 +49,14 @@
   {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
   {% url 'jobs:file' job.pk csv_path as csv_url %}
   {% include "components/chart_frame.html" with id="index-chart" heading=2 title=chart_title data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
-  {% help_topic "trend.sen_slope" %}
   {% endif %}
 
   {% if anomaly_url %}
   <section class="stack" aria-labelledby="anomaly-heading">
-    <h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "Each value's distance from the mean of all years, in standard deviations, as in the table's last column." %}</p>
+    <div class="with-help"><h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>{% section_help "result.anomalies" %}</div>
+    <p class="text-sm text-text-muted">{% translate "Each value's distance from the mean of all years, in standard deviations." %}</p>
     {% translate "Standardised anomalies" as anomaly_title %}
     {% include "components/chart_frame.html" with id="anomaly-chart" title=anomaly_title data_url=anomaly_url height="14rem" only %}
-    {% help_topic "results.standardised" %}
   </section>
   {% endif %}
 
@@ -67,7 +64,7 @@
   <section class="card stack" aria-labelledby="daily-title">
     <h2 class="card__title" id="daily-title">{% translate "Daily values" %}</h2>
     <p>{% blocktranslate with days=card.daily.days|count first=card.daily.first last=card.daily.last missing=card.daily.missing positive=card.daily.positive trimmed %}
-      {{ days }} days from {{ first }} to {{ last }}: {{ positive }} above zero, {{ missing }} missing. Climpact for R does not plot this table; the ten highest days are below and the CSV has them all.
+      {{ days }} days from {{ first }} to {{ last }}. {{ positive }} are above zero and {{ missing }} are missing. Climpact for R does not plot this table. The ten highest days are below, and the CSV has them all.
     {% endblocktranslate %}</p>
     <div class="table-wrap" role="region" aria-labelledby="daily-caption" tabindex="0">
       <table class="table">
@@ -85,8 +82,7 @@
 
   {% if trend_rows %}
   <section class="card stack" aria-labelledby="trend-title">
-    <h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>
-    <p class="text-sm text-text-muted">{% translate "The rows of the trend file for this index, as written: Sen's slope per year (per month for the monthly row) and its 95% confidence interval." %}</p>
+    <div class="with-help"><h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>{% section_help "result.trends" %}</div>
     <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
       <table class="table">
         <caption id="trend-caption" class="sr-only">{% translate "The trend file's rows for this index" %}</caption>
@@ -105,7 +101,6 @@
         </tbody>
       </table>
     </div>
-    {% help_topic "trend.seasons" %}
   </section>
   {% endif %}
 

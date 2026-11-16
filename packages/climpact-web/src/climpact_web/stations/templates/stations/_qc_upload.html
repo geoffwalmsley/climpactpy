@@ -5,6 +5,5 @@ file input is described by. Parameters: variant, hint_only (the hint alone), but
 (the button alone). Context: analysis, replace_form.
 {% endcomment %}{% if not hint_only %}{% url 'stations:qc_replace' analysis.pk as replace_url %}{% translate "Upload a corrected file" as upload_label %}{% translate "Upload and check again" as upload_submit %}{% include "components/file_button.html" with action=replace_url field=replace_form.station_file label=upload_label submit_label=upload_submit variant=variant %}{% endif %}
 {% if not button_only %}<p class="text-sm text-text-muted" id="{{ replace_form.station_file.auto_id }}_helptext">{% blocktranslate trimmed %}
-  To correct a value, change it in your file, or write -99.9 if the right value is not known.
-  The checks run again as soon as you choose the file. The station details and thresholds
-  are kept.{% endblocktranslate %}</p>{% endif %}
+  Correct the values, or write -99.9 if you do not know them. The checks run again on the
+  new file.{% endblocktranslate %}</p>{% endif %}

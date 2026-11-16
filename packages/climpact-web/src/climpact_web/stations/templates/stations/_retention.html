@@ -1,7 +1,13 @@
 {% load i18n ui %}{% comment %}How long uploads are kept (#73's retention setting). Parameters: analysis
 (optional); quiet: a line of small muted text at the foot of the page instead of an info
 alert, for the pages after the upload, which shows the full notice (#173).{% endcomment %}
-{% if analysis %}
+{% if analysis and quiet %}
+{% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
+Your file and details are deleted on {{ date }} unless you change them. Results are deleted {{ days }} day after each calculation.
+{% plural %}
+Your file and details are deleted on {{ date }} unless you change them. Results are deleted {{ days }} days after each calculation.
+{% endblocktranslate %}
+{% elif analysis %}
 {% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
 Your file and station details are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} day after each calculation finishes.
 {% plural %}

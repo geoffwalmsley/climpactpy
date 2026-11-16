@@ -120,18 +120,11 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
     assert '<option value="TN" selected>' in html and '<option value="&gt;" selected>' in html
     assert 'name="custom_enabled"' in html and "checked" in html
     assert 'name="plot_title"' in html and f'placeholder="{STATION}  ·  0°N, 0°E"' in html
-    # The names the parameterised indices will be written under.
-    for name in (
-        "wsdi1",
-        "csdi1",
-        "rx3day",
-        "tx2tn2",
-        "hddheat18",
-        "r30mm",
-        "24month_spi",
-        "TNgt0",
-    ):
-        assert f"<code>{name}" in html, name
+    # How the parameterised indices are named is in the sections' help (#177), no longer
+    # under each field.
+    assert "Written as" not in html
+    for name in ("wsdi3", "rx3day", "hddheat18", "r30mm", "24month_spi"):
+        assert name in html, name
     # Explanations: every parameter's help topic, and the EHF definition.
     assert "Nairn and Fawcett (2013)" in html
     topics = set(re.findall(r'data-help-topic="([^"]+)"', html))
@@ -140,7 +133,7 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
     assert {f"param.{f}" for f in fields} <= topics
     assert "index.hwEHF" in topics
     # The quality checks were not run: the page says so but lets the user go on.
-    assert "quality checks have not been run" in html
+    assert "The quality checks have not run" in html
     analysis.refresh_from_db()
     assert analysis.step == Step.INDICES
 
@@ -205,12 +198,11 @@ def test_form_and_core_agree_on_every_boundary():
             assert form.is_valid() == core_ok, (field, value)
 
 
-def test_custom_index_name_and_units_follow_the_values(client):
+def test_custom_index_units_follow_the_variable(client):
     analysis = ready_analysis(client)
     data = {**defaults(), "custom_variable": "PR", "custom_operator": ">=",
             "custom_threshold": "25.5", "group": "custom"}  # fmt: skip
     html = client.post(f"/station/{analysis.pk}/indices/validate", data).content.decode()
-    assert "<code>PRge25.5</code>" in html
     assert '<span class="input-group__unit">mm</span>' in html
     assert 'id="param-custom"' in html and "hx-post=" in html
 
@@ -219,7 +211,7 @@ def test_htmx_checks_one_group_and_warns(client):
     analysis = ready_analysis(client)
     url = f"/station/{analysis.pk}/indices/validate"
     html = client.post(url, {**defaults(), "rx_days": "7", "group": "rx_days"}).content.decode()
-    assert "<code>rx7day</code>" in html and 'id="param-rx_days"' in html
+    assert 'value="7"' in html and 'id="param-rx_days"' in html
     assert "spei" not in html  # only the group asked for
     html = client.post(
         url, {**defaults(), "wsdi_days": "12", "group": "wsdi_days"}
@@ -599,8 +591,9 @@ def test_findings_by_theme_lead_the_results(client):
     assert "Growing season and degree days: 5 of 8 indices changed significantly" in also
     assert "Your own index: Number of days where TN > 0 TNgt0. No significant change." in also
     assert f'href="{url}/TNgt0"' in findings
-    # The order of the trends is explained where it is used.
-    assert "largest first. Largest means the trend per decade divided by" in findings
+    # The order of the trends is said where it is used, and explained in its help (#177).
+    assert "up to three significant trends, largest first." in findings
+    assert "Largest means the trend per decade divided by" in findings  # the ⓘ's help
 
 
 def test_largest_change_orders_each_themes_trends(client):
@@ -917,7 +910,7 @@ def test_step_names_and_headings_match(client):
     """#115: each step's heading is the step's name or starts with it."""
     analysis, _job = finished_analysis(client)
     for path, h1 in [
-        (f"/station/{analysis.pk}/load", "Load data: check it and describe the station"),
+        (f"/station/{analysis.pk}/load", "Load data"),
         (f"/station/{analysis.pk}/indices", "Calculate indices"),
         (f"/station/{analysis.pk}/results", "Results and downloads"),
     ]:
@@ -926,3 +919,32 @@ def test_step_names_and_headings_match(client):
         steps = re.search(r'<ol class="steps [^"]*">.*?</ol>', html, re.S).group(0)
         step = re.search(r'aria-current="step">.*?</span>\s*([^<]+)', steps, re.S).group(1)
         assert h1.startswith(step.strip()), (path, step)
+
+
+def test_every_section_of_the_station_pages_has_its_help(client):
+    """#177: one ⓘ per section of Calculate, Results, an index and Files, in page order;
+    no help link under a field."""
+    analysis, _job = finished_analysis(client)
+    base = f"/station/{analysis.pk}"
+    expected = {
+        "/indices": [
+            "calculate.plots",
+            "calculate.spells",
+            "calculate.degree",
+            "calculate.prcp",
+            "calculate.custom",
+            "calculate.ehf",
+            "calculate.files",
+        ],
+        "/results": ["results.findings", "results.catalogue"],
+        "/results/txx": ["result.index", "result.trends"],  # no anomalies in this fixture
+        "/downloads": ["files.page"],
+    }
+    for path, ids in expected.items():
+        html = client.get(base + path).content.decode()
+        assert re.findall(r'href="/help/sections/([^/"?]+)/', html) == ids, path
+        assert "help-topic--compact" not in html, path
+    # The index page's help leads with the index itself.
+    html = client.get(base + "/results/txx").content.decode()
+    assert 'href="/help/sections/result.index/?topics=index.txx"' in html
+    assert '<span class="sr-only">Help: TXx</span>' in html

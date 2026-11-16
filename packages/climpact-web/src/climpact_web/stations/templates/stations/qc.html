@@ -17,8 +17,7 @@ views.qc_context.
   <header class="stack stack--sm">
     <h1>{% translate "Check quality" %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
-      {{ name }}, {{ first }} to {{ last }}. Climpact checks every value. It never changes your
-      data: you decide whether to correct the file or to go on.{% endblocktranslate %}</p>
+      {{ name }}, {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
   </header>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
@@ -32,14 +31,14 @@ views.qc_context.
       <div class="alert__body">
         <h2 class="alert__title">{% translate "The checks could not be run." %}</h2>
         <p>{{ job.error }}</p>
-        <p>{% translate "Check the thresholds below and run the checks again, or upload a corrected file." %}</p>
+        <p>{% translate "Check the thresholds and run the checks again. Or upload a corrected file." %}</p>
       </div>
     </div>
     {% elif job.status == "cancelled" %}
     {% translate "The checks were stopped. Run them again below." as cancelled_message %}
     {% include "components/alert.html" with kind="info" message=cancelled_message title="" %}
     {% elif not review %}
-    {% translate "The checks have not been run on this file yet. Choose the thresholds below, or keep the defaults, and run them." as not_run %}
+    {% translate "The checks have not run on this file yet. Keep the default thresholds or change them, then run the checks." as not_run %}
     {% include "components/alert.html" with kind="info" message=not_run title="" %}
     {% endif %}
 
@@ -63,7 +62,7 @@ views.qc_context.
       <div class="disclosure__body">{% include "stations/_qc_form.html" %}</div>
     </details>
     {% else %}
-    <h2 class="card__title" id="thresholds-title">{% translate "Thresholds" %}</h2>
+    <div class="with-help"><h2 class="card__title" id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
     {% include "stations/_qc_form.html" %}
     {% endif %}
   </section>

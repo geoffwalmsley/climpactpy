@@ -5,6 +5,13 @@ from django.views.decorators.http import require_safe
 
 from climpact_web.core.navigation import url_or_none
 from climpact_web.help.guides import GUIDE_ORDER, all_guides, get_guide, search
+from climpact_web.help.sections import (
+    UnknownSection,
+    UnknownTopic,
+    get_section,
+    parse_topics,
+    section_context,
+)
 from climpact_web.help.topics import KINDS, topics
 
 
@@ -65,3 +72,18 @@ def search_view(request):
     if request.headers.get("HX-Request"):
         return render(request, "help/_results.html", context)
     return render(request, "help/search.html", context)
+
+
+@require_safe
+def section(request, section_id):
+    """A section's help on its own page (#177): where the ⓘ leads without JavaScript.
+    ``?topics=`` adds the screen's own topics, as the ⓘ of an index page does."""
+    try:
+        found = get_section(section_id)
+        extra = parse_topics(request.GET.get("topics", "")[:500])
+    except (UnknownSection, UnknownTopic):
+        raise Http404 from None
+    context = section_context(found, extra)
+    # An index page's help is named after its index rather than "This index".
+    context["title"] = context["topics"][0].title if extra else found.title
+    return render(request, "help/section.html", context)

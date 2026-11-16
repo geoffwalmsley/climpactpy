@@ -767,6 +767,94 @@ def test_dialog_by_keyboard(chrome, site):
     assert c.evaluate(f"document.activeElement === document.querySelector('{opener}')")
 
 
+STATION_PAGES = (
+    "station upload",
+    "station sample loaded",
+    "station quality results",
+    "station indices",
+    "station results",
+    "station index",
+    "station downloads",
+    "station sector results",
+)
+
+
+def test_help_drawer_by_keyboard(chrome, site):
+    """#177: Tab to a section's ⓘ, Enter opens the drawer beside the content with focus
+    on its title, the page stays usable (no trap: Tab goes on past the drawer), Escape
+    closes it and focus returns to the ⓘ. On a phone the drawer is below the content."""
+    c = chrome
+    c.viewport(1280, 800)
+    try:
+        c.navigate(site["station sample loaded"])
+        button = "[data-drawer-open^='help-load-details']"
+        assert c.evaluate("document.querySelector('[data-help-link]').hidden")
+        c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+        for _ in range(60):
+            c.press("Tab")
+            if c.evaluate(f"document.activeElement.matches({json.dumps(button)})"):
+                break
+        else:
+            raise AssertionError("Tab never reached the Station details ⓘ")
+        c.press("Enter")
+        time.sleep(0.1)
+        drawer = "document.getElementById('help-drawer')"
+        assert c.evaluate(f"!{drawer}.hidden")
+        assert c.evaluate("document.activeElement.id") == "help-drawer-title"
+        assert c.evaluate("document.activeElement.textContent") == "Help: Station details"
+        assert c.evaluate(f"document.querySelector({json.dumps(button)}).ariaExpanded") == "true"
+        topic = json.dumps('[data-help-topic="station.latitude"]')
+        assert c.evaluate(f"{drawer}.querySelector({topic}) !== null")
+        # Beside the content, not over it, and no backdrop or modal dialog.
+        assert c.evaluate(
+            f"{drawer}.getBoundingClientRect().left"
+            " >= document.querySelector('main').getBoundingClientRect().right - 1"
+        )
+        assert not c.evaluate("!!document.querySelector('dialog[open]')")
+        # Not a trap: Tab leaves the drawer after its controls.
+        for _ in range(6):
+            c.press("Tab")
+        assert not c.evaluate(f"{drawer}.contains(document.activeElement)")
+        c.evaluate(f"{drawer}.querySelector('[data-drawer-close]').focus()")
+        c.press("Escape")
+        time.sleep(0.1)
+        assert c.evaluate(f"{drawer}.hidden")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(button)})")
+        assert c.evaluate(f"document.querySelector({json.dumps(button)}).ariaExpanded") == "false"
+        # On a phone the drawer comes after the content.
+        c.viewport(320, 800)
+        c.evaluate(f"document.querySelector({json.dumps(button)}).click()")
+        time.sleep(0.1)
+        assert c.evaluate(
+            f"{drawer}.getBoundingClientRect().top"
+            " >= document.querySelector('main').getBoundingClientRect().bottom - 1"
+        )
+        assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        c.press("Escape")
+    finally:
+        c.viewport(1280, 900)
+
+
+def test_help_reachable_from_every_section_of_the_station_pages(chrome, site):
+    """#177: every ⓘ on every station page opens the drawer with its section's help."""
+    c = chrome
+    for name in STATION_PAGES:
+        open_page(c, site[name])
+        count = c.evaluate("document.querySelectorAll('[data-drawer-open]').length")
+        assert count, f"{name}: no section help"
+        for i in range(count):
+            title = c.evaluate(
+                f"(function () {{ var b = document.querySelectorAll('[data-drawer-open]')[{i}];"
+                " b.scrollIntoView(); b.click();"
+                " var d = document.getElementById('help-drawer');"
+                " return !d.hidden && d.querySelector('.drawer__content') !== null"
+                " ? document.getElementById('help-drawer-title').textContent : null; })()"
+            )
+            assert title and title.startswith("Help: "), (name, i)
+            c.press("Escape")
+            assert c.evaluate("document.getElementById('help-drawer').hidden"), (name, i)
+
+
 def test_drop_zone_by_keyboard(chrome, site):
     """The drop zone's file input is a Tab stop, shows its focus on the drop zone, and
     Space or Enter opens the file chooser."""

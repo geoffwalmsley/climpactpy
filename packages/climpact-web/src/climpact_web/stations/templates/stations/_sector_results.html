@@ -20,18 +20,17 @@ bars_svg, order, categories.
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
     <a href="{% url 'jobs:detail' job.pk %}">{% translate "Every file of this comparison" %}</a>
   </div>
-  <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}; this page's address works until then.{% endblocktranslate %}</p>
+  <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</p>
 </section>
 
 <section class="card stack" aria-labelledby="sector-bars-title" id="correlations">
   <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-    <h2 class="card__title" id="sector-bars-title">{% translate "Correlation with each index" %}</h2>
+    <div class="with-help"><h2 class="card__title" id="sector-bars-title">{% translate "Correlation with each index" %}</h2>{% section_help "sector.correlation" %}</div>
     <p class="m-0 flex flex-wrap items-center gap-3 text-sm" aria-label="{% translate 'Order of the bars' %}">
       {% if order == "strength" %}<a href="?#correlations">{% translate "Climpact's order" %}</a><strong aria-current="true">{% translate "Strongest first" %}</strong>
       {% else %}<strong aria-current="true">{% translate "Climpact's order" %}</strong><a href="?order=strength#correlations">{% translate "Strongest first" %}</a>{% endif %}
     </p>
   </div>
-  {% help_topic "sector.correlation" %}
   <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="sector-bars-caption">
     <figcaption id="sector-bars-caption" class="font-semibold">{% blocktranslate trimmed with title=results.title count counter=bars|length %}
       {{ title }}: correlation of your data with {{ counter }} index{% plural %}{{ title }}: correlation of your data with {{ counter }} indices
@@ -41,7 +40,7 @@ bars_svg, order, categories.
     </ul>
     <div class="overflow-x-auto [&_.sector-plot]:min-w-[34rem]" role="region" aria-label="{% translate 'Correlation with each index' %}: {% translate 'chart' %}" tabindex="0">{{ bars_svg }}</div>
     {% if results.missing %}<p class="text-sm text-text-muted">{% blocktranslate trimmed with names=results.missing_names count counter=results.missing|length %}
-      NA: no correlation for {{ counter }} index, {{ names }}: a missing value or no variation in the years in common.{% plural %}NA: no correlation for {{ counter }} indices, {{ names }}: a missing value or no variation in the years in common.
+      NA: no correlation for {{ counter }} index, {{ names }}.{% plural %}NA: no correlation for {{ counter }} indices, {{ names }}.
     {% endblocktranslate %}</p>{% endif %}
     <details class="disclosure">
       <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>
@@ -59,12 +58,11 @@ bars_svg, order, categories.
       {% if results.correlation_png %}<a href="{% url 'jobs:file' job.pk results.correlation_png %}">{% icon "image" %} {% translate "Image (PNG)" %}</a>{% endif %}
     </p>
   </figure>
-  <p class="text-sm text-text-muted">{% translate "Missing index values are correlated as the number -99.9, as in Climpact for R, which can distort the correlation of an index with missing years. Correlation shows association, not cause." %}</p>
+  <p class="text-sm text-text-muted">{% translate "Missing index values count as -99.9, as in Climpact for R. This can distort the correlation. Correlation is not cause." %}</p>
 </section>
 
 <section class="card stack" aria-labelledby="sector-scatter-title" id="scatter-plots">
-  <h2 class="card__title" id="sector-scatter-title">{% translate "Your data against the station's temperatures" %}</h2>
-  {% help_topic "sector.regression" %}
+  <div class="with-help"><h2 class="card__title" id="sector-scatter-title">{% translate "Your data against the station's temperatures" %}</h2>{% section_help "sector.scatter" %}</div>
   <div class="grid gap-5 grid-cols-fill-88">
     {% for s in results.scatters %}
     <figure class="stack stack--sm m-0 min-w-0" aria-labelledby="scatter-{{ s.name }}-title" aria-describedby="scatter-{{ s.name }}-fit">

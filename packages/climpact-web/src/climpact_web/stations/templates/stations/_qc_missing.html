@@ -6,8 +6,7 @@ more than 3), with the table of qc/nastatistics behind a disclosure. Context: re
 <section id="missing-data" aria-labelledby="missing-title">
 <div class="stack stack--sm">
   <div class="qc-section-head">
-    <h2 id="missing-title">{% translate "Missing data" %}</h2>
-    {% help_topic "qc.nastatistics" %}
+    <div class="with-help"><h2 id="missing-title">{% translate "Missing data" %}</h2>{% section_help "quality.missing" %}</div>
   </div>
   {% with missing=review.years_missing short=review.years_short %}
   {% if missing %}
@@ -17,7 +16,7 @@ more than 3), with the table of qc/nastatistics behind a disclosure. Context: re
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "Missing days per year" %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body stack stack--sm">
-      <p>{% translate "Years marked “no annual value” have more than 15 missing days, or a month with more than 3, so their annual indices are left missing (monthly indices only for the months concerned). Years not listed have no missing days." %}</p>
+      <p>{% translate "“No annual value”: more than 15 missing days, or a month with more than 3." %}</p>
       <div class="table-wrap qc-missing" role="region" aria-labelledby="missing-caption" tabindex="0">
         <table class="table">
           <caption id="missing-caption">{% translate "Missing days per year, and months with more than 3 missing days" %}</caption>

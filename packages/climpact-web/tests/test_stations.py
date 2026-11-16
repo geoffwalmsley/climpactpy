@@ -321,7 +321,7 @@ def test_load_page_details_come_before_the_one_continue_button(client):
         re.S,
     ).group(0)
     assert len(re.findall(r'<button type="submit"', form)) == 1
-    assert form.index('name="base_start"') < form.index("<span>Continue to quality checks</span>")
+    assert form.index('name="base_start"') < form.index("<span>Check quality</span>")
     assert html.index("<h1>") < html.index('id="details-title"') < html.index('id="data-title"')
     data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
@@ -358,12 +358,13 @@ def test_load_page_summarises_the_data(client):
     # After the upload page the retention notice is a quiet line, not an alert (#173).
     notice = re.search(
         r'<p class="text-sm text-text-muted[^"]*">[^<]*<svg[^>]*>'
-        r"(?:(?!</p>).)*kept for 7 days after your last change",
+        r"(?:(?!</p>).)*Your file and details are deleted on \d+ \w+ \d{4} unless you change them\."
+        r" Results are deleted 7 days after each calculation\.",
         html,
         re.S,
     )
     assert notice
-    assert "kept for 7 days" not in "".join(re.findall(r'<div class="alert.*?</div>', html, re.S))
+    assert "deleted on" not in "".join(re.findall(r'<div class="alert.*?</div>', html, re.S))
 
 
 def test_preview_panels_break_at_gaps():
@@ -629,4 +630,4 @@ def test_load_page_states_the_deletion_date(client):
     analysis = loaded(client)
     html = client.get(f"/station/{analysis.pk}/load").content.decode()
     expected = f"{analysis.expires_at:%-d %B %Y}"
-    assert f"(until {expected} unless you change them)" in html
+    assert f"deleted on {expected} unless you change them." in html

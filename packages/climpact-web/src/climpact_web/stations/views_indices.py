@@ -106,30 +106,12 @@ def indices_context(analysis, form, source: str) -> dict:
     return {
         "analysis": analysis,
         "form": form,
-        "names": output_names(form),
         "source": source,
         "steps": station_steps("indices", analysis.step_urls()),
         "has_results": job is not None or bool(batch_job(analysis)),
         "qc_done": analysis.qc_job is not None and analysis.qc_job.status == Status.SUCCEEDED,
         "job": job,
     }
-
-
-def output_names(form: IndexParamsForm) -> dict[str, str]:
-    """The file names of the parameterised indices, from what the form shows."""
-    if form.is_bound:
-        return form.output_names()
-    data = {}
-    for name, field in form.fields.items():
-        value = form.initial.get(name, field.initial)
-        if isinstance(value, bool):
-            if value:
-                data[name] = "on"
-        elif value is not None:
-            data[name] = value
-    shown = IndexParamsForm(data)
-    shown.is_valid()
-    return shown.output_names()
 
 
 @never_cache
@@ -192,15 +174,15 @@ def queue_indices(request, analysis: StationAnalysis, form: IndexParamsForm) -> 
 
 @require_POST
 def indices_validate(request, analysis_id):
-    """htmx: one group of fields checked as it changes, returned on its own with the name
-    its index will be written under."""
+    """htmx: one group of fields checked as it changes, returned on its own with its
+    warnings."""
     analysis = get_analysis(request, analysis_id)
     unit = request.POST.get("group", "")
     if unit not in IndexParamsForm.UNITS:
         return HttpResponseBadRequest()
     form = IndexParamsForm(request.POST, station_title=_station_title(analysis))
     form.is_valid()
-    context = {"form": form, "group": unit, "analysis": analysis, "names": form.output_names()}
+    context = {"form": form, "group": unit, "analysis": analysis}
     return render(request, "stations/_indices_unit.html", context)
 
 

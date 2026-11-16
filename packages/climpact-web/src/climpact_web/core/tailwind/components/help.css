@@ -1,8 +1,8 @@
-/* Help (#81): the help topic beside a field, the guide pages (their text is Markdown
+/* Help (#81): a help topic opening in place, the guide pages (their text is Markdown
    rendered on the server, so it is styled through .help-article), and the first-run tour
    (js/tour.js builds its elements). */
 @layer components {
-  /* == Help topic beside a field: a quiet link-style summary that opens in place == */
+  /* == Help topic: a quiet link-style summary that opens in place == */
   .help-topic--compact {
     border: 0;
     background: none;
@@ -33,11 +33,6 @@
 
   .help-topic .disclosure__body p {
     margin-block: 0 --spacing(2);
-  }
-
-  .field-set > .help-topic,
-  .field > .help-topic {
-    margin-block-start: --spacing(1);
   }
 
   /* == Help pages == */

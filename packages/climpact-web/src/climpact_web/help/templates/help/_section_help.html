@@ -1,0 +1,9 @@
+{% load i18n ui %}{% comment %}
+A section's ⓘ ({% section_help %} in templatetags/help.py, #177). Without JavaScript, a
+link to the section's help page; ui.js hides the link and shows the button, which opens
+the drawer with the content of the <template> (components/drawer.html). Parameters:
+section, title, topics, guide_links, url, element_id.
+{% endcomment %}{% if section %}{% blocktranslate with title=title asvar help_name %}Help: {{ title }}{% endblocktranslate %}
+<a class="help-button" href="{{ url }}" data-help-link>{% icon "info" %}<span class="sr-only">{{ help_name }}</span></a>
+<button type="button" class="help-button" data-drawer-open="{{ element_id }}" aria-controls="help-drawer" aria-expanded="false" hidden>{% icon "info" %}<span class="sr-only">{{ help_name }}</span></button>
+<template id="{{ element_id }}" data-title="{{ help_name }}">{% include "help/_section_body.html" %}</template>{% endif %}

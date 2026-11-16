@@ -14,6 +14,7 @@
   <script src="{% static 'climpact_web/js/theme.js' %}"></script>
   <script src="{% static 'climpact_web/vendor/htmx/htmx.min.js' %}" defer></script>
   <script src="{% static 'climpact_web/js/ui.js' %}" defer></script>
+  <script src="{% static 'climpact_web/js/drawer.js' %}" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
@@ -57,12 +58,16 @@
   </header>
   {% endblock %}
   {% block steps %}{% endblock %}
-  <main id="main" class="site-main" tabindex="-1">
-    <div class="mx-auto w-full max-w-content px-4 sm:px-6">
-      {% include "components/messages.html" %}
-      {% block content %}{% endblock %}
-    </div>
-  </main>
+  {# The page and the help drawer beside it (below it on narrow screens), #177. #}
+  <div class="drawer-layout" data-drawer-layout>
+    <main id="main" class="site-main" tabindex="-1">
+      <div class="mx-auto w-full max-w-content px-4 sm:px-6">
+        {% include "components/messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+    {% include "components/drawer.html" %}
+  </div>
   {% block footer %}
   <footer class="site-footer print:hidden">
     <div class="mx-auto w-full max-w-content px-4 sm:px-6 site-footer__inner">

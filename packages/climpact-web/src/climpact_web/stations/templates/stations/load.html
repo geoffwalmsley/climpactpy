@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% load i18n static ui charts %}
-{% block title %}{% translate "Check the data and describe the station" %}{% endblock %}
+{% load i18n static ui charts help %}
+{% block title %}{% translate "Load data" %}{% endblock %}
 {% block head %}{% chart_scripts %}{% endblock %}
 {% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
-    <h1>{% translate "Load data: check it and describe the station" %}</h1>
-    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Give the station's details, and check below that this is the data you expect.{% endblocktranslate %}{% endif %}</p>
+    <h1>{% translate "Load data" %}</h1>
+    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data from {{ name }}. The details are filled in.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check the details and the data.{% endblocktranslate %}{% endif %}</p>
   </header>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
@@ -18,14 +18,14 @@
     <div class="alert__body">
       <h2 class="alert__title">{% blocktranslate count counter=analysis.warnings|length trimmed %}Something to check in the file{% plural %}{{ counter }} things to check in the file{% endblocktranslate %}</h2>
       <ul>{% for warning in analysis.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
-      <p>{% translate "These do not stop you going on; the quality checks in the next step look at the data in detail." %}</p>
+      <p>{% translate "You can still go on. The quality checks look at the data next." %}</p>
     </div>
   </div>
   {% endif %}
 
   {% comment %}The details first, with the one button below them; the data they describe after (#173).{% endcomment %}
   <section class="card stack" aria-labelledby="details-title">
-    <h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>
+    <div class="with-help"><h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>{% section_help "load.details" %}</div>
     <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" id="station-details" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" %}
@@ -37,7 +37,7 @@
       {% include "stations/_unit.html" with group="base_period" %}
       {% turnstile %}
       <div class="form__actions">
-        {% translate "Continue to quality checks" as continue_label %}
+        {% translate "Check quality" as continue_label %}
         {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" size="lg" %}
       </div>
     </form>

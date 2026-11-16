@@ -1,4 +1,4 @@
-{% load i18n ui help %}{% comment %}
+{% load i18n ui %}{% comment %}
 The batch options (the R batch screen's base period and number of cores, and the plots),
 checked as they change: htmx posts the form to batch:options and swaps in this fragment
 with the base period's coverage notes and the time estimate. Without JavaScript they are
@@ -8,7 +8,6 @@ checked when the form is sent. Parameters: run, options (OptionsForm), coverage,
   <fieldset class="field-set" aria-describedby="base-period-hint">
     <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
     <p class="field__hint" id="base-period-hint">{% translate "The years the percentile thresholds are calculated from, the same for every station. Climpact for R suggests 1971 to 2000." %}</p>
-    {% help_topic "batch.base_period" %}
     <div class="form__row">
       {% include "components/field.html" with field=options.base_start %}
       {% include "components/field.html" with field=options.base_end %}
@@ -20,7 +19,7 @@ checked when the form is sent. Parameters: run, options (OptionsForm), coverage,
     <ul>{% for note in coverage %}<li>{% blocktranslate with name=note.name first=note.first last=note.last %}{{ name }} (data {{ first }} to {{ last }}){% endblocktranslate %}</li>{% endfor %}</ul>
   </div></div>
   {% endif %}
-  {% if options.workers %}{% include "components/field.html" with field=options.workers narrow=True help="batch.workers" %}{% endif %}
-  {% include "components/field.html" with field=options.plots help="batch.plots" %}
+  {% if options.workers %}{% include "components/field.html" with field=options.workers narrow=True %}{% endif %}
+  {% include "components/field.html" with field=options.plots %}
   {% if estimate %}<p class="text-sm text-text-muted flex flex-wrap items-center gap-3" data-announce="now">{% icon "clock" %}<span>{% blocktranslate %}This should take {{ estimate }}, as a rough guide.{% endblocktranslate %}</span></p>{% endif %}
 </div>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+A section's help on a page of its own (#177): where the ⓘ leads without JavaScript, and
+the same help the drawer shows. Context from help.views.section (help.sections).
+{% endcomment %}
+{% block title %}{% blocktranslate %}Help: {{ title }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg help-page max-w-prose">
+  <nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb text-sm"><a href="{% url 'help:index' %}">{% translate "Help" %}</a></nav>
+  <header class="stack stack--sm">
+    <p class="eyebrow">{% translate "Help" %}</p>
+    <h1>{{ title }}</h1>
+  </header>
+  {% include "help/_section_body.html" %}
+</div>
+{% endblock %}

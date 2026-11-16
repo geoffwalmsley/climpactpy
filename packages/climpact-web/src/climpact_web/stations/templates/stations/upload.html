@@ -6,7 +6,7 @@
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% translate "Load station data" %}</h1>
-    <p class="lead">{% translate "Start with a file of daily temperature and precipitation for one station. Climpact checks it and shows you what it contains before you go on." %}</p>
+    <p class="lead">{% translate "Load a file of daily temperature and precipitation for one station." %}</p>
   </header>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" %}{% endif %}
@@ -14,11 +14,10 @@
   <div class="grid gap-5 grid-cols-fit-80 items-start">
     <form method="post" action="{% url 'stations:upload' %}" enctype="multipart/form-data" class="card stack" novalidate>
       {% csrf_token %}
-      <h2 class="card__title">{% translate "Your station file" %}</h2>
+      <div class="with-help"><h2 class="card__title">{% translate "Your station file" %}</h2>{% section_help "upload.file" %}</div>
       {% blocktranslate asvar hint with size=max_upload_mb %}Text or CSV, up to {{ size }} MB.{% endblocktranslate %}
       {% include "components/dropzone.html" with field=form.station_file hint=hint %}
       <p class="text-sm text-text-muted" id="format-hint">{{ form.station_file.help_text }}</p>
-      {% help_topic "station.file" %}
       {% turnstile %}
       <div>
         {% translate "Load the file" as load_label %}
@@ -29,7 +28,7 @@
     <section class="card stack" aria-labelledby="sample-title">
       <span class="card__icon">{% icon "play" %}</span>
       <h2 class="card__title" id="sample-title">{% translate "No file to hand?" %}</h2>
-      <p class="card__body">{% translate "Try Climpact with daily data for Sydney Observatory Hill, Australia, 1936 to 2015. The station name and location are filled in for you." %}</p>
+      <p class="card__body">{% translate "Try Climpact with daily data for Sydney Observatory Hill, Australia, 1936 to 2015." %}</p>
       <form method="post" action="{% url 'stations:sample' %}">
         {% csrf_token %}
         {% translate "Use the sample data" as sample_label %}
@@ -40,26 +39,6 @@
   </div>
 
   {% include "stations/_retention.html" %}
-
-  <details class="disclosure">
-    <summary>{% icon "help" %}<span>{% translate "What the file must look like" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body max-w-prose">
-      <p>{% translate "One row per day, in date order, with six columns separated by spaces, tabs or commas:" %}</p>
-      <ol>
-        <li>{% translate "year, month and day (whole numbers);" %}</li>
-        <li>{% translate "precipitation in millimetres;" %}</li>
-        <li>{% translate "maximum and minimum temperature in degrees Celsius." %}</li>
-      </ol>
-      <p>{% translate "Write a missing value as -99.9. A first row of column names is allowed and skipped. For example:" %}</p>
-      <pre class="file-example"><code>year month day prcp tmax tmin
-1936 1 1 0.3 23.7 18.7
-1936 1 2 0.5 24.1 17.7
-1936 1 3 -99.9 25 19.7</code></pre>
-      <p>{% translate "This is the format of Climpact for R and RClimDex, so files prepared for them work here unchanged." %}</p>
-      <p><a href="{% url 'help:guide' 'station-file' %}">{% translate "Read the guide to preparing a station file" %}</a></p>
-    </div>
-  </details>
-
   {% if recent %}
   <section class="stack stack--sm" aria-labelledby="recent-title">
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>

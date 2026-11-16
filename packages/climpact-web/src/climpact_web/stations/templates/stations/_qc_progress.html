@@ -16,7 +16,7 @@ Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing)
     <p class="progress__note" id="qc-progress-text">
       {% if stage_label %}{% blocktranslate with stage=stage_label %}{{ stage }}.{% endblocktranslate %}{% endif %}
       {% if elapsed %}{% blocktranslate %}Time so far: {{ elapsed }}.{% endblocktranslate %}{% endif %}
-      {% translate "The checks usually take a few seconds; the results appear here." %}
+      {% translate "This usually takes a few seconds." %}
     </p>
   </div>
   {% if worker_missing %}

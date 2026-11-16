@@ -115,40 +115,40 @@ class IndexParamsForm(forms.Form):
         label=_("Plot title"),
         max_length=200,
         required=False,
-        help_text=_("Printed at the top of every plot. Leave empty to use the station name."),
+        help_text=_("Leave empty to use the station name."),
     )
     wsdi_days = _days(
         _("Days for WSDId"),
-        _("From 1 to 10 days in a row. Climpact's default is 1."),
+        _("1 to 10. Default 1."),
         1,
         maximum=10,
         required_message=_("Enter the number of days for WSDId."),
     )
     csdi_days = _days(
         _("Days for CSDId"),
-        _("From 1 to 10 days in a row. Climpact's default is 1."),
+        _("1 to 10. Default 1."),
         1,
         maximum=10,
         required_message=_("Enter the number of days for CSDId."),
     )
     rx_days = _days(
         _("Days for Rxdday"),
-        _("1 or more days in a row. Climpact's default is 3."),
+        _("Default 3."),
         3,
         required_message=_("Enter the number of days for Rxdday."),
     )
     txtn_days = _days(
         _("Days for TXdTNd and TXbdTNbd"),
-        _("1 or more days in a row. Climpact's default is 2."),
+        _("Default 2."),
         2,
         required_message=_("Enter the number of days for TXdTNd and TXbdTNbd."),
     )
-    hdd_base = _degrees(_("Base temperature for HDDheat"), _("Climpact's default is 18 °C."), 18.0)
-    cdd_base = _degrees(_("Base temperature for CDDcold"), _("Climpact's default is 18 °C."), 18.0)
-    gdd_base = _degrees(_("Base temperature for GDDgrow"), _("Climpact's default is 10 °C."), 10.0)
+    hdd_base = _degrees(_("Base temperature for HDDheat"), _("Default 18 °C."), 18.0)
+    cdd_base = _degrees(_("Base temperature for CDDcold"), _("Default 18 °C."), 18.0)
+    gdd_base = _degrees(_("Base temperature for GDDgrow"), _("Default 10 °C."), 10.0)
     rnnmm = forms.FloatField(
         label=_("Precipitation amount for Rnnmm"),
-        help_text=_("0 mm or more. Climpact's default is 30 mm."),
+        help_text=_("Default 30 mm."),
         initial=30.0,
         min_value=0,
         error_messages={
@@ -160,7 +160,7 @@ class IndexParamsForm(forms.Form):
     )
     spei_months = _days(
         _("Extra SPI and SPEI time scale"),
-        _("A number of months, 1 or more. Climpact's default is 24."),
+        _("Default 24."),
         24,
         required_message=_("Enter a number of months."),
     )
@@ -170,7 +170,7 @@ class IndexParamsForm(forms.Form):
         label=_("Calculate a custom threshold index"),
         required=False,
         initial=True,
-        help_text=_("Climpact for R always calculates one; its default is TN > 0."),
+        help_text=_("Default TN > 0, as in Climpact for R."),
     )
     custom_variable = forms.ChoiceField(
         label=_("Variable"), choices=CUSTOM_VARIABLES, initial="TN", required=False
@@ -188,26 +188,19 @@ class IndexParamsForm(forms.Form):
 
     plots = forms.BooleanField(
         label=_("Draw the plots"),
-        help_text=_(
-            "A PNG of every index and a PDF of them all, as Climpact for R draws. They take "
-            "about two thirds of the time; the charts on the results page do not need them."
-        ),
+        help_text=_("Plots take about two thirds of the time."),
         required=False,
         initial=True,
     )
     zip = forms.BooleanField(
         label=_("Make a zip file of the results"),
-        help_text=_("Every result file in one download, in the folder layout of Climpact for R."),
+        help_text=_("Every result file in one download."),
         required=False,
         initial=True,
     )
     report = forms.BooleanField(
         label=_("Write a PDF report"),
-        help_text=_(
-            "One PDF to read, print or send: the station and settings, what the quality "
-            "checks found, and a page per index with its plot and trends. Not in Climpact "
-            "for R; it is a separate download, so the zip keeps R's layout."
-        ),
+        help_text=_("One PDF to read, print or send."),
         required=False,
         initial=True,
     )
@@ -340,41 +333,6 @@ class IndexParamsForm(forms.Form):
             else None
         )
         return params
-
-    def output_names(self) -> dict[str, str]:
-        """For each parameter group, the file name the index will be written under, from
-        the values entered so far (R's names: ``rx3day``, ``r30mm``, ``TNgt0`` ...)."""
-        from climpact.config import CustomIndex
-        from climpact.io.climpact_csv import format_r_number
-
-        data = getattr(self, "cleaned_data", {})
-        names = {}
-        if (d := data.get("wsdi_days")) is not None:
-            names["wsdi_days"] = f"wsdi{d}"
-        if (d := data.get("csdi_days")) is not None:
-            names["csdi_days"] = f"csdi{d}"
-        if (d := data.get("rx_days")) is not None:
-            names["rx_days"] = f"rx{d}day"
-        if (d := data.get("txtn_days")) is not None:
-            names["txtn_days"] = f"tx{d}tn{d}, txb{d}tnb{d}"
-        for field, stem in (
-            ("hdd_base", "hddheat"),
-            ("cdd_base", "cddcold"),
-            ("gdd_base", "gddgrow"),
-        ):
-            if (value := data.get(field)) is not None:
-                names[field] = f"{stem}{format_r_number(value)}"
-        if (value := data.get("rnnmm")) is not None:
-            names["rnnmm"] = f"r{format_r_number(value)}mm"
-        if (d := data.get("spei_months")) is not None:
-            names["spei_months"] = f"{d}month_spi, {d}month_spei"
-        if data.get("custom_enabled") and data.get("custom_threshold") is not None:
-            names["custom"] = CustomIndex(
-                data.get("custom_variable") or "TN",
-                data.get("custom_operator") or ">",
-                float(data["custom_threshold"]),
-            ).name
-        return names
 
 
 def initial_from_params(

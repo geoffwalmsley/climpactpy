@@ -80,7 +80,12 @@ def turnstile(context):
     (#125): nothing unless Turnstile is on (hosted mode, both keys set; see
     :mod:`climpact_web.core.limits`). The widget adds the ``cf-turnstile-response`` field the
     view checks; it usually passes without asking anything, and is keyboard and screen
-    reader accessible. Cloudflare's script is added once per page, with the first widget."""
+    reader accessible. Cloudflare's script is added once per page, with the first widget.
+
+    A form sent before its widget has a token would be refused (#163), so
+    ``js/turnstile.js``, added with Cloudflare's script, holds the form back until the
+    token comes and then sends it: the ``data-*-callback`` names are its functions, and
+    ``data-wait``, ``data-slow``, ``data-failed`` and ``data-retry`` the texts it shows."""
     from django.conf import settings
     from django.utils.translation import get_language
     from django.utils.translation import gettext as _
@@ -90,10 +95,19 @@ def turnstile(context):
     if not turnstile_enabled():
         return ""
     widget = format_html(
-        '<div class="cf-turnstile" data-sitekey="{}" data-language="{}" data-size="flexible">'
+        '<div class="cf-turnstile" data-sitekey="{}" data-language="{}" data-size="flexible"'
+        ' data-callback="climpactTurnstileDone" data-error-callback="climpactTurnstileError"'
+        ' data-wait="{}" data-slow="{}" data-failed="{}" data-retry="{}">'
         "</div><noscript><p>{}</p></noscript>",
         settings.TURNSTILE_SITE_KEY,
         get_language() or "auto",
+        _("Checking that you are a person. The form is sent as soon as the check finishes."),
+        _("Still checking that you are a person. If the check asks you something, answer it."),
+        _(
+            "We could not check that you are a person, so the form was not sent. Try "
+            "again, or reload the page."
+        ),
+        _("Try again"),
         _(
             "This form checks that you are a person before it is sent, which needs "
             "JavaScript. Turn JavaScript on to continue."
@@ -104,5 +118,9 @@ def turnstile(context):
         return widget
     if request is not None:
         request._turnstile_script = True
-    script = format_html('<script src="{}" async defer></script>', TURNSTILE_SCRIPT)
+    script = format_html(
+        '<script src="{}" defer></script><script src="{}" async defer></script>',
+        static("climpact_web/js/turnstile.js"),
+        TURNSTILE_SCRIPT,
+    )
     return widget + script

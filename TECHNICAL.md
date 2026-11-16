@@ -2715,6 +2715,8 @@ packages/climpact-web/src/climpact_web/
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
+      js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
+                     loaded with the widget only
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
@@ -3000,7 +3002,10 @@ jobs and the error pages must leave none (`test_no_content_security_policy_viola
 `test_turnstile_widget_within_the_policy` starts a second app with
 `turnstile_test_settings.py` (Turnstile on with Cloudflare's published test keys, which
 always pass on any host, and the Turnstile policy) and waits for the widget's token on
-the station upload page with no violation; it skips when Cloudflare cannot be reached.
+the station upload page with no violation; `test_turnstile_holds_a_form_until_its_token`
+presses the sample's top button on step 1 as soon as the page is parsed, before the token,
+and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
+cannot be reached.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
 `UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
@@ -3523,9 +3528,28 @@ connection usually gets a whole /64.
 **Turnstile.** On when hosted and both `CLIMPACT_WEB_TURNSTILE_SITE_KEY` and
 `_SECRET_KEY` are set. `{% turnstile %}` (`core/templatetags/ui.py`) renders the widget
 (`<div class="cf-turnstile" data-size="flexible">`, in the page's language) above the submit
-button, with a `<noscript>` note that the check needs JavaScript, and adds Cloudflare's
-`api.js` once per page (a `<script src>`, no inline code or callbacks), so pages without
-such a form load nothing from Cloudflare. The
+button, with a `<noscript>` note that the check needs JavaScript, and adds `js/turnstile.js` and Cloudflare's
+`api.js` once per page (`<script src>`, no inline code), so pages without such a form
+load neither. **Waiting for the token (#163).** The widget takes a second or two to get
+its token, out of sight when the form's widget is below the fold, and a form sent before
+then was refused (`turnstile-missing`): on the live site, the sample's top button on
+step 1 ("Details look right", outside the details form with `form="station-details"`).
+`turnstile.js` catches every submit in the capture phase (the form's own buttons, a button
+outside it, Enter) of a form holding a `.cf-turnstile`; with no token in that form's
+widget (or `turnstile.isExpired`), it stops the submit, marks the form's submit buttons
+`aria-busy` and `aria-disabled`, puts a `role="status"` line beside the button pressed,
+and sends the form with `requestSubmit(submitter)` (the button's name and value kept)
+when the token comes: the widget's `data-callback`/`data-error-callback` name its global
+functions, and a 250 ms poll covers a callback that ran before the file did. After 6 s
+the line asks the user to answer the check, if it asks something, and scrolls the widget
+into view; on a widget error or after 60 s it says the form was not sent, with a "Try
+again" button (`turnstile.reset`). A token that comes later still sends the form. Its
+texts come translated in the widget's `data-wait`, `data-slow`, `data-failed` and
+`data-retry`. Each form reads only its own widget's field, so step 1's two widgets keep
+their tokens apart. Widgets that arrive in an htmx swap are rendered with
+`turnstile.render` on `htmx:load` (implicit rendering only scans the page when `api.js`
+loads), never twice; since htmx runs script tags off, that needs a page that already
+loaded the scripts with a widget of its own. None of today's swaps carries one. The
 views whose POST uploads a file or starts a job are wrapped in `human_required`: station
 upload, replace file, step 1's details (which queue the checks), run the checks, replace
 the file after the checks, the indices and the sector run; batch upload, add files and
@@ -4996,7 +5020,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.4 KB for the quality-check results (#77) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.5 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.2 of 4.5 KB, `theme.js` 0.3 of 0.5 KB |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.5 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.2 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`

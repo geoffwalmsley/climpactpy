@@ -3891,7 +3891,11 @@ were out of #131's scope). Concurrency `release-<ref>`, never cancelled.
 
 The visual language and shared components (#71). The R Shiny app (`climpact/ui`,
 `climpact/www/styles.css`: shinydashboard boxes, a sidebar menu, tabs as steps) is the
-baseline it replaces.
+baseline it replaces. [`DESIGN.md`](DESIGN.md) at the repository root is the short
+reference for design work and reviews: who the app is for, the tokens and components in
+brief, and the rules a change must keep, including the targets of the UX redesign (#171).
+This section describes how the system is built. Wireframes for the redesign are in
+`docs/design/`.
 
 **Look.** Calm and plain: neutral surfaces, one blue accent (`--color-accent`), strong
 type hierarchy, generous spacing. System fonts only (`--font-sans`, `--font-mono`): no

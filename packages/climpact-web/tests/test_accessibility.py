@@ -889,6 +889,48 @@ def test_results_groups_open_with_the_search_and_links(chrome, site):
     assert c.evaluate(opened) == ["group-drought"]
 
 
+def test_quality_worklist_by_keyboard(chrome, site):
+    """#174: a "worth a look" group opens and closes from the keyboard on its summary;
+    "Show on chart" on a "look wrong" row opens Details and focuses the daily chart; the
+    "Upload a corrected file" button is a Tab stop that opens the file chooser."""
+    c = chrome
+    c.navigate(site["station quality results"])
+    group = "document.querySelector('.qc-group')"
+    assert not c.evaluate(f"{group}.open")
+    focus(c, ".qc-group > summary")
+    c.press("Enter")
+    assert c.evaluate(f"{group}.open")
+    c.press(" ")
+    assert not c.evaluate(f"{group}.open")
+    assert not c.evaluate("document.getElementById('details').open")
+    focus(c, "[data-qc-finding] [data-qc-show]")
+    c.press("Enter")
+    wait_for(c, "!!(document.activeElement && document.activeElement.closest('[data-chart-plot]'))",
+             timeout=30, what="focus on the daily chart")  # fmt: skip
+    assert c.evaluate("document.getElementById('details').open")
+    # With every group, row and Details open (axe skips closed ones), in both themes.
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.navigate(site["station quality results"])
+        c.evaluate("document.querySelectorAll('details').forEach(function (d) { d.open = true })")
+        c.settle()
+        assert run_axe(c) == [], scheme
+    set_mode(c)
+    # The upload button: its file input takes focus, shows it on the button, and opens
+    # the chooser (the page is not sent: nothing is chosen).
+    c.navigate(site["station quality results"])
+    focus(c, ".qc-verdict [data-file-button] input[type=file]")
+    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
+    assert ring != "none", "the upload button shows no focus"
+    c.send("Page.setInterceptFileChooserDialog", enabled=True)
+    try:
+        c.events.clear()
+        c.press(" ")
+        c.wait_event("Page.fileChooserOpened", timeout=5)
+    finally:
+        c.send("Page.setInterceptFileChooserDialog", enabled=False)
+
+
 def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
     """#173: the Load and Calculate pages have one button each, below the fields it
     submits (no longer a second one in the first screen, #114); with an error in a
@@ -992,6 +1034,7 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         assert not c.evaluate("!!document.querySelector('#daily-chart [data-chart-flags]')")
 
         c.navigate(site["station quality results"])
+        c.evaluate("document.getElementById('details').open = true")  # the charts (#174)
         chart = c.evaluate("document.querySelector('.qc-charts [data-chart]').id")
         c.evaluate(f"document.getElementById({json.dumps(chart)}).scrollIntoView()")
         wait_for(c, f"!!document.querySelector('#{chart} [data-chart-flags]')", 60)

@@ -1,0 +1,17 @@
+{% load i18n ui %}{% comment %}
+A button that opens the file picker and sends the chosen file at once (#174), for a
+second upload where a drop zone would take too much room. Without JavaScript the label,
+the file input and a submit button show as they are; ui.js styles the label as the button,
+hides the input and the submit button behind it, and sends the form when a file is chosen.
+Say what happens on choosing a file in a hint the page shows near the button (WCAG 3.2.2),
+with the id Django puts in the input's aria-describedby: {{ field.auto_id }}_helptext.
+Parameters: action, field (a bound file field), label, variant ("primary" default,
+"secondary"), size ("lg", "sm"), submit_label.
+{% endcomment %}
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="file-button" data-file-button novalidate>
+  {% csrf_token %}
+  {% include "components/field_errors.html" %}
+  <label class="file-button__label" data-class="button{% if variant and variant != 'primary' %} button--{{ variant }}{% endif %}{% if size %} button--{{ size }}{% endif %}">{% icon "upload" %}<span>{{ label }}</span>{{ field }}</label>
+  <button type="submit" class="button button--secondary button--sm file-button__submit">{% if submit_label %}{{ submit_label }}{% else %}{% translate "Upload" %}{% endif %}</button>
+  {% turnstile %}
+</form>

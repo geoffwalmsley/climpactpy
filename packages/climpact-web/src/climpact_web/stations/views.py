@@ -10,6 +10,7 @@ other session gets 404.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import gzip
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
@@ -345,15 +347,16 @@ def step_two_ready(analysis: StationAnalysis) -> bool:
     )
 
 
-def check_pages(request, review) -> dict[str, object]:
-    """The page of each check's table: ``?<check>_page=`` (the pager without htmx)."""
+def table_pages(request, review) -> dict[str, object]:
+    """The page of each table on the screen, by its ``table_id``: ``?<table_id>_page=``
+    (the pager without htmx)."""
     pages = {}
-    for check in review.checks:
+    for table in review.tables:
         try:
-            number = int(request.GET.get(f"{check.key}_page", 1))
+            number = int(request.GET.get(f"{table.table_id}_page", 1))
         except ValueError:
             number = 1
-        pages[check.key] = check.page(number)
+        pages[table.table_id] = table.page(number)
     return pages
 
 
@@ -379,20 +382,12 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
         except FileNotFoundError:
             review = None
         if review is not None:
-            pages = check_pages(request, review)
+            pages = table_pages(request, review)
             context.update(
                 review=review,
-                check_groups=[
-                    {
-                        "kind": kind,
-                        "items": [
-                            {"check": c, "page": pages[c.key]}
-                            for c in review.checks
-                            if c.kind == kind
-                        ],
-                    }
-                    for kind in ("error", "review")
-                ],
+                findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
+                groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
+                month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
                 charts=[
                     {
                         "variable": v,
@@ -467,8 +462,8 @@ def qc_progress(request, analysis_id):
 @never_cache
 @require_safe
 def qc_table(request, analysis_id, check):
-    """One page of a check's table (htmx): ``?page=``, or ``?date=`` for the page holding
-    that date (a flag picked on a chart)."""
+    """One page of a table (htmx): a check's, or with ``?group=`` one of its groups;
+    ``?page=``, or ``?date=`` for the page holding that date (a flag picked on a chart)."""
     from climpact_web.stations import qc_review
 
     analysis = get_analysis(request, analysis_id)
@@ -476,7 +471,9 @@ def qc_table(request, analysis_id, check):
     if check not in qc_review.CHECK_KEYS or job is None or job.status != Status.SUCCEEDED:
         raise Http404
     review = qc_review.review(job, analysis.station_file)
-    item = review.check(check)
+    item = review.table(check, request.GET.get("group", ""))
+    if item is None:
+        raise Http404
     date = request.GET.get("date", "")
     if date:
         number = item.page_of(date)

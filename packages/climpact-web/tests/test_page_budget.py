@@ -39,7 +39,7 @@ ASSET_BUDGETS = {
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
     "css/climpact.css": 12.5 * KB,
-    "js/qc.js": 1.5 * KB,  # the quality-check results: tables linked to the charts (#77)
+    "js/qc.js": 2 * KB,  # the quality checks: worklist and tables linked to the charts (#77, #174)
     "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here

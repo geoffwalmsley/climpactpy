@@ -172,6 +172,8 @@ def file_flags(name: str) -> list[str]:
 
 
 def test_every_flag_of_the_stress_station_is_in_its_table(client, checked):
+    """Every row of every file is on the screen (#174): each "look wrong" check in its
+    table, each "worth a look" check in its groups' tables, page by page."""
     review = qc_review.review(checked.qc_job, checked.station_file)
     for check in review.checks:
         dates = file_flags(check.key)
@@ -180,14 +182,19 @@ def test_every_flag_of_the_stress_station_is_in_its_table(client, checked):
             assert listed == list(dict.fromkeys(dates))  # one row per repeated date
         else:
             assert listed == dates, check.key
-        # And on the pages of the table, in the browser.
+        # And on the pages of its tables, in the browser.
         shown = []
-        for number in range(1, check.page(1).pages + 1):
-            url = f"/station/{checked.pk}/quality/checks/{check.key}?page={number}"
-            html = client.get(url).content.decode()
-            shown += re.findall(r'<tr data-date="([\d-]+)"', html)
-        assert shown == listed, check.key
-    assert review.check("outliers").page(1).pages > 1  # 88 outliers: four pages
+        for table in review.tables:
+            if table.key != check.key:
+                continue
+            query = f"group={table.group}&" if table.group else ""
+            for number in range(1, table.page(1).pages + 1):
+                url = f"/station/{checked.pk}/quality/checks/{check.key}?{query}page={number}"
+                html = client.get(url).content.decode()
+                shown += re.findall(r'<tr data-date="([\d-]+)"', html)
+        assert sorted(shown) == sorted(listed), check.key
+    prcp = review.table("outliers", "prcp-high")
+    assert prcp.count == 67 and prcp.page(1).pages == 2  # 50 a page
 
 
 CHART_OF = {
@@ -320,14 +327,104 @@ def test_climdex_rules_for_a_year(tmp_path):
     assert year.months["tmax"] == 0 and not year.no_annual["tmax"]
 
 
-def test_summary_wording_leaves_the_decision_to_the_user(checked):
+def years(n: int, short: int) -> list:
+    """``n`` years, ``short`` of them too incomplete for annual values."""
+    return [
+        qc_review.YearMissing(1961 + i, {"prcp": 0}, {"prcp": 0}, {"prcp": i < short})
+        for i in range(n)
+    ]
+
+
+def checks(**counts) -> list:
+    """Checks with ``counts`` rows (by key; the others none)."""
+    out = []
+    for key, title, kind in qc_review.CHECKS:
+        rows = [qc_review.Row("2001-01-01", [], "tmax")] * counts.get(key, 0)
+        out.append(qc_review.Check(key, str(title), kind, "", [], [], rows, None, len(rows)))
+    return out
+
+
+def test_verdict_clean_data_is_ready_to_use():
+    verdict = qc_review.verdict(checks(outliers=300, tx_jumps=5), years(60, 1), 65000)
+    assert verdict.level == "ready" and verdict.title == "Ready to use"
+    assert verdict.alert_kind == "success"
+    # What may be real is counted, but never changes the level.
+    assert verdict.worth == 305 and "305 values are unusual but may be real." in verdict.message
+    assert verdict.facts[0] == "65,000 values checked"
+
+
+def test_verdict_a_few_wrong_values_are_usable():
+    verdict = qc_review.verdict(checks(tmaxmin=1, toolarge=4, outliers=395), years(80, 1), 87537)
+    assert verdict.level == "usable" and verdict.title == "Usable. 5 values look wrong."
+    assert verdict.alert_kind == "warning" and verdict.wrong == 5
+    assert "5 look wrong (under 0.01%)" in verdict.facts
+    assert "1 of 80 years too incomplete for annual values" in verdict.facts
+
+
+def test_verdict_too_many_wrong_values_is_fix_the_file_first():
+    limit = qc_review.VERDICT_LIMITS.wrong_share  # 0.1%
+    assert limit == 0.001
+    # 65 of 65,000 is 0.1% exactly: still usable; one more is red.
+    assert qc_review.verdict(checks(toolarge=65), years(60, 0), 65000).level == "usable"
+    verdict = qc_review.verdict(checks(toolarge=60, duplicates=6), years(60, 0), 65000)
+    assert verdict.level == "fix" and verdict.title == "Fix the file first"
+    assert verdict.too_many_wrong and not verdict.too_many_short
+    assert verdict.alert_kind == "error"
+    assert "66 values look wrong, 0.1% of the values checked." in verdict.message
+    assert "use the data as it is" in verdict.message  # the user can always go on
+
+
+def test_verdict_too_many_incomplete_years_is_fix_the_file_first():
+    assert qc_review.VERDICT_LIMITS.short_years_share == 0.10
+    assert qc_review.verdict(checks(), years(60, 6), 65000).level == "ready"  # 10% exactly
+    verdict = qc_review.verdict(checks(), years(60, 7), 65000)
+    assert verdict.level == "fix" and verdict.too_many_short and not verdict.too_many_wrong
+    assert "7 of 60 years have too much missing data for annual values." in verdict.message
+
+
+def test_verdict_limits_can_be_changed_in_one_place():
+    strict = qc_review.VerdictLimits(wrong_share=0.0, short_years_share=0.0)
+    assert qc_review.verdict(checks(tmaxmin=1), years(60, 0), 65000, strict).level == "fix"
+    assert qc_review.verdict(checks(), years(60, 1), 65000, strict).level == "fix"
+
+
+def test_stress_station_verdict_and_worklist(checked):
     review = qc_review.review(checked.qc_job, checked.station_file)
-    assert review.summary.level == "errors"
-    assert "decision is yours" in review.summary.message
-    kinds = [r.kind for r in review.summary.reasons]
-    assert kinds[:3] == ["error", "error", "error"] and "review" in kinds
-    clear = qc_review.summarise([], [])
-    assert clear.level == "clear" and not clear.reasons
+    # 10 + 6 + 5 = 21 of 65,720 values (0.03%), no year too incomplete: amber.
+    assert review.verdict.level == "usable" and review.verdict.wrong == 21
+    assert review.verdict.values == 65720 and review.verdict.short_years == 0
+    assert [f.check.key for f in review.findings] == ["tmaxmin", "toolarge", "duplicates"]
+    assert len(review.findings[0].findings) == qc_review.FINDINGS_SHOWN  # 10 shown
+    assert not review.findings[0].more and not review.findings[1].more
+    groups = [g.check.table_id for g in review.groups]
+    assert groups[:2] == ["outliers-prcp-high", "tx_jumps"]  # the largest first
+    assert sum(g.count for g in review.groups) == review.verdict.worth == 105
+    assert review.quiet == []
+    dtr = next(g for g in review.groups if g.check.group == "dtr-high")
+    assert dtr.title == "Wide daily range (DTR)" and sum(dtr.by_month) == 8
+    months = [r.date[5:7] for r in dtr.check.rows]
+    assert months == sorted(months)  # by calendar month
+
+
+def test_finding_text_and_its_days(checked):
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    toolarge = review.findings[1]
+    first = toolarge.findings[0]
+    assert first.date == "1963-07-02" and first.text == "Rain 200.1 mm, over the 200 mm limit"
+    assert len(first.days) == 2 * qc_review.WINDOW_DAYS + 1
+    assert [d["this"] for d in first.days].index(True) == qc_review.WINDOW_DAYS
+    assert first.spark["ring"] is not None and first.spark["lines"][0]["variable"] == "prcp"
+    texts = [f.text for f in review.findings[0].findings]
+    assert any("equals the maximum" in t for t in texts)
+    assert any("is above the maximum" in t for t in texts)
+    assert review.findings[2].findings[0].text.startswith("Given on ")
+
+
+def test_months_that_hold_most_rows():
+    assert qc_review._mostly([7, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2]) == "Mostly in January"
+    assert qc_review._mostly([4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) == "All in January"
+    assert qc_review._mostly([1] * 12) == ""  # spread over the year
+    assert qc_review._mostly([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) == ""  # too few to say
 
 
 # ---- The page ----------------------------------------------------------------------------------
@@ -335,19 +432,32 @@ def test_summary_wording_leaves_the_decision_to_the_user(checked):
 
 def test_results_page(client, checked):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
-    assert "Some values are probably errors" in page
-    assert f'action="/station/{checked.pk}/quality/continue"' in page
-    assert 'href="#fix"' in page and f'action="/station/{checked.pk}/quality/file"' in page
-    for check in qc_review.CHECK_KEYS:
-        assert f'id="check-{check}"' in page
-        assert f'data-help-topic="qc.{check}"' in page
+    assert "Usable. 21 values look wrong." in page
+    # One decision: "Use this data" is the one primary button; "Upload a corrected file"
+    # opens the file picker (no drop zone), keeping the re-upload behind it.
+    verdict = page[
+        page.index('class="alert alert--warning qc-verdict"') : page.index('id="look-wrong"')
+    ]
+    assert f'action="/station/{checked.pk}/quality/continue"' in verdict
+    assert verdict.count('class="button"') == 1 and "<span>Use this data</span>" in verdict
+    assert f'action="/station/{checked.pk}/quality/file"' in verdict
+    assert "data-file-button" in verdict and "Upload a corrected file" in verdict
+    assert 'id="id_station_file_helptext"' in verdict  # what choosing a file does
+    assert "data-dropzone" not in page
+    # The worklist, then everything else under Details.
+    order = ["look-wrong", "worth-a-look", "missing-data", "details"]
+    assert [page.index(f'id="{i}"') for i in order] == sorted(
+        page.index(f'id="{i}"') for i in order
+    )
+    assert page.count("data-qc-finding") == 10 + 6 + 5
     for name in QC_DEFAULTS:
         assert f'data-help-topic="qcparam.{name}"' in page
     for variable in qc_review.CHART_VARIABLES:
         src = f"/charts/station/{checked.pk}/daily.json?variable={variable}"
         assert f'data-chart-src="{src}"' in page
+        assert page.index(src) > page.index('id="details"')
     assert "js/qc.js" in page and "js/charts.js" in page
-    assert 'id="missing-data"' in page and 'id="distributions"' in page
+    assert 'id="distributions"' in page and 'id="thresholds"' in page
     # Every file and the zip can be downloaded.
     job = checked.qc_job
     for name in job.result["files"] + [job.result["zip"]]:
@@ -355,24 +465,43 @@ def test_results_page(client, checked):
         assert client.get(f"/jobs/{job.pk}/files/{name}").status_code == 200
 
 
+def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    for check in review.checks:
+        check.rows, check.count = [], 0
+    review.findings, review.groups = [], []
+    review.verdict = qc_review.verdict(review.checks, [], review.verdict.values)
+    monkeypatch.setattr(qc_review, "review", lambda job, path: review)
+    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    assert "8 checks found nothing" in page and 'id="nothing-found"' in page
+    assert 'id="look-wrong"' not in page and 'id="worth-a-look"' not in page
+    assert "Ready to use" in page
+    # Green: "Use this data" alone; the upload button is under Details.
+    assert "Upload a corrected file" in page.split('id="details"')[1]
+    assert "Upload a corrected file" not in page.split('id="details"')[0]
+
+
 def test_pages_without_javascript(client, checked):
-    """The pager's links carry the page in the query string for the full page."""
-    page = client.get(f"/station/{checked.pk}/quality?outliers_page=2").content.decode()
-    section = page[page.index('id="qc-table-outliers"') :]
-    assert "rows 26 to 50 of 88" in section
-    assert 'href="?outliers_page=1#check-outliers"' in section
+    """The pager's links carry the page of each table in the query string."""
+    page = client.get(f"/station/{checked.pk}/quality?outliers-prcp-high_page=2").content.decode()
+    section = page[page.index('id="qc-table-outliers-prcp-high"') :]
+    assert "rows 51 to 67 of 67" in section
+    assert 'href="?outliers-prcp-high_page=1#check-outliers-prcp-high"' in section
 
 
 def test_table_page_of_a_date(client, checked):
     review = qc_review.review(checked.qc_job, checked.station_file)
-    row = review.check("outliers").rows[60]
-    html = client.get(
-        f"/station/{checked.pk}/quality/checks/outliers?date={row.date}"
-    ).content.decode()
-    assert "rows 51 to 75 of 88" in html
+    row = review.table("outliers", "prcp-high").rows[60]
+    url = f"/station/{checked.pk}/quality/checks/outliers?group=prcp-high&date={row.date}"
+    html = client.get(url).content.decode()
+    assert "rows 51 to 67 of 67" in html
     selected = f'<tr data-date="{row.date}" tabindex="-1" class="is-selected" aria-current="true">'
     assert selected in html
     assert client.get(f"/station/{checked.pk}/quality/checks/nope").status_code == 404
+    assert client.get(f"/station/{checked.pk}/quality/checks/outliers").status_code == 404
+    assert (
+        client.get(f"/station/{checked.pk}/quality/checks/outliers?group=nope").status_code == 404
+    )
 
 
 def test_new_thresholds_run_the_checks_again(client, checked):

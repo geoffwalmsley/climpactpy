@@ -1,0 +1,43 @@
+{% load i18n ui help %}{% comment %}
+"Look wrong" (#174): one row per value the checks find almost always to be a mistake
+(minimum at or above maximum, values too large, repeated dates), each with a chart and a
+table of the days around it, and "Show on chart" (qc.js) for the full daily chart under
+Details. A check with more rows than are shown has all of them in its table below.
+Context: findings (views.qc_context: list, page), analysis.
+{% endcomment %}
+<section class="stack" id="look-wrong" aria-labelledby="look-wrong-title">
+  <div class="qc-section-head">
+    <h2 id="look-wrong-title">{% translate "Look wrong" %} <span class="qc-count">{{ review.verdict.wrong|count }}</span></h2>
+    <p class="text-text-muted">{% translate "Almost always typing errors or swapped columns." %}</p>
+  </div>
+  <ul class="qc-findings" role="list">
+    {% for item in findings %}{% for finding in item.list.findings %}
+    <li class="qc-finding" data-qc-finding data-date="{{ finding.date }}" tabindex="-1">
+      <span class="qc-finding__date">{{ finding.date }}</span>
+      <span class="qc-finding__text">{{ finding.text }} <span class="qc-finding__check">{{ item.list.check.title }}</span></span>
+      {% if finding.spark %}<svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false">{% for line in finding.spark.lines %}<path class="qc-spark__line qc-spark__line--{{ line.variable }}" d="{{ line.d }}"/>{% endfor %}{% if finding.spark.ring %}<circle class="qc-spark__ring" cx="{{ finding.spark.ring.x }}" cy="{{ finding.spark.ring.y }}" r="4"/>{% endif %}</svg>{% endif %}
+      <span class="qc-finding__show" data-qc-js hidden><button type="button" class="button button--ghost button--sm" data-qc-show data-date="{{ finding.date }}" data-chart="{{ finding.row.chart_id }}">{% icon "chart" %}<span>{% translate "Show on chart" %}</span><span class="sr-only"> {{ finding.date }}</span></button></span>
+      <details class="disclosure qc-finding__days">
+        <summary>{% icon "table" %}<span>{% translate "Days around it" %}</span><span class="sr-only"> {{ finding.date }}</span>{% icon "chevron-down" %}</summary>
+        <div class="disclosure__body">
+          <div class="table-wrap" role="region" aria-label="{% blocktranslate with date=finding.date %}Days around {{ date }}{% endblocktranslate %}" tabindex="0">
+            <table class="table">
+              <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR (mm)" %}</th><th scope="col" class="num">{% translate "TX (°C)" %}</th><th scope="col" class="num">{% translate "TN (°C)" %}</th></tr></thead>
+              <tbody>{% for day in finding.days %}<tr{% if day.this %} class="qc-days__this"{% endif %}><th scope="row">{% if day.this %}<strong>{{ day.date }}</strong>{% else %}{{ day.date }}{% endif %}</th>{% for cell in day.cells %}<td class="num">{% if cell.missing %}<span class="text-text-muted">{{ cell.text }}</span>{% elif day.this %}<strong>{{ cell.text }}</strong>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </li>
+    {% endfor %}{% endfor %}
+  </ul>
+  {% for item in findings %}{% if item.list.more %}{% with check=item.list.check %}
+  <details class="disclosure" id="{{ check.anchor }}">
+    <summary>{% icon "table" %}<span>{% blocktranslate with title=check.title total=check.count|count trimmed %}{{ title }}: all {{ total }} in a table{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body stack stack--sm">
+      <p>{{ check.description }}</p>
+      {% include "stations/_qc_table.html" with page=item.page selected="" %}
+    </div>
+  </details>
+  {% endwith %}{% endif %}{% endfor %}
+</section>

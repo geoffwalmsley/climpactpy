@@ -38,6 +38,11 @@ class PatternDemoForm(forms.Form):
         help_text=_("Remove the linear trend before correlating."),
     )
     station_file = forms.FileField(label=_("Station file"))
+    corrected_file = forms.FileField(
+        label=_("Corrected file"),
+        required=False,
+        help_text=_("The checks run again as soon as you choose the file."),
+    )
 
     def clean(self):
         cleaned = super().clean()

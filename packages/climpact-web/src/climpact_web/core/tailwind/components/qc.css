@@ -1,40 +1,237 @@
-/* Step 2, Check quality (#77): the summary (qc-summary--{{ level }} is built in the
-   template), the check tables linked to the charts, the missing-values table, and the
-   distribution plots drawn on the server (stations/qc_plots.py writes the qc-plot
-   classes). */
+/* Step 2, Check quality (#77), as a worklist (#174): the verdict (an alert with the counts
+   and the decision), the "look wrong" rows with their small charts, the "worth a look"
+   groups, the Details disclosure, the tables linked to the charts, the missing-values
+   table, and the distribution plots drawn on the server (stations/qc_plots.py writes the
+   qc-plot classes). Each list is one surface with dividers, never cards in cards. */
 @layer components {
-  .qc-summary {
-    padding: --spacing(5);
-    border: 1px solid var(--color-border);
-    border-inline-start: 6px solid var(--color-success);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .qc-summary--review { border-inline-start-color: var(--color-warning); }
-  .qc-summary--errors { border-inline-start-color: var(--color-danger); }
-
-  .qc-summary__head {
-    display: flex;
-    gap: --spacing(3);
-    align-items: flex-start;
-  }
-
-  .qc-summary__head > .icon {
-    flex: none;
-    inline-size: 1.75rem;
-    block-size: 1.75rem;
-    color: var(--color-success);
-  }
-
-  .qc-summary--review .qc-summary__head > .icon { color: var(--color-warning); }
-  .qc-summary--errors .qc-summary__head > .icon { color: var(--color-danger); }
-
-  .qc-summary__title {
+  .qc-verdict__title {
     margin: 0;
     font-size: var(--text-xl);
   }
+
+  .qc-verdict > .icon {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+  }
+
+  .qc-verdict .qc-verdict__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    padding: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    list-style: none;
+  }
+
+  .qc-verdict__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(3);
+    align-items: flex-start;
+    padding-block-start: --spacing(2);
+  }
+
+  .qc-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    align-items: baseline;
+  }
+
+  .qc-section-head > * { margin: 0; }
+
+  /* A count beside a heading or a group's title: plain, the words say the severity. */
+  .qc-count {
+    display: inline-block;
+    min-inline-size: 2em;
+    padding: 0 --spacing(2);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-weight-semibold);
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  /* One surface for a list; rows separated by dividers. */
+  .qc-findings,
+  .qc-groups,
+  .qc-details {
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-raised);
+    list-style: none;
+  }
+
+  .qc-finding,
+  .qc-group {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .qc-finding:first-child,
+  .qc-group:first-child { border-block-start: 0; }
+
+  .qc-finding {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: --spacing(1) --spacing(4);
+    align-items: center;
+    padding: --spacing(3) --spacing(4) --spacing(1);
+  }
+
+  .qc-finding:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+  .qc-finding.is-selected { background: var(--color-accent-soft); }
+
+  .qc-finding__date {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .qc-finding__check {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* "Days around it" opens under the row, in the same surface: no box of its own. */
+  .qc-finding .qc-finding__days {
+    grid-column: 1 / -1;
+    border: 0;
+    background: none;
+  }
+
+  .qc-finding__days summary {
+    min-block-size: 2.25rem;
+    padding-inline: 0;
+    font-size: var(--text-sm);
+  }
+
+  .qc-finding__days summary .icon:last-child { margin-inline-start: 0; }
+
+  .qc-finding__days .disclosure__body { padding: 0 0 --spacing(3); }
+
+  .qc-days__this > * { background: var(--color-warning-soft); }
+
+  /* The chart of a finding: the days around it, the flagged value ringed (as the daily
+     charts ring QC flags). The box keeps the viewBox's ratio, so the ring stays round. */
+  .qc-spark {
+    display: block;
+    inline-size: 7.5rem;
+    block-size: 2rem;
+    overflow: visible;
+    direction: ltr;
+  }
+
+  .qc-spark__line { fill: none; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .qc-spark__line--prcp { stroke: var(--chart-prcp); }
+  .qc-spark__line--tmax { stroke: var(--chart-tmax); }
+  .qc-spark__line--tmin { stroke: var(--chart-tmin); }
+  .qc-spark__ring { fill: none; stroke: var(--chart-flag); stroke-width: 1.5; }
+
+  .qc-finding__text { grid-column: 1 / -1; grid-row: 2; }
+  .qc-finding__show { grid-column: 1 / -1; }
+  .qc-finding__show .button { white-space: nowrap; }
+
+  @media (min-width: 40rem) {
+    .qc-finding { grid-template-columns: auto 1fr auto auto; }
+    .qc-finding__text { grid-column: auto; grid-row: auto; }
+    .qc-finding__show { grid-column: auto; }
+    .qc-finding .qc-finding__days { grid-column: 2 / -1; }
+  }
+
+  .qc-group__summary,
+  .qc-details__summary {
+    display: flex;
+    gap: --spacing(3);
+    align-items: center;
+    min-block-size: var(--control-height);
+    padding: --spacing(3) --spacing(4);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .qc-group__summary::-webkit-details-marker,
+  .qc-details__summary::-webkit-details-marker { display: none; }
+
+  .qc-group__summary:hover,
+  .qc-details__summary:hover { background: var(--color-surface-sunken); }
+
+  .qc-group__summary > .icon,
+  .qc-details__summary > .icon {
+    flex: none;
+    color: var(--color-accent);
+    transition: transform var(--duration);
+  }
+
+  .qc-group[open] > .qc-group__summary > .icon,
+  .qc-details[open] > .qc-details__summary > .icon { transform: rotate(180deg); }
+
+  .qc-group__title,
+  .qc-details__title {
+    flex: 1;
+    min-inline-size: 0;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .qc-details__title { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); }
+
+  .qc-group__note,
+  .qc-details__note {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .qc-group__body { padding: 0 --spacing(4) --spacing(4); }
+  .qc-details__body { padding: --spacing(2) --spacing(4) --spacing(5); }
+
+  .qc-months th,
+  .qc-months td { padding-inline: --spacing(2); }
+
+  .qc-quiet {
+    display: flex;
+    gap: --spacing(2);
+    align-items: baseline;
+  }
+
+  .qc-quiet > .icon { flex: none; color: var(--color-success); align-self: center; }
+
+  /* "Upload a corrected file" (#174, components/file_button.html): without JavaScript the
+     label, input and submit show as they are; enhanced, the label is the button. */
+  .file-button {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+    align-items: center;
+  }
+
+  .file-button > .field__error { flex-basis: 100%; margin: 0; }
+
+  .file-button--enhanced .file-button__label { position: relative; cursor: pointer; }
+
+  .file-button--enhanced .file-button__label:focus-within {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .file-button--enhanced input[type="file"] {
+    position: absolute;
+    inset: 0;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+  }
+
+  .file-button--enhanced .file-button__submit { display: none; }
 
   /* position: the visually hidden text in the rows stays inside the scrolling region. */
   .qc-table .table-wrap { position: relative; max-block-size: 32rem; }

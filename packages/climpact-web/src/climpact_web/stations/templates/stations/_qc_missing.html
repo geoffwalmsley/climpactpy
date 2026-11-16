@@ -1,40 +1,47 @@
 {% load i18n ui help %}{% comment %}
-Missing data per year (#77): qc/nastatistics, with the climdex rules applied (a year gets
-no annual value with more than 15 missing days, or a month with more than 3).
-Context: review, job.
+Missing data (#77), compact (#174): how many years have missing days and which are too
+incomplete for annual values (climdex rules: more than 15 missing days, or a month with
+more than 3), with the table of qc/nastatistics behind a disclosure. Context: review.
 {% endcomment %}
-<section class="card stack" id="missing-data" aria-labelledby="missing-title">
-  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-    <h2 class="card__title" id="missing-title">{% translate "Missing data" %}</h2>
+<section id="missing-data" aria-labelledby="missing-title">
+<div class="stack stack--sm">
+  <div class="qc-section-head">
+    <h2 id="missing-title">{% translate "Missing data" %}</h2>
     {% help_topic "qc.nastatistics" %}
   </div>
-  {% with missing=review.years_missing %}
+  {% with missing=review.years_missing short=review.years_short %}
   {% if missing %}
   <p>{% blocktranslate count counter=missing|length with total=review.years|length trimmed %}{{ counter }} of {{ total }} years has missing days.{% plural %}{{ counter }} of {{ total }} years have missing days.{% endblocktranslate %}
-    {% translate "Years marked “no annual value” have more than 15 missing days, or a month with more than 3, so their annual indices are left missing (monthly indices only for the months concerned)." %}</p>
-  <div class="table-wrap qc-missing" role="region" aria-labelledby="missing-caption" tabindex="0">
-    <table class="table">
-      <caption id="missing-caption">{% translate "Missing days per year, and months with more than 3 missing days" %}</caption>
-      <thead><tr>
-        <th scope="col">{% translate "Year" %}</th>
-        <th scope="col" class="num">{% translate "PR" %}</th>
-        <th scope="col" class="num">{% translate "TX" %}</th>
-        <th scope="col" class="num">{% translate "TN" %}</th>
-      </tr></thead>
-      <tbody>
-        {% for year in missing %}
-        <tr>
-          <th scope="row">{{ year.year }}</th>
-          {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days }}{% if cell.months %} <span class="text-text-muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %}<span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="text-text-muted">{{ cell.days }}</span>{% endif %}</td>{% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="text-sm text-text-muted">{% translate "Years not listed have no missing days." %}</p>
+    {% if short %}{% blocktranslate count counter=short|length with years=review.years_short_text trimmed %}{{ counter }} is too incomplete for annual values: {{ years }}.{% plural %}{{ counter }} are too incomplete for annual values: {{ years }}.{% endblocktranslate %}
+    {% translate "Their annual indices are left missing." %}{% else %}{% translate "Every year has enough data for annual values." %}{% endif %}</p>
+  <details class="disclosure">
+    <summary>{% icon "table" %}<span>{% translate "Missing days per year" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body stack stack--sm">
+      <p>{% translate "Years marked “no annual value” have more than 15 missing days, or a month with more than 3, so their annual indices are left missing (monthly indices only for the months concerned). Years not listed have no missing days." %}</p>
+      <div class="table-wrap qc-missing" role="region" aria-labelledby="missing-caption" tabindex="0">
+        <table class="table">
+          <caption id="missing-caption">{% translate "Missing days per year, and months with more than 3 missing days" %}</caption>
+          <thead><tr>
+            <th scope="col">{% translate "Year" %}</th>
+            <th scope="col" class="num">{% translate "PR" %}</th>
+            <th scope="col" class="num">{% translate "TX" %}</th>
+            <th scope="col" class="num">{% translate "TN" %}</th>
+          </tr></thead>
+          <tbody>
+            {% for year in missing %}
+            <tr>
+              <th scope="row">{{ year.year }}</th>
+              {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days }}{% if cell.months %} <span class="text-text-muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %}<span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="text-text-muted">{{ cell.days }}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
   {% else %}
   <p class="flex flex-wrap items-center gap-3">{% icon "check-circle" %}<span>{% translate "No day is missing in any variable." %}</span></p>
   {% endif %}
   {% endwith %}
-  {% if review.nastatistics_file %}<p class="text-sm"><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "download" %} {% blocktranslate with name=review.nastatistics_name size=job|file_size:review.nastatistics_file|filesizeformat %}Download {{ name }} ({{ size }}){% endblocktranslate %}</a></p>{% endif %}
+</div>
 </section>

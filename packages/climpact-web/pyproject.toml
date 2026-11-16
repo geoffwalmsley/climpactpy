@@ -53,8 +53,12 @@ postgres = [
 [dependency-groups]
 # The web package's development tools (PEP 735). The root pyproject.toml's group has these too.
 dev = [
-    "pytest>=8",
+    # Below 9.2 until pytest-xdist releases its fix for pytest 9.2 node ids (pytest-xdist
+    # #1386, fixed after 3.8.0): with 3.8.0 and pytest 9.2, --dist loadgroup ignores xdist_group.
+    "pytest>=8,<9.2",
     "pytest-django>=4.9",
+    # Runs the tests in parallel (-n auto in the pytest settings, #181)
+    "pytest-xdist>=3.6",
     "ruff>=0.8",
     # The accessibility tests (#83) drive the installed Chrome over the DevTools protocol.
     "websocket-client>=1.8",
@@ -84,8 +88,9 @@ include = ["/src/climpact_web", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The browser accessibility checks are left out by default: run them with `-m browser`
-addopts = '-rfE --strict-markers -m "not browser"'
+# The browser accessibility checks are left out by default: run them with `-m browser`.
+# In parallel with pytest-xdist (#181); `-n 0` runs the tests in one process.
+addopts = '-rfE --strict-markers -m "not browser" -n auto --dist loadgroup'
 markers = [
     "browser: drives a real Chrome against a running climpact-web; deselected by default, run with -m browser",
 ]

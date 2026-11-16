@@ -14,8 +14,12 @@ climpact-web = { workspace = true }
 dev = [
     "climpact",
     "climpact-web",
-    "pytest>=8",
+    # Below 9.2 until pytest-xdist releases its fix for pytest 9.2 node ids (pytest-xdist
+    # #1386, fixed after 3.8.0): with 3.8.0 and pytest 9.2, --dist loadgroup ignores xdist_group.
+    "pytest>=8,<9.2",
     "pytest-django>=4.9",
+    # Runs the tests in parallel (-n auto in the pytest settings, #181)
+    "pytest-xdist>=3.6",
     "ruff>=0.8",
     "matplotlib>=3.8",
     "websocket-client>=1.8",

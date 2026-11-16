@@ -70,8 +70,9 @@ uv.lock              the locked versions for every supported Python (`uv lock`)
 reference/           the R reference outputs and the scripts that make them, shared at the root
 ruff.toml            ruff settings for the whole repository (each package's pyproject.toml
                      extends it)
-pytest.ini           `pytest` from the root runs both packages' tests; each package's
-                     pyproject.toml has the same settings for running it alone
+pytest.ini           `pytest` from the root runs both packages' tests, in parallel
+                     (pytest-xdist); each package's pyproject.toml has the same settings for
+                     running it alone
 LICENSE              the GNU GPL v3 text; each package has a copy (hatch's `license-files`
                      cannot reach outside the package; a test checks they match)
 RELEASING.md         how a release is made, and the one-time PyPI/GitHub setup (#131)
@@ -170,8 +171,11 @@ src/climpact/
   trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S)),
                      and the plots' trend: zyp.sen's intercept, Mann-Kendall p-value
 tests/
+  conftest.py        running in parallel: thread limits per worker, xdist groups of the
+                     modules with module-scoped fixtures, and the R parity summary hook
   parity/            one test per R reference file and per gridded netCDF variable, plus
-                     progress reporting
+                     progress reporting; conftest.py: the cached builds and their xdist
+                     groups; summary.py: the R parity summary and .parity-summary.txt
   libm.py            GLIBC_X86_64: whether the C maths library is the R reference's
   rreference.py      the original, plain R-precision and number-formatting code: the
                      reference the faster versions are tested against
@@ -1378,7 +1382,58 @@ uv run pytest                                   # everything (both packages) but
 uv run pytest -m browser                        # the browser accessibility checks only
 uv run pytest packages/climpact                 # the core only
 uv run pytest packages/climpact/tests/parity    # parity only
+uv run pytest -n 0 ...                          # in one process (for --pdb, print debugging)
 ```
+
+#### Running the tests in parallel
+
+The tests run in parallel with [pytest-xdist](https://pytest-xdist.readthedocs.io/) (#181):
+the default options (`pytest.ini` and both packages' `[tool.pytest.ini_options]`) include
+`-n auto --dist loadgroup`, one worker process per core. `-n 0` runs everything in the
+pytest process, as before; `--pdb` does that by itself. Measured on a 12-core Apple M-series
+Mac (2026-11-16), the default run (both packages, without the browser checks) went from
+8 min 17 s in one process to 1 min 17 s, for about 40% more CPU time (each worker imports
+the scientific stack, and the cores are shared).
+
+- **Groups.** Many tests share a build cached in a session- or module-scoped fixture, which
+  each worker would otherwise make again. With `--dist loadgroup`, tests with the same
+  `xdist_group` mark run in one worker, and the marks are added at collection
+  (`pytest_collection_modifyitems`, not in the test modules). The parity tests
+  (`tests/parity/conftest.py`) are grouped by the build they use: `station-<run>`
+  (`station_outputs`, `station_run`, and the fixtures built on them: `written_files`,
+  `sector_files`), `grid-thresholds-<run>` and `grid-indices-<run>`. Tests not
+  parametrised by run (sector, batch, the plot files) use `sydney`, so the `sydney` build
+  is made once; `test_batch.py` also builds `nairobi`, a second time. Whole modules are
+  grouped where their module-scoped fixtures are shared: `test_drought.py` and
+  `test_ehf.py` (`tests/conftest.py`), `test_page_budget.py` and `test_accessibility.py`
+  (`packages/climpact-web/tests/conftest.py`). Every other test is handed to whichever
+  worker is free. A group's name is appended to the test id (`...[sydney/indices/fd_ANN]@station-sydney`).
+- **pytest version.** pytest-xdist 3.8.0 adds the group to the test id by setting
+  `item._nodeid`, which pytest 9.2 no longer reads: with 9.2, `--dist loadgroup` silently
+  ignores every `xdist_group` and each worker rebuilds every station and grid it gets a test
+  of (the default run then took almost five times the serial run's CPU time, and was only
+  2.3 times faster).
+  This is pytest-xdist#1386, fixed on its master branch after 3.8.0, so the dev groups pin
+  `pytest<9.2`; remove the pin with the first pytest-xdist release that has the fix, and
+  check that the ids still carry the groups or that each group still runs in one worker.
+- **Threads.** The main process sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`,
+  `MKL_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`, `NUMEXPR_NUM_THREADS` and `DASK_NUM_WORKERS`
+  to 1 before it starts the workers, which inherit them (`pytest_configure` in both
+  conftest files; a value already set is kept): the workers already use every core. Tests
+  that choose their own threads or processes (`workers=2`, the batch process pool) are not
+  affected.
+- **Summaries.** The workers send every test report to the main process, which prints the
+  summaries. The R parity summary is therefore a hook of `tests/conftest.py` (calling
+  `tests/parity/summary.py`), not of `tests/parity/conftest.py`: that file is loaded only
+  where tests are collected, which under xdist is the workers, and a worker sees only its
+  own tests. The hook does nothing in a worker, so a worker never overwrites
+  `.parity-summary.txt`. The page sizes of `test_page_budget.py` travel the same way, as a
+  `user_properties` entry (`page_sizes`) on each report.
+- **Isolation.** Each worker has its own pytest temporary folder, its own test database
+  (pytest-django) and its own data folder (`web_test_settings.py` makes one per process).
+  Tests that start servers use `--port 0` and a folder of their own, and
+  `test_queue_postgres.py` makes a database with a unique name. Warnings are counted once
+  per worker, so the total in the last line is larger than in a serial run.
 
 Files that no product builds are reported as `xfail` ("not yet ported"); there are none
 now. A summary is printed at the end. The same lines, with a header giving the time, the
@@ -2845,7 +2900,8 @@ packages/climpact-web/tests/
   browser.py         headless Chrome over the DevTools protocol (#83)
   assets/axe-core/   axe-core 4.14.0, vendored for the accessibility tests (README: source,
                      SHA-256, MPL-2.0 licence)
-  conftest.py        prints the page sizes measured by test_page_budget.py
+  conftest.py        prints the page sizes measured by test_page_budget.py (from the
+                     test reports); thread limits and xdist groups, as the core's
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
@@ -5485,7 +5541,7 @@ done by hand.
 ```sh
 uv sync
 uv run ruff check . && uv run ruff format --check .
-uv run pytest
+uv run pytest               # in parallel (pytest-xdist, -n auto); -n 0 for one process
 uv run pytest -m browser    # the browser accessibility checks, before a PR touching templates, CSS or JS
 ```
 
@@ -5532,7 +5588,8 @@ uv run pytest -m browser    # the browser accessibility checks, before a PR touc
   `uv lock --check`, installs only the core with its dev group (`uv sync --locked
   --package climpact`), runs ruff, checks that `climpact_web` is neither installed nor
   imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
-  suite, parity included); `web` installs both packages (`uv sync --locked`), fetches the
+  suite, parity included; like every test step, in parallel with the default `-n auto`,
+  one worker per vCPU, see [Running the tests in parallel](#running-the-tests-in-parallel)); `web` installs both packages (`uv sync --locked`), fetches the
   pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
   the committed `css/climpact.css` differs (#118), runs
   `pytest packages/climpact-web` (without the size budget, which it `--ignore`s, and the

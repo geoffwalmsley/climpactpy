@@ -130,9 +130,11 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
 | `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest | changed, quiet (no change) |
+| `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in a flow; done steps link back | — |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
+| File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
 `stations/templates/stations/_qc_*.html`):
@@ -180,8 +182,10 @@ keyboard. This is not optional.
 
 - **Don't put cards inside cards.** One surface level on the page; separate groups inside
   a card with spacing and headings, not another border and shadow.
-- **Don't offer downloads everywhere.** Files live in one Files section; elsewhere at most
-  one "Download all" link, plus each chart's own PNG/SVG/CSV. **Target:** #176.
+- **Don't offer downloads everywhere.** Files live in one Files section
+  (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
+  PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
+  under Details; an index page has only its chart's exports.
 - **Don't put a help link under every field.** One ⓘ per section opens that section's help
   in a side panel; a field keeps a hint only when its value isn't self-explanatory.
   **Target:** #177.

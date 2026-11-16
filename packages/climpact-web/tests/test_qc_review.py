@@ -458,10 +458,14 @@ def test_results_page(client, checked):
         assert page.index(src) > page.index('id="details"')
     assert "js/qc.js" in page and "js/charts.js" in page
     assert 'id="distributions"' in page and 'id="thresholds"' in page
-    # Every file and the zip can be downloaded.
+    # The files are in Files, not here (#176): one link under Details, no download.
     job = checked.qc_job
+    assert f"/jobs/{job.pk}/files/" not in page and " download>" not in page
+    files_link = f'href="/station/{checked.pk}/downloads#quality-files"'
+    assert page.count(files_link) == 1 and page.index(files_link) > page.index('id="details"')
+    files = client.get(f"/station/{checked.pk}/downloads").content.decode()
     for name in job.result["files"] + [job.result["zip"]]:
-        assert f"/jobs/{job.pk}/files/{name}" in page
+        assert f"/jobs/{job.pk}/files/{name}" in files
         assert client.get(f"/jobs/{job.pk}/files/{name}").status_code == 200
 
 

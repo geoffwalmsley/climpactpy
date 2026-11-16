@@ -29,6 +29,7 @@
       <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
       <li><a href="#findings">{% translate "Findings by theme" %}</a></li>
       <li><a href="#tables">{% translate "Tables" %}</a></li>
+      <li><a href="#files">{% translate "File groups" %}</a></li>
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
       <li><a href="#steps">{% translate "Step indicator" %}</a></li>
       <li><a href="#progress">{% translate "Progress" %}</a></li>
@@ -234,6 +235,20 @@
         {% include "components/table.html" with caption=t_caption columns=table_columns rows=table_rows %}
         {% include "components/table.html" with caption=t_empty_caption columns=table_columns rows=None empty=t_empty %}
       </div>
+    </section>
+
+    <section class="pattern" id="files" aria-labelledby="files-title">
+      <h2 id="files-title">{% translate "File groups" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Files are offered in one place, the Files page. A long group is a closed disclosure whose summary gives the count and the total size; it opens to a table with one small download button per file, each with its format and size." %}</p>
+      <details class="pattern__demo disclosure download-group">
+        <summary><span>{% translate "Temperature" %}</span> <span class="text-sm text-text-muted">{% translate "2 indices, 21 KB" %}</span>{% icon "chevron-down" %}</summary>
+        <div class="disclosure__body table-wrap" role="region" aria-label="{% translate 'Temperature' %}" tabindex="0">
+          <table class="table download-table">
+            <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Table" %}</th><th scope="col">{% translate "Plot" %}</th></tr></thead>
+            <tbody>{% for f in file_rows %}<tr><th scope="row">{{ f.name }}</th><td class="download-cell">{% include "components/download_link.html" with d=f.csv href="#files" %}</td><td class="download-cell">{% include "components/download_link.html" with d=f.png href="#files" %}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </details>
     </section>
 
     <section class="pattern" id="tabs" aria-labelledby="tabs-title">

@@ -79,6 +79,10 @@
   </section>
   {% endif %}
 
+  {% if not chart_url %}{% comment %}With no chart, the table's own CSV in its place (#176).{% endcomment %}
+  <p><a class="button button--secondary button--sm" href="{% url 'jobs:file' job.pk csv_path %}" download>{% icon "download" %}<span>{% blocktranslate with size=csv_size|filesizeformat %}CSV, {{ size }}{% endblocktranslate %}</span></a></p>
+  {% endif %}
+
   {% if trend_rows %}
   <section class="card stack" aria-labelledby="trend-title">
     <h2 class="card__title" id="trend-title">{% translate "Trends in the trend file" %}</h2>
@@ -105,14 +109,5 @@
   </section>
   {% endif %}
 
-  <section class="card stack" aria-labelledby="files-title">
-    <h2 class="card__title" id="files-title">{% translate "Downloads" %}</h2>
-    <ul class="m-0 grid gap-2 ps-5">
-      <li><a href="{% url 'jobs:file' job.pk csv_path %}" download>{% blocktranslate with size=csv_size|filesizeformat %}The table (CSV, {{ size }}){% endblocktranslate %}</a></li>
-      {% if png_path %}<li><a href="{% url 'jobs:file' job.pk png_path %}" download>{% blocktranslate with size=png_size|filesizeformat %}Climpact's plot of this series (PNG, {{ size }}){% endblocktranslate %}</a></li>{% endif %}
-      {% if source.station %}<li><a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Everything else: the zip, the PDF report and every file" %}</a></li>{% endif %}
-    </ul>
-    {% if chart_url %}<p class="text-sm text-text-muted">{% translate "The chart as you see it: zoom to the years you want, then PNG or SVG above the chart saves that view." %} <a href="#index-chart">{% translate "Go to the chart" %}</a></p>{% endif %}
-  </section>
 </div>
 {% endblock %}

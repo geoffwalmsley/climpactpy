@@ -362,13 +362,11 @@ def params_summary(source) -> list[dict]:
 
 
 def downloads(source) -> dict:
-    """The main downloads with their sizes, for the dashboard's downloads card; the
-    downloads page (``stations:downloads``, #79) lists every file."""
-    from climpact_web.stations.downloads import main_downloads, summary_downloads
+    """The zip, with its size, for the dashboard's one "Download all"; the Files page
+    (``stations:downloads``, #79, #176) lists every file."""
+    from climpact_web.stations.downloads import main_downloads
 
-    main = main_downloads(source)
-    files = [d for d in (main["report"], main["all_plots"]) if d] + summary_downloads(source)
-    return {"job": source.job, "zip": main["zip"], "report": main["report"], "files": files}
+    return {"job": source.job, "zip": main_downloads(source)["zip"]}
 
 
 def dashboard_context(request, analysis, source, run) -> dict:
@@ -477,7 +475,8 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
 @require_safe
 def result(request, analysis_id, key):
     """One index: the chosen series as an interactive chart with its trend, its
-    standardised anomalies, the trend file's rows, and downloads."""
+    standardised anomalies and the trend file's rows. Its only downloads are the chart's
+    own (PNG, SVG, CSV); every other file is in Files (#176)."""
     analysis = get_analysis(request, analysis_id)
     job, source = current_source(analysis)
     if job is None:
@@ -511,7 +510,6 @@ def result(request, analysis_id, key):
         "csv_path": source.table_file(name.removeprefix("day_of_")),
         "csv_size": _size(source.index_source.table_path(name.removeprefix("day_of_"))),
         "png_path": source.plot_file(name),
-        "png_size": _size(source.station_dir / "plots" / f"{source.station}_{name}.png"),
         "from_batch": source.from_batch and analysis.indices_job is None,
         "chart_title": results_model.chart_title(card, series),
     }

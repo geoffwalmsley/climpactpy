@@ -101,7 +101,8 @@ small amounts were recorded.
 | `<station>_tx_flatline.csv`, `<station>_tn_flatline.csv` | runs of repeated values |
 | `<station>_nastatistics.csv` | missing days per year |
 
-The files are in the `qc` folder of the results, in the same format as Climpact for R.
+The files are on the **Files** page (the link under Details on the Quality page) and in the
+`qc` folder of the results zip, in the same format as Climpact for R.
 A file with nothing to report says so, for example "NO DUPLICATE DATES FOUND".
 
 ## What the checks do not find {#what-the-checks-do-not-find}

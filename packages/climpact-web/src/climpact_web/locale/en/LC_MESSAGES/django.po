@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-16 22:52+0000\n"
+"POT-Creation-Date: 2026-11-16 23:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2261,7 +2261,7 @@ msgstr ""
 msgid "Rain"
 msgstr ""
 
-#: core/templates/core/patterns.html:261 stations/themes.py:214
+#: core/templates/core/patterns.html:261 stations/themes.py:213
 msgid "No clear change"
 msgstr ""
 
@@ -7175,8 +7175,8 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
-#: stations/results.py:298 stations/results.py:657 stations/themes.py:259
-#: stations/themes.py:262 stations/themes.py:265
+#: stations/results.py:298 stations/results.py:657 stations/themes.py:258
+#: stations/themes.py:261 stations/themes.py:264
 msgid ", "
 msgstr ""
 
@@ -8696,7 +8696,7 @@ msgstr ""
 msgid "No trend line"
 msgstr ""
 
-#: stations/templates/stations/results.html:123 stations/themes.py:214
+#: stations/templates/stations/results.html:123 stations/themes.py:213
 msgid "No trend"
 msgstr ""
 
@@ -8846,38 +8846,33 @@ msgstr ""
 msgid "Growing season and degree days"
 msgstr ""
 
-#: stations/themes.py:136
-#, python-format
-msgid "%(slope)s %(units)s per decade"
-msgstr ""
-
-#: stations/themes.py:140
+#: stations/themes.py:139
 #, python-format
 msgid "%(slope)s per decade"
 msgstr ""
 
-#: stations/themes.py:156
+#: stations/themes.py:155
 #, python-format
 msgid "No significant change in the one index with a trend."
 msgid_plural "No significant change across %(m)s indices."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:162
+#: stations/themes.py:161
 #, python-format
 msgid "%(n)s of %(m)s index increased significantly."
 msgid_plural "%(n)s of %(m)s indices increased significantly."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:168
+#: stations/themes.py:167
 #, python-format
 msgid "%(n)s of %(m)s index decreased significantly."
 msgid_plural "%(n)s of %(m)s indices decreased significantly."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:173
+#: stations/themes.py:172
 #, python-format
 msgid ""
 "%(n)s of %(m)s index changed significantly: %(up)s increased and %(down)s "
@@ -8888,50 +8883,50 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:213
+#: stations/themes.py:212
 #, python-format
 msgid "%(n)s changed"
 msgid_plural "%(n)s changed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:236
+#: stations/themes.py:235
 #, python-format
 msgid "%(n)s of %(total)s index changed significantly since %(year)s."
 msgid_plural "%(n)s of %(total)s indices changed significantly since %(year)s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/themes.py:243
+#: stations/themes.py:242
 #, python-format
 msgid "No index changed significantly since %(year)s."
 msgstr ""
 
-#: stations/themes.py:247
+#: stations/themes.py:246
 msgid "Mean temperature did not change significantly."
 msgstr ""
 
-#: stations/themes.py:249
+#: stations/themes.py:248
 #, python-format
 msgid "Mean temperature rose by %(trend)s."
 msgstr ""
 
-#: stations/themes.py:251
+#: stations/themes.py:250
 #, python-format
 msgid "Mean temperature fell by %(trend)s."
 msgstr ""
 
-#: stations/themes.py:258
+#: stations/themes.py:257
 #, python-format
 msgid "Changed: %(changed)s. No significant change: %(unchanged)s."
 msgstr ""
 
-#: stations/themes.py:262
+#: stations/themes.py:261
 #, python-format
 msgid "Changed: %(changed)s."
 msgstr ""
 
-#: stations/themes.py:265
+#: stations/themes.py:264
 #, python-format
 msgid "No significant change in %(unchanged)s."
 msgstr ""

@@ -4268,7 +4268,10 @@ keeps it current: it copies the package to a temporary folder, runs `makemessage
 and the command. It compares the set of messages, not the file, so the `#:` location
 comments (which move whenever code above a string changes), the `POT-Creation-Date` header
 and gettext versions' line wrapping do not fail it; locations may lag until the next
-refresh. Without GNU gettext (`xgettext`, `msgmerge`, `msguniq`, `msgattrib`) it skips,
+refresh. Keep `\u` escapes out of Python messages: Ubuntu 24.04's xgettext 0.21 keeps
+`\u00a0` as written, newer versions decode it, so the two catalogues differ (and the 0.21
+one never matches at run time). `stations/themes.py`'s `trend_text` joins the slope and its
+units with a no-break space outside the message for this reason. Without GNU gettext (`xgettext`, `msgmerge`, `msguniq`, `msgattrib`) it skips,
 unless `CLIMPACT_REQUIRE_GETTEXT` is set (CI), when it fails. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
 the `.po` file and run `compilemessages`. The help guides are translated as Markdown files, one folder per

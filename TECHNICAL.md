@@ -2831,10 +2831,10 @@ packages/climpact-web/src/climpact_web/
                      lines, years in common with the station); SectorForm
     sector_plots.py  step 5's results: a sector job's files read back; the bar chart and
                      scatter plots as inline SVG
-    downloads.py     the downloads page's model (#79): the zip, report, plots PDF, summary
-                     and QC files, the sector comparison's files, each index's tables and
-                     PNGs, with their sizes
-    views_downloads.py  the downloads page (#79)
+    downloads.py     the Files page's model (#79, #176): the zip, report, plots PDF, summary
+                     files, the quality check's files, the sector comparison's files, each
+                     index's tables and PNGs and any other file of the run, with their sizes
+    views_downloads.py  the Files page (#79, #176)
     views_sector.py  step 5: the form, the sector job, its progress and results, the sample
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB);
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
@@ -2842,7 +2842,7 @@ packages/climpact-web/src/climpact_web/
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; indices.html, _indices_unit.html
                      (step 3), results_progress.html, _results_progress.html, results.html,
-                     result.html (step 4), downloads.html, _download_link.html (#79),
+                     result.html (step 4), downloads.html (Files, #79, #176),
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
@@ -2912,7 +2912,7 @@ packages/climpact-web/tests/
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
-                     the downloads page and the PDF report jobs (test_downloads.py),
+                     the Files page and the PDF report jobs (test_downloads.py),
                      accessibility in a browser (test_accessibility.py, #83), the
                      Content Security Policy (test_csp.py, #137)
 ```
@@ -4385,7 +4385,7 @@ imports or network requests.
 The single-station flow (#76-#79, #90) replaces the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76),
 2 (#77), 3 and 4 (#78: parameters, calculation, results) and 5 (#90: sector data) are
-built, and the downloads page (#79). R's step 4, sector
+built, and the Files page (#79, #176). R's step 4, sector
 correlation, is step 5 here, because the results have a step of their own. Since #173 it
 is not in the step indicator (`STATION_STEPS` has the first four): Results offers it as an
 action, and its page shows Results as the current step. Its URL and page are unchanged.
@@ -4424,8 +4424,8 @@ step 3 (`stations:indices`) and `.../indices/validate` (htmx, POST); `.../result
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
 sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's sample
-sector file (`stations:sector_sample`); `.../downloads` the downloads page
-(`stations:downloads`, #79).
+sector file (`stations:sector_sample`); `.../downloads` the Files page
+(`stations:downloads`, #79, #176).
 
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
@@ -4577,8 +4577,9 @@ without errors; the user corrects the file outside the app and loads it again.
   the old one, the station details and thresholds are kept and the checks run again; if
   the base period no longer fits the new data, step 1 opens to change it. A file with
   problems is refused with the same messages as in step 1, and the previous results stay.
-- *Downloads* (under Details, until the single Files section of #176): each QC file and
-  their zip (`<station>.zip`, the station's `qc/` folder, as R's QC zip).
+- *Files* (under Details): one link to the quality-control files on the Files page
+  (`#quality-files`). Since #176 the Quality page offers no download itself; each QC file
+  and their zip (`<station>.zip`, the station's `qc/` folder, as R's QC zip) are on Files.
 
 **Step 3: the index parameters (#78).** `IndexParamsForm` (`stations/forms_indices.py`) has
 every field of R's step 3 (`climpact/modules/singleStationStep3UI.R`): plot title, d for
@@ -4706,12 +4707,12 @@ TX10p, TN10p and TNn. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
 the percentiles, or else the missing-data rules. The action row at the top has one primary action and one secondary link (#173): "Download
-all (zip, *size*)" and "All files and the report" (the downloads page); without a zip, the
+all (zip, *size*)" and "All files and the report" (the Files page); without a zip, the
 link is the primary button. The labels are short ("Download all", not "Download
 everything", on every page that offers the zip), which keeps the row on one line at
-1280px with wider fonts too (#115). Below the groups: downloads (the
-zip, the report, the PDF of all plots, the trend, thresholds and missing-value files, each
-with its format and size, and the downloads page), the settings used (with "Change the
+1280px with wider fonts too (#115). The zip is the page's only download (#176: the
+downloads card that listed the report, the PDF of all plots and the summary files is gone;
+they are on Files). Below the groups: the settings used (with "Change the
 settings and calculate again", which opens them: `?settings=open#settings`) and "Compare
 with sector data", the sector comparison (#173; #113 had it in the action row). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
@@ -4733,34 +4734,51 @@ standardised anomalies (the tables' `standardised values (using all years)` colu
 bar chart where the table has them (`stations:result_anomalies`, an `index` payload from
 `charts.data.series_payload`, labelled "Above the mean" and "Below the mean"); every row
 of the trend file for the index (yearly, monthly, the seasons, the SPI and SPEI months) as
-written; downloads of the CSV and of the core's PNG; and links to the previous and next
-index. The daily EHF and ECF pages list the ten highest days instead of a chart.
+written; and links to the previous and next index. Its only downloads are the chart's own
+PNG, SVG and CSV (the CSV is the index's table); a page without a chart (EHF, ECF) has the
+table's CSV button in its place. The core's PNG and every other file are on Files (#176). The daily EHF and ECF pages list the ten highest days instead of a chart.
 
-**Downloads (#79)** (`stations:downloads`, `stations/downloads.py`, `downloads.html`).
+**Files (#79, #176)** (`stations:downloads`, `stations/downloads.py`, `downloads.html`).
 R's step 3 gives one link to the zip of the station folder (`singleStationStep3.R`,
-`zipFiles`; the folder's path in the local app); the page here lists every file of the
-finished run (or of the batch station, `origin`), each button labelled with its format and
-size (Django's `filesizeformat`, in the interface language), for slow connections:
+`zipFiles`; the folder's path in the local app). Here every file of the station is on one
+page, Files, each button labelled with its format and size (Django's `filesizeformat`, in
+the interface language), for slow connections (`components/download_link.html`). Other
+pages link to it instead of listing files (#176, DESIGN.md "Don't offer downloads
+everywhere"): Results have one "Download all (zip)" and a link to Files, Quality one link
+under Details, an index page only its chart's exports. The groups, in order:
 
-- *The whole run*: the zip (unchanged R layout, `zip_station`), the PDF report (see
-  [PDF report](#pdf-report)) and `<station>_all_plots.pdf`; one that was not made (unticked
-  in step 3, or a job older than the report) says so and links to step 3.
-- *Chart images as you see them*: where the charts' PNG and SVG export is (the toolbar of
-  each index page's chart, #75; it saves the current zoom) and a link to the first chart.
-  The index page's downloads card repeats the hint.
-- *Summary and quality-control files*: trend, thresholds, missing values and the eight QC
-  files.
+- *The whole calculation*: the zip (unchanged R layout, `zip_station`; "Download all", the
+  page's one primary button) and the PDF report (see [PDF report](#pdf-report)); one that
+  was not made (unticked in step 3, or a job older than the report) says so and links to
+  step 3.
+- *Summary files*: the trend and threshold files.
+- *Quality checks* (`downloads.quality_downloads`): the files of the Quality page's check
+  (the `qc` job: each check's CSV and the missing values, in a closed disclosure, and
+  their zip). The calculation's own `qc/` copies are the same files, written with the
+  same thresholds, and stay in its zip; they are listed here only when there is no `qc`
+  job (a station opened from a batch run).
+- *Plots*: `<station>_all_plots.pdf`, and one line on where the rest are (each series' PNG
+  in its index's row; the chart's PNG and SVG export of the current zoom on each index
+  page, #75).
 - *Sector comparison*, when the run shown has a finished step 5 (#90, `views_sector.sector_job`):
   its `corr/` zip and each CSV and PNG, linked from the sector job.
-- *Each index*: grouped as the dashboard, in disclosures (the first open): for each series
+- *Each index*: grouped as the dashboard, one closed disclosure per group (the File group
+  pattern) whose summary gives the count of indices and their total size: for each series
   its table (CSV; the `day_of_` series point to the index's table, which holds the dates)
   and its PNG. Below 40rem each row becomes a block with its buttons side by side.
+- *Other files* (`downloads.other_downloads`): any other file in the station's folder, so
+  that every file the run wrote can be downloaded; empty for a normal run.
 
-Everything is a file the job wrote; the page only reads sizes (`stat`). The sizes are on
-every other download button too: the dashboard and index page, the QC page (the
-`file_size` filter in `core/templatetags/ui.py`), the job page (each file and the zip,
-`jobs.views.output_size`) and the batch results (the zips and each station's report). The
-Sydney page is 111 KB of HTML, 37.4 KB gzipped with its files.
+After the quality checks and before a calculation, Files holds the quality checks alone,
+with a link to step 3; with neither, it redirects to step 3, and while a calculation runs,
+to step 4. `test_downloads.test_files_page_reaches_every_file_of_the_station` walks both
+jobs' output folders and the zip's members, and checks each is reachable from Files, and
+that every file link on Results, an index page and Quality is on Files too.
+
+Everything is a file a job wrote; the page only reads sizes (`stat`). The job page (each
+file and the zip, `jobs.views.output_size`) and the batch results (the zips and each
+station's report) show sizes too. The Sydney page is 119 KB of HTML, 42.1 KB gzipped with
+its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
 links to step 3 with `?index=<key>`; the key travels in a hidden field to the results URL
@@ -4784,7 +4802,7 @@ R behaviour not copied in steps 3 and 4, and why:
 | A plot title is required | optional; empty uses the station title, as R's default does |
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
-| One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the downloads page (#79) |
+| One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the Files page (#79, #176) |
 | Results: a carousel of the PNGs and a link to the folder or zip | the findings first: one paragraph, a headline per theme (Heat, Cold, Rain, Drought) with its largest significant trends, and "Also measured" (#175); a card per index table with sparkline, trend and significance, in collapsed groups, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
@@ -5260,7 +5278,8 @@ group's first table page and the days around each finding, all in closed `<detai
 `qc.js` 1.8 of 2 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse, 1.2 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
-downloads page (the same run as the dashboard: every table and file with its size) and
+downloads page (Files since #176, which grouped its files in closed disclosures and added
+the quality checks' files: 119.1 KB of HTML, 7.3 KB gzipped) (the same run as the dashboard: every table and file with its size) and
 its rules to `results.css`. #118 replaced every stylesheet with the one built by Tailwind
 (`climpact.css`, 12.5 KB budget): pages that loaded few page stylesheets grew by 2 to 5 KB
 gzipped (the landing page from 34.9 to 39.8 KB), since the one file carries every page's
@@ -5275,7 +5294,7 @@ supports it; Brotli is printed as well. The pages measured: landing; station ste
 with the sample loaded, step 2 with the checks queued and with their results, step 3 (the
 parameters), the step 4 dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code), step 5's results (#90), the downloads page of the dashboard's run (#79); batch start, check and results (queued); the job list
+index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); batch start, check and results (queued); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
 largest map drawn, values all different); the help index, a guide, the indices guide, the
 topic list and a search; and the 404 page. The pattern library is left out (development
@@ -5289,7 +5308,7 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | station results, 80 indices (#113: with the significant-trends summary) | 231.7 | 47.1 | 80.0 | 76.2 |
 | station index (TXx, with chart code) | 19.2 | 4.7 | 69.7 | 62.6 |
 | station sector results (#90) | 110.6 | 14.6 | 45.1 | 41.7 |
-| station downloads, 114 tables (#79) | 110.6 | 6.7 | 37.4 | 34.0 |
+| station Files, 114 tables (#79, #176) | 119.1 | 7.3 | 42.1 | 38.2 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
 | station indices (step 3; #114: settings in a disclosure) | 30.0 | 5.6 | 37.3 | 33.7 |

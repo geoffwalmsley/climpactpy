@@ -2785,7 +2785,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
-      js/qc.js       step 2's results: links the worklist and the daily charts (#77, #174)
+      js/qc.js       Quality: the list and its detail (#202), linked to the daily charts (#77, #174)
       js/results.js  the results catalogue's filters (#78) and column sorting (#200), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
@@ -2826,7 +2826,8 @@ packages/climpact-web/src/climpact_web/
                      QCParamsForm and QC_DEFAULTS (the thresholds)
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
                      station rows, missing data per year, the verdict and its limits, the
-                     "look wrong" findings and the "worth a look" groups (#174)
+                     "look wrong" findings and the "worth a look" groups (#174), the
+                     list's items (Item, Review.items, #202)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
@@ -3770,7 +3771,7 @@ A speculative run has its own check, `check_speculative_quotas`: the disk as abo
 than `SPECULATIVE_MAX_QUEUED` (default 3) jobs of any kind waiting, and fewer than
 `MAX_ACTIVE_JOBS_PER_IP` jobs of the client's (speculative or not) waiting or running. Its
 refusal is silent (logged at INFO to `climpact_web.stations`); the run is then queued as an
-ordinary job at "Use this data", under the checks above.
+ordinary job at "See results", under the checks above.
 
 Refusals come before the job is created, so no job fails halfway. The checks are counts,
 not locks: two requests at the same moment can both pass, so a quota can be overrun by a
@@ -4155,11 +4156,12 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 83 KB (81 KB until #201 added the New station page;
+stylesheets). Tests hold it under 86 KB (81 KB until #201 added the New station page;
 77 KB until #198 added the Inputs panel and the side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
-status marks and the out-of-date block; it is 82.4 KB) and 15 KB gzipped (14.4 KB; 14.75
+status marks and the out-of-date block; 83 KB until #202 added Quality's list and
+detail; it is 85.5 KB) and 15.5 KB gzipped (14.8 KB; 15 KB until #202; 14.75
 KB until #201; 14 KB until #198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button; the New station page's behaviour is its own
@@ -4509,7 +4511,7 @@ imports or network requests.
 The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Since #179 a
 station is a workspace of sections, shown as tabs under its name (decision A): since #198
-Quality (#77, with what is in the file, "Your data", at its foot), Results (#78, #79)
+Quality (#77, with what is in the file, "Your data", above Details), Results (#78, #79)
 and Files (#79, #176), beside the Inputs panel, where everything the user gave is changed
 ("Inputs panel" below). A first visit is one New station page (#201, "New station page"
 below): the file, the station details, then "Check and calculate", which runs the checks
@@ -4517,7 +4519,7 @@ and the indices together and opens Quality. There are no steps and no step indic
 the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
 from #178): the indices are calculated with the defaults while the user looks at the
 quality checks ("Speculative calculation" below). The output pages hold no forms but the
-decision ("Use this data"), search and filters, and small actions (Delete, Try again,
+decision ("See results", #202; "Use this data" before), search and filters, and small actions (Delete, Try again,
 Cancel, Recalculate).
 R's step 4, sector correlation (#90), is an action on Results since #173, and its page
 shows the Results tab as current. A change to an input keeps the work and marks what
@@ -4533,7 +4535,7 @@ file); the metadata `station_name`, `latitude`, `longitude` (null until given),
 `base_start`, `base_end` (R's defaults, 1971 and 2000); `file_hash` (#179, the SHA-256
 of the station file as kept, `models.file_digest`, set by `save_station_text`); `step`,
 the furthest point reached (`upload`, `qc` once the details are confirmed, `indices` once
-the user chose "Use this data", then `results` and `sector`). It only moves forward since
+the user chose "See results", then `results` and `sector`). It only moves forward since
 #179;
 `qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
 defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
@@ -4572,7 +4574,7 @@ the new job's `params["replaces"]` (#178's recalculation, now for the checks too
 panel's sheets) runs `workspace.settle`, which cancels what is still queued or running for the
 old inputs and, when an input was changed back, links the finished job of those inputs again
 instead of calculating it twice; then it queues the checks and the run that are not of the
-current inputs. A replacement run is speculative before "Use this data" and an ordinary job
+current inputs. A replacement run is speculative before "See results" and an ordinary job
 (the user's own, counted by the hosted limits) after it; a refusal by the limits is logged
 and leaves the results out of date with "Recalculate". A new file, from the File sheet
 (which Quality's "Replace file" opens too, #199), queues the new checks and run at once
@@ -4582,7 +4584,7 @@ keeps the station name; Replace on the New station page renames a station still 
 after its old file.
 
 The pages show it: Quality keeps the old checks under an out-of-date banner (the new checks'
-progress, or their failure), with no "Use this data" until the new checks have finished
+progress, or their failure), with no "See results" until the new checks have finished
 (`qc_continue` refuses out-of-date checks); Results keeps the old results in a
 `stale-content` block under a banner that says what changed ("You changed the base period
 to 1981–2010. These results use 1971–2000.") and shows the new run's progress, or offers
@@ -4605,7 +4607,7 @@ header's height plus 1rem, so an element that takes focus, or a `#fragment`, is 
 under it (WCAG 2.4.11); `js/workspace.js` keeps `--workspace-header-height` to the
 header's real height with a `ResizeObserver` (9rem without JavaScript). The states (`workspace.section_states`): Quality
 `locked` until the details are confirmed, `stale`, `running`, `attention` (failed, stopped, or a red
-verdict) or `done`; Results `locked` until "Use this data", then `stale`, `running`,
+verdict) or `done`; Results `locked` until "See results", then `stale`, `running`,
 `attention` (the first run failed) or `done`; Files `locked` until there are checks or
 results, `stale` when either is. Each tab is its own page, so the existing URLs stay as
 they were (the Cloudflare rate-limit rules name them), the pages stay as light as before,
@@ -4624,7 +4626,7 @@ custom index other than the default one, a plot title of the user's, and each of
 plots, zip and report switched off, without importing the core). Each has one link,
 which opens its side sheet (`workspace.sheet_url`; `input_urls` gives each sheet's
 address to the page's other links, such as Quality's "Replace file"). The index settings
-have no link, and no sheet, before "Use this data" (`workspace.sheet_keys`): only the
+have no link, and no sheet, before "See results" (`workspace.sheet_keys`): only the
 results use them. An input is highlighted, "· changed", when one
 of the `differences` names it covers differs between the current inputs and the checks
 or results shown (`workspace.changed_inputs`). Under the list, the checks and the run of
@@ -4677,7 +4679,7 @@ section of Quality, "Your data" (`id="your-data"`), so the Quality page loads th
 code. Once the station is set up, `stations:load` (Data's address) and `stations:setup`
 redirect to `.../quality#your-data`; before that, and when a new file no longer fits the
 details, they lead to the New station page. The station's own address, `/station/<id>/`,
-opens Results after "Use this data", Quality once set up, else the New station page; the
+opens Results after "See results", Quality once set up, else the New station page; the
 New station page's recent analyses link to it.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
@@ -4699,14 +4701,14 @@ working; `/station/validate` and `.../setup/validate` (htmx, POST: a group of th
 checked as it changes, against the file once one is read); `/station/sample` (POST)
 loads the sample; `/station/sample.txt` downloads it (R links to the sample file too);
 `/station/<id>/` (`stations:workspace`, #179) the furthest section reached (Results after
-"Use this data", else Quality once the details are confirmed, else the New station page);
+"See results", else Quality once the details are confirmed, else the New station page);
 `.../file` (POST, the old Load page's "Use a different file") is gone since #201;
 `.../series.csv` the daily
 series; `.../delete` (POST); `.../inputs/<key>` (`stations:edit_input`, #198, #199) a
 sheet of the Inputs panel as a page, POST applies it; `.../inputs/progress` (htmx);
 `.../quality` Quality (`stations:qc`), `.../quality/progress` (htmx),
 `.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
-`.../quality/continue` (POST: "Use this data"); `.../quality/run` and `.../quality/file`
+`.../quality/continue` (POST: "See results"); `.../quality/run` and `.../quality/file`
 are gone since #199 (the thresholds and file sheets); `.../indices` (`stations:indices`),
 the Calculate step's address until #178: GET redirects to `.../results?settings=open`
 (with `&back=<key>` for an old `?index=<key>`), which opens the Index settings sheet, so
@@ -4789,11 +4791,13 @@ page.
   Python's default encoding, and a BOM would make the first data row a header (as it does
   in R). A header in Latin-1 is decoded as such.
 
-**"Your data" (Quality, #198).** The period, years and days (from the first
-row's date to the last, as R's quality control), a table of days with data, days missing
-and the share missing per variable (one value per date, the last row of a repeated date,
-as the indices use), the days with data in each year (in a disclosure) and a CSV download
-of the daily series. The preview (`preview.py`) is two small inline SVG charts of monthly
+**"Your data" (Quality, #198; compact since #202).** Chips for the period, years and days
+(from the first row's date to the last, as R's quality control), the days missing and
+the share missing per variable (one value per date, the last row of a repeated date, as
+the indices use) and, once the checks of this file have run, the years too incomplete for
+annual values; then disclosures: the missing days per year (`qc/nastatistics`, the
+Missing data section before #202), the daily series and the days with data in each year;
+and a CSV download of the daily series. The preview (`preview.py`) is two small inline SVG charts of monthly
 means (maximum and minimum temperature, monthly total precipitation; months with fewer
 than 20 days are gaps), drawn on the server in the chart tokens. Since #75 the section
 shows the interactive daily series instead (`charts:station_daily?flags=0`: without the QC
@@ -4849,7 +4853,8 @@ without errors; the user corrects the file outside the app and loads it again.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
   user downloads, so every row of every file is reachable on the screen. Since #174 the
   page is a short worklist (the Sydney sample's went from about 8,250 px to about 2,100 px
-  at 1280 px wide), in this order:
+  at 1280 px wide), and since #202 a list and detail (3,125 px to 2,414 px at 1280 px
+  wide, with "Your data" now on the page in full), in this order:
   - *The verdict and the one decision* (`qc_review.verdict`, decision B of #174). Only the
     checks whose findings are almost always mistakes (`kind == "error"`: TN >= TX, values
     too large, repeated dates; their rows, one per date for repeated dates) set the level;
@@ -4859,34 +4864,50 @@ without errors; the user corrects the file outside the app and loads it again.
     more than 10% of the years are too incomplete for annual values. Both limits are
     `VERDICT_LIMITS` (`VerdictLimits`). The values checked are PR, TX and TN present on
     each date (the row the indices use for a repeated date). Under the title, the counts
-    against them ("87,537 values checked", "5 look wrong (under 0.01%)", ...). One primary
-    button: "Use this data" (green, amber), or on red "Replace file" with "Use this data
-    anyway" beside it. Amber also offers "Replace file", a secondary button; green only in
-    the Inputs panel. "Replace file" opens the panel's File sheet (#199). Continuing is always possible once the checks have run (R also allows
+    against them ("87,537 values checked", "5 look wrong (under 0.01%)", ...). The band's
+    buttons are at its end (below the text when it is narrow, #202). One primary button:
+    "See results" (green, amber; "Use this data" before #202), or on red "Replace file"
+    with "See results anyway" beside it. Amber also offers "Replace file", a secondary
+    button before "See results"; green only in the Inputs panel. "Replace file" opens the panel's File sheet (#199). Continuing is always possible once the checks have run (R also allows
     it whatever they found; R has no verdict).
-  - *Look wrong*: one row per finding of those checks (`FindingList`, the first
-    `FINDINGS_SHOWN` = 10 of each check), with a sentence ("Rain 327.6 mm, over the 200 mm
-    limit"), a small SVG chart of the 7 days either side with the flagged value ringed
-    (`Finding.spark`, drawn on the server like the results' sparklines), "Days around it"
-    (the same days as a table) and "Show on chart". A check with more rows has all of them
-    in its table below the list.
-  - *Worth a look* (`qc_review.worth_groups`): the outliers by variable and direction
-    ("Heavy rain days", "High maximum temperatures (TX)", from the sections of
-    `qc/outliers`), with their counts by calendar month and the months that hold most of
-    them ("Mostly in January and February"), and the TX and TN jumps and flat runs, one
-    group each, the largest first. Each group is a `<details>` that opens to what the check
-    looks for, its help topic, the counts by month (outliers) and its table, the rows by
-    calendar month for outliers.
+  - *List and detail* (#202, `stations/_qc_review.html`, `_qc_detail.html`): on the left
+    a list (`Review.items`, `qc_review.Item`) under two group labels. *Look wrong*: one row
+    per finding of those checks (`FindingList`, the first `FINDINGS_SHOWN` = 10 of each
+    check) with its date, a sentence ("Rain 327.6 mm, over the 200 mm limit"), the check
+    and a small SVG chart of the 7 days either side with the flagged value ringed
+    (`Finding.spark`, drawn on the server like the results' sparklines); then, for a
+    check with more rows than are shown, a row for all of them in a table. *Worth a look*
+    (`qc_review.worth_groups`): the outliers by variable and direction ("Heavy rain days",
+    "High maximum temperatures (TX)", from the sections of `qc/outliers`), and the TX and
+    TN jumps and flat runs, one group each, the largest first, each row with its
+    variable, its count, the months that hold most of it ("Mostly in January and
+    February") and its counts by calendar month as small bars (`Group.by_month`, for every
+    group since #202, `Group.bars`). On the right the selected item's detail. A finding's:
+    its date and sentence as the title, the check and what it looks for, a chart of the
+    30 days either side (`Finding.period`, `PERIOD_DAYS`) with the value ringed and a
+    legend, the 7 days either side as a table (the chart's text view) and "Show on the
+    daily chart". A group's, or a check's every row: its title and count, what the check
+    looks for, the counts by calendar month (groups) and its table. Each row is a link to
+    `?show=<id>` (a finding `<check>-<date>`, a table or group its `table_id`), so the
+    selection works without JavaScript and can be linked: the server shows that item's
+    detail, the first finding by default, an unknown id the first, and with no `show` but
+    a `?<table>_page=` the table asked for (`views.selected_item`). Every detail is in the
+    page, the others `hidden`. With JavaScript (`qc.js`) a row shows its detail in place,
+    marks the row (`aria-current`), puts `?show=` in the address (`replaceState`) and
+    announces the detail's title in a polite live region; when the detail is below the
+    list (a narrow container), focus moves to its title. Keyboard: Tab moves between the
+    rows, Enter selects. The list and detail are side by side from a 44rem container (a
+    container query), the detail after the list otherwise.
   - *Checks that found nothing*: one line ("4 checks found nothing: ...").
-  - *Missing data*: one sentence (years with missing days, and which are too incomplete
-    for annual values) and `qc/nastatistics` behind a disclosure: missing days per year
-    and variable for the years with any, with the months that have more than 3 missing
-    days and the years left without an annual value (more than 15 days, or such a month:
+  - *Your data* (above): since #202 it holds the missing data, a sentence's worth of chips
+    and `qc/nastatistics` behind a disclosure: missing days per year and variable for the
+    years with any, with the months that have more than 3 missing days and the years left
+    without an annual value (more than 15 days, or such a month:
     [Missing data](#missing-data)).
   - *Details*, a `<details>` with everything else, below.
 - *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
   `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
-  `?<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
+  `?show=<table>&<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
   ...). The tables add what the files leave out: both days and the change for jumps (the TX
   file holds the change and the TN file the day's value, R's slip, see
   [Quality control](#quality-control)), the dates a flat run covers, the usual range of the
@@ -4894,10 +4915,10 @@ without errors; the user corrects the file outside the app and loads it again.
   (one table row per date). The flagged value is in bold.
 - *Daily charts* (under Details): one per variable (TX, TN, DTR, precipitation) in tabs,
   from `charts:station_daily?variable=`, with the flags of the job's thresholds as rings.
-  "Show on chart" on a row opens Details and the row's chart and moves it to the date
-  (marked with a dashed line, focus on the chart); a click on a ring selects the rows of
-  that date in the lists and tables of the checks that flagged it, loading the table page
-  that holds it and opening its group. See [Charts](#charts) for the API.
+  "Show on the daily chart" in a finding's detail opens Details and the row's chart and
+  moves it to the date (marked with a dashed line, focus on the chart); a click on a ring
+  shows the finding of that date in the detail, or else the group whose table holds it
+  (loading the table page that holds it), marks the row and focuses it (#202). See [Charts](#charts) for the API.
 - *Distributions* (under Details; `qc_plots`, inline SVG with a table each), R's QC plots:
   monthly box plots (`fourboxes`, whiskers at the thresholds, so the values beyond them
   are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
@@ -4924,11 +4945,11 @@ kept, and a run takes seconds. So when "Check and calculate" confirms the statio
 (`previous_params`: the last run's, else the defaults), behind the quality checks, marked
 `params["speculative"] = True` (`jobs.models.SPECULATIVE`). It is the same job, with the
 same `IndexParams`, thresholds and files, that the Calculate button queued before, so the
-outputs are identical. "Use this data" on Quality (every verdict, "Use this data anyway"
+outputs are identical. "See results" on Quality (every verdict, "See results anyway"
 included) calls `calculation.commit`: the run becomes the user's own (`jobs.views.promote`
 sets the key to false and records the start for the daily quota) and the page goes
 straight to Results, which shows the dashboard if it has finished and its progress if not.
-Without a run (refused, cancelled), one is queued then. Until "Use this data", no page shows
+Without a run (refused, cancelled), one is queued then. Until "See results", no page shows
 it: Results redirects to Quality, an index page and Files act as if there were no run
 (`workspace.committed`).
 
@@ -4936,7 +4957,7 @@ A run of old inputs is never shown as current. Changing the details, loading ano
 file or changing the thresholds (the Inputs panel's sheets) cancels a run still waiting or running for the old inputs (`workspace.settle`,
 `Job.request_cancel`: at once if queued, at the next progress step if running) and, except
 for a new file on Data (the details must be confirmed again), queues another
-(`calculation.bring_up_to_date`), keeping the last run's settings. Before "Use this data"
+(`calculation.bring_up_to_date`), keeping the last run's settings. Before "See results"
 the replacement is speculative; after it, the finished results stay on the page, out of
 date, until it has finished (#179). "Your calculations" leaves the cancelled speculative
 runs out. An analysis opened from a batch (`origin`) gets no speculative run: it shows the
@@ -4947,7 +4968,7 @@ How it fits the hosted limits ([Security of the hosted site](#security-of-the-ho
 the worker takes a speculative run only when no other job waits (`claim`), it is queued
 only while fewer than `SPECULATIVE_MAX_QUEUED` jobs wait and the client has room under
 `MAX_ACTIVE_JOBS_PER_IP`, and it counts towards neither the queue cap, nor the client's
-active jobs, nor the daily quota until "Use this data". So it uses the worker's idle time:
+active jobs, nor the daily quota until "See results". So it uses the worker's idle time:
 it never takes a place a user's job needs, and it delays another job by at most the rest of
 one run when the worker is already on it. A default Sydney run (80 years, plots, report and
 zip) takes 11.9 s on an Apple M-series laptop (2.4 s without plots, plus about 3 s of
@@ -5175,7 +5196,7 @@ under Details, an index page only its chart's exports. The groups, in order:
 - *Other files* (`downloads.other_downloads`): any other file in the station's folder, so
   that every file the run wrote can be downloaded; empty for a normal run.
 
-After the quality checks and before a calculation (or before "Use this data", #178), Files
+After the quality checks and before a calculation (or before "See results", #178), Files
 holds the quality checks alone, with a link to Results; with neither, it redirects to
 Results, and while a calculation runs, to its progress there. `test_downloads.test_files_page_reaches_every_file_of_the_station` walks both
 jobs' output folders and the zip's members, and checks each is reachable from Files, and
@@ -5206,7 +5227,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 
 | R step 3 | Python |
 | --- | --- |
-| A step of its own, hidden until the quality checks have run without error, and nothing calculated until "Calculate" | no settings step (#178): the indices are calculated with the defaults as soon as the station details are confirmed, while the checks run; "Use this data" opens the results; the settings are the Inputs panel's Index settings sheet (#199; "Adjust and recalculate" on Results from #178) |
+| A step of its own, hidden until the quality checks have run without error, and nothing calculated until "Calculate" | no settings step (#178): the indices are calculated with the defaults as soon as the station details are confirmed, while the checks run; "See results" opens the results; the settings are the Inputs panel's Index settings sheet (#199; "Adjust and recalculate" on Results from #178) |
 | Parameters checked only when "Calculate" is pressed, one `need()` message at a time | every field checked as it changes, with the core's rules and the output name |
 | A plot title is required | optional; empty uses the station title, as R's default does |
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
@@ -5726,10 +5747,10 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
-| Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
+| Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
+| Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.4 of 14.5 KB (14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.8 of 15 KB (14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5739,7 +5760,10 @@ quality-check results page (the Sydney sample checked: every section, the four c
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
 year). #174 made it a worklist: 472.3 KB of HTML (51.2 KB gzipped), the extra being each
 group's first table page and the days around each finding, all in closed `<details>`;
-`qc.js` 1.8 of 2 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
+`qc.js` 1.8 of 2 KB. #202 made it a list and detail: 564.6 KB of HTML (72.2 KB
+gzipped, 147.7 KB with everything it links), the extra being every item's detail in the
+page, hidden but the selected one, each finding's chart of the 30 days either side, and
+"Your data"; `qc.js` 2.7 of 3 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (Files since #176, which grouped its files in closed disclosures and added
@@ -6028,7 +6052,7 @@ thresholds against `QCParams` and R's limits, the job's files against R's, the v
 (green, amber and red, both red triggers at and just over their limits, and the limits
 changed in one place), the findings and groups of the stress station, the missing-data
 rules, the table pages of the checks and groups and the page of a date, re-uploading a corrected
-file (the details and thresholds kept), "Use this data" opening the results of the
+file (the details and thresholds kept), "See results" opening the results of the
 speculative run (#178) and 404 for another session.
 The drawing itself was checked by hand as above; `test_accessibility.py` (#83) checks the
 charts' keyboard use, announcements, table view and that they redraw to fit when the

@@ -6,7 +6,9 @@ summary: What each quality check looks for, how to read its results, and what to
 The quality checks look for values that are possible errors. They **only report**:
 nothing in your data is changed, and the indices are calculated from the file as loaded.
 
-1. Run the checks and look at the plots and tables.
+1. Run the checks. On the Quality page, pick each value that looks wrong, and each group
+   worth a look, in the list: its detail beside the list shows the days around it, or the
+   group's values by month and in a table. The plots and tables are under Details.
 2. For each value flagged, compare it with the original records, neighbouring stations
    or the weather at the time.
 3. Correct real errors in your file (or set them to -99.9), load it again and re-run the

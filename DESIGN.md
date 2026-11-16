@@ -149,7 +149,8 @@ and muted.
   focused element out from under it (WCAG 2.4.11). The Inputs panel (16rem) sits at the
   inline start, in view under the header as the page scrolls, where the content has at
   least 52rem (a container query, so the help drawer counts); narrower, it comes above
-  the content. What is in the file ("Your data") is the last section of Quality (#198).
+  the content. Quality is the verdict band, the list and detail, the checks that found
+  nothing in one line, what is in the file ("Your data", #198), then Details (#202).
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a theme tile,
   a chart, a progress card). The page's one answer is a tinted band (`answer-band`).
@@ -182,6 +183,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `stat` | Primitive | One number with label and note; the label is a group label | — |
 | `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Your inputs") | — |
 | `section-header` | Component | A section's heading, an optional muted note (`section-header__note`), then the Help pill (`{% section_help %}`) at the end of the row. The pill is 30px high with a ringed question mark and a word: "Help", or a question where it helps (`label="How to read this"`) | with note, with a specific label |
+| Quality list and detail | Pattern | The Quality verdict band (its status tint, the title, a sentence, the counts, and the decision's buttons at the end: one primary, "See results"; on red "Replace file" is primary and "See results anyway" stays), then one framed object (`qc-md`): on the left the list, "Look wrong" and "Worth a look" under small group labels on the sunken tint, one row per finding or group (a link: date or variable, the sentence, a small chart); on the right the selected item's detail (title, one sentence, the chart of the period around it with the value ringed, the days-around table; for a group its counts by month and its rows, paged). The selected row has the selected tint and an ink edge (`aria-current`). Each row links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced, and on a narrow screen focus moves to it. Side by side from a 44rem container, the detail after the list otherwise. The first finding is selected by default. Then "Your data" in chips (`data-chip`, warning tint for years too incomplete) and disclosures | finding, group, every row of a check |
 | `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. The Quality verdict keeps its status tint | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
@@ -215,9 +217,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
-| Verdict | The answer and the one decision on it. An h2 title, one or two sentences, a line of counts against what was checked, and the decision's buttons. One primary button; on red the buttons swap, and a "… anyway" secondary always stays. "Replace file" opens the File sheet (#199). | `alert`, `button`, side sheet |
-| Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
-| Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts; for a group, its rows by calendar month as bars. It is `aria-hidden`: the row's sentence is its text summary, the detail's table its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
@@ -229,7 +229,7 @@ keyboard. This is not optional.
 ### Do
 
 - **One primary action per view.** One `button--primary` per screen or decision area, and
-  it says what happens next with a verb ("Use this data", "Calculate"). A form's one
+  it says what happens next with a verb ("See results", "Calculate"). A form's one
   submit button sits below the fields it confirms, never in the first screen above them.
 - **Answer first, detail on request.** Lead with the finding or verdict, then the
   evidence; tables, distributions and file lists go below or behind a disclosure.
@@ -304,8 +304,9 @@ keyboard. This is not optional.
   (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
   and a theme's hue is always beside its name.
-- **Don't take the decision out of view.** **Target:** #202: Quality is a list and a
-  detail side by side, with the verdict and its buttons kept in view.
+- **Don't take the decision out of view.** Quality is a list and a detail side by side
+  under the verdict band and its buttons (#202): reviewing a finding changes the detail
+  in place instead of opening rows down the page, so the page stays short.
 
 ## Responsive
 

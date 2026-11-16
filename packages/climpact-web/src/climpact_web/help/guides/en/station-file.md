@@ -86,4 +86,4 @@ Base period
 - Climpact does not test homogeneity: jumps caused by a station move or a new instrument.
   Check and adjust for those first if you are working with observations.
 - To try the steps without your own data, use the
-  [sample station](url:stations:upload) (Sydney Observatory Hill, 1936 to 2015).
+  [sample station](url:stations:new) (Sydney Observatory Hill, 1936 to 2015).

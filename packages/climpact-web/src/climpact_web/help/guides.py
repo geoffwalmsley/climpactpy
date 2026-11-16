@@ -10,7 +10,7 @@ Links between pages are written with two schemes the renderer resolves, so that 
 not depend on where the app is mounted:
 
 - ``guide:<slug>#<anchor>`` for another guide (``guide:#<anchor>`` for the same one);
-- ``url:<url name>`` for a page of the app, e.g. ``url:stations:upload``; a page that does
+- ``url:<url name>`` for a page of the app, e.g. ``url:stations:new``; a page that does
   not exist yet (gridded, #85) leaves the link text without a link.
 
 The indices guide has a generated catalogue: the line ``[[index-catalogue]]`` is replaced

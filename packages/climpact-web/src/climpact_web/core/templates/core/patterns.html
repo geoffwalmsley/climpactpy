@@ -23,6 +23,7 @@
       <li><a href="#forms">{% translate "Form fields" %}</a></li>
       <li><a href="#dropzone">{% translate "File drop zone" %}</a></li>
       <li><a href="#file-button">{% translate "File button" %}</a></li>
+      <li><a href="#new-station">{% translate "New station steps" %}</a></li>
       <li><a href="#alerts">{% translate "Alerts" %}</a></li>
       <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
       <li><a href="#cards">{% translate "Cards" %}</a></li>
@@ -163,6 +164,33 @@
         {% translate "Upload a corrected file" as file_button_label %}{% translate "Upload and check again" as file_button_submit %}
         {% include "components/file_button.html" with action="#" field=form.corrected_file label=file_button_label submit_label=file_button_submit variant="secondary" %}
         <p class="text-sm text-text-muted" id="{{ form.corrected_file.auto_id }}_helptext">{{ form.corrected_file.help_text }}</p>
+      </div>
+    </section>
+
+    <section class="pattern" id="new-station" aria-labelledby="new-station-title">
+      <h2 id="new-station-title">{% translate "New station steps" %}</h2>
+      <p>{% translate "A first visit's only page: numbered steps divided by a hairline, a tick once a step is done, then one call to action with a note on what it does. The file card is the one box: the file read, what was read, Replace, and the days with data in each year, amber where a year misses more than 15 days." %}</p>
+      <div class="pattern__demo setup__form">
+        <section class="setup__step" aria-labelledby="pattern-file-title">
+          <span class="setup__n setup__n--done" aria-hidden="true">{% icon "check" %}</span>
+          <div class="setup__body">
+            <h3 id="pattern-file-title">{% translate "Your file" %}</h3>
+            <script src="{% static 'climpact_web/js/setup.js' %}" defer></script>
+            {% include "stations/_file_card.html" with file_name="sydney_observatory_hill_1936-2015.txt" summary=setup_demo.summary strip=setup_demo.strip field=setup_demo.field focus_file=False %}
+          </div>
+        </section>
+        <section class="setup__step" aria-labelledby="pattern-details-title">
+          <span class="setup__n" aria-hidden="true"></span>
+          <div class="setup__body">
+            <h3 id="pattern-details-title">{% translate "Station details" %}</h3>
+            <p class="text-sm text-text-muted">{% translate "The fields the results depend on, with short hints only." %}</p>
+          </div>
+        </section>
+        <div class="setup__cta">
+          {% translate "Check and calculate" as go_label %}
+          {% include "components/button.html" with label=go_label icon_end="arrow-right" size="lg" describedby="pattern-setup-note" %}
+          <p id="pattern-setup-note">{% translate "Quality thresholds and index settings use the defaults. You can change them later in Inputs." %}</p>
+        </div>
       </div>
     </section>
 

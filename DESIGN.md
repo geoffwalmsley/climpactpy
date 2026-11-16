@@ -24,8 +24,8 @@ Taken with the approval of the mockups (#171):
 - **Primary buttons are ink.** Near-black, near-white in the dark theme; blue is no longer
   the action colour (see [Colour](#colour)).
 - **The station title comes from the station name** the user gives, not the file name;
-  the file name moves to the line under it (#197). **Target:** #201 asks for the name on
-  the first page.
+  the file name moves to the line under it (#197). The New station page asks for the
+  name with the file (#201).
 
 ## Who it is for
 
@@ -138,7 +138,9 @@ and muted.
 - **Breakpoints:** `sm` 40rem, `md` 52rem, `lg` 60rem, `xl` 64rem. Logical properties
   only, so right-to-left scripts work (checked by `test_static.py`).
 - **Page frame:** header (logo, main destinations, theme toggle) → step indicator for the
-  batch and gridded flows → title and one-line lead → content → footer. A station is a
+  batch and gridded flows → title and one-line lead → content → footer. A new station is
+  one narrow page (40rem, centred; #201): "New station", a lead, two numbered steps (Your
+  file, Station details) divided by hairlines, then the one call to action. A station is a
   workspace instead: its name as the h1, a line with its years and base period, then the
   section tabs (Quality, Results, Files), then the Inputs panel and the section's content
   side by side. The h1 is the station name the user gives, with the file name on the
@@ -183,6 +185,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. The Quality verdict keeps its status tint | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
+| New station steps | Pattern | The New station page's steps (`setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
+| File card | Component | The file read (`stations/_file_card.html`): its name, "✓ Read: first–last year, days" in success, and Replace (a file button inside the page's form) at the end; under it the days with data in each year, an SVG bar a year in success, amber (`--color-warning`) when the year misses more than 15 days (too many for annual index values), with a text alternative naming those years | gaps, no gaps |
 | `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS. Unused since Quality's corrected file became the File sheet (#199) | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
 | `card` | Component | Grouped content; whole-card link | link, muted, with badge |
@@ -281,25 +285,23 @@ keyboard. This is not optional.
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
   its value isn't self-explanatory. Section
   help lives in `help/sections.py`: notes plus the fields' help topics.
-- **Don't show a step's results before the step.** QC flags belong to Quality, not to the
-  Load chart (it asks for `?flags=0`).
+- **Don't show a step's results before the step.** QC flags belong to the checks, not to
+  "Your data"'s daily chart (it asks for `?flags=0`).
 - **Don't add a page or step without a decision on it.** A screen that only confirms
   defaults should be an inline action instead. The index settings are "Adjust and
   recalculate" on Results, and the defaults are calculated while the user checks the
   quality (#178). The station is a workspace of three sections beside its inputs, with
-  no steps (#179, #198). The first visit still confirms the details on a page of its own
-  (the old Data form and summary), until #201.
-  **Target:** #201: a first visit is one New station page (the file, the station name,
-  latitude and longitude, the base period, then "Check and calculate"); thresholds and
-  index settings start at their defaults and are changed later in Inputs.
+  no steps (#179, #198). A first visit is one New station page (#201): the file, the
+  station name, latitude and longitude, the base period, then "Check and calculate";
+  thresholds and index settings start at their defaults and are changed later in Inputs.
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
   so the user can compare. Mark only what depends on the change: the base period changes
   Results and Files, not Quality.
-- **Don't repeat a standing notice on every page** (retention, privacy). Show it in full
-  once, where it matters. After that it is a quiet line at the foot of the page: small
-  muted text (`text-sm text-text-muted`) with a lock icon.
+- **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
+  where it matters, as a quiet line at the foot of the page: small muted text
+  (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
   and a theme's hue is always beside its name.
 - **Don't take the decision out of view.** **Target:** #202: Quality is a list and a

@@ -265,11 +265,12 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's). One compiled
 # stylesheet for every page since #118, replacing main.css, theme-dark.css and the page
 # stylesheets.
-# bytes, minified (77,000 before the Inputs panel and its sheets, #198; 74,000 before the
-# section header, one surface level and the workspace header, #197; 71,000 before the
-# colour roles and theme hues, #196)
-CSS_BUDGET = 81_000
-CSS_GZIP_BUDGET = 14_750  # 14 KB before #198, 13.5 KB before #197, 13 KB before #196
+# bytes, minified (81,000 before the New station page, #201; 77,000 before the Inputs
+# panel and its sheets, #198; 74,000 before the section header, one surface level and the
+# workspace header, #197; 71,000 before the colour roles and theme hues, #196)
+CSS_BUDGET = 83_000
+# gzipped: 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197, 13 KB before #196
+CSS_GZIP_BUDGET = 15_000
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

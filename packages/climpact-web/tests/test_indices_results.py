@@ -1161,13 +1161,14 @@ def test_a_corrected_file_replaces_the_speculative_run(client):
     assert (new.input_dir / "station.txt").read_bytes() == analysis.station_file.read_bytes()
 
 
-@pytest.mark.parametrize("address", ["file", "inputs/file"])
+@pytest.mark.parametrize("address", ["setup", "inputs/file"])
 def test_a_new_file_replaces_the_speculative_run_at_once(client, address):
-    """Once the details are confirmed, a new file from the details page or the Inputs
-    panel (#198) queues the checks and the run of the new file straight away."""
+    """Once the details are confirmed, a new file from the setup page (#201, a form left
+    open) or the Inputs panel (#198) queues the checks and the run of the new file straight away."""
     analysis = ready_analysis(client)
     old = analysis.indices_job
-    client.post(f"/station/{analysis.pk}/{address}", {"station_file": _station_upload()})
+    data = {"station_file": _station_upload(), "intent": "read"}
+    client.post(f"/station/{analysis.pk}/{address}", data)
     analysis.refresh_from_db()
     old.refresh_from_db()
     assert old.status == Status.CANCELLED

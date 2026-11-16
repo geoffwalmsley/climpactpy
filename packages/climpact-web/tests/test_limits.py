@@ -99,7 +99,8 @@ def visitor(ip=IP, owner="owner-a") -> Client:
 
 def upload(client, **extra):
     return client.post(
-        "/station/", {"station_file": SimpleUploadedFile("stn.txt", rows().encode()), **extra}
+        "/station/new",
+        {"station_file": SimpleUploadedFile("stn.txt", rows().encode()), "intent": "read", **extra},
     )
 
 
@@ -149,7 +150,7 @@ def test_turnstile_is_off_in_local_mode_and_without_keys(settings, client):
     settings.TURNSTILE_SITE_KEY = "test-site-key"
     settings.TURNSTILE_SECRET_KEY = "test-secret-key"
     assert not limits.turnstile_enabled()  # local mode
-    assert "cf-turnstile" not in client.get("/station/").content.decode()
+    assert "cf-turnstile" not in client.get("/station/new").content.decode()
     assert upload(client).status_code == 302
     settings.IS_HOSTED = True
     settings.TURNSTILE_SITE_KEY = settings.TURNSTILE_SECRET_KEY = ""
@@ -158,13 +159,13 @@ def test_turnstile_is_off_in_local_mode_and_without_keys(settings, client):
 
 @pytest.mark.django_db
 def test_job_forms_show_the_widget_once_with_its_script(turnstile):
-    html = visitor().get("/station/").content.decode()
+    html = visitor().get("/station/new").content.decode()
     assert html.count('class="cf-turnstile" data-sitekey="test-site-key"') == 1
     assert html.count("challenges.cloudflare.com/turnstile/v0/api.js") == 1
     assert "<noscript>" in html
-    # The widget sits inside the upload form, before its button.
-    form = html.split('action="/station/"', 1)[1].split("</form>", 1)[0]
-    assert form.index("cf-turnstile") < form.index('type="submit"')
+    # The widget sits inside the New station form, before "Check and calculate" (#201).
+    form = html.split('action="/station/new"', 1)[1].split("</form>", 1)[0]
+    assert form.index("cf-turnstile") < form.index('value="go"')
     # Pages without such a form load nothing from Cloudflare.
     assert "challenges.cloudflare.com" not in visitor().get("/help/").content.decode()
 
@@ -195,7 +196,7 @@ def test_a_valid_token_lets_the_form_through(turnstile):
     assert response.status_code == 302
     analysis = StationAnalysis.objects.get()
     # The next step, which queues the quality checks, needs a token of its own.
-    url = f"/station/{analysis.pk}/load"
+    url = f"/station/{analysis.pk}/setup"
     assert client.post(url, metadata()).status_code == 400
     assert not Job.objects.exists()
     assert client.post(url, metadata(**{TOKEN_FIELD: "ok-2"})).status_code == 302
@@ -219,15 +220,15 @@ def test_cloudflare_unreachable_refuses_with_busy(turnstile, monkeypatch):
 @pytest.mark.django_db
 def test_get_requests_and_the_sample_need_no_token(turnstile):
     client = visitor()
-    assert client.get("/station/").status_code == 200
+    assert client.get("/station/new").status_code == 200
     assert client.post("/station/sample").status_code == 302
     assert turnstile == []
 
 
 @pytest.mark.django_db
 def test_forms_wait_for_their_token(turnstile):
-    """The sample's Load page (#163): two widgets (the details and "Use a different
-    file"), each in its own form, and no button outside them (#173). Each widget
+    """The sample's setup page (#163, #201): one widget in its one form (the file and the
+    details), and no button outside it that sends it (#173). The widget
     names turnstile.js's callbacks and carries the texts it shows while the form waits;
     turnstile.js comes once, before Cloudflare's script."""
     client = visitor()
@@ -235,7 +236,7 @@ def test_forms_wait_for_their_token(turnstile):
     html = client.get(load).content.decode()
     assert 'form="station-details"' not in html  # the shortcut that raced the token is gone
     widgets = re.findall(r'<div class="cf-turnstile"[^>]*>', html)
-    assert len(widgets) == 2
+    assert len(widgets) == 1
     for widget in widgets:
         assert 'data-callback="climpactTurnstileDone"' in widget
         assert 'data-error-callback="climpactTurnstileError"' in widget
@@ -243,7 +244,7 @@ def test_forms_wait_for_their_token(turnstile):
             assert re.search(rf'data-text-{name}="[^"]+"', widget), name
         assert "data-retry=" not in widget  # a Turnstile setting: never 'Try again' (#169)
     forms = re.findall(r"<form\b.*?</form>", html, re.S)
-    assert [f.count('class="cf-turnstile"') for f in forms if "cf-turnstile" in f] == [1, 1]
+    assert [f.count('class="cf-turnstile"') for f in forms if "cf-turnstile" in f] == [1]
     assert html.count("js/turnstile.js") == 1
     assert html.index("js/turnstile.js") < html.index("turnstile/v0/api.js")
 
@@ -264,7 +265,7 @@ def start_qc(client):
     response = upload(client)
     assert response.status_code == 302, response.content.decode()[:500]
     analysis_id = response["Location"].split("/")[2]
-    return client.post(f"/station/{analysis_id}/load", metadata())
+    return client.post(f"/station/{analysis_id}/setup", metadata())
 
 
 @pytest.mark.django_db

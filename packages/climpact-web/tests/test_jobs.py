@@ -123,8 +123,11 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     # speculative run with the default settings (#178); "Use this data" opens the results,
     # and the Index settings sheet there (#199) queues the run this test follows.
     response = client.post(
-        "/station/",
-        {"station_file": SimpleUploadedFile("my_station.txt", station_text().encode())},
+        "/station/new",
+        {
+            "station_file": SimpleUploadedFile("my_station.txt", station_text().encode()),
+            "intent": "read",
+        },
     )
     assert response.status_code == 302
     load_url = response["Location"]
@@ -135,18 +138,18 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     assert run_job(claim("w0"), None).status == Status.SUCCEEDED
     speculative = Job.objects.get(kind="station")
     assert speculative.is_speculative
-    response = client.post(load_url.replace("/load", "/quality/continue"))
+    response = client.post(load_url.replace("/setup", "/quality/continue"))
     page = client.get(response["Location"]).content.decode()
     assert "Calculating indices" in page and 'id="sheet-settings"' in page
     from test_indices_results import defaults
 
-    run_url = load_url.replace("/load", "/inputs/settings")
+    run_url = load_url.replace("/setup", "/inputs/settings")
     response = client.post(run_url, {**defaults(), "plots": ""})
     assert response.status_code == 302
     speculative.refresh_from_db()
     assert speculative.status == Status.CANCELLED  # replaced before it started
     job = Job.objects.exclude(pk__in=[qc_job.pk, speculative.pk]).get()
-    assert response["Location"] == load_url.replace("/load", "/results")
+    assert response["Location"] == load_url.replace("/setup", "/results")
     response = client.get(f"/jobs/{job.pk}/")
     assert (job.status, job.kind, job.title) == (Status.QUEUED, "station", "Testville")
     assert job.params["plots"] is False and job.params["zip"] is True

@@ -2,9 +2,9 @@
 A group of metadata fields validated together as they change: htmx posts the whole form
 with "group" and swaps in this group's re-rendered fields (stations:validate). Without
 JavaScript the form is checked when it is sent. Parameters: form (MetadataForm), group
-(a key of MetadataForm.UNITS), analysis.
+(a key of MetadataForm.UNITS), analysis (None before a file is read, #201).
 {% endcomment %}
-<div class="grid gap-2" id="group-{{ group }}" hx-post="{% url 'stations:validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
+<div class="grid gap-2" id="group-{{ group }}" hx-post="{% if analysis %}{% url 'stations:validate' analysis.pk %}{% else %}{% url 'stations:validate_new' %}{% endif %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
   {% if group == "station_name" %}
   {% include "components/field.html" with field=form.station_name %}
   {% elif group == "latitude" %}

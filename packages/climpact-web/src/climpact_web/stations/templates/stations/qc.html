@@ -35,7 +35,7 @@ Data tab folded into Quality (#198). Context from views.qc_context.
     {% if job.status == "failed" %}{% translate "The new checks could not be run" as stale_title %}{% else %}{% translate "The new checks were stopped" as stale_title %}{% endif %}
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=job.error|default:stale_note body="stations/_qc_run_again.html" %}
     {% else %}
-    {% translate "The checks are out of date" as stale_title %}{% url 'stations:load' analysis.pk as data_url %}{% translate "Check the station details to check the new file." as data_label %}
+    {% translate "The checks are out of date" as stale_title %}{% url 'stations:setup' analysis.pk as data_url %}{% translate "Check the station details to check the new file." as data_label %}
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note action_href=data_url action_label=data_label %}
     {% endif %}
     {% elif job and not job.is_finished %}
@@ -83,7 +83,7 @@ Data tab folded into Quality (#198). Context from views.qc_context.
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="text-sm" href="{% url 'stations:upload' %}">{% translate "Start again with another station" %}</a>
+    <a class="text-sm" href="{% url 'stations:new' %}">{% translate "Start again with another station" %}</a>
   </form>
   </div>
   </div>

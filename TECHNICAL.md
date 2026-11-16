@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198, #199: Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates, then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2772,6 +2772,8 @@ packages/climpact-web/src/climpact_web/
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
+      js/setup.js    the New station page (#201): a chosen or dropped file is read at once,
+                     Replace on the file card, focus on the card after reading
       js/workspace.js  keeps the page's scroll padding to the height of the station's
                      sticky workspace header (#197), loaded by stations/_workspace.html
       js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), and the
@@ -2838,8 +2840,9 @@ packages/climpact-web/src/climpact_web/
                      sparklines, trends, tables not written and why, trend-file rows; cached
     themes.py        the results page's themes (#175): the index-to-theme mapping (Heat,
                      Cold, Rain, Drought, "Also measured"), the findings written from the trends
-    views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
-                     daily CSV, delete; Quality: the checks, progress, table pages,
+    views.py, urls.py  /station/: the New station page (new_station: the file and the
+                     details, #201), the sample, field validation, the old upload and
+                     Load addresses' redirects, daily CSV, delete; Quality: the checks, progress, table pages,
                      continue; the Inputs panel's sheets (edit_input: file, station, base
                      period, thresholds, index settings) and their runs' progress
     views_indices.py Results: progress, the dashboard (with a recalculation's progress
@@ -2856,7 +2859,8 @@ packages/climpact-web/src/climpact_web/
     views_sector.py  step 5: the form, the sector job, its progress and results, the sample
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB);
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
-    templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
+    templates/stations/  new.html (New station, #201) and _file_card.html (its file card
+                     and days-with-data strip), qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; the Inputs panel (_inputs.html,
                      _input_sheets.html, _input_form.html, input_edit.html,
@@ -2934,7 +2938,7 @@ packages/climpact-web/tests/
   test_*.py          settings, views and security, i18n, static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
-                     the first visit (test_stations.py), Quality (test_qc_review.py), the
+                     the New station page (test_stations.py, #201), Quality (test_qc_review.py), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
                      #179, #198), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
@@ -3137,9 +3141,9 @@ jobs and the error pages must leave none (`test_no_content_security_policy_viola
 `test_turnstile_widget_within_the_policy` starts a second app with
 `turnstile_test_settings.py` (Turnstile on with Cloudflare's published test keys, which
 always pass on any host, and the Turnstile policy) and waits for the widget's token on
-the station upload page with no violation; `test_turnstile_holds_a_form_until_its_token`
-presses the sample's continue button on step 1 as soon as the page is parsed, before the
-token, and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
+the New station page with no violation; `test_turnstile_holds_a_form_until_its_token`
+presses "Check and calculate" on the sample's setup page as soon as the page is parsed,
+before the token, and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
 cannot be reached.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
@@ -3475,8 +3479,10 @@ HEAD) is matched by its own skip rule and the cache bypass, by no block, challen
 rate-limit or static-cache rule, and its skip rule by nothing else. The Inputs panel's
 sheets start jobs when applied, so the rule counts `/station/*/inputs/<key>` for each of
 the five keys, but not `/station/*/inputs/progress` (#199; `quality/run` left the rule
-with its form). A new
-job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+with its form). Since #201 it counts the New station page, `/station/new` and
+`/station/*/setup`, instead of the upload page, the old Load page and its "Use a different
+file" (`/station/`, `/station/*/load`, `/station/*/file`), which now only redirect or are
+gone. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this. Bot Fight Mode is off (see the table). The same test checks
@@ -3729,9 +3735,9 @@ their tokens apart. Widgets that arrive in an htmx swap are rendered with
 `turnstile.render` on `htmx:load` (implicit rendering only scans the page when `api.js`
 loads), never twice; since htmx runs script tags off, that needs a page that already
 loaded the scripts with a widget of its own. None of today's swaps carries one. The
-views whose POST uploads a file or starts a job are wrapped in `human_required`: station
-upload, replace file, step 1's details (which queue the checks), run the checks, replace
-the file after the checks, the indices and the sector run; batch upload, add files and
+views whose POST uploads a file or starts a job are wrapped in `human_required`: the New
+station page (its file, and its details, which queue the checks; #201), the Inputs
+panel's sheets (the file, the details, the thresholds and the settings), the indices and the sector run; batch upload, add files and
 run; gridded upload and set-up. The decorator posts the widget's `cf-turnstile-response`
 to `https://challenges.cloudflare.com/turnstile/v0/siteverify` (form-encoded, with
 `remoteip`, 10 s timeout) once per request. A missing or rejected token gets a 400; no
@@ -3771,7 +3777,7 @@ not locks: two requests at the same moment can both pass, so a quota can be over
 job or two. A refusal raises `Refused` (reason, message, status, `Retry-After`);
 `RefusalMiddleware` renders `refused.html` (the message in a warning alert, and links to
 the jobs and the home page) and logs a warning to `climpact_web.limits`: `Refused POST
-/station/<id>/load from 203.0.113.7: active-quota:2`. The reasons are
+/station/<id>/setup from 203.0.113.7: active-quota:2`. The reasons are
 `turnstile-missing`, `turnstile-failed:<codes>`, `turnstile-unavailable`,
 `active-quota:<n>`, `daily-quota:<n>`, `queue-full:<n>` and `disk-low:<MB>`, and
 `deploy/README.md` says how to use them to tune the Cloudflare rules. A refused step 1
@@ -4099,7 +4105,8 @@ a comment listing its parameters. Labels are passed in already translated
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket adds (`stations:upload`,
+URL name each later ticket adds (`stations:new` since #201, `stations:upload` before;
+the single station's link is current on every `/station/` page, `section_name`),
 `stations:sample` (#76), `batch:start` (#80), `gridded:start` (#85), `help:index` (#81) and `jobs:list` all exist now). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered when `GRIDDED_ENABLED` is
 set: always in local mode, as in R, and in hosted mode only with
@@ -4148,14 +4155,15 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 81 KB (77 KB until #198 added the Inputs panel and the
-side sheet; 74 KB until #197 added the section header, one
+stylesheets). Tests hold it under 83 KB (81 KB until #201 added the New station page;
+77 KB until #198 added the Inputs panel and the side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
-status marks and the out-of-date block; it is 80.7 KB) and 14.75 KB gzipped (14 KB until
-#198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
+status marks and the out-of-date block; it is 82.4 KB) and 15 KB gzipped (14.4 KB; 14.75
+KB until #201; 14 KB until #198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
-14 KB until #174 added the file button);
+14 KB until #174 added the file button; the New station page's behaviour is its own
+`setup.js`, 1.4 KB, so `ui.js` did not grow);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
 budgets are in [Size budget](#size-budget) (#82).
 
@@ -4222,8 +4230,8 @@ in the pull request (see its notes for the differences found).
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
-job and the job list), the single-station step 1 pages (upload, upload with file
-problems, the sample loaded, metadata errors), step 2 before the checks have run, the
+job and the job list), the New station page (#201: empty, with file problems, the
+sample's file read, details errors), step 2 before the checks have run, the
 indices being calculated (#178), and the batch pages
 (start, a check with every station status, a running batch, finished results) and the help
 pages (index, a guide, the indices guide, the topic list, a search), rendered from
@@ -4468,8 +4476,8 @@ under `RUNS_DIR` named like a job id but belonging to none (an interrupted uploa
 deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
 stale jobs), for cron in a deployment. Every template gets `job_retention_days` (context
-processor `climpact_web.jobs.context_processors.jobs`), for the upload page (#76) to state
-the period; the job page shows the deletion date. Other apps register their own clean-up
+processor `climpact_web.jobs.context_processors.jobs`), for the New station page (#76,
+#201) to state the period; the job page shows the deletion date. Other apps register their own clean-up
 with `register_purger(func)`; each purge calls `func(now, days)` (the stations app deletes
 its analyses this way, so the jobs app knows nothing of them).
 
@@ -4503,9 +4511,9 @@ The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
 station is a workspace of sections, shown as tabs under its name (decision A): since #198
 Quality (#77, with what is in the file, "Your data", at its foot), Results (#78, #79)
 and Files (#79, #176), beside the Inputs panel, where everything the user gave is changed
-("Inputs panel" below). The first visit confirms the details on a page of its own,
-`stations:load` (Data until #198: the details form, "Your data" and a form to use a
-different file), until #201's setup page. There are no steps and no step indicator. R's step 3, the index settings, is
+("Inputs panel" below). A first visit is one New station page (#201, "New station page"
+below): the file, the station details, then "Check and calculate", which runs the checks
+and the indices together and opens Quality. There are no steps and no step indicator. R's step 3, the index settings, is
 the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
 from #178): the indices are calculated with the defaults while the user looks at the
 quality checks ("Speculative calculation" below). The output pages hold no forms but the
@@ -4560,17 +4568,18 @@ finished, else the checks it replaces; `shown_run` is `indices_job` if it has fi
 else the run it replaces, else the batch's results (`origin`). The replaced job is named in
 the new job's `params["replaces"]` (#178's recalculation, now for the checks too,
 `workspace.replaces_for` carrying it from a job still waiting). After a change,
-`calculation.bring_up_to_date` (called by the first visit's details form and the Inputs
+`calculation.bring_up_to_date` (called by the New station page and the Inputs
 panel's sheets) runs `workspace.settle`, which cancels what is still queued or running for the
 old inputs and, when an input was changed back, links the finished job of those inputs again
 instead of calculating it twice; then it queues the checks and the run that are not of the
 current inputs. A replacement run is speculative before "Use this data" and an ordinary job
 (the user's own, counted by the hosted limits) after it; a refusal by the limits is logged
 and leaves the results out of date with "Recalculate". A new file, from the File sheet
-(which Quality's "Replace file" opens too, #199) or the details page's form, queues the
-new checks and run at once when the details still fit it; when the base period no longer fits the new data, the
-details page asks for a new one first. The File sheet keeps the station name; the details
-page's form renames a station still named after its old file, as before.
+(which Quality's "Replace file" opens too, #199), queues the new checks and run at once
+when the details still fit it; when the base period no longer fits the new data, the
+station's New station page (`stations:setup`) asks for a new one first. The File sheet
+keeps the station name; Replace on the New station page renames a station still named
+after its old file.
 
 The pages show it: Quality keeps the old checks under an out-of-date banner (the new checks'
 progress, or their failure), with no "Use this data" until the new checks have finished
@@ -4585,7 +4594,7 @@ the section is current again. The Quality tab keeps the verdict's level in the c
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the header (the station's name as the h1 of the three
-section pages and the details page, a line with its years, base period and file name,
+section pages, a line with its years, base period and file name,
 the page's actions: Results' "Compare with sector data" and "Download all",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
 station name given, the file name only when there is none. Since #197 the header
@@ -4601,7 +4610,7 @@ verdict) or `done`; Results `locked` until "Use this data", then `stale`, `runni
 results, `stale` when either is. Each tab is its own page, so the existing URLs stay as
 they were (the Cloudflare rate-limit rules name them), the pages stay as light as before,
 and they work without JavaScript; they are therefore links with `aria-current="page"`,
-not an ARIA tablist. The details page has no current tab.
+not an ARIA tablist. The New station page has no tabs and no Inputs panel (#201).
 
 **Inputs panel (#198, `stations/_inputs.html`).** `workspace.context` adds the panel to
 every section page once the station is set up (`workspace.set_up`: the details confirmed,
@@ -4625,7 +4634,7 @@ once they have all finished.
 
 Each sheet is a modal `<dialog>` (`stations/_input_sheets.html`, `js/sheet.js`) with only
 its input's form (`stations/_input_form.html`, `views.input_form`): the File sheet the
-`UploadForm` (its own ids, `auto_id="sheet_%s"`, apart from the details page's file
+`UploadForm` (its own ids, `auto_id="sheet_%s"`, apart from the New station page's file
 field), the Station sheet `StationForm` (name, latitude, longitude) and the Base period
 sheet `BasePeriodForm`, both `MetadataForm` restricted to their fields and checked against
 the data the same way, their fields validated as they change by `stations:validate`; the
@@ -4665,11 +4674,11 @@ JavaScript. Closing a sheet opened this way focuses its Edit in the panel.
 **The Data tab folds into Quality (#198).** Data's summary (`_summary.html`: the period,
 missing values by variable, the daily series and the days with data per year) is the last
 section of Quality, "Your data" (`id="your-data"`), so the Quality page loads the chart
-code. Once the station is set up, a GET of `stations:load` (Data's address) redirects to
-`.../quality#your-data`; before that, and when a new file no longer fits the details, it
-is the details page. The station's own address, `/station/<id>/`, opens Results after
-"Use this data", Quality once set up, else the details page; the upload page's recent
-analyses link to it.
+code. Once the station is set up, `stations:load` (Data's address) and `stations:setup`
+redirect to `.../quality#your-data`; before that, and when a new file no longer fits the
+details, they lead to the New station page. The station's own address, `/station/<id>/`,
+opens Results after "Use this data", Quality once set up, else the New station page; the
+New station page's recent analyses link to it.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
 `stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
@@ -4681,12 +4690,18 @@ backfill keeps them current. A batch station gets `origin["inputs"]`. The values
 migration needs (R's QC defaults) are copied into it. `tests/migration_backfill.py` checks
 it on SQLite (`test_workspace.py`) and on Postgres (`test_queue_postgres.py`).
 
-**URLs.** `/station/` upload page (`stations:upload`); `/station/sample` (POST) loads the
-sample; `/station/sample.txt` downloads it (R links to the sample file too);
+**URLs.** `/station/new` the New station page (`stations:new`, #201), and
+`/station/<id>/setup` the same page once its file is read (`stations:setup`); `/station/`
+(`stations:upload`, the upload page until #201) and `/station/<id>/load`
+(`stations:load`, Data until #198, the details until #201) redirect to them, or once the
+station is set up to Quality's "Your data", GET or POST, so old links and bookmarks keep
+working; `/station/validate` and `.../setup/validate` (htmx, POST: a group of the details
+checked as it changes, against the file once one is read); `/station/sample` (POST)
+loads the sample; `/station/sample.txt` downloads it (R links to the sample file too);
 `/station/<id>/` (`stations:workspace`, #179) the furthest section reached (Results after
-"Use this data", else Quality once the details are confirmed, else Data);
-`/station/<id>/load` Data (`stations:load`); `.../load/validate` (htmx, POST);
-`.../file` (POST) loads a different file into the analysis; `.../series.csv` the daily
+"Use this data", else Quality once the details are confirmed, else the New station page);
+`.../file` (POST, the old Load page's "Use a different file") is gone since #201;
+`.../series.csv` the daily
 series; `.../delete` (POST); `.../inputs/<key>` (`stations:edit_input`, #198, #199) a
 sheet of the Inputs panel as a page, POST applies it; `.../inputs/progress` (htmx);
 `.../quality` Quality (`stations:qc`), `.../quality/progress` (htmx),
@@ -4706,12 +4721,54 @@ sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's 
 sector file (`stations:sector_sample`); `.../downloads` the Files page
 (`stations:downloads`, #79, #176).
 
-**Step 1: the file.** The upload page has a drop zone around a real file input (a plain
-multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
-card, the retention note (an info alert; on the later station pages, steps 1 and 2, it is
-a quiet line of small text with a lock icon at the foot of the page, #173), the session's
-recent analyses. The file format, with an example, is in the help of the file section's Help button
-(#177). `station_file.inspect_station_bytes` checks the file before anything is saved:
+**New station page (#201).** Proposal 4 of #171's second review ("One setup screen, then
+the workspace"): a first visit asks only for what must be given, on one page
+(`stations/new.html`, `views.new_station`), in two numbered steps, then one button.
+
+1. **Your file.** A drop zone around a real file input, with "No file to hand? Use the
+   sample data" (its own form, `#sample-form`, sent by a button in the step) and a link
+   to download the sample. Once the file is read, a file card (`_file_card.html`: the
+   file name, "✓ Read: 1936–2015, 29,220 days", Replace) and a strip of days with data per
+   year (`views.year_strip`: an SVG bar a year, as tall as its emptiest variable's share
+   of the year, amber when a variable misses more than 15 days, climdex.pcic's
+   `max.missing.days` for annual values, `MAX_MISSING_YEAR_DAYS`, checked against the
+   core's `climpact.missing.MAX_MISSING_DAYS` by a test; its text alternative counts and
+   names those years; an SVG, as the Content Security Policy allows no inline styles).
+   The Sydney sample, which misses at most a few days in a year, has none. Warnings about the file show under it.
+2. **Station details.** Name, latitude, longitude and base period (`MetadataForm`,
+   "Station details" below), with short hints only. Before a file is read the name may
+   be left empty: it is then the file's name, as R does. The base period starts at R's
+   1971–2000.
+
+Then one primary button, **Check and calculate**, with a note beside it that the quality
+thresholds and index settings use the defaults and can be changed later in Inputs. It
+saves the details, moves `step` to `qc` and calls `calculation.bring_up_to_date`, which
+queues the checks and the speculative run together (#178), and opens Quality (Results,
+when only they are affected: a station in use whose new file needed new details). The
+retention notice is one quiet line at the foot (#173), and on the empty page the
+session's recent analyses follow.
+
+It is one multipart form (`#new-station`), so it works without JavaScript: the file and
+the details can be sent together with "Check and calculate", or the file first with
+"Read the file" (`intent=read`), then the details. `/station/new` has no analysis; a file
+read makes one, and the page is then `/station/<id>/setup` (a redirect after the read),
+where the form is sent next. With JavaScript (`js/setup.js`) "Read the file" is hidden
+and a chosen or dropped file is sent at once (the drop zone's hint says so, WCAG 3.2.2);
+the details typed beside it go with it and those valid on their own are kept
+(`views.keep_typed_details`). Back on the page, focus moves to the file card
+(`data-focus-on-load`, set once by the session after a read), unless an error summary
+takes it. Replace is a file button inside the form (the file button of #174, sent with
+its own hidden "Read the file"). Errors are shown inline, each with its summary, which
+takes focus: no file ("Choose a station file", in the file's step, the details kept as
+typed), a file that cannot be read (its problems, the details kept), and wrong details
+(the error summary over the details; a good file sent with them is kept, and the form
+then goes to its setup page). The Turnstile widget is in the form, before "Check and
+calculate"; the view is `human_required`, the sample `disk_required`. A station already
+set up has no setup page: later changes are made in the Inputs panel. The days-per-year
+table, missing values and daily series are Quality's "Your data" (#198), not on this
+page.
+
+`station_file.inspect_station_bytes` checks the file before anything is saved:
 
 - *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
   data rows, a line without six values, a value that is not a number (`NA` is accepted as
@@ -4732,20 +4789,18 @@ recent analyses. The file format, with an example, is in the help of the file se
   Python's default encoding, and a BOM would make the first data row a header (as it does
   in R). A header in Latin-1 is decoded as such.
 
-**Step 1: the summary.** The load page shows the period, years and days (from the first
+**"Your data" (Quality, #198).** The period, years and days (from the first
 row's date to the last, as R's quality control), a table of days with data, days missing
 and the share missing per variable (one value per date, the last row of a repeated date,
-as the indices use), a static preview, the days with data in each year (in a
-disclosure), a CSV download of the daily series and a form to load a different file
-(the metadata is kept; the station name follows the new file name only if it was still
-the default). The preview (`preview.py`) is two small inline SVG charts of monthly means
-(maximum and minimum temperature, monthly total precipitation; months with fewer than 20
-days are gaps), drawn on the server in the chart tokens. Since #75 the summary shows the
-interactive daily series instead (`charts:station_daily?flags=0`: without the QC flags,
-which belong to step 2, #173; its CSV link is `stations:series`), and the static preview is the fallback inside
-`<noscript>`. See [Charts](#charts).
+as the indices use), the days with data in each year (in a disclosure) and a CSV download
+of the daily series. The preview (`preview.py`) is two small inline SVG charts of monthly
+means (maximum and minimum temperature, monthly total precipitation; months with fewer
+than 20 days are gaps), drawn on the server in the chart tokens. Since #75 the section
+shows the interactive daily series instead (`charts:station_daily?flags=0`: without the QC
+flags, #173; its CSV link is `stations:series`), and the static preview is the fallback
+inside `<noscript>`. See [Charts](#charts).
 
-**Step 1: the metadata.** The fields are exactly those of the R app: station name,
+**Station details.** The fields are exactly those of the R app: station name,
 latitude, longitude, base period first and last year (`MetadataForm`). The name defaults
 to the file name without its extension (as the command line does), reduced to letters,
 digits, spaces and `.()-_` (it becomes folder and file names). Rules and messages:
@@ -4755,20 +4810,18 @@ digits, spaces and `.()-_` (it becomes folder and file names). Rules and message
 | Station name | required ("Please enter a station name") | required; the characters above, not starting with a dot |
 | Latitude, longitude | default 0, 0; must lie in -90..90 and -180..180 | start empty and are required (a forgotten 0 would put the station in the Southern Hemisphere); same ranges; latitude 0 gets a warning that it counts as Southern Hemisphere |
 | Base period | default 1971-2000; years >= 0; the help says it "must be within the limits of the dates in the station data", but nothing checks it before the run | same defaults; the last year must not be before the first; a base period with no year inside the data is an error; partial coverage is a warning naming the years covered; 359 days or fewer of the base period inside the data (`MIN_BASE_DAYS`, the core's rule) is a warning that the percentile indices cannot be calculated, as the run would go ahead in R too |
-| Sample | a link to the file; the user uploads it and types the metadata | one click: the analysis is created with the name, latitude -33.86 and longitude 151.21 (as in `reference/stations.csv`) filled in |
+| Sample | a link to the file; the user uploads it and types the metadata | one click: the analysis is created with the name, latitude -33.86 and longitude 151.21 (as in `reference/stations.csv`) filled in, on its New station page, so "Check and calculate" is the only other press (#201) |
 
 **htmx.** The form is split into groups (`MetadataForm.UNITS`: name, latitude, longitude,
-base period). Each group is a `<div>` with `hx-post` to `.../load/validate`,
+base period). Each group is a `<div>` with `hx-post` to `.../setup/validate` (or
+`/station/validate` before a file is read),
 `hx-trigger="change"`, `hx-include="closest form"` and `hx-vals` naming the group; the
 server validates the whole form and returns only that group, re-rendered with its
 errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
 whole form is posted and the page shows every error with the error summary.
-"Check quality" saves the metadata, moves `step` to `qc` and redirects to
-step 2. The station details come first on the page, above the data summary and the
-chart, with this one button below the fields it confirms (#173). #114 had put a second
-button, "Details look right", under the heading when the details were already valid, so
-the step could be finished without scrolling; it came before the fields it asked the
-user to confirm, and #173 removed it.
+"Check and calculate" is the one button, below the fields it confirms (#173, #201). #114
+had put a second button, "Details look right", above the fields when they were already
+valid; #173 removed it.
 
 **Step 2: the quality checks (#77).** Replaces the R app's step 2
 (`singleStationStep2UI.R`, `singleStationStep2.R`, `services/quality_control_checks.R`) and
@@ -4855,8 +4908,8 @@ without errors; the user corrects the file outside the app and loads it again.
 - *Replace file* (the verdict's button, and the panel's Replace): the File sheet. The new
   file replaces the old one, the station details and thresholds are kept and the checks
   and the run start again, the old ones shown out of date until then (#179); if the base
-  period no longer fits the new data, the details page opens to change it. A file with
-  problems is refused with the same messages as in step 1, on the sheet's page, and the
+  period no longer fits the new data, the station's New station page opens to change it.
+  A file with problems is refused with the same messages as on that page, on the sheet's page, and the
   previous results stay. When the checks failed, were stopped or have not run, "Run the
   checks" opens the thresholds sheet, whose Apply runs them.
 - *Files* (under Details): one link to the quality-control files on the Files page
@@ -4865,7 +4918,8 @@ without errors; the user corrects the file outside the app and loads it again.
 
 **Speculative calculation (#178; decision D, on in local and hosted mode).** The Calculate
 step only confirmed defaults: every index is calculated, the defaults are almost always
-kept, and a run takes seconds. So when the station details are confirmed on Load,
+kept, and a run takes seconds. So when "Check and calculate" confirms the station details
+(the New station page, #201),
 `calculation.speculate` queues a `station` job with the settings the form would start from
 (`previous_params`: the last run's, else the defaults), behind the quality checks, marked
 `params["speculative"] = True` (`jobs.models.SPECULATIVE`). It is the same job, with the
@@ -5414,7 +5468,7 @@ holds. An unknown section or topic fails as `help_topic` does. The station pages
 
 | Page | Sections |
 | --- | --- |
-| Upload, the first visit's details | `upload.file`, `load.details`, `load.data` |
+| New station (#201) | `upload.file` (Your file), `load.details` (Station details) |
 | Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, and `load.data` for "Your data" (#198) |
 | Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
 | Results, an index, Files | `results.findings`, `results.catalogue`; `result.index`, `result.anomalies`, `result.trends`; `files.page` |
@@ -5674,8 +5728,8 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
-| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | the first visit's details with data loaded, Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.1 of 14.5 KB (14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.4 of 14.5 KB (14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5831,8 +5885,8 @@ such as the run's PNG, shown instead without JavaScript). A summary, legend or C
 left out is filled in from the data; without `table_template` the table view is built from
 the data. `{% chart_scripts %}` writes uPlot and
 `charts.js` (deferred) and `#climpact-chart-text`, the script's strings in the interface
-language. Only pages that include it load chart code: the landing page and the upload page
-do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
+language. Only pages that include it load chart code: the landing page and the New station
+page do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
 `ClimpactCharts.hydrate(element)` does it by hand.
 
 **Data URLs** (`charts/urls.py`). All are GET-only and private to the session, like the
@@ -6007,8 +6061,9 @@ through the Sydney sample station (every section, a recalculation, the sector co
 with the sample sector file), a second sample station whose base period is changed and its
 new run cancelled (Results out of date under "Recalculate", #179), the sample
 batch and the 3 x 4 sample grid (thresholds, then `txx`, `fd` and `spi`) in the browser, so
-the worker runs real jobs (about a minute), and collects 37 pages and states, including
-forms answered with errors, the 413 page (a real over-limit upload) and the 500 page
+the worker runs real jobs (about a minute), and collects 38 pages and states, including
+forms answered with errors (the New station page without a file, with a file it cannot
+read, and with wrong details, #201), the 413 page (a real over-limit upload) and the 500 page
 (rendered from its template). The `audit` fixture opens each page once and reads:
 
 | Check | How |

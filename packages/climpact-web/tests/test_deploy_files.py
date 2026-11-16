@@ -38,10 +38,9 @@ SAMPLES = {"uuid": SAMPLE_UUID, "str": "su_ANN", "slug": "station-data", "path":
 # must leave out the htmx polls (`.../progress`) and the htmx POSTs sent as a form is
 # filled in (`.../validate`, `batch/<id>/options`, `gridded/<id>/checks`).
 RATE_LIMITED = {
-    "stations:upload",
+    "stations:new",
     "stations:sample",
-    "stations:load",
-    "stations:replace_file",
+    "stations:setup",
     "stations:qc_continue",
     "stations:indices",
     "stations:sector",

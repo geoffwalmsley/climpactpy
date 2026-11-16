@@ -11,5 +11,5 @@ fit the data, a link to Data instead. Context: analysis, stale.
   {% include "components/button.html" with label=recalculate_label type="submit" icon="refresh" %}
 </form>
 {% else %}
-<p><a href="{% url 'stations:load' analysis.pk %}">{% translate "Change the station details so they fit the data" %}</a></p>
+<p><a href="{% url 'stations:setup' analysis.pk %}">{% translate "Change the station details so they fit the data" %}</a></p>
 {% endif %}

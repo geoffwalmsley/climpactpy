@@ -662,7 +662,7 @@ def test_landing_page_and_header_link_to_batch(client):
     assert 'href="/batch/"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     assert re.findall(r'href="([^"]+)"', nav) == [
-        "/station/",
+        "/station/new",
         "/batch/",
         "/gridded/",
         "/jobs/",

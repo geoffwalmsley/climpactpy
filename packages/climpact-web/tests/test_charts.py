@@ -74,7 +74,7 @@ def test_charts_js_has_no_dependencies_beyond_uplot():
 
 def test_chart_scripts_load_only_on_chart_pages(client):
     assert "uPlot" not in client.get("/").content.decode()
-    assert "uPlot" not in client.get("/station/").content.decode()
+    assert "uPlot" not in client.get("/station/new").content.decode()
 
 
 # ---- daily payload ---------------------------------------------------------------------
@@ -389,10 +389,13 @@ def test_static_chart_frame_unchanged():
     assert 'href="/a.csv"' in html
 
 
-def test_step1_loaded_sample_has_the_chart(client):
-    response = client.post("/station/sample", follow=True)
-    html = response.content.decode()
+def test_your_data_has_the_daily_chart(client):
+    """Quality's "Your data" (#198; the setup page has only a strip of years, #201)."""
+    setup = client.post("/station/sample")["Location"]
     analysis = StationAnalysis.objects.get()
+    details = {"station_name": "sydney", "latitude": "-33.86", "longitude": "151.21",
+               "base_start": "1971", "base_end": "2000"}  # fmt: skip
+    html = client.post(setup, details, follow=True).content.decode()
     # Without the quality checks' flags: they belong to the next step (#173).
     assert f'data-chart-src="/charts/station/{analysis.pk}/daily.json?flags=0"' in html
     assert f'href="/station/{analysis.pk}/series.csv"' in html

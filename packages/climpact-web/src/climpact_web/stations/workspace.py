@@ -401,14 +401,14 @@ def home_url(analysis: StationAnalysis) -> str:
     elif set_up(analysis):
         name = "stations:qc"
     else:
-        name = "stations:load"
+        name = "stations:setup"
     return reverse(name, args=[analysis.pk])
 
 
 def set_up(analysis: StationAnalysis) -> bool:
     """Whether the first visit's details are done (#198): the details confirmed, complete
     and fitting the data, so the sections and the Inputs panel show. Until then the
-    station's address leads to the details page (``stations:load``)."""
+    station's address leads to the New station page (``stations:setup``, #201)."""
     return analysis.reached(Step.QC) and analysis.station_file.is_file() and details_valid(analysis)
 
 

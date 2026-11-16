@@ -24,6 +24,9 @@ class Destination:
     icon: str
     in_nav: bool = True
     gridded: bool = False  # offered only when gridded runs are (settings.GRIDDED_ENABLED)
+    # The URL whose pages the link is current on, when not the link's own: the single
+    # station's link opens New station (/station/new, #201) and is current on /station/...
+    section_name: str = ""
 
     @property
     def url(self) -> str | None:
@@ -35,7 +38,9 @@ class Destination:
 
 
 DESTINATIONS = (
-    Destination("station", "stations:upload", _("Single station"), "station"),
+    Destination(
+        "station", "stations:new", _("Single station"), "station", section_name="stations:upload"
+    ),
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
     Destination("batch", "batch:start", _("Batch"), "layers"),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
@@ -64,7 +69,8 @@ def nav_items(request) -> list[dict]:
     for d in DESTINATIONS:
         url = d.url
         if d.in_nav and d.available and url:
-            current = path == url or (url != "/" and path.startswith(url))
+            section = url_or_none(d.section_name) if d.section_name else url
+            current = path == url or (section != "/" and path.startswith(section))
             items.append(
                 {"key": d.key, "label": d.label, "url": url, "icon": d.icon, "current": current}
             )
@@ -76,8 +82,8 @@ def nav_items(request) -> list[dict]:
 # The guide each page's Help button opens, by URL namespace and name; a namespace alone
 # covers its other pages. Pages without one open the help's index.
 PAGE_GUIDES = {
-    "stations:upload": "station-file",
-    "stations:load": "station-file",
+    "stations:new": "station-file",
+    "stations:setup": "station-file",
     "stations:qc": "quality-control",
     "stations:results": "indices",
     "stations:results_progress": "indices",

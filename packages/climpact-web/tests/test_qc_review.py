@@ -41,7 +41,8 @@ def run_next() -> Job:
 def start(client, path=STRESS, name="qc_stress_1961-2020") -> StationAnalysis:
     """Step 1 with the file, then "Continue": the checks are queued at once."""
     response = client.post(
-        "/station/", {"station_file": SimpleUploadedFile(path.name, path.read_bytes())}
+        "/station/new",
+        {"station_file": SimpleUploadedFile(path.name, path.read_bytes()), "intent": "read"},
     )
     load = response["Location"]
     response = client.post(load, {"station_name": name, **META})
@@ -118,7 +119,7 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert run.kind == "station" and run.is_speculative and run.params["qc"] == QC_DEFAULTS
     assert run.created_at >= job.created_at
     # Visiting step 1 and continuing again with nothing changed does not queue again.
-    client.post(f"/station/{analysis.pk}/load", {"station_name": "qc_stress_1961-2020", **META})
+    client.post(f"/station/{analysis.pk}/setup", {"station_name": "qc_stress_1961-2020", **META})
     assert Job.objects.count() == 2
 
 

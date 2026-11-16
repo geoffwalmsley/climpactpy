@@ -237,7 +237,7 @@ def test_gridded_requests_may_be_larger_than_other_uploads(client, settings):
     settings.MAX_UPLOAD_MB, settings.MAX_UPLOAD_BYTES = 50, 50 * 2**20
     settings.GRIDDED_MAX_UPLOAD_MB, settings.GRIDDED_MAX_UPLOAD_BYTES = 200, 200 * 2**20
     assert upload_limit("/gridded/upload") == (200 * 2**20, 200)
-    assert upload_limit("/station/") == (50 * 2**20, 50)
+    assert upload_limit("/station/new") == (50 * 2**20, 50)
     settings.GRIDDED_ENABLED = False
     assert upload_limit("/gridded/upload") == (50 * 2**20, 50)
 

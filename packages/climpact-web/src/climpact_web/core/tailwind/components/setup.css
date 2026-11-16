@@ -1,0 +1,141 @@
+/* The New station page (#201, proposal 4 of #171's second review): the file, then the
+   station details, as two numbered steps, then one call to action. One surface level:
+   steps are divided by a hairline, and only the file card, one object, has a box. */
+@layer components {
+  .setup {
+    display: grid;
+    gap: --spacing(6);
+    max-inline-size: 40rem;
+    margin-inline: auto;
+  }
+
+  .setup__form {
+    display: grid;
+    counter-reset: setup-step;
+  }
+
+  .setup__step {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: --spacing(1) --spacing(3.5);
+    padding-block: --spacing(5);
+    border-block-start: 1px solid var(--color-border);
+    counter-increment: setup-step;
+  }
+
+  .setup__body {
+    display: grid;
+    gap: --spacing(4);
+    min-inline-size: 0;
+  }
+
+  /* The step's number, or a tick once it is done: decorative, the heading names it. */
+  .setup__n {
+    display: grid;
+    place-items: center;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    margin-block-start: 0.1rem;
+    border-radius: var(--radius-full);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .setup__n:empty::before {
+    content: counter(setup-step);
+  }
+
+  .setup__n--done {
+    background: var(--color-success);
+  }
+
+  .setup__n .icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+
+  .setup__cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(3) --spacing(4);
+    padding-block-start: --spacing(5);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .setup__cta p {
+    flex: 1 1 16rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* The file read: its name, what was read, and Replace. */
+  .file-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2) --spacing(3);
+    padding: --spacing(2.5) --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .file-card:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .file-card__text {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: --spacing(1) --spacing(3);
+    min-inline-size: 0;
+  }
+
+  .file-card__name {
+    overflow-wrap: anywhere;
+  }
+
+  .file-card__read {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1);
+    color: var(--color-success);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .file-card__replace {
+    margin-inline-start: auto;
+  }
+
+  /* Days with data in each year: a bar a year, amber when the year has gaps. */
+  .year-strip {
+    display: grid;
+    gap: --spacing(1);
+    margin: 0;
+  }
+
+  .year-strip__bars {
+    display: block;
+    inline-size: 100%;
+    block-size: 1.25rem;
+  }
+
+  .year-strip__bar {
+    fill: var(--color-success);
+  }
+
+  .year-strip__bar--gap {
+    fill: var(--color-warning);
+  }
+
+  .setup__foot {
+    padding-block-start: --spacing(2);
+  }
+}

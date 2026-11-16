@@ -5194,7 +5194,13 @@ heading, with its code above it (#113), the definition and help topic; chips for
 the trend per decade with its 95% interval and significance, and the highest, lowest and
 mean values with when, each with the series' units (#173: `results.with_units`, from the
 core's index definitions via `results._units`; "12.5%", "20 days", "day 200" for a day of
-occurrence). A trend in a percentage index is in percentage points per decade
+occurrence). Every value written with its units goes through the one helper,
+`charts.data.with_units` (`results.with_units` is the same function; templates use the
+`with_units` filter of `{% load charts %}`), so the rule is the same everywhere (#189): a
+percentage takes no space ("12.5%"), other units one ("20 days", "45.8 °C"), and a
+unitless value is the number alone. It writes the trend stat here, the highest, lowest and
+trend in the chart's text summary (`charts.data.index_summary`), and `charts.js` follows
+it in the chart's read-out. A unitless trend reads "+0.63 per decade". A trend in a percentage index is in percentage points per decade
 (`charts.data.trend_units`), here, on the results page and in the chart's text summary;
 a day-of-occurrence series' trend is in days per decade; the series as an interactive chart (`charts:job_series`, with the
 trend line, table view, CSV, and the run's PNG as the fallback without JavaScript), titled

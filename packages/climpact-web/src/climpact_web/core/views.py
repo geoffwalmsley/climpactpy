@@ -176,6 +176,8 @@ def pattern_context(form):
         ],  # fmt: skip
         # The Inputs panel and a side sheet (#198).
         **inputs_demo(),
+        # The New station page's steps and file card (#201).
+        "setup_demo": setup_demo(),
         # The workspace tabs (#179), one with every status and one as on a first visit.
         "workspace_demo": workspace_demo(
             [
@@ -299,6 +301,25 @@ def healthz(request):
         },
         status=200 if healthy else 503,
     )
+
+
+def setup_demo() -> dict:
+    """The New station page's file card (#201) for the pattern library: 80 years of daily
+    data, three of them missing more than 15 days."""
+    from climpact_web.stations.forms import UploadForm
+    from climpact_web.stations.views import year_strip
+
+    years = []
+    for year in range(1936, 2016):
+        days = 366 if year % 4 == 0 else 365
+        short = {1948: 201, 1966: 340, 1996: 345}.get(year, days)
+        years.append({"year": year, "days": days, "prcp": days, "tmax": short, "tmin": days})
+    summary = {"first_year": 1936, "last_year": 2015, "days": 29220, "years": years}
+    return {
+        "summary": summary,
+        "strip": year_strip(summary),
+        "field": UploadForm(auto_id="pattern_%s")["station_file"],
+    }
 
 
 def inputs_demo() -> dict:

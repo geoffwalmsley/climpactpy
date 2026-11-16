@@ -226,26 +226,27 @@ def test_out_of_date_results_without_a_run_offer_recalculate(client, settings):
     assert new.params["replaces"] == str(run.pk)
 
 
-@pytest.mark.parametrize("address", ["inputs/file", "file"])
+@pytest.mark.parametrize("address", ["inputs/file", "setup"])
 def test_replaced_file_marks_sections_out_of_date_until_replaced(client, address):
-    """The File sheet's Replace (#198), and the details page's form to use a different
-    file once the station is set up: the checks and the run of the new file are queued
+    """The File sheet's Replace (#198), and the setup page's (#201, a form left open)
+    once the station is set up: the checks and the run of the new file are queued
     at once, the old ones kept, out of date."""
     analysis, qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
     response = client.post(
-        f"{base}/{address}", {"station_file": _station_upload(), "next": f"{base}/downloads"}
+        f"{base}/{address}",
+        {"station_file": _station_upload(), "next": f"{base}/downloads", "intent": "read"},
     )
-    assert response["Location"] == (f"{base}/downloads" if address != "file" else f"{base}/load")
+    assert response["Location"] == (f"{base}/downloads" if address != "setup" else f"{base}/setup")
     analysis.refresh_from_db()
     assert analysis.qc_job.params["replaces"] == str(qc.pk)
     assert analysis.indices_job.params["replaces"] == str(run.pk)
     assert_kept(qc, run)
     html = page(client, analysis, "downloads")
     assert states(html) == {"quality": "stale", "results": "stale", "files": "stale"}
-    # The old Data form renames a station named after its file; the sheet keeps the name.
+    # The setup page renames a station named after its file; the sheet keeps the name.
     assert changed(html) - {"station"} == {"file"}
-    assert ("station" in changed(html)) == (address == "file")
+    assert ("station" in changed(html)) == (address == "setup")
     assert 'data-run="qc"' in html and 'data-run="run"' in html
 
 
@@ -393,13 +394,9 @@ def test_tabs_follow_the_workspace_from_the_first_visit(client):
     load = client.post("/station/sample")["Location"]
     analysis = StationAnalysis.objects.get()
     html = client.get(load).content.decode()
-    assert states(html) == {"quality": "locked", "results": "locked", "files": "locked"}
-    # A tab not available yet is not a link; each says its status in words.
-    assert '<span class="tabs__tab" data-tab="results" data-state="locked">' in html
-    assert '<span class="sr-only">Not available yet</span>' in html
-    # The first visit's details: no section is current, and no Inputs panel yet.
-    assert 'aria-current="page"' not in html.split("tabs__list")[1].split("</nav>")[0]
-    assert "data-inputs-panel" not in html and 'name="base_start"' in html
+    # The New station page (#201): no tabs and no Inputs panel before the station is set up.
+    assert "tabs__list" not in html and "data-inputs-panel" not in html
+    assert 'name="base_start"' in html
     assert client.get(f"/station/{analysis.pk}/inputs/station")["Location"] == load
     client.post(load, DETAILS)
     html = page(client, analysis, "quality")
@@ -477,7 +474,7 @@ def test_two_tabs_see_the_same_state_from_what_is_stored(client, settings, monke
     html = page(second, analysis)
     assert "You changed the base period to 1981–2010" in html and states(html)["results"] == "stale"
     # The second tab's out-of-date form changes it back: both see the old results again.
-    second.post(f"{base}/load", DETAILS)
+    second.post(f"{base}/setup", DETAILS)
     for tab in (first, second):
         assert states(page(tab, analysis))["results"] == "done"
     analysis.refresh_from_db()
@@ -492,7 +489,7 @@ def test_retention_purges_out_of_date_jobs_as_before(client, settings):
     own schedule, and the analysis still opens (here on the run in progress)."""
     analysis, _qc, run = in_use(client)
     new_base = {**DETAILS, "base_start": "1981", "base_end": "2010"}
-    client.post(f"/station/{analysis.pk}/load", new_base)
+    client.post(f"/station/{analysis.pk}/setup", new_base)
     analysis.refresh_from_db()
     new = analysis.indices_job
     long_ago = timezone.now() - dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)

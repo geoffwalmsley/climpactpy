@@ -1,0 +1,26 @@
+{% load i18n ui %}{% comment %}
+The file read on the New station page (#201): its name, the years and days read, Replace
+(a file button inside the page's form, js/setup.js; without JavaScript a file input and
+"Read the file"), then the days with data in each year, a bar a year, amber when the year
+misses more than 15 days. Parameters: file_name, summary (station_file.summarise), field (the form's file
+field), strip (views.year_strip), focus_file (focus the card when the page loads).
+{% endcomment %}
+<div class="file-card" id="file-card" tabindex="-1"{% if focus_file %} data-focus-on-load{% endif %}>
+  <span class="file-card__text">
+    <b class="file-card__name">{{ file_name }}</b>
+    <span class="file-card__read">{% icon "check" %}<span>{% blocktranslate with first=summary.first_year last=summary.last_year days=summary.days|count %}Read: {{ first }}–{{ last }}, {{ days }} days{% endblocktranslate %}</span></span>
+  </span>
+  <span class="file-button file-card__replace" data-setup-replace>
+    <label class="file-button__label" data-class="button button--secondary button--sm">{% icon "upload" %}<span>{% translate "Replace" %}</span><span class="sr-only"> {{ file_name }}</span>{{ field }}</label>
+    <button type="submit" name="intent" value="read" class="button button--secondary button--sm file-button__submit">{% translate "Read the file" %}</button>
+  </span>
+</div>
+<p class="text-sm text-text-muted" id="{{ field.auto_id }}_helptext">{% translate "Choosing another file reads it at once. The details you typed are kept." %}</p>
+{% if strip %}
+<figure class="year-strip">
+  <svg class="year-strip__bars" viewBox="0 0 {{ strip.width }} 100" preserveAspectRatio="none" role="img" aria-label="{{ strip.label }}" focusable="false">
+    {% for bar in strip.bars %}<rect class="year-strip__bar{% if bar.gap %} year-strip__bar--gap{% endif %}" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ strip.bar_width }}" height="{{ bar.percent }}"><title>{{ bar.year }}</title></rect>{% endfor %}
+  </svg>
+  <figcaption class="text-sm text-text-muted">{% if strip.gaps %}{% translate "Days with data in each year. Amber years have gaps of more than 15 days." %}{% else %}{% translate "Days with data in each year. No year has a gap of more than 15 days." %}{% endif %}</figcaption>
+</figure>
+{% endif %}

@@ -43,9 +43,11 @@ def media(settings, tmp_path):
     return settings
 
 
-def upload(client, text, name="my station.txt", url="/station/"):
+def upload(client, text, name="my station.txt", url="/station/new", **fields):
+    """Send a file as the New station page does with JavaScript: read it, nothing else."""
     data = text.encode() if isinstance(text, str) else text
-    return client.post(url, {"station_file": SimpleUploadedFile(name, data)})
+    fields.setdefault("intent", "read")
+    return client.post(url, {"station_file": SimpleUploadedFile(name, data), **fields})
 
 
 def loaded(client, text=None, name="my station.txt") -> StationAnalysis:
@@ -65,31 +67,151 @@ def metadata(**changes) -> dict:
     }
 
 
-# ---- The upload page -------------------------------------------------------------------
+# ---- The New station page (#201) ------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_upload_page_works_without_javascript(client):
-    html = client.get("/station/").content.decode()
-    # A plain multipart form with a real file input: ui.js only adds drag and drop.
-    assert re.search(r'<form method="post" action="/station/" enctype="multipart/form-data"', html)
-    assert re.search(r'<input type="file" name="station_file"[^>]*accept="[^"]*\.txt', html)
-    assert "Drop a file here or choose one" in html
-    assert re.search(r'<form method="post" action="/station/sample">', html)
-    # The upload page keeps the full notice, as an alert (#173).
-    alert = re.search(
-        r'<div class="alert alert--info".*?kept for 7 days after your last change', html, re.S
-    )
-    assert alert
+def test_new_station_page_works_without_javascript(client):
+    html = client.get("/station/new").content.decode()
+    # One plain multipart form with a real file input and the details: js/setup.js only
+    # sends a chosen file at once, and ui.js adds drag and drop.
+    form = re.search(
+        r'<form method="post" action="/station/new" enctype="multipart/form-data".*?</form>',
+        html,
+        re.S,
+    ).group(0)
+    assert re.search(r'<input type="file" name="station_file"[^>]*accept="[^"]*\.txt', form)
+    assert "Drop a file here or choose one" in form and "read as soon as you choose it" in form
+    for name in ("station_name", "latitude", "longitude", "base_start", "base_end"):
+        assert f'name="{name}"' in form
+    assert 'value="1971"' in form and 'value="2000"' in form  # R's suggested base period
+    assert "Leave it empty to use the file name." in form
+    assert re.findall(r'<button type="submit"[^>]*value="(\w+)"', form) == ["read", "go"]
+    assert 'hx-post="/station/validate"' in form
+    # The sample: its own form, sent by a button in the file's step.
+    assert re.search(r'<form method="post" action="/station/sample" id="sample-form" hidden>', html)
+    assert 'form="sample-form"' in form
+    assert "js/setup.js" in html
     # No step indicator, and no workspace tabs before there is a station (#179).
     assert 'aria-current="step"' not in html and "Station sections" not in html
+    assert "<h1>New station</h1>" in html
+
+
+@pytest.mark.django_db
+def test_file_and_details_in_one_post_go_straight_to_quality(client):
+    """Without JavaScript, or with the file chosen and the details typed before pressing
+    it: one press of "Check and calculate" reads the file, saves the details and queues
+    the checks and the speculative run together (#178)."""
+    response = upload(
+        client, rows(), "Perth.txt", intent="go", **{**metadata(), "station_name": ""}
+    )
+    analysis = StationAnalysis.objects.get()
+    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    assert analysis.station_name == "Perth"  # empty: the file's name, as R does
+    assert (analysis.latitude, analysis.base_start, analysis.step) == (-33.9, 2000, Step.QC)
+    assert {job.kind for job in Job.objects.all()} == {"qc", "station"}
+    assert Job.objects.get(kind="station").is_speculative
+
+
+@pytest.mark.django_db
+def test_reading_a_file_keeps_the_details_typed_beside_it(client):
+    """With JavaScript a chosen file is sent at once ("intent=read"): the page comes back
+    as the station's setup page, the file card focused, the valid details kept."""
+    response = upload(client, rows(), "Perth.txt", **metadata(latitude="-31.9", longitude="x"))
+    analysis = StationAnalysis.objects.get()
+    assert response["Location"] == f"/station/{analysis.pk}/setup"
+    assert (analysis.station_name, analysis.latitude, analysis.longitude) == (
+        "Testville",
+        -31.9,
+        None,
+    )
+    assert analysis.step == Step.UPLOAD and not Job.objects.exists()
+    html = client.get(response["Location"]).content.decode()
+    assert 'id="file-card" tabindex="-1" data-focus-on-load' in html
+    assert "Read: 2000–2002, 800 days" in html and "Perth.txt" in html
+    assert "data-error-summary" not in html  # nothing was asked for yet
+    assert "data-focus-on-load" not in client.get(response["Location"]).content.decode()
+
+
+@pytest.mark.django_db
+def test_read_the_file_without_a_file_on_the_setup_page_changes_nothing_else(client):
+    analysis = loaded(client)
+    setup = f"/station/{analysis.pk}/setup"
+    response = client.post(setup, {**metadata(latitude="-20"), "intent": "read"})
+    assert response["Location"] == setup and not Job.objects.exists()
+    analysis.refresh_from_db()
+    assert analysis.latitude == -20 and analysis.step == Step.UPLOAD
+
+
+@pytest.mark.django_db
+def test_check_and_calculate_without_a_file_asks_for_one(client):
+    response = client.post("/station/new", {**metadata(), "intent": "go"})
+    html = response.content.decode()
+    assert response.status_code == 200 and not StationAnalysis.objects.exists()
+    assert "data-error-summary" in html and "Choose a station file." in html
+    assert '<a href="#id_station_file">' in html
+    assert 'value="Testville"' in html  # what was typed is kept
+
+
+@pytest.mark.django_db
+def test_details_errors_after_the_file_was_read_in_the_same_post(client):
+    """A good file with bad details: the file is kept (the page is now its setup page,
+    which the form is sent to next) and the details' errors are listed and marked."""
+    response = upload(client, rows(), intent="go", **metadata(base_start="1950", base_end="1960"))
+    analysis = StationAnalysis.objects.get()
+    html = response.content.decode()
+    assert response.status_code == 200 and analysis.step == Step.UPLOAD
+    assert f'action="/station/{analysis.pk}/setup"' in html
+    assert "There is 1 problem with the form" in html and "has no data: the file covers" in html
+    assert "Read: 2000–2002, 800 days" in html
+    assert not Job.objects.exists()
+
+
+@pytest.mark.django_db
+def test_old_upload_and_load_addresses_redirect(client):
+    assert client.get("/station/")["Location"] == "/station/new"
+    assert client.post("/station/")["Location"] == "/station/new"
+    analysis = loaded(client)
+    base = f"/station/{analysis.pk}"
+    assert client.get(f"{base}/load")["Location"] == f"{base}/setup"
+    assert client.get(f"{base}/")["Location"] == f"{base}/setup"
+    client.post(f"{base}/setup", metadata())
+    assert client.get(f"{base}/load")["Location"] == f"{base}/quality#your-data"
+    assert client.get(f"{base}/setup")["Location"] == f"{base}/quality#your-data"
+    assert client.get(f"{base}/file").status_code == 404  # a form's action only, gone
+
+
+@pytest.mark.django_db
+def test_days_with_data_strip_marks_years_with_gaps():
+    from climpact_web.stations.views import year_strip
+
+    # Sydney misses a day or two in some years, never more than 15: no year is amber.
+    sydney = year_strip(inspect_station_bytes(sample_bytes()).summary)
+    assert len(sydney["bars"]) == 80 and sydney["width"] == 798 and sydney["gaps"] == 0
+    assert sydney["label"].endswith("no year misses more than 15 days.")
+    assert all(b["y"] + b["percent"] == 100 for b in sydney["bars"])
+    # 2001 misses 20 days of maximum temperature; 2000 misses 15, which is no gap.
+    lines = rows("2000-01-01", 1096).splitlines()
+    for k in [*range(10, 25), *range(400, 420)]:
+        y, m, d, p, _tx, tn = lines[k].split()
+        lines[k] = f"{y} {m} {d} {p} -99.9 {tn}"
+    strip = year_strip(inspect_station_bytes("\n".join(lines).encode()).summary)
+    assert [b["year"] for b in strip["bars"] if b["gap"]] == [2001]
+    assert strip["label"].endswith("1 of 3 years misses more than 15 days (2001).")
+
+
+def test_strip_gap_is_climdex_annual_missing_limit():
+    from climpact.missing import MAX_MISSING_DAYS
+    from climpact_web.stations.views import MAX_MISSING_YEAR_DAYS
+
+    assert MAX_MISSING_YEAR_DAYS == MAX_MISSING_DAYS["annual"]
 
 
 @pytest.mark.django_db
 def test_upload_creates_an_analysis_named_after_the_file(client):
     response = upload(client, rows(), name="Perth Airport 1961-2020.txt")
     analysis = StationAnalysis.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/load"
+    assert response["Location"] == f"/station/{analysis.pk}/setup"
     assert analysis.station_name == "Perth Airport 1961-2020"  # the stem, as the CLI does
     assert analysis.file_name == "Perth Airport 1961-2020.txt"
     assert analysis.station_file == stations_dir() / str(analysis.pk) / "station.txt"
@@ -275,7 +397,7 @@ def test_a_variable_with_no_values_is_reported():
 @pytest.mark.django_db
 def test_warnings_are_shown_on_the_load_page(client):
     analysis = loaded(client, "2000 1 1 0 20 10\n2001 2 29 0 20 10\n2000 1 9 0 20 10\n")
-    html = client.get(f"/station/{analysis.pk}/load").content.decode()
+    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
     assert "Something to check in the file" in html and "does not exist" in html
 
 
@@ -290,7 +412,7 @@ def test_bundled_sample_is_the_r_sample():
 def test_sample_loads_in_one_click(client):
     response = client.post("/station/sample")
     analysis = StationAnalysis.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/load"
+    assert response["Location"] == f"/station/{analysis.pk}/setup"
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == (
         "sydney_observatory_hill_1936-2015",
         -33.86,
@@ -298,7 +420,7 @@ def test_sample_loads_in_one_click(client):
     )
     assert analysis.metadata_complete and analysis.source == "sample"
     html = client.get(response["Location"]).content.decode()
-    assert "1936-01-01 to 2015-12-31" in html and "Sample data" in html
+    assert "Read: 1936–2015, 29,220 days" in html and SAMPLE_NAME in html
     assert 'value="sydney_observatory_hill_1936-2015"' in html
     # straight on to the next step, with nothing to type
     response = client.post(response["Location"], metadata(**{
@@ -308,30 +430,36 @@ def test_sample_loads_in_one_click(client):
 
 
 @pytest.mark.django_db
-def test_load_page_details_come_before_the_one_continue_button(client):
-    """#173: the station details come first, then the one continue button below the
-    fields it asks the user to confirm, then the data they describe. No shortcut button
-    above the fields, even when the details are already valid (the sample)."""
+def test_setup_page_has_the_file_then_the_details_then_one_button(client):
+    """#201 (and #173): the file read, then the station details, then one button below the
+    fields it asks the user to confirm, with the note on the defaults. Nothing else sends
+    the form but the file's own (hidden with JavaScript) "Read the file"."""
     client.post("/station/sample")
     analysis = StationAnalysis.objects.get()
-    html = client.get(f"/station/{analysis.pk}/load").content.decode()
-    assert "Details look right" not in html and 'form="station-details"' not in html
+    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
     form = re.search(
-        r'<form method="post" action="[^"]*/load" class="form" id="station-details".*?</form>',
+        r'<form method="post" action="[^"]*/setup" enctype="multipart/form-data" '
+        r'class="setup__form" id="new-station".*?</form>',
         html,
         re.S,
     ).group(0)
-    assert len(re.findall(r'<button type="submit"', form)) == 1
-    assert form.index('name="base_start"') < form.index("<span>Check quality</span>")
-    assert html.index("<h1") < html.index('id="details-title"') < html.index('id="data-title"')
+    buttons = re.findall(r'<button type="submit"[^>]*value="(\w+)"', form)
+    assert buttons == ["read", "go"]
+    assert form.index('id="file-title"') < form.index('id="details-title"')
+    assert form.index('name="base_start"') < form.index("<span>Check and calculate</span>")
+    assert "use the defaults. You can change them later in Inputs." in form
+    assert 'aria-describedby="setup-defaults"' in form
+    assert (
+        "year-strip__bar" in form and 'role="img" aria-label="Days with data in each year' in form
+    )
     data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
-    assert client.post(f"/station/{analysis.pk}/load", data)["Location"].endswith("/quality")
+    assert client.post(f"/station/{analysis.pk}/setup", data)["Location"].endswith("/quality")
 
 
 @pytest.mark.django_db
 def test_sample_get_goes_to_the_upload_page_and_the_file_downloads(client):
-    assert client.get("/station/sample")["Location"] == "/station/"
+    assert client.get("/station/sample")["Location"] == "/station/new"
     assert not StationAnalysis.objects.exists()
     response = client.get("/station/sample.txt")
     assert response.content == SYDNEY.read_bytes()
@@ -342,9 +470,16 @@ def test_sample_get_goes_to_the_upload_page_and_the_file_downloads(client):
 
 
 @pytest.mark.django_db
-def test_load_page_summarises_the_data(client):
+def test_your_data_summarises_the_file_on_quality(client):
+    """The data summary is Quality's "Your data" (#198); the setup page has only the file
+    card and the days-with-data strip (#201)."""
     response = client.post("/station/sample")
-    html = client.get(response["Location"]).content.decode()
+    setup = client.get(response["Location"]).content.decode()
+    assert "Missing values by variable" not in setup
+    client.post(response["Location"], {**metadata(), "station_name": "sydney",
+                                       "base_start": "1971", "base_end": "2000"})  # fmt: skip
+    analysis = StationAnalysis.objects.get()
+    html = client.get(f"/station/{analysis.pk}/quality").content.decode()
     assert "Missing values by variable" in html
     # Sydney: 29220 days; 7 precipitation and 58 temperature values missing
     cells = re.sub(r"\s+", " ", html)
@@ -354,9 +489,16 @@ def test_load_page_summarises_the_data(client):
     )
     assert '<td class="num">29,162</td> <td class="num">58</td> <td class="num">0.2%</td>' in cells
     assert html.count('<svg viewBox="0 0 960 170" role="img"') == 2  # the static preview
-    assert "CHART HOOK" not in html  # a template comment, for #75/#77
     assert "Days with data in each year" in html and '<th scope="row">1936</th>' in html
-    # After the upload page the retention notice is a quiet line, not an alert (#173).
+
+
+@pytest.mark.django_db
+def test_setup_page_states_the_retention_quietly(client):
+    """The retention notice once, as a quiet line, not an alert (#173, #201)."""
+    for url in ("/station/new", client.post("/station/sample")["Location"]):
+        html = client.get(url).content.decode()
+        assert html.count("deleted") <= 2  # file and results, in one line
+        assert "deleted" not in "".join(re.findall(r'<div class="alert.*?</div>', html, re.S))
     notice = re.search(
         r'<p class="text-sm text-text-muted[^"]*">[^<]*<svg[^>]*>'
         r"(?:(?!</p>).)*Your file and details are deleted on \d+ \w+ \d{4} unless you change them\."
@@ -365,7 +507,6 @@ def test_load_page_summarises_the_data(client):
         re.S,
     )
     assert notice
-    assert "deleted on" not in "".join(re.findall(r'<div class="alert.*?</div>', html, re.S))
 
 
 def test_preview_panels_break_at_gaps():
@@ -464,7 +605,7 @@ def test_too_little_base_period_data_is_a_warning():
 def test_metadata_without_javascript_shows_every_error(client):
     analysis = loaded(client)
     html = client.post(
-        f"/station/{analysis.pk}/load", metadata(latitude="99", station_name="")
+        f"/station/{analysis.pk}/setup", metadata(latitude="99", station_name=".bad")
     ).content.decode()
     assert "There are 2 problems with the form" in html
     assert '<a href="#id_station_name">' in html and '<a href="#id_latitude">' in html
@@ -476,13 +617,13 @@ def test_metadata_without_javascript_shows_every_error(client):
 @pytest.mark.django_db
 def test_htmx_validates_one_group_as_it_changes(client):
     analysis = loaded(client)
-    html = client.get(f"/station/{analysis.pk}/load").content.decode()
+    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
     for group in ("station_name", "latitude", "longitude", "base_period"):
-        assert f'id="group-{group}" hx-post="/station/{analysis.pk}/load/validate"' in html
+        assert f'id="group-{group}" hx-post="/station/{analysis.pk}/setup/validate"' in html
         assert f'hx-vals=\'{{"group": "{group}"}}\'' in html
     assert 'hx-trigger="change" hx-include="closest form"' in html
 
-    url = f"/station/{analysis.pk}/load/validate"
+    url = f"/station/{analysis.pk}/setup/validate"
     fragment = client.post(url, {**metadata(latitude="123", longitude=""), "group": "latitude"})
     text = fragment.content.decode()
     assert text.lstrip().startswith('<div class="grid gap-2" id="group-latitude"')
@@ -502,7 +643,7 @@ def test_htmx_validates_one_group_as_it_changes(client):
 @pytest.mark.django_db
 def test_continue_saves_and_goes_to_quality_checks(client):
     analysis = loaded(client)
-    response = client.post(f"/station/{analysis.pk}/load", metadata())
+    response = client.post(f"/station/{analysis.pk}/setup", metadata())
     assert response["Location"] == f"/station/{analysis.pk}/quality"
     analysis.refresh_from_db()
     assert analysis.step == Step.QC
@@ -522,7 +663,7 @@ def test_continue_saves_and_goes_to_quality_checks(client):
 def test_quality_page_needs_step_one_first(client):
     analysis = loaded(client)
     assert (
-        client.get(f"/station/{analysis.pk}/quality")["Location"] == f"/station/{analysis.pk}/load"
+        client.get(f"/station/{analysis.pk}/quality")["Location"] == f"/station/{analysis.pk}/setup"
     )
     assert client.post(f"/station/{analysis.pk}/indices").status_code == 302
     assert client.post(f"/station/{analysis.pk}/inputs/thresholds").status_code == 302
@@ -535,18 +676,18 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
     (#178). Changing them (#179) keeps both jobs: the checks, which do not depend on the
     location, stay current; the run is cancelled and queued again for the new details."""
     analysis = loaded(client)
-    client.post(f"/station/{analysis.pk}/load", metadata())
+    client.post(f"/station/{analysis.pk}/setup", metadata())
     analysis.refresh_from_db()
     first_qc, first_run = analysis.qc_job, analysis.indices_job
     assert first_qc.kind == "qc" and first_run.kind == "station" and first_run.is_speculative
     assert first_qc.inputs["file"] == analysis.file_hash != ""
     assert first_run.inputs["metadata"] == analysis.metadata
     # the same metadata again: nothing to redo
-    client.post(f"/station/{analysis.pk}/load", metadata())
+    client.post(f"/station/{analysis.pk}/setup", metadata())
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job) == (first_qc, first_run)
     assert Job.objects.count() == 2
-    client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30"))
+    client.post(f"/station/{analysis.pk}/setup", metadata(latitude="-30"))
     analysis.refresh_from_db()
     assert analysis.step == Step.QC
     assert analysis.qc_job == first_qc  # the checks do not use the latitude
@@ -556,7 +697,7 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
     first_run.refresh_from_db()
     assert first_run.status == Status.CANCELLED  # never shown, never left running
     # A new name changes the checks' file names: they run again, replacing the old ones.
-    client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30", station_name="New"))
+    client.post(f"/station/{analysis.pk}/setup", metadata(latitude="-30", station_name="New"))
     analysis.refresh_from_db()
     assert analysis.qc_job != first_qc and "replaces" not in analysis.qc_job.params
     first_qc.refresh_from_db()
@@ -568,9 +709,11 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
 @pytest.mark.django_db
 def test_replacing_the_file_keeps_the_metadata(client):
     analysis = loaded(client, name="first.txt")
-    client.post(f"/station/{analysis.pk}/load", metadata(station_name="first"))
-    response = upload(client, rows("1980-01-01", 400), "second.txt", f"/station/{analysis.pk}/file")
-    assert response["Location"] == f"/station/{analysis.pk}/load"
+    client.post(f"/station/{analysis.pk}/setup", metadata(station_name="first"))
+    response = upload(
+        client, rows("1980-01-01", 400), "second.txt", f"/station/{analysis.pk}/setup"
+    )
+    assert response["Location"] == f"/station/{analysis.pk}/setup"
     analysis.refresh_from_db()
     # the name followed the file name, as it was still the default; the rest is kept
     assert (analysis.station_name, analysis.latitude) == ("second", -33.9)
@@ -579,14 +722,14 @@ def test_replacing_the_file_keeps_the_metadata(client):
     assert analysis.summary["first_date"] == "1980-01-01" and analysis.step == Step.QC
     assert analysis.qc_job is not None and analysis.qc_job.inputs["file"] != analysis.file_hash
     client.post(
-        f"/station/{analysis.pk}/load",
+        f"/station/{analysis.pk}/setup",
         metadata(station_name="My name", base_start="1980", base_end="1980"),
     )
-    upload(client, rows(), "third.txt", f"/station/{analysis.pk}/file")
+    upload(client, rows(), "third.txt", f"/station/{analysis.pk}/setup")
     analysis.refresh_from_db()
     assert analysis.station_name == "My name"
     # a bad file leaves everything as it was
-    html = upload(client, "x\n1 2\n", "bad.txt", f"/station/{analysis.pk}/file").content.decode()
+    html = upload(client, "x\n1 2\n", "bad.txt", f"/station/{analysis.pk}/setup").content.decode()
     assert "bad.txt was not loaded" in html and "Line 2 has 2 values" in html
     analysis.refresh_from_db()
     assert analysis.file_name == "third.txt"
@@ -597,16 +740,16 @@ def test_delete_now(client):
     analysis = loaded(client)
     folder = analysis.folder
     response = client.post(f"/station/{analysis.pk}/delete")
-    assert response["Location"] == "/station/"
+    assert response["Location"] == "/station/new"
     assert not StationAnalysis.objects.exists() and not folder.exists()
 
 
 @pytest.mark.django_db
 def test_upload_page_lists_recent_analyses(client):
     analysis = loaded(client, name="perth.txt")
-    html = client.get("/station/").content.decode()
+    html = client.get("/station/new").content.decode()
     assert "Continue where you left off" in html and f'href="/station/{analysis.pk}/"' in html
-    assert "Continue where you left off" not in Client().get("/station/").content.decode()
+    assert "Continue where you left off" not in Client().get("/station/new").content.decode()
 
 
 # ---- Ownership -------------------------------------------------------------------------
@@ -616,11 +759,11 @@ def test_upload_page_lists_recent_analyses(client):
 def test_other_sessions_get_404(client):
     analysis = loaded(client)
     other = Client()
-    for url in ("load", "series.csv", "quality"):
+    for url in ("load", "setup", "series.csv", "quality"):
         assert other.get(f"/station/{analysis.pk}/{url}").status_code == 404
-    for url in ("load", "load/validate", "file", "delete", "indices", "inputs/thresholds"):
+    for url in ("load", "setup", "setup/validate", "delete", "indices", "inputs/thresholds"):
         assert other.post(f"/station/{analysis.pk}/{url}").status_code == 404
-    assert client.get(f"/station/{uuid.uuid4()}/load").status_code == 404
+    assert client.get(f"/station/{uuid.uuid4()}/setup").status_code == 404
     assert StationAnalysis.objects.exists()
 
 
@@ -651,6 +794,6 @@ def test_old_analyses_are_purged_with_their_files(client):
 @pytest.mark.django_db
 def test_load_page_states_the_deletion_date(client):
     analysis = loaded(client)
-    html = client.get(f"/station/{analysis.pk}/load").content.decode()
+    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
     expected = f"{analysis.expires_at:%-d %B %Y}"
     assert f"deleted on {expected} unless you change them." in html

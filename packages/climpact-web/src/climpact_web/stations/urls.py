@@ -6,20 +6,24 @@ app_name = "stations"
 
 # An analysis's sections (#179, #198): Quality ``quality``, Results ``results`` and Files
 # ``downloads``, the addresses of the steps they replace, so links and bookmarks keep
-# working. ``load`` is the first visit's details, and once they are confirmed Data's old
-# address leads to Quality's "Your data". ``inputs/<key>`` is a sheet of the Inputs panel
-# as a page: the file, the station, the base period, the thresholds and the index settings
-# (#198, #199). ``/station/<id>/`` opens the furthest section reached, and the old
-# Calculate step (``indices``) the Index settings sheet over Results.
+# working. ``new`` is the New station page (#201), ``setup`` the same page once its file
+# is read; the upload page's old address (``upload``) and the first visit's details' old
+# one (``load``) lead to them, or once the station is set up to Quality's "Your data".
+# ``inputs/<key>`` is a sheet of the Inputs panel as a page: the file, the station, the
+# base period, the thresholds and the index settings (#198, #199). ``/station/<id>/``
+# opens the furthest section reached, and the old Calculate step (``indices``) the Index
+# settings sheet over Results.
 urlpatterns = [
     path("", views.upload, name="upload"),
+    path("new", views.new_station, name="new"),
+    path("validate", views.validate, name="validate_new"),
     path("<uuid:analysis_id>/", views.workspace_home, name="workspace"),
     path("sample", views.sample, name="sample"),
     path("sample.txt", views.sample_file, name="sample_file"),
     path("sample-sector.csv", views_sector.sector_sample, name="sector_sample"),
+    path("<uuid:analysis_id>/setup", views.new_station, name="setup"),
+    path("<uuid:analysis_id>/setup/validate", views.validate, name="validate"),
     path("<uuid:analysis_id>/load", views.load, name="load"),
-    path("<uuid:analysis_id>/load/validate", views.validate, name="validate"),
-    path("<uuid:analysis_id>/file", views.replace_file, name="replace_file"),
     path("<uuid:analysis_id>/inputs/progress", views.inputs_progress, name="inputs_progress"),
     path("<uuid:analysis_id>/inputs/<slug:key>", views.edit_input, name="edit_input"),
     path("<uuid:analysis_id>/series.csv", views.series, name="series"),

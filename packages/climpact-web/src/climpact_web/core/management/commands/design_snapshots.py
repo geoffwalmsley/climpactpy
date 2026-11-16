@@ -5,9 +5,9 @@
 Writes ``index.html`` (landing page), ``patterns.html`` (pattern library), ``404.html``,
 the job pages with example jobs (``job-running.html``, ``job-finished.html``,
 ``job-failed.html``, ``jobs.html``), the single-station step 1 pages with the sample data
-(``station-upload.html``, ``station-upload-problems.html``, ``station-load.html``,
-``station-load-errors.html``, ``station-qc.html``, and ``station-calculating.html``: the
-indices' progress, #178), the batch pages (``batch-start.html``,
+(the New station page, #201: ``station-new.html``, ``station-new-problems.html``,
+``station-setup.html``, ``station-setup-errors.html``; ``station-qc.html``, and
+``station-calculating.html``: the indices' progress, #178), the batch pages (``batch-start.html``,
 ``batch-check.html``, ``batch-running.html``, ``batch-results.html``), the help pages
 (``help.html``, ``help-guide.html``, ``help-indices.html``, ``help-topics.html``,
 ``help-search.html``, #81) and a dark-theme copy of each
@@ -104,7 +104,7 @@ def station_pages() -> dict[str, str]:
     finished job's files; their screenshots are in the PRs (#77, #78)."""
     from climpact_web.jobs.models import Job, Status
     from climpact_web.stations import views, views_indices, workspace
-    from climpact_web.stations.forms import MetadataForm, UploadForm
+    from climpact_web.stations.forms import MetadataForm
     from climpact_web.stations.models import Source, StationAnalysis, Step
     from climpact_web.stations.station_file import inspect_station_bytes
 
@@ -113,9 +113,6 @@ def station_pages() -> dict[str, str]:
     sample = StationAnalysis(source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
                              summary=inspection.summary, updated_at=timezone.now(),
                              **views.SAMPLE_METADATA)  # fmt: skip
-    upload = {"form": UploadForm(), "inspection": None, "file_name": "", "recent": [],
-              "sample_name": views.SAMPLE_NAME,
-              "max_upload_mb": settings.MAX_UPLOAD_MB}  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
         b"1961 1 3 na 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
@@ -133,18 +130,19 @@ def station_pages() -> dict[str, str]:
                                 "longitude": "", "base_start": "1900", "base_end": "1920"},
                           summary=uploaded.summary)  # fmt: skip
     errors.is_valid()
+    new = views.setup_context(request, None, MetadataForm(), recent=[])
+    setup = views.setup_context(request, sample, form, recent=[])  # before the checks
     sample.step = Step.QC
     running = Job(kind="station", title=sample.station_name, status=Status.RUNNING,
                   stage="indices:climpact:txx", step=9, total=14, started_at=timezone.now(),
                   params={"plots": True, "zip": True, "report": True})  # fmt: skip
     pages = {
-        "station-upload": ("stations/upload.html", upload),
-        "station-upload-problems": ("stations/upload.html",
-                                    {**upload, "inspection": bad,
-                                     "file_name": "perth_airport.txt"}),
-        "station-load": ("stations/load.html", views.load_context(request, sample, form)),
-        "station-load-errors": ("stations/load.html",
-                                views.load_context(request, uploaded, errors)),
+        "station-new": ("stations/new.html", new),
+        "station-new-problems": ("stations/new.html",
+                                 {**new, "inspection": bad, "file_name": "perth_airport.txt"}),
+        "station-setup": ("stations/new.html", setup),
+        "station-setup-errors": ("stations/new.html",
+                                 views.setup_context(request, uploaded, errors, recent=[])),
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
         "station-calculating": ("stations/results_progress.html", {
             "analysis": sample, "job": running, "phases": views_indices.phases(running),

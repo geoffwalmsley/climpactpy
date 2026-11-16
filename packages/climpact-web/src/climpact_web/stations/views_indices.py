@@ -90,7 +90,7 @@ def indices(request, analysis_id):
     are applied from the sheet (``views.edit_input``)."""
     analysis = get_analysis(request, analysis_id)
     if not _ready(analysis):
-        return redirect("stations:load", analysis_id=analysis.pk)
+        return redirect("stations:setup", analysis_id=analysis.pk)
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
     if request.method != "POST":
         return redirect(adjust_url(analysis, index))
@@ -193,7 +193,7 @@ def results(request, analysis_id):
     analysis = get_analysis(request, analysis_id)
     if not committed(analysis):
         # Not before "Use this data": the run may be going on behind the quality checks.
-        target = "stations:qc" if step_two_ready(analysis) else "stations:load"
+        target = "stations:qc" if step_two_ready(analysis) else "stations:setup"
         return redirect(target, analysis_id=analysis.pk)
     return render_results(request, analysis)
 

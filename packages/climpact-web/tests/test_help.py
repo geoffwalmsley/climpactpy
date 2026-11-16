@@ -84,7 +84,7 @@ def test_header_help_button_opens_the_pages_guide(client):
     assert ">Help</span>" in button.group(0)
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
-    for url, guide in [("/station/", "station-file"), ("/batch/", "batch")]:
+    for url, guide in [("/station/new", "station-file"), ("/batch/", "batch")]:
         html = client.get(url).content.decode()
         assert re.search(rf'id="app-help" href="/help/{guide}/" aria-label="Help: [^"]+"', html)
 
@@ -125,7 +125,7 @@ def pages_with_help(client):
     """Every help page, and the screens that show help topics."""
     urls = ["/", "/help/", "/help/topics/", "/help/search/?q=base"]
     urls += [f"/help/{slug}/" for slug in GUIDE_ORDER]
-    urls += ["/station/", "/batch/"]
+    urls += ["/station/new", "/batch/"]
     load = client.post("/station/sample")["Location"]
     check = client.post("/batch/sample")["Location"]
     return [*urls, load, check]
@@ -336,13 +336,13 @@ def test_quality_verdict_help_states_the_verdict_limits():
 
 
 def test_step_1_and_batch_screens_show_their_help(client):
-    html = client.get("/station/").content.decode()
+    html = client.get("/station/new").content.decode()
     assert 'href="/help/sections/upload.file/"' in html
     assert 'data-help-topic="station.file"' in html
     assert "year month day prcp tmax tmin" in html  # the example file, in the help
     assert 'href="/help/station-file/"' in html
     load = client.get(client.post("/station/sample")["Location"]).content.decode()
-    assert re.findall(r'href="/help/sections/([^/]+)/"', load) == ["load.details", "load.data"]
+    assert re.findall(r'href="/help/sections/([^/]+)/"', load) == ["upload.file", "load.details"]
     for topic_id in ("station.name", "station.latitude", "station.longitude"):
         assert f'data-help-topic="{topic_id}"' in load
     assert 'data-help-topic="station.base_period"' in load
@@ -551,7 +551,7 @@ def test_tour_script_remembers_the_choice():
 
 def test_accessibility_statement_is_linked_from_every_footer(client):
     """The accessibility statement (#83) is a guide, linked from the page shell's footer."""
-    for url in ("/", "/station/", "/help/", "/no-such-page/"):
+    for url in ("/", "/station/new", "/help/", "/no-such-page/"):
         html = client.get(url).content.decode()
         assert 'href="/help/accessibility/"' in html, url
     html = client.get("/help/accessibility/").content.decode()

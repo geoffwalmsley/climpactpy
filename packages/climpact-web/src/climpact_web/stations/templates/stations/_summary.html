@@ -1,9 +1,7 @@
 {% load i18n ui help %}{% comment %}
 What is in the station file: period, days missing per variable, a preview of the series
-and the days with data in each year. On Quality, below the checks, and on the first
-visit's details page, where it ends with the form to use a different file (``replace``;
-afterwards the Inputs panel replaces the file, #198). Parameters from
-views.summary_context, replace, replace_form, replace_open.
+and the days with data in each year. On Quality, below the checks ("Your data", #198);
+the file is replaced in the Inputs panel. Parameters from views.summary_context.
 {% endcomment %}
 <section class="page-section stack" id="your-data" aria-labelledby="data-title" tabindex="-1">
   <div class="section-header"><h2 id="data-title">{% translate "Your data" %}</h2><p class="section-header__note">{% translate "Missing values and the daily series" %}</p>{% section_help "load.data" %}</div>
@@ -91,21 +89,4 @@ views.summary_context, replace, replace_form, replace_open.
     </div>
   </details>
 
-  {% if replace %}
-  <details class="disclosure"{% if replace_open %} open{% endif %}>
-    <summary>{% icon "upload" %}<span>{% translate "Use a different file" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body">
-      <form method="post" action="{% url 'stations:replace_file' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
-        {% csrf_token %}
-        {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
-        <p class="text-sm text-text-muted">{% translate "The station details are kept. The checks and results are kept too, marked out of date, until they are calculated again." %}</p>
-        {% turnstile %}
-        <div>
-          {% translate "Load this file instead" as replace_label %}
-          {% include "components/button.html" with label=replace_label type="submit" variant="secondary" %}
-        </div>
-      </form>
-    </div>
-  </details>
-{% endif %}
 </section>

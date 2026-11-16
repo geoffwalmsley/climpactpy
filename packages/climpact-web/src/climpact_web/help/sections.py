@@ -77,7 +77,10 @@ SECTIONS = (
         [
             _("This is the data as Climpact read it from your file."),
             _("The chart has no quality flags. The quality checks are the next step."),
-            _("To load another file, open “Use a different file”. The station details are kept."),
+            _(
+                "To load another file, use Replace beside File in the Inputs panel. The "
+                "station details are kept."
+            ),
         ],
     ),
     # ---- Quality -------------------------------------------------------------------------

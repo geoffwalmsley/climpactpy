@@ -49,6 +49,7 @@ ASSET_BUDGETS = {
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
     "js/workspace.js": 0.5 * KB,  # the station workspace's sticky header (#197)
+    "js/setup.js": 0.75 * KB,  # New station: a chosen file is read at once (#201)
     "js/sheet.js": 1.5 * KB,  # the Inputs panel's side sheets (#198), old addresses (#199)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
@@ -206,7 +207,7 @@ def gridded_results_large_grid(client) -> str:
 
 PAGES = {
     "landing": Page(lambda client: "/"),
-    "station upload": Page(lambda client: "/station/"),
+    "station new": Page(lambda client: "/station/new"),
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
     "station quality": Page(station_qc, charts=True),  # the checks queued; "Your data" (#198)
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)

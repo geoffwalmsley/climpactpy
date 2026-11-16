@@ -7,7 +7,8 @@
  * data-callback, and a poll in case Turnstile called back before this file ran). An error,
  * or no token within a minute, says so and offers to try again. Widgets added by htmx
  * swaps are rendered here: Turnstile renders only those in the page when it loads. The
- * texts come from the widget's data-wait, data-slow, data-failed and data-retry.
+ * texts come from the widget's data-text-wait, data-text-slow, data-text-failed and
+ * data-text-retry (not data-retry, which is a Turnstile setting).
  */
 (function () {
   "use strict";
@@ -44,12 +45,12 @@
 
   function say(key, withRetry) {
     var widget = widgetOf(held.form);
-    held.status.textContent = widget.getAttribute("data-" + key);
+    held.status.textContent = widget.getAttribute("data-text-" + key);
     if (!withRetry) return;
     var button = doc.createElement("button");
     button.type = "button";
     button.className = "button button--secondary button--sm";
-    button.textContent = widget.getAttribute("data-retry");
+    button.textContent = widget.getAttribute("data-text-retry");
     button.addEventListener("click", retry);
     held.status.append(" ", button);
   }

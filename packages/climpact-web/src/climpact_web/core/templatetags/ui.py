@@ -85,7 +85,9 @@ def turnstile(context):
     A form sent before its widget has a token would be refused (#163), so
     ``js/turnstile.js``, added with Cloudflare's script, holds the form back until the
     token comes and then sends it: the ``data-*-callback`` names are its functions, and
-    ``data-wait``, ``data-slow``, ``data-failed`` and ``data-retry`` the texts it shows."""
+    ``data-text-wait``, ``data-text-slow``, ``data-text-failed`` and ``data-text-retry``
+    the texts it shows (``data-text-``: Turnstile reads ``data-retry`` and other
+    ``data-`` names as its own settings, #169)."""
     from django.conf import settings
     from django.utils.translation import get_language
     from django.utils.translation import gettext as _
@@ -97,7 +99,8 @@ def turnstile(context):
     widget = format_html(
         '<div class="cf-turnstile" data-sitekey="{}" data-language="{}" data-size="flexible"'
         ' data-callback="climpactTurnstileDone" data-error-callback="climpactTurnstileError"'
-        ' data-wait="{}" data-slow="{}" data-failed="{}" data-retry="{}">'
+        ' data-text-wait="{}" data-text-slow="{}" data-text-failed="{}"'
+        ' data-text-retry="{}">'
         "</div><noscript><p>{}</p></noscript>",
         settings.TURNSTILE_SITE_KEY,
         get_language() or "auto",

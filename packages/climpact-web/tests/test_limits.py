@@ -237,7 +237,8 @@ def test_forms_wait_for_their_token(turnstile):
         assert 'data-callback="climpactTurnstileDone"' in widget
         assert 'data-error-callback="climpactTurnstileError"' in widget
         for name in ("wait", "slow", "failed", "retry"):
-            assert re.search(rf'data-{name}="[^"]+"', widget), name
+            assert re.search(rf'data-text-{name}="[^"]+"', widget), name
+        assert "data-retry=" not in widget  # a Turnstile setting: never 'Try again' (#169)
     forms = re.findall(r"<form\b.*?</form>", html, re.S)
     assert [f.count('class="cf-turnstile"') for f in forms if "cf-turnstile" in f] == [1, 1]
     assert html.count("js/turnstile.js") == 1

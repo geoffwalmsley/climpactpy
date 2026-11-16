@@ -1,19 +1,25 @@
 {% load i18n ui help %}{% comment %}
-The verdict and the one decision on the page (#174, decision B): green "Ready to use",
-amber "Usable. N values look wrong" or red "Fix the file first", with the counts against
-the values checked. One primary button: "Use this data", or on red "Replace file", with
-"Use this data anyway" beside it, so the user can always go on; amber has "Replace file"
-as a secondary button. "Replace file" opens the Inputs panel's File sheet, or without
-JavaScript its page (#199). While the checks are out of date (#179, ``stale``) the
-decision waits for the new checks: no buttons.
+The verdict band and the one decision on the page (#174, decision B; #202): green "Ready
+to use", amber "Usable. N values look wrong" or red "Fix the file first", one or two
+sentences and the counts against the values checked, with the actions at the end of the
+band (below on narrow screens). One primary button: "See results", or on red "Replace
+file", with "See results anyway" beside it, so the user can always go on; amber has
+"Replace file" as a secondary button. "Replace file" opens the Inputs panel's File sheet,
+or without JavaScript its page (#199). While the checks are out of date (#179, ``stale``)
+the decision waits for the new checks: no buttons.
 Context: review (review.verdict), analysis, input_urls, stale.
 {% endcomment %}{% with verdict=review.verdict %}
 <section class="alert alert--{{ verdict.alert_kind }} qc-verdict answer-band" aria-labelledby="qc-verdict-title">
   {% if verdict.level == "ready" %}{% icon "check-circle" %}{% elif verdict.level == "fix" %}{% icon "error" %}{% else %}{% icon "warning" %}{% endif %}
-  <div class="alert__body stack stack--sm">
-    <div class="section-header"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% translate "What do the levels mean?" as levels_label %}{% section_help "quality.verdict" label=levels_label %}</div>
-    <p>{{ verdict.message }}</p>
-    <ul class="qc-verdict__facts" role="list">{% for fact in verdict.facts %}<li>{{ fact }}</li>{% endfor %}</ul>
+  <div class="alert__body qc-verdict__body">
+    <div class="qc-verdict__text stack stack--sm">
+      <div class="section-header"><h2 class="qc-verdict__title" id="qc-verdict-title">{{ verdict.title }}</h2>{% translate "What do the levels mean?" as levels_label %}{% section_help "quality.verdict" label=levels_label %}</div>
+      <p>{{ verdict.message }}</p>
+      <ul class="qc-verdict__facts" role="list">{% for fact in verdict.facts %}<li>{{ fact }}</li>{% endfor %}</ul>
+      {% if not stale and verdict.level != "ready" %}<p class="qc-verdict__hint">{% blocktranslate trimmed %}
+        Correct the values, or write -99.9 if you do not know them, then replace the file. The
+        checks run again on the new file.{% endblocktranslate %}</p>{% endif %}
+    </div>
     {% if not stale %}
     <div class="qc-verdict__actions">
       {% url 'stations:qc_continue' analysis.pk as continue_url %}
@@ -22,21 +28,18 @@ Context: review (review.verdict), analysis, input_urls, stale.
       {% include "components/button.html" with label=replace_label href=input_urls.file sheet="file" icon="upload" %}
       <form method="post" action="{{ continue_url }}">
         {% csrf_token %}
-        {% translate "Use this data anyway" as continue_label %}
+        {% translate "See results anyway" as continue_label %}
         {% include "components/button.html" with label=continue_label type="submit" variant="secondary" icon_end="arrow-right" %}
       </form>
       {% else %}
+      {% if verdict.level == "usable" %}{% include "components/button.html" with label=replace_label href=input_urls.file sheet="file" variant="secondary" icon="upload" %}{% endif %}
       <form method="post" action="{{ continue_url }}">
         {% csrf_token %}
-        {% translate "Use this data" as continue_label %}
+        {% translate "See results" as continue_label %}
         {% include "components/button.html" with label=continue_label type="submit" icon_end="arrow-right" %}
       </form>
-      {% if verdict.level == "usable" %}{% include "components/button.html" with label=replace_label href=input_urls.file sheet="file" variant="secondary" icon="upload" %}{% endif %}
       {% endif %}
     </div>
-    {% if verdict.level != "ready" %}<p class="text-sm text-text-muted">{% blocktranslate trimmed %}
-      Correct the values, or write -99.9 if you do not know them, then replace the file. The
-      checks run again on the new file.{% endblocktranslate %}</p>{% endif %}
     {% endif %}
   </div>
 </section>

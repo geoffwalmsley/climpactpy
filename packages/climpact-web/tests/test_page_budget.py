@@ -38,11 +38,14 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the section
+    # 14.5 KB before Quality as list and detail (#202), 14 KB before the Inputs panel and
+    # its sheets (#198), 13.5 KB before the section
     # header and the workspace header (#197), 13 KB before #196, 12.5 KB before the help
     # drawer (#177)
-    "css/climpact.css": 14.5 * KB,
-    "js/qc.js": 2 * KB,  # the quality checks: worklist and tables linked to the charts (#77, #174)
+    "css/climpact.css": 15 * KB,
+    # The quality checks: the list and its detail (#202), the tables linked to the charts
+    # (#77, #174); 2 KB before #202
+    "js/qc.js": 3 * KB,
     # The results catalogue's filters (#78) and column sorting (#200); 1.5 KB before #200
     "js/results.js": 2.25 * KB,
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)

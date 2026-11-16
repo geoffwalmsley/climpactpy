@@ -10,7 +10,7 @@ settings sheet (#199), which queues an ordinary run (:func:`queue_station_run`).
 
 A speculative run is a job with ``params["speculative"]`` true (``jobs.models.SPECULATIVE``).
 In hosted mode it is queued only when the worker has room
-(``core.limits.check_speculative_quotas``); a refusal is silent, and "Use this data" then
+(``core.limits.check_speculative_quotas``); a refusal is silent, and "See results" then
 queues the run (:func:`commit`), which makes it an ordinary job.
 
 A change to the file, the station details or the thresholds (#179) keeps every job: each
@@ -215,7 +215,7 @@ def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
 
 
 def commit(request, analysis: StationAnalysis) -> Job | None:
-    """ "Use this data": the speculative run becomes the user's own, or, if there is none
+    """ "See results": the speculative run becomes the user's own, or, if there is none
     (refused, cancelled, failed), a run with the same settings is queued. The caller saves
     the analysis."""
     job = analysis.indices_job
@@ -251,7 +251,7 @@ def recalculate(request, analysis: StationAnalysis) -> Job | None:
 
 def replace_run(request, analysis: StationAnalysis, previous=None) -> Job | None:
     """Queue the run of the current inputs with the latest settings (``previous``, else
-    :func:`previous_params`): a speculative one before "Use this data", the user's own
+    :func:`previous_params`): a speculative one before "See results", the user's own
     after it. None when the hosted limits refuse it: the results then say they are out of
     date, with a "Recalculate" button. The caller saves the analysis."""
     if not workspace.committed(analysis):

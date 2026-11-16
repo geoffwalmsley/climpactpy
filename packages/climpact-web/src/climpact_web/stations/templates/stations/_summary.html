@@ -1,41 +1,60 @@
 {% load i18n ui help %}{% comment %}
-What is in the station file: period, days missing per variable, a preview of the series
-and the days with data in each year. On Quality, below the checks ("Your data", #198);
-the file is replaced in the Inputs panel. Parameters from views.summary_context.
+What is in the station file, on Quality after the checks ("Your data", #198), compact
+(#202): chips for the period, the years and days, the days missing in each variable and
+the years too incomplete for annual values (the climdex rules: more than 15 missing days,
+or a month with more than 3); then disclosures with the missing days per year (from
+qc/nastatistics, once the checks have run), the daily series and the days with data in
+each year. The file is replaced in the Inputs panel. Parameters from
+views.summary_context, and review (qc_review.Review) when the checks of this file have run (not stale).
 {% endcomment %}
 <section class="page-section stack" id="your-data" aria-labelledby="data-title" tabindex="-1">
   <div class="section-header"><h2 id="data-title">{% translate "Your data" %}</h2><p class="section-header__note">{% translate "Missing values and the daily series" %}</p>{% section_help "load.data" %}</div>
-  <div class="grid gap-4 grid-cols-fit-40">
-    {% translate "Period" as period_label %}{% blocktranslate asvar period with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}
-    {% include "components/stat.html" with label=period_label value=period note="" %}
-    {% translate "Years" as years_label %}
-    {% include "components/stat.html" with label=years_label value=year_count note="" %}
-    {% translate "Days" as days_label %}{% translate "first row to last" as days_note %}
-    {% include "components/stat.html" with label=days_label value=summary.days|count note=days_note %}
-  </div>
+  <ul class="chips" role="list">
+    <li class="data-chip"><span>{% blocktranslate with first=summary.first_date last=summary.last_date %}{{ first }} to {{ last }}{% endblocktranslate %}</span></li>
+    <li class="data-chip"><span>{% blocktranslate count counter=year_count with n=year_count|count trimmed %}<b>{{ n }}</b> year{% plural %}<b>{{ n }}</b> years{% endblocktranslate %}</span></li>
+    <li class="data-chip"><span>{% blocktranslate count counter=summary.days with n=summary.days|count trimmed %}<b>{{ n }}</b> day{% plural %}<b>{{ n }}</b> days{% endblocktranslate %}</span></li>
+    {% for variable in variables %}
+    <li class="data-chip"><span class="chart__swatch swatch-{{ variable.token|token_name }}" aria-hidden="true"></span><span>{% blocktranslate with name=variable.label n=variable.missing|count percent=variable.percent_text trimmed %}{{ name }}: <b>{{ n }} missing</b> ({{ percent }}){% endblocktranslate %}</span></li>
+    {% endfor %}
+    {% if review and not stale %}{% with short=review.years_short %}
+    {% if short %}<li class="data-chip data-chip--warning">{% icon "warning" %}<span>{% blocktranslate count counter=short|length with years=review.years_short_text trimmed %}{{ counter }} year too incomplete for annual values: {{ years }}{% plural %}{{ counter }} years too incomplete for annual values: {{ years }}{% endblocktranslate %}</span></li>
+    {% else %}<li class="data-chip">{% icon "check-circle" %}<span>{% translate "Every year has enough data for annual values" %}</span></li>{% endif %}
+    {% endwith %}{% endif %}
+  </ul>
 
-  <div class="table-wrap" role="region" aria-labelledby="data-missing-caption" tabindex="0">
-    <table class="table">
-      <caption id="data-missing-caption">{% translate "Missing values by variable" %}</caption>
-      <thead><tr>
-        <th scope="col">{% translate "Variable" %}</th>
-        <th scope="col" class="num">{% translate "Days with data" %}</th>
-        <th scope="col" class="num">{% translate "Days missing" %}</th>
-        <th scope="col" class="num">{% translate "Missing" %}</th>
-      </tr></thead>
-      <tbody>
-        {% for variable in variables %}
-        <tr>
-          <th scope="row"><span class="chart__swatch swatch-{{ variable.token|token_name }}" aria-hidden="true"></span> {{ variable.label }}</th>
-          <td class="num">{{ variable.present|count }}</td>
-          <td class="num">{{ variable.missing|count }}</td>
-          <td class="num">{{ variable.percent_text }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <div>
+  {% if review and not stale %}{% with missing=review.years_missing %}{% if missing %}
+  <details class="disclosure" id="missing-data">
+    <summary>{% icon "table" %}<span>{% blocktranslate count counter=missing|length with total=review.years|length trimmed %}Missing days per year: {{ counter }} of {{ total }} year has some{% plural %}Missing days per year: {{ counter }} of {{ total }} years have some{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body stack stack--sm">
+      <p>{% translate "“No annual value”: more than 15 missing days, or a month with more than 3. Those years have their annual indices left missing." %}</p>
+      <div class="section-header">{% section_help "quality.missing" %}</div>
+      <div class="table-wrap qc-missing" role="region" aria-labelledby="missing-caption" tabindex="0">
+        <table class="table">
+          <caption id="missing-caption">{% translate "Missing days per year, and months with more than 3 missing days" %}</caption>
+          <thead><tr>
+            <th scope="col">{% translate "Year" %}</th>
+            <th scope="col" class="num">{% translate "PR" %}</th>
+            <th scope="col" class="num">{% translate "TX" %}</th>
+            <th scope="col" class="num">{% translate "TN" %}</th>
+          </tr></thead>
+          <tbody>
+            {% for year in missing %}
+            <tr>
+              <th scope="row">{{ year.year }}</th>
+              {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days }}{% if cell.months %} <span class="text-text-muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %}<span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="text-text-muted">{{ cell.days }}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  {% endif %}{% endwith %}{% endif %}
 
+  <details class="disclosure" id="daily-series">
+    <summary>{% icon "chart" %}<span>{% translate "Daily series" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body stack stack--sm">
   {% comment %}
   The interactive daily series (#75): data from charts:station_daily, without the quality
   checks' flags, which belong to the next step (#173); the table view lists the days in
@@ -65,6 +84,8 @@ the file is replaced in the Inputs panel. Parameters from views.summary_context.
     </ul>
   </figure>
   </noscript>
+    </div>
+  </details>
 
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "Days with data in each year" %}</span>{% icon "chevron-down" %}</summary>
@@ -88,5 +109,5 @@ the file is replaced in the Inputs panel. Parameters from views.summary_context.
       </div>
     </div>
   </details>
-
+  </div>
 </section>

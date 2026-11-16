@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
 {% comment %}
-Step 2, Check quality (#77), as a short worklist (#174): the verdict and the one decision
-(use the data, or replace the file), the values that look wrong each with the days around
-it, the groups worth a look, the checks that found nothing, the missing data, and
-everything else (daily charts, distributions, the thresholds used, files) under Details.
-While the checks run, their progress. No forms (#199): the thresholds and the file are
-changed in the Inputs panel, whose sheets the page's links open. After a change
-to the file, the thresholds or the name (#179) the checks shown stay, under a banner that
-says they are out of date and shows the new checks' progress, and the decision waits for
-the new checks. Below it all, "Your data": what is in the file, Data's summary before the
-Data tab folded into Quality (#198). Context from views.qc_context.
+Quality (#77, #174, #202): the verdict band with the one decision (see the results, or
+replace the file), then the findings as a list and detail (stations/_qc_review.html: the
+values that look wrong and the groups worth a look, the selected one in detail beside the
+list), the checks that found nothing in one line, "Your data" (what is in the file and
+its missing data, the Data tab before #198) and Details (the daily charts with the flags,
+the distributions, the thresholds used, files). While the checks run, their progress. No
+forms (#199): the thresholds and the file are changed in the Inputs panel, whose sheets
+the page's links open. After a change to the file, the thresholds or the name (#179) the
+checks shown stay, under a banner that says they are out of date and shows the new
+checks' progress, and the decision waits for the new checks. Context from
+views.qc_context.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Quality: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% chart_scripts %}{% if review %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
@@ -65,18 +66,17 @@ Data tab folded into Quality (#198). Context from views.qc_context.
   </div>
 
   {% if review %}{% if stale %}<div class="stale-content stack stack--xl">{% endif %}
-  {% if findings %}{% include "stations/_qc_findings.html" %}{% endif %}
-  {% if groups %}{% include "stations/_qc_worth.html" %}{% endif %}
+  {% if items %}{% include "stations/_qc_review.html" %}{% endif %}
   {% with quiet=review.quiet %}{% if quiet %}
   <p class="qc-quiet" id="nothing-found">{% icon "check-circle" %}<span><strong>{% blocktranslate count counter=quiet|length trimmed %}{{ counter }} check found nothing{% plural %}{{ counter }} checks found nothing{% endblocktranslate %}</strong>
     <span class="text-text-muted">{{ review.quiet_titles }}</span></span></p>
   {% endif %}{% endwith %}
-  {% include "stations/_qc_missing.html" %}
-  {% include "stations/_qc_details.html" %}
   {% if stale %}</div>{% endif %}
   {% endif %}
 
   {% if summary %}{% include "stations/_summary.html" %}{% endif %}
+
+  {% if review %}{% if stale %}<div class="stale-content">{% endif %}{% include "stations/_qc_details.html" %}{% if stale %}</div>{% endif %}{% endif %}
 
   {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">

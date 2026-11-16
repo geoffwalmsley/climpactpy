@@ -794,8 +794,10 @@ def verdict(
 # ---- "Look wrong": each finding with the days around it ------------------------------------
 
 FINDINGS_SHOWN = 10  # rows of a "look wrong" check shown with their chart; all are in its table
-WINDOW_DAYS = 7  # days either side of a finding, in its chart and its table
-SPARK_W, SPARK_H, SPARK_PAD = 120, 32, 4  # the chart's box (CSS keeps the same ratio)
+WINDOW_DAYS = 7  # days either side of a finding, in its small chart and its table
+SPARK_W, SPARK_H, SPARK_PAD = 120, 32, 4  # the small chart's box (CSS keeps the same ratio)
+PERIOD_DAYS = 30  # days either side of a finding in the chart of its detail (#202)
+PERIOD_W, PERIOD_H, PERIOD_PAD = 640, 160, 10  # that chart's box
 
 
 @dataclass
@@ -804,24 +806,48 @@ class Finding:
     text: str  # what looks wrong, in a sentence
     spark: dict  # "lines": [{"variable", "d"}], "ring": {"x", "y"} or None
     days: list[dict]  # the days around it: date, cells (PR, TX, TN texts), this (the day)
+    period: dict = field(default_factory=dict)  # as spark, over PERIOD_DAYS either side
+    period_first: str = ""  # the first and last dates of that chart
+    period_last: str = ""
+    variables: tuple[str, ...] = ()  # the variables its charts draw
 
     @property
     def date(self) -> str:
         return self.row.date
 
+    @property
+    def day(self) -> dt.date:
+        return dt.date.fromisoformat(self.row.date)
 
-def _window(station: StationRows, date: str) -> list[tuple[str, dict[str, float | None]]]:
+    @property
+    def legend(self) -> list[dict]:
+        """The variables of its charts, with their names, for the chart's legend."""
+        labels = variable_labels()
+        return [{"variable": v, "label": labels[v]} for v in self.variables]
+
+
+def _window(
+    station: StationRows, date: str, days: int = WINDOW_DAYS
+) -> list[tuple[str, dict[str, float | None]]]:
     day = dt.date.fromisoformat(date)
     out = []
-    for offset in range(-WINDOW_DAYS, WINDOW_DAYS + 1):
+    for offset in range(-days, days + 1):
         iso = (day + dt.timedelta(days=offset)).isoformat()
         out.append((iso, station.day(iso)))
     return out
 
 
-def _spark(window, variables: tuple[str, ...], ring: str, date: str) -> dict:
+def _spark(
+    window,
+    variables: tuple[str, ...],
+    ring: str,
+    date: str,
+    box: tuple[int, int, int] = (SPARK_W, SPARK_H, SPARK_PAD),
+) -> dict:
     """Path data for the chart of a finding: a line per variable over the window (gaps
-    where values are missing) and a ring round the flagged value, in integer coordinates."""
+    where values are missing) and a ring round the flagged value, in integer coordinates
+    of ``box`` (width, height, padding)."""
+    width, height, pad = box
     present = [v[k] for _d, v in window for k in variables if v[k] is not None]
     if not present:
         return {}
@@ -830,12 +856,12 @@ def _spark(window, variables: tuple[str, ...], ring: str, date: str) -> dict:
     n = len(window)
 
     def x(i: int) -> int:
-        return round(i * SPARK_W / (n - 1))
+        return round(i * width / (n - 1))
 
     def y(v: float) -> int:
         if high == low:
-            return SPARK_H // 2
-        return round(SPARK_H - SPARK_PAD - (v - low) / span * (SPARK_H - 2 * SPARK_PAD))
+            return height // 2
+        return round(height - pad - (v - low) / span * (height - 2 * pad))
 
     lines = []
     for k in variables:
@@ -922,8 +948,16 @@ def build_finding(check: Check, row: Row, station: StationRows, params) -> Findi
         }
         for d, v in window
     ]
+    period = _window(station, row.date, PERIOD_DAYS)
     return Finding(
-        row, _finding_text(check, row, params), _spark(window, variables, ring, row.date), days
+        row,
+        _finding_text(check, row, params),
+        _spark(window, variables, ring, row.date),
+        days,
+        period=_spark(period, variables, ring, row.date, (PERIOD_W, PERIOD_H, PERIOD_PAD)),
+        period_first=period[0][0],
+        period_last=period[-1][0],
+        variables=variables,
     )
 
 
@@ -963,12 +997,35 @@ class Group:
 
     check: Check  # the group's rows as a check, so it has a table of its own
     title: str
-    by_month: list[int] = field(default_factory=list)  # rows in each calendar month, outliers
+    by_month: list[int] = field(default_factory=list)  # rows in each calendar month
     mostly: str = ""  # "Mostly in January, February and March", when a few months hold most
+    variable: str = ""  # its variable, short: "PR", "TX", "TN", "DTR"
 
     @property
     def count(self) -> int:
         return self.check.count
+
+    @property
+    def bars(self) -> list[dict]:
+        """The rows by calendar month as the bars of a small chart (#202): x, y, height
+        in the box of the findings' small charts."""
+        top = max(self.by_month, default=0)
+        if not top:
+            return []
+        width = SPARK_W / 12
+        out = []
+        for m, n in enumerate(self.by_month):
+            if n:
+                h = max(1, round(n / top * (SPARK_H - 2)))
+                out.append({"x": round(m * width + 1, 1), "y": SPARK_H - h, "h": h})
+        return out
+
+
+def _by_month(rows: list[Row]) -> list[int]:
+    by_month = [0] * 12
+    for row in rows:
+        by_month[int(row.date[5:7]) - 1] += 1
+    return by_month
 
 
 def _join(items: list[str]) -> str:
@@ -1028,9 +1085,7 @@ def worth_groups(checks: list[Check], params) -> list[Group]:
                 by_section.setdefault(row.section, []).append(row)
             for section, rows in by_section.items():
                 rows = sorted(rows, key=lambda r: (r.date[5:7], r.date))
-                by_month = [0] * 12
-                for row in rows:
-                    by_month[int(row.date[5:7]) - 1] += 1
+                by_month = _by_month(rows)
                 title = titles.get(section, check.title)
                 groups.append(
                     Group(
@@ -1038,6 +1093,7 @@ def worth_groups(checks: list[Check], params) -> list[Group]:
                         title,
                         by_month,
                         _mostly(by_month),
+                        short_labels().get(section.split("-")[0], ""),
                     )
                 )
             continue
@@ -1052,10 +1108,36 @@ def worth_groups(checks: list[Check], params) -> list[Group]:
                 "variable": short,
                 "days": params.flatline_days,
             }
-        groups.append(Group(check, title))
+        by_month = _by_month(check.rows)
+        groups.append(Group(check, title, by_month, _mostly(by_month), short))
     order = {key: i for i, key in enumerate(CHECK_KEYS)}
     groups.sort(key=lambda g: (-g.count, order[g.check.key]))
     return groups
+
+
+# ---- The list and its details (#202) ---------------------------------------------------------
+
+
+@dataclass
+class Item:
+    """One row of the list on Quality, whose detail shows beside it: a "look wrong"
+    finding, every row of a "look wrong" check that found more than are shown
+    ("table"), or a "worth a look" group. ``id`` is its address (``?show=``)."""
+
+    id: str
+    kind: str  # "finding", "table" or "group"
+    check: Check
+    finding: Finding | None = None
+    group: Group | None = None
+
+    @property
+    def anchor(self) -> str:
+        """The id of its detail: a table's or group's keeps the check's anchor (#174)."""
+        return f"finding-{self.id}" if self.finding else self.check.anchor
+
+    @property
+    def wrong(self) -> bool:
+        return self.kind != "group"
 
 
 # ---- Everything --------------------------------------------------------------------------
@@ -1086,6 +1168,28 @@ class Review:
     def tables(self) -> list[Check]:
         """Every table on the screen: the "look wrong" checks and the groups."""
         return [f.check for f in self.findings] + [g.check for g in self.groups]
+
+    @property
+    def items(self) -> list[Item]:
+        """The list on the screen, in order: each "look wrong" finding, then each such
+        check's table when it found more than are shown, then each "worth a look" group.
+        Every finding and row is reachable from one of them."""
+        out = []
+        for found in self.findings:
+            for finding in found.findings:
+                key = f"{found.check.key}-{finding.date}"
+                out.append(Item(key, "finding", found.check, finding=finding))
+        for found in self.findings:
+            if found.more:
+                out.append(Item(found.check.table_id, "table", found.check))
+        for group in self.groups:
+            out.append(Item(group.check.table_id, "group", group.check, group=group))
+        return out
+
+    def item(self, key: str) -> Item | None:
+        """The item ``key`` (``?show=``), or the first: the first finding by default."""
+        items = self.items
+        return next((i for i in items if i.id == key), items[0] if items else None)
 
     def table(self, key: str, group: str = "") -> Check | None:
         return next(

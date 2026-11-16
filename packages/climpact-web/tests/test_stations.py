@@ -475,19 +475,16 @@ def test_your_data_summarises_the_file_on_quality(client):
     card and the days-with-data strip (#201)."""
     response = client.post("/station/sample")
     setup = client.get(response["Location"]).content.decode()
-    assert "Missing values by variable" not in setup
+    assert 'class="data-chip"' not in setup
     client.post(response["Location"], {**metadata(), "station_name": "sydney",
                                        "base_start": "1971", "base_end": "2000"})  # fmt: skip
     analysis = StationAnalysis.objects.get()
     html = client.get(f"/station/{analysis.pk}/quality").content.decode()
-    assert "Missing values by variable" in html
-    # Sydney: 29220 days; 7 precipitation and 58 temperature values missing
-    cells = re.sub(r"\s+", " ", html)
-    assert (
-        '<td class="num">29,213</td> <td class="num">7</td> <td class="num">under 0.1%</td>'
-        in cells
-    )
-    assert '<td class="num">29,162</td> <td class="num">58</td> <td class="num">0.2%</td>' in cells
+    # Sydney: 29220 days; 7 precipitation and 58 temperature values missing, in chips (#202)
+    chips = re.sub(r"\s+", " ", " ".join(re.findall(r'<li class="data-chip.*?</li>', html, re.S)))
+    assert "<b>80</b> years" in chips and "<b>29,220</b> days" in chips
+    assert "Precipitation: <b>7 missing</b> (under 0.1%)" in chips
+    assert chips.count("<b>58 missing</b> (0.2%)") == 2
     assert html.count('<svg viewBox="0 0 960 170" role="img"') == 2  # the static preview
     assert "Days with data in each year" in html and '<th scope="row">1936</th>' in html
 

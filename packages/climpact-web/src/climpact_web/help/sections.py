@@ -121,7 +121,7 @@ SECTIONS = (
         ["qc.outliers", "qc.tx_jumps", "qc.tn_jumps", "qc.tx_flatline", "qc.tn_flatline"],
         [
             _("These values are unusual. Many are real extremes."),
-            _("They are grouped by variable and month, so you can see patterns."),
+            _("They are grouped by variable, with their counts by month, so you can see patterns."),
         ],
     ),
     S(
@@ -141,8 +141,8 @@ SECTIONS = (
         _("Daily values"),
         ["qc.daily_series"],
         [
-            _("Flagged values are circled. Click a circle to find the value in the lists."),
-            _("“Show on chart” in a list brings you back to the day here."),
+            _("Flagged values are circled. Click a circle to see the value in the list's detail."),
+            _("“Show on the daily chart” in a finding's detail brings you back to the day here."),
             _("Drag across a chart to zoom in. Double-click to see all of it."),
         ],
     ),

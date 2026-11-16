@@ -27,9 +27,9 @@ Parameters: analysis, check, page, selected (an ISO date to mark).
   </div>
   {% if page.pages > 1 %}
   <nav class="qc-pager" aria-label="{% blocktranslate with title=check.title %}Pages of {{ title }}{% endblocktranslate %}">
-    {% if page.previous %}<a class="button button--secondary button--sm" href="?{{ check.table_id }}_page={{ page.previous }}#{{ check.anchor }}" hx-get="{{ table_src }}?{% if check.group %}group={{ check.group }}&amp;{% endif %}page={{ page.previous }}" hx-target="#qc-table-{{ check.table_id }}" hx-swap="outerHTML">{% icon "arrow-left" %}<span>{% translate "Previous" %}</span></a>{% endif %}
+    {% if page.previous %}<a class="button button--secondary button--sm" href="?show={{ check.table_id }}&amp;{{ check.table_id }}_page={{ page.previous }}#{{ check.anchor }}" hx-get="{{ table_src }}?{% if check.group %}group={{ check.group }}&amp;{% endif %}page={{ page.previous }}" hx-target="#qc-table-{{ check.table_id }}" hx-swap="outerHTML">{% icon "arrow-left" %}<span>{% translate "Previous" %}</span></a>{% endif %}
     <span class="text-sm text-text-muted">{% blocktranslate with number=page.number pages=page.pages %}Page {{ number }} of {{ pages }}{% endblocktranslate %}</span>
-    {% if page.next %}<a class="button button--secondary button--sm" href="?{{ check.table_id }}_page={{ page.next }}#{{ check.anchor }}" hx-get="{{ table_src }}?{% if check.group %}group={{ check.group }}&amp;{% endif %}page={{ page.next }}" hx-target="#qc-table-{{ check.table_id }}" hx-swap="outerHTML"><span>{% translate "Next" %}</span>{% icon "arrow-right" %}</a>{% endif %}
+    {% if page.next %}<a class="button button--secondary button--sm" href="?show={{ check.table_id }}&amp;{{ check.table_id }}_page={{ page.next }}#{{ check.anchor }}" hx-get="{{ table_src }}?{% if check.group %}group={{ check.group }}&amp;{% endif %}page={{ page.next }}" hx-target="#qc-table-{{ check.table_id }}" hx-swap="outerHTML"><span>{% translate "Next" %}</span>{% icon "arrow-right" %}</a>{% endif %}
   </nav>
   {% endif %}
 </div>

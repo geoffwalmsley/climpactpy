@@ -142,7 +142,7 @@ def shown_qc(analysis: StationAnalysis) -> Job | None:
 
 
 def committed(analysis: StationAnalysis) -> bool:
-    """Whether the user has chosen to use the data ("Use this data"), or opened the station
+    """Whether the user has chosen to use the data ("See results"), or opened the station
     from a batch's results. Before that, Results are not shown, nor is the speculative run
     (#178) anywhere, Files included."""
     return analysis.reached(Step.INDICES) or bool(analysis.origin)
@@ -158,7 +158,7 @@ def batch_job(analysis: StationAnalysis) -> Job | None:
 
 def shown_run(analysis: StationAnalysis) -> Job | None:
     """The finished run Results show: the analysis's own, or the one a newer run replaces,
-    or the batch's; None before "Use this data", or while the first run is going on."""
+    or the batch's; None before "See results", or while the first run is going on."""
     if not committed(analysis):
         return None
     job = analysis.indices_job
@@ -441,7 +441,7 @@ SHEETS = tuple(key for key, _label, _names in PANEL_INPUTS)
 
 def sheet_keys(analysis: StationAnalysis) -> tuple[str, ...]:
     """The sheets the station's pages have: all of them once the data is in use; before
-    "Use this data" not the index settings, which only the results use (#198)."""
+    "See results" not the index settings, which only the results use (#198)."""
     if committed(analysis):
         return SHEETS
     return tuple(key for key in SHEETS if key != "settings")
@@ -581,7 +581,7 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     sheets = sheet_keys(analysis)
     items = []
     for key, label, names in PANEL_INPUTS:
-        # No Edit for the index settings before "Use this data": only the results use them.
+        # No Edit for the index settings before "See results": only the results use them.
         url = sheet_url(analysis, key, path) if key in sheets else ""
         items.append(
             PanelInput(

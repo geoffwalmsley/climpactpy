@@ -192,7 +192,7 @@ def results(request, analysis_id):
     """Results: the calculation's progress, then every index as a card."""
     analysis = get_analysis(request, analysis_id)
     if not committed(analysis):
-        # Not before "Use this data": the run may be going on behind the quality checks.
+        # Not before "See results": the run may be going on behind the quality checks.
         target = "stations:qc" if step_two_ready(analysis) else "stations:setup"
         return redirect(target, analysis_id=analysis.pk)
     return render_results(request, analysis)

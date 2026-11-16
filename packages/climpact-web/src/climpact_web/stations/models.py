@@ -47,7 +47,7 @@ class Source(models.TextChoices):
 class Step(models.TextChoices):
     """The furthest point reached: ``upload`` (a file is loaded), ``qc`` (the station
     details are confirmed, so the checks run), ``indices`` (the user chose to use the
-    data, "Use this data" on Quality, so Results show), then ``results`` and ``sector``
+    data, "See results" on Quality, so Results show), then ``results`` and ``sector``
     (Results and the sector comparison were opened). It only ever moves forward since
     #179: a later change makes the results out of date instead of going back."""
 

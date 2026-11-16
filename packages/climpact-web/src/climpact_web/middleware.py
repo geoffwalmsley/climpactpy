@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
+from django.middleware import csp
 from django.middleware.gzip import GZipMiddleware
 from django.shortcuts import render
 from django.utils.cache import patch_cache_control
@@ -15,6 +16,24 @@ limits_logger = logging.getLogger("climpact_web.limits")
 
 # Responses worth compressing: pages, htmx fragments, chart data, CSV (#82).
 COMPRESSIBLE_TYPES = ("text/", "application/json", "image/svg+xml")
+
+
+class ContentSecurityPolicyMiddleware(csp.ContentSecurityPolicyMiddleware):
+    """Django's CSP middleware, with the nonce in every HTML page's header (#164).
+
+    Django makes the nonce only when something reads it (a template's ``csp_nonce``) and
+    otherwise leaves ``CSP.NONCE`` out of the header. No template uses it, but Cloudflare
+    copies the header's nonce to the scripts its edge adds to each page (JavaScript
+    detections), so it must always be there. Each page gets its own: pages are never
+    cached (``Cache-Control: private`` or ``never_cache``). Other answers (static files,
+    downloads, JSON) keep Django's behaviour; a CSP header does nothing for them.
+    """
+
+    def process_response(self, request, response):
+        nonce = csp.get_nonce(request)
+        if nonce is not None and response.get("Content-Type", "").startswith("text/html"):
+            str(nonce)  # generates it
+        return super().process_response(request, response)
 
 
 class StaticFilesMiddleware(WhiteNoiseMiddleware):

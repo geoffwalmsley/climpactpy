@@ -483,7 +483,12 @@ line: add it) and `docker compose up -d --wait`. In a browser, open the pages wi
 developer tools' console showing and run the sample station through to the results: any
 line mentioning "Content Security Policy" is a violation to report in an issue. Then set
 it back to `false` and run `docker compose up -d --wait` again. `curl -sI
-https://climpact.app/ | grep -i content-security` shows which header is sent.
+https://climpact.app/ | grep -i content-security` shows which header is sent. The one
+expected message is `Fetch API cannot load data:,` from inside Turnstile's own frame (its
+URL ends `flexible?lang=en`), which the app's policy doesn't govern. The scripts
+Cloudflare adds to each page are allowed (#164): JavaScript detections by the nonce in the
+header, Web Analytics by `CLIMPACT_WEB_CF_WEB_ANALYTICS=true` (the default; set `false` if
+the zone's Web Analytics is turned off).
 
 ### E10. Check it (5 min)
 

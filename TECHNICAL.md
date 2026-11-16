@@ -2678,7 +2678,8 @@ packages/climpact-web/src/climpact_web/
   urls.py            root URLs: i18n/ (set_language), jobs/, station/, batch/, gridded/, help/, charts/ and the core app;
                      later apps add their own include here
   wsgi.py            WSGI application, for waitress and hosted servers
-  middleware.py      UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
+  middleware.py      ContentSecurityPolicyMiddleware (Django's, with a nonce on every
+                     HTML page, #164); UploadSizeLimitMiddleware: 413 for request bodies over MAX_UPLOAD_MB
                      (GRIDDED_MAX_UPLOAD_MB under /gridded/); StaticFilesMiddleware
                      (WhiteNoise); CompressionMiddleware (gzip for text answers, #82);
                      PrivateCacheMiddleware; RefusalMiddleware (the page and log line for
@@ -2911,6 +2912,7 @@ the variable.
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age, sent with `includeSubDomains` when above 0; `deploy/.env.example` sets `31536000` (#124) |
 | `CLIMPACT_WEB_CSP_REPORT_ONLY` | `false` | send the Content Security Policy as `Content-Security-Policy-Report-Only` (violations are reported in the browser console, nothing is blocked) instead of enforcing it; for a first deployment (#137) |
+| `CLIMPACT_WEB_CF_WEB_ANALYTICS` | `true` | hosted mode: the Content Security Policy allows Cloudflare Web Analytics' beacon (`WEB_ANALYTICS`); ignored in local mode (#164) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
 | `CLIMPACT_WEB_TURNSTILE_SITE_KEY` | none | hosted mode: Cloudflare Turnstile's site key; Turnstile is on only when both keys are set, and one without the other is an error (#125) |
 | `CLIMPACT_WEB_TURNSTILE_SECRET_KEY` | none | hosted mode: Turnstile's secret key, for the siteverify check |
@@ -2936,13 +2938,14 @@ See [Security of the hosted site](#security-of-the-hosted-site) for the limits.
 
 #### Content Security Policy
 
-`django.middleware.csp.ContentSecurityPolicyMiddleware` (Django 6, right after
-`SecurityMiddleware`) adds the policy from `SECURE_CSP` to every answer, in both modes, so
-a violation shows in development as it would on the hosted site (#137). `settings.py`
-builds it with `content_security_policy(turnstile)`:
+`climpact_web.middleware.ContentSecurityPolicyMiddleware` (Django 6's
+`django.middleware.csp` one, right after `SecurityMiddleware`) adds the policy from
+`SECURE_CSP` to every answer, in both modes, so a violation shows in development as it
+would on the hosted site (#137). `settings.py` builds it with
+`content_security_policy(turnstile, analytics)`:
 
 ```
-default-src 'self'; script-src 'self'; style-src 'self' 'sha256-<500 page>';
+default-src 'self'; script-src 'self' 'nonce-<per page>'; style-src 'self' 'sha256-<500 page>';
 img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none';
 object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
@@ -2952,9 +2955,9 @@ browsers. `CLIMPACT_WEB_CSP_REPORT_ONLY=true` sends the same policy as
 `Content-Security-Policy-Report-Only` instead (`SECURE_CSP_REPORT_ONLY`). There is no
 reporting endpoint (`report-to`): violations appear only in the browser's console.
 
-**No inline code, and no nonces.** Every page loads one same-origin stylesheet and
-same-origin scripts only, so the policy needs no `'unsafe-inline'`, `'unsafe-eval'` or
-nonce (the `csp` context processor is not used):
+**No inline code.** Every page loads one same-origin stylesheet and same-origin scripts
+only, so the policy needs no `'unsafe-inline'` or `'unsafe-eval'`, and no template uses
+the nonce (the `csp` context processor is not used):
 
 | What was inline | Now |
 | --- | --- |
@@ -2980,15 +2983,58 @@ data from the same origin.
 `frame-src` (the challenge frame); nothing else is needed, since the frame makes its own
 requests. Without the keys the policy stays as above.
 
+**Scripts Cloudflare adds at the edge (#164).** Cloudflare inserts two scripts into every
+page it proxies, which the app's templates never contain:
+
+- *JavaScript detections* (bot management; cannot be turned off on the free plan): an
+  inline `<script>` before `</body>` that adds a hidden 1×1 `about:blank` iframe, writes
+  an inline script into it (`window.__CF$cv$params=…`), and that script loads
+  `/cdn-cgi/challenge-platform/scripts/jsd/main.js` from this origin.
+  [Cloudflare's docs](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/)
+  say that when the `Content-Security-Policy` *header* has a nonce in `script-src`, it
+  adds that nonce to the scripts it injects (nonces in a `<meta>` policy are not read),
+  and that `/cdn-cgi/challenge-platform/` must be allowed, which `'self'` does. So
+  `script-src` always has `CSP.NONCE`. Django makes the nonce lazily and leaves it out of
+  the header unless something read it, so the middleware subclass reads it for every
+  `text/html` answer; other answers (static files, downloads, JSON) get no nonce. The
+  nonce is fresh per response and no HTML is cached anywhere (`Cache-Control: private`
+  from `PrivateCacheMiddleware`, or `never_cache`; Cloudflare reports them `DYNAMIC`), so
+  no page is served with an old one. The policy has no `'strict-dynamic'`, so the nonce
+  allows only scripts that carry it. Local mode sends the same nonce: one policy in both
+  modes, so development sees what production enforces, and it grants nothing there.
+  The `about:blank` iframe inherits the page's policy, nonce included. Its inner script
+  is made with `createElement` and `innerHTML`, so it runs only if Cloudflare's
+  nonce-aware snippet also sets that element's nonce; Cloudflare's docs don't mention the
+  iframe, and the snippet served without a nonce (checked on climpact.app, 2026-11-16)
+  shows no `nonce` handling. The owner's check after deploying (report-only on) settles
+  it: if one violation remains for that inner script, it costs only Cloudflare's bot
+  signals (`main.js` doesn't load), never the site, and is a case for Cloudflare.
+- *Web Analytics* (the zone's automatic setup): `<script type="module"
+  src="https://static.cloudflareinsights.com/beacon.min.js/v…" integrity=…>`. With the
+  `version` Cloudflare puts in its `data-cf-beacon`, the beacon reports to `/cdn-cgi/rum`
+  on this origin (`connect-src 'self'`); without one it reports to
+  `https://cloudflareinsights.com/cdn-cgi/rum`. In hosted mode with
+  `CLIMPACT_WEB_CF_WEB_ANALYTICS` on (the default), `content_security_policy(...,
+  analytics=True)` adds `https://static.cloudflareinsights.com` to `script-src` and
+  `https://cloudflareinsights.com` to `connect-src` (host sources: Cloudflare's suggested
+  `…/beacon.min.js` path would not match the versioned path the beacon is served from).
+  Never in local mode, where no Cloudflare edge adds it.
+
+One console message is expected and is not the app's: `Fetch API cannot load data:,`
+from inside Turnstile's own frame (its URL ends `flexible?lang=en`). The frame is
+Cloudflare's document with its own policy; nothing in this site's policy affects it.
+
 **Extending it.** Add a source to `content_security_policy` only for something that
 cannot be served from this site, and say why in a comment. Prefer moving code to a static
-file and a class over a nonce; if a nonce is ever needed, add
-`django.template.context_processors.csp` and `CSP.NONCE` to the directive. Never add
+file and a class over a nonce; if a template ever needs the nonce, add
+`django.template.context_processors.csp` and write `nonce="{{ csp_nonce }}"`. Never add
 `'unsafe-inline'` or `'unsafe-eval'`.
 
 **Tests.** `test_csp.py`: the header on pages and the 404 page (strict directives, no
-`'unsafe-*'`, `X-Frame-Options` kept), the Turnstile policy, the settings in both modes
-and with the report-only switch and Turnstile keys, the 500 page's hash, no inline
+`'unsafe-*'`, `X-Frame-Options` kept), a nonce on every HTML page and the report-only
+header, different on each request and absent from non-HTML answers, the Turnstile and Web
+Analytics policies, the settings in both modes and with the report-only switch, Turnstile
+keys and `CLIMPACT_WEB_CF_WEB_ANALYTICS`, the 500 page's hash, no inline
 script, inline style, style or event handler attribute or htmx eval in any template, no
 style attribute in markup built in Python or the scripts, and a class for every chart token
 and chart height. In the browser (`test_accessibility.py`,
@@ -3536,7 +3582,8 @@ answer from Cloudflare gets a 503 (fail closed, logged as an error). The sample-
 (`disk_required`) and job retry need no token: the samples copy a bundled file and start
 nothing, and a retry uploads nothing, while the disk guard and the quotas still apply. The
 Content Security Policy allows the script and its frame from
-`https://challenges.cloudflare.com` only when Turnstile is on (see
+`https://challenges.cloudflare.com` only when Turnstile is on, and the Web Analytics beacon
+in hosted mode (see
 [Content Security Policy](#content-security-policy)); `Referrer-Policy: same-origin`, `COOP: same-origin` and `X-Frame-Options: DENY` don't
 affect the widget (they govern this site's pages, not Cloudflare's frame). Managed mode
 usually passes without a question. Cloudflare states the widget meets WCAG AA (its docs

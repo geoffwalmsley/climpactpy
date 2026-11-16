@@ -138,13 +138,15 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
-`stations/templates/stations/_qc_*.html`):
+`stations/templates/stations/_qc_*.html`, and Results):
 
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
 | Verdict | The answer and the one decision on it. An h2 title, one or two sentences, a line of counts against what was checked, and the decision's buttons. One primary button; on red the buttons swap, and a "… anyway" secondary always stays. | `alert`, `button`, `file_button` |
 | Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
 | Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
+| Recalculation | A run that replaces results already shown: its progress in a card with an accent edge above the results, which stay until it finishes, with a note that they use the previous settings. A failure says so in the same card, with "Try again". | `card`, `progress`, `stages` |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional.
@@ -193,7 +195,9 @@ keyboard. This is not optional.
 - **Don't show a step's results before the step.** QC flags belong to Quality, not to the
   Load chart (it asks for `?flags=0`).
 - **Don't add a page or step without a decision on it.** A screen that only confirms
-  defaults should be an inline action instead. **Target:** #178.
+  defaults should be an inline action instead. The index settings are "Adjust and
+  recalculate" on Results, and the defaults are calculated while the user checks the
+  quality, so the station flow has three steps (#178).
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it in full
   once, where it matters. After that it is a quiet line at the foot of the page: small
   muted text (`text-sm text-text-muted`) with a lock icon.

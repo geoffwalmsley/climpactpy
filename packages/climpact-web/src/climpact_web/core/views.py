@@ -173,9 +173,22 @@ def pattern_context(form):
             (_("Sequential"), [f"--chart-seq-{i}" for i in range(1, 6)]),
             (_("Diverging"), [f"--chart-div-{i}" for i in range(1, 8)]),
             (
-                _("Interface"),
-                ["--color-accent", "--color-success", "--color-warning", "--color-danger"]
-                + ["--color-text", "--color-text-muted", "--color-border-strong"],
+                _("Interface: ink for actions, brand for the logo, focus and selection"),
+                ["--color-ink", "--color-ink-hover", "--color-brand", "--color-focus"]
+                + ["--color-selected", "--color-text", "--color-text-muted"]
+                + ["--color-border-strong"],
+            ),
+            (
+                _("Status: the verdict and run state only"),
+                ["--color-success", "--color-warning", "--color-danger"],
+            ),
+            (
+                _("Theme hues, each with its tint"),
+                [
+                    f"--color-{hue}{tint}"
+                    for hue in ("heat", "cold", "rain", "drought", "other")
+                    for tint in ("", "-soft")
+                ],
             ),
         ],
         "icons": [

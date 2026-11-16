@@ -45,7 +45,7 @@
 
   .eyebrow {
     margin-block-end: --spacing(2);
-    color: var(--color-accent);
+    color: var(--color-text-muted);
     font-size: var(--text-sm);
     font-weight: var(--font-weight-bold);
     letter-spacing: 0.04em;
@@ -71,13 +71,13 @@
     z-index: 20;
     padding: --spacing(2) --spacing(4);
     border-radius: var(--radius-sm);
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
   }
 
   .skip-link:focus {
     inset-block-start: --spacing(2);
-    color: var(--color-accent-contrast);
+    color: var(--color-ink-contrast);
   }
 
   .file-list {

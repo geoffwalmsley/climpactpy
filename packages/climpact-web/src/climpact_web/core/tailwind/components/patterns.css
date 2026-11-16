@@ -44,4 +44,89 @@
     padding: 0;
     background: none;
   }
+
+  /* The interface colours' swatches on /patterns/ (the chart tokens' are in charts.css). */
+  .swatch-color-ink {
+    --swatch: var(--color-ink);
+  }
+
+  .swatch-color-ink-hover {
+    --swatch: var(--color-ink-hover);
+  }
+
+  .swatch-color-brand {
+    --swatch: var(--color-brand);
+  }
+
+  .swatch-color-focus {
+    --swatch: var(--color-focus);
+  }
+
+  .swatch-color-selected {
+    --swatch: var(--color-selected);
+  }
+
+  .swatch-color-text {
+    --swatch: var(--color-text);
+  }
+
+  .swatch-color-text-muted {
+    --swatch: var(--color-text-muted);
+  }
+
+  .swatch-color-border-strong {
+    --swatch: var(--color-border-strong);
+  }
+
+  .swatch-color-success {
+    --swatch: var(--color-success);
+  }
+
+  .swatch-color-warning {
+    --swatch: var(--color-warning);
+  }
+
+  .swatch-color-danger {
+    --swatch: var(--color-danger);
+  }
+
+  .swatch-color-heat {
+    --swatch: var(--color-heat);
+  }
+
+  .swatch-color-heat-soft {
+    --swatch: var(--color-heat-soft);
+  }
+
+  .swatch-color-cold {
+    --swatch: var(--color-cold);
+  }
+
+  .swatch-color-cold-soft {
+    --swatch: var(--color-cold-soft);
+  }
+
+  .swatch-color-rain {
+    --swatch: var(--color-rain);
+  }
+
+  .swatch-color-rain-soft {
+    --swatch: var(--color-rain-soft);
+  }
+
+  .swatch-color-drought {
+    --swatch: var(--color-drought);
+  }
+
+  .swatch-color-drought-soft {
+    --swatch: var(--color-drought-soft);
+  }
+
+  .swatch-color-other {
+    --swatch: var(--color-other);
+  }
+
+  .swatch-color-other-soft {
+    --swatch: var(--color-other-soft);
+  }
 }

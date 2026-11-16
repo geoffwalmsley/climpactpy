@@ -21,8 +21,8 @@
     inline-size: 2.5rem;
     block-size: 2.5rem;
     border-radius: var(--radius-md);
-    background: var(--color-accent-soft);
-    color: var(--color-accent);
+    background: var(--color-surface-sunken);
+    color: var(--color-ink);
   }
 
   .card__title {
@@ -50,7 +50,7 @@
   }
 
   .card--link:hover {
-    border-color: var(--color-accent);
+    border-color: var(--color-ink);
   }
 
   .card--link .card__title a::after {
@@ -92,9 +92,18 @@
     color: var(--badge-color, var(--color-text-muted));
   }
 
+  /* Info is neutral (#196): blue is no longer a status. */
   .badge--info {
-    --badge-color: var(--color-accent);
-    --badge-soft: var(--color-accent-soft);
+    --badge-color: var(--color-ink);
+    --badge-soft: var(--color-surface-sunken);
+  }
+
+  /* A theme's pill: the theme hue on its tint, inside a .hue-* block (themes.css). */
+  .badge--hue {
+    --badge-color: var(--hue);
+    --badge-soft: var(--hue-soft);
+    color: var(--hue);
+    font-weight: var(--font-weight-semibold);
   }
 
   .badge--success {

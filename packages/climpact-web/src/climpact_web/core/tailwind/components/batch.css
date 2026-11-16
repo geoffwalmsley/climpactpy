@@ -37,7 +37,7 @@
   }
 
   .batch-item--running {
-    border-inline-start-color: var(--color-accent);
+    border-inline-start-color: var(--color-ink);
   }
 
   .batch-item__head {

@@ -50,7 +50,7 @@
   }
 
   .file-browser__item:hover {
-    background: var(--color-accent-soft);
+    background: var(--color-surface-sunken);
   }
 
   .file-browser__item:focus-visible {
@@ -59,12 +59,12 @@
   }
 
   .file-browser__item--file .icon {
-    color: var(--color-accent);
+    color: var(--color-ink);
   }
 
   .file-browser__add {
     margin-inline-start: auto;
-    color: var(--color-accent);
+    color: var(--color-ink);
     font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
   }

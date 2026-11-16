@@ -53,7 +53,7 @@
   {% if chart_url %}
   {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
   {% url 'jobs:file' job.pk csv_path as csv_url %}
-  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=chart_title data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" only %}
+  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=chart_title data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" hue=card.hue only %}
   {% endif %}
 
   {% if anomaly_url %}

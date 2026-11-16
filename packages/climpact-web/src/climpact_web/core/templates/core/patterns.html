@@ -47,10 +47,13 @@
     <section class="pattern" id="colour" aria-labelledby="colour-title">
       <h2 id="colour-title">{% translate "Colour" %}</h2>
       <p class="max-w-prose">{% blocktranslate trimmed %}
-        One accent and neutral surfaces. Every text and background pair meets WCAG AA in both
-        themes (checked by a test from the token values). Chart colours are colour-blind safe
-        and assigned in a fixed order; status colours are never used for data series and
-        always come with an icon and a label. Charts outside the browser read
+        Each colour has one job. Ink is for actions: primary buttons, the current tab and
+        links, which are underlined. The brand blue is only for the logo, focus rings and
+        selection. Status colours are only for the verdict and run state, always with an
+        icon and a label. The theme hues mark data: Heat, Cold, Rain and Drought, and a
+        neutral for "Also measured". Every text and background pair meets WCAG AA in both
+        themes, and the theme hues and chart colours stay apart for colour-blind readers
+        (both checked by tests from the token values). Charts outside the browser read
         <code>chart-palette.json</code>.
       {% endblocktranslate %}</p>
       <div class="stack">
@@ -223,11 +226,20 @@
     <section class="pattern" id="findings" aria-labelledby="findings-title">
       <h2 id="findings-title">{% translate "Findings by theme" %}</h2>
       <p class="text-sm text-text-muted">{% translate "A theme headline answers first: one sentence written from the trends, then up to three significant trends with plain names, codes, units and sparklines. With no significant trend it is quiet, because no change is a finding too." %}</p>
+      <p class="text-sm text-text-muted">{% translate "Each theme has its hue: the tile's edge, its pill, its dot, its sparklines and its index charts. The filter chips and the catalogue's dots use the same hues, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
       {% translate "Heat" as th1 %}{% translate "9 changed" as th1_badge %}{% translate "9 of 22 indices increased significantly." as th1_finding %}{% translate "See all 30 indices in Heat" as th1_more %}
       {% translate "Rain" as th2 %}{% translate "No clear change" as th2_badge %}{% translate "No significant change across 13 indices." as th2_finding %}{% translate "See all 13 indices in Rain" as th2_more %}
       <div class="pattern__demo theme-grid">
-        {% include "components/theme_headline.html" with id="pattern-heat" title=th1 badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
-        {% include "components/theme_headline.html" with id="pattern-rain" title=th2 badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
+        {% include "components/theme_headline.html" with id="pattern-heat" title=th1 hue="heat" badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
+        {% include "components/theme_headline.html" with id="pattern-rain" title=th2 hue="rain" badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
+      </div>
+      <div class="pattern__demo chips mt-4" role="group" aria-label="{% translate 'Theme chips' %}">
+        <label class="chip"><input type="radio" name="pattern-theme" value="" checked><span>{% translate "All (80)" %}</span></label>
+        <label class="chip"><input type="radio" name="pattern-theme" value="heat"><span class="hue-dot hue-heat" aria-hidden="true"></span><span>{% translate "Heat (30)" %}</span></label>
+        <label class="chip"><input type="radio" name="pattern-theme" value="cold"><span class="hue-dot hue-cold" aria-hidden="true"></span><span>{% translate "Cold (12)" %}</span></label>
+        <label class="chip"><input type="radio" name="pattern-theme" value="rain"><span class="hue-dot hue-rain" aria-hidden="true"></span><span>{% translate "Rain (13)" %}</span></label>
+        <label class="chip"><input type="radio" name="pattern-theme" value="drought"><span class="hue-dot hue-drought" aria-hidden="true"></span><span>{% translate "Drought (9)" %}</span></label>
+        <label class="chip"><input type="radio" name="pattern-theme" value="averages"><span class="hue-dot hue-other" aria-hidden="true"></span><span>{% translate "Averages (5)" %}</span></label>
       </div>
     </section>
 

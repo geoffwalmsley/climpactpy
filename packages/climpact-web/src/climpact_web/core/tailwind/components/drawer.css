@@ -83,13 +83,13 @@
     border: 1px solid transparent;
     border-radius: var(--radius-full);
     background: none;
-    color: var(--color-accent);
+    color: var(--color-ink);
     cursor: pointer;
   }
 
   .help-button:hover,
   .help-button[aria-expanded="true"] {
-    background: var(--color-accent-soft);
+    background: var(--color-surface-sunken);
   }
 
   .help-button[aria-expanded="true"] {

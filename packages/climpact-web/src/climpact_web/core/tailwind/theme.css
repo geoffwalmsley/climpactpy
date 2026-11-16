@@ -14,10 +14,15 @@
   --color-text-muted: #4d5966;
   --color-border: #d8dee4;
   --color-border-strong: #78838f;
-  --color-accent: #0a5aa8;
-  --color-accent-hover: #084883;
-  --color-accent-soft: #e5eff9;
-  --color-accent-contrast: #ffffff;
+  /* Colour roles (#196): ink for actions (primary buttons, the current tab, links), the
+     brand blue only for the logo, focus rings and selection, status colours only for
+     the verdict and run state. */
+  --color-ink: #111827;
+  --color-ink-hover: #374151;
+  --color-ink-contrast: #ffffff;
+  --color-brand: #0a5aa8;
+  --color-brand-contrast: #ffffff;
+  --color-selected: #eaf2ff;
   --color-focus: #0b57d0;
   --color-success: #17773a;
   --color-success-soft: #e7f4ea;
@@ -26,6 +31,19 @@
   --color-danger: #b3261e;
   --color-danger-soft: #fbeae8;
   --color-danger-contrast: #ffffff;
+  /* Theme hues (#196): Heat, Cold, Rain, Drought and a neutral for "Also measured", each
+     with a soft tint, for theme tiles, filter chips, index dots, sparklines and the index
+     chart line. Told apart under protan and deutan simulation (test_design_tokens.py). */
+  --color-heat: #c2410c;
+  --color-heat-soft: #fff1e8;
+  --color-cold: #196cd3;
+  --color-cold-soft: #eaf2ff;
+  --color-rain: #077c6e;
+  --color-rain-soft: #e5f5f2;
+  --color-drought: #693b04;
+  --color-drought-soft: #f6efe6;
+  --color-other: #222a36;
+  --color-other-soft: #eef1f4;
   --shadow-raised: 0 1px 2px rgb(16 24 32 / 0.06), 0 2px 8px rgb(16 24 32 / 0.06);
   --shadow-overlay: 0 8px 32px rgb(16 24 32 / 0.18);
 

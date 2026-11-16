@@ -3923,10 +3923,11 @@ baseline it replaces. [`DESIGN.md`](DESIGN.md) at the repository root is the sho
 reference for design work and reviews: who the app is for, the tokens and components in
 brief, and the rules a change must keep, including the targets of the UX redesign (#171).
 This section describes how the system is built. Wireframes for the redesign are in
-`docs/design/`.
+`docs/design/`, with the mockups the second design review approved
+(`redesign-proposals.html`, `redesign-proposals-dark.html`, #196).
 
-**Look.** Calm and plain: neutral surfaces, one blue accent (`--color-accent`), strong
-type hierarchy, generous spacing. System fonts only (`--font-sans`, `--font-mono`): no
+**Look.** Calm and plain: neutral surfaces, ink for actions, colour only for data and
+status (#196), strong type hierarchy, generous spacing. System fonts only (`--font-sans`, `--font-mono`): no
 web fonts are downloaded, for bandwidth and offline use, and every script the operating
 system supports displays. Icons are a sprite drawn for this project
 (`icons/icons.svg`, same licence as the package, 2px strokes on a 24px grid), inserted
@@ -3964,13 +3965,60 @@ choice before the page paints. Before #118 the dark values were a separate
 setting applies and the toggle stays hidden. The toggle fires `climpact:themechange` on
 `document`, so charts can redraw.
 
+**Colour roles (#196).** Before #196 one blue accent (`--color-accent`, with `-hover`,
+`-soft` and `-contrast`) did every job. It is gone, and each colour has one:
+
+| Tokens | Light | Dark | Used for |
+| --- | --- | --- | --- |
+| `--color-ink`, `-hover`, `-contrast` | `#111827`, `#374151`, `#ffffff` | `#e6eaef`, `#c3cad3`, `#0e1218` | primary buttons, the current tab, step and site-nav link, links (underlined ink: `a` in `base.css`), the running state (progress bar, spinner, current stage, running batch item and status mark), interactive icons, the selected chip, the skip link |
+| `--color-brand`, `-contrast` | `#0a5aa8`, `#ffffff` | `#6db3f2`, `#08111b` | the logo's mark only |
+| `--color-focus` | `#0b57d0` | `#8ab4f8` | focus rings, the targeted help heading and the tour's target |
+| `--color-selected` | `#eaf2ff` | `#1c2a3d` | selected rows (QC findings and tables, with an ink edge), the targeted help topic, `::selection` |
+| `--color-success`, `-warning`, `-danger` | unchanged | unchanged | the verdict and run state only. Info alerts and badges are neutral: ink icon and border on the sunken surface |
+| `--color-heat`, `-cold`, `-rain`, `-drought`, `-other`, each with `-soft` | see `DESIGN.md` | see `DESIGN.md` | a theme's data |
+
+Hovers are neutral (the sunken surface; links thicken their underline). A theme's hue is
+applied by a class on a block, `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought` or
+`hue-other` (`results.css`), which sets `--hue` and `--hue-soft` for what is inside it:
+`hue-dot`, the theme tile's top edge and its pill (`badge--hue`), the sparkline
+(`.spark__line` falls back to the neutral outside a hue block) and the index page's chart
+line. `stations.themes.hue_of` maps a theme to its hue: Heat, Cold, Rain and Drought their
+own, the "Also measured" themes (Averages, Growing season and degree days, Your own index)
+and the cards in no theme the neutral. `Card.hue` and `ThemeResult.hue` give it to the
+templates: the theme tiles (`theme_headline`'s `hue`), the filter chips' dots, the
+catalogue cards (`index-card hue-*`, with a dot before the name) and the index page's
+`chart_frame` (`hue`). `charts.js` draws an index series with the token `--hue`, which
+`palette(el)` reads from the frame's computed style at each draw, so the line follows the
+theme toggle. The SPI and SPEI bars keep `--chart-1` and `--chart-2` (wet and dry), and the
+daily and QC charts keep the variable roles (`--chart-tmax`, `-tmin`, `-prcp`). The static
+PNG plots and the PDF report are unchanged.
+
+The mockup values were provisional. Adjusted until the tests passed: Drought from
+`#8a5a2b` to `#693b04` (light) and from `#d4a46e` to `#fcca93` (dark), because Heat and
+Drought were ΔE 2.4 apart under protan and deutan simulation in both themes; Cold
+`#1d6fd6` to `#196cd3` and Rain `#0f7f71` to `#077c6e` (light), to reach 4.5:1 on their
+tints; and the neutral, which the mockups did not give a value, `#222a36` (light) and
+`#828c97` (dark), because a mid grey falls on Rain's teal under deuteranopia. The light
+status colours are #71's, not the mockups' slightly different ones.
+
 **Contrast.** `tests/test_design_tokens.py` reads the token values from the theme and the dark block
 and computes WCAG 2.1 contrast ratios for every pairing the components use, in both
-themes: text, muted text, links and status text on each surface and on each tinted alert
-background (4.5:1), button labels on their fills (4.5:1), and input borders, focus rings,
-status icons and chart line roles against their backgrounds (3:1, WCAG 1.4.11). All pass;
-the closest are light success text on the sunken surface (4.99:1, needs 4.5) and light
-input borders on the sunken surface (3.43:1, needs 3).
+themes: text, muted text, links (ink) and status text on each surface and on each tinted
+background, including the theme tints and the selection (4.5:1), button labels on their
+fills (4.5:1), each theme hue as text on the surface and on its tint (4.5:1), and input
+borders, focus rings, the brand mark, status icons, theme hues and chart line roles
+against their backgrounds (3:1, WCAG 1.4.11). All pass; the closest are light Cold and
+Rain on their tints (4.52:1 and 4.54:1, needs 4.5), the dark neutral on its tint (4.64:1)
+and light input borders on the sunken surface (3.43:1, needs 3).
+
+**Colour vision.** `test_design_tokens.py` also simulates protanopia and deuteranopia
+(Machado, Oliveira and Fernandes 2009, full severity) and measures OKLab distance (ΔE
+x100), with the data-viz validator's thresholds. The five theme hues are compared pair by
+pair, since tiles, chips and dots sit side by side: worst ΔE 10.1 light and 9.2 dark
+(target 8), normal-vision floor 16.4 light and 15.3 dark (floor 15). The chart palette's
+categorical slots are compared neighbour by neighbour (target 8, normal floor 15: worst 9.1
+light, 8.4 dark; normal 19.6 and 19.3) and the variable roles as a set (floor 6, since
+they always have a legend: 8.6 light, 6.5 dark).
 
 **Chart palette.** For #75 (and the static plots of #74, #79):
 
@@ -3992,8 +4040,8 @@ were checked as a set with every pair compared: they pass in light; in dark the
 `prcp`-`tmax` pair is ΔE 6.5, inside the band that is acceptable with labels, and the two
 rarely share a chart. In the light theme categorical slots 3, 4 and 5 are below 3:1 on
 white (2.2-2.8:1), so charts that use them must label series directly or offer the table
-view, which every chart frame has. The validator is not part of the test suite (it is
-JavaScript); re-run it when the palette changes. `chart-palette.json` carries the same
+view, which every chart frame has. Since #196 the same checks run in the test suite, in
+Python (see "Colour vision" above). `chart-palette.json` carries the same
 colours for both themes, for code that cannot read CSS; it is generated with
 `uv run python -m climpact_web.core.tokens` and a test fails when it is out of date.
 In the browser `Climpact.chartPalette()` returns the live values for the current theme.
@@ -4020,7 +4068,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's ⓘ opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the ⓘ's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the ⓘ, unless focus has moved on to the page. See [Help](#help) |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
-| `theme_headline`, `spark` | a theme's finding on the results page (#175): title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
+| `theme_headline`, `spark` | a theme's finding on the results page (#175): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -4074,9 +4122,10 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 71 KB (70 KB until #179 added the workspace tabs' status marks and the
-out-of-date block; it is 70.2 KB) and 13 KB gzipped (12.5 KB until #177 added the
-drawer). `ui.js` is about
+stylesheets). Tests hold it under 74 KB (71 KB until #196 added the colour roles, the theme hues and
+the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
+status marks and the out-of-date block; it is 73.3 KB) and 13.5 KB gzipped (13 KB until
+#196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
@@ -4414,7 +4463,7 @@ checks the accessibility hooks in the markup (labels, `aria-describedby`, `aria-
 `aria-current`, roles, the no-JS fallbacks), that the pattern library includes every
 component, that every icon used exists in the sprite, the landing page with and without
 the later screens' URLs (a stub URLconf), and the snapshot command.
-`test_design_tokens.py` checks contrast, the chart palette export and the size budgets
+`test_design_tokens.py` checks contrast, colour vision (#196), the chart palette export and the size budgets
 (`test_charts.py` those of the chart assets);
 `test_static.py` checks logical properties in every stylesheet and that `ui.js` has no
 imports or network requests.
@@ -5484,7 +5533,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 12.5 of 13 KB, `drawer.js` 1.0 of 1 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 13.1 of 13.5 KB (13 KB before #196), `drawer.js` 1.0 of 1 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5710,8 +5759,9 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
   sample has 423); the legend's "Flagged by the quality checks" entry is a toggle button
   (`aria-pressed`) that hides and shows them on every panel, and in the PNG and SVG
   exports; while hidden, a click picks the day under the pointer. Missing days as gaps. *Index*: a line (with hollow markers for annual series),
-  the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and dry
-  (`--chart-2`), as in the static plots.
+  in its theme's hue (`--hue` from the frame's `hue-*` class, #196; `--chart-1` without
+  one), the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and
+  dry (`--chart-2`), as in the static plots.
 - *Zoom and move*: drag across the plot to zoom, double-click to show all; the toolbar
   (zoom in, zoom out, earlier, later, show all) and, on the focused plot, the keyboard
   (`+`/`-`, arrow keys, `0` or Home). The visible range is announced politely

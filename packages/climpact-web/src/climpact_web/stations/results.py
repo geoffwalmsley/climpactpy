@@ -271,6 +271,11 @@ class Card:
         return " ".join(t for t in (self.topic, self.param_topic) if t)
 
     @property
+    def hue(self) -> str:
+        """The colour of the card's theme (``themes.hue_of``), for its dot and sparkline."""
+        return themes.hue_of(self.theme)
+
+    @property
     def search_text(self) -> str:
         return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
 

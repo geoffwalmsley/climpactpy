@@ -9,8 +9,8 @@
     padding: --spacing(2) --spacing(5);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
     font: inherit;
     font-weight: var(--font-weight-medium);
     line-height: var(--leading-tight);
@@ -21,8 +21,8 @@
   }
 
   .button:hover {
-    background: var(--color-accent-hover);
-    color: var(--color-accent-contrast);
+    background: var(--color-ink-hover);
+    color: var(--color-ink-contrast);
   }
 
   .button--secondary {
@@ -32,19 +32,19 @@
   }
 
   .button--secondary:hover {
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
+    border-color: var(--color-ink);
+    background: var(--color-surface-sunken);
     color: var(--color-text);
   }
 
   .button--ghost {
     background: transparent;
-    color: var(--color-accent);
+    color: var(--color-ink);
   }
 
   .button--ghost:hover {
-    background: var(--color-accent-soft);
-    color: var(--color-accent-hover);
+    background: var(--color-surface-sunken);
+    color: var(--color-ink);
   }
 
   .button--danger {

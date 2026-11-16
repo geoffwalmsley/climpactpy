@@ -61,14 +61,63 @@
 
   .chip:has(input:checked),
   .chip--current {
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
     font-weight: var(--font-weight-medium);
   }
 
   .chip:has(input:focus-visible) {
     outline: 3px solid var(--color-focus);
     outline-offset: 2px;
+  }
+
+  /* == Theme hues (#196) == */
+  /* A theme's colour on a block: hue-heat, hue-cold, hue-rain, hue-drought, or hue-other
+     (the neutral of "Also measured"), from stations.themes.hue_of. Inside it, --hue and
+     --hue-soft colour the dot, the tile's edge, the pill, the sparkline and the index
+     chart's line. The hue always comes with the theme's name. */
+  .hue-heat {
+    --hue: var(--color-heat);
+    --hue-soft: var(--color-heat-soft);
+  }
+
+  .hue-cold {
+    --hue: var(--color-cold);
+    --hue-soft: var(--color-cold-soft);
+  }
+
+  .hue-rain {
+    --hue: var(--color-rain);
+    --hue-soft: var(--color-rain-soft);
+  }
+
+  .hue-drought {
+    --hue: var(--color-drought);
+    --hue-soft: var(--color-drought-soft);
+  }
+
+  .hue-other {
+    --hue: var(--color-other);
+    --hue-soft: var(--color-other-soft);
+  }
+
+  .hue-dot {
+    display: inline-block;
+    flex: none;
+    inline-size: 0.625rem;
+    block-size: 0.625rem;
+    border-radius: var(--radius-full);
+    background: var(--hue, var(--color-other));
+  }
+
+  .chip .hue-dot {
+    margin-inline-end: --spacing(2);
+  }
+
+  /* On a selected chip the dot keeps its hue, ringed so it shows on the ink. */
+  .chip:has(input:checked) .hue-dot {
+    box-shadow: 0 0 0 2px var(--color-ink-contrast);
   }
 
   /* Findings by theme (#175): the answer, a headline per theme, the "Also measured" lines */
@@ -88,11 +137,20 @@
     margin-block-start: auto;
   }
 
+  .theme-headline {
+    border-block-start: 4px solid var(--hue, var(--color-other));
+  }
+
   .theme-headline__head {
     display: flex;
     flex-wrap: wrap;
     gap: --spacing(2) --spacing(3);
     align-items: center;
+  }
+
+  .theme-headline__head .card__title {
+    margin-block: 0;
+    margin-inline-end: auto;
   }
 
   .theme-headline__finding {
@@ -187,7 +245,7 @@
   }
 
   .index-card:hover {
-    border-color: var(--color-accent);
+    border-color: var(--color-ink);
   }
 
   .index-card:focus-within {
@@ -201,6 +259,11 @@
 
   .index-card__name {
     font-size: var(--text-md);
+  }
+
+  .index-card__name .hue-dot {
+    margin-inline-end: --spacing(2);
+    vertical-align: 0.1em;
   }
 
   .index-card__name a {
@@ -275,14 +338,15 @@
     vector-effect: non-scaling-stroke;
   }
 
+  /* The theme's hue inside a .hue-* block (themes.css), else the neutral. */
   .spark__line {
-    stroke: var(--chart-1);
+    stroke: var(--hue, var(--color-other));
     stroke-width: 1.5;
     stroke-linejoin: round;
   }
 
   .spark__dots {
-    stroke: var(--chart-1);
+    stroke: var(--hue, var(--color-other));
     stroke-width: 2.5;
     stroke-linecap: round;
   }
@@ -320,7 +384,7 @@
 
   /* A recalculation's progress above the results it replaces. */
   .recalculation {
-    border-inline-start: 4px solid var(--color-accent);
+    border-inline-start: 4px solid var(--color-ink);
   }
 
   @media (forced-colors: active) {
@@ -334,6 +398,14 @@
     .chip:has(input:checked),
     .chip--current {
       border-width: 3px;
+    }
+
+    .hue-dot {
+      background: CanvasText;
+    }
+
+    .theme-headline {
+      border-block-start-color: CanvasText;
     }
   }
 

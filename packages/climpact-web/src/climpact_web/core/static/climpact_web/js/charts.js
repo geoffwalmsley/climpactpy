@@ -54,12 +54,16 @@
 
   var monthFormat = new Intl.DateTimeFormat(lang, { year: "numeric", month: "short", timeZone: "UTC" });
 
-  function palette() {
+  // el: the chart's frame, whose hue-* class (#196) sets --hue, the theme's colour.
+  function palette(el) {
     var p = window.Climpact && window.Climpact.chartPalette ? window.Climpact.chartPalette() : null;
-    return p || { categorical: ["#2a78d6", "#eb6834"], roles: {}, surface: "#fff", text: "#000", text_muted: "#555" };
+    p = p || { categorical: ["#2a78d6", "#eb6834"], roles: {}, surface: "#fff", text: "#000", text_muted: "#555" };
+    p.hue = el ? getComputedStyle(el).getPropertyValue("--hue").trim() : "";
+    return p;
   }
 
   function colour(pal, token) {
+    if (token === "--hue") return pal.hue || pal.categorical[0];
     var name = token.replace(/^--chart-/, "");
     if (/^\d+$/.test(name)) return pal.categorical[+name - 1];
     return pal.roles[name] || getComputedStyle(doc.documentElement).getPropertyValue(token).trim();
@@ -149,8 +153,9 @@
       series.push({ label: dry, short: p.label, unit: p.units, token: "--chart-2", bars: true, values: y.map(function (v) { return v != null && v < 0 ? v : null; }) });
       legend.push({ label: wet, token: "--chart-1", box: true }, { label: dry, token: "--chart-2", box: true });
     } else {
-      series.push({ label: p.label, short: p.label, unit: p.units, token: "--chart-1", values: y, markers: p.step !== "month" && x.length <= 200, thin: p.step === "month" });
-      legend.push({ label: p.label, token: "--chart-1" });
+      // The index's line in its theme's colour (#196), from the frame's hue-* class.
+      series.push({ label: p.label, short: p.label, unit: p.units, token: "--hue", values: y, markers: p.step !== "month" && x.length <= 200, thin: p.step === "month" });
+      legend.push({ label: p.label, token: "--hue" });
     }
     if (p.trend) {
       var tr = p.trend;
@@ -228,7 +233,7 @@
   }
 
   function plotOptions(chart, panel, index, width, height) {
-    var pal = palette();
+    var pal = palette(chart.el);
     var model = chart.model;
     var font = "12px " + fontFamily();
     var last = index === model.panels.length - 1;
@@ -386,7 +391,7 @@
         var li = doc.createElement("li");
         var sw = doc.createElement("span");
         sw.className = "chart__swatch" + (item.ring ? " chart__swatch--ring" : "") + (item.dash ? " chart__swatch--dash" : "") + (item.box ? " chart__swatch--box" : "");
-        sw.style.setProperty("--swatch", "var(" + item.token + ")");
+        sw.style.setProperty("--swatch", item.token === "--hue" ? "var(--hue, var(--chart-1))" : "var(" + item.token + ")");
         sw.setAttribute("aria-hidden", "true");
         // The QC flags' legend entry shows and hides the rings (#115).
         var holder = li;
@@ -680,7 +685,7 @@
   }
 
   Chart.prototype.exportPng = function () {
-    var pal = palette(), canvases = this.plots.map(function (u) {
+    var pal = palette(this.el), canvases = this.plots.map(function (u) {
       return u.ctx.canvas;
     });
     var ratio = canvases[0].width / this.plots[0].width || 1;
@@ -752,7 +757,7 @@
   }
 
   Chart.prototype.exportSvg = function () {
-    var pal = palette(), model = this.model, vis = this.visible();
+    var pal = palette(this.el), model = this.model, vis = this.visible();
     var family = fontFamily(), lines = this.heading();
     var width = this.plots[0].width, head = 64, pad = 16, y0 = head;
     var parts = [];

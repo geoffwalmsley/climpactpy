@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Climpact redesign proposals</title>
+<style>
+:root{
+  --ink:#111827; --ink-2:#374151; --muted:#5b6573; --line:#e4e7ec; --line-2:#d1d6dd;
+  --page:#ffffff; --surface:#ffffff; --on-ink:#ffffff; --subtle:#f6f7f9; --sunken:#eef1f4; --scrim:rgb(17 24 39/.18); --shadow:rgb(16 24 40/.12); --sel:#eaf2ff;
+  --brand:#0a5aa8; --focus:#0b57d0; --field:#9aa3ad;
+  --heat:#c2410c; --heat-bg:#fff1e8; --cold:#1d6fd6; --cold-bg:#eaf2ff;
+  --rain:#0f7f71; --rain-bg:#e5f5f2; --drought:#8a5a2b; --drought-bg:#f6efe6;
+  --ok:#15803d; --ok-bg:#e8f5ec; --warn:#a15c00; --warn-bg:#fdf3dc; --bad:#b91c1c; --bad-bg:#fdecea;
+  --doc-bg:#eceff3; --doc-ink:#16202b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--doc-bg);color:var(--doc-ink);
+  font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}
+a{color:inherit}
+.doc{max-width:1180px;margin:0 auto;padding:40px 16px 80px}
+.doc>h1{font-size:2rem;line-height:1.2;margin:0 0 8px}
+.doc>.lead{font-size:1.125rem;color:#3b4652;max-width:46rem;margin:0 0 32px}
+.prop{background:#fff;border-radius:14px;padding:28px;margin:0 0 36px;box-shadow:0 1px 2px rgb(0 0 0/.06)}
+.prop>header{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.prio{font:600 12px/1 system-ui;letter-spacing:.04em;text-transform:uppercase;padding:6px 8px;border-radius:6px}
+.p1{background:#111827;color:#fff}.p2{background:#d1d6dd;color:#111827}.p3{background:#eceff3;color:#374151}
+.prop h2{font-size:1.5rem;line-height:1.25;margin:0}
+.prop .why{color:#3b4652;max-width:48rem;margin:8px 0 16px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin:16px 0}
+.cols h3{font-size:1rem;margin:0 0 4px}
+.cols ul{margin:0;padding-inline-start:1.1rem}
+.cols li{margin:2px 0}
+.cap{font-size:.875rem;color:var(--muted);margin:8px 0 0}
+.toc{display:grid;gap:8px;margin:0 0 36px;padding:0;list-style:none}
+.toc li{background:#fff;border-radius:10px;padding:12px 16px;display:flex;gap:12px;align-items:baseline}
+.toc b{min-width:2.4rem}
+
+
+.dark{
+  --ink:#e6eaef; --ink-2:#c3cad3; --muted:#9aa4b0; --line:#262e38; --line-2:#3a4450; --field:#7a8794;
+  --page:#0e1218; --surface:#151b23; --on-ink:#0e1218; --subtle:#121820; --sunken:#1c232c;
+  --scrim:rgb(0 0 0/.45); --shadow:rgb(0 0 0/.5); --sel:#1c2a3d;
+  --brand:#6db3f2; --focus:#8ab4f8;
+  --heat:#f2895a; --heat-bg:#3a1e12; --cold:#6aa8ff; --cold-bg:#14253d;
+  --rain:#3cc3ae; --rain-bg:#0f2d29; --drought:#d4a46e; --drought-bg:#332619;
+  --ok:#5cc97e; --ok-bg:#10291a; --warn:#e9b04a; --warn-bg:#2e2410; --bad:#ff8c82; --bad-bg:#351513;
+  color-scheme:dark;
+}
+.dark .chrome i{background:#3a4450}
+.dark .frame, .frame.dark{box-shadow:0 8px 24px rgb(0 0 0/.35)}
+/* ---------- mock frame ---------- */
+.scroll{overflow-x:auto;margin:16px -4px 0;padding:4px}
+.frame{min-width:1040px;background:var(--page);border:1px solid var(--line-2);border-radius:12px;overflow:hidden;background:var(--page);
+  color:var(--ink);font-size:14px;line-height:1.5;box-shadow:0 8px 24px rgb(16 24 40/.08)}
+.frame.narrow{min-width:0;width:375px}
+.chrome{height:28px;background:var(--sunken);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 12px}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#cfd5dc;display:block}
+.appbar{display:flex;align-items:center;gap:24px;padding:0 24px;height:52px;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:650}
+.logo b{width:22px;height:22px;border-radius:6px;background:var(--brand);display:block}
+.appbar nav{display:flex;gap:18px;color:var(--muted)}
+.appbar nav .on{color:var(--ink);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font:500 14px system-ui;white-space:nowrap}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.btn.sm{height:30px;padding:0 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+
+/* workspace header */
+.wshead{padding:18px 24px 0;border-bottom:1px solid var(--line);position:relative}
+.wshead .row{display:flex;align-items:flex-start;gap:16px}
+.wshead h1{font-size:22px;line-height:1.25;margin:0;font-weight:650}
+.wshead .sub{color:var(--muted);font-size:13px;margin-top:2px}
+.wshead .acts{margin-inline-start:auto;display:flex;gap:8px}
+.tabs{display:flex;gap:4px;margin-top:14px}
+.tabs a{padding:8px 12px 10px;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;font-weight:500;display:flex;gap:6px;align-items:center}
+.tabs a.on{color:var(--ink);border-color:var(--ink)}
+.tabs .st{font-size:11px;color:var(--ok)}
+.tabs .st.w{color:var(--warn)}
+.sticky-note{position:absolute;inset-inline-end:24px;bottom:12px;font-size:11px;color:var(--muted)}
+
+/* layout with inputs rail */
+.ws{display:grid;grid-template-columns:260px 1fr;min-height:640px}
+.rail{background:var(--subtle);border-inline-end:1px solid var(--line);padding:18px 16px}
+.rail h5{font:600 11px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.inp{padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.inp:last-of-type{border-bottom:0}
+.inp .k{font-size:12px;color:var(--muted)}
+.inp .v{font-weight:600;grid-column:1}
+.inp .e{grid-row:1/3;grid-column:2;align-self:center;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.inp.changed{background:var(--warn-bg);margin:0 -8px;padding:10px 8px;border-radius:8px;border:0}
+.inp.changed .k{color:var(--warn)}
+.rail .runbox{margin-top:16px;padding:12px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.bar{height:6px;border-radius:3px;background:var(--sunken);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:62%;background:var(--ink)}
+.main{padding:22px 28px 28px;min-width:0}
+
+/* section header + help */
+.sh{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.sh h3{font-size:17px;margin:0;font-weight:650}
+.sh .meta{color:var(--muted);font-size:13px}
+.sh .help{margin-inline-start:auto}
+.helpbtn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:999px;
+  border:1px solid var(--line-2);background:var(--surface);font:500 13px system-ui;color:var(--ink-2)}
+.helpbtn .q{width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;font:700 10px/1 system-ui}
+
+/* results */
+.answer{background:var(--subtle);border-radius:12px;padding:16px 18px;margin-bottom:18px;display:flex;gap:24px;align-items:center}
+.answer p{margin:0;font-size:16px;max-width:36rem}
+.answer .big{font-size:28px;font-weight:650;line-height:1}
+.answer .big small{font-size:13px;font-weight:500;color:var(--muted);display:block;margin-top:4px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;align-items:start}
+.tile{border-radius:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);display:flex;flex-direction:column}
+.tile header{display:flex;align-items:center;gap:8px}
+.tile h4{margin:0;font-size:15px}
+.tile .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.tile .pill{margin-inline-start:auto;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--cb);color:var(--c)}
+.tsent{margin:8px 0 6px;font-weight:500}
+.quiet{color:var(--muted);margin:0}
+.tlist{list-style:none;margin:0;padding:0}
+.tlist:empty{display:none}
+.trow{display:grid;grid-template-columns:1fr auto 96px;gap:0 12px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.trow .tname{font-weight:500;text-decoration:none}
+.trow code{grid-column:1;display:none}
+.trow .tval{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.trow .unit{color:var(--muted)}
+.trow .spark{width:96px}
+.tile .more{font-size:13px;margin-top:6px;text-decoration:underline;text-underline-offset:3px}
+.t-heat{--c:var(--heat);--cb:var(--heat-bg)}.t-cold{--c:var(--cold);--cb:var(--cold-bg)}
+.t-rain{--c:var(--rain);--cb:var(--rain-bg)}.t-drought{--c:var(--drought);--cb:var(--drought-bg)}
+.tile.t-rain,.tile.t-drought{background:var(--subtle);border-color:transparent;border-top-color:var(--c)}
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:22px 0 10px;position:relative}
+.chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;background:var(--surface);color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.chip .tdot{margin:0}
+.search{height:30px;border:1px solid var(--line-2);border-radius:8px;padding:0 10px;color:var(--muted);display:flex;align-items:center;width:220px;margin-inline-start:auto;font-size:13px}
+.tdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-inline-end:8px}
+table.cat{width:100%;border-collapse:collapse}
+.cat th{font-size:12px;color:var(--muted);text-align:start;font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line)}
+.cat td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.cat .num{font-variant-numeric:tabular-nums}
+
+/* sheet */
+.over{position:relative}
+.scrim{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:absolute;top:0;inset-inline-end:0;bottom:0;width:400px;background:var(--surface);border-inline-start:1px solid var(--line);
+  box-shadow:-12px 0 32px var(--shadow);padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.sheet h3{margin:0;font-size:18px}
+.fld label{display:block;font-weight:600;font-size:13px;margin-bottom:4px}
+.fld .in{height:38px;border:1px solid var(--field);background:var(--surface);border-radius:8px;padding:0 10px;display:flex;align-items:center}
+.fld .hint{font-size:12px;color:var(--muted);margin-top:3px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.impact{background:var(--warn-bg);border-radius:10px;padding:10px 12px;font-size:13px}
+.impact b{color:var(--warn)}
+.sheet .foot{margin-top:auto;display:flex;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+
+/* stale */
+.stale{display:flex;gap:12px;align-items:center;background:var(--warn-bg);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:14px}
+.stale .btn{margin-inline-start:auto}
+
+/* setup */
+.setup{max-width:640px;margin:0 auto;padding:36px 24px 40px}
+.setup h1{font-size:26px;margin:0 0 6px}
+.setup .lead2{color:var(--muted);margin:0 0 24px}
+.step{display:grid;grid-template-columns:32px 1fr;gap:4px 14px;padding:18px 0;border-top:1px solid var(--line)}
+.step .n{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--on-ink);display:grid;place-items:center;font-weight:650;font-size:13px}
+.step .n.done{background:var(--ok)}
+.step h2{font-size:16px;margin:2px 0 8px}
+.filecard{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.filecard .ok{color:var(--ok);font-weight:600;font-size:13px}
+.mini{display:flex;gap:2px;margin-top:8px;height:18px;align-items:flex-end}
+.mini i{flex:1;background:var(--ok);opacity:.85;border-radius:1px}
+.mini i.gap{background:var(--warn)}
+.cta{display:flex;align-items:center;gap:12px;padding-top:18px;border-top:1px solid var(--line)}
+.cta p{margin:0;color:var(--muted);font-size:13px}
+
+/* quality */
+.verdict{display:flex;align-items:center;gap:16px;border-radius:12px;padding:14px 16px;background:var(--warn-bg);margin-bottom:18px}
+.verdict .ic{width:34px;height:34px;border-radius:50%;background:var(--warn);color:var(--on-ink);display:grid;place-items:center;font-weight:700}
+.verdict h3{margin:0;font-size:17px}
+.verdict p{margin:0;color:var(--ink-2);font-size:13px}
+.verdict .acts{margin-inline-start:auto;display:flex;gap:8px}
+.md{display:grid;grid-template-columns:330px 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.md ul{list-style:none;margin:0;padding:0;border-inline-end:1px solid var(--line)}
+.md .grp{font:600 11px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 14px 6px;background:var(--subtle)}
+.md li{display:grid;grid-template-columns:78px 1fr auto;gap:8px;align-items:center;padding:9px 14px;border-top:1px solid var(--line);font-size:13px}
+.md li small{color:var(--muted)}
+.md li.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--ink)}
+.md .date{font:12px ui-monospace,Menlo,monospace;color:var(--muted)}
+.md .detail{padding:16px 18px;min-width:0}
+.spark.big{width:100%;height:auto;display:block}
+.md .detail h4{margin:0;font-size:16px}
+.md .detail .acts{display:flex;gap:8px;margin-top:14px}
+.daytable{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+.daytable td,.daytable th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:end}
+.daytable th{color:var(--muted);font-weight:500}
+.daytable tr.hit td{background:var(--warn-bg);font-weight:600}
+.worth{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.worth .chip b{font-variant-numeric:tabular-nums}
+
+/* compare */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.ba>div{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff}
+.ba h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.old h3{display:inline;font-size:20px;margin:0}
+.old .i{display:inline-block;width:13px;height:13px;border:1.4px solid #0a5aa8;border-radius:50%;font:700 9px/11px system-ui;color:#0a5aa8;text-align:center;vertical-align:2px;margin-inline-start:8px}
+.old .cnt{display:inline-block;background:#e5e9ee;border-radius:999px;font-size:11px;padding:1px 7px;margin-inline-start:8px;vertical-align:3px}
+.old p{color:#4d5966;font-size:14px;margin:6px 0 0}
+
+/* palette */
+.sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.sw div{border-radius:10px;overflow:hidden;border:1px solid var(--line);font-size:12px}
+.sw b{display:block;height:44px}
+.sw span{display:block;padding:6px 8px}
+.rule{font-size:14px}
+
+/* mobile */
+.mob .appbar{padding:0 14px;gap:12px}
+.mob .wshead{padding:14px 14px 0}
+.mob .wshead h1{font-size:18px}
+.inputsbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--subtle);border-bottom:1px solid var(--line);font-size:13px;overflow:hidden}
+.inputsbar span{white-space:nowrap;color:var(--ink-2)}
+.inputsbar .btn{margin-inline-start:auto}
+.mob .main{padding:16px 14px}
+.mob .tiles{grid-template-columns:1fr}
+.mob .tabs{overflow:hidden}
+.flex{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.note{background:#fff8e1;border-radius:10px;padding:12px 14px;font-size:14px;margin-top:14px}
+@media (max-width:700px){.prop{padding:18px}}
+</style>
+</head>
+<body>
+<main class="doc">
+<h1>Climpact: redesign proposals</h1>
+<p class="lead">Your feedback was that the help icons look odd and aren't clearly clickable, the app feels cramped, cluttered and same-coloured, controls take a lot of scrolling to reach, and entering data is mixed up with viewing results. Here are seven proposals, in priority order, each with a mockup. The colours and sizes are provisional: once you pick a direction I'll set them as tokens in <code>DESIGN.md</code> and check their contrast.</p>
+
+<ol class="toc">
+<li><b>P1</b><span><a href="#p1">Separate what you enter from what you get</a>: one Inputs panel, read-only results</span></li>
+<li><b>P1</b><span><a href="#p2">Colour means something</a>: ink for actions, colour only for data and status</span></li>
+<li><b>P1</b><span><a href="#p3">Help you can see</a>: a labelled Help button at the end of each section header</span></li>
+<li><b>P2</b><span><a href="#p4">One setup screen, then the workspace</a>: a first visit takes two steps, not four tabs</span></li>
+<li><b>P2</b><span><a href="#p5">Less box, more space</a>: one surface level, a sticky header, fewer borders</span></li>
+<li><b>P2</b><span><a href="#p6">Quality as list and detail</a>: the decision stays in view</span></li>
+<li><b>P3</b><span><a href="#p7">Phones</a>: Inputs collapse into a one-line bar</span></li>
+</ol>
+
+<!-- ============ P1 ============ -->
+<section class="prop" id="p1">
+<header><span class="prio p1">P1</span><h2>1. Separate what you enter from what you get</h2></header>
+<p class="why">This is the root cause of the clutter. Today every tab mixes the two. Data is a form plus a data report. Quality is a report plus an upload button plus threshold settings hidden in Details. Results is a report plus the "Adjust and recalculate" form, which sits about 3,000px down, below 80 indices. "Edit the details" is a small link under the title. The user can't build a picture of where their settings live.</p>
+<div class="cols">
+<div><h3>What changes</h3><ul>
+<li>A left <b>Inputs</b> panel lists everything the user has given: the file, the station, the base period, the quality thresholds and the index settings. Each has an <b>Edit</b> link.</li>
+<li>Edit opens a side sheet with only that form. It says what applying will update, then <b>Apply</b> (one button).</li>
+<li>The tabs become read-only outputs: <b>Quality · Results · Files</b>. The Data tab goes: its summary moves into Quality as "Your data".</li>
+<li>An input changed since the last run is highlighted in the panel, and the run's progress shows beneath it. This uses #179's out-of-date model.</li>
+</ul></div>
+<div><h3>Why</h3><ul>
+<li>One place to change things, so there's nothing to remember (recognition over recall).</li>
+<li>Settings are one click away from any tab, with no scrolling (Fitts's law).</li>
+<li>Output pages lose every form, so each becomes shorter and calmer (minimalist design).</li>
+<li>It matches desktop analysis tools, where parameters sit on the left and results on the right (Jakob's law).</li>
+</ul></div>
+</div>
+<div class="scroll"><div class="frame">
+  <div class="chrome"><i></i><i></i><i></i></div>
+  <div class="appbar"><span class="logo"><b></b>Climpact</span><nav><span class="on">Single station</span><span>Batch</span><span>Gridded</span><span>Your calculations</span></nav><span style="margin-inline-start:auto" class="helpbtn"><span class="q">?</span>Help</span></div>
+  <div class="wshead"><div class="row"><div><h1>Sydney Observatory Hill</h1><div class="sub">1936–2015 · 80 years · sydney_observatory_hill_1936-2015.txt</div></div>
+    <div class="acts"><span class="btn">Compare with sector data</span><span class="btn pri">↓ Download all</span></div></div>
+    <nav class="tabs"><a href="#">Quality <span class="st w">● Usable</span></a><a class="on" href="#">Results <span class="st">● Current</span></a><a href="#">Files</a></nav>
+  </div>
+  <div class="ws">
+    <aside class="rail">
+      <h5>Your inputs</h5>
+      <div class="inp"><span class="k">File</span><span class="v">29,220 days · 3 variables</span><a class="e" href="#">Replace</a></div>
+      <div class="inp"><span class="k">Station</span><span class="v">−33.86°, 151.21°</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Base period</span><span class="v">1971–2000</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Quality thresholds</span><span class="v">Defaults</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Index settings</span><span class="v">Defaults · 80 indices</span><a class="e" href="#">Edit</a></div>
+      <p class="cap">Results deleted 23 Nov 2026.</p>
+    </aside>
+    <div class="main">
+      <div class="answer"><div class="big">22<small>of 80 changed</small></div><p><b>Warmer, with no clear change in rain or drought.</b> Mean temperature rose 0.19 °C per decade since 1936. Heat and cold indices changed; rain and drought did not.</p></div>
+      <div class="sh"><h3>By theme</h3><span class="meta">Up to three significant trends each, largest first</span><span class="help"><span class="helpbtn"><span class="q">?</span>How to read this</span></span></div>
+      <div class="tiles">
+    <section class="tile t-heat">
+      <header><span class="dot"></span><h4>Heat</h4><span class="pill">9 of 22 changed</span></header>
+      <p class="tsent">Hotter: 9 indices increased significantly.</p>
+      <ul class="tlist">
+    <li class="trow">
+      <a class="tname" href="#">Tropical nights</a><code>TR</code>
+      <span class="tval">↗ +4.7 <span class="unit">days / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,22.9 3.1,20.8 6.2,22.1 9.2,21.9 12.3,23.0 15.4,21.0 18.5,17.5 21.5,18.7 24.6,16.9 27.7,18.4 30.8,17.7 33.8,17.8 36.9,21.7 40.0,15.5 43.1,15.9 46.2,15.6 49.2,20.3 52.3,20.1 55.4,17.7 58.5,16.4 61.5,14.2 64.6,14.6 67.7,12.9 70.8,15.3 73.8,12.7 76.9,12.1 80.0,14.2 83.1,8.3 86.2,10.6 89.2,8.8 92.3,12.6 95.4,12.5 98.5,11.2 101.5,10.3 104.6,8.2 107.7,8.7 110.8,10.0 113.8,10.8 116.9,9.4 120.0,5.0" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li>
+    <li class="trow">
+      <a class="tname" href="#">Summer days</a><code>SU</code>
+      <span class="tval">↗ +5.2 <span class="unit">days / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,22.5 3.1,19.8 6.2,19.1 9.2,22.9 12.3,19.2 15.4,16.1 18.5,23.0 21.5,19.0 24.6,18.1 27.7,19.3 30.8,16.1 33.8,17.0 36.9,19.7 40.0,14.3 43.1,14.3 46.2,13.4 49.2,12.0 52.3,14.0 55.4,14.1 58.5,16.9 61.5,12.4 64.6,14.7 67.7,14.0 70.8,15.4 73.8,14.4 76.9,13.1 80.0,8.8 83.1,15.7 86.2,14.1 89.2,10.0 92.3,7.1 95.4,8.6 98.5,13.7 101.5,14.7 104.6,8.0 107.7,10.1 110.8,10.6 113.8,5.6 116.9,5.0 120.0,6.7" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li>
+    <li class="trow">
+      <a class="tname" href="#">Warm nights</a><code>TN90p</code>
+      <span class="tval">↗ +1.3 <span class="unit">pp / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,21.1 3.1,20.3 6.2,17.3 9.2,19.1 12.3,19.0 15.4,18.6 18.5,23.0 21.5,16.2 24.6,16.6 27.7,17.2 30.8,22.5 33.8,19.1 36.9,15.4 40.0,21.0 43.1,17.0 46.2,13.9 49.2,18.8 52.3,11.8 55.4,13.9 58.5,15.1 61.5,13.6 64.6,12.5 67.7,13.4 70.8,10.7 73.8,14.4 76.9,13.5 80.0,9.8 83.1,11.8 86.2,13.5 89.2,9.0 92.3,7.4 95.4,11.4 98.5,13.2 101.5,10.0 104.6,9.6 107.7,9.6 110.8,5.4 113.8,10.5 116.9,5.0 120.0,10.4" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li></ul>
+      <a class="more" href="#">All 30 heat indices →</a>
+    </section>
+    <section class="tile t-cold">
+      <header><span class="dot"></span><h4>Cold</h4><span class="pill">4 of 11 changed</span></header>
+      <p class="tsent">Fewer cold nights and cool days.</p>
+      <ul class="tlist">
+    <li class="trow">
+      <a class="tname" href="#">Cold nights</a><code>TN10p</code>
+      <span class="tval">↘ −1.9 <span class="unit">pp / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,8.0 3.1,5.6 6.2,5.0 9.2,5.8 12.3,7.1 15.4,7.7 18.5,8.0 21.5,7.5 24.6,9.2 27.7,8.7 30.8,8.4 33.8,9.8 36.9,8.7 40.0,9.3 43.1,6.9 46.2,10.4 49.2,12.1 52.3,12.3 55.4,11.9 58.5,10.5 61.5,13.1 64.6,12.1 67.7,9.7 70.8,18.2 73.8,15.8 76.9,13.5 80.0,13.6 83.1,14.2 86.2,15.7 89.2,14.0 92.3,15.0 95.4,16.8 98.5,11.5 101.5,15.7 104.6,17.7 107.7,17.2 110.8,17.7 113.8,17.7 116.9,23.0 120.0,19.1" fill="none" stroke="var(--cold)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li>
+    <li class="trow">
+      <a class="tname" href="#">Cool days</a><code>TX10p</code>
+      <span class="tval">↘ −1.8 <span class="unit">pp / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,5.0 3.1,9.8 6.2,7.9 9.2,6.1 12.3,6.6 15.4,5.7 18.5,12.6 21.5,10.1 24.6,10.4 27.7,8.8 30.8,8.1 33.8,16.3 36.9,8.8 40.0,14.4 43.1,10.3 46.2,15.1 49.2,12.0 52.3,10.2 55.4,13.3 58.5,13.0 61.5,12.0 64.6,13.7 67.7,14.5 70.8,11.5 73.8,12.8 76.9,15.9 80.0,10.0 83.1,18.4 86.2,14.4 89.2,17.2 92.3,16.7 95.4,15.9 98.5,17.2 101.5,16.7 104.6,21.5 107.7,21.8 110.8,17.7 113.8,21.3 116.9,21.8 120.0,23.0" fill="none" stroke="var(--cold)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li>
+    <li class="trow">
+      <a class="tname" href="#">Coldest night</a><code>TNn</code>
+      <span class="tval">↗ +0.18 <span class="unit">°C / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,19.1 3.1,19.9 6.2,18.0 9.2,23.0 12.3,20.5 15.4,22.7 18.5,18.1 21.5,15.9 24.6,21.1 27.7,15.2 30.8,16.2 33.8,18.4 36.9,22.1 40.0,14.2 43.1,17.2 46.2,17.9 49.2,15.3 52.3,15.0 55.4,12.2 58.5,17.4 61.5,12.2 64.6,11.1 67.7,10.8 70.8,14.1 73.8,15.0 76.9,10.7 80.0,12.4 83.1,12.0 86.2,8.7 89.2,12.2 92.3,16.4 95.4,11.7 98.5,14.6 101.5,8.3 104.6,9.1 107.7,10.8 110.8,9.1 113.8,6.8 116.9,8.2 120.0,5.0" fill="none" stroke="var(--cold)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li></ul>
+      <a class="more" href="#">All 12 cold indices →</a>
+    </section>
+    <section class="tile t-rain">
+      <header><span class="dot"></span><h4>Rain</h4><span class="pill">No change</span></header>
+      <p class="tsent">No significant change across 13 indices.</p>
+      <ul class="tlist"></ul>
+      <a class="more" href="#">All 13 rain indices →</a>
+    </section>
+    <section class="tile t-drought">
+      <header><span class="dot"></span><h4>Drought</h4><span class="pill">No change</span></header>
+      <p class="tsent">No significant change across 9 indices.</p>
+      <ul class="tlist"></ul>
+      <a class="more" href="#">All 9 drought indices →</a>
+    </section></div>
+      <div class="filters"><span class="chip on">All 80</span><span class="chip"><span class="tdot t-heat"></span>Heat 30</span><span class="chip"><span class="tdot t-cold"></span>Cold 12</span><span class="chip"><span class="tdot t-rain"></span>Rain 13</span><span class="chip"><span class="tdot t-drought"></span>Drought 9</span><span class="chip">Also measured 14</span><span class="chip">Significant only</span><span class="search">Find an index…</span></div>
+      <table class="cat"><thead><tr><th>Index</th><th>Code</th><th>Trend per decade</th><th>Significance</th><th>1936–2015</th></tr></thead><tbody><tr><td><span class="tdot t-heat"></span>Tropical nights</td><td><code>TR</code></td>
+    <td class="num">↗ +4.7 days</td><td>Significant</td><td><svg class="spark" viewBox="0 0 90 22" width="90" height="22" aria-hidden="true"><polyline points="0.0,15.3 2.3,13.0 4.6,12.0 6.9,11.5 9.2,15.3 11.5,12.3 13.8,17.0 16.2,15.3 18.5,16.7 20.8,11.0 23.1,14.8 25.4,12.4 27.7,12.5 30.0,12.0 32.3,12.7 34.6,11.0 36.9,7.9 39.2,10.8 41.5,9.7 43.8,8.6 46.2,10.5 48.5,12.1 50.8,10.6 53.1,7.5 55.4,12.1 57.7,10.0 60.0,6.8 62.3,7.0 64.6,8.1 66.9,6.5 69.2,7.4 71.5,9.5 73.8,9.9 76.2,8.0 78.5,5.0 80.8,7.4 83.1,7.8 85.4,7.3 87.7,8.4 90.0,5.6" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg></td></tr><tr><td><span class="tdot t-heat"></span>Summer days</td><td><code>SU</code></td>
+    <td class="num">↗ +5.2 days</td><td>Significant</td><td><svg class="spark" viewBox="0 0 90 22" width="90" height="22" aria-hidden="true"><polyline points="0.0,15.7 2.3,13.3 4.6,17.0 6.9,12.9 9.2,14.1 11.5,15.8 13.8,11.7 16.2,13.0 18.5,15.6 20.8,13.4 23.1,11.5 25.4,12.4 27.7,10.4 30.0,10.3 32.3,10.2 34.6,10.5 36.9,8.8 39.2,9.6 41.5,9.7 43.8,13.2 46.2,8.6 48.5,7.8 50.8,10.0 53.1,10.0 55.4,6.3 57.7,11.5 60.0,8.0 62.3,5.0 64.6,9.7 66.9,7.1 69.2,5.2 71.5,7.9 73.8,6.7 76.2,6.0 78.5,8.4 80.8,7.0 83.1,6.3 85.4,5.3 87.7,6.3 90.0,6.4" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg></td></tr><tr><td><span class="tdot t-heat"></span>Hottest day</td><td><code>TXx</code></td>
+    <td class="num">↗ +0.12 °C</td><td>—</td><td><svg class="spark" viewBox="0 0 90 22" width="90" height="22" aria-hidden="true"><polyline points="0.0,16.5 2.3,15.3 4.6,13.2 6.9,14.2 9.2,15.4 11.5,15.2 13.8,9.7 16.2,11.8 18.5,12.3 20.8,17.0 23.1,11.9 25.4,11.9 27.7,9.9 30.0,11.6 32.3,12.1 34.6,11.0 36.9,14.5 39.2,9.8 41.5,10.7 43.8,12.0 46.2,8.7 48.5,7.8 50.8,12.4 53.1,11.1 55.4,9.4 57.7,9.4 60.0,10.1 62.3,10.7 64.6,5.8 66.9,7.2 69.2,10.4 71.5,10.4 73.8,5.6 76.2,6.5 78.5,5.0 80.8,6.3 83.1,8.7 85.4,6.7 87.7,10.2 90.0,7.8" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg></td></tr><tr><td><span class="tdot t-heat"></span>Warm spell duration</td><td><code>WSDI</code></td>
+    <td class="num">↗ +1.1 days</td><td>—</td><td><svg class="spark" viewBox="0 0 90 22" width="90" height="22" aria-hidden="true"><polyline points="0.0,16.3 2.3,15.0 4.6,17.0 6.9,15.7 9.2,14.4 11.5,14.2 13.8,13.5 16.2,14.0 18.5,14.8 20.8,12.5 23.1,13.6 25.4,14.9 27.7,14.3 30.0,12.9 32.3,12.9 34.6,12.1 36.9,12.1 39.2,11.6 41.5,11.9 43.8,13.7 46.2,10.4 48.5,9.0 50.8,9.8 53.1,10.7 55.4,9.3 57.7,11.6 60.0,13.0 62.3,9.3 64.6,10.8 66.9,7.5 69.2,10.6 71.5,13.1 73.8,10.0 76.2,5.0 78.5,8.3 80.8,9.8 83.1,8.5 85.4,5.9 87.7,5.7 90.0,6.0" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg></td></tr><tr><td><span class="tdot t-heat"></span>Heatwave number (EHF)</td><td><code>HWN</code></td>
+    <td class="num">↗ +0.3 events</td><td>Significant</td><td><svg class="spark" viewBox="0 0 90 22" width="90" height="22" aria-hidden="true"><polyline points="0.0,13.7 2.3,15.0 4.6,16.2 6.9,14.6 9.2,12.1 11.5,13.3 13.8,12.9 16.2,17.0 18.5,14.7 20.8,12.6 23.1,14.5 25.4,11.3 27.7,12.0 30.0,11.0 32.3,13.1 34.6,7.0 36.9,9.4 39.2,12.2 41.5,11.3 43.8,5.7 46.2,11.6 48.5,8.7 50.8,8.2 53.1,10.0 55.4,12.2 57.7,9.0 60.0,8.3 62.3,6.4 64.6,6.9 66.9,8.2 69.2,6.1 71.5,6.5 73.8,6.9 76.2,6.9 78.5,7.3 80.8,5.0 83.1,8.4 85.4,7.2 87.7,5.6 90.0,8.4" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg></td></tr></tbody></table>
+    </div>
+  </div>
+</div></div>
+<p class="cap">Results tab. The Inputs panel sits on the left; the header carries the two page-level actions; the 80 indices are one sortable, filterable table, with no family accordions.</p>
+
+<h3 style="margin-top:28px">Editing an input</h3>
+<div class="scroll"><div class="frame over">
+  <div class="chrome"><i></i><i></i><i></i></div>
+  <div class="wshead"><div class="row"><div><h1>Sydney Observatory Hill</h1><div class="sub">1936–2015 · 80 years</div></div><div class="acts"><span class="btn pri">↓ Download all</span></div></div>
+    <nav class="tabs"><a href="#">Quality <span class="st w">● Usable</span></a><a class="on" href="#">Results <span class="st w">● Updating</span></a><a href="#">Files</a></nav></div>
+  <div class="ws" style="min-height:470px">
+    <aside class="rail"><h5>Your inputs</h5>
+      <div class="inp"><span class="k">File</span><span class="v">29,220 days · 3 variables</span><a class="e" href="#">Replace</a></div>
+      <div class="inp"><span class="k">Station</span><span class="v">−33.86°, 151.21°</span><a class="e" href="#">Edit</a></div>
+      <div class="inp changed"><span class="k">Base period · changed</span><span class="v">1981–2010</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Quality thresholds</span><span class="v">Defaults</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Index settings</span><span class="v">Defaults</span><a class="e" href="#">Edit</a></div>
+      <div class="runbox"><b>Recalculating</b><br><small>About 20 s left</small><div class="bar"><i></i></div></div>
+    </aside>
+    <div class="main"><div class="stale"><b>Out of date.</b> These results use 1971–2000. New results replace them when ready.<span class="btn sm">Undo the change</span></div>
+      <div class="answer" style="opacity:.75"><div class="big">22<small>of 80 changed</small></div><p><b>Warmer, with no clear change in rain or drought.</b></p></div></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="sh" style="margin:0"><h3>Base period</h3><span class="help"><span class="helpbtn"><span class="q">?</span>Help</span></span></div>
+    <p style="margin:0;color:var(--muted)">The years the percentile indices are compared with. Your data covers 1936–2015.</p>
+    <div class="two"><div class="fld"><label>First year</label><div class="in">1981</div></div><div class="fld"><label>Last year</label><div class="in">2010</div></div></div>
+    <div class="impact"><b>Updates Results and Files.</b> Quality stays as it is. About 20 seconds.</div>
+    <div class="foot"><span class="btn pri">Apply and recalculate</span><span class="btn ghost">Cancel</span></div>
+  </div>
+</div></div>
+<p class="cap">The sheet holds one input group. It says what will change before the user applies it. Old results stay visible, marked out of date, as #179 does now.</p>
+</section>
+
+<!-- ============ P2 ============ -->
+<section class="prop" id="p2">
+<header><span class="prio p1">P1</span><h2>2. Colour means something</h2></header>
+<p class="why">Today blue does every job: the primary button, links, the active tab, help icons, chart lines, sparklines, badges and info alerts. When everything is highlighted, nothing is, so the eye has nowhere to land. The fix is to give each colour one job.</p>
+<div class="cols">
+<div class="rule"><h3>Rules</h3><ul>
+<li><b>Ink</b> (near-black; near-white in dark mode) for primary buttons, the current tab and links. Links are underlined text, not blue.</li>
+<li><b>Brand blue</b> only for the logo, focus rings and selection.</li>
+<li><b>Theme colours</b> mark data: Heat, Cold, Rain and Drought each have one hue, used in tile edges, sparklines, chips and index charts. The user learns them once and can then scan by colour.</li>
+<li><b>Status colours</b> (green, amber, red) only for the verdict and run state.</li>
+<li>Every colour still comes with a word or shape, as now.</li>
+</ul></div>
+<div><h3>Provisional palette (light)</h3>
+<div class="sw">
+<div><b style="background:var(--ink)"></b><span>Ink · actions, text</span></div>
+<div><b style="background:var(--brand)"></b><span>Brand · logo, focus</span></div>
+<div><b style="background:var(--heat)"></b><span>Heat</span></div>
+<div><b style="background:var(--cold)"></b><span>Cold</span></div>
+<div><b style="background:var(--rain)"></b><span>Rain</span></div>
+<div><b style="background:var(--drought)"></b><span>Drought</span></div>
+<div><b style="background:var(--ok)"></b><span>Ready / current</span></div>
+<div><b style="background:var(--warn)"></b><span>Usable / out of date</span></div>
+<div><b style="background:var(--bad)"></b><span>Fix first / failed</span></div>
+</div>
+<p class="cap">The four theme hues are distinct in lightness as well as hue, so they still separate for deuteranopia. That needs checking against the chart palette test before adoption.</p></div>
+</div>
+<div class="note">You can see this in the P1 mockup: a single dark button per view, with colour only where there is data.</div>
+</section>
+
+<!-- ============ P3 ============ -->
+<section class="prop" id="p3">
+<header><span class="prio p1">P1</span><h2>3. Help you can see</h2></header>
+<p class="why">The ⓘ is a 14px outline glyph. It's placed after the heading text, so it moves with the heading's length and sits off the baseline. It's the same blue as everything else, and nothing about it says "press me". Fix it with one section-header pattern: title, an optional muted note, then a labelled Help button pinned to the end of the row.</p>
+<div class="ba">
+<div class="old"><h4>Now</h4>
+<div><h3>Look wrong</h3><span class="cnt">5</span><span class="i">i</span></div><p>Almost always typing errors or swapped columns.</p>
+<div style="margin-top:18px"><h3>What changed</h3><span class="i">i</span></div>
+<div style="margin-top:18px"><h3 style="font-size:16px">Station details</h3><span class="i">i</span></div></div>
+<div><h4>Proposed</h4>
+<div class="sh"><h3>Look wrong</h3><span class="meta">5 values · almost always typing errors</span><span class="help"><span class="helpbtn"><span class="q">?</span>Help</span></span></div>
+<div class="sh"><h3>By theme</h3><span class="meta">Largest significant trends first</span><span class="help"><span class="helpbtn"><span class="q">?</span>How to read this</span></span></div>
+<div class="sh"><h3>Station details</h3><span class="help"><span class="helpbtn"><span class="q">?</span>Help</span></span></div></div>
+</div>
+<div class="cols"><div><ul>
+<li>A 30px pill with a word: a clear target, aligned to the right edge on every section.</li>
+<li>Specific labels where they help ("How to read this", "What do the levels mean?").</li>
+<li>It opens the same drawer #177 built: not modal, with focus returned on close.</li>
+</ul></div><div><ul>
+<li>At most one per section, and none on sections that explain themselves.</li>
+<li>A <b>Help</b> button in the app bar opens the page's guide, so the help system has a visible home.</li>
+</ul></div></div>
+</section>
+
+<!-- ============ P4 ============ -->
+<section class="prop" id="p4">
+<header><span class="prio p2">P2</span><h2>4. One setup screen, then the workspace</h2></header>
+<p class="why">A first visit currently means: upload, then a Data tab of fields and charts, then Quality, then Results. Most users keep the defaults. Put the only things that must be entered on one short page. Everything else (thresholds, index settings) starts at its default and is available later in Inputs.</p>
+<div class="scroll"><div class="frame">
+  <div class="chrome"><i></i><i></i><i></i></div>
+  <div class="appbar"><span class="logo"><b></b>Climpact</span><nav><span class="on">Single station</span><span>Batch</span><span>Gridded</span></nav></div>
+  <div class="setup">
+    <h1>New station</h1><p class="lead2">Two things, then Climpact checks your data and calculates every index.</p>
+    <div class="step"><span class="n done">✓</span><div><h2>Your file</h2>
+      <div class="filecard"><b>sydney_observatory_hill_1936-2015.txt</b><span class="ok">✓ Read: 1936–2015, 29,220 days</span><span class="btn sm" style="margin-inline-start:auto">Replace</span></div>
+      <div class="mini"><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="gap" style="height:55%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="gap" style="height:55%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="gap" style="height:55%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i><i class="" style="height:100%"></i></div><p class="cap">Days with data in each year. Amber years have gaps.</p></div></div>
+    <div class="step"><span class="n">2</span><div><h2>Station details</h2>
+      <div class="fld" style="margin-bottom:10px"><label>Station name</label><div class="in">Sydney Observatory Hill</div></div>
+      <div class="two"><div class="fld"><label>Latitude</label><div class="in">−33.86</div><div class="hint">Negative south of the equator</div></div><div class="fld"><label>Longitude</label><div class="in">151.21</div></div></div>
+      <div class="two" style="margin-top:10px"><div class="fld"><label>Base period from</label><div class="in">1971</div></div><div class="fld"><label>to</label><div class="in">2000</div><div class="hint">Climpact for R suggests 1971–2000</div></div></div></div></div>
+    <div class="cta"><span class="btn pri">Check and calculate →</span><p>About 30 seconds. Quality thresholds and index settings use the defaults; change them later.</p></div>
+  </div>
+</div></div>
+<p class="cap">This replaces the upload page and the Data tab. The detailed data summary (missing values, daily series) moves into Quality as "Your data".</p>
+</section>
+
+<!-- ============ P5 ============ -->
+<section class="prop" id="p5">
+<header><span class="prio p2">P2</span><h2>5. Less box, more space</h2></header>
+<p class="why">Nearly everything sits in a bordered card, and cards hold tables and charts with their own borders. On Load that's three nested boxes. Borders compete with content, and the 1rem padding between them makes the page feel cramped even though it is long.</p>
+<div class="cols">
+<div><h3>Rules</h3><ul>
+<li><b>One surface level.</b> Sections are separated by space (48px) and a heading, not boxes. A box only marks something that is one object: a theme tile or a finding.</li>
+<li><b>A tinted band, not a card,</b> for the page's one answer: the verdict on Quality, the summary on Results.</li>
+<li><b>Tables without frames:</b> hairline rows only.</li>
+<li><b>A sticky workspace header</b> (station name, tabs, page actions) so the user always knows where they are and never scrolls back up for a button.</li>
+</ul></div>
+<div><h3>Type</h3><ul>
+<li>A human station name as the title (from the form, not the file name). The file name moves to the subtitle.</li>
+<li>Small uppercase labels for groups ("YOUR INPUTS"). They group without adding boxes.</li>
+<li>Larger, bolder numbers where there's an answer (22 of 80); smaller muted text for the rest.</li>
+<li>Index codes hidden in tiles and shown in the table, so tiles read as plain language.</li>
+</ul></div>
+</div>
+<p class="cap">Both mockups above apply these rules: compare the P1 Results tab with the current page's stacked bordered cards and accordions.</p>
+</section>
+
+<!-- ============ P6 ============ -->
+<section class="prop" id="p6">
+<header><span class="prio p2">P2</span><h2>6. Quality as list and detail</h2></header>
+<p class="why">Quality now stacks the verdict, five finding rows each with their own expander, four groups with their own expanders, a missing-data table and a Details accordion holding the real charts. Reviewing a finding means opening rows one after another, and "Use this data" scrolls out of view. Use a list on the left and the selected item in detail on the right, with the verdict and its buttons pinned at the top.</p>
+<div class="scroll"><div class="frame">
+  <div class="chrome"><i></i><i></i><i></i></div>
+  <div class="wshead"><div class="row"><div><h1>Sydney Observatory Hill</h1><div class="sub">1936–2015 · 80 years</div></div></div>
+    <nav class="tabs"><a class="on" href="#">Quality <span class="st w">● Usable</span></a><a href="#">Results <span class="st">● Ready</span></a><a href="#">Files</a></nav></div>
+  <div class="ws" style="min-height:520px">
+    <aside class="rail"><h5>Your inputs</h5>
+      <div class="inp"><span class="k">File</span><span class="v">29,220 days</span><a class="e" href="#">Replace</a></div>
+      <div class="inp"><span class="k">Station</span><span class="v">−33.86°, 151.21°</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Base period</span><span class="v">1971–2000</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Quality thresholds</span><span class="v">Defaults</span><a class="e" href="#">Edit</a></div>
+      <div class="inp"><span class="k">Index settings</span><span class="v">Defaults</span><a class="e" href="#">Edit</a></div></aside>
+    <div class="main">
+      <div class="verdict"><span class="ic">!</span><div><h3>Usable. 5 values look wrong.</h3><p>5 of 87,537 values (under 0.01%). 399 more are unusual but may be real.</p></div><div class="acts"><span class="btn">Replace file</span><span class="btn pri">See results →</span></div></div>
+      <div class="md">
+        <div><div class="grp">Look wrong · 5</div><ul><li class="sel"><span class="date">1986-08-06</span>
+    <span><b>Rain 327.6 mm</b><br><small>over the 200 mm limit</small></span><svg class="spark" viewBox="0 0 70 22" width="70" height="22" aria-hidden="true"><polyline points="0.0,16.3 5.0,16.2 10.0,16.7 15.0,16.8 20.0,16.0 25.0,17.0 30.0,16.3 35.0,5.0 40.0,13.7 45.0,16.2 50.0,16.1 55.0,16.4 60.0,16.3 65.0,16.2 70.0,17.0" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="35.0" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></li><li class=""><span class="date">1942-03-28</span>
+    <span><b>Rain 280.7 mm</b><br><small>over the 200 mm limit</small></span><svg class="spark" viewBox="0 0 70 22" width="70" height="22" aria-hidden="true"><polyline points="0.0,16.4 5.0,16.5 10.0,16.1 15.0,16.1 20.0,16.1 25.0,16.4 30.0,16.0 35.0,5.0 40.0,13.7 45.0,16.8 50.0,17.0 55.0,16.9 60.0,16.6 65.0,16.9 70.0,16.1" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="35.0" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></li><li class=""><span class="date">1990-02-03</span>
+    <span><b>Rain 243.6 mm</b><br><small>over the 200 mm limit</small></span><svg class="spark" viewBox="0 0 70 22" width="70" height="22" aria-hidden="true"><polyline points="0.0,16.4 5.0,16.3 10.0,16.3 15.0,16.2 20.0,16.5 25.0,17.0 30.0,16.1 35.0,5.0 40.0,13.6 45.0,16.4 50.0,16.3 55.0,16.9 60.0,16.2 65.0,16.7 70.0,16.9" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="35.0" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></li><li class=""><span class="date">1984-11-09</span>
+    <span><b>Rain 234.6 mm</b><br><small>over the 200 mm limit</small></span><svg class="spark" viewBox="0 0 70 22" width="70" height="22" aria-hidden="true"><polyline points="0.0,16.8 5.0,16.3 10.0,16.9 15.0,16.2 20.0,16.0 25.0,16.5 30.0,16.7 35.0,5.0 40.0,13.7 45.0,16.2 50.0,16.4 55.0,16.4 60.0,17.0 65.0,16.9 70.0,16.8" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="35.0" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></li><li class=""><span class="date">1988-11-16</span>
+    <span><b>TN 12.6 °C equals TX</b><br><small>minimum at or above maximum</small></span><svg class="spark" viewBox="0 0 70 22" width="70" height="22" aria-hidden="true"><polyline points="0.0,16.2 5.0,16.7 10.0,16.4 15.0,17.0 20.0,16.9 25.0,16.7 30.0,16.3 35.0,5.0 40.0,13.6 45.0,16.7 50.0,16.4 55.0,16.5 60.0,16.5 65.0,16.9 70.0,16.0" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="35.0" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></li></ul><div class="grp">Worth a look · 399</div>
+          <ul><li><span class="date">TX</span><span>High maximums<br><small>69 · mostly Jan–Feb</small></span><span></span></li>
+          <li><span class="date">PR</span><span>Heavy rain days<br><small>275</small></span><span></span></li></ul></div>
+        <div class="detail">
+          <div class="sh" style="margin-bottom:4px"><h4>6 August 1986: rain 327.6 mm</h4><span class="help"><span class="helpbtn"><span class="q">?</span>Help</span></span></div>
+          <p style="margin:0;color:var(--muted)">Over the 200 mm limit for a single day. The days either side are dry.</p>
+          <div style="margin-top:12px"><svg class="spark big" viewBox="0 0 640 170" width="640" height="170" aria-hidden="true"><polyline points="0.0,99.7 5.4,77.8 10.8,101.7 16.1,101.7 21.5,117.8 26.9,90.9 32.3,82.1 37.6,94.0 43.0,90.7 48.4,80.8 53.8,79.8 59.2,88.2 64.5,90.2 69.9,87.4 75.3,110.8 80.7,88.4 86.1,71.3 91.4,70.6 96.8,109.1 102.2,89.0 107.6,91.6 112.9,98.7 118.3,83.1 123.7,102.9 129.1,96.8 134.5,100.1 139.8,114.7 145.2,104.9 150.6,110.2 156.0,105.4 161.3,119.1 166.7,108.6 172.1,118.7 177.5,122.1 182.9,123.7 188.2,146.7 193.6,109.8 199.0,112.6 204.4,136.4 209.7,154.9 215.1,135.6 220.5,123.4 225.9,165.0 231.3,109.0 236.6,142.2 242.0,138.3 247.4,139.8 252.8,126.9 258.2,124.5 263.5,126.0 268.9,121.1 274.3,131.1 279.7,113.5 285.0,121.8 290.4,117.3 295.8,100.4 301.2,106.7 306.6,98.1 311.9,83.4 317.3,108.5 322.7,5.0 328.1,111.5 333.4,72.9 338.8,106.1 344.2,107.3 349.6,94.3 355.0,70.8 360.3,80.9 365.7,102.6 371.1,79.2 376.5,89.8 381.8,91.3 387.2,60.8 392.6,77.5 398.0,77.4 403.4,78.2 408.7,93.5 414.1,82.5 419.5,94.1 424.9,123.7 430.3,97.4 435.6,83.0 441.0,105.8 446.4,90.9 451.8,112.0 457.1,105.5 462.5,108.4 467.9,108.7 473.3,107.1 478.7,127.3 484.0,118.2 489.4,101.6 494.8,115.0 500.2,128.9 505.5,125.7 510.9,126.1 516.3,124.2 521.7,127.9 527.1,127.0 532.4,129.5 537.8,134.5 543.2,119.2 548.6,118.8 553.9,143.2 559.3,139.7 564.7,122.7 570.1,137.1 575.5,126.2 580.8,124.4 586.2,116.7 591.6,122.3 597.0,86.8 602.4,103.1 607.7,100.2 613.1,121.4 618.5,119.6 623.9,99.4 629.2,90.2 634.6,96.1 640.0,83.0" fill="none" stroke="var(--rain)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="322.7" cy="5.0" r="3.5" fill="none" stroke="var(--ink)" stroke-width="1.5"/></svg></div>
+          <table class="daytable"><tr><th>Date</th><th>Rain mm</th><th>TX °C</th><th>TN °C</th></tr>
+          <tr><td>1986-08-05</td><td>0.0</td><td>17.1</td><td>9.0</td></tr>
+          <tr class="hit"><td>1986-08-06</td><td>327.6</td><td>15.2</td><td>10.4</td></tr>
+          <tr><td>1986-08-07</td><td>12.4</td><td>14.8</td><td>9.9</td></tr></table>
+        </div>
+      </div>
+      <div class="sh" style="margin-top:24px"><h3>Your data</h3><span class="meta">Missing values and the daily series</span></div>
+      <div class="worth"><span class="chip">Rain <b>7 missing</b></span><span class="chip">TX <b>58 missing</b></span><span class="chip">TN <b>58 missing</b></span><span class="chip">1996 too incomplete for annual values</span></div>
+    </div>
+  </div>
+</div></div>
+<p class="cap">"See results" replaces "Use this data". Because the run already started in the background (#178), Results is usually ready.</p>
+</section>
+
+<!-- ============ P7 ============ -->
+<section class="prop" id="p7">
+<header><span class="prio p3">P3</span><h2>7. Phones</h2></header>
+<p class="why">On a phone the Inputs panel becomes a one-line bar under the tabs, with Edit opening the same sheet full-screen. Theme tiles stack, and the catalogue table becomes a list.</p>
+<div class="flex">
+<div class="frame narrow mob">
+  <div class="appbar"><span class="logo"><b></b>Climpact</span><span style="margin-inline-start:auto" class="helpbtn"><span class="q">?</span>Help</span></div>
+  <div class="wshead"><h1>Sydney Observatory Hill</h1><div class="sub">1936–2015</div>
+    <nav class="tabs"><a href="#">Quality</a><a class="on" href="#">Results</a><a href="#">Files</a></nav></div>
+  <div class="inputsbar"><span>Inputs: 1971–2000 · defaults</span><span class="btn sm">Edit</span></div>
+  <div class="main"><div class="answer" style="display:block"><p><b>Warmer, with no clear change in rain or drought.</b> 22 of 80 indices changed.</p></div>
+  <div class="tiles">
+    <section class="tile t-heat">
+      <header><span class="dot"></span><h4>Heat</h4><span class="pill">9 changed</span></header>
+      <p class="tsent">Hotter: 9 indices increased.</p>
+      <ul class="tlist">
+    <li class="trow">
+      <a class="tname" href="#">Tropical nights</a><code>TR</code>
+      <span class="tval">↗ +4.7 <span class="unit">days / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,22.9 3.1,20.8 6.2,22.1 9.2,21.9 12.3,23.0 15.4,21.0 18.5,17.5 21.5,18.7 24.6,16.9 27.7,18.4 30.8,17.7 33.8,17.8 36.9,21.7 40.0,15.5 43.1,15.9 46.2,15.6 49.2,20.3 52.3,20.1 55.4,17.7 58.5,16.4 61.5,14.2 64.6,14.6 67.7,12.9 70.8,15.3 73.8,12.7 76.9,12.1 80.0,14.2 83.1,8.3 86.2,10.6 89.2,8.8 92.3,12.6 95.4,12.5 98.5,11.2 101.5,10.3 104.6,8.2 107.7,8.7 110.8,10.0 113.8,10.8 116.9,9.4 120.0,5.0" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li>
+    <li class="trow">
+      <a class="tname" href="#">Summer days</a><code>SU</code>
+      <span class="tval">↗ +5.2 <span class="unit">days / decade</span></span>
+      <svg class="spark" viewBox="0 0 120 28" width="120" height="28" aria-hidden="true"><polyline points="0.0,22.5 3.1,19.8 6.2,19.1 9.2,22.9 12.3,19.2 15.4,16.1 18.5,23.0 21.5,19.0 24.6,18.1 27.7,19.3 30.8,16.1 33.8,17.0 36.9,19.7 40.0,14.3 43.1,14.3 46.2,13.4 49.2,12.0 52.3,14.0 55.4,14.1 58.5,16.9 61.5,12.4 64.6,14.7 67.7,14.0 70.8,15.4 73.8,14.4 76.9,13.1 80.0,8.8 83.1,15.7 86.2,14.1 89.2,10.0 92.3,7.1 95.4,8.6 98.5,13.7 101.5,14.7 104.6,8.0 107.7,10.1 110.8,10.6 113.8,5.6 116.9,5.0 120.0,6.7" fill="none" stroke="var(--heat)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </li></ul>
+      <a class="more" href="#">All 30 heat indices →</a>
+    </section>
+    <section class="tile t-rain">
+      <header><span class="dot"></span><h4>Rain</h4><span class="pill">No change</span></header>
+      <p class="tsent">No significant change across 13 indices.</p>
+      <ul class="tlist"></ul>
+      <a class="more" href="#">All 13 rain indices →</a>
+    </section></div></div>
+</div>
+<div style="flex:1;min-width:260px"><ul>
+<li>The tabs and Inputs bar stay sticky; the page actions go in a ⋯ menu.</li>
+<li>Same content and order as desktop, so nothing is lost.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="prop">
+<header><h2>Suggested order of work</h2></header>
+<ol>
+<li><b>P2 + P3 + P5 together</b> (colour, help button and spacing tokens, the section-header pattern). This is mostly CSS and components; every page benefits; no flow change. About one PR.</li>
+<li><b>P1 Inputs panel and sheet.</b> This is the structural change: it removes the Data tab and the forms from output pages, and reuses #179's out-of-date model. About two PRs: rail + sheet, then moving each form.</li>
+<li><b>P4 setup screen</b>, which builds on P1.</li>
+<li><b>P6 Quality list-detail.</b></li>
+<li><b>P7 phone pass</b>, checked throughout but finished last.</li>
+</ol>
+<p class="cap">Decisions for you: (a) Is the Inputs panel the right model, or do you prefer a single "Setup" tab? (b) Ink-black primary buttons, or keep a brand-blue primary? (c) Should the station title come from the station name field rather than the file name?</p>
+</section>
+</main>
+</body>
+</html>

@@ -88,7 +88,7 @@
     block-size: 1.25rem;
     margin: 0.15em 0 0;
     flex: none;
-    accent-color: var(--color-accent);
+    accent-color: var(--color-ink);
   }
 
   .form {
@@ -146,8 +146,8 @@
 
   .dropzone:hover,
   .dropzone--over {
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
+    border-color: var(--color-ink);
+    background: var(--color-surface-sunken);
   }
 
   .dropzone:focus-within {
@@ -158,7 +158,7 @@
   .dropzone__icon {
     inline-size: 2.5rem;
     block-size: 2.5rem;
-    color: var(--color-accent);
+    color: var(--color-ink);
   }
 
   .dropzone__title {

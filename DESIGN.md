@@ -7,8 +7,24 @@ work is in [`TECHNICAL.md`, "Design system"](TECHNICAL.md#design-system); this f
 not repeat it.
 
 The rules come from the UX redesign (#171). A rule not yet met everywhere is marked
-**Target**, with the ticket that brings the code in line; none is left since the station
-workspace (#179). New work follows them.
+**Target**, with the ticket that brings the code in line. Phase 1 (#172–#179) left none.
+Phase 2 comes from the second design review (16 Nov 2026), whose approved mockups are
+[`docs/design/redesign-proposals.html`](docs/design/redesign-proposals.html) and, in the
+dark theme, [`redesign-proposals-dark.html`](docs/design/redesign-proposals-dark.html);
+its rules are marked **Target** with #196–#203. New work follows them.
+
+### Phase 2 decisions
+
+Taken with the approval of the mockups (#171):
+
+- **The Inputs panel is the model.** Everything the user gives (the file, the station,
+  the base period, the quality thresholds, the index settings) is listed in one Inputs
+  panel, each with an Edit that opens a side sheet with only that form. The tabs are
+  read-only outputs: Quality, Results and Files. **Target:** #198, #199.
+- **Primary buttons are ink.** Near-black, near-white in the dark theme; blue is no longer
+  the action colour (see [Colour](#colour)).
+- **The station title comes from the station name** the user gives, not the file name;
+  the file name moves to the line under it. **Target:** #201.
 
 ## Who it is for
 
@@ -24,7 +40,7 @@ Screens are organised around these questions, not around the stages of the calcu
 
 ## Visual theme
 
-**Calm, plain, precise: a scientific instrument.** Neutral surfaces, one blue accent and
+**Calm, plain, precise: a scientific instrument.** Neutral surfaces, ink for actions and
 strong type hierarchy, so the data carries the colour. It replaces the R Shiny app
 (shinydashboard boxes, a sidebar menu, tabs as steps). System fonts only and no web
 fonts, for bandwidth, offline use and every script the operating system supports.
@@ -44,16 +60,41 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 | `--color-text-muted` | `#4d5966` | `#a3afbb` | Hints, notes, captions |
 | `--color-border` | `#d8dee4` | `#2b3540` | Dividers, card edges |
 | `--color-border-strong` | `#78838f` | `#7a8794` | Input borders (3:1 against surface) |
-| `--color-accent` | `#0a5aa8` | `#6db3f2` | Primary buttons, links, current step |
-| `--color-accent-soft` | `#e5eff9` | `#132a40` | Info alerts, selected states |
+| `--color-ink` | `#111827` | `#e6eaef` | Primary buttons, the current tab and step, links (underlined), running state |
+| `--color-ink-hover` | `#374151` | `#c3cad3` | Hover on ink |
+| `--color-ink-contrast` | `#ffffff` | `#0e1218` | Text on ink |
+| `--color-brand` | `#0a5aa8` | `#6db3f2` | The logo only |
 | `--color-focus` | `#0b57d0` | `#8ab4f8` | Focus ring |
+| `--color-selected` | `#eaf2ff` | `#1c2a3d` | Selected rows, the targeted help topic, text selection |
 | `--color-success` / `-soft` | `#17773a` / `#e7f4ea` | `#5cc97e` / `#10291a` | Passed, done |
-| `--color-warning` / `-soft` | `#8a5300` / `#fdf3dc` | `#e9b04a` / `#2e2410` | Worth a look |
+| `--color-warning` / `-soft` | `#8a5300` / `#fdf3dc` | `#e9b04a` / `#2e2410` | Worth a look, out of date |
 | `--color-danger` / `-soft` | `#b3261e` / `#fbeae8` | `#ff8c82` / `#351513` | Errors, destructive actions |
+| `--color-heat` / `-soft` | `#c2410c` / `#fff1e8` | `#f2895a` / `#3a1e12` | Theme: Heat |
+| `--color-cold` / `-soft` | `#196cd3` / `#eaf2ff` | `#6aa8ff` / `#14253d` | Theme: Cold |
+| `--color-rain` / `-soft` | `#077c6e` / `#e5f5f2` | `#3cc3ae` / `#0f2d29` | Theme: Rain |
+| `--color-drought` / `-soft` | `#693b04` / `#f6efe6` | `#fcca93` / `#332619` | Theme: Drought |
+| `--color-other` / `-soft` | `#222a36` / `#eef1f4` | `#828c97` / `#1c232c` | "Also measured" (neutral) |
+
+**Each colour has one job** (#196):
+
+- **Ink** for actions: primary buttons, the current tab and step, links (underlined ink
+  text, not blue), the running state (progress bars, spinners, the current stage).
+  Interactive icons (a disclosure's chevron, a dropzone's icon) are ink too.
+- **Brand blue** only for the logo, focus rings and selection.
+- **Status colours** (success, warning, danger) only for the verdict and run state. Info
+  is neutral: an info alert or badge is ink on the sunken surface.
+- **Theme hues** mark data. Heat, Cold, Rain and Drought each have one hue, and the
+  themes under "Also measured" share a neutral. The hue colours the theme tile's top
+  edge, its pill and dot, the filter chip's dot, the catalogue card's dot, the
+  sparklines and the index page's chart line (a `hue-<theme>` class on the block, from
+  `stations.themes.hue_of`). The theme's name is always beside the hue.
+- Hover is a neutral change (the sunken surface, or a thicker underline on links), never
+  a colour of its own.
 
 **Charts** have their own tokens (`--chart-*`): eight categorical slots in a fixed order,
 never cycled; variable roles (`tmax` red, `tmin` blue, `prcp` green, checked as a set
-for colour-vision deficiency); trend, band, grid and axis; a five-step sequential and a
+for colour-vision deficiency), which the daily and quality charts keep: the theme hues
+are for indices, the variable roles for the station's variables; trend, band, grid and axis; a five-step sequential and a
 seven-step diverging scale for maps. QC flags are hollow rings in ink, told apart by
 shape rather than colour. `chart-palette.json` carries the same values to the static
 plots and the PDF report.
@@ -93,7 +134,11 @@ Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
 - **Page frame:** header (logo, main destinations, theme toggle) → step indicator for the
   batch and gridded flows → title and one-line lead → content → footer. A station is a
   workspace instead: its name as the h1, a line with its years and base period, then the
-  section tabs (Data, Quality, Results, Files), then the section's content.
+  section tabs (Data, Quality, Results, Files), then the section's content. **Target:**
+  the h1 is the station name the user gives, with the file name on the line under it
+  (#201); the Data tab folds into Quality and the inputs move to the Inputs panel
+  (#198); the workspace header (name, tabs, page actions) stays in view as the page
+  scrolls (#197).
 - **Controls:** `--control-height` 2.75rem (2.25rem small), so touch targets reach 44px.
 
 ## Depth and shape
@@ -117,8 +162,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 
 | Component | Level | Purpose | Variants |
 | --- | --- | --- | --- |
-| `button` | Primitive | Action, or a link styled as one | primary, secondary, ghost, danger; lg, sm; icon, icon only |
-| `badge` | Primitive | Status in words, never colour alone | info, success, warning, danger |
+| `button` | Primitive | Action, or a link styled as one. Primary is ink | primary, secondary, ghost, danger; lg, sm; icon, icon only |
+| `badge` | Primitive | Status in words, never colour alone. Info is neutral; `hue` is a theme's pill (its hue on its tint) | info, success, warning, danger, hue |
+| `hue-dot`, `hue-*` | Primitive | A theme's colour: `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought`, `hue-other` on a block set `--hue` and `--hue-soft` for what is inside it; `hue-dot` is its dot, always beside the theme's or index's name | — |
 | `stat` | Primitive | One number with label and note | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
@@ -134,7 +180,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `workspace_tabs` | Component | A station's sections as tabs under its name. Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest | changed, quiet (no change) |
+| `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines | changed, quiet (no change) |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
@@ -151,7 +197,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
 | Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
-| Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an accent edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
+| Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional.
@@ -179,9 +225,23 @@ keyboard. This is not optional.
   trends of percentage indices).
 - **Plain names first, codes second.** "Hot days" with `TX90p` beside it, never the
   code alone.
+- **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
+  each edited in a side sheet that says what applying will update, with one Apply
+  button; output pages hold no forms. **Target:** #198 (the panel, the sheet, the Data
+  tab into Quality), #199 (thresholds and index settings).
+- **Give each colour one job.** Ink for actions, the brand blue for the logo, focus and
+  selection, status colours for the verdict and run state, theme hues for data (see
+  [Colour](#colour)).
+- **Make help visible.** A section header is its title, an optional muted note, then a
+  labelled Help button at the end of the row (a pill with a word, specific where it helps:
+  "How to read this"). At most one per section, none on sections that explain
+  themselves; a Help button in the app bar opens the page's guide. **Target:** #197 (today
+  an ⓘ after the heading).
 - **Group findings by what people ask about.** Results lead with one paragraph, then a
   headline per theme (Heat, Cold, Rain, Drought) and an "Also measured" line for the
-  rest; the full catalogue follows. "No significant change" is a finding, shown in a
+  rest; the full catalogue follows. **Target:** #200: the answer in a tinted band, the
+  theme tiles, then the 80 indices as one filterable, sortable table with no family
+  accordions. "No significant change" is a finding, shown in a
   quiet panel, not left out. Findings are template sentences built from the data, never
   written by hand for a station. The theme mapping lives in `stations/themes.py`.
 - **Never change the user's data, and say so.** The app reports; the user decides.
@@ -189,7 +249,10 @@ keyboard. This is not optional.
 ### Don't
 
 - **Don't put cards inside cards.** One surface level on the page; separate groups inside
-  a card with spacing and headings, not another border and shadow.
+  a card with spacing and headings, not another border and shadow. **Target:** #197:
+  sections are separated by space and a heading, not boxes. A box marks only something
+  that is one object (a theme tile, a finding); the page's one answer sits in a tinted
+  band; tables have hairline rows and no frame.
 - **Don't offer downloads everywhere.** Files live in one Files section
   (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
   PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
@@ -203,6 +266,9 @@ keyboard. This is not optional.
   defaults should be an inline action instead. The index settings are "Adjust and
   recalculate" on Results, and the defaults are calculated while the user checks the
   quality (#178). The station is a workspace of four sections, with no steps (#179).
+  **Target:** #201: a first visit is one New station page (the file, the station name,
+  latitude and longitude, the base period, then "Check and calculate"); thresholds and
+  index settings start at their defaults and are changed later in Inputs.
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
@@ -211,7 +277,10 @@ keyboard. This is not optional.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it in full
   once, where it matters. After that it is a quiet line at the foot of the page: small
   muted text (`text-sm text-text-muted`) with a lock icon.
-- **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too.
+- **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
+  and a theme's hue is always beside its name.
+- **Don't take the decision out of view.** **Target:** #202: Quality is a list and a
+  detail side by side, with the verdict and its buttons kept in view.
 
 ## Responsive
 
@@ -220,12 +289,16 @@ menu; on narrow screens the step indicator shows only the current step's label, 
 workspace tabs wrap onto a second line,
 two-column field groups stack, and wide tables scroll inside their focusable region
 rather than the page. Charts keep their table view. The accessibility tests run every page
-in a 320px viewport and fail on horizontal page scroll.
+in a 320px viewport and fail on horizontal page scroll. **Target:** #203: on phones the
+Inputs panel collapses into a one-line bar with an Edit button, and the theme tiles
+stack.
 
 ## Agent prompt guide
 
 - Use tokens only: no hex values, no Tailwind default colours or sizes (they aren't
-  loaded). New colours need light and dark values and pass the contrast test.
+  loaded). New colours need light and dark values and pass the contrast test. Ink for
+  actions and links, `--color-brand` only for the logo, focus and selection, status
+  colours only for the verdict and run state, `hue-*` for a theme's data.
 - Build from `core/templates/components/` and add new parts to `/patterns/`. After
   changing classes, run `scripts/build-css.sh` and commit `css/climpact.css`.
 - One primary action per view, answer before detail, severity in proportion. Check a

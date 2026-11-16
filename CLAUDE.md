@@ -43,6 +43,15 @@ architecture, parity testing and the differences between the Python and R implem
   "fix typo"-style commits before the PR is merged.
 - Before opening or updating a pull request, run `ruff check`, `ruff format --check` and
   `pytest`, and report the R parity summary.
+- **A pull request that changes how the web app looks shows it.** Add one or two
+  screenshots of the new design to the PR body, under "Screenshots". Pick the screens
+  that best show the change, not every page; include a before/after pair when that makes
+  the change clearer. Take them from the running app with `tests/browser.py`'s `Chrome`
+  (`media(prefers_color_scheme=...)`, `viewport`, `screenshot`), at 1280 px wide unless
+  the change is about phones. Publish them with `scripts/pr-screenshots.sh <pr-number>
+  <image>...`, which puts them on the orphan `pr-screenshots` branch (never merged, so the
+  images stay out of `main`) and prints the Markdown to paste into the body. Don't commit
+  screenshots to the pull request's branch.
 - **Run the full suite once, and get the parity summary from the file, not by running it
   again.** The summary is about 60 lines, too long for a `tail` of the output, so the test
   run also writes it, with the test totals, to `.parity-summary.txt` at the repository root

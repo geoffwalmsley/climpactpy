@@ -3156,6 +3156,12 @@ CLIMPACT_WEB_DEBUG=true uv run climpact-web   # in another terminal: edits show 
 scripts/build-css.sh                     # one build, before committing (CI checks it is current)
 ```
 
+A pull request that changes how the app looks carries one or two screenshots of the new
+design in its body. `scripts/pr-screenshots.sh <pr-number> <image>...` pushes them to the
+orphan branch `pr-screenshots`, under `pr-<number>/`, and prints the Markdown image links.
+GitHub has no API for attaching images, and the orphan branch keeps them out of `main`'s
+history.
+
 Options: `--host` (default 127.0.0.1; 0.0.0.0 serves the network, with a warning),
 `--port` (default 8000, or a free port if 8000 is taken), `--no-browser`, `--data-dir`,
 `--threads` (default 4), `--no-worker` (do not start the background worker). Ctrl+C or

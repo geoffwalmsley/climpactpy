@@ -27,6 +27,7 @@
       <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
       <li><a href="#cards">{% translate "Cards" %}</a></li>
       <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
+      <li><a href="#findings">{% translate "Findings by theme" %}</a></li>
       <li><a href="#tables">{% translate "Tables" %}</a></li>
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
       <li><a href="#steps">{% translate "Step indicator" %}</a></li>
@@ -212,6 +213,17 @@
           {% include "components/stat.html" with label=s2_l value=s2_v note=s2_n %}
         </div>
         {% include "components/summary_list.html" with items=summary_items %}
+      </div>
+    </section>
+
+    <section class="pattern" id="findings" aria-labelledby="findings-title">
+      <h2 id="findings-title">{% translate "Findings by theme" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "A theme headline answers first: one sentence written from the trends, then up to three significant trends with plain names, codes, units and sparklines. With no significant trend it is quiet, because no change is a finding too." %}</p>
+      {% translate "Heat" as th1 %}{% translate "9 changed" as th1_badge %}{% translate "9 of 22 indices increased significantly." as th1_finding %}{% translate "See all 30 indices in Heat" as th1_more %}
+      {% translate "Rain" as th2 %}{% translate "No clear change" as th2_badge %}{% translate "No significant change across 13 indices." as th2_finding %}{% translate "See all 13 indices in Rain" as th2_more %}
+      <div class="pattern__demo theme-grid">
+        {% include "components/theme_headline.html" with id="pattern-heat" title=th1 badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
+        {% include "components/theme_headline.html" with id="pattern-rain" title=th2 badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
       </div>
     </section>
 

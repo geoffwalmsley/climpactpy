@@ -1,0 +1,25 @@
+{% load i18n %}{% comment %}
+Theme headline (#175): one theme's finding, answer first. Parameters: id, title, level
+(heading level, default 3), badge_label, finding (one sentence), items (up to three
+trends: href, title, code, trend, direction, spark), more_href and more_label. Without
+items it is quiet: no change is a finding too.
+{% endcomment %}
+<section class="card theme-headline{% if not items %} theme-headline--quiet{% endif %}" aria-labelledby="{{ id }}-title">
+  <div class="theme-headline__head">
+    <h{{ level|default:3 }} class="card__title" id="{{ id }}-title">{{ title }}</h{{ level|default:3 }}>
+    {% if badge_label %}{% if items %}{% include "components/badge.html" with label=badge_label kind="info" icon="" %}{% else %}{% include "components/badge.html" with label=badge_label kind="" icon="" %}{% endif %}{% endif %}
+  </div>
+  <p class="theme-headline__finding">{{ finding }}</p>
+  {% if items %}
+  <ol class="trend-list" role="list">
+    {% for item in items %}
+    <li class="trend-list__item">
+      <span class="trend-list__name"><a href="{{ item.href }}">{{ item.title }}</a> <code class="index-code">{{ item.code }}</code></span>
+      <span class="trend trend--{{ item.direction }}">{{ item.trend }}</span>
+      {% if item.spark %}{% include "components/spark.html" with spark=item.spark %}{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  {% if more_href %}<p class="text-sm"><a href="{{ more_href }}">{{ more_label }}</a></p>{% endif %}
+</section>

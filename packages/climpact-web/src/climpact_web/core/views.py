@@ -98,6 +98,32 @@ def pattern_context(form):
             {"label": _("Read station file"), "state": "done"},
             {"label": _("Quality control"), "state": "failed"},
         ],
+        # A theme headline (#175): two trends with their sparklines (SVG path data in a
+        # 240 x 60 box, as stations.results.sparkline draws them).
+        "theme_items": [
+            {
+                "href": "#findings",
+                "title": _("Tropical nights"),
+                "code": "TR",
+                "trend": _("+4.65 days per decade"),
+                "direction": "up",
+                "spark": {
+                    "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
+                    "trend": "M0 52L240 12",
+                },  # fmt: skip
+            },
+            {
+                "href": "#findings",
+                "title": _("Amount of warm nights"),
+                "code": "TN90p",
+                "trend": _("+1.31 percentage points per decade"),
+                "direction": "up",
+                "spark": {
+                    "line": "M0 48L40 50L80 40L120 38L160 28L200 24L240 14",
+                    "trend": "M0 50L240 16",
+                },  # fmt: skip
+            },
+        ],
         "summary_items": [
             (_("Station"), "Sydney Observatory Hill"),
             (_("Period"), _("1936 to 2015")),

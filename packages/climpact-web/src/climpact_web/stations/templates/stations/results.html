@@ -30,25 +30,31 @@
     {% endif %}
   </div>
 
-  <section class="card stack trend-summary" aria-labelledby="trends-title">
-    <h2 class="card__title" id="trends-title">{% translate "Significant trends" %}</h2>
-    {% if significant_cards %}
-    <p class="text-sm text-text-muted">{% blocktranslate with n=significant_cards|length total=total trimmed %}
-      {{ n }} of {{ total }} indices changed significantly. Largest change first, measured against how much each index varies from year to year.
-    {% endblocktranslate %}</p>
-    <ol class="trend-list" role="list">
-      {% for card in significant_cards %}
-      <li class="trend-list__item">
-        <span class="trend-list__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a> <code class="index-code">{{ card.code }}</code></span>
-        <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.trend_units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
-        {% if card.spark %}{% include "stations/_spark.html" %}{% endif %}
-      </li>
+  {% comment %}Answer first (#175): one sentence from the themes, a headline per theme, then
+  the indices in no theme, one line each. Built in stations/themes.py from the trends.{% endcomment %}
+  <section class="stack" aria-labelledby="findings-title">
+    <h2 id="findings-title">{% translate "What changed" %}</h2>
+    <p class="findings__answer">{{ summary_sentences|join:" " }}</p>
+    <div class="theme-grid">
+      {% for t in headline_themes %}
+      {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
       {% endfor %}
-    </ol>
-    {% else %}
-    <p>{% translate "No index has a significant trend: for every index, the 95% interval of the trend includes zero." %}</p>
-    {% endif %}
+    </div>
+    <p class="text-sm text-text-muted">{% translate "Each theme shows up to three of its significant trends, largest first. Largest means the trend per decade divided by how much the index varies from year to year, so days, °C and mm can be compared." %}</p>
     {% help_topic "trend.significance" %}
+    {% if also_measured %}
+    <section class="card stack" aria-labelledby="also-title">
+      <h3 class="card__title" id="also-title">{% translate "Also measured" %}</h3>
+      <ul class="also-measured" role="list">
+        {% for t in also_measured %}
+        <li>
+          <span class="also-measured__text">{% if t.definition %}{% blocktranslate with label=t.label definition=t.definition code=t.code finding=t.finding trimmed %}<strong>{{ label }}</strong>: {{ definition }} <code class="index-code">{{ code }}</code>. {{ finding }}{% endblocktranslate %}{% else %}{% blocktranslate with label=t.label finding=t.finding trimmed %}<strong>{{ label }}</strong>: {{ finding }}{% endblocktranslate %}{% endif %}{% if t.note %} <span class="text-sm text-text-muted">{{ t.note }}</span>{% endif %}</span>
+          <a class="text-sm" href="{{ t.more_href }}">{{ t.more_label }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
   </section>
 
   {% if run.skipped %}
@@ -65,6 +71,8 @@
   </div>
   {% endif %}
 
+  <section class="stack" id="catalogue" aria-labelledby="catalogue-title">
+  <h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>
   <form class="results-filter card" method="get" action="{% url 'stations:results' analysis.pk %}" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
     <div class="results-filter__search">
       <label class="field__label" for="results-q">{% translate "Find an index" %}</label>
@@ -73,11 +81,11 @@
         <input type="search" id="results-q" name="q" value="{{ q }}" placeholder="{% translate 'Name or words, e.g. TXx, frost, rain' %}" autocomplete="off">
       </div>
     </div>
-    <fieldset class="results-filter__families">
+    <fieldset class="results-filter__themes">
       <legend class="field__label">{% translate "Show" %}</legend>
       <div class="chips">
-        <label class="chip"><input type="radio" name="family" value=""{% if not family %} checked{% endif %}><span>{% blocktranslate with n=total %}All ({{ n }}){% endblocktranslate %}</span></label>
-        {% for key, label, n in families %}<label class="chip"><input type="radio" name="family" value="{{ key }}"{% if family == key %} checked{% endif %}><span>{% blocktranslate %}{{ label }} ({{ n }}){% endblocktranslate %}</span></label>{% endfor %}
+        <label class="chip"><input type="radio" name="theme" value=""{% if not theme %} checked{% endif %}><span>{% blocktranslate with n=total %}All ({{ n }}){% endblocktranslate %}</span></label>
+        {% for t in themes %}<label class="chip"><input type="radio" name="theme" value="{{ t.key }}"{% if theme == t.key %} checked{% endif %}><span>{% blocktranslate with label=t.label n=t.cards|length %}{{ label }} ({{ n }}){% endblocktranslate %}</span></label>{% endfor %}
       </div>
     </fieldset>
     <label class="check results-filter__significant"><input type="checkbox" name="significant" value="1"{% if significant %} checked{% endif %}> <span>{% blocktranslate with n=significant_count %}Significant trends only ({{ n }}){% endblocktranslate %}</span></label>
@@ -91,17 +99,17 @@
   {% for section in sections %}
   <details class="disclosure" id="group-{{ section.key }}" data-results-section{% if section.open %} open{% if filtering %} data-auto-open{% endif %}{% endif %}{% if section.hidden %} hidden{% endif %}>
     <summary>
-      <h2 class="m-0 text-lg">{{ section.label }}</h2>
+      <h3 class="m-0 text-lg">{{ section.label }}</h3>
       <span class="text-sm font-normal text-text-muted">{% if section.significant %}{% blocktranslate count counter=section.cards|length with n=section.significant trimmed %}{{ counter }} index · {{ n }} significant{% plural %}{{ counter }} indices · {{ n }} significant{% endblocktranslate %}{% else %}{% blocktranslate count counter=section.cards|length trimmed %}{{ counter }} index{% plural %}{{ counter }} indices{% endblocktranslate %}{% endif %}</span>
       {% icon "chevron-down" %}
     </summary>
     <ul class="m-0 grid list-none gap-4 px-4 pt-2 pb-4 grid-cols-fill-64" role="list">
       {% for card in section.cards %}
-      <li class="index-card" data-family="{{ card.family }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
-        <h3 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h3>
+      <li class="index-card" data-index-theme="{{ card.theme }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
+        <h4 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h4>
         <p class="index-card__units"><code class="index-code">{{ card.code }}</code>{% if card.units %} {{ card.units }}{% endif %}</p>
         <p class="index-card__definition">{{ card.definition }}</p>
-        {% if card.spark %}{% include "stations/_spark.html" %}
+        {% if card.spark %}{% include "components/spark.html" with spark=card.spark %}
         {% elif card.daily %}<p class="index-card__daily text-sm">{% blocktranslate with days=card.daily.days|count high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
         <p class="index-card__trend">
           {% if card.trend.valid %}
@@ -118,6 +126,7 @@
   </details>
   {% endfor %}
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
+  </section>
 
   <div class="grid items-start gap-5 grid-cols-fit-72">
     <section class="card stack" id="downloads" aria-labelledby="downloads-title">

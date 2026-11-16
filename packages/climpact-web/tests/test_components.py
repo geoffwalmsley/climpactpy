@@ -42,6 +42,7 @@ def test_every_component_is_in_the_pattern_library():
     source = (PACKAGE / "core" / "templates" / "core" / "patterns.html").read_text()
     source += (PACKAGE / "core" / "templates" / "base.html").read_text()
     used_by_others = {"field_errors", "messages", "toasts", "theme_toggle", "skeleton", "badge"}
+    used_by_others.add("spark")  # in the theme headline
     for component in COMPONENTS.glob("*.html"):
         name = component.stem
         assert f'"components/{name}.html"' in source or name in used_by_others, name

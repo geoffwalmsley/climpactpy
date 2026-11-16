@@ -1126,28 +1126,79 @@ def test_gridded_explorer_keeps_focus(chrome, site):
     assert c.evaluate("document.activeElement.id") == "explore-t"
 
 
-def test_results_groups_open_with_the_search_and_links(chrome, site):
-    """The results' groups are collapsed (#113): typing a search opens the groups it shows
-    and clearing it closes them again; a #group-... link opens its group."""
+def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
+    """The results catalogue (#200): one table, filtered as you type by the search, a theme
+    chip and "Significant only", and sorted by its column headers, which are buttons here
+    (links without JavaScript): Enter sorts, again reverses, aria-sort moves to the sorted
+    column, and the live line says how many rows show and how they are sorted. The order is
+    the server's, and the state is kept in the address."""
     c = chrome
-    opened = (
-        "Array.prototype.filter.call(document.querySelectorAll('[data-results-section]'),"
-        " function (d) { return d.open }).map(function (d) { return d.id })"
+    rows = "[...document.querySelectorAll('[data-results-table] tbody tr')]"
+    shown = rows + ".filter(function (r) { return !r.hidden })"
+    keys = shown + ".map(function (r) { return r.id.slice(6) })"
+    said = "document.getElementById('results-count').textContent.trim()"
+    sorted_by = (
+        "[...document.querySelectorAll('[data-results-table] th[aria-sort]')]"
+        ".map(function (th) { return th.dataset.sortKey + ' ' + th.getAttribute('aria-sort') })"
     )
+    c.navigate(site["station results"] + "?sort=name&dir=ascending")
+    by_name = c.evaluate(keys)  # the server's order
     c.navigate(site["station results"])
-    assert c.evaluate(opened) == []
+    assert c.evaluate(f"{shown}.length") == 80 and c.evaluate(sorted_by) == []
+    assert c.evaluate("document.getElementById('results-count').getAttribute('aria-live')") == (
+        "polite"
+    )
+    assert c.evaluate("document.querySelectorAll('thead button.sort').length") == 4
+    assert c.evaluate("document.querySelectorAll('thead a.sort').length") == 0
+    assert c.evaluate("document.querySelector('[data-results-submit]').hidden")
+
+    # The search, as you type.
     focus(c, "#results-q")
     c.send("Input.insertText", text="frost")
-    wait_for(c, "document.getElementById('group-temperature-thresholds').open", timeout=10,
-             what="the group with the match to open")  # fmt: skip
-    assert c.evaluate(opened) == ["group-temperature-thresholds"]
-    c.evaluate(
-        "var q = document.getElementById('results-q'); q.value = '';"
-        " q.dispatchEvent(new Event('input', {bubbles: true}))"
-    )
-    assert c.evaluate(opened) == []
-    c.navigate(site["station results"] + "?from=index#group-drought")
-    assert c.evaluate(opened) == ["group-drought"]
+    wait_for(c, f"{shown}.length === 1", timeout=10, what="the search to filter")
+    assert c.evaluate(said) == "Showing 1 of 80 indices." and "q=frost" in here(c)
+    c.evaluate("var q = document.getElementById('results-q'); q.value = '';"
+               " q.dispatchEvent(new Event('input', {bubbles: true}))")  # fmt: skip
+    assert c.evaluate(f"{shown}.length") == 80 and "q=" not in here(c)
+
+    # A theme chip and "Significant only", from the keyboard.
+    focus(c, "input[name=theme][value=heat]")
+    c.press(" ")
+    wait_for(c, f"{shown}.length === 30", timeout=10, what="the Heat chip")
+    assert set(c.evaluate(shown + ".map(function (r) { return r.dataset.chip })")) == {"heat"}
+    focus(c, "input[name=significant]")
+    c.press(" ")
+    wait_for(c, f"{shown}.length === 9", timeout=10, what="Significant only")
+    assert c.evaluate(said) == "Showing 9 of 80 indices."
+    assert "theme=heat" in here(c) and "significant=1" in here(c)
+
+    # Sorting by keyboard: Enter on a header sorts, again reverses; announced.
+    focus(c, "th[data-sort-key=trend] button")
+    c.press("Enter")
+    assert c.evaluate(sorted_by) == ["trend descending"]
+    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Trend per decade, descending."
+    slopes = c.evaluate(shown + ".map(function (r) { return Number(r.dataset.trend) })")
+    assert slopes == sorted(slopes, reverse=True)
+    assert c.evaluate("document.activeElement.textContent") == "Trend per decade"
+    c.press("Enter")
+    assert c.evaluate(sorted_by) == ["trend ascending"]
+    assert c.evaluate(said).endswith("Sorted by Trend per decade, ascending.")
+    assert "sort=trend" in here(c) and "dir=ascending" in here(c)
+
+    # Every row again, sorted by name: the server's order.
+    focus(c, "input[name=theme][value='']")
+    c.press(" ")
+    focus(c, "input[name=significant]")
+    c.press(" ")
+    focus(c, "th[data-sort-key=name] button")
+    c.press("Enter")
+    wait_for(c, f"{shown}.length === 80", timeout=10, what="every row")
+    assert c.evaluate(sorted_by) == ["name ascending"]
+    assert c.evaluate(keys) == by_name
+
+    # Reloaded, the address gives the same page without the script's help.
+    c.navigate(here(c))
+    assert c.evaluate(sorted_by) == ["name ascending"] and c.evaluate(keys) == by_name
 
 
 def test_quality_worklist_by_keyboard(chrome, site):

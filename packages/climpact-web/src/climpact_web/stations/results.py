@@ -276,6 +276,11 @@ class Card:
         return themes.hue_of(self.theme)
 
     @property
+    def chip(self) -> str:
+        """The catalogue's filter chip the card is under (``themes.chip_of``, #200)."""
+        return themes.chip_of(self.theme)
+
+    @property
     def search_text(self) -> str:
         return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
 

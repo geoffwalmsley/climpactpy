@@ -43,7 +43,8 @@ ASSET_BUDGETS = {
     # drawer (#177)
     "css/climpact.css": 14.5 * KB,
     "js/qc.js": 2 * KB,  # the quality checks: worklist and tables linked to the charts (#77, #174)
-    "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
+    # The results catalogue's filters (#78) and column sorting (#200); 1.5 KB before #200
+    "js/results.js": 2.25 * KB,
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)

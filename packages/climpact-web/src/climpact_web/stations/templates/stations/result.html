@@ -10,7 +10,7 @@
   {% include "stations/_inputs.html" %}
   <div class="workspace__main stack stack--xl">
   <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
-    <a href="{% url 'stations:results' analysis.pk %}?group={{ card.group }}#group-{{ card.group }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
+    <a href="{% url 'stations:results' analysis.pk %}#index-{{ card.key }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
     {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
     {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next">{% blocktranslate with name=next.name %}Next: {{ name }}{% endblocktranslate %}</a>{% endif %}
   </nav>

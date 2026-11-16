@@ -1,9 +1,10 @@
 {% load i18n %}{% comment %}
-Theme headline (#175): one theme's finding, answer first. Parameters: id, title, level
+Theme tile (#175, #200): one theme's finding, answer first. Parameters: id, title, level
 (heading level, default 3), hue (the theme's colour, themes.hue_of: heat, cold, rain,
-drought or other; #196), badge_label, finding (one sentence), items (up to three trends:
-href, title, code, trend, direction, spark), more_href and more_label. Without items it is
-quiet: no change is a finding too.
+drought or other; #196), badge_label, finding (one sentence), items (up to three trends,
+one line each: href, title, value, units (short: pp for percentage points), units_title
+(the units spelt out when abbreviated), direction, spark), more_href and more_label.
+Without items it is quiet, on the sunken surface: no change is a finding too.
 {% endcomment %}
 <section class="card theme-headline {% if hue %}hue-{{ hue }}{% else %}hue-other{% endif %}{% if not items %} theme-headline--quiet{% endif %}" aria-labelledby="{{ id }}-title">
   <div class="theme-headline__head">
@@ -13,15 +14,15 @@ quiet: no change is a finding too.
   </div>
   <p class="theme-headline__finding">{{ finding }}</p>
   {% if items %}
-  <ol class="trend-list" role="list">
+  <ol class="trend-rows" role="list">
     {% for item in items %}
-    <li class="trend-list__item">
-      <span class="trend-list__name"><a href="{{ item.href }}">{{ item.title }}</a> <code class="index-code">{{ item.code }}</code></span>
-      <span class="trend trend--{{ item.direction }}">{{ item.trend }}</span>
+    <li class="trend-row">
+      <a class="trend-row__name" href="{{ item.href }}">{{ item.title }}</a>
+      <span class="trend-row__value"><span class="trend trend--{{ item.direction }}">{{ item.value }}</span> <span class="trend-row__units">{% if item.units_title %}<abbr title="{{ item.units_title }}">{{ item.units }}</abbr> {% translate "/ decade" %}{% elif item.units %}{{ item.units }} {% translate "/ decade" %}{% else %}{% translate "per decade" %}{% endif %}</span></span>
       {% if item.spark %}{% include "components/spark.html" with spark=item.spark %}{% endif %}
     </li>
     {% endfor %}
   </ol>
   {% endif %}
-  {% if more_href %}<p class="text-sm"><a href="{{ more_href }}">{{ more_label }}</a></p>{% endif %}
+  {% if more_href %}<p class="theme-headline__more"><a href="{{ more_href }}">{{ more_label }}</a></p>{% endif %}
 </section>

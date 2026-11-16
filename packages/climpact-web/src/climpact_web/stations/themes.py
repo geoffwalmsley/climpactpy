@@ -96,6 +96,17 @@ CATALOGUE_ONLY = ("EHFdaily", "ECFdaily")
 MEAN_TEMPERATURE = "tmm"
 
 
+# The catalogue's filter chips (#200): one per headline theme, and one, "Also measured",
+# for every other card (the "Also measured" themes and the daily tables in no theme).
+ALSO_MEASURED = "other"
+
+
+def chip_of(key: str) -> str:
+    """The filter chip of a card of the theme ``key``: the headline theme's own, else
+    ALSO_MEASURED."""
+    return key if key in HUES else ALSO_MEASURED
+
+
 def by_key() -> dict[str, Theme]:
     return {theme.key: theme for theme in THEMES}
 

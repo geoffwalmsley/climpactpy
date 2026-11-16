@@ -393,7 +393,7 @@ def test_progress_while_running_then_the_results(client):
     assert (
         response.status_code == 204 and response["HX-Redirect"] == f"/station/{analysis.pk}/results"
     )
-    assert "data-results-section" in client.get(f"/station/{analysis.pk}/results").content.decode()
+    assert "data-results-table" in client.get(f"/station/{analysis.pk}/results").content.decode()
 
 
 def test_a_failed_calculation_shows_why_and_offers_the_settings(client):
@@ -496,11 +496,9 @@ def test_every_table_of_the_lat0_run_is_on_the_dashboard(client):
         assert (
             f"/jobs/{job.pk}/files/{STATION}/indices/{STATION}_{name}.csv" in page.content.decode()
         )
-    # Grouped as the index catalogue, with the families to filter by.
-    for title in ("Temperature: extremes, means and range", "Precipitation", "Heatwaves", "Drought",
-                  "Your own index"):  # fmt: skip
-        assert f">{title}</h3>" in html
-    assert len(re.findall(r'class="index-card hue-\w+"', html)) == len(linked) == 80
+    # One table of every index (#200), with no family accordions.
+    assert len(re.findall(r'<tr class="hue-\w+" id="index-', html)) == len(linked) == 80
+    assert 'class="disclosure" id="group-' not in html
     assert "Showing 80 of 80 indices." in html
 
 
@@ -508,11 +506,8 @@ def test_card_values_match_the_csv_files(client):
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     txx = read_table("txx_ANN")
-    card = re.search(
-        r'<li class="index-card hue-\w+"[^>]*>(?:(?!</li>).)*?/results/txx".*?</li>', html, re.S
-    ).group(0)
-    last = txx.iloc[-1]
-    assert f"Latest: {last['val']:g} °C in {int(last['time'])}" in card
+    card = re.search(r'<tr [^>]*id="index-txx".*?</tr>', html, re.S).group(0)
+    assert f'href="/station/{analysis.pk}/results/txx"' in card and len(txx) > 0
     # The trend is the trend file's (annual row), per decade.
     from climpact.io.climpact_csv import read_climpact_csv
 
@@ -608,15 +603,30 @@ def test_filters_without_javascript(client):
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url, {"theme": "drought"}).content.decode()
-    card = r'<li class="index-card hue-\w+" data-index-theme="(\w+)"[^>]*?(?<!hidden)>'
-    shown = re.findall(card, html)
+    shown = re.findall(ROW, html)
     assert set(shown) == {"drought"} and len(shown) == 9  # SPI, SPEI and CDD
     assert "Showing 9 of 80 indices." in html
+    # The table holds every row; the hidden ones are hidden, so a clear shows them at once.
+    assert len(re.findall(r'<tr class="hue-\w+" id="index-', html)) == 80
+    # "Also measured": every index outside the four headline themes, the daily tables too.
+    shown = re.findall(ROW, client.get(url, {"theme": "other"}).content.decode())
+    assert set(shown) == {"other"} and len(shown) == 16
     html = client.get(url, {"q": "frost"}).content.decode()
     assert "Showing 1 of 80 indices." in html
     html = client.get(url, {"significant": "1"}).content.decode()
     count = int(re.search(r"Showing (\d+) of 80", html).group(1))
-    assert 0 < count < 80 and f"Significant trends only ({count})" in html
+    assert 0 < count < 80 and len(re.findall(ROW, html)) == count
+    assert f'Significant only</span> <span class="chip__count">{count}</span>' in html
+    # The filters combine, and the form is sent to the catalogue.
+    html = client.get(url, {"theme": "heat", "significant": "1"}).content.decode()
+    assert set(re.findall(ROW, html)) == {"heat"} and "Showing 9 of 80 indices." in html
+    assert f'action="{url}#catalogue"' in html
+    # Unknown values are ignored.
+    assert "Showing 80 of 80" in client.get(url, {"theme": "nope", "sort": "x"}).content.decode()
+
+
+# A row of the catalogue shown (not hidden), capturing its filter chip.
+ROW = r'<tr class="hue-\w+" id="index-[^"]+" data-chip="(\w+)"[^>]*?(?<! hidden)>'
 
 
 def _findings(html: str) -> str:
@@ -638,49 +648,48 @@ def _text(html: str) -> str:
 
 
 def test_findings_by_theme_lead_the_results(client):
-    """#175: below the actions, the answer in one sentence, a headline per theme with its
-    largest significant trends, and the "Also measured" lines; the catalogue follows."""
+    """#175, #200: below the actions, the answer in a tinted band, its first sentence in
+    bold, then a tile per headline theme with its largest significant trends, one line each;
+    the catalogue follows."""
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url).content.decode()
     findings = _findings(html)
     assert html.index('results-actions"') < html.index(findings) < html.index("data-results-filter")
     assert (
-        '<p class="findings__answer">22 of 80 indices changed significantly since 1936. '
-        "Mean temperature rose by 0.19\u00a0°C per decade. "
+        '<p class="findings__answer"><strong>22 of 80 indices changed significantly since '
+        "1936.</strong> Mean temperature rose by 0.19\u00a0°C per decade. "
         "Changed: Heat, Cold. No significant change: Rain, Drought.</p>"
     ) in findings
     heat = _theme(findings, "heat")
     assert ">9 changed</span>" in heat
     assert "9 of 22 indices increased significantly." in heat  # 22 of the 30 have a trend
-    # Up to three trends, largest change first, plain name then code, units, linked.
+    assert '<p class="answer-band__number">22<small>of 80 changed significantly</small>' in html
+    # Up to three trends, largest change first, one line each: the plain name, linked, the
+    # value with its units, and the sparkline.
     keys = re.findall(rf'href="{url}/([^"#?]+)"', heat)
     assert keys == ["tr", "tn90p", "su"]
-    assert f'<a href="{url}/tr">Tropical nights</a> <code class="index-code">TR</code>' in heat
-    assert "+4.65\u00a0days per decade" in heat
-    assert "+1.31\u00a0percentage points per decade" in heat
-    assert heat.count('class="spark"') == 3
+    assert f'<a class="trend-row__name" href="{url}/tr">Tropical nights</a>' in heat
+    assert '>+4.65</span> <span class="trend-row__units">days / decade</span>' in heat
+    assert '+1.31</span> <span class="trend-row__units"><abbr title="percentage points">pp' in heat
+    assert heat.count('class="trend-row"') == heat.count('class="spark"') == 3
     cold = _text(_theme(findings, "cold"))
     assert "4 of 11 indices changed significantly: 2 increased and 2 decreased." in cold
     # No change is a finding too, in a quiet panel without trends.
     for key, n in (("rain", 13), ("drought", 9)):
         panel = _theme(findings, key)
-        assert "theme-headline--quiet" in panel and "trend-list" not in panel
+        assert "theme-headline--quiet" in panel and "trend-row" not in panel
         assert f"No significant change across {n} indices." in panel
         assert ">No clear change</span>" in panel
     # Each theme links to its indices in the catalogue, which shows only them.
     link = f'href="{url}?theme=heat#catalogue">See all 30 indices in Heat</a>'
     assert link in heat
     assert "Showing 30 of 80 indices." in client.get(url, {"theme": "heat"}).content.decode()
-    # Also measured: one line each, the user's own index with its definition.
-    also = _text(re.search(r'aria-labelledby="also-title">.*?</section>', findings, re.S).group(0))
-    assert "Averages: 4 of 5 indices increased significantly." in also
-    assert "Mean temperature (TMm): +0.19 °C per decade" in also
-    assert "Growing season and degree days: 5 of 8 indices changed significantly" in also
-    assert "Your own index: Number of days where TN > 0 TNgt0. No significant change." in also
-    assert f'href="{url}/TNgt0"' in findings
+    # The other indices are a chip of the catalogue, not lines here (#200).
+    assert "Averages" not in findings and 'id="also-title"' not in html
+    assert '<span>Also measured</span> <span class="chip__count">16</span>' in html
     # The order of the trends is said where it is used, and explained in its help (#177).
-    assert "Up to three significant trends per theme, largest first" in findings
+    assert "Up to three significant trends each, largest first" in findings
     assert "Largest means the trend per decade divided by" in findings  # the ⓘ's help
 
 
@@ -738,15 +747,16 @@ def test_a_station_without_significant_trends_says_so(client):
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     findings = _findings(html)
     assert (
-        '<p class="findings__answer">No index changed significantly since 1936. '
-        "Mean temperature did not change significantly.</p>"
+        '<p class="findings__answer"><strong>No index changed significantly since 1936.'
+        "</strong> Mean temperature did not change significantly.</p>"
     ) in findings
     for key in ("heat", "cold", "rain", "drought"):
         panel = _theme(findings, key)
-        assert "theme-headline--quiet" in panel and "trend-list" not in panel, key
+        assert "theme-headline--quiet" in panel and "trend-row" not in panel, key
         assert "No significant change across" in panel and "No clear change" in panel, key
     assert "No significant change across 13 indices." in _theme(findings, "rain")
-    assert ">Significant</span>" not in html and "Significant trends only (0)" in html
+    assert ">Significant</span>" not in html
+    assert 'Significant only</span> <span class="chip__count">0</span>' in html
 
 
 def test_finding_wording():
@@ -798,10 +808,9 @@ def test_theme_hues_colour_the_tiles_chips_dots_and_index_chart(client):
     for key in ("heat", "cold", "rain", "drought"):
         assert f'class="card theme-headline hue-{key}' in html
         assert f'value="{key}"><span class="hue-dot hue-{key}" aria-hidden="true">' in html
-    for key in ("averages", "seasons", "custom"):
-        assert f'value="{key}"><span class="hue-dot hue-other" aria-hidden="true">' in html
-    assert re.search(r'<li class="index-card hue-heat" data-index-theme="heat"', html)
-    assert re.search(r'<li class="index-card hue-other" data-index-theme=""', html)  # EHF daily
+    assert 'value="other"><span class="hue-dot hue-other" aria-hidden="true">' in html
+    assert '<tr class="hue-heat" id="index-txx" data-chip="heat"' in html
+    assert '<tr class="hue-other" id="index-EHFdaily" data-chip="other"' in html
     page = client.get(f"{url}/txx").content.decode()
     assert '<figure class="chart hue-heat" id="index-chart"' in page
     page = client.get(f"{url}/prcptot").content.decode()
@@ -836,9 +845,9 @@ def test_cards_and_index_page_lead_with_the_plain_name(client):
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url).content.decode()
-    assert f'<a href="{url}/fd">Frost days</a></h4>' in html
-    assert '<code class="index-code">FD</code> days' in html
-    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></h4>' in html
+    assert f'<a href="{url}/fd">Frost days</a></th>' in html
+    assert '<td><code class="index-code">FD</code></td>' in html
+    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></th>' in html
     assert '<code class="index-code">TX90-HWN</code>' in html
     assert f'<a href="{url}/3month_spi">Standardised precipitation index, 3 months</a>' in html
     # Codes still find their index.
@@ -859,35 +868,86 @@ def test_plain_names_of_indices_that_share_a_catalogue_entry():
     assert name("fd", by_short["fd"]) == "Frost days"
 
 
-def _groups(html: str) -> dict[str, str]:
-    """Each group's <details> start tag, by group key."""
-    pattern = r'(<details class="disclosure" id="group-([\w-]+)"[^>]*>)'
-    return {key: tag for tag, key in re.findall(pattern, html)}
+def _order(html: str) -> list[str]:
+    """The keys of the catalogue's rows, in the table's order."""
+    return re.findall(r'<tr class="hue-\w+" id="index-([^"]+)"', html)
 
 
-def test_groups_are_collapsed_until_filtered_or_linked(client):
-    """Groups are <details>, collapsed by default; a filter or search opens the groups it
-    shows, and the index page's "All indices" link opens its group, without JavaScript."""
-    analysis, _job = finished_analysis(client)
+def _header(html: str, key: str) -> str:
+    return re.search(rf'<th scope="col"[^>]*data-sort-key="{key}".*?</th>', html, re.S).group(0)
+
+
+def test_the_catalogue_sorts_by_column_without_javascript(client):
+    """#200: each column header is a link to the page sorted by it, with the filters kept;
+    the sorted column has aria-sort, and the line above the table says how it is sorted.
+    The rows are the same indices in every order."""
+    from climpact_web.stations.views_indices import sort_cards
+
+    analysis, job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url).content.decode()
-    groups = _groups(html)
-    assert len(groups) == 8 and not any(" open" in tag for tag in groups.values())
-    assert "13 indices · 4 significant</span>" in html  # fixed-threshold group: count
-    assert ">14 indices</span>" in html  # precipitation: nothing significant
-    # A search opens only the group with a match.
-    groups = _groups(client.get(url, {"q": "frost"}).content.decode())
-    assert " open" in groups["temperature-thresholds"]
-    assert all(" open" not in t and " hidden" in t for k, t in groups.items()
-               if k != "temperature-thresholds")  # fmt: skip
-    groups = _groups(client.get(url, {"theme": "drought"}).content.decode())
-    assert [k for k, t in groups.items() if " open" in t] == ["precipitation", "drought"]
-    # Linked from an index's page.
+    default = _order(html)
+    assert default[:3] == ["fd", "tnlt2", "tnltm2"]  # the catalogue's order
+    assert "aria-sort" not in html.split("<tbody>")[0] and "indices.</p>" in html
+    # A first click: names A to Z, the largest trends and the significant first.
+    assert f'href="{url}?sort=name&amp;dir=ascending#catalogue"' in _header(html, "name")
+    assert f'href="{url}?sort=trend&amp;dir=descending#catalogue"' in _header(html, "trend")
+    run = results_model.build(results_model.run_source(job))
+    titles = {c.key: c.title for c in run.cards}
+    page = client.get(url, {"sort": "name", "dir": "ascending"}).content.decode()
+    rows = _order(page)
+    assert sorted(rows) == sorted(default)
+    assert [titles[k].casefold() for k in rows] == sorted(titles[k].casefold() for k in rows)
+    assert 'aria-sort="ascending" data-sort-key="name"' in page
+    assert "Showing 80 of 80 indices. Sorted by Index, ascending." in page
+    # Sorted, the header links the other way.
+    assert f'href="{url}?sort=name&amp;dir=descending#catalogue"' in _header(page, "name")
+    assert _order(client.get(url, {"sort": "name", "dir": "descending"}).content.decode()) == (
+        list(reversed(rows))
+    )
+    # By trend: largest first, the rows without a trend last.
+    page = client.get(url, {"sort": "trend"}).content.decode()  # the column's direction
+    assert 'aria-sort="descending" data-sort-key="trend"' in page
+    cards = {c.key: c for c in run.cards}
+    slopes = [
+        cards[k].trend["slope"]
+        for k in _order(page)
+        if cards[k].trend and cards[k].trend.get("valid")
+    ]
+    assert slopes == sorted(slopes, reverse=True)
+    tail = _order(page)[len(slopes) :]
+    assert tail and all(not (cards[k].trend and cards[k].trend.get("valid")) for k in tail)
+    assert "EHFdaily" in tail
+    # By significance: the significant first, then the trends that are not, then none.
+    page = client.get(url, {"sort": "significance"}).content.decode()
+    first = _order(page)[:22]
+    assert all(cards[k].significant for k in first)
+    # The filters are kept by the sort links, and the sort by the filter form.
+    page = client.get(url, {"theme": "rain", "sort": "code", "dir": "ascending"}).content.decode()
+    assert f'href="{url}?theme=rain&amp;sort=name&amp;dir=ascending#catalogue"' in page
+    assert '<input type="hidden" name="sort" value="code">' in page
+    assert '<input type="hidden" name="dir" value="ascending">' in page
+    assert set(re.findall(ROW, page)) == {"rain"}
+    # The same order as the function js/results.js mirrors.
+    keys = [c.key for c in sort_cards(run.cards, "code", False)]
+    codes = [cards[k].code.casefold() for k in keys]
+    assert codes == sorted(codes)
+
+
+def test_every_index_is_one_click_away(client):
+    """#200: every index is a link in the table, whatever the filters hide; an index page's
+    "All indices" leads back to its row."""
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results"
+    html = client.get(url, {"theme": "drought", "q": "zzz"}).content.decode()
+    assert "Showing 0 of 80 indices." in html
+    assert "No index matches." in html and "data-results-empty hidden" not in html
+    rows = re.findall(r'<tr class="hue-\w+" id="index-([^"]+)"[^>]*>\s*<th scope="row">'
+                      r'<span class="hue-dot" aria-hidden="true"></span><a href="([^"]+)">',
+                      html)  # fmt: skip
+    assert len(rows) == 80 and all(href == f"{url}/{key}" for key, href in rows)
     page = client.get(f"{url}/rx1day").content.decode()
-    link = f'href="{url}?group=precipitation#group-precipitation"'
-    assert link in page
-    groups = _groups(client.get(url, {"group": "precipitation"}).content.decode())
-    assert [k for k, t in groups.items() if " open" in t] == ["precipitation"]
+    assert f'href="{url}#index-rx1day"' in page
 
 
 def test_downloads_and_next_step(client):
@@ -896,15 +956,15 @@ def test_downloads_and_next_step(client):
     # The files are on the Files page, not here (#176).
     assert f"/jobs/{job.pk}/files/" not in html
     assert f'href="/station/{analysis.pk}/downloads"' in html
-    # Without a zip, the link to the downloads page is the header's one action (#173;
-    # with a zip, test_downloads.test_dashboard_and_index_page_show_sizes).
+    # The header's two actions (#200): the sector comparison, and without a zip the link
+    # to the downloads page as the primary (with a zip, test_downloads).
     actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
-    assert actions.count('class="button"') == 1 and actions.count("<a ") == 1
+    assert actions.count('class="button"') == 1 and actions.count("<a ") == 2
     assert f'href="/station/{analysis.pk}/downloads"' in actions
-    # The sector comparison is an action lower on the page, not a step (#173).
-    sector = re.search(r'<section[^>]*aria-labelledby="sector-title">.*?</section>', html, re.S)
-    assert f'href="/station/{analysis.pk}/sector"' in sector.group(0)
-    assert f'href="/station/{analysis.pk}/sector"' not in actions
+    assert f'href="/station/{analysis.pk}/sector"' in actions
+    # No sector card or other button lower on the page.
+    assert 'id="sector-title"' not in html
+    assert html.count(f'href="/station/{analysis.pk}/sector"') == 1
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
     assert "Kept until" in html
 
@@ -914,7 +974,8 @@ def test_units_on_the_stat_row_and_percentage_point_trends(client):
     index is in percentage points per decade, not percent."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert "percentage points per decade" in html and "% per decade" not in html
+    assert '+0.65</span> <span class="text-text-muted">percentage points</span>' in html
+    assert "% per decade" not in html and "Trend per decade" in html
     page = client.get(f"/station/{analysis.pk}/results/tx90p").content.decode()
     for label in ("Highest", "Lowest", "Mean"):
         assert re.search(rf'{label}</span><span class="stat__value">[0-9.,]+%</span>', page)
@@ -1134,7 +1195,7 @@ def test_new_thresholds_replace_the_run_and_keep_the_settings(client):
     assert new.params["params"]["rx_days"] == 7 and analysis.step == Step.RESULTS
     assert new.params["replaces"] == str(adjusted.pk)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert "Results are out of date. Recalculating" in html and "data-results-section" in html
+    assert "Results are out of date. Recalculating" in html and "data-results-table" in html
     assert "You changed the quality-control thresholds." in html
 
 
@@ -1160,7 +1221,7 @@ def test_a_recalculation_keeps_the_results_until_it_finishes(client):
     new = Job.objects.latest("created_at")
     assert new.params["replaces"] == str(old.pk)
     html = client.get(f"{base}/results").content.decode()
-    assert "Recalculating" in html and "data-results-section" in html
+    assert "Recalculating" in html and "data-results-table" in html
     assert "The results below use the previous settings." in html
     # An index page and Files still show the previous results meanwhile.
     assert client.get(f"{base}/results/txx").status_code == 200
@@ -1169,14 +1230,14 @@ def test_a_recalculation_keeps_the_results_until_it_finishes(client):
     Job.objects.filter(pk=new.pk).update(status=Status.FAILED, error="Out of memory.")
     html = client.get(f"{base}/results").content.decode()
     assert "The recalculation failed" in html and "Out of memory." in html
-    assert f'action="/jobs/{new.pk}/retry"' in html and "data-results-section" in html
+    assert f'action="/jobs/{new.pk}/retry"' in html and "data-results-table" in html
     # Cancelled: the previous results are the analysis's again.
     Job.objects.filter(pk=new.pk).update(status=Status.QUEUED)
     client.post(f"/jobs/{new.pk}/cancel", {"next": f"{base}/results"})
     progress = client.get(f"{base}/results/progress")
     assert progress["HX-Redirect"] == f"{base}/results"
     html = client.get(f"{base}/results").content.decode()
-    assert "Recalculating" not in html and "data-results-section" in html
+    assert "Recalculating" not in html and "data-results-table" in html
     analysis.refresh_from_db()
     assert analysis.indices_job == old
     # Finished: the new results replace them.

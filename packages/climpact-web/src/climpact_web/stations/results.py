@@ -14,8 +14,9 @@ the downloads hold:
   ``skipped``), with the likely reason.
 
 Cards are grouped as the help's index catalogue (:mod:`climpact_web.help.indices`), and
-each group belongs to a family (temperature, precipitation, heatwaves, drought, other)
-for the filters. Each card has a sparkline drawn here as SVG path data, so the dashboard
+each card belongs to a theme (:mod:`climpact_web.stations.themes`: heat, cold, rain,
+drought, averages, growing season, the user's own index) for the findings at the top of
+the page and the filters. Each card has a sparkline drawn here as SVG path data, so the dashboard
 needs no chart code; the interactive chart is on the index's own page.
 
 Building the cards reads every table (about 0.2 s for 114 tables) and computes the trends
@@ -36,32 +37,12 @@ from django.utils.translation import gettext as _
 
 from climpact_web.charts import data as chart_data
 from climpact_web.help import indices as catalogue
+from climpact_web.stations import themes
 
 # Sparklines: drawn in a 240 x 60 box (stretched to the card's width with
 # vector-effect: non-scaling-stroke); longer series are averaged into 240 columns.
 SPARK_WIDTH, SPARK_HEIGHT, SPARK_PAD = 240, 60, 4
 PER_DECADE = {"year": 10, "month": 120}
-
-FAMILY_OF_GROUP = {
-    "temperature-thresholds": "temperature",
-    "temperature-extremes": "temperature",
-    "temperature-percentiles": "temperature",
-    "temperature-seasons": "temperature",
-    "precipitation": "precipitation",
-    "heatwaves": "heatwaves",
-    "drought": "drought",
-    "custom": "other",
-}
-
-
-def families() -> list[tuple[str, str]]:
-    return [
-        ("temperature", _("Temperature")),
-        ("precipitation", _("Precipitation")),
-        ("heatwaves", _("Heatwaves")),
-        ("drought", _("Drought")),
-        ("other", _("Your own index")),
-    ]
 
 
 def groups() -> list[tuple[str, str]]:
@@ -270,7 +251,7 @@ class Card:
     title: str  # the plain name the card and the index page lead with
     units: str
     group: str
-    family: str
+    theme: str  # themes.THEMES key, "" for a card only in the catalogue
     topic: str  # help topic id
     param_topic: str | None
     series: list[Series] = field(default_factory=list)
@@ -508,18 +489,16 @@ class RunResults:
                     {
                         "key": key,
                         "label": label,
-                        "family": FAMILY_OF_GROUP[key],
                         "cards": cards,
                         "significant": sum(1 for c in cards if c.significant),
                     }
                 )
         return out
 
-    def significant(self) -> list[Card]:
-        """The cards with a significant trend, the largest change first (see
-        :attr:`Card.change`), then in the catalogue's order."""
-        ordered = [c for s in self.sections() for c in s["cards"] if c.significant]
-        return sorted(ordered, key=lambda c: -c.change)
+    def themes(self) -> list[themes.ThemeResult]:
+        """The cards by theme, in the catalogue's order within each."""
+        ordered = [c for s in self.sections() for c in s["cards"]]
+        return themes.results(ordered)
 
     def neighbours(self, card: Card) -> tuple[Card | None, Card | None]:
         ordered = [c for s in self.sections() for c in s["cards"]]
@@ -544,7 +523,7 @@ def _new_card(key: str, order: int) -> Card:
         title=plain_name(key, info),
         units="",
         group=group,
-        family=FAMILY_OF_GROUP.get(group, "other"),
+        theme=themes.theme_of(key, info),
         topic=info.topic_id if info is not None else "param.custom",
         param_topic=info.param_topic if info is not None else "param.custom",
         order=order,

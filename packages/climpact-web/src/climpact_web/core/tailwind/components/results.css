@@ -1,5 +1,5 @@
-/* Steps 3 and 4 of a station (#78): the results filters and chips, the significant trends,
-   the index cards with their sparklines and trend arrows (trend--{{ direction }} is built in
+/* Steps 3 and 4 of a station (#78): the findings by theme (#175), the results filters and
+   chips, the trend lists, the index cards with their sparklines and trend arrows (trend--{{ direction }} is built in
    the template), the settings list and the downloads table. */
 @layer components {
   /* Filters */
@@ -11,7 +11,7 @@
   }
 
   .results-filter__search,
-  .results-filter__families {
+  .results-filter__themes {
     grid-column: 1 / -1;
   }
 
@@ -71,7 +71,78 @@
     outline-offset: 2px;
   }
 
-  /* The significant trends, largest first (#113) */
+  /* Findings by theme (#175): the answer, a headline per theme, the "Also measured" lines */
+  .findings__answer {
+    max-inline-size: var(--container-prose);
+    font-size: var(--text-md);
+  }
+
+  .theme-grid {
+    display: grid;
+    gap: --spacing(4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  }
+
+  /* The link to the theme's indices sits at the foot of the card, level across a row. */
+  .theme-headline > :last-child {
+    margin-block-start: auto;
+  }
+
+  .theme-headline__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(3);
+    align-items: center;
+  }
+
+  .theme-headline__finding {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .theme-headline--quiet {
+    box-shadow: none;
+    background: var(--color-surface-sunken);
+  }
+
+  .theme-headline--quiet .theme-headline__finding {
+    font-weight: var(--font-weight-normal);
+  }
+
+  /* In a theme's card: the name on its own line, the trend and its sparkline below. */
+  .theme-headline .trend-list__item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .theme-headline .trend-list__name {
+    grid-column: 1 / -1;
+  }
+
+  .also-measured {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .also-measured li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3);
+    align-items: baseline;
+    padding-block: --spacing(2);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .also-measured li:last-child {
+    border-block-end: 0;
+  }
+
+  .also-measured__text {
+    flex: 1 1 18rem;
+  }
+
+  /* The significant trends of a theme, largest first (#113, #175) */
   .trend-list {
     display: grid;
     margin: 0;

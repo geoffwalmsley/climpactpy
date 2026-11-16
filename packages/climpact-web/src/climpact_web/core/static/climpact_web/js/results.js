@@ -1,5 +1,5 @@
-/* The results dashboard's filters (#78): find an index by name or words, show one family,
-   or only significant trends, as you type. Without JavaScript the same form is sent and
+/* The results dashboard's filters (#78): find an index by name or words, show one theme
+   (#175), or only significant trends, as you type. Without JavaScript the same form is sent and
    the server filters the cards. The groups are collapsed <details> (#113): a filter opens
    the groups it shows (and closes them again when cleared), and a #group-... link opens
    its group. No dependencies, no network requests. */
@@ -27,18 +27,18 @@
     function apply() {
       var data = new FormData(form);
       var words = String(data.get("q") || "").toLowerCase().split(/\s+/).filter(Boolean);
-      var family = String(data.get("family") || "");
+      var theme = String(data.get("theme") || "");
       var significant = data.get("significant") === "1";
       var shown = 0;
       cards.forEach(function (card) {
         var text = card.getAttribute("data-search") || "";
-        var hide = (family && card.getAttribute("data-family") !== family) ||
+        var hide = (theme && card.getAttribute("data-index-theme") !== theme) ||
           (significant && !card.hasAttribute("data-significant")) ||
           words.some(function (w) { return text.indexOf(w) === -1; });
         card.hidden = hide;
         if (!hide) shown += 1;
       });
-      var filtering = words.length || family || significant;
+      var filtering = words.length || theme || significant;
       sections.forEach(function (section) {
         section.hidden = !section.querySelector(".index-card:not([hidden])");
         if (filtering && !section.hidden && !section.open) {
@@ -56,7 +56,7 @@
       if (empty) empty.hidden = shown > 0;
       var params = new URLSearchParams();
       if (words.length) params.set("q", data.get("q"));
-      if (family) params.set("family", family);
+      if (theme) params.set("theme", theme);
       if (significant) params.set("significant", "1");
       var query = params.toString();
       history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));

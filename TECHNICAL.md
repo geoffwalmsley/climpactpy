@@ -2820,6 +2820,8 @@ packages/climpact-web/src/climpact_web/
     retention.py     purge_expired_analyses, registered with the jobs app's purge
     results.py       the results dashboard's model (step 4): one card per index table,
                      sparklines, trends, tables not written and why, trend-file rows; cached
+    themes.py        the results page's themes (#175): the index-to-theme mapping (Heat,
+                     Cold, Rain, Drought, "Also measured"), the findings written from the trends
     views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
                      daily CSV, delete; step 2: the checks, thresholds, progress, table
                      pages, re-upload, continue
@@ -2839,7 +2841,7 @@ packages/climpact-web/src/climpact_web/
     templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; indices.html, _indices_unit.html
-                     (step 3), results_progress.html, _results_progress.html, results.html, _spark.html,
+                     (step 3), results_progress.html, _results_progress.html, results.html,
                      result.html (step 4), downloads.html, _download_link.html (#79),
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
@@ -3991,6 +3993,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
+| `theme_headline`, `spark` | a theme's finding on the results page (#175): title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -4642,11 +4645,13 @@ and a "Significant" or "Not significant" badge (the 95% interval excludes zero o
 in the trends guide), the latest value and the series it has. Sparklines are SVG paths
 drawn on the server (integer coordinates in a 240 x 60 box; long series averaged into 240
 columns; gaps where values are missing; the trend line dashed; SPI and SPEI as bars above
-and below zero), so the dashboard loads no chart code. A search box, family chips
-(temperature, precipitation, heatwaves, drought, your own index) and "significant trends
-only" filter the cards as you type (`js/results.js`, which also keeps the filter in the
-URL); without JavaScript the same GET form filters on the server. The family chips span
-the filter's full width. Each group is a `<details>` with its counts ("13 indices · 4
+and below zero; `components/spark.html`), so the dashboard loads no chart code. The
+catalogue is headed "All 80 indices" (`#catalogue`). A search box, theme chips (#175:
+Heat, Cold, Rain, Drought, Averages, Growing season and degree days, Your own index, each
+with its count; `?theme=`) and "significant trends only" filter the cards as you type
+(`js/results.js`, which also keeps the filter in the URL); without JavaScript the same GET
+form filters on the server. The daily EHF and ECF cards are in no theme, so they show
+under "All" only. The theme chips span the filter's full width. Each group is a `<details>` with its counts ("13 indices · 4
 significant"), collapsed by default (#113): the server opens the groups a filter or
 search shows, and the group named by `?group=` (the index page's "All indices" link is
 `?group=<key>#group-<key>`), so it all works without JavaScript; `results.js` also opens
@@ -4654,15 +4659,50 @@ the groups a filter shows as you type (and closes them again when the filter is 
 and the group a `#group-...` fragment names. With the Sydney sample this makes the page
 about 5,000 px tall at 390 px wide, from about 23,000 px.
 
-**Significant trends first (#113).** Directly below the action row, "Significant trends"
-lists every index whose trend is significant (`RunResults.significant`), each with its
-plain name, code, trend per decade and sparkline, linked to its page; with none, one
-sentence says so. They are ordered by the size of the change against the index's own
-variability, so that days, °C, mm and % compare: `Card.change` is |Sen's slope per
-decade| divided by the sample standard deviation of the series the card shows (the
-annual one where there is one; monthly for SPI and SPEI), largest first, ties in the
-catalogue's order. This ranking is the web app's; R's results page has no summary. The
-Sydney sample has 22 significant trends, led by TNm, TMm and GDDgrow10. The page also lists the
+**Findings by theme first (#175).** Directly below the action row, "What changed" answers
+before the detail (wireframe 3 of `docs/design/station-flow-wireframes.html`). Each card
+has a theme (`Card.theme`, from `stations/themes.py`, the one place the mapping lives;
+Decision C of #171, by the catalogue's short name, so parameterised outputs such as
+`rx3day`, `r30mm`, `wsdi1` and `24month_spi` follow `rxdday`, `rnnmm`, `wsdid` and `spi`):
+
+| Theme | Short names | Sydney cards |
+| --- | --- | --- |
+| Heat | su, tr, txge30, txge35, txx, tnx, tx90p, tn90p, tx95t, wsdi, wsdid, txdtnd, hw (the Tx90 and Tn90 heatwaves), hwEHF (the EHF heatwaves) | 30 |
+| Cold | fd, tnlt2, tnltm2, tnltm20, id, tnn, txn, tx10p, tn10p, csdi, csdid, txbdtnbd | 12 |
+| Rain | prcptot, sdii, r10mm, r20mm, rnnmm, rx1day, rx5day, rxdday, cwd, r95p, r99p, r95ptot, r99ptot | 13 |
+| Drought | spi, spei, cdd | 9 |
+| Also measured: Averages | txm, tnm, tmm, txgt50p, dtr | 5 |
+| Also measured: Growing season and degree days | gsl, gddgrown, hddheatn, cddcoldn, tmge5, tmlt5, tmge10, tmlt10 | 8 |
+| Also measured: Your own index | the custom index, with its definition | 1 |
+| Catalogue only | `EHFdaily`, `ECFdaily` (daily values, no trend) | 2 |
+
+A test checks that every short name of the core's `climate.indices.csv` is in exactly one
+theme, and that every card of the lat0 run has a theme or is one of the two daily tables.
+The page leads with one paragraph (`themes.summary`): how many indices changed
+significantly since the first year, the mean temperature's (TMm) trend, and which of the
+four themes changed ("22 of 80 indices changed significantly since 1936. Mean temperature
+rose by 0.19 °C per decade. Changed: Heat, Cold. No significant change: Rain, Drought.").
+Each of the four themes then has a headline (`components/theme_headline.html`): a badge
+("9 changed" or "No clear change"), one sentence from its trends (`themes.finding`,
+counting only the indices with a valid trend: "9 of 22 indices increased significantly.",
+"4 of 11 indices changed significantly: 2 increased and 2 decreased.", "No significant
+change across 13 indices."), up to three significant trends with plain name, code, trend
+per decade with units and sparkline, linked to the index's page, and a link to the theme's
+indices in the catalogue (`?theme=heat#catalogue`). A theme with no significant trend is a
+quiet panel (sunken surface, no shadow): no change is a finding. "Also measured" gives the
+other three one line each, with the same sentence and a link (Averages adds the TMm trend;
+the user's own index shows its definition and links to its page). Every sentence is a
+template string in the interface language, built from the trends; nothing is written by
+hand for a station.
+
+The three trends of a theme are its largest changes against the index's own variability,
+so that days, °C, mm and % compare: `Card.change` is |Sen's slope per decade| divided by
+the sample standard deviation of the series the card shows (the annual one where there is
+one; monthly for SPI and SPEI), largest first, ties in the catalogue's order. One line
+under the themes explains this ordering where it is used (it replaces #113's single
+"Significant trends" list, which mixed every theme). The ranking is the web app's; R's
+results page has no summary. For the Sydney sample Heat shows TR, TN90p and SU, Cold
+TX10p, TN10p and TNn. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
 the percentiles, or else the missing-data rules. The action row at the top has one primary action and one secondary link (#173): "Download
@@ -4745,7 +4785,7 @@ R behaviour not copied in steps 3 and 4, and why:
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the downloads page (#79) |
-| Results: a carousel of the PNGs and a link to the folder or zip | the significant trends first, largest change first (#113); a card per index table with sparkline, trend and significance, in collapsed groups, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | the findings first: one paragraph, a headline per theme (Heat, Cold, Rain, Drought) with its largest significant trends, and "Also measured" (#175); a card per index table with sparkline, trend and significance, in collapsed groups, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see

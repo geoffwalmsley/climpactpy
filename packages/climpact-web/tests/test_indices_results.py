@@ -19,6 +19,7 @@ from django.test import Client
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.stations import results as results_model
+from climpact_web.stations import themes
 from climpact_web.stations.forms_indices import IndexParamsForm
 from climpact_web.stations.models import StationAnalysis, Step
 
@@ -421,7 +422,7 @@ def test_every_table_of_the_lat0_run_is_on_the_dashboard(client):
     # Grouped as the index catalogue, with the families to filter by.
     for title in ("Temperature: extremes, means and range", "Precipitation", "Heatwaves", "Drought",
                   "Your own index"):  # fmt: skip
-        assert f">{title}</h2>" in html
+        assert f">{title}</h3>" in html
     assert html.count('class="index-card"') == len(linked) == 80
     assert "Showing 80 of 80 indices." in html
 
@@ -529,10 +530,10 @@ def test_the_reason_names_a_variable_with_no_data():
 def test_filters_without_javascript(client):
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
-    html = client.get(url, {"family": "drought"}).content.decode()
-    shown = re.findall(r'<li class="index-card" data-family="(\w+)"[^>]*?(?<!hidden)>', html)
-    assert set(shown) == {"drought"} and len(shown) == 8
-    assert "Showing 8 of 80 indices." in html
+    html = client.get(url, {"theme": "drought"}).content.decode()
+    shown = re.findall(r'<li class="index-card" data-index-theme="(\w+)"[^>]*?(?<!hidden)>', html)
+    assert set(shown) == {"drought"} and len(shown) == 9  # SPI, SPEI and CDD
+    assert "Showing 9 of 80 indices." in html
     html = client.get(url, {"q": "frost"}).content.decode()
     assert "Showing 1 of 80 indices." in html
     html = client.get(url, {"significant": "1"}).content.decode()
@@ -540,64 +541,194 @@ def test_filters_without_javascript(client):
     assert 0 < count < 80 and f"Significant trends only ({count})" in html
 
 
-def _summary(html: str) -> str:
-    return re.search(r'<section class="card stack trend-summary".*?</section>', html, re.S).group(0)
+def _findings(html: str) -> str:
+    return re.search(
+        r'<section class="stack" aria-labelledby="findings-title">.*?id="catalogue"', html, re.S
+    ).group(0)
 
 
-def test_significant_trends_lead_the_dashboard_largest_first(client):
-    """Below the actions, the significant trends: every card marked significant, largest
-    change (slope per decade over the series' standard deviation) first (#113)."""
+def _theme(html: str, key: str) -> str:
+    pattern = rf'<section class="card theme-headline[^"]*" aria-labelledby="theme-{key}-title">'
+    pattern += ".*?</section>"
+    return re.search(pattern, html, re.S).group(0)
+
+
+def _text(html: str) -> str:
+    return " ".join(re.sub(r"<[^>]+>", "", html).replace("&gt;", ">").split())
+
+
+def test_findings_by_theme_lead_the_results(client):
+    """#175: below the actions, the answer in one sentence, a headline per theme with its
+    largest significant trends, and the "Also measured" lines; the catalogue follows."""
     analysis, _job = finished_analysis(client)
-    html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    summary = _summary(html)
-    # First thing after the action row; before the filters and the groups.
-    assert html.index('results-actions"') < html.index(summary)
-    assert html.index(summary) < html.index("data-results-filter")
-    keys = re.findall(rf'href="/station/{analysis.pk}/results/([^"#?]+)"', summary)
-    cards = re.findall(r'<li class="index-card"(?:(?!</li>).)*?</li>', html, re.S)
-    significant = {
-        re.search(r"/results/([^\"#?]+)\"", c).group(1) for c in cards if ">Significant</span>" in c
-    }
-    assert len(keys) == len(set(keys)) == len(significant) == 22
-    assert set(keys) == significant
-    assert "22 of 80 indices changed significantly" in summary
-    # The order, checked from the files: the trend file's annual slope per decade over
-    # the standard deviation of the annual table, for the indices the trend file has.
+    url = f"/station/{analysis.pk}/results"
+    html = client.get(url).content.decode()
+    findings = _findings(html)
+    assert html.index('results-actions"') < html.index(findings) < html.index("data-results-filter")
+    assert (
+        '<p class="findings__answer">22 of 80 indices changed significantly since 1936. '
+        "Mean temperature rose by 0.19\u00a0°C per decade. "
+        "Changed: Heat, Cold. No significant change: Rain, Drought.</p>"
+    ) in findings
+    heat = _theme(findings, "heat")
+    assert ">9 changed</span>" in heat
+    assert "9 of 22 indices increased significantly." in heat  # 22 of the 30 have a trend
+    # Up to three trends, largest change first, plain name then code, units, linked.
+    keys = re.findall(rf'href="{url}/([^"#?]+)"', heat)
+    assert keys == ["tr", "tn90p", "su"]
+    assert f'<a href="{url}/tr">Tropical nights</a> <code class="index-code">TR</code>' in heat
+    assert "+4.65\u00a0days per decade" in heat
+    assert "+1.31\u00a0percentage points per decade" in heat
+    assert heat.count('class="spark"') == 3
+    cold = _text(_theme(findings, "cold"))
+    assert "4 of 11 indices changed significantly: 2 increased and 2 decreased." in cold
+    # No change is a finding too, in a quiet panel without trends.
+    for key, n in (("rain", 13), ("drought", 9)):
+        panel = _theme(findings, key)
+        assert "theme-headline--quiet" in panel and "trend-list" not in panel
+        assert f"No significant change across {n} indices." in panel
+        assert ">No clear change</span>" in panel
+    # Each theme links to its indices in the catalogue, which shows only them.
+    link = f'href="{url}?theme=heat#catalogue">See all 30 indices in Heat</a>'
+    assert link in heat
+    assert "Showing 30 of 80 indices." in client.get(url, {"theme": "heat"}).content.decode()
+    # Also measured: one line each, the user's own index with its definition.
+    also = _text(re.search(r'aria-labelledby="also-title">.*?</section>', findings, re.S).group(0))
+    assert "Averages: 4 of 5 indices increased significantly." in also
+    assert "Mean temperature (TMm): +0.19 °C per decade" in also
+    assert "Growing season and degree days: 5 of 8 indices changed significantly" in also
+    assert "Your own index: Number of days where TN > 0 TNgt0. No significant change." in also
+    assert f'href="{url}/TNgt0"' in findings
+    # The order of the trends is explained where it is used.
+    assert "largest first. Largest means the trend per decade divided by" in findings
+
+
+def test_largest_change_orders_each_themes_trends(client):
+    """The trends a theme shows are its largest changes: the slope per decade over the
+    series' standard deviation, checked from R's trend file and tables (#113)."""
     from climpact.io.climpact_csv import read_climpact_csv
 
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results"
+    findings = _findings(client.get(url).content.decode())
     trend = read_climpact_csv(LAT0 / STATION / "trend" / f"{STATION}_trend.csv").data
     annual = trend[trend["Frequency"] == "annual"].set_index("Index")
-    change = {}
-    for key in keys:
-        if key in annual.index:
-            table = read_table(f"{key}_ANN")
-            values = table[table.columns[1]]
-            change[key] = abs(annual.loc[key, "Slope"] * 10) / values.std()
-    assert len(change) >= 15
-    checked = [k for k in keys if k in change]
-    assert [round(change[k], 6) for k in checked] == sorted(
-        (round(v, 6) for v in change.values()), reverse=True
+    significant = annual[(annual["Lower bound"] > 0) | (annual["Upper bound"] < 0)]
+
+    def change(key):
+        values = read_table(f"{key}_ANN")
+        return abs(annual.loc[key, "Slope"] * 10) / values[values.columns[1]].std()
+
+    for key in ("heat", "cold"):
+        shown = re.findall(rf'href="{url}/([^"#?]+)"', _theme(findings, key))
+        assert len(shown) == 3, key
+        members = [
+            k
+            for k in significant.index
+            if themes.theme_of(k, results_model.catalogue.index_for_output(k)) == key
+        ]
+        expected = sorted(members, key=lambda k: -change(k))[: len(shown)]
+        assert shown == expected, key
+
+
+def flatten(folder: Path) -> None:
+    """Make every index table of a run trendless: each table's values alternate between its
+    first two values, so every Sen's slope interval includes zero."""
+    for path in (folder / "indices").glob("*.csv"):
+        if path.stem.endswith("daily"):  # no trend
+            continue
+        lines = path.read_text().splitlines()
+        start = next(i for i, line in enumerate(lines) if line.startswith("time,")) + 1
+        rows = [line.split(",") for line in lines[start:]]
+        present = [r[1] for r in rows if len(r) > 1 and r[1].strip() not in ("NA", "-99.9", "")]
+        if len(present) < 2:
+            continue
+        for i, row in enumerate(rows):
+            if len(row) > 1:
+                row[1] = present[i % 2]
+        path.write_text("\n".join(lines[:start] + [",".join(r) for r in rows]) + "\n")
+
+
+def test_a_station_without_significant_trends_says_so(client):
+    """#175: with no significant trend, the answer and every theme say so; no change is a
+    finding, not an empty page."""
+    analysis, job = finished_analysis(client)
+    flatten(job.output_dir / STATION)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    findings = _findings(html)
+    assert (
+        '<p class="findings__answer">No index changed significantly since 1936. '
+        "Mean temperature did not change significantly.</p>"
+    ) in findings
+    for key in ("heat", "cold", "rain", "drought"):
+        panel = _theme(findings, key)
+        assert "theme-headline--quiet" in panel and "trend-list" not in panel, key
+        assert "No significant change across" in panel and "No clear change" in panel, key
+    assert "No significant change across 13 indices." in _theme(findings, "rain")
+    assert ">Significant</span>" not in html and "Significant trends only (0)" in html
+
+
+def test_finding_wording():
+    """The headline sentences, from the trends: counts of indices with a trend, the
+    direction of the significant ones, and no change as a finding."""
+    from types import SimpleNamespace
+
+    def card(significant=False, direction="up", valid=True):
+        trend = {"valid": valid, "significant": significant, "direction": direction}
+        return SimpleNamespace(trend=trend if valid is not None else None, significant=significant)
+
+    finding = themes.finding
+    assert finding([card(), card(), card(valid=None)]) == "No significant change across 2 indices."
+    assert finding([card()]) == "No significant change in the one index with a trend."
+    assert finding([card(True), card()]) == "1 of 2 indices increased significantly."
+    assert finding([card(True, "down"), card()]) == "1 of 2 indices decreased significantly."
+    assert finding([card(True), card(True, "down"), card()]) == (
+        "2 of 3 indices changed significantly: 1 increased and 1 decreased."
     )
-    # Plain name, code and the trend per decade, linked to the index's page.
-    link = f'<a href="/station/{analysis.pk}/results/tnm">Mean TN</a>'
-    assert f'{link} <code class="index-code">TNm</code>' in summary
-    assert "°C per decade" in summary and 'class="spark"' in summary
+    assert finding([card(valid=False), card(valid=None)]) == ""
 
 
-def test_no_significant_trend_says_so(client, monkeypatch):
-    analysis, _job = finished_analysis(client)
-    monkeypatch.setattr(results_model.RunResults, "significant", lambda self: [])
-    summary = _summary(client.get(f"/station/{analysis.pk}/results").content.decode())
-    assert "No index has a significant trend" in summary and "<ol" not in summary
+def test_every_index_has_one_place_in_the_themes():
+    """Decision C (#175): every short name of the core's index file is in exactly one theme
+    or "Also measured" line; nothing else is in the mapping."""
+    shorts = set(results_model.catalogue.by_short())
+    placed = [s for theme in themes.THEMES for s in theme.shorts]
+    assert len(placed) == len(set(placed)), "an index is in two themes"
+    assert set(placed) == shorts
+    assert [t.key for t in themes.THEMES if t.headline] == ["heat", "cold", "rain", "drought"]
+
+
+def test_every_card_of_the_lat0_run_has_a_theme(client):
+    """Every calculated index is in one theme or line, or deliberately in the catalogue
+    alone (the daily EHF and ECF tables, which have no trend)."""
+    analysis, job = finished_analysis(client)
+    source = results_model.run_source(job)
+    run = results_model.build(source)
+    by_theme: dict[str, list[str]] = {}
+    for card in run.cards:
+        by_theme.setdefault(card.theme, []).append(card.key)
+    assert sorted(by_theme[""]) == sorted(themes.CATALOGUE_ONLY)
+    counts = {k: len(v) for k, v in by_theme.items()}
+    assert counts == {"heat": 30, "cold": 12, "rain": 13, "drought": 9, "averages": 5,
+                      "seasons": 8, "custom": 1, "": 2}  # fmt: skip
+    assert {"TX90-HWN", "TN90-HWF", "EHF-HWLI", "wsdi1", "tx2tn2"} <= set(by_theme["heat"])
+    assert {"r30mm", "rx3day"} <= set(by_theme["rain"]) and "cdd" in by_theme["drought"]
+    # Output names that depend on the settings follow their index.
+    info = results_model.catalogue.index_for_output
+    for key, theme in (("rx7day", "rain"), ("r25mm", "rain"), ("36month_spei", "drought"),
+                       ("wsdi5", "heat"), ("csdi3", "cold"), ("txb3tnb3", "cold"),
+                       ("hddheat15", "seasons"), ("gddgrow5", "seasons"),
+                       ("TXge40", "custom")):  # fmt: skip
+        assert themes.theme_of(key, info(key)) == theme, key
 
 
 def test_cards_and_index_page_lead_with_the_plain_name(client):
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url).content.decode()
-    assert f'<a href="{url}/fd">Frost days</a></h3>' in html
+    assert f'<a href="{url}/fd">Frost days</a></h4>' in html
     assert '<code class="index-code">FD</code> days' in html
-    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></h3>' in html
+    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></h4>' in html
     assert '<code class="index-code">TX90-HWN</code>' in html
     assert f'<a href="{url}/3month_spi">Standardised precipitation index, 3 months</a>' in html
     # Codes still find their index.
@@ -639,8 +770,8 @@ def test_groups_are_collapsed_until_filtered_or_linked(client):
     assert " open" in groups["temperature-thresholds"]
     assert all(" open" not in t and " hidden" in t for k, t in groups.items()
                if k != "temperature-thresholds")  # fmt: skip
-    groups = _groups(client.get(url, {"family": "drought"}).content.decode())
-    assert [k for k, t in groups.items() if " open" in t] == ["drought"]
+    groups = _groups(client.get(url, {"theme": "drought"}).content.decode())
+    assert [k for k, t in groups.items() if " open" in t] == ["precipitation", "drought"]
     # Linked from an index's page.
     page = client.get(f"{url}/rx1day").content.decode()
     link = f'href="{url}?group=precipitation#group-precipitation"'

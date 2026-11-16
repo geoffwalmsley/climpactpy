@@ -37,6 +37,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import create_job, progress_context
 from climpact_web.stations import results as results_model
+from climpact_web.stations import themes
 from climpact_web.stations.forms import QCParamsForm
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
 from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
@@ -372,21 +373,21 @@ def downloads(source) -> dict:
 
 def dashboard_context(request, analysis, source, run) -> dict:
     q = request.GET.get("q", "").strip()[:100]
-    family = request.GET.get("family", "")
+    theme = request.GET.get("theme", "")
     significant = request.GET.get("significant") == "1"
-    families = results_model.families()
-    if family not in dict(families):
-        family = ""
+    found = run.themes()
+    if theme not in {t.key for t in found}:
+        theme = ""
     sections = run.sections()
     words = q.lower().split()
-    filtering = bool(words or family or significant)
+    filtering = bool(words or theme or significant)
     # The "All indices" link of an index's page opens its group without JavaScript.
     group = request.GET.get("group", "")
     shown = 0
     for section in sections:
         for card in section["cards"]:
             card.hidden = bool(
-                (family and card.family != family)
+                (theme and card.theme != theme)
                 or (significant and not card.significant)
                 or any(w not in card.search_text for w in words)
             )
@@ -394,24 +395,79 @@ def dashboard_context(request, analysis, source, run) -> dict:
         section["hidden"] = all(c.hidden for c in section["cards"])
         # Groups start collapsed, unless a filter shows what is in them or a link asks.
         section["open"] = not section["hidden"] and (filtering or section["key"] == group)
-    counts = {key: sum(1 for c in run.cards if c.family == key) for key, _label in families}
+    first_year = (analysis.summary or {}).get("first_year", "")
     return {
         "source": source,
         "run": run,
         "sections": sections,
-        "families": [(k, label, counts[k]) for k, label in families if counts[k]],
+        "summary_sentences": themes.summary(run.cards, found, first_year),
+        "headline_themes": [_theme_entry(analysis, t) for t in found if t.theme.headline],
+        "also_measured": [_theme_entry(analysis, t) for t in found if not t.theme.headline],
+        "themes": found,
         "q": q,
-        "family": family,
+        "theme": theme,
         "significant": significant,
         "filtering": filtering,
         "shown": shown,
         "total": len(run.cards),
-        "significant_cards": run.significant(),
         "significant_count": sum(1 for c in run.cards if c.significant),
         "params": params_summary(source),
         "downloads": downloads(source),
         "from_batch": source.from_batch and analysis.indices_job is None,
     }
+
+
+def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
+    """A theme's headline (or "Also measured" line) for the template: its finding, its
+    largest significant trends as links, and a link to its indices in the catalogue."""
+    page = reverse("stations:results", args=[analysis.pk])
+    n = len(found.cards)
+    entry = {
+        "key": found.key,
+        "label": found.label,
+        "finding": found.finding,
+        "badge": found.badge,
+        "items": [
+            {
+                "href": reverse("stations:result", args=[analysis.pk, card.key]),
+                "title": card.title,
+                "code": card.code,
+                "trend": themes.trend_text(card),
+                "direction": card.trend["direction"],
+                "spark": card.spark,
+            }
+            for card in found.top
+        ],
+        "more_href": f"{page}?{urlencode({'theme': found.key})}#catalogue",
+        "more_label": ngettext(
+            "See the %(n)s index in %(theme)s", "See all %(n)s indices in %(theme)s", n
+        )
+        % {"n": n, "theme": found.label},
+        "note": "",
+    }
+    if found.key == "averages":
+        mean = next((c for c in found.cards if c.key == themes.MEAN_TEMPERATURE), None)
+        if mean is not None and mean.trend and mean.trend.get("valid"):
+            entry["note"] = _("Mean temperature (%(code)s): %(trend)s") % {
+                "code": mean.code,
+                "trend": themes.trend_text(mean),
+            }
+    elif found.key == "custom":
+        # The user's own index: its definition, and its trend in words.
+        card = found.cards[0]
+        entry["definition"] = card.definition
+        entry["code"] = card.code
+        entry["more_href"] = reverse("stations:result", args=[analysis.pk, card.key])
+        entry["more_label"] = _("Open %(code)s") % {"code": card.code}
+        if card.significant:
+            entry["finding"] = (
+                _("Increased significantly: %(trend)s.")
+                if card.trend["direction"] == "up"
+                else _("Decreased significantly: %(trend)s.")
+            ) % {"trend": themes.trend_text(card)}
+        elif card.trend and card.trend.get("valid"):
+            entry["finding"] = _("No significant change.")
+    return entry
 
 
 # ---- one index ---------------------------------------------------------------------------

@@ -140,6 +140,7 @@ uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run pytest                      # both packages' tests, including R parity
 uv run pytest packages/climpact    # the core only
+uv run pytest -m browser           # the browser accessibility checks (needs Chrome; left out above)
 uv run climpact-web                # the web app from the working tree
 ```
 

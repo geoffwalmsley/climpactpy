@@ -1374,7 +1374,8 @@ for fitted distributions.
 ### Running
 
 ```sh
-uv run pytest                                   # everything (both packages)
+uv run pytest                                   # everything (both packages) but the browser checks
+uv run pytest -m browser                        # the browser accessibility checks only
 uv run pytest packages/climpact                 # the core only
 uv run pytest packages/climpact/tests/parity    # parity only
 ```
@@ -5437,7 +5438,15 @@ Widget tests work the tabs, dialog, drop zone (Space opens the file chooser, cau
 `Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
 gridded explorer by keyboard. `test_axe_every_page` fails on a serious or critical axe
 violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
-about four minutes. `CLIMPACT_A11Y_REPORT=<folder>` writes `report.json` and screenshots
+about four and a half minutes (on 2026-11-16, 198 s of it in the `site` fixture), so it is
+marked `browser` (`pytestmark`; the marker is registered in `pytest.ini` and in
+`packages/climpact-web/pyproject.toml`) and the default `addopts` deselect it with
+`-m "not browser"` (#180): a plain `uv run pytest` starts neither Chrome nor the server.
+Run it with `uv run pytest -m browser` (or `uv run pytest -m browser
+packages/climpact-web/tests/test_accessibility.py`, or from `packages/climpact-web`), before a pull
+request that touches templates, CSS or JavaScript. The last `-m` on the command line wins,
+so `-m browser` replaces the default; naming the file without it deselects every test in
+it, the axe hash check included. `CLIMPACT_A11Y_REPORT=<folder>` writes `report.json` and screenshots
 of every page (light, dark, forced colours, 320 px). axe-core (4.14.0, MPL-2.0) is a test
 asset in `tests/assets/axe-core/`, injected with `Runtime.evaluate`; its README records the
 source URL and SHA-256, which `test_vendored_axe_is_the_pinned_release` checks. It is
@@ -5477,6 +5486,7 @@ done by hand.
 uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run pytest
+uv run pytest -m browser    # the browser accessibility checks, before a PR touching templates, CSS or JS
 ```
 
 - The repository is a [uv](https://docs.astral.sh/uv/) workspace (#116; it replaced the
@@ -5525,13 +5535,14 @@ uv run pytest
   suite, parity included); `web` installs both packages (`uv sync --locked`), fetches the
   pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
   the committed `css/climpact.css` differs (#118), runs
-  `pytest packages/climpact-web` (without the size budget and the accessibility tests), the size budget as its own step
+  `pytest packages/climpact-web` (without the size budget, which it `--ignore`s, and the
+  accessibility tests, which the default `-m "not browser"` deselects), the size budget as its own step
   (`pytest packages/climpact-web/tests/test_page_budget.py`, see
   [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service
   container, including a station job through the worker (see [Tests](#tests)); a last
   step adds the dev group (`uv sync --locked --package climpact-web --extra postgres`)
   and runs `test_queue_postgres.py`, several workers competing for claims.
-  `web-accessibility` (Python 3.12) runs `test_accessibility.py` in the runner's
+  `web-accessibility` (Python 3.12) runs `test_accessibility.py -m browser` in the runner's
   preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
   `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps
   the report and screenshots as the `accessibility-report` artifact (see

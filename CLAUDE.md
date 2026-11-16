@@ -20,6 +20,11 @@ architecture, parity testing and the differences between the Python and R implem
 - `uv run pytest` from the root runs both packages' tests; `uv run pytest
   packages/climpact` runs the core alone (CI runs it without the web package installed:
   `uv sync --package climpact`).
+- The browser accessibility checks (`packages/climpact-web/tests/test_accessibility.py`,
+  marker `browser`, about 4.5 minutes, needs Chrome) are deselected by default
+  (`-m "not browser"` in `addopts`); CI's `web-accessibility` job runs them. Run them
+  locally with `uv run pytest -m browser` before a pull request that touches templates,
+  CSS or JavaScript. Naming the file without `-m browser` collects nothing.
 - The web stylesheet is built with the pinned standalone Tailwind CLI: after changing a
   template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
   `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install

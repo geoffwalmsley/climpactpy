@@ -22,6 +22,7 @@
       <li><a href="#buttons">{% translate "Buttons" %}</a></li>
       <li><a href="#forms">{% translate "Form fields" %}</a></li>
       <li><a href="#dropzone">{% translate "File drop zone" %}</a></li>
+      <li><a href="#file-button">{% translate "File button" %}</a></li>
       <li><a href="#alerts">{% translate "Alerts" %}</a></li>
       <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
       <li><a href="#cards">{% translate "Cards" %}</a></li>
@@ -143,6 +144,16 @@
       <div class="pattern__demo">
         {% translate "Text file (.txt or .csv), up to 50 MB" as hint_file %}
         {% include "components/dropzone.html" with field=form.station_file hint=hint_file %}
+      </div>
+    </section>
+
+    <section class="pattern" id="file-button" aria-labelledby="file-button-title">
+      <h2 id="file-button-title">{% translate "File button" %}</h2>
+      <p>{% translate "A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone would take too much room. Without JavaScript it is a file input and a submit button. Say near it what happens when a file is chosen." %}</p>
+      <div class="pattern__demo stack stack--sm">
+        {% translate "Upload a corrected file" as file_button_label %}{% translate "Upload and check again" as file_button_submit %}
+        {% include "components/file_button.html" with action="#" field=form.corrected_file label=file_button_label submit_label=file_button_submit variant="secondary" %}
+        <p class="text-sm text-text-muted" id="{{ form.corrected_file.auto_id }}_helptext">{{ form.corrected_file.help_text }}</p>
       </div>
     </section>
 

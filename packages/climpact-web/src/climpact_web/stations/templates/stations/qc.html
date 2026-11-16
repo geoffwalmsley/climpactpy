@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
 {% comment %}
-Step 2, Check quality (#77): the thresholds (the R app's six), the checks run as a "qc"
-job with its progress, and the results: the summary, the daily charts with the flagged
-values, a section per check with its table (linked both ways with the charts), the
-missing data per year, the distribution plots, the downloads, and the way back to
-correct the file. Context from views.qc_context.
+Step 2, Check quality (#77), as a short worklist (#174): the verdict and the one decision
+(use the data, or upload a corrected file), the values that look wrong each with the days
+around it, the groups worth a look, the checks that found nothing, the missing data, and
+everything else (daily charts, distributions, thresholds, files) under Details. While the
+checks run, or before they have run, the thresholds form and the progress. Context from
+views.qc_context.
 {% endcomment %}
 {% block title %}{% translate "Check quality" %}{% endblock %}
 {% block head %}{% if review %}{% chart_scripts %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
@@ -16,9 +17,8 @@ correct the file. Context from views.qc_context.
   <header class="stack stack--sm">
     <h1>{% translate "Check quality" %}</h1>
     <p class="lead">{% blocktranslate with name=analysis.station_name first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
-      {{ name }}, {{ first }} to {{ last }}. Climpact checks every value for likely errors. It
-      does not change your data: you look at what it finds and decide whether to correct the
-      file or to continue.{% endblocktranslate %}</p>
+      {{ name }}, {{ first }} to {{ last }}. Climpact checks every value. It never changes your
+      data: you decide whether to correct the file or to go on.{% endblocktranslate %}</p>
   </header>
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
@@ -43,60 +43,23 @@ correct the file. Context from views.qc_context.
     {% include "components/alert.html" with kind="info" message=not_run title="" %}
     {% endif %}
 
-    {% if review %}{% include "stations/_qc_summary.html" %}{% endif %}
+    {% if review %}{% include "stations/_qc_verdict.html" %}{% endif %}
   </div>
 
   {% if review %}
-  <section class="stack" id="daily" aria-labelledby="daily-title">
-    <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-      <h2 id="daily-title">{% translate "Daily values" %}</h2>
-      {% help_topic "qc.daily_series" %}
-    </div>
-    <p class="text-text-muted">{% translate "Flagged values are circled. Click a circle to find it in the tables below; “Show on chart” in a table brings you back to the day here. Drag across a chart to zoom in." %}</p>
-    <div class="tabs qc-charts" data-tabs>
-      <ul class="tabs__list" aria-label="{% translate 'Variable shown' %}">
-        {% for chart in charts %}<li><a class="tabs__tab" href="#{{ chart.id }}-panel" id="{{ chart.id }}-panel-tab">{{ chart.label }}</a></li>{% endfor %}
-      </ul>
-      {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.pk as series_url %}
-      {% for chart in charts %}
-      <section class="tabs__panel" id="{{ chart.id }}-panel">
-        <h3 class="tabs__panel-heading">{{ chart.label }}</h3>
-        {% with chart_url=daily_url|add:"?variable="|add:chart.variable %}
-        {% include "components/chart_frame.html" with id=chart.id title=chart.label data_url=chart_url csv_href=series_url height="18rem" only %}
-        {% endwith %}
-      </section>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="stack" id="checks" aria-labelledby="checks-title">
-    <h2 id="checks-title">{% translate "What the checks found" %}</h2>
-    {% for group in check_groups %}
-    <div class="stack">
-      <h3 class="mt-4 text-base tracking-[0.02em] text-text-muted uppercase">{% if group.kind == "error" %}{% translate "Usually errors in the data" %}{% else %}{% translate "May be genuine: worth a look" %}{% endif %}</h3>
-      {% for item in group.items %}{% include "stations/_qc_check.html" with check=item.check page=item.page %}{% endfor %}
-    </div>
-    {% endfor %}
-  </section>
-
+  {% if findings %}{% include "stations/_qc_findings.html" %}{% endif %}
+  {% if groups %}{% include "stations/_qc_worth.html" %}{% endif %}
+  {% with quiet=review.quiet %}{% if quiet %}
+  <p class="qc-quiet" id="nothing-found">{% icon "check-circle" %}<span><strong>{% blocktranslate count counter=quiet|length trimmed %}{{ counter }} check found nothing{% plural %}{{ counter }} checks found nothing{% endblocktranslate %}</strong>
+    <span class="text-text-muted">{{ review.quiet_titles }}</span></span></p>
+  {% endif %}{% endwith %}
   {% include "stations/_qc_missing.html" %}
-  {% include "stations/_qc_distributions.html" %}
-
-  <section class="card stack" id="downloads" aria-labelledby="downloads-title">
-    <h2 class="card__title" id="downloads-title">{% translate "Quality-control files" %}</h2>
-    <p>{% translate "The same files as Climpact for R writes in its qc folder, as CSV." %}</p>
-    {% if review.zip %}<p>{% url "jobs:file" job.pk review.zip as zip_url %}{% blocktranslate with size=job|file_size:review.zip|filesizeformat asvar zip_label %}Download all quality-control files (zip, {{ size }}){% endblocktranslate %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" variant="secondary" %}</p>{% endif %}
-    <ul class="file-list grid gap-1">
-      {% for check in review.checks %}{% if check.file %}<li><a href="{% url 'jobs:file' job.pk check.file %}" download>{% icon "file" %} {{ check.file_name }}</a> <span class="text-text-muted text-sm">{% blocktranslate with title=check.title size=job|file_size:check.file|filesizeformat %}{{ title }}, {{ size }}{% endblocktranslate %}</span></li>{% endif %}{% endfor %}
-      {% if review.nastatistics_file %}<li><a href="{% url 'jobs:file' job.pk review.nastatistics_file %}" download>{% icon "file" %} {{ review.nastatistics_name }}</a> <span class="text-text-muted text-sm">{% blocktranslate with size=job|file_size:review.nastatistics_file|filesizeformat %}Missing days per year, {{ size }}{% endblocktranslate %}</span></li>{% endif %}
-    </ul>
-  </section>
-  {% endif %}
-
+  {% include "stations/_qc_details.html" %}
+  {% else %}
   <section class="card stack" id="thresholds" aria-labelledby="thresholds-title">
-    {% if review or job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}
+    {% if job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}
     <details class="disclosure"{% if qc_form.errors %} open{% endif %}>
-      <summary>{% icon "sliders" %}<span id="thresholds-title">{% if review %}{% translate "Change the thresholds and check again" %}{% else %}{% translate "Change the thresholds" %}{% endif %}</span>{% icon "chevron-down" %}</summary>
+      <summary>{% icon "sliders" %}<span id="thresholds-title">{% translate "Change the thresholds" %}</span>{% icon "chevron-down" %}</summary>
       <div class="disclosure__body">{% include "stations/_qc_form.html" %}</div>
     </details>
     {% else %}
@@ -105,23 +68,11 @@ correct the file. Context from views.qc_context.
     {% endif %}
   </section>
 
-  <section class="card stack" id="fix" aria-labelledby="fix-title">
-    <h2 class="card__title" id="fix-title">{% translate "Correct the file and upload it again" %}</h2>
-    <p>{% blocktranslate trimmed %}Climpact does not edit data. To correct a value, change it in
-      your file (or write it as -99.9 if it is wrong and the right value is not known), then
-      upload the corrected file here. The station details and the thresholds are kept, and the
-      checks run again straight away.{% endblocktranslate %}</p>
-    <form method="post" action="{% url 'stations:qc_replace' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
-      {% csrf_token %}
-      {% include "components/dropzone.html" with field=replace_form.station_file hint="" %}
-      {% turnstile %}
-      <div>
-        {% translate "Upload and check again" as replace_label %}
-        {% include "components/button.html" with label=replace_label type="submit" variant="secondary" icon="upload" %}
-      </div>
-    </form>
-    <p class="text-sm"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the station details or the base period" %}</a></p>
+  <section class="stack stack--sm" id="fix" aria-labelledby="fix-title">
+    <h2 id="fix-title">{% translate "Correct the file" %}</h2>
+    {% include "stations/_qc_upload.html" with variant="secondary" %}
   </section>
+  {% endif %}
 
   {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">

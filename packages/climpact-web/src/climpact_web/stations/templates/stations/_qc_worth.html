@@ -1,0 +1,37 @@
+{% load i18n ui help %}{% comment %}
+"Worth a look" (#174): outliers by variable and direction, with their counts by calendar
+month, and the day-to-day jumps and flat runs, each a group that opens to its rows. These
+may be real values and never change the verdict. Context: groups (views.qc_context: group,
+page), review, analysis.
+{% endcomment %}
+<section class="stack" id="worth-a-look" aria-labelledby="worth-title">
+  <div class="qc-section-head">
+    <h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2>
+    <p class="text-text-muted">{% translate "Unusual values. Many are real extremes. They are grouped so you can see patterns." %}</p>
+  </div>
+  <div class="qc-groups">
+    {% for item in groups %}{% with group=item.group check=item.group.check %}
+    <details class="qc-group" id="{{ check.anchor }}">
+      <summary class="qc-group__summary">
+        <span class="qc-group__title">{{ group.title }}{% if group.mostly %}<span class="qc-group__note">{{ group.mostly }}</span>{% endif %}</span>
+        <span class="qc-count">{{ group.count|count }}</span>
+        {% icon "chevron-down" %}
+      </summary>
+      <div class="qc-group__body stack stack--sm">
+        <p>{{ check.description }}</p>
+        {% help_topic check.help_id %}
+        {% if group.by_month %}
+        <div class="table-wrap" role="region" aria-labelledby="{{ check.anchor }}-months" tabindex="0">
+          <table class="table qc-months">
+            <caption id="{{ check.anchor }}-months">{% blocktranslate with title=group.title %}{{ title }} by calendar month{% endblocktranslate %}</caption>
+            <thead><tr>{% for name in month_names %}<th scope="col" class="num">{{ name }}</th>{% endfor %}</tr></thead>
+            <tbody><tr>{% for n in group.by_month %}<td class="num">{% if n %}{{ n|count }}{% else %}<span class="text-text-muted">{{ n|count }}</span>{% endif %}</td>{% endfor %}</tr></tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% include "stations/_qc_table.html" with page=item.page selected="" %}
+      </div>
+    </details>
+    {% endwith %}{% endfor %}
+  </div>
+</section>

@@ -119,6 +119,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `stat` | Primitive | One number with label and note | — |
 | `field`, `field_errors` | Component | Label, hint, input, unit, inline error, help topic | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
+| `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
 | `card` | Component | Grouped content; whole-card link | link, muted, with badge |
 | `alert`, `messages`, `toasts` | Component | Page and transient feedback | info, success, warning, error; dismissible; live |
@@ -128,8 +129,17 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `steps` | Pattern | Where the user is in a flow; done steps link back | optional step |
+| `steps` | Pattern | Where the user is in a flow; done steps link back | — |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
+
+Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
+`stations/templates/stations/_qc_*.html`):
+
+| Pattern | Purpose | Built from |
+| --- | --- | --- |
+| Verdict | The answer and the one decision on it. An h2 title, one or two sentences, a line of counts against what was checked, and the decision's buttons. One primary button; on red the buttons swap, and a "… anyway" secondary always stays. | `alert`, `button`, `file_button` |
+| Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
+| Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional.
@@ -139,17 +149,22 @@ keyboard. This is not optional.
 ### Do
 
 - **One primary action per view.** One `button--primary` per screen or decision area, and
-  it says what happens next with a verb ("Use this data", "Calculate").
+  it says what happens next with a verb ("Use this data", "Calculate"). A form's one
+  submit button sits below the fields it confirms, never in the first screen above them.
 - **Answer first, detail on request.** Lead with the finding or verdict, then the
   evidence; tables, distributions and file lists go below or behind a disclosure.
 - **Keep severity in proportion to the data.** State counts against what was checked
   ("5 of 87,600 values"). Red means "fix this before going on", not "the check found
-  something". **Target:** QC verdict, #174.
+  something". The Quality verdict has three levels, with the limits in
+  `qc_review.VERDICT_LIMITS`. Green, "Ready to use": nothing looks wrong. Amber, "Usable":
+  up to 0.1% of the values look wrong. Red, "Fix the file first": more than that, or more
+  than 10% of the years too incomplete for annual values. Values that are unusual but may
+  be real are counted and never change the level.
 - **Write short, plain sentences.** One idea per sentence; no chains of colons and
   semicolons; a verb on every button. Assume the reader is working in a second language.
   **Target:** copy pass, #177.
 - **Give units with every number,** including stats and trends (percentage points for
-  trends of percentage indices). **Target:** #173.
+  trends of percentage indices).
 - **Plain names first, codes second.** "Hot days" with `TX90p` beside it, never the
   code alone.
 - **Never change the user's data, and say so.** The app reports; the user decides.
@@ -157,19 +172,19 @@ keyboard. This is not optional.
 ### Don't
 
 - **Don't put cards inside cards.** One surface level on the page; separate groups inside
-  a card with spacing and headings, not another border and shadow. **Target:** #173,
-  #174.
+  a card with spacing and headings, not another border and shadow.
 - **Don't offer downloads everywhere.** Files live in one Files section; elsewhere at most
   one "Download all" link, plus each chart's own PNG/SVG/CSV. **Target:** #176.
 - **Don't put a help link under every field.** One ⓘ per section opens that section's help
   in a side panel; a field keeps a hint only when its value isn't self-explanatory.
   **Target:** #177.
 - **Don't show a step's results before the step.** QC flags belong to Quality, not to the
-  Load chart. **Target:** #173.
+  Load chart (it asks for `?flags=0`).
 - **Don't add a page or step without a decision on it.** A screen that only confirms
   defaults should be an inline action instead. **Target:** #178.
-- **Don't repeat a standing notice on every page** (retention, privacy). Say it once
-  where it matters and keep a quiet line in the footer. **Target:** #173.
+- **Don't repeat a standing notice on every page** (retention, privacy). Show it in full
+  once, where it matters. After that it is a quiet line at the foot of the page: small
+  muted text (`text-sm text-text-muted`) with a lock icon.
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too.
 
 ## Responsive

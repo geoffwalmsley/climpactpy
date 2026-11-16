@@ -211,6 +211,21 @@
     });
   }
 
+  /* ---- File buttons (#174): the label becomes the button, a chosen file is sent ---- */
+  function initFileButtons(scope) {
+    each(scope, "[data-file-button]", function (form) {
+      if (!enhanceOnce(form, "file")) return;
+      var label = form.querySelector("label[data-class]");
+      var input = form.querySelector('input[type="file"]');
+      if (!label || !input) return;
+      label.className += " " + label.getAttribute("data-class");
+      form.classList.add("file-button--enhanced");
+      input.addEventListener("change", function () {
+        if (input.files && input.files.length) form.requestSubmit();
+      });
+    });
+  }
+
   /* ---- Dialogs, dismissible alerts, error summaries ---- */
   function initDialogs(scope) {
     each(scope, "[data-dialog-open]", function (button) {
@@ -351,6 +366,7 @@
     initThemeToggle(scope);
     initTabs(scope);
     initDropzones(scope);
+    initFileButtons(scope);
     initDialogs(scope);
     initToastDemos(scope);
   }

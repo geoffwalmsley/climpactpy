@@ -223,14 +223,14 @@ def test_get_requests_and_the_sample_need_no_token(turnstile):
 
 @pytest.mark.django_db
 def test_forms_wait_for_their_token(turnstile):
-    """The sample's Load page (#163): a top button outside the details form, and two
-    widgets (the details and "Use a different file"), each in its own form. Each widget
+    """The sample's Load page (#163): two widgets (the details and "Use a different
+    file"), each in its own form, and no button outside them (#173). Each widget
     names turnstile.js's callbacks and carries the texts it shows while the form waits;
     turnstile.js comes once, before Cloudflare's script."""
     client = visitor()
     load = client.post("/station/sample")["Location"]
     html = client.get(load).content.decode()
-    assert 'form="station-details"' in html  # the shortcut that raced the token
+    assert 'form="station-details"' not in html  # the shortcut that raced the token is gone
     widgets = re.findall(r'<div class="cf-turnstile"[^>]*>', html)
     assert len(widgets) == 2
     for widget in widgets:

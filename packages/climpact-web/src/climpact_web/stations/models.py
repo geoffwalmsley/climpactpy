@@ -40,7 +40,9 @@ class Source(models.TextChoices):
 
 
 class Step(models.TextChoices):
-    """The furthest step reached; the keys of ``core.navigation.STATION_STEPS``."""
+    """The furthest step reached: the keys of ``core.navigation.STATION_STEPS``, then
+    ``sector``, the sector comparison, which is an action on Results rather than a step
+    in the indicator (#173)."""
 
     UPLOAD = "upload", _("Load data")
     QC = "qc", _("Check quality")

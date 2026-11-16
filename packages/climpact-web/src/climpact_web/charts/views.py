@@ -105,22 +105,26 @@ def analysis_qc_params(analysis):
 @require_safe
 def station_daily(request, analysis_id):
     """The daily series of a station analysis, with the values the QC checks flag;
-    ``?variable=`` (``tmax``, ``tmin``, ``dtr``, ``prcp``) gives one variable alone."""
+    ``?variable=`` (``tmax``, ``tmin``, ``dtr``, ``prcp``) gives one variable alone, and
+    ``?flags=0`` leaves the flags out (the Load step, before the quality checks: #173)."""
     analysis = get_analysis(request, analysis_id)
     variable = request.GET.get("variable") or None
     if variable is not None and variable not in data.DAILY_VARIABLES:
         raise Http404
+    flags = request.GET.get("flags") != "0"
     params = analysis_qc_params(analysis)
     title = analysis.station_name or analysis.file_name
 
     def build():
-        payload = data.daily_payload(analysis.station_file, params, title=title, variable=variable)
+        payload = data.daily_payload(
+            analysis.station_file, params, title=title, variable=variable, flags=flags
+        )
         payload["csv"] = reverse("stations:series", args=[analysis.pk])
         if variable:
             payload["name"] = f"{title}_{variable}"
         return payload
 
-    key = ("daily", str(analysis.pk), repr(params), title, variable)
+    key = ("daily", str(analysis.pk), repr(params), title, variable, flags)
     return json_response(request, key, [analysis.station_file], build)
 
 

@@ -73,7 +73,7 @@ def pattern_context(form):
         "form": form,
         "steps_first": station_steps("upload"),
         "steps_middle": station_steps("indices", urls={"upload": "#", "qc": "#"}),
-        "steps_last": station_steps("sector", urls={k: "#" for k in ("upload", "qc")}),
+        "steps_last": station_steps("results", urls={k: "#" for k in ("upload", "qc", "indices")}),
         "table_columns": [
             {"label": _("Year")},
             {"label": _("TXx (°C)"), "numeric": True},

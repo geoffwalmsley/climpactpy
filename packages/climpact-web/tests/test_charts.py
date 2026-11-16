@@ -155,6 +155,15 @@ def test_daily_flags_point_at_the_days_series(sample_file):
     assert by_key["tmax"][i] == by_key["tmin"][i] == 12.6
 
 
+def test_daily_payload_without_flags(sample_file):
+    """#173: the Load step's chart shows no flags, and its summary says nothing about the
+    quality checks, which come in the next step."""
+    payload = data.daily_payload(sample_file, flags=False)
+    assert payload["flags"]["points"] == []
+    assert "quality checks" not in payload["summary"]
+    assert "quality checks" in data.daily_payload(sample_file)["summary"]
+
+
 # ---- index payload ---------------------------------------------------------------------
 
 
@@ -253,6 +262,10 @@ def test_station_daily_view_and_caching(sample_file):
     analysis.station_file.write_text(analysis.station_file.read_text().replace("45.8", "45.9"))
     changed = client.get(url, HTTP_IF_NONE_MATCH=etag)
     assert changed.status_code == 200 and changed["ETag"] != etag
+    # ?flags=0 (the Load step, #173) leaves the flags out, and is cached on its own.
+    unflagged = client.get(url + "?flags=0")
+    assert json.loads(unflagged.content)["flags"]["points"] == []
+    assert json.loads(client.get(url).content)["flags"]["points"]
 
 
 def test_station_daily_view_is_private(sample_file):
@@ -380,7 +393,8 @@ def test_step1_loaded_sample_has_the_chart(client):
     response = client.post("/station/sample", follow=True)
     html = response.content.decode()
     analysis = StationAnalysis.objects.get()
-    assert f'data-chart-src="/charts/station/{analysis.pk}/daily.json"' in html
+    # Without the quality checks' flags: they belong to the next step (#173).
+    assert f'data-chart-src="/charts/station/{analysis.pk}/daily.json?flags=0"' in html
     assert f'href="/station/{analysis.pk}/series.csv"' in html
     assert "uPlot.iife.min.js" in html and "js/charts.js" in html
     assert "<noscript>" in html and "series-preview" in html  # the static overview

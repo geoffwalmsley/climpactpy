@@ -7,16 +7,8 @@
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% translate "Load data: check it and describe the station" %}</h1>
-    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Check that this is the data you expect, then give the station's details.{% endblocktranslate %}{% endif %}</p>
+    <p class="lead">{% if analysis.source == "sample" %}{% blocktranslate with name=analysis.file_name %}Sample data: {{ name }}. The station details are filled in; continue when you are ready.{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.file_name %}Loaded from {{ name }}. Give the station's details, and check below that this is the data you expect.{% endblocktranslate %}{% endif %}</p>
   </header>
-
-  {% if form.is_bound and not form.errors and not form.warnings %}{# details already valid, e.g. the sample or a re-visit (#114) #}
-  <div class="flex flex-wrap items-center gap-3 results-actions">
-    {% translate "Details look right: continue to quality checks" as top_label %}
-    {% include "components/button.html" with label=top_label type="submit" form_id="station-details" icon_end="arrow-right" size="lg" %}
-    <a href="#details-title">{% translate "Check the station details" %}</a>
-  </div>
-  {% endif %}
 
   {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
 
@@ -31,8 +23,7 @@
   </div>
   {% endif %}
 
-  {% include "stations/_summary.html" %}
-
+  {% comment %}The details first, with the one button below them; the data they describe after (#173).{% endcomment %}
   <section class="card stack" aria-labelledby="details-title">
     <h2 class="card__title" id="details-title">{% translate "Station details" %}</h2>
     <form method="post" action="{% url 'stations:load' analysis.pk %}" class="form" id="station-details" novalidate>
@@ -52,7 +43,9 @@
     </form>
   </section>
 
-  {% include "stations/_retention.html" %}
+  {% include "stations/_summary.html" %}
+
+  {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}

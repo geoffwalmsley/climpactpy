@@ -889,23 +889,28 @@ def test_results_groups_open_with_the_search_and_links(chrome, site):
     assert c.evaluate(opened) == ["group-drought"]
 
 
-def test_primary_actions_in_the_first_screen_and_errors_still_focused(chrome, site):
-    """#114: at 1280x800 the step pages' main buttons are visible without scrolling; with
-    an error in a setting, the settings open and the error summary, then its link, focus
-    the field."""
+def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
+    """#173: the Load and Calculate pages have one button each, below the fields it
+    submits (no longer a second one in the first screen, #114); with an error in a
+    setting, the settings open and the error summary, then its link, focus the field."""
     c = chrome
     c.viewport(1280, 800)
-    bottom = (
-        "(function (b) {{ var r = b.getBoundingClientRect(); return scrollY + r.bottom }})"
-        "(document.querySelector({}))"
-    )
     try:
         c.navigate(site["station sample loaded"])
-        assert c.evaluate(bottom.format(json.dumps("button[form=station-details]"))) <= 800
+        base = "document.querySelector('#station-details [name=base_end]')"
+        button = "document.querySelector('#station-details button[type=submit]')"
+        assert c.evaluate(
+            f"{base}.getBoundingClientRect().bottom < {button}.getBoundingClientRect().top"
+        )
         c.navigate(site["station indices"])
         assert c.evaluate("document.getElementById('settings').open") is False
-        top = "form[action$='/indices'] button[type=submit][aria-describedby=run-time]"
-        assert c.evaluate(bottom.format(json.dumps(top))) <= 800
+        run = "form[action$='/indices'] button[type=submit]"
+        assert c.evaluate(f"document.querySelectorAll({json.dumps(run)}).length") == 1
+        files = "document.querySelector('[aria-labelledby=output-title]')"
+        assert c.evaluate(
+            f"{files}.getBoundingClientRect().bottom"
+            f" < document.querySelector({json.dumps(run)}).getBoundingClientRect().top"
+        )
         open_page(c, site["station indices, errors"])
         assert c.evaluate("document.getElementById('settings').open") is True
         assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
@@ -934,8 +939,9 @@ def header_is_one_row(c: Chrome) -> bool:
 def test_polish_layout_menu_and_flag_toggle(chrome, site):
     """#115: the step indicator starts where the header and the content do; below 600px
     the main links are in a one-row header's "Menu" (a <details>, so it works without
-    JavaScript); the results' action row is one line at 1280px; the daily chart's QC rings
-    are toggled from the legend, by keyboard; the CSV button keeps its place."""
+    JavaScript); the results' action row is one line at 1280px; the Load page's daily chart
+    has no QC rings (#173), and the quality checks' charts toggle theirs from the legend, by
+    keyboard; the CSV button keeps its place."""
     c = chrome
     left = "Math.round(document.querySelector({}).getBoundingClientRect().left)"
     visible = "document.querySelector({}).checkVisibility()"
@@ -981,20 +987,27 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         c.evaluate("document.body.removeAttribute('style')")
 
         c.navigate(site["station sample loaded"])
-        wait_for(c, "!!document.querySelector('#daily-chart [data-chart-flags]')", 60)
-        csv = "Math.round(document.querySelector('#daily-chart [data-chart-csv]')"
-        csv += ".getBoundingClientRect().top - document.getElementById('daily-chart')"
+        c.evaluate("document.getElementById('daily-chart').scrollIntoView()")
+        wait_for(c, "!!document.querySelector('#daily-chart [data-chart-legend] li')", 60)
+        assert not c.evaluate("!!document.querySelector('#daily-chart [data-chart-flags]')")
+
+        c.navigate(site["station quality results"])
+        chart = c.evaluate("document.querySelector('.qc-charts [data-chart]').id")
+        c.evaluate(f"document.getElementById({json.dumps(chart)}).scrollIntoView()")
+        wait_for(c, f"!!document.querySelector('#{chart} [data-chart-flags]')", 60)
+        csv = f"Math.round(document.querySelector('#{chart} [data-chart-csv]')"
+        csv += f".getBoundingClientRect().top - document.getElementById('{chart}')"
         csv += ".getBoundingClientRect().top)"
         assert c.evaluate(csv) < 40  # in the header's top-right slot, beside the title
         shown = (
-            "ClimpactCharts.get('daily-chart').plots.every(u => u.series.every("
+            f"ClimpactCharts.get('{chart}').plots.every(u => u.series.every("
             "s => s.label !== {} || s.show === {}))"
         )
         label = json.dumps("Flagged by the quality checks")
         assert c.evaluate(shown.format(label, "true"))
-        c.evaluate("document.querySelector('#daily-chart [data-chart-flags]').focus()")
+        c.evaluate(f"document.querySelector('#{chart} [data-chart-flags]').focus()")
         c.press("Enter")
-        toggle = "document.querySelector('#daily-chart [data-chart-flags]')"
+        toggle = f"document.querySelector('#{chart} [data-chart-flags]')"
         assert c.evaluate(f"{toggle}.getAttribute('aria-pressed')") == "false"
         assert c.evaluate(shown.format(label, "false"))
         c.press(" ")
@@ -1070,8 +1083,8 @@ def skip_unless_cloudflare_reachable() -> None:
 
 def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
     """A form sent before its widget has a token waits for it, then goes (#163): the
-    sample's top button ("Details look right"), outside the details form and far above its
-    widget, pressed as soon as the Load page is parsed, reaches the quality checks, not
+    sample's details form's button, pressed as soon as the Load page is parsed, reaches
+    the quality checks, not
     the "Not accepted" page, with the button marked busy meanwhile and no policy
     violation. Skipped when Cloudflare cannot be reached, as above."""
     c = chrome
@@ -1083,7 +1096,7 @@ def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
     c.events.clear()
     c.send("Page.navigate", url=load)
     c.wait_event("Page.domContentEventFired")
-    top = "document.querySelector('button[form=station-details]')"
+    top = "document.querySelector('#station-details button[type=submit]')"
     form_token = (
         "(document.querySelector('#station-details [name=cf-turnstile-response]') || {}).value"
     )
@@ -1091,7 +1104,7 @@ def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
     c.evaluate(f"{top}.click()")
     if not early:  # held: the usual case, the widget takes a second or two
         assert c.evaluate(f"{top}.getAttribute('aria-busy')") == "true"
-        assert c.evaluate("!!document.querySelector('.results-actions + [role=status]')")
+        assert c.evaluate("!!document.querySelector('.form__actions + [role=status]')")
     where = "location.pathname + ' ' + document.title"
     deadline = time.monotonic() + 75
     page = ""

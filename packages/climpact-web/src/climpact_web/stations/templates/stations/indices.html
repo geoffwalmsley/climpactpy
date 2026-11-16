@@ -34,12 +34,6 @@
     {{ form.index }}
     {% include "components/form_errors.html" %}
 
-    {% turnstile %}
-    <div class="flex flex-wrap items-center gap-3 results-actions">
-      {% translate "Calculate with these settings" as top_label %}
-      {% include "components/button.html" with label=top_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
-    </div>
-
     <details class="disclosure" id="settings"{% if form.settings_open or open_settings %} open{% endif %}>
       <summary>{% icon "sliders" %}<span>{% translate "Change the settings" %}</span>{% if not form.is_bound and not form.settings_open %}<span class="text-sm text-text-muted">{% translate "Climpact's defaults" %}</span>{% endif %}{% icon "chevron-down" %}</summary>
       <div class="disclosure__body stack stack--lg text-inherit">
@@ -97,9 +91,10 @@
       {% include "components/field.html" with field=form.report %}
     </section>
 
+    {% turnstile %}
     <div class="form__actions flex flex-wrap items-center gap-3">
       {% translate "Calculate indices" as run_label %}
-      {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" %}
+      {% include "components/button.html" with label=run_label type="submit" icon_end="arrow-right" size="lg" describedby="run-time" %}
       <span class="text-sm text-text-muted" id="run-time">{% translate "This takes about half a minute for 80 years of data, a few seconds more with plots and the report." %}</span>
     </div>
   </form>

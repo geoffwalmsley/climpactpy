@@ -196,9 +196,11 @@ def test_theme_toggle_hidden_without_js():
 
 def test_station_steps_states():
     steps = navigation.station_steps("indices", urls={"upload": "/u/", "qc": "/q/"})
-    assert [s.state for s in steps] == ["complete", "complete", "current", "upcoming", "upcoming"]
-    assert [s.url for s in steps] == ["/u/", "/q/", None, None, None]
-    assert steps[-1].optional and [s.number for s in steps] == [1, 2, 3, 4, 5]
+    assert [s.state for s in steps] == ["complete", "complete", "current", "upcoming"]
+    assert [s.url for s in steps] == ["/u/", "/q/", None, None]
+    assert [s.number for s in steps] == [1, 2, 3, 4]
+    # The sector comparison is an action on Results, not a step (#173).
+    assert "sector" not in [s.key for s in steps] and not any(s.optional for s in steps)
     with pytest.raises(ValueError):
         navigation.station_steps("nope")
 
@@ -215,8 +217,8 @@ def test_count_filter_groups_thousands():
 def test_steps_component():
     html = render("steps", steps=navigation.station_steps("qc", urls={"upload": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
-    assert 'aria-current="step"' in html and "Step 2 of 5:" in html
-    assert "Optional" in html
+    assert 'aria-current="step"' in html and "Step 2 of 4:" in html
+    assert "Optional" not in html
 
 
 # ---- Landing page and navigation -------------------------------------------------------
@@ -234,6 +236,9 @@ def test_landing_page(client):
         re.S,
     )
     assert "Available soon" not in html  # every other way to run Climpact exists now
+    # "How it works" is a short paragraph, not the steps again (#173).
+    how = re.search(r'aria-labelledby="how-title">.*?</section>', html, re.S).group(0)
+    assert "<h3" not in how and "<li" not in how
     assert re.search(r'<a [^>]*href="/gridded/"', html)  # gridded (#85), local mode
     assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
     for title in ("Batch", "Gridded", "Help", "Command line"):

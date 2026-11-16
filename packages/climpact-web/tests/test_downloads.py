@@ -97,7 +97,12 @@ def test_dashboard_and_index_page_show_sizes(client):
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
-    assert re.search(rf"PDF report \({SIZE}\)", html)
+    # The header: one primary action, the zip, and one secondary link, to the downloads
+    # page (#173).
+    actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
+    assert actions.count('class="button"') == 1 and "Download all (zip" in actions
+    assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
+    assert f'href="/station/{analysis.pk}/downloads"' in actions
     assert re.search(rf"All plots \(PDF, {SIZE}\)", html)
     assert re.search(rf"Trends \(CSV, {SIZE}\)", html)
     assert f'href="/station/{analysis.pk}/downloads"' in html
@@ -182,7 +187,6 @@ def test_batch_with_plots_writes_each_station_report(client):
         assert not [n for n in archive.namelist() if "report" in n]
     html = client.get(f"/batch/{run.pk}/results").content.decode()
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
-    assert re.search(rf"PDF report \({SIZE}\)", html)
     assert re.search(rf"Download \(zip, {SIZE}\)", html)
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
 

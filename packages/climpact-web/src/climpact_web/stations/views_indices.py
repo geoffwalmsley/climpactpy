@@ -461,7 +461,7 @@ def result(request, analysis_id, key):
     }
     if plot is not None:
         context["trend"] = results_model.trend_summary(plot)
-        context["stats"] = series_stats(plot)
+        context["stats"] = series_stats(plot, series.units)
         context["chart_url"] = (
             reverse("charts:job_series", args=[job.pk, name])
             + "?"
@@ -479,8 +479,9 @@ def _size(path) -> int:
     return path.stat().st_size if path.is_file() else 0
 
 
-def series_stats(plot) -> list[dict]:
-    """Highest, lowest and mean of a series with when, and the values present."""
+def series_stats(plot, units: str = "") -> list[dict]:
+    """Highest, lowest and mean of a series with when and ``units``, and the values
+    present. A day-of-occurrence series gives calendar days (``day 200``)."""
     from climpact_web.charts.data import _x_label, number
 
     pairs = [(float(v), i) for i, v in enumerate(plot.values) if v == v]
@@ -488,18 +489,24 @@ def series_stats(plot) -> list[dict]:
         return []
     high, low = max(pairs), min(pairs)
     mean = sum(v for v, _i in pairs) / len(pairs)
+
+    def text(value: float) -> str:
+        if plot.name.startswith("day_of_"):
+            return _("day %(value)s") % {"value": number(value)}
+        return results_model.with_units(number(value), units)
+
     return [
         {
             "label": _("Highest"),
-            "value": number(high[0]),
+            "value": text(high[0]),
             "note": _x_label(plot.step, plot.x[high[1]]),
         },
         {
             "label": _("Lowest"),
-            "value": number(low[0]),
+            "value": text(low[0]),
             "note": _x_label(plot.step, plot.x[low[1]]),
         },
-        {"label": _("Mean"), "value": number(mean), "note": ""},
+        {"label": _("Mean"), "value": text(mean), "note": ""},
         {
             "label": _("Values"),
             "value": str(len(pairs)),

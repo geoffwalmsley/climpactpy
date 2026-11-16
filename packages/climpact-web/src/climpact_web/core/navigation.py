@@ -84,8 +84,9 @@ STATION_STEPS = (
     Step("qc", _("Check quality"), "stations:qc"),
     Step("indices", _("Calculate indices"), "stations:indices"),
     Step("results", _("Results and downloads"), "stations:results"),
-    Step("sector", _("Compare with sector data"), "stations:sector", optional=True),
 )
+# The sector comparison (#90) is not a step: it is an action on Results, and its page shows
+# the Results step as current (#173).
 
 
 @dataclass

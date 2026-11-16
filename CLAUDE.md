@@ -27,7 +27,7 @@ architecture, parity testing and the differences between the Python and R implem
   `conftest.py` files; TECHNICAL.md, "Running the tests in parallel"). Keep `pytest<9.2`
   until a pytest-xdist release fixes `--dist loadgroup` for pytest 9.2 (pytest-xdist#1386).
 - The browser accessibility checks (`packages/climpact-web/tests/test_accessibility.py`,
-  marker `browser`, about 4.5 minutes, needs Chrome) are deselected by default
+  marker `browser`, about 2.5 minutes, needs Chrome) are deselected by default
   (`-m "not browser"` in `addopts`); CI's `web-accessibility` job runs them. Run them
   locally with `uv run pytest -m browser` before a pull request that touches templates,
   CSS or JavaScript. Naming the file without `-m browser` collects nothing.

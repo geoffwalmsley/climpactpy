@@ -1,4 +1,6 @@
-{% load i18n %}{% comment %}How long uploads are kept (#73's retention setting). Parameter: analysis (optional).{% endcomment %}
+{% load i18n ui %}{% comment %}How long uploads are kept (#73's retention setting). Parameters: analysis
+(optional); quiet: a line of small muted text at the foot of the page instead of an info
+alert, for the pages after the upload, which shows the full notice (#173).{% endcomment %}
 {% if analysis %}
 {% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
 Your file and station details are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} day after each calculation finishes.
@@ -13,4 +15,5 @@ Your file is kept for {{ days }} days after your last change, then deleted. Resu
 {% endblocktranslate %}
 {% endif %}
 {% if is_hosted %}{% translate "Only this browser can see them." as extra %}{% else %}{% translate "They stay on this computer." as extra %}{% endif %}
-{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}
+{% if quiet %}<p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{{ retention }} {{ extra }}</span></p>
+{% else %}{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}{% endif %}

@@ -19,16 +19,15 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
+  {% comment %}One primary action, the zip; the downloads page is the one secondary link (#173).{% endcomment %}
   <div class="flex flex-wrap items-center gap-3 results-actions">
-    {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
-    {% include "components/button.html" with label=change_label href=indices_url|add:"?settings=open#settings" variant="secondary" size="sm" icon="sliders" %}
+    {% url 'stations:downloads' analysis.pk as files_url %}{% translate "All files and the report" as files_label %}
     {% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
-    {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
-    {% if downloads.report %}{% url 'jobs:file' downloads.job.pk downloads.report.path as report_url %}{% blocktranslate with size=downloads.report.size|filesizeformat asvar report_label %}PDF report ({{ size }}){% endblocktranslate %}
-    {% include "components/button.html" with label=report_label href=report_url icon="download" variant="secondary" size="sm" %}{% endif %}
-    <a href="{% url 'stations:downloads' analysis.pk %}">{% translate "Choose files" %}</a>
-    {% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
-    {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}
+    {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}
+    {% include "components/button.html" with label=files_label href=files_url variant="secondary" icon_end="arrow-right" %}
+    {% else %}
+    {% include "components/button.html" with label=files_label href=files_url icon_end="arrow-right" %}
+    {% endif %}
   </div>
 
   <section class="card stack trend-summary" aria-labelledby="trends-title">
@@ -41,7 +40,7 @@
       {% for card in significant_cards %}
       <li class="trend-list__item">
         <span class="trend-list__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a> <code class="index-code">{{ card.code }}</code></span>
-        <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
+        <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.trend_units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
         {% if card.spark %}{% include "stations/_spark.html" %}{% endif %}
       </li>
       {% endfor %}
@@ -106,7 +105,7 @@
         {% elif card.daily %}<p class="index-card__daily text-sm">{% blocktranslate with days=card.daily.days|count high=card.daily.top.0.text date=card.daily.top.0.date %}{{ days }} days; highest {{ high }} °C² on {{ date }}.{% endblocktranslate %}</p>{% endif %}
         <p class="index-card__trend">
           {% if card.trend.valid %}
-          <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
+          <span class="trend trend--{{ card.trend.direction }}">{% blocktranslate with slope=card.trend.slope_text units=card.trend_units %}{{ slope }} {{ units }} per decade{% endblocktranslate %}</span>
           {% if card.trend.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}{% translate "Not significant" as sig %}{% include "components/badge.html" with label=sig %}{% endif %}
           {% elif card.trend %}<span class="text-sm text-text-muted">{% translate "No trend: too few values" %}</span>
           {% elif card.daily %}<span class="text-sm text-text-muted">{% translate "Daily values, no trend" %}</span>
@@ -136,7 +135,13 @@
       <dl class="settings-list">
         {% for p in params %}<dt>{{ p.label }}</dt><dd>{{ p.value }}</dd>{% endfor %}
       </dl>
-      <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Change the settings and calculate again" %}</a></p>
+      <p><a href="{% url 'stations:indices' analysis.pk %}?settings=open#settings">{% translate "Change the settings and calculate again" %}</a></p>
+    </section>
+    <section class="card stack" aria-labelledby="sector-title">
+      <h2 class="card__title" id="sector-title">{% translate "Compare with sector data" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Optional. Upload yearly sector data, such as crop yields, to see how they relate to these indices." %}</p>
+      <p>{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
+      {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>
     </section>
   </div>
 </div>

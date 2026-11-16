@@ -41,6 +41,12 @@ SCHEMA_VERSION = 1
 UNIT_LABELS = {"degrees_C": "°C", "°C^2": "°C²", "unitless": ""}
 
 
+def trend_units(units: str) -> str:
+    """The units of a trend, before "per decade": a change in a percentage is in percentage
+    points, not percent (#173)."""
+    return _("percentage points") if units == "%" else units
+
+
 def number(value: float, decimals: int | None = None) -> str:
     """A number for a summary: localised, at most ``decimals`` places (default: 2 for
     small values, 1 otherwise), without trailing zeros."""
@@ -168,12 +174,17 @@ def qc_flags(rows, params=None) -> list[tuple[str, str, str]]:
 
 
 def daily_payload(
-    station_file: str | Path, qc_params=None, title: str = "", variable: str | None = None
+    station_file: str | Path,
+    qc_params=None,
+    title: str = "",
+    variable: str | None = None,
+    flags: bool = True,
 ) -> dict:
     """The ``daily`` payload of a station file: TX and TN, and precipitation, or with
     ``variable`` (one of :data:`DAILY_VARIABLES`) that variable alone, as the QC screen
     shows them. ``x`` is implicit: day ``i`` is ``start`` plus ``i`` days, so only the
-    values travel."""
+    values travel. With ``flags=False`` (the Load step, #173) no value is flagged and the
+    summary says nothing about the quality checks, which come in the next step."""
     from climpact.io.station import merged_rows, read_station_file
 
     rows = merged_rows(read_station_file(station_file))
@@ -184,12 +195,16 @@ def daily_payload(
     meta = variable_meta()
     keys = (variable,) if variable else VARIABLES
     series = [{"key": key, **meta[key], "values": _finite(days[key])} for key in keys]
-    points = sorted(
-        {
-            (position[d], v, c)
-            for d, v, c in qc_flags(rows, qc_params)
-            if d in position and v in keys
-        }
+    points = (
+        sorted(
+            {
+                (position[d], v, c)
+                for d, v, c in qc_flags(rows, qc_params)
+                if d in position and v in keys
+            }
+        )
+        if flags
+        else []
     )
     panels = {
         "temperature": _("Temperature (°C)"),
@@ -210,7 +225,7 @@ def daily_payload(
             "points": [list(p) for p in points],
         },
     }
-    payload["summary"] = daily_summary(payload)
+    payload["summary"] = daily_summary(payload, flags=flags)
     return payload
 
 
@@ -221,7 +236,7 @@ def _when(start, index: int) -> str:
     return day.isoformat()  # as the station files, the tables and R's outputs (#115)
 
 
-def daily_summary(payload: dict) -> str:
+def daily_summary(payload: dict, flags: bool = True) -> str:
     start, days = payload["start"], payload["days"]
     parts = [
         _("%(first)s to %(last)s, %(days)s days.")
@@ -259,7 +274,7 @@ def daily_summary(payload: dict) -> str:
             )
         parts.append(text % values)
     flagged = len(payload["flags"]["points"])
-    if flagged:
+    if flags and flagged:
         parts.append(
             ngettext(
                 "%(n)s value flagged by the quality checks.",
@@ -268,7 +283,7 @@ def daily_summary(payload: dict) -> str:
             )
             % {"n": number_format(flagged, force_grouping=True)}
         )
-    else:
+    elif flags:
         parts.append(_("No values flagged by the quality checks."))
     return " ".join(parts)
 
@@ -480,7 +495,7 @@ def index_summary(payload: dict) -> str:
             "slope": number(abs(slope)),
             "lower": number(trend["lower"] * per),
             "upper": number(trend["upper"] * per),
-            "unit": unit,
+            "unit": f" {trend_units(units)}" if units else "",
         }
         if slope > 0:
             text = _("Trend: rising by %(slope)s%(unit)s per decade")

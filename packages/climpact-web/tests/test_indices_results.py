@@ -241,21 +241,20 @@ def _settings(html: str) -> str:
     return re.search(r'<details[^>]*id="settings"[^>]*>', html).group(0)
 
 
-def test_the_primary_action_comes_before_the_settings(client):
-    """#114: "Calculate with these settings" straight after the intro, the parameter cards
-    in a "Change the settings" disclosure that starts closed with the defaults, and the
-    button at the end of the form kept, under a different name."""
+def test_one_calculate_button_after_the_settings(client):
+    """#114, #173: the parameter cards in a "Change the settings" disclosure that starts
+    closed with the defaults, and one Calculate button, at the end of the form, described
+    by the run-time note."""
     analysis = ready_analysis(client)
     html = client.get(f"/station/{analysis.pk}/indices").content.decode()
     form = re.search(r'<form method="post" action="/station/[^"]+/indices".*?</form>', html, re.S)
     form = form.group(0)
-    top = form.index("Calculate with these settings")
-    assert top < form.index('id="settings"') < form.index('name="hdd_base"')
+    assert "Calculate with these settings" not in form
+    assert form.index('id="settings"') < form.index('name="hdd_base"')
     assert form.index('name="hdd_base"') < form.index("<span>Calculate indices</span>")
     assert " open" not in _settings(html) and DEFAULTS_NOTE in html
-    # Both submit the one form; the top button is described by the run-time note.
     buttons = re.findall(r'<button type="submit"[^>]*>', form)
-    assert len(buttons) == 2 and 'aria-describedby="run-time"' in buttons[0]
+    assert len(buttons) == 1 and 'aria-describedby="run-time"' in buttons[0]
     assert 'id="run-time"' in form
 
 
@@ -455,7 +454,8 @@ def test_index_page_values_match_the_csv_and_trend_files(client):
     low = txx.loc[txx["val"].idxmin()]
 
     def stat(label, value, note):
-        tail = f'</span><span class="stat__value">{value:g}</span><span class="stat__note">{note}'
+        value = f"{value:g} °C"  # with the index's units (#173)
+        tail = f'</span><span class="stat__value">{value}</span><span class="stat__note">{note}'
         return f"{label}{tail}" in html
 
     assert stat("Highest", high["val"], int(high["time"]))
@@ -654,12 +654,47 @@ def test_downloads_and_next_step(client):
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert f"/jobs/{job.pk}/files/{STATION}/trend/{STATION}_trend.csv" in html
     assert f'href="/station/{analysis.pk}/downloads"' in html
-    # The optional step 5 is in the action row at the top (#113).
+    # Without a zip, the link to the downloads page is the header's one action (#173;
+    # with a zip, test_downloads.test_dashboard_and_index_page_show_sizes).
     actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
-    assert f'href="/station/{analysis.pk}/sector"' in actions
-    assert "Compare with sector data" in actions
+    assert actions.count('class="button"') == 1 and actions.count("<a ") == 1
+    assert f'href="/station/{analysis.pk}/downloads"' in actions
+    # The sector comparison is an action lower on the page, not a step (#173).
+    sector = re.search(r'<section[^>]*aria-labelledby="sector-title">.*?</section>', html, re.S)
+    assert f'href="/station/{analysis.pk}/sector"' in sector.group(0)
+    assert f'href="/station/{analysis.pk}/sector"' not in actions
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
     assert "Kept until" in html
+
+
+def test_units_on_the_stat_row_and_percentage_point_trends(client):
+    """#173: the index page's stats carry the index's units, and a trend in a percentage
+    index is in percentage points per decade, not percent."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    assert "percentage points per decade" in html and "% per decade" not in html
+    page = client.get(f"/station/{analysis.pk}/results/tx90p").content.decode()
+    for label in ("Highest", "Lowest", "Mean"):
+        assert re.search(rf'{label}</span><span class="stat__value">[0-9.,]+%</span>', page)
+    assert re.search(r'Trend</span><span class="stat__value">\S+ percentage points</span>', page)
+    days = client.get(f"/station/{analysis.pk}/results/su").content.decode()
+    assert re.search(r'Highest</span><span class="stat__value">[0-9.,]+ days</span>', days)
+
+
+def test_trend_and_stat_units():
+    from climpact_web.charts.data import trend_units
+    from climpact_web.stations.results import with_units
+
+    assert trend_units("%") == "percentage points" and trend_units("°C") == "°C"
+    assert with_units("12.5", "%") == "12.5%" and with_units("20", "days") == "20 days"
+    assert with_units("0.4", "") == "0.4"
+
+
+def test_sector_comparison_is_not_a_step(client):
+    """#173: the sector page shows Results as the current step of four."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/sector").content.decode()
+    assert "Step 4 of 4: </span>Results and downloads" in html and "of 5:" not in html
 
 
 def test_recalculating_keeps_the_user_on_the_same_index(client):
@@ -723,13 +758,13 @@ def test_sparklines_are_small_and_keep_gaps():
 
 
 def test_change_the_settings_on_the_results_opens_them(client):
-    """#115: the results page's "Change the settings" lands on the settings open, without
-    JavaScript, even when the last run used the defaults (which start closed)."""
+    """#115: the results page's "Change the settings" (under "Settings used" since #173)
+    lands on the settings open, without JavaScript, even when the last run used the
+    defaults (which start closed)."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     link = f"/station/{analysis.pk}/indices?settings=open#settings"
-    assert f'href="{link}"' in actions
+    assert f'href="{link}"' in html
     assert " open" in _settings(client.get(link).content.decode())
     assert " open" not in _settings(client.get(f"/station/{analysis.pk}/indices").content.decode())
 

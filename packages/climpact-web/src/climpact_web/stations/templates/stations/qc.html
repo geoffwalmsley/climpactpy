@@ -123,7 +123,7 @@ correct the file. Context from views.qc_context.
     <p class="text-sm"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the station details or the base period" %}</a></p>
   </section>
 
-  {% include "stations/_retention.html" %}
+  {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}

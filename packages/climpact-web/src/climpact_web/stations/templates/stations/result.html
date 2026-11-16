@@ -33,7 +33,7 @@
   {% if stats %}
   <div class="grid gap-4 grid-cols-fit-40">
     {% if trend.valid %}
-    {% blocktranslate with slope=trend.slope_text units=card.units asvar trend_value %}{{ slope }} {{ units }}{% endblocktranslate %}
+    {% blocktranslate with slope=trend.slope_text units=series.trend_units asvar trend_value %}{{ slope }} {{ units }}{% endblocktranslate %}
     {% blocktranslate with lower=trend.lower_text upper=trend.upper_text asvar trend_note %}per decade; 95% interval {{ lower }} to {{ upper }}{% endblocktranslate %}
     {% translate "Trend" as trend_label %}{% include "components/stat.html" with label=trend_label value=trend_value note=trend_note %}
     {% if trend.significant %}{% translate "Yes: the interval excludes zero" as sig_note %}{% translate "Yes" as sig_value %}{% else %}{% translate "No: the interval includes zero" as sig_note %}{% translate "No" as sig_value %}{% endif %}

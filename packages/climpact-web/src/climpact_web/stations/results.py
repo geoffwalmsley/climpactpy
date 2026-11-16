@@ -256,6 +256,10 @@ class Series:
     description: str
     units: str
 
+    @property
+    def trend_units(self) -> str:
+        return chart_data.trend_units(self.units)
+
 
 @dataclass
 class Card:
@@ -288,6 +292,10 @@ class Card:
     def code(self) -> str:
         """The index's code as Climpact's files spell it: ``TXx``, ``TX90-HWN``."""
         return self.key if _HEATWAVE.match(self.key) else self.name
+
+    @property
+    def trend_units(self) -> str:
+        return chart_data.trend_units(self.units)
 
     @property
     def series_text(self) -> str:
@@ -438,9 +446,18 @@ def _latest(plot) -> dict | None:
     return None
 
 
+def with_units(value: str, units: str) -> str:
+    """A value with its units, as shown in a stat: ``20 days``, ``12.3%``, ``0.5`` without."""
+    if not units:
+        return value
+    if units == "%":
+        return _("%(value)s%%") % {"value": value}
+    return _("%(value)s %(units)s") % {"value": value, "units": units}
+
+
 def _units(plot) -> str:
-    if plot.name.startswith("day_of_"):
-        return _("day")
+    if plot.name.startswith("day_of_"):  # its trend is in days per decade
+        return _("days")
     return chart_data.UNIT_LABELS.get(plot.units, plot.units)
 
 

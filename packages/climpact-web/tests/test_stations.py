@@ -76,7 +76,11 @@ def test_upload_page_works_without_javascript(client):
     assert re.search(r'<input type="file" name="station_file"[^>]*accept="[^"]*\.txt', html)
     assert "Drop a file here or choose one" in html
     assert re.search(r'<form method="post" action="/station/sample">', html)
-    assert "kept for 7 days after your last change" in html
+    # The upload page keeps the full notice, as an alert (#173).
+    alert = re.search(
+        r'<div class="alert alert--info".*?kept for 7 days after your last change', html, re.S
+    )
+    assert alert
     assert 'aria-current="step"' in html and "Load data" in html
 
 
@@ -302,39 +306,26 @@ def test_sample_loads_in_one_click(client):
     assert response["Location"] == f"/station/{analysis.pk}/quality"
 
 
-TOP_CONTINUE = "Details look right: continue to quality checks"
-
-
 @pytest.mark.django_db
-def test_load_page_offers_continue_at_the_top_when_the_details_are_valid(client):
-    """#114: with the sample (or on a re-visit) the details are already valid, so a
-    continue button under the heading submits the station form below it."""
+def test_load_page_details_come_before_the_one_continue_button(client):
+    """#173: the station details come first, then the one continue button below the
+    fields it asks the user to confirm, then the data they describe. No shortcut button
+    above the fields, even when the details are already valid (the sample)."""
     client.post("/station/sample")
     analysis = StationAnalysis.objects.get()
     html = client.get(f"/station/{analysis.pk}/load").content.decode()
-    top = html.index(TOP_CONTINUE)
-    assert html.index("<h1>") < top < html.index('id="details-title"')
-    button = re.search(r'<button type="submit" form="station-details"[^>]*>', html)
-    assert button and button.start() < top
-    form = r'<form method="post" action="[^"]*/load" class="form" id="station-details"'
-    assert re.search(form, html)
-    assert "<span>Continue to quality checks</span>" in html  # the form's own button stays
-    # The top button posts the same form: the next step, as from the bottom button.
+    assert "Details look right" not in html and 'form="station-details"' not in html
+    form = re.search(
+        r'<form method="post" action="[^"]*/load" class="form" id="station-details".*?</form>',
+        html,
+        re.S,
+    ).group(0)
+    assert len(re.findall(r'<button type="submit"', form)) == 1
+    assert form.index('name="base_start"') < form.index("<span>Continue to quality checks</span>")
+    assert html.index("<h1>") < html.index('id="details-title"') < html.index('id="data-title"')
     data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(f"/station/{analysis.pk}/load", data)["Location"].endswith("/quality")
-
-
-@pytest.mark.django_db
-def test_no_top_continue_until_the_details_are_valid(client):
-    analysis = loaded(client)  # an upload: no latitude yet, so the form is not bound
-    assert TOP_CONTINUE not in client.get(f"/station/{analysis.pk}/load").content.decode()
-    response = client.post(f"/station/{analysis.pk}/load", metadata(latitude="123"))
-    assert response.status_code == 200 and TOP_CONTINUE not in response.content.decode()
-    # A warning (latitude 0) is worth reading first, so it is not skipped from the top.
-    client.post(f"/station/{analysis.pk}/load", metadata(latitude="0"))
-    html = client.get(f"/station/{analysis.pk}/load").content.decode()
-    assert "Southern Hemisphere" in html and TOP_CONTINUE not in html
 
 
 @pytest.mark.django_db
@@ -364,7 +355,15 @@ def test_load_page_summarises_the_data(client):
     assert html.count('<svg viewBox="0 0 960 170" role="img"') == 2  # the static preview
     assert "CHART HOOK" not in html  # a template comment, for #75/#77
     assert "Days with data in each year" in html and '<th scope="row">1936</th>' in html
-    assert "kept for 7 days after your last change" in html
+    # After the upload page the retention notice is a quiet line, not an alert (#173).
+    notice = re.search(
+        r'<p class="text-sm text-text-muted[^"]*">[^<]*<svg[^>]*>'
+        r"(?:(?!</p>).)*kept for 7 days after your last change",
+        html,
+        re.S,
+    )
+    assert notice
+    assert "kept for 7 days" not in "".join(re.findall(r'<div class="alert.*?</div>', html, re.S))
 
 
 def test_preview_panels_break_at_gaps():

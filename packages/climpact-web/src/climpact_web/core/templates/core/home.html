@@ -51,32 +51,14 @@
 </section>
 
 <section class="section" aria-labelledby="how-title">
-  <div class="section__header">
+  <div class="max-w-prose">
     <h2 id="how-title">{% translate "How it works" %}</h2>
-    <p class="lead">{% translate "Four steps, each with its results on screen before you move on." %}</p>
+    <p>{% blocktranslate trimmed %}
+      Load a text file of daily maximum and minimum temperature and precipitation. Climpact
+      checks the data quality, then calculates the indices and their trends. You see the
+      results on screen at each step, and download the tables and plots at the end.
+    {% endblocktranslate %}</p>
   </div>
-  <ol class="flow">
-    <li class="flow__item card">
-      <span class="card__icon">{% icon "upload" %}</span>
-      <h3 class="card__title">{% translate "Load data" %}</h3>
-      <p class="card__body">{% translate "A text file of daily maximum and minimum temperature and precipitation, with the station's name, location and base period." %}</p>
-    </li>
-    <li class="flow__item card">
-      <span class="card__icon">{% icon "check-circle" %}</span>
-      <h3 class="card__title">{% translate "Check quality" %}</h3>
-      <p class="card__body">{% translate "Missing days, outliers, jumps, repeated values and other suspect data, flagged on charts and in tables so you can fix the file." %}</p>
-    </li>
-    <li class="flow__item card">
-      <span class="card__icon">{% icon "sliders" %}</span>
-      <h3 class="card__title">{% translate "Calculate indices" %}</h3>
-      <p class="card__body">{% translate "Choose the parameters, then Climpact calculates the temperature, rainfall, heatwave and drought indices and their trends." %}</p>
-    </li>
-    <li class="flow__item card">
-      <span class="card__icon">{% icon "download" %}</span>
-      <h3 class="card__title">{% translate "Explore and download" %}</h3>
-      <p class="card__body">{% translate "Interactive charts for every index, and the full set of tables and plots to download." %}</p>
-    </li>
-  </ol>
 </section>
 
 <section class="section" aria-labelledby="ways-title">

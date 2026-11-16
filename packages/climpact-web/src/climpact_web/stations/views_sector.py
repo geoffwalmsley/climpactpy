@@ -1,4 +1,5 @@
-"""Step 5 of a station (#90): compare the indices with yearly sector data.
+"""The sector comparison of a station (#90): compare the indices with yearly sector data.
+An action on Results, not a step of its own (#173).
 
 Replaces the R app's step 4 (``modules/singleStationStep4UI.R``, ``singleStationStep4.R``,
 ``server/sector_correlation.R``). URLs (``/station/<id>/...``, private to the session like
@@ -126,12 +127,13 @@ def initial(analysis: StationAnalysis, job: Job | None) -> dict:
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
 def sector(request, analysis_id):
-    """Step 5: the sector file and plot settings, the job's progress, then its results."""
+    """The sector comparison: the sector file and plot settings, the job's progress, then
+    its results."""
     analysis = get_analysis(request, analysis_id)
     indices_job, source = current_source(analysis)
     context = {
         "analysis": analysis,
-        "steps": station_steps("sector", analysis.step_urls()),
+        "steps": station_steps("results", analysis.step_urls()),
         "indices_job": indices_job,
         "source": source,
         "sample_name": SAMPLE_NAME,

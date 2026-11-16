@@ -3106,8 +3106,8 @@ jobs and the error pages must leave none (`test_no_content_security_policy_viola
 `turnstile_test_settings.py` (Turnstile on with Cloudflare's published test keys, which
 always pass on any host, and the Turnstile policy) and waits for the widget's token on
 the station upload page with no violation; `test_turnstile_holds_a_form_until_its_token`
-presses the sample's top button on step 1 as soon as the page is parsed, before the token,
-and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
+presses the sample's continue button on step 1 as soon as the page is parsed, before the
+token, and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
 cannot be reached.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
@@ -3670,7 +3670,8 @@ button, with a `<noscript>` note that the check needs JavaScript, and adds `js/t
 load neither. **Waiting for the token (#163).** The widget takes a second or two to get
 its token, out of sight when the form's widget is below the fold, and a form sent before
 then was refused (`turnstile-missing`): on the live site, the sample's top button on
-step 1 ("Details look right", outside the details form with `form="station-details"`).
+step 1 ("Details look right", outside the details form with `form="station-details"`;
+#173 removed it, and the form's own button is now the only one).
 `turnstile.js` catches every submit in the capture phase (the form's own buttons, a button
 outside it, Enter) of a form holding a `.cf-turnstile`; with no token in that form's
 widget (or `turnstile.isExpired`), it stops the submit, marks the form's submit buttons
@@ -3979,7 +3980,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads, Compare with sector data (optional); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data: check it and describe the station", "Results and downloads") |
+| `steps` | the single-station step indicator: Load data, Check quality, Calculate indices, Results and downloads (the sector comparison is an action on Results, not a step, #173; the component still marks a step `optional`, which no flow uses now); from `navigation.station_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115). Each step page's H1 is the step's name or starts with it ("Load data: check it and describe the station", "Results and downloads") |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
@@ -4016,7 +4017,8 @@ deleted, when a job started) stay written out ("14 November 2026"). The output f
 not affected.
 
 **Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
-sample data" buttons, the four steps, the other ways to run Climpact (batch, gridded in
+sample data" buttons, a short "How it works" paragraph (#173: the four step cards repeated
+the step indicator and the tour), the other ways to run Climpact (batch, gridded in
 local mode, help, the command line) and a note on where data is kept (local or hosted).
 The pattern library (`/patterns/`, with `PATTERN_LIBRARY`) shows every component, the
 palette and the icons, and is what the user review and the accessibility audit (#83) use.
@@ -4374,7 +4376,9 @@ The single-station flow (#76-#79, #90) replaces the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Steps 1 (#76),
 2 (#77), 3 and 4 (#78: parameters, calculation, results) and 5 (#90: sector data) are
 built, and the downloads page (#79). R's step 4, sector
-correlation, is step 5 here, because the results have a step of their own.
+correlation, is step 5 here, because the results have a step of their own. Since #173 it
+is not in the step indicator (`STATION_STEPS` has the first four): Results offers it as an
+action, and its page shows Results as the current step. Its URL and page are unchanged.
 
 **Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
 through the steps: a UUID primary key; `owner` (the session's job owner token, so a
@@ -4384,7 +4388,7 @@ session sees its analyses and its jobs, and any other session gets 404); `source
 missing, days with data per year, monthly means for the preview); `warnings` (about the
 file); the metadata `station_name`, `latitude`, `longitude` (null until given),
 `base_start`, `base_end` (R's defaults, 1971 and 2000); `step`, the furthest step reached
-(`upload`, `qc`, `indices`, `results`, `sector`, the keys of `STATION_STEPS`);
+(`upload`, `qc`, `indices`, `results`, the keys of `STATION_STEPS`, then `sector`);
 `qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
 defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
@@ -4415,8 +4419,9 @@ sector file (`stations:sector_sample`); `.../downloads` the downloads page
 
 **Step 1: the file.** The upload page has a drop zone around a real file input (a plain
 multipart form, so it works without JavaScript; `ui.js` adds drag and drop), the sample
-card, the retention note, the file format in a disclosure and the session's recent
-analyses. `station_file.inspect_station_bytes` checks the file before anything is saved:
+card, the retention note (an info alert; on the later station pages, steps 1 and 2, it is
+a quiet line of small text with a lock icon at the foot of the page, #173), the file
+format in a disclosure and the session's recent analyses. `station_file.inspect_station_bytes` checks the file before anything is saved:
 
 - *Problems* stop the file: empty, not text (a zip or Excel workbook, or NUL bytes), no
   data rows, a line without six values, a value that is not a number (`NA` is accepted as
@@ -4446,8 +4451,8 @@ disclosure), a CSV download of the daily series and a form to load a different f
 the default). The preview (`preview.py`) is two small inline SVG charts of monthly means
 (maximum and minimum temperature, monthly total precipitation; months with fewer than 20
 days are gaps), drawn on the server in the chart tokens. Since #75 the summary shows the
-interactive daily series instead (`charts:station_daily`, with the values the QC checks
-flag; its CSV link is `stations:series`), and the static preview is the fallback inside
+interactive daily series instead (`charts:station_daily?flags=0`: without the QC flags,
+which belong to step 2, #173; its CSV link is `stations:series`), and the static preview is the fallback inside
 `<noscript>`. See [Charts](#charts).
 
 **Step 1: the metadata.** The fields are exactly those of the R app: station name,
@@ -4469,10 +4474,11 @@ server validates the whole form and returns only that group, re-rendered with it
 errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
 whole form is posted and the page shows every error with the error summary.
 "Continue to quality checks" saves the metadata, moves `step` to `qc` and redirects to
-step 2. When the saved details are already valid and have no warnings (the sample, or a
-re-visit), a second button under the heading, "Details look right: continue to quality
-checks", submits the same form from outside it (`form="station-details"`), so the step
-can be finished without scrolling past the summary and the charts (#114).
+step 2. The station details come first on the page, above the data summary and the
+chart, with this one button below the fields it confirms (#173). #114 had put a second
+button, "Details look right", under the heading when the details were already valid, so
+the step could be finished without scrolling; it came before the fields it asked the
+user to confirm, and #173 removed it.
 
 **Step 2: the quality checks (#77).** Replaces the R app's step 2
 (`singleStationStep2UI.R`, `singleStationStep2.R`, `services/quality_control_checks.R`) and
@@ -4552,7 +4558,8 @@ and the 3, 6 and 12-month scales duplicate indices always calculated. R's statio
 has no EHF definition (station runs always use Nairn and Fawcett 2013, the only one
 `climdex.hwEHF` accepts); the page says so. The form starts from the last calculation's
 settings, else the batch station's metadata line (`origin`), else the defaults.
-"Calculate with these settings" comes first, straight after the intro, and the parameter
+One "Calculate indices" button, at the end of the form, submits it (#173: #114's second
+button, "Calculate with these settings", above the settings, is gone); the parameter
 cards (plots, spell lengths, degree days, precipitation and drought, your own index and
 the heatwave note) sit in one "Change the settings" disclosure (`<details id="settings">`).
 It starts closed, labelled "Climpact's defaults", and the server opens it when the posted
@@ -4621,14 +4628,15 @@ catalogue's order. This ranking is the web app's; R's results page has no summar
 Sydney sample has 22 significant trends, led by TNm, TMm and GDDgrow10. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. The action row at the top: "Change the settings", "Download all (zip, *size*)",
-"PDF report (*size*)", "Choose files" (a link to the downloads page) and the optional step 5, "Compare
-with sector data" (#113 moved it up from the bottom). Only the zip is a full-size button;
-the other three are small (`size="sm"`), and the labels are short ("Download all", not
-"Download everything", on every page that offers the zip), which keeps the row on one line
-at 1280px with wider fonts too (#115; CI's Linux fonts wrapped the longer labels). Below the groups: downloads (the
+the percentiles, or else the missing-data rules. The action row at the top has one primary action and one secondary link (#173): "Download
+all (zip, *size*)" and "All files and the report" (the downloads page); without a zip, the
+link is the primary button. The labels are short ("Download all", not "Download
+everything", on every page that offers the zip), which keeps the row on one line at
+1280px with wider fonts too (#115). Below the groups: downloads (the
 zip, the report, the PDF of all plots, the trend, thresholds and missing-value files, each
-with its format and size, and the downloads page) and the settings used. Building the
+with its format and size, and the downloads page), the settings used (with "Change the
+settings and calculate again", which opens them: `?settings=open#settings`) and "Compare
+with sector data", the sector comparison (#173; #113 had it in the action row). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
@@ -4636,7 +4644,11 @@ parameters and the language.
 **Step 4: one index** (`stations:result`, `result.html`). The index's plain name as the
 heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
 the trend per decade with its 95% interval and significance, and the highest, lowest and
-mean values with when; the series as an interactive chart (`charts:job_series`, with the
+mean values with when, each with the series' units (#173: `results.with_units`, from the
+core's index definitions via `results._units`; "12.5%", "20 days", "day 200" for a day of
+occurrence). A trend in a percentage index is in percentage points per decade
+(`charts.data.trend_units`), here, on the results page and in the chart's text summary;
+a day-of-occurrence series' trend is in days per decade; the series as an interactive chart (`charts:job_series`, with the
 trend line, table view, CSV, and the run's PNG as the fallback without JavaScript), titled
 with the code and the cleaned definition (`results.chart_title`: "SU: Annual number of days
 when TX > 25 °C", not R's plot subtitle "su: ... 25 degrees_C", #115); the
@@ -4989,7 +5001,7 @@ gridded screen once `gridded:start` exists. R's sector sample
 step (#90).
 
 **First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
-landing page (the start buttons, the four steps, other ways to run Climpact, Help and Your
+landing page (the start buttons, "How it works", other ways to run Climpact, Help and Your
 calculations in the header), passed as `json_script` data with translated text. On a first
 visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
 finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
@@ -5314,7 +5326,7 @@ pages (another session's analysis or job is 404):
 
 | URL name | Path | Payload |
 | --- | --- | --- |
-| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77) |
+| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=&flags=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77); `flags=0` leaves the flags and the summary's sentence about them out, for step 1 (#173) |
 | `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
 | `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
 | `stations:result_anomalies` | `/station/<analysis>/results/<series>/anomalies.json` | `index`: a station run's standardised anomalies, as bars with `bar_labels` (#78) |

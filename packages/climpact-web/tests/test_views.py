@@ -75,6 +75,13 @@ def test_healthz(client):
     assert "no-cache" in response["Cache-Control"]
 
 
+def test_healthz_answers_head(client):
+    """Uptime checkers may send HEAD (#127); the answer must not be cached either."""
+    response = client.head("/healthz")
+    assert response.status_code == 200
+    assert "no-store" in response["Cache-Control"]
+
+
 def test_healthz_database_down(client, monkeypatch):
     from django.db import connection
 

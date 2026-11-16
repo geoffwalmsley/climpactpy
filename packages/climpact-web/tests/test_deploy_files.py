@@ -257,3 +257,22 @@ def test_release_deploys_only_final_releases():
     assert set(triggers) == {"release", "pull_request"}
     steps = " ".join(str(step.get("run", "")) for step in deploy["steps"])
     assert "call-hook.sh post" in steps and "call-hook.sh wait" in steps
+
+
+def test_uptime_check_reaches_healthz():
+    """DigitalOcean's Uptime check (#127) probes https://climpact.app/healthz from its own
+    cloud addresses: no rule may block, challenge, rate-limit or cache it, and the skip
+    rule (waf-skip-healthz.txt) matches GET and HEAD /healthz and nothing else."""
+    healthz = app_paths()["core:healthz"]
+    assert healthz == "/healthz"
+    skip = cloudflare_rule("waf-skip-healthz")
+    assert skip(healthz, "GET") and skip(healthz, "HEAD")
+    assert not skip(healthz, "POST") and not skip("/healthz/", "GET")
+    for name, path in app_paths().items():
+        if name != "core:healthz":
+            assert not skip(path) and not skip(path, "HEAD"), name
+    assert not skip("/_deploy", "POST") and not cloudflare_rule("waf-skip-deploy")(healthz)
+    for rule in ("waf-block", "waf-challenge", "rate-limit", "cache-static"):
+        for method in ("GET", "HEAD"):
+            assert not cloudflare_rule(rule)(healthz, method), rule
+    assert cloudflare_rule("cache-bypass")(healthz)

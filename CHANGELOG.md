@@ -11,6 +11,13 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
   refused with "Not accepted" (as with the sample's "Details look right" button on step
   1). The form waits, says it is checking that you are a person, and is sent as soon as
   the check finishes; if the check fails it says so and offers to try again.
+- Operations (#127): the runbook (`deploy/README.md`) gains *Alerts* (DigitalOcean uptime
+  check on `/healthz`, memory, disk and CPU alerts, a $15 billing alert), *Backups* (the
+  decision: none, and a by-hand dump before a risky migration), *Credentials* (every
+  secret, where it lives and how to rotate it) and *Operating the server* (rotating
+  secrets, resizing, rebuilding from nothing). New Cloudflare skip rule
+  `deploy/cloudflare/waf-skip-healthz.txt` so the uptime check is never challenged, and
+  `deploy/check-edge.sh` checks that `/healthz` answers and is not cached.
 
 ## 0.1.2 - 2026-11-16
 

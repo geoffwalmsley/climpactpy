@@ -7,6 +7,11 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+- Turnstile (#163): a form sent before Cloudflare's check has finished is no longer
+  refused with "Not accepted" (as with the sample's "Details look right" button on step
+  1). The form waits, says it is checking that you are a person, and is sent as soon as
+  the check finishes; if the check fails it says so and offers to try again.
+
 ## 0.1.2 - 2026-11-16
 
 Changes to the web app and the deployment. `climpact` itself is unchanged.

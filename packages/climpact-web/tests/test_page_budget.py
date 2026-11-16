@@ -43,6 +43,7 @@ ASSET_BUDGETS = {
     "js/results.js": 1.5 * KB,  # the results dashboard's filters (#78), collapsed groups (#113)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
+    "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only
     "js/gridded.js": 1 * KB,

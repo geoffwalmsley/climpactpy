@@ -1038,8 +1038,6 @@ def test_turnstile_widget_within_the_policy(chrome, turnstile_server):
     """With Turnstile on, its widget loads and passes (Cloudflare's test keys) under the
     policy hosted mode then sends, with no violation. Needs to reach Cloudflare: skipped
     when challenges.cloudflare.com cannot be reached, unless the widget was blocked."""
-    import urllib.request
-
     c = chrome
     c.csp_violations.clear()
     c.navigate(urljoin(turnstile_server, "/station/"))
@@ -1050,11 +1048,57 @@ def test_turnstile_widget_within_the_policy(chrome, turnstile_server):
         time.sleep(0.25)
     assert not c.csp_violations, json.dumps(c.csp_violations, indent=2)
     if not c.evaluate(token):
-        try:
-            urllib.request.urlopen(
-                "https://challenges.cloudflare.com/turnstile/v0/api.js", timeout=10
-            )
-        except OSError as exc:
-            pytest.skip(f"Cloudflare Turnstile cannot be reached from here ({exc})")
+        skip_unless_cloudflare_reachable()
         pytest.fail("the Turnstile widget did not give a token within 30 s")
     assert c.evaluate("typeof window.turnstile === 'object'")
+
+
+def skip_unless_cloudflare_reachable() -> None:
+    import urllib.request
+
+    try:
+        urllib.request.urlopen("https://challenges.cloudflare.com/turnstile/v0/api.js", timeout=10)
+    except OSError as exc:
+        pytest.skip(f"Cloudflare Turnstile cannot be reached from here ({exc})")
+
+
+def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
+    """A form sent before its widget has a token waits for it, then goes (#163): the
+    sample's top button ("Details look right"), outside the details form and far above its
+    widget, pressed as soon as the Load page is parsed, reaches the quality checks, not
+    the "Not accepted" page, with the button marked busy meanwhile and no policy
+    violation. Skipped when Cloudflare cannot be reached, as above."""
+    c = chrome
+    c.csp_violations.clear()
+    c.navigate(urljoin(turnstile_server, "/station/"))
+    submit(c, "form[action$='/station/sample']")
+    load = here(c)
+    assert load.endswith("/load")
+    c.events.clear()
+    c.send("Page.navigate", url=load)
+    c.wait_event("Page.domContentEventFired")
+    top = "document.querySelector('button[form=station-details]')"
+    form_token = (
+        "(document.querySelector('#station-details [name=cf-turnstile-response]') || {}).value"
+    )
+    early = bool(c.evaluate(form_token))
+    c.evaluate(f"{top}.click()")
+    if not early:  # held: the usual case, the widget takes a second or two
+        assert c.evaluate(f"{top}.getAttribute('aria-busy')") == "true"
+        assert c.evaluate("!!document.querySelector('.results-actions + [role=status]')")
+    where = "location.pathname + ' ' + document.title"
+    deadline = time.monotonic() + 75
+    page = ""
+    while time.monotonic() < deadline:
+        try:
+            page = c.evaluate(where) or ""
+        except DevToolsError:
+            page = ""  # navigating
+        if page.split(" ", 1)[0].endswith("/quality") or "Not accepted" in page:
+            break
+        time.sleep(0.25)
+    assert "Not accepted" not in page, page
+    if not page.split(" ", 1)[0].endswith("/quality"):
+        skip_unless_cloudflare_reachable()
+        pytest.fail(f"the details form was not sent within 75 s ({page})")
+    assert not c.csp_violations, json.dumps(c.csp_violations, indent=2)

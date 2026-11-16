@@ -3,6 +3,7 @@ quotas, the queue and disk guards, and the job time limit. All off in local mode
 
 import datetime as dt
 import logging
+import re
 import time
 
 import pytest
@@ -218,6 +219,37 @@ def test_get_requests_and_the_sample_need_no_token(turnstile):
     assert client.get("/station/").status_code == 200
     assert client.post("/station/sample").status_code == 302
     assert turnstile == []
+
+
+@pytest.mark.django_db
+def test_forms_wait_for_their_token(turnstile):
+    """The sample's Load page (#163): a top button outside the details form, and two
+    widgets (the details and "Use a different file"), each in its own form. Each widget
+    names turnstile.js's callbacks and carries the texts it shows while the form waits;
+    turnstile.js comes once, before Cloudflare's script."""
+    client = visitor()
+    load = client.post("/station/sample")["Location"]
+    html = client.get(load).content.decode()
+    assert 'form="station-details"' in html  # the shortcut that raced the token
+    widgets = re.findall(r'<div class="cf-turnstile"[^>]*>', html)
+    assert len(widgets) == 2
+    for widget in widgets:
+        assert 'data-callback="climpactTurnstileDone"' in widget
+        assert 'data-error-callback="climpactTurnstileError"' in widget
+        for name in ("wait", "slow", "failed", "retry"):
+            assert re.search(rf'data-{name}="[^"]+"', widget), name
+    forms = re.findall(r"<form\b.*?</form>", html, re.S)
+    assert [f.count('class="cf-turnstile"') for f in forms if "cf-turnstile" in f] == [1, 1]
+    assert html.count("js/turnstile.js") == 1
+    assert html.index("js/turnstile.js") < html.index("turnstile/v0/api.js")
+
+
+@pytest.mark.django_db
+def test_no_turnstile_script_without_turnstile(hosted):
+    client = visitor()
+    load = client.post("/station/sample")["Location"]
+    html = client.get(load).content.decode()
+    assert "cf-turnstile" not in html and "turnstile.js" not in html
 
 
 # --- Quotas ---------------------------------------------------------------------------------

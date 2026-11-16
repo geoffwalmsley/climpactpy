@@ -985,6 +985,36 @@ def test_units_on_the_stat_row_and_percentage_point_trends(client):
     assert re.search(r'Highest</span><span class="stat__value">[0-9.,]+ days</span>', days)
 
 
+def test_units_written_the_same_way_everywhere(client):
+    """#189: a percentage index (TX90p), a count (SU) and a unitless one (SPI) write
+    their values with units one way in the catalogue, the theme tiles and the index
+    page's stat row: "12.5%", "20 days", the number alone, never "12.5 %" or a double
+    space."""
+    analysis, _job = finished_analysis(client)
+    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+
+    def row(key):
+        return re.search(rf'<tr [^>]*id="index-{key}".*?</tr>', html, re.S).group(0)
+
+    assert '<span class="text-text-muted">percentage points</span>' in row("tx90p")
+    assert '<span class="text-text-muted">days</span>' in row("su")
+    spi = row("3month_spi")
+    assert re.search(r'trend--\w+">[+−-]?[0-9.,]+</span></td>', spi)
+    # The theme tiles: a unitless trend says "per decade" with nothing before it.
+    tiles = re.findall(r'<span class="trend-row__units">(.*?)</span></span>', html, re.S)
+    assert tiles and all("  " not in t and not t.startswith(" ") for t in tiles)
+    for key, value, trend in (
+        ("tx90p", r"[0-9.,]+%", r"\S+ percentage points"),
+        ("su", r"[0-9.,]+ days", r"\S+ days"),
+        ("3month_spi", r"[−-]?[0-9.,]+", r"[+−-]?[0-9.,]+"),
+    ):
+        page = client.get(f"/station/{analysis.pk}/results/{key}").content.decode()
+        for label in ("Highest", "Lowest", "Mean"):
+            assert re.search(rf'{label}</span><span class="stat__value">{value}</span>', page)
+        assert re.search(rf'Trend</span><span class="stat__value">{trend}</span>', page), key
+        assert " %</span>" not in page
+
+
 def test_trend_and_stat_units():
     from climpact_web.charts.data import trend_units
     from climpact_web.stations.results import with_units

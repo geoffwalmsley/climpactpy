@@ -442,13 +442,8 @@ def _latest(plot) -> dict | None:
     return None
 
 
-def with_units(value: str, units: str) -> str:
-    """A value with its units, as shown in a stat: ``20 days``, ``12.3%``, ``0.5`` without."""
-    if not units:
-        return value
-    if units == "%":
-        return _("%(value)s%%") % {"value": value}
-    return _("%(value)s %(units)s") % {"value": value, "units": units}
+# A value with its units ("12.5%", "20 days"): one rule for every page (#189).
+with_units = chart_data.with_units
 
 
 def _units(plot) -> str:

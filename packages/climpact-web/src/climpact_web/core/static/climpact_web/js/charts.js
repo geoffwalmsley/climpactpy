@@ -515,7 +515,8 @@
         if (s.flag) return;
         var v = s.values[idx];
         if (s.bars && v == null && model.kind === "index") return;
-        var unit = s.unit ? " " + s.unit : "";
+        // As data.with_units (#189): "12.5%", "20 days", the number alone without units.
+        var unit = !s.unit ? "" : s.unit === "%" ? "%" : " " + s.unit;
         parts.push(s.short + " " + (v == null ? t("missing") : num(v) + unit));
       });
     });

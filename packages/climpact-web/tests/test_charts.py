@@ -223,6 +223,39 @@ def test_series_list_in_r_order():
     assert [n for n in names if n in order] == order
 
 
+def test_summary_writes_units_as_every_page_does():
+    """#189: "20%" for a percentage, "20 days" for a count, the number alone without
+    units, and no double space in a unitless trend."""
+    trend = {"slope": 0.063, "lower": 0.01, "upper": 0.1}
+
+    def summary(units):
+        payload = {"name": "x_ANN", "x": [2000, 2001], "y": [20.0, 4.29], "step": "year"}
+        return data.index_summary({**payload, "units": units, "trend": trend})
+
+    assert "Highest 20% in 2000, lowest 4.29% in 2001." in summary("%")
+    assert "rising by 0.63 percentage points per decade" in summary("%")
+    assert "Highest 20 days in 2000, lowest 4.29 days in 2001." in summary("days")
+    assert "rising by 0.63 days per decade" in summary("days")
+    assert "Highest 20 in 2000, lowest 4.29 in 2001." in summary("")
+    assert "rising by 0.63 per decade" in summary("")
+    for units in ("%", "days", ""):
+        assert "  " not in summary(units) and " %" not in summary(units)
+    flat = data.index_summary(
+        {"name": "x", "x": [2000], "y": [1.0], "step": "year", "units": ""}
+        | {"trend": {"slope": 0.0, "lower": -1.0, "upper": 1.0}}
+    )
+    assert "no change (0 per decade)" in flat
+
+
+def test_with_units_filter():
+    from django.template import Context, Template
+
+    template = Template("{% load charts %}[{{ v|with_units:u }}]")
+    assert template.render(Context({"v": "12.5", "u": "%"})) == "[12.5%]"
+    assert template.render(Context({"v": "20", "u": "days"})) == "[20 days]"
+    assert template.render(Context({"v": "+0.63", "u": ""})) == "[+0.63]"
+
+
 def test_summary_numbers():
     assert data.number(0.0277777) == "0.03"
     assert data.number(-0.0) == "0"

@@ -5,6 +5,9 @@ language as JSON (``#climpact-chart-text``), which ``charts.js`` reads for its b
 read-out, table and messages. Only pages with a chart load these (#82). The chart styles,
 uPlot's stylesheet among them, are in the one stylesheet every page loads
 (``css/climpact.css``, #118).
+
+``{{ value|with_units:units }}`` writes a value with its units the one way every page
+does (``data.with_units``, #189): ``12.5%``, ``20 days``, the number alone without units.
 """
 
 from django import template
@@ -12,7 +15,16 @@ from django.templatetags.static import static
 from django.utils.html import format_html, json_script
 from django.utils.translation import gettext as _
 
+from climpact_web.charts import data
+
 register = template.Library()
+
+
+@register.filter
+def with_units(value, units) -> str:
+    """``{{ trend.slope_text|with_units:series.trend_units }}``: ``+0.21 °C``, ``+0.63``."""
+    return data.with_units(str(value), units or "")
+
 
 ASSETS = {
     "uplot_js": "climpact_web/vendor/uplot/uPlot.iife.min.js",

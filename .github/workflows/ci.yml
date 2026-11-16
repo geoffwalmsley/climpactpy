@@ -95,10 +95,11 @@ jobs:
       - name: Test
         env:
           CLIMPACT_REQUIRE_TAILWIND: "1"
+        # The browser accessibility checks are deselected by the default addopts
+        # (-m "not browser"); web-accessibility runs them.
         run: >-
           uv run --no-sync pytest packages/climpact-web
           --ignore=packages/climpact-web/tests/test_page_budget.py
-          --ignore=packages/climpact-web/tests/test_accessibility.py
       - name: Page size budget
         # The low-bandwidth budget (#82): every page type with what it links, gzipped, and
         # each static file; fails over budget and prints the sizes (TECHNICAL.md, "Size budget").
@@ -136,7 +137,9 @@ jobs:
         env:
           CLIMPACT_A11Y_REQUIRE_CHROME: "1"
           CLIMPACT_A11Y_REPORT: ${{ runner.temp }}/accessibility
-        run: uv run --no-sync pytest packages/climpact-web/tests/test_accessibility.py -rs
+        # -m browser overrides the default -m "not browser" (the last -m wins); without
+        # it, naming the file alone would deselect every test in it.
+        run: uv run --no-sync pytest packages/climpact-web/tests/test_accessibility.py -m browser -rs
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2

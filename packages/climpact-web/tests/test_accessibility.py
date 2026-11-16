@@ -24,6 +24,9 @@ keyboard in their own tests, and the progress regions are checked for live annou
 Chrome is the one already installed (``CHROME`` names another); without one the tests
 skip, unless ``CLIMPACT_A11Y_REQUIRE_CHROME`` is set (CI), when they fail.
 ``CLIMPACT_A11Y_REPORT=<folder>`` saves a JSON report and screenshots there.
+
+The module is marked ``browser``, which the default ``addopts`` deselect (it takes about
+4.5 minutes); run it with ``uv run pytest -m browser``.
 """
 
 from __future__ import annotations
@@ -41,6 +44,8 @@ from urllib.parse import urljoin
 
 import pytest
 from browser import Chrome, DevToolsError, find_chrome
+
+pytestmark = pytest.mark.browser
 
 ASSETS = Path(__file__).parent / "assets" / "axe-core"
 AXE = ASSETS / "axe.min.js"

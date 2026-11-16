@@ -84,7 +84,11 @@ include = ["/src/climpact_web", "/README.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-rfE --strict-markers"
+# The browser accessibility checks are left out by default: run them with `-m browser`
+addopts = '-rfE --strict-markers -m "not browser"'
+markers = [
+    "browser: drives a real Chrome against a running climpact-web; deselected by default, run with -m browser",
+]
 DJANGO_SETTINGS_MODULE = "web_test_settings"
 pythonpath = ["tests"]
 

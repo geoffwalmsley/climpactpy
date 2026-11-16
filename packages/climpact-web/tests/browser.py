@@ -61,6 +61,22 @@ CSP_LISTENER = """document.addEventListener('securitypolicyviolation', function 
 }, true);""".replace("BINDING", CSP_BINDING)
 CSP_MESSAGE = "Content Security Policy"
 
+# Whether the page is still busy: loading, an htmx request in flight, or a chart that is
+# loading. charts.js loads a chart only when it comes within 200px of the viewport (an
+# IntersectionObserver), so a chart further down, or in a hidden tab panel, keeps its
+# skeleton until it is scrolled to; only charts that have asked for their data, or are in
+# view and about to, are waited for (waiting on the others ran to the timeout, #182).
+BUSY = """(function () {
+  if (document.readyState !== 'complete' || document.querySelector('.htmx-request')) return true;
+  var margin = 200, height = window.innerHeight;
+  return Array.prototype.some.call(document.querySelectorAll('[data-chart-src]'), function (el) {
+    if (!el.querySelector('[data-chart-plot] .skeleton')) return false;
+    if (el._chart && el._chart.requested) return true;
+    var r = el.getBoundingClientRect();
+    return el.getClientRects().length > 0 && r.bottom > -margin && r.top < height + margin;
+  });
+})()"""
+
 
 class DevToolsError(RuntimeError):
     pass
@@ -187,12 +203,22 @@ class Chrome:
         """Wait until no htmx request is in flight and no chart is still loading."""
         time.sleep(pause)
         deadline = time.monotonic() + timeout
-        busy = (
-            "document.querySelector('.htmx-request, [data-chart-plot] .skeleton') !== null"
-            " || document.readyState !== 'complete'"
-        )
-        while time.monotonic() < deadline and self.evaluate(busy):
+        while time.monotonic() < deadline and self.evaluate(BUSY):
             time.sleep(0.1)
+
+    def transitions_done(self, timeout: float = 3) -> None:
+        """Wait until no CSS transition or finite animation is running (after a theme
+        change, the colours have reached their end); waits two frames first, so that
+        transitions started by a change just made are counted."""
+        moving = (
+            "new Promise(function (done) { requestAnimationFrame(function () {"
+            " requestAnimationFrame(function () { done(document.getAnimations().some("
+            "function (a) { return a.playState === 'running' &&"
+            " a.effect.getComputedTiming().endTime !== Infinity })) }) }) })"
+        )
+        deadline = time.monotonic() + timeout
+        while self.evaluate(moving, await_promise=True) and time.monotonic() < deadline:
+            time.sleep(0.05)
 
     def set_content(self, html: str) -> None:
         """Replace the current document (same origin) with the given HTML."""

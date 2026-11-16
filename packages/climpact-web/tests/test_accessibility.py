@@ -26,7 +26,7 @@ skip, unless ``CLIMPACT_A11Y_REQUIRE_CHROME`` is set (CI), when they fail.
 ``CLIMPACT_A11Y_REPORT=<folder>`` saves a JSON report and screenshots there.
 
 The module is marked ``browser``, which the default ``addopts`` deselect (it takes about
-4.5 minutes); run it with ``uv run pytest -m browser``.
+2.5 minutes); run it with ``uv run pytest -m browser``.
 """
 
 from __future__ import annotations
@@ -286,13 +286,15 @@ def site(chrome, server):
     pages["batch check"] = here(c)
     submit(c, "form[action$='/run']")
     heard = while_running(c, "batch")
-    # Keyboard focus on the cancel button stays there while the progress is polled.
+    # Keyboard focus on the cancel button stays there while the progress is polled: the
+    # mark goes when the progress replaces itself (the first poll, or the batch's end).
     cancel = "#batch-progress form[action$='/cancel'] button"
     c.evaluate(
         f"document.querySelector({json.dumps(cancel)}).focus();"
         "document.querySelector('#batch-progress').dataset.a11yMark = '1'"
     )
-    time.sleep(3.5)
+    swapped = "!(document.querySelector('#batch-progress') || {dataset: {}}).dataset.a11yMark"
+    wait_for(c, swapped, timeout=10, what="the batch's progress to update", heard=heard)
     WHILE_RUNNING["batch"]["focus"] = c.evaluate(
         "({swapped: !document.querySelector('#batch-progress').dataset.a11yMark,"
         " running: document.querySelector('#batch-progress').dataset.status !== 'succeeded',"
@@ -537,7 +539,7 @@ def audit(chrome, site):
         if shots:
             c.screenshot(shots / f"{slug(name)}-light.png")
         set_mode(c, scheme="dark")
-        c.settle(0.6)  # colour transitions run to their end
+        c.transitions_done()  # colour transitions run to their end
         f["axe dark"] = run_axe(c, ["color-contrast", "link-in-text-block"])
         if shots:
             c.screenshot(shots / f"{slug(name)}-dark.png")
@@ -799,20 +801,19 @@ def test_chart_by_keyboard(chrome, site):
     focus(c, "#index-chart [data-chart-plot]")
     status = "document.querySelector('#index-chart [data-chart-status]').textContent"
     c.press("+")
-    time.sleep(0.8)
+    wait_for(c, f"!!{status}", timeout=5, what="zooming in to be announced")
     zoomed = c.evaluate(status)
-    assert zoomed, "zooming in was not announced"
     c.press("ArrowLeft")
-    time.sleep(0.8)
-    assert c.evaluate(status) != zoomed, "moving was not announced"
+    wait_for(c, f"{status} !== {json.dumps(zoomed)}", timeout=5, what="moving to be announced")
+    moved = c.evaluate(status)
     c.press("0")
-    time.sleep(0.8)
+    wait_for(c, f"{status} !== {json.dumps(moved)}", timeout=5, what="the reset to be announced")
     assert c.evaluate("document.activeElement.hasAttribute('data-chart-plot')")
     # The table view, the data without the chart, opens from the keyboard too.
     focus(c, "#index-chart details summary")
     c.press("Enter")
-    time.sleep(0.3)
-    assert c.evaluate("document.querySelector('#index-chart details').open")
+    wait_for(c, "document.querySelector('#index-chart details').open", timeout=5,
+             what="the table view to open")  # fmt: skip
     assert (
         c.evaluate("document.querySelectorAll('#index-chart details table tbody tr').length") > 10
     )

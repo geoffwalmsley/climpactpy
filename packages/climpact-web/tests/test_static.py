@@ -102,6 +102,7 @@ def test_every_template_class_is_styled():
             unstyled |= {
                 f"{path.name}: {name}"
                 for name in value.split()
-                if name not in styled and name not in HOOK_CLASSES and not name.endswith("--")
+                # a name ending in - or -- is completed by a template variable (swatch-…)
+                if name not in styled and name not in HOOK_CLASSES and not name.endswith("-")
             }
     assert not unstyled, sorted(unstyled)

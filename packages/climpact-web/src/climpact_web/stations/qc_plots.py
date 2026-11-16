@@ -45,6 +45,12 @@ class Box:
     n: int
 
 
+def _colour(token: str) -> str:
+    """The class that gives a plot its variable's colour (charts.css): the Content Security
+    Policy allows no style attributes (#137)."""
+    return f"swatch-{token.removeprefix('--')}"
+
+
 def _arrays(rows):
     import numpy as np
 
@@ -136,8 +142,8 @@ def box_svg(boxes: list[Box], variable: str, unit: str, label: str, every: int =
     half = max(1.0, min(14.0, step * 0.32))
     token = TOKENS[variable]
     parts = [
-        f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="qc-plot" role="img" '
-        f'aria-label="{escape(label)}" focusable="false" style="--plot-colour: var({token})">'
+        f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="qc-plot {_colour(token)}" role="img" '
+        f'aria-label="{escape(label)}" focusable="false">'
     ]
     _axes(parts, low, high, y, ticks, unit)
     for i, b in enumerate(boxes):
@@ -181,9 +187,8 @@ def bar_svg(
 
     step = (WIDTH - LEFT - RIGHT) / len(counts)
     parts = [
-        f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="qc-plot" role="img" '
-        f'aria-label="{escape(label)}" focusable="false" '
-        f'style="--plot-colour: var({TOKENS[variable]})">'
+        f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="qc-plot {_colour(TOKENS[variable])}" '
+        f'role="img" aria-label="{escape(label)}" focusable="false">'
     ]
     _axes(parts, 0, high, y, ticks, unit)
     every = max(1, math.ceil(len(counts) / 12))

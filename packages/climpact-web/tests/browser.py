@@ -5,6 +5,11 @@ started headless with a temporary profile and a debugging port, and driven over 
 WebSocket with ``websocket-client``. Chrome is found from the ``CHROME`` environment
 variable, then the usual install locations (macOS, Linux, Windows) and the ``PATH``
 (``google-chrome``, ``chromium``). CI uses the runner's preinstalled Google Chrome.
+
+Every Content Security Policy violation the pages report (#137) is kept in
+``Chrome.csp_violations``, whatever page was open: the ``securitypolicyviolation`` events
+of every document, and the browser's console messages about the policy (eval refused,
+for one, which raises no event when htmx catches the error).
 """
 
 from __future__ import annotations
@@ -45,6 +50,16 @@ def find_chrome() -> str | None:
         if found:
             return found
     return None
+
+
+# Reports each securitypolicyviolation event to the test through a DevTools binding.
+CSP_BINDING = "__climpactCspViolation"
+CSP_LISTENER = """document.addEventListener('securitypolicyviolation', function (e) {
+  window.BINDING(JSON.stringify({page: location.href, directive: e.violatedDirective,
+    blocked: e.blockedURI, source: e.sourceFile + ':' + e.lineNumber, sample: e.sample,
+    disposition: e.disposition}));
+}, true);""".replace("BINDING", CSP_BINDING)
+CSP_MESSAGE = "Content Security Policy"
 
 
 class DevToolsError(RuntimeError):
@@ -96,8 +111,11 @@ class Chrome:
         )
         self.ids = itertools.count(1)
         self.events: list[dict] = []
-        for domain in ("Page", "Runtime", "Network", "DOM", "CSS"):
+        self.csp_violations: list[dict] = []
+        for domain in ("Page", "Runtime", "Network", "DOM", "CSS", "Log"):
             self.send(f"{domain}.enable")
+        self.send("Runtime.addBinding", name=CSP_BINDING)
+        self.send("Page.addScriptToEvaluateOnNewDocument", source=CSP_LISTENER)
         self.viewport(width, height)
 
     # ---- the protocol ------------------------------------------------------------------
@@ -113,7 +131,18 @@ class Chrome:
                     raise DevToolsError(f"{method}: {message['error']}")
                 return message.get("result", {})
             if "method" in message:
-                self.events.append(message)
+                self.keep(message)
+
+    def keep(self, event: dict) -> None:
+        """Keep an event for wait_event, or a CSP violation in csp_violations."""
+        params = event.get("params", {})
+        if event["method"] == "Runtime.bindingCalled" and params.get("name") == CSP_BINDING:
+            self.csp_violations.append(json.loads(params["payload"]))
+        elif event["method"] == "Log.entryAdded" and CSP_MESSAGE in params["entry"]["text"]:
+            entry = params["entry"]
+            self.csp_violations.append({"page": entry.get("url", ""), "message": entry["text"]})
+        else:
+            self.events.append(event)
 
     def wait_event(self, method: str, timeout: float = 30) -> dict:
         deadline = time.monotonic() + timeout
@@ -129,7 +158,7 @@ class Chrome:
             finally:
                 self.ws.settimeout(60)
             if "method" in message:
-                self.events.append(message)
+                self.keep(message)
 
     def evaluate(self, expression: str, await_promise: bool = False):
         """Evaluate JavaScript in the page and return its value (JSON-serialisable)."""

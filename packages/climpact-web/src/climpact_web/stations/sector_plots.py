@@ -277,7 +277,7 @@ def bar_svg(bars: list[Bar], label: str) -> SafeString:
             token = TOKENS.get(bar.category, "--chart-7")
             parts.append(
                 f'<rect x="{x0:.1f}" y="{y + 3}" width="{max(w, 1):.1f}" height="{row - 6}" '
-                f'class="sector-plot__bar" style="fill: var({token})"/>'
+                f'class="sector-plot__bar swatch-{token.removeprefix("--")}"/>'
             )
             anchor, tx = ("start", end + 4) if bar.cor >= 0 else ("end", end - 4)
             parts.append(

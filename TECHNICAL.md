@@ -2700,7 +2700,7 @@ packages/climpact-web/src/climpact_web/
     limits.py        the hosted site's abuse limits (#125): client_ip, Turnstile
                      (verify_turnstile, human_required), the quotas (check_job_quotas),
                      the disk guard (check_disk, disk_required), Refused
-    templatetags/ui.py  `{% icon %}`, `{% turnstile %}` and the `times` filter
+    templatetags/ui.py  `{% icon %}`, `{% turnstile %}`, the `times` and `token_name` filters
     management/commands/design_snapshots.py  static HTML copies of the pages for review
     templates/       base.html (the page shell), 404.html, 413.html, 500.html, refused.html,
                      core/home.html (landing), core/patterns.html (pattern library),
@@ -2710,7 +2710,9 @@ packages/climpact-web/src/climpact_web/
                      committed (#118): tokens, both themes, base styles, every component,
                      uPlot's stylesheet and the utilities the templates use
       js/ui.js       progressive enhancement: theme toggle, tabs, drop zone, dialogs, toasts,
-                     the announcer and focus kept across htmx swaps (#83)
+                     the announcer and focus kept across htmx swaps (#83), the progress
+                     polls' tab visibility (#137)
+      js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
@@ -2833,6 +2835,7 @@ packages/climpact-web/docs/accessibility-audit.md  the accessibility audit (#83)
                      checked, what was fixed, the screen reader checklist done by hand
 packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
+  turnstile_test_settings.py  the browser test's app with Turnstile on (test keys, #137)
   browser.py         headless Chrome over the DevTools protocol (#83)
   assets/axe-core/   axe-core 4.14.0, vendored for the accessibility tests (README: source,
                      SHA-256, MPL-2.0 licence)
@@ -2845,7 +2848,8 @@ packages/climpact-web/tests/
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
                      the downloads page and the PDF report jobs (test_downloads.py),
-                     accessibility in a browser (test_accessibility.py, #83)
+                     accessibility in a browser (test_accessibility.py, #83), the
+                     Content Security Policy (test_csp.py, #137)
 ```
 
 Apps, one per area, each added by the ticket that needs it: `jobs` (the job model,
@@ -2904,6 +2908,7 @@ the variable.
 | `CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` | `200` | largest request body under `/gridded/` (netCDF uploads), when gridded runs are offered |
 | `CLIMPACT_WEB_SSL_REDIRECT` | `true` | hosted mode: redirect HTTP to HTTPS |
 | `CLIMPACT_WEB_HSTS_SECONDS` | `0` | hosted mode: `Strict-Transport-Security` max-age, sent with `includeSubDomains` when above 0; `deploy/.env.example` sets `31536000` (#124) |
+| `CLIMPACT_WEB_CSP_REPORT_ONLY` | `false` | send the Content Security Policy as `Content-Security-Policy-Report-Only` (violations are reported in the browser console, nothing is blocked) instead of enforcing it; for a first deployment (#137) |
 | `CLIMPACT_WEB_LOG_LEVEL` | `INFO` | level for the `climpact_web` and `climpact` loggers; other libraries log warnings and errors |
 | `CLIMPACT_WEB_TURNSTILE_SITE_KEY` | none | hosted mode: Cloudflare Turnstile's site key; Turnstile is on only when both keys are set, and one without the other is an error (#125) |
 | `CLIMPACT_WEB_TURNSTILE_SECRET_KEY` | none | hosted mode: Turnstile's secret key, for the siteverify check |
@@ -2914,7 +2919,8 @@ the variable.
 | `CLIMPACT_WEB_JOB_TIME_LIMIT_MINUTES` | `60` | hosted mode: wall-clock limit on one job; `0` is none (see [Background jobs](#background-jobs)) |
 | `CLIMPACT_WEB_TRUSTED_PROXY` | none (`*` in the image) | the `climpact-web` server (waitress) trusts `X-Forwarded-Proto` and `X-Forwarded-For` from this address (`*`: any peer) and takes the request's scheme and client address from them; read by `cli.proxy_options`, not by the settings |
 
-Both modes also set `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
+Both modes also send a strict Content Security Policy (see
+[Content Security Policy](#content-security-policy)), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`,
 `Cross-Origin-Opener-Policy: same-origin`, HttpOnly SameSite=Lax session cookies and
 Django's CSRF protection. `PrivateCacheMiddleware` (below WhiteNoise, so static files keep
 their one-year cache) adds `Cache-Control: private` to every answer that sets no
@@ -2925,6 +2931,74 @@ to one session (#124); htmx requests send the CSRF token from the `hx-headers` o
 about xclim redefining its units are silenced (`pint.util` at ERROR).
 
 See [Security of the hosted site](#security-of-the-hosted-site) for the limits.
+
+#### Content Security Policy
+
+`django.middleware.csp.ContentSecurityPolicyMiddleware` (Django 6, right after
+`SecurityMiddleware`) adds the policy from `SECURE_CSP` to every answer, in both modes, so
+a violation shows in development as it would on the hosted site (#137). `settings.py`
+builds it with `content_security_policy(turnstile)`:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'sha256-<500 page>';
+img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none';
+object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+`frame-ancestors 'none'` does what `X-Frame-Options: DENY` does; the latter stays for old
+browsers. `CLIMPACT_WEB_CSP_REPORT_ONLY=true` sends the same policy as
+`Content-Security-Policy-Report-Only` instead (`SECURE_CSP_REPORT_ONLY`). There is no
+reporting endpoint (`report-to`): violations appear only in the browser's console.
+
+**No inline code, and no nonces.** Every page loads one same-origin stylesheet and
+same-origin scripts only, so the policy needs no `'unsafe-inline'`, `'unsafe-eval'` or
+nonce (the `csp` context processor is not used):
+
+| What was inline | Now |
+| --- | --- |
+| the theme script in `<head>` | `js/theme.js`, loaded without `defer` after the stylesheet, so the stored theme still applies before the first paint |
+| the chart frame's `<noscript><style>` hiding the skeleton | `@media (scripting: none) { [data-chart-src] .skeleton { display: none } }` in `charts.css` (browsers without the media feature, from before 2023, show the skeleton above the no-JS fallback) |
+| `style="--swatch: var(--chart-…)"` on legend, summary, sector and pattern-library swatches | a class per `--chart-*` token, `swatch-chart-…` (`charts.css`), written with the `token_name` filter (`swatch-{{ token\|token_name }}`); `charts.js` still sets `--swatch` from script, which CSP allows (the CSSOM is not restricted) |
+| `style="--chart-height: …"` and `--skeleton-height` | a class per height the templates use, `chart-height-14rem` etc. (`charts.css`) |
+| the gridded map's `style="--gmap-width: …"` | the SVG's `width` attribute (the natural width) with `max-inline-size: 100%` |
+| the sparkline bars' `style="stroke-width: …"` | the SVG `stroke-width` attribute |
+| the server-drawn SVG plots' `style="--plot-colour: …"` (`stations/qc_plots.py`) and `style="fill: …"` (`stations/sector_plots.py`) | the same `swatch-chart-…` classes; `.qc-plot` and `.sector-plot__bar` read `--swatch` |
+| `hx-trigger="… visibilitychange[!document.hidden] …"` and `hx-vals='js:{hidden: document.hidden}'` on the progress polls (both eval'd by htmx) | `hx-trigger="… climpact:visible from:document"` and `data-poll-hidden`: `ui.js` fires `climpact:visible` when the tab is shown and adds `hidden` to the poll's parameters in `htmx:configRequest` |
+| htmx's injected indicator `<style>` | `.htmx-indicator` rules in `feedback.css`; `<meta name="htmx-config">` in `base.html` turns off `includeIndicatorStyles`, `allowEval` and `allowScriptTags` (no fragment relies on a script in it) |
+
+The one exception is the 500 page, which renders without the page shell or context
+processors and keeps its small inline `<style>`; the policy allows it by its SHA-256
+(`ERROR_PAGE_STYLE_HASH`), which `test_csp.py` recomputes from the template. uPlot styles
+its elements through the CSSOM, which CSP does not restrict, and `charts.js` fetches chart
+data from the same origin.
+
+**Turnstile.** With Turnstile on (hosted mode and both keys set, as in
+`core/limits.py`), `content_security_policy(turnstile=True)` adds
+`https://challenges.cloudflare.com` to `script-src` (its `api.js`) and makes it the only
+`frame-src` (the challenge frame); nothing else is needed, since the frame makes its own
+requests. Without the keys the policy stays as above.
+
+**Extending it.** Add a source to `content_security_policy` only for something that
+cannot be served from this site, and say why in a comment. Prefer moving code to a static
+file and a class over a nonce; if a nonce is ever needed, add
+`django.template.context_processors.csp` and `CSP.NONCE` to the directive. Never add
+`'unsafe-inline'` or `'unsafe-eval'`.
+
+**Tests.** `test_csp.py`: the header on pages and the 404 page (strict directives, no
+`'unsafe-*'`, `X-Frame-Options` kept), the Turnstile policy, the settings in both modes
+and with the report-only switch and Turnstile keys, the 500 page's hash, no inline
+script, inline style, style or event handler attribute or htmx eval in any template, no
+style attribute in markup built in Python or the scripts, and a class for every chart token
+and chart height. In the browser (`test_accessibility.py`,
+CI's `web-accessibility` job), `browser.py` records every `securitypolicyviolation`
+event (through a DevTools binding, on every document) and every console message about the
+policy for the whole module, so the run through the station steps, the progress polls,
+the results filters, the charts, the sector comparison, the batch, the grid, help, the
+jobs and the error pages must leave none (`test_no_content_security_policy_violations`).
+`test_turnstile_widget_within_the_policy` starts a second app with
+`turnstile_test_settings.py` (Turnstile on with Cloudflare's published test keys, which
+always pass on any host, and the Turnstile policy) and waits for the widget's token on
+the station upload page with no violation; it skips when Cloudflare cannot be reached.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
 `UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
@@ -3267,7 +3341,8 @@ connection usually gets a whole /64.
 `_SECRET_KEY` are set. `{% turnstile %}` (`core/templatetags/ui.py`) renders the widget
 (`<div class="cf-turnstile" data-size="flexible">`, in the page's language) above the submit
 button, with a `<noscript>` note that the check needs JavaScript, and adds Cloudflare's
-`api.js` once per page, so pages without such a form load nothing from Cloudflare. The
+`api.js` once per page (a `<script src>`, no inline code or callbacks), so pages without
+such a form load nothing from Cloudflare. The
 views whose POST uploads a file or starts a job are wrapped in `human_required`: station
 upload, replace file, step 1's details (which queue the checks), run the checks, replace
 the file after the checks, the indices and the sector run; batch upload, add files and
@@ -3277,8 +3352,9 @@ to `https://challenges.cloudflare.com/turnstile/v0/siteverify` (form-encoded, wi
 answer from Cloudflare gets a 503 (fail closed, logged as an error). The sample-data buttons
 (`disk_required`) and job retry need no token: the samples copy a bundled file and start
 nothing, and a retry uploads nothing, while the disk guard and the quotas still apply. The
-app sends no Content-Security-Policy, so the script and its frame are not blocked;
-`Referrer-Policy: same-origin`, `COOP: same-origin` and `X-Frame-Options: DENY` don't
+Content Security Policy allows the script and its frame from
+`https://challenges.cloudflare.com` only when Turnstile is on (see
+[Content Security Policy](#content-security-policy)); `Referrer-Policy: same-origin`, `COOP: same-origin` and `X-Frame-Options: DENY` don't
 affect the widget (they govern this site's pages, not Cloudflare's frame). Managed mode
 usually passes without a question. Cloudflare states the widget meets WCAG AA (its docs
 have said 2.1 AA and, more recently, 2.2), a claim made by Cloudflare itself, not checked
@@ -3502,8 +3578,9 @@ choose light, or the toggle chose dark", so the built file carries the dark bloc
 (`@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) }` and
 `:root[data-theme=dark]`), from one source. The theme toggle in the header (system, light,
 dark) sets `data-theme` on `<html>` (or removes it for the system setting) and stores the
-choice in `localStorage` (`climpact-theme`); a one-line inline script in `<head>` applies
-the stored choice before the page paints. Before #118 the dark values were a separate
+choice in `localStorage` (`climpact-theme`); a small blocking script in `<head>`
+(`js/theme.js`, not inline because of the Content Security Policy) applies the stored
+choice before the page paints. Before #118 the dark values were a separate
 `theme-dark.css` whose `media` attribute the toggle switched. Without JavaScript the system
 setting applies and the toggle stays hidden. The toggle fires `climpact:themechange` on
 `document`, so charts can redraw.
@@ -3613,7 +3690,7 @@ under `forced-colors`.
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
 stylesheets). Tests hold it under 70 KB and 12.5 KB gzipped. `ui.js` is about
-13 KB, held under 14 KB (12 KB until #83 added the announcer and focus keeping);
+13.5 KB, held under 14 KB (12 KB until #83 added the announcer and focus keeping);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
 budgets are in [Size budget](#size-budget) (#82).
 
@@ -3896,8 +3973,10 @@ the station form uses the field and drop zone components with an error summary. 
 header links to the list as "Your calculations".
 
 **Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
-server chooses: `hx-trigger="load delay:<n>s, visibilitychange[!document.hidden] from:document"`
-with `hx-vals='js:{hidden: document.hidden}'`. The delay is 1 s for the first 10 s of a
+server chooses: `hx-trigger="load delay:<n>s, climpact:visible from:document"` with
+`data-poll-hidden` (`ui.js` fires `climpact:visible` when the tab is shown and adds
+`hidden=true|false` to the request; htmx's eval'd filters and `js:` values are not allowed
+by the [Content Security Policy](#content-security-policy)). The delay is 1 s for the first 10 s of a
 run, 2 s up to a minute and 5 s after; 30 s while the tab is hidden, and a poll at once
 when it is shown again. A finished job's fragment has no `hx-get`, so polling stops. It
 shows the status, the readable stage (`jobs/stages.py`: `indices:climpact:spi` is
@@ -4732,7 +4811,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.4 KB for the quality-check results (#77) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.4 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 3.2 of 4 KB |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.5 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.2 of 4.5 KB, `theme.js` 0.3 of 0.5 KB |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -4783,7 +4862,7 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | job list | 5.3 | 1.8 | 30.4 | 27.3 |
 
 About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
-`climpact.css` (11.4 KB), `ui.js` (3.2 KB) and the icon sprite.
+`climpact.css` (11.5 KB), `ui.js` (4.2 KB), `theme.js` (0.3 KB) and the icon sprite.
 
 **Compression and caching.**
 

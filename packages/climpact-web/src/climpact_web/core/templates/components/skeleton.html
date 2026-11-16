@@ -1,9 +1,9 @@
 {% load i18n ui %}{% comment %}
 Placeholder while content loads (htmx swaps the real content in). Parameters: lines
 (number of text lines, default 3), chart_block (a chart-sized block), height (block height, CSS
-length), label (what is loading, read by screen readers).
+length with a chart-height-* class in charts.css), label (what is loading, read by screen readers).
 {% endcomment %}
-<div class="skeleton" role="status" aria-busy="true"{% if chart_block and height %} style="--skeleton-height: {{ height }}"{% endif %}>
+<div class="skeleton{% if chart_block and height %} chart-height-{{ height }}{% endif %}" role="status" aria-busy="true">
   <span class="sr-only">{{ label|default:_("Loading") }}</span>
   {% if chart_block %}<div class="skeleton__block"></div>{% endif %}
   {% for line in lines|times %}<div class="skeleton__line"></div>{% endfor %}

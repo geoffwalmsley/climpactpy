@@ -168,3 +168,12 @@ def test_abuse_limit_settings_reach_the_app():
     assert "networks: [backend, egress]" in blocks["web"]
     for name in ("worker", "migrate", "purge", "db"):
         assert "egress" not in blocks[name], name
+
+
+def test_csp_report_only_switch_reaches_the_app():
+    """#137: the Content Security Policy's report-only switch is in .env.example, off, and
+    compose.yaml passes it to the app (enforced when .env leaves it out)."""
+    env = (DEPLOY / ".env.example").read_text()
+    compose = (DEPLOY / "compose.yaml").read_text()
+    assert re.search(r"^CLIMPACT_WEB_CSP_REPORT_ONLY=false$", env, re.M)
+    assert "CLIMPACT_WEB_CSP_REPORT_ONLY: ${CLIMPACT_WEB_CSP_REPORT_ONLY:-false}" in compose

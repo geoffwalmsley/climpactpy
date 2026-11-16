@@ -22,6 +22,7 @@ from pathlib import Path
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
+from django.utils.csp import CSP
 from django.utils.translation import gettext_lazy as _
 from platformdirs import user_data_dir
 
@@ -103,6 +104,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",  # SECURE_CSP below (#137)
     "climpact_web.middleware.StaticFilesMiddleware",  # WhiteNoise
     "climpact_web.middleware.PrivateCacheMiddleware",  # no shared caching of the rest
     "climpact_web.middleware.CompressionMiddleware",  # gzip for pages and fragments
@@ -229,7 +231,8 @@ if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
     raise ImproperlyConfigured(
         "Set both CLIMPACT_WEB_TURNSTILE_SITE_KEY and CLIMPACT_WEB_TURNSTILE_SECRET_KEY, or neither"
     )
-TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+TURNSTILE_ORIGIN = "https://challenges.cloudflare.com"
+TURNSTILE_VERIFY_URL = f"{TURNSTILE_ORIGIN}/turnstile/v0/siteverify"
 TURNSTILE_TIMEOUT = 10  # seconds to wait for Cloudflare's answer
 # Jobs waiting or running for one client address, and jobs started by it in 24 hours.
 MAX_ACTIVE_JOBS_PER_IP = int(env("MAX_ACTIVE_JOBS_PER_IP", "2"))
@@ -263,7 +266,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440  # non-file form data
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
-X_FRAME_OPTIONS = "DENY"
+X_FRAME_OPTIONS = "DENY"  # for old browsers; the CSP's frame-ancestors replaces it
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
@@ -278,6 +281,47 @@ if IS_HOSTED:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # The health check is fetched by the load balancer over plain HTTP.
     SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
+
+
+# Content Security Policy (#137; TECHNICAL.md, "Content Security Policy"), the same in both
+# modes so violations show in development too. Pages load only same-origin files: no
+# inline scripts, inline styles or style attributes (CSS custom properties come from
+# classes, sizes from SVG attributes), and htmx runs without eval (the htmx-config meta in
+# base.html). The one inline element is the stand-alone 500 page's <style>, allowed by its
+# hash (test_csp.py checks it matches the template).
+ERROR_PAGE_STYLE_HASH = "'sha256-3QU1IXV6xmQNVSeg+4AUl4ZTe0tAt89iFQwqOK7Wp70='"
+
+
+def content_security_policy(turnstile: bool) -> dict[str, list[str]]:
+    """The policy's directives; with ``turnstile``, Cloudflare Turnstile's script and the
+    challenge frame it shows are allowed from its origin."""
+    extra = [TURNSTILE_ORIGIN] if turnstile else []
+    return {
+        "default-src": [CSP.SELF],
+        "script-src": [CSP.SELF, *extra],
+        "style-src": [CSP.SELF, ERROR_PAGE_STYLE_HASH],
+        "img-src": [CSP.SELF, "data:"],
+        "font-src": [CSP.SELF],
+        "connect-src": [CSP.SELF],
+        "frame-src": extra or [CSP.NONE],
+        "object-src": [CSP.NONE],
+        "base-uri": [CSP.NONE],
+        "form-action": [CSP.SELF],
+        "frame-ancestors": [CSP.NONE],
+    }
+
+
+# Turnstile is on in hosted mode with both keys set (core/limits.py, turnstile_enabled).
+CSP_POLICY = content_security_policy(
+    turnstile=IS_HOSTED and bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY)
+)
+# CLIMPACT_WEB_CSP_REPORT_ONLY: report violations (in the browser console) without
+# blocking anything, for a first deployment; the policy is enforced by default.
+if env_bool("CSP_REPORT_ONLY", False):
+    SECURE_CSP, SECURE_CSP_REPORT_ONLY = {}, CSP_POLICY
+else:
+    SECURE_CSP, SECURE_CSP_REPORT_ONLY = CSP_POLICY, {}
+
 
 LOGGING = {
     "version": 1,

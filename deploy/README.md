@@ -449,10 +449,19 @@ box). A **Not accepted** page saying the check failed means the keys don't match
 widget, or the hostname isn't on the widget's list.
 
 The app checks each token with Cloudflare (`challenges.cloudflare.com`), so `web` is the
-one service with a route out (the `egress` network in `compose.yaml`). The app sends no
-Content-Security-Policy, so nothing blocks Cloudflare's script or its frame; if one is
-ever added, it must allow `https://challenges.cloudflare.com` in `script-src` and
-`frame-src`.
+one service with a route out (the `egress` network in `compose.yaml`). The app's Content
+Security Policy (#137) allows Cloudflare's script and frame from
+`https://challenges.cloudflare.com` when both keys are set, and nothing from Cloudflare
+otherwise.
+
+**Content Security Policy.** The policy is enforced by default. To watch it before it
+blocks anything (after the first release that has it, or after a change to the pages),
+set `CLIMPACT_WEB_CSP_REPORT_ONLY=true` in `.env` (a `.env` made before #137 has no such
+line: add it) and `docker compose up -d --wait`. In a browser, open the pages with the
+developer tools' console showing and run the sample station through to the results: any
+line mentioning "Content Security Policy" is a violation to report in an issue. Then set
+it back to `false` and run `docker compose up -d --wait` again. `curl -sI
+https://climpact.app/ | grep -i content-security` shows which header is sent.
 
 ### E10. Check it (5 min)
 

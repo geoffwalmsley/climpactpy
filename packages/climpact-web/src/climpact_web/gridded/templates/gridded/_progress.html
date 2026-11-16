@@ -7,8 +7,8 @@ files), active, delay, all_done.
 {% endcomment %}
 <div id="gridded-progress" class="stack"
   {% if active %}hx-get="{% url 'gridded:progress' run.pk %}?was_active=1"
-  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
-  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
   {% for row in rows %}{% with job=row.job %}
   <section class="card stack" aria-labelledby="job-{{ row.kind }}-title">
     <div class="batch-item__head">

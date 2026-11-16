@@ -72,8 +72,8 @@ hydrates the new chart on htmx:load.
         </div>
         <a class="button button--secondary button--sm" href="{{ map_csv }}" download>{% icon "download" %}<span>{% translate "CSV" %}</span></a>
       </div>
-      <div class="gmap" style="--gmap-width: {{ map.natural_width|floatformat:0 }}px">
-        <svg viewBox="{{ map.view_box }}" class="gmap__svg" role="group" aria-label="{% translate 'Map of the grid: each square is a cell' %}" focusable="false">
+      <div class="gmap">
+        <svg viewBox="{{ map.view_box }}" width="{{ map.natural_width|floatformat:0 }}" class="gmap__svg" role="group" aria-label="{% translate 'Map of the grid: each square is a cell' %}" focusable="false">
           {% for c in map.cells %}<a href="{{ c.href }}" hx-get="{{ c.hx }}" hx-target="#explore" hx-swap="outerHTML" tabindex="-1" aria-hidden="true"><rect x="{{ c.px }}" y="{{ c.py }}" width="{{ map.cell_w }}" height="{{ map.cell_h }}" class="gmap__cell {{ c.css }}{% if c.selected %} gmap__cell--selected{% endif %}"><title>{% blocktranslate with lat=c.lat|floatformat:2 lon=c.lon|floatformat:2 value=c.value|default:"–" %}{{ lat }}, {{ lon }}: {{ value }}{% endblocktranslate %}</title></rect></a>{% endfor %}
           {% for c in map.cells %}{% if c.selected %}<rect x="{{ c.px }}" y="{{ c.py }}" width="{{ map.cell_w }}" height="{{ map.cell_h }}" class="gmap__selection"/>{% endif %}{% endfor %}
           {% for l in map.x_labels %}<text x="{{ l.x }}" y="{{ map.label_y }}" class="gmap__tick" text-anchor="middle">{{ l.text }}</text>{% endfor %}

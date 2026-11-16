@@ -5,8 +5,8 @@ Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing)
 {% endcomment %}
 <div id="qc-progress" class="stack"
   hx-get="{% url 'stations:qc_progress' analysis.pk %}"
-  hx-trigger="load delay:{{ delay }}s, visibilitychange[!document.hidden] from:document"
-  hx-vals='js:{hidden: document.hidden}' hx-sync="this:replace" hx-swap="outerHTML">
+  hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML">
   <div class="progress">
     <div class="progress__header">
       <span id="qc-progress-label" data-announce>{% translate "Running the quality checks…" %}</span>

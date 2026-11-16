@@ -76,6 +76,19 @@ THEMES = (
     Theme("custom", gettext_lazy("Your own index"), (), False),
 )
 
+# The colour of each theme (#196): the four headline themes have a hue of their own
+# (``--color-heat`` ...), the "Also measured" themes share the neutral ``--color-other``.
+# Templates use it as a class, ``hue-<hue>`` (results.css).
+HUES = ("heat", "cold", "rain", "drought")
+NEUTRAL_HUE = "other"
+
+
+def hue_of(key: str) -> str:
+    """The hue of the theme ``key``: its own for Heat, Cold, Rain and Drought, the neutral
+    for the others and for a card in no theme."""
+    return key if key in HUES else NEUTRAL_HUE
+
+
 # Cards in no theme, on purpose: daily values with no trend.
 CATALOGUE_ONLY = ("EHFdaily", "ECFdaily")
 
@@ -164,6 +177,10 @@ class ThemeResult:
     @property
     def label(self) -> str:
         return str(self.theme.label)
+
+    @property
+    def hue(self) -> str:
+        return hue_of(self.theme.key)
 
     @property
     def significant(self) -> list:

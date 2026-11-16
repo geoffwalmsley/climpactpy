@@ -448,7 +448,7 @@ def test_every_table_of_the_lat0_run_is_on_the_dashboard(client):
     for title in ("Temperature: extremes, means and range", "Precipitation", "Heatwaves", "Drought",
                   "Your own index"):  # fmt: skip
         assert f">{title}</h3>" in html
-    assert html.count('class="index-card"') == len(linked) == 80
+    assert len(re.findall(r'class="index-card hue-\w+"', html)) == len(linked) == 80
     assert "Showing 80 of 80 indices." in html
 
 
@@ -457,7 +457,7 @@ def test_card_values_match_the_csv_files(client):
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     txx = read_table("txx_ANN")
     card = re.search(
-        r'<li class="index-card"[^>]*>(?:(?!</li>).)*?/results/txx".*?</li>', html, re.S
+        r'<li class="index-card hue-\w+"[^>]*>(?:(?!</li>).)*?/results/txx".*?</li>', html, re.S
     ).group(0)
     last = txx.iloc[-1]
     assert f"Latest: {last['val']:g} °C in {int(last['time'])}" in card
@@ -556,7 +556,8 @@ def test_filters_without_javascript(client):
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url, {"theme": "drought"}).content.decode()
-    shown = re.findall(r'<li class="index-card" data-index-theme="(\w+)"[^>]*?(?<!hidden)>', html)
+    card = r'<li class="index-card hue-\w+" data-index-theme="(\w+)"[^>]*?(?<!hidden)>'
+    shown = re.findall(card, html)
     assert set(shown) == {"drought"} and len(shown) == 9  # SPI, SPEI and CDD
     assert "Showing 9 of 80 indices." in html
     html = client.get(url, {"q": "frost"}).content.decode()
@@ -722,6 +723,35 @@ def test_every_index_has_one_place_in_the_themes():
     assert len(placed) == len(set(placed)), "an index is in two themes"
     assert set(placed) == shorts
     assert [t.key for t in themes.THEMES if t.headline] == ["heat", "cold", "rain", "drought"]
+
+
+def test_each_theme_has_its_hue():
+    """#196: Heat, Cold, Rain and Drought have hues of their own (--color-heat ...); the
+    "Also measured" themes and the cards in no theme share the neutral."""
+    assert [themes.hue_of(t.key) for t in themes.THEMES] == [
+        "heat", "cold", "rain", "drought", "other", "other", "other",
+    ]  # fmt: skip
+    assert themes.hue_of("") == "other"
+
+
+def test_theme_hues_colour_the_tiles_chips_dots_and_index_chart(client):
+    """#196: each theme tile, filter chip and catalogue card carries its theme's hue class
+    (the tile's edge, the dot, the sparkline), and an index page's chart frame its index's,
+    so the chart line takes the theme's colour."""
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results"
+    html = client.get(url).content.decode()
+    for key in ("heat", "cold", "rain", "drought"):
+        assert f'class="card theme-headline hue-{key}' in html
+        assert f'value="{key}"><span class="hue-dot hue-{key}" aria-hidden="true">' in html
+    for key in ("averages", "seasons", "custom"):
+        assert f'value="{key}"><span class="hue-dot hue-other" aria-hidden="true">' in html
+    assert re.search(r'<li class="index-card hue-heat" data-index-theme="heat"', html)
+    assert re.search(r'<li class="index-card hue-other" data-index-theme=""', html)  # EHF daily
+    page = client.get(f"{url}/txx").content.decode()
+    assert '<figure class="chart hue-heat" id="index-chart"' in page
+    page = client.get(f"{url}/prcptot").content.decode()
+    assert '<figure class="chart hue-rain" id="index-chart"' in page
 
 
 def test_every_card_of_the_lat0_run_has_a_theme(client):

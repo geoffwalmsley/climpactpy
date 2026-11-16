@@ -4,7 +4,9 @@ compiled stylesheet carries every token and the dark theme, and is up to date wi
 source; the chart palette export; the size budget of the stylesheet and script."""
 
 import gzip
+import itertools
 import json
+import math
 import os
 import re
 import subprocess
@@ -23,21 +25,29 @@ TEXT = 4.5  # WCAG 2.1 AA, 1.4.3: normal-size text
 NON_TEXT = 3.0  # WCAG 2.1 AA, 1.4.11: control borders, focus rings, icons, chart marks
 
 BACKGROUNDS = ("page", "surface", "surface-sunken")
+STATUS = ("success", "warning", "danger")
+# The theme hues (#196): Heat, Cold, Rain, Drought, and "Also measured".
+HUES = ("heat", "cold", "rain", "drought", "other")
 
 # (foreground, background, minimum ratio): every pairing the components use.
 PAIRS = (
-    [(fg, bg, TEXT) for bg in BACKGROUNDS for fg in ("text", "text-muted", "accent")]
-    + [(fg, bg, TEXT) for bg in BACKGROUNDS for fg in ("success", "warning", "danger")]
-    + [(fg, bg, NON_TEXT) for bg in BACKGROUNDS for fg in ("border-strong", "focus")]
-    + [("text", f"{k}-soft", TEXT) for k in ("accent", "success", "warning", "danger")]
-    + [(k, f"{k}-soft", NON_TEXT) for k in ("accent", "success", "warning", "danger")]
+    [(fg, bg, TEXT) for bg in BACKGROUNDS for fg in ("text", "text-muted", "ink")]
+    + [(fg, bg, TEXT) for bg in BACKGROUNDS for fg in STATUS]
+    + [(fg, bg, NON_TEXT) for bg in BACKGROUNDS for fg in ("border-strong", "focus", "brand")]
+    + [("text", f"{k}-soft", TEXT) for k in STATUS + HUES]
+    + [(k, f"{k}-soft", NON_TEXT) for k in STATUS]
+    # Hues: text on a card (and their tile pill on the tint), marks on every background.
+    + [(k, "surface", TEXT) for k in HUES]
+    + [(k, f"{k}-soft", TEXT) for k in HUES]
+    + [(k, bg, NON_TEXT) for k in HUES for bg in BACKGROUNDS]
     + [
-        ("accent", "accent-soft", TEXT),  # ghost button hover, info badge text
-        ("accent-hover", "accent-soft", TEXT),
-        ("accent-hover", "surface", TEXT),  # link hover
-        ("text-muted", "accent-soft", TEXT),  # muted text in a highlighted table row
-        ("accent-contrast", "accent", TEXT),  # primary button
-        ("accent-contrast", "accent-hover", TEXT),
+        ("ink-hover", "surface", TEXT),  # link hover
+        ("ink-contrast", "ink", TEXT),  # primary button, selected chip, skip link
+        ("ink-contrast", "ink-hover", TEXT),
+        ("ink", "selected", TEXT),  # a selected row's text and edge
+        ("text-muted", "selected", TEXT),  # muted text in a selected row
+        ("focus", "selected", NON_TEXT),
+        ("brand-contrast", "brand", NON_TEXT),  # the logo's mark
         ("danger-contrast", "danger", TEXT),  # danger button
     ]
 )
@@ -78,6 +88,90 @@ def test_chart_marks_stand_out(theme, mark):
     t = THEMES[theme]
     ratio = contrast(t[f"chart-{mark}"], t["color-surface"])
     assert ratio >= NON_TEXT, f"{theme}: --chart-{mark} is {ratio:.2f}:1 on the surface"
+
+
+# Colour vision (#75, #196): OKLab distance (x100) between colours under the Machado,
+# Oliveira and Fernandes (2009) simulation of protanopia and deuteranopia, at full severity.
+# The thresholds are the data-viz validator's: 8 between neighbours (6 is the floor when
+# every mark also has a label), and 15 for normal vision.
+CVD_TARGET, CVD_FLOOR, NORMAL_FLOOR = 8.0, 6.0, 15.0
+MACHADO = {
+    "protan": ((0.152286, 1.052583, -0.204868), (0.114503, 0.786281, 0.099216),
+               (-0.003882, -0.048116, 1.051998)),
+    "deutan": ((0.367322, 0.860646, -0.227968), (0.280085, 0.672501, 0.047413),
+               (-0.011820, 0.042940, 0.968881)),
+}  # fmt: skip
+
+
+def linear_rgb(hex_colour: str) -> tuple[float, float, float]:
+    value = hex_colour.lstrip("#")
+    channels = [int(value[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+    return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels)
+
+
+def oklab(rgb) -> tuple[float, float, float]:
+    r, g, b = rgb
+    lms = [
+        (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3),
+        (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3),
+        (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3),
+    ]
+    l, m, s = lms  # noqa: E741
+    return (
+        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    )
+
+
+def delta_e(a: str, b: str, kind: str | None = None) -> float:
+    def seen(hex_colour):
+        rgb = linear_rgb(hex_colour)
+        if kind is None:
+            return oklab(rgb)
+        rows = MACHADO[kind]
+        return oklab(
+            [min(1.0, max(0.0, sum(m * c for m, c in zip(row, rgb, strict=True)))) for row in rows]
+        )
+
+    return 100 * math.dist(seen(a), seen(b))
+
+
+def worst_cvd(colours: list[str], pairs) -> float:
+    return min(delta_e(colours[i], colours[j], k) for i, j in pairs for k in MACHADO)
+
+
+def all_pairs(n: int):
+    return list(itertools.combinations(range(n), 2))
+
+
+def test_delta_e_formula():
+    assert delta_e("#000000", "#ffffff") == pytest.approx(100, abs=0.1)
+    # Red and green, far apart for normal vision, close under deuteranopia.
+    assert delta_e("#e34948", "#1baf7a") > 25 > delta_e("#e34948", "#1baf7a", "deutan")
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_theme_hues_differ_in_colour_vision_deficiency(theme):
+    """Heat, Cold, Rain, Drought and "Also measured" can sit side by side (tiles, chips,
+    the catalogue's dots), so every pair is compared, and each must clear the target."""
+    hues = [THEMES[theme][f"color-{k}"] for k in HUES]
+    pairs = all_pairs(len(hues))
+    assert worst_cvd(hues, pairs) >= CVD_TARGET, theme
+    assert min(delta_e(hues[i], hues[j]) for i, j in pairs) >= NORMAL_FLOOR, theme
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_chart_palette_differs_in_colour_vision_deficiency(theme):
+    """The categorical slots, neighbour by neighbour (they are assigned in order), and the
+    variable roles as a set; the roles always have a legend, so they need the floor."""
+    t = THEMES[theme]
+    categorical = [t[f"chart-{i}"] for i in range(1, 9)]
+    neighbours = [(i, i + 1) for i in range(len(categorical) - 1)]
+    assert worst_cvd(categorical, neighbours) >= CVD_TARGET, theme
+    assert min(delta_e(categorical[i], categorical[j]) for i, j in neighbours) >= NORMAL_FLOOR
+    roles = [t[f"chart-{k}"] for k in ("tmax", "tmin", "prcp")]
+    assert worst_cvd(roles, all_pairs(3)) >= CVD_FLOOR, theme
 
 
 def test_dark_theme_only_overrides_known_tokens():
@@ -171,8 +265,8 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's). One compiled
 # stylesheet for every page since #118, replacing main.css, theme-dark.css and the page
 # stylesheets.
-CSS_BUDGET = 71_000  # bytes, minified (70,000 before the workspace tabs, #179)
-CSS_GZIP_BUDGET = 13_000  # 12.5 KB before the help drawer (#177)
+CSS_BUDGET = 74_000  # bytes, minified (71,000 before the colour roles and theme hues, #196)
+CSS_GZIP_BUDGET = 13_500  # 13 KB before #196, 12.5 KB before the help drawer (#177)
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

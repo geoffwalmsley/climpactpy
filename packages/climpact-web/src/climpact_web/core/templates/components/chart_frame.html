@@ -9,9 +9,10 @@ interactive chart (#75): data_url (a chart data URL, see TECHNICAL.md "Charts"; 
 loads the scripts with {% load charts %}{% chart_scripts %}) and image_src (a static image
 shown without JavaScript, e.g. the run's PNG). With data_url, the summary, legend and CSV
 link left out are filled in from the data, and without table_template the table view is
-built from the data when opened.
+built from the data when opened. hue (#196): the theme's colour (stations.themes.hue_of),
+which an index chart draws its line in.
 {% endcomment %}
-<figure class="chart" id="{{ id }}" aria-labelledby="{{ id }}-title"{% if data_url %} aria-describedby="{{ id }}-summary"{% endif %} data-chart{% if data_url %} data-chart-src="{{ data_url }}"{% endif %}>
+<figure class="chart{% if hue %} hue-{{ hue }}{% endif %}" id="{{ id }}" aria-labelledby="{{ id }}-title"{% if data_url %} aria-describedby="{{ id }}-summary"{% endif %} data-chart{% if data_url %} data-chart-src="{{ data_url }}"{% endif %}>
   <div class="chart__header">
     <div class="stack stack--sm">
       <h{{ heading|default:3 }} class="chart__title" id="{{ id }}-title">{{ title }}</h{{ heading|default:3 }}>

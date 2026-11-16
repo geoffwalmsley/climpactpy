@@ -41,7 +41,7 @@
   }
 
   .table tbody tr:hover {
-    background: var(--color-accent-soft);
+    background: var(--color-surface-sunken);
   }
 
   .table .num {

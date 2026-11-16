@@ -34,8 +34,8 @@
   }
 
   .tabs__tab:is([aria-selected="true"], [aria-current="page"]) {
-    border-block-end-color: var(--color-accent);
-    color: var(--color-accent);
+    border-block-end-color: var(--color-ink);
+    color: var(--color-ink);
   }
 
   .tabs__panel + .tabs__panel {
@@ -68,7 +68,7 @@
   }
 
   .status-dot--running {
-    color: var(--color-accent);
+    color: var(--color-ink);
   }
 
   @media (forced-colors: active) {

@@ -57,7 +57,7 @@
     <p class="findings__answer">{{ summary_sentences|join:" " }}</p>
     <div class="theme-grid">
       {% for t in headline_themes %}
-      {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
+      {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label hue=t.hue badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
       {% endfor %}
     </div>
     <p class="text-sm text-text-muted">{% translate "Each theme shows up to three significant trends, largest first." %}</p>
@@ -103,7 +103,7 @@
       <legend class="field__label">{% translate "Show" %}</legend>
       <div class="chips">
         <label class="chip"><input type="radio" name="theme" value=""{% if not theme %} checked{% endif %}><span>{% blocktranslate with n=total %}All ({{ n }}){% endblocktranslate %}</span></label>
-        {% for t in themes %}<label class="chip"><input type="radio" name="theme" value="{{ t.key }}"{% if theme == t.key %} checked{% endif %}><span>{% blocktranslate with label=t.label n=t.cards|length %}{{ label }} ({{ n }}){% endblocktranslate %}</span></label>{% endfor %}
+        {% for t in themes %}<label class="chip"><input type="radio" name="theme" value="{{ t.key }}"{% if theme == t.key %} checked{% endif %}><span class="hue-dot hue-{{ t.hue }}" aria-hidden="true"></span><span>{% blocktranslate with label=t.label n=t.cards|length %}{{ label }} ({{ n }}){% endblocktranslate %}</span></label>{% endfor %}
       </div>
     </fieldset>
     <label class="check results-filter__significant"><input type="checkbox" name="significant" value="1"{% if significant %} checked{% endif %}> <span>{% blocktranslate with n=significant_count %}Significant trends only ({{ n }}){% endblocktranslate %}</span></label>
@@ -123,8 +123,8 @@
     </summary>
     <ul class="m-0 grid list-none gap-4 px-4 pt-2 pb-4 grid-cols-fill-64" role="list">
       {% for card in section.cards %}
-      <li class="index-card" data-index-theme="{{ card.theme }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
-        <h4 class="index-card__name"><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h4>
+      <li class="index-card hue-{{ card.hue }}" data-index-theme="{{ card.theme }}" data-search="{{ card.search_text }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
+        <h4 class="index-card__name"><span class="hue-dot" aria-hidden="true"></span><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></h4>
         <p class="index-card__units"><code class="index-code">{{ card.code }}</code>{% if card.units %} {{ card.units }}{% endif %}</p>
         <p class="index-card__definition">{{ card.definition }}</p>
         {% if card.spark %}{% include "components/spark.html" with spark=card.spark %}

@@ -86,7 +86,7 @@
 
   .qc-finding:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 
-  .qc-finding.is-selected { background: var(--color-accent-soft); }
+  .qc-finding.is-selected { background: var(--color-selected); }
 
   .qc-finding__date {
     font-family: var(--font-mono);
@@ -167,7 +167,7 @@
   .qc-group__summary > .icon,
   .qc-details__summary > .icon {
     flex: none;
-    color: var(--color-accent);
+    color: var(--color-ink);
     transition: transform var(--duration);
   }
 
@@ -245,15 +245,15 @@
   .qc-table__show { text-align: end; }
 
   .qc-table tr.is-selected > * {
-    background: var(--color-accent-soft);
+    background: var(--color-selected);
   }
 
   .qc-table tr.is-selected > :first-child {
-    box-shadow: inset 4px 0 0 var(--color-accent);
+    box-shadow: inset 4px 0 0 var(--color-ink);
   }
 
   [dir="rtl"] .qc-table tr.is-selected > :first-child {
-    box-shadow: inset -4px 0 0 var(--color-accent);
+    box-shadow: inset -4px 0 0 var(--color-ink);
   }
 
   .qc-table tr:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }

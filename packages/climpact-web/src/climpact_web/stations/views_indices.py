@@ -404,6 +404,7 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
     entry = {
         "key": found.key,
         "label": found.label,
+        "hue": found.hue,
         "finding": found.finding,
         "badge": found.badge,
         "items": [

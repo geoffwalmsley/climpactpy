@@ -418,6 +418,24 @@
       {% include "stations/_input_sheets.html" with input_sheets=sheet_demo_list analysis=demo_analysis input_next="/patterns/" %}
     </section>
 
+    <section class="pattern" id="phone-header" aria-labelledby="phone-header-title">
+      <h2 id="phone-header-title">{% translate "Phone header: ⋯ menu and Inputs bar" %}</h2>
+      <p>{% translate "On a phone the station's name and a ⋯ menu share one line, and the page's actions are in the menu: a disclosure, so Enter opens it, Tab goes through its actions and Escape closes it. Under the tabs, the Inputs bar is the Inputs panel in one line: the base period, whether the settings are the defaults, and anything changed or running. Edit opens the inputs in a sheet that fills the screen, and each input's sheet opens over it. Only the tabs and the bar stay in view as the page scrolls." %}</p>
+      <div class="pattern__demo pattern__phone stack">
+        <div class="workspace-header__row">
+          <div class="workspace-header__title"><p class="workspace-header__name workspace-header__name--line">{% translate "Sydney Observatory Hill" %}</p><p class="workspace-header__sub"><span>{% blocktranslate with first=1936 last=2015 %}{{ first }}–{{ last }}{% endblocktranslate %}</span></p></div>
+          <details class="page-menu">
+            <summary class="button button--secondary button--sm button--icon">{% icon "more" %}<span class="sr-only">{% translate "Page actions" %}</span></summary>
+            <div class="page-menu__panel"><div>
+              {% translate "Compare with sector data" as menu_sector %}{% include "components/button.html" with label=menu_sector href="#phone-header" variant="secondary" %}
+              {% translate "Download all (zip, 8.0 MB)" as menu_zip %}{% include "components/button.html" with label=menu_zip href="#phone-header" icon="download" %}
+            </div></div>
+          </details>
+        </div>
+        {% include "stations/_inputs_bar.html" with inputs_bar=inputs_bar_demo %}
+      </div>
+    </section>
+
     <section class="pattern" id="stale" aria-labelledby="stale-title">
       <h2 id="stale-title">{% translate "Out-of-date results" %}</h2>
       <p>{% translate "After the user changes an input, the results stay on the page under this banner until new ones replace them. It says what changed and what happens next. While the new run is on the way it shows its progress; otherwise it offers one action. The results below keep their full contrast: an edge marks them, and their sparklines and charts are greyed." %}</p>

@@ -570,13 +570,14 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     days = summary.get("days") or 0
     count = len(summary.get("variables") or [])
     changed = changed_inputs(analysis)
+    custom = {"thresholds": thresholds_changed(analysis), "settings": settings_changed(analysis)}
     values = {
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
         "station": f"{analysis.latitude:g}°, {analysis.longitude:g}°",
         "base-period": f"{analysis.base_start}–{analysis.base_end}",
-        "thresholds": changed_text(thresholds_changed(analysis)),
-        "settings": changed_text(settings_changed(analysis)),
+        "thresholds": changed_text(custom["thresholds"]),
+        "settings": changed_text(custom["settings"]),
     }
     sheets = sheet_keys(analysis)
     items = []
@@ -600,4 +601,31 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
         label = _("Recalculating") if shown_run(analysis) else _("Calculating the indices")
         runs.append(PanelRun("run", label, analysis.indices_job))
     urls = {item.key: item.edit_url for item in items if item.edit_url}
-    return {"inputs": items, "input_runs": runs, "input_next": path, "input_urls": urls}
+    bar = inputs_bar(values["base-period"], sum(custom.values()), items, runs)
+    return {
+        "inputs": items,
+        "input_runs": runs,
+        "input_next": path,
+        "input_urls": urls,
+        "inputs_bar": bar,
+    }
+
+
+def inputs_bar(base_period: str, custom: int, items: list, runs: list) -> dict:
+    """The Inputs panel as one line, on phones (#203, proposal 7): the base period and
+    whether the thresholds and index settings are the defaults ("1971–2000 · defaults"),
+    then each input changed since what is shown and each run under way, so the bar still
+    says what the panel's highlights and progress say."""
+    if custom:
+        settings = ngettext(
+            "%(count)s setting not the default", "%(count)s settings not the default", custom
+        ) % {"count": custom}
+    else:
+        settings = _("defaults")
+    return {
+        "summary": f"{base_period} · {settings}",
+        "changed": [
+            _("%(input)s changed") % {"input": item.label} for item in items if item.changed
+        ],
+        "runs": [str(run.label) for run in runs],
+    }

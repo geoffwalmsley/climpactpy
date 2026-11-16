@@ -1,0 +1,14 @@
+{% load i18n %}{% comment %}
+The inputs of the Inputs panel (#198), each with its value and its Edit link, which opens
+the input's sheet (js/sheet.js) or, without JavaScript, its page. In the panel, and in the
+Inputs sheet the phone's Inputs bar opens (#203, ``in_sheet``: without the data-input
+marks, which name the panel's rows). Context: inputs (stations.workspace.inputs_panel).
+{% endcomment %}<dl class="inputs-panel__list">
+    {% for item in inputs %}
+    <div class="inputs-panel__item{% if item.changed %} inputs-panel__item--changed{% endif %}"{% if not in_sheet %} data-input="{{ item.key }}"{% if item.changed %} data-changed{% endif %}{% endif %}>
+      <dt class="inputs-panel__label">{% if item.changed %}{% blocktranslate with label=item.label %}{{ label }} · changed{% endblocktranslate %}{% else %}{{ item.label }}{% endif %}</dt>
+      <dd class="inputs-panel__value">{{ item.value }}</dd>
+      {% if item.edit_url %}<dd class="inputs-panel__edit"><a href="{{ item.edit_url }}" data-sheet-open="sheet-{{ item.key }}" aria-haspopup="dialog">{{ item.edit_label }}<span class="sr-only"> {{ item.label|lower }}</span></a></dd>{% endif %}
+    </div>
+    {% endfor %}
+  </dl>

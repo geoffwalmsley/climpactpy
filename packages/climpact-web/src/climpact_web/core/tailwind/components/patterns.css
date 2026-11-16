@@ -12,6 +12,19 @@
     border-radius: var(--radius-md);
   }
 
+  /* The phone's header (#203), at a phone's width, wherever the library is read. */
+  .pattern__phone {
+    max-inline-size: 23.4375rem;
+  }
+
+  .pattern__phone .page-menu {
+    display: block;
+  }
+
+  .pattern__phone .inputs-bar {
+    display: flex;
+  }
+
   .swatches {
     display: flex;
     flex-wrap: wrap;

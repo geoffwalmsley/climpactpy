@@ -964,7 +964,8 @@ def test_downloads_and_next_step(client):
     assert f'href="/station/{analysis.pk}/sector"' in actions
     # No sector card or other button lower on the page.
     assert 'id="sector-title"' not in html
-    assert html.count(f'href="/station/{analysis.pk}/sector"') == 1
+    # Twice: in the header and again in its ⋯ menu for phones (#203).
+    assert html.count(f'href="/station/{analysis.pk}/sector"') == 2
     assert client.get(f"/station/{analysis.pk}/sector").status_code == 200
     assert "Kept until" in html
 

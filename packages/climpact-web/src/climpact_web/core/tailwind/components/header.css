@@ -176,6 +176,30 @@
       }
     }
 
+    /* The theme toggle is in the menu, not beside it, so the brand keeps its room. */
+    .site-header__inner:has(.site-menu) .site-header__tools .theme-toggle {
+      display: none;
+    }
+
+    .site-menu__theme {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: --spacing(3);
+      margin-block-start: --spacing(2);
+      padding: --spacing(2) --spacing(3) 0;
+      border-block-start: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+    }
+
+    /* The toggle needs ui.js. */
+    @media (scripting: none) {
+      .site-menu__theme {
+        display: none;
+      }
+    }
+
     .site-menu__panel a[aria-current="page"] {
       border-inline-start: 3px solid var(--color-ink);
       color: var(--color-ink);

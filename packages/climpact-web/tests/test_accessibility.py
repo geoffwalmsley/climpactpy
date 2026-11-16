@@ -993,39 +993,230 @@ def test_help_drawer_by_keyboard(chrome, site):
         c.viewport(1280, 900)
 
 
+# What of the sticky workspace header is in the window: from its top, or from the top of
+# the window where it sticks above it (on a phone only the tabs and the Inputs bar stay).
+SHOWN_HEADER = (
+    "(function () { var b = document.querySelector('[data-workspace-header]')"
+    ".getBoundingClientRect(); return {top: Math.max(b.top, 0), bottom: b.bottom}; })()"
+)
+
+
 def test_sticky_workspace_header_never_covers_focus(chrome, site):
     """#197: the workspace header (name, tabs, actions) stays at the top as the page
     scrolls, and Tab never leaves the focused element under it (WCAG 2.4.11): the page's
-    scroll padding is the header's height. On a phone it scrolls away with the page."""
+    scroll padding is the header's height. On a phone (#203) only the tabs and the Inputs
+    bar stay: the name scrolls away, and the padding is what stays."""
     c = chrome
-    c.viewport(1280, 700)
+    header = "document.querySelector('[data-workspace-header]')"
+    tabs = f"{header}.querySelector('nav')"
     try:
-        for name in ("station results", "station quality results"):
-            c.navigate(site[name])
-            c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
-            header = "document.querySelector('[data-workspace-header]')"
-            assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
-            furthest = 0  # Tab may come back round to the top before the 80th press
-            for _ in range(80):
-                c.press("Tab")
-                time.sleep(0.02)
-                furthest = max(furthest, c.evaluate("window.scrollY"))
-                hidden = c.evaluate(
-                    f"(function () {{ var h = {header}, a = document.activeElement;"
-                    " if (!a || h.contains(a) || a === document.body) return false;"
-                    " var r = a.getBoundingClientRect(), b = h.getBoundingClientRect();"
-                    " if (r.height === 0) return false;"
-                    " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
-                )
-                assert not hidden, (
-                    name,
-                    c.evaluate("document.activeElement.outerHTML.slice(0, 120)"),
-                )
-            assert furthest > 300, name  # the page scrolled under it
-            c.evaluate("window.scrollTo(0, 400)")
-            assert abs(c.evaluate(f"{header}.getBoundingClientRect().top")) <= 1, name
-        c.viewport(320, 700)
+        for width in (1280, 320):
+            c.viewport(width, 700)
+            for name in ("station results", "station quality results"):
+                c.navigate(site[name])
+                c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+                assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
+                furthest = 0  # Tab may come back round to the top before the 80th press
+                for _ in range(80):
+                    c.press("Tab")
+                    time.sleep(0.02)
+                    furthest = max(furthest, c.evaluate("window.scrollY"))
+                    hidden = c.evaluate(
+                        f"(function () {{ var h = {header}, a = document.activeElement;"
+                        " if (!a || h.contains(a) || a === document.body) return false;"
+                        " if (a.closest('dialog')) return false;"
+                        f" var r = a.getBoundingClientRect(), b = {SHOWN_HEADER};"
+                        " if (r.height === 0) return false;"
+                        " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
+                    )
+                    assert not hidden, (
+                        name,
+                        width,
+                        c.evaluate("document.activeElement.outerHTML.slice(0, 120)"),
+                    )
+                assert furthest > 300, (name, width)  # the page scrolled under it
+                c.evaluate("window.scrollTo(0, 1200)")
+                time.sleep(0.05)
+                if width == 1280:
+                    assert abs(c.evaluate(f"{header}.getBoundingClientRect().top")) <= 1, name
+                else:
+                    # The tabs at the top, the Inputs bar under them, the name gone.
+                    assert abs(c.evaluate(f"{tabs}.getBoundingClientRect().top")) <= 1, name
+                    bar = c.evaluate(
+                        "document.querySelector('[data-inputs-bar]').getBoundingClientRect().top"
+                    )
+                    assert 30 < bar < 80, (name, bar)
+        c.viewport(640, 440)  # a short window: it scrolls away with the page
         assert c.evaluate(f"getComputedStyle({header}).position") == "static"
+    finally:
+        c.viewport(1280, 900)
+
+
+# Elements that stay in the window as the page scrolls (sticky or fixed), and are shown.
+STUCK = """(function () {
+  var out = [];
+  document.querySelectorAll('body *').forEach(function (el) {
+    var p = getComputedStyle(el).position;
+    if ((p !== 'sticky' && p !== 'fixed') || !el.checkVisibility()) return;
+    if (el.closest('dialog:not([open])')) return;
+    // Only what sticks to the window: one inside a scrolling box (a table's header row
+    // in its region) moves with the page. Nor what is visually hidden (clipped).
+    for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      var st = getComputedStyle(a);
+      if (st.overflowX !== 'visible' || st.overflowY !== 'visible') return;
+      if (st.clipPath !== 'none') return;
+    }
+    var r = el.getBoundingClientRect();
+    if (r.width && r.height) out.push(el);
+  });
+  return out;
+})()"""
+
+
+def test_no_overlapping_sticky_elements_on_phones(chrome, site):
+    """#203: at 320 and 375 px, as each station page scrolls, no element that stays in
+    view (sticky or fixed) covers another, apart from one inside the other; and the page
+    never scrolls sideways."""
+    c = chrome
+    check = (
+        f"(function () {{ var els = {STUCK}, bad = [];"
+        " els.forEach(function (a, i) { els.slice(i + 1).forEach(function (b) {"
+        "  if (a.contains(b) || b.contains(a)) return;"
+        "  var r = a.getBoundingClientRect(), s = b.getBoundingClientRect();"
+        "  var top = Math.max(r.top, 0), stop = Math.max(s.top, 0);"
+        "  if (r.left < s.right - 1 && s.left < r.right - 1 && top < s.bottom - 1"
+        "   && stop < r.bottom - 1)"
+        "   bad.push(a.tagName + '.' + a.className + ' / ' + b.tagName + '.' + b.className"
+        "    + ' ' + (b.parentElement || {}).className); }); });"
+        " return bad; })()"
+    )
+    try:
+        for width in (320, 375):
+            c.viewport(width, 700)
+            for name in ("station quality results", "station results", "station index",
+                         "station downloads", "station sector results"):  # fmt: skip
+                c.navigate(site[name])
+                height = c.evaluate("document.documentElement.scrollHeight")
+                for y in range(0, height, 350):
+                    c.evaluate(f"window.scrollTo(0, {y})")
+                    time.sleep(0.03)
+                    assert c.evaluate(check) == [], (name, width, y)
+                # Not vacuous: the workspace header was among them.
+                assert c.evaluate(
+                    f"{STUCK}.some(function (e) {{ return e.matches('[data-workspace-header]') }})"
+                ), name
+                assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), (
+                    name,
+                    width,
+                )
+    finally:
+        c.viewport(1280, 900)
+
+
+def test_phone_inputs_bar_opens_the_sheets(chrome, site):
+    """#203: on a phone the Inputs panel is one line under the tabs, the base period and
+    whether the settings are the defaults. Its Edit (Enter) opens the inputs in a sheet
+    that fills the screen; an input's Edit there opens that input's sheet over it; Escape
+    goes back to the list, with focus on that Edit, then to the page, with focus on the
+    bar's Edit. No axe violation with either sheet open. At 1280 px the panel is back
+    beside the section and the bar is gone."""
+    c = chrome
+    bar = "document.querySelector('[data-inputs-bar]')"
+    panel = "document.querySelector('[data-inputs-panel]')"
+    edit = "[data-inputs-bar] button[data-sheet-open='sheet-inputs']"
+    listed = "#sheet-inputs [data-sheet-open='sheet-base-period']"
+    try:
+        c.viewport(375, 812)
+        c.navigate(site["station results"])
+        assert c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{panel}.checkVisibility()")
+        assert c.evaluate(f"{bar}.textContent").split()[:3] == ["Inputs:", "1971–2000", "·"]
+        # The site's results use one setting of their own (rx_days).
+        assert "1 setting not the default" in c.evaluate(f"{bar}.textContent")
+        c.evaluate(f"document.querySelector({json.dumps(edit)}).focus()")
+        c.press("Enter")
+        time.sleep(0.1)
+        inputs = "document.getElementById('sheet-inputs')"
+        assert c.evaluate(f"{inputs}.open && {inputs}.matches(':modal')")
+        assert c.evaluate(f"{inputs}.contains(document.activeElement)")
+        assert c.evaluate(f"{inputs}.getBoundingClientRect().width") == 375
+        failures = [f"inputs: {v['id']}" for v in run_axe(c)]
+        c.evaluate(f"document.querySelector({json.dumps(listed)}).focus()")
+        c.press("Enter")
+        time.sleep(0.1)
+        sheet = "document.getElementById('sheet-base-period')"
+        assert c.evaluate(f"{sheet}.open && {inputs}.open")
+        assert c.evaluate("document.activeElement.name") == "base_start"
+        assert c.evaluate(f"{sheet}.getBoundingClientRect().width") == 375
+        failures += [f"base period: {v['id']}" for v in run_axe(c)]
+        c.viewport(320, 700)
+        c.settle(0.1)
+        failures += [f"320px: {v['id']}" for v in run_axe(c)]
+        assert not failures, failures
+        c.viewport(375, 812)
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{sheet}.open") and c.evaluate(f"{inputs}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(listed)})")
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{inputs}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
+        c.viewport(1280, 900)
+        c.settle(0.1)
+        assert not c.evaluate(f"{bar}.checkVisibility()")
+        assert c.evaluate(f"{panel}.checkVisibility()")
+    finally:
+        c.viewport(1280, 900)
+
+
+def test_page_menu_by_keyboard(chrome, site):
+    """#203: on a phone Results' actions are in the header's ⋯ menu, a disclosure: Enter
+    opens it, Tab reaches each action, Escape closes it and gives focus back to its
+    button, and a click elsewhere closes it. The name and the menu share one line. At
+    1280 px the actions are buttons in the header and the menu is gone."""
+    c = chrome
+    menu = "document.querySelector('[data-page-menu]')"
+    button = "[data-page-menu] > summary"
+    try:
+        c.viewport(375, 812)
+        c.navigate(site["station results"])
+        assert not c.evaluate("document.querySelector('.workspace-header__actions')"
+                              ".checkVisibility()")  # fmt: skip
+        middle = "(function (r) {{ return r.top + r.height / 2 }})({}.getBoundingClientRect())"
+        name = c.evaluate(middle.format("document.querySelector('.workspace-header__name')"))
+        dots = c.evaluate(middle.format(f"document.querySelector({json.dumps(button)})"))
+        assert c.evaluate(
+            "document.querySelector('.workspace-header__name').getBoundingClientRect().right"
+        ) <= c.evaluate(
+            f"document.querySelector({json.dumps(button)}).getBoundingClientRect().left"
+        )
+        assert abs(name - dots) < 30, (name, dots)
+        assert c.evaluate(f"document.querySelector({json.dumps(button)}).textContent.trim()") \
+            == "Page actions"  # fmt: skip
+        c.evaluate(f"document.querySelector({json.dumps(button)}).focus()")
+        c.press("Enter")
+        assert c.evaluate(f"{menu}.open") is True
+        assert c.evaluate(f"document.querySelector({json.dumps(button)}).ariaExpanded"
+                          " !== 'false'")  # fmt: skip
+        assert run_axe(c) == []
+        reached = []
+        for _ in range(2):
+            c.press("Tab")
+            reached.append(c.evaluate("document.activeElement.textContent.trim()"))
+        assert reached[0] == "Compare with sector data", reached
+        assert reached[1].startswith("Download all"), reached
+        c.press("Escape")
+        assert c.evaluate(f"{menu}.open") is False
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(button)})")
+        c.press("Enter")
+        assert c.evaluate(f"{menu}.open") is True
+        c.evaluate("document.querySelector('main h2, main p').click()")
+        assert c.evaluate(f"{menu}.open") is False
+        c.viewport(1280, 900)
+        assert not c.evaluate(f"{menu}.checkVisibility()")
+        assert c.evaluate("document.querySelector('.workspace-header__actions')"
+                          ".checkVisibility()")  # fmt: skip
     finally:
         c.viewport(1280, 900)
 
@@ -1525,7 +1716,7 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         c.viewport(1280, 900)
         c.navigate(site["station results"])
         middles = (
-            "[...document.querySelectorAll('.results-actions > *')]"
+            "[...document.querySelectorAll('.workspace-header__actions .results-actions > *')]"
             ".map(e => Math.round(e.getBoundingClientRect().top + e.offsetHeight / 2))"
         )
         tops = c.evaluate(middles)

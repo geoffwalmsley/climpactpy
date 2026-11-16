@@ -120,9 +120,10 @@ def test_dashboard_and_index_page_offer_one_download(client):
     assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
     assert f'href="/station/{analysis.pk}/sector"' in actions
     assert f'href="/station/{analysis.pk}/downloads"' not in actions  # the Files tab
-    # No other file on the page (#176): the zip is its only download.
+    # No other file on the page (#176): the zip is its only download, in the header and
+    # again in its ⋯ menu for phones (#203).
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
-    assert files == [f"{STATION}.zip"]
+    assert files == [f"{STATION}.zip"] * 2
     assert 'id="downloads"' not in html and "Kept until" in html
     page = client.get(f"/station/{analysis.pk}/results/txx").content.decode()
     # The chart's CSV is the page's one file link; the PNG plot is the no-script image.

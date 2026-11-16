@@ -284,6 +284,7 @@ def test_each_sheet_says_what_applying_updates(client):
     sheets = dict(
         re.findall(r'<dialog class="sheet" id="sheet-([\w-]+)"(.*?)</dialog>', html, re.S)
     )
+    assert "data-sheet-open" in sheets.pop("inputs")  # the phone's list of them (#203)
     assert set(sheets) == {"file", "station", "base-period", "thresholds", "settings"}
     assert "Updates Quality, Results and Files." in sheets["file"]
     assert "Updates Results and Files. Quality stays as it is." in sheets["base-period"]
@@ -311,11 +312,70 @@ def test_the_panel_lists_every_input_on_every_section(client):
         assert 'id="sheet-base-period"' in html
     html = page(client, analysis)
     assert "29,220 days · 3 variables" in html or re.search(r"[\d,]+ days · 3 variables", html)
-    assert "1971–2000" in html and html.count(">Defaults<") == 2
+    panel = html.split("data-inputs-panel")[1].split("</aside>")[0]
+    assert "1971–2000" in panel and panel.count(">Defaults<") == 2
     # Each input opens its sheet, the thresholds and index settings too (#199).
     for key in ("file", "station", "base-period", "thresholds", "settings"):
         assert f'href="{base}/inputs/{key}?next=%2Fstation%2F{analysis.pk}%2Fresults"' in html
         assert f'data-sheet-open="sheet-{key}"' in html and f'id="sheet-{key}"' in html
+
+
+def bar(html) -> str:
+    """The Inputs bar's line (#203), its words without the markup."""
+    line = re.search(r'<p class="inputs-bar__text">(.*?)</p>', html, re.S).group(1)
+    # Each change and run follows a dot (CSS).
+    line = re.sub(r'<span class="inputs-bar__(changed|run)">', " · ", line)
+    return " ".join(re.sub(r"<[^>]+>", " ", line).split())
+
+
+def test_the_inputs_bar_says_the_panel_in_one_line(client):
+    """#203: on phones the Inputs panel is one line under the tabs, on every section: the
+    base period and whether the thresholds and settings are the defaults, then each input
+    changed since what is shown and the run under way. Its Edit opens the Inputs sheet,
+    the panel's list again (without the panel's data-input marks), on a page without
+    JavaScript the panel itself. Not on an input's own page, which has no panel."""
+    analysis, _qc, _run = in_use(client)
+    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+        html = page(client, analysis, path)
+        assert bar(html) == "Inputs: 1971–2000 · defaults", path
+        assert 'data-sheet-open="sheet-inputs"' in html and 'id="sheet-inputs"' in html
+        sheet = html.split('id="sheet-inputs"')[1].split("</dialog>")[0]
+        assert 'data-sheet-open="sheet-base-period"' in sheet and "data-input=" not in sheet
+    html = page(client, analysis, "inputs/base-period")
+    assert "data-inputs-bar" not in html and 'id="sheet-inputs"' not in html
+    # A threshold of the user's, then a new base period: the bar says both, and the run.
+    thresholds = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "prec_max": "150"}
+    edit(client, analysis, "thresholds", thresholds, back="quality")
+    analysis.refresh_from_db()
+    html = page(client, analysis)
+    assert bar(html) == (
+        "Inputs: 1971–2000 · 1 setting not the default · Quality thresholds changed"
+        " · Checking quality · Recalculating"
+    )
+    assert run_next() == analysis.qc_job
+    finish(analysis.indices_job)
+    analysis.refresh_from_db()
+    assert bar(page(client, analysis)).startswith("Inputs: 1971–2000 · 1 setting not the default")
+    edit(client, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
+    html = page(client, analysis)
+    assert bar(html) == (
+        "Inputs: 1981–2010 · 1 setting not the default · Base period changed · Recalculating"
+    )
+    assert "inputs-bar--changed" in html
+
+
+def test_the_page_actions_are_in_a_menu_on_phones(client):
+    """#203: Results' actions (the sector comparison and Download all) are in the header,
+    and again in its ⋯ menu, a <details> disclosure shown instead on phones (CSS)."""
+    analysis, _qc, _run = in_use(client)
+    html = page(client, analysis)
+    menu = re.search(r'<details class="page-menu" data-page-menu>.*?</details>', html, re.S)
+    assert menu and "Page actions" in menu.group(0)
+    assert "Compare with sector data" in menu.group(0)
+    assert "All files and the report" in menu.group(0)  # Download all without a zip
+    header = html.split('class="workspace-header__actions"')[1].split("</details>")[0]
+    assert header.count("Compare with sector data") == 2  # the buttons, then the menu
+    assert "data-page-menu" not in page(client, analysis, "quality")  # no actions there
 
 
 def test_the_index_settings_wait_for_use_this_data(client):

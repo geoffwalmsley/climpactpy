@@ -6,8 +6,9 @@ something to check against. How the tokens, theme switch, charts and accessibili
 work is in [`TECHNICAL.md`, "Design system"](TECHNICAL.md#design-system); this file does
 not repeat it.
 
-The rules marked **Target** come from the UX redesign (#171) and are not met everywhere
-yet. Each names the ticket that brings the code in line. New work follows them now.
+The rules come from the UX redesign (#171). A rule not yet met everywhere is marked
+**Target**, with the ticket that brings the code in line; none is left since the station
+workspace (#179). New work follows them.
 
 ## Who it is for
 
@@ -89,8 +90,10 @@ Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
   inside controls, 4 to 5 (1–1.25rem) inside cards, 8 to 12 (2–3rem) between sections.
 - **Breakpoints:** `sm` 40rem, `md` 52rem, `lg` 60rem, `xl` 64rem. Logical properties
   only, so right-to-left scripts work (checked by `test_static.py`).
-- **Page frame:** header (logo, main destinations, theme toggle) → step indicator for a
-  flow → title and one-line lead → content → footer.
+- **Page frame:** header (logo, main destinations, theme toggle) → step indicator for the
+  batch and gridded flows → title and one-line lead → content → footer. A station is a
+  workspace instead: its name as the h1, a line with its years and base period, then the
+  section tabs (Data, Quality, Results, Files), then the section's content.
 - **Controls:** `--control-height` 2.75rem (2.25rem small), so touch targets reach 44px.
 
 ## Depth and shape
@@ -128,12 +131,14 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `drawer` | Component | A section's help in a side panel, opened by the ⓘ beside the section's heading (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the ⓘ. Without JS the ⓘ links to the same help on its own page | — |
 | `table`, `summary_list` | Component | Data in a keyboard-scrollable region; key–value pairs | empty state |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
+| `workspace_tabs` | Component | A station's sections as tabs under its name. Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
 | `theme_headline` | Pattern | A theme's finding first: one sentence from the trends, up to three trends with sparklines, a link to the rest | changed, quiet (no change) |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
-| `steps` | Pattern | Where the user is in a flow; done steps link back | — |
+| `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
+| `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast | updating, out of date |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
@@ -146,7 +151,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
 | Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
-| Recalculation | A run that replaces results already shown: its progress in a card with an accent edge above the results, which stay until it finishes, with a note that they use the previous settings. A failure says so in the same card, with "Try again". | `card`, `progress`, `stages` |
+| Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an accent edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional.
@@ -197,7 +202,12 @@ keyboard. This is not optional.
 - **Don't add a page or step without a decision on it.** A screen that only confirms
   defaults should be an inline action instead. The index settings are "Adjust and
   recalculate" on Results, and the defaults are calculated while the user checks the
-  quality, so the station flow has three steps (#178).
+  quality (#178). The station is a workspace of four sections, with no steps (#179).
+- **Don't throw work away when an input changes.** A new file, new station details, new
+  thresholds or new settings keep the checks and results already made. They show as out
+  of date (`stale_banner`, and the section's tab) until their replacement has finished,
+  so the user can compare. Mark only what depends on the change: the base period changes
+  Results and Files, not Quality.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it in full
   once, where it matters. After that it is a quiet line at the foot of the page: small
   muted text (`text-sm text-text-muted`) with a lock icon.
@@ -206,7 +216,8 @@ keyboard. This is not optional.
 ## Responsive
 
 Narrow screens get the same content in one column. Below 600px the header links become a
-menu; on narrow screens the step indicator shows only the current step's label,
+menu; on narrow screens the step indicator shows only the current step's label, the
+workspace tabs wrap onto a second line,
 two-column field groups stack, and wide tables scroll inside their focusable region
 rather than the page. Charts keep their table view. The accessibility tests run every page
 in a 320px viewport and fail on horizontal page scroll.

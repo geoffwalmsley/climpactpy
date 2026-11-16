@@ -196,12 +196,14 @@ def test_theme_toggle_hidden_without_js():
 
 
 def test_station_steps_states():
-    steps = navigation.station_steps("indices", urls={"upload": "/u/", "qc": "/q/"})
-    assert [s.state for s in steps] == ["complete", "complete", "current", "upcoming"]
-    assert [s.url for s in steps] == ["/u/", "/q/", None, None]
-    assert [s.number for s in steps] == [1, 2, 3, 4]
-    # The sector comparison is an action on Results, not a step (#173).
-    assert "sector" not in [s.key for s in steps] and not any(s.optional for s in steps)
+    steps = navigation.station_steps("qc", urls={"upload": "/u/", "qc": "/q/"})
+    assert [s.state for s in steps] == ["complete", "current", "upcoming"]
+    assert [s.url for s in steps] == ["/u/", None, None]
+    assert [s.number for s in steps] == [1, 2, 3]
+    # The sector comparison is an action on Results (#173), and so are the settings, with no
+    # Calculate step (#178).
+    keys = [s.key for s in steps]
+    assert keys == ["upload", "qc", "results"] and not any(s.optional for s in steps)
     with pytest.raises(ValueError):
         navigation.station_steps("nope")
 
@@ -218,7 +220,7 @@ def test_count_filter_groups_thousands():
 def test_steps_component():
     html = render("steps", steps=navigation.station_steps("qc", urls={"upload": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
-    assert 'aria-current="step"' in html and "Step 2 of 4:" in html
+    assert 'aria-current="step"' in html and "Step 2 of 3:" in html
     assert "Optional" not in html
 
 

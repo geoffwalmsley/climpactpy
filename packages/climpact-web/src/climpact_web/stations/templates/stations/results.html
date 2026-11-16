@@ -12,10 +12,21 @@
     {% plural %}
       {{ name }}, {{ first }} to {{ last }}, base period {{ start }} to {{ end }}: {{ counter }} indices.
     {% endblocktranslate %}</p>
+    {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
+    link to change them in place.{% endcomment %}
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted">{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
   </header>
 
+  {% if recalculation %}
+  <section class="card stack recalculation" aria-labelledby="recalculation-title">
+    <h2 class="card__title" id="recalculation-title">{% if recalculation.job.status == "failed" %}{% translate "The recalculation failed" %}{% else %}{% translate "Recalculating" %}{% endif %}</h2>
+    {% include "stations/_results_progress.html" with job=recalculation.job phases=recalculation.phases stage_label=recalculation.stage_label elapsed=recalculation.elapsed remaining=recalculation.remaining delay=recalculation.delay worker_missing=recalculation.worker_missing %}
+    <p class="text-sm text-text-muted">{% if recalculation.job.is_finished %}{% translate "The results below use the previous settings." %}{% else %}{% translate "The results below use the previous settings. The new results replace them when they are ready." %}{% endif %}</p>
+  </section>
+  {% endif %}
+
   {% if from_batch %}
-  {% translate "These results are from the batch run. Change the settings to calculate again here." as batch_note %}
+  {% translate "These results are from the batch run. Adjust and recalculate to calculate them here." as batch_note %}
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
@@ -127,21 +138,14 @@
   <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
   </section>
 
-  <div class="grid items-start gap-5 grid-cols-fit-72">
-    <section class="card stack" aria-labelledby="params-title">
-      <h2 class="card__title" id="params-title">{% translate "Settings used" %}</h2>
-      <dl class="settings-list">
-        {% for p in params %}<dt>{{ p.label }}</dt><dd>{{ p.value }}</dd>{% endfor %}
-      </dl>
-      <p><a href="{% url 'stations:indices' analysis.pk %}?settings=open#settings">{% translate "Change the settings and calculate again" %}</a></p>
-    </section>
-    <section class="card stack" aria-labelledby="sector-title">
-      <h2 class="card__title" id="sector-title">{% translate "Compare with sector data" %}</h2>
-      <p class="text-sm text-text-muted">{% translate "Optional. See how yearly data such as crop yields relates to the indices." %}</p>
-      <p>{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
-      {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>
-    </section>
-  </div>
+  {% include "stations/_settings_form.html" %}
+
+  <section class="card stack" aria-labelledby="sector-title">
+    <h2 class="card__title" id="sector-title">{% translate "Compare with sector data" %}</h2>
+    <p class="text-sm text-text-muted">{% translate "Optional. See how yearly data such as crop yields relates to the indices." %}</p>
+    <p>{% url 'stations:sector' analysis.pk as sector_url %}{% translate "Compare with sector data" as sector_label %}
+    {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>
+  </section>
   <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>
 </div>
 {% endblock %}

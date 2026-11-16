@@ -112,9 +112,13 @@ def test_continue_from_step_one_queues_the_checks(client):
     page = client.get(f"/station/{analysis.pk}/quality").content.decode()
     assert 'id="qc-progress"' in page and f"/station/{analysis.pk}/quality/progress" in page
     assert "chart_scripts" not in page and "uPlot" not in page  # no charts until results
+    # The indices are queued too, with the default settings, behind the checks (#178).
+    run = analysis.indices_job
+    assert run.kind == "station" and run.is_speculative and run.params["qc"] == QC_DEFAULTS
+    assert run.created_at >= job.created_at
     # Visiting step 1 and continuing again with nothing changed does not queue again.
     client.post(f"/station/{analysis.pk}/load", {"station_name": "qc_stress_1961-2020", **META})
-    assert Job.objects.count() == 1
+    assert Job.objects.count() == 2
 
 
 def test_while_the_checks_run_the_thresholds_are_tucked_away(client):
@@ -528,7 +532,7 @@ def test_bad_thresholds_are_shown_on_the_page(client, checked):
     response = client.post(f"/station/{checked.pk}/quality/run", data)
     assert response.status_code == 200
     assert "Enter a number from 0 to 60." in response.content.decode()
-    assert Job.objects.count() == 1
+    assert Job.objects.count() == 2  # the checks and the speculative run, nothing more
 
 
 def test_reupload_reruns_the_checks_and_keeps_the_details(client, checked):
@@ -565,27 +569,26 @@ def test_reupload_of_a_bad_file_shows_its_problems(client, checked):
     assert checked.file_name == STRESS.name and checked.qc_job.status == Status.SUCCEEDED
 
 
-def test_continue_to_the_indices(client, checked):
+def test_use_this_data_opens_the_results(client, checked):
+    """#178: "Use this data" goes straight to the results of the run queued with the
+    checks, which becomes the user's own; no settings page on the way."""
+    speculative = checked.indices_job
     response = client.post(f"/station/{checked.pk}/quality/continue")
-    assert response["Location"] == f"/station/{checked.pk}/indices"
+    assert response["Location"] == f"/station/{checked.pk}/results"
     checked.refresh_from_db()
-    assert checked.step == Step.INDICES
-    page = client.get(f"/station/{checked.pk}/indices").content.decode()
-    assert f'action="/station/{checked.pk}/indices"' in page
-    from test_indices_results import defaults
-
-    client.post(f"/station/{checked.pk}/indices", defaults())
+    assert checked.step == Step.RESULTS and checked.indices_job == speculative
     job = Job.objects.get(kind="station")
-    assert job.params["qc"] == QC_DEFAULTS
+    assert not job.is_speculative and job.params["qc"] == QC_DEFAULTS
+    page = client.get(f"/station/{checked.pk}/results").content.decode()
+    assert "Calculating indices" in page and "results/progress" in page
 
 
 def test_continue_needs_finished_checks(client):
     analysis = start(client)
     response = client.post(f"/station/{analysis.pk}/quality/continue")
     assert response["Location"] == f"/station/{analysis.pk}/quality"
-    # Step 3 itself stays open (#78): it says the checks have not finished.
-    page = client.get(f"/station/{analysis.pk}/indices").content.decode()
-    assert "The quality checks have not run, or have not finished." in page
+    # The results are not shown before "Use this data" (#178).
+    assert client.get(f"/station/{analysis.pk}/results")["Location"].endswith("/quality")
 
 
 def test_other_sessions_get_404(client, checked):

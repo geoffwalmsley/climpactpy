@@ -1,0 +1,76 @@
+{% load i18n ui help %}{% comment %}
+"Adjust and recalculate" (#178): the index settings, in place on Results, in a disclosure
+that starts closed with the settings of the results shown (or of the run in progress). It
+opens with ?settings=open (links from an index page, Files and the old Calculate address)
+and when the form has errors. The form posts to stations:indices, which queues a new run;
+the results stay until it has finished. No cards inside: the disclosure is the surface.
+Context: analysis, form, open_settings, settings_source; submit_label (default
+"Recalculate").
+{% endcomment %}
+<details class="disclosure" id="adjust"{% if open_settings or form.errors %} open{% endif %}>
+  <summary>{% icon "sliders" %}<h2 class="m-0 text-lg">{% translate "Adjust and recalculate" %}</h2>{% icon "chevron-down" %}</summary>
+  <div class="disclosure__body stack stack--lg text-inherit">
+    {% if settings_source == "batch" %}<p class="text-sm text-text-muted">{% translate "The settings come from this station's line in the batch metadata file." %}</p>{% endif %}
+    <form method="post" action="{% url 'stations:indices' analysis.pk %}" class="form stack stack--lg" novalidate>
+      {% csrf_token %}
+      {{ form.index }}
+      {% include "components/form_errors.html" %}
+
+      <section class="stack settings-panel__group" aria-labelledby="plots-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="plots-title">{% translate "Plots" %}</h3>{% section_help "calculate.plots" %}</div>
+        {% include "stations/_indices_unit.html" with group="plot_title" %}
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="spells-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="spells-title">{% translate "Spell lengths" %}</h3>{% section_help "calculate.spells" %}</div>
+        <div class="grid items-start gap-5 grid-cols-fill-60">
+          {% include "stations/_indices_unit.html" with group="wsdi_days" %}
+          {% include "stations/_indices_unit.html" with group="csdi_days" %}
+          {% include "stations/_indices_unit.html" with group="rx_days" %}
+          {% include "stations/_indices_unit.html" with group="txtn_days" %}
+        </div>
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="degree-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="degree-title">{% translate "Degree days" %}</h3>{% section_help "calculate.degree" %}</div>
+        <div class="grid items-start gap-5 grid-cols-fill-60">
+          {% include "stations/_indices_unit.html" with group="hdd_base" %}
+          {% include "stations/_indices_unit.html" with group="cdd_base" %}
+          {% include "stations/_indices_unit.html" with group="gdd_base" %}
+        </div>
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="prcp-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="prcp-title">{% translate "Precipitation and drought" %}</h3>{% section_help "calculate.prcp" %}</div>
+        <div class="grid items-start gap-5 grid-cols-fill-60">
+          {% include "stations/_indices_unit.html" with group="rnnmm" %}
+          {% include "stations/_indices_unit.html" with group="spei_months" %}
+        </div>
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="custom-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="custom-title">{% translate "Your own index" %}</h3>{% section_help "calculate.custom" %}</div>
+        {% include "stations/_indices_unit.html" with group="custom" %}
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="ehf-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="ehf-title">{% translate "Heatwave definition" %}</h3>{% section_help "calculate.ehf" %}</div>
+        <p>{% translate "Heatwaves use the excess heat factor of Nairn and Fawcett (2013). There is nothing to choose." %}</p>
+      </section>
+
+      <section class="stack settings-panel__group" aria-labelledby="output-title">
+        <div class="with-help"><h3 class="m-0 text-base" id="output-title">{% translate "Files" %}</h3>{% section_help "calculate.files" %}</div>
+        {% include "components/field.html" with field=form.plots %}
+        {% include "components/field.html" with field=form.zip %}
+        {% include "components/field.html" with field=form.report %}
+      </section>
+
+      {% turnstile %}
+      <div class="form__actions flex flex-wrap items-center gap-3">
+        {% translate "Recalculate" as default_label %}
+        {% include "components/button.html" with label=submit_label|default:default_label type="submit" icon="refresh" describedby="run-time" %}
+        <span class="text-sm text-text-muted" id="run-time">{% translate "About half a minute for 80 years of data." %}</span>
+      </div>
+    </form>
+  </div>
+</details>

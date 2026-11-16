@@ -14,6 +14,7 @@ from test_jobs import station_job
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.runners import run_station_job
 from climpact_web.stations import downloads as model
+from climpact_web.stations.models import Step
 from climpact_web.stations.views_indices import current_source
 
 pytestmark = pytest.mark.django_db
@@ -86,7 +87,7 @@ def test_downloads_page_says_what_was_not_made(client):
     assert "Not made. The zip was switched off" in html
     assert "Not made. The report was switched off" in html
     assert "Not made. The plots were switched off" in html
-    assert f'href="/station/{analysis.pk}/indices"' in html
+    assert f'href="/station/{analysis.pk}/results?settings=open#adjust"' in html
 
 
 def test_downloads_page_redirects_and_is_private(client):
@@ -99,7 +100,7 @@ def test_downloads_page_redirects_and_is_private(client):
     analysis.indices_job = None
     analysis.save()
     response = client.get(f"/station/{analysis.pk}/downloads")
-    assert response["Location"] == f"/station/{analysis.pk}/indices"
+    assert response["Location"] == f"/station/{analysis.pk}/results"
 
 
 def test_dashboard_and_index_page_offer_one_download(client):
@@ -166,11 +167,12 @@ def test_station_job_writes_the_report_beside_the_zip(settings, tmp_path):
         assert not [n for n in archive.namelist() if "report" in n]
 
 
-def test_step_3_asks_for_the_report_and_the_job_writes_it(client):
-    from test_indices_results import defaults, ready_analysis
+def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
+    from test_indices_results import committed_analysis, defaults
 
-    analysis = ready_analysis(client)
-    form = client.get(f"/station/{analysis.pk}/indices").content.decode()
+    analysis = committed_analysis(client)
+    assert analysis.indices_job.params["report"] is True  # the speculative run's default
+    form = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert re.search(r'<input type="checkbox" name="report"[^>]*checked', form)
     client.post(f"/station/{analysis.pk}/indices", {**defaults(), "report": "on"})
     job = Job.objects.latest("created_at")
@@ -178,7 +180,7 @@ def test_step_3_asks_for_the_report_and_the_job_writes_it(client):
     client.post(f"/station/{analysis.pk}/indices", defaults())  # unticked
     assert Job.objects.latest("created_at").params["report"] is False
     # The next visit starts from the last calculation's choice.
-    form = client.get(f"/station/{analysis.pk}/indices").content.decode()
+    form = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert not re.search(r'<input type="checkbox" name="report"[^>]*checked', form)
 
 
@@ -248,6 +250,7 @@ def test_files_page_reaches_every_file_of_the_station(client):
     complete(job)
     analysis.refresh_from_db()
     analysis.indices_job = job
+    analysis.step = Step.RESULTS
     analysis.save()
     html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
     linked = set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', html))
@@ -288,5 +291,5 @@ def test_files_page_before_the_indices_holds_the_quality_files(client):
     assert 'id="quality-files"' in html and "Download all" not in html
     for rel in [*qc_job.result["files"], qc_job.result["zip"]]:
         assert f'href="/jobs/{qc_job.pk}/files/{rel}"' in html, rel
-    assert f'href="/station/{analysis.pk}/indices"' in html
-    assert "Step 2 of 4" in html
+    assert f'href="/station/{analysis.pk}/results"' in html
+    assert "Step 2 of 3" in html

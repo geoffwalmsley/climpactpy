@@ -18,7 +18,7 @@
   {% else %}
   {% translate "Calculate the indices first. The comparison uses them." as first_message %}
   {% include "components/alert.html" with kind="info" title="" message=first_message %}
-  <p><a href="{% url 'stations:indices' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
+  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
   {% else %}
 

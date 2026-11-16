@@ -1,12 +1,13 @@
 """The single-station flow's data model (#76).
 
 A :class:`StationAnalysis` is one station going through the steps: Load data (#76),
-Check quality (#77), Calculate indices (#78), Results and downloads (#79) and the
-optional sector comparison (#90). It holds the uploaded file (in its own folder), the
-station metadata, a summary of the data, the furthest step reached and links to the
-background jobs each later step starts. Like a job it belongs to the browser session
-that created it (the same owner token as :class:`climpact_web.jobs.models.Job`), and is
-deleted ``JOB_RETENTION_DAYS`` after it was last changed (:mod:`.retention`).
+Check quality (#77) and Results and downloads (#79), with the index settings (#78, #178)
+and the optional sector comparison (#90) as actions on Results. It holds the uploaded file
+(in its own folder), the station metadata, a summary of the data, the furthest step
+reached and links to the background jobs each later step starts. Like a job it belongs to
+the browser session that created it (the same owner token as
+:class:`climpact_web.jobs.models.Job`), and is deleted ``JOB_RETENTION_DAYS`` after it was
+last changed (:mod:`.retention`).
 
 The analysis keeps its own copy of the file: a job copies the file into its own
 ``input/`` folder when it is queued, so jobs and analyses expire independently.
@@ -40,9 +41,11 @@ class Source(models.TextChoices):
 
 
 class Step(models.TextChoices):
-    """The furthest step reached: the keys of ``core.navigation.STATION_STEPS``, then
-    ``sector``, the sector comparison, which is an action on Results rather than a step
-    in the indicator (#173)."""
+    """The furthest step reached: the keys of ``core.navigation.STATION_STEPS``, with
+    ``indices`` and ``sector`` between and after them. ``indices`` means the user has
+    chosen to use the data ("Use this data" on Quality); it was the Calculate step's until
+    #178 made the settings an action on Results. ``sector`` is the sector comparison, an
+    action on Results rather than a step in the indicator (#173)."""
 
     UPLOAD = "upload", _("Load data")
     QC = "qc", _("Check quality")
@@ -53,12 +56,11 @@ class Step(models.TextChoices):
 
 STEP_ORDER = [s.value for s in Step]
 
-# The URL of each step, with the analysis id. Steps whose ticket has not added its URL yet
-# resolve to None (see step_urls).
+# The URL of each step that has a page of its own, with the analysis id (``indices`` has
+# none since #178).
 STEP_URL_NAMES = {
     "upload": "stations:load",
     "qc": "stations:qc",
-    "indices": "stations:indices",
     "results": "stations:results",
     "sector": "stations:sector",
 }
@@ -156,9 +158,18 @@ class StationAnalysis(models.Model):
             self.step = step
 
     def reset_later_steps(self) -> None:
-        """After the file or the metadata changes, every later step must run again."""
+        """After the file or the metadata changes, every later step must run again. A
+        speculative calculation of the old data still waiting or running is cancelled
+        (#178), so it never shows as the results and leaves no orphan job."""
+        self.cancel_speculative()
         self.step = Step.UPLOAD
         self.qc_job = self.indices_job = self.sector_job = None
+
+    def cancel_speculative(self) -> None:
+        """Cancel the indices job if it is a speculative run not finished yet (#178)."""
+        job = self.indices_job
+        if job is not None and job.is_speculative and job.can_cancel:
+            job.request_cancel()
 
     def touch(self) -> None:
         self.updated_at = timezone.now()
@@ -168,6 +179,8 @@ class StationAnalysis(models.Model):
         return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
 
     def step_url(self, step: str) -> str | None:
+        if step not in STEP_URL_NAMES:
+            return None
         try:
             return reverse(STEP_URL_NAMES[step], args=[self.pk])
         except NoReverseMatch:

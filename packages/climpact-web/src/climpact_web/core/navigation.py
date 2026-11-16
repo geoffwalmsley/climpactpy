@@ -82,11 +82,12 @@ class Step:
 STATION_STEPS = (
     Step("upload", _("Load data"), "stations:upload"),
     Step("qc", _("Check quality"), "stations:qc"),
-    Step("indices", _("Calculate indices"), "stations:indices"),
     Step("results", _("Results and downloads"), "stations:results"),
 )
 # The sector comparison (#90) is not a step: it is an action on Results, and its page shows
-# the Results step as current (#173).
+# the Results step as current (#173). Nor are the index settings (#178): the indices are
+# calculated with the defaults while the user checks the quality, and the settings are
+# "Adjust and recalculate" on Results.
 
 
 @dataclass

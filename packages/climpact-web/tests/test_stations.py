@@ -525,24 +525,28 @@ def test_quality_page_needs_step_one_first(client):
 
 @pytest.mark.django_db
 def test_changing_metadata_resets_the_later_steps(client):
+    """Confirming the details queues the checks and a speculative run of the indices
+    (#178); changing them cancels that run and queues both again."""
     analysis = loaded(client)
     client.post(f"/station/{analysis.pk}/load", metadata())
-    from test_indices_results import defaults
-
-    client.post(f"/station/{analysis.pk}/indices", defaults())
     analysis.refresh_from_db()
-    assert analysis.indices_job is not None and analysis.qc_job is not None
+    first_qc, first_run = analysis.qc_job, analysis.indices_job
+    assert first_qc.kind == "qc" and first_run.kind == "station" and first_run.is_speculative
     # the same metadata again: nothing to redo
     client.post(f"/station/{analysis.pk}/load", metadata())
     analysis.refresh_from_db()
-    assert analysis.indices_job is not None and analysis.step == Step.RESULTS
-    first_qc = analysis.qc_job
+    assert (analysis.qc_job, analysis.indices_job) == (first_qc, first_run)
+    assert Job.objects.count() == 2
     client.post(f"/station/{analysis.pk}/load", metadata(latitude="-30"))
     analysis.refresh_from_db()
-    assert analysis.indices_job is None and analysis.step == Step.QC
+    assert analysis.step == Step.QC
     assert analysis.qc_job != first_qc  # the checks run again (#77)
+    run = analysis.indices_job
+    assert run != first_run and run.params["metadata"]["latitude"] == -30
+    first_run.refresh_from_db()
+    assert first_run.status == Status.CANCELLED  # never shown, never left running
     # The jobs themselves are kept, with their own retention.
-    assert Job.objects.count() == 3
+    assert Job.objects.count() == 4
 
 
 @pytest.mark.django_db

@@ -1,27 +1,30 @@
-"""Steps 3 and 4 of a station (#78): the index parameters, the calculation as a job, the
-results dashboard and each index's own page (step 5 is in ``views_sector``).
+"""Results (#78, #79): the calculation's progress, the results dashboard, each index's own
+page, and "Adjust and recalculate" (#178). The sector comparison is in ``views_sector``.
 
 URLs (all ``/station/<id>/...``, private to the session like the other steps):
 
-``indices``                 the parameters form (GET, POST queues the job)
-``indices/validate``        htmx: one group of fields checked as it changes
-``results``                 progress while the job runs, then the dashboard
+``indices``                 the old Calculate step's address: GET goes to "Adjust and
+                            recalculate" on Results (old links, bookmarks), POST is that
+                            form's submission and queues a new run
+``indices/validate``        htmx: one group of the settings checked as it changes
+``results``                 progress while the job runs, then the dashboard; a
+                            recalculation keeps the last results under its progress
 ``results/progress``        htmx: the progress fragment; when the job ends it reloads the
                             page (or opens the index the user came from)
 ``results/<key>``           one index: chart, trend, anomalies, tables, downloads
 ``results/<series>/anomalies.json``  the standardised anomalies, for the chart
 
-Step 3 works whether or not the quality checks (#77) have been run, as R lets you go on.
-The results come from the analysis's ``indices_job``; an analysis opened from a batch's
-results (#80, ``origin``) shows the batch's outputs for that station until it is
-calculated again here.
+There is no Calculate step since #178: the indices are calculated with the default
+settings while the user looks at the quality checks (:mod:`.calculation`), and "Use this
+data" opens the results. The results come from the analysis's ``indices_job``; an analysis
+opened from a batch's results (#80, ``origin``) shows the batch's outputs for that station
+until it is calculated again here.
 """
 
 from __future__ import annotations
 
 from urllib.parse import urlencode
 
-from django.core.files import File
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -35,25 +38,15 @@ from climpact_web.core.limits import human_required
 from climpact_web.core.navigation import station_steps
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
-from climpact_web.jobs.views import create_job, progress_context
+from climpact_web.jobs.views import progress_context
+from climpact_web.stations import calculation, themes
 from climpact_web.stations import results as results_model
-from climpact_web.stations import themes
-from climpact_web.stations.forms import QCParamsForm
-from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
-from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
-from climpact_web.stations.views import get_analysis
+from climpact_web.stations.calculation import batch_job, previous_params, station_title
+from climpact_web.stations.forms_indices import IndexParamsForm
+from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.views import get_analysis, step_two_ready
 
 INDEX_KEY_MAX = 100
-
-
-def _station_title(analysis: StationAnalysis) -> str:
-    """The plots' default title: R's ``title.station`` (the core's ``station_title``)."""
-    from climpact.config import StationMetadata
-    from climpact.plots import station_title
-
-    return station_title(
-        StationMetadata(analysis.station_name, analysis.latitude or 0.0, analysis.longitude or 0.0)
-    )
 
 
 def _ready(analysis: StationAnalysis) -> bool:
@@ -62,114 +55,44 @@ def _ready(analysis: StationAnalysis) -> bool:
     )
 
 
-def batch_job(analysis: StationAnalysis) -> Job | None:
-    """The finished batch job an analysis was opened from, if it is still kept."""
-    job_id = (analysis.origin or {}).get("job")
-    if not job_id:
-        return None
-    job = Job.objects.filter(pk=job_id, owner=analysis.owner, status=Status.SUCCEEDED).first()
-    return job
+def results_url(analysis, index: str = "") -> str:
+    url = reverse("stations:results", args=[analysis.pk])
+    return url + ("?" + urlencode({"index": index}) if index else "")
 
 
-def batch_custom(job: Job | None) -> dict | None:
-    return (job.params or {}).get("custom") if job is not None else None
+def adjust_url(analysis, index: str = "") -> str:
+    """Results with "Adjust and recalculate" open; ``index``, the index page the user came
+    from, is where the new results open."""
+    query = {"settings": "open", **({"back": index} if index else {})}
+    return f"{reverse('stations:results', args=[analysis.pk])}?{urlencode(query)}#adjust"
 
 
-def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, bool, str]:
-    """The parameters to start the form from: the last calculation's, else the batch
-    station's (``origin``), else the defaults. Returns (params, plot title, plots, zip,
-    report, where they come from)."""
-    job = analysis.indices_job
-    if job is not None and job.kind == "station":
-        p = job.params or {}
-        return (
-            p.get("params") or {},
-            p.get("plot_title") or "",
-            bool(p.get("plots", True)),
-            bool(p.get("zip", True)),
-            bool(p.get("report", True)),
-            "job",
-        )
-    origin = analysis.origin or {}
-    if origin.get("params"):
-        params = dict(origin["params"])
-        params["custom"] = batch_custom(batch_job(analysis))
-        return params, "", True, True, True, "batch"
-    return {}, "", True, True, True, "default"
-
-
-# ---- step 3: the parameters ------------------------------------------------------------
-
-
-def indices_context(analysis, form, source: str) -> dict:
-    job = analysis.indices_job
-    return {
-        "analysis": analysis,
-        "form": form,
-        "source": source,
-        "steps": station_steps("indices", analysis.step_urls()),
-        "has_results": job is not None or bool(batch_job(analysis)),
-        "qc_done": analysis.qc_job is not None and analysis.qc_job.status == Status.SUCCEEDED,
-        "job": job,
-    }
+# ---- Adjust and recalculate --------------------------------------------------------------
 
 
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
 def indices(request, analysis_id):
-    """Step 3: the index parameters, then "Calculate indices" queues a station job."""
+    """The address of the Calculate step before #178. GET (an old link or bookmark) opens
+    "Adjust and recalculate" on Results; POST is that form: queue a run with the settings,
+    which replaces the results when it finishes."""
     analysis = get_analysis(request, analysis_id)
     if not _ready(analysis):
         return redirect("stations:load", analysis_id=analysis.pk)
-    title = _station_title(analysis)
-    params, plot_title, plots, zip_, report, source = previous_params(analysis)
-    if request.method == "POST":
-        form = IndexParamsForm(request.POST, station_title=title)
-        if form.is_valid():
-            job = queue_indices(request, analysis, form)
-            url = reverse("stations:results", args=[analysis.pk])
-            index = form.cleaned_data.get("index", "")[:INDEX_KEY_MAX]
-            if index:
-                url += "?" + urlencode({"index": index})
-            return redirect(url) if job else redirect("stations:load", analysis_id=analysis.pk)
-    else:
-        initial = initial_from_params(params, plot_title, plots, zip_, report)
-        initial["index"] = request.GET.get("index", "")[:INDEX_KEY_MAX]
-        form = IndexParamsForm(initial=initial, station_title=title)
-    if analysis.step == Step.QC:
-        analysis.advance_to(Step.INDICES)
-        analysis.save(update_fields=["step"])
-    context = indices_context(analysis, form, source)
-    # "Change the settings" on the results page asks for the settings open (#115), even
-    # when the last run used the defaults and they would start closed.
-    context["open_settings"] = request.method != "POST" and request.GET.get("settings") == "open"
-    return render(request, "stations/indices.html", context)
-
-
-def queue_indices(request, analysis: StationAnalysis, form: IndexParamsForm) -> Job | None:
-    if not analysis.station_file.is_file():
-        return None
-    data = form.cleaned_data
-    params = {
-        "station_file": STATION_FILE,
-        "metadata": analysis.metadata,
-        "params": form.job_params(),
-        "qc": QCParamsForm.initial_for(analysis.qc_params),  # step 2's thresholds (#77)
-        "plot_title": data["plot_title"],
-        "plots": data["plots"],
-        "zip": data["zip"],
-        "report": data["report"],
-    }
-    with analysis.station_file.open("rb") as handle:
-        job = create_job(
-            request, "station", params, {STATION_FILE: File(handle)}, title=analysis.station_name
-        )
-    analysis.indices_job = job
+    index = request.GET.get("index", "")[:INDEX_KEY_MAX]
+    if request.method != "POST":
+        return redirect(adjust_url(analysis, index))
+    form = IndexParamsForm(request.POST, station_title=station_title(analysis))
+    if not form.is_valid():
+        return render_results(request, analysis, form)
+    job = calculation.queue_station_run(request, analysis, form)
+    if job is None:
+        return redirect("stations:load", analysis_id=analysis.pk)
     analysis.advance_to(Step.RESULTS)
     analysis.touch()
     analysis.save()
-    return job
+    return redirect(results_url(analysis, form.cleaned_data.get("index", "")[:INDEX_KEY_MAX]))
 
 
 @require_POST
@@ -180,13 +103,13 @@ def indices_validate(request, analysis_id):
     unit = request.POST.get("group", "")
     if unit not in IndexParamsForm.UNITS:
         return HttpResponseBadRequest()
-    form = IndexParamsForm(request.POST, station_title=_station_title(analysis))
+    form = IndexParamsForm(request.POST, station_title=station_title(analysis))
     form.is_valid()
     context = {"form": form, "group": unit, "analysis": analysis}
     return render(request, "stations/_indices_unit.html", context)
 
 
-# ---- step 4: progress and the dashboard -------------------------------------------------
+# ---- progress and the dashboard ----------------------------------------------------------
 
 PHASES = ("read", "qc", "homogeneity", "indices", "write", "plots", "report", "zip")
 
@@ -222,18 +145,47 @@ def phases(job: Job) -> list[dict]:
     return out
 
 
-def results_url(analysis, index: str = "") -> str:
-    url = reverse("stations:results", args=[analysis.pk])
-    return url + ("?" + urlencode({"index": index}) if index else "")
+def replaced_job(analysis: StationAnalysis, job: Job) -> Job | None:
+    """The finished run a recalculation replaces, while it is still kept (#178)."""
+    job_id = (job.params or {}).get(calculation.REPLACES)
+    if not job_id:
+        return None
+    return Job.objects.filter(
+        pk=job_id, owner=analysis.owner, kind="station", status=Status.SUCCEEDED
+    ).first()
+
+
+def restore_if_cancelled(analysis: StationAnalysis) -> None:
+    """A cancelled recalculation leaves the results it would have replaced in place."""
+    job = analysis.indices_job
+    if job is not None and job.status == Status.CANCELLED:
+        replaced = replaced_job(analysis, job)
+        if replaced is not None:
+            analysis.indices_job = replaced
+            analysis.save(update_fields=["indices_job"])
+
+
+def committed(analysis: StationAnalysis) -> bool:
+    """Whether the user has chosen to use the data ("Use this data"), or opened the
+    station from a batch's results. Before that, a run (the speculative one, #178) is not
+    shown anywhere, Files included."""
+    return analysis.reached(Step.INDICES) or bool(analysis.origin)
 
 
 def current_source(analysis: StationAnalysis):
-    """(job, RunSource or None): the analysis's own calculation, else its batch's."""
+    """(job, RunSource or None): the analysis's own calculation (while a recalculation
+    runs, the finished run it replaces), else its batch's; (None, None) before the user
+    has chosen to use the data."""
+    if not committed(analysis):
+        return None, None
     job = analysis.indices_job
     if job is not None:
-        if job.status != Status.SUCCEEDED:
-            return job, None
-        return job, results_model.run_source(job)
+        if job.status == Status.SUCCEEDED:
+            return job, results_model.run_source(job)
+        replaced = replaced_job(analysis, job)
+        if replaced is not None:
+            return replaced, results_model.run_source(replaced)
+        return job, None
     bjob = batch_job(analysis)
     if bjob is not None:
         return bjob, results_model.run_source(bjob, analysis.origin.get("station"))
@@ -246,36 +198,69 @@ def load_results(analysis, source):
     )
 
 
+def settings_context(request, analysis, form=None) -> dict:
+    """The "Adjust and recalculate" form: the settings of the results shown (or of the run
+    in progress), open when asked for (``?settings=open``) or when it has errors."""
+    previous = previous_params(analysis)
+    if form is None:
+        back = request.GET.get("back", "")[:INDEX_KEY_MAX]
+        form = calculation.settings_form(analysis, previous, index=back)
+    return {
+        "form": form,
+        "settings_source": previous[5],
+        "open_settings": form.is_bound or request.GET.get("settings") == "open",
+    }
+
+
 @never_cache
 @require_safe
 def results(request, analysis_id):
-    """Step 4: the calculation's progress, then every index as a card."""
+    """Results: the calculation's progress, then every index as a card."""
     analysis = get_analysis(request, analysis_id)
+    if not committed(analysis):
+        # Not before "Use this data": the run may be going on behind the quality checks.
+        target = "stations:qc" if step_two_ready(analysis) else "stations:load"
+        return redirect(target, analysis_id=analysis.pk)
+    return render_results(request, analysis)
+
+
+def render_results(request, analysis, form=None):
+    """The results page: the dashboard, with a recalculation's progress above it, or the
+    progress of the first run, or (with ``form``) the settings' errors."""
+    restore_if_cancelled(analysis)
     job, source = current_source(analysis)
-    if job is None:
-        return redirect("stations:indices", analysis_id=analysis.pk)
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
     context = {
         "analysis": analysis,
         "job": job,
         "steps": station_steps("results", analysis.step_urls()),
         "index": index,
+        **settings_context(request, analysis, form),
     }
-    if source is None:
-        if job.status == Status.SUCCEEDED:  # finished, but without index tables
+    if job is None or source is None:
+        if job is None:  # nothing calculated: the run was refused, say, or cancelled
+            context["no_run"] = True
+        elif job.status == Status.SUCCEEDED:  # finished, but without index tables
             context["missing_outputs"] = True
         else:
             context.update(progress_context(request, job))
             context["phases"] = phases(job)
         return render(request, "stations/results_progress.html", context)
     run = load_results(analysis, source)
-    if index:
+    running = analysis.indices_job
+    if running == job:
+        running = None
+    # ?index= opens that index; while a recalculation runs the page stays here, under its
+    # progress, which opens the index once the new results are ready.
+    if index and form is None and (running is None or running.is_finished):
         card = run.find(index)
         if card is not None:
             return redirect("stations:result", analysis_id=analysis.pk, key=card.key)
     if not analysis.reached(Step.RESULTS):
         analysis.advance_to(Step.RESULTS)
         analysis.save(update_fields=["step"])
+    if running is not None:  # a recalculation, under way or failed
+        context["recalculation"] = {**progress_context(request, running), "phases": phases(running)}
     context.update(dashboard_context(request, analysis, source, run))
     return render(request, "stations/results.html", context)
 
@@ -284,7 +269,8 @@ def results(request, analysis_id):
 @require_safe
 def results_progress(request, analysis_id):
     """htmx: the progress fragment. Once the job has finished the page is reloaded (or the
-    index the user came from opens), with ``HX-Redirect``."""
+    index the user came from opens), with ``HX-Redirect``; so it is when a recalculation is
+    cancelled, to show the results it would have replaced."""
     analysis = get_analysis(request, analysis_id)
     job = analysis.indices_job
     if job is None:
@@ -294,20 +280,21 @@ def results_progress(request, analysis_id):
 
         if reap_stale():
             job.refresh_from_db()
-    if job.status == Status.SUCCEEDED:
+    index = request.GET.get("index", "")[:INDEX_KEY_MAX]
+    cancelled_recalculation = job.status == Status.CANCELLED and replaced_job(analysis, job)
+    if job.status == Status.SUCCEEDED or cancelled_recalculation:
         response = HttpResponse(status=204)
-        response["HX-Redirect"] = results_url(
-            analysis, request.GET.get("index", "")[:INDEX_KEY_MAX]
-        )
+        response["HX-Redirect"] = results_url(analysis, index)
         return response
     context = {**progress_context(request, job), "analysis": analysis, "phases": phases(job)}
-    context["index"] = request.GET.get("index", "")[:INDEX_KEY_MAX]
+    context["index"] = index
     return render(request, "stations/_results_progress.html", context)
 
 
-def params_summary(source) -> list[dict]:
-    """The parameters the run used, for the dashboard."""
-    p = source.params
+def params_summary(params) -> list[dict]:
+    """The settings a run used (an :class:`~climpact.config.IndexParams`), each with
+    whether it differs from Climpact's default."""
+    from climpact.config import IndexParams
 
     def days(n):
         return ngettext("%(n)s day", "%(n)s days", n) % {"n": n}
@@ -318,29 +305,41 @@ def params_summary(source) -> list[dict]:
     def unit(value, symbol):
         return f"{value:g} {symbol}"
 
+    def custom_text(custom):
+        if custom is None:
+            return _("none")
+        return f"{custom.variable} {custom.operator} {custom.threshold:g} ({custom.name})"
+
+    default = IndexParams()
     rows = [
-        (_("Days for WSDId"), days(p.wsdi_days)),
-        (_("Days for CSDId"), days(p.csdi_days)),
-        (_("Days for Rxdday"), days(p.rx_days)),
-        (_("Days for TXdTNd and TXbdTNbd"), days(p.txtn_days)),
-        (_("Base temperature for HDDheat"), unit(p.hdd_base, "°C")),
-        (_("Base temperature for CDDcold"), unit(p.cdd_base, "°C")),
-        (_("Base temperature for GDDgrow"), unit(p.gdd_base, "°C")),
-        (_("Precipitation amount for Rnnmm"), unit(p.rnnmm, _("mm"))),
-        (_("Extra SPI and SPEI time scale"), months(p.spei_months)),
+        ("wsdi_days", _("Days for WSDId"), days),
+        ("csdi_days", _("Days for CSDId"), days),
+        ("rx_days", _("Days for Rxdday"), days),
+        ("txtn_days", _("Days for TXdTNd and TXbdTNbd"), days),
+        ("hdd_base", _("Base temperature for HDDheat"), lambda v: unit(v, "°C")),
+        ("cdd_base", _("Base temperature for CDDcold"), lambda v: unit(v, "°C")),
+        ("gdd_base", _("Base temperature for GDDgrow"), lambda v: unit(v, "°C")),
+        ("rnnmm", _("Precipitation amount for Rnnmm"), lambda v: unit(v, _("mm"))),
+        ("spei_months", _("Extra SPI and SPEI time scale"), months),
+        ("custom", _("Custom threshold index"), custom_text),
     ]
-    out = [{"label": label, "value": value} for label, value in rows]
-    custom = p.custom
-    out.append(
+    return [
         {
-            "label": _("Custom threshold index"),
-            "value": f"{custom.variable} {custom.operator} {custom.threshold:g} ({custom.name})"
-            if custom
-            else _("none"),
-            "unit": "",
+            "label": label,
+            "value": text(getattr(params, name)),
+            "changed": getattr(params, name) != getattr(default, name),
         }
-    )
-    return out
+        for name, label, text in rows
+    ]
+
+
+def settings_line(params) -> str:
+    """The settings in one sentence, for the results' header (#178): the defaults, or the
+    settings that differ from them."""
+    changed = [f"{p['label']} {p['value']}" for p in params_summary(params) if p["changed"]]
+    if not changed:
+        return _("Climpact's default settings.")
+    return _("Settings changed: %(settings)s.") % {"settings": ", ".join(changed)}
 
 
 def downloads(source) -> dict:
@@ -391,7 +390,7 @@ def dashboard_context(request, analysis, source, run) -> dict:
         "shown": shown,
         "total": len(run.cards),
         "significant_count": sum(1 for c in run.cards if c.significant),
-        "params": params_summary(source),
+        "settings_line": settings_line(source.params),
         "downloads": downloads(source),
         "from_batch": source.from_batch and analysis.indices_job is None,
     }
@@ -461,8 +460,6 @@ def result(request, analysis_id, key):
     own (PNG, SVG, CSV); every other file is in Files (#176)."""
     analysis = get_analysis(request, analysis_id)
     job, source = current_source(analysis)
-    if job is None:
-        return redirect("stations:indices", analysis_id=analysis.pk)
     if source is None:
         return redirect("stations:results", analysis_id=analysis.pk)
     run = load_results(analysis, source)

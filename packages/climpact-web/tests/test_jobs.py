@@ -119,8 +119,9 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     from climpact.batch import run_station  # noqa: F401  (imported once, outside the timing)
     from climpact.modules import pipeline_stages, resolve
 
-    # Step 1 (#76) loads the file and metadata; step 2 (#77) runs the quality checks; the
-    # step 3 placeholder queues the run.
+    # Step 1 (#76) loads the file and metadata, which queues the quality checks (#77) and a
+    # speculative run with the default settings (#178); "Use this data" opens the results,
+    # and "Adjust and recalculate" there queues the run this test follows.
     response = client.post(
         "/station/",
         {"station_file": SimpleUploadedFile("my_station.txt", station_text().encode())},
@@ -132,15 +133,19 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     assert response.status_code == 302
     qc_job = Job.objects.get(kind="qc")
     assert run_job(claim("w0"), None).status == Status.SUCCEEDED
+    speculative = Job.objects.get(kind="station")
+    assert speculative.is_speculative
     response = client.post(load_url.replace("/load", "/quality/continue"))
     page = client.get(response["Location"]).content.decode()
-    assert "Calculate indices" in page
+    assert "Calculating indices" in page and "Adjust and recalculate" in page
     from test_indices_results import defaults
 
     run_url = load_url.replace("/load", "/indices")
     response = client.post(run_url, {**defaults(), "plots": ""})
     assert response.status_code == 302
-    job = Job.objects.exclude(pk=qc_job.pk).get()
+    speculative.refresh_from_db()
+    assert speculative.status == Status.CANCELLED  # replaced before it started
+    job = Job.objects.exclude(pk__in=[qc_job.pk, speculative.pk]).get()
     assert response["Location"] == load_url.replace("/load", "/results")
     response = client.get(f"/jobs/{job.pk}/")
     assert (job.status, job.kind, job.title) == (Status.QUEUED, "station", "Testville")
@@ -634,3 +639,47 @@ def test_worker_purges_on_its_schedule():
     JobWorker(name="w", once=True).run()
     assert not Job.objects.exists()
     assert not Worker.objects.exists()  # removed when the worker stops
+
+
+# ---- Speculative runs (#178) ---------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_your_calculations_leave_out_cancelled_speculative_runs():
+    """A speculative run cancelled because the data changed was never asked for: it is not
+    listed. Everything else is, cancelled ordinary jobs and running speculative ones too."""
+    replaced = make_job(title="replaced", params={"speculative": True}, status=Status.CANCELLED)
+    running = make_job(title="running", params={"speculative": True}, status=Status.RUNNING)
+    promoted = make_job(title="promoted", params={"speculative": False}, status=Status.CANCELLED)
+    cancelled = make_job(title="cancelled", status=Status.CANCELLED)
+    failed = make_job(title="failed", params={"speculative": True}, status=Status.FAILED)
+    page = owned_client().get("/jobs/").content.decode()
+    listed = set(re.findall(r'href="/jobs/([^/"]+)/"', page))
+    assert listed == {str(j.pk) for j in (running, promoted, cancelled, failed)}
+    assert str(replaced.pk) not in page
+    # Its own page still answers, for a link the user kept.
+    assert owned_client().get(f"/jobs/{replaced.pk}/").status_code == 200
+
+
+@pytest.mark.django_db
+def test_claim_takes_speculative_runs_last():
+    speculative = make_job(params={"speculative": True})
+    ordinary = make_job()
+    promoted = make_job(params={"speculative": False})
+    assert claim("w") == ordinary
+    assert claim("w") == promoted
+    assert claim("w") == speculative
+    assert claim("w") is None
+
+
+@pytest.mark.django_db
+def test_promote_makes_a_speculative_run_ordinary(rf):
+    from climpact_web.jobs.views import promote
+
+    job = make_job(params={"speculative": True, "plots": True})
+    assert job.is_speculative
+    promote(rf.post("/"), job)
+    job.refresh_from_db()
+    assert not job.is_speculative and job.params == {"speculative": False, "plots": True}
+    promote(rf.post("/"), job)  # an ordinary job is left alone
+    assert not job.is_speculative

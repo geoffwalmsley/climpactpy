@@ -2,7 +2,9 @@
 The indices job's progress, polled by htmx while it is queued or running
 (stations:results_progress, outerHTML swap). When the job succeeds the view answers with
 HX-Redirect to the dashboard (or the index the user came from), so the fragment never
-shows a finished run. Built from the progress and stages components.
+shows a finished run; so does a cancelled recalculation (#178), whose page shows the
+results it would have replaced. Built from the progress and stages components. Shown on
+the progress page, and above the results while a recalculation runs.
 Parameters: job, analysis, phases, index, and jobs.views.progress_context.
 {% endcomment %}
 <div id="results-progress" class="stack" data-status="{{ job.status }}"
@@ -60,8 +62,8 @@ Parameters: job, analysis, phases, index, and jobs.views.progress_context.
       {% include "components/button.html" with label=retry_label type="submit" icon="refresh" %}
     </form>
     {% endif %}
-    {% url 'stations:indices' analysis.pk as indices_url %}{% translate "Change the settings" as change_label %}
-    {% include "components/button.html" with label=change_label href=indices_url variant="secondary" icon="sliders" %}
+    {% url 'stations:results' analysis.pk as results_url %}{% translate "Adjust the settings" as change_label %}
+    {% include "components/button.html" with label=change_label href=results_url|add:"?settings=open#adjust" variant="secondary" icon="sliders" %}
   </div>
   {% endif %}
 </div>

@@ -132,7 +132,7 @@ def sector(request, analysis_id):
     indices_job, source = current_source(analysis)
     context = {
         "analysis": analysis,
-        **workspace.context(analysis, "results"),
+        **workspace.context(analysis, "results", request.path),
         "indices_job": indices_job,
         # The comparison uses the results shown, out of date after a change (#179).
         "stale": source is not None and bool(workspace.run_changes(analysis, indices_job)),

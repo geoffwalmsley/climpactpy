@@ -4,6 +4,10 @@
 {% block content %}
 <div class="stack stack--xl station-page">
   {% include "stations/_workspace.html" with heading=True %}
+  {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
+  <div class="workspace">
+  {% include "stations/_inputs.html" %}
+  <div class="workspace__main stack stack--xl">
   <p class="lead">{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating the indices." %}{% else %}{% translate "The indices are not calculated yet." %}{% endif %}</p>
   {% if no_run or missing_outputs %}
   {% comment %}Nothing to show: the run was refused or cancelled before it started, or it wrote
@@ -21,5 +25,8 @@
   <p class="text-sm text-text-muted">{% translate "You can leave this page. The calculation carries on, and this address shows the results when it has finished." %}</p>
   {% include "stations/_settings_form.html" %}
   {% endif %}
+  </div>
+  </div>
 </div>
+{% include "stations/_input_sheets.html" %}
 {% endblock %}

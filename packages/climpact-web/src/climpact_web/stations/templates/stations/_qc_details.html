@@ -47,6 +47,5 @@ Context from views.qc_context.
       {% include "stations/_qc_upload.html" with variant="secondary" %}
     </section>
     {% endif %}
-    <p class="text-sm"><a href="{% url 'stations:load' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the station details or the base period" %}</a></p>
   </div>
 </details>

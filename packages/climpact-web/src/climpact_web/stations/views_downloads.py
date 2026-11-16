@@ -36,7 +36,7 @@ def downloads(request, analysis_id):
         "job": job,
         "source": source,
         "quality": quality,
-        **workspace.context(analysis, "files"),
+        **workspace.context(analysis, "files", request.path),
         # Files of out-of-date checks or results (#179) are still listed, with a note.
         "stale_results": source is not None and bool(workspace.run_changes(analysis, job)),
         "stale_quality": bool(workspace.qc_changes(analysis, workspace.shown_qc(analysis))),

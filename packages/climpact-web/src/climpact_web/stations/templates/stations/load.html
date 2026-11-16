@@ -41,7 +41,7 @@
     </form>
   </section>
 
-  {% include "stations/_summary.html" %}
+  {% include "stations/_summary.html" with replace=True %}
 
   {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">

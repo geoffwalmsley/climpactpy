@@ -1,8 +1,10 @@
 """The station workspace (#179): what each section shows, and whether it is out of date.
 
-A station's pages are four sections, Data, Quality, Results and Files, shown as tabs under
-the station's name. A change to an input no longer resets the later sections. Each job
-records the inputs it was produced from when it is queued (``Job.inputs``):
+A station's pages are three sections, Quality, Results and Files, shown as tabs under the
+station's name, beside the Inputs panel (#198), which lists what the user gave and opens
+each in a side sheet to change it (:func:`inputs_panel`). A change to an input no longer
+resets the later sections. Each job records the inputs it was produced from when it is
+queued (``Job.inputs``):
 
 ``file``      the SHA-256 of the station file (``StationAnalysis.file_hash``)
 ``metadata``  the station details: name, latitude, longitude and base period
@@ -246,7 +248,7 @@ def settle(analysis: StationAnalysis) -> None:
 
 
 def details_valid(analysis: StationAnalysis) -> bool:
-    """Whether the saved station details are complete and fit the data (Data's form)."""
+    """Whether the saved station details are complete and fit the data."""
     from climpact_web.stations.forms import MetadataForm
 
     if not analysis.metadata_complete:
@@ -305,7 +307,6 @@ STATES = {
 }
 
 SECTIONS = (
-    ("data", gettext_lazy("Data"), "stations:load"),
     ("quality", gettext_lazy("Quality"), "stations:qc"),
     ("results", gettext_lazy("Results"), "stations:results"),
     ("files", gettext_lazy("Files"), "stations:downloads"),
@@ -341,11 +342,6 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
     running, todo (not started) or locked (its input does not exist yet)."""
     states = {}
-    if not analysis.reached(Step.QC):
-        states["data"] = "todo"
-    else:
-        states["data"] = "done" if details_valid(analysis) else "attention"
-
     qc_job, qc_shown = analysis.qc_job, shown_qc(analysis)
     qc_ready = (
         analysis.reached(Step.QC) and analysis.metadata_complete and analysis.station_file.is_file()
@@ -387,8 +383,8 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
 
 
 def sections(analysis: StationAnalysis, current: str) -> list[Section]:
-    """The tabs, with ``current`` marked: Data, Quality, Results and Files, each with its
-    state and its address (none while it is locked)."""
+    """The tabs, with ``current`` marked: Quality, Results and Files, each with its state
+    and its address (none while it is locked)."""
     states = section_states(analysis)
     out = []
     for key, label, url_name in SECTIONS:
@@ -402,13 +398,186 @@ def home_url(analysis: StationAnalysis) -> str:
     """The workspace's own address leads to the furthest section it has reached."""
     if committed(analysis):
         name = "stations:results"
-    elif analysis.reached(Step.QC) and analysis.metadata_complete:
+    elif set_up(analysis):
         name = "stations:qc"
     else:
         name = "stations:load"
     return reverse(name, args=[analysis.pk])
 
 
-def context(analysis: StationAnalysis, current: str) -> dict:
-    """The workspace header's context: ``workspace_tabs`` and ``workspace_current``."""
-    return {"workspace_tabs": sections(analysis, current), "workspace_current": current}
+def set_up(analysis: StationAnalysis) -> bool:
+    """Whether the first visit's details are done (#198): the details confirmed, complete
+    and fitting the data, so the sections and the Inputs panel show. Until then the
+    station's address leads to the details page (``stations:load``)."""
+    return analysis.reached(Step.QC) and analysis.station_file.is_file() and details_valid(analysis)
+
+
+def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
+    """The workspace's context: the header's ``workspace_tabs`` and ``workspace_current``,
+    and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
+    once the station is set up. ``path`` is the page's address, where an edit returns."""
+    out = {"workspace_tabs": sections(analysis, current), "workspace_current": current}
+    if current != "setup" and set_up(analysis):
+        from climpact_web.stations.views import sheet_context
+
+        out.update(inputs_panel(analysis, path))
+        out["input_sheets"] = [sheet_context(analysis, key) for key in SHEETS]
+    return out
+
+
+# ---- the Inputs panel (#198) -------------------------------------------------------------
+
+# The panel's inputs: each with the names of :func:`differences` it covers. The file,
+# station and base period are edited in a side sheet (``stations:edit_input``); the
+# thresholds and index settings, until #199, where they are edited now.
+PANEL_INPUTS = (
+    ("file", gettext_lazy("File"), ("file",)),
+    ("station", gettext_lazy("Station"), ("name", "location")),
+    ("base-period", gettext_lazy("Base period"), ("base_period",)),
+    ("thresholds", gettext_lazy("Quality thresholds"), ("qc",)),
+    ("settings", gettext_lazy("Index settings"), ("settings",)),
+)
+SHEETS = ("file", "station", "base-period")
+
+
+def affected(names) -> list[str]:
+    """The sections a change to the inputs ``names`` updates: Quality if the checks depend on
+    one of them, Results if the run does, and Files with either."""
+    out = []
+    if any(n in QC_INPUTS for n in names):
+        out.append("quality")
+    if any(n in RUN_INPUTS for n in names):
+        out.append("results")
+    if out:
+        out.append("files")
+    return out
+
+
+def impact_sentence(names) -> str:
+    """What applying a change to ``names`` updates, in words, from :func:`affected`."""
+    sections_ = affected(names)
+    if "quality" in sections_ and "results" in sections_:
+        return _("Updates Quality, Results and Files.")
+    if "results" in sections_:
+        return _("Updates Results and Files. Quality stays as it is.")
+    return _("Updates Quality and Files. Results stay as they are.")
+
+
+def impact(key: str) -> list[str]:
+    """What the sheet of input ``key`` says applying will update (#198)."""
+    names = dict((k, n) for k, _label, n in PANEL_INPUTS)[key]
+    if key == "station":
+        sentences = [
+            impact_sentence(("location",)),
+            _("A new station name updates Quality too, as its files are named after it."),
+        ]
+    else:
+        sentences = [impact_sentence(names)]
+    if key == "file":
+        sentences.append(_("The station details and thresholds are kept."))
+    sentences.append(_("What is shown now stays until its replacement is ready."))
+    return sentences
+
+
+def changed_inputs(analysis: StationAnalysis) -> set[str]:
+    """The inputs (names of :func:`differences`) changed since the checks or the results
+    shown were produced: the panel highlights them."""
+    names = set(qc_changes(analysis, shown_qc(analysis)))
+    names.update(run_changes(analysis, shown_run(analysis)))
+    return names
+
+
+def settings_are_defaults(analysis: StationAnalysis) -> bool:
+    """Whether the latest run asked for (or the batch's) uses the default index settings.
+    From the settings form's defaults, without importing the core."""
+    from climpact_web.stations.calculation import previous_params
+    from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
+
+    params = previous_params(analysis)[0]
+    fields = IndexParamsForm.base_fields
+    for name in PARAM_FIELDS:
+        if name in params and params[name] != fields[name].initial:
+            return False
+    default_custom = {
+        key: fields[f"custom_{key}"].initial for key in ("variable", "operator", "threshold")
+    }
+    return "custom" not in params or params["custom"] == default_custom
+
+
+@dataclass
+class PanelInput:
+    key: str
+    label: str
+    value: str
+    edit_url: str
+    edit_label: str
+    sheet: bool  # edited in a side sheet; else a link to where it is edited (#199)
+    changed: bool
+
+
+@dataclass
+class PanelRun:
+    key: str  # "qc" or "run"
+    label: str
+    job: Job
+
+
+def _with_next(url: str, path: str) -> str:
+    from django.utils.http import urlencode
+
+    return f"{url}?{urlencode({'next': path})}" if path else url
+
+
+def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
+    """The Inputs panel (#198): each input with its value, its edit link and whether it
+    changed since what is shown; the checks and run under way for the new inputs; and the
+    sheets' forms (``stations/_input_sheets.html``)."""
+    from django.utils.formats import number_format
+
+    from climpact_web.stations.forms import QC_DEFAULTS
+
+    summary = analysis.summary or {}
+    days = summary.get("days") or 0
+    count = len(summary.get("variables") or [])
+    changed = changed_inputs(analysis)
+    pk = analysis.pk
+    values = {
+        "file": _("%(days)s days · %(count)s variables")
+        % {"days": number_format(days, force_grouping=True), "count": count},
+        "station": f"{analysis.latitude:g}°, {analysis.longitude:g}°",
+        "base-period": f"{analysis.base_start}–{analysis.base_end}",
+        "thresholds": _("Defaults") if qc_values(analysis) == QC_DEFAULTS else _("Changed"),
+        "settings": _("Defaults") if settings_are_defaults(analysis) else _("Changed"),
+    }
+    results_url = reverse("stations:results", args=[pk])
+    links = {
+        "thresholds": reverse("stations:qc", args=[pk]) + "#thresholds",
+        "settings": results_url + "?settings=open#adjust",
+    }
+    items = []
+    for key, label, names in PANEL_INPUTS:
+        sheet = key in SHEETS
+        if sheet:
+            url = _with_next(reverse("stations:edit_input", args=[pk, key]), path)
+        elif key == "settings" and not committed(analysis):
+            url = ""  # the settings are changed on Results, once the data is in use
+        else:
+            url = links[key]
+        items.append(
+            PanelInput(
+                key=key,
+                label=str(label),
+                value=values[key],
+                edit_url=url,
+                edit_label=_("Replace") if key == "file" else _("Edit"),
+                sheet=sheet,
+                changed=bool(changed.intersection(names)),
+            )
+        )
+    runs = []
+    if _active(analysis.qc_job):
+        runs.append(PanelRun("qc", _("Checking quality"), analysis.qc_job))
+    if committed(analysis) and _active(analysis.indices_job):
+        label = _("Recalculating") if shown_run(analysis) else _("Calculating the indices")
+        runs.append(PanelRun("run", label, analysis.indices_job))
+    return {"inputs": items, "input_runs": runs, "input_next": path}

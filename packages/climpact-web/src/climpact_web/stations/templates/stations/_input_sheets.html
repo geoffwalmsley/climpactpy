@@ -1,0 +1,19 @@
+{% load i18n ui %}{% comment %}
+The Inputs panel's side sheets (#198): one modal <dialog> per input edited here, opened by
+its Edit link (js/sheet.js; without JavaScript the link is the form's own page). Modal,
+unlike the help drawer: the form is being edited, so the page behind is inert and focus
+stays in the sheet until Apply, Cancel, the close button, Escape or a click on the
+backdrop (DESIGN.md, "Components"). Closing discards what was typed.
+Context: analysis, input_sheets (views.sheet_context each), input_next.
+{% endcomment %}
+{% for sheet in input_sheets %}
+<dialog class="sheet" id="sheet-{{ sheet.key }}" aria-labelledby="sheet-{{ sheet.key }}-title" data-sheet>
+  <div class="sheet__panel">
+    <div class="sheet__header">
+      <h2 class="sheet__title" id="sheet-{{ sheet.key }}-title">{{ sheet.title }}</h2>
+      <button type="button" class="button button--ghost button--sm button--icon" data-sheet-close>{% icon "close" %}<span class="sr-only">{% translate "Close" %}</span></button>
+    </div>
+    {% include "stations/_input_form.html" with in_sheet=True form_id="sheet-"|add:sheet.key|add:"-form" next=input_next %}
+  </div>
+</dialog>
+{% endfor %}

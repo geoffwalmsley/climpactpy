@@ -7,6 +7,10 @@
   {% comment %}One primary action, the zip, in the workspace header; the Files page is the one
   secondary link (#173, #197). Every other file is listed there, not here (#176).{% endcomment %}
   {% include "stations/_workspace.html" with heading=True actions="stations/_results_actions.html" %}
+  {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
+  <div class="workspace">
+  {% include "stations/_inputs.html" %}
+  <div class="workspace__main stack stack--xl">
   {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
   link to change them in place.{% endcomment %}
   <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{% url 'stations:results' analysis.pk %}?settings=open#adjust">{% translate "Adjust and recalculate" %}</a></p>
@@ -148,5 +152,8 @@
     {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" size="sm" icon_end="arrow-right" %}</p>
   </section>
   <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>
+  </div>
+  </div>
 </div>
+{% include "stations/_input_sheets.html" %}
 {% endblock %}

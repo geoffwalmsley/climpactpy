@@ -1,0 +1,26 @@
+{% load i18n static %}{% comment %}
+The Inputs panel (#198, proposal 1 of docs/design/redesign-proposals.html): everything the
+user gave, each with its value and one link to change it. The file, the station and the
+base period open a side sheet with their form (stations/_input_sheets.html, js/sheet.js);
+without JavaScript the link is a page with the same form (stations:edit_input). The
+thresholds and the index settings link to where they are changed until #199 moves them
+here. An input changed since the checks or results shown were made is highlighted, with
+the word "changed", and the run of the new inputs shows its progress beneath the list.
+Nothing until the station is set up (the first visit's details).
+Context: analysis, inputs, input_runs (stations.workspace.inputs_panel).
+{% endcomment %}{% if inputs %}
+<aside class="inputs-panel" aria-labelledby="inputs-title" data-inputs-panel>
+  <h2 class="group-label" id="inputs-title">{% translate "Your inputs" %}</h2>
+  <dl class="inputs-panel__list">
+    {% for item in inputs %}
+    <div class="inputs-panel__item{% if item.changed %} inputs-panel__item--changed{% endif %}" data-input="{{ item.key }}"{% if item.changed %} data-changed{% endif %}>
+      <dt class="inputs-panel__label">{% if item.changed %}{% blocktranslate with label=item.label %}{{ label }} · changed{% endblocktranslate %}{% else %}{{ item.label }}{% endif %}</dt>
+      <dd class="inputs-panel__value">{{ item.value }}</dd>
+      {% if item.edit_url %}<dd class="inputs-panel__edit"><a href="{{ item.edit_url }}"{% if item.sheet %} data-sheet-open="sheet-{{ item.key }}" aria-haspopup="dialog"{% endif %}>{{ item.edit_label }}<span class="sr-only"> {{ item.label|lower }}</span></a></dd>{% endif %}
+    </div>
+    {% endfor %}
+  </dl>
+  {% include "stations/_input_runs.html" %}
+  <script src="{% static 'climpact_web/js/sheet.js' %}" defer></script>
+</aside>
+{% endif %}

@@ -74,6 +74,7 @@
 @import "./components/help.css";
 @import "./components/stations.css";
 @import "./components/workspace.css";
+@import "./components/inputs.css";
 @import "./components/batch.css";
 @import "./components/patterns.css";
 @import "./components/sector.css";

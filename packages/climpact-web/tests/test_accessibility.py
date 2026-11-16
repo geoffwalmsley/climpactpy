@@ -40,7 +40,7 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin, urlparse
 
 import pytest
 from browser import Chrome, DevToolsError, find_chrome
@@ -237,7 +237,10 @@ def site(chrome, server):
 
     pages["station details, errors"] = metadata_errors
 
-    c.navigate(load)
+    # The rest on a second sample, so the first stays on its details page: once they are
+    # confirmed, its address leads to Quality (#198).
+    c.navigate(open_url("/station/"))
+    submit(c, "form[action$='/station/sample']")
     submit(c, "form.form[action$='/load']")
     heard = while_running(c, "station quality checks")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
@@ -269,6 +272,12 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('[data-results-filter]')"
              " && !document.querySelector('[data-stale-banner], .recalculation')",
              what="the station run", heard=heard)  # fmt: skip
+    # An input's form on its own page, as without JavaScript (#198).
+    pages["station edit, base period"] = (
+        results.replace("/results", "/inputs/base-period")
+        + "?next="
+        + quote(urlparse(results).path)
+    )
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
     pages["station downloads"] = results.replace("/results", "/downloads")
@@ -282,11 +291,11 @@ def site(chrome, server):
     pages["station sector results"] = sector
 
     # Out of date (#179), on a second sample station so the pages above keep their state:
-    # a new base period on Data, its run's progress over the old results, then that run
-    # cancelled, which leaves the old results out of date under "Recalculate".
+    # a new base period in the Inputs panel's sheet (#198), its run's progress over the old
+    # results, then that run cancelled, which leaves the old results out of date under
+    # "Recalculate".
     c.navigate(open_url("/station/"))
     submit(c, "form[action$='/station/sample']")
-    second = here(c)
     submit(c, "form.form[action$='/load']")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the second station's checks")  # fmt: skip
@@ -294,10 +303,10 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('[data-results-filter]')"
              " && !document.querySelector('[data-stale-banner]')",
              what="the second station's run")  # fmt: skip
-    c.navigate(second)
-    c.evaluate("document.querySelector('[name=base_start]').value = '1981';"
-               "document.querySelector('[name=base_end]').value = '2010'")  # fmt: skip
-    submit(c, "form.form[action$='/load']")
+    c.evaluate("document.querySelector('[data-sheet-open=\"sheet-base-period\"]').click();"
+               "var f = document.getElementById('sheet-base-period-form');"
+               "f.base_start.value = '1981'; f.base_end.value = '2010'")  # fmt: skip
+    submit(c, "#sheet-base-period-form")
     while_running(c, "station results, updating")
     submit(c, "[data-stale-banner] form[action$='/cancel']")
     wait_for(c, "!!document.querySelector('[data-stale-banner] input[name=recalculate]')",
@@ -789,12 +798,12 @@ def test_workspace_tabs_by_keyboard(chrome, site):
         " t.textContent.replace(/\\s+/g, ' ').trim(), t.getAttribute('aria-current')] })"
     )
     found = c.evaluate(tabs)
-    assert [t[0] for t in found] == ["data", "quality", "results", "files"]
+    assert [t[0] for t in found] == ["quality", "results", "files"]
     assert all(t[1] == "A" for t in found)
-    assert found[2][2] == "Results Out of date" and found[2][3] == "page"
-    assert found[0][2] == "Data Done" and found[3][2] == "Files Out of date"
-    focus(c, "[data-tab=data]")
-    for key in ("quality", "results", "files"):
+    assert found[1][2] == "Results Out of date" and found[1][3] == "page"
+    assert found[0][2] == "Quality Done" and found[2][2] == "Files Out of date"
+    focus(c, "[data-tab=quality]")
+    for key in ("results", "files"):
         c.press("Tab")
         assert c.evaluate("document.activeElement.dataset.tab") == key
     c.press("Tab", shift=True)
@@ -806,13 +815,13 @@ def test_workspace_tabs_by_keyboard(chrome, site):
     assert c.evaluate("document.querySelector('[aria-current=page][data-tab]').dataset.tab") == (
         "quality"
     )
-    # The first visit (the pattern library's example): only Data is a link.
+    # The first visit (the pattern library's example): only Quality is a link.
     c.navigate(site["pattern library"])
     first = "nav[aria-label='Example: the first visit']"
     assert c.evaluate(
         f"Array.prototype.map.call(document.querySelectorAll({json.dumps(first + ' [data-tab]')}),"
         " function (t) { return t.tagName + ':' + t.tabIndex })"
-    ) == ["A:0", "SPAN:-1", "SPAN:-1", "SPAN:-1"]
+    ) == ["A:0", "SPAN:-1", "SPAN:-1"]
 
 
 def test_dialog_by_keyboard(chrome, site):
@@ -835,6 +844,63 @@ def test_dialog_by_keyboard(chrome, site):
     time.sleep(0.1)
     assert not c.evaluate("!!document.querySelector('dialog[open]')")
     assert c.evaluate(f"document.activeElement === document.querySelector('{opener}')")
+
+
+def test_input_sheet_by_keyboard(chrome, site):
+    """#198: Tab reaches the Inputs panel's Edit, Enter opens its sheet, a modal dialog
+    with focus on the form's first field; Tab stays inside it; Escape closes it, discards
+    what was typed and gives focus back to the Edit. No axe violation with the sheet
+    open, in light and dark and at 320 px, where it fills the width without scrolling
+    the page sideways."""
+    c = chrome
+    c.viewport(1280, 900)
+    try:
+        c.navigate(site["station results"])
+        edit = "[data-sheet-open='sheet-base-period']"
+        c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+        for _ in range(80):
+            c.press("Tab")
+            if c.evaluate(f"document.activeElement.matches({json.dumps(edit)})"):
+                break
+        else:
+            raise AssertionError("Tab never reached the base period's Edit")
+        start = c.evaluate("document.querySelector('[name=base_start]').value")
+        c.press("Enter")
+        time.sleep(0.1)
+        sheet = "document.getElementById('sheet-base-period')"
+        assert c.evaluate(f"{sheet}.open && {sheet}.matches(':modal')")
+        assert c.evaluate("document.activeElement.name") == "base_start"
+        c.evaluate("document.activeElement.value = '1990'")
+        inside = f"{sheet}.contains(document.activeElement)"
+        for _ in range(10):
+            c.press("Tab")
+            assert c.evaluate(inside) or c.evaluate("document.activeElement === document.body"), \
+                "Tab left the open sheet"  # fmt: skip
+        failures = [f"light: {v['id']}" for v in run_axe(c)]
+        c.media(prefers_color_scheme="dark")
+        c.transitions_done()
+        failures += [f"dark: {v['id']}" for v in run_axe(c, ["color-contrast"])]
+        c.media(prefers_color_scheme="light")
+        c.viewport(320, 700)
+        c.settle(0.1)
+        failures += [f"320px: {v['id']}" for v in run_axe(c)]
+        assert not failures, failures
+        assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        assert c.evaluate(f"{sheet}.getBoundingClientRect().width") <= 321
+        c.viewport(1280, 900)
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{sheet}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
+        assert c.evaluate("document.querySelector('[name=base_start]').value") == start
+        # Cancel closes it too; nothing was applied.
+        c.evaluate(f"document.querySelector({json.dumps(edit)}).click()")
+        c.evaluate(f"{sheet}.querySelector('button[data-sheet-close]:not(.button--icon)').click()")
+        assert not c.evaluate(f"{sheet}.open")
+        assert c.evaluate("location.pathname").endswith("/results")
+    finally:
+        c.media(prefers_color_scheme="light")
+        c.viewport(1280, 900)
 
 
 STATION_PAGES = (
@@ -917,9 +983,11 @@ def test_sticky_workspace_header_never_covers_focus(chrome, site):
             c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
             header = "document.querySelector('[data-workspace-header]')"
             assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
+            furthest = 0  # Tab may come back round to the top before the 80th press
             for _ in range(80):
                 c.press("Tab")
                 time.sleep(0.02)
+                furthest = max(furthest, c.evaluate("window.scrollY"))
                 hidden = c.evaluate(
                     f"(function () {{ var h = {header}, a = document.activeElement;"
                     " if (!a || h.contains(a) || a === document.body) return false;"
@@ -931,7 +999,8 @@ def test_sticky_workspace_header_never_covers_focus(chrome, site):
                     name,
                     c.evaluate("document.activeElement.outerHTML.slice(0, 120)"),
                 )
-            assert c.evaluate("window.scrollY") > 300, name  # the page scrolled under it
+            assert furthest > 300, name  # the page scrolled under it
+            c.evaluate("window.scrollTo(0, 400)")
             assert abs(c.evaluate(f"{header}.getBoundingClientRect().top")) <= 1, name
         c.viewport(320, 700)
         assert c.evaluate(f"getComputedStyle({header}).position") == "static"

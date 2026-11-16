@@ -276,3 +276,29 @@ class MetadataForm(forms.Form):
 
     def unit_errors(self, unit: str) -> bool:
         return any(self[name].errors for name in self.UNITS[unit])
+
+
+class MetadataPartForm(MetadataForm):
+    """Part of the station details, for one sheet of the Inputs panel (#198): only the
+    fields of :attr:`FIELDS`, validated as :class:`MetadataForm` validates them."""
+
+    FIELDS: tuple[str, ...] = ()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in list(self.fields):
+            if name not in self.FIELDS:
+                del self.fields[name]
+        self.UNITS = {k: v for k, v in MetadataForm.UNITS.items() if set(v) <= set(self.FIELDS)}
+
+
+class StationForm(MetadataPartForm):
+    """The Station sheet: the station's name, latitude and longitude."""
+
+    FIELDS = ("station_name", "latitude", "longitude")
+
+
+class BasePeriodForm(MetadataPartForm):
+    """The Base period sheet: its first and last years, checked against the data."""
+
+    FIELDS = ("base_start", "base_end")

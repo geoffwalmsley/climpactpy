@@ -131,10 +131,11 @@ def pattern_context(form):
                 },  # fmt: skip
             },
         ],
+        # The Inputs panel and a side sheet (#198).
+        **inputs_demo(),
         # The workspace tabs (#179), one with every status and one as on a first visit.
         "workspace_demo": workspace_demo(
             [
-                ("data", "done"),
                 ("quality", "attention"),
                 ("results", "stale"),
                 ("files", "running"),
@@ -142,8 +143,8 @@ def pattern_context(form):
             "results",
         ),
         "workspace_first": workspace_demo(
-            [("data", "todo"), ("quality", "locked"), ("results", "locked"), ("files", "locked")],
-            "data",
+            [("quality", "todo"), ("results", "locked"), ("files", "locked")],
+            "quality",
         ),
         "stale_changes": [
             _("You changed the base period to %(new)s. These results use %(old)s.")
@@ -255,6 +256,43 @@ def healthz(request):
         },
         status=200 if healthy else 503,
     )
+
+
+def inputs_demo() -> dict:
+    """The Inputs panel (#198) for the pattern library: the inputs of the Sydney sample,
+    its base period changed, and the base period's sheet."""
+    import uuid
+    from types import SimpleNamespace
+
+    from climpact_web.stations import workspace
+    from climpact_web.stations.forms import BasePeriodForm
+    from climpact_web.stations.workspace import PanelInput
+
+    rows = [
+        ("file", _("File"), _("29,220 days · 3 variables"), _("Replace"), True, False),
+        ("station", _("Station"), "-33.86°, 151.21°", _("Edit"), True, False),
+        ("base-period", _("Base period"), "1981–2010", _("Edit"), True, True),
+        ("thresholds", _("Quality thresholds"), _("Defaults"), _("Edit"), False, False),
+        ("settings", _("Index settings"), _("Defaults"), _("Edit"), False, False),
+    ]
+    form = BasePeriodForm({"base_start": 1981, "base_end": 2010})
+    form.is_valid()
+    return {
+        "demo_analysis": SimpleNamespace(pk=uuid.UUID(int=0)),
+        "inputs_demo": [
+            PanelInput(key, str(label), value, "#inputs-panel", str(edit), sheet, changed)
+            for key, label, value, edit, sheet, changed in rows
+        ],
+        "sheet_demo_list": [
+            {
+                "key": "base-period",
+                "title": _("Base period"),
+                "intro": _("The years the percentile indices are compared with."),
+                "form": form,
+                "impact": workspace.impact("base-period"),
+            }
+        ],
+    }
 
 
 def workspace_demo(states, current):

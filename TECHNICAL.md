@@ -2777,7 +2777,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
-      js/qc.js       step 2's results: links the check tables and the daily charts (#77)
+      js/qc.js       step 2's results: links the worklist and the daily charts (#77, #174)
       js/results.js  the results dashboard's filters (#78) and collapsed groups (#113), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
@@ -2810,7 +2810,8 @@ packages/climpact-web/src/climpact_web/
                      warnings) and summarises its data
     forms.py         UploadForm, MetadataForm (step 1), QCParamsForm and QC_DEFAULTS (step 2)
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
-                     station rows, missing data per year, the summary
+                     station rows, missing data per year, the verdict and its limits, the
+                     "look wrong" findings and the "worth a look" groups (#174)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (step 3): every IndexParams field, checked by the core's
                      validate_params; the output name of each parameterised index
@@ -3980,6 +3981,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons; `form_id` (a submit button outside its form) and `describedby` (`aria-describedby`) |
 | `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix, `help` (a help topic id, shown below the input); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
+| `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`) |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
@@ -4043,7 +4045,8 @@ under `forced-colors`.
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
 stylesheets). Tests hold it under 70 KB and 12.5 KB gzipped. `ui.js` is about
-13.5 KB, held under 14 KB (12 KB until #83 added the announcer and focus keeping);
+14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
+14 KB until #174 added the file button);
 `tour.js` (about 6.5 KB) loads on the landing page only, held under 8 KB. Whole-page
 budgets are in [Size budget](#size-budget) (#82).
 
@@ -4507,42 +4510,72 @@ without errors; the user corrects the file outside the app and loads it again.
   checks with these thresholds"), so nothing suggests the checks must be started by hand
   (#114). A failed or cancelled check says so and offers the form again.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
-  user downloads, so every row of every file is on the screen. A summary first: the
-  verdict (`clear`, `review` or `errors`), what each finding means, a count per check
-  linking to its section, and the choice: "Continue to the indices", "Correct the file and
-  upload it again", the zip. The wording leaves the decision to the user: TN >= TX, values
-  too large and repeated dates are "usually an error" and the summary suggests correcting
-  the file; outliers, jumps and flat runs "may be genuine"; years without annual values
-  under the climdex rules are listed. Continuing is always possible once the checks have
-  run (R also allows it whatever they found).
-- *Daily charts*: one per variable (TX, TN, DTR, precipitation) in tabs, from
-  `charts:station_daily?variable=`, with the flags of the job's thresholds as rings. "Show
-  on chart" in a table row opens the row's chart and moves it to the date (marked with a
-  dashed line, focus on the chart); a click on a ring selects the rows of that date in the
-  tables of the checks that flagged it, loading the table page that holds it. See
-  [Charts](#charts) for the API.
-- *A section per check*, grouped as usually errors or worth a look, each with what it
-  looks for (with the thresholds used), its help topic, its table in pages of 25 (htmx;
-  plain links with `?<check>_page=` without JavaScript) and its file. The tables add what
-  the files leave out: both days and the change for jumps (the TX file holds the change and
-  the TN file the day's value, R's slip, see [Quality control](#quality-control)), the dates
-  a flat run covers, the usual range of the month for an outlier (the whiskers of
-  `qc.boxplot_stats`), each row of a repeated date (one table row per date). The flagged
-  value is in bold.
-- *Missing data*: `qc/nastatistics` (missing days per year and variable) for the years
-  with any, with the months that have more than 3 missing days and the years left without
-  an annual value (more than 15 days, or such a month: [Missing data](#missing-data)).
-- *Distributions* (`qc_plots`, inline SVG with a table each), R's QC plots: monthly box
-  plots (`fourboxes`, whiskers at the thresholds, so the values beyond them are the
-  outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation and 3
-  for temperatures, as R), decimal values (`roundcheck`) and the precipitation histogram
-  (days of 1 mm or more in 2 mm bins to 40 mm and one above, as `plotToFile`).
-- *Correct and upload again* (`.../quality/file`): the corrected file replaces the old
-  one, the station details and thresholds are kept and the checks run again; if the base
-  period no longer fits the new data, step 1 opens to change it. A file with problems is
-  refused with the same messages as in step 1, and the previous results stay.
-- *Downloads*: each QC file and their zip (`<station>.zip`, the station's `qc/` folder,
-  as R's QC zip).
+  user downloads, so every row of every file is reachable on the screen. Since #174 the
+  page is a short worklist (the Sydney sample's went from about 8,250 px to about 2,100 px
+  at 1280 px wide), in this order:
+  - *The verdict and the one decision* (`qc_review.verdict`, decision B of #174). Only the
+    checks whose findings are almost always mistakes (`kind == "error"`: TN >= TX, values
+    too large, repeated dates; their rows, one per date for repeated dates) set the level;
+    outliers, jumps and flat runs are counted in the text and never change it. Green
+    "Ready to use" when nothing looks wrong; amber "Usable. N values look wrong" when up to
+    0.1% of the values checked look wrong; red "Fix the file first" above 0.1%, or when
+    more than 10% of the years are too incomplete for annual values. Both limits are
+    `VERDICT_LIMITS` (`VerdictLimits`). The values checked are PR, TX and TN present on
+    each date (the row the indices use for a repeated date). Under the title, the counts
+    against them ("87,537 values checked", "5 look wrong (under 0.01%)", ...). One primary
+    button: "Use this data" (green, amber), or on red "Upload a corrected file" with "Use
+    this data anyway" beside it. Amber also offers "Upload a corrected file"; green only
+    under Details. Continuing is always possible once the checks have run (R also allows
+    it whatever they found; R has no verdict).
+  - *Look wrong*: one row per finding of those checks (`FindingList`, the first
+    `FINDINGS_SHOWN` = 10 of each check), with a sentence ("Rain 327.6 mm, over the 200 mm
+    limit"), a small SVG chart of the 7 days either side with the flagged value ringed
+    (`Finding.spark`, drawn on the server like the results' sparklines), "Days around it"
+    (the same days as a table) and "Show on chart". A check with more rows has all of them
+    in its table below the list.
+  - *Worth a look* (`qc_review.worth_groups`): the outliers by variable and direction
+    ("Heavy rain days", "High maximum temperatures (TX)", from the sections of
+    `qc/outliers`), with their counts by calendar month and the months that hold most of
+    them ("Mostly in January and February"), and the TX and TN jumps and flat runs, one
+    group each, the largest first. Each group is a `<details>` that opens to what the check
+    looks for, its help topic, the counts by month (outliers) and its table, the rows by
+    calendar month for outliers.
+  - *Checks that found nothing*: one line ("4 checks found nothing: ...").
+  - *Missing data*: one sentence (years with missing days, and which are too incomplete
+    for annual values) and `qc/nastatistics` behind a disclosure: missing days per year
+    and variable for the years with any, with the months that have more than 3 missing
+    days and the years left without an annual value (more than 15 days, or such a month:
+    [Missing data](#missing-data)).
+  - *Details*, a `<details>` (open when the thresholds form has errors) with everything
+    else, below.
+- *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
+  `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
+  `?<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
+  ...). The tables add what the files leave out: both days and the change for jumps (the TX
+  file holds the change and the TN file the day's value, R's slip, see
+  [Quality control](#quality-control)), the dates a flat run covers, the usual range of the
+  month for an outlier (the whiskers of `qc.boxplot_stats`), each row of a repeated date
+  (one table row per date). The flagged value is in bold.
+- *Daily charts* (under Details): one per variable (TX, TN, DTR, precipitation) in tabs,
+  from `charts:station_daily?variable=`, with the flags of the job's thresholds as rings.
+  "Show on chart" on a row opens Details and the row's chart and moves it to the date
+  (marked with a dashed line, focus on the chart); a click on a ring selects the rows of
+  that date in the lists and tables of the checks that flagged it, loading the table page
+  that holds it and opening its group. See [Charts](#charts) for the API.
+- *Distributions* (under Details; `qc_plots`, inline SVG with a table each), R's QC plots:
+  monthly box plots (`fourboxes`, whiskers at the thresholds, so the values beyond them
+  are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
+  and 3 for temperatures, as R), decimal values (`roundcheck`) and the precipitation
+  histogram (days of 1 mm or more in 2 mm bins to 40 mm and one above, as `plotToFile`).
+- *Thresholds* (under Details): the values used and the form to check again.
+- *Upload a corrected file* (`.../quality/file`): a button that opens the file picker
+  (`components/file_button.html`) and sends the chosen file at once, with a line saying
+  so; without JavaScript, a file input and a submit button. The corrected file replaces
+  the old one, the station details and thresholds are kept and the checks run again; if
+  the base period no longer fits the new data, step 1 opens to change it. A file with
+  problems is refused with the same messages as in step 1, and the previous results stay.
+- *Downloads* (under Details, until the single Files section of #176): each QC file and
+  their zip (`<station>.zip`, the station's `qc/` folder, as R's QC zip).
 
 **Step 3: the index parameters (#78).** `IndexParamsForm` (`stations/forms_indices.py`) has
 every field of R's step 3 (`climpact/modules/singleStationStep3UI.R`): plot title, d for
@@ -5171,10 +5204,10 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Budget | Limit | Measured |
 | --- | --- | --- |
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 121.6 KB at most (gridded results, worst-case map, with the chart code); 109.4 KB for the quality-check results (#77) |
+| Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | step 1 with data loaded, the quality-check results, a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 11.5 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.2 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 12.0 of 12.5 KB, htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5182,7 +5215,9 @@ Every stylesheet, script, SVG and JSON file in the package must have an entry in
 function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
 quality-check results page (the Sydney sample checked: every section, the four chart
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
-year). #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse, 1.2 KB used); #90 `sector.css` (1.5 KB) and
+year). #174 made it a worklist: 472.3 KB of HTML (51.2 KB gzipped), the extra being each
+group's first table page and the days around each finding, all in closed `<details>`;
+`qc.js` 1.8 of 2 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse, 1.2 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (the same run as the dashboard: every table and file with its size) and
@@ -5459,8 +5494,10 @@ batch stations; the pattern library examples; the frame's markup, and that a pag
 against the netCDF values, its 304, SPI bars and the chart on the results page.
 `test_qc_review.py` (#77) checks that every flag of the `qc_stress` station's QC files is
 on the chart of its variable and in its table (every page), the per-variable payloads, the
-thresholds against `QCParams` and R's limits, the job's files against R's, the summary,
-the missing-data rules, the table pages and the page of a date, re-uploading a corrected
+thresholds against `QCParams` and R's limits, the job's files against R's, the verdict
+(green, amber and red, both red triggers at and just over their limits, and the limits
+changed in one place), the findings and groups of the stress station, the missing-data
+rules, the table pages of the checks and groups and the page of a date, re-uploading a corrected
 file (the details and thresholds kept), continuing to step 3 and 404 for another session.
 The drawing itself was checked by hand as above; `test_accessibility.py` (#83) checks the
 charts' keyboard use, announcements, table view and that they redraw to fit when the
@@ -5508,7 +5545,11 @@ While the jobs run the fixture also runs axe on each progress page, records what
 announcer says, and checks that focus on the batch's Cancel button survives the polls.
 Widget tests work the tabs, dialog, drop zone (Space opens the file chooser, caught with
 `Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
-gridded explorer by keyboard. `test_axe_every_page` fails on a serious or critical axe
+gridded explorer by keyboard, and the quality worklist (#174): a group opens and closes
+from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
+corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
+axe passes with every disclosure open, light and dark (axe skips closed ones).
+`test_axe_every_page` fails on a serious or critical axe
 violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
 about two and a half minutes locally (160 s on 2026-11-16; three of them in CI), so it is
 marked `browser` (`pytestmark`; the marker is registered in `pytest.ini` and in

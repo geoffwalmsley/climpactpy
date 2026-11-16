@@ -7,6 +7,16 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+## 0.1.3 - 2026-11-16
+
+Changes to the hosted web app and the deployment docs. `climpact` itself is unchanged.
+
+- Content Security Policy (#164): every page's policy now carries a per-request nonce in
+  `script-src`, which Cloudflare copies onto the scripts it adds at the edge (its bot
+  detection), so they run without violations; still no `'unsafe-inline'`. In hosted mode
+  the policy also allows Cloudflare Web Analytics' beacon (new setting
+  `CLIMPACT_WEB_CF_WEB_ANALYTICS`, default `true`; set `false` if the zone's Web
+  Analytics is off).
 - Turnstile (#163): a form sent before Cloudflare's check has finished is no longer
   refused with "Not accepted" (as with the sample's "Details look right" button on step
   1). The form waits, says it is checking that you are a person, and is sent as soon as

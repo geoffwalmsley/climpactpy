@@ -2784,7 +2784,7 @@ packages/climpact-web/src/climpact_web/
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       step 2's results: links the worklist and the daily charts (#77, #174)
-      js/results.js  the results dashboard's filters (#78) and collapsed groups (#113), that page only
+      js/results.js  the results catalogue's filters (#78) and column sorting (#200), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
@@ -4008,7 +4008,7 @@ line. `stations.themes.hue_of` maps a theme to its hue: Heat, Cold, Rain and Dro
 own, the "Also measured" themes (Averages, Growing season and degree days, Your own index)
 and the cards in no theme the neutral. `Card.hue` and `ThemeResult.hue` give it to the
 templates: the theme tiles (`theme_headline`'s `hue`), the filter chips' dots, the
-catalogue cards (`index-card hue-*`, with a dot before the name) and the index page's
+catalogue's rows (`<tr class="hue-*">`, with a dot before the name) and the index page's
 `chart_frame` (`hue`). `charts.js` draws an index series with the token `--hue`, which
 `palette(el)` reads from the frame's computed style at each draw, so the line follows the
 theme toggle. The SPI and SPEI bars keep `--chart-1` and `--chart-2` (wet and dry), and the
@@ -4094,7 +4094,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
 | One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame: hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
-| `theme_headline`, `spark` | a theme's finding on the results page (#175): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends (plain name, code, trend with units, sparkline) and a link to the theme's indices; quiet (sunken, no shadow) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
+| `theme_headline`, `spark` | a theme's tile on the results page (#175, #200): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends, one line each (`trend-row`: plain name, value with short units such as "pp / decade", sparkline) and a link to the theme's indices; quiet (sunken surface, no frame but the hue's edge, the sentence muted) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -4586,7 +4586,7 @@ the section is current again. The Quality tab keeps the verdict's level in the c
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the header (the station's name as the h1 of the three
 section pages and the details page, a line with its years, base period and file name,
-the page's actions: Results' "Download all" and "All files and the report",
+the page's actions: Results' "Compare with sector data" and "Download all",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
 station name given, the file name only when there is none. Since #197 the header
 is sticky (`workspace-header`, a direct child of `.station-page`) from 40rem wide and
@@ -4971,31 +4971,40 @@ into one card per index (`txx` with `txx_ANN`, `txx_MON` and the two `day_of_` s
 each heatwave aspect, each SPI/SPEI scale and the custom index have their own card), and
 the daily `EHFdaily` and `ECFdaily` tables, which R does not plot, get cards with their
 days, highest value and date. For the Sydney sample that is 80 cards for the 114 tables.
-Cards are grouped as the help's index catalogue (temperature thresholds, extremes,
-percentiles, seasons, precipitation, heatwaves, drought, your own index). Each card leads
-with its plain name (`Card.title`, from `plain_name`: the catalogue's long name, such as
-"Frost days"; the indices that share one catalogue entry get a name of their own: each
-heatwave aspect in the words of the indices guide, "Number of heatwaves (Tx90)", each
-SPI/SPEI scale, "Standardised precipitation index, 3 months", and the daily EHF and ECF
-tables), with the code as a monospace label (`Card.code`: `TXx`, `TX90-HWN`; searching
-for it still finds the card) and shows the definition, units, a sparkline, the trend per decade with an arrow
-and a "Significant" or "Not significant" badge (the 95% interval excludes zero or not, as
-in the trends guide), the latest value and the series it has. Sparklines are SVG paths
-drawn on the server (integer coordinates in a 240 x 60 box; long series averaged into 240
-columns; gaps where values are missing; the trend line dashed; SPI and SPEI as bars above
-and below zero; `components/spark.html`), so the dashboard loads no chart code. The
-catalogue is headed "All 80 indices" (`#catalogue`). A search box, theme chips (#175:
-Heat, Cold, Rain, Drought, Averages, Growing season and degree days, Your own index, each
-with its count; `?theme=`) and "significant trends only" filter the cards as you type
-(`js/results.js`, which also keeps the filter in the URL); without JavaScript the same GET
-form filters on the server. The daily EHF and ECF cards are in no theme, so they show
-under "All" only. The theme chips span the filter's full width. Each group is a `<details>` with its counts ("13 indices · 4
-significant"), collapsed by default (#113): the server opens the groups a filter or
-search shows, and the group named by `?group=` (the index page's "All indices" link is
-`?group=<key>#group-<key>`), so it all works without JavaScript; `results.js` also opens
-the groups a filter shows as you type (and closes them again when the filter is cleared)
-and the group a `#group-...` fragment names. With the Sydney sample this makes the page
-about 5,000 px tall at 390 px wide, from about 23,000 px.
+Since #200 the cards are the rows of one table, the catalogue, headed "All 80 indices"
+(`#catalogue`), in the help catalogue's order (temperature thresholds, extremes,
+percentiles, seasons, precipitation, heatwaves, drought, your own index); the family
+accordions (#113) are gone, and the families are neither a column nor a filter, the themes
+being the grouping people use. Each row leads with its plain name (`Card.title`, from
+`plain_name`: the catalogue's long name, such as "Frost days"; the indices that share one
+catalogue entry get a name of their own: each heatwave aspect in the words of the indices
+guide, "Number of heatwaves (Tx90)", each SPI/SPEI scale, "Standardised precipitation
+index, 3 months", and the daily EHF and ECF tables), linked to the index's page, with its
+theme's dot; then the code (`Card.code`: `TXx`, `TX90-HWN`; searching for it still finds
+the row), the trend per decade with an arrow and units, "Significant" (a badge) or "Not
+significant" (the 95% interval excludes zero or not, as in the trends guide), or "No
+trend", and a sparkline. Sparklines are SVG paths drawn on the server (integer coordinates
+in a 240 x 60 box; long series averaged into 240 columns; gaps where values are missing;
+the trend line dashed; SPI and SPEI as bars above and below zero; `components/spark.html`),
+so the dashboard loads no chart code. Above the table, theme chips (Heat, Cold, Rain,
+Drought, and "Also measured" for every other row, the daily EHF and ECF tables included,
+`Card.chip`, `themes.chip_of`; each with its dot and count; `?theme=`), "Significant only"
+and a search box filter the rows as you type (`js/results.js`, which keeps the filter in
+the URL); without JavaScript the same GET form is sent to `#catalogue` and the server
+filters (`dashboard_context`). Each column but the sparkline sorts the table
+(`views_indices.sort_cards`, `?sort=name|code|trend|significance&dir=ascending|descending`):
+names and codes A to Z first (case-folded, by code point), trends and significance
+largest first; ties keep the catalogue's order and rows without a trend stay last when
+sorting by the trend (a trend sorts by its value in the index's own units). Without
+JavaScript each header is a link to the page sorted by it, the filters kept, and the filter
+form keeps the sort in hidden fields; `results.js` makes the headers buttons and sorts in
+place the same way. The sorted column has `aria-sort`, and the live line above the table
+("Showing 9 of 80 indices. Sorted by Trend per decade, descending.", `aria-live="polite"`)
+says the result. The table scrolls inside its focusable region (at most 36rem, about 12
+rows, under the sticky header), so the page stays short: with the Sydney sample Results
+is 1,911 px tall at 1280 px wide, from 2,367 px with #113's closed accordions. Every row is
+in the HTML whatever the filters hide, and an index page's "All indices" link returns to
+its row (`#index-<key>`, highlighted by `:target`).
 
 **Findings by theme first (#175).** Directly below the action row, "What changed" answers
 before the detail (wireframe 3 of `docs/design/station-flow-wireframes.html`). Each card
@@ -5020,16 +5029,19 @@ The page leads with one paragraph (`themes.summary`): how many indices changed
 significantly since the first year, the mean temperature's (TMm) trend, and which of the
 four themes changed ("22 of 80 indices changed significantly since 1936. Mean temperature
 rose by 0.19 °C per decade. Changed: Heat, Cold. No significant change: Rain, Drought.").
-Each of the four themes then has a headline (`components/theme_headline.html`): a badge
+The paragraph sits in the page's tinted band beside the count ("22 of 80 changed
+significantly"), its first sentence in bold (#200). Each of the four themes then has a
+tile (`components/theme_headline.html`, two a row under "By theme"): a badge
 ("9 changed" or "No clear change"), one sentence from its trends (`themes.finding`,
 counting only the indices with a valid trend: "9 of 22 indices increased significantly.",
 "4 of 11 indices changed significantly: 2 increased and 2 decreased.", "No significant
-change across 13 indices."), up to three significant trends with plain name, code, trend
-per decade with units and sparkline, linked to the index's page, and a link to the theme's
-indices in the catalogue (`?theme=heat#catalogue`). A theme with no significant trend is a
-quiet panel (sunken surface, no shadow): no change is a finding. "Also measured" gives the
-other three one line each, with the same sentence and a link (Averages adds the TMm trend;
-the user's own index shows its definition and links to its page). Every sentence is a
+change across 13 indices."), up to three significant trends, one line each: the plain
+name linked to the index's page, the value with short units ("+1.31 pp / decade", the `pp`
+an `abbr` of percentage points, `views_indices.short_units`) and the sparkline; and a link
+to the theme's indices in the catalogue (`?theme=heat#catalogue`). A theme with no
+significant trend is a quiet tile (sunken surface, one sentence, no trends): no change is a
+finding. Until #200 "Also measured" gave the other three themes a line each under the
+tiles; they are now the catalogue's "Also measured" chip. Every sentence is a
 template string in the interface language, built from the trends; nothing is written by
 hand for a station.
 
@@ -5043,15 +5055,18 @@ results page has no summary. For the Sydney sample Heat shows TR, TN90p and SU, 
 TX10p, TN10p and TNn. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. The action row at the top has one primary action and one secondary link (#173): "Download
-all (zip, *size*)" and "All files and the report" (the Files page); without a zip, the
-link is the primary button. The labels are short ("Download all", not "Download
+the percentiles, or else the missing-data rules. The workspace header carries the page's
+two actions (#200, the Results mockup): "Compare with sector data" (secondary) and
+"Download all (zip, *size*)" (primary); without a zip, "All files and the report" (the
+Files page) takes the primary's place. The Files tab beside Results replaces #173's
+secondary link to Files. The labels are short ("Download all", not "Download
 everything", on every page that offers the zip), which keeps the row on one line at
 1280px with wider fonts too (#115). The zip is the page's only download (#176: the
 downloads card that listed the report, the PDF of all plots and the summary files is gone;
 they are on Files). The settings used are the header's one line since #178, replacing
-the "Settings used" card, and are changed in the Inputs panel's sheet since #199. Below the groups: "Compare with sector
-data", the sector comparison (#173; #113 had it in the action row). Building the
+the "Settings used" card, and are changed in the Inputs panel's sheet since #199. The
+sector comparison's section below the catalogue (#173) is gone: it is the header's
+secondary action again (#200). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
@@ -5081,7 +5096,7 @@ R's step 3 gives one link to the zip of the station folder (`singleStationStep3.
 page, Files, each button labelled with its format and size (Django's `filesizeformat`, in
 the interface language), for slow connections (`components/download_link.html`). Other
 pages link to it instead of listing files (#176, DESIGN.md "Don't offer downloads
-everywhere"): Results have one "Download all (zip)" and a link to Files, Quality one link
+everywhere"): Results have one "Download all (zip)" (the Files tab beside it), Quality one link
 under Details, an index page only its chart's exports. The groups, in order:
 
 - *The whole calculation*: the zip (unchanged R layout, `zip_station`; "Download all", the
@@ -5143,7 +5158,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the Files page (#79, #176) |
-| Results: a carousel of the PNGs and a link to the folder or zip | the findings first: one paragraph, a headline per theme (Heat, Cold, Rain, Drought) with its largest significant trends, and "Also measured" (#175); a card per index table with sparkline, trend and significance, in collapsed groups, filters, an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | the findings first: one paragraph, a headline per theme (Heat, Cold, Rain, Drought) with its largest significant trends, (#175); every index in one table with trend, significance and sparkline, filtered by theme chip, significance and search and sorted by any column (#200), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see
@@ -5660,7 +5675,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | the first visit's details with data loaded, Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.2 of 14.5 KB (14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.1 of 14.5 KB (14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5670,7 +5685,7 @@ quality-check results page (the Sydney sample checked: every section, the four c
 frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
 year). #174 made it a worklist: 472.3 KB of HTML (51.2 KB gzipped), the extra being each
 group's first table page and the days around each finding, all in closed `<details>`;
-`qc.js` 1.8 of 2 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse, 1.2 KB used); #90 `sector.css` (1.5 KB) and
+`qc.js` 1.8 of 2 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (Files since #176, which grouped its files in closed disclosures and added
@@ -5701,7 +5716,7 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
 | station quality results (#77; #198: with "Your data") | 553.3 | 70.3 | 144.2 | 135.8 |
 | station step 1, sample loaded (#114: with the top continue button) | 86.1 | 21.4 | 92.4 | 84.5 |
-| station results, 80 indices (#199: with the Index settings sheet) | 259.1 | 48.6 | 89.3 | 84.3 |
+| station results, 80 indices (#200: one table, the tiles; with the Index settings sheet) | 245.7 | 48.6 | 90.0 | 84.9 |
 | station index (TXx, with chart code; #199: with the Index settings sheet) | 62.4 | 10.7 | 82.8 | 74.7 |
 | station sector results (#90) | 153.7 | 20.8 | 60.6 | 55.8 |
 | station Files, 114 tables (#79, #176) | 162.8 | 13.7 | 53.1 | 48.4 |

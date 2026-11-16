@@ -19,10 +19,8 @@ Taken with the approval of the mockups (#171):
 
 - **The Inputs panel is the model.** Everything the user gives (the file, the station,
   the base period, the quality thresholds, the index settings) is listed in one Inputs
-  panel, each with an Edit that opens a side sheet with only that form. The tabs are
-  outputs: Quality, Results and Files (#198). **Target:** #199: the thresholds and index
-  settings get their own sheets; until then their Edit links to their forms on Quality
-  and Results.
+  panel, each with an Edit that opens a side sheet with only that form (#198, #199). The
+  tabs are outputs: Quality, Results and Files.
 - **Primary buttons are ink.** Near-black, near-white in the dark theme; blue is no longer
   the action colour (see [Colour](#colour)).
 - **The station title comes from the station name** the user gives, not the file name;
@@ -185,14 +183,14 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. The Quality verdict keeps its status tint | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
-| `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS | primary, secondary; lg, sm |
+| `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS. Unused since Quality's corrected file became the File sheet (#199) | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
 | `card` | Component | Grouped content; whole-card link | link, muted, with badge |
 | `alert`, `messages`, `toasts` | Component | Page and transient feedback | info, success, warning, error; dismissible; live |
 | `disclosure` | Component | Content that opens in place (`<details>`): a row between hairlines, not a box | — |
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
-| Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. Sticky under the workspace header when beside the content | changed; with a run |
-| Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there | — |
+| Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. Sticky under the workspace header when beside the content | changed; with a run |
+| Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. The Help pill in the app bar opens the page's guide | — |
 | `table`, `summary_list` | Component | Data in a keyboard-scrollable region, hairline rows and no frame; key–value pairs | empty state |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
@@ -212,7 +210,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
-| Verdict | The answer and the one decision on it. An h2 title, one or two sentences, a line of counts against what was checked, and the decision's buttons. One primary button; on red the buttons swap, and a "… anyway" secondary always stays. | `alert`, `button`, `file_button` |
+| Verdict | The answer and the one decision on it. An h2 title, one or two sentences, a line of counts against what was checked, and the decision's buttons. One primary button; on red the buttons swap, and a "… anyway" secondary always stays. "Replace file" opens the File sheet (#199). | `alert`, `button`, side sheet |
 | Worklist group | A list of native `<details>` in one surface with dividers. Each summary has a title, a muted one-line note and a count chip (`qc-count`: neutral, the words carry the severity). It opens to its rows. Keyboard use is native. | `<details>`, `table` |
 | Finding sparkline | A small SVG of the days around one value, drawn on the server, with the value ringed in `--chart-flag` as on the full charts. It is `aria-hidden`: the row's sentence is its text summary, "Days around it" its table view, and "Show on chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
@@ -246,9 +244,10 @@ keyboard. This is not optional.
   code alone.
 - **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
   each edited in a side sheet that says what applying will update, with one Apply
-  button; output pages hold no forms. The file, the station and the base period are
-  edited there (#198). **Target:** #199: the thresholds and index settings, whose forms
-  are still on Quality and Results.
+  button; output pages hold no forms (#198, #199), only the decision, search and filters,
+  and small actions such as Delete or Try again. Links elsewhere that change an input
+  ("Replace file" on Quality's verdict, "Change the settings" on Results) open the same
+  sheet.
 - **Give each colour one job.** Ink for actions, the brand blue for the logo, focus and
   selection, status colours for the verdict and run state, theme hues for data (see
   [Colour](#colour)).
@@ -277,7 +276,8 @@ keyboard. This is not optional.
   PNG/SVG/CSV. Results have the zip and a link to Files; Quality has one link to Files
   under Details; an index page has only its chart's exports.
 - **Don't put a help link under every field.** One Help button per section opens that section's help
-  in the drawer; a field keeps a hint only when its value isn't self-explanatory. Section
+  in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
+  its value isn't self-explanatory. Section
   help lives in `help/sections.py`: notes plus the fields' help topics.
 - **Don't show a step's results before the step.** QC flags belong to Quality, not to the
   Load chart (it asks for `?flags=0`).

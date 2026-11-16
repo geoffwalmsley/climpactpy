@@ -525,7 +525,7 @@ def test_quality_page_needs_step_one_first(client):
         client.get(f"/station/{analysis.pk}/quality")["Location"] == f"/station/{analysis.pk}/load"
     )
     assert client.post(f"/station/{analysis.pk}/indices").status_code == 302
-    assert client.post(f"/station/{analysis.pk}/quality/run").status_code == 302
+    assert client.post(f"/station/{analysis.pk}/inputs/thresholds").status_code == 302
     assert not Job.objects.exists()
 
 
@@ -618,7 +618,7 @@ def test_other_sessions_get_404(client):
     other = Client()
     for url in ("load", "series.csv", "quality"):
         assert other.get(f"/station/{analysis.pk}/{url}").status_code == 404
-    for url in ("load", "load/validate", "file", "delete", "indices", "quality/run"):
+    for url in ("load", "load/validate", "file", "delete", "indices", "inputs/thresholds"):
         assert other.post(f"/station/{analysis.pk}/{url}").status_code == 404
     assert client.get(f"/station/{uuid.uuid4()}/load").status_code == 404
     assert StationAnalysis.objects.exists()

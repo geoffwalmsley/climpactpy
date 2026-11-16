@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198: Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet, with results kept and marked out of date after a change; the index settings and the sector comparison as actions on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198, #199: Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2774,7 +2774,8 @@ packages/climpact-web/src/climpact_web/
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
       js/workspace.js  keeps the page's scroll padding to the height of the station's
                      sticky workspace header (#197), loaded by stations/_workspace.html
-      js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), loaded by
+      js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), and the
+                     sheet an old address asks for as the page loads (#199), loaded by
                      stations/_inputs.html
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
@@ -2812,8 +2813,8 @@ packages/climpact-web/src/climpact_web/
                      [Single-station steps](#single-station-steps))
     models.py        StationAnalysis: one station's workspace; file_digest
     workspace.py     the sections each job shows, staleness from the jobs' recorded
-                     inputs, settle, the tabs' states (#179), the Inputs panel and what
-                     each sheet updates (#198)
+                     inputs, settle, the tabs' states (#179), the Inputs panel, its
+                     sheets and what each updates (#198, #199)
     calculation.py   queueing the checks and the run, speculative runs, recalculate,
                      bring_up_to_date after a change (#178, #179)
     station_file.py  checks an uploaded file (plain-language problems at file lines,
@@ -2825,7 +2826,7 @@ packages/climpact-web/src/climpact_web/
                      station rows, missing data per year, the verdict and its limits, the
                      "look wrong" findings and the "worth a look" groups (#174)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
-    forms_indices.py IndexParamsForm ("Adjust and recalculate" on Results, #78, #178): every
+    forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
     calculation.py   queueing the station run (#178): the speculative run with the default
                      settings (speculate, commit), a recalculation (queue_station_run), the
@@ -2838,11 +2839,12 @@ packages/climpact-web/src/climpact_web/
     themes.py        the results page's themes (#175): the index-to-theme mapping (Heat,
                      Cold, Rain, Drought, "Also measured"), the findings written from the trends
     views.py, urls.py  /station/: upload, sample, load, field validation, replace file,
-                     daily CSV, delete; step 2: the checks, thresholds, progress, table
-                     pages, re-upload, continue
+                     daily CSV, delete; Quality: the checks, progress, table pages,
+                     continue; the Inputs panel's sheets (edit_input: file, station, base
+                     period, thresholds, index settings) and their runs' progress
     views_indices.py Results: progress, the dashboard (with a recalculation's progress
-                     above it), "Adjust and recalculate" (htmx field checks), the old
-                     Calculate address, each index's page, anomalies JSON
+                     above it), the settings sheet's htmx field checks, "Recalculate", the
+                     old Calculate address, each index's page, anomalies JSON
     sector_file.py   step 5 (#90): checks a sector file (plain-language problems at file
                      lines, years in common with the station); SectorForm
     sector_plots.py  step 5's results: a sector job's files read back; the bar chart and
@@ -2856,8 +2858,10 @@ packages/climpact-web/src/climpact_web/
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
     templates/stations/  upload.html, load.html, qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
-                     _problems.html, _retention.html; _settings_form.html, _indices_unit.html
-                     ("Adjust and recalculate", #178), results_progress.html,
+                     _problems.html, _retention.html; the Inputs panel (_inputs.html,
+                     _input_sheets.html, _input_form.html, input_edit.html,
+                     _settings_fields.html and _indices_unit.html: the Index settings
+                     sheet, #199; _open_sheet.html), results_progress.html,
                      _results_progress.html, results.html, result.html (Results),
                      downloads.html (Files, #79, #176),
                      sector.html, _sector_progress.html,
@@ -3468,7 +3472,10 @@ WAF rules match no page except `/patterns/`, that only `/static/` is cached, and
 deploy hook's `POST /_deploy` is matched by the skip rule and by no block, challenge or
 rate-limit rule (and the skip rule by nothing the app serves), and that `/healthz` (GET and
 HEAD) is matched by its own skip rule and the cache bypass, by no block, challenge,
-rate-limit or static-cache rule, and its skip rule by nothing else. A new
+rate-limit or static-cache rule, and its skip rule by nothing else. The Inputs panel's
+sheets start jobs when applied, so the rule counts `/station/*/inputs/<key>` for each of
+the five keys, but not `/station/*/inputs/progress` (#199; `quality/run` left the rule
+with its form). A new
 job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
@@ -4070,7 +4077,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `button` | primary, secondary, ghost, danger; `lg`, `sm`, icon only, `full_width`, `busy` (spinner, `aria-busy`), link when `href` is given; disabled links render as disabled buttons; `form_id` (a submit button outside its form) and `describedby` (`aria-describedby`) |
 | `field`, `field_errors`, `form_errors` | label, hint, inline error with an icon, unit suffix; no help link of its own (#177: the section's Help button has the help, and the hint is kept for values that need one); radio groups as a fieldset; the error summary links to each field and takes focus. Hint and error ids are Django's (`<id>_helptext`, `<id>_error`), which Django puts in the widget's `aria-describedby` with `aria-invalid` |
 | `dropzone` | a label around a real, visible file input; `ui.js` hides the input visually, adds drag and drop and shows the file name |
-| `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`) |
+| `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`). No page uses it since #199 (Quality's "Upload a corrected file" became "Replace file", the File sheet); it stays on `/patterns/` |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
@@ -4082,7 +4089,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
 | Inputs panel | (#198, `components/inputs.css`, `stations/_inputs.html`) an `aside` named "Your inputs": a `dl` of rows (`inputs-panel__item`: muted name, semibold value, one link at the end), on `--color-surface-sunken`; a changed row has `--color-warning-soft` and the word; runs beneath in `runbox progress` boxes. Beside the content (16rem) when `.station-page`, a container, is at least 52rem wide, sticky under the workspace header; above it otherwise |
-| Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. Shown on `/patterns/` with the panel |
+| Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
 | One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame: hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
@@ -4217,7 +4224,7 @@ in the pull request (see its notes for the differences found).
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
 job and the job list), the single-station step 1 pages (upload, upload with file
 problems, the sample loaded, metadata errors), step 2 before the checks have run, the
-indices being calculated with "Adjust and recalculate" (#178), and the batch pages
+indices being calculated (#178), and the batch pages
 (start, a check with every station status, a running batch, finished results) and the help
 pages (index, a guide, the indices guide, the topic list, a search), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
@@ -4499,8 +4506,11 @@ and Files (#79, #176), beside the Inputs panel, where everything the user gave i
 ("Inputs panel" below). The first visit confirms the details on a page of its own,
 `stations:load` (Data until #198: the details form, "Your data" and a form to use a
 different file), until #201's setup page. There are no steps and no step indicator. R's step 3, the index settings, is
-"Adjust and recalculate" on Results since #178: the indices are calculated with the
-defaults while the user looks at the quality checks ("Speculative calculation" below).
+the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
+from #178): the indices are calculated with the defaults while the user looks at the
+quality checks ("Speculative calculation" below). The output pages hold no forms but the
+decision ("Use this data"), search and filters, and small actions (Delete, Try again,
+Cancel, Recalculate).
 R's step 4, sector correlation (#90), is an action on Results since #173, and its page
 shows the Results tab as current. A change to an input keeps the work and marks what
 depends on it out of date ("Workspace and staleness" below).
@@ -4524,7 +4534,7 @@ delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<
 its own `input/` when queued, so analyses and jobs expire independently. A change to the
 file or the metadata keeps the job links (#179; `reset_later_steps` is gone): each job
 records the inputs it was made from in `Job.inputs`, and the workspace compares them with
-the analysis's. The checks set `qc_job`, the speculative run and "Adjust and recalculate"
+the analysis's. The checks set `qc_job`, the speculative run and the Index settings sheet
 `indices_job`, the sector comparison `sector_job`. The index parameters are not stored on
 the analysis: they are the `params` (and `inputs["settings"]`) of its `indices_job`, or
 its batch station's (`origin`, whose `inputs` records what the batch's results were made
@@ -4550,15 +4560,15 @@ finished, else the checks it replaces; `shown_run` is `indices_job` if it has fi
 else the run it replaces, else the batch's results (`origin`). The replaced job is named in
 the new job's `params["replaces"]` (#178's recalculation, now for the checks too,
 `workspace.replaces_for` carrying it from a job still waiting). After a change,
-`calculation.bring_up_to_date` (called by the first visit's details form, the Inputs
-panel's sheets, a corrected file on Quality and new thresholds) runs `workspace.settle`, which cancels what is still queued or running for the
+`calculation.bring_up_to_date` (called by the first visit's details form and the Inputs
+panel's sheets) runs `workspace.settle`, which cancels what is still queued or running for the
 old inputs and, when an input was changed back, links the finished job of those inputs again
 instead of calculating it twice; then it queues the checks and the run that are not of the
 current inputs. A replacement run is speculative before "Use this data" and an ordinary job
 (the user's own, counted by the hosted limits) after it; a refusal by the limits is logged
-and leaves the results out of date with "Recalculate". A new file, from the File sheet,
-Quality's "Correct the file" or the details page's form, queues the new checks and run at
-once when the details still fit it; when the base period no longer fits the new data, the
+and leaves the results out of date with "Recalculate". A new file, from the File sheet
+(which Quality's "Replace file" opens too, #199) or the details page's form, queues the
+new checks and run at once when the details still fit it; when the base period no longer fits the new data, the
 details page asks for a new one first. The File sheet keeps the station name; the details
 page's form renames a station still named after its old file, as before.
 
@@ -4598,11 +4608,15 @@ every section page once the station is set up (`workspace.set_up`: the details c
 complete and fitting the data), and to the index and sector pages. `workspace.inputs_panel`
 lists, in `PANEL_INPUTS` order: the file (its days and variables, "Replace"), the station
 (latitude and longitude), the base period, the quality thresholds and the index settings
-("Defaults" or "Changed": `qc_values` against `QC_DEFAULTS`, and
-`workspace.settings_are_defaults`, which compares the latest run's parameters with the
-settings form's initial values, without importing the core). Each has one link. The first
-three open a side sheet; the thresholds and index settings link to their forms on Quality
-and Results until #199 gives them sheets. An input is highlighted, "· changed", when one
+("Defaults" or "N changed", `workspace.changed_text`: `workspace.thresholds_changed`
+counts the thresholds that differ from `QC_DEFAULTS`; `workspace.settings_changed` counts
+the latest run's parameters that differ from the settings form's initial values, a
+custom index other than the default one, a plot title of the user's, and each of the
+plots, zip and report switched off, without importing the core). Each has one link,
+which opens its side sheet (`workspace.sheet_url`; `input_urls` gives each sheet's
+address to the page's other links, such as Quality's "Replace file"). The index settings
+have no link, and no sheet, before "Use this data" (`workspace.sheet_keys`): only the
+results use them. An input is highlighted, "· changed", when one
 of the `differences` names it covers differs between the current inputs and the checks
 or results shown (`workspace.changed_inputs`). Under the list, the checks and the run of
 the new inputs show their progress (`stations/_input_runs.html`, a run only after "Use
@@ -4610,23 +4624,43 @@ this data"), polled by htmx from `stations:inputs_progress`, which answers `HX-R
 once they have all finished.
 
 Each sheet is a modal `<dialog>` (`stations/_input_sheets.html`, `js/sheet.js`) with only
-its input's form (`stations/_input_form.html`): the File sheet the `UploadForm` (its own
-ids, `auto_id="sheet_%s"`, as Quality has a file field too), the Station sheet
-`StationForm` (name, latitude, longitude) and the Base period sheet `BasePeriodForm`, both
-`MetadataForm` restricted to their fields and checked against the data the same way, their
-fields validated as they change by `stations:validate`. The sheet says what applying will
+its input's form (`stations/_input_form.html`, `views.input_form`): the File sheet the
+`UploadForm` (its own ids, `auto_id="sheet_%s"`, apart from the details page's file
+field), the Station sheet `StationForm` (name, latitude, longitude) and the Base period
+sheet `BasePeriodForm`, both `MetadataForm` restricted to their fields and checked against
+the data the same way, their fields validated as they change by `stations:validate`; the
+Quality thresholds sheet `QCParamsForm` (#199); the Index settings sheet `IndexParamsForm`
+with the plots, zip and report options (#199, `stations/_settings_fields.html`, its groups
+validated as they change by `stations:indices_validate`). The sheet says what applying will
 update, from the dependency rules (`workspace.impact` from `workspace.affected`:
 Quality if `QC_INPUTS` has one of the input's names, Results if `RUN_INPUTS` has, Files
 with either; the station's location updates Results and Files, its name Quality too).
 Then one primary button, Apply, and Cancel. It posts to `stations:edit_input`
-(`/station/<id>/inputs/<file|station|base-period>`), which applies the change, calls
-`bring_up_to_date` and returns to the page it came from (`next`, only one of this
-station's pages). Without JavaScript the Edit link is that address: a page with the same
+(`/station/<id>/inputs/<file|station|base-period|thresholds|settings>`), which applies the
+change and returns to the page it came from (`next`, only one of this station's pages).
+The file, station and base period call `bring_up_to_date`. New thresholds do too
+(`views.apply_thresholds`); the same thresholds run the checks again when they failed,
+were stopped or never ran, which is how Quality's "Run the checks" works since its form
+went. The index settings queue a run with them (`views.apply_settings`,
+`calculation.queue_station_run`), which replaces the results shown when it has finished. Without JavaScript the Edit link is that address: a page with the same
 form (`stations/input_edit.html`), where a form with errors also returns. The sheet is
 modal, unlike the help drawer (DESIGN.md): focus starts on the first field and stays
 inside, Escape, Cancel, the close button or the backdrop closes it and discards what was
 typed, and focus returns to the Edit link. The forms keep their Turnstile widget, as
-`edit_input` is `human_required`.
+`edit_input` is `human_required` (five sheets, so up to five widgets per page in hosted
+mode). The index settings are a long form: the sheet keeps its width (26rem) and its
+body scrolls between the header and the foot, so Apply is always in view. A sheet's
+section help opens in place (`{% section_help ... inline=True %}`, a disclosure), as the
+drawer would be behind the modal sheet.
+
+The old addresses of the forms the sheets replaced open them (#199): Results at
+`?settings=open` (old links; `&back=<key>` returns to that index) marks the Index settings
+sheet `data-sheet-autoopen` and `js/sheet.js` opens it as the page loads; without
+JavaScript a `<noscript>` refresh in the head (`stations/_open_sheet.html`) goes on to the
+sheet's page. `js/sheet.js` also opens the settings sheet for `#adjust` and the
+thresholds sheet for `#thresholds`, the old forms' anchors, which stay on the page (the
+settings line on Results, the thresholds line in Quality's Details) for a browser without
+JavaScript. Closing a sheet opened this way focuses its Edit in the panel.
 
 **The Data tab folds into Quality (#198).** Data's summary (`_summary.html`: the period,
 missing values by variable, the daily series and the days with data per year) is the last
@@ -4653,15 +4687,18 @@ sample; `/station/sample.txt` downloads it (R links to the sample file too);
 "Use this data", else Quality once the details are confirmed, else Data);
 `/station/<id>/load` Data (`stations:load`); `.../load/validate` (htmx, POST);
 `.../file` (POST) loads a different file into the analysis; `.../series.csv` the daily
-series; `.../delete` (POST); `.../quality` Quality (`stations:qc`), `.../quality/run`
-(POST: save the thresholds and run the checks), `.../quality/progress` (htmx),
+series; `.../delete` (POST); `.../inputs/<key>` (`stations:edit_input`, #198, #199) a
+sheet of the Inputs panel as a page, POST applies it; `.../inputs/progress` (htmx);
+`.../quality` Quality (`stations:qc`), `.../quality/progress` (htmx),
 `.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
-`.../quality/file` (POST: the corrected file), `.../quality/continue` (POST: "Use this
-data"); `.../indices` (`stations:indices`), the Calculate step's address until #178: GET
-redirects to `.../results?settings=open#adjust` (with `&back=<key>` for an old
-`?index=<key>`), so links in emails, bookmarks and "Your calculations" keep working, and
-POST is the "Adjust and recalculate" form, or with `recalculate=1` "Recalculate" on
-out-of-date results (#179); `.../indices/validate` (htmx, POST);
+`.../quality/continue` (POST: "Use this data"); `.../quality/run` and `.../quality/file`
+are gone since #199 (the thresholds and file sheets); `.../indices` (`stations:indices`),
+the Calculate step's address until #178: GET redirects to `.../results?settings=open`
+(with `&back=<key>` for an old `?index=<key>`), which opens the Index settings sheet, so
+links in emails, bookmarks and "Your calculations" keep working; POST with
+`recalculate=1` is "Recalculate" on out-of-date results (#179), and any other POST (a
+settings form from a page from before #199) goes to the settings sheet's page;
+`.../indices/validate` (htmx, POST: the settings sheet's field checks);
 `.../results` (`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
 (`stations:result`), `.../results/<series>/anomalies.json` (`stations:result_anomalies`);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
@@ -4770,9 +4807,9 @@ without errors; the user corrects the file outside the app and loads it again.
     `VERDICT_LIMITS` (`VerdictLimits`). The values checked are PR, TX and TN present on
     each date (the row the indices use for a repeated date). Under the title, the counts
     against them ("87,537 values checked", "5 look wrong (under 0.01%)", ...). One primary
-    button: "Use this data" (green, amber), or on red "Upload a corrected file" with "Use
-    this data anyway" beside it. Amber also offers "Upload a corrected file"; green only
-    under Details. Continuing is always possible once the checks have run (R also allows
+    button: "Use this data" (green, amber), or on red "Replace file" with "Use this data
+    anyway" beside it. Amber also offers "Replace file", a secondary button; green only in
+    the Inputs panel. "Replace file" opens the panel's File sheet (#199). Continuing is always possible once the checks have run (R also allows
     it whatever they found; R has no verdict).
   - *Look wrong*: one row per finding of those checks (`FindingList`, the first
     `FINDINGS_SHOWN` = 10 of each check), with a sentence ("Rain 327.6 mm, over the 200 mm
@@ -4793,8 +4830,7 @@ without errors; the user corrects the file outside the app and loads it again.
     and variable for the years with any, with the months that have more than 3 missing
     days and the years left without an annual value (more than 15 days, or such a month:
     [Missing data](#missing-data)).
-  - *Details*, a `<details>` (open when the thresholds form has errors) with everything
-    else, below.
+  - *Details*, a `<details>` with everything else, below.
 - *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
   `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
   `?<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
@@ -4814,14 +4850,15 @@ without errors; the user corrects the file outside the app and loads it again.
   are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
   and 3 for temperatures, as R), decimal values (`roundcheck`) and the precipitation
   histogram (days of 1 mm or more in 2 mm bins to 40 mm and one above, as `plotToFile`).
-- *Thresholds* (under Details): the values used and the form to check again.
-- *Upload a corrected file* (`.../quality/file`): a button that opens the file picker
-  (`components/file_button.html`) and sends the chosen file at once, with a line saying
-  so; without JavaScript, a file input and a submit button. The corrected file replaces
-  the old one, the station details and thresholds are kept and the checks and the run
-  start again, the old ones shown out of date until then (#179); if the base period no
-  longer fits the new data, Data opens to change it. A file with
-  problems is refused with the same messages as in step 1, and the previous results stay.
+- *Thresholds* (under Details): one line, R's defaults or how many were changed, with a
+  link that opens the Quality thresholds sheet (#199). No form on the page.
+- *Replace file* (the verdict's button, and the panel's Replace): the File sheet. The new
+  file replaces the old one, the station details and thresholds are kept and the checks
+  and the run start again, the old ones shown out of date until then (#179); if the base
+  period no longer fits the new data, the details page opens to change it. A file with
+  problems is refused with the same messages as in step 1, on the sheet's page, and the
+  previous results stay. When the checks failed, were stopped or have not run, "Run the
+  checks" opens the thresholds sheet, whose Apply runs them.
 - *Files* (under Details): one link to the quality-control files on the Files page
   (`#quality-files`). Since #176 the Quality page offers no download itself; each QC file
   and their zip (`<station>.zip`, the station's `qc/` folder, as R's QC zip) are on Files.
@@ -4841,9 +4878,8 @@ Without a run (refused, cancelled), one is queued then. Until "Use this data", n
 it: Results redirects to Quality, an index page and Files act as if there were no run
 (`workspace.committed`).
 
-A run of old inputs is never shown as current. Changing the details on Data, loading another
-file, uploading a corrected file on Quality (`qc_replace`) or changing the thresholds
-(`qc_run`) cancels a run still waiting or running for the old inputs (`workspace.settle`,
+A run of old inputs is never shown as current. Changing the details, loading another
+file or changing the thresholds (the Inputs panel's sheets) cancels a run still waiting or running for the old inputs (`workspace.settle`,
 `Job.request_cancel`: at once if queued, at the next progress step if running) and, except
 for a new file on Data (the details must be confirmed again), queues another
 (`calculation.bring_up_to_date`), keeping the last run's settings. Before "Use this data"
@@ -4866,7 +4902,7 @@ imports per worker start); the 1-vCPU Droplet is slower (the full flow took 15 s
 at the checks or change the data, cost that worker time and the run's folder until the
 retention purge (a few MB, `JOB_RETENTION_DAYS`), never a user's quota.
 
-**Adjust and recalculate (#78, #178).** `IndexParamsForm` (`stations/forms_indices.py`) has
+**The Index settings sheet (#78, #178, #199).** `IndexParamsForm` (`stations/forms_indices.py`) has
 every field of R's step 3 (`climpact/modules/singleStationStep3UI.R`): plot title, d for
 WSDId and CSDId (1 to 10), d for Rxdday and for TXdTNd/TXbdTNbd (1 or more), the base
 temperatures of HDDheat, CDDcold and GDDgrow, nn for Rnnmm (0 or more), the extra SPI/SPEI
@@ -4876,27 +4912,29 @@ and `clean()` then runs the core's `climpact.batch.validate_params` (R's
 `validate_climdexInputParams`) on the `IndexParams` built from them, so the form accepts
 exactly what the core accepts (a test checks every boundary). Each field has its unit, a
 short hint with R's default. The fields are grouped (plots, spell lengths, degree days,
-precipitation and drought, your own index, the heatwave note, files), each group with a Help button
-whose help has the groups' `param.*` topics and how the index is named (with 3 days, WSDId
+precipitation and drought, your own index, the heatwave note, files), each group with its
+help in place (a disclosure: the sheet is modal, so the drawer would be behind it), which
+has the groups' `param.*` topics and how the index is named (with 3 days, WSDId
 is written as `wsdi3`; #177). Each group is checked by htmx as it changes
 (`stations:indices_validate`), which shows warnings that do not stop the run: d = 6 for
 WSDId or CSDId, Rx1day/Rx5day, R10mm/R20mm and the 3, 6 and 12-month scales duplicate
 indices always calculated. R's station screen has no EHF definition (station runs always
 use Nairn and Fawcett 2013, the only one `climdex.hwEHF` accepts); the form says so.
 
-The form (`_settings_form.html`) is one closed disclosure, "Adjust and recalculate"
-(`<details id="adjust">`), after the catalogue on Results and below the progress while a
-run goes on; its groups are divided by rules, not cards (DESIGN.md: no cards inside
-cards). It starts from the settings of the results shown (`previous_params`: the last
-calculation's, else the batch station's metadata line, `origin`, else the defaults). The
-server opens it when the posted form has errors (the page is the results again, with the
-error summary) or when the address asks with `?settings=open` (the header's link, Files'
-"Adjust and recalculate" and the old Calculate address). The results' header names the
-settings in one line (`views_indices.settings_line`: "Climpact's default settings.", or
-"Settings changed:" and the settings that differ from `IndexParams()`), with the link that
-opens the form, as in the wireframes. Its one button, "Recalculate" (or "Calculate" when
-there is no run yet), is at the end, described by the run-time note. It queues a `station`
-job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
+The form (`_settings_fields.html` in the sheet's `_input_form.html`) was "Adjust and
+recalculate", a disclosure after the catalogue on Results, until #199; it is now the Inputs
+panel's Index settings sheet, on every station page once the data is in use. Its groups
+are divided by rules, not cards (DESIGN.md: no cards inside cards); the sheet's body
+scrolls between its header and its foot, so Apply stays in view. It starts from the
+settings of the results shown (`previous_params`: the last calculation's, else the batch
+station's metadata line, `origin`, else the defaults). A form with errors returns on the
+sheet's page with the error summary. The results' header names the settings in one line
+(`views_indices.settings_line`: "Climpact's default settings.", or "Settings changed:"
+and the settings that differ from `IndexParams()`), with a link that opens the sheet; an
+index that depends on a setting, Files' "Not made" notes and a failed run's "Change the
+settings" open it too. Its one button, Apply, is at the foot, described by what it
+updates ("Updates Results and Files. Quality stays as it is. About half a minute for 80
+years of data."). It queues a `station` job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
 PDF report unless unticked) with step 2's thresholds (`qc`, from `qc_params`), as
 `indices_job`, cancelling a run of the analysis still waiting or running. When the run it
 replaces had finished, the job's `params["replaces"]` names it, and Results keeps those
@@ -4908,11 +4946,12 @@ progress: a bar, step *n* of *total*, the time so far and left, and the stages o
 plots, zip) with the `stages` component. The fragment (`stations:results_progress`) polls
 with the job page's delays; when the job succeeds it answers `HX-Redirect`, so the page
 becomes the dashboard. A failure shows the job's error, the stage it stopped at, "Try
-again" (returning to Results) and "Adjust the settings". The results URL stays the same
-while the job is kept. "Adjust and recalculate" is below the progress, so the settings can
-be changed before the first run ends. With no run at all (a speculative run refused in
-hosted mode and the ordinary one too, or one cancelled), the page says the indices are not
-calculated yet and opens the form with a "Calculate" button.
+again" (returning to Results) and "Change the settings". The results URL stays the same
+while the job is kept. The Index settings sheet is in the Inputs panel meanwhile, so the
+settings can be changed before the first run ends. With no run at all (a speculative run
+refused in hosted mode and the ordinary one too, or one cancelled), the page says the
+indices are not calculated yet, with one button, "Check the settings and calculate",
+which opens the sheet.
 
 **Results: a recalculation** keeps the results it replaces (`params["replaces"]`) on the
 page, with its progress in a panel above them ("Recalculating", then "The results below use
@@ -5010,8 +5049,8 @@ link is the primary button. The labels are short ("Download all", not "Download
 everything", on every page that offers the zip), which keeps the row on one line at
 1280px with wider fonts too (#115). The zip is the page's only download (#176: the
 downloads card that listed the report, the PDF of all plots and the summary files is gone;
-they are on Files). Below the groups: "Adjust and recalculate" (the settings used are the
-header's one line since #178, replacing the "Settings used" card) and "Compare with sector
+they are on Files). The settings used are the header's one line since #178, replacing
+the "Settings used" card, and are changed in the Inputs panel's sheet since #199. Below the groups: "Compare with sector
 data", the sector comparison (#173; #113 had it in the action row). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
 result is cached in memory (8 runs), keyed by the files' modification times, the
@@ -5048,7 +5087,7 @@ under Details, an index page only its chart's exports. The groups, in order:
 - *The whole calculation*: the zip (unchanged R layout, `zip_station`; "Download all", the
   page's one primary button) and the PDF report (see [PDF report](#pdf-report)); one that
   was not made (unticked in the settings, or a job older than the report) says so and
-  links to "Adjust and recalculate".
+  links to the Index settings sheet (#199).
 - *Summary files*: the trend and threshold files.
 - *Quality checks* (`downloads.quality_downloads`): the files of the Quality page's check
   (the `qc` job: each check's CSV and the missing values, in a closed disclosure, and
@@ -5079,10 +5118,11 @@ station's report) show sizes too. The Sydney page is 119 KB of HTML, 42.1 KB gzi
 its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
-links to "Adjust and recalculate" with `?settings=open&back=<key>`; the key travels in a
-hidden field to the results URL (`?index=`), which stays on the dashboard under the
-recalculation's progress, and once the new run has finished the results page opens that
-index. When the
+links to the Index settings sheet (#199), whose Apply returns to that index's page
+(`next`); it stays there, out of date when the inputs changed, with the run's progress in
+the Inputs panel, and reloads once the new run has finished. An old address with
+`?settings=open&back=<key>` returns to the results URL with `?index=<key>`, which opens
+that index once the new run has finished. When the
 setting renames the index (`rx3day` to `rx7day`, a new SPI scale, a new custom index), it
 is found by `results.signature`, which keeps the parameterised index, the extra SPI/SPEI
 scale and the custom index together; an old index URL redirects the same way.
@@ -5097,7 +5137,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 
 | R step 3 | Python |
 | --- | --- |
-| A step of its own, hidden until the quality checks have run without error, and nothing calculated until "Calculate" | no settings step (#178): the indices are calculated with the defaults as soon as the station details are confirmed, while the checks run; "Use this data" opens the results; the settings are "Adjust and recalculate" on Results |
+| A step of its own, hidden until the quality checks have run without error, and nothing calculated until "Calculate" | no settings step (#178): the indices are calculated with the defaults as soon as the station details are confirmed, while the checks run; "Use this data" opens the results; the settings are the Inputs panel's Index settings sheet (#199; "Adjust and recalculate" on Results from #178) |
 | Parameters checked only when "Calculate" is pressed, one `need()` message at a time | every field checked as it changes, with the core's rules and the output name |
 | A plot title is required | optional; empty uses the station title, as R's default does |
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
@@ -5333,6 +5373,11 @@ heading before), which opens the section's help in the drawer
 {% section_help "result.index" topics=card.help_topics title=card.code %}
 {% section_help "quality.verdict" label=levels_label %}  {# "What do the levels mean?" #}
 ```
+
+In a modal side sheet (#199: the Quality thresholds and Index settings sheets) the drawer
+would be behind the sheet, so `inline=True` renders the same help in a disclosure that
+opens in place under the group's heading (`data-help-section`), with the help's word
+shown and the accessible name "Help: <title>".
 
 A `Section` (`S(...)` in `SECTIONS`) has an id `<page>.<section>`, the section's title, its
 topic ids, a few short `Note`s (a sentence, with an optional heading) and optionally an
@@ -5615,7 +5660,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 124.8 KB at most (gridded results, worst-case map, with the chart code); 120.3 KB for the quality-check results (#77, #174) |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the same page) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | the first visit's details with data loaded, Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.2 of 14.5 KB (14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 0.8 of 1 KB (station pages only, #198), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.2 of 14.5 KB (14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5642,7 +5687,7 @@ and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the
 if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
 supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
 with the sample loaded, step 2 with the checks queued and with their results, Results
-while the first run goes on (with the closed "Adjust and recalculate" form, #178), the
+while the first run goes on (#178), the
 dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
 index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); batch start, check and results (queued); the job list
@@ -5654,20 +5699,25 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
 | gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
-| station quality results (#77) | 372.1 | 44.3 | 109.4 | 102.2 |
-| station step 1, sample loaded (#114: with the top continue button) | 82.5 | 20.8 | 84.3 | 77.4 |
-| station results, 80 indices (#178: with "Adjust and recalculate") | 236.0 | 45.8 | 83.1 | 78.8 |
-| station index (TXx, with chart code) | 20.6 | 4.9 | 73.5 | 66.0 |
-| station sector results (#90) | 112.7 | 15.3 | 51.7 | 47.6 |
-| station Files, 114 tables (#79, #176) | 120.8 | 7.7 | 43.7 | 39.7 |
+| station quality results (#77; #198: with "Your data") | 553.3 | 70.3 | 144.2 | 135.8 |
+| station step 1, sample loaded (#114: with the top continue button) | 86.1 | 21.4 | 92.4 | 84.5 |
+| station results, 80 indices (#199: with the Index settings sheet) | 259.1 | 48.6 | 89.3 | 84.3 |
+| station index (TXx, with chart code; #199: with the Index settings sheet) | 62.4 | 10.7 | 82.8 | 74.7 |
+| station sector results (#90) | 153.7 | 20.8 | 60.6 | 55.8 |
+| station Files, 114 tables (#79, #176) | 162.8 | 13.7 | 53.1 | 48.4 |
 | gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
 | help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station calculating (#178: progress and "Adjust and recalculate") | 35.8 | 6.5 | 42.5 | 38.4 |
+| station calculating (#178: progress; #199: with the Index settings sheet) | 54.0 | 8.7 | 48.2 | 43.4 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
 | landing | 13.4 | 4.1 | 34.9 | 31.5 |
 | batch check | 18.6 | 4.4 | 34.1 | 30.8 |
-| station step 1, empty | 11.6 | 3.3 | 32.5 | 29.3 |
+| station step 1, empty | 11.2 | 3.3 | 41.1 | 36.7 |
 | job list | 5.3 | 1.8 | 30.4 | 27.3 |
+
+The station rows were measured again for #199. Since then every station page in use
+carries the Inputs panel's five sheets, the Index settings among them (about 4 KB gzipped
+each on the index, sector and Files pages, which had no settings form before; Results
+and the progress page already had one).
 
 About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
 `climpact.css` (11.5 KB), `ui.js` (4.2 KB), `theme.js` (0.3 KB) and the icon sprite.

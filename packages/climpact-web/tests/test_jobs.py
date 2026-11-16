@@ -121,7 +121,7 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
 
     # Step 1 (#76) loads the file and metadata, which queues the quality checks (#77) and a
     # speculative run with the default settings (#178); "Use this data" opens the results,
-    # and "Adjust and recalculate" there queues the run this test follows.
+    # and the Index settings sheet there (#199) queues the run this test follows.
     response = client.post(
         "/station/",
         {"station_file": SimpleUploadedFile("my_station.txt", station_text().encode())},
@@ -137,10 +137,10 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     assert speculative.is_speculative
     response = client.post(load_url.replace("/load", "/quality/continue"))
     page = client.get(response["Location"]).content.decode()
-    assert "Calculating indices" in page and "Adjust and recalculate" in page
+    assert "Calculating indices" in page and 'id="sheet-settings"' in page
     from test_indices_results import defaults
 
-    run_url = load_url.replace("/load", "/indices")
+    run_url = load_url.replace("/load", "/inputs/settings")
     response = client.post(run_url, {**defaults(), "plots": ""})
     assert response.status_code == 302
     speculative.refresh_from_db()

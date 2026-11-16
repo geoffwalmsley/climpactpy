@@ -119,7 +119,9 @@ def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(cli
     analysis, qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
     old_hash = analysis.file_hash
-    client.post(f"{base}/quality/file", {"station_file": _station_upload()})
+    # Quality's "Replace file" opens the File sheet (#199).
+    assert f'href="{base}/inputs/file?next=' in page(client, analysis, "quality")
+    edit(client, analysis, "file", {"station_file": _station_upload()}, back="quality")
     analysis.refresh_from_db()
     assert analysis.file_hash != old_hash and analysis.step == Step.RESULTS
     new_qc, new_run = analysis.qc_job, analysis.indices_job
@@ -148,7 +150,8 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     analysis, qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
     thresholds = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "prec_max": "150"}
-    client.post(f"{base}/quality/run", thresholds)
+    response = edit(client, analysis, "thresholds", thresholds, back="quality")
+    assert response["Location"] == f"{base}/quality"  # back where the sheet was opened
     analysis.refresh_from_db()
     new_qc, new_run = analysis.qc_job, analysis.indices_job
     assert new_qc.inputs["qc"]["prec_max"] == 150 and new_run.params["qc"]["prec_max"] == 150
@@ -156,6 +159,7 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     html = page(client, analysis, "quality")
     assert "You changed the quality-control thresholds." in html and "Checking again" in html
     assert changed(html) == {"thresholds"} and 'data-run="qc"' in html
+    assert "Quality thresholds · changed" in html and ">1 changed<" in html
     html = page(client, analysis)
     assert "You changed the quality-control thresholds." in html
     assert states(html)["results"] == "stale" and "data-results-section" in html
@@ -167,8 +171,8 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
 
 def test_new_settings_mark_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
-    client.post(f"{base}/indices", {**defaults(), "rx_days": "7"})
+    response = edit(client, analysis, "settings", {**defaults(), "rx_days": "7", "report": "on"})
+    assert response["Location"] == f"/station/{analysis.pk}/results"
     analysis.refresh_from_db()
     new = analysis.indices_job
     assert new.inputs["settings"]["params"]["rx_days"] == 7 and analysis.qc_job == qc
@@ -176,7 +180,9 @@ def test_new_settings_mark_results_out_of_date_until_replaced(client):
     html = page(client, analysis)
     assert "You changed the settings." in html and "Results are out of date. Recalculating" in html
     assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
-    assert changed(html) == {"settings"}
+    assert changed(html) == {"settings"} and "Index settings · changed" in html
+    assert ">1 changed<" in html.split('data-input="settings"')[1].split("</div>")[0]
+    assert 'data-run="run"' in html  # the run's progress beneath the panel
     finish(new, rename={"rx3day": "rx7day"})
     html = page(client, analysis)
     assert "out of date" not in html and "Days for Rxdday 7 days" in html
@@ -277,9 +283,11 @@ def test_each_sheet_says_what_applying_updates(client):
     sheets = dict(
         re.findall(r'<dialog class="sheet" id="sheet-([\w-]+)"(.*?)</dialog>', html, re.S)
     )
-    assert set(sheets) == {"file", "station", "base-period"}
+    assert set(sheets) == {"file", "station", "base-period", "thresholds", "settings"}
     assert "Updates Quality, Results and Files." in sheets["file"]
     assert "Updates Results and Files. Quality stays as it is." in sheets["base-period"]
+    assert "Updates Quality, Results and Files." in sheets["thresholds"]
+    assert "Updates Results and Files. Quality stays as it is." in sheets["settings"]
     for key, sheet in sheets.items():
         # One primary button, Apply, and Cancel; the form posts to the edit page.
         assert sheet.count('class="button"') == 1 and ">Apply<" in sheet and ">Cancel<" in sheet
@@ -303,9 +311,46 @@ def test_the_panel_lists_every_input_on_every_section(client):
     html = page(client, analysis)
     assert "29,220 days · 3 variables" in html or re.search(r"[\d,]+ days · 3 variables", html)
     assert "1971–2000" in html and html.count(">Defaults<") == 2
-    # The thresholds and settings are edited where they are until #199.
-    assert f'href="{base}/quality#thresholds"' in html
-    assert f'href="{base}/results?settings=open#adjust"' in html
+    # Each input opens its sheet, the thresholds and index settings too (#199).
+    for key in ("file", "station", "base-period", "thresholds", "settings"):
+        assert f'href="{base}/inputs/{key}?next=%2Fstation%2F{analysis.pk}%2Fresults"' in html
+        assert f'data-sheet-open="sheet-{key}"' in html and f'id="sheet-{key}"' in html
+
+
+def test_the_index_settings_wait_for_use_this_data(client):
+    """Before "Use this data" only the results use the index settings: no Edit, no sheet
+    and no page for them (#198, #199). The thresholds sheet is there from the start."""
+    analysis = ready_analysis(client)
+    base = f"/station/{analysis.pk}"
+    html = page(client, analysis, "quality")
+    item = html.split('data-input="settings"')[1].split("</div>")[0]
+    assert ">Defaults<" in item and "<a " not in item
+    assert 'id="sheet-settings"' not in html and 'id="sheet-thresholds"' in html
+    assert client.get(f"{base}/inputs/settings")["Location"] == f"{base}/quality"
+    assert client.post(f"{base}/inputs/settings", defaults())["Location"] == f"{base}/quality"
+    assert Job.objects.filter(kind="station").count() == 1  # only the speculative run
+
+
+def test_no_settings_forms_on_the_output_tabs(client):
+    """#199: Quality, Results and Files hold no settings form, only the decision, search
+    and filters, and small actions (Delete, Try again, Recalculate). Every input is
+    changed in the Inputs panel's sheets."""
+    analysis, _qc, _run = in_use(client)
+    base = f"/station/{analysis.pk}"
+    allowed = {f"{base}/quality/continue", f"{base}/delete", f"{base}/results", ""}
+    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+        html = re.sub(r"<dialog.*?</dialog>", "", page(client, analysis, path), flags=re.S)
+        forms = re.findall(r"<form([^>]*)>(.*?)</form>", html, re.S)
+        for attrs, body in forms:
+            action = re.search(r'action="([^"]*)"', attrs)
+            action = action.group(1) if action else ""
+            if path == "sector":
+                continue  # the sector file's upload, the sector comparison's own input
+            assert action in allowed, (path, action)
+            for name in ("iqr_temp", "rx_days", "hdd_base", "station_file", "base_start"):
+                assert f'name="{name}"' not in body, (path, name)
+        assert "quality/run" not in html and "quality/file" not in html, path
+        assert "Adjust and recalculate" not in html and "Upload a corrected file" not in html
 
 
 def test_the_edit_pages_work_without_javascript(client):
@@ -314,7 +359,8 @@ def test_the_edit_pages_work_without_javascript(client):
     analysis, _qc, run = in_use(client)
     base = f"/station/{analysis.pk}"
     for key, title in [("file", "Replace the file"), ("station", "Station"),
-                       ("base-period", "Base period")]:  # fmt: skip
+                       ("base-period", "Base period"), ("thresholds", "Quality thresholds"),
+                       ("settings", "Index settings")]:  # fmt: skip
         html = page(client, analysis, f"inputs/{key}?next={base}/downloads")
         assert f'<h1 class="sheet__title">{title}</h1>' in html
         assert f'href="{base}/downloads"' in html and ">Cancel<" in html  # Cancel goes back
@@ -396,9 +442,13 @@ def test_old_step_addresses_lead_to_their_tabs(client):
     html = page(client, analysis, "quality")
     assert 'id="your-data"' in html and "Missing values by variable" in html
     assert 'data-tab="data"' not in html
-    # The old Calculate step leads to "Adjust and recalculate" on Results (#178).
+    # The old Calculate step opens the Index settings sheet over Results (#178, #199).
     response = client.get(f"{base}/indices?index=txx")
-    assert response["Location"] == f"{base}/results?settings=open&back=txx#adjust"
+    assert response["Location"] == f"{base}/results?settings=open&back=txx"
+    assert "data-sheet-autoopen" in page(client, analysis, "results?settings=open")
+    # The old anchors #adjust and #thresholds are kept for js/sheet.js to open the sheets.
+    assert 'id="adjust"' in page(client, analysis, "results")
+    assert 'id="thresholds"' in page(client, analysis, "quality")
     # Another session cannot open any of them.
     assert Client().get(f"{base}/").status_code == 404
 

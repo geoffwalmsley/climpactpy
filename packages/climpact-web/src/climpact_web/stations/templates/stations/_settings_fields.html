@@ -1,0 +1,60 @@
+{% load i18n help %}{% comment %}
+The Index settings sheet's fields (#199; "Adjust and recalculate" on Results from #178):
+every setting of R's step 3, in groups, then the files a run writes (plots, zip, report).
+Inside the sheet's form (stations/_input_form.html), which scrolls between its header and
+its foot, so Apply stays in view. Each group is checked as it changes
+(stations/_indices_unit.html). Each group's help opens in place under its heading
+(``section_help ... inline=True``): the help drawer would be behind the modal sheet.
+Context: analysis, form (IndexParamsForm), settings_source, heading (the groups' heading
+element: h3 under the sheet's h2 title, h2 on the sheet's own page under its h1).
+{% endcomment %}
+{% if settings_source == "batch" %}<p class="text-sm text-text-muted">{% translate "The settings come from this station's line in the batch metadata file." %}</p>{% endif %}
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-plots-title">
+  <{{ heading }} class="settings-group__title" id="settings-plots-title">{% translate "Plots" %}</{{ heading }}>{% section_help "calculate.plots" inline=True %}
+  {% include "stations/_indices_unit.html" with group="plot_title" %}
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-spells-title">
+  <{{ heading }} class="settings-group__title" id="settings-spells-title">{% translate "Spell lengths" %}</{{ heading }}>{% section_help "calculate.spells" inline=True %}
+  <div class="settings-group__fields">
+    {% include "stations/_indices_unit.html" with group="wsdi_days" %}
+    {% include "stations/_indices_unit.html" with group="csdi_days" %}
+    {% include "stations/_indices_unit.html" with group="rx_days" %}
+    {% include "stations/_indices_unit.html" with group="txtn_days" %}
+  </div>
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-degree-title">
+  <{{ heading }} class="settings-group__title" id="settings-degree-title">{% translate "Degree days" %}</{{ heading }}>{% section_help "calculate.degree" inline=True %}
+  <div class="settings-group__fields">
+    {% include "stations/_indices_unit.html" with group="hdd_base" %}
+    {% include "stations/_indices_unit.html" with group="cdd_base" %}
+    {% include "stations/_indices_unit.html" with group="gdd_base" %}
+  </div>
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-prcp-title">
+  <{{ heading }} class="settings-group__title" id="settings-prcp-title">{% translate "Precipitation and drought" %}</{{ heading }}>{% section_help "calculate.prcp" inline=True %}
+  <div class="settings-group__fields">
+    {% include "stations/_indices_unit.html" with group="rnnmm" %}
+    {% include "stations/_indices_unit.html" with group="spei_months" %}
+  </div>
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-custom-title">
+  <{{ heading }} class="settings-group__title" id="settings-custom-title">{% translate "Your own index" %}</{{ heading }}>{% section_help "calculate.custom" inline=True %}
+  {% include "stations/_indices_unit.html" with group="custom" %}
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-ehf-title">
+  <{{ heading }} class="settings-group__title" id="settings-ehf-title">{% translate "Heatwave definition" %}</{{ heading }}>{% section_help "calculate.ehf" inline=True %}
+  <p class="text-sm">{% translate "Heatwaves use the excess heat factor of Nairn and Fawcett (2013). There is nothing to choose." %}</p>
+</section>
+
+<section class="stack stack--sm settings-group" aria-labelledby="settings-output-title">
+  <{{ heading }} class="settings-group__title" id="settings-output-title">{% translate "Files" %}</{{ heading }}>{% section_help "calculate.files" inline=True %}
+  {% include "components/field.html" with field=form.plots %}
+  {% include "components/field.html" with field=form.zip %}
+  {% include "components/field.html" with field=form.report %}
+</section>

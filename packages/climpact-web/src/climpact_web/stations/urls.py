@@ -8,8 +8,9 @@ app_name = "stations"
 # ``downloads``, the addresses of the steps they replace, so links and bookmarks keep
 # working. ``load`` is the first visit's details, and once they are confirmed Data's old
 # address leads to Quality's "Your data". ``inputs/<key>`` is a sheet of the Inputs panel
-# as a page. ``/station/<id>/`` opens the furthest section reached, and the old Calculate
-# step (``indices``) Results' "Adjust and recalculate".
+# as a page: the file, the station, the base period, the thresholds and the index settings
+# (#198, #199). ``/station/<id>/`` opens the furthest section reached, and the old
+# Calculate step (``indices``) the Index settings sheet over Results.
 urlpatterns = [
     path("", views.upload, name="upload"),
     path("<uuid:analysis_id>/", views.workspace_home, name="workspace"),
@@ -24,10 +25,8 @@ urlpatterns = [
     path("<uuid:analysis_id>/series.csv", views.series, name="series"),
     path("<uuid:analysis_id>/delete", views.delete, name="delete"),
     path("<uuid:analysis_id>/quality", views.qc, name="qc"),
-    path("<uuid:analysis_id>/quality/run", views.qc_run, name="qc_run"),
     path("<uuid:analysis_id>/quality/progress", views.qc_progress, name="qc_progress"),
     path("<uuid:analysis_id>/quality/checks/<slug:check>", views.qc_table, name="qc_table"),
-    path("<uuid:analysis_id>/quality/file", views.qc_replace, name="qc_replace"),
     path("<uuid:analysis_id>/quality/continue", views.qc_continue, name="qc_continue"),
     # Steps 3 and 4 (#78): stations/views_indices.py.
     path("<uuid:analysis_id>/indices", views_indices.indices, name="indices"),

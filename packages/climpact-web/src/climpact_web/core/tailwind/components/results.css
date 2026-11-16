@@ -375,13 +375,6 @@
     stroke: var(--chart-2);
   }
 
-  /* "Adjust and recalculate" (#178): the settings in one disclosure, its groups divided
-     by a rule rather than put in cards (DESIGN.md: no cards inside cards). */
-  .settings-panel__group + .settings-panel__group {
-    padding-block-start: --spacing(5);
-    border-block-start: 1px solid var(--color-border);
-  }
-
   /* A recalculation's progress above the results it replaces. */
   .recalculation {
     border-inline-start: 4px solid var(--color-ink);

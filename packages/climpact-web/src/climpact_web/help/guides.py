@@ -229,7 +229,7 @@ def catalogue_markdown() -> str:
                     what = "*nn*"
                 elif short in ("spi", "spei"):
                     what = gettext("an extra time scale")
-                choose = gettext("You choose %(what)s in Adjust and recalculate, on the results.")
+                choose = gettext("You choose %(what)s in the index settings, in Your inputs.")
                 line += " " + choose % {"what": what}
             lines += [line, "{: .index-facts }", ""]
     return "\n".join(lines)

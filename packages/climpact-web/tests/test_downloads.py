@@ -87,7 +87,11 @@ def test_downloads_page_says_what_was_not_made(client):
     assert "Not made. The zip was switched off" in html
     assert "Not made. The report was switched off" in html
     assert "Not made. The plots were switched off" in html
-    assert f'href="/station/{analysis.pk}/results?settings=open#adjust"' in html
+    # Each links to the Index settings sheet, where they are switched on (#199).
+    sheet = (
+        f'href="/station/{analysis.pk}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fdownloads"'
+    )
+    assert html.count(sheet + ' data-sheet-open="sheet-settings"') >= 2
 
 
 def test_downloads_page_redirects_and_is_private(client):
@@ -174,15 +178,16 @@ def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
 
     analysis = committed_analysis(client)
     assert analysis.indices_job.params["report"] is True  # the speculative run's default
-    form = client.get(f"/station/{analysis.pk}/results").content.decode()
+    settings_url = f"/station/{analysis.pk}/inputs/settings"
+    form = client.get(settings_url).content.decode()
     assert re.search(r'<input type="checkbox" name="report"[^>]*checked', form)
-    client.post(f"/station/{analysis.pk}/indices", {**defaults(), "report": "on"})
+    client.post(settings_url, {**defaults(), "report": "on"})
     job = Job.objects.latest("created_at")
     assert job.params["report"] is True
-    client.post(f"/station/{analysis.pk}/indices", defaults())  # unticked
+    client.post(settings_url, defaults())  # unticked
     assert Job.objects.latest("created_at").params["report"] is False
     # The next visit starts from the last calculation's choice.
-    form = client.get(f"/station/{analysis.pk}/results").content.decode()
+    form = client.get(settings_url).content.decode()
     assert not re.search(r'<input type="checkbox" name="report"[^>]*checked', form)
 
 

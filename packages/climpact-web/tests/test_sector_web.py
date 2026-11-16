@@ -468,7 +468,8 @@ def test_every_section_has_its_help(client):
     analysis, _job = finished_analysis(client)
     html = client.get(url(analysis)).content.decode()
     assert re.findall(r'href="/help/sections/([^/"?]+)/', html) == ["sector.data", "sector.plot"]
-    assert "help-topic--compact" not in html
+    # The Inputs panel's sheets have their help in place (#199): not the page's own.
+    assert "help-topic--compact" not in re.sub(r"<dialog.*?</dialog>", "", html, flags=re.S)
     client.post(url(analysis), {"sample": "1", "detrend": "on"})
     assert run_next().status == Status.SUCCEEDED
     html = client.get(url(analysis)).content.decode()

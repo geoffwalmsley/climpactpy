@@ -255,29 +255,30 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('[data-results-filter]')",
              what="the speculative station run")  # fmt: skip
     results = pages["station results"] = here(c).split("?")[0].split("#")[0]
-    pages["station adjust"] = results + "?settings=open"  # no #adjust: a load each time
+    back = "?next=" + quote(urlparse(results).path)
+    # The thresholds and index settings sheets as pages, as without JavaScript (#199): the
+    # long one gets the full audit. The sheets themselves: test_settings_sheet_by_keyboard.
+    pages["station edit, thresholds"] = results.replace("/results", "/inputs/thresholds") + back
+    pages["station edit, settings"] = results.replace("/results", "/inputs/settings") + back
 
-    def adjust_errors(c):
-        c.navigate(pages["station adjust"])
+    def settings_errors(c):
+        c.navigate(pages["station edit, settings"])
         c.evaluate("document.querySelector('[name=hdd_base]').value = 'warm'")
-        submit(c, "form[action$='/indices']")
+        submit(c, "#input-form")
 
-    pages["station adjust, errors"] = adjust_errors
-    # Recalculate: the results it replaces, marked out of date (#179), under its progress,
-    # then the new results.
-    c.navigate(pages["station adjust"])
-    c.evaluate("document.querySelector('[name=rx_days]').value = '4'")
-    submit(c, "form[action$='/indices']")
+    pages["station edit, settings, errors"] = settings_errors
+    # New settings from the sheet: the results they replace under their progress, then
+    # the new results.
+    c.navigate(results)
+    c.evaluate("document.querySelector('[data-sheet-open=\"sheet-settings\"]').click();"
+               "document.querySelector('#sheet-settings-form').rx_days.value = '4'")  # fmt: skip
+    submit(c, "#sheet-settings-form")
     heard = while_running(c, "station run")
     wait_for(c, "!!document.querySelector('[data-results-filter]')"
              " && !document.querySelector('[data-stale-banner], .recalculation')",
              what="the station run", heard=heard)  # fmt: skip
     # An input's form on its own page, as without JavaScript (#198).
-    pages["station edit, base period"] = (
-        results.replace("/results", "/inputs/base-period")
-        + "?next="
-        + quote(urlparse(results).path)
-    )
+    pages["station edit, base period"] = results.replace("/results", "/inputs/base-period") + back
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
     pages["station downloads"] = results.replace("/results", "/downloads")
@@ -907,7 +908,6 @@ STATION_PAGES = (
     "station upload",
     "station sample loaded",
     "station quality results",
-    "station adjust",
     "station results",
     "station index",
     "station downloads",
@@ -1152,8 +1152,8 @@ def test_results_groups_open_with_the_search_and_links(chrome, site):
 
 def test_quality_worklist_by_keyboard(chrome, site):
     """#174: a "worth a look" group opens and closes from the keyboard on its summary;
-    "Show on chart" on a "look wrong" row opens Details and focuses the daily chart; the
-    "Upload a corrected file" button is a Tab stop that opens the file chooser."""
+    "Show on chart" on a "look wrong" row opens Details and focuses the daily chart;
+    "Replace file" opens the Inputs panel's File sheet (#199)."""
     c = chrome
     c.navigate(site["station quality results"])
     group = "document.querySelector('.qc-group')"
@@ -1177,25 +1177,24 @@ def test_quality_worklist_by_keyboard(chrome, site):
         c.settle()
         assert run_axe(c) == [], scheme
     set_mode(c)
-    # The upload button: its file input takes focus, shows it on the button, and opens
-    # the chooser (the page is not sent: nothing is chosen).
+    # "Replace file" is a Tab stop that opens the File sheet (#199), focus on its file
+    # input, and Escape gives focus back to it.
     c.navigate(site["station quality results"])
-    focus(c, ".qc-verdict [data-file-button] input[type=file]")
-    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
-    assert ring != "none", "the upload button shows no focus"
-    c.send("Page.setInterceptFileChooserDialog", enabled=True)
-    try:
-        c.events.clear()
-        c.press(" ")
-        c.wait_event("Page.fileChooserOpened", timeout=5)
-    finally:
-        c.send("Page.setInterceptFileChooserDialog", enabled=False)
+    replace = ".qc-verdict [data-sheet-open='sheet-file']"
+    focus(c, replace)
+    c.press("Enter")
+    time.sleep(0.1)
+    assert c.evaluate("document.getElementById('sheet-file').matches(':modal')")
+    assert c.evaluate("document.activeElement.type") == "file"
+    c.press("Escape")
+    time.sleep(0.1)
+    assert c.evaluate(f"document.activeElement.matches({json.dumps(replace)})")
 
 
 def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
-    """#173: the Load and Calculate pages have one button each, below the fields it
-    submits (no longer a second one in the first screen, #114); with an error in a
-    setting, the settings open and the error summary, then its link, focus the field."""
+    """#173: the Load page and the Index settings have one button each, below the fields
+    it submits (#114); with an error in a setting, the error summary, then its link, focus
+    the field (the settings sheet's page, #199)."""
     c = chrome
     c.viewport(1280, 800)
     try:
@@ -1205,25 +1204,98 @@ def test_one_button_below_its_fields_and_errors_still_focused(chrome, site):
         assert c.evaluate(
             f"{base}.getBoundingClientRect().bottom < {button}.getBoundingClientRect().top"
         )
-        c.navigate(site["station results"])
-        assert c.evaluate("document.getElementById('adjust').open") is False
-        c.navigate(site["station adjust"])
-        assert c.evaluate("document.getElementById('adjust').open") is True
-        run = "form[action$='/indices'] button[type=submit]"
+        c.navigate(site["station edit, settings"])
+        run = "#input-form button[type=submit]"
         assert c.evaluate(f"document.querySelectorAll({json.dumps(run)}).length") == 1
-        files = "document.querySelector('[aria-labelledby=output-title]')"
+        files = "document.querySelector('[aria-labelledby=settings-output-title]')"
         assert c.evaluate(
             f"{files}.getBoundingClientRect().bottom"
             f" < document.querySelector({json.dumps(run)}).getBoundingClientRect().top"
         )
-        open_page(c, site["station adjust, errors"])
-        assert c.evaluate("document.getElementById('adjust').open") is True
+        open_page(c, site["station edit, settings, errors"])
         assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
         link = "[data-error-summary] a[href='#id_hdd_base']"
         c.evaluate(f"document.querySelector({json.dumps(link)}).click()")
         assert c.evaluate("document.activeElement.id") == "id_hdd_base"
         assert c.evaluate("document.activeElement.getClientRects().length") > 0
     finally:
+        c.viewport(1280, 900)
+
+
+def test_settings_sheet_by_keyboard(chrome, site):
+    """#199: the Index settings sheet, the long one. Its Edit opens it with focus on the
+    first field; its body scrolls between the header and the foot, so Apply stays in view
+    while Tab goes through every field, each scrolled into view; Tab stays inside. No axe
+    violation with it open (every help disclosure open too), in light and dark and at
+    320 px. Escape gives focus back to the Edit. The old addresses open it (or the
+    thresholds sheet) as the page loads, and closing it focuses the panel's Edit."""
+    c = chrome
+    c.viewport(1280, 700)
+    sheet = "document.getElementById('sheet-settings')"
+    apply = f"{sheet}.querySelector('.sheet__foot button[type=submit]')"
+    in_view = (
+        "(function (el) { var r = el.getBoundingClientRect();"
+        " return r.top >= 0 && r.bottom <= window.innerHeight + 1; })"
+    )
+    try:
+        c.navigate(site["station results"])
+        edit = "[data-inputs-panel] [data-sheet-open='sheet-settings']"
+        focus(c, edit)
+        c.press("Enter")
+        time.sleep(0.1)
+        assert c.evaluate(f"{sheet}.open && {sheet}.matches(':modal')")
+        assert c.evaluate("document.activeElement.name") == "plot_title"
+        body = f"{sheet}.querySelector('.sheet__body')"
+        assert c.evaluate(f"{body}.scrollHeight > {body}.clientHeight"), "nothing to scroll"
+        reached_apply = False
+        for _ in range(60):
+            c.press("Tab")
+            time.sleep(0.02)
+            assert c.evaluate(f"{sheet}.contains(document.activeElement)") or c.evaluate(
+                "document.activeElement === document.body"
+            ), "Tab left the open sheet"
+            assert c.evaluate(f"{in_view}({apply})"), "Apply scrolled out of view"
+            if c.evaluate("document.activeElement !== document.body"):
+                assert c.evaluate(f"{in_view}(document.activeElement)"), c.evaluate(
+                    "document.activeElement.outerHTML.slice(0, 120)"
+                )
+            if c.evaluate(f"document.activeElement === {apply}"):
+                reached_apply = True
+                break
+        assert reached_apply, "Tab never reached Apply"
+        c.evaluate(f"{sheet}.querySelectorAll('details').forEach(function (d) {{ d.open = true }})")
+        failures = [f"light: {v['id']}" for v in run_axe(c)]
+        c.media(prefers_color_scheme="dark")
+        c.transitions_done()
+        failures += [f"dark: {v['id']}" for v in run_axe(c, ["color-contrast"])]
+        c.media(prefers_color_scheme="light")
+        c.viewport(320, 700)
+        c.settle(0.1)
+        failures += [f"320px: {v['id']}" for v in run_axe(c)]
+        assert not failures, failures
+        assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        assert c.evaluate(f"{in_view}({apply})")
+        c.viewport(1280, 700)
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{sheet}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
+        # The old addresses: ?settings=open and #adjust on Results, #thresholds on Quality.
+        for url, key in [
+            (site["station results"] + "?settings=open", "settings"),
+            (site["station results"] + "#adjust", "settings"),
+            (site["station quality results"].split("#")[0] + "#thresholds", "thresholds"),
+        ]:
+            c.navigate("about:blank")
+            c.navigate(url)
+            wait_for(c, f"document.getElementById('sheet-{key}').open", timeout=5, what=url)
+            assert c.evaluate(f"document.getElementById('sheet-{key}').matches(':modal')")
+            c.press("Escape")
+            time.sleep(0.1)
+            panel_edit = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
+            assert c.evaluate(f"document.activeElement.matches({json.dumps(panel_edit)})"), url
+    finally:
+        c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
 
 

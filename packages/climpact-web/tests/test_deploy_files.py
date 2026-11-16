@@ -42,8 +42,6 @@ RATE_LIMITED = {
     "stations:sample",
     "stations:load",
     "stations:replace_file",
-    "stations:qc_run",
-    "stations:qc_replace",
     "stations:qc_continue",
     "stations:indices",
     "stations:sector",
@@ -113,6 +111,11 @@ def test_rate_limit_counts_only_job_starting_paths():
     rule = cloudflare_rule("rate-limit")
     counted = {name for name, path in paths.items() if rule(path)}
     assert counted == RATE_LIMITED
+    # The Inputs panel's sheets start jobs when applied (#198, #199); their progress does not.
+    base = f"/station/{SAMPLE_UUID}/inputs/"
+    for key in ("file", "station", "base-period", "thresholds", "settings"):
+        assert rule(base + key), key
+    assert not rule(base + "progress")
     assert not rule(paths["stations:qc_progress"])
     assert not rule(paths["stations:validate"])
     assert not rule(paths["jobs:file"])

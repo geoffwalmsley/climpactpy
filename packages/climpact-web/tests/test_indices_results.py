@@ -116,17 +116,37 @@ def read_table(name: str):
     return read_climpact_csv(LAT0 / STATION / "indices" / f"{STATION}_{name}.csv").data
 
 
-# ---- step 3: the form --------------------------------------------------------------------
+# ---- step 3: the Index settings sheet (#199) --------------------------------------------
+
+
+def apply_settings(client, analysis, data, next_page="results"):
+    """Apply the Inputs panel's Index settings sheet (#199) from a station page."""
+    return client.post(
+        f"/station/{analysis.pk}/inputs/settings",
+        {**data, "next": f"/station/{analysis.pk}/{next_page}"},
+    )
+
+
+def settings_sheet(html: str) -> str:
+    """The Index settings sheet (a <dialog>) of a station page."""
+    return re.search(r'<dialog class="sheet" id="sheet-settings".*?</dialog>', html, re.S).group(0)
+
+
+def without_sheets(html: str) -> str:
+    """The page without the Inputs panel's sheets: what is on the page itself."""
+    return re.sub(r"<dialog.*?</dialog>", "", html, flags=re.S)
 
 
 def test_the_form_has_every_r_parameter_with_its_default(client):
-    """ "Adjust and recalculate" (#178) has every setting of R's step 3, with its default,
-    on the results page while the speculative run goes on."""
+    """The Index settings sheet (#199; "Adjust and recalculate" from #178) has every
+    setting of R's step 3, with its default, while the speculative run goes on."""
     analysis = committed_analysis(client)
     response = client.get(f"/station/{analysis.pk}/results")
     assert response.status_code == 200
-    html = response.content.decode()
-    assert "Calculating indices" in html and 'id="adjust"' in html
+    page = response.content.decode()
+    assert "Calculating indices" in page
+    html = settings_sheet(page)
+    assert f'action="/station/{analysis.pk}/inputs/settings"' in html
     expected = {"wsdi_days": "1", "csdi_days": "1", "rx_days": "3", "txtn_days": "2",
                 "hdd_base": "18.0", "cdd_base": "18.0", "gdd_base": "10.0", "rnnmm": "30.0",
                 "spei_months": "24", "custom_threshold": "0.0"}  # fmt: skip
@@ -135,11 +155,15 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
     assert '<option value="TN" selected>' in html and '<option value="&gt;" selected>' in html
     assert 'name="custom_enabled"' in html and "checked" in html
     assert 'name="plot_title"' in html and f'placeholder="{STATION}  ·  0°N, 0°E"' in html
-    # How the parameterised indices are named is in the sections' help (#177), no longer
-    # under each field.
+    # The plots, zip and report go with the settings.
+    for name in ("plots", "zip", "report"):
+        assert f'name="{name}"' in html, name
+    # How the parameterised indices are named is in the groups' help (#177), opening in
+    # place in the sheet, no longer under each field.
     assert "Written as" not in html
     for name in ("wsdi3", "rx3day", "hddheat18", "r30mm", "24month_spi"):
         assert name in html, name
+    assert html.count('data-help-section="calculate.') == 7 and "data-drawer-open" not in html
     # Explanations: every parameter's help topic, and the EHF definition.
     assert "Nairn and Fawcett (2013)" in html
     topics = set(re.findall(r'data-help-topic="([^"]+)"', html))
@@ -147,12 +171,19 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
               "cdd_base", "gdd_base", "rnnmm", "spei_months", "custom")  # fmt: skip
     assert {f"param.{f}" for f in fields} <= topics
     assert "index.hwEHF" in topics
+    # One button, Apply, at the foot, after the fields, described by what it updates.
+    foot = html.split('class="sheet__foot"')[1]
+    assert html.index('name="report"') < html.index('class="sheet__foot"')
+    assert "<span>Apply</span>" in foot and 'aria-describedby="sheet-settings-form-impact"' in foot
+    assert "Updates Results and Files. Quality stays as it is." in html
+    assert 'class="card' not in html
 
 
 def test_step_3_needs_the_station_details(client):
     load = client.post("/station/sample")["Location"]
     analysis = StationAnalysis.objects.get()
     assert client.get(f"/station/{analysis.pk}/indices")["Location"] == load
+    assert client.get(f"/station/{analysis.pk}/inputs/settings")["Location"] == load
 
 
 @pytest.mark.parametrize(
@@ -237,51 +268,47 @@ def test_htmx_checks_one_group_and_warns(client):
     assert client.post(url, {**defaults(), "group": "nope"}).status_code == 400
 
 
-def _settings(html: str) -> str:
-    """The opening tag of the "Adjust and recalculate" disclosure."""
-    return re.search(r'<details[^>]*id="adjust"[^>]*>', html).group(0)
-
-
-def test_adjust_and_recalculate_on_the_results(client):
-    """#178: the settings are a line in the results' header (the defaults, or what was
-    changed) and a closed "Adjust and recalculate" disclosure after the indices, whose one
-    button, after the fields, is described by the run-time note. No cards inside it."""
+def test_the_settings_are_a_line_on_the_results_and_a_sheet(client):
+    """#178, #199: the settings are a line in the results' header (the defaults, or what
+    was changed) whose link opens the Index settings sheet; no form on the page."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     header = re.search(r"<p [^>]*data-settings-line>.*?</p>", html, re.S).group(0)
     assert "Climpact&#x27;s default settings." in header
-    assert f'href="/station/{analysis.pk}/results?settings=open#adjust"' in header
-    assert " open" not in _settings(html)
-    assert html.index('id="catalogue"') < html.index('id="adjust"')
-    form = re.search(r'<form method="post" action="/station/[^"]+/indices".*?</form>', html, re.S)
-    form = form.group(0)
-    assert form.index('name="hdd_base"') < form.index("<span>Recalculate</span>")
-    buttons = re.findall(r'<button type="submit"[^>]*>', form)
-    assert len(buttons) == 1 and 'aria-describedby="run-time"' in buttons[0]
-    assert 'id="run-time"' in form and 'class="card' not in form
+    sheet = f"/station/{analysis.pk}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fresults"
+    assert f'<a href="{sheet}" data-sheet-open="sheet-settings"' in header
+    assert 'id="adjust"' in header  # the old form's anchor (js/sheet.js opens the sheet)
+    page = without_sheets(html)
+    assert "<form" not in page.split('id="catalogue"')[0].split("data-settings-line")[1]
+    assert 'name="hdd_base"' not in page and "Adjust and recalculate" not in page
+    # This run had the plots and the zip switched off: the panel counts them.
+    panel = html.split('data-input="settings"')[1].split("</div>")[0]
+    assert '<dd class="inputs-panel__value">2 changed</dd>' in panel
 
 
-def test_the_settings_open_on_errors(client):
+def test_the_settings_page_shows_errors(client):
+    """A sheet's form with errors returns on the sheet's own page (#198)."""
     analysis, _job = finished_analysis(client)
-    response = client.post(f"/station/{analysis.pk}/indices", {**defaults(), "hdd_base": "warm"})
+    response = apply_settings(client, analysis, {**defaults(), "hdd_base": "warm"})
     html = response.content.decode()
     assert response.status_code == 200 and "data-error-summary" in html
-    assert " open" in _settings(html) and "data-results-section" in html  # still the results
-    assert html.index('id="adjust"') < html.index('name="hdd_base"')
-    assert 'href="#id_hdd_base"' in html  # the summary links to the field, now shown
+    assert 'id="input-form"' in html and '<h1 class="sheet__title">Index settings</h1>' in html
+    assert 'href="#id_hdd_base"' in html  # the summary links to the field
+    assert f'name="next" value="/station/{analysis.pk}/results"' in html
     assert Job.objects.filter(kind="station").count() == 2  # nothing queued
 
 
 def test_the_header_names_the_settings_that_were_changed(client):
     analysis, _job = finished_analysis(client)
-    client.post(
-        f"/station/{analysis.pk}/indices", {**defaults(), "rx_days": "7", "custom_enabled": ""}
-    )
+    apply_settings(client, analysis, {**defaults(), "rx_days": "7", "custom_enabled": ""})
     finish(Job.objects.latest("created_at"))
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     header = re.search(r"<p [^>]*data-settings-line>.*?</p>", html, re.S).group(0)
     assert "Settings changed: Days for Rxdday 7 days, Custom threshold index none." in header
-    assert 'name="rx_days" value="7"' in html and " open" not in _settings(html)
+    assert 'name="rx_days" value="7"' in settings_sheet(html)
+    # The panel counts them, with the report left unticked: "3 changed".
+    panel = html.split('data-input="settings"')[1].split("</div>")[0]
+    assert '<dd class="inputs-panel__value">3 changed</dd>' in panel
 
 
 def test_recalculate_queues_a_station_job_with_the_parameters(client):
@@ -291,7 +318,7 @@ def test_recalculate_queues_a_station_job_with_the_parameters(client):
     analysis.save()
     data = {**defaults(), "rx_days": "7", "plot_title": "  Sydney   test ", "custom_variable": "TX",
             "custom_operator": ">=", "custom_threshold": "40", "zip": ""}  # fmt: skip
-    response = client.post(f"/station/{analysis.pk}/indices", data)
+    response = apply_settings(client, analysis, data)
     job = Job.objects.exclude(pk=speculative.pk).get(kind="station")
     assert response["Location"] == f"/station/{analysis.pk}/results"
     # The run it replaces had not finished: it is cancelled, and nothing is kept on screen.
@@ -311,9 +338,13 @@ def test_recalculate_queues_a_station_job_with_the_parameters(client):
     assert (job.input_dir / "station.txt").read_bytes() == analysis.station_file.read_bytes()
     analysis.refresh_from_db()
     assert analysis.indices_job == job and analysis.step == Step.RESULTS
-    # The form opens with the settings of the last calculation.
+    # The sheet opens with the settings of the last calculation, and the panel counts
+    # them: rx_days, the custom index, the plot title, and the zip and report off.
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert 'name="rx_days" value="7"' in html and 'value="Sydney test"' in html
+    sheet = settings_sheet(html)
+    assert 'name="rx_days" value="7"' in sheet and 'value="Sydney test"' in sheet
+    panel = html.split('data-input="settings"')[1].split("</div>")[0]
+    assert '<dd class="inputs-panel__value">5 changed</dd>' in panel
 
 
 def test_the_runner_passes_the_plot_title(monkeypatch, tmp_path):
@@ -377,7 +408,8 @@ def test_a_failed_calculation_shows_why_and_offers_the_settings(client):
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert "The calculation failed." in html and "The base period has no data." in html
     assert "stages__item--failed" in html
-    assert f'href="/station/{analysis.pk}/results?settings=open#adjust"' in html
+    sheet = f"/station/{analysis.pk}/inputs/settings?next=/station/{analysis.pk}/results"
+    assert f'href="{sheet}" data-sheet-open="sheet-settings"' in html
     response = client.post(f"/jobs/{job.pk}/retry", {"next": f"/station/{analysis.pk}/results"})
     assert response["Location"] == f"/station/{analysis.pk}/results"
     assert client.post(f"/jobs/{job.pk}/cancel", {"next": "https://example.org/"})["Location"] == (
@@ -399,29 +431,49 @@ def test_no_results_before_use_this_data(client):
 
 
 def test_results_without_a_run_offer_to_calculate(client):
-    """When no run was queued (refused in hosted mode, say), Results has the settings open
-    with one button, which queues it."""
+    """When no run was queued (refused in hosted mode, say), Results has one button, which
+    opens the Index settings sheet; its Apply queues the run (#199)."""
     analysis = committed_analysis(client)
     analysis.indices_job.request_cancel()
     analysis.indices_job = None
     analysis.save()
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert "The indices are not calculated yet." in html and " open" in _settings(html)
-    assert "<span>Calculate</span>" in html
-    client.post(f"/station/{analysis.pk}/indices", defaults())
+    assert "The indices are not calculated yet." in html
+    assert "<span>Check the settings and calculate</span>" in html
+    assert 'data-sheet-open="sheet-settings"' in without_sheets(html)
+    assert "<form" not in without_sheets(html).split('class="workspace__main')[1]
+    apply_settings(client, analysis, defaults())
     analysis.refresh_from_db()
     assert analysis.indices_job.status == Status.QUEUED and not analysis.indices_job.is_speculative
 
 
-def test_the_old_calculate_address_opens_adjust_and_recalculate(client):
-    """#178: links, bookmarks and emails to the Calculate step land on the settings."""
+def test_the_old_settings_addresses_open_the_sheet(client):
+    """#178, #199: links, bookmarks and emails to the Calculate step or to "Adjust and
+    recalculate" open the Index settings sheet over Results; without JavaScript the page
+    goes on to the sheet's own page. Applying returns to the index the user came from."""
     analysis, _job = finished_analysis(client)
     base = f"/station/{analysis.pk}"
-    assert client.get(f"{base}/indices")["Location"] == f"{base}/results?settings=open#adjust"
+    assert client.get(f"{base}/indices")["Location"] == f"{base}/results?settings=open"
     response = client.get(f"{base}/indices?index=rx3day")
-    assert response["Location"] == f"{base}/results?settings=open&back=rx3day#adjust"
+    assert response["Location"] == f"{base}/results?settings=open&back=rx3day"
     html = client.get(response["Location"]).content.decode()
-    assert " open" in _settings(html) and 'name="index" value="rx3day"' in html
+    assert "data-sheet-autoopen" in settings_sheet(html)
+    assert html.count("data-sheet-autoopen") == 1
+    back = f"{base}/results?index=rx3day"
+    assert f'name="next" value="{back}"' in settings_sheet(html)
+    page = f"{base}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fresults%3Findex%3Drx3day"
+    assert f'<noscript><meta http-equiv="refresh" content="0; url={page}">' in html.replace(
+        "&amp;", "&"
+    )
+    assert "data-sheet-autoopen" not in client.get(f"{base}/results").content.decode()
+    # The old form's #adjust anchor is on the settings line, for js/sheet.js.
+    assert 'id="adjust"' in client.get(f"{base}/results").content.decode()
+    # A settings form sent from a page from before #199 goes to the sheet's page.
+    response = client.post(f"{base}/indices", defaults())
+    assert (
+        response["Location"] == f"{base}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fresults"
+    )
+    assert Job.objects.filter(kind="station").count() == 2  # the run shown, one cancelled
 
 
 # ---- step 4: the dashboard ----------------------------------------------------------------
@@ -892,30 +944,26 @@ def test_sector_comparison_is_not_a_step(client):
 def test_recalculating_keeps_the_user_on_the_same_index(client):
     analysis, _job = finished_analysis(client)
     page = client.get(f"/station/{analysis.pk}/results/rx3day").content.decode()
-    link = f"/station/{analysis.pk}/results?settings=open&amp;back=rx3day#adjust"
-    assert f'href="{link}"' in page
-    form = client.get(link.replace("&amp;", "&")).content.decode()
-    assert 'name="index" value="rx3day"' in form
-    response = client.post(
-        f"/station/{analysis.pk}/indices", {**defaults(), "rx_days": "7", "index": "rx3day"}
+    link = (
+        f"/station/{analysis.pk}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fresults%2Frx3day"
     )
-    assert response["Location"] == f"/station/{analysis.pk}/results?index=rx3day"
-    # While it runs, the page stays on the results, under the recalculation's progress.
+    assert f'href="{link}" data-sheet-open="sheet-settings"' in page
+    assert "This index depends on a setting." in page
+    response = apply_settings(client, analysis, {**defaults(), "rx_days": "7"}, "results/rx3day")
+    assert response["Location"] == f"/station/{analysis.pk}/results/rx3day"
+    # While it runs, the index page stays, with the run's progress in the panel.
     html = client.get(response["Location"]).content.decode()
-    assert "Recalculating" in html and "results/progress?index=rx3day" in html
+    assert '<p class="runbox__title"' in html and "Recalculating" in html
     job = Job.objects.latest("created_at")
     finish(job, rename={"rx3day": "rx7day"})
-    # When the job ends, the progress fragment sends the browser to the results with the
-    # index, which opens the same index under its new name.
-    progress = client.get(f"/station/{analysis.pk}/results/progress?index=rx3day")
-    assert progress["HX-Redirect"] == f"/station/{analysis.pk}/results?index=rx3day"
-    response = client.get(progress["HX-Redirect"])
-    assert response["Location"] == f"/station/{analysis.pk}/results/rx7day"
-    assert client.get(response["Location"]).status_code == 200
-    # An old index address leads to the same index too.
+    # The old index address leads to the same index under its new name.
     assert client.get(f"/station/{analysis.pk}/results/rx3day")["Location"].endswith(
         "/results/rx7day"
     )
+    assert client.get(f"/station/{analysis.pk}/results/rx7day").status_code == 200
+    # From the old address with ?back=, the results open the index too once it is done.
+    response = client.get(f"/station/{analysis.pk}/results?index=rx3day")
+    assert response["Location"] == f"/station/{analysis.pk}/results/rx7day"
 
 
 def test_other_sessions_get_404(client):
@@ -934,6 +982,7 @@ def test_other_sessions_get_404(client):
     ):
         assert other.get(f"/station/{analysis.pk}/{path}").status_code == 404, path
     assert other.post(f"/station/{analysis.pk}/indices", defaults()).status_code == 404
+    assert other.post(f"/station/{analysis.pk}/inputs/settings", defaults()).status_code == 404
     assert client.get(f"/station/{analysis.pk}/results/nope").status_code == 404
 
 
@@ -951,17 +1000,6 @@ def test_sparklines_are_small_and_keep_gaps():
     bars = results_model.sparkline([0.5, -1.0] * 600, bars=True)  # monthly SPI: columns
     assert bars["pos"].count("M") <= results_model.SPARK_WIDTH and bars["neg"]
     assert results_model.sparkline([float("nan")] * 3) == {}
-
-
-def test_change_the_settings_on_the_results_opens_them(client):
-    """#115, #178: the header's "Adjust and recalculate" opens the settings in place,
-    without JavaScript; they start closed otherwise."""
-    analysis, _job = finished_analysis(client)
-    html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    link = f"/station/{analysis.pk}/results?settings=open#adjust"
-    assert f'href="{link}"' in html
-    assert " open" in _settings(client.get(link).content.decode())
-    assert " open" not in _settings(html)
 
 
 def test_index_page_chart_title_is_the_cleaned_definition(client):
@@ -1002,29 +1040,29 @@ def test_each_section_is_a_tab_named_in_the_title(client):
 
 
 def test_every_section_of_the_station_pages_has_its_help(client):
-    """#177: one ⓘ per section of Results (with "Adjust and recalculate", #178), an index
-    and Files, in page order; no help link under a field."""
+    """#177: one ⓘ per section of Results, an index and Files, in page order; no help
+    link under a field. The Index settings sheet's groups have their help in place (#199):
+    the drawer is behind the modal sheet."""
     analysis, _job = finished_analysis(client)
     base = f"/station/{analysis.pk}"
     expected = {
         "/results": [
             "results.findings",
             "results.catalogue",
-            "calculate.plots",
-            "calculate.spells",
-            "calculate.degree",
-            "calculate.prcp",
-            "calculate.custom",
-            "calculate.ehf",
-            "calculate.files",
         ],
         "/results/txx": ["result.index", "result.trends"],  # no anomalies in this fixture
         "/downloads": ["files.page"],
     }
     for path, ids in expected.items():
         html = client.get(base + path).content.decode()
-        assert re.findall(r'href="/help/sections/([^/"?]+)/', html) == ids, path
-        assert "help-topic--compact" not in html, path
+        page = without_sheets(html)
+        assert re.findall(r'href="/help/sections/([^/"?]+)/', page) == ids, path
+        assert "help-topic--compact" not in page, path
+        sheet = settings_sheet(html)
+        assert re.findall(r'data-help-section="([^"]+)"', sheet) == [
+            f"calculate.{key}"
+            for key in ("plots", "spells", "degree", "prcp", "custom", "ehf", "files")
+        ], path
     # The index page's help leads with the index itself.
     html = client.get(base + "/results/txx").content.decode()
     assert 'href="/help/sections/result.index/?topics=index.txx"' in html
@@ -1051,7 +1089,7 @@ def test_a_corrected_file_replaces_the_speculative_run(client):
     analysis = ready_analysis(client)
     old = analysis.indices_job
     response = client.post(
-        f"/station/{analysis.pk}/quality/file", {"station_file": _station_upload()}
+        f"/station/{analysis.pk}/inputs/file", {"station_file": _station_upload()}
     )
     assert response.status_code == 302
     analysis.refresh_from_db()
@@ -1084,12 +1122,12 @@ def test_new_thresholds_replace_the_run_and_keep_the_settings(client):
     from climpact_web.stations.forms import QC_DEFAULTS
 
     analysis, old = finished_analysis(client)
-    client.post(f"/station/{analysis.pk}/indices", {**defaults(), "rx_days": "7"})
+    apply_settings(client, analysis, {**defaults(), "rx_days": "7"})
     analysis.refresh_from_db()
     adjusted = analysis.indices_job
     finish(adjusted)
     thresholds = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "iqr_temp": "4"}
-    client.post(f"/station/{analysis.pk}/quality/run", thresholds)
+    client.post(f"/station/{analysis.pk}/inputs/thresholds", thresholds)
     analysis.refresh_from_db()
     new = analysis.indices_job
     assert not new.is_speculative and new.params["qc"]["iqr_temp"] == 4.0
@@ -1114,11 +1152,11 @@ def test_use_this_data_after_the_run_was_cancelled_queues_a_new_one(client):
 
 
 def test_a_recalculation_keeps_the_results_until_it_finishes(client):
-    """#178: "Recalculate" shows its progress above the results it replaces; cancelling it
-    keeps them, a failure says so above them, and success replaces them."""
+    """#178: new settings show their run's progress above the results it replaces;
+    cancelling it keeps them, a failure says so above them, and success replaces them."""
     analysis, old = finished_analysis(client)
     base = f"/station/{analysis.pk}"
-    client.post(f"{base}/indices", {**defaults(), "rx_days": "7"})
+    apply_settings(client, analysis, {**defaults(), "rx_days": "7"})
     new = Job.objects.latest("created_at")
     assert new.params["replaces"] == str(old.pk)
     html = client.get(f"{base}/results").content.decode()
@@ -1142,7 +1180,7 @@ def test_a_recalculation_keeps_the_results_until_it_finishes(client):
     analysis.refresh_from_db()
     assert analysis.indices_job == old
     # Finished: the new results replace them.
-    client.post(f"{base}/indices", {**defaults(), "rx_days": "7"})
+    apply_settings(client, analysis, {**defaults(), "rx_days": "7"})
     newer = Job.objects.latest("created_at")
     finish(newer, rename={"rx3day": "rx7day"})
     html = client.get(f"{base}/results").content.decode()

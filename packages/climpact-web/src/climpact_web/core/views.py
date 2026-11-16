@@ -260,28 +260,30 @@ def healthz(request):
 
 def inputs_demo() -> dict:
     """The Inputs panel (#198) for the pattern library: the inputs of the Sydney sample,
-    its base period changed, and the base period's sheet."""
+    its base period changed and two index settings, and two sheets: the base period's, and
+    the index settings', the long one (#199)."""
     import uuid
     from types import SimpleNamespace
 
     from climpact_web.stations import workspace
     from climpact_web.stations.forms import BasePeriodForm
+    from climpact_web.stations.forms_indices import IndexParamsForm
     from climpact_web.stations.workspace import PanelInput
 
     rows = [
-        ("file", _("File"), _("29,220 days · 3 variables"), _("Replace"), True, False),
-        ("station", _("Station"), "-33.86°, 151.21°", _("Edit"), True, False),
-        ("base-period", _("Base period"), "1981–2010", _("Edit"), True, True),
-        ("thresholds", _("Quality thresholds"), _("Defaults"), _("Edit"), False, False),
-        ("settings", _("Index settings"), _("Defaults"), _("Edit"), False, False),
+        ("file", _("File"), _("29,220 days · 3 variables"), _("Replace"), False),
+        ("station", _("Station"), "-33.86°, 151.21°", _("Edit"), False),
+        ("base-period", _("Base period"), "1981–2010", _("Edit"), True),
+        ("thresholds", _("Quality thresholds"), workspace.changed_text(0), _("Edit"), False),
+        ("settings", _("Index settings"), workspace.changed_text(2), _("Edit"), False),
     ]
     form = BasePeriodForm({"base_start": 1981, "base_end": 2010})
     form.is_valid()
     return {
         "demo_analysis": SimpleNamespace(pk=uuid.UUID(int=0)),
         "inputs_demo": [
-            PanelInput(key, str(label), value, "#inputs-panel", str(edit), sheet, changed)
-            for key, label, value, edit, sheet, changed in rows
+            PanelInput(key, str(label), value, "#inputs-panel", str(edit), changed)
+            for key, label, value, edit, changed in rows
         ],
         "sheet_demo_list": [
             {
@@ -290,7 +292,17 @@ def inputs_demo() -> dict:
                 "intro": _("The years the percentile indices are compared with."),
                 "form": form,
                 "impact": workspace.impact("base-period"),
-            }
+            },
+            {
+                "key": "settings",
+                "title": _("Index settings"),
+                "intro": _("The choices some indices depend on, and the files a run writes."),
+                "form": IndexParamsForm(
+                    initial={"rx_days": 3, "plot_title": ""}, station_title="Sydney"
+                ),
+                "impact": workspace.impact("settings"),
+                "settings_source": "job",
+            },
         ],
     }
 

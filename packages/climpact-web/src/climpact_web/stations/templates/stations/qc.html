@@ -2,10 +2,11 @@
 {% load i18n static ui help charts %}
 {% comment %}
 Step 2, Check quality (#77), as a short worklist (#174): the verdict and the one decision
-(use the data, or upload a corrected file), the values that look wrong each with the days
-around it, the groups worth a look, the checks that found nothing, the missing data, and
-everything else (daily charts, distributions, thresholds, files) under Details. While the
-checks run, or before they have run, the thresholds form and the progress. After a change
+(use the data, or replace the file), the values that look wrong each with the days around
+it, the groups worth a look, the checks that found nothing, the missing data, and
+everything else (daily charts, distributions, the thresholds used, files) under Details.
+While the checks run, their progress. No forms (#199): the thresholds and the file are
+changed in the Inputs panel, whose sheets the page's links open. After a change
 to the file, the thresholds or the name (#179) the checks shown stay, under a banner that
 says they are out of date and shows the new checks' progress, and the decision waits for
 the new checks. Below it all, "Your data": what is in the file, Data's summary before the
@@ -24,8 +25,6 @@ Data tab folded into Quality (#198). Context from views.qc_context.
   <p class="lead">{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
     The checks of the data from {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
 
-  {% if inspection and not inspection.ok %}{% include "stations/_problems.html" with file_name=replace_form.files.station_file.name %}{% endif %}
-
   <div id="qc-status" class="stack" tabindex="-1">
     {% if stale %}
     {% translate "The checks below are from before the change." as stale_note %}
@@ -34,7 +33,7 @@ Data tab folded into Quality (#198). Context from views.qc_context.
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note updating=True body="stations/_qc_progress.html" %}
     {% elif stale.replacing %}
     {% if job.status == "failed" %}{% translate "The new checks could not be run" as stale_title %}{% else %}{% translate "The new checks were stopped" as stale_title %}{% endif %}
-    {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=job.error|default:stale_note %}
+    {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=job.error|default:stale_note body="stations/_qc_run_again.html" %}
     {% else %}
     {% translate "The checks are out of date" as stale_title %}{% url 'stations:load' analysis.pk as data_url %}{% translate "Check the station details to check the new file." as data_label %}
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note action_href=data_url action_label=data_label %}
@@ -47,15 +46,19 @@ Data tab folded into Quality (#198). Context from views.qc_context.
       <div class="alert__body">
         <h2 class="alert__title">{% translate "The checks could not be run." %}</h2>
         <p>{{ job.error }}</p>
-        <p>{% translate "Check the thresholds and run the checks again. Or upload a corrected file." %}</p>
+        <p>{% translate "Check the thresholds and run the checks again. Or replace the file." %}</p>
+        {% include "stations/_qc_run_again.html" %}
       </div>
     </div>
-    {% elif job.status == "cancelled" %}
-    {% translate "The checks were stopped. Run them again below." as cancelled_message %}
-    {% include "components/alert.html" with kind="info" message=cancelled_message title="" %}
     {% elif not review %}
-    {% translate "The checks have not run on this file yet. Keep the default thresholds or change them, then run the checks." as not_run %}
-    {% include "components/alert.html" with kind="info" message=not_run title="" %}
+    {% comment %}Stopped, or not run on this file yet: the thresholds sheet runs them.{% endcomment %}
+    <div class="alert alert--info" role="status">
+      {% icon "info" %}
+      <div class="alert__body">
+        <p>{% if job.status == "cancelled" %}{% translate "The checks were stopped." %}{% else %}{% translate "The checks have not run on this file yet." %}{% endif %} {% translate "Keep the thresholds or change them, then run the checks." %}</p>
+        {% include "stations/_qc_run_again.html" %}
+      </div>
+    </div>
     {% endif %}
 
     {% if review %}{% include "stations/_qc_verdict.html" %}{% endif %}
@@ -71,23 +74,6 @@ Data tab folded into Quality (#198). Context from views.qc_context.
   {% include "stations/_qc_missing.html" %}
   {% include "stations/_qc_details.html" %}
   {% if stale %}</div>{% endif %}
-  {% else %}
-  <section class="page-section stack" id="thresholds" aria-labelledby="thresholds-title">
-    {% if job and not job.is_finished %}{# while the checks run they are not to be started by hand (#114) #}
-    <details class="disclosure"{% if qc_form.errors %} open{% endif %}>
-      <summary>{% icon "sliders" %}<span id="thresholds-title">{% translate "Change the thresholds" %}</span>{% icon "chevron-down" %}</summary>
-      <div class="disclosure__body">{% include "stations/_qc_form.html" %}</div>
-    </details>
-    {% else %}
-    <div class="section-header"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
-    {% include "stations/_qc_form.html" %}
-    {% endif %}
-  </section>
-
-  <section class="page-section stack stack--sm" id="fix" aria-labelledby="fix-title">
-    <div class="section-header"><h2 id="fix-title">{% translate "Correct the file" %}</h2></div>
-    {% include "stations/_qc_upload.html" with variant="secondary" %}
-  </section>
   {% endif %}
 
   {% if summary %}{% include "stations/_summary.html" %}{% endif %}

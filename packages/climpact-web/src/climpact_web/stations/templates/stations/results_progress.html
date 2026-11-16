@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
+{% block head %}{% include "stations/_open_sheet.html" %}{% endblock %}
 {% block title %}{% if job.status == "queued" or job.status == "running" %}{% blocktranslate with name=analysis.station_name %}Calculating indices: {{ name }}{% endblocktranslate %}{% else %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endif %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page">
@@ -11,11 +12,11 @@
   <p class="lead">{% if job.status == "queued" or job.status == "running" %}{% translate "Calculating the indices." %}{% else %}{% translate "The indices are not calculated yet." %}{% endif %}</p>
   {% if no_run or missing_outputs %}
   {% comment %}Nothing to show: the run was refused or cancelled before it started, or it wrote
-  no index tables. The settings are open, with one button to calculate.{% endcomment %}
+  no index tables. One button opens the Index settings sheet, whose Apply calculates (#199).{% endcomment %}
   {% if missing_outputs %}{% translate "This calculation finished without index tables. Calculate the indices again to see them here." as empty_message %}{% else %}{% translate "The indices are not calculated yet. Check the settings, then calculate." as empty_message %}{% endif %}
   {% include "components/alert.html" with kind="info" title="" message=empty_message %}
-  {% translate "Calculate" as calculate_label %}
-  {% include "stations/_settings_form.html" with open_settings=True submit_label=calculate_label %}
+  {% translate "Check the settings and calculate" as calculate_label %}
+  <p>{% include "components/button.html" with label=calculate_label href=input_urls.settings sheet="settings" icon="sliders" %}</p>
   {% else %}
   <section class="card stack" aria-labelledby="progress-title">
     <h2 class="card__title" id="progress-title">{% translate "Progress" %}</h2>
@@ -23,7 +24,6 @@
     <noscript><p class="text-sm">{% translate "Reload this page to see the progress. The results appear here when they are ready." %}</p></noscript>
   </section>
   <p class="text-sm text-text-muted">{% translate "You can leave this page. The calculation carries on, and this address shows the results when it has finished." %}</p>
-  {% include "stations/_settings_form.html" %}
   {% endif %}
   </div>
   </div>

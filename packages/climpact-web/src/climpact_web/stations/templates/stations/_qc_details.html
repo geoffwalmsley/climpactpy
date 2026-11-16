@@ -1,11 +1,11 @@
 {% load i18n ui help %}{% comment %}
 Details (#174): everything the worklist leaves out, one click away. The daily charts with
 the flagged values (linked both ways with the tables by qc.js), the distribution plots,
-the thresholds and the form to check again, and one link to the quality-control files
-in Files (#176). Open when the thresholds form has errors.
+which thresholds the checks used, with a link that opens their sheet in the Inputs panel
+(#199; no form here), and one link to the quality-control files in Files (#176).
 Context from views.qc_context.
 {% endcomment %}
-<details class="qc-details" id="details"{% if qc_form.errors %} open{% endif %}>
+<details class="qc-details" id="details">
   <summary class="qc-details__summary">
     <span class="qc-details__title">{% translate "Details" %}<span class="qc-details__note">{% translate "Daily charts, distributions and thresholds" %}</span></span>
     {% icon "chevron-down" %}
@@ -34,18 +34,15 @@ Context from views.qc_context.
 
     {% include "stations/_qc_distributions.html" %}
 
-    <section class="stack" id="thresholds" aria-labelledby="thresholds-title">
+    <section class="stack stack--sm" id="thresholds" aria-labelledby="thresholds-title">
       <div class="section-header"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
-      {% include "stations/_qc_form.html" %}
+      <p>{% if thresholds_changed %}{% blocktranslate count counter=thresholds_changed trimmed %}
+        The checks use R's default thresholds, with {{ counter }} changed.{% plural %}
+        The checks use R's default thresholds, with {{ counter }} changed.{% endblocktranslate %}{% else %}{% translate "The checks use R's default thresholds." %}{% endif %}
+        {% if input_urls.thresholds %}<a href="{{ input_urls.thresholds }}" data-sheet-open="sheet-thresholds" aria-haspopup="dialog">{% translate "Change the thresholds" %}</a>{% endif %}</p>
     </section>
 
     <p class="text-sm" id="downloads"><a href="{% url 'stations:downloads' analysis.pk %}#quality-files">{% icon "file" %} {% translate "The quality-control files are in Files" %}</a></p>
 
-    {% if review.verdict.level == "ready" %}
-    <section class="stack stack--sm" id="fix" aria-labelledby="fix-title">
-      <h2 id="fix-title">{% translate "Correct the file" %}</h2>
-      {% include "stations/_qc_upload.html" with variant="secondary" %}
-    </section>
-    {% endif %}
   </div>
 </details>

@@ -69,8 +69,9 @@ did, **destroy it and create a new one**. Do not rebuild it.
      cloud-init ignore the whole file (step 3 shows it as `recoverable_errors`).
    - **Hostname:** `climpact`. **Tags:** `climpact`. **Project:** create or choose a
      project called `climpact`.
-   - **Backups:** optional (+20%). Jobs expire after 7 days and the app keeps nothing
-     else, so a lost Droplet is rebuilt with this runbook rather than restored.
+   - **Backups:** leave them **off** (decision in [Backups](#backups)). Jobs expire after
+     7 days and the app keeps nothing else, so a lost Droplet is rebuilt with this runbook
+     rather than restored.
 3. **Create Droplet**, and copy its public IPv4 address.
 
 ## 2. Close it with a Cloud Firewall (about 5 min)
@@ -257,7 +258,7 @@ builder's *Value* box makes a rule that matches only that literal path, which ne
 the app serves (`packages/climpact-web/tests/test_deploy_files.py`). If the app gains a URL
 that starts a job, add it to `rate-limit.txt` and paste the expression again.
 
-What the free plan allows, and what this uses: 5 WAF custom rules (3 used), 1 rate
+What the free plan allows, and what this uses: 5 WAF custom rules (4 used), 1 rate
 limiting rule (1), 10 cache rules (2), 10 redirect rules (1).
 
 ### E1. HTTPS and TLS (2 min)
@@ -331,11 +332,12 @@ configure it further.
 
 ### E5. WAF custom rules (5 min)
 
-**Security › Security rules › Create rule › Custom rules**, three times:
+**Security › Security rules › Create rule › Custom rules**, four times:
 
 | Rule name | Edit expression: paste the **contents** of | Action |
 | --- | --- | --- |
 | `Let the deploy call through` | `deploy/cloudflare/waf-skip-deploy.txt` | **Skip** (see below) |
+| `Let the uptime check through` | `deploy/cloudflare/waf-skip-healthz.txt` | **Skip** (as above) |
 | `Block scanner paths` | `deploy/cloudflare/waf-block.txt` | **Block** |
 | `Challenge admin paths` | `deploy/cloudflare/waf-challenge.txt` | **Managed Challenge** |
 
@@ -346,7 +348,12 @@ provider's address range and could otherwise be challenged. For its action choos
 managed rules**, and under *More components to skip* (if offered) **Browser Integrity
 Check** and **Security Level**. Keep **Log matching requests** on. It must be **first** in
 the list of custom rules (drag it to the top, or use *Place at: First*). It lets nothing
-else through: the hook still checks the request's signature, and refuses everything else. `waf-block.txt` blocks paths the app never serves: `*.php`, `*.asp`,
+else through: the hook still checks the request's signature, and refuses everything else.
+The second skip rule (#127) matches only `GET` and `HEAD /healthz`, which DigitalOcean's
+Uptime check fetches from its own cloud addresses ([A1](#a1-uptime-check-3-min)); give it
+the same *Skip* settings, and put it right after the first, so that a cloud address is
+never challenged into a false "site down" alert. `/healthz` reveals nothing but the
+version and costs one `SELECT 1`. `waf-block.txt` blocks paths the app never serves: `*.php`, `*.asp`,
 `*.aspx`, `*.jsp` and `*.cgi`, WordPress paths (`/wp-*`, `.../wp-admin`, `wp-content`,
 `wp-includes`), `/cgi-bin/`, and any path segment starting with a dot (`/.env`,
 `/.git/...`), except `/.well-known/`. `waf-challenge.txt` challenges `/admin*` (the app has
@@ -405,17 +412,23 @@ visitor's session and must never be cached. The app also marks every such answer
 
 ### E8. Bot Fight Mode (1 min)
 
-**Security › Settings**, filter **Bot traffic** › **Bot fight mode:** On.
+**Current state: off** (since the first automatic deploy, 2026-11; recorded on #126). It
+challenged the release workflow's call to the deploy hook, and the free plan can't exempt
+that call (see [D5](#d5-check-it-5-min-then-one-release)). It would also challenge the
+uptime check from DigitalOcean's addresses ([A1](#a1-uptime-check-3-min)), which no rule
+can exempt either. Turning it back on needs deploys that don't call in from outside (the
+Droplet pulling releases instead), and then a look at whether the uptime check still
+passes. The rest of this section describes it for that day.
+
+**Security › Settings**, filter **Bot traffic** › **Bot fight mode:** On or Off.
 
 Bot Fight Mode challenges traffic that Cloudflare scores as automated. It **cannot be
 skipped** by a custom rule, so nothing exempts the app's own requests, nor the release
-workflow's call to the deploy hook (see [Deploy on release](#deploy-on-release) › D5). It
-also injects a small script into the HTML pages (JavaScript detections, under
-`/cdn-cgi/challenge-platform/`). The app's Content Security Policy (#137) allows
-same-origin scripts (`script-src 'self'`), which covers files under that path, but no
-inline script: if the browser console shows a Content Security Policy violation for
-Cloudflare's script (E9's report-only check shows it without blocking anything), the
-detections are blocked, so report it in an issue. A real browser that loaded the page and
+workflow's call to the deploy hook (see [Deploy on release](#deploy-on-release) › D5).
+Cloudflare's JavaScript detections (an inline script it adds to every HTML page, which
+loads more from `/cdn-cgi/challenge-platform/`) run whether Bot Fight Mode is on or off,
+and the app's Content Security Policy allows them by the nonce in its header (#164; see
+E9 and `TECHNICAL.md` › Content Security Policy). A real browser that loaded the page and
 passed the detections sends the clearance with its htmx requests, so they aren't
 challenged.
 
@@ -525,6 +538,7 @@ PASS  GET /batch/ 200
 PASS  GET /help/ 200
 PASS  GET /jobs/ 200
 PASS  htmx-style poll reaches the app (404 for a made-up job)
+PASS  /healthz 200, ok, not cached (cf-cache-status: DYNAMIC; cache-control: max-age=0, no-cache, no-store, must-revalidate, private)
       25 POSTs to /jobs/<id>/retry: 403 403 403 403 403 403 403 403 403 403 429 429 429 429 429 429 429 429 429 429 429 429 429 429 429
 PASS  burst blocked by the rate limit (429 after about 10 requests)
       waiting 12 s for the block to end...
@@ -544,7 +558,7 @@ isn't matching. Check that it is deployed, wait a minute after deploying for it 
 every data centre, and run the script again.
 
 If **every** check that fetches a page fails with `cf-mitigated: challenge`, Bot Fight
-Mode is classing `curl` from your network as a bot. That is not what browsers see: check
+Mode (if it is on) is classing `curl` from your network as a bot. That is not what browsers see: check
 the pages in a browser instead (E8), and run the script from another network if you want a
 clean run. Then do the browser walk-through of E8 and record the date and the results in
 #124.
@@ -593,7 +607,7 @@ openssl rand -hex 32        # copy the output; it is the secret
    `DEPLOY_WEBHOOK_SECRET=<the secret>` (add the line if the file predates #126).
 
 Keep it in the password manager too (one item, `climpact.app deploy hook`). To rotate it,
-see [Running it](#running-it) › *Rotate a secret*.
+see [Operating the server](#operating-the-server) › *Rotate a secret*.
 
 ### D2. The tunnel route for `/_deploy` (3 min)
 
@@ -671,7 +685,7 @@ SSH and run `journalctl -u climpact-deploy -f`.
 `curl` from GitHub's runners as a bot. It can't be exempted on the free plan, so turn it
 **off** (**Security › Settings › Bot traffic › Bot fight mode**), record that in #126, and
 **re-run** the `deploy` job. The signature, the rate limit and Turnstile still protect the
-site.
+site. This happened on the first release, and Bot Fight Mode has been off since (E8).
 
 ### Deploying and rolling back by hand
 
@@ -716,7 +730,11 @@ with will say so in the release notes.
   password), then the **Recovery Console**, which is the Droplet's screen and keyboard and
   needs no network. Root can log in there, though not over SSH.
 
-**Logs:** `docker compose logs -f web worker` (rotated at 10 MB × 3 per container).
+**Logs** (in `/opt/climpact`; rotated at 10 MB × 3 per container): `docker compose logs -f web worker` for the app and its jobs; `docker compose logs
+cloudflared` for the tunnel's connection; `docker compose logs deploy-hook` for deploy
+requests (the deploys themselves: `journalctl -u climpact-deploy` and `deploy.log`, see
+[Deploying and rolling back by hand](#deploying-and-rolling-back-by-hand)); `db` and
+`purge` likewise.
 
 **Abuse limits** (#125; the settings are in `.env`, each described there): besides
 Turnstile (E9), the app refuses a new job when the visitor (by IP address) already has 2
@@ -739,7 +757,7 @@ address point to a script, so block it, or lower the rate limit (E6). Real visit
 volume (`docker system df -v`). The worker logs `stopped at the time limit` for a job it
 stopped.
 Bootstrap log: `/var/log/cloud-init-output.log`. DigitalOcean's Monitoring graphs CPU,
-memory and disk.
+memory and disk, and mails when they run high (see [Alerts](#alerts)).
 
 **Automatic updates:** Ubuntu's security updates and Docker's packages install every day
 (`unattended-upgrades`). When an update needs a reboot, the Droplet reboots at 03:30 UTC,
@@ -749,31 +767,281 @@ keeps the containers running while Docker itself is upgraded. A weekly timer
 jobs are purged by the stack itself (the worker every hour, the `purge` service daily).
 Nothing updates the app except a release (see [Deploy on release](#deploy-on-release)).
 
-**Rotate a secret:**
-- Tunnel token: in Cloudflare open the tunnel › **Refresh token** (or create a new
-  tunnel), put the new token in `.env` (`nano /opt/climpact/.env`), then
-  `docker compose up -d`.
-- Turnstile secret key: **Turnstile ›** the widget **› Settings › Rotate secret key**, put
-  the new one in `.env`, then `docker compose up -d`.
-- Django secret key: replace it in `.env` and `docker compose up -d`. This signs out any
-  open sessions, nothing else.
-- Deploy hook secret: make a new one (`openssl rand -hex 32`), set it in GitHub (D1)
-  and in `.env`, then `docker compose up -d deploy-hook`. Until both match, deploys fail
-  with *refused the signature* and nothing else changes.
-- Postgres password: the database keeps the password it was created with, so changing
-  `.env` alone breaks the app. Change it inside Postgres first
-  (`docker compose exec db psql -U climpact -c "ALTER USER climpact PASSWORD '<new>'"`),
-  then in `.env`, then `docker compose up -d`.
+**Rotating secrets, resizing, rebuilding:** see [Operating the server](#operating-the-server).
 
-**Start again from nothing:** destroy the Droplet and repeat steps 1–3 and 5–8, and D1
-(the secret in the new `.env`; GitHub keeps its copy). The Cloud Firewall (by tag), the
-tunnel and its routes stay. The tunnel's token is shown again under the
-tunnel's **Configure** page (the Docker install command), or use **Refresh token**.
+## Alerts
+
+Four things should reach the owner by e-mail without anyone looking (#127): the site is
+down, the Droplet is running out of memory or disk, the bill moves, and a deploy failed.
+The resource and billing alerts are free. The ticket assumed Uptime's free allowance
+covers the one check this needs; the create form shows a price if it doesn't. They are
+all set in the DigitalOcean control panel, not on the Droplet. Budget **about 15 minutes**.
+The menu names are DigitalOcean's in November 2026; search the control panel if one has
+moved. Alerts go to the e-mail address of the DigitalOcean account (or the team members
+you pick in each form).
+
+### A1. Uptime check (3 min)
+
+**Monitoring › Uptime › Create Uptime Check** (or the Droplet's page › *Uptime*):
+
+- **Type:** **HTTPS**. **URL:** **`https://climpact.app/healthz`**.
+- **Regions:** two or three, for example *US West*, *US East* and *Europe*, so the check
+  doesn't depend on one network path.
+- **Name:** `climpact.app healthz`. **Project:** `climpact`.
+- **Alerts:** add three:
+  - **Downtime:** e-mail, after **5 minutes** down (or the nearest the form offers).
+    Shorter would mail on the planned blips: the 03:30 UTC reboot after a security update
+    takes a minute or two, and a deploy recreates `web` in seconds.
+  - **Latency:** above **5000 ms** for **10 minutes**: the site is up but so slow that
+    the edge or the Droplet is struggling.
+  - **SSL certificate expiry:** **7 days** before. Cloudflare renews the edge certificate
+    itself, so this mails only if that renewal fails.
+- **Create.**
+
+`/healthz` answers 200 with `"status": "ok"` when the app and its database answer, 503
+when the database doesn't, and Cloudflare answers 502 or 530 when `web` or the tunnel is
+down, so each of these reads as down. It goes through Cloudflare like any visitor, so it
+also catches a broken tunnel or edge setting. Nothing at the edge gets in the way: no
+block, challenge or rate-limit rule matches `/healthz`, the skip rule
+`Let the uptime check through` (E5) keeps the managed rules and Browser Integrity Check
+off it, the cache rules bypass it, and the app sends it `Cache-Control: no-store`
+(tested by `test_deploy_files.py`; `check-edge.sh` checks it live). If Bot Fight Mode is
+ever turned back on (E8), check that the uptime check still passes: no rule can exempt it
+from Bot Fight Mode.
+
+**Test it once** (the acceptance check of #127). Open SSH (step 2), then as `deploy`:
+
+```sh
+cd /opt/climpact && docker compose stop web
+```
+
+Within about 5–7 minutes a *down* e-mail arrives (the site answers 502 meanwhile). Then:
+
+```sh
+docker compose up -d --wait     # web back; an "up" e-mail follows
+```
+
+Close SSH, and record the date and how long the e-mail took in #127.
+
+### A2. Droplet resource alerts (5 min)
+
+They need DigitalOcean's metrics agent, which **Monitoring** at creation installs (step
+1). Check: the Droplet's **Graphs** page shows *Memory* and *Disk* graphs. If it offers to
+install the agent instead, open SSH and run DigitalOcean's documented installer,
+`curl -sSL https://repos.insights.digitalocean.com/install.sh | sudo bash`.
+
+**Monitoring › Resource Alerts › Create Resource Alert** (older control panels: *Alert
+Policies*), three times:
+
+| Metric | Rule | Why this value |
+| --- | --- | --- |
+| **Memory Utilization** | above **90 %** for **10 min** | The containers' limits add up to more than 2 GB (swap covers the peaks). Lasting 90 % means a stuck job or a leak, not one job's peak |
+| **Disk Utilization** | above **80 %** for **5 min** | 80 % of 50 GB leaves 10 GB. The app refuses new uploads below 2 GB free (`disk-low`), so this mails well before visitors notice |
+| **CPU Utilization** | above **90 %** for **30 min** | Any job keeps the one CPU near 100 % while it runs, often for 10 minutes or more, so 15 minutes (the ticket's figure) would mail on ordinary use. 30 minutes means a queue of jobs or a runaway one |
+
+For each: **Apply to** the tag **`climpact`** (not the Droplet's name), so a Droplet
+created again later is covered from its first boot. **Notify** by e-mail. **Create**.
+
+**When one fires:** open SSH, `cd /opt/climpact`, then:
+- memory or CPU: `docker stats --no-stream` (which container), `docker compose logs --tail
+  100 worker` (which job), `docker compose logs web | grep Refused | tail` (someone
+  scripting the site; see *Abuse limits* in [Running it](#running-it)). The worker stops a
+  job after 60 minutes by itself.
+- disk: `df -h /`, `docker system df -v` (the `media` and `pgdata` volumes, images).
+  Expired jobs are purged daily and logs are rotated, so steady growth means something
+  else is writing. If it is genuine use, [resize](#resize-the-droplet) the disk.
+
+### A3. Billing alert (1 min)
+
+Account menu (top right) › **Billing** › **Billing alerts** › **Set alert** (or *Edit*):
+**$15**, **Save**. DigitalOcean e-mails once the month's usage passes it.
+
+The expected bill is **$12/mo**: the Droplet, with Monitoring, the Cloud Firewall and the
+first 2 TB of traffic included, plus Uptime if the one check is not free. No backups, snapshots, registry, volumes or load
+balancer. Anything above $12 is something new. Raise the alert by the difference after a
+[resize](#resize-the-droplet). The domain is paid to its registrar, not DigitalOcean.
+
+### A4. Deploy failures and the tunnel (2 min, optional)
+
+- **GitHub** mails the person who published a release when its `deploy` job fails, if
+  **your profile › Settings › Notifications › Actions** has e-mail on (the default; *Only
+  notify for failed workflows* is enough). A failed deploy has rolled back or changed
+  nothing, so the site stays up (see [Deploy on release](#deploy-on-release)).
+- **Cloudflare** can mail when the tunnel is down: **Notifications › Add › Tunnel Health
+  Alert** (if the free plan offers it), for the tunnel `climpact`. A1 already catches this;
+  the Cloudflare mail says *why* the site is down.
+
+## Backups
+
+**Decision (#127): no DigitalOcean Backups or Snapshots, and no scheduled database dump.**
+A lost or broken Droplet is created again from this runbook (see
+[Rebuild from nothing](#rebuild-from-nothing-and-restore)), which takes under an hour.
+
+What the Droplet holds, and why none of it needs keeping:
+
+| Data | Where | If it is lost |
+| --- | --- | --- |
+| Jobs: queue, status, settings | Postgres (`pgdata` volume) | Visitors start again. Every job expires after 7 days, and each one is visible only to the browser session that made it; there are no accounts |
+| Uploads and results | the `media` volume | The same: expire with their job |
+| Secrets | `/opt/climpact/.env` | Made again or fetched again (see [Credentials](#credentials)) |
+| Code, Compose files, images | the release's git tag, ghcr.io | Fetched by `update.sh` |
+
+A dump kept on the Droplet would not survive the loss it is meant for. One kept elsewhere
+would need off-Droplet storage, which costs money and adds a credential, to protect data
+that expires within a week. And a dump without the `media` volume restores jobs whose files
+are gone. Revisit this if the app ever keeps something beyond the 7 days or gains accounts.
+
+**A dump by hand, before a risky release.** Migrations are not undone by a rollback
+([Deploying and rolling back by hand](#deploying-and-rolling-back-by-hand)). Before
+deploying a release whose notes warn about its migrations, open SSH and, as `deploy`:
+
+```sh
+cd /opt/climpact
+docker compose exec -T db pg_dump -U climpact -Fc climpact > ~/climpact-$(date -u +%F).dump
+```
+
+To restore it after rolling the code back (`update.sh X.Y.Z` of the old release):
+
+```sh
+docker compose stop web worker purge
+docker compose exec -T db pg_restore -U climpact -d climpact --clean --if-exists < ~/climpact-YYYY-MM-DD.dump
+docker compose up -d --wait
+```
+
+Delete the file once the release has settled (`rm ~/climpact-*.dump`).
+
+## Credentials
+
+Every secret the service uses, where it lives and how to change it. Nothing in the
+repository, the user data, an issue or the GitHub Actions logs is secret. **Password
+manager** means the owner's (1Password), one item each, named as below.
+
+| Credential | Allows | Lives in | Expires | Rotate |
+| --- | --- | --- | --- | --- |
+| `CLIMPACT_WEB_SECRET_KEY` | signing sessions and CSRF tokens | `.env` only (made by `climpact-init-env`) | never | [below](#rotate-a-secret) |
+| `POSTGRES_PASSWORD` | the database, reachable only on the stack's internal network | `.env` only, and inside the `pgdata` volume, which keeps the password it was created with | never | [below](#rotate-a-secret): inside Postgres first |
+| `TUNNEL_TOKEN` | running a connector for the tunnel, i.e. serving climpact.app | `.env`; Cloudflare shows it again (**Zero Trust › Networks › Tunnels › climpact › Configure**, the Docker command) | never | **Refresh token** |
+| Turnstile site key | nothing: it is public, in every form page | `.env`, the widget's settings | never | only with a new widget |
+| Turnstile secret key | checking the widget's tokens | `.env`, the widget's settings, password manager `climpact.app Turnstile` | never | **Rotate secret key** |
+| `DEPLOY_WEBHOOK_SECRET` | asking the Droplet to deploy a published release (no other command) | GitHub environment `production` (write-only: GitHub never shows it again), `.env`, password manager `climpact.app deploy hook` | never | [below](#rotate-a-secret) |
+| SSH key for `deploy` | a shell with sudo on the Droplet, only while the firewall's SSH rule is open | private half: the owner's 1Password SSH agent. Public half: `/home/deploy/.ssh/authorized_keys`, and **DigitalOcean › Settings › Security › SSH keys** for new Droplets | never | [below](#rotate-a-secret) |
+| root password | the Recovery Console only (SSH refuses root) | none is set; **Access › Reset root password** mails a one-time one | after use | lock it again after use: `sudo passwd -l root` |
+| `GITHUB_TOKEN` (release workflow) | pushing the image (`packages: write`, the `publish` job only); reading the repository elsewhere | made by GitHub for each job | at the end of the job | nothing to rotate |
+| PyPI and TestPyPI publishing | uploading `climpact` and `climpact-web` | nothing stored: Trusted Publishing (OIDC) from `release.yml` in the environments `pypi` (needs the maintainer's approval) and `testpypi` | minutes | nothing to rotate; to revoke, remove the publisher in the project's PyPI settings |
+
+**No other tokens exist.** The image is a public package on ghcr.io, so the Droplet pulls
+without a login, and there is no DigitalOcean registry. Nothing uses a DigitalOcean or
+Cloudflare API token: every setting is made by hand in the dashboards. Cloudflare Web
+Analytics needs none either: its beacon token is public, in every page, and the app only
+allows the beacon's script (`CLIMPACT_WEB_CF_WEB_ANALYTICS`, E9). If one is ever
+made (for `doctl`, Terraform or an AI assistant's MCP server), give it the narrowest scope
+and an expiry date, and add it to this table.
+
+**Account logins**, each with two-factor authentication (an authenticator app or a
+passkey) and its recovery codes in the password manager: DigitalOcean, Cloudflare,
+GitHub (the repository, the `production` environment and the ghcr.io package), PyPI and
+TestPyPI, and the registrar of `climpact.app`. At a handover these accounts are not
+shared: the new owner uses their own (see [Moving it to other accounts](#moving-it-to-other-accounts-handover)).
+
+## Operating the server
+
+All of these except the GitHub-only steps need SSH: open the temporary rule for your IP
+(step 2), and delete it again afterwards (step 8).
+
+### Rotate a secret
+
+Rotate one when it may have leaked, when someone who had it no longer should, and at a
+handover. Each change to `.env` takes effect with `cd /opt/climpact && docker compose up -d
+--wait`, which recreates only the services whose settings changed.
+
+- **Tunnel token:** **Zero Trust › Networks › Tunnels › climpact › Refresh token** (or
+  create a new tunnel). Put the new token in `.env` (`nano /opt/climpact/.env`), then
+  `docker compose up -d --wait`. The site is unreachable for the seconds `cloudflared`
+  takes to reconnect.
+- **Turnstile secret key:** account home › **Turnstile ›** the widget **› Settings ›
+  Rotate secret key**. Put the new one in `.env`, `docker compose up -d --wait`, and
+  update the password manager. The site key stays.
+- **Django secret key:** make one with
+  `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`, replace it in `.env`,
+  `docker compose up -d --wait`. Every visitor's session ends, and with it **access to
+  their open jobs** (a job belongs to the session that made it): do it at a quiet time.
+- **Deploy hook secret:** make a new one (`openssl rand -hex 32`), set it in GitHub (D1:
+  **Settings › Environments › production › DEPLOY_WEBHOOK_SECRET › Update**) and in
+  `.env`, then `docker compose up -d deploy-hook`, and update the password manager. Until
+  both match, deploys fail with *refused the signature* and nothing else changes.
+- **Postgres password:** the database keeps the password it was created with, so changing
+  `.env` alone breaks the app. Make one with `openssl rand -hex 32` (it goes into a URL,
+  so keep it hex), change it inside Postgres first
+  (`docker compose exec db psql -U climpact -c "ALTER USER climpact PASSWORD '<new>'"`),
+  then in `.env`, then `docker compose up -d --wait`.
+- **SSH key:** make a new key in 1Password. Add its public half as a new line in
+  `/home/deploy/.ssh/authorized_keys`, check in a second terminal that it logs in, then
+  delete the old line. Replace the key in **DigitalOcean › Settings › Security › SSH
+  keys** too, so new Droplets get it.
+
+### Resize the Droplet
+
+When the memory alert (A2) keeps firing, or the queue is often full (`queue-full` in the
+`Refused` lines). The stack runs one job at a time (one `worker`), and its containers'
+memory limits are set in `compose.yaml`, so more RAM gives the system headroom (less swap,
+more cache) but does not let a single job use more; a second CPU keeps the pages quick
+while a job runs. Running jobs side by side, or raising a limit, is a change to
+`compose.yaml` in a release.
+
+1. Expect a few minutes' downtime, and the A1 e-mail if it lasts over 5 minutes.
+2. The Droplet's page › **Power** › **Turn off** (a clean shutdown; a running job is
+   handed back to the queue and runs again after).
+3. **Resize** › **CPU and RAM only**, then the new size (for example Basic Regular,
+   4 GB / 2 CPUs). Not *Disk, CPU and RAM*: a bigger disk can never be made smaller again,
+   and 50 GB is plenty unless the disk alert says otherwise. **Resize**.
+4. **Power on**. The stack starts by itself (`restart: unless-stopped`). Check
+   `curl -sS https://climpact.app/healthz`.
+5. Raise the billing alert (A3) by the price difference, and update the size in
+   `TECHNICAL.md` › Deployment if the change is meant to stay.
+
+Going back down works the same way, as long as the disk was not resized.
+
+### Rebuild from nothing (and restore)
+
+When the Droplet is lost, broken beyond repair, or should be moved to another region.
+Budget **under an hour**. **Nothing is restored, and only jobs are lost**: every job
+expires within 7 days anyway, and visitors start theirs again (see [Backups](#backups)).
+What stays outside the Droplet and needs no change: the Cloud Firewall (it applies by the
+tag `climpact`), the A1 uptime check (it checks the URL), the A2 alerts (by tag), the
+tunnel and its two routes, the DNS records, the Cloudflare rules, the Turnstile widget,
+GitHub's copy of the deploy secret, and the images on ghcr.io.
+
+1. **Destroy** the old Droplet (or keep it switched off until the new one works, if it
+   still runs; two connectors on one tunnel share the traffic, so don't run both).
+2. Steps **1–3**: a new Droplet from `cloud-init.yaml` (from `main`), with **Monitoring**
+   ticked, the tag `climpact` and your SSH key, then the SSH rule and the first-boot
+   checks. cloud-init installs the deploy hook and its watcher, so D4 is not needed.
+3. Step **5**, `climpact-init-env`: it makes a new Django key and Postgres password (the
+   new database starts empty, so a new password is right) and asks for the **tunnel
+   token**. Get it from **Zero Trust › Networks › Tunnels › climpact › Configure** (the
+   Docker command), or **Refresh token**.
+4. Put back the two secrets it doesn't make: `nano /opt/climpact/.env` and set
+   - `DEPLOY_WEBHOOK_SECRET=` from the password manager (`climpact.app deploy hook`). If
+     it is lost, make a new one and set it in GitHub too (D1).
+   - `CLIMPACT_WEB_TURNSTILE_SITE_KEY=` and `CLIMPACT_WEB_TURNSTILE_SECRET_KEY=` from the
+     password manager (`climpact.app Turnstile`), or the widget's **Settings** page.
+5. Step **6** with the latest release: `/opt/climpact/update.sh X.Y.Z`. The tunnel shows
+   **Healthy** again and the routes still point at `web` and `deploy-hook`.
+6. Steps **7–8**: the smoke test, then close SSH and check the IP answers nothing. Run
+   `bash deploy/check-edge.sh` from your computer: every line `PASS`.
+7. Check that A2's graphs show memory and disk for the new Droplet, and that the uptime
+   check is green.
+
+A DigitalOcean **Rebuild** (same Droplet, fresh image) is not a shortcut: it keeps the
+user data pasted at creation, which may be an older `cloud-init.yaml`.
 
 ## Moving it to other accounts (handover)
 
 The same steps work in WMO's own DigitalOcean and Cloudflare accounts: the zone moves to
 WMO's Cloudflare account (or the domain is transferred), and the tunnel, firewall and
-Droplet are created there from this runbook. Then destroy the old Droplet and delete the
-old tunnel. No secret has to be carried over, because `climpact-init-env` makes new ones.
-Jobs are short-lived, so no data needs moving either.
+Droplet are created there from this runbook, with the [Alerts](#alerts) in the new
+DigitalOcean account and the deploy secret in a new `production` environment if the
+repository moves. Then destroy the old Droplet and delete the old tunnel. No secret has
+to be carried over: `climpact-init-env` makes the Django key and Postgres password, and
+the tunnel, Turnstile widget and deploy secret are new in the new accounts (see
+[Credentials](#credentials)). Jobs are short-lived, so no data needs moving either.

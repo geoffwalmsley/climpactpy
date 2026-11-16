@@ -136,6 +136,31 @@ code=$(printf '%s\n' "$h" | awk 'NR==1{print $2}')
 [ "$code" = 404 ] && pass "htmx-style poll reaches the app (404 for a made-up job)" ||
   fail "htmx-style poll gave $code $(printf '%s\n' "$h" | header cf-mitigated)"
 
+# --- The uptime check's URL (#127) ------------------------------------------------------
+# DigitalOcean's Uptime check fetches /healthz from cloud addresses: it must reach the app
+# every time (not challenged, not served from the edge cache). Asked twice, so a cached
+# first answer would show as a HIT on the second.
+fetch_headers "$SITE/healthz" >/dev/null
+h=$(fetch_headers "$SITE/healthz")
+code=$(printf '%s\n' "$h" | awk 'NR==1{print $2}')
+mit=$(printf '%s\n' "$h" | header cf-mitigated)
+cs=$(printf '%s\n' "$h" | header cf-cache-status)
+cc=$(printf '%s\n' "$h" | header cache-control)
+body=$(curl -sS -A "$UA" --max-time 15 "$SITE/healthz" 2>/dev/null)
+if [ "$code" != 200 ] || [ -n "$mit" ]; then
+  fail "GET /healthz gave $code ${mit:+(cf-mitigated: $mit)}; the uptime check would report the site down"
+else
+  case "$cs" in
+    HIT | MISS | EXPIRED | STALE | REVALIDATED | UPDATING)
+      fail "/healthz cf-cache-status: $cs (it must never be cached; check the cache rules)" ;;
+    *)
+      case "$body" in
+        *'"status": "ok"'*) pass "/healthz 200, ok, not cached (cf-cache-status: ${cs:-none}; cache-control: ${cc:-none})" ;;
+        *) fail "/healthz 200 but not ok: $body" ;;
+      esac ;;
+  esac
+fi
+
 # --- Rate limit -------------------------------------------------------------------------
 if [ "$BURST" = 1 ]; then
   url="$SITE/jobs/00000000-0000-0000-0000-000000000000/retry"

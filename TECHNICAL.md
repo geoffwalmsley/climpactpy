@@ -3291,8 +3291,8 @@ in front to block abuse and spam. Very few people will use the app, so the cheap
 that works was chosen: one DigitalOcean Droplet (Basic Regular, 1 vCPU / 2 GB / 50 GB, $12/mo) running
 the [Compose stack](#compose-stack), with Cloudflare's free plan in front (WAF, rate
 limiting, bot protection; see [Cloudflare edge](#cloudflare-edge)) and a Cloudflare Tunnel as the only way in. The expected
-cost is about $12/mo plus the domain (`climpact.app`, about $10/yr), and +20% for optional
-Droplet backups. Rejected: DigitalOcean App Platform (about $30+/mo for two 1 GB
+cost is about $12/mo plus the domain (`climpact.app`, about $10/yr); no paid backups (see
+[Operations](#operations-alerts-backups-credentials)). Rejected: DigitalOcean App Platform (about $30+/mo for two 1 GB
 containers, a dev database and Spaces, and no shared disk, so job files would need an S3
 storage class); a managed database ($15/mo); Redis (#119, the database queue stays);
 Terraform/OpenTofu (not worth it for one Droplet and one tunnel;
@@ -3360,26 +3360,28 @@ expression editor), and `deploy/check-edge.sh` checks the result from outside wi
 | --- | --- |
 | TLS | Always Use HTTPS; minimum TLS 1.2; Cloudflare's HSTS off (the app sends `max-age=31536000; includeSubDomains`) |
 | `www` | proxied `AAAA www → 100::` placeholder and a 301 redirect rule `http*://www.climpact.app/*` → `https://climpact.app/${2}`, query string kept |
-| WAF | Cloudflare Free Managed Ruleset; custom rules: skip `waf-skip-deploy.txt` (`POST /_deploy`, first: skips the other custom rules, the managed rules, rate limiting, Browser Integrity Check and Security Level; #126), block `waf-block.txt` (`*.php` and similar, WordPress paths, `/cgi-bin/`, dot segments except `/.well-known/`), managed challenge `waf-challenge.txt` (`/admin*`, `/patterns/`) |
+| WAF | Cloudflare Free Managed Ruleset; custom rules: skip `waf-skip-deploy.txt` (`POST /_deploy`, first: skips the other custom rules, the managed rules, rate limiting, Browser Integrity Check and Security Level; #126); skip `waf-skip-healthz.txt` (`GET`/`HEAD /healthz`, second, the same skips: DigitalOcean's Uptime check comes from cloud addresses; #127), block `waf-block.txt` (`*.php` and similar, WordPress paths, `/cgi-bin/`, dot segments except `/.well-known/`), managed challenge `waf-challenge.txt` (`/admin*`, `/patterns/`) |
 | Rate limit | the one free rule: `rate-limit.txt`, 10 requests per 10 s per IP, then block (429) for 10 s |
-| Bots | Bot Fight Mode on |
+| Bots | Bot Fight Mode **off** since the first automatic deploy, which it challenged (#126); no rule can exempt a request from it. Turning it back on needs deploys that don't call in from outside, and a check that the uptime check still passes |
 | Cache | `/static/*` eligible for cache, edge TTL from `Cache-Control`; everything else bypasses the cache |
 | Turnstile | a Managed widget for `climpact.app`; its keys go in `.env` (see [Security of the hosted site](#security-of-the-hosted-site)) |
 
 The free plan's rate-limiting rule can match the path, but **not the method**, so a rule on
 "POSTs to `/station/`" would also count the htmx polls (`.../progress`, about once a second
 while a job runs) and the htmx validation POSTs. `rate-limit.txt` therefore lists the
-exact paths that take an upload or start a job. `test_deploy_files.py` reads the six
+exact paths that take an upload or start a job. `test_deploy_files.py` reads the seven
 expression files with a small evaluator (`wildcard`: whole value, case-insensitive;
 `contains`; `eq` on the path or the method; `and`/`or`/`not`), runs them against a sample path for every URL pattern of
 the app, and checks that the rate limit counts exactly the job-starting views, that the
 WAF rules match no page except `/patterns/`, that only `/static/` is cached, and that the
 deploy hook's `POST /_deploy` is matched by the skip rule and by no block, challenge or
-rate-limit rule (and the skip rule by nothing the app serves). A new
+rate-limit rule (and the skip rule by nothing the app serves), and that `/healthz` (GET and
+HEAD) is matched by its own skip rule and the cache bypass, by no block, challenge,
+rate-limit or static-cache rule, and its skip rule by nothing else. A new
 job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
-this, and to turn Bot Fight Mode off if it happens to real visitors. The same test checks
+this. Bot Fight Mode is off (see the table). The same test checks
 that `.env.example` and the `compose.yaml` default send HSTS for a year, and keep
 `CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies.
 
@@ -3521,7 +3523,8 @@ Mode can't be skipped** by any rule on the free plan, and it may class `curl` fr
 GitHub-hosted runner as a bot, for the POST and for the `/healthz` polls. If it does,
 `call-hook.sh` fails at once with that diagnosis, and the fix is to turn Bot Fight Mode
 off (the runbook already allows that, #124); the signature, the rate limit and Turnstile
-still guard the site.
+still guard the site. That happened on the first automatic deploy, and Bot Fight Mode has
+been off since.
 
 **Tests.** `test_deploy_hook.py` runs the hook on loopback: 202 and the request file for
 a signed request (and the latest request wins); 401 and no file for a missing signature,
@@ -3555,6 +3558,37 @@ folder held `request` (mode 0640) with `0.1.2`, and `docker stop` took 0.2 s;
 Not tested here: systemd's path unit, the tunnel route, the edge rules and Bot Fight Mode
 against a GitHub runner, which need the Droplet and the Cloudflare account; the first
 release after this change is their test (see the runbook).
+
+#### Operations: alerts, backups, credentials
+
+Set by hand in the DigitalOcean control panel from `deploy/README.md` › *Alerts* (#127);
+nothing account-side is automated, and everything used is free except the Droplet.
+
+| What | Setting |
+| --- | --- |
+| Uptime | a DigitalOcean Uptime check on `https://climpact.app/healthz` from two or three regions: downtime alert after 5 minutes (long enough to ignore the 03:30 UTC reboots and deploys), latency over 5 s for 10 minutes, certificate expiry 7 days ahead. It goes through Cloudflare, so it also catches a broken tunnel or edge rule; `waf-skip-healthz.txt` keeps the WAF off it, the cache rules bypass it and the view is `never_cache` (tested), and `check-edge.sh` checks it from outside |
+| Droplet | DigitalOcean Monitoring resource alerts, applied by the tag `climpact` so a new Droplet is covered: memory over 90 % for 10 minutes, disk over 80 % for 5 minutes, CPU over 90 % for 30 minutes (not the ticket's 15: one job keeps the single CPU near 100 % for 10 minutes or more) |
+| Spend | a DigitalOcean billing alert at $15/mo (the expected bill is $12) |
+| Deploys | GitHub's e-mail for a failed `deploy` job; a failed deploy has rolled back or changed nothing |
+
+**Backups (decision, #127): none.** No DigitalOcean Backups or Snapshots and no scheduled
+`pg_dump`. The database and the `media` volume hold only jobs, which expire after 7 days
+and belong to one browser session; there are no accounts. A dump on the Droplet would not
+survive the Droplet's loss, a dump elsewhere needs paid storage and another credential,
+and a dump without `media` restores jobs whose files are gone. A lost Droplet is created
+again from the runbook (*Operating the server* › *Rebuild from nothing*), losing only open
+jobs. The runbook gives a by-hand `pg_dump`/`pg_restore` for a release whose migrations
+the previous release can't work with, since a rollback doesn't undo migrations.
+
+**Credentials.** The runbook's *Credentials* table lists each secret, where it lives, its
+expiry and how to rotate it: the Django secret key and Postgres password (`.env` only,
+made on the server), the tunnel token and Turnstile keys (`.env` and Cloudflare), the
+deploy hook secret (`.env`, the GitHub `production` environment and the owner's password
+manager), the `deploy` user's SSH key, and the account logins with two-factor
+authentication. No registry or API token exists: the image is a public ghcr.io package
+pushed with the workflow's `GITHUB_TOKEN`, PyPI uses Trusted Publishing, and nothing calls
+the DigitalOcean or Cloudflare APIs. Rotating the Django key also ends visitors' access to
+their open jobs, because a job belongs to the session that made it.
 
 ### Security of the hosted site
 

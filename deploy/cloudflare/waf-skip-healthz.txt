@@ -1,0 +1,1 @@
+(http.request.uri.path eq "/healthz" and (http.request.method eq "GET" or http.request.method eq "HEAD"))

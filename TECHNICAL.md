@@ -5438,7 +5438,7 @@ Widget tests work the tabs, dialog, drop zone (Space opens the file chooser, cau
 `Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
 gridded explorer by keyboard. `test_axe_every_page` fails on a serious or critical axe
 violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
-about four and a half minutes (on 2026-11-16, 198 s of it in the `site` fixture), so it is
+about two and a half minutes locally (160 s on 2026-11-16; three of them in CI), so it is
 marked `browser` (`pytestmark`; the marker is registered in `pytest.ini` and in
 `packages/climpact-web/pyproject.toml`) and the default `addopts` deselect it with
 `-m "not browser"` (#180): a plain `uv run pytest` starts neither Chrome nor the server.
@@ -5451,6 +5451,24 @@ of every page (light, dark, forced colours, 320 px). axe-core (4.14.0, MPL-2.0) 
 asset in `tests/assets/axe-core/`, injected with `Runtime.evaluate`; its README records the
 source URL and SHA-256, which `test_vendored_axe_is_the_pinned_release` checks. It is
 never served or packaged.
+
+**Where the time goes, and the waits (#182).** Before each check `Chrome.settle()`
+(`browser.py`) waits until the page has loaded, no htmx request is in flight and no
+chart is loading (`BUSY`). `charts.js` loads a chart only when it comes within 200 px of
+the viewport, so a chart further down the page or in a hidden tab panel keeps its
+skeleton until it is scrolled to: `BUSY` counts only charts that have asked for their
+data, or are in view and about to. It used to count every skeleton, and on the pattern
+library and the quality results each of the audit's four waits per page ran to its 10 s
+timeout (86 s of the audit, and 10 s on each test that opened the pattern library), with
+the same page in the end. After the dark theme is switched on, `transitions_done()` waits
+for the running transitions to end rather than a fixed 0.6 s; the batch's focus check
+waits for the progress to replace itself, and the chart test for each announcement,
+rather than sleeping. What is left is mostly the jobs themselves (the `site` fixture,
+about a minute: quality checks, the station run, the sector comparison, the batch and the
+grid) and axe (about 1.3 s a page with all its modes). The jobs are not overlapped: the
+local worker runs one job at a time, and the fixture watches each progress page while its
+job runs (axe, the announcements, the batch's focus), so the jobs could not run unseen
+side by side.
 
 **Announcements and focus across htmx swaps.** Progress fragments replace themselves at
 every poll (`hx-swap="outerHTML"`), so a live region inside one is new each time and

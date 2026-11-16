@@ -11,7 +11,8 @@ The rules come from the UX redesign (#171). A rule not yet met everywhere is mar
 Phase 2 comes from the second design review (16 Nov 2026), whose approved mockups are
 [`docs/design/redesign-proposals.html`](docs/design/redesign-proposals.html) and, in the
 dark theme, [`redesign-proposals-dark.html`](docs/design/redesign-proposals-dark.html);
-its rules are marked **Target** with #196–#203. New work follows them.
+its rules were marked **Target** with #196–#203, and #203 met the last of them. New work
+follows them.
 
 ### Phase 2 decisions
 
@@ -137,7 +138,8 @@ and muted.
   inside controls, 4 to 5 (1–1.25rem) inside cards, 8 to 12 (2–3rem) between sections.
 - **Breakpoints:** `sm` 40rem, `md` 52rem, `lg` 60rem, `xl` 64rem. Logical properties
   only, so right-to-left scripts work (checked by `test_static.py`).
-- **Page frame:** header (logo, main destinations, theme toggle) → step indicator for the
+- **Page frame:** header (logo, main destinations, theme toggle; on phones the theme
+  toggle is in the menu, #203) → step indicator for the
   batch and gridded flows → title and one-line lead → content → footer. A new station is
   one narrow page (40rem, centred; #201): "New station", a lead, two numbered steps (Your
   file, Station details) divided by hairlines, then the one call to action. A station is a
@@ -145,11 +147,13 @@ and muted.
   section tabs (Quality, Results, Files), then the Inputs panel and the section's content
   side by side. The h1 is the station name the user gives, with the file name on the
   line under it. The workspace header (name, that line, the page's actions, the tabs)
-  stays in view as the page scrolls, from 40rem wide; the page's scroll padding keeps a
-  focused element out from under it (WCAG 2.4.11). The Inputs panel (16rem) sits at the
-  inline start, in view under the header as the page scrolls, where the content has at
-  least 52rem (a container query, so the help drawer counts); narrower, it comes above
-  the content. Quality is the verdict band, the list and detail, the checks that found
+  stays in view as the page scrolls (not in a window under 30rem high); the page's scroll
+  padding keeps a focused element out from under it (WCAG 2.4.11). On phones only the
+  tabs and the Inputs bar stay in view, and the name scrolls away (#203). The Inputs panel
+  (16rem) sits at the inline start, in view under the header as the page scrolls, where
+  the content has at least 52rem (a container query, so the help drawer counts);
+  narrower, the Inputs bar under the tabs takes its place (#203), and without JavaScript
+  the panel comes above the content. Quality is the verdict band, the list and detail, the checks that found
   nothing in one line, what is in the file ("Your data", #198), then Details (#202).
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a theme tile,
@@ -196,6 +200,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `disclosure` | Component | Content that opens in place (`<details>`): a row between hairlines, not a box | — |
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
 | Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. Sticky under the workspace header when beside the content | changed; with a run |
+| Inputs bar | Component | The Inputs panel in one line, under the workspace tabs where the content has less than 52rem (`stations/_inputs_bar.html`, the mockups' `.inputsbar`; #203): "Inputs:" then the base period and "defaults" or how many settings are not the default, then each input changed since what is shown (warning colour, and the bar takes the warning tint) and each run under way, and a small secondary Edit at the end. Edit opens the Inputs sheet: the panel's list in a side sheet, which on a phone fills the screen; each input's Edit there opens its own sheet over it, and Escape steps back to the list, then the bar. Only with JavaScript; without it the panel shows above the content. On a phone it reaches the screen's edges, under a hairline | changed; with a run |
+| Page menu (⋯) | Component | On a phone the page's actions (Results: the sector comparison, Download all) move from the workspace header into a ⋯ button at the end of the name's line (`page-menu` in `stations/_workspace.html`; #203). A disclosure, not an ARIA menu: a native `<details>` whose summary is the button ("Page actions" for screen readers), so it works without JavaScript; Enter or Space opens it, Tab goes through the actions (full-width buttons, one a line, in a raised panel), Escape closes it and returns focus to the button, and a click or focus elsewhere closes it (`js/workspace.js`) | — |
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. The Help pill in the app bar opens the page's guide | — |
 | `table`, `summary_list` | Component | Data in a keyboard-scrollable region, hairline rows and no frame; key–value pairs | empty state |
@@ -203,8 +209,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky workspace header (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp / decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme" | changed, quiet (no change: the sunken surface, one sentence, no trends) |
-| Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
+| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp / decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
+| Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. On a phone the table becomes a list (#203): a block per index, its name and code, then its trend and significance beside the sparkline; the header row is a line of the column names that sort. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
@@ -310,14 +316,21 @@ keyboard. This is not optional.
 
 ## Responsive
 
-Narrow screens get the same content in one column. Below 600px the header links become a
-menu; on narrow screens the step indicator shows only the current step's label, the
-workspace tabs wrap onto a second line,
-two-column field groups stack, and wide tables scroll inside their focusable region
-rather than the page. Charts keep their table view. The accessibility tests run every page
-in a 320px viewport and fail on horizontal page scroll. **Target:** #203: on phones the
-Inputs panel collapses into a one-line bar with an Edit button, and the theme tiles
-stack.
+Narrow screens get the same content in one column, in the same order. Below 600px the
+header links and the theme toggle become a menu; on narrow screens the step indicator
+shows only the current step's label, two-column field groups stack, and wide tables
+scroll inside their focusable region rather than the page. Charts keep their table view.
+
+On a phone (below 40rem, #203, proposal 7 of the mockups) a station's workspace header
+is the name (18px) and the ⋯ page menu on one line, the years under it (the base period
+is in the Inputs bar, the file name in the File sheet), then the three tabs on one line
+and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
+scroll padding is their height, so focus never goes under them. Sheets fill the screen.
+The theme tiles stack, the catalogue is a list, Quality's detail comes after its list,
+and the download tables are short blocks. The accessibility tests run every page at
+320px and fail on horizontal page scroll; the phone tests check the station pages at
+320 and 375px for sticky elements covering each other, the Inputs bar's sheets and the
+⋯ menu by keyboard.
 
 ## Agent prompt guide
 

@@ -46,16 +46,19 @@
         {% endif %}
       </div>
       {% if nav_items %}
-      {# Below 600px the links above are hidden and this menu shows them; <details> needs no JavaScript. #}
+      {# Below 600px the links above are hidden and this menu shows them; <details> needs no JavaScript. The theme toggle moves into it too, so the brand keeps its room (#203). #}
       <details class="site-menu">
         <summary class="button button--secondary button--sm">{% icon "menu" %}<span class="site-menu__label">{% translate "Menu" %}</span></summary>
-        <nav class="site-menu__panel" aria-label="{% translate 'Main' %}">
-          <ul>
-            {% for item in nav_items %}
-            <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
-            {% endfor %}
-          </ul>
-        </nav>
+        <div class="site-menu__panel">
+          <nav aria-label="{% translate 'Main' %}">
+            <ul>
+              {% for item in nav_items %}
+              <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+              {% endfor %}
+            </ul>
+          </nav>
+          <div class="site-menu__theme"><span aria-hidden="true">{% translate "Colour theme" %}</span>{% include "components/theme_toggle.html" %}</div>
+        </div>
       </details>
       {% endif %}
     </div>

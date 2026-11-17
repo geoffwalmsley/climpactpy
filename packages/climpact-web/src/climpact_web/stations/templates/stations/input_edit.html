@@ -6,7 +6,7 @@ JavaScript, and where a sheet's form returns with its errors. Context from views
 {% block title %}{% blocktranslate with title=sheet.title name=analysis.station_name %}{{ title }}: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page">
-  {% include "stations/_workspace.html" %}
+  {% include "stations/_workspace.html" with no_inputs_bar=True %}
   <div class="stack edit-input">
     <h1 class="sheet__title">{{ sheet.title }}</h1>
     {% if inspection and not inspection.ok %}{% include "stations/_problems.html" %}{% endif %}

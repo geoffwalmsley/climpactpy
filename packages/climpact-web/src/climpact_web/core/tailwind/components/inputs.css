@@ -45,6 +45,16 @@
     background: var(--color-surface-sunken);
   }
 
+  /* Too narrow for the panel beside the section: the workspace header's Inputs bar
+     takes its place (#203), with JavaScript, which the bar's Edit needs. */
+  @media (scripting: enabled) {
+    @container station-page (inline-size < 52rem) {
+      .inputs-panel {
+        display: none;
+      }
+    }
+  }
+
   .inputs-panel__list {
     display: grid;
     margin: 0;
@@ -151,6 +161,14 @@
     background: var(--color-surface);
     color: var(--color-text);
     box-shadow: var(--shadow-overlay);
+  }
+
+  /* On a phone the sheets fill the screen (#203). */
+  @media (max-width: 40rem) {
+    .sheet {
+      inline-size: 100%;
+      border-inline-start: 0;
+    }
   }
 
   .sheet::backdrop {

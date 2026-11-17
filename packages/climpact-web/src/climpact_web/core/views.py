@@ -325,7 +325,8 @@ def setup_demo() -> dict:
 def inputs_demo() -> dict:
     """The Inputs panel (#198) for the pattern library: the inputs of the Sydney sample,
     its base period changed and two index settings, and two sheets: the base period's, and
-    the index settings', the long one (#199)."""
+    the index settings', the long one (#199); and the same as the phone's Inputs bar (#203),
+    with a run under way."""
     import uuid
     from types import SimpleNamespace
 
@@ -343,12 +344,15 @@ def inputs_demo() -> dict:
     ]
     form = BasePeriodForm({"base_start": 1981, "base_end": 2010})
     form.is_valid()
+    inputs = [
+        PanelInput(key, str(label), value, "#inputs-panel", str(edit), changed)
+        for key, label, value, edit, changed in rows
+    ]
+    running = [SimpleNamespace(label=_("Recalculating"))]
     return {
+        "inputs_bar_demo": workspace.inputs_bar("1981–2010", 2, inputs, running),
         "demo_analysis": SimpleNamespace(pk=uuid.UUID(int=0)),
-        "inputs_demo": [
-            PanelInput(key, str(label), value, "#inputs-panel", str(edit), changed)
-            for key, label, value, edit, changed in rows
-        ],
+        "inputs_demo": inputs,
         "sheet_demo_list": [
             {
                 "key": "base-period",

@@ -226,6 +226,23 @@
     block-size: 1.75rem;
   }
 
+  /* A narrow tile (a phone, #203): the name on its own line, the value and the sparkline
+     under it, so the name is not squeezed into a column of a few letters. */
+  .trend-rows {
+    container-type: inline-size;
+  }
+
+  @container (inline-size < 21rem) {
+    .trend-row {
+      grid-template-columns: minmax(0, 1fr) 5rem;
+      row-gap: --spacing(1);
+    }
+
+    .trend-row__name {
+      grid-column: 1 / -1;
+    }
+  }
+
   .index-code {
     font-size: var(--text-xs);
     letter-spacing: normal;
@@ -268,6 +285,86 @@
   .catalogue__spark .spark {
     inline-size: 6rem;
     block-size: 1.5rem;
+  }
+
+  /* Phones (#203, proposal 7): the table becomes a list, one block a row: the name and
+     its code, then the trend and its significance beside the sparkline. The header row
+     is a line of the column names that sort, kept above the rows as they scroll. The
+     rows stay a table's rows to screen readers. */
+  @media (max-width: 40rem) {
+    .catalogue__table,
+    .catalogue__table tbody {
+      display: block;
+    }
+
+    .catalogue__table thead {
+      display: block;
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      background: var(--color-page);
+    }
+
+    .catalogue__table thead tr {
+      display: flex;
+      flex-wrap: wrap;
+      gap: --spacing(1) --spacing(4);
+      padding-block: --spacing(2);
+      border-block-end: 1px solid var(--color-border);
+    }
+
+    .catalogue__table thead th {
+      position: static;
+      padding: 0;
+      border: 0;
+    }
+
+    .catalogue__table thead th.catalogue__spark {
+      display: none;
+    }
+
+    .catalogue__table tbody tr:not([hidden]) {
+      display: grid;
+      grid-template-areas:
+        "name code"
+        "trend spark"
+        "sig spark";
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: --spacing(1) --spacing(3);
+      align-items: center;
+      padding-block: --spacing(3);
+      border-block-end: 1px solid var(--color-border);
+    }
+
+    .catalogue__table tbody :is(th, td, td.num) {
+      padding: 0;
+      border: 0;
+      text-align: start;
+      white-space: normal;
+    }
+
+    .catalogue__table tbody th {
+      grid-area: name;
+    }
+
+    .catalogue__table tbody td:nth-of-type(1) {
+      grid-area: code;
+      justify-self: end;
+    }
+
+    .catalogue__table tbody td:nth-of-type(2) {
+      grid-area: trend;
+    }
+
+    .catalogue__table tbody td:nth-of-type(3) {
+      grid-area: sig;
+      font-size: var(--text-xs);
+    }
+
+    .catalogue__table tbody td:nth-of-type(4) {
+      grid-area: spark;
+      inline-size: auto;
+    }
   }
 
   /* A column header that sorts: a link without JavaScript, a button with it; the arrow

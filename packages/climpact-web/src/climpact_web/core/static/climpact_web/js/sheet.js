@@ -9,7 +9,11 @@
  * The old addresses of the forms the sheets replaced (#199) open their sheet as the page
  * loads: a sheet marked data-sheet-autoopen (Results at ?settings=open), and the old
  * anchors #adjust (Adjust and recalculate) and #thresholds (Quality's threshold form).
- * Closing it then puts focus on the panel's Edit link of that sheet.
+ * Closing it then puts focus on the panel's Edit link of that sheet, or on a phone, where
+ * the panel is hidden, on the Inputs bar's Edit (#203).
+ *
+ * On a phone the Inputs bar's Edit opens the Inputs sheet (#203), the panel's list; an
+ * Edit there opens that input's sheet over it, and closing that returns to the list.
  */
 (function () {
   "use strict";
@@ -42,6 +46,7 @@
       "close",
       function () {
         var edit = doc.querySelector('[data-inputs-panel] [data-sheet-open="' + sheet.id + '"]');
+        if (!edit || !edit.getClientRects().length) edit = doc.querySelector("[data-inputs-bar] [data-sheet-open]");
         if (edit) edit.focus();
       },
       { once: true }

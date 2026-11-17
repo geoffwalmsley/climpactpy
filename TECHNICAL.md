@@ -2775,9 +2775,12 @@ packages/climpact-web/src/climpact_web/
       js/setup.js    the New station page (#201): a chosen or dropped file is read at once,
                      Replace on the file card, focus on the card after reading
       js/workspace.js  keeps the page's scroll padding to the height of the station's
-                     sticky workspace header (#197), loaded by stations/_workspace.html
-      js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), and the
-                     sheet an old address asks for as the page loads (#199), loaded by
+                     sticky workspace header (#197; on phones the part that stays, #203),
+                     and closes the phone's ⋯ page menu on Escape or a click elsewhere
+                     (#203), loaded by stations/_workspace.html
+      js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), the
+                     sheet an old address asks for as the page loads (#199), and the
+                     phone's Inputs sheet from the Inputs bar (#203), loaded by
                      stations/_inputs.html
       js/theme.js    applies the stored theme before the page paints (blocking, #137)
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
@@ -4095,7 +4098,9 @@ a comment listing its parameters. Labels are passed in already translated
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
 | `dialog` | native `<dialog>` opened by `data-dialog-open`; cancel and close use `method="dialog"` |
-| Inputs panel | (#198, `components/inputs.css`, `stations/_inputs.html`) an `aside` named "Your inputs": a `dl` of rows (`inputs-panel__item`: muted name, semibold value, one link at the end), on `--color-surface-sunken`; a changed row has `--color-warning-soft` and the word; runs beneath in `runbox progress` boxes. Beside the content (16rem) when `.station-page`, a container, is at least 52rem wide, sticky under the workspace header; above it otherwise |
+| Inputs panel | (#198, `components/inputs.css`, `stations/_inputs.html`) an `aside` named "Your inputs": a `dl` of rows (`inputs-panel__item`: muted name, semibold value, one link at the end), on `--color-surface-sunken`; a changed row has `--color-warning-soft` and the word; runs beneath in `runbox progress` boxes. Beside the content (16rem) when `.station-page`, a container, is at least 52rem wide, sticky under the workspace header; otherwise the Inputs bar takes its place, and without JavaScript the panel is above the content |
+| Inputs bar | (#203, `inputs-bar` in `components/workspace.css`, `stations/_inputs_bar.html`) the panel in one line under the workspace tabs: "Inputs:", the base period and "defaults" or the settings not the default, each changed input in `--color-warning` (and the bar on `--color-warning-soft`), each run under way, and a small secondary Edit that opens the Inputs sheet. Full width under a hairline on phones. Shown on `/patterns/` (`pattern__phone`) |
+| Page menu | (#203, `page-menu` in `components/workspace.css`) the ⋯ `<details>` at the end of the phone header's name line, its summary an icon button (`more`, "Page actions" for screen readers), its panel raised at the inline end with the page's actions one a line. Shown on `/patterns/` |
 | Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
@@ -4117,7 +4122,9 @@ analysis.
 
 **Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
 "Menu" `<details class="site-menu">` after the theme toggle holds the same links
-(`base.html`), so the header stays one row (69px at 390px, was 153px) and the menu works
+(`base.html`), and since #203 the theme toggle too (a second `theme_toggle.html` in the
+menu's panel, `site-menu__theme`; the header's own is hidden there, `ui.js` keeps both in
+step), so "Climpact" is no longer cut off beside the toggle at 375px. The header stays one row (69px at 390px, was 153px) and the menu works
 without JavaScript. Its panel drops over the page below the header. The row does not wrap
 (`flex-wrap: nowrap`, the brand may shrink), and below 23rem the brand shows its mark only
 and the button its icon only, with "Climpact" and "Menu" kept as their accessible names, so
@@ -4156,12 +4163,12 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 86 KB (81 KB until #201 added the New station page;
+stylesheets). Tests hold it under 91 KB (86 KB until #203 added the phone layout; 81 KB until #201 added the New station page;
 77 KB until #198 added the Inputs panel and the side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
 status marks and the out-of-date block; 83 KB until #202 added Quality's list and
-detail; it is 85.5 KB) and 15.5 KB gzipped (14.8 KB; 15 KB until #202; 14.75
+detail; it is 88.4 KB) and 16.25 KB gzipped (15.6 KB; 15.5 KB until #203; 15 KB until #202; 14.75
 KB until #201; 14 KB until #198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button; the New station page's behaviour is its own
@@ -4600,12 +4607,27 @@ section pages, a line with its years, base period and file name,
 the page's actions: Results' "Compare with sector data" and "Download all",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
 station name given, the file name only when there is none. Since #197 the header
-is sticky (`workspace-header`, a direct child of `.station-page`) from 40rem wide and
-30rem high; narrower or shorter, where it would hide most of the page, it scrolls away
-(#203 makes the phone header one line). The page's `scroll-padding-block-start` is the
-header's height plus 1rem, so an element that takes focus, or a `#fragment`, is never
-under it (WCAG 2.4.11); `js/workspace.js` keeps `--workspace-header-height` to the
-header's real height with a `ResizeObserver` (9rem without JavaScript). The states (`workspace.section_states`): Quality
+is sticky (`workspace-header`, a direct child of `.station-page`) in a window at least
+30rem high; shorter, where it would hide most of the page, it scrolls away. The page's
+`scroll-padding-block-start` is the header's height plus 1rem, so an element that takes
+focus, or a `#fragment`, is never under it (WCAG 2.4.11); `js/workspace.js` keeps
+`--workspace-header-height` to the header's real height with a `ResizeObserver` (9rem
+without JavaScript).
+
+**Phones (#203, proposal 7).** Below 40rem (`components/workspace.css`) the header is the
+name at `--text-md` and a ⋯ button on one line, and the line under it only the years (the
+base period is in the Inputs bar, the file name in the File sheet). The page's actions
+are in that button's menu: `stations/_workspace.html` includes the `actions` template
+twice, in `workspace-header__actions` (hidden on phones) and in a `<details
+class="page-menu">` (shown only on phones), a disclosure rather than an ARIA menu, so it
+works without JavaScript; `js/workspace.js` closes it on Escape (focus back on the
+summary) and on a click or focus outside it. The header reaches the window's edges
+(negative inline margins), and it sticks above the window's top by the height of what
+is above the tabs, `--workspace-header-above`, which `js/workspace.js` measures: only
+the tabs and the Inputs bar stay in view, and the scroll padding is their height (the
+header's height minus that). Until #203 the header was sticky only from 40rem wide. The
+tabs' padding is smaller, so the three fit on one line at 320px. Sheets are the full
+width. The states (`workspace.section_states`): Quality
 `locked` until the details are confirmed, `stale`, `running`, `attention` (failed, stopped, or a red
 verdict) or `done`; Results `locked` until "See results", then `stale`, `running`,
 `attention` (the first run failed) or `done`; Files `locked` until there are checks or
@@ -4633,6 +4655,23 @@ or results shown (`workspace.changed_inputs`). Under the list, the checks and th
 the new inputs show their progress (`stations/_input_runs.html`, a run only after "Use
 this data"), polled by htmx from `stations:inputs_progress`, which answers `HX-Refresh`
 once they have all finished.
+
+**Inputs bar (#203, `stations/_inputs_bar.html`).** Where `.station-page` is narrower than
+52rem, so the panel would not be beside the content, the panel is hidden and a one-line
+bar under the tabs takes its place, in the workspace header (so it sticks with the tabs).
+Both rules are inside `@media (scripting: enabled)`: without JavaScript the bar is hidden
+and the panel stays above the content, as before. `workspace.inputs_bar` (in
+`inputs_panel`'s `inputs_bar`) gives its words: the base period and "defaults", or "N
+setting(s) not the default" (the thresholds and index settings counted together), then
+"<input> changed" for each highlighted input (`inputs-bar--changed`, the warning tint)
+and the label of each run under way ("Checking quality", "Recalculating"). The bar is
+reloaded with the page when the runs finish, by the panel's polling, which goes on while
+the panel is hidden. Its Edit, a button, opens `#sheet-inputs` (`stations/_inputs.html`), a
+sheet with the panel's list (`stations/_inputs_list.html`, without the `data-input`
+marks); an Edit there opens that input's sheet over it, a second modal dialog, and the
+browser returns focus to the list when it closes. A sheet opened by the address returns
+focus to the bar's Edit when the panel is hidden. An input's own page
+(`input_edit.html`, `no_inputs_bar`) has no bar.
 
 Each sheet is a modal `<dialog>` (`stations/_input_sheets.html`, `js/sheet.js`) with only
 its input's form (`stations/_input_form.html`, `views.input_form`): the File sheet the
@@ -5075,7 +5114,11 @@ JavaScript each header is a link to the page sorted by it, the filters kept, and
 form keeps the sort in hidden fields; `results.js` makes the headers buttons and sorts in
 place the same way. The sorted column has `aria-sort`, and the live line above the table
 ("Showing 9 of 80 indices. Sorted by Trend per decade, descending.", `aria-live="polite"`)
-says the result. The table scrolls inside its focusable region (at most 36rem, about 12
+says the result. On a phone (below 40rem, #203) the table is a list: its rows are grids
+(the name and code, then the trend and significance beside the sparkline) and its header
+row a line of the sort buttons, by CSS only (`components/results.css`), so `results.js`
+and the table's semantics are unchanged. A theme tile's trend row puts the name on its
+own line when the list is under 21rem (a container query: a phone, not the 2 x 2 grid). The table scrolls inside its focusable region (at most 36rem, about 12
 rows, under the sticky header), so the page stays short: with the Sydney sample Results
 is 1,911 px tall at 1280 px wide, from 2,367 px with #113's closed accordions. Every row is
 in the HTML whatever the filters hide, and an index page's "All indices" link returns to
@@ -5750,7 +5793,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 14.8 of 15 KB (14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.4 of 0.5 KB (station pages only, #197), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.2 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 15.6 of 16 KB (14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.9 of 1 KB (station pages only, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -6108,7 +6151,14 @@ section, a section not yet available is no Tab stop), dialog, drop zone (Space o
 gridded explorer by keyboard, and the quality worklist (#174): a group opens and closes
 from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
 corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
-axe passes with every disclosure open, light and dark (axe skips closed ones).
+axe passes with every disclosure open, light and dark (axe skips closed ones). The
+phone layout (#203): `test_sticky_workspace_header_never_covers_focus` Tabs through
+Results and Quality at 1280 and 320 px (on a phone the tabs and the Inputs bar stay at the
+top, the name gone); `test_no_overlapping_sticky_elements_on_phones` scrolls the station
+pages at 320 and 375 px and checks that nothing stuck to the window covers anything else
+stuck to it, and that the page never scrolls sideways; `test_phone_inputs_bar_opens_the_sheets`
+opens the Inputs sheet from the bar and an input's sheet from it by keyboard, with axe at
+375 and 320 px and Escape stepping back; `test_page_menu_by_keyboard` works the ⋯ menu.
 `test_axe_every_page` fails on a serious or critical axe
 violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
 about two and a half minutes locally (160 s on 2026-11-16; three of them in CI), so it is

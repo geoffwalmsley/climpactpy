@@ -38,11 +38,11 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 14.5 KB before Quality as list and detail (#202), 14 KB before the Inputs panel and
-    # its sheets (#198), 13.5 KB before the section
+    # 15 KB before the phone layout (#203), 14.5 KB before Quality as list and detail
+    # (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the section
     # header and the workspace header (#197), 13 KB before #196, 12.5 KB before the help
     # drawer (#177)
-    "css/climpact.css": 15 * KB,
+    "css/climpact.css": 16 * KB,
     # The quality checks: the list and its detail (#202), the tables linked to the charts
     # (#77, #174); 2 KB before #202
     "js/qc.js": 3 * KB,
@@ -51,7 +51,8 @@ ASSET_BUDGETS = {
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
-    "js/workspace.js": 0.5 * KB,  # the station workspace's sticky header (#197)
+    # The station workspace's sticky header (#197), the phone's ⋯ menu (#203; 0.5 KB before)
+    "js/workspace.js": 1 * KB,
     "js/setup.js": 0.75 * KB,  # New station: a chosen file is read at once (#201)
     "js/sheet.js": 1.5 * KB,  # the Inputs panel's side sheets (#198), old addresses (#199)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)

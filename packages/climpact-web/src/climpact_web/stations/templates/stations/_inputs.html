@@ -1,4 +1,4 @@
-{% load i18n static %}{% comment %}
+{% load i18n static ui %}{% comment %}
 The Inputs panel (#198, proposal 1 of docs/design/redesign-proposals.html): everything the
 user gave, each with its value and one link to change it. Each opens a side sheet with its
 form (stations/_input_sheets.html, js/sheet.js; the thresholds and index settings since
@@ -6,20 +6,25 @@ form (stations/_input_sheets.html, js/sheet.js; the thresholds and index setting
 The index settings have no link before "See results". An input changed since the checks or results shown were made is highlighted, with
 the word "changed", and the run of the new inputs shows its progress beneath the list.
 Nothing until the station is set up (the first visit's details).
+On phones, and wherever the page is too narrow for the panel beside the section, the
+workspace header's Inputs bar takes its place (#203, stations/_workspace.html): its Edit
+opens the Inputs sheet below, the same list full-screen, from which each input's sheet
+opens over it. Without JavaScript the panel shows above the section instead.
 Context: analysis, inputs, input_runs (stations.workspace.inputs_panel).
 {% endcomment %}{% if inputs %}
 <aside class="inputs-panel" aria-labelledby="inputs-title" data-inputs-panel>
   <h2 class="group-label" id="inputs-title">{% translate "Your inputs" %}</h2>
-  <dl class="inputs-panel__list">
-    {% for item in inputs %}
-    <div class="inputs-panel__item{% if item.changed %} inputs-panel__item--changed{% endif %}" data-input="{{ item.key }}"{% if item.changed %} data-changed{% endif %}>
-      <dt class="inputs-panel__label">{% if item.changed %}{% blocktranslate with label=item.label %}{{ label }} · changed{% endblocktranslate %}{% else %}{{ item.label }}{% endif %}</dt>
-      <dd class="inputs-panel__value">{{ item.value }}</dd>
-      {% if item.edit_url %}<dd class="inputs-panel__edit"><a href="{{ item.edit_url }}" data-sheet-open="sheet-{{ item.key }}" aria-haspopup="dialog">{{ item.edit_label }}<span class="sr-only"> {{ item.label|lower }}</span></a></dd>{% endif %}
-    </div>
-    {% endfor %}
-  </dl>
+  {% include "stations/_inputs_list.html" %}
   {% include "stations/_input_runs.html" %}
   <script src="{% static 'climpact_web/js/sheet.js' %}" defer></script>
 </aside>
+<dialog class="sheet" id="sheet-inputs" aria-labelledby="sheet-inputs-title" data-sheet>
+  <div class="sheet__panel">
+    <div class="sheet__header">
+      <h2 class="sheet__title" id="sheet-inputs-title">{% translate "Your inputs" %}</h2>
+      <button type="button" class="button button--ghost button--sm button--icon" data-sheet-close>{% icon "close" %}<span class="sr-only">{% translate "Close" %}</span></button>
+    </div>
+    <div class="sheet__body">{% include "stations/_inputs_list.html" with in_sheet=True %}</div>
+  </div>
+</dialog>
 {% endif %}

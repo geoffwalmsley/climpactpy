@@ -130,11 +130,11 @@
     margin-block-start: --spacing(6);
   }
 
-  /* Sticky where there is room for it: not on phones (#203 makes their header one line)
-     or in a short window, where it would hide most of the page. The scroll padding keeps
-     an element that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/workspace.js
+  /* Sticky wherever the window is tall enough: not in a short window (a phone on its
+     side), where it would hide most of the page. The scroll padding keeps an element
+     that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/workspace.js
      keeps --workspace-header-height to the header's real height. */
-  @media (min-width: 40rem) and (min-height: 30rem) {
+  @media (min-height: 30rem) {
     .workspace-header {
       position: sticky;
       inset-block-start: 0;
@@ -143,6 +143,187 @@
 
     :root:has(.workspace-header) {
       scroll-padding-block-start: calc(var(--workspace-header-height, 9rem) + --spacing(4));
+    }
+  }
+
+  /* == Phones (#203, proposal 7 of docs/design/redesign-proposals.html, the mockups'
+     .mob): the name on one line with the ⋯ menu, which holds the page's actions; the line
+     under it only the years (the base period is in the Inputs bar, the file in the File
+     sheet). The header reaches the window's edges, so nothing shows beside the tabs as
+     the page scrolls under them, and only the tabs and the Inputs bar stay in view: the
+     header sticks above the window's top by the height of what is above the tabs
+     (--workspace-header-above, js/workspace.js). == */
+  .page-menu {
+    display: none;
+    position: relative;
+    flex: none;
+  }
+
+  .page-menu > summary {
+    list-style: none;
+  }
+
+  .page-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* The page's actions, one a line, under the button at the inline end. */
+  .page-menu__panel {
+    position: absolute;
+    inset-inline-end: 0;
+    inset-block-start: calc(100% + --spacing(1));
+    z-index: 20;
+    inline-size: max-content;
+    max-inline-size: calc(100vw - --spacing(8));
+    padding: --spacing(2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .page-menu__panel > * {
+    display: grid;
+    gap: --spacing(2);
+  }
+
+  .page-menu__panel .button {
+    justify-content: flex-start;
+    inline-size: 100%;
+  }
+
+  @media (max-width: 40rem) {
+    .site-main:has(.workspace-header) {
+      padding-block-start: --spacing(2);
+    }
+
+    .workspace-header {
+      margin-inline: calc(-1 * --spacing(4));
+      padding-inline: --spacing(4);
+    }
+
+    .workspace-header__row {
+      flex-wrap: nowrap;
+      align-items: center;
+    }
+
+    .workspace-header__title {
+      flex: 1 1 0;
+    }
+
+    .workspace-header__name {
+      font-size: var(--text-md);
+    }
+
+    .workspace-header__base,
+    .workspace-header__file,
+    .workspace-header__actions {
+      display: none;
+    }
+
+    .page-menu {
+      display: block;
+    }
+
+    /* The three tabs on one line at 320px. */
+    .workspace-header .tabs__tab {
+      gap: --spacing(1.5);
+      padding-inline: --spacing(2);
+    }
+  }
+
+  @media (max-width: 40rem) and (min-height: 30rem) {
+    .workspace-header {
+      inset-block-start: calc(-1 * var(--workspace-header-above, 0px));
+    }
+
+    :root:has(.workspace-header) {
+      scroll-padding-block-start: calc(
+        var(--workspace-header-height, 9rem) - var(--workspace-header-above, 0px) + --spacing(4)
+      );
+    }
+  }
+
+  /* == The Inputs bar (#203, the mockups' .inputsbar): the Inputs panel in one line under
+     the tabs, where the page is too narrow for the panel beside the section. Only with
+     JavaScript, which its Edit needs; without it the panel shows above the section. An
+     input changed since what is shown, and a run under way, show in it as in the panel. == */
+  .inputs-bar {
+    display: none;
+    align-items: center;
+    gap: --spacing(2) --spacing(3);
+    padding: --spacing(2) --spacing(3);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    font-size: var(--text-sm);
+  }
+
+  @media (scripting: enabled) {
+    @container station-page (inline-size < 52rem) {
+      .inputs-bar {
+        display: flex;
+      }
+    }
+  }
+
+  .inputs-bar__text {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  .inputs-bar__label {
+    color: var(--color-text);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .inputs-bar__changed {
+    color: var(--color-warning);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .inputs-bar__run {
+    color: var(--color-ink);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  /* Each change and run after a dot, as the summary's parts ("1971–2000 · defaults"). */
+  :is(.inputs-bar__changed, .inputs-bar__run)::before {
+    content: "· ";
+    content: "· " / "";
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .inputs-bar__run .icon {
+    margin-inline-end: --spacing(1);
+    vertical-align: -0.125em;
+  }
+
+  .inputs-bar > .button {
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  .inputs-bar--changed {
+    background: var(--color-warning-soft);
+  }
+
+  /* On a phone it reaches the window's edges, under a rule, as in the mockup. */
+  @media (max-width: 40rem) {
+    .inputs-bar {
+      margin-inline: calc(-1 * --spacing(4));
+      margin-block-start: calc(-1 * --spacing(3));
+      padding-inline: --spacing(4);
+      border-block-end: 1px solid var(--color-border);
+      border-radius: 0;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .inputs-bar {
+      border: 1px solid CanvasText;
     }
   }
 }

@@ -527,7 +527,7 @@ def test_index_page_values_match_the_csv_and_trend_files(client):
     low = txx.loc[txx["val"].idxmin()]
 
     def stat(label, value, note):
-        value = f"{value:g} °C"  # with the index's units (#173)
+        value = f"{value:g}\u00a0°C"  # with the index's units (#173), a no-break space
         tail = f'</span><span class="stat__value">{value}</span><span class="stat__note">{note}'
         return f"{label}{tail}" in html
 
@@ -670,8 +670,11 @@ def test_findings_by_theme_lead_the_results(client):
     keys = re.findall(rf'href="{url}/([^"#?]+)"', heat)
     assert keys == ["tr", "tn90p", "su"]
     assert f'<a class="trend-row__name" href="{url}/tr">Tropical nights</a>' in heat
-    assert '>+4.65</span> <span class="trend-row__units">days / decade</span>' in heat
-    assert '+1.31</span> <span class="trend-row__units"><abbr title="percentage points">pp' in heat
+    assert '>+4.65</span>&nbsp;<span class="trend-row__units">days/decade</span>' in heat
+    assert (
+        '+1.31</span>&nbsp;<span class="trend-row__units"><abbr title="percentage points">pp'
+        in heat
+    )
     assert heat.count('class="trend-row"') == heat.count('class="spark"') == 3
     cold = _text(_theme(findings, "cold"))
     assert "4 of 11 indices changed significantly: 2 increased and 2 decreased." in cold
@@ -856,11 +859,11 @@ def test_cards_and_index_page_lead_with_the_plain_name(client):
     assert "<h1>Max TX</h1>" in page and '<code class="index-code">TXx</code>' in page
     assert "<title>Max TX (TXx): " in page
     # TMge10 counts TM days, whatever R's long name says (#217).
-    assert f'<a href="{url}/tmge10">TM of at least 10 °C</a></th>' in html
+    assert f'<a href="{url}/tmge10">TM of at least 10\u00a0°C</a></th>' in html
     assert "TX of at least 10" not in html
     page = client.get(f"{url}/tmge10").content.decode()
-    assert "<h1>TM of at least 10 °C</h1>" in page
-    assert "<title>TM of at least 10 °C (TMge10): " in page
+    assert "<h1>TM of at least 10\u00a0°C</h1>" in page
+    assert "<title>TM of at least 10\u00a0°C (TMge10): " in page
 
 
 def test_plain_names_of_indices_that_share_a_catalogue_entry():
@@ -978,41 +981,44 @@ def test_downloads_and_next_step(client):
 
 def test_units_on_the_stat_row_and_percentage_point_trends(client):
     """#173: the index page's stats carry the index's units, and a trend in a percentage
-    index is in percentage points per decade, not percent."""
+    index is in percentage points per decade, not percent: "pp", spelt out in its
+    ``abbr`` (#226)."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
-    assert '+0.65</span> <span class="text-text-muted">percentage points</span>' in html
+    pp = '<abbr title="percentage points">pp</abbr>'
+    assert f'+0.65</span>&nbsp;<span class="text-text-muted">{pp}</span>' in html
     assert "% per decade" not in html and "Trend per decade" in html
     page = client.get(f"/station/{analysis.pk}/results/tx90p").content.decode()
     for label in ("Highest", "Lowest", "Mean"):
         assert re.search(rf'{label}</span><span class="stat__value">[0-9.,]+%</span>', page)
-    assert re.search(r'Trend</span><span class="stat__value">\S+ percentage points</span>', page)
+    assert re.search(r'Trend</span><span class="stat__value">\S+\u00a0pp/decade</span>', page)
     days = client.get(f"/station/{analysis.pk}/results/su").content.decode()
-    assert re.search(r'Highest</span><span class="stat__value">[0-9.,]+ days</span>', days)
+    assert re.search(r'Highest</span><span class="stat__value">[0-9.,]+\u00a0days</span>', days)
 
 
 def test_units_written_the_same_way_everywhere(client):
     """#189: a percentage index (TX90p), a count (SU) and a unitless one (SPI) write
     their values with units one way in the catalogue, the theme tiles and the index
     page's stat row: "12.5%", "20 days", the number alone, never "12.5 %" or a double
-    space."""
+    space; #226: a no-break space before the units, "pp" for percentage points."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
 
     def row(key):
         return re.search(rf'<tr [^>]*id="index-{key}".*?</tr>', html, re.S).group(0)
 
-    assert '<span class="text-text-muted">percentage points</span>' in row("tx90p")
+    pp = '<abbr title="percentage points">pp</abbr>'
+    assert f'<span class="text-text-muted">{pp}</span>' in row("tx90p")
     assert '<span class="text-text-muted">days</span>' in row("su")
     spi = row("3month_spi")
     assert re.search(r'trend--\w+">[+−-]?[0-9.,]+</span></td>', spi)
-    # The theme tiles: a unitless trend says "per decade" with nothing before it.
+    # The theme tiles: a unitless trend says "/decade" with nothing before it.
     tiles = re.findall(r'<span class="trend-row__units">(.*?)</span></span>', html, re.S)
     assert tiles and all("  " not in t and not t.startswith(" ") for t in tiles)
     for key, value, trend in (
-        ("tx90p", r"[0-9.,]+%", r"\S+ percentage points"),
-        ("su", r"[0-9.,]+ days", r"\S+ days"),
-        ("3month_spi", r"[−-]?[0-9.,]+", r"[+−-]?[0-9.,]+"),
+        ("tx90p", r"[0-9.,]+%", r"[+−]?[0-9.,]+\u00a0pp/decade"),
+        ("su", r"[0-9.,]+\u00a0days", r"[+−]?[0-9.,]+\u00a0days/decade"),
+        ("3month_spi", r"−?[0-9.,]+", r"[+−]?[0-9.]+/decade"),
     ):
         page = client.get(f"/station/{analysis.pk}/results/{key}").content.decode()
         for label in ("Highest", "Lowest", "Mean"):
@@ -1025,8 +1031,8 @@ def test_trend_and_stat_units():
     from climpact_web.charts.data import trend_units
     from climpact_web.stations.results import with_units
 
-    assert trend_units("%") == "percentage points" and trend_units("°C") == "°C"
-    assert with_units("12.5", "%") == "12.5%" and with_units("20", "days") == "20 days"
+    assert trend_units("%") == "pp" and trend_units("°C") == "°C"
+    assert with_units("12.5", "%") == "12.5%" and with_units("20", "days") == "20\u00a0days"
     assert with_units("0.4", "") == "0.4"
 
 
@@ -1106,7 +1112,7 @@ def test_index_page_chart_title_is_the_cleaned_definition(client):
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results/su").content.decode()
     title = re.search(r'<h2 class="chart__title" id="index-chart-title">(.*?)</h2>', html).group(1)
-    assert title == "SU: Annual number of days when TX &gt; 25 °C"
+    assert title == "SU: Annual number of days when TX &gt; 25\u00a0°C"
     assert "degrees_C" not in title
     monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
     assert re.search(r'id="index-chart-title">TXx: [^<]*</h2>', monthly)

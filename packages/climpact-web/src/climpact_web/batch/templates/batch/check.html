@@ -58,9 +58,11 @@
           {% else %}{% translate "Has problems" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
         </div>
         <p class="batch-item__meta text-sm text-text-muted">
-          {% blocktranslate with file=station.station_file line=station.line lat=station.latitude lon=station.longitude trimmed %}
-            {{ file }} · line {{ line }} of the metadata file · {{ lat }}° N, {{ lon }}° E
-          {% endblocktranslate %}{% if station.summary %}{% blocktranslate with first=station.summary.first_date last=station.summary.last_date %} · data {{ first }} to {{ last }}{% endblocktranslate %}{% endif %}
+          {% with place=station.latitude|coordinates:station.longitude %}{% if place %}{% blocktranslate with file=station.station_file line=station.line trimmed %}
+            {{ file }} · line {{ line }} of the metadata file · {{ place }}
+          {% endblocktranslate %}{% else %}{% blocktranslate with file=station.station_file line=station.line trimmed %}
+            {{ file }} · line {{ line }} of the metadata file
+          {% endblocktranslate %}{% endif %}{% endwith %}{% if station.summary %}{% blocktranslate with first=station.summary.first_date last=station.summary.last_date %} · data {{ first }} to {{ last }}{% endblocktranslate %}{% endif %}
         </p>
         {% if station.problems %}
         <ul class="file-problems batch-item__problems">

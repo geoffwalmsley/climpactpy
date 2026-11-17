@@ -27,6 +27,8 @@ from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext as _
 
+from climpact_web.core import numbers
+
 WIDTH, HEIGHT = 640, 240
 LEFT, RIGHT, TOP, BOTTOM = 48, 8, 10, 30
 TOKENS = {
@@ -103,8 +105,9 @@ def _nice(low: float, high: float, count: int = 5) -> list[float]:
 
 
 def _fmt(v: float) -> str:
+    """A tick or statistic: four significant digits, U+2212 for minus (#226)."""
     text = f"{v:.4g}"
-    return "0" if text == "-0" else text
+    return "0" if text == "-0" else numbers.minus(text)
 
 
 def _axes(parts, low, high, y, ticks, unit):

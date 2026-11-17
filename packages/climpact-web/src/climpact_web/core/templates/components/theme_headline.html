@@ -18,7 +18,7 @@ Without items it is quiet, on the sunken surface: no change is a finding too.
     {% for item in items %}
     <li class="trend-row">
       <a class="trend-row__name" href="{{ item.href }}">{{ item.title }}</a>
-      <span class="trend-row__value"><span class="trend trend--{{ item.direction }}">{{ item.value }}</span> <span class="trend-row__units">{% if item.units_title %}<abbr title="{{ item.units_title }}">{{ item.units }}</abbr> {% translate "/ decade" %}{% elif item.units %}{{ item.units }} {% translate "/ decade" %}{% else %}{% translate "per decade" %}{% endif %}</span></span>
+      <span class="trend-row__value"><span class="trend trend--{{ item.direction }}">{{ item.value }}</span>{% if item.units %}&nbsp;{% endif %}<span class="trend-row__units">{% if item.units_title %}<abbr title="{{ item.units_title }}">{{ item.units }}</abbr>{% else %}{{ item.units }}{% endif %}{% translate "/decade" %}</span></span>
       {% if item.spark %}{% include "components/spark.html" with spark=item.spark %}{% endif %}
     </li>
     {% endfor %}

@@ -265,7 +265,7 @@ def test_new_station_name_checks_again_and_new_location_does_not(client):
     assert analysis.qc_job == qc and analysis.indices_job != run
     assert (analysis.latitude, analysis.longitude) == (-10, 5)
     html = page(client, analysis)
-    assert changed(html) == {"station"} and "−10°" not in html and "-10°, 5°" in html
+    assert changed(html) == {"station"} and "10.00°\u00a0S 5.00°\u00a0E" in html
     edit(
         client,
         analysis,

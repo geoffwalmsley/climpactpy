@@ -44,12 +44,29 @@
     });
   }
 
+  // The number rules (core/numbers.py, #226): U+2212 for minus, never "−0".
   var numberFormats = {};
+  function minus(text) {
+    if (/^-0(\D0*)?$/.test(text)) return text.slice(1);
+    return text.replace(/^-/, "\u2212");
+  }
   function num(v, digits) {
     if (v == null || v !== v) return "";
     var d = digits == null ? (Math.abs(v) < 10 ? 2 : 1) : digits;
     if (!numberFormats[d]) numberFormats[d] = new Intl.NumberFormat(lang, { maximumFractionDigits: d });
-    return numberFormats[d].format(v);
+    return minus(numberFormats[d].format(v));
+  }
+  // Exactly `digits` places, with a sign: an anomaly, "+0.4", "−1.2", "0.0".
+  var fixedFormats = {};
+  function signedFixed(v, digits) {
+    if (v == null || v !== v) return "";
+    if (!fixedFormats[digits]) fixedFormats[digits] = new Intl.NumberFormat(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    var text = minus(fixedFormats[digits].format(v));
+    return Number(v.toFixed(digits)) > 0 ? "+" + text : text;
+  }
+  // A value of the chart: an anomaly payload ("signed_digits") has its own rule.
+  function value(model, v, digits) {
+    return model.signedDigits != null ? signedFixed(v, model.signedDigits) : num(v, digits);
   }
 
   var monthFormat = new Intl.DateTimeFormat(lang, { year: "numeric", month: "short", timeZone: "UTC" });
@@ -173,6 +190,7 @@
       weights: [1],
       legend: legend,
       dates: p.dates,
+      signedDigits: p.signed_digits,
       label: function (v) {
         if (p.step === "month") {
           var year = Math.floor(v);
@@ -279,7 +297,13 @@
       },
       axes: [
         xAxis,
-        { stroke: pal.text_muted, grid: grid, ticks: { stroke: pal.roles.grid }, font: font, labelFont: font, label: panel.label, labelSize: 18, size: 52 }
+        {
+          stroke: pal.text_muted, grid: grid, ticks: { stroke: pal.roles.grid }, font: font, labelFont: font, label: panel.label, labelSize: 18, size: 52,
+          // The tick labels by the number rules (#226): "−5", not "-5".
+          values: function (u, splits) {
+            return splits.map(function (v) { return num(v); });
+          }
+        }
       ],
       series: [{}].concat(panel.series.map(function (s) {
         return uSeries(s, pal, chart.flagsHidden);
@@ -516,8 +540,9 @@
         var v = s.values[idx];
         if (s.bars && v == null && model.kind === "index") return;
         // As data.with_units (#189): "12.5%", "20 days", the number alone without units.
-        var unit = !s.unit ? "" : s.unit === "%" ? "%" : " " + s.unit;
-        parts.push(s.short + " " + (v == null ? t("missing") : num(v) + unit));
+        // A no-break space between a value and its unit (#226).
+        var unit = !s.unit ? "" : s.unit === "%" ? "%" : "\u00a0" + s.unit;
+        parts.push(s.short + " " + (v == null ? t("missing") : value(model, v) + unit));
       });
     });
     if (model.flagInfo && model.flagInfo[idx]) parts.push(t("flagged") + ": " + model.flagInfo[idx].join(", "));
@@ -637,9 +662,9 @@
     var rows = [head + "</tr>"];
     for (var i = v[0]; i <= v[1]; i++) {
       var row = "<tr><th scope='row'>" + esc(model.label(model.x[i])) + "</th>";
-      if (model.kind === "index" && this.payload.bars) row += "<td class='num'>" + cell(this.payload.y[i]) + "</td>";
+      if (model.kind === "index" && this.payload.bars) row += "<td class='num'>" + cell(this.payload.y[i], null, model) + "</td>";
       columns.forEach(function (s) {
-        row += "<td class='num'>" + cell(s.values[i], s.trend ? 3 : null) + "</td>";
+        row += "<td class='num'>" + cell(s.values[i], s.trend ? 3 : null, model) + "</td>";
       });
       if (model.dates) row += "<td>" + esc(model.dates[i] || "") + "</td>";
       if (model.flagInfo) row += "<td>" + esc((model.flagInfo[i] || []).join(", ")) + "</td>";
@@ -650,8 +675,9 @@
     body.appendChild(wrap);
   };
 
-  function cell(v, digits) {
-    return v == null ? "<span class='text-text-muted'>" + esc(t("missing")) + "</span>" : esc(num(v, digits == null ? 3 : digits));
+  function cell(v, digits, model) {
+    if (v == null) return "<span class='text-text-muted'>" + esc(t("missing")) + "</span>";
+    return esc(model ? value(model, v, digits == null ? 3 : digits) : num(v, digits == null ? 3 : digits));
   }
 
   function esc(s) {

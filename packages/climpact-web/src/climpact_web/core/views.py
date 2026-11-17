@@ -8,6 +8,7 @@ from django.views.decorators.http import require_safe
 
 import climpact
 import climpact_web
+from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
 from climpact_web.core.navigation import batch_steps, destination
 from climpact_web.help.tour import home_tour
@@ -112,7 +113,7 @@ def pattern_context(form):
                 "href": "#findings",
                 "title": _("Tropical nights"),
                 "code": "TR",
-                "value": "+4.65",
+                "value": numbers.slope(4.65, "days"),
                 "units": _("days"),
                 "direction": "up",
                 "spark": {
@@ -124,7 +125,7 @@ def pattern_context(form):
                 "href": "#findings",
                 "title": _("Amount of warm nights"),
                 "code": "TN90p",
-                "value": "+1.31",
+                "value": numbers.slope(1.31, "%"),
                 "units": _("pp"),
                 "units_title": _("percentage points"),
                 "direction": "up",
@@ -142,6 +143,11 @@ def pattern_context(form):
             {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
             {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
         ],
+        # A trend by the number rules (#226), as the index page's Trend statistic.
+        "trend_demo": {
+            "value": numbers.per_decade(0.21, "°C"),
+            "interval": numbers.interval(0.08, 0.35, "°C"),
+        },
         "catalogue_years": "1936–2015",
         "catalogue_counts": {"all": 80, "significant": 22},
         # The catalogue table (#200): three rows, sorted by the trend.
@@ -150,7 +156,7 @@ def pattern_context(form):
                 "title": _("Tropical nights"),
                 "code": "TR",
                 "hue": "heat",
-                "value": "+4.65",
+                "value": numbers.slope(4.65, "days"),
                 "units": _("days"),
                 "direction": "up",
                 "significant": True,
@@ -159,8 +165,9 @@ def pattern_context(form):
                 "title": _("Amount of cold nights"),
                 "code": "TN10p",
                 "hue": "cold",
-                "value": "−1.93",
-                "units": _("percentage points"),
+                "value": numbers.slope(-1.93, "%"),
+                "units": _("pp"),
+                "units_title": _("percentage points"),
                 "direction": "down",
                 "significant": True,
             },
@@ -168,7 +175,7 @@ def pattern_context(form):
                 "title": _("Annual total precipitation"),
                 "code": "PRCPTOT",
                 "hue": "rain",
-                "value": "−4.1",
+                "value": numbers.slope(-4.1, "mm"),
                 "units": _("mm"),
                 "direction": "down",
                 "significant": False,
@@ -337,7 +344,7 @@ def inputs_demo() -> dict:
 
     rows = [
         ("file", _("File"), _("29,220 days · 3 variables"), _("Replace"), False),
-        ("station", _("Station"), "-33.86°, 151.21°", _("Edit"), False),
+        ("station", _("Station"), numbers.coordinates(-33.86, 151.21), _("Edit"), False),
         ("base-period", _("Base period"), "1981–2010", _("Edit"), True),
         ("thresholds", _("Quality thresholds"), workspace.changed_text(0), _("Edit"), False),
         ("settings", _("Index settings"), workspace.changed_text(2), _("Edit"), False),

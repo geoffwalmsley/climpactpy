@@ -36,6 +36,7 @@ from django.utils.translation import get_language, gettext_lazy
 from django.utils.translation import gettext as _
 
 from climpact_web.charts import data as chart_data
+from climpact_web.core import numbers
 from climpact_web.help import indices as catalogue
 from climpact_web.stations import themes
 
@@ -282,7 +283,9 @@ class Card:
 
     @property
     def search_text(self) -> str:
-        return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
+        text = " ".join([self.key, self.name, self.title, self.definition, self.long_name])
+        # Found as typed: "-2" finds "TN below −2 °C" (#226).
+        return text.replace(numbers.MINUS, "-").replace(numbers.NBSP, " ").lower()
 
     @property
     def code(self) -> str:
@@ -292,6 +295,11 @@ class Card:
     @property
     def trend_units(self) -> str:
         return chart_data.trend_units(self.units)
+
+    @property
+    def trend_units_title(self) -> str:
+        """``pp`` spelt out, for its ``abbr``; "" for other units."""
+        return _("percentage points") if self.units == "%" else ""
 
     @property
     def series_text(self) -> str:
@@ -326,27 +334,22 @@ def trend_summary(plot) -> dict | None:
     per = PER_DECADE.get(plot.step, 1)
     slope, lower, upper = trend.slope * per, trend.lower * per, trend.upper * per
     significant = trend.lower > 0 or trend.upper < 0
+    units = _units(plot)
     direction = "up" if slope > 0 else "down" if slope < 0 else "flat"
     return {
         "valid": True,
         "slope": slope,
         "lower": lower,
         "upper": upper,
-        "slope_text": _signed(slope),
-        "lower_text": chart_data.number(lower),
-        "upper_text": chart_data.number(upper),
+        # The number rules (#226): "+0.21", "+0.21 °C/decade", "−0.22 to 0.31".
+        "slope_text": numbers.slope(slope, units),
+        "per_decade_text": numbers.per_decade(slope, units),
+        "interval_text": numbers.interval(lower, upper, units),
         "per_step": trend.slope,
         "p_value": trend.p_value,
         "significant": significant,
         "direction": direction,
     }
-
-
-def _signed(value: float) -> str:
-    text = chart_data.number(abs(value))
-    if text == "0":
-        return text
-    return ("+" if value > 0 else "−") + text
 
 
 def _columns(values: list[float | None]) -> list[float | None]:
@@ -449,7 +452,7 @@ with_units = chart_data.with_units
 def _units(plot) -> str:
     if plot.name.startswith("day_of_"):  # its trend is in days per decade
         return _("days")
-    return chart_data.UNIT_LABELS.get(plot.units, plot.units)
+    return numbers.unit_label(plot.units)
 
 
 def _definition(description: str, key: str) -> str:
@@ -459,7 +462,7 @@ def _definition(description: str, key: str) -> str:
     prefix = re.match(r"^[^:]{1,40}: ", text)
     if prefix and not text.startswith(("TX90-", "TN90-")):
         text = text[prefix.end() :]
-    return _(catalogue.plain(text))
+    return numbers.in_text(_(catalogue.plain(text)))
 
 
 def chart_title(card: Card, series: Series) -> str:
@@ -529,8 +532,11 @@ def _new_card(key: str, order: int) -> Card:
         key=key,
         name=display_name(key, info),
         definition="",
-        long_name=_(info.long_name) if info is not None else _("Your own threshold index"),
-        title=plain_name(key, info),
+        # The number rules in the names too (#226): "TN below −2 °C".
+        long_name=numbers.in_text(_(info.long_name))
+        if info is not None
+        else _("Your own threshold index"),
+        title=numbers.in_text(plain_name(key, info)),
         units="",
         group=group,
         theme=themes.theme_of(key, info),

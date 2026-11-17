@@ -33,6 +33,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
+from climpact_web.core import numbers
 from climpact_web.jobs.models import Job, Status
 from climpact_web.stations.models import StationAnalysis, Step
 
@@ -574,7 +575,7 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     values = {
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
-        "station": f"{analysis.latitude:g}°, {analysis.longitude:g}°",
+        "station": numbers.coordinates(analysis.latitude, analysis.longitude),
         "base-period": f"{analysis.base_start}–{analysis.base_end}",
         "thresholds": changed_text(custom["thresholds"]),
         "settings": changed_text(custom["settings"]),

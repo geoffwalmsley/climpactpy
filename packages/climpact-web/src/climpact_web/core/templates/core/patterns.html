@@ -237,7 +237,7 @@
       <h2 id="data-title">{% translate "Badges, statistics, summaries" %}</h2>
       {% translate "Passed" as b1 %}{% translate "3 outliers" as b2 %}{% translate "12 duplicates" as b3 %}{% translate "Not calculated" as b4 %}
       {% translate "Days missing" as s1_l %}{% translate "1.2%" as s1_v %}{% translate "345 of 29,220" as s1_n %}
-      {% translate "Trend" as s2_l %}{% translate "+0.21 °C" as s2_v %}{% translate "per decade, 1936 to 2015" as s2_n %}
+      {% translate "Trend" as s2_l %}{% blocktranslate with interval=trend_demo.interval asvar s2_n %}95% interval {{ interval }}{% endblocktranslate %}
       <div class="pattern__demo stack">
         <div class="flex flex-wrap items-center gap-3">
           {% include "components/badge.html" with label=b1 kind="success" icon="check" %}
@@ -247,7 +247,7 @@
         </div>
         <div class="grid gap-5 grid-cols-fill-64">
           {% include "components/stat.html" with label=s1_l value=s1_v note=s1_n %}
-          {% include "components/stat.html" with label=s2_l value=s2_v note=s2_n %}
+          {% include "components/stat.html" with label=s2_l value=trend_demo.value note=s2_n %}
         </div>
         {% include "components/summary_list.html" with items=summary_items %}
       </div>
@@ -288,7 +288,7 @@
               <tr class="hue-{{ row.hue }}">
                 <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="#findings">{{ row.title }}</a></th>
                 <td><code class="index-code">{{ row.code }}</code></td>
-                <td class="num"><span class="trend trend--{{ row.direction }}">{{ row.value }}</span> <span class="text-text-muted">{{ row.units }}</span></td>
+                <td class="num"><span class="trend trend--{{ row.direction }}">{{ row.value }}</span>&nbsp;<span class="text-text-muted">{% if row.units_title %}<abbr title="{{ row.units_title }}">{{ row.units }}</abbr>{% else %}{{ row.units }}{% endif %}</span></td>
                 <td>{% if row.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% endif %}</td>
                 <td class="catalogue__spark">{% include "components/spark.html" with spark=theme_items.0.spark %}</td>
               </tr>

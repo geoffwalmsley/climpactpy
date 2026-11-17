@@ -265,7 +265,8 @@ def test_jump_rows_show_both_days_and_the_change(checked):
     assert [c.text for c in tx.cells] == ["27.5", "50", "1963-07-04", "22.5"]
     tn = review.check("tn_jumps").rows[0]
     # The file's TN column holds the day's value (R's slip); the change is worked out.
-    assert [c.text for c in tn.cells] == ["1.2", "-50", "1963-12-01", "51.2"]
+    # Minus is U+2212 on the screen (#226).
+    assert [c.text for c in tn.cells] == ["1.2", "\u221250", "1963-12-01", "51.2"]
 
 
 def test_flatline_rows_give_the_run(checked):
@@ -420,7 +421,10 @@ def test_finding_text_and_its_days(checked):
     review = qc_review.review(checked.qc_job, checked.station_file)
     toolarge = review.findings[1]
     first = toolarge.findings[0]
-    assert first.date == "1963-07-02" and first.text == "Rain 200.1 mm, over the 200 mm limit"
+    assert (
+        first.date == "1963-07-02"
+        and first.text == "Rain 200.1\u00a0mm, over the 200\u00a0mm limit"
+    )
     assert len(first.days) == 2 * qc_review.WINDOW_DAYS + 1
     assert [d["this"] for d in first.days].index(True) == qc_review.WINDOW_DAYS
     assert first.spark["ring"] is not None and first.spark["lines"][0]["variable"] == "prcp"

@@ -27,6 +27,8 @@ from pathlib import Path
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
+from climpact_web.core import numbers
+
 PAGE_SIZE = 50
 
 # Each check: its file (qc/<key>), its title, which variable's chart its rows show, and
@@ -120,19 +122,22 @@ def iso_date(r_date: str) -> str:
 
 
 def number(text: str) -> float | None:
-    try:
-        value = float(text)
-    except (TypeError, ValueError):
-        return None
-    return None if value != value else value
+    """A file's or a cell's number (a cell writes minus as U+2212); None if not one."""
+    return numbers.parse(text)
 
 
-def fmt(value: float | None) -> str:
-    """A value as the files write it (at most 15 significant digits, no trailing zeros)."""
-    if value is None:
-        return ""
-    text = f"{value:.15g}"
-    return "0" if text == "-0" else text
+# A value as the files write it (at most 15 significant digits, no trailing zeros), with
+# U+2212 for minus (#226). Shown only: the downloads are the files themselves.
+fmt = numbers.file_value
+
+
+def _deg(text: str) -> str:
+    """``12.6 °C``, with a no-break space (#226)."""
+    return numbers.with_unit(text, "°C")
+
+
+def _mm(text: str) -> str:
+    return numbers.with_unit(text, "mm")
 
 
 # ---- The station's rows -------------------------------------------------------------------
@@ -471,10 +476,15 @@ def _description(key: str, params) -> str:
     texts = {
         "tmaxmin": _("Days where the minimum temperature is equal to or higher than the maximum."),
         "toolarge": _(
-            "Precipitation above %(prec)s mm or below 0 mm, and temperatures above %(temp)s °C "
-            "or below -%(temp)s °C."
+            "Precipitation above %(prec)s or below %(zero)s, and temperatures above %(high)s "
+            "or below %(low)s."
         )
-        % {"prec": n(params.prec_max), "temp": n(params.temp_max)},
+        % {
+            "prec": _mm(n(params.prec_max)),
+            "zero": _mm(n(0)),
+            "high": _deg(n(params.temp_max)),
+            "low": _deg(n(-params.temp_max)),
+        },
         "duplicates": _(
             "Dates given on more than one row of the file. The indices use the last row of "
             "each date."
@@ -486,15 +496,15 @@ def _description(key: str, params) -> str:
         )
         % {"temp": n(params.iqr_temp), "prec": n(params.iqr_prec)},
         "tx_jumps": _(
-            "Days where the maximum temperature changes by %(jump)s °C or more to the next "
+            "Days where the maximum temperature changes by %(jump)s or more to the next "
             "day. The date is the first of the two days."
         )
-        % {"jump": n(params.jump)},
+        % {"jump": _deg(n(params.jump))},
         "tn_jumps": _(
-            "Days where the minimum temperature changes by %(jump)s °C or more to the next "
+            "Days where the minimum temperature changes by %(jump)s or more to the next "
             "day. The date is the first of the two days."
         )
-        % {"jump": n(params.jump)},
+        % {"jump": _deg(n(params.jump))},
         "tx_flatline": _(
             "The same maximum temperature on more than %(days)s days in a row. The date is "
             "the second-last day of the run."
@@ -885,10 +895,10 @@ def _finding_text(check: Check, row: Row, params) -> str:
     cells = row.cells
     if check.key == "tmaxmin":
         tx, tn = number(cells[1].text), number(cells[2].text)
-        values = {"tn": cells[2].text, "tx": cells[1].text}
+        values = {"tn": _deg(cells[2].text), "tx": _deg(cells[1].text)}
         if tx is not None and tn is not None and tn == tx:
-            return _("Minimum %(tn)s °C equals the maximum %(tx)s °C") % values
-        return _("Minimum %(tn)s °C is above the maximum %(tx)s °C") % values
+            return _("Minimum %(tn)s equals the maximum %(tx)s") % values
+        return _("Minimum %(tn)s is above the maximum %(tx)s") % values
     if check.key == "toolarge":
         parts = []
         prcp, tmax, tmin = cells[0], cells[1], cells[2]
@@ -896,22 +906,22 @@ def _finding_text(check: Check, row: Row, params) -> str:
             p = number(prcp.text) or 0.0
             parts.append(
                 (
-                    _("Rain %(value)s mm, below 0 mm")
+                    _("Rain %(value)s, below %(limit)s")
                     if p < 0
-                    else _("Rain %(value)s mm, over the %(limit)s mm limit")
+                    else _("Rain %(value)s, over the %(limit)s limit")
                 )
-                % {"value": prcp.text, "limit": fmt(params.prec_max)}
+                % {"value": _mm(prcp.text), "limit": _mm(fmt(0 if p < 0 else params.prec_max))}
             )
         for cell, high_text, low_text in (
             (
                 tmax,
-                _("Maximum %(value)s °C, over the %(limit)s °C limit"),
-                _("Maximum %(value)s °C, under the %(limit)s °C limit"),
+                _("Maximum %(value)s, over the %(limit)s limit"),
+                _("Maximum %(value)s, under the %(limit)s limit"),
             ),
             (
                 tmin,
-                _("Minimum %(value)s °C, over the %(limit)s °C limit"),
-                _("Minimum %(value)s °C, under the %(limit)s °C limit"),
+                _("Minimum %(value)s, over the %(limit)s limit"),
+                _("Minimum %(value)s, under the %(limit)s limit"),
             ),
         ):
             if cell.strong:
@@ -919,8 +929,8 @@ def _finding_text(check: Check, row: Row, params) -> str:
                 parts.append(
                     (high_text if v > 0 else low_text)
                     % {
-                        "value": cell.text,
-                        "limit": fmt(params.temp_max if v > 0 else -params.temp_max),
+                        "value": _deg(cell.text),
+                        "limit": _deg(fmt(params.temp_max if v > 0 else -params.temp_max)),
                     }
                 )
         return "; ".join(parts)
@@ -1099,9 +1109,9 @@ def worth_groups(checks: list[Check], params) -> list[Group]:
             continue
         short = short_labels()["tmax" if check.key.startswith("tx") else "tmin"]
         if check.key.endswith("_jumps"):
-            title = _("Large day-to-day changes in %(variable)s (%(jump)s °C or more)") % {
+            title = _("Large day-to-day changes in %(variable)s (%(jump)s or more)") % {
                 "variable": short,
-                "jump": fmt(params.jump),
+                "jump": _deg(fmt(params.jump)),
             }
         else:
             title = _("The same %(variable)s on more than %(days)s days in a row") % {

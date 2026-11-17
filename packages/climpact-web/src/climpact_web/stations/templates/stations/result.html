@@ -41,10 +41,8 @@
   {% if stats %}
   <div class="grid gap-4 grid-cols-fit-40">
     {% if trend.valid %}
-    {% with trend_value=trend.slope_text|with_units:series.trend_units %}
-    {% blocktranslate with lower=trend.lower_text upper=trend.upper_text asvar trend_note %}per decade; 95% interval {{ lower }} to {{ upper }}{% endblocktranslate %}
-    {% translate "Trend" as trend_label %}{% include "components/stat.html" with label=trend_label value=trend_value note=trend_note %}
-    {% endwith %}
+    {% blocktranslate with interval=trend.interval_text asvar trend_note %}95% interval {{ interval }}{% endblocktranslate %}
+    {% translate "Trend" as trend_label %}{% include "components/stat.html" with label=trend_label value=trend.per_decade_text note=trend_note %}
     {% if trend.significant %}{% translate "Yes: the interval excludes zero" as sig_note %}{% translate "Yes" as sig_value %}{% else %}{% translate "No: the interval includes zero" as sig_note %}{% translate "No" as sig_value %}{% endif %}
     {% translate "Significant at 5%" as sig_label %}{% include "components/stat.html" with label=sig_label value=sig_value note=sig_note %}
     {% elif trend %}
@@ -104,7 +102,7 @@
         <tbody>
           {% for row in trend_rows %}<tr>
             <th scope="row">{{ row.label }} <span class="text-sm text-text-muted">{{ row.per }}</span></th><td>{% blocktranslate with start=row.start end=row.end %}{{ start }} to {{ end }}{% endblocktranslate %}</td>
-            {% if row.valid %}<td class="numeric">{{ row.lower|floatformat:"-4" }}</td><td class="numeric">{{ row.slope|floatformat:"-4" }}</td><td class="numeric">{{ row.upper|floatformat:"-4" }}</td>
+            {% if row.valid %}<td class="numeric">{{ row.lower|decimals:4 }}</td><td class="numeric">{{ row.slope|decimals:4 }}</td><td class="numeric">{{ row.upper|decimals:4 }}</td>
             <td>{% if row.significant %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
             {% else %}<td class="numeric" colspan="3">{% translate "Too few values" %}</td><td></td>{% endif %}
           </tr>{% endfor %}

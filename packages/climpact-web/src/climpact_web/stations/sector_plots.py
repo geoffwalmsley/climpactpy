@@ -28,6 +28,7 @@ from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext as _
 
+from climpact_web.core import numbers
 from climpact_web.stations.qc_plots import _fmt, _nice
 
 TOKENS = {"temperature": "--chart-tmax", "precipitation": "--chart-prcp"}
@@ -66,11 +67,13 @@ def _read(path: Path) -> list[list[str]]:
 
 
 def number(value: float | None) -> str:
-    """A value as the files show it (shortest form), or "NA"."""
+    """A value as the files show it (shortest form), with U+2212 for minus (#226), or
+    "NA"."""
     if value is None:
         return "NA"
     text = repr(round(value, 10))
-    return text[:-2] if text.endswith(".0") else text
+    text = text[:-2] if text.endswith(".0") else text
+    return "0" if text == "-0" else numbers.minus(text)
 
 
 # ---- the model ---------------------------------------------------------------------------

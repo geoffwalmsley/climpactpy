@@ -91,10 +91,10 @@ def test_daily_payload_is_columnar_with_gaps(sample_file):
     tmax = payload["series"][0]["values"]
     assert sum(v is None for v in tmax) == 58  # missing days are null: gaps
     assert max(v for v in tmax if v is not None) == 45.8
-    assert "29,220 days" in payload["summary"] and "45.8 °C" in payload["summary"]
+    assert "29,220 days" in payload["summary"] and "45.8\u00a0°C" in payload["summary"]
     # ISO dates, as the tables and the files (#115), not "Jan. 1, 1936".
     assert payload["summary"].startswith("1936-01-01 to 2015-12-31, 29,220 days.")
-    assert "45.8 °C on 2013-01-18" in payload["summary"] and "Jan." not in payload["summary"]
+    assert "45.8\u00a0°C on 2013-01-18" in payload["summary"] and "Jan." not in payload["summary"]
 
 
 def test_daily_payload_matches_the_csv_download(client, sample_file):
@@ -204,7 +204,9 @@ def test_index_payload_matches_the_static_plot():
     assert payload["trend"]["intercept"] == plot.trend.intercept
     assert payload["dates"][0] == "1936-11-06"
     assert payload["title"] == plot.description and payload["units"] == "°C"
-    assert "Trend: rising by 0.03 °C per decade" in payload["summary"]
+    # The number rules (#226): two decimals, a no-break space, U+2212 in the interval.
+    assert "Trend: rising by 0.03\u00a0°C per decade" in payload["summary"]
+    assert "(95% confidence interval \u22120.22 to 0.31)" in payload["summary"]
     assert "not significant" in payload["summary"]
 
 
@@ -225,7 +227,8 @@ def test_series_list_in_r_order():
 
 def test_summary_writes_units_as_every_page_does():
     """#189: "20%" for a percentage, "20 days" for a count, the number alone without
-    units, and no double space in a unitless trend."""
+    units, and no double space in a unitless trend; #226: a no-break space before the
+    units, "pp" for percentage points, two decimals for a slope."""
     trend = {"slope": 0.063, "lower": 0.01, "upper": 0.1}
 
     def summary(units):
@@ -233,9 +236,9 @@ def test_summary_writes_units_as_every_page_does():
         return data.index_summary({**payload, "units": units, "trend": trend})
 
     assert "Highest 20% in 2000, lowest 4.29% in 2001." in summary("%")
-    assert "rising by 0.63 percentage points per decade" in summary("%")
-    assert "Highest 20 days in 2000, lowest 4.29 days in 2001." in summary("days")
-    assert "rising by 0.63 days per decade" in summary("days")
+    assert "rising by 0.63\u00a0pp per decade" in summary("%")
+    assert "Highest 20\u00a0days in 2000, lowest 4.29\u00a0days in 2001." in summary("days")
+    assert "rising by 0.63\u00a0days per decade" in summary("days")
     assert "Highest 20 in 2000, lowest 4.29 in 2001." in summary("")
     assert "rising by 0.63 per decade" in summary("")
     for units in ("%", "days", ""):
@@ -244,7 +247,7 @@ def test_summary_writes_units_as_every_page_does():
         {"name": "x", "x": [2000], "y": [1.0], "step": "year", "units": ""}
         | {"trend": {"slope": 0.0, "lower": -1.0, "upper": 1.0}}
     )
-    assert "no change (0 per decade)" in flat
+    assert "no change (0.00 per decade)" in flat
 
 
 def test_with_units_filter():
@@ -252,7 +255,7 @@ def test_with_units_filter():
 
     template = Template("{% load charts %}[{{ v|with_units:u }}]")
     assert template.render(Context({"v": "12.5", "u": "%"})) == "[12.5%]"
-    assert template.render(Context({"v": "20", "u": "days"})) == "[20 days]"
+    assert template.render(Context({"v": "20", "u": "days"})) == "[20\u00a0days]"
     assert template.render(Context({"v": "+0.63", "u": ""})) == "[+0.63]"
 
 

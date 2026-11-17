@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
-from climpact_web.charts.data import number
+from climpact_web.core import numbers
 
 # How many of a theme's significant trends its headline shows.
 TOP = 3
@@ -128,15 +128,14 @@ def theme_of(key: str, info) -> str:
 
 
 def trend_text(card, signed: bool = True) -> str:
-    """``+0.65 percentage points per decade``: the card's trend with its units (without
-    the sign, ``0.12 °C per decade``, for "rose by")."""
-    slope = card.trend["slope_text"] if signed else number(abs(card.trend["slope"]))
-    if card.trend_units:
-        # A no-break space keeps the number with its units. It is joined here, outside the
-        # message: older xgettext (0.21, Ubuntu 24.04) keeps "\u00a0" in a Python msgid as
-        # written and newer versions decode it, so the catalogue would differ (#205).
-        slope = f"{slope}\u00a0{card.trend_units}"
-    return _("%(slope)s per decade") % {"slope": slope}
+    """``+0.65 pp per decade``: the card's trend with its units, by the number rules
+    (#226); without the sign, ``0.12 °C per decade``, for "rose by"."""
+    slope = card.trend["slope"]
+    places = numbers.slope_decimals(card.units)
+    text = numbers.signed(slope, places) if signed else numbers.fixed(abs(slope), places)
+    # The no-break space is joined here, outside the message (#205).
+    text = numbers.with_unit(text, card.trend_units)
+    return _("%(slope)s per decade") % {"slope": text}
 
 
 def finding(cards) -> str:

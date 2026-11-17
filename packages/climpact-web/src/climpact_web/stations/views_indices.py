@@ -500,9 +500,9 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
                 "title": card.title,
                 "code": card.code,
                 "value": card.trend["slope_text"],
-                # Short, so the trend keeps to one line: "pp / decade" (#200).
-                "units": short_units(card),
-                "units_title": card.trend_units if card.units == "%" else "",
+                # Short, so the trend keeps to one line: "pp/decade" (#200, #226).
+                "units": card.trend_units,
+                "units_title": card.trend_units_title,
                 "direction": card.trend["direction"],
                 "spark": card.spark,
             }
@@ -514,12 +514,6 @@ def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
         )
         % {"n": n, "theme": found.label},
     }
-
-
-def short_units(card) -> str:
-    """A trend's units in a theme tile: "pp" for percentage points (spelt out in its
-    ``abbr``), the index's units otherwise."""
-    return _("pp") if card.units == "%" else card.trend_units
 
 
 # ---- one index ---------------------------------------------------------------------------
@@ -651,6 +645,7 @@ def result_anomalies(request, analysis_id, name):
             series["labels"],
             series["values"],
             bars=True,
+            signed_digits=1,  # anomalies: one decimal, signed (#226)
         )
         payload["axis"] = _("Standard deviations from the mean")
         payload["label"] = _("Anomaly")

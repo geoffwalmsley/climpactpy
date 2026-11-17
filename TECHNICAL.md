@@ -3954,10 +3954,13 @@ The visual language and shared components (#71). The R Shiny app (`climpact/ui`,
 `climpact/www/styles.css`: shinydashboard boxes, a sidebar menu, tabs as steps) is the
 baseline it replaces. [`DESIGN.md`](DESIGN.md) at the repository root is the short
 reference for design work and reviews: who the app is for, the tokens and components in
-brief, and the rules a change must keep, including the targets of the UX redesign (#171).
-This section describes how the system is built. Wireframes for the redesign are in
-`docs/design/`, with the mockups the second design review approved
-(`redesign-proposals.html`, `redesign-proposals-dark.html`, #196).
+brief, and the rules a change must keep, with each rule not yet met marked **Target** and
+the ticket that meets it. Since 17 November 2026 the targets are those of the expert
+workspace direction (#230); its screens are boards on a design canvas that `DESIGN.md`
+links and maps to tickets, and web tickets are built to them with the `build-to-design`
+skill (`.claude/skills/build-to-design/SKILL.md`). This section describes how the system
+is built. The wireframes and mockups of the earlier redesign (#171) in `docs/design/` are
+kept for the record and marked superseded.
 
 **Look.** Calm and plain: neutral surfaces, ink for actions, colour only for data and
 status (#196), strong type hierarchy, generous spacing. System fonts only (`--font-sans`, `--font-mono`): no
@@ -6349,4 +6352,7 @@ uv run pytest -m browser    # the browser accessibility checks, before a PR touc
   [climpactpy Kanban](https://github.com/users/geoffwalmsley/projects/2), grouped under
   epics (#8 station parity, #9 QC, #10 gridded, #11 web, #12 deployment). Branches are
   named `<issue>-<slug>` and PRs say `Closes #N`. Each ticket names the reference files it
-  should make pass. The full workflow is in `.claude/skills/ticket/SKILL.md`.
+  should make pass. The full workflow is in `.claude/skills/ticket/SKILL.md`. A web ticket
+  that changes what users see also names its design canvas boards (a "Design" section) and
+  is built and checked against them with `.claude/skills/build-to-design/SKILL.md`; its
+  pull request carries a "Design check".

@@ -34,7 +34,7 @@ import climpact_web
 from climpact_web.charts import data
 from climpact_web.jobs.models import Status
 from climpact_web.jobs.views import get_job
-from climpact_web.stations.views import get_analysis
+from climpact_web.stations.views import get_station
 
 SERIES_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 SAMPLE_OUTPUTS = Path(__file__).resolve().parent / "sample_outputs"
@@ -98,7 +98,7 @@ def analysis_qc_params(analysis):
     from climpact_web.jobs.runners import qc_params
 
     job = analysis.qc_job
-    return qc_params(job.params.get("qc") if job is not None else analysis.qc_params)
+    return qc_params(job.params.get("qc") if job is not None else analysis.workspace.qc_params)
 
 
 @gzip_page
@@ -107,7 +107,7 @@ def station_daily(request, analysis_id):
     """The daily series of a station analysis, with the values the QC checks flag;
     ``?variable=`` (``tmax``, ``tmin``, ``dtr``, ``prcp``) gives one variable alone, and
     ``?flags=0`` leaves the flags out (the Load step, before the quality checks: #173)."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_station(request, analysis_id)
     variable = request.GET.get("variable") or None
     if variable is not None and variable not in data.DAILY_VARIABLES:
         raise Http404
@@ -119,7 +119,7 @@ def station_daily(request, analysis_id):
         payload = data.daily_payload(
             analysis.station_file, params, title=title, variable=variable, flags=flags
         )
-        payload["csv"] = reverse("stations:series", args=[analysis.pk])
+        payload["csv"] = analysis.url("series")
         if variable:
             payload["name"] = f"{title}_{variable}"
         return payload

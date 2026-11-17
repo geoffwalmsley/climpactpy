@@ -6,6 +6,7 @@ inputs."""
 
 import datetime as dt
 import re
+from urllib.parse import quote
 
 import pytest
 from django.test import Client
@@ -17,7 +18,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.stations import workspace
 from climpact_web.stations.forms import QC_DEFAULTS
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step, Workspace
 
 pytestmark = pytest.mark.django_db
 
@@ -33,7 +34,7 @@ def media(settings, tmp_path):
     return settings
 
 
-def in_use(client) -> tuple[StationAnalysis, Job, Job]:
+def in_use(client) -> tuple[Station, Job, Job]:
     """The Sydney sample through the real flow: the details confirmed, the checks run, the
     speculative run finished (with R's lat0 outputs) and "Use this data". Returns the
     analysis, its checks and its run, each with the inputs it was made from."""
@@ -41,8 +42,8 @@ def in_use(client) -> tuple[StationAnalysis, Job, Job]:
     qc = run_next()
     assert qc.kind == "qc" and qc.status == Status.SUCCEEDED, qc.error
     run = finish(analysis.indices_job)
-    response = client.post(f"/station/{analysis.pk}/quality/continue")
-    assert response["Location"] == f"/station/{analysis.pk}/results"
+    response = client.post(f"{analysis.url()}quality/continue")
+    assert response["Location"] == f"{analysis.url()}indices"
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job, analysis.step) == (qc, run, Step.RESULTS)
     assert workspace.section_states(analysis) == {
@@ -56,15 +57,15 @@ def states(html) -> dict[str, str]:
     return dict(re.findall(r'data-tab="(\w+)" data-state="(\w+)"', html))
 
 
-def page(client, analysis, path="results") -> str:
-    response = client.get(f"/station/{analysis.pk}/{path}")
+def page(client, analysis, path="indices") -> str:
+    response = client.get(f"{analysis.url()}{path}")
     assert response.status_code == 200, (path, response.get("Location"))
     return response.content.decode()
 
 
-def edit(client, analysis, key, data, back="results"):
+def edit(client, analysis, key, data, back="indices"):
     """Apply an input's sheet (#198) opened on the page ``back``; returns the response."""
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     return client.post(f"{base}/inputs/{key}", {**data, "next": f"{base}/{back}"})
 
 
@@ -85,10 +86,10 @@ def assert_kept(*jobs):
 
 def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     response = edit(client, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
     # The checks do not use the base period: back to the results it changes.
-    assert response["Location"] == f"{base}/results"
+    assert response["Location"] == f"{base}/indices"
     analysis.refresh_from_db()
     new = analysis.indices_job
     assert analysis.qc_job == qc and new != run and new.status == Status.QUEUED
@@ -104,7 +105,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     # The panel highlights the base period, with the run's progress beneath it.
     assert changed(html) == {"base-period"} and 'data-run="run"' in html
     assert "Base period · changed" in html and 'data-run="qc"' not in html
-    assert "out of date" in page(client, analysis, "results/txx")
+    assert "out of date" in page(client, analysis, "indices/txx")
     assert "Some files are out of date" in page(client, analysis, "downloads")
     assert "Out of date" not in page(client, analysis, "quality").split('data-tab="results"')[0]
     # The new run finishes: it is shown, and current.
@@ -117,7 +118,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
 
 def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     old_hash = analysis.file_hash
     # Quality's "Replace file" opens the File sheet (#199).
     assert f'href="{base}/inputs/file?next=' in page(client, analysis, "quality")
@@ -148,7 +149,7 @@ def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(cli
 
 def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     thresholds = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "prec_max": "150"}
     response = edit(client, analysis, "thresholds", thresholds, back="quality")
     assert response["Location"] == f"{base}/quality"  # back where the sheet was opened
@@ -172,7 +173,7 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
 def test_new_settings_mark_results_out_of_date_until_replaced(client):
     analysis, qc, run = in_use(client)
     response = edit(client, analysis, "settings", {**defaults(), "rx_days": "7", "report": "on"})
-    assert response["Location"] == f"/station/{analysis.pk}/results"
+    assert response["Location"] == f"{analysis.url()}indices"
     analysis.refresh_from_db()
     new = analysis.indices_job
     assert new.inputs["settings"]["params"]["rx_days"] == 7 and analysis.qc_job == qc
@@ -206,7 +207,7 @@ def test_out_of_date_results_without_a_run_offer_recalculate(client, settings):
     """When no replacement could be queued (here it was cancelled), the banner offers one
     action, "Recalculate", which queues the run of the current inputs."""
     analysis, _qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     edit(
         client, analysis, "station", {"station_name": STATION, "latitude": "-10", "longitude": "0"}
     )
@@ -215,11 +216,11 @@ def test_out_of_date_results_without_a_run_offer_recalculate(client, settings):
     html = page(client, analysis)
     assert "Results are out of date</h2>" in html
     assert "You changed the latitude or longitude." in html
-    form = re.search(r'<form method="post" action="[^"]+/indices"[^>]*>.*?</form>', html, re.S)
+    form = re.search(r'<form method="post" action="[^"]+/recalculate"[^>]*>.*?</form>', html, re.S)
     assert 'name="recalculate" value="1"' in form.group(0)
     analysis.refresh_from_db()
     assert analysis.indices_job == run  # the cancelled run gave its place back
-    assert client.post(f"{base}/indices", {"recalculate": "1"})["Location"] == f"{base}/results"
+    assert client.post(f"{base}/recalculate", {"recalculate": "1"})["Location"] == f"{base}/indices"
     analysis.refresh_from_db()
     new = analysis.indices_job
     assert new.status == Status.QUEUED and new.inputs["metadata"]["latitude"] == -10
@@ -232,7 +233,7 @@ def test_replaced_file_marks_sections_out_of_date_until_replaced(client, address
     once the station is set up: the checks and the run of the new file are queued
     at once, the old ones kept, out of date."""
     analysis, qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     response = client.post(
         f"{base}/{address}",
         {"station_file": _station_upload(), "next": f"{base}/downloads", "intent": "read"},
@@ -293,8 +294,8 @@ def test_each_sheet_says_what_applying_updates(client):
     for key, sheet in sheets.items():
         # One primary button, Apply, and Cancel; the form posts to the edit page.
         assert sheet.count('class="button"') == 1 and ">Apply<" in sheet and ">Cancel<" in sheet
-        assert f'action="/station/{analysis.pk}/inputs/{key}"' in sheet
-        assert f'name="next" value="/station/{analysis.pk}/quality"' in sheet
+        assert f'action="{analysis.url()}inputs/{key}"' in sheet
+        assert f'name="next" value="{analysis.url()}quality"' in sheet
     assert workspace.affected(["qc"]) == ["quality", "results", "files"]
     assert workspace.affected(["settings"]) == ["results", "files"]
 
@@ -303,14 +304,14 @@ def test_the_panel_lists_every_input_on_every_section(client):
     """Every section has the Inputs panel; an index's page (#237) has none, as its board:
     its provenance line says what made it."""
     analysis, _qc, _run = in_use(client)
-    base = f"/station/{analysis.pk}"
-    assert "data-input=" not in page(client, analysis, "results/txx")
-    for path in ("quality", "results", "downloads", "sector"):
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
+    assert "data-input=" not in page(client, analysis, "indices/txx")
+    for path in ("quality", "indices", "downloads", "sector"):
         html = page(client, analysis, path)
         inputs = re.findall(r'data-input="([\w-]+)"', html)
         assert inputs == ["file", "station", "base-period", "thresholds", "settings"], path
         # The edits are links: each sheet's page without JavaScript.
-        assert f'href="{base}/inputs/base-period?next=%2Fstation%2F{analysis.pk}%2F' in html
+        assert f'href="{base}/inputs/base-period?next={quote(analysis.url(), safe="")}' in html
         assert 'data-sheet-open="sheet-base-period"' in html
         assert 'id="sheet-base-period"' in html
     html = page(client, analysis)
@@ -319,7 +320,7 @@ def test_the_panel_lists_every_input_on_every_section(client):
     assert "1971–2000" in panel and panel.count(">Defaults<") == 2
     # Each input opens its sheet, the thresholds and index settings too (#199).
     for key in ("file", "station", "base-period", "thresholds", "settings"):
-        assert f'href="{base}/inputs/{key}?next=%2Fstation%2F{analysis.pk}%2Fresults"' in html
+        assert f'href="{base}/inputs/{key}?next={quote(analysis.url(), safe="")}indices"' in html
         assert f'data-sheet-open="sheet-{key}"' in html and f'id="sheet-{key}"' in html
 
 
@@ -338,8 +339,8 @@ def test_the_inputs_bar_says_the_panel_in_one_line(client):
     the panel's list again (without the panel's data-input marks), on a page without
     JavaScript the panel itself. Not on an input's own page, which has no panel."""
     analysis, _qc, _run = in_use(client)
-    assert "data-inputs-bar" not in page(client, analysis, "results/txx")  # #237
-    for path in ("quality", "results", "downloads", "sector"):
+    assert "data-inputs-bar" not in page(client, analysis, "indices/txx")  # #237
+    for path in ("quality", "indices", "downloads", "sector"):
         html = page(client, analysis, path)
         assert bar(html) == "Inputs: 1971–2000 · defaults", path
         assert 'data-sheet-open="sheet-inputs"' in html and 'id="sheet-inputs"' in html
@@ -386,7 +387,7 @@ def test_the_index_settings_wait_for_use_this_data(client):
     """Before "Use this data" only the results use the index settings: no Edit, no sheet
     and no page for them (#198, #199). The thresholds sheet is there from the start."""
     analysis = ready_analysis(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     html = page(client, analysis, "quality")
     item = html.split('data-input="settings"')[1].split("</div>")[0]
     assert ">Defaults<" in item and "<a " not in item
@@ -401,10 +402,10 @@ def test_no_settings_forms_on_the_output_tabs(client):
     and filters, and small actions (Delete, Try again, Recalculate). Every input is
     changed in the Inputs panel's sheets."""
     analysis, _qc, _run = in_use(client)
-    base = f"/station/{analysis.pk}"
-    allowed = {f"{base}/quality/continue", f"{base}/delete", f"{base}/results",
-               f"{base}/results#catalogue", ""}  # fmt: skip
-    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
+    allowed = {f"{base}/quality/continue", f"{base}/delete", f"{base}/indices",
+               f"{base}/indices#catalogue", ""}  # fmt: skip
+    for path in ("quality", "indices", "downloads", "indices/txx", "sector"):
         html = re.sub(r"<dialog.*?</dialog>", "", page(client, analysis, path), flags=re.S)
         forms = re.findall(r"<form([^>]*)>(.*?)</form>", html, re.S)
         for attrs, body in forms:
@@ -423,7 +424,7 @@ def test_the_edit_pages_work_without_javascript(client):
     """Each Edit is a link to a page with the sheet's form; an invalid form comes back to
     it with its errors, and Cancel and a valid form go back to the page it came from."""
     analysis, _qc, run = in_use(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     for key, title in [("file", "Replace the file"), ("station", "Station"),
                        ("base-period", "Base period"), ("thresholds", "Quality thresholds"),
                        ("settings", "Index settings")]:  # fmt: skip
@@ -446,7 +447,7 @@ def test_the_edit_pages_work_without_javascript(client):
     # Only this station's pages are returned to.
     outside = {"base_start": "1971", "base_end": "2000", "next": "https://evil.example/"}
     response = client.post(f"{base}/inputs/base-period", outside)
-    assert response["Location"] == f"{base}/results"
+    assert response["Location"] == f"{base}/indices"
     assert client.get(f"{base}/inputs/nothing").status_code == 404
     assert Client().get(f"{base}/inputs/station").status_code == 404
 
@@ -456,12 +457,12 @@ def test_the_edit_pages_work_without_javascript(client):
 
 def test_tabs_follow_the_workspace_from_the_first_visit(client):
     load = client.post("/station/sample")["Location"]
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     html = client.get(load).content.decode()
     # The New station page (#201): no tabs and no Inputs panel before the station is set up.
     assert "tabs__list" not in html and "data-inputs-panel" not in html
     assert 'name="base_start"' in html
-    assert client.get(f"/station/{analysis.pk}/inputs/station")["Location"] == load
+    assert client.get(f"{analysis.url()}inputs/station")["Location"] == load
     client.post(load, DETAILS)
     html = page(client, analysis, "quality")
     assert states(html) == {"quality": "checking", "results": "locked", "files": "locked"}
@@ -517,28 +518,28 @@ def test_quality_tab_works_out_a_verdict_not_kept(client):
 
 def test_old_step_addresses_lead_to_their_tabs(client):
     analysis = ready_analysis(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     # Before "Use this data": the workspace's address opens Quality, Results go there too.
     assert client.get(f"{base}/")["Location"] == f"{base}/quality"
-    assert client.get(f"{base}/results")["Location"] == f"{base}/quality"
+    assert client.get(f"{base}/indices")["Location"] == f"{base}/quality"
     run_next()
     finish(analysis.indices_job)
     client.post(f"{base}/quality/continue")
-    assert client.get(f"{base}/")["Location"] == f"{base}/results"
+    assert client.get(f"{base}/")["Location"] == f"{base}/indices"
     # Each step's address is its tab's (Quality, Results, Files), kept as it was; Data's
     # leads to "Your data" on Quality (#198).
-    for path, tab in [("quality", "quality"), ("results", "results"), ("downloads", "files")]:
+    for path, tab in [("quality", "quality"), ("indices", "results"), ("downloads", "files")]:
         assert re.search(rf'data-tab="{tab}"[^>]*aria-current="page"', page(client, analysis, path))
     assert client.get(f"{base}/load")["Location"] == f"{base}/quality#your-data"
     html = page(client, analysis, "quality")
     assert 'id="your-data"' in html and 'class="coverage-strip"' in html  # #235
     assert 'data-tab="data"' not in html
     # The old Calculate step opens the Index settings sheet over Results (#178, #199).
-    response = client.get(f"{base}/indices?index=txx")
-    assert response["Location"] == f"{base}/results?settings=open&back=txx"
-    assert "data-sheet-autoopen" in page(client, analysis, "results?settings=open")
+    response = client.get(f"{base}/recalculate?index=txx")
+    assert response["Location"] == f"{base}/indices?settings=open&back=txx"
+    assert "data-sheet-autoopen" in page(client, analysis, "indices?settings=open")
     # The old anchors #adjust and #thresholds are kept for js/sheet.js to open the sheets.
-    assert 'id="adjust"' in page(client, analysis, "results")
+    assert 'id="adjust"' in page(client, analysis, "indices")
     assert 'id="thresholds"' in page(client, analysis, "quality")
     # Another session cannot open any of them.
     assert Client().get(f"{base}/").status_code == 404
@@ -559,7 +560,7 @@ def test_two_tabs_see_the_same_state_from_what_is_stored(client, settings, monke
     analysis, _qc, run = in_use(client)
     first, second = client, Client()
     second.cookies = first.cookies  # the same browser: the same session cookie
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     session_before = dict(first.session.items())
     assert states(page(second, analysis))["results"] == "done"
     edit(first, analysis, "base-period", {"base_start": "1981", "base_end": "2010"})
@@ -577,38 +578,70 @@ def test_two_tabs_see_the_same_state_from_what_is_stored(client, settings, monke
 # ---- retention -------------------------------------------------------------------------------
 
 
-def test_retention_purges_out_of_date_jobs_as_before(client, settings):
-    """Out-of-date jobs are kept only as long as any job: the purge deletes them on their
-    own schedule, and the analysis still opens (here on the run in progress)."""
+def test_retention_keeps_the_jobs_a_station_shows(client, settings):
+    """An out-of-date run stays while the page shows it, beside its replacement in
+    progress, however old (#231); once the replacement has finished it is purged on its own
+    schedule."""
+    settings.WORKSPACE_EXPIRY = True
     analysis, _qc, run = in_use(client)
     new_base = {**DETAILS, "base_start": "1981", "base_end": "2010"}
-    client.post(f"/station/{analysis.pk}/setup", new_base)
+    client.post(f"{analysis.url()}setup", new_base)
     analysis.refresh_from_db()
     new = analysis.indices_job
     long_ago = timezone.now() - dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)
     Job.objects.filter(pk=run.pk).update(finished_at=long_ago)
     purge_expired()
-    assert not Job.objects.filter(pk=run.pk).exists() and not run.folder.exists()
-    analysis.refresh_from_db()
-    assert analysis.indices_job == new  # the analysis was changed today: kept
+    assert Job.objects.filter(pk=run.pk).exists() and run.folder.exists()
     html = page(client, analysis)
-    assert 'id="results-progress"' in html and states(html)["results"] == "running"
-    # The analysis itself goes once it has not changed for the retention period, unless one
-    # of its jobs is still queued or running.
-    StationAnalysis.objects.filter(pk=analysis.pk).update(updated_at=long_ago)
+    assert states(html)["results"] == "stale"  # the old results, beside the new run
+    Job.objects.filter(pk=new.pk).update(status=Status.SUCCEEDED, finished_at=timezone.now())
     purge_expired()
-    assert StationAnalysis.objects.filter(pk=analysis.pk).exists()
-    new.request_cancel()
+    assert not Job.objects.filter(pk=run.pk).exists() and not run.folder.exists()
+    assert Job.objects.filter(pk=new.pk).exists()
+
+
+def test_retention_deletes_the_workspace_once_idle(client, settings):
+    """The workspace, with its station, goes once it has not changed for the retention
+    period, unless one of its jobs is still queued or running."""
+    settings.WORKSPACE_EXPIRY = True
+    analysis, _qc, _run = in_use(client)
+    client.post(f"{analysis.url()}setup", {**DETAILS, "base_start": "1981"})
+    analysis.refresh_from_db()
+    long_ago = timezone.now() - dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)
+    Workspace.objects.filter(pk=analysis.workspace_id).update(updated_at=long_ago)
+    purge_expired()
+    assert Station.objects.filter(pk=analysis.pk).exists()
+    analysis.indices_job.request_cancel()
     analysis.qc_job.request_cancel()
     purge_expired()
-    assert not StationAnalysis.objects.filter(pk=analysis.pk).exists()
+    assert not Station.objects.filter(pk=analysis.pk).exists()
+    assert not Workspace.objects.filter(pk=analysis.workspace_id).exists()
+    assert not analysis.folder.exists()
+
+
+def test_without_expiry_nothing_a_workspace_shows_is_deleted(client, settings):
+    """Locally (expiry off, the default) a workspace stays until deleted, and so do the
+    jobs it shows, however old (#231)."""
+    settings.WORKSPACE_EXPIRY = False
+    analysis, qc, run = in_use(client)
+    long_ago = timezone.now() - dt.timedelta(days=365)
+    Workspace.objects.filter(pk=analysis.workspace_id).update(updated_at=long_ago)
+    Job.objects.filter(pk__in=[qc.pk, run.pk]).update(finished_at=long_ago)
+    stray = Job.objects.create(kind="station", owner="x", status=Status.SUCCEEDED,
+                               finished_at=long_ago)  # fmt: skip
+    purge_expired()
+    assert Station.objects.filter(pk=analysis.pk).exists() and analysis.folder.exists()
+    assert Job.objects.filter(pk__in=[qc.pk, run.pk]).count() == 2
+    assert not Job.objects.filter(pk=stray.pk).exists()  # shown by nothing: purged as before
+    html = page(client, analysis)
+    assert states(html)["results"] == "done"
 
 
 # ---- the migration ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db(transaction=True)
-def test_migration_records_the_inputs_of_existing_jobs(settings):
-    from migration_backfill import check
+def test_migration_drops_analyses_and_batches_and_keeps_their_jobs(settings):
+    from migration_workspaces import check
 
     check(settings.MEDIA_ROOT)

@@ -7,7 +7,8 @@ class StationsConfig(AppConfig):
     verbose_name = "Single-station steps"
 
     def ready(self) -> None:
-        from climpact_web.jobs.retention import register_purger
-        from climpact_web.stations.retention import purge_expired_analyses
+        from climpact_web.jobs.retention import register_keeper, register_purger
+        from climpact_web.stations.retention import kept_jobs, purge_expired_workspaces
 
-        register_purger(purge_expired_analyses)
+        register_purger(purge_expired_workspaces)
+        register_keeper(kept_jobs)

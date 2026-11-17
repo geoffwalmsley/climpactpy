@@ -280,8 +280,8 @@ def site(chrome, server):
     back = "?next=" + quote(urlparse(results).path)
     # The thresholds and index settings sheets as pages, as without JavaScript (#199): the
     # long one gets the full audit. The sheets themselves: test_settings_sheet_by_keyboard.
-    pages["station edit, thresholds"] = results.replace("/results", "/inputs/thresholds") + back
-    pages["station edit, settings"] = results.replace("/results", "/inputs/settings") + back
+    pages["station edit, thresholds"] = results.replace("/indices", "/inputs/thresholds") + back
+    pages["station edit, settings"] = results.replace("/indices", "/inputs/settings") + back
 
     def settings_errors(c):
         c.navigate(pages["station edit, settings"])
@@ -300,12 +300,12 @@ def site(chrome, server):
              " && !document.querySelector('[data-stale-banner], .recalculation')",
              what="the station run", heard=heard)  # fmt: skip
     # An input's form on its own page, as without JavaScript (#198).
-    pages["station edit, base period"] = results.replace("/results", "/inputs/base-period") + back
+    pages["station edit, base period"] = results.replace("/indices", "/inputs/base-period") + back
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
     pages["station index, monthly anomalies"] = results + "/txx?series=txx_MON&view=anomaly"
-    pages["station downloads"] = results.replace("/results", "/downloads")
-    sector = results.replace("/results", "/sector")
+    pages["station downloads"] = results.replace("/indices", "/downloads")
+    sector = results.replace("/indices", "/sector")
     pages["station sector"] = sector
     c.navigate(sector)
     submit(c, "form[action$='/sector']", "button[name=sample]")
@@ -1806,7 +1806,7 @@ def test_settings_sheet_by_keyboard(chrome, site):
             time.sleep(0.1)
             # The panel's Edit; on the Indices the settings line's link in the rail (#236).
             back = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
-            if "/results" in url:
+            if "/indices" in url:
                 back = f"[data-settings-line] [data-sheet-open='sheet-{key}']"
             assert c.evaluate(f"document.activeElement.matches({json.dumps(back)})"), url
     finally:

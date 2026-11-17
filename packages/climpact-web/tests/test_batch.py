@@ -1,7 +1,7 @@
 """The batch page (#80): uploads and zips, the pre-flight check and its messages, the
 options, one job for the ready stations with per-station progress, the results (errors,
-downloads, a station failing alone), opening a station as a single-station analysis,
-ownership and retention."""
+downloads, a station failing alone), ownership and retention. Its stations in its
+workspace (#255) are ``test_batch_workspace.py``'s."""
 
 import datetime as dt
 import io
@@ -23,7 +23,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
-from climpact_web.stations.models import Source, StationAnalysis, Step
+from climpact_web.stations.models import Workspace
 
 REPO = Path(__file__).resolve().parents[3]
 R_SAMPLE = REPO / "packages" / "climpact" / "tests" / "data" / "climpact.sample.batch.metadata.txt"
@@ -73,7 +73,7 @@ def post_batch(client, meta=None, meta_name="stations.txt", **stations):
 def created(client, meta, **stations) -> BatchRun:
     response = post_batch(client, meta, **stations)
     assert response.status_code == 302, response.content.decode()[:3000]
-    return BatchRun.objects.get(pk=response["Location"].split("/")[2])
+    return BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
 
 
 def zipped(**named) -> bytes:
@@ -331,7 +331,8 @@ def test_plain_error_hides_paths_and_class_names():
 
 
 @pytest.mark.django_db
-def test_start_page(client):
+def test_start_page(client, settings):
+    settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
     html = client.get("/batch/").content.decode()
     assert re.search(r'<form method="post" action="/batch/" enctype="multipart/form-data"', html)
     assert re.search(r'<input type="file" name="station_files"[^>]*multiple', html)
@@ -365,7 +366,7 @@ def test_upload_and_check_page(client):
     assert statuses(run) == {"a": "ready", "b": "ready", "missing": "missing", "bad": "invalid"}
     assert run.metadata_name == "stations.txt" and run.folder_name == "stations"
     assert (run.files_dir / "a.txt").is_file() and run.metadata_path.is_file()
-    html = client.get(f"/batch/{run.pk}/").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert "Calculate 2 stations" in html
     assert "No file named missing.txt was uploaded." in html
     assert "2 stations with missing files or problems will be left out" in html
@@ -382,7 +383,7 @@ def test_upload_and_check_page(client):
 def test_zip_upload_with_metadata_inside(client):
     data = zipped(**{"meta.txt": metadata("a.txt"), "a.txt": station()})
     response = client.post("/batch/", {"station_files": files(**{"all.zip": data})})
-    run = BatchRun.objects.get(pk=response["Location"].split("/")[2])
+    run = BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
     assert run.metadata_name == "meta.txt" and statuses(run) == {"a": "ready"}
     # A zip in the metadata box works too.
     response = client.post("/batch/", {"metadata_file": SimpleUploadedFile("all.zip", data)})
@@ -392,7 +393,7 @@ def test_zip_upload_with_metadata_inside(client):
 @pytest.mark.django_db
 def test_metadata_problems_on_the_check_page(client):
     run = created(client, HEADER + "a.txt -30\n", **{"a.txt": station()})
-    html = client.get(f"/batch/{run.pk}/").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert "The metadata file cannot be used: it has 1 problem" in html
     assert "Line 2 has 2 values" in html and "No station is ready" in html
     assert re.search(r"<button[^>]*disabled[^>]*>.*?No station is ready", html, re.S)
@@ -403,23 +404,23 @@ def test_adding_files_checks_again(client):
     run = created(client, metadata("a.txt", "b.txt"), **{"a.txt": station()})
     assert statuses(run) == {"a": "ready", "b": "missing"}
     response = client.post(
-        f"/batch/{run.pk}/files", {"station_files": files(**{"b.txt": station(seed=2)})}
+        f"/w/{run.workspace_id}/batch/files", {"station_files": files(**{"b.txt": station(seed=2)})}
     )
     assert response.status_code == 302
     assert statuses(run) == {"a": "ready", "b": "ready"}
     response = client.post(
-        f"/batch/{run.pk}/files",
+        f"/w/{run.workspace_id}/batch/files",
         {"metadata_file": SimpleUploadedFile("new.txt", metadata("a.txt").encode())},
     )
     assert statuses(run) == {"a": "ready"} and run.metadata_name == "new.txt"
-    html = client.post(f"/batch/{run.pk}/files", {}).content.decode()
+    html = client.post(f"/w/{run.workspace_id}/batch/files", {}).content.decode()
     assert "Choose the files to add." in html
 
 
 @pytest.mark.django_db
 def test_sample_batch_in_one_click(client):
     response = client.post("/batch/sample")
-    run = BatchRun.objects.get(pk=response["Location"].split("/")[2])
+    run = BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
     assert run.source == "sample" and statuses(run) == {
         "sydney_observatory_hill_1936-2015": "ready",
         "sydney_observatory_hill_batch_file_2": "ready",
@@ -430,7 +431,7 @@ def test_sample_batch_in_one_click(client):
 @pytest.mark.django_db
 def test_options_are_checked_as_they_change(client, settings):
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    url = f"/batch/{run.pk}/options"
+    url = f"/w/{run.workspace_id}/batch/options"
     assert client.post(url, {}).status_code == 400  # htmx only
     data = {"base_start": "1971", "base_end": "2000", "workers": "1", "plots": "on"}
     html = client.post(url, {**data, "base_end": "1999"}, HTTP_HX_REQUEST="true").content.decode()
@@ -457,7 +458,7 @@ def test_options_are_checked_as_they_change(client, settings):
 def test_hosted_mode_has_no_workers_field(client, settings):
     settings.IS_HOSTED = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    html = client.get(f"/batch/{run.pk}/").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert 'name="workers"' not in html and 'name="base_start"' in html
 
 
@@ -465,10 +466,12 @@ def test_hosted_mode_has_no_workers_field(client, settings):
 def test_run_needs_valid_options_and_a_ready_station(client):
     run = created(client, metadata("missing.txt"), **{"other.txt": station()})
     data = {"base_start": "2000", "base_end": "2001", "workers": "1"}
-    html = client.post(f"/batch/{run.pk}/run", data).content.decode()
+    html = client.post(f"/w/{run.workspace_id}/batch/run", data).content.decode()
     assert "No station is ready" in html and not Job.objects.exists()
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    html = client.post(f"/batch/{run.pk}/run", {**data, "base_end": "1990"}).content.decode()
+    html = client.post(
+        f"/w/{run.workspace_id}/batch/run", {**data, "base_end": "1990"}
+    ).content.decode()
     assert "There is 1 problem with the form" in html and not Job.objects.exists()
 
 
@@ -483,9 +486,9 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         **{"a.txt": station(), "b.txt": station(seed=1), "c.txt": station(seed=2)},
     )
     data = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
-    response = client.post(f"/batch/{run.pk}/run", data)
+    response = client.post(f"/w/{run.workspace_id}/batch/run", data)
     run.refresh_from_db()
-    assert response["Location"] == f"/batch/{run.pk}/results"
+    assert response["Location"] == f"/w/{run.workspace_id}/"
     job = run.job
     assert job.kind == "batch" and job.status == Status.QUEUED
     assert job.params["folder"] == "stations" and job.params["zip"] and not job.params["plots"]
@@ -497,8 +500,10 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         "c.txt",
     ]
 
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
-    assert "Calculating the batch" in html and f'hx-get="/batch/{run.pk}/progress"' in html
+    html = client.get(f"/w/{run.workspace_id}/").content.decode()
+    assert (
+        "Calculating the batch" in html and f'hx-get="/w/{run.workspace_id}/batch/progress"' in html
+    )
     assert "Waiting to start" in html
 
     # Break b's file after the check, so it fails in the run itself.
@@ -526,7 +531,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     with zipfile.ZipFile(job.output_dir / "stations" / "a.zip") as archive:
         assert any(n.startswith("indices/") for n in archive.namelist())
 
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/").content.decode()
     assert "Batch results" in html and "hx-get" not in html
     assert "2 of 3 stations calculated" in html
     assert "1 station failed; its error is below." in html
@@ -541,7 +546,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     assert client.get(f"/jobs/{job.pk}/files/stations.zip").status_code == 200
 
     # Running again while it runs is not possible; after it, the check page offers it.
-    check_html = client.get(f"/batch/{run.pk}/").content.decode()
+    check_html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert "This batch is being calculated." not in check_html
     assert "Calculate and download" in check_html
 
@@ -551,7 +556,10 @@ def test_progress_fragment_shows_each_station(client):
     run = created(
         client, metadata("a.txt", "b.txt"), **{"a.txt": station(), "b.txt": station(seed=1)}
     )
-    client.post(f"/batch/{run.pk}/run", {"base_start": "2000", "base_end": "2001", "workers": "1"})
+    client.post(
+        f"/w/{run.workspace_id}/batch/run",
+        {"base_start": "2000", "base_end": "2001", "workers": "1"},
+    )
     run.refresh_from_db()
     job = run.job
     now = timezone.now()
@@ -576,34 +584,10 @@ def test_progress_fragment_shows_each_station(client):
             }
         )
     )
-    html = client.get(f"/batch/{run.pk}/progress").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
     assert "0 of 2 stations finished" in html
     assert "Calculating the indices" in html and 'value="46"' in html
     assert "Waiting" in html and "Cancel the batch" in html and "hx-get" in html
-
-
-@pytest.mark.django_db
-def test_open_a_station_as_a_single_station(client):
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    client.post(f"/batch/{run.pk}/run", {"base_start": "2000", "base_end": "2001", "workers": "1"})
-    run_worker()
-    url = f"/batch/{run.pk}/open/a"
-    assert client.get(url).status_code == 405
-    response = client.post(url)
-    analysis = StationAnalysis.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/results"
-    assert analysis.source == Source.BATCH and analysis.step == Step.QC
-    assert (analysis.station_name, analysis.latitude, analysis.longitude) == ("a", -30, 150)
-    assert (analysis.base_start, analysis.base_end) == (2000, 2001)
-    assert analysis.origin["params"]["spei_months"] == 24 and analysis.origin["station"] == "a"
-    assert analysis.station_file.is_file() and analysis.summary["first_year"] == 2000
-    assert client.get(response["Location"]).status_code == 200
-    # Opening it again goes to the same analysis, and the results link to it.
-    assert client.post(url)["Location"] == response["Location"]
-    assert StationAnalysis.objects.count() == 1
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
-    assert f'href="/station/{analysis.pk}/results"' in html
-    assert client.post(f"/batch/{run.pk}/open/nope").status_code == 404
 
 
 @pytest.mark.django_db
@@ -614,27 +598,41 @@ def test_other_sessions_get_404(client):
     session[OWNER_KEY] = "someone-else"
     session.save()
     other.cookies["sessionid"] = session.session_key
-    for url in (f"/batch/{run.pk}/", f"/batch/{run.pk}/results", f"/batch/{run.pk}/progress"):
+    for url in (
+        f"/w/{run.workspace_id}/batch/",
+        f"/w/{run.workspace_id}/",
+        f"/w/{run.workspace_id}/batch/progress",
+    ):
         assert other.get(url).status_code == 404
-    for url in (f"/batch/{run.pk}/run", f"/batch/{run.pk}/delete", f"/batch/{run.pk}/files"):
+    for url in (
+        f"/w/{run.workspace_id}/batch/run",
+        f"/w/{run.workspace_id}/batch/delete",
+        f"/w/{run.workspace_id}/batch/files",
+    ):
         assert other.post(url).status_code == 404
     assert client.get(f"/batch/{uuid.uuid4()}/").status_code == 404
-    assert client.get(f"/batch/{run.pk}/results").status_code == 302  # not started yet
+    # Not started yet: the workspace's address is the check page; the results' old one
+    # leads there.
+    space = f"/w/{run.workspace_id}/"
+    assert 'batch/run"' in client.get(space).content.decode()
+    assert client.get(f"{space}batch/results")["Location"] == space
 
 
 @pytest.mark.django_db
 def test_delete_now(client):
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    response = client.post(f"/batch/{run.pk}/delete")
+    response = client.post(f"/w/{run.workspace_id}/batch/delete")
     assert response["Location"] == "/batch/"
     assert not BatchRun.objects.exists() and not run.folder.exists()
 
 
 @pytest.mark.django_db
-def test_retention(client):
+def test_retention(client, settings):
+    """A batch goes with its workspace (#231), and stray batch folders after the period."""
+    settings.WORKSPACE_EXPIRY = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     old = timezone.now() - dt.timedelta(days=8)
-    BatchRun.objects.filter(pk=run.pk).update(updated_at=old)
+    Workspace.objects.filter(pk=run.workspace_id).update(updated_at=old)
     stray = batches_dir() / str(uuid.uuid4())
     stray.mkdir(parents=True)
     import os
@@ -644,14 +642,19 @@ def test_retention(client):
     purge_expired()
     assert list(BatchRun.objects.all()) == [keep]
     assert not run.folder.exists() and not stray.exists() and keep.folder.exists()
+    assert not Workspace.objects.filter(pk=run.workspace_id).exists()
 
 
 @pytest.mark.django_db
-def test_running_batch_is_not_purged(client):
+def test_running_batch_is_not_purged(client, settings):
+    settings.WORKSPACE_EXPIRY = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    client.post(f"/batch/{run.pk}/run", {"base_start": "2000", "base_end": "2001", "workers": "1"})
+    client.post(
+        f"/w/{run.workspace_id}/batch/run",
+        {"base_start": "2000", "base_end": "2001", "workers": "1"},
+    )
     Job.objects.update(status=Status.RUNNING, heartbeat_at=timezone.now())
-    BatchRun.objects.update(updated_at=timezone.now() - dt.timedelta(days=30))
+    Workspace.objects.update(updated_at=timezone.now() - dt.timedelta(days=30))
     purge_expired()
     assert BatchRun.objects.count() == 1
 

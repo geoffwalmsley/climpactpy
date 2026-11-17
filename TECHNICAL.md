@@ -2828,12 +2828,15 @@ packages/climpact-web/src/climpact_web/
     templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html
   stations/          the single-station workspace (label `stations`, see
                      [Single-station steps](#single-station-steps))
-    models.py        StationAnalysis: one station's workspace; file_digest
-    workspace.py     the sections each job shows, staleness from the jobs' recorded
-                     inputs, settle, the tabs' states (#179), the Inputs panel, its
-                     sheets and what each updates (#198, #199)
+    models.py        Workspace (stations and their shared settings, #231, #254), Station
+                     (one station of a workspace, with its slug); slug_for, file_digest
+    workspace.py     the sections each job shows, a station's settings (the workspace's
+                     with its own values, station_settings), staleness from the jobs'
+                     recorded inputs, settle, undo_available, the tabs' states (#179),
+                     the Inputs panel, its sheets and what each updates (#198, #199)
     calculation.py   queueing the checks and the run, speculative runs, recalculate,
-                     bring_up_to_date after a change (#178, #179)
+                     bring_up_to_date after a change (#178, #179), change_settings and
+                     undo for the workspace's settings (#254)
     station_file.py  checks an uploaded file (plain-language problems at file lines,
                      warnings) and summarises its data
     forms.py         UploadForm, MetadataForm (the details) and its parts for the Station
@@ -2847,12 +2850,14 @@ packages/climpact-web/src/climpact_web/
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
-    calculation.py   queueing the station run (#178): the speculative run with the default
-                     settings (speculate, commit), a recalculation (queue_station_run), the
-                     form's starting settings (previous_params, settings_form)
+    calculation.py   queueing the station run (#178): the speculative run with the
+                     workspace's settings (speculate, commit), a recalculation
+                     (queue_station_run), the form's starting settings (previous_params,
+                     settings_form)
     preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
                      fallback
-    retention.py     purge_expired_analyses, registered with the jobs app's purge
+    retention.py     purge_expired_workspaces and kept_jobs, registered with the jobs
+                     app's purge
     results.py       the Indices' model: one card per index table,
                      sparklines, trends, tables not written and why; cached
     index_detail.py  the Indices' detail pane (#236): each index's chart drawn on the server
@@ -2862,11 +2867,13 @@ packages/climpact-web/src/climpact_web/
                      the statistics, why values were left out, the table and the citation
     themes.py        the Indices' themes (#175): the index-to-theme mapping (Heat, Cold,
                      Rain, Drought, "Also measured") the rail filters by, and their hues
-    views.py, urls.py  /station/: the New station page (new_station: the file and the
-                     details, #201), the sample, field validation, the old upload and
-                     Load addresses' redirects, daily CSV, delete; Quality: the checks, progress, table pages,
-                     continue; the Inputs panel's sheets (edit_input: file, station, base
-                     period, thresholds, index settings) and their runs' progress
+    views.py, urls.py  /station/new and /w/<id>/<station>/ (#256): the New station page
+                     (new_station: the file and the details, #201), the sample, field
+                     validation, the old upload and Load addresses' redirects, daily CSV,
+                     delete; Quality: the checks, progress, table pages, continue; the
+                     Inputs panel's sheets (edit_input: file, station, base period,
+                     thresholds, index settings) and their runs' progress; the workspace's
+                     own address (workspace_page) and the old /station/<id>/ redirects
     views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
                      old Calculate address, each index's page, anomalies JSON
@@ -2896,12 +2903,16 @@ packages/climpact-web/src/climpact_web/
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
-    models.py        BatchRun: one batch's files, check result, options and job
+    models.py        BatchRun: one batch's files, check result, run options and job; it
+                     fills a workspace (#231, #255)
     check.py         the pre-flight check: metadata file, each station, zip unpacking
+    fill.py          add_stations, fill_workspace, run_states, run_progress: every station of
+                     a batch is the workspace's, with its run state (#255)
     forms.py         UploadForm, AddFilesForm, OptionsForm
-    retention.py     purge_expired_batches, registered with the jobs app's purge
-    views.py, urls.py  /batch/: start, sample, check, add files, options (htmx), run,
-                     results, progress fragment, open a station, delete
+    retention.py     purge_stray_batch_folders, registered with the jobs app's purge
+    views.py, urls.py  /batch/: start and sample; /w/<id>/batch/ (#256): check, add files,
+                     options (htmx), run, progress fragment, delete; the results, shown
+                     at /w/<id>/; the old /batch/<id>/ redirects
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
     templates/batch/  start.html, check.html, results.html, _options.html,
                      _progress.html, _retention.html
@@ -3022,6 +3033,7 @@ the variable.
 | `CLIMPACT_WEB_STATIC_ROOT` | `<data dir>/static` (local) | `collectstatic` target; required in hosted mode |
 | `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
 | `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
+| `CLIMPACT_WEB_WORKSPACE_EXPIRY` | on when hosted, off locally | whether workspaces expire `JOB_RETENTION_DAYS` after their last change (`WORKSPACE_EXPIRY`, #231); off, a workspace and the jobs it shows stay until deleted |
 | `CLIMPACT_WEB_JOB_HEARTBEAT_SECONDS` | `10` | seconds between worker heartbeats |
 | `CLIMPACT_WEB_JOB_STALE_SECONDS` | `60` | seconds without a heartbeat before a running job counts as dead |
 | `CLIMPACT_WEB_JOB_POLL_SECONDS` | `1` | seconds between a worker's checks for queued jobs |
@@ -3037,7 +3049,7 @@ the variable.
 | `CLIMPACT_WEB_TURNSTILE_SITE_KEY` | none | hosted mode: Cloudflare Turnstile's site key; Turnstile is on only when both keys are set, and one without the other is an error (#125) |
 | `CLIMPACT_WEB_TURNSTILE_SECRET_KEY` | none | hosted mode: Turnstile's secret key, for the siteverify check |
 | `CLIMPACT_WEB_MAX_ACTIVE_JOBS_PER_IP` | `2` | hosted mode: jobs one client may have waiting or running at once; `0` is no limit |
-| `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` | `30` | hosted mode: jobs (and retries) one client may start in 24 hours; `0` is no limit |
+| `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` | `50` | hosted mode: jobs (and retries) one client may start in 24 hours, the jobs of one change counting once (#254); `0` is no limit |
 | `CLIMPACT_WEB_MAX_QUEUED_JOBS` | `20` | hosted mode: no new job while this many wait; `0` is no limit |
 | `CLIMPACT_WEB_SPECULATIVE_MAX_QUEUED` | `3` | hosted mode: no speculative station run (#178) while this many jobs wait; `0` turns speculative runs off |
 | `CLIMPACT_WEB_MIN_FREE_DISK_GB` | `2` | hosted mode: no upload and no new job while `MEDIA_ROOT`'s disk has less free space; `0` turns it off |
@@ -3492,7 +3504,7 @@ expression editor), and `deploy/check-edge.sh` checks the result from outside wi
 | Turnstile | a Managed widget for `climpact.app`; its keys go in `.env` (see [Security of the hosted site](#security-of-the-hosted-site)) |
 
 The free plan's rate-limiting rule can match the path, but **not the method**, so a rule on
-"POSTs to `/station/`" would also count the htmx polls (`.../progress`, about once a second
+"POSTs to `/w/`" would also count the htmx polls (`.../progress`, about once a second
 while a job runs) and the htmx validation POSTs. `rate-limit.txt` therefore lists the
 exact paths that take an upload or start a job. `test_deploy_files.py` reads the seven
 expression files with a small evaluator (`wildcard`: whole value, case-insensitive;
@@ -3503,12 +3515,16 @@ deploy hook's `POST /_deploy` is matched by the skip rule and by no block, chall
 rate-limit rule (and the skip rule by nothing the app serves), and that `/healthz` (GET and
 HEAD) is matched by its own skip rule and the cache bypass, by no block, challenge,
 rate-limit or static-cache rule, and its skip rule by nothing else. The Inputs panel's
-sheets start jobs when applied, so the rule counts `/station/*/inputs/<key>` for each of
-the five keys, but not `/station/*/inputs/progress` (#199; `quality/run` left the rule
+sheets start jobs when applied, so the rule counts `/w/*/inputs/<key>` for each of
+the five keys, but not `/w/*/inputs/progress` (#199; `quality/run` left the rule
 with its form). Since #201 it counts the New station page, `/station/new` and
-`/station/*/setup`, instead of the upload page, the old Load page and its "Use a different
-file" (`/station/`, `/station/*/load`, `/station/*/file`), which now only redirect or are
-gone. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+`/w/*/setup`, instead of the upload page, the old Load page and its "Use a different
+file" (`/station/`, `.../load`, `.../file`), which now only redirect or are
+gone. Since #256 the station and batch paths are under `/w/` (`*` matches any number of
+path segments, so `/w/*/setup` is `/w/<id>/<station>/setup`), "Recalculate" is
+`/w/*/recalculate` and the batch's are `/w/*/batch/files` and `/w/*/batch/run`; the old
+`/station/<id>/…` and `/batch/<id>/…` addresses only redirect a GET, so they are not
+counted. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this. Bot Fight Mode is off (see the table). The same test checks
@@ -3790,11 +3806,23 @@ the retry view calls it before re-queuing. In order:
 | active jobs | the client has `MAX_ACTIVE_JOBS_PER_IP` or more jobs waiting or running (not cancelled) | 429, how many, and to wait or cancel one |
 | daily jobs | the client has started `MAX_DAILY_JOBS_PER_IP` or more jobs in 24 hours (`JobStart` rows) | 429, try tomorrow or install Climpact locally |
 
+The jobs of one change (`params["change"]`, #254: a workspace's recalculation of all its
+stations, a station's checks and run after a change to its details, a new station's checks
+and speculative run) count as one job in the queue, active-jobs and daily counts
+(`jobs.models.change_groups`), whatever the number of stations. The change is checked with
+its first job; its other jobs are let through (`limits.change_admitted`), and
+`record_job_start` records one `JobStart` per change (`JobStart.change`), also when a
+speculative run of it is promoted. So the daily quota counts what the user did, not the
+stations it touched: 50 by default (30 before #254, when a new station took two starts, its
+checks and its run), room for a day of, say, 10 new stations and 40 changes to settings.
+
 The queue and active-jobs counts leave out speculative runs (#178, `jobs.models.ordinary_q`),
 and a speculative run records no `JobStart`: see "Speculative calculation" in [Single-station steps](#single-station-steps).
 A speculative run has its own check, `check_speculative_quotas`: the disk as above, fewer
 than `SPECULATIVE_MAX_QUEUED` (default 3) jobs of any kind waiting, and fewer than
-`MAX_ACTIVE_JOBS_PER_IP` jobs of the client's (speculative or not) waiting or running. Its
+`MAX_ACTIVE_JOBS_PER_IP` jobs of the client's (speculative or not) waiting or running,
+each change counted once and the run's own change, already the client's through the checks
+queued with it, left out (#254). Its
 refusal is silent (logged at INFO to `climpact_web.stations`); the run is then queued as an
 ordinary job at "See results", under the checks above.
 
@@ -3803,7 +3831,7 @@ not locks: two requests at the same moment can both pass, so a quota can be over
 job or two. A refusal raises `Refused` (reason, message, status, `Retry-After`);
 `RefusalMiddleware` renders `refused.html` (the message in a warning alert, and links to
 the jobs and the home page) and logs a warning to `climpact_web.limits`: `Refused POST
-/station/<id>/setup from 203.0.113.7: active-quota:2`. The reasons are
+/w/<id>/<station>/setup from 203.0.113.7: active-quota:2`. The reasons are
 `turnstile-missing`, `turnstile-failed:<codes>`, `turnstile-unavailable`,
 `active-quota:<n>`, `daily-quota:<n>`, `queue-full:<n>` and `disk-low:<MB>`, and
 `deploy/README.md` says how to use them to tune the Cloudflare rules. A refused step 1
@@ -4168,7 +4196,8 @@ links, then Index reference, Help and the theme toggle at the end. The header li
 only Workspaces and Gridded (`in_nav`); Single station, Batch and Your calculations went,
 and the landing page starts a station or a batch. Workspaces opens `jobs:list` until the
 Workspaces page lands (#242); it is `aria-current="page"` there and `aria-current="true"`
-on every `/station/` and `/batch/` page (`Destination.sections`, `nav_items`), drawn in ink
+on every `/station/`, `/batch/` and `/w/` page (`Destination.sections`, URL names or
+paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
 definitions in the guide to the indices (`/help/indices/#the-indices`) until a reference
 page of its own exists. Help (`#app-help`) keeps its destination (the page's guide) but is
@@ -4390,9 +4419,9 @@ than one worker must have taken jobs. Then the worker running a long job is kill
 SIGKILL: the surviving workers' `reap_stale` fails it ("no heartbeat" in the log, not
 before the stale time), a retry runs it on another worker (`attempts` 2, one marker per
 attempt), and 8 more jobs queued meanwhile run once each. The survivors stop cleanly on
-SIGTERM. A second test runs the station workspace's migrations (#179) back and forward on
-its own Postgres database and checks the backfill (`migration_backfill.py`, which
-`test_workspace.py` also runs on SQLite).
+SIGTERM. A second test runs the workspace migration (#231) back and forward on its own
+Postgres database (`migration_workspaces.py`, which `test_workspace.py` also runs on
+SQLite).
 
 ### Background jobs
 
@@ -4448,8 +4477,9 @@ inputs a station workspace's `qc` or `station` job was made from, for staleness,
 [Single-station steps](#single-station-steps); empty for other jobs). The job's folder is
 `<RUNS_DIR>/<id>/` with `input/` (uploads) and `output/` (what the core writes). The
 `Worker` table lists running workers (`name`, `started_at`, `seen_at`). `JobStart` (hosted
-mode) records each job started or retried (`client`, `kind`, `created_at`) for the daily
-quota, which counts these rather than jobs because a user can delete jobs; a purger
+mode) records each job started or retried (`client`, `kind`, `created_at`, and `change`:
+the jobs of one change are one row, #254) for the daily quota, which counts these rather
+than jobs because a user can delete jobs; a purger
 deletes the rows older than two days.
 
 **Runners** (`jobs/registry.py`, `jobs/runners.py`). `@register("kind")` maps a kind to a
@@ -4573,15 +4603,19 @@ connection (the next poll carries on).
 
 **Retention** (`jobs/retention.py`). A finished job and its folder are deleted
 `JOB_RETENTION_DAYS` (default 7, `CLIMPACT_WEB_RETENTION_DAYS`) after it finished; a queued
-job that never ran, that long after it was created. Running jobs are never deleted. Folders
+job that never ran, that long after it was created. Running jobs are never deleted, nor
+are the jobs another app still shows: apps register them with `register_keeper(func)`,
+`func()` giving their ids (the stations app keeps every job a station or batch shows,
+`stations.retention.kept_jobs`, #231). Folders
 under `RUNS_DIR` named like a job id but belonging to none (an interrupted upload) are
 deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
 stale jobs), for cron in a deployment. Every template gets `job_retention_days` (context
-processor `climpact_web.jobs.context_processors.jobs`), for the New station page (#76,
-#201) to state the period; the job page shows the deletion date. Other apps register their own clean-up
-with `register_purger(func)`; each purge calls `func(now, days)` (the stations app deletes
-its analyses this way, so the jobs app knows nothing of them).
+processor `climpact_web.jobs.context_processors.jobs`), with `workspace_expiry`, for the
+New station page (#76, #201) to state the period; the job page shows the job's deletion
+date. Other apps register their own clean-up with `register_purger(func)`; each purge
+calls `func(now, days)` (the stations app deletes its workspaces this way, so the jobs app
+knows nothing of them).
 
 **Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads
 (`save_input(job, name, file, folder="")`: the name is reduced to a file name, and a
@@ -4625,30 +4659,110 @@ R's step 4, sector correlation (#90), is an action on Results since #173, and it
 shows the Results tab as current. A change to an input keeps the work and marks what
 depends on it out of date ("Workspace and staleness" below).
 
-**Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
-through the steps: a UUID primary key; `owner` (the session's job owner token, so a
-session sees its analyses and its jobs, and any other session gets 404); `source`
+**Workspaces (#231).** A `Workspace` (`stations/models.py`) holds stations and the settings
+they share (#230, decision 5): a UUID; `owner` (the job owner token); `name` (blank until
+the user names it, #234; `display_name` gives the Flow board's default, one station's own
+name or "3 stations, 17 Nov"); `created_at`; `updated_at`, the last change to it or any
+of its stations or batches (`Station.save` and `BatchRun.save` bring it forward,
+`bring_forward`); the shared settings `base_start`, `base_end` (R's defaults, 1971 and
+2000), `qc_params` (#77: the `QCParams` fields entered, empty until changed, so R's
+defaults) and `index_settings` (the index settings and output options in
+`workspace.settings_of` form, empty for the defaults; stored when the Index settings sheet
+changes them, #254); and `undo`, the last change to the settings while it can be undone
+(below). Since #254 every station of the workspace reads its base period, thresholds and
+index settings from it, and the sheets write them there ("Settings belong to the
+workspace" below). A new station, uploaded or the sample, makes a workspace of one with
+the defaults (the New station page then sets its base period, `views.set_base_period`,
+or, in a workspace of several stations, changes it for all with
+`calculation.change_settings`). A new batch makes a workspace of its own, with no custom
+index (`batch.fill.batch_index_settings`), and every station of its run is the
+workspace's from when the run is queued (#255, [Batch page](#batch-page)). Deleting a workspace's
+last station or batch deletes it. Existing analyses and batches were dropped by #231's
+migration, not migrated (the maintainer's decision): `stations/0006_workspace_station`
+replaces `StationAnalysis` with `Station`, and `batch/0002_workspace` deletes the batches
+and adds `BatchRun.workspace`. Their jobs are kept by nothing and expire as usual; their
+folders go as stray folders. #254's migration (`stations/0007_workspace_settings`)
+copies a station's own base period and thresholds, and the settings of its latest run,
+onto its workspace (each a workspace of one under #253), then removes them from
+`Station`; `jobs/0004_workspace_settings` adds `JobStart.change`. #255's
+`batch/0003_batch_fills_workspace` copies a batch's base period onto its workspace, removes
+`BatchRun.base_start` and `base_end`, and adds `BatchRun.filled_job`; it reads no files
+(the stations are added when the results are next shown).
+`tests/migration_workspaces.py` checks both on SQLite (`test_workspace.py`) and Postgres
+(`test_queue_postgres.py`).
+
+**Workspace URLs (#256).** A workspace is `/w/<id>/` (`stations:workspace`,
+`Workspace.get_absolute_url`), its stations `/w/<id>/<slug>/…` (`Station.url(name, *args)`
+reverses `stations:<name>` with the workspace and the slug; templates use
+`{% url 'stations:<name>' analysis.workspace_id analysis.slug %}`) and its batch
+`/w/<id>/batch/…` (`BatchRun.url(name)`: a batch makes its own workspace, so the workspace
+names it; `batch.views.get_run` takes the workspace's). `batch` is therefore not a station
+slug (`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
+are included before the stations' (`climpact_web/urls.py`). Every lookup is by the
+session's owner token on both the station or batch and its workspace
+(`views.get_analysis`, `batch.views.get_run`), so another session's workspace, a slug the
+workspace doesn't have, or a station under another workspace gives 404.
+
+- **`/w/<id>/`** (`views.workspace_page`) is the one address of a batch's results, so the
+  workspace overview (#234, `Calculate.dc.html`) replaces the view there without moving
+  any link. A workspace of one station opens it straight away, at its furthest section
+  (the Flow board: "one station: open it straight away, no overview"): Quality while it
+  waits, Indices once calculated or failed (which say why: `views_indices.batch_failure`,
+  from `batch.fill.run_states`), the New station page for one the batch had no file for.
+  Otherwise, until the overview, the batch stands in: once it is queued, the batch
+  results (`batch.views.results`), after `batch.fill.fill_workspace` has recorded how a
+  finished run went; before, its check page. Several stations and no batch (not made by
+  any page yet) open the most recently changed one. Every link to the results goes here
+  (`BatchRun.results_url`): the redirect after Calculate, "Follow its progress" on the
+  check page, the step indicator, the breadcrumb and the recent batches; the htmx polling
+  is of the fragment, `/w/<id>/batch/progress`.
+- **Pages with no workspace yet** keep their addresses: `/station/new`, `/station/sample`
+  and the station's sample files, `/batch/` and `/batch/sample`. A workspace is made when
+  the file is read or the batch uploaded, and the redirect after it goes to the new address.
+- **Old addresses** (`views.old_station_url`, `batch.views.old_batch_url`): a GET or HEAD of
+  `/station/<id>/<path>` or `/batch/<id>/<path>` redirects, with its query string, to the
+  station's or batch's address under its workspace while it is kept, and gives 404 after
+  that or to another session. `results` becomes `indices` and the old `indices` becomes
+  `recalculate` (`OLD_PATHS`); the rest keep their path, except a batch's `results`, which
+  goes to `/w/<id>/`, as does `/w/<id>/batch/results` (`batch.views.old_results`), its
+  address before the change. The redirect is temporary (302),
+  as a station's address follows its slug, which follows its name until the details are
+  confirmed, and the old addresses go when their workspace expires. POSTs are not
+  redirected (405): a form from a page from before #256 is sent again from the new page.
+  `batch:open_station` (`/batch/<id>/open/<name>`, kept by #255 for old pages) is gone.
+- **The charts' data** keep the station's id (`/charts/station/<id>/daily.json`,
+  `views.get_station`): an API the pages call, not an address a person sees or bookmarks.
+- The header's Workspaces is current on every `/w/` page (`navigation.DESTINATIONS`).
+
+**Data model (#76).** A `Station` (`stations/models.py`; `StationAnalysis` before #231) is
+one station of a workspace going through the steps: a UUID primary key; `workspace`;
+`slug`, which names it in its workspace (#231: made from the station name by `slug_for`,
+unique in the workspace, `sydney`, `sydney-2`; it follows the name while the station is
+at step `upload`, then is kept); `owner` (the session's job owner token, so a
+session sees its stations and its jobs, and any other session gets 404); `source`
 (`upload` or `sample`); `file_name` (as uploaded, display only); `summary` (JSON from
 `station_file.summarise`: first and last dates, days, per variable the days present and
 missing, days with data per year, monthly means for the preview); `warnings` (about the
-file); the metadata `station_name`, `latitude`, `longitude` (null until given),
-`base_start`, `base_end` (R's defaults, 1971 and 2000); `file_hash` (#179, the SHA-256
+file); the metadata `station_name`, `latitude`, `longitude` (null until given; the base
+period is the workspace's since #254, and `Station.metadata` takes it from there);
+`file_hash` (#179, the SHA-256
 of the station file as kept, `models.file_digest`, set by `save_station_text`); `step`,
 the furthest point reached (`upload`, `qc` once the details are confirmed, `indices` once
 the user chose "See results", then `results` and `sector`). It only moves forward since
-#179;
-`qc_params` (#77: the `QCParams` fields entered in step 2, empty until changed, so R's
-defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
+#179; and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
 (not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
-its own `input/` when queued, so analyses and jobs expire independently. A change to the
+its own `input/` when queued; a job the station shows is kept as long as the station
+(`retention.kept_jobs`). A change to the
 file or the metadata keeps the job links (#179; `reset_later_steps` is gone): each job
 records the inputs it was made from in `Job.inputs`, and the workspace compares them with
 the analysis's. The checks set `qc_job`, the speculative run and the Index settings sheet
-`indices_job`, the sector comparison `sector_job`. The index parameters are not stored on
-the analysis: they are the `params` (and `inputs["settings"]`) of its `indices_job`, or
-its batch station's (`origin`, whose `inputs` records what the batch's results were made
-from).
+`indices_job`, the sector comparison `sector_job`. The thresholds and index settings are
+the workspace's (#254). A station of a batch (`source` `batch`, #255) keeps the index
+values of its line in the batch's metadata file as its own (`origin["params"]`), its
+state in the batch's latest run (`origin["run"]`) and, when the batch calculated it,
+`origin["job"]` and `origin["inputs"]`, what the batch's results were made from
+(`workspace.batch_results`; a station that failed or was left out has none).
 
 **Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
 which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
@@ -4658,8 +4772,15 @@ thresholds with R's defaults filled in, `workspace.qc_values`) and, for a `stati
 report). `workspace.differences` names what differs between a job's inputs and the
 analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`. The checks depend
 on the file, the thresholds and the name (their files are named after the station); a run
-on all of them, with the settings of the latest run asked for (`wanted_run_inputs`). An
-input a job did not record (a batch's results have no `settings`) never differs. A section
+on all of them. The current `settings` are the station's (`workspace.station_settings`,
+#254): the workspace's `index_settings` with the defaults filled in
+(`workspace.workspace_settings`, `default_settings`), the station's own values in place of
+the workspace's (`workspace.own_params`). A batch's custom index is its workspace's too
+(#255): the workspace starts with none, so the fallback to the batch job's custom index
+that #254 had is gone. Before #254 the settings
+were those of the latest run asked for and were not compared when deciding what to queue;
+now a change to them is an input change like the others. An input a job did not record
+(a job from before #179) never differs. A section
 is out of date when the job it shows differs (`qc_changes`, `run_changes`). This is
 computed from the database alone, never from the session, so it is the same in every
 browser tab open on the analysis and in hosted mode (a test changes the base period in one
@@ -4691,13 +4812,57 @@ to 1981–2010. These results use 1971–2000.") and shows the new run's progres
 "Recalculate" (`.../indices` POST with `recalculate=1`: `calculation.recalculate` promotes a
 waiting run of the current inputs, or queues one with the latest settings); an index page,
 the sector comparison and Files say so too. When the replacement finishes it is shown and
-the section is current again. Quality keeps the verdict's level and its count of values
+the section is current again. A change to the index settings now gives the same banner
+("You changed the settings."), as the settings are an input of the workspace's (#254);
+the Recalculation card is left for a run of unchanged inputs ("Recalculate", "Try again",
+or Apply with the same settings). Quality keeps the verdict's level and its count of values
 that look wrong in the checks' `result["verdict"]` and `result["verdict_wrong"]`
 (`workspace.remember_verdict`, called by `views.qc_context` before it builds the tabs, so
 the first page after the checks shows their verdict), for the Quality tab (#222).
 `workspace.qc_verdict` reads them, and works the verdict out from the checks once
 (`qc_review.review`) when it was not kept: checks not yet shown, or a verdict kept before
 #222 with its level alone.
+
+**Settings belong to the workspace (#254, `calculation.change_settings`).** The Base period,
+Quality thresholds and Index settings sheets change the workspace's settings, from any of
+its stations' pages. `change_settings` checks the hosted limits once (`check_job_quotas`:
+a refusal changes nothing), keeps what it changes for undo, saves the new settings, and
+brings every station of the workspace up to date (`calculation.refresh`: `settle`, then the
+checks where the thresholds changed and the run where its inputs changed, each replacing
+the job shown). Every job one change queues carries the same id, `params["change"]`
+(`jobs.models.CHANGE`, `calculation.new_change`; a change to one station's file or details,
+`bring_up_to_date`, is a change of its own too, as are a new station's checks and
+speculative run). A one-station workspace behaves as before. The Index settings sheet
+writes the workspace's settings and options, except the values that are the station's own
+(a batch line's): those change for that station alone (`origin["params"]`), and the
+workspace's stay (`views.apply_settings`); the sheet says which they are. Applying
+unchanged settings queues this station's run again; unchanged thresholds run its checks
+again when they failed, were stopped or never ran. A sheet of a workspace of several
+stations says that it applies to all of them (`workspace.impact`, not shown while a
+workspace has one station), and every settings sheet that the change can be undone until
+its replacement is ready.
+
+**Undo (#254, decision 5 of #231).** `Workspace.undo` records the last change to the
+settings: its id, the settings before it, and each station's `qc_job`, `indices_job` and
+own index values before it. `workspace.undo_available` is true while one of the change's
+jobs still waits or runs, so until the recalculation has finished (also when some stations
+have finished and others not). Then the Inputs panel shows "Undo the change" under the
+runs (`stations/_input_runs.html`, also in its polled refresh, which takes the page's
+address from htmx's `HX-Current-URL` header), and the Inputs bar a small "Undo"
+(`stations/_inputs_bar.html`); the panel and the bar are never shown together, so a page
+has one. It is a plain POST form (`stations/_undo_form.html`) to `stations:undo`
+(`/w/<id>/<station>/undo`), so it works without JavaScript. `calculation.undo` cancels the
+change's jobs still waiting or running, puts the settings and the stations' own values
+back, and links each station's jobs from before the change again
+(`workspace.restore_if_cancelled` for one cancelled meanwhile), so the earlier checks and
+results are current again; then back to the page (`next`) with a message. Once the
+recalculation has finished, the form is gone and a stale form says the change can no longer
+be undone. A change to one station's file or details forgets the record
+(`calculation.forget_undo`), as its earlier jobs no longer fit; so does a change that queued
+nothing. The jobs the record names are kept while it is there (`retention.kept_jobs`). A view reads
+where the change stands from `workspace.change_state(space)` (a `ChangeState`: its jobs,
+how many finished, failed or were cancelled, `finished`, and `can_undo`), or None when the
+record is empty; #234's run status line on the workspace's overview is meant to use it.
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the context bar (#227, `components/context_bar.html`;
@@ -4757,7 +4922,8 @@ lists, in `PANEL_INPUTS` order: the file (its days and variables, "Replace"), th
 (latitude and longitude), the base period, the quality thresholds and the index settings
 ("Defaults" or "N changed", `workspace.changed_text`: `workspace.thresholds_changed`
 counts the thresholds that differ from `QC_DEFAULTS`; `workspace.settings_changed` counts
-the latest run's parameters that differ from the settings form's initial values, a
+the station's settings (the workspace's, with its own values) that differ from the settings
+form's initial values, a
 custom index other than the default one, a plot title of the user's, and each of the
 plots, zip and report switched off, without importing the core). Each has one link,
 which opens its side sheet (`workspace.sheet_url`; `input_urls` gives each sheet's
@@ -4800,13 +4966,16 @@ update, from the dependency rules (`workspace.impact` from `workspace.affected`:
 Quality if `QC_INPUTS` has one of the input's names, Results if `RUN_INPUTS` has, Files
 with either; the station's location updates Results and Files, its name Quality too).
 Then one primary button, Apply, and Cancel. It posts to `stations:edit_input`
-(`/station/<id>/inputs/<file|station|base-period|thresholds|settings>`), which applies the
-change and returns to the page it came from (`next`, only one of this station's pages).
-The file, station and base period call `bring_up_to_date`. New thresholds do too
-(`views.apply_thresholds`); the same thresholds run the checks again when they failed,
-were stopped or never ran, which is how Quality's "Run the checks" works since its form
-went. The index settings queue a run with them (`views.apply_settings`,
-`calculation.queue_station_run`), which replaces the results shown when it has finished. Without JavaScript the Edit link is that address: a page with the same
+(`/w/<id>/<station>/inputs/<file|station|base-period|thresholds|settings>`), which applies
+the change and returns to the page it came from (`next`, only one of this station's pages:
+a path under `Station.url()`).
+The file and station call `bring_up_to_date`. The base period, new thresholds
+(`views.apply_thresholds`) and new index settings (`views.apply_settings`) change the
+workspace's settings for every station (`calculation.change_settings`, above); the same
+thresholds run the checks again when they failed, were stopped or never ran, which is how
+Quality's "Run the checks" works since its form went, and the same index settings queue
+the station's run again (`calculation.queue_station_run`), which replaces the results
+shown when it has finished. Without JavaScript the Edit link is that address: a page with the same
 form (`stations/input_edit.html`), where a form with errors also returns. The sheet is
 modal, unlike the help drawer (DESIGN.md): focus starts on the first field and stays
 inside, Escape, Cancel, the close button or the backdrop closes it and discards what was
@@ -4817,7 +4986,7 @@ body scrolls between the header and the foot, so Apply is always in view. A shee
 section help opens in place (`{% section_help ... inline=True %}`, a disclosure), as the
 drawer would be behind the modal sheet.
 
-The old addresses of the forms the sheets replaced open them (#199): Results at
+The old addresses of the forms the sheets replaced open them (#199): Indices at
 `?settings=open` (old links; `&back=<key>` returns to that index) marks the Index settings
 sheet `data-sheet-autoopen` and `js/sheet.js` opens it as the page loads; without
 JavaScript a `<noscript>` refresh in the head (`stations/_open_sheet.html`) goes on to the
@@ -4832,54 +5001,52 @@ section of Quality, "Your data" (`id="your-data"`), so the Quality page loads th
 code. Since #235 it shows only while the checks run (or failed); once they have run the
 coverage strip takes its place and its anchor (`id="your-data"` on the strip's wrapper). Once the station is set up, `stations:load` (Data's address) and `stations:setup`
 redirect to `.../quality#your-data`; before that, and when a new file no longer fits the
-details, they lead to the New station page. The station's own address, `/station/<id>/`,
-opens Results after "See results", Quality once set up, else the New station page; the
-New station page's recent analyses link to it.
+details, they lead to the New station page. The station's own address,
+`/w/<id>/<station>/` (`stations:station`), opens Indices after "See results", Quality once
+set up, else the New station page; the New station page's recent analyses link to it.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
 `stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
-`stations/0005_backfill_workspace_inputs` fills them for existing analyses: the hash of
-each analysis's file on disk, and for its linked `qc` and `station` jobs (and the run a
-recalculation replaces) the inputs in their own `params`, with that hash. Before #179 a
-change cleared the links, so a linked job was always of the analysis's current inputs: the
-backfill keeps them current. A batch station gets `origin["inputs"]`. The values the
-migration needs (R's QC defaults) are copied into it. `tests/migration_backfill.py` checks
-it on SQLite (`test_workspace.py`) and on Postgres (`test_queue_postgres.py`).
+`stations/0005_backfill_workspace_inputs` filled them for the analyses of the time. #231's
+migration (above) has since dropped those analyses.
 
-**URLs.** `/station/new` the New station page (`stations:new`, #201), and
-`/station/<id>/setup` the same page once its file is read (`stations:setup`); `/station/`
-(`stations:upload`, the upload page until #201) and `/station/<id>/load`
+**URLs.** A station's pages are under its workspace since #256, `/w/<id>/<station>/`
+(the station's slug), written `...` below; the pages without a station yet keep
+`/station/`. `/station/new` the New station page (`stations:new`, #201), and
+`.../setup` the same page once its file is read (`stations:setup`); `/station/`
+(`stations:upload`, the upload page until #201) and `.../load`
 (`stations:load`, Data until #198, the details until #201) redirect to them, or once the
-station is set up to Quality's "Your data", GET or POST, so old links and bookmarks keep
-working; `/station/validate` and `.../setup/validate` (htmx, POST: a group of the details
-checked as it changes, against the file once one is read); `/station/sample` (POST)
-loads the sample; `/station/sample.txt` downloads it (R links to the sample file too);
-`/station/<id>/` (`stations:workspace`, #179) the furthest section reached (Results after
-"See results", else Quality once the details are confirmed, else the New station page);
-`.../file` (POST, the old Load page's "Use a different file") is gone since #201;
-`.../series.csv` the daily
-series; `.../delete` (POST); `.../inputs/<key>` (`stations:edit_input`, #198, #199) a
-sheet of the Inputs panel as a page, POST applies it; `.../inputs/progress` (htmx);
-`.../quality` Quality (`stations:qc`), `.../quality/progress` (htmx),
-`.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
-`.../quality/continue` (POST: "Go to indices"); `.../quality/flagged.csv`
-(`stations:qc_flagged`, #235: every flagged value of the checks shown, one row each:
-date, check, kind ("look wrong" or "worth a look"), variable, value as the file has it,
-units and what it was checked against; `qc_review.flagged_rows`); `.../quality/run` and `.../quality/file`
-are gone since #199 (the thresholds and file sheets); `.../indices` (`stations:indices`),
-the Calculate step's address until #178: GET redirects to `.../results?settings=open`
-(with `&back=<key>` for an old `?index=<key>`), which opens the Index settings sheet, so
-links in emails, bookmarks and "Your calculations" keep working; POST with
-`recalculate=1` is "Recalculate" on out-of-date results (#179), and any other POST (a
-settings form from a page from before #199) goes to the settings sheet's page;
-`.../indices/validate` (htmx, POST: the settings sheet's field checks);
-`.../results` (`stations:results`), `.../results/progress` (htmx), `.../results/<key>` one index
+station is set up to Quality's "Your data", GET or POST; `/station/validate` and
+`.../setup/validate` (htmx, POST: a group of the details checked as it changes, against
+the file once one is read); `/station/sample` (POST) loads the sample;
+`/station/sample.txt` downloads it (R links to the sample file too); `.../`
+(`stations:station`, #179) the furthest section reached (Indices after "See results", else
+Quality once the details are confirmed, else the New station page); `.../file` (POST, the
+old Load page's "Use a different file") is gone since #201; `.../series.csv` the daily
+series; `.../delete` (POST); `.../undo` (POST, #254); `.../inputs/<key>`
+(`stations:edit_input`, #198, #199) a sheet of the Inputs panel as a page, POST applies
+it; `.../inputs/progress` (htmx); `.../quality` Quality (`stations:qc`),
+`.../quality/progress` (htmx), `.../quality/checks/<check>` (htmx: one page of a check's
+table, `?page=` or `?date=`), `.../quality/continue` (POST: "Go to indices");
+`.../quality/flagged.csv` (`stations:qc_flagged`, #235: every flagged value of the checks
+shown, one row each: date, check, kind ("look wrong" or "worth a look"), variable, value as
+the file has it, units and what it was checked against; `qc_review.flagged_rows`);
+`.../quality/run` and `.../quality/file` are gone since #199 (the thresholds and file
+sheets); `.../indices` Indices (`stations:results`: the URL names kept their names when
+the paths moved), `.../indices/progress` (htmx), `.../indices/<key>` one index
 (`stations:result`; `?series=` the monthly series, `?view=anomaly` the anomalies; the
-standardised anomalies' address, `anomalies.json`, went with #237);
+standardised anomalies' address, `anomalies.json`, went with #237); `.../recalculate`
+(`stations:recalculate`; `.../indices` until #256, the Calculate step's address until
+#178): POST with `recalculate=1` is "Recalculate" on out-of-date results (#179), any other
+POST (a settings form from a page from before #199) goes to the settings sheet's page, and
+GET redirects to `.../indices?settings=open` (with `&back=<key>` for `?index=<key>`), which
+opens the Index settings sheet; `.../settings/validate` (`stations:indices_validate`,
+`.../indices/validate` until #256; htmx, POST: the settings sheet's field checks);
 `.../sector` step 5 (`stations:sector`; POST queues the comparison, `?order=strength`
 sorts the bars), `.../sector/progress` (htmx); `/station/sample-sector.csv` R's sample
 sector file (`stations:sector_sample`); `.../downloads` the Files page
-(`stations:downloads`, #79, #176).
+(`stations:downloads`, #79, #176). No index key is `progress`, which comes before
+`indices/<key>` in `stations/urls.py`.
 
 **New station page (#201).** Proposal 4 of #171's second review ("One setup screen, then
 the workspace"): a first visit asks only for what must be given, on one page
@@ -4911,7 +5078,7 @@ session's recent analyses follow.
 It is one multipart form (`#new-station`), so it works without JavaScript: the file and
 the details can be sent together with "Check and calculate", or the file first with
 "Read the file" (`intent=read`), then the details. `/station/new` has no analysis; a file
-read makes one, and the page is then `/station/<id>/setup` (a redirect after the read),
+read makes one, and the page is then `/w/<id>/<station>/setup` (a redirect after the read),
 where the form is sent next. With JavaScript (`js/setup.js`) "Read the file" is hidden
 and a chosen or dropped file is sent at once (the drop zone's hint says so, WCAG 3.2.2);
 the details typed beside it go with it and those valid on their own are kept
@@ -4995,10 +5162,10 @@ without errors; the user corrects the file outside the app and loads it again.
   tooltips: `iqr_temp` (3, 1-10), `iqr_prec` (5, at least 1), `prec_max` (200 mm, 0-1500),
   `temp_max` (50 °C, 0-60), `flatline_days` (5, 3-15), `jump` (20 °C, 5-30), each with its
   `qcparam.*` help topic. `QC_DEFAULTS` repeats `QCParams`' defaults so the web server
-  does not import the core (a test checks they agree). Saved on the analysis
-  (`qc_params`); changing them replaces the checks and the run, with the same settings
-  (#178), since the full run's QC files use them too (the `station` runner's `qc`
-  parameter). The old checks and results stay, out of date, meanwhile (#179).
+  does not import the core (a test checks they agree). Saved on the workspace
+  (`Workspace.qc_params`, #254); changing them replaces every station's checks and run,
+  with the same settings (#178), since the full run's QC files use them too (the `station`
+  runner's `qc` parameter). The old checks and results stay, out of date, meanwhile (#179).
 - *The job*: "Continue" in step 1 queues a `qc` job at once with the saved thresholds (R
   waits for a click), so the results are usually there when the page opens; changing the
   thresholds or uploading a corrected file queues another, cancelling one still waiting.
@@ -5119,13 +5286,14 @@ without errors; the user corrects the file outside the app and loads it again.
 step only confirmed defaults: every index is calculated, the defaults are almost always
 kept, and a run takes seconds. So when "Check and calculate" confirms the station details
 (the New station page, #201),
-`calculation.speculate` queues a `station` job with the settings the form would start from
-(`previous_params`: the last run's, else the defaults), behind the quality checks, marked
+`calculation.speculate` queues a `station` job with the workspace's settings
+(`previous_params`, the defaults until changed), behind the quality checks, marked
 `params["speculative"] = True` (`jobs.models.SPECULATIVE`). It is the same job, with the
 same `IndexParams`, thresholds and files, that the Calculate button queued before, so the
 outputs are identical. "See results" on Quality (every verdict, "See results anyway"
 included) calls `calculation.commit`: the run becomes the user's own (`jobs.views.promote`
-sets the key to false and records the start for the daily quota) and the page goes
+sets the key to false and records the start for the daily quota, unless its change, the
+checks queued with it, already has one, #254) and the page goes
 straight to Results, which shows the dashboard if it has finished and its progress if not.
 Without a run (refused, cancelled), one is queued then. Until "See results", no page shows
 it: Results redirects to Quality, an index page and Files act as if there were no run
@@ -5135,7 +5303,7 @@ A run of old inputs is never shown as current. Changing the details, loading ano
 file or changing the thresholds (the Inputs panel's sheets) cancels a run still waiting or running for the old inputs (`workspace.settle`,
 `Job.request_cancel`: at once if queued, at the next progress step if running) and, except
 for a new file on Data (the details must be confirmed again), queues another
-(`calculation.bring_up_to_date`), keeping the last run's settings. Before "See results"
+(`calculation.bring_up_to_date`), with the workspace's settings. Before "See results"
 the replacement is speculative; after it, the finished results stay on the page, out of
 date, until it has finished (#179). "Your calculations" leaves the cancelled speculative
 runs out. An analysis opened from a batch (`origin`) gets no speculative run: it shows the
@@ -5179,16 +5347,19 @@ recalculate", a disclosure after the catalogue on Results, until #199; it is now
 panel's Index settings sheet, on every station page once the data is in use. Its groups
 are divided by rules, not cards (DESIGN.md: no cards inside cards); the sheet's body
 scrolls between its header and its foot, so Apply stays in view. It starts from the
-settings of the results shown (`previous_params`: the last calculation's, else the batch
-station's metadata line, `origin`, else the defaults). A form with errors returns on the
+station's settings (`previous_params`: the workspace's, with the station's own values from
+a batch's metadata line, `origin`; the defaults until changed). A form with errors returns on the
 sheet's page with the error summary. The results' header names the settings in one line
 (`views_indices.settings_line`: "Climpact's default settings.", or "Settings changed:"
 and the settings that differ from `IndexParams()`), with a link that opens the sheet; an
 index that depends on a setting, Files' "Not made" notes and a failed run's "Change the
 settings" open it too. Its one button, Apply, is at the foot, described by what it
 updates ("Updates Indices and Files. Quality stays as it is. About half a minute for 80
-years of data."). It queues a `station` job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
-PDF report unless unticked) with step 2's thresholds (`qc`, from `qc_params`), as
+years of data."). New settings change the workspace's and recalculate
+every station ("Settings belong to the workspace" above); for this station that is a
+`station` job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
+PDF report unless unticked) with the workspace's thresholds (`qc`, from
+`Workspace.qc_params`), as
 `indices_job`, cancelling a run of the analysis still waiting or running. When the run it
 replaces had finished, the job's `params["replaces"]` names it, and Results keeps those
 results on the page until the new run has finished (below).
@@ -5218,7 +5389,8 @@ the out-of-date banner ("You changed the settings.") with its progress inside, r
 this panel, which stays for a run of the same inputs.
 
 **Indices: the table** (`stations/results.py`, `results.html`, `_indices.html`; the
-section was named Results until #236, and its address is still `results`). Every index
+section was named Results until #236; its address is `indices` since #256, and its URL
+name is still `stations:results`). Every index
 table of the run is on it: the core's `climpact.plots.index_plots` gives the plotted
 series (with their R descriptions, units and Sen's slope trends, as the PNGs and the
 charts), grouped into one card per index (`txx` with `txx_ANN`, `txx_MON` and the two
@@ -5461,11 +5633,16 @@ setting renames the index (`rx3day` to `rx7day`, a new SPI scale, a new custom i
 is found by `results.signature`, which keeps the parameterised index, the extra SPI/SPEI
 scale and the custom index together; an old index URL redirects the same way.
 
-**Batch stations.** An analysis opened from a batch's results (`origin`) shows that
-station's outputs in the batch job (`charts.views.job_stations`, its own `skipped_outputs`)
-on the same dashboard, with a note, until it is calculated again here; "Adjust and
-recalculate" starts from its metadata line's parameters and the batch's custom index. "Open as a single station"
-on the batch page now goes to this dashboard.
+**Batch stations.** A station of a batch's workspace (`origin`, #255) shows its outputs
+in the batch job (`charts.views.job_stations`, its own `skipped_outputs`) on the same
+dashboard, with a note, until it is calculated again here; the Index settings sheet
+starts from its metadata line's parameters and the workspace's custom index (none unless
+changed). "Open" on the batch results goes to this dashboard. An index page's breadcrumb
+starts with the workspace (`workspace.workspace_page`) when it has several stations: its
+address, `/w/<id>/`, which shows the batch results until #234 gives workspaces a page. A
+workspace of one station has no workspace crumb, as `/w/<id>/` opens the station itself.
+A station that failed in the batch says why on its Indices, above "Check the settings and
+calculate" (`views_indices.batch_failure`).
 
 R behaviour not copied in R's steps 3 and 4 (the settings and the results), and why:
 
@@ -5547,22 +5724,32 @@ R behaviour not copied in step 5, and why:
 | Results: a carousel of the PNGs and a link to the folder or zip | the bar chart and scatter plots drawn on the page, each with its table, CSV and PNG, and the zip |
 | The indices must have been calculated in the same session | the comparison uses the run kept for the analysis (or its batch station) for `JOB_RETENTION_DAYS` |
 
-**Retention.** An analysis is deleted, with its folder, `JOB_RETENTION_DAYS` after it was
-last changed (`updated_at`), unless one of its jobs is queued or running
-(`stations/retention.py`, run with every purge of expired jobs); folders under
-`stations/` that belong to no analysis are deleted once older than the period. The pages
-state the period and the date the analysis will be deleted, and "Delete this data now"
-deletes it at once. The rules are unchanged by #179: jobs kept as out of date (the run a
-newer one replaces) are ordinary jobs, purged `JOB_RETENTION_DAYS` after they finished; a
-purged replaced run is simply no longer shown, and Results shows the new run's progress
-instead (`test_workspace.py::test_retention_purges_out_of_date_jobs_as_before`).
+**Retention (per workspace since #231).** `WORKSPACE_EXPIRY`
+(`CLIMPACT_WEB_WORKSPACE_EXPIRY`; on when hosted, off locally) decides whether workspaces
+expire. When on, a workspace is deleted, with its stations, batches and their folders,
+`JOB_RETENTION_DAYS` after its last change (`Workspace.updated_at`), unless a job of one
+of its stations or batches is queued or running (`stations/retention.py`,
+`purge_expired_workspaces`, run with every purge of expired jobs). When off, a workspace
+stays until the user deletes it. Either way the jobs a station or batch shows are kept
+(`kept_jobs`): its checks, run and sector comparison, the finished run or checks a
+replacement in progress, failed or cancelled replaces on the page (`params["replaces"]`),
+a batch station's batch job (`origin["job"]`), and each batch's job. So results never
+disappear under a page; a replaced job is purged on its own schedule once its replacement
+has succeeded. Other jobs (gridded runs, replaced runs no longer shown) keep the jobs
+app's rule. Folders under `stations/` and `batches/` that belong to no station or batch
+are deleted once older than the period. With expiry on, the pages state the period and
+the date the workspace will be deleted; with it off, that the data stay on this computer
+until deleted. "Delete this data now" deletes the station at once, and its workspace if
+nothing else is left in it (`test_workspace.py`: `test_retention_keeps_the_jobs_a_station_shows`,
+`test_retention_deletes_the_workspace_once_idle`,
+`test_without_expiry_nothing_a_workspace_shows_is_deleted`).
 
 ### Batch page
 
 The batch page (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R`
 and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
 
-**Flow** (`batch:start`, `batch:check`, `batch:results`; the step indicator's three steps,
+**Flow** (`batch:start`, `batch:check`, `stations:workspace`; the step indicator's three steps,
 `navigation.batch_steps`):
 
 1. `/batch/`: two drop zones, the metadata file and the station files (several at once,
@@ -5573,27 +5760,35 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
    names it lists; R ships the same file twice, the package keeps the one gzipped copy of
    step 1. The sample metadata file downloads as a template (R links to it). The format,
    each column's meaning and the retention note are on the page.
-2. `/batch/<id>/`: every station listed as **ready**, **file missing** or **has problems**,
+2. `/w/<id>/batch/` (the batch's workspace, #256; `/batch/<id>/` before, which
+   redirects): every station listed as **ready**, **file missing** or **has problems**,
    with the reasons, before anything runs; counts; files uploaded but not listed; each
    station's index parameters in a table; a form to add or replace station files or the
    metadata file (checked again at once); the options; and "Calculate *N* stations". A
    batch with some stations not ready can start: those are left out and reported.
-3. `/batch/<id>/results`: one `batch` job for the ready stations. A fragment polled by
+3. `/w/<id>/`, the workspace's address (#256; `/batch/<id>/results` before, and
+   `/w/<id>/batch/results` while #256 was in review, both redirect), where the workspace
+   overview replaces the page (#234): one `batch` job for the ready stations. A fragment polled by
    htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
    each station (waiting, calculating with its own bar and stage, finished, failed, left
    out). When it has finished: a summary, "Download all (zip)", and for each
-   station its zip and "Open as a single station", or its error and error file;
+   station its zip and "Open" (its station in the workspace, #255), or its error and error file;
    failures are listed first. The cancel and retry controls are the job's.
 
 **Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
-check result as JSON (`report`, `check.BatchCheck.to_json()`); the options `base_start`,
-`base_end`, `workers`, `plots`; `job` (null on delete). Files live in
+check result as JSON (`report`, `check.BatchCheck.to_json()`); the run options `workers`
+and `plots` (the base period is the workspace's since #255); `job` (null on delete);
+`filled_job`, the run whose outcome was recorded on the workspace's stations (#255, null
+on delete). Files live in
 `<MEDIA_ROOT>/batches/<id>/`: `metadata.txt` and `files/<name>`, each station file under
 its own name without folders (hidden names are ignored). Every change checks the whole
-batch again. Retention as for analyses: `JOB_RETENTION_DAYS` after the last change unless
-its job is queued or running (`batch/retention.py`, registered with `register_purger`);
-"Delete these files now" deletes it at once.
+batch again. Since #231 a batch has a `workspace`, made with it, and is deleted with it
+(see the retention of workspaces in [Single-station steps](#single-station-steps));
+`batch/retention.py` deletes only stray batch folders. The batch and its stations share
+their workspace's retention. "Delete these files now" deletes the workspace at once, with
+the batch, its stations and their files, as the batch page stands in as the workspace page
+(#255).
 
 **The check** (`batch/check.py`). The metadata file is walked with
 `read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
@@ -5627,7 +5822,10 @@ percentile indices cannot be calculated) and a rough time estimate (13 s a stati
 plots and report, 4 s without, divided by the stations at a time; R's modal says about a minute a
 station per core).
 
-**The job.** `batch:run` writes a metadata file in R's format with only the ready
+**The job.** The base period chosen is set on the workspace (`views.set_base_period`; an
+undo of an earlier settings change is forgotten, as the run recalculates the batch's
+stations), and the job takes the workspace's custom index (`custom`, none unless the
+workspace's settings were changed). `batch:run` writes a metadata file in R's format with only the ready
 stations (`check.metadata_text`, numbers written so they read back the same) and copies
 their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
 `station_zips`, `report` (with the plots), `folder` (the metadata file's name without its extension, as R names the
@@ -5644,16 +5842,50 @@ end the job's `result` lists each station with its files, error, error file, zip
 report. The results page offers each station's zip and report with their sizes. A
 station's error is shown without the exception's class name or the job folder's path.
 
-**Per-station dashboards (#78).** Each finished station can be opened as a
-single-station analysis ("Open as a single station", `batch:open_station`, POST): a
-`StationAnalysis` with `source` `batch`, the station file, its name, location and the
-batch's base period, at step 2 (the metadata is complete), and
-`origin = {"batch", "job", "station", "params", "outputs"}`: the batch, its job, the
-station, the `IndexParams` fields of its metadata line and its folder in the job's
-`output/`. Since #78 "Open as a single station" opens the station's results dashboard, and the
-indices step starts from those parameters (see [Single-station steps](#single-station-steps));
-opening the station again returns to the same analysis. This keeps one
-dashboard implementation (the single-station steps) rather than a second one for batches.
+**A batch fills its workspace (#255, `batch/fill.py`).** A batch is a way to fill a
+workspace, not a separate kind of result (#230, decision 5). Every station of its metadata
+file is a `Station` of the batch's workspace, whether it calculated or not: the workspace
+overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its run state
+(Done, Calculating with its percentage, Waiting, Not run, Failed with why).
+
+- *When the run is queued* (`batch:run`), `add_stations` adds them all: `source` `batch`,
+  name, location, slug and the station file (from the batch's `files/`, when it can be
+  read), and `origin = {"batch", "station", "params", "run"}`: the batch, the station's
+  name in it, the `IndexParams` fields of its metadata line, and its state in this run
+  (`{"job", "state", "error"}`). A ready station is `waiting`, at step `qc` (its address
+  leads to Quality, its checks not yet run). One the check left out is `not_run`, with
+  the check's reasons as `error` (the text of its error file), at step `upload` and
+  without a file when it has none that can be read, so its address leads to the New
+  station page, where a corrected file is loaded. The job gets `stations_added`.
+- *When the job has succeeded*, `fill_workspace` records how it went, the first time the
+  results are shown (the workspace's address `/w/<id>/` and the `batch:progress`
+  fragment, which stand in as the workspace page until #234). A station that calculated gets
+  `origin["job"]`, `["outputs"]` (its folder in the job's `output/`) and `["inputs"]`
+  (`batch_inputs`: the file and details the job was given, the run's base period and custom
+  index, R's default thresholds, the workspace's output options, as `plots` is a run
+  option and not an input of the results), and `run.state` `done`. One that failed gets
+  `failed` with R's or our error in words (`plain_error`: no exception class or job path)
+  and no results: not the batch's, nor an earlier run's. It is at step `indices`, so it
+  opens on Indices, which say nothing was calculated and lead to the settings, where the
+  fix usually is (another base period). It is idempotent (`BatchRun.filled_job`, under a
+  row lock); a station the user deleted during the run is not added again. A job queued
+  before `stations_added` adds its stations here, as they would have been when queued.
+
+A new run of the batch updates its stations when queued (file, details, `run` waiting)
+while they keep the results they show, out of date if their inputs changed, until the new
+run's replace them (with the station's own jobs from before the run). `run_states(stations)`
+gives each station's `RunState` (state, percent, error, job): its own run when one was
+queued after the batch's (a change to the workspace's settings, #254), else its batch
+run's, live from the runner's `stations.json` while the job runs (`station_status`).
+`run_progress(run)` gives the run as a whole for the run status line: done of total (those
+not run not counted), failed, calculating, waiting, not run, elapsed, remaining, finished.
+A settings change has its own, `workspace.change_state` (#254). "Open" on the results
+links to the station (`/w/<id>/<station>/`, `stations:station`, its furthest section). A change to the workspace's
+settings recalculates the batch's stations like any others (#254), each with its own
+metadata values, as one change for the hosted limits; their Quality has no checks until
+then, so that change queues their checks too. Stations without a file are skipped. This
+keeps one dashboard implementation (the single-station steps) rather than a second one for
+batches.
 
 R behaviour not copied, and why:
 
@@ -5960,8 +6192,9 @@ explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_
 **Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
 `source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
 (the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and
-the pre-flight result); `thresholds_job`, `indices_job`. Retention as for batches
-(`gridded/retention.py`): `JOB_RETENTION_DAYS` after the last change unless a job is
+the pre-flight result); `thresholds_job`, `indices_job`. Retention as for workspaces when
+they expire, whatever `WORKSPACE_EXPIRY` says (`gridded/retention.py`):
+`JOB_RETENTION_DAYS` after the last change unless a job is
 queued or running; only the run's own folder (uploads) is deleted, never a file read in
 place.
 

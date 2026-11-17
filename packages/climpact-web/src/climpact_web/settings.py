@@ -208,6 +208,10 @@ RUNS_DIR = MEDIA_ROOT / "runs"
 # Background jobs (climpact_web.jobs; TECHNICAL.md, "Background jobs").
 # Days a finished job and its files are kept; the upload page states it.
 JOB_RETENTION_DAYS = int(env("RETENTION_DAYS", "7"))
+# Whether workspaces (#231: their stations, batch and files, and the jobs they show) are
+# deleted JOB_RETENTION_DAYS after their last change. On when hosted; off locally, where a
+# workspace stays on the computer until the user deletes it.
+WORKSPACE_EXPIRY = env_bool("WORKSPACE_EXPIRY", IS_HOSTED)
 # Seconds between worker heartbeats, and without one before a running job counts as dead.
 JOB_HEARTBEAT_SECONDS = float(env("JOB_HEARTBEAT_SECONDS", "10"))
 JOB_STALE_SECONDS = float(env("JOB_STALE_SECONDS", "60"))
@@ -234,9 +238,10 @@ if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
 TURNSTILE_ORIGIN = "https://challenges.cloudflare.com"
 TURNSTILE_VERIFY_URL = f"{TURNSTILE_ORIGIN}/turnstile/v0/siteverify"
 TURNSTILE_TIMEOUT = 10  # seconds to wait for Cloudflare's answer
-# Jobs waiting or running for one client address, and jobs started by it in 24 hours.
+# Jobs waiting or running for one client address, and jobs started by it in 24 hours. The
+# jobs of one change (a workspace recalculating all its stations, #254) count as one.
 MAX_ACTIVE_JOBS_PER_IP = int(env("MAX_ACTIVE_JOBS_PER_IP", "2"))
-MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "30"))
+MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "50"))
 # No new jobs while more than this many wait in the queue, or while MEDIA_ROOT's disk has
 # less than this much free space (uploads are refused too).
 MAX_QUEUED_JOBS = int(env("MAX_QUEUED_JOBS", "20"))

@@ -127,7 +127,7 @@ def test_abuse_limit_settings(load_settings):
     """#125: Turnstile off without keys, the limits' defaults, and both keys or neither."""
     s = load_settings(**HOSTED)
     assert (s.TURNSTILE_SITE_KEY, s.TURNSTILE_SECRET_KEY) == ("", "")
-    assert (s.MAX_ACTIVE_JOBS_PER_IP, s.MAX_DAILY_JOBS_PER_IP, s.MAX_QUEUED_JOBS) == (2, 30, 20)
+    assert (s.MAX_ACTIVE_JOBS_PER_IP, s.MAX_DAILY_JOBS_PER_IP, s.MAX_QUEUED_JOBS) == (2, 50, 20)
     assert (s.MIN_FREE_DISK_GB, s.JOB_TIME_LIMIT_MINUTES) == (2, 60)
     with pytest.raises(ImproperlyConfigured, match="TURNSTILE"):
         load_settings(**HOSTED, CLIMPACT_WEB_TURNSTILE_SITE_KEY="site")

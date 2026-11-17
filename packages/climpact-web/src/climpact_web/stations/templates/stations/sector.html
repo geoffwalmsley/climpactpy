@@ -15,7 +15,7 @@
   </header>
 
   {% if stale %}
-  {% translate "These results are out of date. The comparison uses them as they are. Compare again once they are up to date." as stale_message %}{% url 'stations:results' analysis.pk as results_url %}{% translate "See the results" as results_label %}
+  {% translate "These results are out of date. The comparison uses them as they are. Compare again once they are up to date." as stale_message %}{% url 'stations:results' analysis.workspace_id analysis.slug as results_url %}{% translate "See the results" as results_label %}
   {% include "components/alert.html" with kind="warning" title="" message=stale_message action_href=results_url action_label=results_label %}
   {% endif %}
 
@@ -23,11 +23,11 @@
   {% if indices_job and not indices_job.is_finished %}
   {% translate "The indices are still being calculated. Come back when they are ready." as wait_message %}
   {% include "components/alert.html" with kind="info" title="" message=wait_message %}
-  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "See the progress" %} {% icon "arrow-right" %}</a></p>
+  <p><a href="{% url 'stations:results' analysis.workspace_id analysis.slug %}">{% translate "See the progress" %} {% icon "arrow-right" %}</a></p>
   {% else %}
   {% translate "Calculate the indices first. The comparison uses them." as first_message %}
   {% include "components/alert.html" with kind="info" title="" message=first_message %}
-  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
+  <p><a href="{% url 'stations:results' analysis.workspace_id analysis.slug %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
   {% else %}
 
@@ -67,7 +67,7 @@
 
   <details class="disclosure sector-settings"{% if not results or form.errors %} open{% endif %} id="settings">
     <summary class="sector-settings__summary">{% if results %}{% translate "Change the file or the settings" %}{% else %}{% translate "Sector data and plot settings" %}{% endif %}{% icon "chevron-down" %}</summary>
-    <form method="post" action="{% url 'stations:sector' analysis.pk %}" enctype="multipart/form-data" class="stack" novalidate>
+    <form method="post" action="{% url 'stations:sector' analysis.workspace_id analysis.slug %}" enctype="multipart/form-data" class="stack" novalidate>
       {% csrf_token %}
       <div class="stack">
         <div class="section-header"><h3>{% translate "Sector data" %}</h3>{% section_help "sector.data" %}</div>
@@ -93,7 +93,7 @@
     </form>
   </details>
 
-  <p class="flex flex-wrap items-center gap-3"><a href="{% url 'stations:results' analysis.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a> <a href="{% url 'help:guide' 'sector' %}">{% translate "Guide: sector correlation" %}</a></p>
+  <p class="flex flex-wrap items-center gap-3"><a href="{% url 'stations:results' analysis.workspace_id analysis.slug %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Back to the results" %}</a> <a href="{% url 'help:guide' 'sector' %}">{% translate "Guide: sector correlation" %}</a></p>
   {% endif %}
   </div>
   </div>

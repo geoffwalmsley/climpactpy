@@ -7,6 +7,35 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+- Workspaces (#231, #253): a station or batch now belongs to a workspace, which expires as
+  a whole after its last change. **The upgrade deletes the stations and batches people
+  have open** (decided on #231; their files go after the retention period). New setting
+  `CLIMPACT_WEB_WORKSPACE_EXPIRY`: on when hosted, off locally, where workspaces now stay
+  until deleted. The jobs a station or batch shows are kept as long as it is.
+- Workspace settings (#254): the base period, the quality thresholds and the index
+  settings belong to the workspace. A change recalculates every station in it, as one
+  change, and "Undo the change" beside the recalculation puts the settings and the earlier
+  results back while it is still on the way. A station's own values from a batch metadata
+  file stay its own. A change to the index settings now marks the results out of date, as
+  the other inputs do. Hosted limits: the jobs of one change count as one job for the
+  daily quota and the active-job cap, and `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` now
+  defaults to 50 (was 30).
+- A batch fills its workspace (#255): every station of a batch is a station of the
+  batch's workspace from when the run is queued, with its state in the run (waiting,
+  calculating, done, not run, failed and why); a station that failed or was left out has
+  no results. "Open" on the batch results goes to each station that calculated (it was "Open as
+  a single station", which made a separate workspace). The batch's base period and custom
+  index are the workspace's, so a change to the workspace's settings recalculates the
+  batch's stations too. Deleting a batch deletes its stations.
+- Workspace addresses (#256): a workspace is `/w/<id>/`, which opens its station when it
+  has one and shows the batch results otherwise (their only address: the old results
+  links lead there), and a station's pages are under it,
+  `/w/<id>/<station>/quality`, `.../indices` (Results was `.../results`),
+  `.../indices/<index>` and so on; a batch's are `/w/<id>/batch/…`. Old `/station/<id>/…`
+  and `/batch/<id>/…` links redirect to the new address while their station or batch is
+  kept. The New station and batch start pages keep their addresses. A station that failed
+  in a batch says why on its Indices. Hosted: paste
+  `deploy/cloudflare/rate-limit.txt` into the rate-limiting rule again, as its paths moved.
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
   reads `data-retry` as its own setting and warned in the console on every form page.

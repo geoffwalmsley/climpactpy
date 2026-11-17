@@ -1,25 +1,27 @@
-{% load i18n ui %}{% comment %}How long uploads are kept (#73's retention setting). Parameters: analysis
-(optional); quiet: a line of small muted text at the foot of the page instead of an info
-alert, for the pages after the upload, which shows the full notice (#173).{% endcomment %}
-{% if analysis and quiet %}
-{% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
-Your file and details are deleted on {{ date }} unless you change them. Results are deleted {{ days }} day after each calculation.
-{% plural %}
-Your file and details are deleted on {{ date }} unless you change them. Results are deleted {{ days }} days after each calculation.
+{% load i18n ui %}{% comment %}How long a station's workspace is kept (#73's retention setting, per
+workspace since #231). Parameters: analysis (optional); quiet: a line of small muted text at
+the foot of the page instead of an info alert, for the pages after the upload, which shows
+the full notice (#173). With workspace expiry off (local), the workspace stays until deleted.{% endcomment %}
+{% if not workspace_expiry %}
+{% translate "Your file, details and results stay on this computer until you delete them." as retention %}
+{% elif analysis and quiet %}
+{% blocktranslate with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
+Your file, details and results are deleted on {{ date }} unless you change them.
 {% endblocktranslate %}
 {% elif analysis %}
 {% blocktranslate count days=job_retention_days with date=analysis.expires_at|date:"j F Y" asvar retention trimmed %}
-Your file and station details are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} day after each calculation finishes.
+Your file, station details and results are kept for {{ days }} day after your last change (until {{ date }} unless you change them), then deleted.
 {% plural %}
-Your file and station details are kept for {{ days }} days after your last change (until {{ date }} unless you change them), then deleted. Results are kept for {{ days }} days after each calculation finishes.
+Your file, station details and results are kept for {{ days }} days after your last change (until {{ date }} unless you change them), then deleted.
 {% endblocktranslate %}
 {% else %}
 {% blocktranslate count days=job_retention_days asvar retention trimmed %}
-Your file is kept for {{ days }} day after your last change, then deleted. Results are kept for {{ days }} day after each calculation finishes.
+Your file and results are kept for {{ days }} day after your last change, then deleted.
 {% plural %}
-Your file is kept for {{ days }} days after your last change, then deleted. Results are kept for {{ days }} days after each calculation finishes.
+Your file and results are kept for {{ days }} days after your last change, then deleted.
 {% endblocktranslate %}
 {% endif %}
-{% if is_hosted %}{% translate "Only this browser can see them." as extra %}{% else %}{% translate "They stay on this computer." as extra %}{% endif %}
-{% if quiet %}<p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{{ retention }} {{ extra }}</span></p>
-{% else %}{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}{% endif %}
+{% if workspace_expiry %}{% if is_hosted %}{% translate "Only this browser can see them." as extra %}{% else %}{% translate "They stay on this computer." as extra %}{% endif %}{% endif %}
+{% if quiet %}<p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{{ retention }}{% if extra %} {{ extra }}{% endif %}</span></p>
+{% elif extra %}{% include "components/alert.html" with kind="info" title="" message=retention|add:" "|add:extra %}
+{% else %}{% include "components/alert.html" with kind="info" title="" message=retention %}{% endif %}

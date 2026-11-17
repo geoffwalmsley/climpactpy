@@ -34,7 +34,7 @@ views.qc_context.
     {% if job.status == "failed" %}{% translate "The new checks could not be run" as stale_title %}{% else %}{% translate "The new checks were stopped" as stale_title %}{% endif %}
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=job.error|default:stale_note body="stations/_qc_run_again.html" %}
     {% else %}
-    {% translate "The checks are out of date" as stale_title %}{% url 'stations:setup' analysis.pk as data_url %}{% translate "Check the station details to check the new file." as data_label %}
+    {% translate "The checks are out of date" as stale_title %}{% url 'stations:setup' analysis.workspace_id analysis.slug as data_url %}{% translate "Check the station details to check the new file." as data_label %}
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note action_href=data_url action_label=data_label %}
     {% endif %}
     {% elif job and not job.is_finished %}
@@ -80,7 +80,7 @@ views.qc_context.
 
   <p class="text-sm text-text-muted">{% translate "Climpact never changes your data." %}</p>
   {% include "stations/_retention.html" with quiet=True %}
-  <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
+  <form method="post" action="{% url 'stations:delete' analysis.workspace_id analysis.slug %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}

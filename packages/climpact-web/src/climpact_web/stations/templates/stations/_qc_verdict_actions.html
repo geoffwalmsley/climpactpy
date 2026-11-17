@@ -5,9 +5,9 @@ file" before it on amber. Red: "Replace file", with "Go to indices anyway" befor
 user can always go on. "Replace file" opens the Inputs panel's File sheet, or without
 JavaScript its page (#199). Context: review, analysis, input_urls.
 {% endcomment %}{% with verdict=review.verdict %}
-{% url 'stations:qc_continue' analysis.pk as continue_url %}
+{% url 'stations:qc_continue' analysis.workspace_id analysis.slug as continue_url %}
 {% translate "Replace file" as replace_label %}
-{% if verdict.wrong or verdict.worth %}{% url 'stations:qc_flagged' analysis.pk as flagged_url %}{% translate "Flagged values (CSV)" as flagged_label %}
+{% if verdict.wrong or verdict.worth %}{% url 'stations:qc_flagged' analysis.workspace_id analysis.slug as flagged_url %}{% translate "Flagged values (CSV)" as flagged_label %}
 {% include "components/button.html" with label=flagged_label href=flagged_url variant="secondary" size="sm" %}{% endif %}
 {% if verdict.level == "fix" %}
 <form method="post" action="{{ continue_url }}">

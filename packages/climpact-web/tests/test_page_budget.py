@@ -114,11 +114,11 @@ def station_qc_results(client) -> str:
 def station_calculating(client) -> str:
     """Results while the run queued with the checks goes on, after "Use this data": the
     progress and the closed "Adjust and recalculate" form (#178)."""
-    from climpact_web.stations.models import StationAnalysis, Step
+    from climpact_web.stations.models import Station, Step
 
     url = station_qc(client)
-    StationAnalysis.objects.update(step=Step.INDICES)
-    return url.replace("/quality", "/results")
+    Station.objects.update(step=Step.INDICES)
+    return url.replace("/quality", "/indices")
 
 
 def station_results(client) -> str:
@@ -127,10 +127,10 @@ def station_results(client) -> str:
     import shutil
 
     from climpact_web.jobs.models import Job, Status
-    from climpact_web.stations.models import StationAnalysis
+    from climpact_web.stations.models import Station
 
     url = station_calculating(client)
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     station = "sydney_observatory_hill_1936-2015"
     job = Job.objects.create(kind="station", owner=analysis.owner, status=Status.SUCCEEDED,
                              params={"params": {}, "plots": True, "zip": True},
@@ -156,7 +156,7 @@ def station_sector(client) -> str:
     from climpact_web.jobs.models import Job
     from climpact_web.jobs.worker import claim, run_job
 
-    url = station_results(client).replace("/results", "/sector")
+    url = station_results(client).replace("/indices", "/sector")
     Job.objects.filter(kind="qc").delete()
     client.post(url, {"sample": "1", "detrend": "on"})
     run_job(claim("budget"), None)
@@ -165,7 +165,7 @@ def station_sector(client) -> str:
 
 def station_downloads(client) -> str:
     """The downloads page of the run with every index (#79): each table's link and size."""
-    return station_results(client).replace("/results", "/downloads")
+    return station_results(client).replace("/indices", "/downloads")
 
 
 def batch_check(client) -> str:

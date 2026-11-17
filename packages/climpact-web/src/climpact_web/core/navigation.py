@@ -24,8 +24,9 @@ class Destination:
     icon: str
     in_nav: bool = True
     gridded: bool = False  # offered only when gridded runs are (settings.GRIDDED_ENABLED)
-    # The URL prefixes whose pages the link is current on, besides its own address: the
-    # header's Workspaces is current on every station and batch page too (#227).
+    # The URL prefixes whose pages the link is current on, besides its own address, as
+    # URL names or paths: the header's Workspaces is current on every station and batch
+    # page too (#227), all under ``/w/`` since #256.
     sections: tuple[str, ...] = ()
 
     @property
@@ -47,7 +48,7 @@ DESTINATIONS = (
         "jobs:list",
         _("Workspaces"),
         "layers",
-        sections=("stations:upload", "batch:start"),
+        sections=("stations:upload", "batch:start", "/w/"),
     ),
     Destination("station", "stations:new", _("Single station"), "station", in_nav=False),
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
@@ -78,7 +79,8 @@ def nav_items(request) -> list[dict]:
     for d in DESTINATIONS:
         url = d.url
         if d.in_nav and d.available and url:
-            prefixes = [p for p in (url, *map(url_or_none, d.sections)) if p and p != "/"]
+            sections = [s if s.startswith("/") else url_or_none(s) for s in d.sections]
+            prefixes = [p for p in (url, *sections) if p and p != "/"]
             current = "page" if path == url else ""
             if not current and any(path.startswith(p) for p in prefixes):
                 current = "true"
@@ -167,7 +169,7 @@ GRIDDED_STEPS = (
 BATCH_STEPS = (
     Step("upload", _("Load files"), "batch:start"),
     Step("check", _("Check stations"), "batch:check"),
-    Step("results", _("Calculate and download"), "batch:results"),
+    Step("results", _("Calculate and download"), "stations:workspace"),
 )
 
 

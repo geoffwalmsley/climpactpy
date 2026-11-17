@@ -18,14 +18,14 @@ calculated it holds the quality-control files alone. Context from views_download
   <div class="stack stack--sm">
     <div class="section-header"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
     <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
-    {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
+    {% if analysis.expires_at or from_batch %}<p class="text-sm text-text-muted">{% if analysis.expires_at %}{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% endif %}{% if analysis.expires_at and from_batch %} {% endif %}{% if from_batch %}{% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endif %}
   </div>
 
   {% if stale_results or stale_quality %}
   {% comment %}Out of date after a change (#179): the files stay until they are replaced.{% endcomment %}
   {% translate "Some files are out of date" as stale_title %}
-  {% if stale_results %}{% translate "The files of the indices are from before your last change. They are replaced when the new results are ready." as stale_note %}{% url 'stations:results' analysis.pk as stale_href %}{% translate "See the results" as stale_label %}
-  {% else %}{% translate "The quality-control files are from before your last change. They are replaced when the new checks are ready." as stale_note %}{% url 'stations:qc' analysis.pk as stale_href %}{% translate "See the checks" as stale_label %}{% endif %}
+  {% if stale_results %}{% translate "The files of the indices are from before your last change. They are replaced when the new results are ready." as stale_note %}{% url 'stations:results' analysis.workspace_id analysis.slug as stale_href %}{% translate "See the results" as stale_label %}
+  {% else %}{% translate "The quality-control files are from before your last change. They are replaced when the new checks are ready." as stale_note %}{% url 'stations:qc' analysis.workspace_id analysis.slug as stale_href %}{% translate "See the checks" as stale_label %}{% endif %}
   {% include "components/stale_banner.html" with id="files-stale" title=stale_title note=stale_note action_href=stale_href action_label=stale_label %}
   {% endif %}
 
@@ -88,7 +88,7 @@ calculated it holds the quality-control files alone. Context from views_download
       </div>
     </details>
     {% endif %}
-    {% if analysis.qc_job %}<p class="text-sm"><a href="{% url 'stations:qc' analysis.pk %}">{% translate "See what the quality checks found" %}</a></p>{% endif %}
+    {% if analysis.qc_job %}<p class="text-sm"><a href="{% url 'stations:qc' analysis.workspace_id analysis.slug %}">{% translate "See what the quality checks found" %}</a></p>{% endif %}
   </section>
   {% endif %}
 
@@ -112,7 +112,7 @@ calculated it holds the quality-control files alone. Context from views_download
       </table>
     </div>
     {% endif %}
-    <p class="text-sm"><a href="{% url 'stations:sector' analysis.pk %}">{% translate "See the sector comparison" %}</a></p>
+    <p class="text-sm"><a href="{% url 'stations:sector' analysis.workspace_id analysis.slug %}">{% translate "See the sector comparison" %}</a></p>
   </section>
   {% endif %}
 
@@ -128,7 +128,7 @@ calculated it holds the quality-control files alone. Context from views_download
             <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Table" %}</th><th scope="col">{% translate "Plot" %}</th></tr></thead>
             <tbody>
               {% for item in section.cards %}{% for row in item.rows %}<tr>
-                {% if forloop.first %}<th scope="rowgroup" rowspan="{{ item.rows|length }}"><a href="{% url 'stations:result' analysis.pk item.card.key %}">{% include "components/index_name.html" with code=item.card.code name=item.card.title only %}</a></th>{% endif %}
+                {% if forloop.first %}<th scope="rowgroup" rowspan="{{ item.rows|length }}"><a href="{% url 'stations:result' analysis.workspace_id analysis.slug item.card.key %}">{% include "components/index_name.html" with code=item.card.code name=item.card.title only %}</a></th>{% endif %}
                 <td>{{ row.series.label }} <span class="text-sm text-text-muted">{{ row.series.name }}</span></td>
                 <td class="download-cell">{% if row.csv %}{% url 'jobs:file' job.pk row.csv.path as d_href %}{% include "components/download_link.html" with d=row.csv href=d_href %}{% else %}<span class="text-sm text-text-muted">{% translate "in the index's table" %}</span>{% endif %}</td>
                 <td class="download-cell">{% if row.png %}{% url 'jobs:file' job.pk row.png.path as d_href %}{% include "components/download_link.html" with d=row.png href=d_href %}{% else %}<span class="text-sm text-text-muted">{% translate "none" %}</span>{% endif %}</td>
@@ -158,7 +158,7 @@ calculated it holds the quality-control files alone. Context from views_download
 
   <p class="text-sm"><a href="{% url 'jobs:detail' job.pk %}">{% translate "Every file of this calculation, as a list" %}</a></p>
   {% else %}
-  <p><a href="{% url 'stations:results' analysis.pk %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
+  <p><a href="{% url 'stations:results' analysis.workspace_id analysis.slug %}">{% translate "Calculate the indices" %} {% icon "arrow-right" %}</a></p>
   {% endif %}
   </div>
   </div>

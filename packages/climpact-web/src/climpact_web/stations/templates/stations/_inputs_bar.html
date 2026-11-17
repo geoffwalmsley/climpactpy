@@ -3,10 +3,12 @@ The Inputs bar (#203, proposal 7 of docs/design/redesign-proposals.html, the moc
 .inputsbar): the Inputs panel in one line, under the workspace tabs where the page is too
 narrow for the panel beside the section (CSS, with JavaScript only). The base period and
 whether the thresholds and index settings are the defaults, then each input changed since
-what is shown and each run under way. Edit opens the Inputs sheet (stations/_inputs.html).
-Context: inputs_bar (stations.workspace.inputs_bar).
+what is shown and each run under way, with "Undo" while a change to the workspace's
+settings can be undone (#254). Edit opens the Inputs sheet (stations/_inputs.html).
+Context: inputs_bar (stations.workspace.inputs_bar), input_undo, input_next, analysis.
 {% endcomment %}
 <div class="inputs-bar{% if inputs_bar.changed %} inputs-bar--changed{% endif %}" data-inputs-bar>
   <p class="inputs-bar__text"><span class="inputs-bar__label">{% translate "Inputs:" %}</span> <span>{{ inputs_bar.summary }}</span>{% for change in inputs_bar.changed %} <span class="inputs-bar__changed">{{ change }}</span>{% endfor %}{% for run in inputs_bar.runs %} <span class="inputs-bar__run">{% icon "refresh" %}{{ run }}</span>{% endfor %}</p>
+  {% if input_undo %}{% include "stations/_undo_form.html" with extra_class="inputs-bar__undo" short=True %}{% endif %}
   <button type="button" class="button button--secondary button--sm" data-sheet-open="sheet-inputs" aria-haspopup="dialog">{% translate "Edit" %}<span class="sr-only"> {% translate "your inputs" %}</span></button>
 </div>

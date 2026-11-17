@@ -8,7 +8,7 @@ its foot, so Apply stays in view. Each group is checked as it changes
 Context: analysis, form (IndexParamsForm), settings_source, heading (the groups' heading
 element: h3 under the sheet's h2 title, h2 on the sheet's own page under its h1).
 {% endcomment %}
-{% if settings_source == "batch" %}<p class="text-sm text-text-muted">{% translate "The settings come from this station's line in the batch metadata file." %}</p>{% endif %}
+{% if settings_source == "batch" %}<p class="text-sm text-text-muted">{% translate "The days, base temperatures, Rnnmm amount and SPEI time scale come from this station's line in the batch metadata file. A change to them applies to this station only." %}</p>{% endif %}
 
 <section class="stack stack--sm settings-group" aria-labelledby="settings-plots-title">
   <{{ heading }} class="settings-group__title" id="settings-plots-title">{% translate "Plots" %}</{{ heading }}>{% section_help "calculate.plots" inline=True %}

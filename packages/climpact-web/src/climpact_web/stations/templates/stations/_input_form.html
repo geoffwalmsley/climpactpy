@@ -9,7 +9,7 @@ The station's fields are checked as they change, as on the first visit
 Context: analysis, sheet (views.sheet_context: key, title, intro, form, impact,
 settings_source), next, form_id, in_sheet.
 {% endcomment %}
-<form method="post" action="{% url 'stations:edit_input' analysis.pk sheet.key %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
+<form method="post" action="{% url 'stations:edit_input' analysis.workspace_id analysis.slug sheet.key %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   <div class="sheet__body stack">

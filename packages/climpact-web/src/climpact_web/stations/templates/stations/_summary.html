@@ -60,7 +60,7 @@ views.summary_context, and review (qc_review.Review) when the checks of this fil
   checks' flags, which belong to the next step (#173); the table view lists the days in
   view. Without JavaScript the static monthly overview (preview.py) is shown instead.
   {% endcomment %}
-  {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.pk as series_url %}
+  {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.workspace_id analysis.slug as series_url %}
   {% translate "Daily series" as daily_title %}
   {% include "components/chart_frame.html" with id="daily-chart" title=daily_title data_url=daily_url|add:"?flags=0" csv_href=series_url height="24rem" only %}
   {% include "stations/_series_preview.html" %}

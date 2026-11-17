@@ -4,10 +4,11 @@ swap) while the job is queued or running, as the job page's fragment is. Paramet
 run, job, rows (each station: name, state, step, total, stage_label, percent,
 error_text, skip_lines, zip, zip_size, report, report_size, folder, error_file), counts,
 total_stations, stage_label,
-elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a station already opened as a single station.
+elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url, the page of the
+workspace's station a finished station became (#255).
 {% endcomment %}
 <div id="batch-progress" class="stack batch-progress" data-status="{{ job.status }}"
-  {% if not job.is_finished %}hx-get="{% url 'batch:progress' run.pk %}"
+  {% if not job.is_finished %}hx-get="{% url 'batch:progress' run.workspace_id %}"
   hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
   data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
 
@@ -75,6 +76,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   {% if rows %}
   <section class="stack" aria-labelledby="batch-stations-title">
     <h2 id="batch-stations-title">{% translate "Stations" %}</h2>
+    {% if job.status == "succeeded" and counts.done %}<p class="text-sm text-text-muted">{% translate "The stations calculated are the stations of this workspace. Open one for its quality checks, indices and files." %}</p>{% endif %}
     <ul class="batch-list" role="list">
       {% for row in rows %}
       <li class="batch-item batch-item--{{ row.state }}">
@@ -102,12 +104,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
           {% if row.zip %}{% blocktranslate with size=row.zip_size|filesizeformat asvar station_zip %}Download (zip, {{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.zip as station_zip_url %}{% include "components/button.html" with label=station_zip href=station_zip_url icon="download" size="sm" variant="secondary" %}{% endif %}
           {% if row.report %}{% blocktranslate with size=row.report_size|filesizeformat asvar station_report %}PDF report ({{ size }}){% endblocktranslate %}{% url 'jobs:file' job.pk row.report as station_report_url %}{% include "components/button.html" with label=station_report href=station_report_url icon="download" size="sm" variant="secondary" %}{% endif %}
           {% if row.opened_url %}
-          <a class="button button--ghost button--sm" href="{{ row.opened_url }}">{% icon "chart" %}<span>{% translate "Open as a single station" %}</span></a>
-          {% else %}
-          <form method="post" action="{% url 'batch:open_station' run.pk row.name %}">{% csrf_token %}
-            {% translate "Open as a single station" as open_label %}
-            {% include "components/button.html" with label=open_label type="submit" icon="chart" size="sm" variant="ghost" %}
-          </form>
+          <a class="button button--ghost button--sm" href="{{ row.opened_url }}">{% icon "chart" %}<span>{% translate "Open" %}<span class="sr-only"> {{ row.name }}</span></span></a>
           {% endif %}
           {% elif row.error_file %}
           <a class="text-sm" href="{% url 'jobs:file' job.pk row.error_file %}">{% icon "file" %} {% blocktranslate with name=row.name %}{{ name }}.errors.txt{% endblocktranslate %}</a>
@@ -120,7 +117,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   </section>
   {% endif %}
 
-  {% if job.is_finished %}
-  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
+  {% if job.is_finished and run.expires_at %}
+  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=run.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
   {% endif %}
 </div>

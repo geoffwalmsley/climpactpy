@@ -105,14 +105,15 @@ def station_pages() -> dict[str, str]:
     from climpact_web.jobs.models import Job, Status
     from climpact_web.stations import views, views_indices, workspace
     from climpact_web.stations.forms import MetadataForm
-    from climpact_web.stations.models import Source, StationAnalysis, Step
+    from climpact_web.stations.models import Source, Station, Step, Workspace
     from climpact_web.stations.station_file import inspect_station_bytes
 
     request = RequestFactory().get("/station/")
+    space = Workspace()  # the stations' settings (#254), not saved
     inspection = inspect_station_bytes(views.sample_bytes())
-    sample = StationAnalysis(source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
-                             summary=inspection.summary, updated_at=timezone.now(),
-                             **views.SAMPLE_METADATA)  # fmt: skip
+    sample = Station(workspace=space, slug="sydney", source=Source.SAMPLE,
+                     file_name=views.SAMPLE_NAME, summary=inspection.summary,
+                     updated_at=timezone.now(), **views.SAMPLE_METADATA)  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
         b"1961 1 3 na 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
@@ -120,7 +121,8 @@ def station_pages() -> dict[str, str]:
     form = MetadataForm(views.initial_metadata(sample), summary=sample.summary)
     form.is_valid()
 
-    uploaded = StationAnalysis(source=Source.UPLOAD, file_name="perth_airport.txt",
+    uploaded = Station(workspace=space, slug="perth-airport", source=Source.UPLOAD,
+                               file_name="perth_airport.txt",
                                summary=inspection.summary, station_name="perth_airport",
                                updated_at=timezone.now(),
                                warnings=["2 rows have dates that do not exist (the first is "
@@ -187,8 +189,11 @@ def batch_pages() -> dict[str, str]:
         "sydney.txt": sydney,
         "notes.txt": b"x",
     }
+    from climpact_web.stations.models import Workspace
+
+    space = Workspace(created_at=now, updated_at=now)
     run = BatchRun(metadata_name="australia.txt", report=check.check_batch(
-        meta.encode(), files).to_json(), updated_at=now, workers=4)  # fmt: skip
+        meta.encode(), files).to_json(), updated_at=now, workers=4, workspace=space)  # fmt: skip
     checked = views.check_context(request, run)
 
     job = Job(kind="batch", title="australia.txt", status=Status.RUNNING, step=41, total=92,
@@ -228,13 +233,15 @@ def batch_pages() -> dict[str, str]:
                        total=92, created_at=now, started_at=now - dt.timedelta(seconds=95),
                        finished_at=now, params={"base_start": 1971, "base_end": 2000},
                        result={"zip": "australia.zip"})  # fmt: skip
-    finished_run = BatchRun(metadata_name="australia.txt", report=run.report, updated_at=now)
+    finished_run = BatchRun(metadata_name="australia.txt", report=run.report, updated_at=now,
+                            workspace=space)  # fmt: skip
     finished_run.job = finished_job
     finished_rows = [
         row("madrid_retiro_1961-2020", "failed", error_file="australia/madrid.errors.txt",
             error_text="The rows are not in date order: the last row (1961-01-01) is dated "
             "before the first (2020-12-31). Sort the file by date."),
-        row("alice_springs_1961-2020", "done", zip="stations/alice_springs_1961-2020.zip"),
+        row("alice_springs_1961-2020", "done", zip="stations/alice_springs_1961-2020.zip",
+            opened_url="#"),
         row("darwin_1961-2020", "done", zip="stations/darwin_1961-2020.zip",
             opened_url="#"),
         *running_rows[3:],

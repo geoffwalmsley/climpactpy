@@ -15,7 +15,7 @@ here) and the quality-control files in Files (#176). Context from views.qc_conte
         <ul class="tabs__list" aria-label="{% translate 'Variable shown' %}">
           {% for chart in charts %}<li><a class="tabs__tab" href="#{{ chart.id }}-panel" id="{{ chart.id }}-panel-tab">{{ chart.label }}</a></li>{% endfor %}
         </ul>
-        {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.pk as series_url %}
+        {% url "charts:station_daily" analysis.pk as daily_url %}{% url "stations:series" analysis.workspace_id analysis.slug as series_url %}
         {% for chart in charts %}
         <section class="tabs__panel" id="{{ chart.id }}-panel">
           <h3 class="tabs__panel-heading">{{ chart.label }}</h3>
@@ -36,5 +36,5 @@ here) and the quality-control files in Files (#176). Context from views.qc_conte
     The checks use R's default thresholds, with {{ counter }} changed.{% plural %}
     The checks use R's default thresholds, with {{ counter }} changed.{% endblocktranslate %}{% else %}{% translate "The checks use R's default thresholds." %}{% endif %}
     {% if input_urls.thresholds %}<a href="{{ input_urls.thresholds }}" data-sheet-open="sheet-thresholds" aria-haspopup="dialog">{% translate "Change the thresholds" %}</a>{% endif %}
-    <span id="downloads"><a href="{% url 'stations:downloads' analysis.pk %}#quality-files">{% translate "The quality-control files are in Files" %}</a></span></p>
+    <span id="downloads"><a href="{% url 'stations:downloads' analysis.workspace_id analysis.slug %}#quality-files">{% translate "The quality-control files are in Files" %}</a></span></p>
 </section>

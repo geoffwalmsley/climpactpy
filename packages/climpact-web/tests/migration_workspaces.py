@@ -1,0 +1,140 @@
+"""The workspace migration (#231), checked on whichever database Django is connected to:
+SQLite in ``test_workspace.py``, Postgres in ``test_queue_postgres.py`` (run there in a
+subprocess with that database's settings).
+
+:func:`check` migrates the stations and batch apps back to before #231, makes an analysis
+and a batch as the code before it did, with a job each, migrates forward, and checks that
+the analysis and batch are dropped (the maintainer's decision on #231) while their jobs
+stay, and that the new models work: a new station makes a workspace of one with a slug, a
+new batch a workspace of its own, and JSON lookups on the workspace's settings work. It
+leaves the database fully migrated.
+
+:func:`check` also runs #254's migration from #253's models: a station's base period,
+thresholds and the settings of its latest run move onto its workspace; and #255's: a
+batch's base period moves onto its workspace, and back when reversed.
+"""
+
+from __future__ import annotations
+
+BEFORE = [("stations", "0005_backfill_workspace_inputs"), ("batch", "0001_initial")]
+
+
+def check(media_root) -> None:
+    from django.core.management import call_command
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    call_command("migrate", "batch", "0001", verbosity=0)
+    call_command("migrate", "stations", "0005", verbosity=0)
+    old = MigrationExecutor(connection).loader.project_state(BEFORE).apps
+    Analysis, Batch = (
+        old.get_model("stations", "StationAnalysis"),
+        old.get_model("batch", "BatchRun"),
+    )
+    Job = old.get_model("jobs", "Job")
+    run = Job.objects.create(kind="station", owner="t", status="succeeded")
+    batch_job = Job.objects.create(kind="batch", owner="t", status="succeeded")
+    Analysis.objects.create(owner="t", station_name="Testville", indices_job=run)
+    Batch.objects.create(owner="t", metadata_name="metadata.txt", job=batch_job)
+
+    call_command("migrate", verbosity=0)
+
+    from climpact_web.batch.models import BatchRun
+    from climpact_web.jobs.models import Job as NewJob
+    from climpact_web.stations.models import Station, Workspace
+
+    assert not BatchRun.objects.exists() and not Station.objects.exists()
+    assert NewJob.objects.filter(pk__in=[run.pk, batch_job.pk]).count() == 2
+
+    station = Station.objects.create(owner="t", station_name="Sydney Observatory Hill")
+    assert station.slug == "sydney-observatory-hill"
+    assert station.workspace.owner == "t" and station.workspace.display_name == str(station)
+    batch = BatchRun.objects.create(owner="t", metadata_name="metadata.txt")
+    assert batch.workspace_id != station.workspace_id
+    Workspace.objects.filter(pk=station.workspace_id).update(qc_params={"jump": 25.0})
+    assert Workspace.objects.filter(qc_params__jump=25.0).count() == 1
+
+    check_settings_move()
+    check_batch_base_period()
+
+
+def check_settings_move() -> None:
+    """#254: the settings a station kept under #253 are its workspace's after 0007."""
+    from django.core.management import call_command
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    call_command("migrate", "stations", "0006", verbosity=0)
+    old = (
+        MigrationExecutor(connection)
+        .loader.project_state([("stations", "0006_workspace_station")])
+        .apps
+    )
+    Station, Workspace, Job = (
+        old.get_model("stations", "Station"),
+        old.get_model("stations", "Workspace"),
+        old.get_model("jobs", "Job"),
+    )
+    run = Job.objects.create(
+        kind="station",
+        owner="t",
+        status="succeeded",
+        params={"params": {"wsdi_days": 3}, "plot_title": "Mine", "plots": False},
+    )
+    space = Workspace.objects.create(owner="t")
+    Station.objects.create(
+        workspace=space,
+        slug="moved",
+        owner="t",
+        base_start=1981,
+        base_end=2010,
+        qc_params={"jump": 25.0},
+        indices_job=run,
+    )
+
+    call_command("migrate", verbosity=0)
+
+    from climpact_web.stations.models import Workspace as NewWorkspace
+
+    moved = NewWorkspace.objects.get(pk=space.pk)
+    assert (moved.base_start, moved.base_end) == (1981, 2010)
+    assert moved.qc_params == {"jump": 25.0}
+    assert moved.index_settings == {
+        "params": {"wsdi_days": 3},
+        "plot_title": "Mine",
+        "plots": False,
+        "zip": True,
+        "report": True,
+    }
+    assert moved.undo == {}
+
+
+BATCH_0002 = [("batch", "0002_workspace"), ("stations", "0007_workspace_settings")]
+
+
+def check_batch_base_period() -> None:
+    """#255: a batch's base period is its workspace's after batch 0003, and the batch's
+    again when the migration is reversed."""
+    from django.core.management import call_command
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    call_command("migrate", "batch", "0002", verbosity=0)
+    old = MigrationExecutor(connection).loader.project_state(BATCH_0002).apps
+    Batch, Workspace = old.get_model("batch", "BatchRun"), old.get_model("stations", "Workspace")
+    space = Workspace.objects.create(owner="t")
+    batch = Batch.objects.create(workspace=space, owner="t", base_start=1981, base_end=2010)
+
+    call_command("migrate", verbosity=0)
+
+    from climpact_web.stations.models import Workspace as NewWorkspace
+
+    moved = NewWorkspace.objects.get(pk=space.pk)
+    assert (moved.base_start, moved.base_end) == (1981, 2010)
+    NewWorkspace.objects.filter(pk=space.pk).update(base_start=1991)
+    call_command("migrate", "batch", "0002", verbosity=0)
+    back = (MigrationExecutor(connection).loader.project_state(BATCH_0002).apps).get_model(
+        "batch", "BatchRun"
+    )
+    assert back.objects.get(pk=batch.pk).base_start == 1991
+    call_command("migrate", verbosity=0)

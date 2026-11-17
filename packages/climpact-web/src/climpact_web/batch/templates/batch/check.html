@@ -10,7 +10,7 @@
   </header>
 
   {% if job_active %}
-  {% url 'batch:results' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
+  {% url 'stations:workspace' run.workspace_id as results_url %}{% translate "Follow its progress" as follow_label %}
   {% translate "This batch is being calculated." as active_message %}
   {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
   {% endif %}
@@ -108,7 +108,7 @@
   <details class="disclosure"{% if add_form.errors or report.metadata_problem_count or not stations or counts.missing or counts.invalid %} open{% endif %}>
     <summary>{% icon "upload" %}<span>{% translate "Add or replace files" %}</span>{% icon "chevron-down" %}</summary>
     <div class="disclosure__body">
-      <form method="post" action="{% url 'batch:add_files' run.pk %}" enctype="multipart/form-data" class="stack" novalidate>
+      <form method="post" action="{% url 'batch:add_files' run.workspace_id %}" enctype="multipart/form-data" class="stack" novalidate>
         {% csrf_token %}
         {% include "components/form_errors.html" with form=add_form %}
         {% blocktranslate asvar files_hint with size=max_upload_mb %}Up to {{ size }} MB in all.{% endblocktranslate %}
@@ -127,7 +127,7 @@
 
   <section class="card stack" aria-labelledby="options-title">
     <div class="section-header"><h2 class="card__title" id="options-title">{% translate "Options and start" %}</h2>{% section_help "batch.options" %}</div>
-    <form method="post" action="{% url 'batch:run' run.pk %}" class="form" novalidate>
+    <form method="post" action="{% url 'batch:run' run.workspace_id %}" class="form" novalidate>
       {% csrf_token %}
       {% include "components/form_errors.html" with form=options %}
       {% include "batch/_options.html" %}
@@ -150,7 +150,7 @@
   </section>
 
   {% include "batch/_retention.html" %}
-  <form method="post" action="{% url 'batch:delete' run.pk %}" class="flex flex-wrap items-center gap-3">
+  <form method="post" action="{% url 'batch:delete' run.workspace_id %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}
     {% translate "Delete these files now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}

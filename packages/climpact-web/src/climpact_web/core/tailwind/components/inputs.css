@@ -142,6 +142,11 @@
     display: none;
   }
 
+  /* "Undo the change" under the runs of a change to the workspace's settings (#254). */
+  .inputs-panel__undo {
+    display: flex;
+  }
+
   /* The run of the new inputs, beneath the list. */
   .runbox {
     padding: --spacing(3);

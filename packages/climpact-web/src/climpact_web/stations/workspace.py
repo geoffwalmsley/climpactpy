@@ -6,10 +6,18 @@ the user gave and opens each in a side sheet to change it (:func:`inputs_panel`)
 to an input no longer resets the later sections. Each job records the inputs it was
 produced from when it is queued (``Job.inputs``):
 
-``file``      the SHA-256 of the station file (``StationAnalysis.file_hash``)
+``file``      the SHA-256 of the station file (``Station.file_hash``)
 ``metadata``  the station details: name, latitude, longitude and base period
 ``qc``        the quality-control thresholds, with R's defaults filled in
 ``settings``  a station run's index settings and output options (:func:`settings_of`)
+
+The base period, the thresholds and the index settings are the workspace's (#254,
+``Workspace``): every station of the workspace has the same, except the index values a
+batch's metadata file gives a station of its own (:func:`station_settings`). A change to
+one of them is a change to every station's inputs, so every station's results go out of
+date together and :mod:`.calculation` queues their replacements together (one change, one
+id: ``params["change"]``), which :func:`undo_available` lets the user undo while they are
+on the way.
 
 A section is out of date ("stale") when the inputs its shown job was produced from differ
 from the analysis's current ones. The comparison uses only what is stored, never the
@@ -27,16 +35,16 @@ an input is changed back. Queueing the replacements is :mod:`.calculation`'s.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
 from climpact_web.core import numbers
 from climpact_web.jobs.models import Job, Status
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step
 
 # The ``params`` key of a job that names the finished job of the same kind whose results
 # stay on the page, out of date, until this one has finished.
@@ -50,11 +58,57 @@ RUN_INPUTS = ("file", "name", "location", "base_period", "qc", "settings")
 # ---- inputs ------------------------------------------------------------------------------
 
 
-def qc_values(analysis: StationAnalysis) -> dict:
-    """The analysis's quality-control thresholds, with R's defaults for those not set."""
+def qc_values(analysis: Station) -> dict:
+    """The quality-control thresholds of the analysis's workspace, with R's defaults for
+    those not set."""
     from climpact_web.stations.forms import QCParamsForm
 
-    return QCParamsForm.initial_for(analysis.qc_params)
+    return QCParamsForm.initial_for(analysis.workspace.qc_params)
+
+
+def default_settings() -> dict:
+    """The index settings and output options of a workspace that has none of its own, as
+    :func:`settings_of` gives them: the settings form's defaults, read from its fields
+    without importing the core."""
+    from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
+
+    fields = IndexParamsForm.base_fields
+    params = {name: fields[name].initial for name in PARAM_FIELDS}
+    params["custom"] = {
+        key: fields[f"custom_{key}"].initial for key in ("variable", "operator", "threshold")
+    }
+    return {"params": params, "plot_title": "", "plots": True, "zip": True, "report": True}
+
+
+def own_params(analysis: Station) -> dict:
+    """The index values that are the station's own, not the workspace's: those of its line
+    in a batch's metadata file (``origin["params"]``: wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD,
+    rxnday, rnnmm, txtn and SPEI, as ``IndexParams`` fields)."""
+    from climpact_web.stations.forms_indices import PARAM_FIELDS
+
+    params = (analysis.origin or {}).get("params") or {}
+    return {name: params[name] for name in PARAM_FIELDS if name in params}
+
+
+def station_settings(analysis: Station) -> dict:
+    """The index settings and output options a run of the station uses (:func:`settings_of`
+    form): the workspace's (the defaults until set), with the station's own index values
+    in place of the workspace's (:func:`own_params`). A batch's custom index is its
+    workspace's too (#255): the workspace starts with none, as the batch calculates none."""
+    out = workspace_settings(analysis.workspace)
+    out["params"].update(own_params(analysis))
+    return out
+
+
+def workspace_settings(space) -> dict:
+    """The workspace's index settings and output options (:func:`settings_of` form), with
+    the defaults for what it has not set."""
+    out = default_settings()
+    if space.index_settings:
+        chosen = settings_of(space.index_settings)
+        out.update(chosen)
+        out["params"] = {**default_settings()["params"], **chosen["params"]}
+    return out
 
 
 def settings_of(params: dict) -> dict:
@@ -70,16 +124,25 @@ def settings_of(params: dict) -> dict:
     }
 
 
-def current_inputs(analysis: StationAnalysis) -> dict:
-    """The analysis's inputs now: its file, station details and thresholds."""
-    return {"file": analysis.file_hash, "metadata": analysis.metadata, "qc": qc_values(analysis)}
+def current_inputs(analysis: Station) -> dict:
+    """The analysis's inputs now: its file and station details, and its workspace's base
+    period, thresholds and index settings (with the station's own values, #254)."""
+    return {
+        "file": analysis.file_hash,
+        "metadata": analysis.metadata,
+        "qc": qc_values(analysis),
+        "settings": station_settings(analysis),
+    }
 
 
-def job_inputs(analysis: StationAnalysis, kind: str, params: dict) -> dict:
-    """The inputs to record on a job of ``kind`` queued now with ``params``."""
+def job_inputs(analysis: Station, kind: str, params: dict) -> dict:
+    """The inputs to record on a job of ``kind`` queued now with ``params``: a ``qc`` job
+    has no settings, a ``station`` job the settings it was given."""
     inputs = current_inputs(analysis)
     if kind == "station":
         inputs["settings"] = settings_of(params)
+    else:
+        del inputs["settings"]
     return inputs
 
 
@@ -124,7 +187,7 @@ def replaces_for(old: Job | None) -> str | None:
     return (old.params or {}).get(REPLACES)
 
 
-def replaced_job(analysis: StationAnalysis, job: Job | None) -> Job | None:
+def replaced_job(analysis: Station, job: Job | None) -> Job | None:
     """The finished job of the same kind that ``job`` replaces, while it is still kept."""
     job_id = (job.params or {}).get(REPLACES) if job is not None else None
     if not job_id:
@@ -134,7 +197,7 @@ def replaced_job(analysis: StationAnalysis, job: Job | None) -> Job | None:
     ).first()
 
 
-def shown_qc(analysis: StationAnalysis) -> Job | None:
+def shown_qc(analysis: Station) -> Job | None:
     """The finished checks Quality shows: the analysis's ``qc`` job, or, while a check of
     new inputs is queued, running or has failed, the one it replaces."""
     job = analysis.qc_job
@@ -143,14 +206,20 @@ def shown_qc(analysis: StationAnalysis) -> Job | None:
     return replaced_job(analysis, job)
 
 
-def committed(analysis: StationAnalysis) -> bool:
-    """Whether the user has chosen to use the data ("See results"), or opened the station
-    from a batch's results. Before that, Results are not shown, nor is the speculative run
+def batch_results(analysis: Station) -> bool:
+    """Whether the station shows a batch's results (``origin["job"]``). A batch's station
+    that failed in its run, was left out of it or is still waiting has none (#255)."""
+    return bool((analysis.origin or {}).get("job"))
+
+
+def committed(analysis: Station) -> bool:
+    """Whether the user has chosen to use the data ("See results"), or the station shows a
+    batch's results. Before that, Results are not shown, nor is the speculative run
     (#178) anywhere, Files included."""
-    return analysis.reached(Step.INDICES) or bool(analysis.origin)
+    return analysis.reached(Step.INDICES) or batch_results(analysis)
 
 
-def batch_job(analysis: StationAnalysis) -> Job | None:
+def batch_job(analysis: Station) -> Job | None:
     """The finished batch job an analysis was opened from, if it is still kept."""
     job_id = (analysis.origin or {}).get("job")
     if not job_id:
@@ -158,7 +227,7 @@ def batch_job(analysis: StationAnalysis) -> Job | None:
     return Job.objects.filter(pk=job_id, owner=analysis.owner, status=Status.SUCCEEDED).first()
 
 
-def shown_run(analysis: StationAnalysis) -> Job | None:
+def shown_run(analysis: Station) -> Job | None:
     """The finished run Results show: the analysis's own, or the one a newer run replaces,
     or the batch's; None before "See results", or while the first run is going on."""
     if not committed(analysis):
@@ -173,7 +242,7 @@ def shown_run(analysis: StationAnalysis) -> Job | None:
     return batch_job(analysis)
 
 
-def restore_if_cancelled(analysis: StationAnalysis) -> None:
+def restore_if_cancelled(analysis: Station) -> None:
     """A cancelled run leaves the results it would have replaced in place: the replaced
     run, or the batch's results (no run of its own)."""
     job = analysis.indices_job
@@ -192,17 +261,7 @@ def restore_if_cancelled(analysis: StationAnalysis) -> None:
 # ---- staleness ---------------------------------------------------------------------------
 
 
-def wanted_run_inputs(analysis: StationAnalysis) -> dict:
-    """The inputs the results should have now: the analysis's, with the settings of the
-    latest run asked for (a recalculation's new settings, #178)."""
-    wanted = current_inputs(analysis)
-    latest = analysis.indices_job
-    if latest is not None and "settings" in (latest.inputs or {}):
-        wanted["settings"] = latest.inputs["settings"]
-    return wanted
-
-
-def recorded_inputs(analysis: StationAnalysis, job: Job | None) -> dict:
+def recorded_inputs(analysis: Station, job: Job | None) -> dict:
     """What ``job`` was produced from: its own record, or a batch's ``origin["inputs"]``."""
     if job is None:
         return {}
@@ -211,26 +270,27 @@ def recorded_inputs(analysis: StationAnalysis, job: Job | None) -> dict:
     return job.inputs or {}
 
 
-def qc_changes(analysis: StationAnalysis, job: Job | None) -> list[str]:
+def qc_changes(analysis: Station, job: Job | None) -> list[str]:
     """The inputs that changed since the checks ``job`` ran."""
     return differences(recorded_inputs(analysis, job), current_inputs(analysis), QC_INPUTS)
 
 
-def run_changes(analysis: StationAnalysis, job: Job | None) -> list[str]:
+def run_changes(analysis: Station, job: Job | None) -> list[str]:
     """The inputs that changed since the run ``job`` (the shown results) was made."""
-    return differences(recorded_inputs(analysis, job), wanted_run_inputs(analysis), RUN_INPUTS)
+    return differences(recorded_inputs(analysis, job), current_inputs(analysis), RUN_INPUTS)
 
 
-def pending_changes(analysis: StationAnalysis, job: Job | None, kind: str) -> list[str]:
+def pending_changes(analysis: Station, job: Job | None, kind: str) -> list[str]:
     """For the job a section links to (the latest asked for): the inputs it is not of, so
-    a new one must be queued. Settings are not compared: the latest run sets them."""
+    a new one must be queued. The settings are compared too since they are the
+    workspace's (#254)."""
     if job is None:
         return []
-    names = QC_INPUTS if kind == "qc" else RUN_INPUTS[:-1]
+    names = QC_INPUTS if kind == "qc" else RUN_INPUTS
     return differences(recorded_inputs(analysis, job), current_inputs(analysis), names)
 
 
-def settle(analysis: StationAnalysis) -> None:
+def settle(analysis: Station) -> None:
     """After an input changed: cancel the checks and runs still waiting or running for the
     old inputs, as nobody will see them; and where an input was changed back, link the
     finished job of these inputs again rather than calculate it twice. The caller saves."""
@@ -249,7 +309,69 @@ def settle(analysis: StationAnalysis) -> None:
             setattr(analysis, field, replaced)
 
 
-def details_valid(analysis: StationAnalysis) -> bool:
+# ---- undo (#254) --------------------------------------------------------------------------
+
+
+def change_jobs(change: str):
+    """The jobs queued for the change ``change`` (``params["change"]``)."""
+    from climpact_web.jobs.models import CHANGE
+
+    return Job.objects.filter(**{f"params__{CHANGE}": change})
+
+
+def undo_available(workspace_) -> bool:
+    """Whether the workspace's last change to its settings can still be undone: until the
+    recalculation it queued has finished, while one of its jobs still waits or runs."""
+    change = (workspace_.undo or {}).get("change")
+    if not change:
+        return False
+    return (
+        change_jobs(change)
+        .filter(status__in=(Status.QUEUED, Status.RUNNING), cancel_requested=False)
+        .exists()
+    )
+
+
+@dataclass(frozen=True)
+class ChangeState:
+    """Where the workspace's last change to its settings stands, for a view to show (the
+    run status line of #234): its jobs (the checks and runs of every station), how many
+    of them have finished, failed or been cancelled, and whether it can still be undone."""
+
+    change: str
+    jobs: list
+    total: int
+    done: int
+    failed: int
+    cancelled: int
+    can_undo: bool
+
+    @property
+    def finished(self) -> bool:
+        return self.done + self.failed + self.cancelled == self.total
+
+
+def change_state(workspace_) -> ChangeState | None:
+    """The state of the workspace's last change to its settings (``Workspace.undo``), or
+    None when there is none to show: none was made, it was undone, or a station's own
+    change has replaced it since (``calculation.forget_undo``)."""
+    change = (workspace_.undo or {}).get("change")
+    if not change:
+        return None
+    jobs = list(change_jobs(change).order_by("created_at"))
+    count = Counter(job.status for job in jobs)
+    return ChangeState(
+        change=change,
+        jobs=jobs,
+        total=len(jobs),
+        done=count[Status.SUCCEEDED],
+        failed=count[Status.FAILED],
+        cancelled=count[Status.CANCELLED],
+        can_undo=undo_available(workspace_),
+    )
+
+
+def details_valid(analysis: Station) -> bool:
     """Whether the saved station details are complete and fit the data."""
     from climpact_web.stations.forms import MetadataForm
 
@@ -259,13 +381,13 @@ def details_valid(analysis: StationAnalysis) -> bool:
         "station_name": analysis.station_name,
         "latitude": analysis.latitude,
         "longitude": analysis.longitude,
-        "base_start": analysis.base_start,
-        "base_end": analysis.base_end,
+        "base_start": analysis.workspace.base_start,
+        "base_end": analysis.workspace.base_end,
     }
     return MetadataForm(data, summary=analysis.summary).is_valid()
 
 
-def change_sentences(analysis: StationAnalysis, job: Job | None, changes: list[str]) -> list:
+def change_sentences(analysis: Station, job: Job | None, changes: list[str]) -> list:
     """What changed since ``job``, in words, for the out-of-date banner."""
     recorded = recorded_inputs(analysis, job)
     old_meta = recorded.get("metadata") or {}
@@ -283,7 +405,7 @@ def change_sentences(analysis: StationAnalysis, job: Job | None, changes: list[s
             sentences.append(
                 _("You changed the base period to %(new)s. These results use %(old)s.")
                 % {
-                    "new": f"{analysis.base_start}–{analysis.base_end}",
+                    "new": base_period_text(analysis.workspace),
                     "old": f"{old_meta.get('base_start')}–{old_meta.get('base_end')}",
                 }
             )
@@ -317,10 +439,10 @@ STATES = {
 VERDICTS = ("ready", "usable", "fix")  # qc_review.Verdict.level
 
 SECTIONS = (
-    ("quality", gettext_lazy("Quality"), "stations:qc"),
-    # Named Indices since #236; its address stays ``results``.
-    ("results", gettext_lazy("Indices"), "stations:results"),
-    ("files", gettext_lazy("Files"), "stations:downloads"),
+    ("quality", gettext_lazy("Quality"), "qc"),
+    # Named Indices since #236 (``indices`` since #256); its URL name stays ``results``.
+    ("results", gettext_lazy("Indices"), "results"),
+    ("files", gettext_lazy("Files"), "downloads"),
 )
 
 
@@ -374,7 +496,7 @@ def remember_verdict(job: Job, level: str, wrong: int) -> None:
         type(job).objects.filter(pk=job.pk).update(result=job.result)
 
 
-def qc_verdict(analysis: StationAnalysis, job: Job) -> tuple[str, int] | None:
+def qc_verdict(analysis: Station, job: Job) -> tuple[str, int] | None:
     """The verdict of finished checks: its level and the values that look wrong. Quality
     keeps it when it shows the checks; the tab works it out once when it has not been kept
     yet (checks not yet shown, or kept before #222). None when it cannot be."""
@@ -395,7 +517,7 @@ def _active(job: Job | None) -> bool:
     return job is not None and job.status in (Status.QUEUED, Status.RUNNING)
 
 
-def section_states(analysis: StationAnalysis) -> dict[str, str]:
+def section_states(analysis: Station) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
     running, todo (not started) or locked (its input does not exist yet). Quality's is
     instead "checking" while the checks run, and once they have finished the verdict:
@@ -440,38 +562,52 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
     return states
 
 
-def sections(analysis: StationAnalysis, current: str) -> list[Section]:
+def sections(analysis: Station, current: str) -> list[Section]:
     """The tabs, with ``current`` marked: Quality, Indices and Files, each with its state
     and its address (none while it is locked)."""
     states = section_states(analysis)
     out = []
     for key, label, url_name in SECTIONS:
         state = states[key]
-        url = None if state == "locked" else reverse(url_name, args=[analysis.pk])
+        url = None if state == "locked" else analysis.url(url_name)
         wrong = qc_verdict(analysis, shown_qc(analysis))[1] if state in VERDICTS else 0
         out.append(Section(key, str(label), url, state, key == current, wrong))
     return out
 
 
-def home_url(analysis: StationAnalysis) -> str:
-    """The workspace's own address leads to the furthest section it has reached."""
+def workspace_page(analysis: Station) -> dict | None:
+    """The workspace's own page in the breadcrumb, as {label, url}: its address,
+    ``/w/<id>/`` (#256), where a batch's results stand in for the overview until #234
+    (#255). None for a workspace of one station, which that address opens straight away,
+    and for a workspace without a batch (until #234)."""
+    from climpact_web.batch.models import BatchRun
+
+    has_run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False)
+    if not has_run.exists() or analysis.workspace.stations.count() < 2:
+        return None
+    space = analysis.workspace
+    return {"label": space.display_name, "url": space.get_absolute_url()}
+
+
+def home_url(analysis: Station) -> str:
+    """The station's own address leads to the furthest section it has reached."""
     if committed(analysis):
-        name = "stations:results"
+        name = "results"
     elif set_up(analysis):
-        name = "stations:qc"
+        name = "qc"
     else:
-        name = "stations:setup"
-    return reverse(name, args=[analysis.pk])
+        name = "setup"
+    return analysis.url(name)
 
 
-def set_up(analysis: StationAnalysis) -> bool:
+def set_up(analysis: Station) -> bool:
     """Whether the first visit's details are done (#198): the details confirmed, complete
     and fitting the data, so the sections and the Inputs panel show. Until then the
     station's address leads to the New station page (``stations:setup``, #201)."""
     return analysis.reached(Step.QC) and analysis.station_file.is_file() and details_valid(analysis)
 
 
-def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
+def context(analysis: Station, current: str, path: str = "") -> dict:
     """The workspace's context: the context bar's ``workspace_tabs``, ``workspace_current``
     and ``provenance``, ``data_page`` (the page uses the width, #227),
     and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
@@ -506,7 +642,7 @@ def years_text(first, last) -> str:
     ) % {"first": first, "last": last, "years": years}
 
 
-def provenance(analysis: StationAnalysis, current: str = "") -> list[dict]:
+def provenance(analysis: Station, current: str = "") -> list[dict]:
     """The context bar's provenance line (#227): where and when the data are from and what
     made the results: the coordinates, the years ("1936–2015 · 80 yr"), the base period,
     whether the quality thresholds and index settings are the defaults, and the climpact
@@ -528,8 +664,8 @@ def provenance(analysis: StationAnalysis, current: str = "") -> list[dict]:
         parts.append({"text": years_text(first, last), "phone": True})
     if complete:
         base = _("base %(start)s–%(end)s") % {
-            "start": analysis.base_start,
-            "end": analysis.base_end,
+            "start": analysis.workspace.base_start,
+            "end": analysis.workspace.base_end,
         }
         parts.append({"text": base, "phone": False})
     if set_up(analysis):
@@ -546,7 +682,7 @@ def provenance(analysis: StationAnalysis, current: str = "") -> list[dict]:
     return parts
 
 
-def quality_provenance(analysis: StationAnalysis) -> list[dict]:
+def quality_provenance(analysis: Station) -> list[dict]:
     """Quality's provenance line (#235): what the checks read."""
     parts = []
     summary = analysis.summary or {}
@@ -587,7 +723,7 @@ PANEL_INPUTS = (
 SHEETS = tuple(key for key, _label, _names in PANEL_INPUTS)
 
 
-def sheet_keys(analysis: StationAnalysis) -> tuple[str, ...]:
+def sheet_keys(analysis: Station) -> tuple[str, ...]:
     """The sheets the station's pages have: all of them once the data is in use; before
     "See results" not the index settings, which only the results use (#198)."""
     if committed(analysis):
@@ -618,8 +754,14 @@ def impact_sentence(names) -> str:
     return _("Updates Quality and Files. Indices stay as they are.")
 
 
-def impact(key: str) -> list[str]:
-    """What the sheet of input ``key`` says applying will update (#198)."""
+# The sheets of the workspace's settings (#254): a change applies to every station.
+WORKSPACE_SHEETS = ("base-period", "thresholds", "settings")
+
+
+def impact(key: str, analysis: Station | None = None) -> list[str]:
+    """What the sheet of input ``key`` says applying will update (#198); for a setting of
+    a workspace of several stations, that it applies to all of them (#254), and for every
+    setting, that the change can be undone while it is recalculated."""
     names = dict((k, n) for k, _label, n in PANEL_INPUTS)[key]
     if key == "station":
         sentences = [
@@ -628,15 +770,28 @@ def impact(key: str) -> list[str]:
         ]
     else:
         sentences = [impact_sentence(names)]
+    if key in WORKSPACE_SHEETS and analysis is not None:
+        count = analysis.workspace.stations.count()
+        if count > 1:
+            sentences.append(
+                ngettext(
+                    "It applies to the %(count)s station of this workspace.",
+                    "It applies to all %(count)s stations of this workspace.",
+                    count,
+                )
+                % {"count": count}
+            )
     if key == "file":
         sentences.append(_("The station details and thresholds are kept."))
     elif key == "settings":
         sentences.append(_("About half a minute for 80 years of data."))
     sentences.append(_("What is shown now stays until its replacement is ready."))
+    if key in WORKSPACE_SHEETS:
+        sentences.append(_("You can undo the change until then."))
     return sentences
 
 
-def changed_inputs(analysis: StationAnalysis) -> set[str]:
+def changed_inputs(analysis: Station) -> set[str]:
     """The inputs (names of :func:`differences`) changed since the checks or the results
     shown were produced: the panel highlights them."""
     names = set(qc_changes(analysis, shown_qc(analysis)))
@@ -644,7 +799,7 @@ def changed_inputs(analysis: StationAnalysis) -> set[str]:
     return names
 
 
-def thresholds_changed(analysis: StationAnalysis) -> int:
+def thresholds_changed(analysis: Station) -> int:
     """How many of the quality-control thresholds differ from R's defaults."""
     from climpact_web.stations.forms import QC_DEFAULTS
 
@@ -652,7 +807,12 @@ def thresholds_changed(analysis: StationAnalysis) -> int:
     return sum(1 for key, default in QC_DEFAULTS.items() if values.get(key) != default)
 
 
-def settings_changed(analysis: StationAnalysis) -> int:
+def base_period_text(workspace_) -> str:
+    """A workspace's base period: "1971–2000"."""
+    return f"{workspace_.base_start}–{workspace_.base_end}"
+
+
+def settings_changed(analysis: Station) -> int:
     """How many index settings and output options of the latest run asked for (or the
     batch's) differ from the defaults: each parameter, the custom index, a plot title of
     the user's, and each of the plots, zip and report switched off. From the settings
@@ -698,16 +858,16 @@ class PanelRun:
     job: Job
 
 
-def sheet_url(analysis: StationAnalysis, key: str, path: str = "") -> str:
+def sheet_url(analysis: Station, key: str, path: str = "") -> str:
     """The address of the sheet ``key`` as a page (``stations:edit_input``), where its Edit
     leads without JavaScript; ``path``, where applying returns."""
     from django.utils.http import urlencode
 
-    url = reverse("stations:edit_input", args=[analysis.pk, key])
+    url = analysis.url("edit_input", key)
     return f"{url}?{urlencode({'next': path})}" if path else url
 
 
-def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
+def inputs_panel(analysis: Station, path: str = "") -> dict:
     """The Inputs panel (#198): each input with its value, its edit link and whether it
     changed since what is shown; the checks and run under way for the new inputs; and
     each sheet's page by key (``input_urls``), for the links on the page that open a
@@ -723,7 +883,7 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
         "station": numbers.coordinates(analysis.latitude, analysis.longitude),
-        "base-period": f"{analysis.base_start}–{analysis.base_end}",
+        "base-period": base_period_text(analysis.workspace),
         "thresholds": changed_text(custom["thresholds"]),
         "settings": changed_text(custom["settings"]),
     }
@@ -756,6 +916,8 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
         "input_next": path,
         "input_urls": urls,
         "inputs_bar": bar,
+        # "Undo the change" beside the runs while a change to the settings can be undone.
+        "input_undo": bool(runs) and undo_available(analysis.workspace),
     }
 
 

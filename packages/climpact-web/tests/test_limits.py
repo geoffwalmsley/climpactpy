@@ -18,7 +18,7 @@ from climpact_web.jobs.registry import register
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
-from climpact_web.stations.models import StationAnalysis
+from climpact_web.stations.models import Station
 
 IP = "203.0.113.7"
 OTHER_IP = "198.51.100.9"
@@ -177,12 +177,12 @@ def test_a_form_without_a_valid_token_is_refused(turnstile, caplog):
         response = upload(client)
     assert response.status_code == 400
     assert "could not confirm that you are a person" in response.content.decode()
-    assert not StationAnalysis.objects.exists() and turnstile == []
+    assert not Station.objects.exists() and turnstile == []
     assert f"from {IP}: turnstile-missing" in caplog.text
 
     with caplog.at_level(logging.WARNING, logger="climpact_web.limits"):
         response = upload(client, **{TOKEN_FIELD: "forged"})
-    assert response.status_code == 400 and not StationAnalysis.objects.exists()
+    assert response.status_code == 400 and not Station.objects.exists()
     assert turnstile == [("forged", IP)]
     assert "turnstile-failed:invalid-input-response" in caplog.text
 
@@ -194,9 +194,9 @@ def test_a_valid_token_lets_the_form_through(turnstile):
     client = visitor()
     response = upload(client, **{TOKEN_FIELD: "ok-1"})
     assert response.status_code == 302
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     # The next step, which queues the quality checks, needs a token of its own.
-    url = f"/station/{analysis.pk}/setup"
+    url = f"{analysis.url()}setup"
     assert client.post(url, metadata()).status_code == 400
     assert not Job.objects.exists()
     assert client.post(url, metadata(**{TOKEN_FIELD: "ok-2"})).status_code == 302
@@ -214,7 +214,7 @@ def test_cloudflare_unreachable_refuses_with_busy(turnstile, monkeypatch):
     monkeypatch.setattr(limits, "siteverify", down)
     response = upload(visitor(), **{TOKEN_FIELD: "ok"})
     assert response.status_code == 503 and response["Retry-After"] == "60"
-    assert not StationAnalysis.objects.exists()
+    assert not Station.objects.exists()
 
 
 @pytest.mark.django_db
@@ -264,8 +264,7 @@ def start_qc(client):
     """Upload, then the station details: the request that queues a job."""
     response = upload(client)
     assert response.status_code == 302, response.content.decode()[:500]
-    analysis_id = response["Location"].split("/")[2]
-    return client.post(f"/station/{analysis_id}/setup", metadata())
+    return client.post(response["Location"], metadata())  # /w/<id>/<station>/setup
 
 
 @pytest.mark.django_db
@@ -278,14 +277,17 @@ def test_active_jobs_per_client(hosted, caplog):
     assert response.status_code == 429
     assert "You already have 2 calculations waiting or running" in response.content.decode()
     assert f"from {IP}: active-quota:2" in caplog.text
-    # The two checks; the first one's speculative run (#178) is not counted, and took the
-    # client's last place, so the second has none (it is queued at "Use this data").
+    # The two checks, each with its speculative run (#178): a station's checks and run
+    # are one change, which counts once (#254).
     assert Job.objects.filter(kind="qc").count() == 2
-    assert Job.objects.filter(kind="station").count() == 1
+    assert Job.objects.filter(kind="station").count() == 2
     # Another address is not held up; a finished or cancelled job frees a place.
     assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
     first = Job.objects.filter(client=IP).first()
-    first.request_cancel()
+    first.request_cancel()  # its change's run still waits: no place yet
+    assert start_qc(client).status_code == 429
+    for job in Job.objects.filter(params__change=first.params["change"]):
+        job.request_cancel()
     assert start_qc(client).status_code == 302
 
 
@@ -325,7 +327,7 @@ def test_low_disk_refuses_uploads_and_jobs(hosted, monkeypatch, caplog):
     assert response.status_code == 503 and "busy just now" in response.content.decode()
     assert "disk-low:1024MB" in caplog.text
     assert client.post("/station/sample").status_code == 503
-    assert not StationAnalysis.objects.exists()
+    assert not Station.objects.exists()
 
 
 def test_free_disk_of_a_folder_not_made_yet(tmp_path):
@@ -370,7 +372,8 @@ def speculative_jobs():
 @pytest.mark.django_db
 def test_speculative_runs_do_not_count_against_the_quotas(hosted):
     """A speculative run takes no place in the client's quotas or the queue's until the
-    user asks for it; the daily count is charged when they do."""
+    user asks for it. It is one change with the checks queued with it (#254), so asking
+    for it charges nothing more to the daily count."""
     hosted.MAX_QUEUED_JOBS = 2
     client = visitor()
     assert start_qc(client).status_code == 302
@@ -378,12 +381,12 @@ def test_speculative_runs_do_not_count_against_the_quotas(hosted):
     assert JobStart.objects.filter(client=IP).count() == 1  # the checks only
     # The queue holds the checks and the speculative run: one ordinary job, room for one.
     assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
-    analysis = StationAnalysis.objects.filter(owner="owner-a").get()
+    analysis = Station.objects.filter(owner="owner-a").get()
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
-    assert client.post(f"/station/{analysis.pk}/quality/continue").status_code == 302
+    assert client.post(f"{analysis.url()}quality/continue").status_code == 302
     analysis.refresh_from_db()
     assert not analysis.indices_job.is_speculative
-    assert JobStart.objects.filter(client=IP).count() == 2  # charged now
+    assert JobStart.objects.filter(client=IP).count() == 1  # the checks' change
 
 
 @pytest.mark.django_db
@@ -397,10 +400,10 @@ def test_speculative_runs_wait_for_a_quiet_queue(hosted, caplog):
         assert start_qc(client).status_code == 302
     assert "speculative-queue:4" in caplog.text
     assert not speculative_jobs().exists()
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     assert analysis.indices_job is None
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
-    client.post(f"/station/{analysis.pk}/quality/continue")
+    client.post(f"{analysis.url()}quality/continue")
     analysis.refresh_from_db()
     job = analysis.indices_job
     assert job.kind == "station" and job.status == Status.QUEUED and not job.is_speculative

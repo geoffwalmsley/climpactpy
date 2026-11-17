@@ -334,6 +334,10 @@
     margin-inline-start: auto;
   }
 
+  .inputs-bar__undo {
+    flex: none;
+  }
+
   .inputs-bar--changed {
     background: var(--color-warning-soft);
   }

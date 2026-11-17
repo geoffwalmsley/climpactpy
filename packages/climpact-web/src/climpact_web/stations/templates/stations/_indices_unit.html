@@ -5,7 +5,7 @@ warnings. How its index is named is in the section's help (#177). Without JavaSc
 form is checked when it is sent. Parameters: form (IndexParamsForm), group (a key of
 IndexParamsForm.UNITS), analysis.
 {% endcomment %}
-<div class="grid gap-2 param" id="param-{{ group }}" hx-post="{% url 'stations:indices_validate' analysis.pk %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
+<div class="grid gap-2 param" id="param-{{ group }}" hx-post="{% url 'stations:indices_validate' analysis.workspace_id analysis.slug %}" hx-trigger="change" hx-include="closest form" hx-vals='{"group": "{{ group }}"}' hx-target="this" hx-swap="outerHTML">
   {% if group == "plot_title" %}
   {% include "components/field.html" with field=form.plot_title %}
   {% elif group == "wsdi_days" %}

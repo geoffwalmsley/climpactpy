@@ -16,7 +16,7 @@ Context from views.setup_context.
     <p class="lead">{% if returning %}{% translate "The new file needs a change to the station details before the checks and the indices can run." %}{% else %}{% translate "Two things, then Climpact checks your data and calculates every index." %}{% endif %}</p>
   </header>
 
-  <form method="post" action="{% if analysis %}{% url 'stations:setup' analysis.pk %}{% else %}{% url 'stations:new' %}{% endif %}" enctype="multipart/form-data" class="setup__form" id="new-station" novalidate>
+  <form method="post" action="{% if analysis %}{% url 'stations:setup' analysis.workspace_id analysis.slug %}{% else %}{% url 'stations:new' %}{% endif %}" enctype="multipart/form-data" class="setup__form" id="new-station" novalidate>
     {% csrf_token %}
 
     <section class="setup__step" aria-labelledby="file-title">
@@ -80,7 +80,7 @@ Context from views.setup_context.
   <div class="setup__foot stack stack--sm">
     {% if analysis %}{% include "stations/_retention.html" with quiet=True %}{% else %}{% include "stations/_retention.html" with quiet=True analysis=None %}{% endif %}
     {% if analysis %}
-    <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
+    <form method="post" action="{% url 'stations:delete' analysis.workspace_id analysis.slug %}" class="flex flex-wrap items-center gap-3">
       {% csrf_token %}
       {% translate "Delete this data now" as delete_label %}
       {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
@@ -96,7 +96,7 @@ Context from views.setup_context.
     <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
     <ul class="grid gap-2 ps-5 wrap-anywhere">
       {% for item in recent %}
-      <li><a href="{% url 'stations:workspace' item.pk %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% url 'stations:station' item.workspace_id item.slug %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

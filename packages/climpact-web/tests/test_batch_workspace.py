@@ -31,7 +31,7 @@ def queued_batch(client, *names, bad=(), missing=()) -> BatchRun:
     files = {f"{n}.txt": station(seed=k) for k, n in enumerate([*names, *bad])}
     listed = [*files, *(f"{n}.txt" for n in missing)]
     run = created(client, metadata(*listed), **files)
-    client.post(f"/batch/{run.pk}/run", OPTIONS)
+    client.post(f"/w/{run.workspace_id}/batch/run", OPTIONS)
     run.refresh_from_db()
     for n in bad:  # broken after the check, so it fails in the run itself
         (run.job.input_dir / "stations" / f"{n}.txt").write_text(
@@ -72,11 +72,11 @@ def test_every_station_is_added_when_the_batch_is_queued(client):
     assert not workspace.batch_results(a) and workspace.shown_run(a) is None
     # Left out: no file, not run, with why; its page is where a file is loaded.
     assert not d.station_file.exists() and d.step == Step.UPLOAD
-    assert client.get(f"/station/{d.pk}/")["Location"] == f"/station/{d.pk}/setup"
-    assert client.get(f"/station/{d.pk}/setup").status_code == 200
+    assert client.get(d.url())["Location"] == f"{d.url()}setup"
+    assert client.get(f"{d.url()}setup").status_code == 200
     # Waiting: its address leads to Quality, its checks not yet run.
-    assert client.get(f"/station/{a.pk}/")["Location"] == f"/station/{a.pk}/quality"
-    assert client.get(f"/station/{a.pk}/quality").status_code == 200
+    assert client.get(a.url())["Location"] == f"{a.url()}quality"
+    assert client.get(f"{a.url()}quality").status_code == 200
     got = states_of(run)
     assert got["a"] == got["b"] == got["c"] == ("waiting", None, "")
     assert got["d"][0] == "not_run" and "No file named d.txt was uploaded." in got["d"][2]
@@ -112,7 +112,7 @@ def test_a_finished_batch_fills_its_workspace(client):
     # The run's states, as the runner left them, before the results are shown.
     got = states_of(run)
     assert got["a"] == ("done", None, "") and got["c"][0] == "failed" and got["c"][2]
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
     stations = {s.station_name: s for s in space.stations.all()}
     assert set(stations) == {"a", "b", "c", "d"}
     a, c = stations["a"], stations["c"]
@@ -127,30 +127,30 @@ def test_a_finished_batch_fills_its_workspace(client):
     assert (progress.total, progress.done, progress.failed, progress.not_run) == (3, 2, 1, 1)
     assert progress.finished and progress.elapsed is not None and progress.remaining is None
     # A failed station opens on its Indices: nothing calculated, the settings to change.
-    assert client.get(f"/station/{c.pk}/")["Location"] == f"/station/{c.pk}/results"
-    assert "The indices are not calculated yet." in page(client, c, "results")
+    assert client.get(c.url())["Location"] == f"{c.url()}indices"
+    assert "The indices are not calculated yet." in page(client, c)
     # "Open" goes to the workspace's station; there is no separate workspace of one.
-    assert f'href="/station/{a.pk}/"' in html and f'href="/station/{stations["b"].pk}/"' in html
+    assert f'href="{a.url()}"' in html and f'href="{stations["b"].url()}"' in html
     assert "Open as a single station" not in html and "batch/open" not in html
     assert "The stations calculated are the stations of this workspace." in html
     assert Workspace.objects.count() == 1
     # Showing the results again, or polling them, adds nothing.
-    client.get(f"/batch/{run.pk}/results")
-    client.get(f"/batch/{run.pk}/progress")
+    client.get(f"/w/{run.workspace_id}/batch/results")
+    client.get(f"/w/{run.workspace_id}/batch/progress")
     assert Station.objects.count() == 4
     # The station shows the batch's results, current, with the workspace's base period.
-    assert client.get(f"/station/{a.pk}/")["Location"] == f"/station/{a.pk}/results"
+    assert client.get(a.url())["Location"] == f"{a.url()}indices"
     html = page(client, a)
     assert states(html)["results"] == "done"
     assert not workspace.run_changes(a, workspace.shown_run(a))
     assert "These results are from the batch run." in html
-    # An index page names the workspace in its breadcrumb, leading to the batch results.
-    html = page(client, a, "results/txx")
+    # An index page names the workspace in its breadcrumb, leading to the workspace, which
+    # shows the batch results until #234.
+    html = page(client, a, "indices/txx")
     crumbs = re.findall(r'<ol class="context-bar__breadcrumb">(.*?)</ol>', html, re.S)[0]
-    assert f'href="/batch/{run.pk}/results">4 stations, ' in crumbs
-    # The old "Open as a single station" forms lead to the same station.
-    assert client.post(f"/batch/{run.pk}/open/a")["Location"] == f"/station/{a.pk}/"
-    assert client.post(f"/batch/{run.pk}/open/zz").status_code == 404
+    assert f'href="/w/{run.workspace_id}/">4 stations, ' in crumbs
+    # The old "Open as a single station" forms are gone (#256).
+    assert client.post(f"/batch/{run.pk}/open/a").status_code == 405
     # The batch job is kept while the stations show it.
     assert str(run.job_id) in kept_jobs()
 
@@ -176,11 +176,12 @@ def test_a_job_from_before_stations_were_added_when_queued(client):
 def test_a_deleted_station_is_not_added_again(client):
     run = queued_batch(client, "a", "b")
     a = Station.objects.get(station_name="a")
-    client.post(f"/station/{a.pk}/delete")  # during the run
+    client.post(f"{a.url()}delete")  # during the run
     run_worker()
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     assert list(run.workspace.stations.values_list("station_name", flat=True)) == ["b"]
-    assert 'href="/station/' in client.get(f"/batch/{run.pk}/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
+    assert f'href="{a.url()}"' not in html and f'href="/w/{run.workspace_id}/b/"' in html
 
 
 def test_the_base_period_and_custom_index_are_the_workspaces(client):
@@ -193,13 +194,13 @@ def test_the_base_period_and_custom_index_are_the_workspaces(client):
     a = space.stations.get()
     assert workspace.station_settings(a)["params"]["custom"] is None
     # The check page starts from the workspace's base period.
-    html = client.get(f"/batch/{run.pk}/").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert re.search(r'name="base_start"[^>]*value="2000"', html)
 
 
 def test_a_workspace_change_recalculates_the_batch_stations(client, settings):
     run = finished_batch(client, "a", "b", "c")
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     stations = list(run.workspace.stations.order_by("station_name"))
     settings.IS_HOSTED, settings.MIN_FREE_DISK_GB = True, 0
     settings.MAX_ACTIVE_JOBS_PER_IP, settings.MAX_QUEUED_JOBS = 1, 6
@@ -221,7 +222,7 @@ def test_a_workspace_change_recalculates_the_batch_stations(client, settings):
         assert workspace.shown_run(s) == run.job
         assert workspace.section_states(s)["results"] == "stale"
     # Undo puts the batch's results back, current again.
-    client.post(f"/station/{stations[0].pk}/undo", {"next": f"/station/{stations[0].pk}/results"})
+    client.post(f"{stations[0].url()}undo", {"next": f"{stations[0].url()}indices"})
     for s in stations:
         s.refresh_from_db()
         assert s.indices_job is None and workspace.section_states(s)["results"] == "done"
@@ -231,12 +232,12 @@ def test_a_new_file_needing_another_base_period_changes_the_workspace(client):
     """A batch station's base period is every station's: a new file that needs another one
     (the New station page) changes the workspace and recalculates them all."""
     run = finished_batch(client, "a", "b")
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     a, b = run.workspace.stations.order_by("station_name")
     from test_batch import files
 
     client.post(
-        f"/station/{a.pk}/setup",
+        f"{a.url()}setup",
         {
             "station_file": files(**{"a2.txt": station(start="2001-01-01")})[0],
             "station_name": "a",
@@ -254,10 +255,10 @@ def test_a_new_file_needing_another_base_period_changes_the_workspace(client):
 
 def test_running_the_batch_again_updates_its_stations(client):
     run = finished_batch(client, "a")
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     a = run.workspace.stations.get()
     first_job, first_job_id = run.job_id, str(run.job_id)
-    client.post(f"/batch/{run.pk}/run", {**OPTIONS, "base_start": "2001"})
+    client.post(f"/w/{run.workspace_id}/batch/run", {**OPTIONS, "base_start": "2001"})
     assert states_of(run)["a"][0] == "waiting"
     assert workspace.batch_results(Station.objects.get(pk=a.pk))
     assert run_worker().status == Status.SUCCEEDED
@@ -269,7 +270,7 @@ def test_running_the_batch_again_updates_its_stations(client):
     # Until the new results are shown the station is out of date (its base period changed).
     a.refresh_from_db()
     assert workspace.section_states(a)["results"] == "stale"
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     a.refresh_from_db()
     assert a.origin["job"] == str(run.job_id) and run.workspace.stations.count() == 1
     assert workspace.section_states(a)["results"] == "done"
@@ -277,9 +278,9 @@ def test_running_the_batch_again_updates_its_stations(client):
 
 def test_deleting_the_batch_deletes_its_workspace(client):
     run = finished_batch(client, "a")
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     a = run.workspace.stations.get()
-    response = client.post(f"/batch/{run.pk}/delete", follow=True)
+    response = client.post(f"/w/{run.workspace_id}/batch/delete", follow=True)
     assert "The batch and its stations were deleted." in response.content.decode()
     assert not Workspace.objects.exists() and not Station.objects.exists()
     assert not a.folder.exists() and not run.folder.exists()
@@ -295,7 +296,7 @@ def test_retention_keeps_the_workspace_as_a_whole(client, settings):
 
     settings.WORKSPACE_EXPIRY = True
     run = finished_batch(client, "a")
-    client.get(f"/batch/{run.pk}/results")
+    client.get(f"/w/{run.workspace_id}/batch/results")
     a = run.workspace.stations.get()
     assert a.expires_at == run.expires_at == run.workspace.expires_at
     old = timezone.now() - dt.timedelta(days=8)

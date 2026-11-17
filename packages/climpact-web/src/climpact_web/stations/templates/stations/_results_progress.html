@@ -8,7 +8,7 @@ the progress page, and above the results while a recalculation runs.
 Parameters: job, analysis, phases, index, and jobs.views.progress_context.
 {% endcomment %}
 <div id="results-progress" class="stack" data-status="{{ job.status }}"
-  {% if not job.is_finished %}hx-get="{% url 'stations:results_progress' analysis.pk %}{% if index %}?index={{ index|urlencode }}{% endif %}"
+  {% if not job.is_finished %}hx-get="{% url 'stations:results_progress' analysis.workspace_id analysis.slug %}{% if index %}?index={{ index|urlencode }}{% endif %}"
   hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
   data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
   {% if job.status == "queued" or job.status == "running" %}
@@ -32,7 +32,7 @@ Parameters: job, analysis, phases, index, and jobs.views.progress_context.
   {% endif %}
   {% if job.cancel_requested %}<p class="flex flex-wrap items-center gap-3 text-text-muted"><span class="spinner" aria-hidden="true"></span><span>{% translate "Cancelling…" %}</span></p>{% endif %}
   {% if job.can_cancel %}
-  <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
+  <form method="post" action="{% url 'jobs:cancel' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.workspace_id analysis.slug %}">
     {% translate "Cancel" as cancel_label %}
     {% include "components/button.html" with label=cancel_label type="submit" variant="secondary" size="sm" icon="close" %}
   </form>
@@ -57,12 +57,12 @@ Parameters: job, analysis, phases, index, and jobs.views.progress_context.
   {% if job.is_finished %}
   <div class="flex flex-wrap items-center gap-3">
     {% if job.can_retry %}
-    <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.pk %}">
+    <form method="post" action="{% url 'jobs:retry' job.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:results' analysis.workspace_id analysis.slug %}">
       {% translate "Try again" as retry_label %}
       {% include "components/button.html" with label=retry_label type="submit" icon="refresh" %}
     </form>
     {% endif %}
-    {% url 'stations:results' analysis.pk as results_url %}{% url 'stations:edit_input' analysis.pk 'settings' as settings_url %}{% translate "Change the settings" as change_label %}
+    {% url 'stations:results' analysis.workspace_id analysis.slug as results_url %}{% url 'stations:edit_input' analysis.workspace_id analysis.slug 'settings' as settings_url %}{% translate "Change the settings" as change_label %}
     {% include "components/button.html" with label=change_label href=settings_url|add:"?next="|add:results_url sheet="settings" variant="secondary" icon="sliders" %}
   </div>
   {% endif %}

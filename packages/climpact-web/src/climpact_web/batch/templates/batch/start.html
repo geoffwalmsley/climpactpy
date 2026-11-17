@@ -76,7 +76,7 @@ sydney_observatory_hill_1936-2015.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24</code
     <h2 id="recent-title">{% translate "Your recent batches" %}</h2>
     <ul class="grid gap-2 ps-5 wrap-anywhere">
       {% for item in recent %}
-      <li><a href="{% if item.job_id %}{% url 'batch:results' item.pk %}{% else %}{% url 'batch:check' item.pk %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate count counter=item.stations|length with when=item.updated_at|timesince trimmed %}{{ counter }} station, changed {{ when }} ago{% plural %}{{ counter }} stations, changed {{ when }} ago{% endblocktranslate %}</span></li>
+      <li><a href="{% if item.job_id %}{% url 'batch:results' item.workspace_id %}{% else %}{% url 'batch:check' item.workspace_id %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate count counter=item.stations|length with when=item.updated_at|timesince trimmed %}{{ counter }} station, changed {{ when }} ago{% plural %}{{ counter }} stations, changed {{ when }} ago{% endblocktranslate %}</span></li>
       {% endfor %}
     </ul>
   </section>

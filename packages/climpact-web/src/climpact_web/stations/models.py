@@ -35,6 +35,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -129,6 +130,10 @@ class Workspace(models.Model):
     def touch(self) -> None:
         self.updated_at = timezone.now()
 
+    def get_absolute_url(self) -> str:
+        """``/w/<id>/``: its one station, or the batch results until #234 (#256)."""
+        return reverse("stations:workspace", args=[self.pk])
+
     def bring_forward(self, when: dt.datetime) -> None:
         """Record a change made at ``when`` to one of the workspace's stations or batches."""
         Workspace.objects.filter(pk=self.pk, updated_at__lt=when).update(updated_at=when)
@@ -154,14 +159,19 @@ class Workspace(models.Model):
             self.delete()
 
 
+# Words a station's slug can't be, as they name other pages of the workspace (#256):
+# ``/w/<id>/batch/`` is the workspace's batch.
+RESERVED_SLUGS = frozenset({"batch"})
+
+
 def slug_for(name: str, taken) -> str:
-    """A slug for a station called ``name``, not among ``taken``: ``sydney``, then
-    ``sydney-2`` and so on."""
+    """A slug for a station called ``name``, not among ``taken`` nor reserved: ``sydney``,
+    then ``sydney-2`` and so on."""
     from django.utils.text import slugify
 
     base = slugify(name)[:50].strip("-") or "station"
     slug, n = base, 1
-    while slug in taken:
+    while slug in taken or slug in RESERVED_SLUGS:
         n += 1
         slug = f"{base}-{n}"
     return slug
@@ -220,6 +230,15 @@ class Station(models.Model):
 
     def __str__(self) -> str:
         return self.station_name or self.file_name or str(self.id)
+
+    def url(self, name: str = "station", *args) -> str:
+        """The address of the station's page ``stations:<name>`` (#256):
+        ``/w/<workspace>/<slug>/…``, with ``args`` after the station (an index's key, a
+        sheet's, a check's)."""
+        return reverse(f"stations:{name}", args=[self.workspace_id, self.slug, *args])
+
+    def get_absolute_url(self) -> str:
+        return self.url()
 
     def save(self, *args, **kwargs) -> None:
         """Save, making a workspace of one for a new station, giving it a slug, and

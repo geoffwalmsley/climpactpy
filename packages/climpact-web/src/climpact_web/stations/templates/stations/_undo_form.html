@@ -5,7 +5,7 @@ is on the way, puts the settings back and shows the earlier results again
 runs (stations/_input_runs.html) and in the Inputs bar (stations/_inputs_bar.html), which
 are never shown together. Context: analysis, input_next (where it returns), extra_class,
 short (the bar: "Undo", the rest for screen readers).
-{% endcomment %}<form method="post" action="{% url 'stations:undo' analysis.pk %}" class="{{ extra_class }}">
+{% endcomment %}<form method="post" action="{% url 'stations:undo' analysis.workspace_id analysis.slug %}" class="{{ extra_class }}">
   {% csrf_token %}<input type="hidden" name="next" value="{{ input_next }}">
   <button type="submit" class="button button--secondary button--sm">{% if short %}{% translate "Undo" %}<span class="sr-only"> {% translate "the change" %}</span>{% else %}{% translate "Undo the change" %}{% endif %}</button>
 </form>

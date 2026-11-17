@@ -12,10 +12,10 @@ width; the provenance line says what made it.{% endcomment %}
   {% include "components/context_bar.html" with title_template="stations/_index_title.html" lead_template="stations/_index_lead.html" provenance=provenance breadcrumb=breadcrumb step_previous=step_previous step_next=step_next actions="stations/_index_actions.html" flow=True tabs="" below="" %}
 
   {% if running and not running.job.is_finished %}
-  {% url 'stations:results' analysis.pk as results_url %}{% translate "These results are out of date. Recalculating with your new inputs: these values stay until the new ones are ready." as running_message %}{% translate "See the progress" as running_label %}
+  {% url 'stations:results' analysis.workspace_id analysis.slug as results_url %}{% translate "These results are out of date. Recalculating with your new inputs: these values stay until the new ones are ready." as running_message %}{% translate "See the progress" as running_label %}
   {% include "components/alert.html" with kind="info" title="" message=running_message action_href=results_url action_label=running_label %}
   {% elif stale %}
-  {% translate "These results are out of date. They are from before your last change." as stale_message %}{% url 'stations:results' analysis.pk as results_url %}{% translate "See what changed" as results_label %}
+  {% translate "These results are out of date. They are from before your last change." as stale_message %}{% url 'stations:results' analysis.workspace_id analysis.slug as results_url %}{% translate "See what changed" as results_label %}
   {% include "components/alert.html" with kind="warning" title="" message=stale_message action_href=results_url action_label=results_label %}
   {% endif %}
 

@@ -2,10 +2,11 @@
 file, or the sample, and the station's details, then checks and calculates at once;
 Quality (#77), the quality checks, run as a ``qc`` job, their results (:mod:`.qc_review`,
 :mod:`.qc_plots`) and what is in the file ("Your data", Data's summary before #198).
-Results and Files (#78, #79, #90, #176) add their pages to the same analysis
-(``/station/<id>/...``, :mod:`.views_indices`, :mod:`.views_downloads`). Each section's
-page shows the section tabs and the Inputs panel (:mod:`.workspace`), whose Edit opens a
-side sheet, or without JavaScript a page, with that input's form (:func:`edit_input`).
+Indices and Files (#78, #79, #90, #176) add their pages to the same station
+(``/w/<workspace>/<station>/...`` since #256; :mod:`.views_indices`,
+:mod:`.views_downloads`). Each section's page shows the section tabs and the Inputs panel
+(:mod:`.workspace`), whose Edit opens a side sheet, or without JavaScript a page, with that
+input's form (:func:`edit_input`).
 
 Confirming the details also queues the indices with the default settings (#178,
 :mod:`.calculation`), so they are calculated while the user looks at the quality checks.
@@ -31,7 +32,6 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -54,7 +54,7 @@ from climpact_web.stations.forms import (
     UploadForm,
 )
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import Source, Station, Step
+from climpact_web.stations.models import Source, Station, Step, Workspace
 from climpact_web.stations.station_file import (
     Inspection,
     inspect_station_bytes,
@@ -80,9 +80,24 @@ def sample_bytes() -> bytes:
     return gzip.decompress((SAMPLE_DIR / f"{SAMPLE_NAME}.gz").read_bytes())
 
 
-def get_analysis(request, analysis_id) -> Station:
+def get_analysis(request, workspace_id, slug) -> Station:
+    """The station ``slug`` of the workspace ``workspace_id``, if it is this session's; 404
+    otherwise, also for a station of another session's workspace."""
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(Station, pk=analysis_id, owner=owner)
+    return get_object_or_404(
+        Station.objects.select_related("workspace"),
+        workspace_id=workspace_id,
+        slug=slug,
+        owner=owner,
+        workspace__owner=owner,
+    )
+
+
+def get_station(request, station_id) -> Station:
+    """The station of id ``station_id``, if it is this session's: for the old addresses
+    (:func:`old_station_url`) and the charts' data (``/charts/station/<id>/``)."""
+    owner = request.session.get(OWNER_KEY) or "-"
+    return get_object_or_404(Station, pk=station_id, owner=owner)
 
 
 def default_name(file_name: str) -> str:
@@ -266,28 +281,28 @@ def check_and_calculate(request, analysis: Station, form: MetadataForm):
         set_base_period(analysis, start, end)
         queued_qc, _run = calculation.bring_up_to_date(request, analysis)
     if workspace.committed(analysis) and not queued_qc:
-        return redirect("stations:results", analysis_id=analysis.pk)
-    return redirect("stations:qc", analysis_id=analysis.pk)
+        return redirect(analysis.url("results"))
+    return redirect(analysis.url("qc"))
 
 
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
-def new_station(request, analysis_id=None):
+def new_station(request, workspace_id=None, slug=None):
     """New station (#201): the file, then the station details, on one page, and one
     button, "Check and calculate", that runs the checks and the indices with the default
     thresholds and settings and opens Quality.
 
     ``/station/new`` has no analysis yet; reading a file makes one, and the page is then
-    ``/station/<id>/setup``, the file read and shown, with the same form. With JavaScript
+    ``/w/<id>/<station>/setup``, the file read and shown, with the same form. With JavaScript
     a chosen or dropped file is sent at once (``intent=read``, a redirect back here) and
     the details typed beside it are kept; without, the file and the details can go
     together, or the file first with "Read the file". The details are checked against
     the file. A station already set up has no setup page: its address leads to Quality's
     "Your data", and later changes are made in the Inputs panel (#198)."""
-    analysis = get_analysis(request, analysis_id) if analysis_id else None
+    analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
     if analysis is not None and request.method != "POST" and workspace.set_up(analysis):
-        return redirect(reverse("stations:qc", args=[analysis.pk]) + "#your-data")
+        return redirect(analysis.url("qc") + "#your-data")
     if request.method != "POST":
         if analysis is None:
             form = MetadataForm(initial={"base_start": 1971, "base_end": 2000})
@@ -333,13 +348,13 @@ def new_station(request, analysis_id=None):
                 # needed new details): the checks and the run of the new file (#179).
                 calculation.bring_up_to_date(request, analysis)
             request.session["setup_read"] = str(analysis.pk)
-            return redirect("stations:setup", analysis_id=analysis.pk)
+            return redirect(analysis.url("setup"))
 
     if intent == "read" and inspection is None:
         # "Read the file" with no file chosen (without JavaScript): nothing to read.
         keep_typed_details(analysis, MetadataForm(request.POST, summary=analysis.summary))
         analysis.save()
-        return redirect("stations:setup", analysis_id=analysis.pk)
+        return redirect(analysis.url("setup"))
     data = request.POST.copy()
     if not data.get("station_name") and analysis.station_name:
         data["station_name"] = analysis.station_name  # the file's name, as R does
@@ -360,13 +375,13 @@ def upload(request):
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
-def load(request, analysis_id):
+def load(request, workspace_id, slug):
     """The first visit's details' old address (Data before #198, Load before #201): the
     station's setup page, or once it is set up Quality's "Your data"."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if workspace.set_up(analysis):
-        return redirect(reverse("stations:qc", args=[analysis.pk]) + "#your-data")
-    return redirect("stations:setup", analysis_id=analysis.pk)
+        return redirect(analysis.url("qc") + "#your-data")
+    return redirect(analysis.url("setup"))
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
@@ -384,7 +399,7 @@ def sample(request):
             setattr(analysis, name, value)
         analysis.save()
     request.session["setup_read"] = str(analysis.pk)
-    return redirect("stations:setup", analysis_id=analysis.pk)
+    return redirect(analysis.url("setup"))
 
 
 @require_safe
@@ -445,10 +460,10 @@ def summary_context(analysis: Station) -> dict:
 
 
 @require_POST
-def validate(request, analysis_id=None):
+def validate(request, workspace_id=None, slug=None):
     """htmx: one group of fields checked as it changes, returned on its own; against the
     file once one is read."""
-    analysis = get_analysis(request, analysis_id) if analysis_id else None
+    analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
     unit = request.POST.get("group", "")
     if unit not in MetadataForm.UNITS:
         return HttpResponseBadRequest()
@@ -459,10 +474,10 @@ def validate(request, analysis_id=None):
 
 
 @require_safe
-def series(request, analysis_id):
+def series(request, workspace_id, slug):
     """The daily series as CSV (date, prcp, tmax, tmin; empty when missing): the CSV
     download of the preview, and the data for the interactive chart (#75)."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     from climpact.io.station import merged_rows, read_station_file
 
     if not analysis.station_file.is_file():
@@ -480,9 +495,9 @@ def series(request, analysis_id):
 
 
 @require_POST
-def delete(request, analysis_id):
+def delete(request, workspace_id, slug):
     """Delete the analysis and its file now, rather than at the end of the retention."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     analysis.delete_files()
     analysis.delete()
     messages.success(request, _("The station data were deleted."))
@@ -608,21 +623,21 @@ def qc_context(request, analysis: Station, **extra) -> dict:
 
 @never_cache
 @require_safe
-def qc(request, analysis_id):
+def qc(request, workspace_id, slug):
     """Quality: the checks run as a job and their results. The thresholds are in the
     Inputs panel (#199)."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if not step_two_ready(analysis):
-        return redirect("stations:setup", analysis_id=analysis.pk)
+        return redirect(analysis.url("setup"))
     return render(request, "stations/qc.html", qc_context(request, analysis))
 
 
 @never_cache
 @require_safe
-def qc_progress(request, analysis_id):
+def qc_progress(request, workspace_id, slug):
     """The checks' progress, polled by htmx; once they have finished the page reloads to
     show the results."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job = analysis.qc_job
     if job is None:
         raise Http404
@@ -636,18 +651,18 @@ def qc_progress(request, analysis_id):
             response = HttpResponse(status=204)
             response["HX-Refresh"] = "true"
             return response
-        return redirect("stations:qc", analysis_id=analysis.pk)
+        return redirect(analysis.url("qc"))
     return render(request, "stations/_qc_progress.html", qc_context(request, analysis))
 
 
 @never_cache
 @require_safe
-def qc_table(request, analysis_id, check):
+def qc_table(request, workspace_id, slug, check):
     """One page of a table (htmx): a check's, or with ``?group=`` one of its groups;
     ``?page=``, or ``?date=`` for the page holding that date (a flag picked on a chart)."""
     from climpact_web.stations import qc_review
 
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job = workspace.shown_qc(analysis)
     if check not in qc_review.CHECK_KEYS or job is None:
         raise Http404
@@ -669,12 +684,12 @@ def qc_table(request, analysis_id, check):
 
 @never_cache
 @require_safe
-def qc_flagged(request, analysis_id):
+def qc_flagged(request, workspace_id, slug):
     """Every value the checks shown flagged, as one CSV (#235): the verdict strip's
     "Flagged values (CSV)" (``qc_review.flagged_rows``)."""
     from climpact_web.stations import qc_review
 
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job = workspace.shown_qc(analysis)
     if job is None:
         raise Http404
@@ -692,11 +707,11 @@ def qc_flagged(request, analysis_id):
 
 
 @require_POST
-def qc_continue(request, analysis_id):
+def qc_continue(request, workspace_id, slug):
     """ "See results", whatever the checks found (the user decides): straight to the
     results, calculated with the default settings while the user looked at the checks
     (#178), or their progress. Without a speculative run, one is queued now."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job = analysis.qc_job
     if (
         job is None
@@ -704,18 +719,65 @@ def qc_continue(request, analysis_id):
         or not step_two_ready(analysis)
         or workspace.qc_changes(analysis, job)  # out of date: the new checks come first
     ):
-        return redirect("stations:qc", analysis_id=analysis.pk)
+        return redirect(analysis.url("qc"))
     calculation.commit(request, analysis)
     analysis.advance_to(Step.RESULTS)
     analysis.touch()
     analysis.save()
-    return redirect("stations:results", analysis_id=analysis.pk)
+    return redirect(analysis.url("results"))
 
 
 @require_safe
-def workspace_home(request, analysis_id):
-    """``/station/<id>/``: the furthest section the workspace has reached (#179)."""
-    return redirect(workspace.home_url(get_analysis(request, analysis_id)))
+def station_home(request, workspace_id, slug):
+    """``/w/<id>/<station>/``: the furthest section the station has reached (#179)."""
+    return redirect(workspace.home_url(get_analysis(request, workspace_id, slug)))
+
+
+@never_cache
+@require_safe
+def workspace_page(request, workspace_id):
+    """``/w/<id>/`` (#256). A workspace of one station opens it straight away (the Flow
+    board: no overview), at its furthest section. Otherwise, until the overview of #234,
+    the batch's pages stand in: its results once it has run, after adding the stations
+    it calculated (``batch.fill``), else its check page."""
+    from climpact_web.batch import views as batch_views
+    from climpact_web.batch.fill import fill_workspace
+    from climpact_web.batch.models import BatchRun
+
+    owner = request.session.get(OWNER_KEY) or "-"
+    space = get_object_or_404(Workspace, pk=workspace_id, owner=owner)
+    run = BatchRun.objects.filter(workspace=space, owner=owner).first()
+    if run is not None and run.job_id:
+        fill_workspace(run)
+    stations = list(space.stations.filter(owner=owner)[:2])
+    if len(stations) == 1 or (stations and run is None):
+        return redirect(workspace.home_url(stations[0]))
+    if run is None:
+        raise Http404
+    if run.job_id:
+        return batch_views.results(request, workspace_id)
+    return batch_views.check_page(request, workspace_id)
+
+
+# Sections renamed by #256 in the old ``/station/<id>/`` addresses: Results is ``indices``,
+# and the old Calculate step (Recalculate) ``recalculate``.
+OLD_PATHS = (("results", "indices"), ("indices", "recalculate"))
+
+
+@require_safe
+def old_station_url(request, station_id, rest=""):
+    """An address from before #256, ``/station/<id>/<rest>``: a temporary (302) redirect to
+    the station's own, with the query string, while the station is kept; 404 after that,
+    or for another session's station. Temporary, as the new address follows the station's
+    slug, which follows its name until its details are confirmed."""
+    analysis = get_station(request, station_id)
+    for old, new in OLD_PATHS:
+        if rest == old or rest.startswith(old + "/"):
+            rest = new + rest[len(old) :]
+            break
+    target = analysis.url() + rest
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{target}?{query}" if query else target)
 
 
 # ---- the Inputs panel's sheets (#198) ----------------------------------------------------
@@ -754,7 +816,7 @@ def next_url(request, analysis: Station) -> str:
     from django.utils.http import url_has_allowed_host_and_scheme
 
     target = request.POST.get("next") or request.GET.get("next") or ""
-    own = f"/station/{analysis.pk}/"
+    own = analysis.url()
     if (
         target.startswith(own)
         and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()})
@@ -858,7 +920,7 @@ def apply_file(request, analysis: Station, form: UploadForm):
                 "checks can run."
             ),
         )
-        return inspection, redirect("stations:setup", analysis_id=analysis.pk)
+        return inspection, redirect(analysis.url("setup"))
     calculation.bring_up_to_date(request, analysis)
     messages.success(request, _("The new file is loaded. The checks and results are updated."))
     return inspection, redirect(next_url(request, analysis))
@@ -867,20 +929,20 @@ def apply_file(request, analysis: Station, form: UploadForm):
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
-def edit_input(request, analysis_id, key):
+def edit_input(request, workspace_id, slug, key):
     """An input of the Inputs panel (#198, #199): the file, the station, the base period,
     the quality thresholds or the index settings. The panel's Edit opens this form in a
     side sheet; without JavaScript, or when the sheet's form has errors, it is this page.
     Applying keeps what depends on the input, marked out of date, and queues its
     replacement (#179); then back to the page it was opened from. The index settings only
     once the data is in use ("See results"): before, only the results use them."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if key not in INPUT_SHEETS:
         raise Http404
     if not workspace.set_up(analysis):
-        return redirect("stations:setup", analysis_id=analysis.pk)
+        return redirect(analysis.url("setup"))
     if key not in workspace.sheet_keys(analysis):
-        return redirect("stations:qc", analysis_id=analysis.pk)
+        return redirect(analysis.url("qc"))
     inspection = None
     if request.method == "POST":
         form = input_form(analysis, key, request.POST, request.FILES)
@@ -920,12 +982,12 @@ def edit_input(request, analysis_id, key):
 
 
 @require_POST
-def undo(request, analysis_id):
+def undo(request, workspace_id, slug):
     """ "Undo the change" (#254): put back the workspace's settings as they were before its
     last change, while the recalculation it started is still on the way, and show the
     earlier checks and results again (``calculation.undo``). A plain form, so it works
     without JavaScript; then back to the page it was sent from."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if calculation.undo(analysis.workspace):
         messages.success(
             request, _("The change was undone. The earlier settings and results are back.")
@@ -943,10 +1005,10 @@ def undo(request, analysis_id):
 
 @never_cache
 @require_safe
-def inputs_progress(request, analysis_id):
+def inputs_progress(request, workspace_id, slug):
     """The Inputs panel's runs (#198), polled by htmx while the checks or a run of new
     inputs are under way; once they have all finished the page reloads to show them."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if not workspace.set_up(analysis):
         raise Http404
     # The page polling, where "Undo the change" returns (htmx sends its address).

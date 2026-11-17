@@ -6,7 +6,7 @@ recalculation of a change to the workspace's settings (#254), "Undo the change" 
 puts the settings back (stations:undo, a plain form, so without JavaScript too). Context:
 analysis, input_runs, input_undo, input_next (stations.workspace.inputs_panel).
 {% endcomment %}
-<div id="input-runs" class="inputs-panel__runs"{% if input_runs %} hx-get="{% url 'stations:inputs_progress' analysis.pk %}" hx-trigger="load delay:2s" hx-swap="outerHTML" data-poll-hidden{% endif %}>
+<div id="input-runs" class="inputs-panel__runs"{% if input_runs %} hx-get="{% url 'stations:inputs_progress' analysis.workspace_id analysis.slug %}" hx-trigger="load delay:2s" hx-swap="outerHTML" data-poll-hidden{% endif %}>
   {% for run in input_runs %}
   <div class="runbox progress" data-run="{{ run.key }}">
     <p class="runbox__title" id="input-run-{{ run.key }}">{{ run.label }}</p>

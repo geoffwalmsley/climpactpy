@@ -20,6 +20,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -72,6 +73,11 @@ class BatchRun(models.Model):
 
     def __str__(self) -> str:
         return self.metadata_name or str(self.id)
+
+    def url(self, name: str = "check") -> str:
+        """The address of the batch's page ``batch:<name>``: ``/w/<workspace>/batch/…``
+        (#256). A batch makes its own workspace, so the workspace names it."""
+        return reverse(f"batch:{name}", args=[self.workspace_id])
 
     def save(self, *args, **kwargs) -> None:
         """Save, making the batch's workspace when it is new and recording the change on it.

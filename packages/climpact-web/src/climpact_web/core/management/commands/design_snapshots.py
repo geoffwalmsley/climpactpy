@@ -111,9 +111,9 @@ def station_pages() -> dict[str, str]:
     request = RequestFactory().get("/station/")
     space = Workspace()  # the stations' settings (#254), not saved
     inspection = inspect_station_bytes(views.sample_bytes())
-    sample = Station(workspace=space, source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
-                             summary=inspection.summary, updated_at=timezone.now(),
-                             **views.SAMPLE_METADATA)  # fmt: skip
+    sample = Station(workspace=space, slug="sydney", source=Source.SAMPLE,
+                     file_name=views.SAMPLE_NAME, summary=inspection.summary,
+                     updated_at=timezone.now(), **views.SAMPLE_METADATA)  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
         b"1961 1 3 na 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
@@ -121,7 +121,8 @@ def station_pages() -> dict[str, str]:
     form = MetadataForm(views.initial_metadata(sample), summary=sample.summary)
     form.is_valid()
 
-    uploaded = Station(workspace=space, source=Source.UPLOAD, file_name="perth_airport.txt",
+    uploaded = Station(workspace=space, slug="perth-airport", source=Source.UPLOAD,
+                               file_name="perth_airport.txt",
                                summary=inspection.summary, station_name="perth_airport",
                                updated_at=timezone.now(),
                                warnings=["2 rows have dates that do not exist (the first is "

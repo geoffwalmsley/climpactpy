@@ -106,7 +106,7 @@ def test_daily_payload_matches_the_csv_download(client, sample_file):
     analysis = Station.objects.create(owner="owner-a", file_name=SAMPLE_NAME)
     analysis.folder.mkdir(parents=True, exist_ok=True)
     shutil.copy(sample_file, analysis.station_file)
-    text = owned_client().get(f"/station/{analysis.pk}/series.csv").content.decode()
+    text = owned_client().get(f"{analysis.url()}series.csv").content.decode()
     rows = list(csv.DictReader(io.StringIO(text)))
     assert len(rows) == payload["days"]
     for series in payload["series"]:
@@ -285,7 +285,7 @@ def test_station_daily_view_and_caching(sample_file):
     assert response["Cache-Control"] == "private, no-cache"
     assert response["Last-Modified"]
     payload = json.loads(response.content)
-    assert payload["days"] == 29220 and payload["csv"] == f"/station/{analysis.pk}/series.csv"
+    assert payload["days"] == 29220 and payload["csv"] == f"{analysis.url()}series.csv"
     etag = response["ETag"]
     assert client.get(url, HTTP_IF_NONE_MATCH=etag).status_code == 304
     assert client.get(url, HTTP_IF_MODIFIED_SINCE=response["Last-Modified"]).status_code == 304
@@ -432,7 +432,7 @@ def test_your_data_has_the_daily_chart(client):
     html = client.post(setup, details, follow=True).content.decode()
     # Without the quality checks' flags: they belong to the next step (#173).
     assert f'data-chart-src="/charts/station/{analysis.pk}/daily.json?flags=0"' in html
-    assert f'href="/station/{analysis.pk}/series.csv"' in html
+    assert f'href="{analysis.url()}series.csv"' in html
     assert "uPlot.iife.min.js" in html and "js/charts.js" in html
     assert "<noscript>" in html and "series-preview" in html  # the static overview
     # The page's own `summary` (the file summary) does not leak into the frame: the

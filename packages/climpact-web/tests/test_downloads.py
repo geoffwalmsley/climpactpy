@@ -5,6 +5,7 @@ jobs."""
 import re
 import shutil
 import zipfile
+from urllib.parse import quote
 
 import pytest
 from django.test import Client
@@ -45,7 +46,7 @@ def complete(job: Job, plots=True, report=True) -> None:
 def test_downloads_page_lists_every_file_with_its_size(client):
     analysis, job = finished_analysis(client)
     complete(job)
-    response = client.get(f"/station/{analysis.pk}/downloads")
+    response = client.get(f"{analysis.url()}downloads")
     assert response.status_code == 200
     html = response.content.decode()
     files = f"/jobs/{job.pk}/files/"
@@ -83,28 +84,26 @@ def test_downloads_page_lists_every_file_with_its_size(client):
 
 def test_downloads_page_says_what_was_not_made(client):
     analysis, job = finished_analysis(client)  # no plots, zip or report
-    html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
+    html = client.get(f"{analysis.url()}downloads").content.decode()
     assert "Not made. The zip was switched off" in html
     assert "Not made. The report was switched off" in html
     assert "Not made. The plots were switched off" in html
     # Each links to the Index settings sheet, where they are switched on (#199).
-    sheet = (
-        f'href="/station/{analysis.pk}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fdownloads"'
-    )
+    sheet = f'href="{analysis.url()}inputs/settings?next={quote(analysis.url(), safe="")}downloads"'
     assert html.count(sheet + ' data-sheet-open="sheet-settings"') >= 2
 
 
 def test_downloads_page_redirects_and_is_private(client):
     analysis, job = finished_analysis(client)
-    assert Client().get(f"/station/{analysis.pk}/downloads").status_code == 404
+    assert Client().get(f"{analysis.url()}downloads").status_code == 404
     job.status = Status.RUNNING
     job.save()
-    response = client.get(f"/station/{analysis.pk}/downloads")
-    assert response["Location"] == f"/station/{analysis.pk}/results"
+    response = client.get(f"{analysis.url()}downloads")
+    assert response["Location"] == f"{analysis.url()}indices"
     analysis.indices_job = None
     analysis.save()
-    response = client.get(f"/station/{analysis.pk}/downloads")
-    assert response["Location"] == f"/station/{analysis.pk}/results"
+    response = client.get(f"{analysis.url()}downloads")
+    assert response["Location"] == f"{analysis.url()}indices"
 
 
 def test_dashboard_and_index_page_offer_one_download(client, settings):
@@ -114,14 +113,14 @@ def test_dashboard_and_index_page_offer_one_download(client, settings):
     settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
     analysis, job = finished_analysis(client)
     complete(job)
-    html = client.get(f"/station/{analysis.pk}/results").content.decode()
+    html = client.get(f"{analysis.url()}indices").content.decode()
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
     # The header (#200): one primary action, the zip, and the sector comparison.
     actions = re.search(r'<div class="[^"]*results-actions">.*?</div>', html, re.S).group(0)
     assert actions.count('class="button"') == 1 and "Download all (zip" in actions
     assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
-    assert f'href="/station/{analysis.pk}/sector"' in actions
-    assert f'href="/station/{analysis.pk}/downloads"' not in actions  # the Files tab
+    assert f'href="{analysis.url()}sector"' in actions
+    assert f'href="{analysis.url()}downloads"' not in actions  # the Files tab
     # No other file on the page (#176): the zip, in the header and again in its ⋯ menu
     # for phones (#203), and each index's CSV and PNG in its detail (#236).
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
@@ -131,7 +130,7 @@ def test_dashboard_and_index_page_offer_one_download(client, settings):
                           for f in others)  # fmt: skip
     assert f"{STATION}/indices/{STATION}_txx_ANN.csv" in others
     assert 'id="downloads"' not in html and "Kept until" in html
-    page = client.get(f"/station/{analysis.pk}/results/txx").content.decode()
+    page = client.get(f"{analysis.url()}indices/txx").content.decode()
     # An index page (#237, the Index board): the series' CSV and R's plot, in its context
     # bar and again in its ⋯ menu for phones, and a citation; no other file, and no tabs.
     links = re.findall(rf'<a [^>]*href="/jobs/{job.pk}/files/([^"]+)"', page)
@@ -139,8 +138,8 @@ def test_dashboard_and_index_page_offer_one_download(client, settings):
     assert links.count(csv) == 2
     assert set(links) <= {csv, f"{STATION}/plots/{STATION}_txx_ANN.png"}
     assert "Copy citation" in page and 'id="files-title"' not in page
-    assert f'href="/station/{analysis.pk}/downloads"' not in page
-    monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
+    assert f'href="{analysis.url()}downloads"' not in page
+    monthly = client.get(f"{analysis.url()}indices/txx?series=txx_MON").content.decode()
     assert f"{STATION}/indices/{STATION}_txx_MON.csv" in monthly
 
 
@@ -189,7 +188,7 @@ def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
 
     analysis = committed_analysis(client)
     assert analysis.indices_job.params["report"] is True  # the speculative run's default
-    settings_url = f"/station/{analysis.pk}/inputs/settings"
+    settings_url = f"{analysis.url()}inputs/settings"
     form = client.get(settings_url).content.decode()
     assert re.search(r'<input type="checkbox" name="report"[^>]*checked', form)
     client.post(settings_url, {**defaults(), "report": "on"})
@@ -209,7 +208,7 @@ def test_batch_with_plots_writes_each_station_report(client):
 
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     data = {"base_start": "2000", "base_end": "2001", "workers": "1", "plots": "on"}
-    client.post(f"/batch/{run.pk}/run", data)
+    client.post(f"/w/{run.workspace_id}/batch/run", data)
     run.refresh_from_db()
     assert run.job.params["report"] is True
     job = run_worker()
@@ -219,7 +218,7 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert (job.output_dir / "reports" / "a_report.pdf").read_bytes().startswith(b"%PDF")
     with zipfile.ZipFile(job.output_dir / f"{job.params['folder']}.zip") as archive:
         assert not [n for n in archive.namelist() if "report" in n]
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
     assert re.search(rf"Download \(zip, {SIZE}\)", html)
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
@@ -231,9 +230,9 @@ def test_downloads_page_lists_the_sector_comparison(client):
     from test_sector_web import run_next
 
     analysis, _job = sector_analysis(client)
-    page = f"/station/{analysis.pk}/downloads"
+    page = f"{analysis.url()}downloads"
     assert 'id="sector-title"' not in client.get(page).content.decode()
-    client.post(f"/station/{analysis.pk}/sector", {"sample": "1", "detrend": "on"})
+    client.post(f"{analysis.url()}sector", {"sample": "1", "detrend": "on"})
     sector = run_next()
     assert sector.status == Status.SUCCEEDED, sector.log
     html = client.get(page).content.decode()
@@ -270,7 +269,7 @@ def test_files_page_reaches_every_file_of_the_station(client):
     analysis.indices_job = job
     analysis.step = Step.RESULTS
     analysis.save()
-    html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
+    html = client.get(f"{analysis.url()}downloads").content.decode()
     linked = set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', html))
     qc_names = {h.rsplit("/", 1)[1] for h in linked if h.startswith(f"/jobs/{qc_job.pk}/")}
 
@@ -293,7 +292,7 @@ def test_files_page_reaches_every_file_of_the_station(client):
     assert members and members <= linked_names
     # Whatever another page links to is on Files too.
     for page in ("results", "results/txx", "quality"):
-        other = client.get(f"/station/{analysis.pk}/{page}").content.decode()
+        other = client.get(f"{analysis.url()}{page}").content.decode()
         assert set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', other)) <= linked, page
     assert all(client.get(h).status_code == 200 for h in sorted(linked)[:3])
 
@@ -305,12 +304,12 @@ def test_files_page_before_the_indices_holds_the_quality_files(client):
 
     analysis = ready_analysis(client)
     qc_job = run_next()
-    html = client.get(f"/station/{analysis.pk}/downloads").content.decode()
+    html = client.get(f"{analysis.url()}downloads").content.decode()
     assert 'id="quality-files"' in html and "Download all" not in html
     for rel in [*qc_job.result["files"], qc_job.result["zip"]]:
         assert f'href="/jobs/{qc_job.pk}/files/{rel}"' in html, rel
     # The tabs (#179): Files current, Quality done, Results not until "Use this data".
-    assert f'href="/station/{analysis.pk}/qc"' not in html
-    assert f'href="/station/{analysis.pk}/quality" data-tab="quality"' in html
+    assert f'href="{analysis.url()}qc"' not in html
+    assert f'href="{analysis.url()}quality" data-tab="quality"' in html
     assert re.search(r'data-tab="files" data-state="done" aria-current="page"', html)
     assert 'data-tab="results" data-state="locked"' in html

@@ -26,7 +26,7 @@
   </details>
 
   <p class="flex flex-wrap items-center gap-3">
-    <a href="{% url 'batch:check' run.pk %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the files or options and calculate again" %}</a>
+    <a href="{% url 'batch:check' run.workspace_id %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the files or options and calculate again" %}</a>
     <a href="{% url 'batch:start' %}">{% translate "Start a new batch" %}</a>
   </p>
 </div>

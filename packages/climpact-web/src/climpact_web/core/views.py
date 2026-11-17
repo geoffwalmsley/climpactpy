@@ -466,7 +466,9 @@ def inputs_demo() -> dict:
     running = [SimpleNamespace(label=_("Recalculating"))]
     return {
         "inputs_bar_demo": workspace.inputs_bar("1981–2010", 2, inputs, running),
-        "demo_analysis": SimpleNamespace(pk=uuid.UUID(int=0)),
+        "demo_analysis": SimpleNamespace(
+            pk=uuid.UUID(int=0), workspace_id=uuid.UUID(int=0), slug="sydney"
+        ),
         "inputs_demo": inputs,
         "sheet_demo_list": [
             {

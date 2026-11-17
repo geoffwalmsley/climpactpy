@@ -149,7 +149,7 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     speculative.refresh_from_db()
     assert speculative.status == Status.CANCELLED  # replaced before it started
     job = Job.objects.exclude(pk__in=[qc_job.pk, speculative.pk]).get()
-    assert response["Location"] == load_url.replace("/setup", "/results")
+    assert response["Location"] == load_url.replace("/setup", "/indices")
     response = client.get(f"/jobs/{job.pk}/")
     assert (job.status, job.kind, job.title) == (Status.QUEUED, "station", "Testville")
     assert job.params["plots"] is False and job.params["zip"] is True

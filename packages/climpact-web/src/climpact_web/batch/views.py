@@ -85,9 +85,28 @@ def sample_metadata() -> bytes:
     return (SAMPLE_DIR / SAMPLE_METADATA).read_bytes()
 
 
-def get_run(request, run_id) -> BatchRun:
+def get_run(request, workspace_id) -> BatchRun:
+    """The batch of the workspace ``workspace_id`` (#256), if it is this session's; 404
+    otherwise. A batch makes its own workspace, so a workspace has one at most."""
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(BatchRun, pk=run_id, owner=owner)
+    run = BatchRun.objects.filter(
+        workspace_id=workspace_id, owner=owner, workspace__owner=owner
+    ).first()
+    if run is None:
+        raise Http404
+    return run
+
+
+@require_safe
+def old_batch_url(request, run_id, rest=""):
+    """An address from before #256, ``/batch/<id>/<rest>``: a temporary (302) redirect to
+    the batch's own under its workspace, with the query string, while the batch is kept;
+    404 after that, or for another session's batch."""
+    owner = request.session.get(OWNER_KEY) or "-"
+    run = get_object_or_404(BatchRun, pk=run_id, owner=owner)
+    target = run.url("check") + rest
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{target}?{query}" if query else target)
 
 
 def read(uploaded) -> bytes:
@@ -96,9 +115,9 @@ def read(uploaded) -> bytes:
 
 def run_urls(run: BatchRun) -> dict[str, str]:
     """Links for the step indicator."""
-    urls = {"upload": reverse("batch:start"), "check": reverse("batch:check", args=[run.pk])}
+    urls = {"upload": reverse("batch:start"), "check": run.url("check")}
     if run.job_id:
-        urls["results"] = reverse("batch:results", args=[run.pk])
+        urls["results"] = run.url("results")
     return urls
 
 
@@ -153,7 +172,7 @@ def start(request):
                 metadata=form.cleaned_data["metadata_file"],
                 station_files=form.cleaned_data["station_files"],
             )
-            return redirect("batch:check", run_id=run.pk)
+            return redirect(run.url("check"))
     else:
         form = UploadForm()
     return render(request, "batch/start.html", start_context(request, form))
@@ -196,7 +215,7 @@ def sample(request):
         run.save_files(sample_files())
         run.workers = default_workers(2)
         recheck(run)
-    return redirect("batch:check", run_id=run.pk)
+    return redirect(run.url("check"))
 
 
 @require_safe
@@ -290,16 +309,16 @@ def check_context(request, run: BatchRun, options=None, add_form=None) -> dict:
 
 @never_cache
 @require_safe
-def check_page(request, run_id):
-    run = get_run(request, run_id)
+def check_page(request, workspace_id):
+    run = get_run(request, workspace_id)
     return render(request, "batch/check.html", check_context(request, run))
 
 
 @require_POST
 @human_required
-def add_files(request, run_id):
+def add_files(request, workspace_id):
     """Add or replace station files, or replace the metadata file, then check again."""
-    run = get_run(request, run_id)
+    run = get_run(request, workspace_id)
     form = AddFilesForm(request.POST, request.FILES)
     if not form.is_valid():
         return render(request, "batch/check.html", check_context(request, run, add_form=form))
@@ -324,14 +343,14 @@ def add_files(request, run_id):
         )
         % {"count": count},
     )
-    return redirect("batch:check", run_id=run.pk)
+    return redirect(run.url("check"))
 
 
 @require_POST
-def options(request, run_id):
+def options(request, workspace_id):
     """htmx: the options checked as they change (base period coverage, the estimate),
     returned on their own."""
-    run = get_run(request, run_id)
+    run = get_run(request, workspace_id)
     if not request.headers.get("HX-Request"):
         return HttpResponseBadRequest()
     form = OptionsForm(request.POST)
@@ -341,14 +360,14 @@ def options(request, run_id):
 
 @require_POST
 @human_required
-def run_batch(request, run_id):
+def run_batch(request, workspace_id):
     """Queue the batch: one job for the ready stations."""
-    run = get_run(request, run_id)
+    run = get_run(request, workspace_id)
     form = OptionsForm(request.POST)
     if not form.is_valid() or not run.ready_count:
         return render(request, "batch/check.html", check_context(request, run, options=form))
     if run.job and not run.job.is_finished:
-        return redirect("batch:results", run_id=run.pk)
+        return redirect(run.url("results"))
     data = form.cleaned_data
     set_base_period(run, data["base_start"], data["base_end"])
     run.workers = data.get("workers") or 1
@@ -390,7 +409,7 @@ def run_batch(request, run_id):
     run.touch()
     run.save()
     add_stations(run, job, skipped)
-    return redirect("batch:results", run_id=run.pk)
+    return redirect(run.url("results"))
 
 
 def set_base_period(run: BatchRun, start: int, end: int) -> None:
@@ -423,10 +442,10 @@ def skip_reason(station: dict) -> str:
 
 
 @require_POST
-def delete(request, run_id):
+def delete(request, workspace_id):
     """Delete the batch now, with its workspace: the batch page stands in as the workspace
     page (#255), so its stations go too."""
-    run = get_run(request, run_id)
+    run = get_run(request, workspace_id)
     space = run.workspace
     filled = space.stations.exists()
     space.delete_files()
@@ -502,18 +521,15 @@ def _size(job, relative: str | None) -> int:
 
 def station_urls(run: BatchRun) -> dict[str, str]:
     """The workspace's stations from this batch: their name in the batch -> their page."""
-    return {
-        name: reverse("stations:workspace", args=[station.pk])
-        for name, station in batch_stations(run).items()
-    }
+    return {name: station.url() for name, station in batch_stations(run).items()}
 
 
 @never_cache
 @require_safe
-def results(request, run_id):
-    run = get_run(request, run_id)
+def results(request, workspace_id):
+    run = get_run(request, workspace_id)
     if run.job is None:
-        return redirect("batch:check", run_id=run.pk)
+        return redirect(run.url("check"))
     context = results_context(request, run)
     context["steps"] = batch_steps("results", run_urls(run))
     return render(request, "batch/results.html", context)
@@ -521,9 +537,9 @@ def results(request, run_id):
 
 @never_cache
 @require_safe
-def progress(request, run_id):
+def progress(request, workspace_id):
     """The progress and results fragment, polled by htmx while the job runs."""
-    run = get_run(request, run_id)
+    run = get_run(request, workspace_id)
     if run.job is None:
         raise Http404
     if run.job.status == Status.RUNNING:
@@ -532,19 +548,3 @@ def progress(request, run_id):
         if reap_stale():
             run.job.refresh_from_db()
     return render(request, "batch/_progress.html", results_context(request, run))
-
-
-@require_POST
-def open_station(request, run_id, name):
-    """Open a station of the batch: the workspace's station of that name (#255), added
-    with the others when the run finished. Kept for the forms of pages from before #255,
-    which "Open" links replaced."""
-    run = get_run(request, run_id)
-    job = run.job
-    if job is None or job.status != Status.SUCCEEDED:
-        raise Http404
-    fill_workspace(run)
-    station = batch_stations(run).get(name)
-    if station is None:
-        raise Http404
-    return redirect("stations:workspace", analysis_id=station.pk)

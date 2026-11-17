@@ -1,4 +1,4 @@
-"""The Files section of a station (#79, #176): ``/station/<id>/downloads``.
+"""The Files section of a station (#79, #176): ``/w/<workspace>/<station>/downloads``.
 
 Private to the session like the other steps. It lists every file of the analysis: the
 quality-control files of the checks Quality shows, and the files of the finished
@@ -22,14 +22,14 @@ from climpact_web.stations.views_indices import current_source, load_results
 
 @never_cache
 @require_safe
-def downloads(request, analysis_id):
-    analysis = get_analysis(request, analysis_id)
+def downloads(request, workspace_id, slug):
+    analysis = get_analysis(request, workspace_id, slug)
     job, source = current_source(analysis)
     qc_done = workspace.shown_qc(analysis) is not None
     if job is None and not qc_done:
-        return redirect("stations:results", analysis_id=analysis.pk)
+        return redirect(analysis.url("results"))
     if job is not None and source is None and not qc_done:  # Results say why
-        return redirect("stations:results", analysis_id=analysis.pk)
+        return redirect(analysis.url("results"))
     quality = model.quality_downloads(analysis, source)
     context = {
         "analysis": analysis,

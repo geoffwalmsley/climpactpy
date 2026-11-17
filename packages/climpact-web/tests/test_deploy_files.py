@@ -36,13 +36,13 @@ SAMPLES = {"uuid": SAMPLE_UUID, "str": "su_ANN", "slug": "station-data", "path":
 # The URLs that start a job or take an upload: the paths the one rate-limiting rule of
 # Cloudflare's free plan counts. That rule can match only the path, not the method, so it
 # must leave out the htmx polls (`.../progress`) and the htmx POSTs sent as a form is
-# filled in (`.../validate`, `batch/<id>/options`, `gridded/<id>/checks`).
+# filled in (`.../validate`, `w/<id>/batch/options`, `gridded/<id>/checks`).
 RATE_LIMITED = {
     "stations:new",
     "stations:sample",
     "stations:setup",
     "stations:qc_continue",
-    "stations:indices",
+    "stations:recalculate",
     "stations:sector",
     "batch:start",
     "batch:sample",
@@ -111,7 +111,7 @@ def test_rate_limit_counts_only_job_starting_paths():
     counted = {name for name, path in paths.items() if rule(path)}
     assert counted == RATE_LIMITED
     # The Inputs panel's sheets start jobs when applied (#198, #199); their progress does not.
-    base = f"/station/{SAMPLE_UUID}/inputs/"
+    base = f"/w/{SAMPLE_UUID}/sydney/inputs/"
     for key in ("file", "station", "base-period", "thresholds", "settings"):
         assert rule(base + key), key
     assert not rule(base + "progress")

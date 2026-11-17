@@ -8,7 +8,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url, the p
 workspace's station a finished station became (#255).
 {% endcomment %}
 <div id="batch-progress" class="stack batch-progress" data-status="{{ job.status }}"
-  {% if not job.is_finished %}hx-get="{% url 'batch:progress' run.pk %}"
+  {% if not job.is_finished %}hx-get="{% url 'batch:progress' run.workspace_id %}"
   hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
   data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
 

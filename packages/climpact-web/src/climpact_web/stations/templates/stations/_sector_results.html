@@ -49,7 +49,7 @@ bars_svg, order, categories.
         <div class="table-wrap" role="region" aria-label="{% translate 'Correlation with each index' %}" tabindex="0">
           <table class="table">
             <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col" class="num">{% translate "Correlation" %}</th><th scope="col">{% translate "Category" %}</th></tr></thead>
-            <tbody>{% for bar in bars %}<tr><th scope="row"><a href="{% url 'stations:result' analysis.pk bar.index %}">{% include "components/index_name.html" with code=bar.name name=bar.title only %}</a></th><td class="num">{{ bar.cor_text }}</td><td>{{ bar.category_text }}</td></tr>{% endfor %}</tbody>
+            <tbody>{% for bar in bars %}<tr><th scope="row"><a href="{% url 'stations:result' analysis.workspace_id analysis.slug bar.index %}">{% include "components/index_name.html" with code=bar.name name=bar.title only %}</a></th><td class="num">{{ bar.cor_text }}</td><td>{{ bar.category_text }}</td></tr>{% endfor %}</tbody>
           </table>
         </div>
       </div>

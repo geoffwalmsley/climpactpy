@@ -375,15 +375,16 @@ the app (tested). Don't add a geo or ASN rule unless the analytics show abuse fr
   the duration.
 - **Deploy.**
 
-**Why a list of paths, and not "POSTs to `/station/`":** the free plan's rule can match the
+**Why a list of paths, and not "POSTs to `/w/`":** the free plan's rule can match the
 **path only, not the method**. Its counter would therefore count every GET under a prefix like
-`/station/`. The job pages poll their progress with htmx once a second
-(`.../quality/progress`, `.../results/progress`, `/jobs/<id>/progress`,
-`/batch/<id>/progress`), and form fields are checked with htmx POSTs as they change
-(`.../load/validate`, `.../indices/validate`, `/batch/<id>/options`). A prefix rule would
+`/w/` (a workspace and its stations, `/w/<id>/<station>/…`). The job pages poll their
+progress with htmx once a second (`.../quality/progress`, `.../indices/progress`,
+`/jobs/<id>/progress`, `/w/<id>/batch/progress`), and form fields are checked with htmx
+POSTs as they change (`.../setup/validate`, `.../settings/validate`,
+`/w/<id>/batch/options`). A prefix rule would
 block an ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only
 the URLs that take an upload or start a job (upload and sample, *load*, *replace file*,
-*run quality checks*, *replace file after QC*, *continue*, *indices*, *sector*, batch
+*run quality checks*, *replace file after QC*, *continue*, *recalculate*, *sector*, batch
 upload, add files and run, job retry, and gridded upload and sample, which are off in
 hosted mode). Their GETs are page loads. A person filling in the forms makes 2–4 of these
 requests in 10 seconds, and a script making a burst makes many more. Tune the number from

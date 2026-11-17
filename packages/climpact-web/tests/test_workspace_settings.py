@@ -84,7 +84,7 @@ def test_a_setting_changed_from_one_station_recalculates_every_station(client):
     stations = shared_workspace(client, 3)
     (first, _, first_run) = stations[0]
     response = edit(client, first, "base-period", {"base_start": "1981", "base_end": "2010"})
-    assert response["Location"] == f"/station/{first.pk}/results"
+    assert response["Location"] == f"{first.url()}indices"
     changes = set()
     for station, qc, run in stations:
         station.refresh_from_db()
@@ -197,13 +197,13 @@ def test_undo_while_queued_puts_the_settings_and_the_results_back(client):
     first = stations[0][0]
     edit(client, first, "thresholds", thresholds(jump="15"))
     html = page(client, first, "quality")
-    assert "Undo the change" in html and f'action="/station/{first.pk}/undo"' in html
+    assert "Undo the change" in html and f'action="{first.url()}undo"' in html
     queued = list(Job.objects.filter(status=Status.QUEUED))
     assert len(queued) == 4
     # The jobs a change replaced are kept while it can be undone.
     assert {str(qc.pk) for _s, qc, _r in stations} <= kept_jobs()
-    response = client.post(f"/station/{first.pk}/undo", {"next": f"/station/{first.pk}/quality"})
-    assert response["Location"] == f"/station/{first.pk}/quality"
+    response = client.post(f"{first.url()}undo", {"next": f"{first.url()}quality"})
+    assert response["Location"] == f"{first.url()}quality"
     space = Workspace.objects.get(pk=first.workspace_id)
     assert space.qc_params == {} and space.undo == {}
     for job in queued:
@@ -224,7 +224,7 @@ def test_undo_of_new_index_settings(client):
     [(station, qc, run)] = shared_workspace(client, 1)
     edit(client, station, "settings", {**defaults(), "rx_days": "7"})
     assert states(page(client, station))["results"] == "stale"
-    client.post(f"/station/{station.pk}/undo")
+    client.post(f"{station.url()}undo")
     station.refresh_from_db()
     assert station.indices_job == run and station.workspace.index_settings == {}
     assert states(page(client, station))["results"] == "done"
@@ -236,7 +236,7 @@ def test_undo_is_too_late_once_the_recalculation_has_finished(client):
     station.refresh_from_db()
     new = finish(station.indices_job)
     assert "Undo the change" not in page(client, station)
-    response = client.post(f"/station/{station.pk}/undo", follow=True)
+    response = client.post(f"{station.url()}undo", follow=True)
     assert "the change can no longer be undone" in response.content.decode()
     station.refresh_from_db()
     assert station.indices_job == new and station.workspace.base_start == 1981
@@ -254,7 +254,7 @@ def test_a_change_to_a_station_forgets_the_undo(client):
 
 def test_undo_needs_a_post(client):
     [(station, _qc, _run)] = shared_workspace(client, 1)
-    assert client.get(f"/station/{station.pk}/undo").status_code == 405
+    assert client.get(f"{station.url()}undo").status_code == 405
     assert calculation.undo(station.workspace) is False  # nothing to undo
 
 

@@ -67,7 +67,7 @@ def finished_analysis(client) -> tuple[Station, Job]:
 
 
 def url(analysis, suffix="") -> str:
-    return f"/station/{analysis.pk}/sector{suffix}"
+    return f"{analysis.url()}sector{suffix}"
 
 
 def run_next() -> Job:
@@ -95,7 +95,7 @@ def test_needs_the_indices_first(client):
     analysis = ready_analysis(client)
     html = client.get(url(analysis)).content.decode()
     assert "Calculate the indices first" in html
-    assert f'href="/station/{analysis.pk}/results"' in html
+    assert f'href="{analysis.url()}indices"' in html
     assert 'name="sector_file"' not in html
 
 
@@ -271,7 +271,7 @@ def test_sydney_wheat_matches_the_command_line_and_r(client, tmp_path, detrend):
     assert len(rows) == 42
     table = html.split('aria-label="Correlation with each index"')[-1].split("</table>")[0]
     for index, cor, _category in rows:
-        assert f'/results/{index.strip(chr(34))}">' in table
+        assert f'/indices/{index.strip(chr(34))}">' in table
         assert f'<td class="num">{cor.replace("-", "\u2212")}</td>' in table  # #226
     assert html.count('class="sector-plot__bar ') == 42
     assert html.count('class="sector-plot__fit"') == 4
@@ -415,10 +415,13 @@ def test_a_batch_station_opened_as_a_single_station(client, tmp_path):
     response = client.post("/batch/", data)
     run = BatchRun.objects.get()
     assert response.status_code == 302, response.content[:500]
-    client.post(f"/batch/{run.pk}/run", {"base_start": "1981", "base_end": "1990", "workers": "1"})
+    client.post(
+        f"/w/{run.workspace_id}/batch/run",
+        {"base_start": "1981", "base_end": "1990", "workers": "1"},
+    )
     batch = run_next()
     assert batch.status == Status.SUCCEEDED, batch.log
-    client.post(f"/batch/{run.pk}/open/a")
+    client.get(f"/w/{run.workspace_id}/")  # the workspace of one station opens it
     analysis = Station.objects.get()
     assert analysis.indices_job is None and analysis.origin["station"] == "a"
     html = client.get(url(analysis)).content.decode()

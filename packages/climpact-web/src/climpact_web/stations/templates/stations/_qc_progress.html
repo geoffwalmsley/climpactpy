@@ -4,7 +4,7 @@ progress view answers HX-Refresh once it has finished, so the page shows the res
 Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing).
 {% endcomment %}
 <div id="qc-progress" class="stack"
-  hx-get="{% url 'stations:qc_progress' analysis.pk %}"
+  hx-get="{% url 'stations:qc_progress' analysis.workspace_id analysis.slug %}"
   hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
   data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML">
   <div class="progress">

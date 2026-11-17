@@ -2,7 +2,7 @@
 own page. The sector comparison is in ``views_sector``. The index settings are edited in
 the Inputs panel's sheet since #199 (``views.edit_input``), not on Results.
 
-URLs (all ``/station/<id>/...``, private to the session like the other steps):
+URLs (all ``/w/<workspace>/<station>/...``, private to the session like the other steps):
 
 ``indices``                 the old Calculate step's address: GET (old links, bookmarks)
                             opens Results with the Index settings sheet; POST is
@@ -66,7 +66,7 @@ def _ready(analysis: Station) -> bool:
 
 
 def results_url(analysis, index: str = "") -> str:
-    url = reverse("stations:results", args=[analysis.pk])
+    url = analysis.url("results")
     return url + ("?" + urlencode({"index": index}) if index else "")
 
 
@@ -74,7 +74,7 @@ def adjust_url(analysis, index: str = "") -> str:
     """Results with the Index settings sheet open (#199): the old "Adjust and recalculate"
     address. ``index``, the index page the user came from, is where applying returns."""
     query = {"settings": "open", **({"back": index} if index else {})}
-    return f"{reverse('stations:results', args=[analysis.pk])}?{urlencode(query)}"
+    return f"{analysis.url('results')}?{urlencode(query)}"
 
 
 # ---- the old Calculate step, and "Recalculate" -------------------------------------------
@@ -83,14 +83,14 @@ def adjust_url(analysis, index: str = "") -> str:
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
-def indices(request, analysis_id):
+def indices(request, workspace_id, slug):
     """The address of the Calculate step before #178. GET (an old link or bookmark) opens
     the Index settings sheet over Results (#199). POST is "Recalculate" on out-of-date
     results (#179): the current inputs with the latest settings. The settings themselves
     are applied from the sheet (``views.edit_input``)."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if not _ready(analysis):
-        return redirect("stations:setup", analysis_id=analysis.pk)
+        return redirect(analysis.url("setup"))
     index = request.GET.get("index", "")[:INDEX_KEY_MAX]
     if request.method != "POST":
         return redirect(adjust_url(analysis, index))
@@ -105,10 +105,10 @@ def indices(request, analysis_id):
 
 
 @require_POST
-def indices_validate(request, analysis_id):
+def indices_validate(request, workspace_id, slug):
     """htmx: one group of fields checked as it changes, returned on its own with its
     warnings."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     unit = request.POST.get("group", "")
     if unit not in IndexParamsForm.UNITS:
         return HttpResponseBadRequest()
@@ -188,13 +188,12 @@ def open_sheet(request, analysis) -> tuple[dict | None, str]:
 
 @never_cache
 @require_safe
-def results(request, analysis_id):
+def results(request, workspace_id, slug):
     """Results: the calculation's progress, then every index as a card."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     if not committed(analysis):
         # Not before "See results": the run may be going on behind the quality checks.
-        target = "stations:qc" if step_two_ready(analysis) else "stations:setup"
-        return redirect(target, analysis_id=analysis.pk)
+        return redirect(analysis.url("qc" if step_two_ready(analysis) else "setup"))
     return render_results(request, analysis)
 
 
@@ -230,7 +229,7 @@ def render_results(request, analysis):
     if index and (running is None or running.is_finished):
         card = run.find(index)
         if card is not None:
-            return redirect("stations:result", analysis_id=analysis.pk, key=card.key)
+            return redirect(analysis.url("result", card.key))
     if not analysis.reached(Step.RESULTS):
         analysis.advance_to(Step.RESULTS)
         analysis.save(update_fields=["step"])
@@ -243,11 +242,11 @@ def render_results(request, analysis):
 
 @never_cache
 @require_safe
-def results_progress(request, analysis_id):
+def results_progress(request, workspace_id, slug):
     """htmx: the progress fragment. Once the job has finished the page is reloaded (or the
     index the user came from opens), with ``HX-Redirect``; so it is when a recalculation is
     cancelled, to show the results it would have replaced."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job = analysis.indices_job
     if job is None:
         raise Http404
@@ -406,7 +405,7 @@ def _row(analysis, source, run, card, theme_label: str, base) -> dict:
     trend = card.trend if card.trend and card.trend.get("valid") else None
     mean = index_detail.mean(plot.values) if plot is not None else None
     places = numbers.slope_decimals(card.units)
-    page = reverse("stations:result", args=[analysis.pk, card.key])
+    page = analysis.url("result", card.key)
     job = source.job
     links = {"page": page}
     if not card.daily:
@@ -507,7 +506,7 @@ def dashboard_context(request, analysis, source, run) -> dict:
     for row in table:
         row["show_href"] = f"?{urlencode({**kept, 'show': row['key']})}#detail-{row['key']}"
     labels = _column_labels()
-    page = reverse("stations:results", args=[analysis.pk])
+    page = analysis.url("results")
     columns = {}
     for key, first in SORTS.items():
         state = direction if key == sort else ""
@@ -573,7 +572,7 @@ def stale_context(analysis, shown, running) -> dict | None:
 
 @never_cache
 @require_safe
-def result(request, analysis_id, key):
+def result(request, workspace_id, slug, key):
     """One index (#237, the Index board): its series (annual, or monthly where the index
     has it: ``?series=``) as a chart of the values or of their anomalies from the base
     period (``?view=anomaly``), beside its trend statistics, and the values as a table.
@@ -581,17 +580,17 @@ def result(request, analysis_id, key):
     files: the series' CSV, R's plot and a citation (#176: every other file is in Files)."""
     from climpact_web.stations import index_detail, index_page
 
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     job, source = current_source(analysis)
     if source is None:
-        return redirect("stations:results", analysis_id=analysis.pk)
+        return redirect(analysis.url("results"))
     run = load_results(analysis, source)
     card = run.card(key)
     if card is None:
         found = run.find(key)
         if found is None:
             raise Http404
-        return redirect("stations:result", analysis_id=analysis.pk, key=found.key)
+        return redirect(analysis.url("result", found.key))
     # The page shows the annual or the monthly values; the days of the extremes are a
     # column of their table, so a day-of-occurrence series opens its index's main one.
     shown = [s for s in card.series if not s.name.startswith("day_of_")]
@@ -603,14 +602,14 @@ def result(request, analysis_id, key):
     plot = run.plots.get(name)
     view = "anomaly" if request.GET.get("view") == "anomaly" else "values"
     base = run_base(analysis, job)
-    page = reverse("stations:result", args=[analysis.pk, card.key])
+    page = analysis.url("result", card.key)
     previous, following = run.neighbours(card)
     theme = themes.by_key().get(card.theme)
     links = {"csv": reverse("jobs:file", args=[job.pk, source.table_file(name)])}
     if png := source.plot_file(name):
         links["png"] = reverse("jobs:file", args=[job.pk, png])
     station = analysis.station_name or analysis.file_name
-    results_page = reverse("stations:results", args=[analysis.pk])
+    results_page = analysis.url("results")
     context = {
         "analysis": analysis,
         "job": job,
@@ -629,7 +628,7 @@ def result(request, analysis_id, key):
         "links": links,
         "breadcrumb": [
             *filter(None, [workspace.workspace_page(analysis)]),
-            {"label": station, "url": reverse("stations:workspace", args=[analysis.pk])},
+            {"label": station, "url": analysis.url()},
             {
                 "label": _("Indices"),
                 "url": f"{results_page}?{urlencode({'show': card.key})}#index-{card.key}",
@@ -732,7 +731,7 @@ def _step(analysis, card) -> dict | None:
     if card is None:
         return None
     return {
-        "url": reverse("stations:result", args=[analysis.pk, card.key]),
+        "url": analysis.url("result", card.key),
         "code": card.code,
         "name": card.title,
         "label": card.code,

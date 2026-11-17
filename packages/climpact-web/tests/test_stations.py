@@ -53,7 +53,8 @@ def upload(client, text, name="my station.txt", url="/station/new", **fields):
 def loaded(client, text=None, name="my station.txt") -> Station:
     response = upload(client, text or rows(), name)
     assert response.status_code == 302, response.content.decode()[:2000]
-    return Station.objects.get(pk=response["Location"].split("/")[2])
+    _, _, space, slug, *_ = response["Location"].split("/")  # /w/<id>/<station>/setup
+    return Station.objects.get(workspace=space, slug=slug)
 
 
 def metadata(**changes) -> dict:
@@ -106,7 +107,7 @@ def test_file_and_details_in_one_post_go_straight_to_quality(client):
         client, rows(), "Perth.txt", intent="go", **{**metadata(), "station_name": ""}
     )
     analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    assert response["Location"] == f"{analysis.url()}quality"
     assert analysis.station_name == "Perth"  # empty: the file's name, as R does
     assert (analysis.latitude, analysis.step) == (-33.9, Step.QC)
     assert analysis.workspace.base_start == 2000
@@ -120,7 +121,7 @@ def test_reading_a_file_keeps_the_details_typed_beside_it(client):
     as the station's setup page, the file card focused, the valid details kept."""
     response = upload(client, rows(), "Perth.txt", **metadata(latitude="-31.9", longitude="x"))
     analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/setup"
+    assert response["Location"] == f"{analysis.url()}setup"
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == (
         "Testville",
         -31.9,
@@ -137,10 +138,12 @@ def test_reading_a_file_keeps_the_details_typed_beside_it(client):
 @pytest.mark.django_db
 def test_read_the_file_without_a_file_on_the_setup_page_changes_nothing_else(client):
     analysis = loaded(client)
-    setup = f"/station/{analysis.pk}/setup"
+    setup = f"{analysis.url()}setup"
     response = client.post(setup, {**metadata(latitude="-20"), "intent": "read"})
-    assert response["Location"] == setup and not Job.objects.exists()
     analysis.refresh_from_db()
+    # The slug follows the name until the details are confirmed (#256).
+    assert analysis.slug == "testville" and setup.endswith("/my-station/setup")
+    assert response["Location"] == f"{analysis.url()}setup" and not Job.objects.exists()
     assert analysis.latitude == -20 and analysis.step == Step.UPLOAD
 
 
@@ -162,7 +165,7 @@ def test_details_errors_after_the_file_was_read_in_the_same_post(client):
     analysis = Station.objects.get()
     html = response.content.decode()
     assert response.status_code == 200 and analysis.step == Step.UPLOAD
-    assert f'action="/station/{analysis.pk}/setup"' in html
+    assert f'action="{analysis.url()}setup"' in html
     assert "There is 1 problem with the form" in html and "has no data: the file covers" in html
     assert "Read: 2000–2002, 800 days" in html
     assert not Job.objects.exists()
@@ -173,7 +176,7 @@ def test_old_upload_and_load_addresses_redirect(client):
     assert client.get("/station/")["Location"] == "/station/new"
     assert client.post("/station/")["Location"] == "/station/new"
     analysis = loaded(client)
-    base = f"/station/{analysis.pk}"
+    base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     assert client.get(f"{base}/load")["Location"] == f"{base}/setup"
     assert client.get(f"{base}/")["Location"] == f"{base}/setup"
     client.post(f"{base}/setup", metadata())
@@ -212,7 +215,7 @@ def test_strip_gap_is_climdex_annual_missing_limit():
 def test_upload_creates_an_analysis_named_after_the_file(client):
     response = upload(client, rows(), name="Perth Airport 1961-2020.txt")
     analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/setup"
+    assert response["Location"] == f"{analysis.url()}setup"
     assert analysis.station_name == "Perth Airport 1961-2020"  # the stem, as the CLI does
     assert analysis.file_name == "Perth Airport 1961-2020.txt"
     assert analysis.station_file == stations_dir() / str(analysis.pk) / "station.txt"
@@ -398,7 +401,7 @@ def test_a_variable_with_no_values_is_reported():
 @pytest.mark.django_db
 def test_warnings_are_shown_on_the_load_page(client):
     analysis = loaded(client, "2000 1 1 0 20 10\n2001 2 29 0 20 10\n2000 1 9 0 20 10\n")
-    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
+    html = client.get(f"{analysis.url()}setup").content.decode()
     assert "Something to check in the file" in html and "does not exist" in html
 
 
@@ -413,7 +416,7 @@ def test_bundled_sample_is_the_r_sample():
 def test_sample_loads_in_one_click(client):
     response = client.post("/station/sample")
     analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/setup"
+    assert response["Location"] == f"{analysis.url()}setup"
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == (
         "sydney_observatory_hill_1936-2015",
         -33.86,
@@ -427,7 +430,7 @@ def test_sample_loads_in_one_click(client):
     response = client.post(response["Location"], metadata(**{
         "station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
         "base_start": "1971", "base_end": "2000"}))  # fmt: skip
-    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    assert response["Location"] == f"{analysis.url()}quality"
 
 
 @pytest.mark.django_db
@@ -437,7 +440,7 @@ def test_setup_page_has_the_file_then_the_details_then_one_button(client):
     the form but the file's own (hidden with JavaScript) "Read the file"."""
     client.post("/station/sample")
     analysis = Station.objects.get()
-    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
+    html = client.get(f"{analysis.url()}setup").content.decode()
     form = re.search(
         r'<form method="post" action="[^"]*/setup" enctype="multipart/form-data" '
         r'class="setup__form" id="new-station".*?</form>',
@@ -455,7 +458,7 @@ def test_setup_page_has_the_file_then_the_details_then_one_button(client):
     )
     data = {"station_name": analysis.station_name, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
-    assert client.post(f"/station/{analysis.pk}/setup", data)["Location"].endswith("/quality")
+    assert client.post(f"{analysis.url()}setup", data)["Location"].endswith("/quality")
 
 
 @pytest.mark.django_db
@@ -480,7 +483,7 @@ def test_your_data_summarises_the_file_on_quality(client):
     client.post(response["Location"], {**metadata(), "station_name": "sydney",
                                        "base_start": "1971", "base_end": "2000"})  # fmt: skip
     analysis = Station.objects.get()
-    html = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    html = client.get(f"{analysis.url()}quality").content.decode()
     # Sydney: 29220 days; 7 precipitation and 58 temperature values missing, in chips (#202)
     chips = re.sub(r"\s+", " ", " ".join(re.findall(r'<li class="data-chip.*?</li>', html, re.S)))
     assert "<b>80</b> years" in chips and "<b>29,220</b> days" in chips
@@ -530,7 +533,7 @@ def test_preview_panels_break_at_gaps():
 @pytest.mark.django_db
 def test_daily_series_csv(client):
     analysis = loaded(client, "2000 1 1 0 20 10\n2000 1 3 -99.9 21.5 11\n")
-    response = client.get(f"/station/{analysis.pk}/series.csv")
+    response = client.get(f"{analysis.url()}series.csv")
     assert response["Content-Type"].startswith("text/csv")
     assert response.content.decode().splitlines() == [
         "date,prcp,tmax,tmin",
@@ -613,7 +616,7 @@ def test_too_little_base_period_data_is_a_warning():
 def test_metadata_without_javascript_shows_every_error(client):
     analysis = loaded(client)
     html = client.post(
-        f"/station/{analysis.pk}/setup", metadata(latitude="99", station_name=".bad")
+        f"{analysis.url()}setup", metadata(latitude="99", station_name=".bad")
     ).content.decode()
     assert "There are 2 problems with the form" in html
     assert '<a href="#id_station_name">' in html and '<a href="#id_latitude">' in html
@@ -625,13 +628,13 @@ def test_metadata_without_javascript_shows_every_error(client):
 @pytest.mark.django_db
 def test_htmx_validates_one_group_as_it_changes(client):
     analysis = loaded(client)
-    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
+    html = client.get(f"{analysis.url()}setup").content.decode()
     for group in ("station_name", "latitude", "longitude", "base_period"):
-        assert f'id="group-{group}" hx-post="/station/{analysis.pk}/setup/validate"' in html
+        assert f'id="group-{group}" hx-post="{analysis.url()}setup/validate"' in html
         assert f'hx-vals=\'{{"group": "{group}"}}\'' in html
     assert 'hx-trigger="change" hx-include="closest form"' in html
 
-    url = f"/station/{analysis.pk}/setup/validate"
+    url = f"{analysis.url()}setup/validate"
     fragment = client.post(url, {**metadata(latitude="123", longitude=""), "group": "latitude"})
     text = fragment.content.decode()
     assert text.lstrip().startswith('<div class="grid gap-2" id="group-latitude"')
@@ -651,8 +654,8 @@ def test_htmx_validates_one_group_as_it_changes(client):
 @pytest.mark.django_db
 def test_continue_saves_and_goes_to_quality_checks(client):
     analysis = loaded(client)
-    response = client.post(f"/station/{analysis.pk}/setup", metadata())
-    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    response = client.post(f"{analysis.url()}setup", metadata())
+    assert response["Location"] == f"{analysis.url()}quality"
     analysis.refresh_from_db()
     assert analysis.step == Step.QC
     assert analysis.metadata == {"name": "Testville", "latitude": -33.9, "longitude": 151.2,
@@ -660,21 +663,19 @@ def test_continue_saves_and_goes_to_quality_checks(client):
     page = client.get(response["Location"]).content.decode()
     # The workspace tabs (#179): Quality current, Results not yet; no Data tab, its summary
     # is Quality's "Your data", and the details are in the Inputs panel (#198).
-    quality = r'href="/station/[^"]+/quality" data-tab="quality"[^>]*aria-current="page"'
+    quality = r'href="/w/[^"]+/quality" data-tab="quality"[^>]*aria-current="page"'
     assert re.search(quality, page)
     assert 'data-tab="data"' not in page and 'id="your-data"' in page
-    assert f'href="/station/{analysis.pk}/inputs/base-period?next=' in page
+    assert f'href="{analysis.url()}inputs/base-period?next=' in page
     assert re.search(r'<span class="tabs__tab" data-tab="results" data-state="locked">', page)
 
 
 @pytest.mark.django_db
 def test_quality_page_needs_step_one_first(client):
     analysis = loaded(client)
-    assert (
-        client.get(f"/station/{analysis.pk}/quality")["Location"] == f"/station/{analysis.pk}/setup"
-    )
-    assert client.post(f"/station/{analysis.pk}/indices").status_code == 302
-    assert client.post(f"/station/{analysis.pk}/inputs/thresholds").status_code == 302
+    assert client.get(f"{analysis.url()}quality")["Location"] == f"{analysis.url()}setup"
+    assert client.post(f"{analysis.url()}recalculate").status_code == 302
+    assert client.post(f"{analysis.url()}inputs/thresholds").status_code == 302
     assert not Job.objects.exists()
 
 
@@ -684,18 +685,18 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
     (#178). Changing them (#179) keeps both jobs: the checks, which do not depend on the
     location, stay current; the run is cancelled and queued again for the new details."""
     analysis = loaded(client)
-    client.post(f"/station/{analysis.pk}/setup", metadata())
+    client.post(f"{analysis.url()}setup", metadata())
     analysis.refresh_from_db()
     first_qc, first_run = analysis.qc_job, analysis.indices_job
     assert first_qc.kind == "qc" and first_run.kind == "station" and first_run.is_speculative
     assert first_qc.inputs["file"] == analysis.file_hash != ""
     assert first_run.inputs["metadata"] == analysis.metadata
     # the same metadata again: nothing to redo
-    client.post(f"/station/{analysis.pk}/setup", metadata())
+    client.post(f"{analysis.url()}setup", metadata())
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job) == (first_qc, first_run)
     assert Job.objects.count() == 2
-    client.post(f"/station/{analysis.pk}/setup", metadata(latitude="-30"))
+    client.post(f"{analysis.url()}setup", metadata(latitude="-30"))
     analysis.refresh_from_db()
     assert analysis.step == Step.QC
     assert analysis.qc_job == first_qc  # the checks do not use the latitude
@@ -705,7 +706,7 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
     first_run.refresh_from_db()
     assert first_run.status == Status.CANCELLED  # never shown, never left running
     # A new name changes the checks' file names: they run again, replacing the old ones.
-    client.post(f"/station/{analysis.pk}/setup", metadata(latitude="-30", station_name="New"))
+    client.post(f"{analysis.url()}setup", metadata(latitude="-30", station_name="New"))
     analysis.refresh_from_db()
     assert analysis.qc_job != first_qc and "replaces" not in analysis.qc_job.params
     first_qc.refresh_from_db()
@@ -717,11 +718,9 @@ def test_changing_metadata_replaces_only_what_depends_on_it(client):
 @pytest.mark.django_db
 def test_replacing_the_file_keeps_the_metadata(client):
     analysis = loaded(client, name="first.txt")
-    client.post(f"/station/{analysis.pk}/setup", metadata(station_name="first"))
-    response = upload(
-        client, rows("1980-01-01", 400), "second.txt", f"/station/{analysis.pk}/setup"
-    )
-    assert response["Location"] == f"/station/{analysis.pk}/setup"
+    client.post(f"{analysis.url()}setup", metadata(station_name="first"))
+    response = upload(client, rows("1980-01-01", 400), "second.txt", f"{analysis.url()}setup")
+    assert response["Location"] == f"{analysis.url()}setup"
     analysis.refresh_from_db()
     # the name followed the file name, as it was still the default; the rest is kept
     assert (analysis.station_name, analysis.latitude) == ("second", -33.9)
@@ -730,14 +729,14 @@ def test_replacing_the_file_keeps_the_metadata(client):
     assert analysis.summary["first_date"] == "1980-01-01" and analysis.step == Step.QC
     assert analysis.qc_job is not None and analysis.qc_job.inputs["file"] != analysis.file_hash
     client.post(
-        f"/station/{analysis.pk}/setup",
+        f"{analysis.url()}setup",
         metadata(station_name="My name", base_start="1980", base_end="1980"),
     )
-    upload(client, rows(), "third.txt", f"/station/{analysis.pk}/setup")
+    upload(client, rows(), "third.txt", f"{analysis.url()}setup")
     analysis.refresh_from_db()
     assert analysis.station_name == "My name"
     # a bad file leaves everything as it was
-    html = upload(client, "x\n1 2\n", "bad.txt", f"/station/{analysis.pk}/setup").content.decode()
+    html = upload(client, "x\n1 2\n", "bad.txt", f"{analysis.url()}setup").content.decode()
     assert "bad.txt was not loaded" in html and "Line 2 has 2 values" in html
     analysis.refresh_from_db()
     assert analysis.file_name == "third.txt"
@@ -747,7 +746,7 @@ def test_replacing_the_file_keeps_the_metadata(client):
 def test_delete_now(client):
     analysis = loaded(client)
     folder = analysis.folder
-    response = client.post(f"/station/{analysis.pk}/delete")
+    response = client.post(f"{analysis.url()}delete")
     assert response["Location"] == "/station/new"
     assert not Station.objects.exists() and not folder.exists()
 
@@ -756,7 +755,7 @@ def test_delete_now(client):
 def test_upload_page_lists_recent_analyses(client):
     analysis = loaded(client, name="perth.txt")
     html = client.get("/station/new").content.decode()
-    assert "Continue where you left off" in html and f'href="/station/{analysis.pk}/"' in html
+    assert "Continue where you left off" in html and f'href="{analysis.url()}"' in html
     assert "Continue where you left off" not in Client().get("/station/new").content.decode()
 
 
@@ -768,9 +767,9 @@ def test_other_sessions_get_404(client):
     analysis = loaded(client)
     other = Client()
     for url in ("load", "setup", "series.csv", "quality"):
-        assert other.get(f"/station/{analysis.pk}/{url}").status_code == 404
-    for url in ("load", "setup", "setup/validate", "delete", "indices", "inputs/thresholds"):
-        assert other.post(f"/station/{analysis.pk}/{url}").status_code == 404
+        assert other.get(f"{analysis.url()}{url}").status_code == 404
+    for url in ("load", "setup", "setup/validate", "delete", "recalculate", "inputs/thresholds"):
+        assert other.post(f"{analysis.url()}{url}").status_code == 404
     assert client.get(f"/station/{uuid.uuid4()}/setup").status_code == 404
     assert Station.objects.exists()
 
@@ -806,6 +805,6 @@ def test_old_workspaces_are_purged_with_their_files(client, settings):
 def test_load_page_states_the_deletion_date(client, settings):
     settings.WORKSPACE_EXPIRY = True
     analysis = loaded(client)
-    html = client.get(f"/station/{analysis.pk}/setup").content.decode()
+    html = client.get(f"{analysis.url()}setup").content.decode()
     expected = f"{analysis.expires_at:%-d %B %Y}"
     assert f"deleted on {expected} unless you change them." in html

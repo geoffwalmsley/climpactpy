@@ -196,7 +196,7 @@ def test_a_valid_token_lets_the_form_through(turnstile):
     assert response.status_code == 302
     analysis = Station.objects.get()
     # The next step, which queues the quality checks, needs a token of its own.
-    url = f"/station/{analysis.pk}/setup"
+    url = f"{analysis.url()}setup"
     assert client.post(url, metadata()).status_code == 400
     assert not Job.objects.exists()
     assert client.post(url, metadata(**{TOKEN_FIELD: "ok-2"})).status_code == 302
@@ -264,8 +264,7 @@ def start_qc(client):
     """Upload, then the station details: the request that queues a job."""
     response = upload(client)
     assert response.status_code == 302, response.content.decode()[:500]
-    analysis_id = response["Location"].split("/")[2]
-    return client.post(f"/station/{analysis_id}/setup", metadata())
+    return client.post(response["Location"], metadata())  # /w/<id>/<station>/setup
 
 
 @pytest.mark.django_db
@@ -384,7 +383,7 @@ def test_speculative_runs_do_not_count_against_the_quotas(hosted):
     assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
     analysis = Station.objects.filter(owner="owner-a").get()
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
-    assert client.post(f"/station/{analysis.pk}/quality/continue").status_code == 302
+    assert client.post(f"{analysis.url()}quality/continue").status_code == 302
     analysis.refresh_from_db()
     assert not analysis.indices_job.is_speculative
     assert JobStart.objects.filter(client=IP).count() == 1  # the checks' change
@@ -404,7 +403,7 @@ def test_speculative_runs_wait_for_a_quiet_queue(hosted, caplog):
     analysis = Station.objects.get()
     assert analysis.indices_job is None
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.SUCCEEDED)
-    client.post(f"/station/{analysis.pk}/quality/continue")
+    client.post(f"{analysis.url()}quality/continue")
     analysis.refresh_from_db()
     job = analysis.indices_job
     assert job.kind == "station" and job.status == Status.QUEUED and not job.is_speculative

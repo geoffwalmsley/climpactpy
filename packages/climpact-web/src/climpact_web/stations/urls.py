@@ -1,58 +1,62 @@
-from django.urls import path
+from django.urls import include, path
 
 from climpact_web.stations import views, views_downloads, views_indices, views_sector
 
 app_name = "stations"
 
-# An analysis's sections (#179, #198): Quality ``quality``, Results ``results`` and Files
-# ``downloads``, the addresses of the steps they replace, so links and bookmarks keep
-# working. ``new`` is the New station page (#201), ``setup`` the same page once its file
-# is read; the upload page's old address (``upload``) and the first visit's details' old
-# one (``load``) lead to them, or once the station is set up to Quality's "Your data".
-# ``inputs/<key>`` is a sheet of the Inputs panel as a page: the file, the station, the
-# base period, the thresholds and the index settings (#198, #199). ``/station/<id>/``
-# opens the furthest section reached, and the old Calculate step (``indices``) the Index
-# settings sheet over Results.
+# A station's pages (#256): ``/w/<workspace>/<station slug>/…``. Its sections are Quality
+# ``quality``, Indices ``indices`` (``indices/<key>`` an index's page) and Files
+# ``downloads``; ``setup`` is the New station page once its file is read, and ``load`` the
+# first visit's details' old address. ``inputs/<key>`` is a sheet of the Inputs panel as a
+# page: the file, the station, the base period, the thresholds and the index settings
+# (#198, #199). The station's own address opens the furthest section reached; ``recalculate``
+# is "Recalculate" on out-of-date results (and on GET the Index settings sheet over
+# Indices). The URL names keep the names they had under ``/station/<id>/``: ``results`` is
+# Indices and ``result`` an index's page.
+station_patterns = [
+    path("", views.station_home, name="station"),
+    path("setup", views.new_station, name="setup"),
+    path("setup/validate", views.validate, name="validate"),
+    path("load", views.load, name="load"),
+    path("inputs/progress", views.inputs_progress, name="inputs_progress"),
+    path("undo", views.undo, name="undo"),
+    path("inputs/<slug:key>", views.edit_input, name="edit_input"),
+    path("series.csv", views.series, name="series"),
+    path("delete", views.delete, name="delete"),
+    path("quality", views.qc, name="qc"),
+    path("quality/progress", views.qc_progress, name="qc_progress"),
+    path("quality/checks/<slug:check>", views.qc_table, name="qc_table"),
+    path("quality/continue", views.qc_continue, name="qc_continue"),
+    path("quality/flagged.csv", views.qc_flagged, name="qc_flagged"),
+    # Indices and the index pages (#78, #236): stations/views_indices.py. ``progress`` comes
+    # before ``<key>``; no index has that name.
+    path("indices", views_indices.results, name="results"),
+    path("indices/progress", views_indices.results_progress, name="results_progress"),
+    path("indices/<str:key>", views_indices.result, name="result"),
+    path("recalculate", views_indices.indices, name="recalculate"),
+    path("settings/validate", views_indices.indices_validate, name="indices_validate"),
+    # Sector data (#90): stations/views_sector.py.
+    path("sector", views_sector.sector, name="sector"),
+    path("sector/progress", views_sector.sector_progress, name="sector_progress"),
+    # Files (#79): stations/views_downloads.py.
+    path("downloads", views_downloads.downloads, name="downloads"),
+]
+
+# The pages without a station yet keep their ``/station/`` addresses: the New station page
+# (#201) and the sample. ``/station/`` is the upload page's old address. Any other
+# ``/station/<id>/…`` address, from before #256, redirects to the station's new one while
+# the station is kept (``views.old_station_url``).
 urlpatterns = [
-    path("", views.upload, name="upload"),
-    path("new", views.new_station, name="new"),
-    path("validate", views.validate, name="validate_new"),
-    path("<uuid:analysis_id>/", views.workspace_home, name="workspace"),
-    path("sample", views.sample, name="sample"),
-    path("sample.txt", views.sample_file, name="sample_file"),
-    path("sample-sector.csv", views_sector.sector_sample, name="sector_sample"),
-    path("<uuid:analysis_id>/setup", views.new_station, name="setup"),
-    path("<uuid:analysis_id>/setup/validate", views.validate, name="validate"),
-    path("<uuid:analysis_id>/load", views.load, name="load"),
-    path("<uuid:analysis_id>/inputs/progress", views.inputs_progress, name="inputs_progress"),
-    path("<uuid:analysis_id>/undo", views.undo, name="undo"),
-    path("<uuid:analysis_id>/inputs/<slug:key>", views.edit_input, name="edit_input"),
-    path("<uuid:analysis_id>/series.csv", views.series, name="series"),
-    path("<uuid:analysis_id>/delete", views.delete, name="delete"),
-    path("<uuid:analysis_id>/quality", views.qc, name="qc"),
-    path("<uuid:analysis_id>/quality/progress", views.qc_progress, name="qc_progress"),
-    path("<uuid:analysis_id>/quality/checks/<slug:check>", views.qc_table, name="qc_table"),
-    path("<uuid:analysis_id>/quality/continue", views.qc_continue, name="qc_continue"),
-    path("<uuid:analysis_id>/quality/flagged.csv", views.qc_flagged, name="qc_flagged"),
-    # Steps 3 and 4 (#78): stations/views_indices.py.
-    path("<uuid:analysis_id>/indices", views_indices.indices, name="indices"),
-    path(
-        "<uuid:analysis_id>/indices/validate",
-        views_indices.indices_validate,
-        name="indices_validate",
-    ),
-    path("<uuid:analysis_id>/results", views_indices.results, name="results"),
-    path(
-        "<uuid:analysis_id>/results/progress",
-        views_indices.results_progress,
-        name="results_progress",
-    ),
-    path("<uuid:analysis_id>/results/<str:key>", views_indices.result, name="result"),
-    # Step 5, sector data (#90): stations/views_sector.py.
-    path("<uuid:analysis_id>/sector", views_sector.sector, name="sector"),
-    path(
-        "<uuid:analysis_id>/sector/progress", views_sector.sector_progress, name="sector_progress"
-    ),
-    # The downloads page (#79): stations/views_downloads.py.
-    path("<uuid:analysis_id>/downloads", views_downloads.downloads, name="downloads"),
+    path("station/", views.upload, name="upload"),
+    path("station/new", views.new_station, name="new"),
+    path("station/validate", views.validate, name="validate_new"),
+    path("station/sample", views.sample, name="sample"),
+    path("station/sample.txt", views.sample_file, name="sample_file"),
+    path("station/sample-sector.csv", views_sector.sector_sample, name="sector_sample"),
+    path("station/<uuid:station_id>/", views.old_station_url),
+    path("station/<uuid:station_id>/<path:rest>", views.old_station_url),
+    # The workspace (#256): its one station, or the batch results until #234. Its batch
+    # (``/w/<id>/batch/…``, batch/urls.py) is included before these.
+    path("w/<uuid:workspace_id>/", views.workspace_page, name="workspace"),
+    path("w/<uuid:workspace_id>/<slug:slug>/", include(station_patterns)),
 ]

@@ -2,8 +2,8 @@
 An action on Results, not a step of its own (#173).
 
 Replaces the R app's step 4 (``modules/singleStationStep4UI.R``, ``singleStationStep4.R``,
-``server/sector_correlation.R``). URLs (``/station/<id>/...``, private to the session like
-the other steps):
+``server/sector_correlation.R``). URLs (``/w/<workspace>/<station>/...``, private to the
+session like the other steps):
 
 ``sector``            the form (GET; POST checks the file and queues a ``sector`` job), the
                       job's progress while it runs, then its results; ``?order=strength``
@@ -22,7 +22,6 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
@@ -125,10 +124,10 @@ def initial(analysis: Station, job: Job | None) -> dict:
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
-def sector(request, analysis_id):
+def sector(request, workspace_id, slug):
     """The sector comparison: the sector file and plot settings, the job's progress, then
     its results."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     indices_job, source = current_source(analysis)
     context = {
         "analysis": analysis,
@@ -152,7 +151,7 @@ def sector(request, analysis_id):
         )
         if form.is_valid():
             queue_sector(request, analysis, source, form)
-            return redirect("stations:sector", analysis_id=analysis.pk)
+            return redirect(analysis.url("sector"))
     else:
         form = SectorForm(initial=initial(analysis, job), summary=analysis.summary)
         if not analysis.reached(Step.SECTOR):
@@ -196,9 +195,9 @@ def sector(request, analysis_id):
 
 @never_cache
 @require_safe
-def sector_progress(request, analysis_id):
+def sector_progress(request, workspace_id, slug):
     """htmx: the sector job's progress; once it has finished, the page reloads."""
-    analysis = get_analysis(request, analysis_id)
+    analysis = get_analysis(request, workspace_id, slug)
     _indices_job, source = current_source(analysis)
     job = sector_job(analysis, source)
     if job is None:
@@ -210,7 +209,7 @@ def sector_progress(request, analysis_id):
             job.refresh_from_db()
     if job.is_finished:
         response = HttpResponse(status=204)
-        response["HX-Redirect"] = reverse("stations:sector", args=[analysis.pk])
+        response["HX-Redirect"] = analysis.url("sector")
         return response
     context = {**progress_context(request, job), "analysis": analysis, "phases": phases(job)}
     return render(request, "stations/_sector_progress.html", context)

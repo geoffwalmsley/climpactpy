@@ -4,7 +4,7 @@ checked as they change: htmx posts the form to batch:options and swaps in this f
 with the base period's coverage notes and the time estimate. Without JavaScript they are
 checked when the form is sent. Parameters: run, options (OptionsForm), coverage, estimate.
 {% endcomment %}
-<div class="stack" id="batch-options" hx-post="{% url 'batch:options' run.pk %}" hx-trigger="change" hx-include="closest form" hx-target="this" hx-swap="outerHTML">
+<div class="stack" id="batch-options" hx-post="{% url 'batch:options' run.workspace_id %}" hx-trigger="change" hx-include="closest form" hx-target="this" hx-swap="outerHTML">
   <fieldset class="field-set" aria-describedby="base-period-hint">
     <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
     <p class="field__hint" id="base-period-hint">{% translate "The years the percentile thresholds are calculated from, the same for every station. Climpact for R suggests 1971 to 2000." %}</p>

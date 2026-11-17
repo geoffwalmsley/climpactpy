@@ -39,7 +39,6 @@ from collections import Counter
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
@@ -440,10 +439,10 @@ STATES = {
 VERDICTS = ("ready", "usable", "fix")  # qc_review.Verdict.level
 
 SECTIONS = (
-    ("quality", gettext_lazy("Quality"), "stations:qc"),
-    # Named Indices since #236; its address stays ``results``.
-    ("results", gettext_lazy("Indices"), "stations:results"),
-    ("files", gettext_lazy("Files"), "stations:downloads"),
+    ("quality", gettext_lazy("Quality"), "qc"),
+    # Named Indices since #236 (``indices`` since #256); its URL name stays ``results``.
+    ("results", gettext_lazy("Indices"), "results"),
+    ("files", gettext_lazy("Files"), "downloads"),
 )
 
 
@@ -570,7 +569,7 @@ def sections(analysis: Station, current: str) -> list[Section]:
     out = []
     for key, label, url_name in SECTIONS:
         state = states[key]
-        url = None if state == "locked" else reverse(url_name, args=[analysis.pk])
+        url = None if state == "locked" else analysis.url(url_name)
         wrong = qc_verdict(analysis, shown_qc(analysis))[1] if state in VERDICTS else 0
         out.append(Section(key, str(label), url, state, key == current, wrong))
     return out
@@ -578,28 +577,31 @@ def sections(analysis: Station, current: str) -> list[Section]:
 
 def workspace_page(analysis: Station) -> dict | None:
     """The workspace's own page in the breadcrumb, as {label, url}: until #234 gives
-    workspaces a page, a batch's results stand in for it (#255). None for a workspace of
-    one station, which opens straight to the station."""
+    workspaces a page, a batch's results stand in for it (#255). That is the workspace's
+    address, ``/w/<id>/`` (#256), when it has several stations; with one, which the
+    workspace's address opens straight away, the batch results' own. None for a workspace
+    of one station without a batch."""
     from climpact_web.batch.models import BatchRun
 
     run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False).first()
     if run is None:
         return None
+    several = analysis.workspace.stations.count() > 1
     return {
         "label": analysis.workspace.display_name,
-        "url": reverse("batch:results", args=[run.pk]),
+        "url": analysis.workspace.get_absolute_url() if several else run.url("results"),
     }
 
 
 def home_url(analysis: Station) -> str:
-    """The workspace's own address leads to the furthest section it has reached."""
+    """The station's own address leads to the furthest section it has reached."""
     if committed(analysis):
-        name = "stations:results"
+        name = "results"
     elif set_up(analysis):
-        name = "stations:qc"
+        name = "qc"
     else:
-        name = "stations:setup"
-    return reverse(name, args=[analysis.pk])
+        name = "setup"
+    return analysis.url(name)
 
 
 def set_up(analysis: Station) -> bool:
@@ -865,7 +867,7 @@ def sheet_url(analysis: Station, key: str, path: str = "") -> str:
     leads without JavaScript; ``path``, where applying returns."""
     from django.utils.http import urlencode
 
-    url = reverse("stations:edit_input", args=[analysis.pk, key])
+    url = analysis.url("edit_input", key)
     return f"{url}?{urlencode({'next': path})}" if path else url
 
 

@@ -118,7 +118,7 @@ def station_calculating(client) -> str:
 
     url = station_qc(client)
     Station.objects.update(step=Step.INDICES)
-    return url.replace("/quality", "/results")
+    return url.replace("/quality", "/indices")
 
 
 def station_results(client) -> str:
@@ -156,7 +156,7 @@ def station_sector(client) -> str:
     from climpact_web.jobs.models import Job
     from climpact_web.jobs.worker import claim, run_job
 
-    url = station_results(client).replace("/results", "/sector")
+    url = station_results(client).replace("/indices", "/sector")
     Job.objects.filter(kind="qc").delete()
     client.post(url, {"sample": "1", "detrend": "on"})
     run_job(claim("budget"), None)
@@ -165,7 +165,7 @@ def station_sector(client) -> str:
 
 def station_downloads(client) -> str:
     """The downloads page of the run with every index (#79): each table's link and size."""
-    return station_results(client).replace("/results", "/downloads")
+    return station_results(client).replace("/indices", "/downloads")
 
 
 def batch_check(client) -> str:

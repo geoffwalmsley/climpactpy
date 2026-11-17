@@ -9,6 +9,7 @@ import re
 import shutil
 from dataclasses import asdict, fields
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -50,7 +51,7 @@ def start(client, path=STRESS, name="qc_stress_1961-2020") -> Station:
     load = response["Location"]
     response = client.post(load, {"station_name": name, **META})
     analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    assert response["Location"] == f"{analysis.url()}quality"
     return analysis
 
 
@@ -113,8 +114,8 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert job.kind == "qc" and job.status == Status.QUEUED
     assert job.params["qc"] == QC_DEFAULTS
     assert job.params["metadata"]["name"] == "qc_stress_1961-2020"
-    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
-    assert 'id="qc-progress"' in page and f"/station/{analysis.pk}/quality/progress" in page
+    page = client.get(f"{analysis.url()}quality").content.decode()
+    assert 'id="qc-progress"' in page and f"{analysis.url()}quality/progress" in page
     # No checks' charts until results; the daily series of "Your data" (#198) is there.
     assert 'id="daily-chart"' in page and 'id="qc-chart' not in page
     # The indices are queued too, with the default settings, behind the checks (#178).
@@ -122,7 +123,7 @@ def test_continue_from_step_one_queues_the_checks(client):
     assert run.kind == "station" and run.is_speculative and run.params["qc"] == QC_DEFAULTS
     assert run.created_at >= job.created_at
     # Visiting step 1 and continuing again with nothing changed does not queue again.
-    client.post(f"/station/{analysis.pk}/setup", {"station_name": "qc_stress_1961-2020", **META})
+    client.post(f"{analysis.url()}setup", {"station_name": "qc_stress_1961-2020", **META})
     assert Job.objects.count() == 2
 
 
@@ -135,16 +136,16 @@ def test_while_the_checks_run_the_thresholds_are_in_the_inputs_panel(client):
     """#114, #199: the checks start by themselves, so the page says they are running. The
     thresholds are not on the page: the Inputs panel's sheet has them."""
     analysis = start(client)
-    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    page = client.get(f"{analysis.url()}quality").content.decode()
     assert "Running the quality checks…" in page and "Waiting to run" not in page
     assert 'name="iqr_temp"' in page and 'name="iqr_temp"' not in without_sheets(page)
     assert "<form" not in without_sheets(page).split('id="your-data"')[0]
     # Before any check (no job) the page offers to run them: the thresholds sheet does.
     analysis.qc_job = None
     analysis.save()
-    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    page = client.get(f"{analysis.url()}quality").content.decode()
     assert "The checks have not run on this file yet." in page
-    sheet = f"/station/{analysis.pk}/inputs/thresholds?next=%2Fstation%2F{analysis.pk}%2Fquality"
+    sheet = f"{analysis.url()}inputs/thresholds?next={quote(analysis.url(), safe='')}quality"
     assert f'href="{sheet}" data-sheet-open="sheet-thresholds"' in page
     assert "<span>Run the checks</span>" in page
 
@@ -168,12 +169,12 @@ def test_qc_job_writes_the_qc_files_like_r(checked):
 
 def test_progress_fragment_refreshes_the_page_when_done(client):
     analysis = start(client)
-    url = f"/station/{analysis.pk}/quality/progress"
+    url = f"{analysis.url()}quality/progress"
     assert 'id="qc-progress"' in client.get(url, HTTP_HX_REQUEST="true").content.decode()
     run_next()
     response = client.get(url, HTTP_HX_REQUEST="true")
     assert response.status_code == 204 and response["HX-Refresh"] == "true"
-    assert client.get(url)["Location"] == f"/station/{analysis.pk}/quality"
+    assert client.get(url)["Location"] == f"{analysis.url()}quality"
 
 
 # ---- Every flag on the chart and in the table (acceptance) -----------------------------------
@@ -202,7 +203,7 @@ def test_every_flag_of_the_stress_station_is_in_its_table(client, checked):
                 continue
             query = f"group={table.group}&" if table.group else ""
             for number in range(1, table.page(1).pages + 1):
-                url = f"/station/{checked.pk}/quality/checks/{check.key}?{query}page={number}"
+                url = f"{checked.url()}quality/checks/{check.key}?{query}page={number}"
                 html = client.get(url).content.decode()
                 shown += re.findall(r'<tr data-date="([\d-]+)"', html)
         assert sorted(shown) == sorted(listed), check.key
@@ -493,7 +494,7 @@ def test_months_that_hold_most_rows():
 
 
 def test_results_page(client, checked):
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     # The verdict strip (#235): the level in bold, one sentence, the counts on one line.
     assert "<b>Usable.</b> 21 values look wrong; the indices can run with them as they are." in page
     assert_tab_shows_verdict(page, "usable", "Usable", "warning", "21")
@@ -502,13 +503,13 @@ def test_results_page(client, checked):
     # so the drop zone is only there.
     verdict = verdict_of(page)
     assert "verdict-strip--usable" in verdict and "65,720 values checked" in verdict
-    assert f'action="/station/{checked.pk}/quality/continue"' in verdict
+    assert f'action="{checked.url()}quality/continue"' in verdict
     assert verdict.count('class="button button--sm"') == 1
     assert "<span>Go to indices</span>" in verdict
-    file_sheet = f"/station/{checked.pk}/inputs/file?next=%2Fstation%2F{checked.pk}%2Fquality"
+    file_sheet = f"{checked.url()}inputs/file?next={quote(checked.url(), safe='')}quality"
     assert f'<a href="{file_sheet}" data-sheet-open="sheet-file"' in verdict
     assert "<span>Replace file</span>" in verdict
-    flagged = f'href="/station/{checked.pk}/quality/flagged.csv"'
+    flagged = f'href="{checked.url()}quality/flagged.csv"'
     assert flagged in verdict and "<span>Flagged values (CSV)</span>" in verdict
     assert (
         verdict.index("Flagged values")
@@ -523,7 +524,7 @@ def test_results_page(client, checked):
     # No forms on the page but the decision and "Delete" (#199): the thresholds and the
     # file are changed in the Inputs panel's sheets.
     actions = re.findall(r'<form[^>]* action="([^"]+)"', without_sheets(page))
-    assert actions == [f"/station/{checked.pk}/quality/continue", f"/station/{checked.pk}/delete"]
+    assert actions == [f"{checked.url()}quality/continue", f"{checked.url()}delete"]
     # The verdict, the coverage and its table, the worklist and its detail pane, then the
     # charts and distributions (#235). "Your data" is only there while the checks run.
     order = ["qc-verdict-title", "coverage-title", "missing-data", "qc-review", "look-wrong",
@@ -549,9 +550,9 @@ def test_results_page(client, checked):
     # The files are in Files, not here (#176): one link under Details, no download.
     job = checked.qc_job
     assert f"/jobs/{job.pk}/files/" not in page and " download>" not in page
-    files_link = f'href="/station/{checked.pk}/downloads#quality-files"'
+    files_link = f'href="{checked.url()}downloads#quality-files"'
     assert page.count(files_link) == 1 and page.index(files_link) > page.index('id="details"')
-    files = client.get(f"/station/{checked.pk}/downloads").content.decode()
+    files = client.get(f"{checked.url()}downloads").content.decode()
     for name in job.result["files"] + [job.result["zip"]]:
         assert f"/jobs/{job.pk}/files/{name}" in files
         assert client.get(f"/jobs/{job.pk}/files/{name}").status_code == 200
@@ -603,7 +604,7 @@ def test_every_finding_and_group_is_reachable_from_the_list(client, checked):
     assert {(i.check.key, i.finding.date) for i in items if i.finding} == findings
     grouped = sum(i.group.count for i in items if i.group)
     assert grouped == review.verdict.worth
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     first = items[0]
     assert details_shown(page) == [first.id] and selected_rows(page) == [first.id]
     for item in items:
@@ -624,7 +625,7 @@ def test_selecting_without_javascript(client, checked):
     its rows by calendar month and its rows, paged, and its pager keeps the selection."""
     review = qc_review.review(checked.qc_job, checked.station_file)
     finding = review.items[7]
-    url = f"/station/{checked.pk}/quality"
+    url = f"{checked.url()}quality"
     page = client.get(f"{url}?show={finding.id}").content.decode()
     assert details_shown(page) == [finding.id] and selected_rows(page) == [finding.id]
     detail = page[page.index(f'id="{finding.anchor}"') :].split("</section>")[0]
@@ -652,7 +653,7 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     review.findings, review.groups = [], []
     review.verdict = qc_review.verdict(review.checks, [], review.verdict.values)
     monkeypatch.setattr(qc_review, "review", lambda job, path: review)
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
     assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
     assert "Ready to use" in page
@@ -672,7 +673,7 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
     review.verdict = qc_review.verdict(review.checks, review.years, review.verdict.values, strict)
     assert review.verdict.level == "fix"
     monkeypatch.setattr(qc_review, "review", lambda job, path: review)
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     verdict = verdict_of(page)
     assert "<b>Fix the file first.</b>" in verdict and "verdict-strip--fix" in verdict
     assert_tab_shows_verdict(page, "fix", "Fix first", "error", "21")
@@ -687,7 +688,7 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
 def test_pages_without_javascript(client, checked):
     """The pager's links carry the page of each table in the query string, and the
     selection (#202); a page asked for without ?show= shows its table."""
-    page = client.get(f"/station/{checked.pk}/quality?outliers-prcp-high_page=2").content.decode()
+    page = client.get(f"{checked.url()}quality?outliers-prcp-high_page=2").content.decode()
     assert details_shown(page) == ["outliers-prcp-high"]
     section = page[page.index('id="qc-table-outliers-prcp-high"') :]
     assert "rows 51 to 67 of 67" in section
@@ -700,30 +701,28 @@ def test_pages_without_javascript(client, checked):
 def test_table_page_of_a_date(client, checked):
     review = qc_review.review(checked.qc_job, checked.station_file)
     row = review.table("outliers", "prcp-high").rows[60]
-    url = f"/station/{checked.pk}/quality/checks/outliers?group=prcp-high&date={row.date}"
+    url = f"{checked.url()}quality/checks/outliers?group=prcp-high&date={row.date}"
     html = client.get(url).content.decode()
     assert "rows 51 to 67 of 67" in html
     selected = f'<tr data-date="{row.date}" tabindex="-1" class="is-selected" aria-current="true">'
     assert selected in html
-    assert client.get(f"/station/{checked.pk}/quality/checks/nope").status_code == 404
-    assert client.get(f"/station/{checked.pk}/quality/checks/outliers").status_code == 404
-    assert (
-        client.get(f"/station/{checked.pk}/quality/checks/outliers?group=nope").status_code == 404
-    )
+    assert client.get(f"{checked.url()}quality/checks/nope").status_code == 404
+    assert client.get(f"{checked.url()}quality/checks/outliers").status_code == 404
+    assert client.get(f"{checked.url()}quality/checks/outliers?group=nope").status_code == 404
 
 
 def sheet_post(client, analysis, key, data, next_page="quality"):
     """Apply the Inputs panel's sheet ``key`` from a station page (#198, #199)."""
     return client.post(
-        f"/station/{analysis.pk}/inputs/{key}",
-        {**data, "next": f"/station/{analysis.pk}/{next_page}"},
+        f"{analysis.url()}inputs/{key}",
+        {**data, "next": f"{analysis.url()}{next_page}"},
     )
 
 
 def test_new_thresholds_run_the_checks_again(client, checked):
     data = {**{k: str(v) for k, v in QC_DEFAULTS.items()}, "jump": "15"}
     response = sheet_post(client, checked, "thresholds", data)
-    assert response["Location"] == f"/station/{checked.pk}/quality"
+    assert response["Location"] == f"{checked.url()}quality"
     checked.refresh_from_db()
     assert checked.workspace.qc_params["jump"] == 15.0
     assert checked.qc_job.params["qc"]["jump"] == 15.0
@@ -735,7 +734,7 @@ def test_new_thresholds_run_the_checks_again(client, checked):
     listed = {r.date for r in review.check("tx_jumps").rows}
     assert {d for d, c in flags if c == "tx_jumps"} == listed
     # The panel says how many were changed, and Details too.
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     panel = page.split('data-input="thresholds"')[1].split("</div>")[0]
     assert '<dd class="inputs-panel__value">1 changed</dd>' in panel
     assert "The checks use R's default thresholds, with 1 changed." in page
@@ -774,7 +773,7 @@ def test_replaced_file_reruns_the_checks_and_keeps_the_details(client, checked):
     assert fixed != STRESS.read_text()
     upload = {"station_file": SimpleUploadedFile("fixed.txt", fixed.encode())}
     response = sheet_post(client, checked, "file", upload)
-    assert response["Location"] == f"/station/{checked.pk}/quality"
+    assert response["Location"] == f"{checked.url()}quality"
     checked.refresh_from_db()
     assert checked.station_name == "qc_stress_1961-2020" and checked.latitude == 52.38
     assert checked.workspace.qc_params["iqr_temp"] == 4.0
@@ -799,22 +798,22 @@ def test_use_this_data_opens_the_results(client, checked):
     """#178: "Use this data" goes straight to the results of the run queued with the
     checks, which becomes the user's own; no settings page on the way."""
     speculative = checked.indices_job
-    response = client.post(f"/station/{checked.pk}/quality/continue")
-    assert response["Location"] == f"/station/{checked.pk}/results"
+    response = client.post(f"{checked.url()}quality/continue")
+    assert response["Location"] == f"{checked.url()}indices"
     checked.refresh_from_db()
     assert checked.step == Step.RESULTS and checked.indices_job == speculative
     job = Job.objects.get(kind="station")
     assert not job.is_speculative and job.params["qc"] == QC_DEFAULTS
-    page = client.get(f"/station/{checked.pk}/results").content.decode()
-    assert "Calculating indices" in page and "results/progress" in page
+    page = client.get(f"{checked.url()}indices").content.decode()
+    assert "Calculating indices" in page and "indices/progress" in page
 
 
 def test_continue_needs_finished_checks(client):
     analysis = start(client)
-    response = client.post(f"/station/{analysis.pk}/quality/continue")
-    assert response["Location"] == f"/station/{analysis.pk}/quality"
+    response = client.post(f"{analysis.url()}quality/continue")
+    assert response["Location"] == f"{analysis.url()}quality"
     # The results are not shown before "Use this data" (#178).
-    assert client.get(f"/station/{analysis.pk}/results")["Location"].endswith("/quality")
+    assert client.get(f"{analysis.url()}indices")["Location"].endswith("/quality")
 
 
 def test_other_sessions_get_404(client, checked):
@@ -822,12 +821,12 @@ def test_other_sessions_get_404(client, checked):
 
     other = Client()
     for url in ("quality", "quality/progress", "quality/checks/outliers"):
-        assert other.get(f"/station/{checked.pk}/{url}").status_code == 404
+        assert other.get(f"{checked.url()}{url}").status_code == 404
     for url in ("inputs/thresholds", "inputs/file", "quality/continue"):
-        assert other.post(f"/station/{checked.pk}/{url}").status_code == 404
+        assert other.post(f"{checked.url()}{url}").status_code == 404
     # The old forms' addresses are gone (#199).
     for url in ("quality/run", "quality/file"):
-        assert client.post(f"/station/{checked.pk}/{url}").status_code == 404
+        assert client.post(f"{checked.url()}{url}").status_code == 404
 
 
 def test_failed_checks_say_so(client):
@@ -835,7 +834,7 @@ def test_failed_checks_say_so(client):
     job = analysis.qc_job
     job.status, job.error = Status.FAILED, "Something went wrong."
     job.save()
-    page = client.get(f"/station/{analysis.pk}/quality").content.decode()
+    page = client.get(f"{analysis.url()}quality").content.decode()
     assert "The checks could not be run." in page and "Something went wrong." in page
     # "Run the checks" opens the thresholds sheet, whose Apply runs them (#199).
     alert = page.split('class="alert alert--error"')[1].split("</div>\n    </div>")[0]
@@ -892,14 +891,14 @@ def test_chart_payload_rejects_unknown_variables(client, checked):
 
 def test_job_folder_cleanup_does_not_break_the_page(client, checked):
     shutil.rmtree(checked.qc_job.output_dir)
-    assert client.get(f"/station/{checked.pk}/quality").status_code == 200
+    assert client.get(f"{checked.url()}quality").status_code == 200
 
 
 def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
     """#177: one help link per section of the Quality page opens its help in the drawer
     (#235: "How the checks work" for both lists, quiet); the thresholds have no help link
     of their own (their sheet has)."""
-    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    page = client.get(f"{checked.url()}quality").content.decode()
     assert re.findall(r'href="/help/sections/([^/"?]+)/', page) == [
         "quality.missing",  # the coverage strip's table (#235)
         "quality.verdict",  # "How the checks work", with every check's topic (#235)
@@ -913,7 +912,7 @@ def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
 def test_flagged_values_csv(client, checked):
     """#235: "Flagged values (CSV)" lists every value the checks flagged, one row each, in
     R's order of the checks, values as the file has them (hyphen-minus, no units)."""
-    response = client.get(f"/station/{checked.pk}/quality/flagged.csv")
+    response = client.get(f"{checked.url()}quality/flagged.csv")
     assert response.status_code == 200 and response["Content-Type"].startswith("text/csv")
     assert "_flagged_values.csv" in response["Content-Disposition"]
     rows = list(csv.reader(io.StringIO(response.content.decode())))
@@ -926,4 +925,4 @@ def test_flagged_values_csv(client, checked):
     assert "−" not in response.content.decode() and " " not in response.content.decode()
     assert len(rows) - 1 == len(qc_review.flagged_rows(review))
     other = Client()
-    assert other.get(f"/station/{checked.pk}/quality/flagged.csv").status_code == 404
+    assert other.get(f"{checked.url()}quality/flagged.csv").status_code == 404

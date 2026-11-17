@@ -1,7 +1,7 @@
 """The batch page (#80): uploads and zips, the pre-flight check and its messages, the
 options, one job for the ready stations with per-station progress, the results (errors,
-downloads, a station failing alone), opening a station as a single-station analysis,
-ownership and retention."""
+downloads, a station failing alone), ownership and retention. Its stations in its
+workspace (#255) are ``test_batch_workspace.py``'s."""
 
 import datetime as dt
 import io
@@ -23,7 +23,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
-from climpact_web.stations.models import Source, Station, Step, Workspace
+from climpact_web.stations.models import Workspace
 
 REPO = Path(__file__).resolve().parents[3]
 R_SAMPLE = REPO / "packages" / "climpact" / "tests" / "data" / "climpact.sample.batch.metadata.txt"
@@ -581,30 +581,6 @@ def test_progress_fragment_shows_each_station(client):
     assert "0 of 2 stations finished" in html
     assert "Calculating the indices" in html and 'value="46"' in html
     assert "Waiting" in html and "Cancel the batch" in html and "hx-get" in html
-
-
-@pytest.mark.django_db
-def test_open_a_station_as_a_single_station(client):
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    client.post(f"/batch/{run.pk}/run", {"base_start": "2000", "base_end": "2001", "workers": "1"})
-    run_worker()
-    url = f"/batch/{run.pk}/open/a"
-    assert client.get(url).status_code == 405
-    response = client.post(url)
-    analysis = Station.objects.get()
-    assert response["Location"] == f"/station/{analysis.pk}/results"
-    assert analysis.source == Source.BATCH and analysis.step == Step.QC
-    assert (analysis.station_name, analysis.latitude, analysis.longitude) == ("a", -30, 150)
-    assert (analysis.workspace.base_start, analysis.workspace.base_end) == (2000, 2001)
-    assert analysis.origin["params"]["spei_months"] == 24 and analysis.origin["station"] == "a"
-    assert analysis.station_file.is_file() and analysis.summary["first_year"] == 2000
-    assert client.get(response["Location"]).status_code == 200
-    # Opening it again goes to the same analysis, and the results link to it.
-    assert client.post(url)["Location"] == response["Location"]
-    assert Station.objects.count() == 1
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
-    assert f'href="/station/{analysis.pk}/results"' in html
-    assert client.post(f"/batch/{run.pk}/open/nope").status_code == 404
 
 
 @pytest.mark.django_db

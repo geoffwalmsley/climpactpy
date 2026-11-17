@@ -628,6 +628,7 @@ def result(request, analysis_id, key):
         + ("" if not card.definition or card.definition.endswith((".", "?", "!")) else "."),
         "links": links,
         "breadcrumb": [
+            *filter(None, [workspace.workspace_page(analysis)]),
             {"label": station, "url": reverse("stations:workspace", args=[analysis.pk])},
             {
                 "label": _("Indices"),

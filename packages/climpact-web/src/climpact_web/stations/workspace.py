@@ -94,11 +94,9 @@ def own_params(analysis: Station) -> dict:
 def station_settings(analysis: Station) -> dict:
     """The index settings and output options a run of the station uses (:func:`settings_of`
     form): the workspace's (the defaults until set), with the station's own index values
-    in place of the workspace's (:func:`own_params`). Until the workspace has settings of
-    its own, a station from a batch keeps the batch's custom index."""
+    in place of the workspace's (:func:`own_params`). A batch's custom index is its
+    workspace's too (#255): the workspace starts with none, as the batch calculates none."""
     out = workspace_settings(analysis.workspace)
-    if not analysis.workspace.index_settings and analysis.origin:
-        out["params"]["custom"] = batch_custom(batch_job(analysis))
     out["params"].update(own_params(analysis))
     return out
 
@@ -112,11 +110,6 @@ def workspace_settings(space) -> dict:
         out.update(chosen)
         out["params"] = {**default_settings()["params"], **chosen["params"]}
     return out
-
-
-def batch_custom(job: Job | None) -> dict | None:
-    """The custom index a batch job calculated (its ``custom`` parameter)."""
-    return (job.params or {}).get("custom") if job is not None else None
 
 
 def settings_of(params: dict) -> dict:
@@ -575,6 +568,21 @@ def sections(analysis: Station, current: str) -> list[Section]:
         wrong = qc_verdict(analysis, shown_qc(analysis))[1] if state in VERDICTS else 0
         out.append(Section(key, str(label), url, state, key == current, wrong))
     return out
+
+
+def workspace_page(analysis: Station) -> dict | None:
+    """The workspace's own page in the breadcrumb, as {label, url}: until #234 gives
+    workspaces a page, a batch's results stand in for it (#255). None for a workspace of
+    one station, which opens straight to the station."""
+    from climpact_web.batch.models import BatchRun
+
+    run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False).first()
+    if run is None:
+        return None
+    return {
+        "label": analysis.workspace.display_name,
+        "url": reverse("batch:results", args=[run.pk]),
+    }
 
 
 def home_url(analysis: Station) -> str:

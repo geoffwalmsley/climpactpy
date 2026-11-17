@@ -2,11 +2,13 @@
 
 A :class:`BatchRun` is one batch going through the batch page: the uploaded metadata file
 and station files (in its own folder), the result of checking them
-(:mod:`climpact_web.batch.check`), the options chosen before it starts and the
-background job that runs it. It fills a workspace
+(:mod:`climpact_web.batch.check`), the run options chosen before it starts (``workers``
+and ``plots``) and the background job that runs it. It fills a workspace
 (:class:`climpact_web.stations.models.Workspace`, #231), made with it, and is deleted with
-that workspace (:mod:`climpact_web.stations.retention`). The job copies the files it needs
-into its own ``input/`` folder when it is queued; it is kept as long as the batch.
+that workspace (:mod:`climpact_web.stations.retention`). The base period and the custom
+index are the workspace's (#255). Once the job has finished, its stations become stations
+of the workspace (:mod:`climpact_web.batch.fill`). The job copies the files it needs into
+its own ``input/`` folder when it is queued; it is kept as long as the batch.
 """
 
 from __future__ import annotations
@@ -51,13 +53,17 @@ class BatchRun(models.Model):
     metadata_name = models.CharField(max_length=255, blank=True)  # as uploaded, display only
     report = models.JSONField(default=dict, blank=True)  # check.BatchCheck.to_json()
 
-    # Options (the R batch screen's parameters, and the plots).
-    base_start = models.IntegerField(default=1971)
-    base_end = models.IntegerField(default=2000)
+    # Run options (the R batch screen's parameters, and the plots). The base period is
+    # the workspace's since #255.
     workers = models.PositiveIntegerField(default=1)
     plots = models.BooleanField(default=True)
 
     job = models.ForeignKey(
+        "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # The finished job whose stations are in the workspace (#255, batch.fill): set once
+    # they have been added, so that they are added only once for each run.
+    filled_job = models.ForeignKey(
         "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
 
@@ -68,7 +74,10 @@ class BatchRun(models.Model):
         return self.metadata_name or str(self.id)
 
     def save(self, *args, **kwargs) -> None:
-        """Save, making the batch's workspace when it is new and recording the change on it."""
+        """Save, making the batch's workspace when it is new and recording the change on it.
+        A batch's workspace starts with no custom index, as Climpact for R's batch
+        calculates none (:func:`climpact_web.batch.fill.batch_index_settings`)."""
+        from climpact_web.batch.fill import batch_index_settings
         from climpact_web.stations.models import Workspace
 
         if self.workspace_id is None:
@@ -76,8 +85,7 @@ class BatchRun(models.Model):
                 owner=self.owner,
                 created_at=self.created_at,
                 updated_at=self.updated_at,
-                base_start=self.base_start,
-                base_end=self.base_end,
+                index_settings=batch_index_settings(),
             )
         super().save(*args, **kwargs)
         self.workspace.bring_forward(self.updated_at)

@@ -10,7 +10,8 @@ new batch a workspace of its own, and JSON lookups on the workspace's settings w
 leaves the database fully migrated.
 
 :func:`check` also runs #254's migration from #253's models: a station's base period,
-thresholds and the settings of its latest run move onto its workspace.
+thresholds and the settings of its latest run move onto its workspace; and #255's: a
+batch's base period moves onto its workspace, and back when reversed.
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ def check(media_root) -> None:
     assert Workspace.objects.filter(qc_params__jump=25.0).count() == 1
 
     check_settings_move()
+    check_batch_base_period()
 
 
 def check_settings_move() -> None:
@@ -105,3 +107,34 @@ def check_settings_move() -> None:
         "report": True,
     }
     assert moved.undo == {}
+
+
+BATCH_0002 = [("batch", "0002_workspace"), ("stations", "0007_workspace_settings")]
+
+
+def check_batch_base_period() -> None:
+    """#255: a batch's base period is its workspace's after batch 0003, and the batch's
+    again when the migration is reversed."""
+    from django.core.management import call_command
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    call_command("migrate", "batch", "0002", verbosity=0)
+    old = MigrationExecutor(connection).loader.project_state(BATCH_0002).apps
+    Batch, Workspace = old.get_model("batch", "BatchRun"), old.get_model("stations", "Workspace")
+    space = Workspace.objects.create(owner="t")
+    batch = Batch.objects.create(workspace=space, owner="t", base_start=1981, base_end=2010)
+
+    call_command("migrate", verbosity=0)
+
+    from climpact_web.stations.models import Workspace as NewWorkspace
+
+    moved = NewWorkspace.objects.get(pk=space.pk)
+    assert (moved.base_start, moved.base_end) == (1981, 2010)
+    NewWorkspace.objects.filter(pk=space.pk).update(base_start=1991)
+    call_command("migrate", "batch", "0002", verbosity=0)
+    back = (MigrationExecutor(connection).loader.project_state(BATCH_0002).apps).get_model(
+        "batch", "BatchRun"
+    )
+    assert back.objects.get(pk=batch.pk).base_start == 1991
+    call_command("migrate", verbosity=0)

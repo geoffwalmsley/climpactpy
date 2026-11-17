@@ -7,6 +7,11 @@
 3. ``batch:results``: one job runs the ready stations, with each station's progress;
    then each station's status, errors and downloads, and one zip of everything.
 
+The batch fills its workspace (#255): the base period (and the custom index, none unless
+the workspace's settings were changed) are the workspace's, and once the run has finished
+its stations are the workspace's stations (:mod:`.fill`), which "Open" leads to. The
+results page stands in as the workspace page until #234.
+
 A batch is visible only to the browser session that created it, like a job: any other
 session gets 404.
 """
@@ -30,6 +35,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.batch import check
+from climpact_web.batch.fill import JOB_METADATA, JOB_STATIONS, batch_stations, fill_workspace
 from climpact_web.batch.forms import AddFilesForm, OptionsForm, UploadForm, cpu_count
 from climpact_web.batch.models import BatchRun, Source
 from climpact_web.core.limits import disk_required, human_required
@@ -47,14 +53,13 @@ from climpact_web.jobs.views import (
 from climpact_web.jobs.worker import worker_running
 from climpact_web.stations.forms import MIN_BASE_DAYS
 from climpact_web.stations.station_file import base_period_days, decode
+from climpact_web.stations.workspace import workspace_settings
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_METADATA = "climpact.sample.batch.metadata.txt"
 RECENT_BATCHES = 5
 # A rough guide for the time estimate, measured on a laptop: seconds per station.
 SECONDS_PER_STATION = {True: 13, False: 4}  # with plots and the PDF report (#79), without
-JOB_METADATA = "batch_metadata.txt"
-JOB_STATIONS = "stations"
 
 
 def sample_files() -> dict[str, bytes]:
@@ -200,8 +205,8 @@ def sample_metadata_file(request):
 
 def initial_options(run: BatchRun) -> dict:
     return {
-        "base_start": run.base_start,
-        "base_end": run.base_end,
+        "base_start": run.workspace.base_start,
+        "base_end": run.workspace.base_end,
         "workers": run.workers,
         "plots": run.plots,
     }
@@ -245,7 +250,7 @@ def options_context(run: BatchRun, form: OptionsForm) -> dict:
     elif form.is_bound:
         start = end = None
     else:
-        start, end = run.base_start, run.base_end
+        start, end = run.workspace.base_start, run.workspace.base_end
     return {
         "run": run,
         "options": form,
@@ -338,7 +343,7 @@ def run_batch(request, run_id):
     if run.job and not run.job.is_finished:
         return redirect("batch:results", run_id=run.pk)
     data = form.cleaned_data
-    run.base_start, run.base_end = data["base_start"], data["base_end"]
+    set_base_period(run, data["base_start"], data["base_end"])
     run.workers = data.get("workers") or 1
     run.plots = data["plots"]
 
@@ -358,8 +363,9 @@ def run_batch(request, run_id):
     params = {
         "metadata_file": JOB_METADATA,
         "data_dir": JOB_STATIONS,
-        "base_start": run.base_start,
-        "base_end": run.base_end,
+        "base_start": run.workspace.base_start,
+        "base_end": run.workspace.base_end,
+        "custom": workspace_settings(run.workspace)["params"]["custom"],
         "workers": run.workers,
         "plots": run.plots,
         "zip": True,
@@ -378,6 +384,21 @@ def run_batch(request, run_id):
     return redirect("batch:results", run_id=run.pk)
 
 
+def set_base_period(run: BatchRun, start: int, end: int) -> None:
+    """The base period chosen for a run is its workspace's (#255). The run recalculates the
+    batch's stations, which show its results when it has finished, so this is not a
+    change to undo (``stations.calculation.change_settings``): an earlier one is
+    forgotten."""
+    from climpact_web.stations.calculation import forget_undo
+
+    space = run.workspace
+    if (space.base_start, space.base_end) != (start, end):
+        forget_undo(space)
+        space.base_start, space.base_end = start, end
+        space.touch()
+        space.save()
+
+
 def skip_reason(station: dict) -> str:
     """Why a station was left out, in the station's error file."""
     lines = [p["message"] for p in station.get("problems", [])]
@@ -394,10 +415,17 @@ def skip_reason(station: dict) -> str:
 
 @require_POST
 def delete(request, run_id):
+    """Delete the batch now, with its workspace: the batch page stands in as the workspace
+    page (#255), so its stations go too."""
     run = get_run(request, run_id)
-    run.delete_files()
-    run.delete()
-    messages.success(request, _("The batch files were deleted."))
+    space = run.workspace
+    filled = space.stations.exists()
+    space.delete_files()
+    space.delete()
+    if filled:
+        messages.success(request, _("The batch and its stations were deleted."))
+    else:
+        messages.success(request, _("The batch files were deleted."))
     return redirect("batch:start")
 
 
@@ -445,7 +473,9 @@ def results_context(request, run: BatchRun) -> dict:
     job = run.job
     now = timezone.now()
     rows = []
-    opened = opened_analyses(run) if job.status == Status.SUCCEEDED else {}
+    if job.status == Status.SUCCEEDED:
+        fill_workspace(run)
+    opened = station_urls(run) if job.status == Status.SUCCEEDED else {}
     for s in station_status(job):
         state = s.get("state", "waiting")
         rows.append(
@@ -493,16 +523,12 @@ def _size(job, relative: str | None) -> int:
     return path.stat().st_size if path.is_file() else 0
 
 
-def opened_analyses(run: BatchRun) -> dict[str, str]:
-    """Stations of this batch already opened as single-station analyses: name -> URL."""
-    from climpact_web.stations.models import Station
-
-    out = {}
-    for analysis in Station.objects.filter(owner=run.owner, origin__batch=str(run.pk)).only(
-        "id", "origin"
-    ):
-        out[analysis.origin.get("station", "")] = reverse("stations:results", args=[analysis.pk])
-    return out
+def station_urls(run: BatchRun) -> dict[str, str]:
+    """The workspace's stations from this batch: their name in the batch -> their page."""
+    return {
+        name: reverse("stations:workspace", args=[station.pk])
+        for name, station in batch_stations(run).items()
+    }
 
 
 @never_cache
@@ -533,68 +559,15 @@ def progress(request, run_id):
 
 @require_POST
 def open_station(request, run_id, name):
-    """Open a finished station of the batch as a single-station analysis: its file and
-    metadata (name, location, base period) are filled in, and the index parameters of its
-    metadata line are kept in ``origin`` for the indices step (#78)."""
-    from climpact_web.stations.models import Source as StationSource
-    from climpact_web.stations.models import Station, Step, Workspace
-    from climpact_web.stations.station_file import inspect_station_bytes
-    from climpact_web.stations.workspace import current_inputs
-
+    """Open a station of the batch: the workspace's station of that name (#255), added
+    with the others when the run finished. Kept for the forms of pages from before #255,
+    which "Open" links replaced."""
     run = get_run(request, run_id)
     job = run.job
     if job is None or job.status != Status.SUCCEEDED:
         raise Http404
-    result = next((s for s in job.result.get("stations", []) if s["name"] == name), None)
-    station = next((s for s in run.report.get("stations", []) if s["name"] == name), None)
-    if result is None or not result["ok"] or station is None:
+    fill_workspace(run)
+    station = batch_stations(run).get(name)
+    if station is None:
         raise Http404
-    existing = Station.objects.filter(
-        owner=run.owner, origin__batch=str(run.pk), origin__station=name
-    ).first()
-    if existing:
-        return redirect("stations:results", analysis_id=existing.pk)
-    path = job.input_dir / JOB_STATIONS / station["station_file"]
-    if not path.is_file():
-        raise Http404
-    inspection = inspect_station_bytes(path.read_bytes())
-    if not inspection.ok:
-        raise Http404
-    with transaction.atomic():
-        # A workspace of its own, with the batch's base period, until #255 opens the
-        # batch's stations in the batch's workspace.
-        space = Workspace.objects.create(
-            owner=run.owner,
-            base_start=job.params.get("base_start", run.base_start),
-            base_end=job.params.get("base_end", run.base_end),
-        )
-        analysis = Station(
-            workspace=space,
-            owner=run.owner,
-            source=StationSource.BATCH,
-            file_name=station["station_file"][:255],
-            summary=inspection.summary,
-            warnings=inspection.warnings,
-            station_name=name,
-            latitude=station["latitude"],
-            longitude=station["longitude"],
-            step=Step.QC,
-            origin={
-                "batch": str(run.pk),
-                "job": str(job.pk),
-                "station": name,
-                "params": station["params"],
-                "outputs": result.get("folder"),
-            },
-        )
-        analysis.save_station_text(inspection.text)
-        # The batch's results were produced from these inputs: the workspace shows them as
-        # out of date once one changes (#179).
-        analysis.origin["inputs"] = current_inputs(analysis)
-        analysis.save()
-    messages.success(
-        request,
-        _("%(name)s is open as a single station, with its data and details from the batch.")
-        % {"name": name},
-    )
-    return redirect("stations:results", analysis_id=analysis.pk)
+    return redirect("stations:workspace", analysis_id=station.pk)

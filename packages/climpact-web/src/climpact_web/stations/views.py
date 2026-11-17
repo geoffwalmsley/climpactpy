@@ -198,12 +198,20 @@ def keep_typed_details(analysis: Station, form: MetadataForm) -> None:
         data.get("base_start"),
         data.get("base_end"),
     ):
-        set_base_period(analysis, data["base_start"], data["base_end"])
+        if not shares_workspace(analysis):
+            set_base_period(analysis, data["base_start"], data["base_end"])
+
+
+def shares_workspace(analysis: Station) -> bool:
+    """Whether the station's workspace has other stations (a batch's, #255)."""
+    return analysis.workspace.stations.exclude(pk=analysis.pk).exists()
 
 
 def set_base_period(analysis: Station, start: int, end: int) -> None:
     """Set the base period of the station's workspace from its first visit's details (the
-    New station page), where the workspace is still the station's own."""
+    New station page), where the workspace is the station's own. In a workspace of several
+    stations a change is made with ``calculation.change_settings`` instead
+    (:func:`check_and_calculate`)."""
     space = analysis.workspace
     if (space.base_start, space.base_end) != (start, end):
         space.base_start, space.base_end = start, end
@@ -244,11 +252,19 @@ def check_and_calculate(request, analysis: Station, form: MetadataForm):
     then to Quality, or to Results when only they are affected (a station already in use
     whose new file needed new details)."""
     data = dict(form.cleaned_data)
-    set_base_period(analysis, data.pop("base_start"), data.pop("base_end"))
+    start, end = data.pop("base_start"), data.pop("base_end")
     for name, value in data.items():
         setattr(analysis, name, value)
     analysis.advance_to(Step.QC)
-    queued_qc, _run = calculation.bring_up_to_date(request, analysis)
+    space = analysis.workspace
+    if (space.base_start, space.base_end) != (start, end) and shares_workspace(analysis):
+        # A station of a batch's workspace given a file that needs another base period:
+        # the base period is every station's, so it is a change to the workspace (#255).
+        calculation.change_settings(request, analysis, base_start=start, base_end=end)
+        queued_qc = True  # the new file's checks, among the change's
+    else:
+        set_base_period(analysis, start, end)
+        queued_qc, _run = calculation.bring_up_to_date(request, analysis)
     if workspace.committed(analysis) and not queued_qc:
         return redirect("stations:results", analysis_id=analysis.pk)
     return redirect("stations:qc", analysis_id=analysis.pk)

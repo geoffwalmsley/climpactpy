@@ -188,8 +188,11 @@ def batch_pages() -> dict[str, str]:
         "sydney.txt": sydney,
         "notes.txt": b"x",
     }
+    from climpact_web.stations.models import Workspace
+
+    space = Workspace(created_at=now, updated_at=now)
     run = BatchRun(metadata_name="australia.txt", report=check.check_batch(
-        meta.encode(), files).to_json(), updated_at=now, workers=4)  # fmt: skip
+        meta.encode(), files).to_json(), updated_at=now, workers=4, workspace=space)  # fmt: skip
     checked = views.check_context(request, run)
 
     job = Job(kind="batch", title="australia.txt", status=Status.RUNNING, step=41, total=92,
@@ -229,13 +232,15 @@ def batch_pages() -> dict[str, str]:
                        total=92, created_at=now, started_at=now - dt.timedelta(seconds=95),
                        finished_at=now, params={"base_start": 1971, "base_end": 2000},
                        result={"zip": "australia.zip"})  # fmt: skip
-    finished_run = BatchRun(metadata_name="australia.txt", report=run.report, updated_at=now)
+    finished_run = BatchRun(metadata_name="australia.txt", report=run.report, updated_at=now,
+                            workspace=space)  # fmt: skip
     finished_run.job = finished_job
     finished_rows = [
         row("madrid_retiro_1961-2020", "failed", error_file="australia/madrid.errors.txt",
             error_text="The rows are not in date order: the last row (1961-01-01) is dated "
             "before the first (2020-12-31). Sort the file by date."),
-        row("alice_springs_1961-2020", "done", zip="stations/alice_springs_1961-2020.zip"),
+        row("alice_springs_1961-2020", "done", zip="stations/alice_springs_1961-2020.zip",
+            opened_url="#"),
         row("darwin_1961-2020", "done", zip="stations/darwin_1961-2020.zip",
             opened_url="#"),
         *running_rows[3:],

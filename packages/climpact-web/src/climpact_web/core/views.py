@@ -143,81 +143,13 @@ def pattern_context(form):
             {"label": _("Read station file"), "state": "done"},
             {"label": _("Quality control"), "state": "failed"},
         ],
-        # A theme tile (#175, #200): two trends with their sparklines (SVG path data in a
-        # 240 x 60 box, as stations.results.sparkline draws them).
-        "theme_items": [
-            {
-                "href": "#findings",
-                "title": _("Tropical nights"),
-                "code": "TR",
-                "value": numbers.slope(4.65, "days"),
-                "units": _("days"),
-                "direction": "up",
-                "spark": {
-                    "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
-                    "trend": "M0 52L240 12",
-                },  # fmt: skip
-            },
-            {
-                "href": "#findings",
-                "title": _("Warm nights"),
-                "code": "TN90p",
-                "value": numbers.slope(1.31, "%"),
-                "units": _("pp"),
-                "units_title": _("percentage points"),
-                "direction": "up",
-                "spark": {
-                    "line": "M0 48L40 50L80 40L120 38L160 28L200 24L240 14",
-                    "trend": "M0 50L240 16",
-                },  # fmt: skip
-            },
-        ],
-        # The catalogue's chips (#200), as the Sydney sample's.
-        "chips_demo": [
-            {"key": "heat", "label": _("Heat"), "hue": "heat", "count": 30},
-            {"key": "cold", "label": _("Cold"), "hue": "cold", "count": 12},
-            {"key": "rain", "label": _("Rain"), "hue": "rain", "count": 13},
-            {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
-            {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
-        ],
+        # A station's Indices (#236): the rail, the table and the detail pane.
+        "indices_demo": indices_demo(),
         # A trend by the number rules (#226), as the index page's Trend statistic.
         "trend_demo": {
             "value": numbers.per_decade(0.21, "°C"),
             "interval": numbers.interval(0.08, 0.35, "°C"),
         },
-        "catalogue_years": "1936–2015",
-        "catalogue_counts": {"all": 80, "significant": 22},
-        # The catalogue table (#200): three rows, sorted by the trend.
-        "catalogue_demo": [
-            {
-                "title": _("Tropical nights"),
-                "code": "TR",
-                "hue": "heat",
-                "value": numbers.slope(4.65, "days"),
-                "units": _("days"),
-                "direction": "up",
-                "significant": True,
-            },
-            {
-                "title": _("Cold nights"),
-                "code": "TN10p",
-                "hue": "cold",
-                "value": numbers.slope(-1.93, "%"),
-                "units": _("pp"),
-                "units_title": _("percentage points"),
-                "direction": "down",
-                "significant": True,
-            },
-            {
-                "title": _("Wet-day total"),
-                "code": "PRCPTOT",
-                "hue": "rain",
-                "value": numbers.slope(-4.1, "mm"),
-                "units": _("mm"),
-                "direction": "down",
-                "significant": False,
-            },
-        ],  # fmt: skip
         # The Inputs panel and a side sheet (#198).
         **inputs_demo(),
         # The New station page's steps and file card (#201).
@@ -400,6 +332,108 @@ def setup_demo() -> dict:
         "summary": summary,
         "strip": year_strip(summary),
         "field": UploadForm(auto_id="pattern_%s")["station_file"],
+    }
+
+
+def indices_demo() -> dict:
+    """The Indices' rail, table and detail pane (#236) as stations/_indices.html takes
+    them: three rows of the Sydney sample, the first selected, its chart drawn by the same
+    code from an illustrative series."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import index_detail
+
+    years = list(range(1936, 2016))
+    rows = []
+    demo = (
+        # key, code, name, theme, hue, units; slope, its interval, mean, significant
+        ("su", "SU", _("Summer days"), _("Heat"), "heat", "days", 5.15, 3.79, 6.54, 93.28, True),
+        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
+         -1.93, -2.4, -1.47, 13.12, True),
+        ("prcptot", "PRCPTOT", _("Wet-day total"), _("Rain"), "rain", "mm",
+         4.6, -9.9, 19.2, 1210.1, False),
+    )  # fmt: skip
+    for i, (key, code, title, theme, hue, units, slope, lower, upper, mean, sig) in enumerate(demo):
+        values = [mean + slope * (y - 1975.5) / 10 + 6 * ((y * 7919) % 13 - 6) / 6 for y in years]
+        plot = SimpleNamespace(
+            values=values,
+            x=[float(y) for y in years],
+            step="year",
+            bars=False,
+            trend=SimpleNamespace(valid=True, intercept=mean - slope * 3.95, slope=slope / 10),
+        )
+        trend = {
+            "valid": True,
+            "per_decade_text": numbers.per_decade(slope, units),
+            "interval_text": numbers.interval(lower, upper, units),
+        }
+        card = {
+            "key": key,
+            "code": code,
+            "title": title,
+            "hue": hue,
+            "chip": hue,
+            "units": units,
+            "trend": trend,
+            "significant": sig,
+            "trend_units_title": _("percentage points") if units == "%" else "",
+            "definition": "",
+            "search_text": key,
+            "spark": {
+                "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
+                "trend": "M0 52L240 12",
+            },
+        }
+        named = SimpleNamespace(code=code, units=units, trend=trend)
+        rows.append(
+            {
+                "card": card,
+                "key": key,
+                "theme": theme,
+                "unit": units,
+                "slope_unit": numbers.trend_units(units) if units == "%" else "",
+                "slope": numbers.slope(slope, units),
+                "interval": trend["interval_text"],
+                "mean": numbers.fixed(mean, numbers.slope_decimals(units)),
+                "links": {"page": "#indices-demo", "csv": "#indices-demo", "png": "#indices-demo"},
+                "chart": index_detail.chart(plot, (1971, 2000)),
+                "chart_label": index_detail.summary(named, plot),
+                "caption": index_detail.caption(named, plot),
+                "used_label": index_detail.used_label(plot),
+                "used": index_detail.values_used(named, plot),
+                "position": i,
+                "rank": 2 if sig else 1,
+                "sort_trend": repr(slope),
+                "show_href": f"?show={key}#detail-{key}",
+                "selected": i == 0,
+            }
+        )
+    columns = {
+        key: {"key": key, "label": label, "name": label, "first": first, "href": "#indices-demo"}
+        for key, label, first in (
+            ("code", _("Code"), "ascending"),
+            ("name", _("Index"), "ascending"),
+            ("trend", _("Slope / decade"), "descending"),
+            ("significance", _("Sig."), "descending"),
+        )
+    }
+    return {
+        "action": "#indices-demo",
+        "rows": rows,
+        "columns": columns,
+        "chips": [
+            {"key": "heat", "label": _("Heat"), "hue": "heat", "count": 30},
+            {"key": "cold", "label": _("Cold"), "hue": "cold", "count": 12},
+            {"key": "rain", "label": _("Rain"), "hue": "rain", "count": 13},
+            {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
+            {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
+        ],
+        "series_years": "1936–2015",
+        "selected": "su",
+        "shown": 3,
+        "total": 80,
+        "significant_count": 22,
+        "mean_trend": f"TMm {numbers.per_decade(0.19, '°C')}",
     }
 
 

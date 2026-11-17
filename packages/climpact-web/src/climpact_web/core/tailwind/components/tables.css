@@ -102,11 +102,15 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .table--data tbody tr:is([aria-current], [aria-selected="true"]) {
+  .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) {
     background: var(--color-selected);
   }
 
-  .table--data tbody tr:is([aria-current], [aria-selected="true"]) > :first-child {
+  .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) > :first-child {
     box-shadow: inset 3px 0 0 var(--color-ink);
+  }
+
+  [dir="rtl"] .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) > :first-child {
+    box-shadow: inset -3px 0 0 var(--color-ink);
   }
 }

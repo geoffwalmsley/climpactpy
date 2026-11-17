@@ -21,6 +21,24 @@
     min-inline-size: 0;
   }
 
+  /* The Indices (#236): the Inputs bar under the tabs at every width (workspace.css), so
+     the table and its detail have the width. Without JavaScript the panel shows above the
+     section, as on a narrow page. */
+  .station-page--inputs-bar .workspace:has(> .inputs-panel) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .station-page--inputs-bar .workspace > .inputs-panel {
+    position: static;
+    max-block-size: none;
+  }
+
+  @media (scripting: enabled) {
+    .station-page--inputs-bar .workspace > .inputs-panel {
+      display: none;
+    }
+  }
+
   @container station-page (inline-size >= 52rem) {
     .workspace:has(> .inputs-panel) {
       grid-template-columns: 16rem minmax(0, 1fr);

@@ -254,23 +254,18 @@ SECTIONS = (
     ),
     # ---- Results ------------------------------------------------------------------------
     S(
-        "results.findings",
-        _("What changed"),
-        ["trend.sen_slope", "trend.significance"],
-        [
-            _("Each theme shows up to three of its significant trends, largest first."),
-            _(
-                "Largest means the trend per decade divided by how much the index varies "
-                "from year to year. So days, °C and mm can be compared."
-            ),
-            _("“No significant change” is a finding too."),
-        ],
-    ),
-    S(
         "results.catalogue",
         _("All indices"),
-        ["trend.minimum_data", "results.missing_value", "trend.significance"],
+        ["trend.sen_slope", "trend.significance", "trend.minimum_data", "results.missing_value"],
         [
+            _(
+                "Each row is an index: its trend per decade (Sen's slope), the 95% interval "
+                "of the slope, whether it is significant, its series and its mean."
+            ),
+            _(
+                "Select a code to show the index beside the table: its chart, the years "
+                "used and the links to its page and files."
+            ),
             _(
                 "“Also measured” holds the averages, the growing season and degree days, "
                 "your own index and the daily heat and cold factors."

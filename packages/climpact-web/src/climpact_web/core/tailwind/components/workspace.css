@@ -1,6 +1,5 @@
 /* One surface level (#197, proposal 5 of docs/design/redesign-proposals.html): sections
-   are separated by space and a heading, not cards; the page's one answer sits in a tinted
-   band; small uppercase labels name groups. And the context bar, which stays in view as
+   are separated by space and a heading, not cards; small uppercase labels name groups. And the context bar, which stays in view as
    the page scrolls (components/context_bar.html, #227). */
 @layer components {
   /* Between the sections of a page: 48px, as the mockups. */
@@ -11,50 +10,6 @@
   /* A section of a page: its heading and content on the page itself, with no frame. */
   .page-section {
     min-inline-size: 0;
-  }
-
-  /* == The answer band: the page's one answer (the Quality verdict, the Results summary).
-     A tint, not a card: no border and no shadow. From the mockups' .answer. == */
-  .answer-band {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: --spacing(3) --spacing(6);
-    padding: --spacing(4) --spacing(5);
-    border-radius: var(--radius-lg);
-    background: var(--band-bg, var(--color-surface));
-  }
-
-  .answer-band > p:not(.answer-band__number) {
-    flex: 1 1 18rem;
-    margin: 0;
-    max-inline-size: 36rem;
-    font-size: var(--text-base);
-  }
-
-  /* The larger number where there is an answer ("22 of 80 changed"). */
-  .answer-band__number {
-    display: grid;
-    flex: none;
-    gap: --spacing(1);
-    margin: 0;
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-bold);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-
-  .answer-band__number small {
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-medium);
-    line-height: var(--leading-tight);
-  }
-
-  @media (forced-colors: active) {
-    .answer-band {
-      border: 1px solid CanvasText;
-    }
   }
 
   /* == Group label: small, uppercase and muted, it names a group without a box. == */
@@ -328,6 +283,12 @@
       .inputs-bar {
         display: flex;
       }
+    }
+
+    /* The Indices (#236): the bar at every width, so the table and its detail have the
+       width (the panel is hidden there, inputs.css). */
+    .station-page--inputs-bar .inputs-bar {
+      display: flex;
     }
   }
 

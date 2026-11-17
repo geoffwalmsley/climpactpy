@@ -38,6 +38,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core import numbers
 from climpact_web.core.limits import human_required
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
@@ -328,7 +329,7 @@ def downloads(source) -> dict:
     return {"job": source.job, "zip": main_downloads(source)["zip"]}
 
 
-# The catalogue's sortable columns (#200), in the table's order (codes first, #218): the
+# The table's sortable columns (#200, #236), in the table's order (codes first, #218): the
 # key of ?sort=, and the direction a first click sorts in (codes and names A to Z; the
 # largest trends and the significant ones first).
 SORTS = {
@@ -347,7 +348,7 @@ def _significance_rank(card) -> int:
 
 
 def sort_cards(cards: list, sort: str, descending: bool) -> list:
-    """The catalogue's rows sorted by a column (``SORTS``), ties in the catalogue's order
+    """The table's rows sorted by a column (``SORTS``), ties in the catalogue's order
     (names tie by code).
     Rows without a trend stay last when sorting by the trend, whichever the direction."""
     if sort == "name":
@@ -368,26 +369,90 @@ def sort_cards(cards: list, sort: str, descending: bool) -> list:
 
 
 def _column_labels() -> dict[str, str]:
+    """Each sortable column's header, and its name in the sentence that announces a sort
+    (the header "Sig." is "Significance" there)."""
     return {
-        "name": _("Index"),
-        "code": _("Code"),
-        "trend": _("Trend per decade"),
-        "significance": _("Significance"),
+        "code": (_("Code"), _("Code")),
+        "name": (_("Index"), _("Index")),
+        "trend": (_("Slope / decade"), _("Slope / decade")),
+        "significance": (_("Sig."), _("Significance")),
     }
 
 
 def sort_sentence(column: str, descending: bool) -> str:
-    """What a sort is announced as: "Sorted by Trend per decade, descending." """
+    """What a sort is announced as: "Sorted by Slope / decade, descending." """
     if descending:
         return _("Sorted by %(column)s, descending.") % {"column": column}
     return _("Sorted by %(column)s, ascending.") % {"column": column}
 
 
+def run_base(analysis, job) -> tuple[int, int] | None:
+    """The base period the shown results used: the run's, else the station's."""
+    meta = ((job.params or {}) if job is not None else {}).get("metadata") or {}
+    start, end = meta.get("base_start"), meta.get("base_end")
+    if start and end:
+        return int(start), int(end)
+    if analysis.base_start and analysis.base_end:
+        return int(analysis.base_start), int(analysis.base_end)
+    return None
+
+
+def _row(analysis, source, run, card, theme_label: str, base) -> dict:
+    """One index for the table and its detail (#236): the unit, the slope, its interval,
+    the mean, and the detail's chart, statistics and links. Numbers by the rules of #226."""
+    from climpact_web.stations import index_detail
+
+    plot = run.plots.get(card.main)
+    trend = card.trend if card.trend and card.trend.get("valid") else None
+    mean = index_detail.mean(plot.values) if plot is not None else None
+    places = numbers.slope_decimals(card.units)
+    page = reverse("stations:result", args=[analysis.pk, card.key])
+    job = source.job
+    links = {"page": page}
+    if not card.daily:
+        links["csv"] = reverse(
+            "jobs:file", args=[job.pk, source.table_file(card.main.removeprefix("day_of_"))]
+        )
+        png = source.plot_file(card.main)
+        if png:
+            links["png"] = reverse("jobs:file", args=[job.pk, png])
+        monthly = next(
+            (s.name for s in card.series if s.name.endswith("_MON") and s.name != card.main),
+            "",
+        )
+        if monthly:
+            links["monthly"] = f"{page}?{urlencode({'series': monthly})}"
+    row = {
+        "card": card,
+        "key": card.key,
+        "theme": theme_label,
+        "unit": card.units,
+        # Percentage points for the trend of a percentage (#226): "+1.31 pp".
+        "slope_unit": card.trend_units if card.units == "%" else "",
+        "slope": trend["slope_text"] if trend else "",
+        "interval": trend["interval_text"] if trend else "",
+        "mean": numbers.fixed(mean, places) if mean is not None else "",
+        "links": links,
+    }
+    if plot is not None:
+        row.update(
+            chart=index_detail.chart(plot, base),
+            chart_label=index_detail.summary(card, plot),
+            caption=index_detail.caption(card, plot),
+            used_label=index_detail.used_label(plot),
+            used=index_detail.values_used(card, plot),
+        )
+    return row
+
+
 def dashboard_context(request, analysis, source, run) -> dict:
-    """The Results page (#200): the answer, the theme tiles, and the catalogue as one
-    table, filtered by theme chip, "Significant only" and a search, and sorted by a column.
-    Without JavaScript the filters are a form sent to this page and the column headers are
-    links; js/results.js does the same in place."""
+    """The Indices (#236, the Results board): a filter rail (search, theme with counts,
+    "Significant only"), one line that answers, the table of every index (code, name,
+    unit, slope per decade, 95% interval, significance, sparkline, mean), sortable by
+    column, and the selected index in a detail pane beside it (``?show=<key>``, the first
+    row shown by default). Without JavaScript the filters are a form sent to this page,
+    the column headers links and each row's code a link to ``?show=``; js/results.js does
+    the same in place."""
     q = request.GET.get("q", "").strip()[:100]
     theme = request.GET.get("theme", "")
     significant = request.GET.get("significant") == "1"
@@ -408,65 +473,80 @@ def dashboard_context(request, analysis, source, run) -> dict:
         )
         if (n := sum(1 for c in ordered if c.chip == key))
     ]
-    if theme not in {c["key"] for c in chips}:
+    chip_labels = {c["key"]: c["label"] for c in chips}
+    if theme not in chip_labels:
         theme = ""
     words = q.lower().split()
-    shown = 0
+    base = run_base(analysis, source.job)
+    rows = {}
     for position, card in enumerate(ordered):
+        row = _row(analysis, source, run, card, chip_labels.get(card.chip, ""), base)
         # What js/results.js sorts and filters by, as the server does.
-        card.position = position
-        card.sort_rank = _significance_rank(card)
-        card.sort_trend = repr(float(card.trend["slope"])) if card.sort_rank else ""
-        card.hidden = bool(
+        row["position"] = position
+        row["rank"] = _significance_rank(card)
+        row["sort_trend"] = repr(float(card.trend["slope"])) if row["rank"] else ""
+        row["hidden"] = bool(
             (theme and card.chip != theme)
             or (significant and not card.significant)
             or any(w not in card.search_text for w in words)
         )
-        shown += not card.hidden
-    rows = sort_cards(ordered, sort, descending)
+        rows[card.key] = row
+    table = [rows[c.key] for c in sort_cards(ordered, sort, descending)]
+    shown = sum(1 for r in table if not r["hidden"])
+    selected = request.GET.get("show", "")[:INDEX_KEY_MAX]
+    if selected not in rows:
+        selected = next((r["key"] for r in table if not r["hidden"]), table[0]["key"])
+    rows[selected]["selected"] = True
     # Each header links to the page sorted by its column, the filters kept: the first
     # click in the column's own direction, a second the other way.
     filters = {k: v for k, v in (("q", q), ("theme", theme)) if v}
     if significant:
         filters["significant"] = "1"
+    # Each row's code shows its detail, the filters and the order kept.
+    kept = {**filters, **({"sort": sort, "dir": direction} if sort else {})}
+    for row in table:
+        row["show_href"] = f"?{urlencode({**kept, 'show': row['key']})}#detail-{row['key']}"
     labels = _column_labels()
     page = reverse("stations:results", args=[analysis.pk])
-    columns = []
+    columns = {}
     for key, first in SORTS.items():
         state = direction if key == sort else ""
         to = first
         if state:
             to = "ascending" if state == "descending" else "descending"
-        columns.append(
-            {
-                "key": key,
-                "label": labels[key],
-                "sort": state,
-                "first": first,
-                "href": f"{page}?{urlencode({**filters, 'sort': key, 'dir': to})}#catalogue",
-            }
-        )
+        columns[key] = {
+            "key": key,
+            "label": labels[key][0],
+            "name": labels[key][1],
+            "sort": state,
+            "first": first,
+            "href": f"{page}?{urlencode({**filters, 'sort': key, 'dir': to, 'show': selected})}",
+        }
     summary = analysis.summary or {}
     first_year = summary.get("first_year", "")
     last_year = summary.get("last_year", "")
+    mean = run.card(themes.MEAN_TEMPERATURE)
+    mean_trend = ""
+    if mean is not None and mean.trend and mean.trend.get("valid"):
+        mean_trend = f"{mean.code} {mean.trend['per_decade_text']}"
     return {
         "source": source,
         "run": run,
-        "rows": rows,
+        "rows": table,
         "columns": columns,
         "sort": sort,
         "direction": direction,
-        "sort_text": sort_sentence(labels[sort], descending) if sort else "",
+        "sort_text": sort_sentence(labels[sort][1], descending) if sort else "",
         "series_years": f"{first_year}–{last_year}" if first_year and last_year else "",
-        "summary_sentences": themes.summary(run.cards, found, first_year),
-        "headline_themes": [_theme_entry(analysis, t) for t in found if t.theme.headline],
         "chips": chips,
         "q": q,
         "theme": theme,
         "significant": significant,
+        "selected": selected,
         "shown": shown,
         "total": len(run.cards),
         "significant_count": sum(1 for c in run.cards if c.significant),
+        "mean_trend": mean_trend,
         "settings_line": settings_line(source.params),
         "downloads": downloads(source),
         "from_batch": source.from_batch,
@@ -485,40 +565,6 @@ def stale_context(analysis, shown, running) -> dict | None:
         "changes": workspace.change_sentences(analysis, shown, changes),
         "replacing": running is not None and not running.is_finished,
         "details_valid": workspace.details_valid(analysis),
-    }
-
-
-def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
-    """A theme's tile for the template: its finding, its largest significant trends as
-    links (the value and its units apart, as the tile sets them), and a link to its
-    indices in the catalogue."""
-    page = reverse("stations:results", args=[analysis.pk])
-    n = len(found.cards)
-    return {
-        "key": found.key,
-        "label": found.label,
-        "hue": found.hue,
-        "finding": found.finding,
-        "badge": found.badge,
-        "items": [
-            {
-                "href": reverse("stations:result", args=[analysis.pk, card.key]),
-                "title": card.title,
-                "code": card.code,
-                "value": card.trend["slope_text"],
-                # Short, so the trend keeps to one line: "pp/decade" (#200, #226).
-                "units": card.trend_units,
-                "units_title": card.trend_units_title,
-                "direction": card.trend["direction"],
-                "spark": card.spark,
-            }
-            for card in found.top
-        ],
-        "more_href": f"{page}?{urlencode({'theme': found.key})}#catalogue",
-        "more_label": ngettext(
-            "See the %(n)s index in %(theme)s", "See all %(n)s indices in %(theme)s", n
-        )
-        % {"n": n, "theme": found.label},
     }
 
 

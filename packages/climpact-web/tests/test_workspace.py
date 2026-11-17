@@ -256,7 +256,7 @@ def test_new_station_name_checks_again_and_new_location_does_not(client):
     analysis, qc, run = in_use(client)
     html = page(client, analysis)
     sheet = re.search(r'<dialog class="sheet" id="sheet-station".*?</dialog>', html, re.S).group(0)
-    assert "Updates Results and Files. Quality stays as it is." in sheet
+    assert "Updates Indices and Files. Quality stays as it is." in sheet
     assert "A new station name updates Quality too" in sheet
     edit(
         client, analysis, "station", {"station_name": STATION, "latitude": "-10", "longitude": "5"}
@@ -286,10 +286,10 @@ def test_each_sheet_says_what_applying_updates(client):
     )
     assert "data-sheet-open" in sheets.pop("inputs")  # the phone's list of them (#203)
     assert set(sheets) == {"file", "station", "base-period", "thresholds", "settings"}
-    assert "Updates Quality, Results and Files." in sheets["file"]
-    assert "Updates Results and Files. Quality stays as it is." in sheets["base-period"]
-    assert "Updates Quality, Results and Files." in sheets["thresholds"]
-    assert "Updates Results and Files. Quality stays as it is." in sheets["settings"]
+    assert "Updates Quality, Indices and Files." in sheets["file"]
+    assert "Updates Indices and Files. Quality stays as it is." in sheets["base-period"]
+    assert "Updates Quality, Indices and Files." in sheets["thresholds"]
+    assert "Updates Indices and Files. Quality stays as it is." in sheets["settings"]
     for key, sheet in sheets.items():
         # One primary button, Apply, and Cancel; the form posts to the edit page.
         assert sheet.count('class="button"') == 1 and ">Apply<" in sheet and ">Cancel<" in sheet

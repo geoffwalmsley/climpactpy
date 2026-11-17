@@ -826,7 +826,7 @@ def test_workspace_tabs_by_keyboard(chrome, site):
     found = c.evaluate(tabs)
     assert [t[0] for t in found] == ["quality", "results", "files"]
     assert all(t[1] == "A" for t in found)
-    assert found[1][2] == "Results Out of date" and found[1][3] == "page"
+    assert found[1][2] == "Indices Out of date" and found[1][3] == "page"
     # Quality's is its verdict (#222): the Sydney sample's is amber, 5 values look wrong.
     assert found[0][2] == "Quality Usable, 5 values look wrong"
     assert found[2][2] == "Files Out of date"
@@ -883,7 +883,8 @@ def test_input_sheet_by_keyboard(chrome, site):
     c = chrome
     c.viewport(1280, 900)
     try:
-        c.navigate(site["station results"])
+        # The panel is beside Quality; the Indices have the Inputs bar (#236).
+        c.navigate(site["station quality results"])
         edit = "[data-sheet-open='sheet-base-period']"
         c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
         for _ in range(80):
@@ -925,7 +926,7 @@ def test_input_sheet_by_keyboard(chrome, site):
         c.evaluate(f"document.querySelector({json.dumps(edit)}).click()")
         c.evaluate(f"{sheet}.querySelector('button[data-sheet-close]:not(.button--icon)').click()")
         assert not c.evaluate(f"{sheet}.open")
-        assert c.evaluate("location.pathname").endswith("/results")
+        assert c.evaluate("location.pathname").endswith("/quality")
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
@@ -1032,6 +1033,9 @@ def test_sticky_context_bar_never_covers_focus(chrome, site):
                         " if (a.closest('dialog')) return false;"
                         f" var r = a.getBoundingClientRect(), b = {SHOWN_HEADER};"
                         " if (r.height === 0) return false;"
+                        # Taller than the window under the header (the Indices' table,
+                        # #236): enough that part of it shows.
+                        " if (r.height > innerHeight - b.bottom) return r.bottom <= b.bottom;"
                         " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
                     )
                     assert not hidden, (
@@ -1125,7 +1129,7 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
     that fills the screen; an input's Edit there opens that input's sheet over it; Escape
     goes back to the list, with focus on that Edit, then to the page, with focus on the
     bar's Edit. No axe violation with either sheet open. At 1280 px the panel is back
-    beside the section and the bar is gone."""
+    beside Quality and the bar is gone; the Indices keep the bar at every width (#236)."""
     c = chrome
     bar = "document.querySelector('[data-inputs-bar]')"
     panel = "document.querySelector('[data-inputs-panel]')"
@@ -1170,6 +1174,9 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
         assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
         c.viewport(1280, 900)
         c.settle(0.1)
+        assert c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{panel}.checkVisibility()")
+        c.navigate(site["station quality results"])
         assert not c.evaluate(f"{bar}.checkVisibility()")
         assert c.evaluate(f"{panel}.checkVisibility()")
     finally:
@@ -1403,8 +1410,8 @@ def test_gridded_explorer_keeps_focus(chrome, site):
 
 
 def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
-    """The results catalogue (#200): one table, filtered as you type by the search, a theme
-    chip and "Significant only", and sorted by its column headers, which are buttons here
+    """The Indices' table (#200, #236): filtered as you type by the rail's search, a theme
+    and "Significant only", and sorted by its column headers, which are buttons here
     (links without JavaScript): Enter sorts, again reverses, aria-sort moves to the sorted
     column, and the live line says how many rows show and how they are sorted. The order is
     the server's, and the state is kept in the address."""
@@ -1452,13 +1459,13 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     focus(c, "th[data-sort-key=trend] button")
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend descending"]
-    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Trend per decade, descending."
+    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Slope / decade, descending."
     slopes = c.evaluate(shown + ".map(function (r) { return Number(r.dataset.trend) })")
     assert slopes == sorted(slopes, reverse=True)
-    assert c.evaluate("document.activeElement.textContent") == "Trend per decade"
+    assert c.evaluate("document.activeElement.textContent") == "Slope / decade"
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend ascending"]
-    assert c.evaluate(said).endswith("Sorted by Trend per decade, ascending.")
+    assert c.evaluate(said).endswith("Sorted by Slope / decade, ascending.")
     assert "sort=trend" in here(c) and "dir=ascending" in here(c)
 
     # Every row again, sorted by name: the server's order.
@@ -1475,6 +1482,86 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     # Reloaded, the address gives the same page without the script's help.
     c.navigate(here(c))
     assert c.evaluate(sorted_by) == ["name ascending"] and c.evaluate(keys) == by_name
+
+
+def test_indices_table_and_detail_by_keyboard(chrome, site):
+    """#236: each row's code is a link; Enter shows its index in the detail pane in place,
+    marks the row, puts ?show= in the address and announces the index's name, focus
+    staying on the row. Beside the table the pane stays in view: the last row's detail is
+    in the viewport. On a narrow screen the detail follows the table, focus moves to it,
+    and "Back to the list" returns it to the row. At 1280 x 1180, the board's size, at
+    least 25 rows are in view. No axe violation with every detail shown, in both themes."""
+    c = chrome
+    items = "[...document.querySelectorAll('[data-index-item]')]"
+    shown = "[...document.querySelectorAll('[data-index-detail]')].filter(d => !d.hidden).map(d => d.dataset.indexDetail)"  # noqa: E501
+    current = "[...document.querySelectorAll('[data-index-item][aria-current=true]')].map(a => a.dataset.indexItem)"  # noqa: E501
+    said = "document.querySelector('[data-index-said]').textContent"
+    c.navigate(site["station results"])
+    keys = c.evaluate(f"{items}.map(a => a.dataset.indexItem)")
+    assert len(keys) == 80
+    assert c.evaluate(shown) == [keys[0]] and c.evaluate(current) == [keys[0]]
+    for key in (keys[5], keys[40], keys[-1]):
+        focus(c, f"[data-index-item='{key}']")
+        c.press("Enter")
+        assert c.evaluate(shown) == [key] and c.evaluate(current) == [key], key
+        title = f"document.getElementById('detail-{key}-title').textContent.trim()"
+        wait_for(c, f"{said} === {title}", timeout=5, what=f"the announcement of {key}")
+        assert c.evaluate("document.activeElement.dataset.indexItem") == key
+        assert f"show={key}" in here(c)
+    # Reloaded, the address shows the same detail.
+    c.navigate(here(c))
+    assert c.evaluate(shown) == [keys[-1]]
+    # The last row, scrolled to: its detail beside it in the viewport, in both themes.
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.navigate(site["station results"])
+        last = f"document.querySelector(\"[data-index-item='{keys[-1]}']\")"
+        c.evaluate(f"{last}.scrollIntoView({{block: 'end'}})")
+        focus(c, f"[data-index-item='{keys[-1]}']")
+        c.press("Enter")
+        c.settle()
+        box = c.evaluate(
+            "(function (r) { return [r.top, r.bottom, innerHeight] })"
+            f"(document.getElementById('detail-{keys[-1]}').getBoundingClientRect())"
+        )
+        assert 0 <= box[0] < box[2], (scheme, box)
+    set_mode(c)
+    # At the board's size, 25 rows or more in view, and the table needs no sideways scroll.
+    c.viewport(1280, 1180)
+    try:
+        c.navigate(site["station results"])
+        rows = c.evaluate(
+            "[...document.querySelectorAll('[data-results-table] tbody tr')].filter(t => {"
+            " var b = t.getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight"
+            " }).length"
+        )
+        assert rows >= 25, rows
+        region = "document.querySelector('.indices__main .table-wrap')"
+        assert c.evaluate(f"{region}.scrollWidth <= {region}.clientWidth")
+    finally:
+        c.viewport(1280, 900)
+    # Narrow: the detail after the table; focus moves to its title, and back.
+    c.viewport(375, 900)
+    try:
+        c.navigate(site["station results"])
+        focus(c, f"[data-index-item='{keys[3]}']")
+        c.press("Enter")
+        assert c.evaluate("document.activeElement.id") == f"detail-{keys[3]}-title"
+        focus(c, f"[data-index-back='{keys[3]}']")
+        c.press("Enter")
+        assert c.evaluate("document.activeElement.dataset.indexItem") == keys[3]
+    finally:
+        c.viewport(1280, 900)
+    # Every detail shown (axe skips hidden content), in both themes.
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.navigate(site["station results"])
+        c.evaluate(
+            "document.querySelectorAll('[data-index-detail]').forEach(d => { d.hidden = false })"
+        )  # noqa: E501
+        c.settle()
+        assert run_axe(c) == [], scheme
+    set_mode(c)
 
 
 def test_quality_list_and_detail_by_keyboard(chrome, site):
@@ -1633,7 +1720,7 @@ def test_settings_sheet_by_keyboard(chrome, site):
         " return r.top >= 0 && r.bottom <= window.innerHeight + 1; })"
     )
     try:
-        c.navigate(site["station results"])
+        c.navigate(site["station quality results"])  # the panel; the Indices have the bar
         edit = "[data-inputs-panel] [data-sheet-open='sheet-settings']"
         focus(c, edit)
         c.press("Enter")
@@ -1687,8 +1774,11 @@ def test_settings_sheet_by_keyboard(chrome, site):
             assert c.evaluate(f"document.getElementById('sheet-{key}').matches(':modal')")
             c.press("Escape")
             time.sleep(0.1)
-            panel_edit = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
-            assert c.evaluate(f"document.activeElement.matches({json.dumps(panel_edit)})"), url
+            # The panel's Edit; on the Indices the settings line's link in the rail (#236).
+            back = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
+            if "/results" in url:
+                back = f"[data-settings-line] [data-sheet-open='sheet-{key}']"
+            assert c.evaluate(f"document.activeElement.matches({json.dumps(back)})"), url
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)

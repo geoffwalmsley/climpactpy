@@ -1,20 +1,18 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
-{% block title %}{% blocktranslate with name=analysis.station_name %}Results: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block title %}{% blocktranslate with name=analysis.station_name %}Indices: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% include "stations/_open_sheet.html" %}{% endblock %}
 {% block content %}
-<div class="stack stack--xl station-page">
+<div class="stack stack--xl station-page station-page--inputs-bar">
   {% comment %}The page's two actions in the workspace header (#200): the zip, primary, and
   the sector comparison. Every other file is on the Files tab (#176).{% endcomment %}
   {% include "stations/_workspace.html" with heading=True actions="stations/_results_actions.html" %}
-  {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
+  {% comment %}The Inputs as the bar under the tabs at every width, so the table and its
+  detail have the width (#236; the Inputs panel beside the section on the other pages,
+  #198). Without JavaScript the panel shows above the section.{% endcomment %}
   <div class="workspace">
   {% include "stations/_inputs.html" %}
-  <div class="workspace__main stack stack--xl">
-  {% comment %}The settings are one line (#178): the defaults, or what was changed, and the
-  link that opens the Index settings sheet (#199). ``adjust``, the old form's anchor.{% endcomment %}
-  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-muted" id="adjust" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }}</span> <a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the settings" %}</a></p>
-
+  <div class="workspace__main stack">
   {% comment %}Out of date after a change (#179): the banner says what changed, with the new
   run's progress, or "Recalculate". The results stay below it until the new ones are ready.{% endcomment %}
   {% if stale %}
@@ -41,26 +39,6 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
-  <div class="{% if stale %}stale-content {% endif %}stack stack--xl">
-
-  {% comment %}Answer first (#175, #200): the count and the summary in the page's one tinted
-  band, its first sentence in bold; then a tile per headline theme (Heat, Cold, Rain,
-  Drought), quiet when nothing changed. The other indices are under "Also measured" in the
-  catalogue. Built in stations/themes.py from the trends.{% endcomment %}
-  <section class="page-section stack" aria-labelledby="findings-title">
-    <h2 class="sr-only" id="findings-title">{% translate "What changed" %}</h2>
-    <div class="answer-band">
-      <p class="answer-band__number">{{ significant_count }}<small>{% blocktranslate count counter=total trimmed %}of {{ counter }} changed significantly{% plural %}of {{ counter }} changed significantly{% endblocktranslate %}</small></p>
-      <p class="findings__answer"><strong>{{ summary_sentences.0 }}</strong>{% for sentence in summary_sentences|slice:"1:" %} {{ sentence }}{% endfor %}</p>
-    </div>
-    <div class="section-header"><h3 id="themes-title">{% translate "By theme" %}</h3><p class="section-header__note">{% translate "Up to three significant trends each, largest first" %}</p>{% translate "How to read this" as read_label %}{% section_help "results.findings" label=read_label %}</div>
-    <div class="theme-grid">
-      {% for t in headline_themes %}
-      {% include "components/theme_headline.html" with id="theme-"|add:t.key title=t.label level=4 hue=t.hue badge_label=t.badge finding=t.finding items=t.items more_href=t.more_href more_label=t.more_label only %}
-      {% endfor %}
-    </div>
-  </section>
-
   {% if run.skipped %}
   <div class="alert alert--warning">
     {% icon "warning" %}
@@ -74,56 +52,8 @@
   </div>
   {% endif %}
 
-  {% comment %}The catalogue (#200): every index in one table, filtered by a theme chip,
-  "Significant only" and a search, and sorted by a column. Without JavaScript the filters
-  are a form sent to this page and each column header a link to the page sorted by it;
-  js/results.js filters and sorts in place, the headers as buttons, and says the result in
-  the live line above the table.{% endcomment %}
-  <section class="page-section stack stack--sm" id="catalogue" aria-labelledby="catalogue-title">
-  <div class="section-header"><h2 id="catalogue-title">{% blocktranslate count counter=total trimmed %}All {{ counter }} index{% plural %}All {{ counter }} indices{% endblocktranslate %}</h2>{% section_help "results.catalogue" %}</div>
-  <form class="filters" method="get" action="{% url 'stations:results' analysis.pk %}#catalogue" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
-    <fieldset class="chips">
-      <legend class="sr-only">{% translate "Theme" %}</legend>
-      <label class="chip"><input type="radio" name="theme" value=""{% if not theme %} checked{% endif %}><span>{% translate "All" %}</span> <span class="chip__count">{{ total }}</span></label>
-      {% for chip in chips %}<label class="chip"><input type="radio" name="theme" value="{{ chip.key }}"{% if theme == chip.key %} checked{% endif %}><span class="hue-dot hue-{{ chip.hue }}" aria-hidden="true"></span><span>{{ chip.label }}</span> <span class="chip__count">{{ chip.count }}</span></label>
-      {% endfor %}
-    </fieldset>
-    <label class="chip"><input type="checkbox" name="significant" value="1"{% if significant %} checked{% endif %}><span>{% translate "Significant only" %}</span> <span class="chip__count">{{ significant_count }}</span></label>
-    <div class="search filters__search">
-      {% icon "search" %}
-      <label class="sr-only" for="results-q">{% translate "Find an index" %}</label>
-      <input type="search" id="results-q" name="q" value="{{ q }}" placeholder="{% translate 'Find an index, e.g. TXx, frost' %}" autocomplete="off">
-    </div>
-    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ direction }}">{% endif %}
-    <div class="filters__submit" data-results-submit>
-      {% translate "Show these" as filter_label %}
-      {% include "components/button.html" with label=filter_label type="submit" variant="secondary" size="sm" %}
-    </div>
-  </form>
-  <p class="text-sm text-text-muted" id="results-count" aria-live="polite" aria-atomic="true" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}{% if sort_text %} {{ sort_text }}{% endif %}</p>
-  <div class="table-wrap catalogue" role="region" aria-labelledby="catalogue-caption" tabindex="0">
-    <table class="table catalogue__table" data-results-table data-ascending="{% translate 'Sorted by %(column)s, ascending.' %}" data-descending="{% translate 'Sorted by %(column)s, descending.' %}">
-      <caption class="sr-only" id="catalogue-caption">{% translate "Every index and its trend. Select a column header to sort by it." %}</caption>
-      <thead><tr>
-        {% for column in columns %}<th scope="col"{% if column.key == "trend" %} class="num"{% endif %}{% if column.sort %} aria-sort="{{ column.sort }}"{% endif %} data-sort-key="{{ column.key }}" data-sort-first="{{ column.first }}"><a class="sort" href="{{ column.href }}">{{ column.label }}</a></th>
-        {% endfor %}<th scope="col" class="catalogue__spark">{% if series_years %}{{ series_years }}{% else %}{% translate "Series" %}{% endif %}</th>
-      </tr></thead>
-      <tbody>
-        {% for card in rows %}
-        <tr class="hue-{{ card.hue }}" id="index-{{ card.key }}" data-chip="{{ card.chip }}" data-search="{{ card.search_text }}" data-order="{{ card.position }}" data-name="{{ card.title }}" data-code="{{ card.code }}" data-trend="{{ card.sort_trend }}" data-rank="{{ card.sort_rank }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
-          <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="{% url 'stations:result' analysis.pk card.key %}"><code class="index-code">{{ card.code }}</code></a></th>
-          <td>{{ card.title }}</td>
-          <td class="num">{% if card.trend.valid %}<span class="trend trend--{{ card.trend.direction }}">{{ card.trend.slope_text }}</span>{% if card.trend_units %}&nbsp;<span class="text-text-muted">{% if card.trend_units_title %}<abbr title="{{ card.trend_units_title }}">{{ card.trend_units }}</abbr>{% else %}{{ card.trend_units }}{% endif %}</span>{% endif %}{% elif card.daily %}<span class="text-text-muted">{% translate "Daily values" %}</span>{% elif card.trend %}<span class="text-text-muted">{% translate "Too few values" %}</span>{% else %}<span class="text-text-muted">{% translate "No trend line" %}</span>{% endif %}</td>
-          <td>{% if card.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% elif card.trend.valid %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% else %}<span class="text-text-muted">{% translate "No trend" %}</span>{% endif %}</td>
-          <td class="catalogue__spark">{% if card.spark %}{% include "components/spark.html" with spark=card.spark %}{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="empty-filter" data-results-empty{% if shown %} hidden{% endif %}>{% translate "No index matches. Clear the search or choose All." %}</p>
-  </section>
-  </div>
+  {% url 'stations:results' analysis.pk as indices_action %}
+  {% include "stations/_indices.html" with action=indices_action %}
 
   <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>
   </div>

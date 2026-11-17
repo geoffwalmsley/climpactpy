@@ -1,10 +1,10 @@
 """The station workspace (#179): what each section shows, and whether it is out of date.
 
-A station's pages are three sections, Quality, Results and Files, shown as tabs under the
-station's name, beside the Inputs panel (#198), which lists what the user gave and opens
-each in a side sheet to change it (:func:`inputs_panel`). A change to an input no longer
-resets the later sections. Each job records the inputs it was produced from when it is
-queued (``Job.inputs``):
+A station's pages are three sections, Quality, Indices (Results before #236) and Files,
+shown as tabs under the station's name, beside the Inputs panel (#198), which lists what
+the user gave and opens each in a side sheet to change it (:func:`inputs_panel`). A change
+to an input no longer resets the later sections. Each job records the inputs it was
+produced from when it is queued (``Job.inputs``):
 
 ``file``      the SHA-256 of the station file (``StationAnalysis.file_hash``)
 ``metadata``  the station details: name, latitude, longitude and base period
@@ -318,7 +318,8 @@ VERDICTS = ("ready", "usable", "fix")  # qc_review.Verdict.level
 
 SECTIONS = (
     ("quality", gettext_lazy("Quality"), "stations:qc"),
-    ("results", gettext_lazy("Results"), "stations:results"),
+    # Named Indices since #236; its address stays ``results``.
+    ("results", gettext_lazy("Indices"), "stations:results"),
     ("files", gettext_lazy("Files"), "stations:downloads"),
 )
 
@@ -440,7 +441,7 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
 
 
 def sections(analysis: StationAnalysis, current: str) -> list[Section]:
-    """The tabs, with ``current`` marked: Quality, Results and Files, each with its state
+    """The tabs, with ``current`` marked: Quality, Indices and Files, each with its state
     and its address (none while it is locked)."""
     states = section_states(analysis)
     out = []
@@ -596,7 +597,7 @@ def sheet_keys(analysis: StationAnalysis) -> tuple[str, ...]:
 
 def affected(names) -> list[str]:
     """The sections a change to the inputs ``names`` updates: Quality if the checks depend on
-    one of them, Results if the run does, and Files with either."""
+    one of them, Indices if the run does, and Files with either."""
     out = []
     if any(n in QC_INPUTS for n in names):
         out.append("quality")
@@ -611,10 +612,10 @@ def impact_sentence(names) -> str:
     """What applying a change to ``names`` updates, in words, from :func:`affected`."""
     sections_ = affected(names)
     if "quality" in sections_ and "results" in sections_:
-        return _("Updates Quality, Results and Files.")
+        return _("Updates Quality, Indices and Files.")
     if "results" in sections_:
-        return _("Updates Results and Files. Quality stays as it is.")
-    return _("Updates Quality and Files. Results stay as they are.")
+        return _("Updates Indices and Files. Quality stays as it is.")
+    return _("Updates Quality and Files. Indices stay as they are.")
 
 
 def impact(key: str) -> list[str]:

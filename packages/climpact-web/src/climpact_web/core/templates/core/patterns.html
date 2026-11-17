@@ -28,7 +28,7 @@
       <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
       <li><a href="#cards">{% translate "Cards" %}</a></li>
       <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
-      <li><a href="#findings">{% translate "Findings by theme" %}</a></li>
+      <li><a href="#indices-demo">{% translate "Indices" %}</a></li>
       <li><a href="#quality">{% translate "Quality worklist" %}</a></li>
       <li><a href="#tables">{% translate "Tables" %}</a></li>
       <li><a href="#files">{% translate "File groups" %}</a></li>
@@ -254,15 +254,12 @@
       </div>
     </section>
 
-    <section class="pattern" id="findings" aria-labelledby="findings-title">
-      <h2 id="findings-title">{% translate "Findings by theme" %}</h2>
-      <p class="text-sm text-text-muted">{% translate "A theme tile answers first: one sentence written from the trends, then up to three significant trends, one line each: the code and short name, the value with its units and a sparkline. With no significant trend it is quiet, on the sunken surface with one sentence, because no change is a finding too." %}</p>
-      <p class="text-sm text-text-muted">{% translate "Each theme has its hue: the tile's edge, its pill, its dot, its sparklines and its index charts. The filter chips and the catalogue's dots use the same hues, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
-      {% translate "Heat" as th1 %}{% translate "9 changed" as th1_badge %}{% translate "9 of 22 indices increased significantly." as th1_finding %}{% translate "See all 30 indices in Heat" as th1_more %}
-      {% translate "Rain" as th2 %}{% translate "No clear change" as th2_badge %}{% translate "No significant change across 13 indices." as th2_finding %}{% translate "See all 13 indices in Rain" as th2_more %}
-      <div class="pattern__demo theme-grid">
-        {% include "components/theme_headline.html" with id="pattern-heat" title=th1 hue="heat" badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
-        {% include "components/theme_headline.html" with id="pattern-rain" title=th2 hue="rain" badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
+    <section class="pattern" id="indices-demo" aria-labelledby="indices-demo-title">
+      <h2 id="indices-demo-title">{% translate "Indices" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "A station's Indices (#236). The filter rail: a search, the themes with their counts, Significant only and the line that defines significant. One line answers above the table. The table has every index, its code first, with the slope per decade, its 95% interval, significance, a sparkline and the mean, in rows 32px high. Its column headers sort it: links without JavaScript, buttons with it. A row's code shows the index in the detail pane beside the table: a chart with axes, the base period and Sen's slope, the statistics and the links." %}</p>
+      <p class="text-sm text-text-muted">{% translate "Each theme has its hue: its dot, its sparklines and its charts, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
+      <div class="pattern__demo station-page">
+        {% include "stations/_indices.html" with action=indices_demo.action rows=indices_demo.rows columns=indices_demo.columns chips=indices_demo.chips series_years=indices_demo.series_years selected=indices_demo.selected shown=indices_demo.shown total=indices_demo.total significant_count=indices_demo.significant_count mean_trend=indices_demo.mean_trend q="" theme="" significant=False sort="" stale=False %}
       </div>
       <h3 class="mt-6">{% translate "Index name" %}</h3>
       <p class="text-sm text-text-muted">{% translate "Codes first: wherever an index is listed, its code leads in mono and a short name follows. Experts scan by code; the name is there for everyone else. R's long name is the index page's definition line, and search finds all three." %}</p>
@@ -270,40 +267,6 @@
       <div class="pattern__demo stack stack--sm">
         <p class="text-2xl font-semibold m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo title=True only %}</p>
         <p class="m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo only %}</p>
-      </div>
-      <h3 class="mt-6">{% translate "Catalogue" %}</h3>
-      <p class="text-sm text-text-muted">{% translate "Every index in one table under the tiles, its code first. Theme chips with their dot and count, Significant only and a search filter it as you type. Each column header sorts it: a link without JavaScript, a button with it, aria-sort on the sorted column and the result said in the live line. The table scrolls inside its region under a sticky header, so the page stays short." %}</p>
-      <div class="pattern__demo stack stack--sm">
-        <div class="filters" role="group" aria-label="{% translate 'Theme chips' %}">
-          <label class="chip"><input type="radio" name="pattern-theme" value=""><span>{% translate "All" %}</span> <span class="chip__count">{{ catalogue_counts.all }}</span></label>
-          {% for chip in chips_demo %}<label class="chip"><input type="radio" name="pattern-theme" value="{{ chip.key }}"{% if forloop.first %} checked{% endif %}><span class="hue-dot hue-{{ chip.hue }}" aria-hidden="true"></span><span>{{ chip.label }}</span> <span class="chip__count">{{ chip.count }}</span></label>
-          {% endfor %}
-          <label class="chip"><input type="checkbox" name="pattern-significant"><span>{% translate "Significant only" %}</span> <span class="chip__count">{{ catalogue_counts.significant }}</span></label>
-          <div class="search filters__search">{% icon "search" %}<label class="sr-only" for="pattern-catalogue-q">{% translate "Find an index" %}</label><input type="search" id="pattern-catalogue-q" placeholder="{% translate 'Find an index, e.g. TXx, frost' %}"></div>
-        </div>
-        <div class="table-wrap catalogue" role="region" aria-labelledby="pattern-catalogue-caption" tabindex="0">
-          <table class="table catalogue__table">
-            <caption class="sr-only" id="pattern-catalogue-caption">{% translate "Every index and its trend. Select a column header to sort by it." %}</caption>
-            <thead><tr>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Code" %}</a></th>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Index" %}</a></th>
-              <th scope="col" class="num" aria-sort="descending"><a class="sort" href="#findings">{% translate "Trend per decade" %}</a></th>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Significance" %}</a></th>
-              <th scope="col" class="catalogue__spark">{{ catalogue_years }}</th>
-            </tr></thead>
-            <tbody>
-              {% for row in catalogue_demo %}
-              <tr class="hue-{{ row.hue }}">
-                <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="#findings"><code class="index-code">{{ row.code }}</code></a></th>
-                <td>{{ row.title }}</td>
-                <td class="num"><span class="trend trend--{{ row.direction }}">{{ row.value }}</span>&nbsp;<span class="text-text-muted">{% if row.units_title %}<abbr title="{{ row.units_title }}">{{ row.units }}</abbr>{% else %}{{ row.units }}{% endif %}</span></td>
-                <td>{% if row.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% endif %}</td>
-                <td class="catalogue__spark">{% include "components/spark.html" with spark=theme_items.0.spark %}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
       </div>
     </section>
 
@@ -514,7 +477,7 @@
       <p>{% translate "A section header is the section's title, an optional muted note, then a Help button at the end of the row, in the same place on every section. The button is a pill with a word: Help, or a question where one helps. It opens the section's help in a side panel. The panel is not modal: the page stays usable. It sits beside the content on wide screens and below it on narrow ones. Escape or the close button closes it, and focus goes back to the button. Without JavaScript the button is a link to the same help on a page of its own." %}</p>
       <div class="pattern__demo stack">
         <div class="section-header"><h3>{% translate "Look wrong" %}</h3><p class="section-header__note">{% translate "Almost always typing errors or swapped columns." %}</p>{% section_help "quality.wrong" %}</div>
-        <div class="section-header"><h3>{% translate "What changed" %}</h3><p class="section-header__note">{% translate "Up to three significant trends per theme, largest first" %}</p>{% translate "How to read this" as read_label %}{% section_help "results.findings" label=read_label %}</div>
+        <div class="section-header"><h3>{% translate "Coverage" %}</h3><p class="section-header__note">{% translate "Missing days per year" %}</p>{% translate "How to read this" as read_label %}{% section_help "quality.missing" label=read_label %}</div>
         <div class="section-header"><h3>{% translate "Missing data" %}</h3>{% section_help "quality.missing" %}</div>
       </div>
       <p class="text-sm text-text-muted">{% translate "At most one per section, and none on sections that explain themselves. Fields have no help link of their own. They keep a short hint only when their value needs one. The Help button at the end of the header opens the guide to the page shown." %}</p>
@@ -522,13 +485,9 @@
 
     <section class="pattern" id="surfaces" aria-labelledby="surfaces-title">
       <h2 id="surfaces-title">{% translate "One surface level" %}</h2>
-      <p>{% translate "Sections sit on the page, separated by space and a heading, not by cards. A box marks only one object, such as a theme tile or a chart. Tables have hairline rows and no frame. The page's one answer, the Quality verdict or the Results summary, sits in a tinted band, with its number large." %}</p>
+      <p>{% translate "Sections sit on the page, separated by space and a heading, not by cards. A box marks only one object, such as a chart, a detail pane or a data table. Tables inside a card have hairline rows and no frame." %}</p>
       <div class="pattern__demo stack">
         <p class="group-label">{% translate "Your inputs" %}</p>
-        <div class="answer-band">
-          <p class="answer-band__number">{% blocktranslate with n=22 total=80 %}{{ n }}<small>of {{ total }} indices changed significantly</small>{% endblocktranslate %}</p>
-          <p>{% translate "22 of 80 indices changed significantly since 1936. Mean temperature rose by 0.19 °C per decade. Heat and cold changed; rain and drought did not." %}</p>
-        </div>
       </div>
       <p class="text-sm text-text-muted">{% translate "A station's workspace header, with its name, the file and years, the page's actions and the section tabs, stays in view as the page scrolls on screens 40rem wide or more. The page's scroll padding keeps a focused element out from under it." %}</p>
     </section>

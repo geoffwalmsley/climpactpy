@@ -1,0 +1,47 @@
+{% load i18n %}{% comment %}
+One index in the Indices' detail pane (#236, the Results board), hidden unless it is the
+one shown: its code and theme, its short name and definition; its series as a chart with
+axes (the base period as a band, Sen's slope dashed; the text alternative gives the
+values and the trend, and the index page has the table view and the interactive chart);
+the slope per decade, its 95% interval, the values used and the method; then the links to
+the index page, its CSV and PNG, and its monthly values. On a narrow screen the pane
+follows the table: "Back to the list" returns to the index's row. A div, not a section:
+short names repeat (each heatwave definition's "Heatwave days"), and only one is shown.
+Parameters: row (views_indices._row), analysis.
+{% endcomment %}{% with card=row.card chart=row.chart %}
+<div class="index-detail hue-{{ card.hue }}" id="detail-{{ card.key }}" data-index-detail="{{ card.key }}"{% if not row.selected %} hidden{% endif %}>
+  <div>
+    <p class="index-detail__kicker">{{ card.code }}{% if row.theme %} {{ "·" }} {{ row.theme }}{% endif %}</p>
+    <h2 class="index-detail__title" id="detail-{{ card.key }}-title" tabindex="-1">{{ card.title }}</h2>
+    {% if card.definition %}<p class="index-detail__definition">{{ card.definition }}</p>{% endif %}
+  </div>
+  {% if chart %}
+  <figure class="index-chart">
+    <svg class="index-chart__plot" viewBox="{{ chart.box }}" role="img" aria-label="{{ row.chart_label }}" focusable="false">
+      {% if chart.band %}<rect class="index-chart__band" x="{{ chart.band.x }}" y="{{ chart.top }}" width="{{ chart.band.width }}" height="{{ chart.height }}"/><text class="index-chart__band-label" x="{{ chart.band.label_x }}" y="{{ chart.band.label_y }}" text-anchor="middle">{% translate "base period" %}</text>{% endif %}
+      <line class="index-chart__grid" x1="{{ chart.left }}" y1="{{ chart.grid_y }}" x2="{{ chart.right }}" y2="{{ chart.grid_y }}"/>
+      <line class="index-chart__axis" x1="{{ chart.left }}" y1="{{ chart.top }}" x2="{{ chart.left }}" y2="{{ chart.bottom }}"/>
+      <line class="index-chart__axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+      {% for tick in chart.y_ticks %}<text class="index-chart__tick" x="{{ chart.tick_x }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+      {% for tick in chart.x_ticks %}<text class="index-chart__tick" x="{{ tick.x }}" y="{{ chart.label_y }}" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+      {% if chart.line %}<path class="index-chart__line" d="{{ chart.line }}"/>{% else %}<line class="index-chart__zero" x1="{{ chart.left }}" y1="{{ chart.zero }}" x2="{{ chart.right }}" y2="{{ chart.zero }}"/><path class="index-chart__pos" stroke-width="{{ chart.bar_width }}" d="{{ chart.pos }}"/><path class="index-chart__neg" stroke-width="{{ chart.bar_width }}" d="{{ chart.neg }}"/>{% endif %}
+      {% if chart.trend %}<line class="index-chart__trend" x1="{{ chart.left }}" y1="{{ chart.trend.y1 }}" x2="{{ chart.right }}" y2="{{ chart.trend.y2 }}"/>{% endif %}
+    </svg>
+    <figcaption>{{ row.caption }}</figcaption>
+  </figure>
+  {% endif %}
+  <dl class="index-detail__stats">
+    <div><dt>{% translate "Slope" %}</dt><dd>{% if card.trend.valid %}{{ card.trend.per_decade_text }}{% elif card.daily %}{% translate "Daily values" %}{% elif card.trend %}{% translate "Too few values" %}{% else %}{% translate "No trend line" %}{% endif %}</dd></div>
+    <div><dt>{% translate "95% interval" %}</dt><dd>{% if card.trend.valid %}{{ card.trend.interval_text }}{% else %}{{ "–" }}{% endif %}</dd></div>
+    {% if row.used %}<div><dt>{{ row.used_label }}</dt><dd>{{ row.used }}</dd></div>{% endif %}
+    <div><dt>{% translate "Method" %}</dt><dd class="index-detail__method">{% translate "Sen's slope (zyp)" %}</dd></div>
+  </dl>
+  <p class="index-detail__links">
+    <a href="{{ row.links.page }}">{% translate "Open full page" %}<span class="sr-only"> {{ card.code }}</span></a>
+    {% if row.links.csv %}<a href="{{ row.links.csv }}" download>{% translate "CSV" %}<span class="sr-only"> {{ card.code }}</span></a>{% endif %}
+    {% if row.links.png %}<a href="{{ row.links.png }}" download>{% translate "PNG" %}<span class="sr-only"> {{ card.code }}</span></a>{% endif %}
+    {% if row.links.monthly %}<a href="{{ row.links.monthly }}">{% translate "Monthly values" %}<span class="sr-only"> {{ card.code }}</span></a>{% endif %}
+  </p>
+  <p class="index-detail__back"><a href="#index-{{ card.key }}" data-index-back="{{ card.key }}">{% translate "Back to the list" %}</a></p>
+</div>
+{% endwith %}

@@ -1,38 +1,9 @@
-/* Results of a station (#78, #178, #200): the answer and the theme tiles (#175), the
-   catalogue's filters and chips, and its one sortable table with sparklines and trend
-   arrows (trend--{{ direction }} is built in the template), a recalculation's progress
-   and the downloads table. From the Results mockup's .tiles, .trow, .filters, .chip,
-   .search and table.cat (docs/design/redesign-proposals.html). */
+/* A station's Indices (#78, #178, #200, #236): the filter rail, the table of every index
+   and the detail pane beside it (the Results board); the theme hues, the index names
+   codes first, the sort buttons, the sparklines, a recalculation's progress and the
+   downloads table. */
 @layer components {
-  /* == The catalogue's filters: theme chips, "Significant only" and the search, on one
-     wrapping row, the search at its end == */
-  .filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: --spacing(2);
-    align-items: center;
-  }
-
-  .filters fieldset {
-    min-inline-size: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-
-  .filters__search {
-    flex: 1 1 14rem;
-    max-inline-size: 18rem;
-    margin-inline-start: auto;
-  }
-
-  .filters__search input {
-    inline-size: 100%;
-    min-block-size: var(--control-height-sm);
-    padding-block: 0;
-    font-size: var(--text-sm);
-  }
-
+  /* The rail's submit button, for use without JavaScript. */
   .filters__submit[hidden] {
     display: none;
   }
@@ -137,112 +108,6 @@
     box-shadow: 0 0 0 2px var(--color-ink-contrast);
   }
 
-  /* == The answer and the theme tiles (#175, #200) == */
-  .findings__answer {
-    max-inline-size: var(--container-prose);
-  }
-
-  /* Two tiles a row, the four headline themes in a 2 x 2 grid; one a row when narrow. */
-  .theme-grid {
-    display: grid;
-    gap: --spacing(4);
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(18rem, 40%)), 1fr));
-    align-items: start;
-  }
-
-  .theme-headline {
-    gap: --spacing(2);
-    padding: --spacing(4);
-    border-block-start: 4px solid var(--hue, var(--color-other));
-    box-shadow: none;
-  }
-
-  .theme-headline__head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: --spacing(2);
-    align-items: center;
-  }
-
-  .theme-headline__head .card__title {
-    margin-block: 0;
-    margin-inline-end: auto;
-    font-size: var(--text-md);
-  }
-
-  .theme-headline__finding {
-    font-weight: var(--font-weight-medium);
-  }
-
-  .theme-headline__more {
-    font-size: var(--text-sm);
-  }
-
-  /* No change: the sunken surface, no frame but the hue's edge, the sentence in plain. */
-  .theme-headline--quiet {
-    border-color: transparent;
-    border-block-start-color: var(--hue, var(--color-other));
-    background: var(--color-surface-sunken);
-  }
-
-  .theme-headline--quiet .theme-headline__finding {
-    color: var(--color-text-muted);
-    font-weight: var(--font-weight-normal);
-  }
-
-  /* A tile's trends, one line each: the plain name, the value with its units, and the
-     sparkline (the mockup's .trow). */
-  .trend-rows {
-    display: grid;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .trend-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto 5rem;
-    gap: --spacing(3);
-    align-items: center;
-    padding-block: --spacing(2);
-    border-block-start: 1px solid var(--color-border);
-  }
-
-  .trend-row__name {
-    font-weight: var(--font-weight-medium);
-  }
-
-  .trend-row__value {
-    font-size: var(--text-sm);
-    white-space: nowrap;
-  }
-
-  .trend-row__units {
-    color: var(--color-text-muted);
-  }
-
-  .trend-row .spark {
-    inline-size: 5rem;
-    block-size: 1.75rem;
-  }
-
-  /* A narrow tile (a phone, #203): the name on its own line, the value and the sparkline
-     under it, so the name is not squeezed into a column of a few letters. */
-  .trend-rows {
-    container-type: inline-size;
-  }
-
-  @container (inline-size < 21rem) {
-    .trend-row {
-      grid-template-columns: minmax(0, 1fr) 5rem;
-      row-gap: --spacing(1);
-    }
-
-    .trend-row__name {
-      grid-column: 1 / -1;
-    }
-  }
-
   .index-code {
     font-size: var(--text-xs);
     letter-spacing: normal;
@@ -252,8 +117,7 @@
   /* An index named codes first (#218, components/index_name.html): the code in mono at
      the size of the text around it, then the short name. In a page title the code keeps
      the title's weight and the name is a step lighter. */
-  .index-name .index-code,
-  .catalogue__table tbody th .index-code {
+  .index-name .index-code {
     padding: 0;
     background: none;
   }
@@ -277,127 +141,509 @@
     gap: --spacing(2) --spacing(4);
   }
 
-  /* == The catalogue: every index in one table, sortable by column (#200) == */
-  /* At most about twelve rows high, scrolling under its sticky header, so the page stays
-     short; the region is focusable, so it scrolls by keyboard. */
-  .catalogue {
-    max-block-size: 36rem;
-    overflow-y: auto;
+  /* == The Indices (#236, the Results board): the filter rail at the inline start, the
+     table, and the selected index's detail at the inline end, in view under the context
+     bar as the table scrolls with the page. Narrower, the rail goes above the table and
+     the detail after it, with "Back to the list". == */
+  .indices {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: --spacing(4);
+    align-items: start;
   }
 
-  .catalogue__table td,
-  .catalogue__table th {
-    vertical-align: middle;
+  .indices__main {
+    display: grid;
+    gap: --spacing(2);
+    min-inline-size: 0;
   }
 
-  .catalogue__table tbody th {
+  @container station-page (inline-size >= 48rem) {
+    .indices {
+      grid-template-columns: 10rem minmax(0, 1fr);
+    }
+
+    .indices__pane {
+      grid-column: 1 / -1;
+    }
+
+    .indices__rail {
+      position: sticky;
+      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
+    }
+  }
+
+  @container station-page (inline-size >= 68rem) {
+    .indices {
+      grid-template-columns: 10rem minmax(0, 1fr) clamp(17rem, 22%, 26rem);
+      column-gap: --spacing(3);
+    }
+
+    .indices__pane {
+      grid-column: auto;
+      position: sticky;
+      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
+      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(6));
+      overflow-y: auto;
+    }
+
+    .index-detail__back {
+      display: none;
+    }
+  }
+
+  /* The rail: the search, the themes as a column of pills with their counts, "Significant
+     only" and the line that defines it. */
+  .filter-rail {
+    display: grid;
+    gap: --spacing(4);
+    align-content: start;
+  }
+
+  .filter-rail__group {
+    display: grid;
+    gap: --spacing(1.5);
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .filter-rail__label {
+    padding: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .filter-rail input[type="search"] {
+    inline-size: 100%;
+    min-block-size: var(--control-height-sm);
+    padding-block: 0;
+    font-size: var(--text-sm);
+  }
+
+  .filter-pill {
+    display: flex;
+    gap: --spacing(2);
+    align-items: center;
+    justify-content: space-between;
+    min-block-size: 2.125rem;
+    padding: --spacing(1.5) --spacing(2.5);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .filter-pill input {
+    position: absolute;
+    opacity: 0;
+  }
+
+  .filter-pill__name {
+    display: inline-flex;
+    gap: --spacing(2);
+    align-items: center;
+  }
+
+  .filter-pill__count {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .filter-pill:has(input:checked) {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
     font-weight: var(--font-weight-medium);
   }
 
-  .catalogue__table td {
+  .filter-pill:has(input:checked) .filter-pill__count {
+    color: inherit;
+  }
+
+  /* On the selected pill the dot keeps its hue, ringed so it shows on the ink. */
+  .filter-pill:has(input:checked) .hue-dot {
+    box-shadow: 0 0 0 2px var(--color-ink-contrast);
+  }
+
+  .filter-pill:has(input:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .filter-rail__check {
+    display: flex;
+    gap: --spacing(2);
+    align-items: center;
+    min-block-size: 2.125rem;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .filter-rail__check input {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin: 0;
+  }
+
+  .filter-rail__note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  .filter-rail .help-link {
+    justify-self: start;
+    font-size: var(--text-xs);
+  }
+
+  /* The index settings in one line (#178), at the rail's foot under a hairline. */
+  .filter-rail__settings {
+    display: flex;
+    gap: --spacing(2);
+    align-items: flex-start;
+    margin: 0;
+    padding-block-start: --spacing(3);
+    border-block-start: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .filter-rail__settings .icon {
+    flex: none;
+    margin-block-start: 0.125rem;
+  }
+
+  /* Narrower: the rail above the table, its pills in a wrapping row. */
+  @container station-page (inline-size < 48rem) {
+    .filter-rail fieldset {
+      display: flex;
+      flex-wrap: wrap;
+      gap: --spacing(2);
+    }
+
+    .filter-rail legend {
+      flex-basis: 100%;
+      margin-block-end: --spacing(1.5);
+    }
+  }
+
+  /* The line that answers ("22 of 80 indices with a significant trend · TMm +0.19
+     °C/decade"), and the live line that says how many rows show and their order. */
+  .indices__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3);
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .indices__answer {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .indices__answer strong {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .indices__mean {
+    color: var(--color-text-muted);
     white-space: nowrap;
   }
 
-  /* Codes first (#218): the code leads the row, in mono; the short name follows it. */
-  .catalogue__table tbody th .index-code {
-    font-size: var(--text-sm);
+  .indices__count {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The table: the data table, 32px rows one line each; the code leads in mono after
+     its theme's dot, a link that shows the index in the detail pane. */
+  .indices-table :is(th, td) {
+    padding-inline: --spacing(1.5);
+  }
+
+  /* The cells' screen-reader text is positioned: kept inside the scrolling region. */
+  .indices__main .table-wrap {
+    position: relative;
+  }
+
+  .indices-table :is(th, td):first-child {
+    padding-inline-start: --spacing(2.5);
+  }
+
+  .indices-table thead th,
+  .indices-table thead th.num {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     font-weight: var(--font-weight-medium);
   }
 
-  .catalogue__table tbody th .hue-dot {
-    margin-inline-end: --spacing(2);
+  .indices-table tbody th .hue-dot {
+    margin-inline-end: --spacing(1.5);
+    vertical-align: 0.0625rem;
   }
 
-  .catalogue__table tr:target {
-    background: var(--color-selected);
+  .indices-table tbody th a {
+    font-weight: var(--font-weight-medium);
   }
 
-  .catalogue__spark {
-    inline-size: 6rem;
+  .indices-table tbody tr.is-selected th a {
+    font-weight: var(--font-weight-semibold);
   }
 
-  .catalogue__spark .spark {
-    inline-size: 6rem;
-    block-size: 1.5rem;
+  /* A long short name ends in an ellipsis rather than widening the table; it is whole
+     in the detail pane and to screen readers. */
+  .indices-table__name {
+    max-inline-size: 9rem;
+    overflow: hidden;
+    font-size: var(--text-sm);
+    text-overflow: ellipsis;
   }
 
-  /* Phones (#203, proposal 7): the table becomes a list, one block a row: the code and
-     its short name (#218), then the trend and its significance beside the sparkline. The header row
-     is a line of the column names that sort, kept above the rows as they scroll. The
-     rows stay a table's rows to screen readers. */
+  .indices-table__muted,
+  .indices-table__none {
+    color: var(--color-text-muted);
+  }
+
+  .indices-table__slope {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .indices-table__slope abbr {
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+    text-decoration: none;
+  }
+
+  .indices-table__none {
+    font-family: var(--font-sans);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .indices-table__sig {
+    font-size: var(--text-xs);
+  }
+
+  .indices-table__yes {
+    display: inline-flex;
+    gap: --spacing(1.5);
+    align-items: center;
+  }
+
+  .indices-table__yes .hue-dot {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+  }
+
+  .indices-table__spark {
+    inline-size: 4.25rem;
+  }
+
+  .indices-table__spark .spark {
+    inline-size: 4.25rem;
+    block-size: 1.25rem;
+  }
+
+  .indices-table thead abbr {
+    text-decoration: none;
+  }
+
+  /* Phones (#203, #236): each row a block of two lines, the code, short name, unit and
+     sparkline, then the slope, its interval, significance and mean; the header is a line
+     of the column names that sort. The rows stay a table's rows to screen readers. */
   @media (max-width: 40rem) {
-    .catalogue__table,
-    .catalogue__table tbody {
+    .indices-table,
+    .indices-table thead,
+    .indices-table tbody {
       display: block;
     }
 
-    .catalogue__table thead {
-      display: block;
-      position: sticky;
-      inset-block-start: 0;
-      z-index: 1;
-      background: var(--color-page);
-    }
-
-    .catalogue__table thead tr {
+    .indices-table thead tr {
       display: flex;
       flex-wrap: wrap;
       gap: --spacing(1) --spacing(4);
-      padding-block: --spacing(2);
-      border-block-end: 1px solid var(--color-border);
+      padding: --spacing(1.5) --spacing(2.5);
+      background: var(--color-surface-sunken);
     }
 
-    .catalogue__table thead th {
-      position: static;
+    .indices-table thead th,
+    .indices-table thead th.num {
       padding: 0;
       border: 0;
+      background: none;
     }
 
-    .catalogue__table thead th.catalogue__spark {
+    .indices-table thead th:not([data-sort-key]) {
       display: none;
     }
 
-    .catalogue__table tbody tr:not([hidden]) {
+    .indices-table tbody tr:not([hidden]) {
       display: grid;
       grid-template-areas:
-        "code name"
-        "trend spark"
-        "sig spark";
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: --spacing(1) --spacing(3);
+        "code name unit spark"
+        "slope interval sig mean";
+      grid-template-columns: 5.25rem minmax(0, 1fr) auto 4.25rem;
+      gap: --spacing(0.5) --spacing(2);
       align-items: center;
-      padding-block: --spacing(3);
+      padding: --spacing(2) --spacing(2.5);
       border-block-end: 1px solid var(--color-border);
     }
 
-    .catalogue__table tbody :is(th, td, td.num) {
+    .indices-table tbody :is(th, td, .num),
+    .indices-table tbody :is(th, td):first-child {
+      block-size: auto;
       padding: 0;
       border: 0;
       text-align: start;
-      white-space: normal;
     }
 
-    .catalogue__table tbody th {
-      grid-area: code;
+    .indices-table tbody tr.is-selected {
+      box-shadow: inset 3px 0 0 var(--color-ink);
     }
 
-    .catalogue__table tbody td:nth-of-type(1) {
-      grid-area: name;
+    [dir="rtl"] .indices-table tbody tr.is-selected {
+      box-shadow: inset -3px 0 0 var(--color-ink);
     }
 
-    .catalogue__table tbody td:nth-of-type(2) {
-      grid-area: trend;
+    .indices-table tbody tr.is-selected > :first-child {
+      box-shadow: none;
     }
 
-    .catalogue__table tbody td:nth-of-type(3) {
-      grid-area: sig;
-      font-size: var(--text-xs);
+    .indices-table tbody th { grid-area: code; }
+    .indices-table tbody td:nth-of-type(1) { grid-area: name; max-inline-size: none; }
+    .indices-table tbody td:nth-of-type(2) { grid-area: unit; }
+    .indices-table tbody td:nth-of-type(3) { grid-area: slope; }
+    .indices-table tbody td:nth-of-type(4) { grid-area: interval; }
+    .indices-table tbody td:nth-of-type(5) { grid-area: sig; }
+    .indices-table tbody td:nth-of-type(6) { grid-area: spark; }
+    .indices-table tbody td.num:nth-of-type(7) { grid-area: mean; text-align: end; }
+  }
+
+  /* The detail pane: the index's code and theme, its name and definition, the chart
+     with its axes, the statistics and the links. */
+  .indices__pane {
+    container-type: inline-size;
+  }
+
+  .index-detail {
+    display: grid;
+    gap: --spacing(3.5);
+  }
+
+  .index-detail__kicker {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .index-detail__title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .index-detail__title:focus {
+    outline: none;
+  }
+
+  .index-detail__title:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .index-detail__definition {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* At most the pane's widest, so the ticks stay small when the pane is the page's width
+     (under the table, below 68rem). */
+  .index-chart {
+    max-inline-size: 26rem;
+    margin: 0;
+  }
+
+  .index-chart__plot {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+    direction: ltr;
+  }
+
+  .index-chart__axis { stroke: var(--chart-axis); stroke-width: 1; }
+  .index-chart__grid { stroke: var(--chart-grid); stroke-width: 1; }
+  .index-chart__band { fill: var(--color-text); fill-opacity: 0.06; }
+  .index-chart__band-label { fill: var(--color-text-muted); font-size: 10px; }
+  .index-chart__tick { fill: var(--color-text-muted); font-family: var(--font-mono); font-size: 11px; }
+  .index-chart__line { fill: none; stroke: var(--hue, var(--color-other)); stroke-width: 1.4; stroke-linejoin: round; }
+  .index-chart__trend { stroke: var(--chart-trend); stroke-width: 1.6; stroke-dasharray: 5 3; }
+  .index-chart__zero { stroke: var(--chart-axis); stroke-width: 1; }
+  .index-chart__pos { stroke: var(--chart-1); }
+  .index-chart__neg { stroke: var(--chart-2); }
+
+  .index-chart figcaption {
+    margin-block-start: --spacing(1.5);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .index-detail__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: --spacing(2.5) --spacing(4);
+    margin: 0;
+    font-size: var(--text-xs);
+  }
+
+  .index-detail__stats dt {
+    color: var(--color-text-muted);
+  }
+
+  .index-detail__stats dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .index-detail__stats dd.index-detail__method {
+    font-family: var(--font-sans);
+  }
+
+  /* A narrow pane: one statistic a line, its value at the end. */
+  @container (inline-size < 20rem) {
+    .index-detail__stats {
+      grid-template-columns: minmax(0, 1fr);
+      gap: --spacing(1.5);
     }
 
-    .catalogue__table tbody td:nth-of-type(4) {
-      grid-area: spark;
-      inline-size: auto;
+    .index-detail__stats > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 --spacing(3);
+      align-items: baseline;
+      justify-content: space-between;
     }
+  }
+
+  .index-detail__links,
+  .index-detail__back {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    margin: 0;
+    font-size: var(--text-sm);
   }
 
   /* A column header that sorts: a link without JavaScript, a button with it; the arrow
@@ -534,8 +780,14 @@
       background: CanvasText;
     }
 
-    .theme-headline {
-      border-block-start-color: CanvasText;
+    .index-chart__line,
+    .index-chart__pos,
+    .index-chart__neg {
+      stroke: CanvasText;
+    }
+
+    .filter-pill:has(input:checked) {
+      border-width: 3px;
     }
   }
 

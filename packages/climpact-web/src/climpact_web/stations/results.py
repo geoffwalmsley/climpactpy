@@ -15,9 +15,9 @@ the downloads hold:
 
 Cards are grouped as the help's index catalogue (:mod:`climpact_web.help.indices`), and
 each card belongs to a theme (:mod:`climpact_web.stations.themes`: heat, cold, rain,
-drought, averages, growing season, the user's own index) for the findings at the top of
-the page and the filters. Each card has a sparkline drawn here as SVG path data, so the dashboard
-needs no chart code; the interactive chart is on the index's own page.
+drought, averages, growing season, the user's own index) for the filters and the hues.
+Each card has a sparkline drawn here as SVG path data, so the table needs no chart code;
+the interactive chart is on the index's own page.
 
 Building the cards reads every table (about 0.2 s for 114 tables) and computes the trends
 (about 0.7 s), so the result is cached in memory, keyed by the files' modification times.
@@ -279,7 +279,6 @@ class Card:
     count: int = 0
     missing: int = 0
     daily: dict | None = None  # EHF and ECF daily tables
-    spread: float = 0.0  # standard deviation of the series the card shows
     order: int = 0
 
     @property
@@ -333,15 +332,6 @@ class Card:
     @property
     def significant(self) -> bool:
         return bool(self.trend and self.trend.get("significant"))
-
-    @property
-    def change(self) -> float:
-        """How big the trend is next to the index's own variability: the slope per decade
-        divided by the standard deviation of the series (0 without a trend). This puts
-        days, °C, mm and % on one scale, to rank the significant trends."""
-        if not (self.trend and self.trend.get("valid")) or not self.spread:
-            return 0.0
-        return abs(self.trend["slope"]) / self.spread
 
 
 def _x_label(step: str, x: float) -> str:
@@ -446,16 +436,6 @@ def sparkline(values, bars: bool = False, trend=None) -> dict:
     if ends:
         out["trend"] = f"M0 {y(ends[0])}L{SPARK_WIDTH} {y(ends[1])}"
     return out
-
-
-def _spread(values) -> float:
-    """The sample standard deviation of the values present (0 for fewer than two)."""
-    present = [float(v) for v in values if v == v]
-    n = len(present)
-    if n < 2:
-        return 0.0
-    mean = sum(present) / n
-    return math.sqrt(sum((v - mean) ** 2 for v in present) / (n - 1))
 
 
 def _latest(plot) -> dict | None:
@@ -607,7 +587,6 @@ def build(
         card.latest = _latest(plot)
         card.count = len(plot.values)
         card.missing = int(sum(1 for v in plot.values if v != v))
-        card.spread = _spread(plot.values)
         # Annual first, then monthly, then the days of occurrence.
         card.series.sort(key=lambda s: (s.name.startswith("day_of_"), s.name.endswith("_MON")))
     for name in ("EHFdaily", "ECFdaily"):

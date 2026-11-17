@@ -25,7 +25,7 @@ def home_tour() -> list[dict[str, str]]:
             "target": "#how-title",
             "title": _("One station, three tabs"),
             "text": _(
-                "Quality, Results and Files, beside your inputs. The indices are "
+                "Quality, Indices and Files, beside your inputs. The indices are "
                 "calculated while you check the quality, so the results are ready to "
                 "explore. Change any input later: what it affects is marked out of date "
                 "and calculated again."

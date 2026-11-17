@@ -320,7 +320,8 @@ strips, worklist and detail pane.
   across the window on the surface over a hairline, the title (the station name), one
   mono line of provenance (coordinates, years and their count, base period, "ET-SCI
   defaults" or how many settings are not the default, the climpact version;
-  `stations.workspace.provenance`), the page's actions at the end, then the tabs.
+  `stations.workspace.provenance`; the shown run's while its results are out of date,
+  #223), the page's actions at the end, then the tabs.
   Quality's line describes the data the checks read instead (#235, as its board draws
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
   PR TX TN") and the file's name.
@@ -425,7 +426,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
-| `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast | updating, out of date |
+| `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
@@ -574,7 +575,12 @@ years; sparklines are only for scanning, beside a number given in text.
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
   so the user can compare. Mark only what depends on the change: the base period changes
-  Results and Files, not Quality.
+  Results and Files, not Quality. Nothing in the header claims the new inputs for the old
+  results (#223): while they are out of date, the provenance line of the Indices, an
+  index page and Files describes the run on the page (its base period, coordinates and
+  settings; the Inputs panel and bar have the new values, "· changed"), and "Download
+  all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
+  Files, until the new results are ready.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
   where it matters, as a quiet line at the foot of the page: small muted text
   (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).

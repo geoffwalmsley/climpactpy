@@ -652,24 +652,26 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
     on a phone only the years show."""
     if current == "quality":
         return quality_provenance(analysis)
+    inputs = provenance_inputs(analysis, current)
+    meta = inputs["metadata"]
     parts = []
     summary = analysis.summary or {}
     first, last = summary.get("first_year"), summary.get("last_year")
     complete = analysis.metadata_complete
     if complete:
         parts.append(
-            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+            {"text": numbers.coordinates(meta["latitude"], meta["longitude"]), "phone": False}
         )
     if first and last:
         parts.append({"text": years_text(first, last), "phone": True})
     if complete:
         base = _("base %(start)s–%(end)s") % {
-            "start": analysis.workspace.base_start,
-            "end": analysis.workspace.base_end,
+            "start": meta["base_start"],
+            "end": meta["base_end"],
         }
         parts.append({"text": base, "phone": False})
     if set_up(analysis):
-        custom = thresholds_changed(analysis) + settings_changed(analysis)
+        custom = thresholds_count(inputs["qc"]) + settings_count(inputs["settings"])
         if custom:
             settings = ngettext(
                 "%(count)s setting not the default", "%(count)s settings not the default", custom
@@ -680,6 +682,24 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
     if found := core_version():
         parts.append({"text": f"climpact {found}", "phone": False})
     return parts
+
+
+def provenance_inputs(analysis: Station, current: str = "") -> dict:
+    """The inputs the provenance line describes (:func:`current_inputs` form): those of
+    the results on the page. On the Indices, an index's page and Files (``results``,
+    ``files``) they are the shown run's while it is out of date (#223): after a change
+    the page still shows the old results, so the line must not claim the new inputs
+    for them (the Inputs panel and bar show the new values, "· changed"). An input the
+    run did not record (a batch's results without settings) is the current one."""
+    inputs = current_inputs(analysis)
+    if current in ("results", "files"):
+        shown = shown_run(analysis)
+        if shown is not None and run_changes(analysis, shown):
+            recorded = recorded_inputs(analysis, shown)
+            for key in ("metadata", "qc", "settings"):
+                if recorded.get(key):
+                    inputs[key] = recorded[key]
+    return inputs
 
 
 def quality_provenance(analysis: Station) -> list[dict]:
@@ -801,9 +821,13 @@ def changed_inputs(analysis: Station) -> set[str]:
 
 def thresholds_changed(analysis: Station) -> int:
     """How many of the quality-control thresholds differ from R's defaults."""
+    return thresholds_count(qc_values(analysis))
+
+
+def thresholds_count(values: dict) -> int:
+    """How many of the quality-control thresholds ``values`` differ from R's defaults."""
     from climpact_web.stations.forms import QC_DEFAULTS
 
-    values = qc_values(analysis)
     return sum(1 for key, default in QC_DEFAULTS.items() if values.get(key) != default)
 
 
@@ -813,14 +837,21 @@ def base_period_text(workspace_) -> str:
 
 
 def settings_changed(analysis: Station) -> int:
-    """How many index settings and output options of the latest run asked for (or the
-    batch's) differ from the defaults: each parameter, the custom index, a plot title of
-    the user's, and each of the plots, zip and report switched off. From the settings
-    form's defaults, without importing the core."""
-    from climpact_web.stations.calculation import previous_params
+    """How many of the station's index settings and output options (its workspace's, with
+    its own index values) differ from the defaults: each parameter, the custom index, a
+    plot title of the user's, and each of the plots, zip and report switched off. From the
+    settings form's defaults, without importing the core."""
+    return settings_count(station_settings(analysis))
+
+
+def settings_count(settings: dict) -> int:
+    """How many of ``settings`` (:func:`settings_of` form) differ from the defaults: see
+    :func:`settings_changed`."""
     from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
 
-    params, plot_title, plots, zip_, report, _source = previous_params(analysis)
+    params = settings.get("params") or {}
+    plot_title = settings.get("plot_title") or ""
+    plots, zip_, report = (bool(settings.get(k, True)) for k in ("plots", "zip", "report"))
     fields = IndexParamsForm.base_fields
     count = sum(
         1 for name in PARAM_FIELDS if name in params and params[name] != fields[name].initial

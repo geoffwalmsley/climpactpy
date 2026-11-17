@@ -4819,7 +4819,14 @@ the sector comparison and Files say so too. When the replacement finishes it is 
 the section is current again. A change to the index settings now gives the same banner
 ("You changed the settings."), as the settings are an input of the workspace's (#254);
 the Recalculation card is left for a run of unchanged inputs ("Recalculate", "Try again",
-or Apply with the same settings). Quality keeps the verdict's level and its count of values
+or Apply with the same settings). The header says nothing of the new inputs for the old
+results (#223): while the results shown are out of date, the provenance line of the
+Indices, an index page and Files describes the run on the page
+(`workspace.provenance_inputs`: its recorded coordinates, base period, thresholds and
+settings, in place of the current ones, which the Inputs panel and bar show as
+"· changed"), and "Download all" is the old run's zip, so it reads "Download all (out of
+date)" in the context bar and its ⋯ menu, "Download all (zip, 8.0 MB, out of date)" on
+Files, and is secondary in both until the new results are ready, cancelled or not. Quality keeps the verdict's level and its count of values
 that look wrong in the checks' `result["verdict"]` and `result["verdict_wrong"]`
 (`workspace.remember_verdict`, called by `views.qc_context` before it builds the tabs, so
 the first page after the checks shows their verdict), for the Quality tab (#222).
@@ -4874,7 +4881,8 @@ the workspace header of #197 before it): the station's name as the h1 of the thr
 section pages, the provenance line (`workspace.provenance`: the coordinates, the years
 and their count, "base" and the base period, "ET-SCI defaults" or how many quality
 thresholds and index settings are not the default, and "climpact" with the core's
-installed version, `importlib.metadata`; on a phone only the years), the page's actions
+installed version, `importlib.metadata`; on a phone only the years; the shown run's values
+while its results are out of date, #223), the page's actions
 (Results' "Compare with sector data" and "Download all",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. Quality's
 provenance line describes the data the checks read instead (#235, `workspace.quality_provenance`,

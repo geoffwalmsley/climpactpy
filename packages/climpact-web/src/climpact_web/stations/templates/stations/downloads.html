@@ -37,8 +37,11 @@ calculated it holds the quality-control files alone. Context from views_download
         <h3 class="card__title">{% translate "Everything" %}</h3>
         {% if main.zip %}
         <p class="text-sm">{{ main.zip.note }}</p>
-        {% url 'jobs:file' job.pk main.zip.path as zip_url %}{% blocktranslate with size=main.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
-        <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}</p>
+        {% comment %}Out of date (#223): the old run's zip, secondary, until the new one is ready.{% endcomment %}
+        {% url 'jobs:file' job.pk main.zip.path as zip_url %}{% if stale_results %}{% blocktranslate with size=main.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}, out of date){% endblocktranslate %}
+        <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" variant="secondary" %}</p>
+        {% else %}{% blocktranslate with size=main.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
+        <p class="mt-auto">{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}</p>{% endif %}
         {% else %}
         <p class="text-sm text-text-muted">{% translate "Not made. The zip was switched off in the settings." %}</p>
         {% if input_urls.settings %}<p class="text-sm"><a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the index settings" %}</a></p>{% endif %}

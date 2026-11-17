@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 09:00+0000\n"
+"POT-Creation-Date: 2026-11-17 09:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -507,7 +507,7 @@ msgstr ""
 msgid "Finished"
 msgstr ""
 
-#: batch/templates/batch/_progress.html:84 jobs/models.py:21 jobs/stages.py:20
+#: batch/templates/batch/_progress.html:84 jobs/models.py:21 jobs/stages.py:22
 msgid "Failed"
 msgstr ""
 
@@ -2678,8 +2678,9 @@ msgstr ""
 msgid "Example: the last step"
 msgstr ""
 
-#: core/templates/core/patterns.html:467 jobs/stages.py:14
-msgid "Calculating indices"
+#: core/templates/core/patterns.html:467 jobs/stages.py:16
+#: stations/workspace.py:602
+msgid "Calculating the indices"
 msgstr ""
 
 #: core/templates/core/patterns.html:467
@@ -6144,44 +6145,44 @@ msgstr ""
 msgid "Cancelled"
 msgstr ""
 
-#: jobs/stages.py:9
+#: jobs/stages.py:11
 msgid "Reading the data"
 msgstr ""
 
-#: jobs/stages.py:10
+#: jobs/stages.py:12
 msgid "Writing the results"
 msgstr ""
 
-#: jobs/stages.py:11
+#: jobs/stages.py:13
 msgid "Making the zip file"
 msgstr ""
 
-#: jobs/stages.py:12
+#: jobs/stages.py:14
 msgid "Checking the data quality"
 msgstr ""
 
-#: jobs/stages.py:13
+#: jobs/stages.py:15
 msgid "Checking homogeneity"
 msgstr ""
 
-#: jobs/stages.py:15
-msgid "Drawing plots"
-msgstr ""
-
-#: jobs/stages.py:16
-msgid "Writing the PDF report"
-msgstr ""
-
 #: jobs/stages.py:17
-msgid "Preparing the input files"
+msgid "Drawing the plots"
 msgstr ""
 
 #: jobs/stages.py:18
-msgid "Calculating thresholds"
+msgid "Writing the PDF report"
 msgstr ""
 
-#: jobs/stages.py:19 stations/templates/stations/sector.html:42
-msgid "Calculating correlations"
+#: jobs/stages.py:19
+msgid "Preparing the input files"
+msgstr ""
+
+#: jobs/stages.py:20
+msgid "Calculating the thresholds"
+msgstr ""
+
+#: jobs/stages.py:21
+msgid "Calculating the correlations"
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:19
@@ -8797,6 +8798,10 @@ msgstr ""
 msgid "This compares the indices calculated for %(name)s in the batch run."
 msgstr ""
 
+#: stations/templates/stations/sector.html:42
+msgid "Calculating correlations"
+msgstr ""
+
 #: stations/templates/stations/sector.html:50
 msgid "The correlations could not be calculated."
 msgstr ""
@@ -9191,10 +9196,6 @@ msgstr ""
 
 #: stations/workspace.py:600
 msgid "Checking quality"
-msgstr ""
-
-#: stations/workspace.py:602
-msgid "Calculating the indices"
 msgstr ""
 
 #: stations/workspace.py:622

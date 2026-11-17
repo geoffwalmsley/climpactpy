@@ -146,7 +146,7 @@ def station_pages() -> dict[str, str]:
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
         "station-calculating": ("stations/results_progress.html", {
             "analysis": sample, "job": running, "phases": views_indices.phases(running),
-            **workspace.context(sample, "results"), "stage_label": "Calculating indices (txx)",
+            **workspace.context(sample, "results"), "stage_label": "Calculating the indices",
             "elapsed": "4 s", "remaining": "", "delay": 1, "worker_missing": False}),
     }  # fmt: skip
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
@@ -207,7 +207,7 @@ def batch_pages() -> dict[str, str]:
     running_rows = [
         row("alice_springs_1961-2020", "done", step=46, percent=100),
         row("darwin_1961-2020", "running", step=17, percent=36,
-            stage_label="Calculating indices (txx)"),
+            stage_label="Calculating the indices"),
         row("madrid_retiro_1961-2020", "waiting"),
         row("perth_airport_1961-2020", "skipped", skip_lines=["Line 2 has 5 values; each line "
             "needs 6: year, month, day, precipitation, maximum and minimum temperature."]),
@@ -215,7 +215,7 @@ def batch_pages() -> dict[str, str]:
     ]  # fmt: skip
     common = {"run": run, "job": job, "elapsed": "38 s", "remaining": "47 s", "delay": 1,
               "worker_missing": False, "zip_file": None, "total_stations": 3,
-              "stage_label": "darwin_1961-2020: Calculating indices (txx)",
+              "stage_label": "darwin_1961-2020: Calculating the indices",
               "steps": batch_steps("results", {"upload": "/batch/", "check": "#"})}  # fmt: skip
 
     def counts(done, failed, running, waiting):

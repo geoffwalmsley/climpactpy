@@ -464,7 +464,7 @@
 
     <section class="pattern" id="progress" aria-labelledby="progress-title">
       <h2 id="progress-title">{% translate "Progress" %}</h2>
-      {% translate "Calculating indices" as p_label %}{% translate "Thresholds: about 20 seconds left" as p_note %}{% translate "Waiting for a worker" as p_label2 %}{% translate "Your run is next in the queue." as p_note2 %}{% translate "Run stages" as st_label %}
+      {% translate "Calculating the indices" as p_label %}{% translate "Thresholds: about 20 seconds left" as p_note %}{% translate "Waiting for a worker" as p_label2 %}{% translate "Your run is next in the queue." as p_note2 %}{% translate "Run stages" as st_label %}
       <div class="pattern__demo stack">
         {% include "components/progress.html" with id="pattern-progress" label=p_label value=45 note=p_note %}
         {% include "components/progress.html" with id="pattern-progress-2" label=p_label2 value=None note=p_note2 %}

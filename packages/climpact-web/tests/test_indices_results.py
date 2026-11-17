@@ -382,7 +382,8 @@ def test_progress_while_running_then_the_results(client):
     job.status, job.stage, job.step, job.total = Status.RUNNING, "indices:climpact:spi", 40, 100
     job.save()
     html = client.get(f"/station/{analysis.pk}/results/progress").content.decode()
-    assert "Calculating indices (spi)" in html and 'value="40"' in html
+    # The stage in words, without its ids (#226).
+    assert "Calculating the indices" in html and "(spi)" not in html and 'value="40"' in html
     assert html.count("stages__item--done") == 3  # read, quality checks, homogeneity
     assert (
         "stages__item--current" in html and "Draw the plots" in html and "Make the zip file" in html

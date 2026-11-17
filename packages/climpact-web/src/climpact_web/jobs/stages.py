@@ -4,38 +4,33 @@ from __future__ import annotations
 
 from django.utils.translation import gettext as _
 
-# Whole stage names, or the part before the first ":".
+# Whole stage names, or the part before the first ":". A stage's own ids (the module, the
+# index or file after the ":") mean nothing to a user and are not shown (#226): the
+# progress reads "Calculating the indices · 7%".
 _LABELS = {
     "read": lambda: _("Reading the data"),
     "write": lambda: _("Writing the results"),
     "zip": lambda: _("Making the zip file"),
     "qc": lambda: _("Checking the data quality"),
     "homogeneity": lambda: _("Checking homogeneity"),
-    "indices": lambda: _("Calculating indices"),
-    "plots": lambda: _("Drawing plots"),
+    "indices": lambda: _("Calculating the indices"),
+    "plots": lambda: _("Drawing the plots"),
     "report": lambda: _("Writing the PDF report"),
     "rechunk": lambda: _("Preparing the input files"),
-    "thresholds": lambda: _("Calculating thresholds"),
-    "correlate": lambda: _("Calculating correlations"),
+    "thresholds": lambda: _("Calculating the thresholds"),
+    "correlate": lambda: _("Calculating the correlations"),
     "failed": lambda: _("Failed"),
 }
 
 
 def stage_label(stage: str) -> str:
-    """``"indices:climpact:spi"`` -> "Calculating indices (spi)"; a batch's
-    ``"<station>: <stage>"`` -> "<station>: <label>"."""
+    """``"indices:climpact:spi"`` -> "Calculating the indices"; a batch's
+    ``"<station>: <stage>"`` -> "<station>: <label>"; a stage it does not know is shown
+    as it is."""
     if not stage:
         return ""
     station, sep, rest = stage.rpartition(": ")
     if sep:
         return f"{station}: {stage_label(rest)}"
-    parts = stage.split(":")
-    head = _LABELS.get(parts[0])
-    if head is None:
-        return stage
-    detail = parts[-1] if len(parts) > 1 and parts[-1] not in ("climpact",) else ""
-    if parts[0] in ("qc", "homogeneity"):
-        detail = ""  # the module name means nothing to a user
-    if parts[0] == "write" and len(parts) > 1:
-        detail = parts[1]
-    return f"{head()} ({detail})" if detail else head()
+    head = _LABELS.get(stage.split(":")[0])
+    return stage if head is None else head()

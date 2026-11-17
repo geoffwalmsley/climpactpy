@@ -578,7 +578,7 @@ def test_progress_fragment_shows_each_station(client):
     )
     html = client.get(f"/batch/{run.pk}/progress").content.decode()
     assert "0 of 2 stations finished" in html
-    assert "Calculating indices (txx)" in html and 'value="46"' in html
+    assert "Calculating the indices" in html and 'value="46"' in html
     assert "Waiting" in html and "Cancel the batch" in html and "hx-get" in html
 
 

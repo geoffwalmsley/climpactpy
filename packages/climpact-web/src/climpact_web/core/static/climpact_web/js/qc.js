@@ -1,16 +1,22 @@
 /*
- * Step 2, Check quality (#77, #174): links the worklist (the "look wrong" rows and the
- * tables of the groups) and the daily charts under Details both ways. Needs charts.js
- * (window.ClimpactCharts) and htmx; without JavaScript the lists, tables, pagers (plain
- * links) and downloads work and the "Show on chart" buttons stay hidden.
+ * Quality (#77, #174, #202): the list and its detail, and the links between the findings
+ * and the daily charts under Details. Needs charts.js (window.ClimpactCharts) and htmx;
+ * without JavaScript each row of the list is a link to ?show=<id> (the server shows that
+ * detail), the tables, pagers (plain links) and downloads work and the "Show on the
+ * daily chart" buttons stay hidden.
  *
- * - List to chart: "Show on chart" ([data-qc-show], data-date, data-chart) opens Details
- *   and the chart's tab, moves the chart to the date (ClimpactCharts.focusDate), marks the
- *   row and moves focus to the chart.
- * - Chart to list: a click on a chart ("climpact:chartpick") marks the rows of that date
- *   in the lists and tables of the checks that flagged it, loading the page that holds it
- *   (stations:qc_table ?date=) when it is not shown, opens the groups that hold them and
- *   scrolls to the first.
+ * - The list: a row ([data-qc-item], a link; Tab moves between them, Enter selects)
+ *   shows its detail ([data-qc-detail]) in place of the one shown, marks the row
+ *   (aria-current), puts ?show=<id> in the address (replaceState, so it can be linked
+ *   and reloaded) and announces the detail's title. When the detail is below the list
+ *   (a narrow screen) focus moves to its title. An address whose fragment names a
+ *   detail (#check-<table>) shows that one.
+ * - List to chart: "Show on the daily chart" ([data-qc-show], data-date, data-chart)
+ *   opens Details and the chart's tab, moves the chart to the date
+ *   (ClimpactCharts.focusDate), marks the row and moves focus to the chart.
+ * - Chart to list: a click on a flagged value of a chart ("climpact:chartpick") shows the
+ *   finding of that date, or the group whose table holds it (loading the page that
+ *   holds it, stations:qc_table ?date=), marks its row and focuses it.
  */
 (function () {
   "use strict";
@@ -35,13 +41,64 @@
 
   function mark(date) {
     selected = date;
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-table] tr[data-date], [data-qc-finding]"), function (tr) {
+    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-table] tr[data-date]"), function (tr) {
       var on = tr.getAttribute("data-date") === date;
       tr.classList.toggle("is-selected", on);
       if (on) tr.setAttribute("aria-current", "true");
       else tr.removeAttribute("aria-current");
     });
   }
+
+  /* The list and its detail (#202). */
+  function detailOf(id) {
+    return doc.querySelector('[data-qc-detail="' + id + '"]');
+  }
+
+  function show(id, options) {
+    var panel = detailOf(id);
+    if (!panel) return null;
+    options = options || {};
+    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-detail]"), function (el) {
+      el.hidden = el !== panel;
+    });
+    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-item]"), function (a) {
+      var on = a.getAttribute("data-qc-item") === id;
+      a.classList.toggle("is-selected", on);
+      if (on) a.setAttribute("aria-current", "true");
+      else a.removeAttribute("aria-current");
+    });
+    if (window.history && window.history.replaceState) {
+      var url = new URL(window.location.href);
+      url.searchParams.set("show", id);
+      url.hash = "";
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+    var title = panel.querySelector(".qc-detail__title");
+    var said = doc.querySelector("[data-qc-said]");
+    if (said && options.announce !== false) {
+      said.textContent = "";
+      window.setTimeout(function () {
+        said.textContent = title ? title.textContent.replace(/\s+/g, " ").trim() : "";
+      }, 50);
+    }
+    if (options.focus && title) {
+      var list = doc.querySelector(".qc-md__list");
+      var below = list && list.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 1;
+      if (below) {
+        title.focus({ preventScroll: true });
+        title.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      }
+    }
+    return panel;
+  }
+
+  doc.addEventListener("click", function (event) {
+    var link = event.target.closest("[data-qc-item]");
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (!detailOf(link.getAttribute("data-qc-item"))) return;
+    event.preventDefault();
+    show(link.getAttribute("data-qc-item"), { focus: true });
+  });
 
   function openTab(panel) {
     var tab = panel && doc.getElementById(panel.id + "-tab");
@@ -79,29 +136,42 @@
   }
 
   function rowsFor(check, date) {
-    var found = Array.prototype.slice.call(doc.querySelectorAll('[data-qc-finding][data-date="' + date + '"]'));
     var tables = doc.querySelectorAll('[data-qc-table][data-qc-check="' + check + '"]');
     return Promise.all(Array.prototype.map.call(tables, function (table) {
       return rowIn(table, date);
-    })).then(function (rows) {
-      return found.concat(rows);
-    });
+    }));
   }
 
+  /* A flag picked on a chart: the finding of that date when it is in the list, or else
+     the first group or table that holds it. */
   doc.addEventListener("climpact:chartpick", function (event) {
     var detail = event.detail || {};
     if (!detail.flagged) return;
+    var finding = null;
+    detail.checks.some(function (c) {
+      finding = detailOf(c + "-" + detail.date);
+      return !!finding;
+    });
+    if (finding) {
+      mark(detail.date);
+      show(finding.getAttribute("data-qc-detail"));
+      var title = finding.querySelector(".qc-detail__title");
+      scrollTo(finding);
+      if (title) title.focus({ preventScroll: true });
+      return;
+    }
     Promise.all(detail.checks.map(function (c) {
       return rowsFor(c, detail.date);
     })).then(function (lists) {
       mark(detail.date);
       var rows = [].concat.apply([], lists).filter(Boolean);
-      rows.forEach(openAround);
       var first = rows[0];
-      if (first) {
-        scrollTo(first);
-        first.focus({ preventScroll: true });
-      }
+      if (!first) return;
+      var panel = first.closest("[data-qc-detail]");
+      if (panel) show(panel.getAttribute("data-qc-detail"));
+      openAround(first);
+      scrollTo(first);
+      first.focus({ preventScroll: true });
     });
   });
 
@@ -118,11 +188,20 @@
     }
   });
 
-  if (doc.readyState === "loading") {
-    doc.addEventListener("DOMContentLoaded", function () {
-      reveal(doc);
-    });
-  } else {
+  function start() {
     reveal(doc);
+    // An address that names a detail by its fragment (#check-<table>, #finding-<id>).
+    var hash = window.location.hash.slice(1);
+    var target = hash && doc.getElementById(decodeURIComponent(hash));
+    if (target && target.matches("[data-qc-detail]") && target.hidden) {
+      show(target.getAttribute("data-qc-detail"), { announce: false });
+      target.scrollIntoView();
+    }
+  }
+
+  if (doc.readyState === "loading") {
+    doc.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();

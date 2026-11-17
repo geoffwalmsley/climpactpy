@@ -479,6 +479,18 @@ def table_pages(request, review) -> dict[str, object]:
     return pages
 
 
+def selected_item(request, review) -> str:
+    """The item of the list shown in detail (#202): ``?show=``, or without it the table
+    whose page the address asks for (a pager's link), or none (the first)."""
+    show = request.GET.get("show", "")
+    if show:
+        return show
+    for table in review.tables:
+        if f"{table.table_id}_page" in request.GET:
+            return table.table_id
+    return ""
+
+
 def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
     from climpact_web.jobs.views import progress_context
 
@@ -512,8 +524,21 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
         if review is not None:
             remember_verdict(shown, review.verdict.level)
             pages = table_pages(request, review)
+            selected = review.item(selected_item(request, review))
+            items = [
+                {
+                    "item": item,
+                    "page": pages.get(item.check.table_id) if not item.finding else None,
+                    "selected": item.id == selected.id,
+                }
+                for item in review.items
+            ]
             context.update(
                 review=review,
+                items=items,
+                wrong_items=[i for i in items if i["item"].wrong],
+                worth_items=[i for i in items if not i["item"].wrong],
+                selected=selected,
                 findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
                 groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
                 month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
@@ -604,7 +629,7 @@ def qc_table(request, analysis_id, check):
 
 @require_POST
 def qc_continue(request, analysis_id):
-    """ "Use this data", whatever the checks found (the user decides): straight to the
+    """ "See results", whatever the checks found (the user decides): straight to the
     results, calculated with the default settings while the user looked at the checks
     (#178), or their progress. Without a speculative run, one is queued now."""
     analysis = get_analysis(request, analysis_id)
@@ -770,7 +795,7 @@ def edit_input(request, analysis_id, key):
     side sheet; without JavaScript, or when the sheet's form has errors, it is this page.
     Applying keeps what depends on the input, marked out of date, and queues its
     replacement (#179); then back to the page it was opened from. The index settings only
-    once the data is in use ("Use this data"): before, only the results use them."""
+    once the data is in use ("See results"): before, only the results use them."""
     analysis = get_analysis(request, analysis_id)
     if key not in INPUT_SHEETS:
         raise Http404

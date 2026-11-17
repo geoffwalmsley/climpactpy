@@ -39,13 +39,55 @@
     list-style: none;
   }
 
+  /* The text, then the decision at the end of the band (the mockup's .verdict .acts),
+     below the text when the band is narrow. */
+  .qc-verdict__body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(3) --spacing(6);
+    align-items: center;
+  }
+
+  .qc-verdict__text { flex: 1 1 30rem; min-inline-size: 0; }
+
+  .qc-verdict__text > * { margin: 0; }
+
+  .qc-verdict__hint {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
   .qc-verdict__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: --spacing(3);
-    align-items: flex-start;
-    padding-block-start: --spacing(2);
+    gap: --spacing(2) --spacing(3);
+    align-items: center;
   }
+
+  .qc-verdict__actions > form { margin: 0; }
+
+  /* "Your data" (#202, the mockup's .worth chips): what is in the file, in chips. */
+  .data-chip {
+    display: inline-flex;
+    gap: --spacing(2);
+    align-items: center;
+    min-block-size: var(--control-height-sm);
+    padding: --spacing(1) --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+  }
+
+  .data-chip b { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); }
+
+  .data-chip > .icon { flex: none; inline-size: 1rem; block-size: 1rem; color: var(--color-success); }
+
+  .data-chip--warning { border-color: transparent; background: var(--color-warning-soft); }
+
+  .data-chip--warning > .icon { color: var(--color-warning); }
+
+  .data-chip .chart__swatch { margin: 0; }
 
   .qc-section-head {
     display: flex;
@@ -73,73 +115,21 @@
     vertical-align: middle;
   }
 
-  /* A list is rows between hairlines on the page; no frame (#197). */
-  .qc-findings,
-  .qc-groups,
+  /* Details is a row between hairlines on the page; no frame (#197). */
   .qc-details {
     padding: 0;
     border-block: 1px solid var(--color-border);
-    list-style: none;
   }
-
-  .qc-finding,
-  .qc-group {
-    border-block-start: 1px solid var(--color-border);
-  }
-
-  .qc-finding:first-child,
-  .qc-group:first-child { border-block-start: 0; }
-
-  .qc-finding {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: --spacing(1) --spacing(4);
-    align-items: center;
-    padding: --spacing(3) --spacing(2) --spacing(1);
-  }
-
-  .qc-finding:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
-
-  .qc-finding.is-selected { background: var(--color-selected); }
-
-  .qc-finding__date {
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .qc-finding__check {
-    display: block;
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-  }
-
-  /* "Days around it" opens under the row, in the same surface: no box of its own. */
-  .qc-finding .qc-finding__days {
-    grid-column: 1 / -1;
-    border: 0;
-    background: none;
-  }
-
-  .qc-finding__days summary {
-    min-block-size: 2.25rem;
-    padding-inline: 0;
-    font-size: var(--text-sm);
-  }
-
-  .qc-finding__days summary .icon:last-child { margin-inline-start: 0; }
-
-  .qc-finding__days .disclosure__body { padding: 0 0 --spacing(3); }
 
   .qc-days__this > * { background: var(--color-warning-soft); }
 
-  /* The chart of a finding: the days around it, the flagged value ringed (as the daily
-     charts ring QC flags). The box keeps the viewBox's ratio, so the ring stays round. */
+  /* The small chart of a finding: the days around it, the flagged value ringed (as the
+     daily charts ring QC flags); of a group, its rows by calendar month. The box keeps
+     the viewBox's ratio, so the ring stays round. */
   .qc-spark {
     display: block;
-    inline-size: 7.5rem;
-    block-size: 2rem;
+    inline-size: 3.75rem;
+    block-size: 1rem;
     overflow: visible;
     direction: ltr;
   }
@@ -148,20 +138,183 @@
   .qc-spark__line--prcp { stroke: var(--chart-prcp); }
   .qc-spark__line--tmax { stroke: var(--chart-tmax); }
   .qc-spark__line--tmin { stroke: var(--chart-tmin); }
-  .qc-spark__ring { fill: none; stroke: var(--chart-flag); stroke-width: 1.5; }
+  .qc-spark__ring { fill: none; stroke: var(--chart-flag); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .qc-spark__bar { fill: var(--color-text-muted); }
 
-  .qc-finding__text { grid-column: 1 / -1; grid-row: 2; }
-  .qc-finding__show { grid-column: 1 / -1; }
-  .qc-finding__show .button { white-space: nowrap; }
+  /* == List and detail (#202), from the mockup's .md (docs/design/redesign-proposals.html,
+     proposal 6): one framed object, the list on the left in rows between hairlines, each
+     group under a small label on the sunken tint, the selected row tinted with an ink
+     edge; the detail on the right. Side by side when the container is wide enough, the
+     detail after the list otherwise. == */
+  .qc-md { container-type: inline-size; }
 
-  @media (min-width: 40rem) {
-    .qc-finding { grid-template-columns: auto 1fr auto auto; }
-    .qc-finding__text { grid-column: auto; grid-row: auto; }
-    .qc-finding__show { grid-column: auto; }
-    .qc-finding .qc-finding__days { grid-column: 2 / -1; }
+  .qc-md__grid {
+    display: grid;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-surface);
   }
 
-  .qc-group__summary,
+  .qc-md__list {
+    min-inline-size: 0;
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  @container (inline-size >= 44rem) {
+    .qc-md__grid { grid-template-columns: minmax(19rem, 23rem) minmax(0, 1fr); }
+    .qc-md__list { border-block-end: 0; border-inline-end: 1px solid var(--color-border); }
+  }
+
+  .qc-md__group {
+    padding: --spacing(3) --spacing(3) --spacing(2) --spacing(4);
+    background: var(--color-surface-sunken);
+  }
+
+  .qc-md__group + .qc-md__items { border-block-start: 1px solid var(--color-border); }
+
+  .qc-md__group .section-header { flex-wrap: nowrap; }
+
+  .qc-md__group h2.group-label {
+    display: flex;
+    gap: --spacing(2);
+    align-items: center;
+    font-size: var(--text-xs);
+  }
+
+  .qc-md__note {
+    margin: --spacing(1) 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .qc-md__items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .qc-md__items > li + li { border-block-start: 1px solid var(--color-border); }
+
+  .qc-item {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+    gap: --spacing(3);
+    align-items: center;
+    padding: --spacing(2) --spacing(4);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+
+  /* In a narrow list the date and the chart share the first line, the text the second. */
+  @container (inline-size <= 30rem) {
+    .qc-item { grid-template-columns: minmax(0, 1fr) auto; gap: --spacing(1) --spacing(3); }
+    .qc-item__text { grid-column: 1 / -1; grid-row: 2; }
+  }
+
+  .qc-item:hover { background: var(--color-surface-sunken); }
+
+  .qc-item:focus-visible { outline: 3px solid var(--color-focus); outline-offset: -3px; }
+
+  .qc-item.is-selected,
+  .qc-item[aria-current="true"] {
+    background: var(--color-selected);
+    box-shadow: inset 3px 0 0 var(--color-ink);
+  }
+
+  [dir="rtl"] .qc-item[aria-current="true"] { box-shadow: inset -3px 0 0 var(--color-ink); }
+
+  .qc-item__date {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .qc-item__title { display: block; font-weight: var(--font-weight-medium); }
+
+  .qc-item__note {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .qc-md__detail {
+    min-inline-size: 0;
+    padding: --spacing(4) --spacing(5);
+  }
+
+  .qc-detail__title {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  .qc-detail__title:focus { outline: none; }
+
+  .qc-detail__title:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+  .qc-detail__lede {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* The period around a finding: the line of each variable, the value ringed. */
+  .qc-period { margin: --spacing(2) 0 0; }
+
+  .qc-period__chart {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 4 / 1;
+    overflow: visible;
+    direction: ltr;
+  }
+
+  .qc-period__axis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3);
+    justify-content: space-between;
+    align-items: baseline;
+    margin-block-start: --spacing(1);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .qc-period__date { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  .qc-period__legend {
+    display: flex;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3);
+    order: 1;
+  }
+
+  .qc-period__legend > span { display: inline-flex; gap: --spacing(1); align-items: center; }
+
+  .qc-period__key { display: inline-block; inline-size: 0.875rem; block-size: 2px; }
+  .qc-period__key--prcp { background: var(--chart-prcp); }
+  .qc-period__key--tmax { background: var(--chart-tmax); }
+  .qc-period__key--tmin { background: var(--chart-tmin); }
+
+  .qc-period__key--ring {
+    inline-size: 0.625rem;
+    block-size: 0.625rem;
+    border: 1.5px solid var(--chart-flag);
+    border-radius: var(--radius-full);
+  }
+
+  /* The days around a finding: compact, the day itself in the warning tint (.daytable). */
+  .qc-daytable { font-size: var(--text-xs); }
+  .qc-daytable :is(th, td) { padding-block: --spacing(1); }
+  .qc-daytable tbody th { font-family: var(--font-mono); white-space: nowrap; }
+
+  .qc-detail__actions { margin: 0; }
+
   .qc-details__summary {
     display: flex;
     gap: --spacing(3);
@@ -172,23 +325,18 @@
     list-style: none;
   }
 
-  .qc-group__summary::-webkit-details-marker,
   .qc-details__summary::-webkit-details-marker { display: none; }
 
-  .qc-group__summary:hover,
   .qc-details__summary:hover { background: var(--color-surface-sunken); }
 
-  .qc-group__summary > .icon,
   .qc-details__summary > .icon {
     flex: none;
     color: var(--color-ink);
     transition: transform var(--duration);
   }
 
-  .qc-group[open] > .qc-group__summary > .icon,
   .qc-details[open] > .qc-details__summary > .icon { transform: rotate(180deg); }
 
-  .qc-group__title,
   .qc-details__title {
     flex: 1;
     min-inline-size: 0;
@@ -197,7 +345,6 @@
 
   .qc-details__title { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); }
 
-  .qc-group__note,
   .qc-details__note {
     display: block;
     color: var(--color-text-muted);
@@ -205,11 +352,13 @@
     font-weight: var(--font-weight-normal);
   }
 
-  .qc-group__body { padding: 0 --spacing(2) --spacing(4); }
   .qc-details__body { padding: --spacing(2) 0 --spacing(5); }
 
   .qc-months th,
   .qc-months td { padding-inline: --spacing(2); }
+
+  .qc-detail .qc-months { font-size: var(--text-xs); }
+  .qc-detail .qc-months :is(th, td) { padding-inline: --spacing(1); }
 
   .qc-quiet {
     display: flex;

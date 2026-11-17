@@ -443,30 +443,31 @@ def test_months_that_hold_most_rows():
 def test_results_page(client, checked):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     assert "Usable. 21 values look wrong." in page
-    # One decision: "Use this data" is the one primary button; "Replace file" opens the
-    # Inputs panel's File sheet (#199), so the drop zone is only in that sheet.
-    verdict = page[
-        page.index('class="alert alert--warning qc-verdict answer-band"') : page.index(
-            'id="look-wrong"'
-        )
-    ]
+    # One decision (#202): "See results" is the one primary button, after "Replace file",
+    # which opens the Inputs panel's File sheet (#199), so the drop zone is only there.
+    verdict = verdict_of(page)
     assert f'action="/station/{checked.pk}/quality/continue"' in verdict
-    assert verdict.count('class="button"') == 1 and "<span>Use this data</span>" in verdict
+    assert verdict.count('class="button"') == 1 and "<span>See results</span>" in verdict
+    assert "Use this data" not in verdict
     file_sheet = f"/station/{checked.pk}/inputs/file?next=%2Fstation%2F{checked.pk}%2Fquality"
     assert f'<a href="{file_sheet}" data-sheet-open="sheet-file"' in verdict
     assert 'class="button button--secondary"' in verdict and "<span>Replace file</span>" in verdict
+    assert verdict.index("Replace file") < verdict.index("See results")
     assert "then replace the file" in verdict  # what to do first
     assert "data-dropzone" not in without_sheets(page)
     # No forms on the page but the decision and "Delete" (#199): the thresholds and the
     # file are changed in the Inputs panel's sheets.
     actions = re.findall(r'<form[^>]* action="([^"]+)"', without_sheets(page))
     assert actions == [f"/station/{checked.pk}/quality/continue", f"/station/{checked.pk}/delete"]
-    # The worklist, then everything else under Details.
-    order = ["look-wrong", "worth-a-look", "missing-data", "details"]
+    # The verdict, the list and detail, the checks that found nothing, "Your data", then
+    # everything else under Details (#202).
+    order = ["qc-verdict-title", "qc-review", "look-wrong", "worth-a-look", "qc-detail",
+             "your-data", "missing-data", "details"]  # fmt: skip
     assert [page.index(f'id="{i}"') for i in order] == sorted(
         page.index(f'id="{i}"') for i in order
     )
-    assert page.count("data-qc-finding") == 10 + 6 + 5
+    items = len(qc_review.review(checked.qc_job, checked.station_file).items)
+    assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items == 21 + 11
     for name in QC_DEFAULTS:
         assert f'data-help-topic="qcparam.{name}"' in page
     for variable in qc_review.CHART_VARIABLES:
@@ -490,6 +491,71 @@ def test_results_page(client, checked):
         assert client.get(f"/jobs/{job.pk}/files/{name}").status_code == 200
 
 
+def verdict_of(page: str) -> str:
+    start = page.index('class="alert alert--')
+    return page[start : page.index("</section>", start)]
+
+
+def details_shown(page: str) -> list[str]:
+    """The ids of the details not hidden (#202): one."""
+    return re.findall(r'data-qc-detail="([^"]+)" aria-labelledby="[^"]+">', page)
+
+
+def selected_rows(page: str) -> list[str]:
+    return re.findall(r'data-qc-item="([^"]+)" aria-current="true"', page)
+
+
+def test_every_finding_and_group_is_reachable_from_the_list(client, checked):
+    """#202: each finding, each check's every row and each group is a row of the list,
+    a link to its detail (?show=), which is in the page, hidden unless selected; the
+    first finding is selected by default."""
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    items = review.items
+    assert [i.kind for i in items] == ["finding"] * 21 + ["group"] * len(review.groups)
+    assert len({i.id for i in items}) == len(items)
+    # Every finding of every "look wrong" check, and every row of every group.
+    findings = {(f.check.key, d.date) for f in review.findings for d in f.findings}
+    assert {(i.check.key, i.finding.date) for i in items if i.finding} == findings
+    grouped = sum(i.group.count for i in items if i.group)
+    assert grouped == review.verdict.worth
+    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    first = items[0]
+    assert details_shown(page) == [first.id] and selected_rows(page) == [first.id]
+    for item in items:
+        assert f'href="?show={item.id}#{item.anchor}" data-qc-item="{item.id}"' in page
+        assert f'id="{item.anchor}" data-qc-detail="{item.id}"' in page
+    # A check with more findings than are shown has a row for its every row (a table).
+    tmaxmin = review.findings[0]
+    tmaxmin.findings = tmaxmin.findings[:3]
+    assert tmaxmin.more
+    kinds = [(i.kind, i.id) for i in review.items]
+    assert ("table", "tmaxmin") in kinds and kinds.index(("table", "tmaxmin")) == 14
+    assert review.item("tmaxmin").anchor == "check-tmaxmin"
+    assert review.item("nope").id == review.items[0].id  # unknown: the first
+
+
+def test_selecting_without_javascript(client, checked):
+    """#202: ?show=<id> shows that item's detail and marks its row; a group's detail has
+    its rows by calendar month and its rows, paged, and its pager keeps the selection."""
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    finding = review.items[7]
+    url = f"/station/{checked.pk}/quality"
+    page = client.get(f"{url}?show={finding.id}").content.decode()
+    assert details_shown(page) == [finding.id] and selected_rows(page) == [finding.id]
+    detail = page[page.index(f'id="{finding.anchor}"') :].split("</section>")[0]
+    assert finding.finding.text in detail and "qc-period__chart" in detail
+    assert detail.count("<tr") == 1 + 2 * qc_review.WINDOW_DAYS + 1  # the days around it
+    assert 'class="qc-days__this"' in detail and "qc-spark__ring" in detail
+    page = client.get(f"{url}?show=outliers-prcp-high").content.decode()
+    assert details_shown(page) == ["outliers-prcp-high"]
+    detail = page[page.index('id="check-outliers-prcp-high"') :]
+    assert "Heavy rain days by calendar month" in detail and "rows 1 to 50 of 67" in detail
+    assert 'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=2' in detail
+    # Unknown: the first finding.
+    page = client.get(f"{url}?show=nope").content.decode()
+    assert details_shown(page) == [review.items[0].id]
+
+
 def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     review = qc_review.review(checked.qc_job, checked.station_file)
     for check in review.checks:
@@ -499,18 +565,42 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     monkeypatch.setattr(qc_review, "review", lambda job, path: review)
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
-    assert 'id="look-wrong"' not in page and 'id="worth-a-look"' not in page
+    assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
     assert "Ready to use" in page
-    # Green: "Use this data" alone; the file is replaced from the Inputs panel (#199).
+    # Green: "See results" alone; the file is replaced from the Inputs panel (#199).
+    verdict = verdict_of(page)
+    assert verdict.count('class="button"') == 1 and "<span>See results</span>" in verdict
     assert "Replace file</span>" not in without_sheets(page)
 
 
+def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
+    """#174, #202: on red "Replace file" is the primary button and "See results anyway"
+    stays beside it, so the user can always go on."""
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    strict = qc_review.VerdictLimits(wrong_share=0.0)
+    review.verdict = qc_review.verdict(review.checks, review.years, review.verdict.values, strict)
+    assert review.verdict.level == "fix"
+    monkeypatch.setattr(qc_review, "review", lambda job, path: review)
+    page = client.get(f"/station/{checked.pk}/quality").content.decode()
+    verdict = verdict_of(page)
+    assert "Fix the file first" in verdict and "alert--error" in verdict
+    assert re.search(r'<a href="[^"]+" data-sheet-open="sheet-file"[^>]*class="button"', verdict)
+    assert "<span>See results anyway</span>" in verdict
+    assert 'class="button button--secondary"' in verdict
+    assert verdict.index("Replace file") < verdict.index("See results anyway")
+
+
 def test_pages_without_javascript(client, checked):
-    """The pager's links carry the page of each table in the query string."""
+    """The pager's links carry the page of each table in the query string, and the
+    selection (#202); a page asked for without ?show= shows its table."""
     page = client.get(f"/station/{checked.pk}/quality?outliers-prcp-high_page=2").content.decode()
+    assert details_shown(page) == ["outliers-prcp-high"]
     section = page[page.index('id="qc-table-outliers-prcp-high"') :]
     assert "rows 51 to 67 of 67" in section
-    assert 'href="?outliers-prcp-high_page=1#check-outliers-prcp-high"' in section
+    assert (
+        'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=1#check-outliers-prcp-high"'
+        in section
+    )
 
 
 def test_table_page_of_a_date(client, checked):
@@ -718,11 +808,11 @@ def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
         "quality.verdict",
         "quality.wrong",
         "quality.worth",
-        "quality.missing",
+        "load.data",  # "Your data" (#198)
+        "quality.missing",  # its missing days per year (#202)
         "quality.daily",
         "quality.distributions",
         "quality.thresholds",
-        "load.data",  # "Your data" (#198)
     ]
     # The thresholds sheet's help opens in place, the drawer being behind it (#199).
     assert "help-topic--compact" not in without_sheets(page)

@@ -1280,30 +1280,71 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     assert c.evaluate(sorted_by) == ["name ascending"] and c.evaluate(keys) == by_name
 
 
-def test_quality_worklist_by_keyboard(chrome, site):
-    """#174: a "worth a look" group opens and closes from the keyboard on its summary;
-    "Show on chart" on a "look wrong" row opens Details and focuses the daily chart;
+def test_quality_list_and_detail_by_keyboard(chrome, site):
+    """#202: the list's rows are links, Tab moves between them and Enter shows the row's
+    detail in place, marks the row, puts ?show= in the address and announces the
+    detail's title; on a narrow screen focus moves to the detail below the list. "Show
+    on the daily chart" in a finding's detail opens Details and focuses the chart (#174);
     "Replace file" opens the Inputs panel's File sheet (#199)."""
     c = chrome
     c.navigate(site["station quality results"])
-    group = "document.querySelector('.qc-group')"
-    assert not c.evaluate(f"{group}.open")
-    focus(c, ".qc-group > summary")
+    items = "[...document.querySelectorAll('[data-qc-item]')]"
+    shown = "[...document.querySelectorAll('[data-qc-detail]')].filter(d => !d.hidden).map(d => d.dataset.qcDetail)"  # noqa: E501
+    current = "[...document.querySelectorAll('[data-qc-item][aria-current=true]')].map(a => a.dataset.qcItem)"  # noqa: E501
+    said = "document.querySelector('[data-qc-said]').textContent"
+    ids = c.evaluate(f"{items}.map(a => a.dataset.qcItem)")
+    assert len(ids) == 5 + 4  # Sydney: 5 findings, 4 groups
+    assert c.evaluate(shown) == [ids[0]] and c.evaluate(current) == [ids[0]]  # the first
+    # Tab moves along the list.
+    focus(c, f"[data-qc-item='{ids[0]}']")
+    c.press("Tab")
+    assert c.evaluate("document.activeElement.dataset.qcItem") == ids[1]
+    # Every row by keyboard: Enter shows its detail, announced; focus stays on the row.
+    for i in ids:
+        focus(c, f"[data-qc-item='{i}']")
+        c.press("Enter")
+        assert c.evaluate(shown) == [i] and c.evaluate(current) == [i], i
+        title = f"document.querySelector('[data-qc-detail=\"{i}\"] .qc-detail__title').textContent.replace(/\\s+/g, ' ').trim()"  # noqa: E501
+        wait_for(c, f"{said} === {title}", timeout=5, what=f"the announcement of {i}")
+        assert c.evaluate("document.activeElement.dataset.qcItem") == i
+        assert f"show={i}" in here(c)
+    # A group's detail has its table, paged with htmx.
+    group = ids[-1]
+    assert c.evaluate(f"!!document.querySelector('[data-qc-detail=\"{group}\"] [data-qc-table]')")
+    # Reloaded, the address shows the same detail.
+    c.navigate(here(c))
+    assert c.evaluate(shown) == [group] and c.evaluate(current) == [group]
+    # "Show on the daily chart" from a finding's detail.
+    focus(c, f"[data-qc-item='{ids[0]}']")
     c.press("Enter")
-    assert c.evaluate(f"{group}.open")
-    c.press(" ")
-    assert not c.evaluate(f"{group}.open")
     assert not c.evaluate("document.getElementById('details').open")
-    focus(c, "[data-qc-finding] [data-qc-show]")
+    focus(c, "[data-qc-detail]:not([hidden]) [data-qc-show]")
     c.press("Enter")
     wait_for(c, "!!(document.activeElement && document.activeElement.closest('[data-chart-plot]'))",
              timeout=30, what="focus on the daily chart")  # fmt: skip
     assert c.evaluate("document.getElementById('details').open")
-    # With every group, row and Details open (axe skips closed ones), in both themes.
+    # Narrow: the detail follows the list, and focus moves to its title.
+    c.viewport(320, 900)
+    try:
+        c.navigate(site["station quality results"])
+        focus(c, f"[data-qc-item='{ids[1]}']")
+        c.press("Enter")
+        assert c.evaluate("document.activeElement.classList.contains('qc-detail__title')")
+        assert c.evaluate(
+            "document.querySelector('.qc-md__list').getBoundingClientRect().bottom"
+            " <= document.activeElement.getBoundingClientRect().top"
+        )
+    finally:
+        c.viewport(1280, 900)
+    # Every detail shown, with every disclosure open (axe skips hidden content), in both
+    # themes.
     for scheme in ("light", "dark"):
         set_mode(c, scheme=scheme)
         c.navigate(site["station quality results"])
-        c.evaluate("document.querySelectorAll('details').forEach(function (d) { d.open = true })")
+        c.evaluate(
+            "document.querySelectorAll('details').forEach(d => { d.open = true });"
+            "document.querySelectorAll('[data-qc-detail]').forEach(d => { d.hidden = false })"
+        )
         c.settle()
         assert run_axe(c) == [], scheme
     set_mode(c)
@@ -1494,8 +1535,9 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         assert max(tops) - min(tops) <= 2, tops
         c.evaluate("document.body.removeAttribute('style')")
 
-        c.navigate(site["station quality results"])  # "Your data" (#198)
-        c.evaluate("document.getElementById('daily-chart').scrollIntoView()")
+        c.navigate(site["station quality results"])  # "Your data" (#198), a disclosure (#202)
+        c.evaluate("document.getElementById('daily-series').open = true;"
+                   "document.getElementById('daily-chart').scrollIntoView()")  # fmt: skip
         wait_for(c, "!!document.querySelector('#daily-chart [data-chart-legend] li')", 60)
         assert not c.evaluate("!!document.querySelector('#daily-chart [data-chart-flags]')")
 

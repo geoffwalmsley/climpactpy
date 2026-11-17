@@ -56,6 +56,7 @@ theme switched.
 | `WorkspaceList.dc.html` | Workspaces (replaces Your calculations) | #242, #240 |
 | `AddStations.dc.html` | Add stations: drop zone and review table | #233 |
 | `Workspace.dc.html` | Workspace overview and the trend grid | #234, #238 |
+| `Calculate.dc.html` | The workspace overview while its stations calculate and once they have finished (replaces batch results and the batch steps; three states in the board) | #234, #231 |
 | `Quality.dc.html` | A station's Quality as a worklist | #235, #222 |
 | `Results.dc.html` | A station's Indices: filter rail, table, detail pane | #236, #218, #226 |
 | `Index.dc.html` | One index | #237 |
@@ -412,7 +413,8 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 theme tiles, `answer-band` and the Catalogue went with the Indices table, #236): the
 Inputs panel and Inputs bar (by "Edit inputs" on the
 context bar and workspace settings, #231, #234); New station steps, the File card and
-`file_button` (by Add stations, #233); `steps` for batch (by the workspace, #231); the
+`file_button` (by Add stations, #233); `steps` and the batch results page (by the workspace overview's run status line and
+Stations table, #231, #234; board `Calculate.dc.html`); the
 Settings line and panel (by workspace settings, #231). The Side sheet stays, for
 workspace settings.
 
@@ -423,7 +425,8 @@ New patterns of #230 (Target; add each to `/patterns/` when it lands):
 | Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
 | Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
 | Review table | Add stations' table of files: editable name and coordinates, read status, every problem at once | #233 |
-| Stations table | A workspace's stations with their verdict, indices state and significant count | #234 |
+| Stations table | A workspace's stations with their verdict, indices state and significant count; the indices state is live while a run goes (Done, Calculating with its percentage, Waiting, Not run with "Fix quality first", Failed with its fix) | #234 |
+| Run status line | One line above the Stations table, never a panel: neutral with a progress bar while stations calculate (done of total, time left, Cancel); quiet when they have finished (how many, how long, Download all, Files); red only when a station failed, naming it, why and the fix. It stays until the workspace is next opened | #234 |
 | Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by

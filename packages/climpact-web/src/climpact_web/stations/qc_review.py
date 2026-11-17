@@ -35,9 +35,9 @@ PAGE_SIZE = 50
 # whether what it finds is almost always a mistake ("error") or may be a real value
 # ("review"). In R's order (QC_REPORTS).
 CHECKS = (
-    ("tmaxmin", gettext_lazy("Minimum at or above maximum"), "error"),
-    ("toolarge", gettext_lazy("Values too large"), "error"),
-    ("duplicates", gettext_lazy("Repeated dates"), "error"),
+    ("tmaxmin", gettext_lazy("TN ≥ TX"), "error"),
+    ("toolarge", gettext_lazy("Out of range"), "error"),
+    ("duplicates", gettext_lazy("Repeated date"), "error"),
     ("outliers", gettext_lazy("Outliers"), "review"),
     ("tx_jumps", gettext_lazy("Jumps in maximum temperature"), "review"),
     ("tn_jumps", gettext_lazy("Jumps in minimum temperature"), "review"),
@@ -153,6 +153,7 @@ class StationRows:
     last: dict[str, int] = field(default_factory=dict)  # date -> index of its last row
     first_date: str = ""
     last_date: str = ""
+    lines: dict[str, list[int]] = field(default_factory=dict)  # date -> its lines in the file
 
     @classmethod
     def read(cls, station_file: Path) -> StationRows:
@@ -162,7 +163,14 @@ class StationRows:
         dates = [d.date().isoformat() for d in rows["date"]]
         values = {k: [number(v) for v in rows[k]] for k in ("prcp", "tmax", "tmin")}
         last = {d: i for i, d in enumerate(dates)}
-        return cls(dates, values, last, dates[0] if dates else "", dates[-1] if dates else "")
+        return cls(
+            dates,
+            values,
+            last,
+            dates[0] if dates else "",
+            dates[-1] if dates else "",
+            file_lines(station_file),
+        )
 
     def day(self, date: str) -> dict[str, float | None]:
         i = self.last.get(date)
@@ -176,6 +184,25 @@ class StationRows:
 
     def indices_of(self, date: str) -> list[int]:
         return [i for i, d in enumerate(self.dates) if d == date]
+
+
+def file_lines(station_file: Path) -> dict[str, list[int]]:
+    """The lines of the station file (numbered from 1, as an editor numbers them) that
+    give each date, so a finding can say where to correct it. Lines whose first three
+    fields are not a date are skipped, as the reader skips them."""
+    out: dict[str, list[int]] = {}
+    try:
+        text = station_file.read_text()
+    except (OSError, UnicodeDecodeError):
+        return out
+    for number_, line in enumerate(text.splitlines(), start=1):
+        fields = line.replace(",", "\t").split()
+        try:
+            day = dt.date(int(fields[0]), int(fields[1]), int(fields[2]))
+        except (IndexError, ValueError):
+            continue
+        out.setdefault(day.isoformat(), []).append(number_)
+    return out
 
 
 # ---- Rows of the tables ------------------------------------------------------------------
@@ -671,18 +698,15 @@ def percent(n: int, total: int) -> str:
     return _("%(percent)s%%") % {"percent": number_format(round(share, digits))}
 
 
-def grouped(n: int) -> str:
-    from django.utils.formats import number_format
-
-    return number_format(n, force_grouping=True)
+grouped = numbers.grouped
 
 
 @dataclass
 class Verdict:
     level: str  # "ready" (green), "usable" (amber) or "fix" (red)
-    title: str
-    sentences: list[str]  # what it means and what to do
-    facts: list[str]  # the counts against what was checked, one line
+    title: str  # the level in words, in bold before the sentence: "Usable."
+    sentences: list[str]  # what it means, after the title
+    facts: list[str]  # the counts against what was checked, one mono line
     values: int  # values checked: PR, TX and TN present on each date
     wrong: int  # rows of the "look wrong" checks (dates, for repeated dates)
     worth: int  # rows of the "worth a look" checks
@@ -690,6 +714,7 @@ class Verdict:
     short_years: int  # years too incomplete for annual values
     too_many_wrong: bool
     too_many_short: bool
+    missing: int = 0  # values missing: PR, TX and TN absent on each date
 
     @property
     def alert_kind(self) -> str:
@@ -711,16 +736,28 @@ def values_checked(station: StationRows) -> int:
     )
 
 
+def values_missing(station: StationRows) -> int:
+    """PR, TX and TN missing on each date from the first to the last (#235)."""
+    return sum(
+        1
+        for i in station.last.values()
+        for k in ("prcp", "tmax", "tmin")
+        if station.values[k][i] is None
+    )
+
+
 def verdict(
     checks: list[Check],
     years: list[YearMissing],
     values: int,
     limits: VerdictLimits = VERDICT_LIMITS,
+    missing: int = 0,
 ) -> Verdict:
     """Decision B (#174): green when nothing looks wrong, amber when up to
     ``limits.wrong_share`` of the values checked look wrong, red above it or when more than
     ``limits.short_years_share`` of the years are too incomplete for annual values. The
-    user can go on whatever the level."""
+    user can go on whatever the level. Its words are the verdict strip's (#235): the level
+    in bold, one sentence, then the counts on one line."""
     wrong = sum(c.count for c in checks if c.kind == "error")
     worth = sum(c.count for c in checks if c.kind == "review")
     short = sum(1 for y in years if y.any_no_annual)
@@ -728,11 +765,13 @@ def verdict(
     too_many_short = short > limits.short_years_share * len(years)
 
     facts = [
-        ngettext("%(n)s value checked", "%(n)s values checked", values) % {"n": grouped(values)},
+        ngettext("%(n)s value checked", "%(n)s values checked", values)
+        % {"n": numbers.grouped(values)},
         ngettext("%(n)s looks wrong (%(percent)s)", "%(n)s look wrong (%(percent)s)", wrong)
-        % {"n": grouped(wrong), "percent": percent(wrong, values)},
-        _("%(n)s worth a look (%(percent)s)")
-        % {"n": grouped(worth), "percent": percent(worth, values)},
+        % {"n": numbers.grouped(wrong), "percent": percent(wrong, values)},
+        _("%(n)s worth a look") % {"n": numbers.grouped(worth)},
+        _("%(n)s missing (%(percent)s)")
+        % {"n": numbers.grouped(missing), "percent": percent(missing, values + missing)},
     ]
     if short:
         facts.append(
@@ -741,11 +780,11 @@ def verdict(
                 "%(n)s of %(total)s years too incomplete for annual values",
                 short,
             )
-            % {"n": grouped(short), "total": grouped(len(years))}
+            % {"n": numbers.grouped(short), "total": numbers.grouped(len(years))}
         )
 
     if too_many_wrong or too_many_short:
-        level, title = "fix", _("Fix the file first")
+        level, title = "fix", _("Fix the file first.")
         sentences = []
         if too_many_wrong:
             sentences.append(
@@ -754,7 +793,7 @@ def verdict(
                     "%(n)s values look wrong, %(percent)s of the values checked.",
                     wrong,
                 )
-                % {"n": grouped(wrong), "percent": percent(wrong, values)}
+                % {"n": numbers.grouped(wrong), "percent": percent(wrong, values)}
             )
         if too_many_short:
             sentences.append(
@@ -763,29 +802,21 @@ def verdict(
                     "%(n)s of %(total)s years have too much missing data for annual values.",
                     short,
                 )
-                % {"n": grouped(short), "total": grouped(len(years))}
+                % {"n": numbers.grouped(short), "total": numbers.grouped(len(years))}
             )
-        sentences.append(
-            _("Correct the file and upload it again. You can also use the data as it is.")
-        )
     elif wrong:
-        level = "usable"
-        title = ngettext(
-            "Usable. %(n)s value looks wrong.", "Usable. %(n)s values look wrong.", wrong
-        ) % {"n": grouped(wrong)}
-        sentences = [_("Fix them in your file, or go on with the values as they are.")]
-    else:
-        level, title = "ready", _("Ready to use")
-        sentences = [_("Nothing looks wrong.")]
-    if worth:
-        sentences.append(
+        level, title = "usable", _("Usable.")
+        sentences = [
             ngettext(
-                "%(n)s value is unusual but may be real.",
-                "%(n)s values are unusual but may be real.",
-                worth,
+                "%(n)s value looks wrong; the indices can run with it as it is.",
+                "%(n)s values look wrong; the indices can run with them as they are.",
+                wrong,
             )
-            % {"n": grouped(worth)}
-        )
+            % {"n": numbers.grouped(wrong)}
+        ]
+    else:
+        level, title = "ready", _("Ready to use.")
+        sentences = [_("Nothing looks wrong.")]
     return Verdict(
         level=level,
         title=title,
@@ -798,28 +829,32 @@ def verdict(
         short_years=short,
         too_many_wrong=too_many_wrong,
         too_many_short=too_many_short,
+        missing=missing,
     )
 
 
 # ---- "Look wrong": each finding with the days around it ------------------------------------
 
-FINDINGS_SHOWN = 10  # rows of a "look wrong" check shown with their chart; all are in its table
-WINDOW_DAYS = 7  # days either side of a finding, in its small chart and its table
-SPARK_W, SPARK_H, SPARK_PAD = 120, 32, 4  # the small chart's box (CSS keeps the same ratio)
-PERIOD_DAYS = 30  # days either side of a finding in the chart of its detail (#202)
-PERIOD_W, PERIOD_H, PERIOD_PAD = 640, 160, 10  # that chart's box
+FINDINGS_SHOWN = 10  # rows of a "look wrong" check shown in the list; all are in its table
+WINDOW_DAYS = 7  # days either side of a finding, in its chart and its table
+# The detail's chart (#235): its box, and the plot inside it, left of which are the
+# values' ticks and under which the dates'.
+CHART_W, CHART_H = 420, 150
+PLOT_LEFT, PLOT_RIGHT, PLOT_TOP, PLOT_BOTTOM = 36, 412, 10, 128
+UNITS = {"prcp": "mm", "tmax": "°C", "tmin": "°C", "dtr": "°C"}
 
 
 @dataclass
 class Finding:
     row: Row
-    text: str  # what looks wrong, in a sentence
-    spark: dict  # "lines": [{"variable", "d"}], "ring": {"x", "y"} or None
-    days: list[dict]  # the days around it: date, cells (PR, TX, TN texts), this (the day)
-    period: dict = field(default_factory=dict)  # as spark, over PERIOD_DAYS either side
-    period_first: str = ""  # the first and last dates of that chart
-    period_last: str = ""
-    variables: tuple[str, ...] = ()  # the variables its charts draw
+    text: str  # what looks wrong, in a sentence: the detail's title
+    var: str  # its row in the list: the variable, the value and what it is checked against
+    value: str
+    detail: str
+    days: list[dict]  # the days around it: date, cells (PR, TX, TN texts), this, flagged
+    chart: dict = field(default_factory=dict)  # the detail's chart (:func:`_chart`)
+    variables: tuple[str, ...] = ()  # the variables its chart draws
+    lines: list[int] = field(default_factory=list)  # its lines in the station file
 
     @property
     def date(self) -> str:
@@ -831,9 +866,38 @@ class Finding:
 
     @property
     def legend(self) -> list[dict]:
-        """The variables of its charts, with their names, for the chart's legend."""
-        labels = variable_labels()
-        return [{"variable": v, "label": labels[v]} for v in self.variables]
+        """The variables of its chart, with their codes and units: "TX °C"."""
+        shorts = short_labels()
+        return [
+            {"variable": v, "label": numbers.with_unit(shorts[v], UNITS[v])} for v in self.variables
+        ]
+
+    @property
+    def chart_label(self) -> str:
+        """The chart's text alternative: "TX and TN, daily, 1962-04-03 to 1962-04-17"."""
+        shorts = short_labels()
+        days = self.days
+        return _("%(variables)s, daily, %(first)s to %(last)s") % {
+            "variables": _join([shorts[v] for v in self.variables]),
+            "first": days[0]["date"] if days else "",
+            "last": days[-1]["date"] if days else "",
+        }
+
+    @property
+    def month(self) -> str:
+        """The chart's caption: "April 1962, daily"."""
+        from django.utils.formats import date_format
+
+        return _("%(month)s, daily") % {"month": date_format(self.day, "F Y")}
+
+    @property
+    def lines_text(self) -> str:
+        """Where to find it in the file: "Line 459 in the file"."""
+        if not self.lines:
+            return ""
+        return ngettext(
+            "Line %(lines)s in the file", "Lines %(lines)s in the file", len(self.lines)
+        ) % {"lines": _join([str(n) for n in self.lines])}
 
 
 def _window(
@@ -847,31 +911,28 @@ def _window(
     return out
 
 
-def _spark(
-    window,
-    variables: tuple[str, ...],
-    ring: str,
-    date: str,
-    box: tuple[int, int, int] = (SPARK_W, SPARK_H, SPARK_PAD),
-) -> dict:
-    """Path data for the chart of a finding: a line per variable over the window (gaps
-    where values are missing) and a ring round the flagged value, in integer coordinates
-    of ``box`` (width, height, padding)."""
-    width, height, pad = box
+def _chart(window, variables: tuple[str, ...], ring: str, date: str) -> dict:
+    """The detail's chart of a finding (#235): a line per variable over the window (gaps
+    where values are missing), the day itself as a band with the flagged value ringed,
+    and axes: three values (the lowest and highest whole numbers around the data, and
+    the middle) and three dates (the first, the day, the last). Coordinates in the box
+    ``CHART_W`` x ``CHART_H``."""
+    import math
+
     present = [v[k] for _d, v in window for k in variables if v[k] is not None]
     if not present:
         return {}
-    low, high = min(present), max(present)
-    span = (high - low) or 1.0
+    low, high = math.floor(min(present)), math.ceil(max(present))
+    if high == low:
+        high = low + 1
     n = len(window)
+    step = (PLOT_RIGHT - PLOT_LEFT) / (n - 1)
 
-    def x(i: int) -> int:
-        return round(i * width / (n - 1))
+    def x(i: int) -> float:
+        return round(PLOT_LEFT + i * step, 1)
 
-    def y(v: float) -> int:
-        if high == low:
-            return height // 2
-        return round(height - pad - (v - low) / span * (height - 2 * pad))
+    def y(v: float) -> float:
+        return round(PLOT_BOTTOM - (v - low) / (high - low) * (PLOT_BOTTOM - PLOT_TOP), 1)
 
     lines = []
     for k in variables:
@@ -885,64 +946,99 @@ def _spark(
         lines.append({"variable": k, "d": "".join(parts)})
     centre = next(i for i, (d, _v) in enumerate(window) if d == date)
     value = window[centre][1][ring]
+    middle = (low + high) / 2
     return {
         "lines": lines,
         "ring": None if value is None else {"x": x(centre), "y": y(value)},
+        "band": {"x": round(x(centre) - step / 2, 1), "width": round(step, 1)},
+        "y_ticks": [{"y": y(v), "text": numbers.number(v)} for v in (high, middle, low)],
+        "grid_y": y(middle),
+        "x_ticks": [
+            {"x": x(0), "text": window[0][0][5:], "anchor": "start"},
+            {"x": x(centre), "text": window[centre][0][5:], "anchor": "middle"},
+            {"x": x(n - 1), "text": window[-1][0][5:], "anchor": "end"},
+        ],
     }
 
 
-def _finding_text(check: Check, row: Row, params) -> str:
+def _toolarge_parts(cells: list[Cell], params) -> list[tuple[str, str, str, str]]:
+    """Each value of a ``toolarge`` row out of range: (variable, value, its limit, the
+    sentence)."""
+    shorts = short_labels()
+    out = []
+    for key, cell in zip(("prcp", "tmax", "tmin"), cells[:3], strict=True):
+        if not cell.strong:
+            continue
+        v = number(cell.text) or 0.0
+        if key == "prcp":
+            limit = 0 if v < 0 else params.prec_max
+            text = (
+                _("%(variable)s %(value)s, below %(limit)s")
+                if v < 0
+                else _("%(variable)s %(value)s, over the %(limit)s limit")
+            )
+        else:
+            limit = params.temp_max if v > 0 else -params.temp_max
+            text = (
+                _("%(variable)s %(value)s, over the %(limit)s limit")
+                if v > 0
+                else _("%(variable)s %(value)s, under the %(limit)s limit")
+            )
+        value = numbers.with_unit(cell.text, UNITS[key])
+        limit_text = numbers.with_unit(fmt(limit), UNITS[key])
+        out.append(
+            (
+                shorts[key],
+                value,
+                limit_text,
+                text % {"variable": shorts[key], "value": value, "limit": limit_text},
+            )
+        )
+    return out
+
+
+def _finding_parts(check: Check, row: Row, params) -> tuple[str, str, str, str]:
+    """A finding's sentence and its row in the list (#235): the variable, the value and
+    what it is checked against. Codes first, a no-break space before each unit."""
     cells = row.cells
     if check.key == "tmaxmin":
         tx, tn = number(cells[1].text), number(cells[2].text)
         values = {"tn": _deg(cells[2].text), "tx": _deg(cells[1].text)}
         if tx is not None and tn is not None and tn == tx:
-            return _("Minimum %(tn)s equals the maximum %(tx)s") % values
-        return _("Minimum %(tn)s is above the maximum %(tx)s") % values
+            text = _("TN %(tn)s equals TX %(tx)s") % values
+        else:
+            text = _("TN %(tn)s is above TX %(tx)s") % values
+        return text, _("TN"), values["tn"], _("TX %(tx)s") % values
     if check.key == "toolarge":
-        parts = []
-        prcp, tmax, tmin = cells[0], cells[1], cells[2]
-        if prcp.strong:
-            p = number(prcp.text) or 0.0
-            parts.append(
-                (
-                    _("Rain %(value)s, below %(limit)s")
-                    if p < 0
-                    else _("Rain %(value)s, over the %(limit)s limit")
-                )
-                % {"value": _mm(prcp.text), "limit": _mm(fmt(0 if p < 0 else params.prec_max))}
-            )
-        for cell, high_text, low_text in (
-            (
-                tmax,
-                _("Maximum %(value)s, over the %(limit)s limit"),
-                _("Maximum %(value)s, under the %(limit)s limit"),
-            ),
-            (
-                tmin,
-                _("Minimum %(value)s, over the %(limit)s limit"),
-                _("Minimum %(value)s, under the %(limit)s limit"),
-            ),
-        ):
-            if cell.strong:
-                v = number(cell.text) or 0.0
-                parts.append(
-                    (high_text if v > 0 else low_text)
-                    % {
-                        "value": _deg(cell.text),
-                        "limit": _deg(fmt(params.temp_max if v > 0 else -params.temp_max)),
-                    }
-                )
-        return "; ".join(parts)
+        parts = _toolarge_parts(cells, params)
+        return (
+            "; ".join(p[3] for p in parts),
+            " · ".join(p[0] for p in parts),
+            " · ".join(p[1] for p in parts),
+            " · ".join(_("limit %(limit)s") % {"limit": p[2]} for p in parts),
+        )
     n = int(number(cells[0].text) or 0)
-    return ngettext(
+    text = ngettext(
         "Given on %(n)s row of the file. The indices use the last.",
         "Given on %(n)s rows of the file. The indices use the last.",
         n,
     ) % {"n": n}
+    rows = ngettext("%(n)s row", "%(n)s rows", n) % {"n": n}
+    return text, _("all"), rows, _("indices use the last")
 
 
-def build_finding(check: Check, row: Row, station: StationRows, params) -> Finding:
+def _day_cell(value: float | None) -> Cell:
+    """A value of the days-around table: one decimal (#225), or "missing"."""
+    if value is None:
+        return Cell(_("missing"), missing=True)
+    return Cell(numbers.fixed(value, 1))
+
+
+def build_finding(
+    check: Check, row: Row, station: StationRows, params, flagged: set[str] | None = None
+) -> Finding:
+    """A "look wrong" row with its context; ``flagged`` holds the dates any "look wrong"
+    check found, marked in the days-around table."""
     window = _window(station, row.date)
     if check.key == "toolarge":
         variables, ring = (row.chart,), row.chart
@@ -950,24 +1046,27 @@ def build_finding(check: Check, row: Row, station: StationRows, params) -> Findi
         variables, ring = ("tmax", "tmin"), "tmin"
     else:
         variables, ring = ("tmax", "tmin"), "tmax"
+    flagged = flagged or set()
     days = [
         {
             "date": d,
-            "cells": [value_cell(v[k]) for k in ("prcp", "tmax", "tmin")],
+            "cells": [_day_cell(v[k]) for k in ("prcp", "tmax", "tmin")],
             "this": d == row.date,
+            "flagged": d in flagged,
         }
         for d, v in window
     ]
-    period = _window(station, row.date, PERIOD_DAYS)
+    text, var, value, detail = _finding_parts(check, row, params)
     return Finding(
         row,
-        _finding_text(check, row, params),
-        _spark(window, variables, ring, row.date),
+        text,
+        var,
+        value,
+        detail,
         days,
-        period=_spark(period, variables, ring, row.date, (PERIOD_W, PERIOD_H, PERIOD_PAD)),
-        period_first=period[0][0],
-        period_last=period[-1][0],
+        chart=_chart(window, variables, ring, row.date),
         variables=variables,
+        lines=station.lines.get(row.date, []),
     )
 
 
@@ -991,12 +1090,12 @@ def outlier_titles() -> dict[str, str]:
     return {
         "prcp-high": _("Heavy rain days"),
         "prcp-low": _("Light rain days"),
-        "tmax-high": _("High maximum temperatures (TX)"),
-        "tmax-low": _("Low maximum temperatures (TX)"),
-        "tmin-high": _("High minimum temperatures (TN)"),
-        "tmin-low": _("Low minimum temperatures (TN)"),
-        "dtr-high": _("Wide daily range (DTR)"),
-        "dtr-low": _("Narrow daily range (DTR)"),
+        "tmax-high": _("High maximum"),
+        "tmax-low": _("Low maximum"),
+        "tmin-high": _("High minimum"),
+        "tmin-low": _("Low minimum"),
+        "dtr-high": _("Wide daily range"),
+        "dtr-low": _("Narrow daily range"),
     }
 
 
@@ -1008,7 +1107,7 @@ class Group:
     check: Check  # the group's rows as a check, so it has a table of its own
     title: str
     by_month: list[int] = field(default_factory=list)  # rows in each calendar month
-    mostly: str = ""  # "Mostly in January, February and March", when a few months hold most
+    mostly: str = ""  # "Mostly May and June", "All year": when its rows fall (#235)
     variable: str = ""  # its variable, short: "PR", "TX", "TN", "DTR"
 
     @property
@@ -1017,18 +1116,20 @@ class Group:
 
     @property
     def bars(self) -> list[dict]:
-        """The rows by calendar month as the bars of a small chart (#202): x, y, height
-        in the box of the findings' small charts."""
+        """The rows by calendar month as the bars of the list's small chart (#235): x, y
+        and height in a box of ``BARS_W`` x ``BARS_H``; a month without rows keeps a
+        thin mark, so the twelve months read as a year."""
         top = max(self.by_month, default=0)
         if not top:
             return []
-        width = SPARK_W / 12
         out = []
         for m, n in enumerate(self.by_month):
-            if n:
-                h = max(1, round(n / top * (SPARK_H - 2)))
-                out.append({"x": round(m * width + 1, 1), "y": SPARK_H - h, "h": h})
+            h = max(2.0, n / top * BARS_H) if n else 0.6
+            out.append({"x": m * 7, "y": round(BARS_H - h, 1), "h": round(h, 1)})
         return out
+
+
+BARS_W, BARS_H = 82, 16  # the box of a group's bars by month (12 bars 5 wide, 7 apart)
 
 
 def _by_month(rows: list[Row]) -> list[int]:
@@ -1045,8 +1146,10 @@ def _join(items: list[str]) -> str:
 
 
 def _mostly(by_month: list[int]) -> str:
-    """The calendar months that hold at least half the rows, when there are at most three
-    of them: "Mostly in January, February and March"."""
+    """When a group's rows fall, for its "When" column (#235): the calendar months that
+    hold at least half the rows when there are at most three of them ("Mostly May and
+    June", "All in December"); "All year" when they are spread wider; nothing for fewer
+    than three rows."""
     from django.utils.dates import MONTHS
 
     total = sum(by_month)
@@ -1060,11 +1163,11 @@ def _mostly(by_month: list[int]) -> str:
         if 2 * held >= total:
             break
     if len(picked) > 3:
-        return ""
+        return _("All year")
     names = [str(MONTHS[m + 1]) for m in sorted(picked)]
     if held == total:
         return _("All in %(months)s") % {"months": _join(names)}
-    return _("Mostly in %(months)s") % {"months": _join(names)}
+    return _("Mostly %(months)s") % {"months": _join(names)}
 
 
 def _subcheck(check: Check, group: str, title: str, rows: list[Row]) -> Check:
@@ -1109,14 +1212,12 @@ def worth_groups(checks: list[Check], params) -> list[Group]:
             continue
         short = short_labels()["tmax" if check.key.startswith("tx") else "tmin"]
         if check.key.endswith("_jumps"):
-            title = _("Large day-to-day changes in %(variable)s (%(jump)s or more)") % {
-                "variable": short,
-                "jump": _deg(fmt(params.jump)),
-            }
+            title = _("Large day-to-day change ≥ %(jump)s") % {"jump": _deg(fmt(params.jump))}
         else:
-            title = _("The same %(variable)s on more than %(days)s days in a row") % {
+            # More than flatline_days equal values in a row (climpact.qc.flatline).
+            title = _("Same %(variable)s %(days)s+ days") % {
                 "variable": short,
-                "days": params.flatline_days,
+                "days": params.flatline_days + 1,
             }
         by_month = _by_month(check.rows)
         groups.append(Group(check, title, by_month, _mostly(by_month), short))
@@ -1227,6 +1328,39 @@ class Review:
         return _join([c.title for c in self.quiet])
 
     @property
+    def coverage(self) -> list[dict]:
+        """The coverage strip (#235): for PR, TX and TN, each year's missing days as a
+        step (1: none, 2: 1–3 days, 3: 4 or more; ``--chart-coverage-*``) and the total."""
+        shorts = short_labels()
+        out = []
+        for key in ("prcp", "tmax", "tmin"):
+            cells = []
+            for i, year in enumerate(self.years):
+                days = year.days.get(key, 0)
+                step = 1 if not days else 2 if days <= 3 else 3
+                cells.append({"x": i, "year": year.year, "days": days, "step": step})
+            total = sum(c["days"] for c in cells)
+            out.append(
+                {
+                    "name": shorts[key],
+                    "cells": cells,
+                    "total": ngettext("%(n)s day", "%(n)s days", total)
+                    % {"n": numbers.grouped(total)},
+                }
+            )
+        return out
+
+    @property
+    def coverage_years(self) -> list[int]:
+        """The years under the strip: up to seven, evenly spaced from the first to the
+        last, so they line up when spread across its width."""
+        years = [y.year for y in self.years]
+        if len(years) < 2:
+            return years
+        k = min(7, len(years))
+        return [years[round(i * (len(years) - 1) / (k - 1))] for i in range(k)]
+
+    @property
     def years_missing(self) -> list[YearMissing]:
         return [y for y in self.years if y.any_missing]
 
@@ -1260,8 +1394,11 @@ def review(job, station_file: Path) -> Review:
         checks.append(build_check(key, qcfile, station, params, relative))
     nastatistics, _relative = load("nastatistics")
     years = missing_by_year(nastatistics, station)
+    flagged = {r.date for c in checks if c.kind == "error" for r in c.rows}
     findings = [
-        FindingList(c, [build_finding(c, r, station, params) for r in c.rows[:FINDINGS_SHOWN]])
+        FindingList(
+            c, [build_finding(c, r, station, params, flagged) for r in c.rows[:FINDINGS_SHOWN]]
+        )
         for c in checks
         if c.kind == "error" and c.rows
     ]
@@ -1270,10 +1407,71 @@ def review(job, station_file: Path) -> Review:
         params=params,
         checks=checks,
         years=years,
-        verdict=verdict(checks, years, values_checked(station)),
+        verdict=verdict(checks, years, values_checked(station), missing=values_missing(station)),
         findings=findings,
         groups=worth_groups(checks, params),
         files=list(job.result.get("files", [])),
         zip=job.result.get("zip"),
         rows=station,
     )
+
+
+# ---- The flagged values as one CSV (#235) ---------------------------------------------------
+
+FLAGGED_COLUMNS = ("date", "check", "kind", "variable", "value", "units", "detail")
+
+
+def _plain(text: str) -> str:
+    """Screen text as a file writes it: hyphen-minus, plain spaces (#226)."""
+    return str(text).replace(numbers.MINUS, "-").replace(numbers.NBSP, " ")
+
+
+def flagged_rows(review: Review) -> list[list[str]]:
+    """Every value the checks flagged, one row each, in R's order of the checks: the
+    Quality verdict's "Flagged values (CSV)". ``kind`` is "look wrong" or "worth a
+    look"; values as the file has them, hyphen-minus for minus."""
+    shorts = short_labels()
+    out: list[list[str]] = []
+    for check in review.checks:
+        kind = "look wrong" if check.kind == "error" else "worth a look"
+        for row in check.rows:
+            c = [cell.text for cell in row.cells]
+
+            def add(variable: str, value: str, detail: str, row=row, check=check, kind=kind):
+                out.append(
+                    [
+                        row.date,
+                        str(check.title),
+                        kind,
+                        shorts.get(variable, variable),
+                        _plain(value),
+                        UNITS.get(variable, ""),
+                        _plain(detail),
+                    ]
+                )
+
+            if check.key == "tmaxmin":
+                add("tmin", c[2], f"TX {c[1]}")
+            elif check.key == "toolarge":
+                keys = [
+                    k
+                    for k, cell in zip(("prcp", "tmax", "tmin"), row.cells[:3], strict=True)
+                    if cell.strong
+                ]
+                for key, part in zip(keys, _toolarge_parts(row.cells, review.params), strict=True):
+                    add(
+                        key, row.cells[("prcp", "tmax", "tmin").index(key)].text, f"limit {part[2]}"
+                    )
+            elif check.key == "duplicates":
+                add("all", c[0], _plain(c[1]))
+            elif check.key == "outliers":
+                variable = row.section.split("-")[0]
+                value = next((cell.text for cell in row.cells[1:5] if cell.strong), "")
+                add(variable, value, c[5])
+            elif check.key.endswith("_jumps"):
+                variable = "tmax" if check.key.startswith("tx") else "tmin"
+                add(variable, c[0], f"next day {c[2]}: {c[1]}, change {c[3]}")
+            else:
+                variable = "tmax" if check.key.startswith("tx") else "tmin"
+                add(variable, c[0], f"{c[1]} equal values, {c[2]}")
+    return out

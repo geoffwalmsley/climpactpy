@@ -2,6 +2,8 @@
 charts' flags, the tables and their pages, re-uploading a corrected file and going on to
 step 3."""
 
+import csv
+import io
 import json
 import re
 import shutil
@@ -10,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client
 
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.registry import RUNNERS
@@ -357,16 +360,17 @@ def checks(**counts) -> list:
 
 def test_verdict_clean_data_is_ready_to_use():
     verdict = qc_review.verdict(checks(outliers=300, tx_jumps=5), years(60, 1), 65000)
-    assert verdict.level == "ready" and verdict.title == "Ready to use"
-    assert verdict.alert_kind == "success"
+    assert verdict.level == "ready" and verdict.title == "Ready to use."
+    assert verdict.alert_kind == "success" and verdict.message == "Nothing looks wrong."
     # What may be real is counted, but never changes the level.
-    assert verdict.worth == 305 and "305 values are unusual but may be real." in verdict.message
+    assert verdict.worth == 305 and "305 worth a look" in verdict.facts
     assert verdict.facts[0] == "65,000 values checked"
 
 
 def test_verdict_a_few_wrong_values_are_usable():
     verdict = qc_review.verdict(checks(tmaxmin=1, toolarge=4, outliers=395), years(80, 1), 87537)
-    assert verdict.level == "usable" and verdict.title == "Usable. 5 values look wrong."
+    assert verdict.level == "usable" and verdict.title == "Usable."
+    assert verdict.message == "5 values look wrong; the indices can run with them as they are."
     assert verdict.alert_kind == "warning" and verdict.wrong == 5
     assert "5 look wrong (under 0.01%)" in verdict.facts
     assert "1 of 80 years too incomplete for annual values" in verdict.facts
@@ -378,11 +382,10 @@ def test_verdict_too_many_wrong_values_is_fix_the_file_first():
     # 65 of 65,000 is 0.1% exactly: still usable; one more is red.
     assert qc_review.verdict(checks(toolarge=65), years(60, 0), 65000).level == "usable"
     verdict = qc_review.verdict(checks(toolarge=60, duplicates=6), years(60, 0), 65000)
-    assert verdict.level == "fix" and verdict.title == "Fix the file first"
+    assert verdict.level == "fix" and verdict.title == "Fix the file first."
     assert verdict.too_many_wrong and not verdict.too_many_short
     assert verdict.alert_kind == "error"
-    assert "66 values look wrong, 0.1% of the values checked." in verdict.message
-    assert "use the data as it is" in verdict.message  # the user can always go on
+    assert verdict.message == "66 values look wrong, 0.1% of the values checked."
 
 
 def test_verdict_too_many_incomplete_years_is_fix_the_file_first():
@@ -404,6 +407,14 @@ def test_stress_station_verdict_and_worklist(checked):
     # 10 + 6 + 5 = 21 of 65,720 values (0.03%), no year too incomplete: amber.
     assert review.verdict.level == "usable" and review.verdict.wrong == 21
     assert review.verdict.values == 65720 and review.verdict.short_years == 0
+    # The counts on one line (#235): missing values against all of them.
+    assert review.verdict.missing == 25
+    assert review.verdict.facts == [
+        "65,720 values checked",
+        "21 look wrong (0.03%)",
+        "105 worth a look",
+        "25 missing (0.04%)",
+    ]
     assert [f.check.key for f in review.findings] == ["tmaxmin", "toolarge", "duplicates"]
     assert len(review.findings[0].findings) == qc_review.FINDINGS_SHOWN  # 10 shown
     assert not review.findings[0].more and not review.findings[1].more
@@ -412,7 +423,15 @@ def test_stress_station_verdict_and_worklist(checked):
     assert sum(g.count for g in review.groups) == review.verdict.worth == 105
     assert review.quiet == []
     dtr = next(g for g in review.groups if g.check.group == "dtr-high")
-    assert dtr.title == "Wide daily range (DTR)" and sum(dtr.by_month) == 8
+    assert dtr.title == "Wide daily range" and dtr.variable == "DTR" and sum(dtr.by_month) == 8
+    assert dtr.mostly == "Mostly December"
+    titles = {g.check.table_id: g.title for g in review.groups}
+    assert titles["tx_jumps"] == "Large day-to-day change ≥ 20\u00a0°C"
+    assert titles["tn_flatline"] == "Same TN 6+ days"  # more than 5 equal values
+    # The bars by month (#235): twelve, an empty month a thin mark.
+    bars = dtr.bars
+    assert len(bars) == 12 and [b["x"] for b in bars] == [7 * m for m in range(12)]
+    assert bars[11]["h"] == 16 and bars[1]["h"] == 0.6
     months = [r.date[5:7] for r in dtr.check.rows]
     assert months == sorted(months)  # by calendar month
 
@@ -421,23 +440,52 @@ def test_finding_text_and_its_days(checked):
     review = qc_review.review(checked.qc_job, checked.station_file)
     toolarge = review.findings[1]
     first = toolarge.findings[0]
-    assert (
-        first.date == "1963-07-02"
-        and first.text == "Rain 200.1\u00a0mm, over the 200\u00a0mm limit"
-    )
+    # Codes first, a no-break space before each unit (#225, #235).
+    assert first.date == "1963-07-02"
+    assert first.text == "PR 200.1\u00a0mm, over the 200\u00a0mm limit"
+    assert (first.var, first.value, first.detail) == ("PR", "200.1\u00a0mm", "limit 200\u00a0mm")
+    low = toolarge.findings[1]
+    assert low.text == "PR \u22120.1\u00a0mm, below 0\u00a0mm" and low.detail == "limit 0\u00a0mm"
     assert len(first.days) == 2 * qc_review.WINDOW_DAYS + 1
     assert [d["this"] for d in first.days].index(True) == qc_review.WINDOW_DAYS
-    assert first.spark["ring"] is not None and first.spark["lines"][0]["variable"] == "prcp"
-    texts = [f.text for f in review.findings[0].findings]
-    assert any("equals the maximum" in t for t in texts)
-    assert any("is above the maximum" in t for t in texts)
-    assert review.findings[2].findings[0].text.startswith("Given on ")
+    # The days around it to one decimal.
+    assert all(c.missing or "." in c.text for d in first.days for c in d["cells"])
+    # Its chart has axes: three values and three dates, the day as a band.
+    chart = first.chart
+    assert chart["ring"] is not None and chart["lines"][0]["variable"] == "prcp"
+    assert len(chart["y_ticks"]) == 3 and [t["text"] for t in chart["x_ticks"]] == [
+        "06-25",
+        "07-02",
+        "07-09",
+    ]
+    assert first.legend == [{"variable": "prcp", "label": "PR\u00a0mm"}]
+    # Its line in the file (the stress file has no header: line = day of the record).
+    assert first.lines and first.lines_text == f"Line {first.lines[0]} in the file"
+    tmaxmin = review.findings[0].findings
+    assert tmaxmin[0].text == "TN 9.5\u00a0°C is above TX 8.2\u00a0°C"
+    assert (tmaxmin[0].var, tmaxmin[0].value, tmaxmin[0].detail) == (
+        "TN",
+        "9.5\u00a0°C",
+        "TX 8.2\u00a0°C",
+    )
+    assert any(t.text.startswith("TN 7.4\u00a0°C equals TX") for t in tmaxmin)
+    # The neighbouring days the checks also flagged are marked.
+    assert [d["date"] for d in tmaxmin[0].days if d["flagged"]][:3] == [
+        "1962-04-10",
+        "1962-04-11",
+        "1962-04-12",
+    ]
+    duplicate = review.findings[2].findings[0]
+    assert duplicate.text.startswith("Given on ") and duplicate.var == "all"
+    assert duplicate.value == "2 rows" and duplicate.detail == "indices use the last"
+    assert len(duplicate.lines) == 2  # a repeated date has two lines
 
 
 def test_months_that_hold_most_rows():
-    assert qc_review._mostly([7, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2]) == "Mostly in January"
+    assert qc_review._mostly([7, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2]) == "Mostly January"
     assert qc_review._mostly([4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) == "All in January"
-    assert qc_review._mostly([1] * 12) == ""  # spread over the year
+    assert qc_review._mostly([1] * 12) == "All year"  # spread over the year
+    assert qc_review._mostly([1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]) == "Mostly January and February"
     assert qc_review._mostly([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) == ""  # too few to say
 
 
@@ -446,31 +494,44 @@ def test_months_that_hold_most_rows():
 
 def test_results_page(client, checked):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
-    assert "Usable. 21 values look wrong." in page
+    # The verdict strip (#235): the level in bold, one sentence, the counts on one line.
+    assert "<b>Usable.</b> 21 values look wrong; the indices can run with them as they are." in page
     assert_tab_shows_verdict(page, "usable", "Usable", "warning", "21")
-    # One decision (#202): "See results" is the one primary button, after "Replace file",
-    # which opens the Inputs panel's File sheet (#199), so the drop zone is only there.
+    # One decision (#202): "Go to indices" is the one primary button, after "Flagged
+    # values (CSV)" and "Replace file", which opens the Inputs panel's File sheet (#199),
+    # so the drop zone is only there.
     verdict = verdict_of(page)
+    assert "verdict-strip--usable" in verdict and "65,720 values checked" in verdict
     assert f'action="/station/{checked.pk}/quality/continue"' in verdict
-    assert verdict.count('class="button"') == 1 and "<span>See results</span>" in verdict
-    assert "Use this data" not in verdict
+    assert verdict.count('class="button button--sm"') == 1
+    assert "<span>Go to indices</span>" in verdict
     file_sheet = f"/station/{checked.pk}/inputs/file?next=%2Fstation%2F{checked.pk}%2Fquality"
     assert f'<a href="{file_sheet}" data-sheet-open="sheet-file"' in verdict
-    assert 'class="button button--secondary"' in verdict and "<span>Replace file</span>" in verdict
-    assert verdict.index("Replace file") < verdict.index("See results")
-    assert "then replace the file" in verdict  # what to do first
+    assert "<span>Replace file</span>" in verdict
+    flagged = f'href="/station/{checked.pk}/quality/flagged.csv"'
+    assert flagged in verdict and "<span>Flagged values (CSV)</span>" in verdict
+    assert (
+        verdict.index("Flagged values")
+        < verdict.index("Replace file")
+        < verdict.index("Go to indices")
+    )
     assert "data-dropzone" not in without_sheets(page)
+    # Quality's provenance line names the file the checks read (#235).
+    provenance = page.split('class="context-bar__provenance"')[1].split("</p>")[0]
+    assert "21,915 days · PR TX TN" in provenance and checked.file_name in provenance
+    assert "base 1971" not in provenance
     # No forms on the page but the decision and "Delete" (#199): the thresholds and the
     # file are changed in the Inputs panel's sheets.
     actions = re.findall(r'<form[^>]* action="([^"]+)"', without_sheets(page))
     assert actions == [f"/station/{checked.pk}/quality/continue", f"/station/{checked.pk}/delete"]
-    # The verdict, the list and detail, the checks that found nothing, "Your data", then
-    # everything else under Details (#202).
-    order = ["qc-verdict-title", "qc-review", "look-wrong", "worth-a-look", "qc-detail",
-             "your-data", "missing-data", "details"]  # fmt: skip
+    # The verdict, the coverage and its table, the worklist and its detail pane, then the
+    # charts and distributions (#235). "Your data" is only there while the checks run.
+    order = ["qc-verdict-title", "coverage-title", "missing-data", "qc-review", "look-wrong",
+             "worth-a-look", "qc-detail", "details"]  # fmt: skip
     assert [page.index(f'id="{i}"') for i in order] == sorted(
         page.index(f'id="{i}"') for i in order
     )
+    assert 'class="data-chip"' not in page  # "Your data"'s chips
     items = len(qc_review.review(checked.qc_job, checked.station_file).items)
     assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items == 21 + 11
     for name in QC_DEFAULTS:
@@ -482,7 +543,7 @@ def test_results_page(client, checked):
     assert "js/qc.js" in page and "js/charts.js" in page
     assert 'id="distributions"' in page and 'id="thresholds"' in page
     # Details says which thresholds the checks used, and opens their sheet.
-    thresholds = without_sheets(page).split('id="thresholds"')[1].split("</section>")[0]
+    thresholds = without_sheets(page).split('id="thresholds"')[1].split("</p>")[0]
     assert "The checks use R's default thresholds." in thresholds
     assert 'data-sheet-open="sheet-thresholds"' in thresholds and "<input" not in thresholds
     # The files are in Files, not here (#176): one link under Details, no download.
@@ -497,7 +558,7 @@ def test_results_page(client, checked):
 
 
 def verdict_of(page: str) -> str:
-    start = page.index('class="alert alert--')
+    start = page.index('class="verdict-strip ')
     return page[start : page.index("</section>", start)]
 
 
@@ -567,13 +628,17 @@ def test_selecting_without_javascript(client, checked):
     page = client.get(f"{url}?show={finding.id}").content.decode()
     assert details_shown(page) == [finding.id] and selected_rows(page) == [finding.id]
     detail = page[page.index(f'id="{finding.anchor}"') :].split("</section>")[0]
-    assert finding.finding.text in detail and "qc-period__chart" in detail
+    assert finding.finding.text in detail and "qc-chart__plot" in detail
     assert detail.count("<tr") == 1 + 2 * qc_review.WINDOW_DAYS + 1  # the days around it
-    assert 'class="qc-days__this"' in detail and "qc-spark__ring" in detail
+    assert 'class="qc-days__this"' in detail and "qc-chart__ring" in detail
+    assert finding.finding.lines_text in detail and 'data-qc-back="' in detail
+    # The row of the selected item is marked too (#235).
+    row = page.split(f'data-qc-row="{finding.id}"')[0].rsplit("<tr", 1)[1]
+    assert 'class="is-selected"' in row
     page = client.get(f"{url}?show=outliers-prcp-high").content.decode()
     assert details_shown(page) == ["outliers-prcp-high"]
     detail = page[page.index('id="check-outliers-prcp-high"') :]
-    assert "Heavy rain days by calendar month" in detail and "rows 1 to 50 of 67" in detail
+    assert "By calendar month" in detail and "rows 1 to 50 of 67" in detail
     assert 'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=2' in detail
     # Unknown: the first finding.
     page = client.get(f"{url}?show=nope").content.decode()
@@ -592,14 +657,15 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
     assert "Ready to use" in page
     assert_tab_shows_verdict(page, "ready", "Ready", "check-circle", "")
-    # Green: "See results" alone; the file is replaced from the Inputs panel (#199).
+    # Green: "Go to indices" alone; the file is replaced from the Inputs panel (#199).
     verdict = verdict_of(page)
-    assert verdict.count('class="button"') == 1 and "<span>See results</span>" in verdict
+    assert verdict.count('class="button button--sm"') == 1
+    assert "<span>Go to indices</span>" in verdict and "Flagged values" not in verdict
     assert "Replace file</span>" not in without_sheets(page)
 
 
 def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
-    """#174, #202: on red "Replace file" is the primary button and "See results anyway"
+    """#174, #202: on red "Replace file" is the primary button and "Go to indices anyway"
     stays beside it, so the user can always go on."""
     review = qc_review.review(checked.qc_job, checked.station_file)
     strict = qc_review.VerdictLimits(wrong_share=0.0)
@@ -608,12 +674,14 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
     monkeypatch.setattr(qc_review, "review", lambda job, path: review)
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     verdict = verdict_of(page)
-    assert "Fix the file first" in verdict and "alert--error" in verdict
+    assert "<b>Fix the file first.</b>" in verdict and "verdict-strip--fix" in verdict
     assert_tab_shows_verdict(page, "fix", "Fix first", "error", "21")
-    assert re.search(r'<a href="[^"]+" data-sheet-open="sheet-file"[^>]*class="button"', verdict)
-    assert "<span>See results anyway</span>" in verdict
-    assert 'class="button button--secondary"' in verdict
-    assert verdict.index("Replace file") < verdict.index("See results anyway")
+    assert re.search(
+        r'<a href="[^"]+" data-sheet-open="sheet-file"[^>]*class="button button--sm"', verdict
+    )
+    assert "<span>Go to indices anyway</span>" in verdict
+    assert 'class="button button--secondary button--sm"' in verdict
+    assert verdict.index("Go to indices anyway") < verdict.index("Replace file")
 
 
 def test_pages_without_javascript(client, checked):
@@ -827,18 +895,34 @@ def test_job_folder_cleanup_does_not_break_the_page(client, checked):
 
 
 def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
-    """#177: one ⓘ per section of the Quality page opens its help in the drawer; the
-    worklist groups and the thresholds have no help link of their own."""
+    """#177: one help link per section of the Quality page opens its help in the drawer
+    (#235: "How the checks work" for both lists, quiet); the thresholds have no help link
+    of their own (their sheet has)."""
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     assert re.findall(r'href="/help/sections/([^/"?]+)/', page) == [
-        "quality.verdict",
-        "quality.wrong",
-        "quality.worth",
-        "load.data",  # "Your data" (#198)
-        "quality.missing",  # its missing days per year (#202)
+        "quality.missing",  # the coverage strip's table (#235)
+        "quality.verdict",  # "How the checks work", with every check's topic (#235)
         "quality.daily",
         "quality.distributions",
-        "quality.thresholds",
     ]
     # The thresholds sheet's help opens in place, the drawer being behind it (#199).
     assert "help-topic--compact" not in without_sheets(page)
+
+
+def test_flagged_values_csv(client, checked):
+    """#235: "Flagged values (CSV)" lists every value the checks flagged, one row each, in
+    R's order of the checks, values as the file has them (hyphen-minus, no units)."""
+    response = client.get(f"/station/{checked.pk}/quality/flagged.csv")
+    assert response.status_code == 200 and response["Content-Type"].startswith("text/csv")
+    assert "_flagged_values.csv" in response["Content-Disposition"]
+    rows = list(csv.reader(io.StringIO(response.content.decode())))
+    assert rows[0] == list(qc_review.FLAGGED_COLUMNS)
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    kinds = [r[2] for r in rows[1:]]
+    assert kinds.count("look wrong") == 21 and kinds.count("worth a look") == 105
+    assert ["1962-04-10", "TN ≥ TX", "look wrong", "TN", "9.5", "°C", "TX 8.2"] in rows
+    assert ["1963-07-03", "Out of range", "look wrong", "PR", "-0.1", "mm", "limit 0 mm"] in rows
+    assert "−" not in response.content.decode() and " " not in response.content.decode()
+    assert len(rows) - 1 == len(qc_review.flagged_rows(review))
+    other = Client()
+    assert other.get(f"/station/{checked.pk}/quality/flagged.csv").status_code == 404

@@ -542,6 +542,16 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
             review=review,
             items=items,
             wrong_items=[i for i in items if i["item"].wrong],
+            # "Look wrong" by check (#235): each check's findings, then its every row.
+            wrong_groups=[
+                {
+                    "check": found.check,
+                    "entries": [
+                        i for i in items if i["item"].wrong and i["item"].check is found.check
+                    ],
+                }
+                for found in review.findings
+            ],
             worth_items=[i for i in items if not i["item"].wrong],
             selected=selected,
             findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
@@ -623,6 +633,30 @@ def qc_table(request, analysis_id, check):
             number = 1
     context = {"analysis": analysis, "check": item, "page": item.page(number), "selected": date}
     return render(request, "stations/_qc_table.html", context)
+
+
+@never_cache
+@require_safe
+def qc_flagged(request, analysis_id):
+    """Every value the checks shown flagged, as one CSV (#235): the verdict strip's
+    "Flagged values (CSV)" (``qc_review.flagged_rows``)."""
+    from climpact_web.stations import qc_review
+
+    analysis = get_analysis(request, analysis_id)
+    job = workspace.shown_qc(analysis)
+    if job is None:
+        raise Http404
+    try:
+        review = qc_review.review(job, analysis.station_file)
+    except FileNotFoundError as exc:
+        raise Http404 from exc
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    name = safe_station_name(analysis.station_name or "station") or "station"
+    response["Content-Disposition"] = f'attachment; filename="{name}_flagged_values.csv"'
+    writer = csv.writer(response)
+    writer.writerow(qc_review.FLAGGED_COLUMNS)
+    writer.writerows(qc_review.flagged_rows(review))
+    return response
 
 
 @require_POST

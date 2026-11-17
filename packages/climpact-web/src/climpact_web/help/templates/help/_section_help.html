@@ -5,13 +5,15 @@ section header. Without JavaScript, a link to the section's help page; drawer.js
 link and shows the button, which opens the drawer with the content of the <template>
 (components/drawer.html). The accessible name starts with the visible label and adds the
 section (WCAG 2.5.3). With ``inline`` (in a modal sheet, #199), the same help in a
-disclosure that opens in place, the drawer being behind the sheet. Parameters: section,
-title, label, topics, guide_links, url, element_id, inline.
+disclosure that opens in place, the drawer being behind the sheet. With ``quiet`` (#235), a
+quiet link in the text's size instead of the pill ("How the checks work" on Quality),
+the same link and button. Parameters: section, title, label, topics, guide_links, url,
+element_id, inline, quiet.
 {% endcomment %}{% if section %}{% blocktranslate with title=title asvar help_name %}Help: {{ title }}{% endblocktranslate %}{% if label %}{% blocktranslate with label=label title=title asvar pill_name %}{{ label }}: {{ title }}{% endblocktranslate %}{% else %}{% translate "Help" as label %}{% blocktranslate with title=title asvar pill_name %}Help: {{ title }}{% endblocktranslate %}{% endif %}{% if inline %}
 <details class="disclosure help-topic help-topic--compact" data-help-section="{{ section.id }}">
   <summary>{% icon "help" %}<span aria-hidden="true">{{ label }}</span><span class="sr-only">{{ pill_name }}</span></summary>
   <div class="disclosure__body">{% include "help/_section_body.html" %}</div>
 </details>{% else %}
-<a class="help-button" href="{{ url }}" data-help-link aria-label="{{ pill_name }}"><span class="help-button__mark" aria-hidden="true"></span><span>{{ label }}</span></a>
-<button type="button" class="help-button" data-drawer-open="{{ element_id }}" aria-controls="help-drawer" aria-expanded="false" aria-label="{{ pill_name }}" hidden><span class="help-button__mark" aria-hidden="true"></span><span>{{ label }}</span></button>
+<a class="{% if quiet %}help-link{% else %}help-button{% endif %}" href="{{ url }}" data-help-link aria-label="{{ pill_name }}">{% if not quiet %}<span class="help-button__mark" aria-hidden="true"></span>{% endif %}<span>{{ label }}</span></a>
+<button type="button" class="{% if quiet %}help-link{% else %}help-button{% endif %}" data-drawer-open="{{ element_id }}" aria-controls="help-drawer" aria-expanded="false" aria-label="{{ pill_name }}" hidden>{% if not quiet %}<span class="help-button__mark" aria-hidden="true"></span>{% endif %}<span>{{ label }}</span></button>
 <template id="{{ element_id }}" data-title="{{ help_name }}">{% include "help/_section_body.html" %}</template>{% endif %}{% endif %}

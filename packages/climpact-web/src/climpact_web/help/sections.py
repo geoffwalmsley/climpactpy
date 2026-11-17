@@ -116,15 +116,6 @@ SECTIONS = (
         [_("These values are almost always mistakes, such as typing errors or swapped columns.")],
     ),
     S(
-        "quality.worth",
-        _("Worth a look"),
-        ["qc.outliers", "qc.tx_jumps", "qc.tn_jumps", "qc.tx_flatline", "qc.tn_flatline"],
-        [
-            _("These values are unusual. Many are real extremes."),
-            _("They are grouped by variable, with their counts by month, so you can see patterns."),
-        ],
-    ),
-    S(
         "quality.missing",
         _("Missing data"),
         ["qc.nastatistics", "results.missing_value"],

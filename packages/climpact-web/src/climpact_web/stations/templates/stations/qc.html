@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
 {% comment %}
-Quality (#77, #174, #202): the verdict band with the one decision (see the results, or
-replace the file), then the findings as a list and detail (stations/_qc_review.html: the
-values that look wrong and the groups worth a look, the selected one in detail beside the
-list), the checks that found nothing in one line, "Your data" (what is in the file and
-its missing data, the Data tab before #198) and Details (the daily charts with the flags,
-the distributions, the thresholds used, files). While the checks run, their progress. No
+Quality (#77, #174, #202), a compact worklist (#235, the Quality board): the verdict
+strip with the one decision (go to the indices, or replace the file), the coverage strip
+(missing days per year), then the findings as a worklist (stations/_qc_review.html: the
+values that look wrong and the groups worth a look as tables, the selected one in detail
+in a pane beside them that stays in view), the checks that found nothing in one line,
+and the daily charts with the flags and the distributions as disclosures. While the
+checks run, their progress and "Your data" (what is in the file). No
 forms (#199): the thresholds and the file are changed in the Inputs panel, whose sheets
 the page's links open. After a change to the file, the thresholds or the name (#179) the
 checks shown stay, under a banner that says they are out of date and shows the new
@@ -22,10 +23,7 @@ views.qc_context.
   {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
   <div class="workspace">
   {% include "stations/_inputs.html" %}
-  <div class="workspace__main stack stack--xl">
-  <p class="lead">{% blocktranslate with first=analysis.summary.first_date last=analysis.summary.last_date trimmed %}
-    The checks of the data from {{ first }} to {{ last }}. Climpact never changes your data.{% endblocktranslate %}</p>
-
+  <div class="workspace__main stack stack--lg">
   <div id="qc-status" class="stack" tabindex="-1">
     {% if stale %}
     {% translate "The checks below are from before the change." as stale_note %}
@@ -65,7 +63,9 @@ views.qc_context.
     {% if review %}{% include "stations/_qc_verdict.html" %}{% endif %}
   </div>
 
-  {% if review %}{% if stale %}<div class="stale-content stack stack--xl">{% endif %}
+  {% if review %}{% if stale %}<div class="stale-content stack stack--lg">{% endif %}
+  {% comment %}"Your data" before #235 (and Data's old address, quality#your-data): the coverage.{% endcomment %}
+  {% if review.years %}<div id="your-data" tabindex="-1">{% include "stations/_qc_coverage.html" %}</div>{% endif %}
   {% if items %}{% include "stations/_qc_review.html" %}{% endif %}
   {% with quiet=review.quiet %}{% if quiet %}
   <p class="qc-quiet" id="nothing-found">{% icon "check-circle" %}<span><strong>{% blocktranslate count counter=quiet|length trimmed %}{{ counter }} check found nothing{% plural %}{{ counter }} checks found nothing{% endblocktranslate %}</strong>
@@ -74,10 +74,11 @@ views.qc_context.
   {% if stale %}</div>{% endif %}
   {% endif %}
 
-  {% if summary %}{% include "stations/_summary.html" %}{% endif %}
+  {% if summary and not review %}{% include "stations/_summary.html" %}{% endif %}
 
   {% if review %}{% if stale %}<div class="stale-content">{% endif %}{% include "stations/_qc_details.html" %}{% if stale %}</div>{% endif %}{% endif %}
 
+  <p class="text-sm text-text-muted">{% translate "Climpact never changes your data." %}</p>
   {% include "stations/_retention.html" with quiet=True %}
   <form method="post" action="{% url 'stations:delete' analysis.pk %}" class="flex flex-wrap items-center gap-3">
     {% csrf_token %}

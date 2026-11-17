@@ -1,59 +1,81 @@
 {% load i18n ui help %}{% comment %}
-Quality as list and detail (#202): on the left the list, "Look wrong" (each finding, then
-a check's every row when it found more than are shown) and "Worth a look" (each group),
-one row per item with a small chart; on the right the selected item in detail
-(stations/_qc_detail.html). Each row is a link to ``?show=<id>``, so selecting works
+Quality as a worklist (#235; list and detail since #202): on the left "Look wrong" as a
+data table grouped by check (date, variable, value, check, what it is checked against;
+each check's first findings, then a row that leads to all its rows) and "Worth a look"
+(check, variable, count, when, a small chart by calendar month); on the right the
+selected row in detail (stations/_qc_detail.html), in a pane that stays in view as the
+list scrolls. Each row's first cell is a link to ``?show=<id>``, so selecting works
 without JavaScript and can be linked; the server shows that item's detail, the first by
 default, and every other detail is in the page, hidden. With JavaScript (qc.js) a row
-swaps the detail in place and announces its title. The list and detail sit side by side
-when their container is wide enough, otherwise the detail follows the list.
-Context: wrong_items, worth_items, items (views.qc_context: item, page, selected), review,
-analysis, month_names.
+swaps the detail in place and announces its title. Side by side from a 56rem container,
+the detail after the list otherwise, with "Back to the list".
+Context: wrong_groups, worth_items, items (views.qc_context: item, page, selected),
+review, analysis, month_names.
 {% endcomment %}
-<div class="qc-md" id="qc-review" data-qc-md><div class="qc-md__grid">
-  <div class="qc-md__list">
-    {% if wrong_items %}
-    <section id="look-wrong" aria-labelledby="look-wrong-title">
-      <div class="qc-md__group">
-        <div class="section-header"><h2 id="look-wrong-title" class="group-label">{% translate "Look wrong" %} <span class="qc-count">{{ review.verdict.wrong|count }}</span></h2>{% section_help "quality.wrong" %}</div>
-        <p class="qc-md__note">{% translate "Almost always typing errors or swapped columns." %}</p>
+<div class="qc-work" id="qc-review" data-qc-md>
+  <div class="qc-work__list">
+    {% if wrong_groups %}
+    <section class="qc-list" id="look-wrong" aria-labelledby="look-wrong-title">
+      <div class="qc-list__head">
+        <h2 id="look-wrong-title">{% translate "Look wrong" %} <span class="qc-list__count">{{ review.verdict.wrong|count }}</span> <span class="qc-list__note">{{ "·" }} {% translate "almost always typing errors or swapped columns" %}</span></h2>
+        {% translate "How the checks work" as checks_label %}{% section_help "quality.verdict" topics="qc.tmaxmin qc.toolarge qc.duplicates qc.outliers qc.tx_jumps qc.tn_jumps qc.tx_flatline qc.tn_flatline" label=checks_label quiet=True %}
       </div>
-      <ul class="qc-md__items" role="list">
-        {% for entry in wrong_items %}{% with item=entry.item %}
-        <li><a class="qc-item{% if entry.selected %} is-selected{% endif %}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>
-          {% if item.finding %}{% with finding=item.finding %}
-          <span class="qc-item__date">{{ finding.date }}</span>
-          <span class="qc-item__text"><span class="qc-item__title">{{ finding.text }}</span><span class="qc-item__note">{{ item.check.title }}</span></span>
-          {% if finding.spark %}<svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false">{% for line in finding.spark.lines %}<path class="qc-spark__line qc-spark__line--{{ line.variable }}" d="{{ line.d }}"/>{% endfor %}{% if finding.spark.ring %}<circle class="qc-spark__ring" cx="{{ finding.spark.ring.x }}" cy="{{ finding.spark.ring.y }}" r="4"/>{% endif %}</svg>{% endif %}
-          {% endwith %}{% else %}
-          <span class="qc-item__date">{% icon "table" %}</span>
-          <span class="qc-item__text"><span class="qc-item__title">{% blocktranslate with title=item.check.title total=item.check.count|count trimmed %}{{ title }}: all {{ total }}{% endblocktranslate %}</span><span class="qc-item__note">{% translate "Every row, in a table" %}</span></span>
-          {% endif %}
-        </a></li>
-        {% endwith %}{% endfor %}
-      </ul>
+      <div class="table-wrap" role="region" aria-labelledby="look-wrong-caption" tabindex="0">
+        <table class="table table--data">
+          <caption id="look-wrong-caption" class="sr-only">{% translate "Values that look wrong, by check" %}</caption>
+          <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Var" %}</th><th scope="col" class="num">{% translate "Value" %}</th><th scope="col">{% translate "Check" %}</th><th scope="col">{% translate "Detail" %}</th></tr></thead>
+          {% for group in wrong_groups %}
+          <tbody>
+            <tr class="qc-list__group"><th scope="colgroup" colspan="5">{{ group.check.title }} <span class="qc-list__group-count">{{ group.check.count|count }}</span></th></tr>
+            {% for entry in group.entries %}{% with item=entry.item %}
+            {% if item.finding %}{% with finding=item.finding %}
+            <tr{% if entry.selected %} class="is-selected"{% endif %} data-qc-row="{{ item.id }}">
+              <th scope="row" class="code"><a id="qc-row-{{ item.id }}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>{{ finding.date }}</a></th>
+              <td class="code">{{ finding.var }}</td>
+              <td class="num qc-list__value">{{ finding.value }}</td>
+              <td>{{ item.check.title }}</td>
+              <td class="code qc-list__muted">{{ finding.detail }}</td>
+            </tr>
+            {% endwith %}{% else %}
+            <tr{% if entry.selected %} class="is-selected"{% endif %} data-qc-row="{{ item.id }}">
+              <th scope="row" colspan="5"><a id="qc-row-{{ item.id }}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>{% blocktranslate with title=item.check.title total=item.check.count|count trimmed %}All {{ total }} rows of {{ title }}{% endblocktranslate %}</a></th>
+            </tr>
+            {% endif %}
+            {% endwith %}{% endfor %}
+          </tbody>
+          {% endfor %}
+        </table>
+      </div>
     </section>
     {% endif %}
     {% if worth_items %}
-    <section id="worth-a-look" aria-labelledby="worth-title">
-      <div class="qc-md__group">
-        <div class="section-header"><h2 id="worth-title" class="group-label">{% translate "Worth a look" %} <span class="qc-count">{{ review.verdict.worth|count }}</span></h2>{% section_help "quality.worth" %}</div>
-        <p class="qc-md__note">{% translate "Unusual values. Many are real extremes." %}</p>
+    <section class="qc-list" id="worth-a-look" aria-labelledby="worth-title">
+      <div class="qc-list__head">
+        <h2 id="worth-title">{% translate "Worth a look" %} <span class="qc-list__count">{{ review.verdict.worth|count }}</span> <span class="qc-list__note">{{ "·" }} {% translate "unusual values; many are real extremes" %}</span></h2>
+        {% if not wrong_groups %}{% translate "How the checks work" as checks_label %}{% section_help "quality.verdict" topics="qc.tmaxmin qc.toolarge qc.duplicates qc.outliers qc.tx_jumps qc.tn_jumps qc.tx_flatline qc.tn_flatline" label=checks_label quiet=True %}{% endif %}
       </div>
-      <ul class="qc-md__items" role="list">
-        {% for entry in worth_items %}{% with item=entry.item group=entry.item.group %}
-        <li><a class="qc-item{% if entry.selected %} is-selected{% endif %}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>
-          <span class="qc-item__date">{{ group.variable }}</span>
-          <span class="qc-item__text"><span class="qc-item__title">{{ group.title }}</span><span class="qc-item__note">{% blocktranslate count counter=group.count with n=group.count|count trimmed %}{{ n }} value{% plural %}{{ n }} values{% endblocktranslate %}{% if group.mostly %}{% blocktranslate with mostly=group.mostly %} · {{ mostly }}{% endblocktranslate %}{% endif %}</span></span>
-          {% if group.bars %}<svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false">{% for bar in group.bars %}<rect class="qc-spark__bar" x="{{ bar.x }}" y="{{ bar.y }}" width="8" height="{{ bar.h }}"/>{% endfor %}</svg>{% endif %}
-        </a></li>
-        {% endwith %}{% endfor %}
-      </ul>
+      <div class="table-wrap" role="region" aria-labelledby="worth-caption" tabindex="0">
+        <table class="table table--data">
+          <caption id="worth-caption" class="sr-only">{% translate "Unusual values, by check" %}</caption>
+          <thead><tr><th scope="col">{% translate "Check" %}</th><th scope="col">{% translate "Var" %}</th><th scope="col" class="num">{% translate "Values" %}</th><th scope="col">{% translate "When" %}</th><th scope="col">{% translate "By month" %}</th></tr></thead>
+          <tbody>
+            {% for entry in worth_items %}{% with item=entry.item group=entry.item.group %}
+            <tr{% if entry.selected %} class="is-selected"{% endif %} data-qc-row="{{ item.id }}">
+              <th scope="row"><a id="qc-row-{{ item.id }}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>{{ group.title }}</a></th>
+              <td class="code">{{ group.variable }}</td>
+              <td class="num">{{ group.count|count }}</td>
+              <td class="qc-list__muted">{{ group.mostly }}</td>
+              <td>{% if group.bars %}<svg class="qc-bars" viewBox="0 0 82 16" aria-hidden="true" focusable="false">{% for bar in group.bars %}<rect x="{{ bar.x }}" y="{{ bar.y }}" width="5" height="{{ bar.h }}"/>{% endfor %}</svg>{% endif %}</td>
+            </tr>
+            {% endwith %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
     </section>
     {% endif %}
   </div>
-  <div class="qc-md__detail" id="qc-detail">
+  <aside class="qc-work__pane detail-pane" id="qc-detail" aria-label="{% translate 'Selected value' %}">
     <p class="sr-only" aria-live="polite" data-qc-said></p>
     {% for entry in items %}{% include "stations/_qc_detail.html" with item=entry.item page=entry.page shown=entry.selected %}{% endfor %}
-  </div>
-</div></div>
+  </aside>
+</div>

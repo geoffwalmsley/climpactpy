@@ -527,7 +527,7 @@ def test_old_step_addresses_lead_to_their_tabs(client):
         assert re.search(rf'data-tab="{tab}"[^>]*aria-current="page"', page(client, analysis, path))
     assert client.get(f"{base}/load")["Location"] == f"{base}/quality#your-data"
     html = page(client, analysis, "quality")
-    assert 'id="your-data"' in html and 'class="data-chip"' in html
+    assert 'id="your-data"' in html and 'class="coverage-strip"' in html  # #235
     assert 'data-tab="data"' not in html
     # The old Calculate step opens the Index settings sheet over Results (#178, #199).
     response = client.get(f"{base}/indices?index=txx")

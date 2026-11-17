@@ -46,7 +46,7 @@ def _strict() -> bool:
 
 
 @register.inclusion_tag("help/_section_help.html")
-def section_help(section_id, topics=None, title=None, label=None, inline=False):
+def section_help(section_id, topics=None, title=None, label=None, inline=False, quiet=False):
     try:
         section = get_section(section_id)
         extra = parse_topics(topics)
@@ -67,6 +67,7 @@ def section_help(section_id, topics=None, title=None, label=None, inline=False):
         "title": title or section.title,
         "label": label,
         "inline": inline,
+        "quiet": quiet,
     }
 
 

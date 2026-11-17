@@ -1,41 +1,57 @@
 {% load i18n ui %}{% comment %}
-One item of the Quality list in detail (#202), hidden unless it is the one shown.
-A finding: its date and what looks wrong, the check's sentence, a chart of the period
-around it with the value ringed (aria-hidden: the table of the days around it is its text
-view, and "Show on chart" leads to the full daily chart under Details), and that table.
-A check's every row or a "worth a look" group: its title and sentence, the rows by
-calendar month, and its rows, paged (stations/_qc_table.html).
+One item of the Quality worklist in the detail pane (#202, #235), hidden unless it is the
+one shown. A finding: its date and check, what looks wrong, a daily chart with axes of the
+days around it (the day as a band, the flagged value ringed; its table view is the
+days-around table under it), that table (values to one decimal; the day in bold on the
+warning tint, the other flagged days on a lighter one), "Show on the daily chart" (with
+JavaScript) and its line in the file. A check's every row or a "worth a look" group: its
+variable and count, title and sentence, the rows by calendar month, and its rows, paged
+(stations/_qc_table.html). On a narrow screen the pane follows the list: "Back to the
+list" returns to the item's row.
 Parameters: item (qc_review.Item), page (a table's page), shown, analysis, month_names.
 {% endcomment %}{% with check=item.check %}
-<section class="qc-detail stack stack--sm" id="{{ item.anchor }}" data-qc-detail="{{ item.id }}" aria-labelledby="{{ item.anchor }}-title"{% if not shown %} hidden{% endif %}>
+<section class="qc-detail" id="{{ item.anchor }}" data-qc-detail="{{ item.id }}" aria-labelledby="{{ item.anchor }}-title"{% if not shown %} hidden{% endif %}>
   {% if item.finding %}{% with finding=item.finding %}
-  <h2 class="qc-detail__title" id="{{ item.anchor }}-title" tabindex="-1">{% blocktranslate with date=finding.day|date:"j F Y" text=finding.text trimmed %}{{ date }}: {{ text }}{% endblocktranslate %}</h2>
-  <p class="qc-detail__lede">{% blocktranslate with title=check.title description=check.description trimmed %}{{ title }}. {{ description }}{% endblocktranslate %}</p>
-  {% if finding.period %}
-  <figure class="qc-period">
-    <svg class="qc-period__chart" viewBox="0 0 640 160" aria-hidden="true" focusable="false">{% for line in finding.period.lines %}<path class="qc-spark__line qc-spark__line--{{ line.variable }}" d="{{ line.d }}"/>{% endfor %}{% if finding.period.ring %}<circle class="qc-spark__ring" cx="{{ finding.period.ring.x }}" cy="{{ finding.period.ring.y }}" r="7"/>{% endif %}</svg>
-    <figcaption class="qc-period__axis">
-      <span class="qc-period__date">{{ finding.period_first }}</span>
-      <span class="qc-period__legend">{% for v in finding.legend %}<span><span class="qc-period__key qc-period__key--{{ v.variable }}" aria-hidden="true"></span>{{ v.label }}</span>{% endfor %}<span><span class="qc-period__key qc-period__key--ring" aria-hidden="true"></span>{{ finding.date }}</span></span>
-      <span class="qc-period__date">{{ finding.period_last }}</span>
-    </figcaption>
+  <div>
+    <p class="qc-detail__kicker">{{ finding.date }} {{ "·" }} {{ check.title }}</p>
+    <h2 class="qc-detail__title" id="{{ item.anchor }}-title" tabindex="-1">{{ finding.text }}</h2>
+  </div>
+  {% if finding.chart %}{% with chart=finding.chart %}
+  <figure class="qc-chart">
+    <svg class="qc-chart__plot" viewBox="0 0 420 150" role="img" aria-label="{{ finding.chart_label }}" focusable="false">
+      <rect class="qc-chart__band" x="{{ chart.band.x }}" y="10" width="{{ chart.band.width }}" height="118"/>
+      <line class="qc-chart__grid" x1="36" y1="{{ chart.grid_y }}" x2="412" y2="{{ chart.grid_y }}"/>
+      <line class="qc-chart__axis" x1="36" y1="10" x2="36" y2="128"/>
+      <line class="qc-chart__axis" x1="36" y1="128" x2="412" y2="128"/>
+      {% for tick in chart.y_ticks %}<text class="qc-chart__tick" x="30" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+      {% for tick in chart.x_ticks %}<text class="qc-chart__tick" x="{{ tick.x }}" y="144" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+      {% for line in chart.lines %}<path class="qc-chart__line qc-chart__line--{{ line.variable }}" d="{{ line.d }}"/>{% endfor %}
+      {% if chart.ring %}<circle class="qc-chart__ring" cx="{{ chart.ring.x }}" cy="{{ chart.ring.y }}" r="5"/>{% endif %}
+    </svg>
+    <figcaption class="qc-chart__legend">{% for v in finding.legend %}<span><span class="qc-chart__key qc-chart__key--{{ v.variable }}" aria-hidden="true"></span>{{ v.label }}</span>{% endfor %}<span><span class="qc-chart__key qc-chart__key--ring" aria-hidden="true"></span>{{ finding.date }}</span><span>{{ finding.month }}</span></figcaption>
   </figure>
-  {% endif %}
-  <div class="table-wrap" role="region" aria-labelledby="{{ item.anchor }}-days" tabindex="0">
-    <table class="table qc-daytable">
+  {% endwith %}{% endif %}
+  <div class="table-wrap qc-daytable" role="region" aria-labelledby="{{ item.anchor }}-days" tabindex="0">
+    <table class="table table--data">
       <caption id="{{ item.anchor }}-days" class="sr-only">{% blocktranslate with date=finding.date %}Days around {{ date }}{% endblocktranslate %}</caption>
-      <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR (mm)" %}</th><th scope="col" class="num">{% translate "TX (°C)" %}</th><th scope="col" class="num">{% translate "TN (°C)" %}</th></tr></thead>
-      <tbody>{% for day in finding.days %}<tr{% if day.this %} class="qc-days__this"{% endif %}><th scope="row">{% if day.this %}<strong>{{ day.date }}</strong>{% else %}{{ day.date }}{% endif %}</th>{% for cell in day.cells %}<td class="num">{% if cell.missing %}<span class="text-text-muted">{{ cell.text }}</span>{% elif day.this %}<strong>{{ cell.text }}</strong>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR mm" %}</th><th scope="col" class="num">{% translate "TX °C" %}</th><th scope="col" class="num">{% translate "TN °C" %}</th></tr></thead>
+      <tbody>{% for day in finding.days %}<tr{% if day.this %} class="qc-days__this"{% elif day.flagged %} class="qc-days__flagged"{% endif %}><th scope="row" class="code">{{ day.date }}</th>{% for cell in day.cells %}<td class="num">{% if cell.missing %}<span class="text-text-muted">{{ cell.text }}</span>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
     </table>
   </div>
-  <p class="qc-detail__actions" data-qc-js hidden><button type="button" class="button button--secondary button--sm" data-qc-show data-date="{{ finding.date }}" data-chart="{{ finding.row.chart_id }}">{% icon "chart" %}<span>{% translate "Show on the daily chart" %}</span><span class="sr-only"> {{ finding.date }}</span></button></p>
+  <p class="qc-detail__links">
+    <button type="button" class="qc-detail__show" data-qc-js hidden data-qc-show data-date="{{ finding.date }}" data-chart="{{ finding.row.chart_id }}">{% translate "Show on the daily chart" %}<span class="sr-only"> {{ finding.date }}</span></button>
+    {% if finding.lines_text %}<span>{{ finding.lines_text }}</span>{% endif %}
+  </p>
   {% endwith %}{% else %}
-  <h2 class="qc-detail__title" id="{{ item.anchor }}-title" tabindex="-1">{% if item.group %}{{ item.group.title }}{% else %}{% blocktranslate with title=check.title total=check.count|count trimmed %}{{ title }}: all {{ total }}{% endblocktranslate %}{% endif %} <span class="qc-count">{{ check.count|count }}</span></h2>
+  <div>
+    <p class="qc-detail__kicker">{% if item.group %}{{ item.group.variable }} {{ "·" }} {% blocktranslate count counter=check.count with n=check.count|count trimmed %}{{ n }} value{% plural %}{{ n }} values{% endblocktranslate %}{% else %}{% translate "Look wrong" %} {{ "·" }} {% blocktranslate count counter=check.count with n=check.count|count trimmed %}{{ n }} row{% plural %}{{ n }} rows{% endblocktranslate %}{% endif %}</p>
+    <h2 class="qc-detail__title" id="{{ item.anchor }}-title" tabindex="-1">{% if item.group %}{{ item.group.title }}{% else %}{% blocktranslate with title=check.title total=check.count|count trimmed %}All {{ total }} rows of {{ title }}{% endblocktranslate %}{% endif %}</h2>
+  </div>
   <p class="qc-detail__lede">{% if item.group.mostly %}{% blocktranslate with mostly=item.group.mostly description=check.description trimmed %}{{ mostly }}. {{ description }}{% endblocktranslate %}{% else %}{{ check.description }}{% endif %}</p>
   {% if item.group.by_month %}
-  <div class="table-wrap" role="region" aria-labelledby="{{ item.anchor }}-months" tabindex="0">
-    <table class="table qc-months">
-      <caption id="{{ item.anchor }}-months">{% blocktranslate with title=item.group.title %}{{ title }} by calendar month{% endblocktranslate %}</caption>
+  <div class="table-wrap table-wrap--data qc-months" role="region" aria-labelledby="{{ item.anchor }}-months" tabindex="0">
+    <table class="table table--data">
+      <caption id="{{ item.anchor }}-months">{% translate "By calendar month" %}<span class="sr-only">{{ ": " }}{{ item.group.variable }} {{ item.group.title }}</span></caption>
       <thead><tr>{% for name in month_names %}<th scope="col" class="num">{{ name }}</th>{% endfor %}</tr></thead>
       <tbody><tr>{% for n in item.group.by_month %}<td class="num">{% if n %}{{ n|count }}{% else %}<span class="text-text-muted">{{ n|count }}</span>{% endif %}</td>{% endfor %}</tr></tbody>
     </table>
@@ -43,5 +59,6 @@ Parameters: item (qc_review.Item), page (a table's page), shown, analysis, month
   {% endif %}
   {% include "stations/_qc_table.html" with page=page selected="" %}
   {% endif %}
+  <p class="qc-detail__back"><a href="#qc-row-{{ item.id }}" data-qc-back="{{ item.id }}">{% translate "Back to the list" %}</a></p>
 </section>
 {% endwith %}

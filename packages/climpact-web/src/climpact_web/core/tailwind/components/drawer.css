@@ -101,6 +101,26 @@
     margin-inline-start: auto;
   }
 
+  /* A section's help as a quiet link (#235, "How the checks work" on Quality): the
+     link's colour and underline in the text's size; the same link and drawer button. */
+  .help-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-link);
+    font: inherit;
+    font-size: var(--text-xs);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .help-link:hover {
+    color: var(--color-link-hover);
+    text-decoration-thickness: 2px;
+  }
+
   /* The Help pill: a word in a 30px pill (a 24px target or more, WCAG 2.5.8), the
      question mark in a ring before it. */
   .help-button {

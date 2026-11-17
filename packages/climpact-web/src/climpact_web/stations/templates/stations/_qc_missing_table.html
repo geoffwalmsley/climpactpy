@@ -1,0 +1,33 @@
+{% load i18n ui help %}{% comment %}
+The coverage strip's table view (#235; "Your data"'s table before it, #198): each year with
+missing days, PR, TX and TN, the months with more than 3 missing days and whether the year
+gets an annual value. Context: review.
+{% endcomment %}{% with missing=review.years_missing %}
+<details class="disclosure" id="missing-data">
+  <summary>{% icon "table" %}<span>{% if missing %}{% blocktranslate count counter=missing|length with total=review.years|length trimmed %}Missing days per year: {{ counter }} of {{ total }} year has some{% plural %}Missing days per year: {{ counter }} of {{ total }} years have some{% endblocktranslate %}{% else %}{% translate "Missing days per year: none" %}{% endif %}</span>{% icon "chevron-down" %}</summary>
+  <div class="disclosure__body stack stack--sm">
+    <div class="section-header"><p class="section-header__note">{% translate "“No annual value”: more than 15 missing days, or a month with more than 3. Those years have their annual indices left missing." %}</p>{% section_help "quality.missing" %}</div>
+    {% if missing %}
+    <div class="table-wrap table-wrap--data qc-missing" role="region" aria-labelledby="missing-caption" tabindex="0">
+      <table class="table table--data">
+        <caption id="missing-caption" class="sr-only">{% translate "Missing days per year, and months with more than 3 missing days" %}</caption>
+        <thead><tr>
+          <th scope="col">{% translate "Year" %}</th>
+          <th scope="col" class="num">{% translate "PR" %}</th>
+          <th scope="col" class="num">{% translate "TX" %}</th>
+          <th scope="col" class="num">{% translate "TN" %}</th>
+        </tr></thead>
+        <tbody>
+          {% for year in missing %}
+          <tr>
+            <th scope="row" class="code">{{ year.year }}</th>
+            {% for cell in year.cells %}<td class="num{% if cell.no_annual %} qc-missing__short{% endif %}">{% if cell.days %}{{ cell.days|count }}{% if cell.months %} <span class="text-text-muted">{% blocktranslate count counter=cell.months trimmed %}({{ counter }} month){% plural %}({{ counter }} months){% endblocktranslate %}</span>{% endif %}{% if cell.no_annual %} <span class="qc-missing__tag">{% translate "no annual value" %}</span>{% endif %}{% else %}<span class="text-text-muted">{{ cell.days|count }}</span>{% endif %}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</details>
+{% endwith %}

@@ -478,7 +478,7 @@ def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
     out = {
         "workspace_tabs": sections(analysis, current),
         "workspace_current": current,
-        "provenance": provenance(analysis),
+        "provenance": provenance(analysis, current),
         "data_page": True,  # base.html: the page uses the width (#227)
     }
     if current != "setup" and set_up(analysis):
@@ -505,11 +505,16 @@ def years_text(first, last) -> str:
     ) % {"first": first, "last": last, "years": years}
 
 
-def provenance(analysis: StationAnalysis) -> list[dict]:
+def provenance(analysis: StationAnalysis, current: str = "") -> list[dict]:
     """The context bar's provenance line (#227): where and when the data are from and what
     made the results: the coordinates, the years ("1936–2015 · 80 yr"), the base period,
     whether the quality thresholds and index settings are the defaults, and the climpact
-    version. Each part is ``{"text", "phone"}``; on a phone only the years show."""
+    version. Quality's line describes the data the checks read instead (#235, the Quality
+    board): the coordinates, the years, the days and variables in the file
+    ("21,915 days · PR TX TN") and the file's name. Each part is ``{"text", "phone"}``;
+    on a phone only the years show."""
+    if current == "quality":
+        return quality_provenance(analysis)
     parts = []
     summary = analysis.summary or {}
     first, last = summary.get("first_year"), summary.get("last_year")
@@ -537,6 +542,33 @@ def provenance(analysis: StationAnalysis) -> list[dict]:
         parts.append({"text": settings, "phone": False})
     if found := core_version():
         parts.append({"text": f"climpact {found}", "phone": False})
+    return parts
+
+
+def quality_provenance(analysis: StationAnalysis) -> list[dict]:
+    """Quality's provenance line (#235): what the checks read."""
+    parts = []
+    summary = analysis.summary or {}
+    if analysis.metadata_complete:
+        parts.append(
+            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+        )
+    first, last = summary.get("first_year"), summary.get("last_year")
+    if first and last:
+        parts.append({"text": years_text(first, last), "phone": True})
+    if days := summary.get("days"):
+        codes = {"prcp": _("PR"), "tmax": _("TX"), "tmin": _("TN")}
+        present = [
+            str(codes[v["key"]])
+            for v in summary.get("variables", [])
+            if v.get("key") in codes and v.get("present", 0) > 0
+        ]
+        text = ngettext("%(n)s day", "%(n)s days", days) % {"n": numbers.grouped(days)}
+        if present:
+            text = _("%(days)s · %(variables)s") % {"days": text, "variables": " ".join(present)}
+        parts.append({"text": text, "phone": False})
+    if analysis.file_name:
+        parts.append({"text": analysis.file_name, "phone": False})
     return parts
 
 

@@ -107,7 +107,7 @@ SUMMARY_FILES = (
 # of the Quality page.
 QC_FILES = (
     ("tmaxmin", gettext_lazy("TX at or below TN")),
-    ("toolarge", gettext_lazy("Values too large")),
+    ("toolarge", gettext_lazy("Out of range")),
     ("duplicates", gettext_lazy("Repeated dates")),
     ("outliers", gettext_lazy("Outliers")),
     ("tx_jumps", gettext_lazy("Jumps in TX")),

@@ -1,21 +1,16 @@
 {% load i18n ui help %}{% comment %}
-Details (#174): everything the worklist leaves out, one click away. The daily charts with
-the flagged values (linked both ways with the tables by qc.js), the distribution plots,
-which thresholds the checks used, with a link that opens their sheet in the Inputs panel
-(#199; no form here), and one link to the quality-control files in Files (#176).
-Context from views.qc_context.
+What the worklist leaves out, one click away (#174; one row of disclosures since #235,
+where the Details accordion was): the daily charts with the flagged values (linked both
+ways with the worklist by qc.js), the distribution plots, then one line with the
+thresholds the checks used (a link opens their sheet in the Inputs panel, #199; no form
+here) and the quality-control files in Files (#176). Context from views.qc_context.
 {% endcomment %}
-<details class="qc-details" id="details">
-  <summary class="qc-details__summary">
-    <span class="qc-details__title">{% translate "Details" %}<span class="qc-details__note">{% translate "Daily charts, distributions and thresholds" %}</span></span>
-    {% icon "chevron-down" %}
-  </summary>
-  <div class="qc-details__body stack stack--lg">
-    <section class="stack" id="daily" aria-labelledby="daily-title">
-      <div class="qc-section-head">
-        <div class="section-header"><h2 id="daily-title">{% translate "Daily values" %}</h2>{% section_help "quality.daily" %}</div>
-      </div>
-      <p class="text-text-muted">{% translate "Flagged values are circled." %}</p>
+<section class="qc-more" id="details" aria-labelledby="details-title">
+  <h2 class="sr-only" id="details-title">{% translate "Charts and distributions" %}</h2>
+  <details class="disclosure" id="daily">
+    <summary>{% icon "chart" %}<span>{% translate "Daily values, with the flags" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body stack">
+      <div class="section-header"><p class="section-header__note">{% translate "Flagged values are circled." %}</p>{% section_help "quality.daily" %}</div>
       <div class="tabs qc-charts" data-tabs>
         <ul class="tabs__list" aria-label="{% translate 'Variable shown' %}">
           {% for chart in charts %}<li><a class="tabs__tab" href="#{{ chart.id }}-panel" id="{{ chart.id }}-panel-tab">{{ chart.label }}</a></li>{% endfor %}
@@ -30,19 +25,16 @@ Context from views.qc_context.
         </section>
         {% endfor %}
       </div>
-    </section>
-
-    {% include "stations/_qc_distributions.html" %}
-
-    <section class="stack stack--sm" id="thresholds" aria-labelledby="thresholds-title">
-      <div class="section-header"><h2 id="thresholds-title">{% translate "Thresholds" %}</h2>{% section_help "quality.thresholds" %}</div>
-      <p>{% if thresholds_changed %}{% blocktranslate count counter=thresholds_changed trimmed %}
-        The checks use R's default thresholds, with {{ counter }} changed.{% plural %}
-        The checks use R's default thresholds, with {{ counter }} changed.{% endblocktranslate %}{% else %}{% translate "The checks use R's default thresholds." %}{% endif %}
-        {% if input_urls.thresholds %}<a href="{{ input_urls.thresholds }}" data-sheet-open="sheet-thresholds" aria-haspopup="dialog">{% translate "Change the thresholds" %}</a>{% endif %}</p>
-    </section>
-
-    <p class="text-sm" id="downloads"><a href="{% url 'stations:downloads' analysis.pk %}#quality-files">{% icon "file" %} {% translate "The quality-control files are in Files" %}</a></p>
-
-  </div>
-</details>
+      {% include "stations/_series_preview.html" %}
+    </div>
+  </details>
+  <details class="disclosure" id="distributions-disclosure">
+    <summary>{% icon "chart" %}<span>{% translate "Distributions" %}</span>{% icon "chevron-down" %}</summary>
+    <div class="disclosure__body">{% include "stations/_qc_distributions.html" %}</div>
+  </details>
+  <p class="qc-more__line" id="thresholds">{% if thresholds_changed %}{% blocktranslate count counter=thresholds_changed trimmed %}
+    The checks use R's default thresholds, with {{ counter }} changed.{% plural %}
+    The checks use R's default thresholds, with {{ counter }} changed.{% endblocktranslate %}{% else %}{% translate "The checks use R's default thresholds." %}{% endif %}
+    {% if input_urls.thresholds %}<a href="{{ input_urls.thresholds }}" data-sheet-open="sheet-thresholds" aria-haspopup="dialog">{% translate "Change the thresholds" %}</a>{% endif %}
+    <span id="downloads"><a href="{% url 'stations:downloads' analysis.pk %}#quality-files">{% translate "The quality-control files are in Files" %}</a></span></p>
+</section>

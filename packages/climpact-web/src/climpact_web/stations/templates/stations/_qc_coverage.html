@@ -1,0 +1,11 @@
+{% load i18n %}{% comment %}
+Quality's coverage strip (#235, components/coverage_strip.html): the missing days per year
+of PR, TX and TN, from qc/nastatistics, with what the annual completeness rule makes of
+them (the climdex rules: more than 15 missing days, or a month with more than 3) and the
+table view (stations/_qc_missing_table.html). Context: review.
+{% endcomment %}{% with short=review.years_short %}
+{% if short %}{% blocktranslate count counter=short|length with years=review.years_short_text trimmed asvar coverage_note %}{{ counter }} year too incomplete for annual values: {{ years }}{% plural %}{{ counter }} years too incomplete for annual values: {{ years }}{% endblocktranslate %}
+{% else %}{% translate "every year passes the annual completeness rule" as coverage_note %}{% endif %}
+{% translate "Coverage" as coverage_title %}
+{% include "components/coverage_strip.html" with id="coverage" title=coverage_title note=coverage_note rows=review.coverage years=review.coverage_years count=review.years|length table="stations/_qc_missing_table.html" %}
+{% endwith %}

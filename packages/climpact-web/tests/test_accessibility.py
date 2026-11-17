@@ -1480,9 +1480,11 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
 def test_quality_list_and_detail_by_keyboard(chrome, site):
     """#202: the list's rows are links, Tab moves between them and Enter shows the row's
     detail in place, marks the row, puts ?show= in the address and announces the
-    detail's title; on a narrow screen focus moves to the detail below the list. "Show
-    on the daily chart" in a finding's detail opens Details and focuses the chart (#174);
-    "Replace file" opens the Inputs panel's File sheet (#199)."""
+    detail's title; on a narrow screen focus moves to the detail below the list, and "Back
+    to the list" returns it to the row (#235). Beside the list the detail pane stays in
+    view: the last row's detail is in the viewport (#235). "Show on the daily chart" in a
+    finding's detail opens the daily charts and focuses the chart (#174); "Replace file"
+    opens the Inputs panel's File sheet (#199)."""
     c = chrome
     c.navigate(site["station quality results"])
     items = "[...document.querySelectorAll('[data-qc-item]')]"
@@ -1511,15 +1513,36 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
     # Reloaded, the address shows the same detail.
     c.navigate(here(c))
     assert c.evaluate(shown) == [group] and c.evaluate(current) == [group]
+    # The last row of the list, scrolled to: its detail is in the viewport beside it, in
+    # light and dark (#216, #235).
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.navigate(site["station quality results"])
+        focus(c, f"[data-qc-item='{ids[-1]}']")
+        last = f"document.querySelector(\"[data-qc-item='{ids[-1]}']\")"
+        c.evaluate(f"{last}.scrollIntoView({{block: 'end'}})")
+        c.press("Enter")
+        c.settle()
+        box = c.evaluate(
+            "(function (r) { return [r.top, r.bottom, innerHeight] })"
+            f"(document.querySelector('[data-qc-detail=\"{ids[-1]}\"]').getBoundingClientRect())"
+        )
+        assert box[0] >= 0 and box[0] < box[2], (scheme, box)
+        row = c.evaluate(
+            f"document.querySelector(\"[data-qc-item='{ids[-1]}']\").getBoundingClientRect().bottom"
+        )
+        assert 0 < row <= box[2], (scheme, row)
+        assert c.evaluate("document.activeElement.dataset.qcItem") == ids[-1]
+    set_mode(c)
     # "Show on the daily chart" from a finding's detail.
     focus(c, f"[data-qc-item='{ids[0]}']")
     c.press("Enter")
-    assert not c.evaluate("document.getElementById('details').open")
+    assert not c.evaluate("document.getElementById('daily').open")
     focus(c, "[data-qc-detail]:not([hidden]) [data-qc-show]")
     c.press("Enter")
     wait_for(c, "!!(document.activeElement && document.activeElement.closest('[data-chart-plot]'))",
              timeout=30, what="focus on the daily chart")  # fmt: skip
-    assert c.evaluate("document.getElementById('details').open")
+    assert c.evaluate("document.getElementById('daily').open")
     # Narrow: the detail follows the list, and focus moves to its title.
     c.viewport(320, 900)
     try:
@@ -1528,9 +1551,13 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         c.press("Enter")
         assert c.evaluate("document.activeElement.classList.contains('qc-detail__title')")
         assert c.evaluate(
-            "document.querySelector('.qc-md__list').getBoundingClientRect().bottom"
+            "document.querySelector('.qc-work__list').getBoundingClientRect().bottom"
             " <= document.activeElement.getBoundingClientRect().top"
         )
+        # "Back to the list" returns focus to the row.
+        focus(c, f"[data-qc-detail='{ids[1]}'] [data-qc-back]")
+        c.press("Enter")
+        assert c.evaluate("document.activeElement.dataset.qcItem") == ids[1]
     finally:
         c.viewport(1280, 900)
     # Every detail shown, with every disclosure open (axe skips hidden content), in both
@@ -1548,7 +1575,7 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
     # "Replace file" is a Tab stop that opens the File sheet (#199), focus on its file
     # input, and Escape gives focus back to it.
     c.navigate(site["station quality results"])
-    replace = ".qc-verdict [data-sheet-open='sheet-file']"
+    replace = ".verdict-strip [data-sheet-open='sheet-file']"
     focus(c, replace)
     c.press("Enter")
     time.sleep(0.1)
@@ -1685,9 +1712,10 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
     """#115: the workspace tabs (#179; the step indicator before) start where the header and
     the content do; below 600px
     the main links are in a one-row header's "Menu" (a <details>, so it works without
-    JavaScript); the results' action row is one line at 1280px; Quality's daily chart ("Your data")
-    has no QC rings (#173), and the quality checks' charts toggle theirs from the legend, by
-    keyboard; the CSV button keeps its place."""
+    JavaScript); the results' action row is one line at 1280px; the quality checks' charts
+    toggle their QC rings from the legend, by keyboard; the CSV button keeps its place. (The
+    unflagged series of "Your data", #173, shows only while the checks run since #235; its
+    ``?flags=0`` is checked in test_qc_review.py.)"""
     c = chrome
     left = "Math.round(document.querySelector({}).getBoundingClientRect().left)"
     visible = "document.querySelector({}).checkVisibility()"
@@ -1733,14 +1761,10 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         assert max(tops) - min(tops) <= 2, tops
         c.evaluate("document.body.removeAttribute('style')")
 
-        c.navigate(site["station quality results"])  # "Your data" (#198), a disclosure (#202)
-        c.evaluate("document.getElementById('daily-series').open = true;"
-                   "document.getElementById('daily-chart').scrollIntoView()")  # fmt: skip
-        wait_for(c, "!!document.querySelector('#daily-chart [data-chart-legend] li')", 60)
-        assert not c.evaluate("!!document.querySelector('#daily-chart [data-chart-flags]')")
-
+        # "Your data"'s series without flags (#198) shows only while the checks run since
+        # #235: the checks' own charts have the flags' toggle.
         c.navigate(site["station quality results"])
-        c.evaluate("document.getElementById('details').open = true")  # the charts (#174)
+        c.evaluate("document.getElementById('daily').open = true")  # the charts (#174, #235)
         chart = c.evaluate("document.querySelector('.qc-charts [data-chart]').id")
         c.evaluate(f"document.getElementById({json.dumps(chart)}).scrollIntoView()")
         wait_for(c, f"!!document.querySelector('#{chart} [data-chart-flags]')", 60)

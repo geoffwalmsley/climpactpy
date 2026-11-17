@@ -5,8 +5,7 @@ the precipitation histogram. Drawn on the server (qc_plots.py), each with its ta
 Context: monthly, annual, decimals, histogram.
 {% endcomment %}
 <section class="stack" id="distributions" aria-labelledby="distributions-title">
-  <div class="section-header"><h2 id="distributions-title">{% translate "Distributions" %}</h2>{% section_help "quality.distributions" %}</div>
-  <p>{% translate "Look for values or years that stand out, rounding, and changes in how rain was measured." %}</p>
+  <div class="section-header"><p class="section-header__note" id="distributions-title">{% translate "Look for values or years that stand out, rounding, and changes in how rain was measured." %}</p>{% section_help "quality.distributions" %}</div>
   <div class="tabs" data-tabs>
     <ul class="tabs__list" aria-label="{% translate 'Distribution plots' %}">
       <li><a class="tabs__tab" href="#dist-monthly" id="dist-monthly-tab">{% translate "By month" %}</a></li>

@@ -88,6 +88,29 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        # The verdict strip and coverage strip (#235), with the stress file's counts.
+        "verdict_facts": [
+            _("65,720 values checked"),
+            _("21 look wrong (0.03%)"),
+            _("105 worth a look"),
+            _("25 missing (0.04%)"),
+        ],
+        "coverage_rows": [
+            {
+                "name": name,
+                "cells": [
+                    {"x": i, "step": 1 if not missing.get(i) else 2 if missing[i] <= 3 else 3}
+                    for i in range(30)
+                ],
+                "total": total,
+            }
+            for name, missing, total in (
+                (_("PR"), {2: 2, 11: 1, 27: 3}, _("6 days")),
+                (_("TX"), {2: 1, 19: 4}, _("5 days")),
+                (_("TN"), {2: 1, 8: 2, 19: 4}, _("7 days")),
+            )
+        ],
+        "coverage_years": [1991, 1996, 2001, 2006, 2011, 2015, 2020],
         # The context bar (#227): as a station's, with a breadcrumb and the next station.
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},

@@ -29,7 +29,7 @@
       <li><a href="#cards">{% translate "Cards" %}</a></li>
       <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
       <li><a href="#findings">{% translate "Findings by theme" %}</a></li>
-      <li><a href="#quality">{% translate "Quality list and detail" %}</a></li>
+      <li><a href="#quality">{% translate "Quality worklist" %}</a></li>
       <li><a href="#tables">{% translate "Tables" %}</a></li>
       <li><a href="#files">{% translate "File groups" %}</a></li>
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
@@ -308,59 +308,53 @@
     </section>
 
     <section class="pattern" id="quality" aria-labelledby="quality-title">
-      <h2 id="quality-title">{% translate "Quality list and detail" %}</h2>
-      <p>{% translate "The Quality verdict band with its decision at the end, then the findings as a list and the selected one in detail beside it (#202). Each row is a link to its detail (?show=), so it works without JavaScript; with it, the detail changes in place and is announced. Side by side when there is room, the detail after the list otherwise. Then what is in the file, in chips." %}</p>
+      <h2 id="quality-title">{% translate "Quality worklist" %}</h2>
+      <p>{% translate "The verdict strip: the level in bold and one sentence, the counts on one mono line, the decision's buttons at the end. The coverage strip: missing days per year for each variable in three steps of lightness, with its table view. Then the worklist (#235): data tables whose rows link to their detail (?show=), and the detail pane beside them, in view as the list scrolls; after the list on narrow screens, with Back to the list." %}</p>
       <div class="pattern__demo stack">
-        <section class="alert alert--warning qc-verdict answer-band" aria-labelledby="pattern-verdict-title">
-          {% icon "warning" %}
-          <div class="alert__body qc-verdict__body">
-            <div class="qc-verdict__text stack stack--sm">
-              <h3 class="qc-verdict__title" id="pattern-verdict-title">{% translate "Usable. 5 values look wrong." %}</h3>
-              <p>{% translate "Fix them in your file, or go on with the values as they are." %}</p>
-              <ul class="qc-verdict__facts" role="list"><li>{% translate "87,537 values checked" %}</li><li>{% translate "5 look wrong (under 0.01%)" %}</li></ul>
-            </div>
-            <div class="qc-verdict__actions">
-              {% translate "Replace file" as v_replace %}{% translate "See results" as v_see %}
-              {% include "components/button.html" with label=v_replace href="#quality" variant="secondary" icon="upload" %}
-              {% include "components/button.html" with label=v_see href="#quality" icon_end="arrow-right" %}
-            </div>
-          </div>
-        </section>
-        <div class="qc-md"><div class="qc-md__grid">
-          <div class="qc-md__list">
-            <div class="qc-md__group"><h3 class="group-label">{% translate "Look wrong" %} <span class="qc-count">{{ 2 }}</span></h3><p class="qc-md__note">{% translate "Almost always typing errors or swapped columns." %}</p></div>
-            <ul class="qc-md__items" role="list">
-              <li><a class="qc-item" href="#quality" aria-current="true"><span class="qc-item__date">{{ "1986-08-06" }}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Rain 327.6 mm, over the 200 mm limit" %}</span><span class="qc-item__note">{% translate "Values too large" %}</span></span><svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false"><path class="qc-spark__line qc-spark__line--prcp" d="M0 27L17 27L34 26L51 27L60 4L69 22L86 27L103 27L120 26"/><circle class="qc-spark__ring" cx="60" cy="4" r="4"/></svg></a></li>
-              <li><a class="qc-item" href="#quality"><span class="qc-item__date">{{ "1988-11-16" }}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Minimum 12.6 °C equals the maximum 12.6 °C" %}</span><span class="qc-item__note">{% translate "Minimum at or above maximum" %}</span></span></a></li>
-            </ul>
-            <div class="qc-md__group"><h3 class="group-label">{% translate "Worth a look" %} <span class="qc-count">{{ 275 }}</span></h3></div>
-            <ul class="qc-md__items" role="list">
-              <li><a class="qc-item" href="#quality"><span class="qc-item__date">{% translate "PR" %}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Heavy rain days" %}</span><span class="qc-item__note">{% translate "275 values" %}</span></span><svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false"><rect class="qc-spark__bar" x="1" y="10" width="8" height="22"/><rect class="qc-spark__bar" x="11" y="6" width="8" height="26"/><rect class="qc-spark__bar" x="21" y="2" width="8" height="30"/><rect class="qc-spark__bar" x="31" y="12" width="8" height="20"/><rect class="qc-spark__bar" x="41" y="16" width="8" height="16"/><rect class="qc-spark__bar" x="51" y="20" width="8" height="12"/></svg></a></li>
-            </ul>
-          </div>
-          <div class="qc-md__detail">
-            <section class="qc-detail stack stack--sm" aria-labelledby="pattern-detail-title">
-              <h3 class="qc-detail__title" id="pattern-detail-title">{% translate "6 August 1986: Rain 327.6 mm, over the 200 mm limit" %}</h3>
-              <p class="qc-detail__lede">{% translate "Values too large. Precipitation above 200 mm or below 0 mm." %}</p>
-              <div class="table-wrap" role="region" aria-labelledby="pattern-days" tabindex="0">
-                <table class="table qc-daytable">
-                  <caption id="pattern-days" class="sr-only">{% translate "Days around 1986-08-06" %}</caption>
-                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR (mm)" %}</th><th scope="col" class="num">{% translate "TX (°C)" %}</th><th scope="col" class="num">{% translate "TN (°C)" %}</th></tr></thead>
+        {% translate "Usable." as v_title %}{% translate "21 values look wrong; the indices can run with them as they are." as v_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict" level="usable" title=v_title sentence=v_sentence facts=verdict_facts actions="core/_pattern_verdict_actions.html" %}
+        {% translate "Ready to use." as r_title %}{% translate "Nothing looks wrong." as r_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict-ready" level="ready" title=r_title sentence=r_sentence facts=verdict_facts actions="" %}
+        {% translate "Fix the file first." as f_title %}{% translate "298 values look wrong, 0.34% of the values checked." as f_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict-fix" level="fix" title=f_title sentence=f_sentence facts=verdict_facts actions="" %}
+        {% translate "Coverage" as c_title %}{% translate "every year passes the annual completeness rule" as c_note %}
+        {% include "components/coverage_strip.html" with id="pattern-coverage" title=c_title note=c_note rows=coverage_rows years=coverage_years count=30 table="" %}
+        <div class="qc-work">
+          <div class="qc-work__list">
+            <section class="qc-list" aria-labelledby="pattern-wrong-title">
+              <div class="qc-list__head"><h3 id="pattern-wrong-title">{% translate "Look wrong" %} <span class="qc-list__count">{{ 2 }}</span> <span class="qc-list__note">{{ "·" }} {% translate "almost always typing errors or swapped columns" %}</span></h3></div>
+              <div class="table-wrap" role="region" aria-labelledby="pattern-wrong-caption" tabindex="0">
+                <table class="table table--data">
+                  <caption id="pattern-wrong-caption" class="sr-only">{% translate "Values that look wrong, by check" %}</caption>
+                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Var" %}</th><th scope="col" class="num">{% translate "Value" %}</th><th scope="col">{% translate "Check" %}</th><th scope="col">{% translate "Detail" %}</th></tr></thead>
                   <tbody>
-                    <tr><th scope="row">{{ "1986-08-05" }}</th><td class="num">{{ "0" }}</td><td class="num">{{ "17.1" }}</td><td class="num">{{ "9" }}</td></tr>
-                    <tr class="qc-days__this"><th scope="row"><strong>{{ "1986-08-06" }}</strong></th><td class="num"><strong>{{ "327.6" }}</strong></td><td class="num"><strong>{{ "15.2" }}</strong></td><td class="num"><strong>{{ "10.4" }}</strong></td></tr>
-                    <tr><th scope="row">{{ "1986-08-07" }}</th><td class="num">{{ "12.4" }}</td><td class="num">{{ "14.8" }}</td><td class="num">{{ "9.9" }}</td></tr>
+                    <tr class="qc-list__group"><th scope="colgroup" colspan="5">{% translate "Out of range" %} <span class="qc-list__group-count">{{ 2 }}</span></th></tr>
+                    <tr class="is-selected"><th scope="row" class="code"><a href="#quality" aria-current="true">{{ "1986-08-06" }}</a></th><td class="code">{% translate "PR" %}</td><td class="num qc-list__value">{{ "327.6 mm" }}</td><td>{% translate "Out of range" %}</td><td class="code qc-list__muted">{{ "limit 200 mm" }}</td></tr>
+                    <tr><th scope="row" class="code"><a href="#quality">{{ "1990-02-03" }}</a></th><td class="code">{% translate "PR" %}</td><td class="num qc-list__value">{{ "243.6 mm" }}</td><td>{% translate "Out of range" %}</td><td class="code qc-list__muted">{{ "limit 200 mm" }}</td></tr>
                   </tbody>
                 </table>
               </div>
             </section>
           </div>
-        </div></div>
-        <ul class="chips" role="list">
-          <li class="data-chip"><span>{% blocktranslate %}<b>80</b> years{% endblocktranslate %}</span></li>
-          <li class="data-chip"><span class="chart__swatch swatch-chart-prcp" aria-hidden="true"></span><span>{% blocktranslate %}Precipitation: <b>7 missing</b> (under 0.1%){% endblocktranslate %}</span></li>
-          <li class="data-chip data-chip--warning">{% icon "warning" %}<span>{% translate "1 year too incomplete for annual values: 1996" %}</span></li>
-        </ul>
+          <aside class="qc-work__pane detail-pane" aria-label="{% translate 'Selected value' %}">
+            <section class="qc-detail" aria-labelledby="pattern-detail-title">
+              <div><p class="qc-detail__kicker">{{ "1986-08-06" }} {{ "·" }} {% translate "Out of range" %}</p>
+              <h3 class="qc-detail__title" id="pattern-detail-title">{% translate "PR 327.6 mm, over the 200 mm limit" %}</h3></div>
+              <div class="table-wrap qc-daytable" role="region" aria-labelledby="pattern-days" tabindex="0">
+                <table class="table table--data">
+                  <caption id="pattern-days" class="sr-only">{% translate "Days around 1986-08-06" %}</caption>
+                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR mm" %}</th><th scope="col" class="num">{% translate "TX °C" %}</th><th scope="col" class="num">{% translate "TN °C" %}</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row" class="code">{{ "1986-08-05" }}</th><td class="num">{{ "0.0" }}</td><td class="num">{{ "17.1" }}</td><td class="num">{{ "9.0" }}</td></tr>
+                    <tr class="qc-days__this"><th scope="row" class="code">{{ "1986-08-06" }}</th><td class="num">{{ "327.6" }}</td><td class="num">{{ "15.2" }}</td><td class="num">{{ "10.4" }}</td></tr>
+                    <tr><th scope="row" class="code">{{ "1986-08-07" }}</th><td class="num">{{ "12.4" }}</td><td class="num">{{ "14.8" }}</td><td class="num">{{ "9.9" }}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="qc-detail__links"><span>{% translate "Line 18,481 in the file" %}</span></p>
+            </section>
+          </aside>
+        </div>
       </div>
     </section>
 

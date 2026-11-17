@@ -20,6 +20,11 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
   the other inputs do. Hosted limits: the jobs of one change count as one job for the
   daily quota and the active-job cap, and `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` now
   defaults to 50 (was 30).
+- A batch fills its workspace (#255): once a batch has run, its stations are the stations
+  of the batch's workspace, and "Open" on the batch results goes to each (it was "Open as
+  a single station", which made a separate workspace). The batch's base period and custom
+  index are the workspace's, so a change to the workspace's settings recalculates the
+  batch's stations too. Deleting a batch deletes its stations.
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
   reads `data-retry` as its own setting and warned in the console on every form page.

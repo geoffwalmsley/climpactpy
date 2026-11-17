@@ -28,8 +28,10 @@ in line; the text around it describes the code as it is. The rules come from thr
   One station is a workspace of one and opens straight to the station. Every station and
   batch belongs to a workspace since #253, and the base period, thresholds and index
   settings are the workspace's since #254: a change recalculates every station, and can
-  be undone while it is on the way. Batch folds into it (Target: #255), its URLs (Target:
-  #256), and Workspaces replaces Your calculations (Target: #233, #234, #242).
+  be undone while it is on the way. A batch fills its workspace since #255: its stations
+  are the workspace's, and its results page stands in as the workspace page until #234.
+  Still to come: the workspace URLs (Target: #256), and Workspaces in place of Your
+  calculations (Target: #233, #234, #242).
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere (Target: #240).
@@ -310,7 +312,9 @@ strips, worklist and detail pane.
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
   PR TX TN") and the file's name.
   An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
-  next index, named codes first. **Target:** the workspace in the breadcrumb, and the
+  next index, named codes first. A batch's station starts the breadcrumb with its
+  workspace, which leads to the batch results until #234 (#255). **Target:** the
+  workspace in the breadcrumb of every workspace of several stations, and the
   previous and next station on a station's pages, once stations belong to a workspace
   (#231, #234); "Edit
   inputs" or "Workspace settings" on the provenance line, which replace the Inputs panel

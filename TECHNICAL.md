@@ -2901,9 +2901,10 @@ packages/climpact-web/src/climpact_web/
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
-    models.py        BatchRun: one batch's files, check result, options and job; it fills
-                     a workspace (#231)
+    models.py        BatchRun: one batch's files, check result, run options and job; it
+                     fills a workspace (#231, #255)
     check.py         the pre-flight check: metadata file, each station, zip unpacking
+    fill.py          fill_workspace: a finished run's stations become the workspace's (#255)
     forms.py         UploadForm, AddFilesForm, OptionsForm
     retention.py     purge_stray_batch_folders, registered with the jobs app's purge
     views.py, urls.py  /batch/: start, sample, check, add files, options (htmx), run,
@@ -4662,9 +4663,11 @@ changes them, #254); and `undo`, the last change to the settings while it can be
 (below). Since #254 every station of the workspace reads its base period, thresholds and
 index settings from it, and the sheets write them there ("Settings belong to the
 workspace" below). A new station, uploaded or the sample, makes a workspace of one with
-the defaults (the New station page then sets its base period, `views.set_base_period`);
-one opened from a batch a workspace of one with the batch's base period, and a new batch
-a workspace of its own (#255 puts a batch's stations in it). Deleting a workspace's
+the defaults (the New station page then sets its base period, `views.set_base_period`,
+or, in a workspace of several stations, changes it for all with
+`calculation.change_settings`). A new batch makes a workspace of its own, with no custom
+index (`batch.fill.batch_index_settings`), and once its run has finished its stations
+become the workspace's (#255, [Batch page](#batch-page)). Deleting a workspace's
 last station or batch deletes it. Existing analyses and batches were dropped by #231's
 migration, not migrated (the maintainer's decision): `stations/0006_workspace_station`
 replaces `StationAnalysis` with `Station`, and `batch/0002_workspace` deletes the batches
@@ -4672,7 +4675,10 @@ and adds `BatchRun.workspace`. Their jobs are kept by nothing and expire as usua
 folders go as stray folders. #254's migration (`stations/0007_workspace_settings`)
 copies a station's own base period and thresholds, and the settings of its latest run,
 onto its workspace (each a workspace of one under #253), then removes them from
-`Station`; `jobs/0004_workspace_settings` adds `JobStart.change`.
+`Station`; `jobs/0004_workspace_settings` adds `JobStart.change`. #255's
+`batch/0003_batch_fills_workspace` copies a batch's base period onto its workspace, removes
+`BatchRun.base_start` and `base_end`, and adds `BatchRun.filled_job`; it reads no files
+(the stations are added when the results are next shown).
 `tests/migration_workspaces.py` checks both on SQLite (`test_workspace.py`) and Postgres
 (`test_queue_postgres.py`).
 
@@ -4700,9 +4706,9 @@ file or the metadata keeps the job links (#179; `reset_later_steps` is gone): ea
 records the inputs it was made from in `Job.inputs`, and the workspace compares them with
 the analysis's. The checks set `qc_job`, the speculative run and the Index settings sheet
 `indices_job`, the sector comparison `sector_job`. The thresholds and index settings are
-the workspace's (#254). A station opened from a batch keeps the index values of its line
-in the batch's metadata file as its own (`origin["params"]`), and `origin["inputs"]`
-records what the batch's results were made from.
+the workspace's (#254). A station of a batch (`source` `batch`, #255) keeps the index
+values of its line in the batch's metadata file as its own (`origin["params"]`), and
+`origin["inputs"]` records what the batch's results were made from.
 
 **Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
 which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
@@ -4715,8 +4721,9 @@ on the file, the thresholds and the name (their files are named after the statio
 on all of them. The current `settings` are the station's (`workspace.station_settings`,
 #254): the workspace's `index_settings` with the defaults filled in
 (`workspace.workspace_settings`, `default_settings`), the station's own values in place of
-the workspace's (`workspace.own_params`), and, while the workspace has no index settings
-of its own, a batch station's custom index from the batch job. Before #254 the settings
+the workspace's (`workspace.own_params`). A batch's custom index is its workspace's too
+(#255): the workspace starts with none, so the fallback to the batch job's custom index
+that #254 had is gone. Before #254 the settings
 were those of the latest run asked for and were not compared when deciding what to queue;
 now a change to them is an input change like the others. An input a job did not record
 (a job from before #179) never differs. A section
@@ -5567,11 +5574,13 @@ setting renames the index (`rx3day` to `rx7day`, a new SPI scale, a new custom i
 is found by `results.signature`, which keeps the parameterised index, the extra SPI/SPEI
 scale and the custom index together; an old index URL redirects the same way.
 
-**Batch stations.** An analysis opened from a batch's results (`origin`) shows that
-station's outputs in the batch job (`charts.views.job_stations`, its own `skipped_outputs`)
-on the same dashboard, with a note, until it is calculated again here; "Adjust and
-recalculate" starts from its metadata line's parameters and the batch's custom index. "Open as a single station"
-on the batch page now goes to this dashboard.
+**Batch stations.** A station of a batch's workspace (`origin`, #255) shows its outputs
+in the batch job (`charts.views.job_stations`, its own `skipped_outputs`) on the same
+dashboard, with a note, until it is calculated again here; the Index settings sheet
+starts from its metadata line's parameters and the workspace's custom index (none unless
+changed). "Open" on the batch results goes to this dashboard. An index page's breadcrumb
+starts with the workspace, which leads to the batch results until #234 gives workspaces a
+page (`workspace.workspace_page`).
 
 R behaviour not copied in R's steps 3 and 4 (the settings and the results), and why:
 
@@ -5698,19 +5707,22 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
    htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
    each station (waiting, calculating with its own bar and stage, finished, failed, left
    out). When it has finished: a summary, "Download all (zip)", and for each
-   station its zip and "Open as a single station", or its error and error file;
+   station its zip and "Open" (its station in the workspace, #255), or its error and error file;
    failures are listed first. The cancel and retry controls are the job's.
 
 **Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
-check result as JSON (`report`, `check.BatchCheck.to_json()`); the options `base_start`,
-`base_end`, `workers`, `plots`; `job` (null on delete). Files live in
+check result as JSON (`report`, `check.BatchCheck.to_json()`); the run options `workers`
+and `plots` (the base period is the workspace's since #255); `job` (null on delete);
+`filled_job`, the run whose stations were added to the workspace (#255, null on delete). Files live in
 `<MEDIA_ROOT>/batches/<id>/`: `metadata.txt` and `files/<name>`, each station file under
 its own name without folders (hidden names are ignored). Every change checks the whole
 batch again. Since #231 a batch has a `workspace`, made with it, and is deleted with it
 (see the retention of workspaces in [Single-station steps](#single-station-steps));
-`batch/retention.py` deletes only stray batch folders. "Delete these files now" deletes it
-at once, with its workspace if nothing else is left in it.
+`batch/retention.py` deletes only stray batch folders. The batch and its stations share
+their workspace's retention. "Delete these files now" deletes the workspace at once, with
+the batch, its stations and their files, as the batch page stands in as the workspace page
+(#255).
 
 **The check** (`batch/check.py`). The metadata file is walked with
 `read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
@@ -5744,7 +5756,10 @@ percentile indices cannot be calculated) and a rough time estimate (13 s a stati
 plots and report, 4 s without, divided by the stations at a time; R's modal says about a minute a
 station per core).
 
-**The job.** `batch:run` writes a metadata file in R's format with only the ready
+**The job.** The base period chosen is set on the workspace (`views.set_base_period`; an
+undo of an earlier settings change is forgotten, as the run recalculates the batch's
+stations), and the job takes the workspace's custom index (`custom`, none unless the
+workspace's settings were changed). `batch:run` writes a metadata file in R's format with only the ready
 stations (`check.metadata_text`, numbers written so they read back the same) and copies
 their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
 `station_zips`, `report` (with the plots), `folder` (the metadata file's name without its extension, as R names the
@@ -5761,16 +5776,31 @@ end the job's `result` lists each station with its files, error, error file, zip
 report. The results page offers each station's zip and report with their sizes. A
 station's error is shown without the exception's class name or the job folder's path.
 
-**Per-station dashboards (#78).** Each finished station can be opened as a
-single-station analysis ("Open as a single station", `batch:open_station`, POST): a
-`Station` (in a workspace of its own until #255) with `source` `batch`, the station file, its name, location and the
-batch's base period, at step 2 (the metadata is complete), and
-`origin = {"batch", "job", "station", "params", "outputs"}`: the batch, its job, the
-station, the `IndexParams` fields of its metadata line and its folder in the job's
-`output/`. Since #78 "Open as a single station" opens the station's results dashboard, and the
-indices step starts from those parameters (see [Single-station steps](#single-station-steps));
-opening the station again returns to the same analysis. This keeps one
-dashboard implementation (the single-station steps) rather than a second one for batches.
+**A batch fills its workspace (#255, `batch/fill.py`).** A batch is a way to fill a
+workspace, not a separate kind of result (#230, decision 5). Once the job has succeeded,
+`fill_workspace` makes each station it calculated a `Station` of the batch's workspace:
+`source` `batch`, the station file (from the job's `input/stations/`), its name and
+location (from the metadata file the job was given, `job_stations`, not the batch's check,
+which a later upload may change), its slug, step `qc`, and
+`origin = {"batch", "job", "station", "params", "outputs", "inputs"}`: the batch, its job,
+the station, the `IndexParams` fields of its metadata line, its folder in the job's
+`output/`, and the inputs the results were made from (`batch_inputs`: the run's base
+period and custom index, R's default thresholds, the workspace's output options, as
+`plots` is a run option and not an input of the results). A station that failed in the
+run or was left out before it is not added: it has no results to show, and its error
+stays on the results page and in the zip. `fill_workspace` runs the first time the results
+are shown after the run (`batch:results` and the `batch:progress` fragment, which stand in
+as the workspace page until #234) or a station is opened (`batch:open_station`, kept for
+pages from before #255, redirects to the station). It reads files, so it is not a
+migration; it is idempotent (`BatchRun.filled_job`, under a row lock), so a station the
+user deletes is not added again for that run. A new run of the batch adds its stations
+again: those still in the workspace show its results in place of their own jobs. "Open"
+on the results links to the station (`stations:workspace`, its furthest section: Indices
+for a batch station). A change to the workspace's settings recalculates the batch's
+stations like any others (#254), each with its own metadata values, as one change for the
+hosted limits; their Quality has no checks until then, so that change queues their checks
+too. This keeps one dashboard implementation (the single-station steps) rather than a
+second one for batches.
 
 R behaviour not copied, and why:
 

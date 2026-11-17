@@ -28,11 +28,13 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
   index are the workspace's, so a change to the workspace's settings recalculates the
   batch's stations too. Deleting a batch deletes its stations.
 - Workspace addresses (#256): a workspace is `/w/<id>/`, which opens its station when it
-  has one and shows the batch results otherwise, and a station's pages are under it,
+  has one and shows the batch results otherwise (their only address: the old results
+  links lead there), and a station's pages are under it,
   `/w/<id>/<station>/quality`, `.../indices` (Results was `.../results`),
   `.../indices/<index>` and so on; a batch's are `/w/<id>/batch/…`. Old `/station/<id>/…`
   and `/batch/<id>/…` links redirect to the new address while their station or batch is
-  kept. The New station and batch start pages keep their addresses. Hosted: paste
+  kept. The New station and batch start pages keep their addresses. A station that failed
+  in a batch says why on its Indices. Hosted: paste
   `deploy/cloudflare/rate-limit.txt` into the rate-limiting rule again, as its paths moved.
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile

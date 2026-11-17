@@ -2911,8 +2911,8 @@ packages/climpact-web/src/climpact_web/
     forms.py         UploadForm, AddFilesForm, OptionsForm
     retention.py     purge_stray_batch_folders, registered with the jobs app's purge
     views.py, urls.py  /batch/: start and sample; /w/<id>/batch/ (#256): check, add files,
-                     options (htmx), run, results, progress fragment, delete; the old
-                     /batch/<id>/ redirects
+                     options (htmx), run, progress fragment, delete; the results, shown
+                     at /w/<id>/; the old /batch/<id>/ redirects
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
     templates/batch/  start.html, check.html, results.html, _options.html,
                      _progress.html, _retention.html
@@ -4703,13 +4703,19 @@ session's owner token on both the station or batch and its workspace
 (`views.get_analysis`, `batch.views.get_run`), so another session's workspace, a slug the
 workspace doesn't have, or a station under another workspace gives 404.
 
-- **`/w/<id>/`** (`views.workspace_page`): a workspace of one station opens it straight
-  away, at its furthest section (the Flow board: "one station: open it straight away, no
-  overview"). Otherwise, until the overview of #234, the batch stands in: once it has run,
-  its stations are added first (`batch.fill.fill_workspace`) and the batch results are
-  shown at the workspace's address (with one station left, the workspace opens it); before
-  it has run, its check page. Several stations and no batch (not made by any page yet)
-  open the most recently changed one.
+- **`/w/<id>/`** (`views.workspace_page`) is the one address of a batch's results, so the
+  workspace overview (#234, `Calculate.dc.html`) replaces the view there without moving
+  any link. A workspace of one station opens it straight away, at its furthest section
+  (the Flow board: "one station: open it straight away, no overview"): Quality while it
+  waits, Indices once calculated or failed (which say why: `views_indices.batch_failure`,
+  from `batch.fill.run_states`), the New station page for one the batch had no file for.
+  Otherwise, until the overview, the batch stands in: once it is queued, the batch
+  results (`batch.views.results`), after `batch.fill.fill_workspace` has recorded how a
+  finished run went; before, its check page. Several stations and no batch (not made by
+  any page yet) open the most recently changed one. Every link to the results goes here
+  (`BatchRun.results_url`): the redirect after Calculate, "Follow its progress" on the
+  check page, the step indicator, the breadcrumb and the recent batches; the htmx polling
+  is of the fragment, `/w/<id>/batch/progress`.
 - **Pages with no workspace yet** keep their addresses: `/station/new`, `/station/sample`
   and the station's sample files, `/batch/` and `/batch/sample`. A workspace is made when
   the file is read or the batch uploaded, and the redirect after it goes to the new address.
@@ -4717,7 +4723,9 @@ workspace doesn't have, or a station under another workspace gives 404.
   `/station/<id>/<path>` or `/batch/<id>/<path>` redirects, with its query string, to the
   station's or batch's address under its workspace while it is kept, and gives 404 after
   that or to another session. `results` becomes `indices` and the old `indices` becomes
-  `recalculate` (`OLD_PATHS`); the rest keep their path. The redirect is temporary (302),
+  `recalculate` (`OLD_PATHS`); the rest keep their path, except a batch's `results`, which
+  goes to `/w/<id>/`, as does `/w/<id>/batch/results` (`batch.views.old_results`), its
+  address before the change. The redirect is temporary (302),
   as a station's address follows its slug, which follows its name until the details are
   confirmed, and the old addresses go when their workspace expires. POSTs are not
   redirected (405): a form from a page from before #256 is sent again from the new page.
@@ -5630,9 +5638,11 @@ in the batch job (`charts.views.job_stations`, its own `skipped_outputs`) on the
 dashboard, with a note, until it is calculated again here; the Index settings sheet
 starts from its metadata line's parameters and the workspace's custom index (none unless
 changed). "Open" on the batch results goes to this dashboard. An index page's breadcrumb
-starts with the workspace (`workspace.workspace_page`): its address, `/w/<id>/`, which
-shows the batch results until #234 gives workspaces a page; for a workspace left with one
-station, which `/w/<id>/` would open, the batch results' own address.
+starts with the workspace (`workspace.workspace_page`) when it has several stations: its
+address, `/w/<id>/`, which shows the batch results until #234 gives workspaces a page. A
+workspace of one station has no workspace crumb, as `/w/<id>/` opens the station itself.
+A station that failed in the batch says why on its Indices, above "Check the settings and
+calculate" (`views_indices.batch_failure`).
 
 R behaviour not copied in R's steps 3 and 4 (the settings and the results), and why:
 
@@ -5739,7 +5749,7 @@ nothing else is left in it (`test_workspace.py`: `test_retention_keeps_the_jobs_
 The batch page (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R`
 and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
 
-**Flow** (`batch:start`, `batch:check`, `batch:results`; the step indicator's three steps,
+**Flow** (`batch:start`, `batch:check`, `stations:workspace`; the step indicator's three steps,
 `navigation.batch_steps`):
 
 1. `/batch/`: two drop zones, the metadata file and the station files (several at once,
@@ -5756,8 +5766,9 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
    station's index parameters in a table; a form to add or replace station files or the
    metadata file (checked again at once); the options; and "Calculate *N* stations". A
    batch with some stations not ready can start: those are left out and reported.
-3. `/w/<id>/batch/results` (and `/w/<id>/` itself until #234): one `batch` job for the
-   ready stations. A fragment polled by
+3. `/w/<id>/`, the workspace's address (#256; `/batch/<id>/results` before, and
+   `/w/<id>/batch/results` while #256 was in review, both redirect), where the workspace
+   overview replaces the page (#234): one `batch` job for the ready stations. A fragment polled by
    htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
    each station (waiting, calculating with its own bar and stage, finished, failed, left
    out). When it has finished: a summary, "Download all (zip)", and for each
@@ -5847,8 +5858,8 @@ overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its
   without a file when it has none that can be read, so its address leads to the New
   station page, where a corrected file is loaded. The job gets `stations_added`.
 - *When the job has succeeded*, `fill_workspace` records how it went, the first time the
-  results are shown (the workspace's address `/w/<id>/`, `batch:results` and the
-  `batch:progress` fragment, which stand in as the workspace page until #234). A station that calculated gets
+  results are shown (the workspace's address `/w/<id>/` and the `batch:progress`
+  fragment, which stand in as the workspace page until #234). A station that calculated gets
   `origin["job"]`, `["outputs"]` (its folder in the job's `output/`) and `["inputs"]`
   (`batch_inputs`: the file and details the job was given, the run's base period and custom
   index, R's default thresholds, the workspace's output options, as `plots` is a run

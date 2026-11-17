@@ -1,5 +1,7 @@
 @layer components {
-  /* == Header and footer == */
+  /* == Header and footer. The app shell of the workspace design (#227): one compact
+     row across the window, about 48px high: Climpact, Workspaces and Gridded at the
+     start; Index reference, Help and the theme toggle at the end. == */
   .site-header {
     border-block-end: 1px solid var(--color-border);
     background: var(--color-surface);
@@ -9,19 +11,24 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: --spacing(2) --spacing(6);
-    padding-block: --spacing(3);
+    gap: --spacing(1) --spacing(6);
+    padding: --spacing(1.5) --spacing(4);
+  }
+
+  @media (min-width: 40rem) {
+    .site-header__inner {
+      padding-inline: --spacing(6);
+    }
   }
 
   .brand {
     display: inline-flex;
     align-items: center;
     gap: --spacing(2);
-    min-block-size: var(--control-height);
+    min-block-size: var(--control-height-sm);
     color: var(--color-text);
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: -0.01em;
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
     text-decoration: none;
   }
 
@@ -30,8 +37,8 @@
   }
 
   .brand__mark {
-    inline-size: 2rem;
-    block-size: 2rem;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
     flex: none;
   }
 
@@ -66,9 +73,10 @@
     display: inline-flex;
     align-items: center;
     min-block-size: var(--control-height-sm);
-    padding-inline: --spacing(3);
+    padding-inline: --spacing(2);
     border-radius: var(--radius-sm);
     color: var(--color-text-muted);
+    font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
     text-decoration: none;
   }
@@ -78,7 +86,9 @@
     color: var(--color-text);
   }
 
-  .site-nav a[aria-current="page"] {
+  /* The current destination: its own page, or a page under it (a station is under
+     Workspaces). Ink and an underline, so not by colour alone. */
+  .site-nav a[aria-current] {
     color: var(--color-ink);
     box-shadow: inset 0 -2px 0 var(--color-ink);
   }
@@ -86,8 +96,23 @@
   .site-header__tools {
     display: flex;
     align-items: center;
-    gap: --spacing(3);
+    gap: --spacing(4);
     margin-inline-start: auto;
+    font-size: var(--text-sm);
+  }
+
+  /* Index reference and Help: quiet underlined links, as on the design canvas. */
+  .site-header__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--control-height-sm);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .site-header__link:hover,
+  .site-header__link[aria-current="page"] {
+    color: var(--color-text);
   }
 
   @media (min-width: 52rem) {
@@ -116,7 +141,8 @@
       min-inline-size: 0;
     }
 
-    .site-nav {
+    .site-nav,
+    .site-header__reference {
       display: none;
     }
 
@@ -165,8 +191,7 @@
     /* The words stay as the links' names; the row fits whatever the fonts. */
     @media (max-width: 23rem) {
       .brand span,
-      .site-menu__label,
-      .site-header__help-label {
+      .site-menu__label {
         position: absolute;
         inline-size: 1px;
         block-size: 1px;
@@ -200,7 +225,7 @@
       }
     }
 
-    .site-menu__panel a[aria-current="page"] {
+    .site-menu__panel a[aria-current] {
       border-inline-start: 3px solid var(--color-ink);
       color: var(--color-ink);
     }

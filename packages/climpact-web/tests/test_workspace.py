@@ -111,7 +111,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     finish(new)
     html = page(client, analysis)
     assert "out of date" not in html and 'class="stale-content' not in html
-    assert states(html)["results"] == "done" and "base period 1981–2010" in html
+    assert states(html)["results"] == "done" and "base 1981–2010" in html
     assert changed(html) == set() and "data-run=" not in html
 
 
@@ -373,7 +373,7 @@ def test_the_page_actions_are_in_a_menu_on_phones(client):
     assert menu and "Page actions" in menu.group(0)
     assert "Compare with sector data" in menu.group(0)
     assert "All files and the report" in menu.group(0)  # Download all without a zip
-    header = html.split('class="workspace-header__actions"')[1].split("</details>")[0]
+    header = html.split('class="context-bar__actions"')[1].split("</details>")[0]
     assert header.count("Compare with sector data") == 2  # the buttons, then the menu
     assert "data-page-menu" not in page(client, analysis, "quality")  # no actions there
 

@@ -28,6 +28,7 @@ an input is changed back. Queueing the replacements is :mod:`.calculation`'s.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -414,16 +415,73 @@ def set_up(analysis: StationAnalysis) -> bool:
 
 
 def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
-    """The workspace's context: the header's ``workspace_tabs`` and ``workspace_current``,
+    """The workspace's context: the context bar's ``workspace_tabs``, ``workspace_current``
+    and ``provenance``, ``data_page`` (the page uses the width, #227),
     and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
     once the station is set up. ``path`` is the page's address, where an edit returns."""
-    out = {"workspace_tabs": sections(analysis, current), "workspace_current": current}
+    out = {
+        "workspace_tabs": sections(analysis, current),
+        "workspace_current": current,
+        "provenance": provenance(analysis),
+        "data_page": True,  # base.html: the page uses the width (#227)
+    }
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context
 
         out.update(inputs_panel(analysis, path))
         out["input_sheets"] = [sheet_context(analysis, key) for key in sheet_keys(analysis)]
     return out
+
+
+def core_version() -> str:
+    """The version of the climpact package that calculates, for the provenance line."""
+    try:
+        return version("climpact")
+    except PackageNotFoundError:  # pragma: no cover - the core is always installed
+        return ""
+
+
+def years_text(first, last) -> str:
+    """A station's years and how many they are: "1936–2015 · 80 yr"."""
+    years = int(last) - int(first) + 1
+    return ngettext(
+        "%(first)s–%(last)s · %(years)s yr", "%(first)s–%(last)s · %(years)s yr", years
+    ) % {"first": first, "last": last, "years": years}
+
+
+def provenance(analysis: StationAnalysis) -> list[dict]:
+    """The context bar's provenance line (#227): where and when the data are from and what
+    made the results: the coordinates, the years ("1936–2015 · 80 yr"), the base period,
+    whether the quality thresholds and index settings are the defaults, and the climpact
+    version. Each part is ``{"text", "phone"}``; on a phone only the years show."""
+    parts = []
+    summary = analysis.summary or {}
+    first, last = summary.get("first_year"), summary.get("last_year")
+    complete = analysis.metadata_complete
+    if complete:
+        parts.append(
+            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+        )
+    if first and last:
+        parts.append({"text": years_text(first, last), "phone": True})
+    if complete:
+        base = _("base %(start)s–%(end)s") % {
+            "start": analysis.base_start,
+            "end": analysis.base_end,
+        }
+        parts.append({"text": base, "phone": False})
+    if set_up(analysis):
+        custom = thresholds_changed(analysis) + settings_changed(analysis)
+        if custom:
+            settings = ngettext(
+                "%(count)s setting not the default", "%(count)s settings not the default", custom
+            ) % {"count": custom}
+        else:
+            settings = _("ET-SCI defaults")
+        parts.append({"text": settings, "phone": False})
+    if found := core_version():
+        parts.append({"text": f"climpact {found}", "phone": False})
+    return parts
 
 
 # ---- the Inputs panel (#198) -------------------------------------------------------------

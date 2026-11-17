@@ -12,6 +12,7 @@ from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
 from climpact_web.core.navigation import batch_steps, destination
 from climpact_web.help.tour import home_tour
+from climpact_web.stations.workspace import years_text
 
 
 @require_safe
@@ -75,7 +76,7 @@ def pattern_context(form):
         "steps_middle": batch_steps("check", urls={"upload": "#"}),
         "steps_last": batch_steps("results", urls={k: "#" for k in ("upload", "check")}),
         "table_columns": [
-            {"label": _("Year")},
+            {"label": _("Year"), "code": True},
             {"label": _("TXx (°C)"), "numeric": True},
             {"label": _("TNn (°C)"), "numeric": True},
             {"label": _("PRCPTOT (mm)"), "numeric": True},
@@ -87,6 +88,19 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        # The context bar (#227): as a station's, with a breadcrumb and the next station.
+        "context_breadcrumb": [
+            {"label": _("NSW coast"), "url": "#context-bar"},
+            {"label": _("Station 1 of 6")},
+        ],
+        "context_next": {"label": _("Newcastle Nobbys"), "url": "#context-bar"},
+        "context_provenance": [
+            {"text": numbers.coordinates(-33.86, 151.21), "phone": False},
+            {"text": years_text(1936, 2015), "phone": True},
+            {"text": _("base %(start)s–%(end)s") % {"start": 1971, "end": 2000}, "phone": False},
+            {"text": _("ET-SCI defaults"), "phone": False},
+            {"text": "climpact 0.1.3", "phone": False},
+        ],
         "file_rows": [
             {
                 "name": name,
@@ -226,8 +240,18 @@ def pattern_context(form):
             (_("Sequential"), [f"--chart-seq-{i}" for i in range(1, 6)]),
             (_("Diverging"), [f"--chart-div-{i}" for i in range(1, 8)]),
             (
-                _("Interface: ink for actions, brand for the logo, focus and selection"),
-                ["--color-ink", "--color-ink-hover", "--color-brand", "--color-focus"]
+                _("Trend scale: a significant decrease or increase, weak and strong"),
+                ["--chart-decrease-2", "--chart-decrease-1"]
+                + ["--chart-increase-1", "--chart-increase-2"],
+            ),
+            (
+                _("Coverage: complete, 1–3 days missing, 4 or more"),
+                [f"--chart-coverage-{i}" for i in range(1, 4)],
+            ),
+            (
+                _("Interface: ink for actions, blue for links, brand for the logo and focus"),
+                ["--color-ink", "--color-ink-hover", "--color-link", "--color-link-hover"]
+                + ["--color-brand", "--color-focus"]
                 + ["--color-selected", "--color-text", "--color-text-muted"]
                 + ["--color-border-strong"],
             ),

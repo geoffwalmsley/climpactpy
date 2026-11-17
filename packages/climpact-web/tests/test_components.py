@@ -249,18 +249,18 @@ def test_landing_page(client):
     # One stylesheet carries both themes (#118): data-theme on <html> picks one.
     assert "/static/climpact_web/css/climpact.css" in html and "theme-dark" not in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == [
-        "/station/new",
-        "/batch/",
-        "/gridded/",
-        "/jobs/",
-    ]
-    # Help is the header's Help button since #197, leading to the help or the page's guide.
-    assert re.search(r'<a class="help-button" id="app-help" href="/help/"', html)
-    # Below 600px a <details> menu (no JavaScript) holds the same links (#115).
+    # The app shell (#227): Workspaces (the calculations until #242) and Gridded.
+    assert re.findall(r'href="([^"]+)"', nav) == ["/jobs/", "/gridded/"]
+    # Help is at the end of the header since #197, leading to the help or the page's guide.
+    assert re.search(r'<a class="site-header__link" id="app-help" href="/help/"', html)
+    # Below 600px a <details> menu (no JavaScript) holds the same links (#115), and Index
+    # reference from the end of the header (#227).
     menu = re.search(r'<details class="site-menu">.*?</details>', html, re.S).group(0)
     assert re.search(r"<summary[^>]*>.*Menu.*</summary>", menu, re.S)
-    assert re.findall(r'<a href="([^"]+)"', menu) == re.findall(r'href="([^"]+)"', nav)
+    assert re.findall(r'<a href="([^"]+)"', menu) == [
+        *re.findall(r'href="([^"]+)"', nav),
+        "/help/indices/#the-indices",
+    ]
     assert 'aria-label="Main"' in menu
 
 
@@ -293,7 +293,8 @@ def test_destinations_link_once_their_urls_exist(client):
     assert page.status_code == 200
     items = navigation.nav_items(page.wsgi_request)
     # Help is the header's Help button since #197, not a link among the destinations.
-    assert [i["label"] for i in items] == ["Single station", "Batch", "Your calculations"]
+    # The header is Workspaces and Gridded since #227 (gridded is off here).
+    assert [i["label"] for i in items] == ["Workspaces"]
     help_button = navigation.page_help(page.wsgi_request)
     assert help_button == {"url": "/help/index/", "title": None, "current": True}
 

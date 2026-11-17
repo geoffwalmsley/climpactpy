@@ -50,8 +50,8 @@ def home_tour() -> list[dict[str, str]]:
             ),
         },
         {
-            "target": ".site-nav a[data-nav='jobs']",
-            "title": _("Your calculations"),
+            "target": ".site-nav a[data-nav='workspaces']",
+            "title": _("Workspaces"),
             "text": _(
                 "Calculations run in the background. Come back to them here, even after "
                 "closing the page."

@@ -661,12 +661,11 @@ def test_landing_page_and_header_link_to_batch(client):
     html = client.get("/").content.decode()
     assert 'href="/batch/"' in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    assert re.findall(r'href="([^"]+)"', nav) == [
-        "/station/new",
-        "/batch/",
-        "/gridded/",
-        "/jobs/",
-    ]
+    # The header is Workspaces and Gridded since #227; the landing page starts a batch.
+    assert re.findall(r'href="([^"]+)"', nav) == ["/jobs/", "/gridded/"]
+    batch = client.get("/batch/").content.decode()
+    nav = re.findall(r'<nav class="site-nav".*?</nav>', batch, re.S)[0]
+    assert '<a href="/jobs/" data-nav="workspaces" aria-current="true">' in nav
 
 
 def test_skipped_names_are_safe_and_never_collide():

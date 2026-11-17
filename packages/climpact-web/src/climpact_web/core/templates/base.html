@@ -20,8 +20,9 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <a class="skip-link print:hidden" href="#main">{% translate "Skip to main content" %}</a>
   {% block header %}
+  {# The app shell (#227): Climpact, then Workspaces and Gridded; Index reference and Help at the end, with the theme toggle. The logo goes to the landing page. #}
   <header class="site-header print:hidden">
-    <div class="mx-auto w-full max-w-content px-4 sm:px-6 site-header__inner">
+    <div class="site-header__inner">
       <a class="brand" href="{% url 'core:home' %}">
         <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8"/><path d="M6 21h4l3-9 4 13 3-17 2 9h4"/></svg>
         <span>{% translate "Climpact" %}</span>
@@ -30,15 +31,16 @@
       <nav class="site-nav" aria-label="{% translate 'Main' %}">
         <ul>
           {% for item in nav_items %}
-          <li><a href="{{ item.url }}" data-nav="{{ item.key }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+          <li><a href="{{ item.url }}" data-nav="{{ item.key }}"{% if item.current %} aria-current="{{ item.current }}"{% endif %}>{{ item.label }}</a></li>
           {% endfor %}
         </ul>
       </nav>
       {% endif %}
       <div class="site-header__tools">
+        {% if index_reference_url %}<a class="site-header__link site-header__reference" href="{{ index_reference_url }}">{% translate "Index reference" %}</a>{% endif %}
         {% if page_help %}{# The page's guide (#197): the help system's visible home. #}
         {% if page_help.title %}{% blocktranslate with title=page_help.title asvar app_help_name %}Help: {{ title }}{% endblocktranslate %}{% else %}{% translate "Help" as app_help_name %}{% endif %}
-        <a class="help-button" id="app-help" href="{{ page_help.url }}" aria-label="{{ app_help_name }}"{% if page_help.current %} aria-current="page"{% endif %}><span class="help-button__mark" aria-hidden="true"></span><span class="site-header__help-label">{% translate "Help" %}</span></a>
+        <a class="site-header__link" id="app-help" href="{{ page_help.url }}" aria-label="{{ app_help_name }}"{% if page_help.current %} aria-current="page"{% endif %}>{% translate "Help" %}</a>
         {% endif %}
         {% include "components/theme_toggle.html" %}
         {% if show_language_switcher %}
@@ -46,15 +48,16 @@
         {% endif %}
       </div>
       {% if nav_items %}
-      {# Below 600px the links above are hidden and this menu shows them; <details> needs no JavaScript. The theme toggle moves into it too, so the brand keeps its room (#203). #}
+      {# Below 600px the links above are hidden and this menu shows them, with Index reference; <details> needs no JavaScript. The theme toggle moves into it too, so the brand keeps its room (#203). #}
       <details class="site-menu">
         <summary class="button button--secondary button--sm">{% icon "menu" %}<span class="site-menu__label">{% translate "Menu" %}</span></summary>
         <div class="site-menu__panel">
           <nav aria-label="{% translate 'Main' %}">
             <ul>
               {% for item in nav_items %}
-              <li><a href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+              <li><a href="{{ item.url }}"{% if item.current %} aria-current="{{ item.current }}"{% endif %}>{{ item.label }}</a></li>
               {% endfor %}
+              {% if index_reference_url %}<li><a href="{{ index_reference_url }}">{% translate "Index reference" %}</a></li>{% endif %}
             </ul>
           </nav>
           <div class="site-menu__theme"><span aria-hidden="true">{% translate "Colour theme" %}</span>{% include "components/theme_toggle.html" %}</div>
@@ -68,7 +71,8 @@
   {# The page and the help drawer beside it (below it on narrow screens), #177. #}
   <div class="drawer-layout" data-drawer-layout>
     <main id="main" class="site-main" tabindex="-1">
-      <div class="mx-auto w-full max-w-content px-4 sm:px-6">
+      {# A data page (a station's sections, data_page) uses the width: 92rem, not 72rem (#227). #}
+      <div class="mx-auto w-full {% if data_page %}max-w-data{% else %}max-w-content{% endif %} px-4 sm:px-6">
         {% include "components/messages.html" %}
         {% block content %}{% endblock %}
       </div>

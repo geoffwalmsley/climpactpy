@@ -996,18 +996,18 @@ def test_help_drawer_by_keyboard(chrome, site):
 # What of the sticky workspace header is in the window: from its top, or from the top of
 # the window where it sticks above it (on a phone only the tabs and the Inputs bar stay).
 SHOWN_HEADER = (
-    "(function () { var b = document.querySelector('[data-workspace-header]')"
+    "(function () { var b = document.querySelector('[data-context-bar]')"
     ".getBoundingClientRect(); return {top: Math.max(b.top, 0), bottom: b.bottom}; })()"
 )
 
 
-def test_sticky_workspace_header_never_covers_focus(chrome, site):
-    """#197: the workspace header (name, tabs, actions) stays at the top as the page
+def test_sticky_context_bar_never_covers_focus(chrome, site):
+    """#197, #227: the context bar (name, tabs, actions) stays at the top as the page
     scrolls, and Tab never leaves the focused element under it (WCAG 2.4.11): the page's
     scroll padding is the header's height. On a phone (#203) only the tabs and the Inputs
     bar stay: the name scrolls away, and the padding is what stays."""
     c = chrome
-    header = "document.querySelector('[data-workspace-header]')"
+    header = "document.querySelector('[data-context-bar]')"
     tabs = f"{header}.querySelector('nav')"
     try:
         for width in (1280, 320):
@@ -1060,10 +1060,11 @@ STUCK = """(function () {
     if ((p !== 'sticky' && p !== 'fixed') || !el.checkVisibility()) return;
     if (el.closest('dialog:not([open])')) return;
     // Only what sticks to the window: one inside a scrolling box (a table's header row
-    // in its region) moves with the page. Nor what is visually hidden (clipped).
+    // in its region) moves with the page; overflow: clip makes no scrolling box (the page
+    // clips the context bar's edges, #227). Nor what is visually hidden (clipped).
     for (var a = el.parentElement; a && a !== document.body; a = a.parentElement) {
       var st = getComputedStyle(a);
-      if (st.overflowX !== 'visible' || st.overflowY !== 'visible') return;
+      if (/auto|scroll|hidden/.test(st.overflowX + ' ' + st.overflowY)) return;
       if (st.clipPath !== 'none') return;
     }
     var r = el.getBoundingClientRect();
@@ -1103,7 +1104,7 @@ def test_no_overlapping_sticky_elements_on_phones(chrome, site):
                     assert c.evaluate(check) == [], (name, width, y)
                 # Not vacuous: the workspace header was among them.
                 assert c.evaluate(
-                    f"{STUCK}.some(function (e) {{ return e.matches('[data-workspace-header]') }})"
+                    f"{STUCK}.some(function (e) {{ return e.matches('[data-context-bar]') }})"
                 ), name
                 assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), (
                     name,
@@ -1181,13 +1182,13 @@ def test_page_menu_by_keyboard(chrome, site):
     try:
         c.viewport(375, 812)
         c.navigate(site["station results"])
-        assert not c.evaluate("document.querySelector('.workspace-header__actions')"
+        assert not c.evaluate("document.querySelector('.context-bar__actions')"
                               ".checkVisibility()")  # fmt: skip
         middle = "(function (r) {{ return r.top + r.height / 2 }})({}.getBoundingClientRect())"
-        name = c.evaluate(middle.format("document.querySelector('.workspace-header__name')"))
+        name = c.evaluate(middle.format("document.querySelector('.context-bar__name')"))
         dots = c.evaluate(middle.format(f"document.querySelector({json.dumps(button)})"))
         assert c.evaluate(
-            "document.querySelector('.workspace-header__name').getBoundingClientRect().right"
+            "document.querySelector('.context-bar__name').getBoundingClientRect().right"
         ) <= c.evaluate(
             f"document.querySelector({json.dumps(button)}).getBoundingClientRect().left"
         )
@@ -1215,7 +1216,7 @@ def test_page_menu_by_keyboard(chrome, site):
         assert c.evaluate(f"{menu}.open") is False
         c.viewport(1280, 900)
         assert not c.evaluate(f"{menu}.checkVisibility()")
-        assert c.evaluate("document.querySelector('.workspace-header__actions')"
+        assert c.evaluate("document.querySelector('.context-bar__actions')"
                           ".checkVisibility()")  # fmt: skip
     finally:
         c.viewport(1280, 900)
@@ -1699,7 +1700,8 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         c.evaluate("document.querySelector('.site-menu > summary').focus()")
         c.press("Enter")
         assert c.evaluate("document.querySelector('.site-menu').open") is True
-        assert c.evaluate(visible.format(json.dumps(".site-menu__panel a[aria-current=page]")))
+        # A station page is under Workspaces (#227): aria-current="true", not "page".
+        assert c.evaluate(visible.format(json.dumps(".site-menu__panel a[aria-current]")))
         assert run_axe(c) == []
         c.evaluate("document.querySelector('.site-menu').open = false")
         c.viewport(320, 900)
@@ -1716,7 +1718,7 @@ def test_polish_layout_menu_and_flag_toggle(chrome, site):
         c.viewport(1280, 900)
         c.navigate(site["station results"])
         middles = (
-            "[...document.querySelectorAll('.workspace-header__actions .results-actions > *')]"
+            "[...document.querySelectorAll('.context-bar__actions .results-actions > *')]"
             ".map(e => Math.round(e.getBoundingClientRect().top + e.offsetHeight / 2))"
         )
         tops = c.evaluate(middles)

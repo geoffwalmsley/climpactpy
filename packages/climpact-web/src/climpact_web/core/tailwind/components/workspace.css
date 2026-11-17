@@ -1,7 +1,7 @@
 /* One surface level (#197, proposal 5 of docs/design/redesign-proposals.html): sections
    are separated by space and a heading, not cards; the page's one answer sits in a tinted
-   band; small uppercase labels name groups. And the station workspace's header, which
-   stays in view as the page scrolls (stations/_workspace.html). */
+   band; small uppercase labels name groups. And the context bar, which stays in view as
+   the page scrolls (components/context_bar.html, #227). */
 @layer components {
   /* Between the sections of a page: 48px, as the mockups. */
   .stack--xl {
@@ -68,91 +68,166 @@
     text-transform: uppercase;
   }
 
-  /* == The workspace header: the station's name, the line under it, the page's actions,
-     and the section tabs. From the mockups' .wshead. == */
-  .workspace-header {
-    display: grid;
-    gap: --spacing(3);
-    padding-block-start: --spacing(4);
-    background: var(--color-page);
+  /* == The context bar (#227, components/context_bar.html; the workspace header of #197
+     before it): a breadcrumb, the title, the mono provenance line, the page's actions,
+     then the tabs, on the surface across the window over a hairline. The surface and the
+     hairline reach the window's edges by a box-shadow clipped to the bar's height, so the
+     bar keeps its place in the page's column; .site-main clips what would reach past
+     the content (the help drawer). == */
+  .site-main:has(.context-bar:not(.context-bar--static)) {
+    padding-block-start: 0;
+    overflow-x: clip;
   }
 
-  .workspace-header__row {
+  .context-bar {
+    display: grid;
+    gap: --spacing(2);
+    padding-block-start: --spacing(3);
+    background: var(--color-surface);
+    box-shadow:
+      0 0 0 100vmax var(--color-surface),
+      0 1px 0 100vmax var(--color-border);
+    clip-path: inset(0 -100vmax -1px);
+  }
+
+  .context-bar__crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(1) --spacing(4);
+    font-size: var(--text-xs);
+  }
+
+  .context-bar__breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1.5);
+    margin: 0;
+    padding: 0;
+    color: var(--color-text-muted);
+    list-style: none;
+  }
+
+  .context-bar__breadcrumb li + li::before {
+    content: "/";
+    content: "/" / "";
+    margin-inline-end: --spacing(1.5);
+  }
+
+  .context-bar__step {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4);
+    margin: 0;
+  }
+
+  .context-bar__step a {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1);
+  }
+
+  .context-bar__row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: --spacing(3) --spacing(4);
   }
 
-  .workspace-header__title {
+  .context-bar__title {
+    display: grid;
     flex: 1 1 16rem;
+    gap: --spacing(1);
     min-inline-size: 0;
   }
 
-  .workspace-header__name {
+  .context-bar__name {
     margin: 0;
     font-size: var(--text-xl);
-    font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-semibold);
     line-height: var(--leading-tight);
     overflow-wrap: anywhere;
   }
 
-  .workspace-header__name--line {
+  .context-bar__name--line {
     font-size: var(--text-md);
   }
 
-  .workspace-header__sub {
+  /* The provenance line: one mono line of what made the page, its parts spaced apart. */
+  .context-bar__provenance {
     display: flex;
     flex-wrap: wrap;
-    gap: 0 --spacing(4);
-    margin: --spacing(1) 0 0;
+    gap: 0 --spacing(3.5);
+    margin: 0;
     color: var(--color-text-muted);
-    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
   }
 
-  .workspace-header__file {
-    overflow-wrap: anywhere;
-  }
-
-  .workspace-header__actions {
+  .context-bar__actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: --spacing(2);
   }
 
-  .workspace-header .tabs__list {
+  /* The tabs sit on the bar's hairline: the current tab's ink edge replaces it. */
+  .context-bar .tabs__list {
     margin: 0;
+    border-block-end: 0;
   }
 
-  /* The page under the header: its lead follows closely, then the sections. */
-  .station-page > .workspace-header + * {
+  .context-bar .tabs__tab {
+    padding-inline: --spacing(3);
+    border-block-end-width: 2px;
+    font-size: var(--text-sm);
+  }
+
+  .context-bar .inputs-bar {
+    margin-block-end: --spacing(2);
+  }
+
+  /* The page under the bar: its lead follows closely, then the sections. */
+  .station-page > .context-bar + * {
     margin-block-start: --spacing(6);
   }
 
   /* Sticky wherever the window is tall enough: not in a short window (a phone on its
      side), where it would hide most of the page. The scroll padding keeps an element
-     that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/workspace.js
-     keeps --workspace-header-height to the header's real height. */
+     that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/context-bar.js
+     keeps --context-bar-height to the bar's real height. */
+  /* In place, for /patterns/: its own hairline, no sticking. */
+  .context-bar--static {
+    border-block-end: 1px solid var(--color-border);
+    box-shadow: none;
+    clip-path: none;
+  }
+
   @media (min-height: 30rem) {
-    .workspace-header {
+    .context-bar:not(.context-bar--static) {
       position: sticky;
       inset-block-start: 0;
       z-index: 10;
     }
 
-    :root:has(.workspace-header) {
-      scroll-padding-block-start: calc(var(--workspace-header-height, 9rem) + --spacing(4));
+    :root:has(.context-bar:not(.context-bar--static)) {
+      scroll-padding-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
+    }
+  }
+
+  @media (forced-colors: active) {
+    .context-bar {
+      border-block-end: 1px solid CanvasText;
     }
   }
 
   /* == Phones (#203, proposal 7 of docs/design/redesign-proposals.html, the mockups'
-     .mob): the name on one line with the ⋯ menu, which holds the page's actions; the line
-     under it only the years (the base period is in the Inputs bar, the file in the File
-     sheet). The header reaches the window's edges, so nothing shows beside the tabs as
-     the page scrolls under them, and only the tabs and the Inputs bar stay in view: the
-     header sticks above the window's top by the height of what is above the tabs
-     (--workspace-header-above, js/workspace.js). == */
+     .mob): the name on one line with the ⋯ menu, which holds the page's actions; the
+     provenance line only the years (the base period is in the Inputs bar). Only the tabs
+     and the Inputs bar stay in view: the bar sticks above the window's top by the height
+     of what is above the tabs (--context-bar-above, js/context-bar.js). == */
   .page-menu {
     display: none;
     position: relative;
@@ -193,31 +268,21 @@
   }
 
   @media (max-width: 40rem) {
-    .site-main:has(.workspace-header) {
-      padding-block-start: --spacing(2);
-    }
-
-    .workspace-header {
-      margin-inline: calc(-1 * --spacing(4));
-      padding-inline: --spacing(4);
-    }
-
-    .workspace-header__row {
+    .context-bar__row {
       flex-wrap: nowrap;
       align-items: center;
     }
 
-    .workspace-header__title {
+    .context-bar__title {
       flex: 1 1 0;
     }
 
-    .workspace-header__name {
+    .context-bar__name {
       font-size: var(--text-md);
     }
 
-    .workspace-header__base,
-    .workspace-header__file,
-    .workspace-header__actions {
+    .context-bar__wide,
+    .context-bar__actions {
       display: none;
     }
 
@@ -226,20 +291,20 @@
     }
 
     /* The three tabs on one line at 320px. */
-    .workspace-header .tabs__tab {
+    .context-bar .tabs__tab {
       gap: --spacing(1.5);
       padding-inline: --spacing(2);
     }
   }
 
   @media (max-width: 40rem) and (min-height: 30rem) {
-    .workspace-header {
-      inset-block-start: calc(-1 * var(--workspace-header-above, 0px));
+    .context-bar:not(.context-bar--static) {
+      inset-block-start: calc(-1 * var(--context-bar-above, 0px));
     }
 
-    :root:has(.workspace-header) {
+    :root:has(.context-bar:not(.context-bar--static)) {
       scroll-padding-block-start: calc(
-        var(--workspace-header-height, 9rem) - var(--workspace-header-above, 0px) + --spacing(4)
+        var(--context-bar-height, 9rem) - var(--context-bar-above, 0px) + --spacing(4)
       );
     }
   }

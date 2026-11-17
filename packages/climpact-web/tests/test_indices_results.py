@@ -1131,7 +1131,7 @@ def test_each_section_is_a_tab_named_in_the_title(client):
         ("/downloads", "files", "Files"),
     ]:
         html = client.get(base + path).content.decode()
-        assert f'<h1 class="workspace-header__name">{STATION}</h1>' in html, path
+        assert f'<h1 class="context-bar__name">{STATION}</h1>' in html, path
         assert f"<title>{title}: {STATION}" in html, path
         current = re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html)
         assert current == [tab], path
@@ -1139,7 +1139,7 @@ def test_each_section_is_a_tab_named_in_the_title(client):
     html = client.get(base + "/results/txx").content.decode()
     assert (
         "<h1>Max TX</h1>" in html
-        and '<p class="workspace-header__name workspace-header__name--line">' in html
+        and '<p class="context-bar__name context-bar__name--line">' in html
     )
     assert re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html) == ["results"]
 

@@ -74,14 +74,17 @@ def test_hosted_help_index_has_no_gridded_sample(client):
 
 
 def test_header_help_button_opens_the_pages_guide(client):
-    """#197: the Help button at the end of the header leads to the guide of the page shown,
-    or to the help's index; it is a labelled pill, not a link among the destinations."""
+    """#197: Help at the end of the header leads to the guide of the page shown, or to the
+    help's index; not a link among the destinations. A quiet link since #227, after Index
+    reference, which leads to every index's definition."""
     html = client.get("/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     assert "/help/" not in nav
-    button = re.search(r'<a class="help-button" id="app-help"[^>]*>.*?</a>', html, re.S)
+    button = re.search(r'<a class="site-header__link" id="app-help"[^>]*>.*?</a>', html, re.S)
     assert 'href="/help/" aria-label="Help"' in button.group(0)
-    assert ">Help</span>" in button.group(0)
+    assert ">Help</a>" in button.group(0)
+    reference = re.search(r'<a class="site-header__link[^"]*" href="([^"]+)">Index reference', html)
+    assert reference.group(1) == "/help/indices/#the-indices"
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
     for url, guide in [("/station/new", "station-file"), ("/batch/", "batch")]:

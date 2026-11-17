@@ -30,8 +30,8 @@
     /* In view as the page scrolls, under the sticky workspace header. */
     .inputs-panel {
       position: sticky;
-      inset-block-start: calc(var(--workspace-header-height, 9rem) + --spacing(4));
-      max-block-size: calc(100vh - var(--workspace-header-height, 9rem) - --spacing(8));
+      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
+      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(8));
       overflow-y: auto;
     }
   }

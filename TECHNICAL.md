@@ -2783,10 +2783,11 @@ packages/climpact-web/src/climpact_web/
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
       js/setup.js    the New station page (#201): a chosen or dropped file is read at once,
                      Replace on the file card, focus on the card after reading
-      js/workspace.js  keeps the page's scroll padding to the height of the station's
-                     sticky workspace header (#197; on phones the part that stays, #203),
-                     and closes the phone's ⋯ page menu on Escape or a click elsewhere
-                     (#203), loaded by stations/_workspace.html
+      js/context-bar.js  keeps the page's scroll padding to the height of the sticky
+                     context bar (#227; the workspace header's js/workspace.js, #197; on
+                     phones the part that stays, #203), and closes the phone's ⋯ page
+                     menu on Escape or a click elsewhere (#203), loaded by
+                     components/context_bar.html
       js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), the
                      sheet an old address asks for as the page loads (#199), and the
                      phone's Inputs sheet from the Inputs bar (#203), loaded by
@@ -4015,14 +4016,18 @@ setting applies and the toggle stays hidden. The toggle fires `climpact:themecha
 
 | Tokens | Light | Dark | Used for |
 | --- | --- | --- | --- |
-| `--color-ink`, `-hover`, `-contrast` | `#111827`, `#374151`, `#ffffff` | `#e6eaef`, `#c3cad3`, `#0e1218` | primary buttons, the current tab, step and site-nav link, links (underlined ink: `a` in `base.css`), the running state (progress bar, spinner, current stage, running batch item and status mark), interactive icons, the selected chip, the skip link |
+| `--color-ink`, `-hover`, `-contrast` | `#111827`, `#374151`, `#ffffff` | `#e6eaef`, `#c3cad3`, `#0e1218` | primary buttons, the current tab, step and site-nav link, the running state (progress bar, spinner, current stage, running batch item and status mark), interactive icons, the selected chip, the skip link |
+| `--color-link`, `-hover` | `#1f55a3`, `#173f7a` | `#8db6f2`, `#b8d0f6` | links, underlined (`a` in `base.css`; #227, ink until then) |
 | `--color-brand`, `-contrast` | `#0a5aa8`, `#ffffff` | `#6db3f2`, `#08111b` | the logo's mark only |
 | `--color-focus` | `#0b57d0` | `#8ab4f8` | focus rings, the targeted help heading and the tour's target |
 | `--color-selected` | `#eaf2ff` | `#1c2a3d` | selected rows (QC findings and tables, with an ink edge), the targeted help topic, `::selection` |
 | `--color-success`, `-warning`, `-danger` | unchanged | unchanged | the verdict and run state only. Info alerts and badges are neutral: ink icon and border on the sunken surface |
 | `--color-heat`, `-cold`, `-rain`, `-drought`, `-other`, each with `-soft` | see `DESIGN.md` | see `DESIGN.md` | a theme's data |
 
-Hovers are neutral (the sunken surface; links thicken their underline). A theme's hue is
+Hovers are neutral (the sunken surface; links thicken their underline and take
+`--color-link-hover`). Links became blue in #227, as on the design canvas: the values are
+close to the canvas's link blue but not the same, chosen to pass 4.5:1 on every
+background a link sits on (5.4:1 or more; the closest is light on the danger tint, 6.25:1). A theme's hue is
 applied by a class on a block, `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought` or
 `hue-other` (`results.css`), which sets `--hue` and `--hue-soft` for what is inside it:
 `hue-dot`, the theme tile's top edge and its pill (`badge--hue`), the sparkline
@@ -4048,13 +4053,20 @@ status colours are #71's, not the mockups' slightly different ones.
 
 **Contrast.** `tests/test_design_tokens.py` reads the token values from the theme and the dark block
 and computes WCAG 2.1 contrast ratios for every pairing the components use, in both
-themes: text, muted text, links (ink) and status text on each surface and on each tinted
+themes: text, muted text, ink, links and their hover (on the surfaces, the selection
+and the status tints, #227) and status text on each surface and on each tinted
 background, including the theme tints and the selection (4.5:1), button labels on their
 fills (4.5:1), each theme hue as text on the surface and on its tint (4.5:1), and input
 borders, focus rings, the brand mark, status icons, theme hues and chart line roles
 against their backgrounds (3:1, WCAG 1.4.11). All pass; the closest are light Cold and
 Rain on their tints (4.52:1 and 4.54:1, needs 4.5), the dark neutral on its tint (4.64:1)
-and light input borders on the sunken surface (3.43:1, needs 3).
+and light input borders on the sunken surface (3.43:1, needs 3). The trend scale (#227)
+is checked as its cells use it: `--color-surface` on the strong steps and `--color-text`
+on the weak ones at 4.5:1 (the closest, white on light `--chart-increase-2`, 5.42:1); the
+strong step at least 2 contrast units further from the surface than the weak one, darker
+in light and brighter in dark; the coverage steps in order away from the surface, the
+last at least 3:1; and the four trend steps apart under protan and deutan simulation
+(ΔE 8).
 
 **Colour vision.** `test_design_tokens.py` also simulates protanopia and deuteranopia
 (Machado, Oliveira and Fernandes 2009, full severity) and measures OKLab distance (ΔE
@@ -4076,6 +4088,8 @@ they always have a legend: 8.6 light, 6.5 dark).
 | `--chart-grid`, `--chart-axis` | gridlines and axes |
 | `--chart-seq-1` ... `-5` | sequential (one hue, blue), e.g. maps (#85) |
 | `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies |
+| `--chart-decrease-2`, `-decrease-1`, `-increase-1`, `-increase-2` | the trend scale (#227): a significant decrease (blue) or increase (orange), weak and strong, for the trend grid (#238); the strong step is darker in light, brighter in dark |
+| `--chart-coverage-1` ... `-3` | coverage (#227): a year complete, 1–3 days missing, 4 or more, for Quality's coverage strip (#235) |
 
 The categorical order was checked with a colour-vision-deficiency validator (OKLab
 distance under protan, deutan and tritan simulation) against the light surface
@@ -4087,7 +4101,7 @@ rarely share a chart. In the light theme categorical slots 3, 4 and 5 are below 
 white (2.2-2.8:1), so charts that use them must label series directly or offer the table
 view, which every chart frame has. Since #196 the same checks run in the test suite, in
 Python (see "Colour vision" above). `chart-palette.json` carries the same
-colours for both themes, for code that cannot read CSS; it is generated with
+colours for both themes (`trend_scale` and `coverage` since #227), for code that cannot read CSS; it is generated with
 `uv run python -m climpact_web.core.tokens` and a test fails when it is out of date.
 In the browser `Climpact.chartPalette()` returns the live values for the current theme.
 
@@ -4103,7 +4117,8 @@ a comment listing its parameters. Labels are passed in already translated
 | `file_button` | a form with a label, a file input and a submit button (#174); `ui.js` makes the label the button (`data-class`), hides the input and the submit button, and sends the form when a file is chosen. The page says near it what choosing a file does, in the hint the input is described by (`<id>_helptext`). No page uses it since #199 (Quality's "Upload a corrected file" became "Replace file", the File sheet); it stays on `/patterns/` |
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
-| `table` | caption, numeric columns right-aligned with tabular figures, sticky header, a focusable scrolling region for wide tables, empty text |
+| `table` | the data table (#227, `table-wrap--data`, `table--data`): one frame (`border`, `--radius-sm`) on the surface, rows 32px high and one line each, a sticky header on the sunken tint over a `border-strong` rule; caption, `numeric` columns at the end and `code` columns, both mono with tabular figures; `selected` marks a row `aria-current="true"` (selected tint, ink edge on its first cell); a focusable scrolling region for wide tables, empty text. Page tables still use the plain `.table` until their tickets move them |
+| `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next station (`breadcrumb`, `step_previous`, `step_next`; no page passes them until workspaces exist, #231), the title (`heading` makes it the h1), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `static` shows it in place, not sticky, for `/patterns/` |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
 | `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
 | `workspace_tabs` | a station's sections, Quality, Results and Files (#179; Data until #198), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date" and "Running", screen-reader only for the others. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
@@ -4116,16 +4131,15 @@ a comment listing its parameters. Labels are passed in already translated
 | Page menu | (#203, `page-menu` in `components/workspace.css`) the ⋯ `<details>` at the end of the phone header's name line, its summary an icon button (`more`, "Page actions" for screen readers), its panel raised at the inline end with the page's actions one a line. Shown on `/patterns/` |
 | Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
-| Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's own Help pill (`#app-help`, `base.html`) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is no longer a header link (`Destination("help", in_nav=False)`). Below 23rem its word is screen-reader only, so the phone header stays one row |
-| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame: hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
+| Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
+| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `theme_headline`, `spark` | a theme's tile on the results page (#175, #200): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends, one line each (`trend-row`: plain name, value with short units such as "pp / decade", sparkline) and a link to the theme's indices; quiet (sunken surface, no frame but the hue's edge, the sentence muted) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
-(single station, sample data, batch, gridded, help, and the job list from #73) with the
-URL name each later ticket adds (`stations:new` since #201, `stations:upload` before;
-the single station's link is current on every `/station/` page, `section_name`),
+(workspaces, single station, sample data, batch, gridded and help) with the URL name each
+later ticket adds (`stations:new` since #201, `stations:upload` before;
 `stations:sample` (#76), `batch:start` (#80), `gridded:start` (#85), `help:index` (#81) and `jobs:list` all exist now). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered when `GRIDDED_ENABLED` is
 set: always in local mode, as in R, and in hosted mode only with
@@ -4133,9 +4147,22 @@ set: always in local mode, as in R, and in hosted mode only with
 and `GRIDDED_STEPS` for the same reason. "Try with sample data" is a one-button POST form, since it creates the session's
 analysis.
 
+**The app shell (#227).** The header is one row across the window, about 48px high (it
+was in the 72rem column, 69px): the logo and "Climpact" (to the landing page), the header
+links, then Index reference, Help and the theme toggle at the end. The header links are
+only Workspaces and Gridded (`in_nav`); Single station, Batch and Your calculations went,
+and the landing page starts a station or a batch. Workspaces opens `jobs:list` until the
+Workspaces page lands (#242); it is `aria-current="page"` there and `aria-current="true"`
+on every `/station/` and `/batch/` page (`Destination.sections`, `nav_items`), drawn in ink
+with an underline. Index reference (`navigation.index_reference_url`) leads to the
+definitions in the guide to the indices (`/help/indices/#the-indices`) until a reference
+page of its own exists. Help (`#app-help`) keeps its destination (the page's guide) but is
+a quiet underlined link like Index reference, no longer the ringed pill, as on the canvas.
+The landing page's tour points at Workspaces (`data-nav='workspaces'`).
+
 **Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
-"Menu" `<details class="site-menu">` after the theme toggle holds the same links
-(`base.html`), and since #203 the theme toggle too (a second `theme_toggle.html` in the
+"Menu" `<details class="site-menu">` after the theme toggle holds the same links and,
+since #227, Index reference (`base.html`), and since #203 the theme toggle too (a second `theme_toggle.html` in the
 menu's panel, `site-menu__theme`; the header's own is hidden there, `ui.js` keeps both in
 step), so "Climpact" is no longer cut off beside the toggle at 375px. The header stays one row (69px at 390px, was 153px) and the menu works
 without JavaScript. Its panel drops over the page below the header. The row does not wrap
@@ -4196,12 +4223,13 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 91 KB (86 KB until #203 added the phone layout; 81 KB until #201 added the New station page;
+stylesheets). Tests hold it under 95 KB (91 KB until #227 added the link and chart tokens, the app
+shell, the context bar and the data table; 86 KB until #203 added the phone layout; 81 KB until #201 added the New station page;
 77 KB until #198 added the Inputs panel and the side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
 status marks and the out-of-date block; 83 KB until #202 added Quality's list and
-detail; it is 88.4 KB) and 16.25 KB gzipped (15.6 KB; 15.5 KB until #203; 15 KB until #202; 14.75
+detail; it is 94.1 KB) and 17 KB gzipped (16.5 KB; 16.25 KB until #227; 15.5 KB until #203; 15 KB until #202; 14.75
 KB until #201; 14 KB until #198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button; the New station page's behaviour is its own
@@ -4508,7 +4536,8 @@ output file of a finished job (paths outside `output/` give 404). Any other sess
 bar and note, alerts for failure, cancellation and a missing worker, the zip download
 button and the file list in a disclosure; the list is a table with an empty state, and
 the station form uses the field and drop zone components with an error summary. The
-header links to the list as "Your calculations".
+header links to the list as Workspaces (#227; "Your calculations" before), until the
+Workspaces page replaces it (#242).
 
 **Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
 server chooses: `hx-trigger="load delay:<n>s, climpact:visible from:document"` with
@@ -4649,30 +4678,40 @@ the section is current again. The Quality tab keeps the verdict's level in the c
 `result["verdict"]` (`views.remember_verdict`) so its tab can say "Needs attention" on red.
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
-`stations/_workspace.html` draws the header (the station's name as the h1 of the three
-section pages, a line with its years, base period and file name,
-the page's actions: Results' "Compare with sector data" and "Download all",
-`stations/_results_actions.html`) and `components/workspace_tabs.html`. The title is the
-station name given, the file name only when there is none. Since #197 the header
-is sticky (`workspace-header`, a direct child of `.station-page`) in a window at least
-30rem high; shorter, where it would hide most of the page, it scrolls away. The page's
-`scroll-padding-block-start` is the header's height plus 1rem, so an element that takes
-focus, or a `#fragment`, is never under it (WCAG 2.4.11); `js/workspace.js` keeps
-`--workspace-header-height` to the header's real height with a `ResizeObserver` (9rem
-without JavaScript).
+`stations/_workspace.html` draws the context bar (#227, `components/context_bar.html`;
+the workspace header of #197 before it): the station's name as the h1 of the three
+section pages, the provenance line (`workspace.provenance`: the coordinates, the years
+and their count, "base" and the base period, "ET-SCI defaults" or how many quality
+thresholds and index settings are not the default, and "climpact" with the core's
+installed version, `importlib.metadata`; on a phone only the years), the page's actions
+(Results' "Compare with sector data" and "Download all",
+`stations/_results_actions.html`) and `components/workspace_tabs.html`. The file name is
+no longer in the bar; the Inputs panel's File row has the file. The title is the station
+name given, the file name only when there is none. The bar sits on the surface over a
+hairline across the window: a box-shadow of the surface and a 1px one of the border,
+clipped to its height (`clip-path`), so it stays a child of `.station-page`, and
+`.site-main` clips its inline overflow (`overflow-x: clip`, which makes no scrolling box)
+so it never covers the help drawer; the page's top padding is 0. `workspace.context`
+also sets `data_page`, so `base.html` gives a station's pages the 92rem column
+(`max-w-data`, `--container-data`) instead of 72rem. The bar is sticky (`.context-bar`,
+a direct child of `.station-page`) in a window at least 30rem high; shorter, where it
+would hide most of the page, it scrolls away. The page's `scroll-padding-block-start` is
+its height plus 1rem, so an element that takes focus, or a `#fragment`, is never under it
+(WCAG 2.4.11); `js/context-bar.js` keeps `--context-bar-height` to its real height with a
+`ResizeObserver` (9rem without JavaScript). The skip link, when focused, sits 4px from
+the top so it clears the bar.
 
-**Phones (#203, proposal 7).** Below 40rem (`components/workspace.css`) the header is the
-name at `--text-md` and a ⋯ button on one line, and the line under it only the years (the
-base period is in the Inputs bar, the file name in the File sheet). The page's actions
-are in that button's menu: `stations/_workspace.html` includes the `actions` template
-twice, in `workspace-header__actions` (hidden on phones) and in a `<details
+**Phones (#203, proposal 7).** Below 40rem (`components/workspace.css`) the context bar
+is the name at `--text-md` and a ⋯ button on one line, and the provenance line only the
+years (the base period is in the Inputs bar, the file name in the File sheet). The page's
+actions are in that button's menu: `components/context_bar.html` includes the `actions`
+template twice, in `context-bar__actions` (hidden on phones) and in a `<details
 class="page-menu">` (shown only on phones), a disclosure rather than an ARIA menu, so it
-works without JavaScript; `js/workspace.js` closes it on Escape (focus back on the
-summary) and on a click or focus outside it. The header reaches the window's edges
-(negative inline margins), and it sticks above the window's top by the height of what
-is above the tabs, `--workspace-header-above`, which `js/workspace.js` measures: only
-the tabs and the Inputs bar stay in view, and the scroll padding is their height (the
-header's height minus that). Until #203 the header was sticky only from 40rem wide. The
+works without JavaScript; `js/context-bar.js` closes it on Escape (focus back on the
+summary) and on a click or focus outside it. The bar sticks above the window's top by
+the height of what is above the tabs, `--context-bar-above`, which `js/context-bar.js`
+measures: only the tabs and the Inputs bar stay in view, and the scroll padding is their
+height (the bar's height minus that). Until #203 the header was sticky only from 40rem wide. The
 tabs' padding is smaller, so the three fit on one line at 320px. Sheets are the full
 width. The states (`workspace.section_states`): Quality
 `locked` until the details are confirmed, `stale`, `running`, `attention` (failed, stopped, or a red
@@ -5220,7 +5259,7 @@ results page has no summary. For the Sydney sample Heat shows TR, TN90p and SU, 
 TX10p, TN10p and TNn. The page also lists the
 index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
-the percentiles, or else the missing-data rules. The workspace header carries the page's
+the percentiles, or else the missing-data rules. The context bar carries the page's
 two actions (#200, the Results mockup): "Compare with sector data" (secondary) and
 "Download all (zip, *size*)" (primary); without a zip, "All files and the report" (the
 Files page) takes the primary's place. The Files tab beside Results replaces #173's
@@ -5675,7 +5714,7 @@ step (#90).
 
 **First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
 landing page (the start buttons, "How it works", other ways to run Climpact, the header's
-Help button and Your calculations in the header), passed as `json_script` data with translated text. On a first
+Help link and Workspaces in the header), passed as `json_script` data with translated text. On a first
 visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
 finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
 once. `/?tour=1` (the help index's "Take the tour" link) starts it at once. The tour box is
@@ -5708,7 +5747,7 @@ each station page has its sections' Help buttons in order and no help link under
 `test_help.py` checks the header's Help button leads to the page's guide; and the
 browser tests open the drawer by keyboard (Tab to the Help button, Enter, Escape, focus
 back) and from every Help button of every station page, and Tab through Results and
-Quality with the workspace header stuck at the top and never over the focused element
+Quality with the context bar stuck at the top and never over the focused element
 (WCAG 2.4.11); the
 catalogue covers every short name of `climate.indices.csv` exactly once, with a group,
 display name, units and an entry in the indices guide; output-name mapping;
@@ -5853,7 +5892,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 15.6 of 16 KB (14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `workspace.js` 0.9 of 1 KB (station pages only, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.5 of 16.75 KB (15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -6212,7 +6251,7 @@ gridded explorer by keyboard, and the quality worklist (#174): a group opens and
 from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
 corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
 axe passes with every disclosure open, light and dark (axe skips closed ones). The
-phone layout (#203): `test_sticky_workspace_header_never_covers_focus` Tabs through
+phone layout (#203): `test_sticky_context_bar_never_covers_focus` Tabs through
 Results and Quality at 1280 and 320 px (on a phone the tabs and the Inputs bar stay at the
 top, the name gone); `test_no_overlapping_sticky_elements_on_phones` scrolls the station
 pages at 320 and 375 px and checks that nothing stuck to the window covers anything else

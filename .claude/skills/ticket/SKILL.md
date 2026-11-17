@@ -44,7 +44,7 @@ Cross-cutting tickets (for example the plugin interfaces, #28) and decision tick
 1. **Check for duplicates first:** `gh issue list --repo geoffwalmsley/climpactpy --state all --search "<keywords>"`.
 2. **Read the code**, both the Python (`packages/climpact/src/climpact/...`) and the R it ports (`../climpact/server/climpact.etsci-functions.r`, `../climpact/services/...`, climdex.pcic), so the paths, functions and line numbers in the ticket are real. Read `TECHNICAL.md` and `CLAUDE.md`. Don't reopen decisions the user has already made.
 3. **Plan the parity coverage.** Every ticket gets a **Parity coverage** section: list the reference files (`packages/climpact/tests/parity` ids such as `indices/gsl_ANN`) that should go from xfail to pass, for which runs (`lat0`, `sydney`), and at which tier. If no reference output exists yet (gridded, northern hemisphere), say how one will be produced with the Docker image in `reference/r`. If behaviour shouldn't change, write "No change: everything that passes now still passes".
-4. **Write the body** using the template below, saved to a temp file.
+4. **Write the body** using the template below, saved to a temp file. A web ticket that changes what users see gets a **Design** section naming its canvas boards and `DESIGN.md` sections.
 5. **Create, add to the board and set fields.** Run these one ticket at a time, and record each issue number before moving on. A failed batch retry creates duplicate issues.
    ```bash
    R=geoffwalmsley/climpactpy; P=PVT_kwHOAFbo984BraA5
@@ -83,11 +83,17 @@ Include non-obvious design decisions and their reasoning (for example, xclim vs 
 Reference files expected to pass (ids, runs, tier), how a missing reference will be produced,
 or "No change: everything that passes now still passes".
 
+## Design                  (web tickets that change what users see)
+The canvas boards this ticket must match (`project/<Board>.dc.html`, from the table in
+`DESIGN.md`, "The design canvas"), the `DESIGN.md` sections and Targets it meets, and the parts
+of those boards it leaves to other tickets (#N). Built with the `build-to-design` skill.
+
 ## Acceptance Criteria
 - [ ] Observable, testable outcomes (named reference files pass at the stated tier)
 - [ ] Unit tests for new algorithms, including R quirks that no reference run exercises
 - [ ] `ruff check`, `ruff format --check`, `pytest` pass
 - [ ] `TECHNICAL.md` updated (see the `update-technical-docs` skill)
+- [ ] (web, with a Design section) Matches its boards in light and dark; the PR's Design check lists every difference, none left needing approval; `DESIGN.md`'s Targets updated
 ```
 
 **Sizing:** one ticket should be one reviewable PR (S–L). If it's XL, split it into sub-issues. Say what and why, plus enough how to remove ambiguity, but don't write the implementation. Call out risk explicitly (bootstrap or tie sensitivity, fitted distributions that may need the FITTED tier, anything that needs a user decision or a new R reference run). Put open questions in the issue and bring them up with the user instead of guessing.
@@ -99,10 +105,10 @@ or "No change: everything that passes now still passes".
    gh project item-list 2 --owner geoffwalmsley --format json --limit 300 \
      --jq '.items[] | select(.status=="Ready") | "#\(.content.number) \(.priority) \(.size) \(.title)"'
    ```
-2. **Start:** move the card to **In progress**, create a branch from up-to-date `main` named `<issue-number>-<short-slug>` (for example `17-gsl`), and re-read the issue body. Comments may have changed the scope. If the issue has no "Parity coverage" section, add one now and edit the issue body.
+2. **Start:** move the card to **In progress**, create a branch from up-to-date `main` named `<issue-number>-<short-slug>` (for example `17-gsl`), and re-read the issue body. Comments may have changed the scope. If the issue has no "Parity coverage" section, add one now and edit the issue body. A web ticket that changes what users see also needs a "Design" section; add it the same way, then follow the `build-to-design` skill through the build.
 3. **Build:** follow `CLAUDE.md` (`uv run` only). Run `uv run pytest` once and read the full parity summary from `.parity-summary.txt` (see `CLAUDE.md`; don't re-run the suite to see it). Check that the files named under Parity coverage moved from xfail to pass, and that nothing that passed before now fails. Save a copy of the summary from `main` before changing code if the PR needs a before → after comparison. If you find extra work, or a Python/R difference you can't resolve, file a new ticket rather than growing the scope. Tick acceptance criteria in the issue body as you meet them (`gh issue edit <N> --body-file`).
 4. **Docs:** update `TECHNICAL.md` in the same branch using the `update-technical-docs` skill.
-5. **PR:** commit and push only when the user asks. Open the PR against `main` with **`Closes #N`** in the body, the parity summary from the test run (before → after), and the Documentation note. If the PR changes how the web app looks, add one or two screenshots under "Screenshots" (see `CLAUDE.md`: publish them with `scripts/pr-screenshots.sh` after the PR exists, then edit the body). That's what lets the automations close the issue and move the card to Done on merge. Then move the card to **In review**. Link the PR in T3 (`link_pull_request`).
+5. **PR:** commit and push only when the user asks. Open the PR against `main` with **`Closes #N`** in the body, the parity summary from the test run (before → after), and the Documentation note. If the PR changes how the web app looks, add one or two screenshots under "Screenshots" (see `CLAUDE.md`: publish them with `scripts/pr-screenshots.sh` after the PR exists, then edit the body), and for a ticket with a Design section, the "Design check" (`build-to-design` skill, step 4). `Closes #N` is what lets the automations close the issue and move the card to Done on merge. Then move the card to **In review**. Link the PR in T3 (`link_pull_request`).
    - **Stacked PRs:** if the base isn't `main`, the `Closes` link won't fire. After the user merges, check the issue closed, and that the commits actually reached `main`, since a stacked PR can merge into its parent branch after the parent has already merged.
 6. **Done:** never merge the PR yourself; only the user merges (with a merge commit, see `CLAUDE.md`). Once CI is green, say the PR is ready to merge. After the user merges, confirm the issue is closed and the card is in Done. Move any Backlog cards it unblocked to Ready. Leave a short comment listing anything left over, and file follow-ups as new tickets.
 

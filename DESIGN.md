@@ -146,9 +146,9 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 - **Status colours** (success, warning, danger) only for the verdict and run state. Info
   is neutral: an info alert or badge is ink on the sunken surface.
 - **Theme hues** mark data. Heat, Cold, Rain and Drought each have one hue, and the
-  themes under "Also measured" share a neutral. The hue colours the theme tile's top
-  edge, its pill and dot, the filter chip's dot, the catalogue row's dot, the
-  sparklines and the index page's chart line (a `hue-<theme>` class on the block, from
+  themes under "Also measured" share a neutral. The hue colours the dot of the
+  filter rail's theme and of an index's row, the sparklines, the detail pane's chart
+  line and the index page's chart line (a `hue-<theme>` class on the block, from
   `stations.themes.hue_of`). The theme's name is always beside the hue.
 - Hover is a neutral change (the sunken surface, or a thicker underline on links; a link
   takes its hover shade), never a colour of its own.
@@ -207,11 +207,10 @@ font size only; line height is `--leading-normal` 1.6 for text and `--leading-ti
 Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
 
 Small uppercase labels name groups (`group-label`, stat labels: `--text-xs`, 600,
-letter-spacing 0.06em, muted); they group without adding boxes. Where a page has an
-answer, its number is large (`--text-2xl`, 650, in the answer band), with the rest smaller
-and muted. **Target (#236):** on a station's Indices the answer is one line above the
-table ("22 of 80 indices with a significant trend · TM +0.19 °C/decade"), its count in
-bold, not a band.
+letter-spacing 0.06em, muted); they group without adding boxes. A page's answer is a line,
+not a band: Quality's verdict strip (#235), and on a station's Indices one line above the
+table ("**22 of 80** indices with a significant trend · TMm +0.19 °C/decade", #236), its
+count in bold and the mean temperature's trend muted.
 
 **Numbers** follow one set of rules (#226), written by one module,
 `core/numbers.py`, which every page, chart summary and server-drawn chart uses
@@ -244,7 +243,8 @@ In templates, `{% load ui %}` gives `{{ value|decimals:4 }}` and
 tabular figures (`font-variant-numeric: tabular-nums`); index codes, dates, file names
 and the provenance line are `--font-mono`. The data table sets its `num` and `code`
 cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data tables
-(#235). **Target (#234, #236, #239, #242):** each other page's tables move to the data
+(#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
+`--text-sm`. **Target (#234, #239, #242):** each other page's tables move to the data
 table with that page.
 
 ## Layout
@@ -266,8 +266,9 @@ table with that page.
   one narrow page (40rem, centred; #201): "New station", a lead, two numbered steps (Your
   file, Station details) divided by hairlines, then the one call to action. A station is a
   workspace instead: its context bar (#227: its name as the h1, the provenance line, the
-  page's actions, then the section tabs, Quality, Results and Files), then the Inputs
-  panel and the section's content side by side. The h1 is the station name the user
+  page's actions, then the section tabs, Quality, Indices and Files), then the Inputs
+  panel and the section's content side by side (the Indices keep the Inputs bar at every
+  width, #236). The h1 is the station name the user
   gives (the file name until there is one). The context bar stays in view as the page
   scrolls (not in a window under 30rem high); the page's scroll padding keeps a focused
   element out from under it (WCAG 2.4.11). On phones only the tabs and the Inputs bar
@@ -282,8 +283,8 @@ table with that page.
   link to Files. While the checks run, what is in the file ("Your data", #198) takes the
   worklist's place.
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
-  (`stack--xl`), each under a section header; a box marks only one object (a theme tile,
-  a chart, a progress card). The page's one answer is a tinted band (`answer-band`).
+  (`stack--xl`), each under a section header; a box marks only one object (a chart, a
+  data table, a detail pane, a progress card).
 - **Controls:** `--control-height` 2.75rem (2.25rem small), so touch targets reach 44px.
 
 **The workspace frame (#230).** The station frame above gives way to this one as #231,
@@ -303,8 +304,8 @@ strips, worklist and detail pane.
   which the component takes, once stations belong to a workspace (#231, #234); "Edit
   inputs" or "Workspace settings" on the provenance line, which replace the Inputs panel
   (#231, #234); a workspace's own bar, with the station count and deletion date and the
-  tabs Overview, Compare an index and Files (#234); the tabs named Quality, Indices and
-  Files (#236). Quality's tab shows its verdict and count, "Usable · 21" (#222).
+  tabs Overview, Compare an index and Files (#234). The tabs are Quality, Indices (Results
+  until #236) and Files; Quality's shows its verdict and count, "Usable · 21" (#222).
 - **Data pages use the width.** Desktop first: a station's pages fill the window up to
   92rem (`--container-data`), rather than the 72rem content width, which stays for
   reading pages.
@@ -312,20 +313,23 @@ strips, worklist and detail pane.
   at the inline end that stays in view as the list scrolls (`detail-pane`; on Quality,
   #235, 22–30rem, side by side from a 56rem container, sticky under the context bar and
   scrolling inside itself when taller than the window). Narrower, the rail goes above the
-  table and the detail after the list, with "Back to the list". **Target (#236):** the
-  filter rail and the Indices' pane.
+  table and the detail after the list, with "Back to the list". The Indices (#236): the
+  rail 10rem and sticky, the table, the pane `clamp(17rem, 22%, 26rem)`, side by side from
+  a 68rem page; from 48rem the rail beside the table and the pane under it; narrower, the
+  rail above (its themes a wrapping row) and the detail after the table. The Inputs bar
+  replaces the panel there at every width, so the three have the width.
 - **Data tables sit in one frame** (a `border` edge and `--radius-sm`), with hairline rows
   of 32px and a header row on the sunken tint: the exception to "a box marks only one
   object", because the table is one object (`components/table.html`, `table--data`).
-  Quality's are (#235). **Target:** each other page's tables move to it with that page
-  (#234, #236, #239, #242); at 1280px at least 25 of a station's indices are in view
-  (#236).
+  Quality's are (#235), and the Indices' (#236): at 1280 x 1180px (the board's size) 26
+  of the Sydney sample's indices are in view, without sideways scroll. **Target:** each
+  other page's tables move to it with that page (#234, #239, #242).
 
 ## Depth and shape
 
 | Level | Token | Used for |
 | --- | --- | --- |
-| 0 | none | Page background, a page's sections, content inside a card, the answer band (a tint, no border or shadow) |
+| 0 | none | Page background, a page's sections, content inside a card |
 | 1 | `--shadow-raised` | Cards and panels on the page |
 | 2 | `--shadow-overlay` | Dialogs, toasts, the tour |
 
@@ -351,8 +355,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Quality worklist | Pattern | Quality (#235, the Quality board; `stations/_qc_review.html`): the verdict strip and the coverage strip, then "Look wrong" as a data table grouped by check (a group row on the sunken tint, "TN ≥ TX 10"; then Date, Var, Value with its unit, Check, Detail: what the value is checked against, "TX 8.2 °C", "limit 200 mm"; each check's first ten rows, then "All 213 rows of TN ≥ TX"), and "Worth a look" (Check, Var, Values, When: "Mostly May and June", "All year"; By month: twelve small bars, an empty month a thin mark), each a framed table with its heading inside the frame and "How the checks work" as a quiet link. Rows 30px, one line each. Each row's first cell links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced, the row has the selected tint and an ink edge (`is-selected`, the link `aria-current`). The detail pane beside the tables: for a finding, its date and check in mono, the sentence ("TN 9.5 °C is above TX 8.2 °C", codes first), a chart of the 15 days around it with axes (three values, three dates, the day as a band, the value ringed, a legend "TX °C", "TN °C", "April 1962, daily"), the days-around table (one decimal; the day in bold on the warning tint, other flagged days on a lighter one), "Show on the daily chart" and its line in the file; for a group or a check's every row, its counts by month and its rows, paged. The first finding is selected by default | finding, group, every row of a check |
 | Verdict strip | Component | A judgement in one line (`components/verdict_strip.html`, #235): on the status's soft tint with a hairline in its hue, the level in bold and one sentence as the heading ("**Usable.** 21 values look wrong; the indices can run with them as they are."), the counts on one mono line under it, the decision's small buttons at the end. On Quality: "Flagged values (CSV)", "Replace file", "Go to indices" (primary); on red "Go to indices anyway" and "Replace file" (primary); no buttons while the checks are out of date | ready, usable, fix |
 | Coverage strip | Component | Missing days per year for each variable (`components/coverage_strip.html`, #235): in a frame, "Coverage" with a muted note (what the annual completeness rule makes of the years) and the key; a row per variable, its code, a cell a year in the three coverage steps (an SVG, `aria-hidden`) and its total; the years under them, evenly spaced. The table view follows as a disclosure. Narrower than 36rem the rows scroll | — |
-| Detail pane | Component | The selected row's detail beside its table (`detail-pane`, #235; the Indices' too, #236): a frame on the surface, in view under the context bar as the list scrolls and scrolling inside itself; after the list on narrow screens, with "Back to the list", which returns focus to the row | — |
-| `answer-band` | Pattern | The page's one answer in a tint, no border or shadow; a large number with its words under it (`answer-band__number`) and a sentence. Quality's verdict is a verdict strip since #235 | — |
+| Detail pane | Component | The selected row's detail beside its table (`detail-pane`, #235, and the Indices', #236): a frame on the surface, in view under the context bar as the list scrolls and scrolling inside itself; after the list on narrow screens, with "Back to the list", which returns focus to the row | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
 | New station steps | Pattern | The New station page's steps (`setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
@@ -376,8 +379,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. Quality's tab reads like its verdict (#222): "Checking…" (`refresh`) while the checks run, then the verdict strip's level and an icon, Ready `check-circle`, Usable `warning` or Fix first `error`, as a small pill in the status colour on its soft tint, with the count of values that look wrong after a middle dot ("Usable · 21", read as "Usable, 21 values look wrong"); a failed check stays "Needs attention". On a phone (under 40rem) the verdict is its icon on the tint, so the three tabs stay on one line at 320px; the word and count are still read. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the code and short name, the value with short units, "pp/decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
-| Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. On a phone the table becomes a list (#203): a block per index, its name and code, then its trend and significance beside the sparkline; the header row is a line of the column names that sort. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
+| Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a column of pills (All and each theme with its dot and a mono count; the selected pill ink); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the pills in a wrapping row | — |
+| Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long), Unit, Slope / decade ("+1.31 pp" for a percentage), 95% interval, Sig. ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years, Mean. A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by …"). Code, Index, Slope and Sig. sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
+| Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then Slope, 95% interval, Years used and Method ("Sen's slope (zyp)"), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
@@ -386,17 +390,17 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
-`stations/templates/stations/_qc_*.html`, and Results):
+`stations/templates/stations/_qc_*.html`, and the Indices):
 
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
 | Finding chart | The days around one value in the Quality detail pane (#235), drawn on the server (`qc_review._chart`): a line per variable in its role colour, gaps where values are missing, the day as a band in the selected tint, the value ringed in `--chart-flag` as on the full charts, three value ticks and three date ticks. Its text alternative names the variables and dates; the days-around table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
-| Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
+| Settings line and panel | The settings in one muted line (at the foot of the Indices' filter rail since #236): the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
-**Target: replaced by #230.** These stay until the ticket named lands, then go:
-`theme_headline` and Results' `answer-band` (by the Indices table, #236); the Catalogue
-(by the same table, #236); the Inputs panel and Inputs bar (by "Edit inputs" on the
+**Target: replaced by #230.** These stay until the ticket named lands, then go (the
+theme tiles, `answer-band` and the Catalogue went with the Indices table, #236): the
+Inputs panel and Inputs bar (by "Edit inputs" on the
 context bar and workspace settings, #231, #234); New station steps, the File card and
 `file_button` (by Add stations, #233); `steps` for batch (by the workspace, #231); the
 Settings line and panel (by workspace settings, #231). The Side sheet stays, for
@@ -406,9 +410,6 @@ New patterns of #230 (Target; add each to `/patterns/` when it lands):
 
 | Pattern | Purpose | Ticket |
 | --- | --- | --- |
-| Sortable data table | The data table's headers sorting it, as the Catalogue's do | #236 |
-| Filter rail | Search (code, short name, R's names), theme with counts, "Significant only", and one line defining significant | #236 |
-| Detail pane for an index | The Indices' detail pane (the component built by #235): a chart with axes, the statistics, links | #236 |
 | Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
 | Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
 | Review table | Add stations' table of files: editable name and coordinates, read status, every problem at once | #233 |
@@ -451,9 +452,10 @@ years; sparklines are only for scanning, beside a number given in text.
   ("Days TN < −2 °C"); search finds the code, the short name and R's names. Charts keep
   their own titles and axis labels (`TXx: Annual warmest daily TX`), and output files
   follow R.
-- **Show the statistics** (Target: #236, #237). Wherever there is a trend: Sen's slope per
-  decade, its 95% interval, and significant yes or no (the interval excludes zero). Method
-  and years used on the index page and in the detail pane. Never a p-value.
+- **Show the statistics** (the Indices since #236; Target: #237). Wherever there is a
+  trend: Sen's slope per decade, its 95% interval, and significant yes or no (the interval
+  excludes zero). Method and years used on the index page and in the detail pane. Never a
+  p-value.
 - **Keep the provenance in view.** Every station page has the provenance line in its
   context bar (#227). **Target:** the workspace pages too (#234), and every zip holds
   `climpact_run.json` (#239).
@@ -472,32 +474,31 @@ years; sparklines are only for scanning, beside a number given in text.
   labelled Help button at the end of the row (a pill with a word, specific where it helps:
   "How to read this"). At most one per section, none on sections that explain
   themselves; Help at the end of the app bar opens the page's guide.
-- **Group findings by what people ask about.** Results lead with the answer in a tinted
-  band (the count, and one paragraph whose first sentence is bold), then a tile per theme
-  (Heat, Cold, Rain, Drought), then the 80 indices as one table, filtered by theme chip
-  ("Also measured" for the rest), significance and search, and sortable by any column,
-  with no family accordions. "No significant change" is a finding, shown in a quiet
-  tile, not left out. Findings are template sentences built from the data, never
-  written by hand for a station. The theme mapping lives in `stations/themes.py`.
-  **Target (#236):** the tiles go. One line answers, then one table filtered by theme
-  (with counts), significance and search: filter the data rather than narrate it.
-- **Keep it dense.** Rows of 30–34px, one line each, as the data table's 32px (#227) and
-  Quality's 30px (#235); a row never wraps to several lines to fit a sparkline.
-  **Target (#236):** the Indices' table, and at 1280px at least 25 indices in view.
+- **Group by what people ask about, and filter rather than narrate.** The Indices (#236):
+  one line answers ("22 of 80 indices with a significant trend"), then the 80 indices as
+  one table, filtered by theme (Heat, Cold, Rain, Drought, "Also measured" for the rest,
+  each with its count), significance and search, and sortable by column, with no family
+  accordions and no theme tiles. "0 of 80" is a finding too. Sentences are templates
+  built from the data, never written by hand for a station. The theme mapping lives in
+  `stations/themes.py`.
+- **Keep it dense.** Rows of 30–34px, one line each, as the data table's 32px (#227, the
+  Indices' since #236) and Quality's 30px (#235); a row never wraps to several lines to
+  fit a sparkline: a long name ends in an ellipsis.
 - **Never change the user's data, and say so.** The app reports; the user decides.
 
 ### Don't
 
 - **Don't put cards inside cards.** One surface level on the page: sections are
   separated by space and a heading, not boxes. A box marks only something that is one
-  object (a theme tile, a chart, a finding); the page's one answer sits in a tinted band;
-  a data table is one framed object (#227), a table inside a card or disclosure has
-  hairline rows and no frame, and disclosures are rows between hairlines.
+  object (a chart, a finding, a detail pane); a data table is one framed object (#227), a
+  table inside a card or disclosure has hairline rows and no frame, and disclosures are
+  rows between hairlines.
   Inside a card, separate groups with spacing and headings, not another border.
 - **Don't offer downloads everywhere.** Files live in one Files section
   (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
-  PNG/SVG/CSV. Results have the zip, primary in the context bar beside "Compare with
-  sector data", and the Files tab; Quality offers its flagged values as one CSV in the
+  PNG/SVG/CSV. The Indices have the zip, primary in the context bar beside "Compare with
+  sector data", the Files tab, and in the detail pane the selected index's CSV and PNG
+  (#236, as the Results board draws it); Quality offers its flagged values as one CSV in the
   verdict strip (#235) and has one link to Files under the worklist; an index page has
   only its chart's exports. **Target (#239):** Files is the workspace's (each station's
   files, the all-station CSVs and the provenance file); an index page offers its CSV, its
@@ -549,7 +550,8 @@ the name (18px) and the ⋯ page menu on one line, the years under it (the base 
 is in the Inputs bar, the file name in the File sheet), then the three tabs on one line
 and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
 scroll padding is their height, so focus never goes under them. Sheets fill the screen.
-The theme tiles stack, the catalogue is a list, Quality's detail comes after its list,
+The Indices' rows are two lines each and their detail comes after the table, Quality's
+detail comes after its list,
 and the download tables are short blocks. The accessibility tests run every page at
 320px and fail on horizontal page scroll; the phone tests check the station pages at
 320 and 375px for sticky elements covering each other, the Inputs bar's sheets and the

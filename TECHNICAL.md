@@ -2800,7 +2800,7 @@ packages/climpact-web/src/climpact_web/
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       Quality: the worklist and its detail pane (#202, #235), linked to the daily charts (#77, #174)
-      js/results.js  the results catalogue's filters (#78) and column sorting (#200), that page only
+      js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
       chart-palette.json  chart colours for both themes, generated from the tokens
@@ -2852,16 +2852,18 @@ packages/climpact-web/src/climpact_web/
     preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
                      fallback
     retention.py     purge_expired_analyses, registered with the jobs app's purge
-    results.py       the results dashboard's model: one card per index table,
+    results.py       the Indices' model: one card per index table,
                      sparklines, trends, tables not written and why, trend-file rows; cached
-    themes.py        the results page's themes (#175): the index-to-theme mapping (Heat,
-                     Cold, Rain, Drought, "Also measured"), the findings written from the trends
+    index_detail.py  the Indices' detail pane (#236): each index's chart drawn on the server
+                     (axes, base period, Sen's slope), its text alternative and statistics
+    themes.py        the Indices' themes (#175): the index-to-theme mapping (Heat, Cold,
+                     Rain, Drought, "Also measured") the rail filters by, and their hues
     views.py, urls.py  /station/: the New station page (new_station: the file and the
                      details, #201), the sample, field validation, the old upload and
                      Load addresses' redirects, daily CSV, delete; Quality: the checks, progress, table pages,
                      continue; the Inputs panel's sheets (edit_input: file, station, base
                      period, thresholds, index settings) and their runs' progress
-    views_indices.py Results: progress, the dashboard (with a recalculation's progress
+    views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
                      old Calculate address, each index's page, anomalies JSON
     sector_file.py   step 5 (#90): checks a sector file (plain-language problems at file
@@ -2882,7 +2884,8 @@ packages/climpact-web/src/climpact_web/
                      _input_sheets.html, _input_form.html, input_edit.html,
                      _settings_fields.html and _indices_unit.html: the Index settings
                      sheet, #199; _open_sheet.html), results_progress.html,
-                     _results_progress.html, results.html, result.html (Results),
+                     _results_progress.html, results.html, _indices.html and
+                     _index_detail.html (Indices, #236), result.html (one index),
                      downloads.html (Files, #79, #176),
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
@@ -4032,14 +4035,14 @@ close to the canvas's link blue but not the same, chosen to pass 4.5:1 on every
 background a link sits on (5.4:1 or more; the closest is light on the danger tint, 6.25:1). A theme's hue is
 applied by a class on a block, `hue-heat`, `hue-cold`, `hue-rain`, `hue-drought` or
 `hue-other` (`results.css`), which sets `--hue` and `--hue-soft` for what is inside it:
-`hue-dot`, the theme tile's top edge and its pill (`badge--hue`), the sparkline
+`hue-dot`, the pill (`badge--hue`), the sparkline
 (`.spark__line` falls back to the neutral outside a hue block) and the index page's chart
 line. `stations.themes.hue_of` maps a theme to its hue: Heat, Cold, Rain and Drought their
 own, the "Also measured" themes (Averages, Growing season and degree days, Your own index)
 and the cards in no theme the neutral. `Card.hue` and `ThemeResult.hue` give it to the
-templates: the theme tiles (`theme_headline`'s `hue`), the filter chips' dots, the
-catalogue's rows (`<tr class="hue-*">`, with a dot before the name) and the index page's
-`chart_frame` (`hue`). `charts.js` draws an index series with the token `--hue`, which
+templates: the filter rail's themes (`filter-pill hue-*`, #236), the Indices' rows
+(`<tr class="hue-*">`, with a dot before the code), the detail pane (`index-detail hue-*`:
+its chart line) and the index page's `chart_frame` (`hue`). `charts.js` draws an index series with the token `--hue`, which
 `palette(el)` reads from the frame's computed style at each draw, so the line follows the
 theme toggle. The SPI and SPEI bars keep `--chart-1` and `--chart-2` (wet and dry), and the
 daily and QC charts keep the variable roles (`--chart-tmax`, `-tmin`, `-prcp`). The static
@@ -4123,7 +4126,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next station (`breadcrumb`, `step_previous`, `step_next`; no page passes them until workspaces exist, #231), the title (`heading` makes it the h1), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `static` shows it in place, not sticky, for `/patterns/` |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
 | `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
-| `workspace_tabs` | a station's sections, Quality, Results and Files (#179; Data until #198), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
+| `workspace_tabs` | a station's sections, Quality, Indices and Files (#179; Data until #198, Results until #236), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
 | `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
@@ -4133,11 +4136,11 @@ a comment listing its parameters. Labels are passed in already translated
 | Page menu | (#203, `page-menu` in `components/workspace.css`) the ⋯ `<details>` at the end of the phone header's name line, its summary an icon button (`more`, "Page actions" for screen readers), its panel raised at the inline end with the page's actions one a line. Shown on `/patterns/` |
 | Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
-| Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
-| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
+| Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("What do the levels mean?" on the Quality verdict); `quiet=True` makes it a quiet link ("How the checks work" on Quality, "How to read the table" in the Indices' rail); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
+| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a chart frame, a detail pane, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The answer band (`answer-band`) went with #236: Quality's verdict is a verdict strip (#235), and the Indices answer in one line above the table. `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
-| `index_name` | an index named codes first (#218): the code in mono (`index-code`, without the code background), then the short name; `title` for a page heading, the name a step lighter. Used by the index page's heading and previous/next links, the theme tiles' trends, Files' index table and the sector correlation table; the catalogue sets code and name in two columns |
-| `theme_headline`, `spark` | a theme's tile on the results page (#175, #200): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends, one line each (`trend-row`: code and short name, value with short units such as "pp / decade", sparkline) and a link to the theme's indices; quiet (sunken surface, no frame but the hue's edge, the sentence muted) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
+| `index_name` | an index named codes first (#218): the code in mono (`index-code`, without the code background), then the short name; `title` for a page heading, the name a step lighter. Used by the index page's heading and previous/next links, Files' index table and the sector correlation table; the Indices' table sets code and name in two columns |
+| `spark` | a decorative sparkline beside a trend given in words (#78): the series and its Sen's slope as SVG paths in a 240 x 60 box, its theme's hue (#196). The theme tiles that used it (`theme_headline`, #175, #200) went with #236 |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -5171,7 +5174,7 @@ sheet's page with the error summary. The results' header names the settings in o
 and the settings that differ from `IndexParams()`), with a link that opens the sheet; an
 index that depends on a setting, Files' "Not made" notes and a failed run's "Change the
 settings" open it too. Its one button, Apply, is at the foot, described by what it
-updates ("Updates Results and Files. Quality stays as it is. About half a minute for 80
+updates ("Updates Indices and Files. Quality stays as it is. About half a minute for 80
 years of data."). It queues a `station` job (`calculation.queue_station_run`: QC files, every index, and the plots, the zip and the
 PDF report unless unticked) with step 2's thresholds (`qc`, from `qc_params`), as
 `indices_job`, cancelling a run of the analysis still waiting or running. When the run it
@@ -5202,59 +5205,101 @@ recalculation with new settings is a change of input (#179): the results it repl
 the out-of-date banner ("You changed the settings.") with its progress inside, rather than
 this panel, which stays for a run of the same inputs.
 
-**Results: the dashboard** (`stations/results.py`, `results.html`). Every index table of
-the run is on it: the core's `climpact.plots.index_plots` gives the plotted series (with
-their R descriptions, units and Sen's slope trends, as the PNGs and the charts), grouped
-into one card per index (`txx` with `txx_ANN`, `txx_MON` and the two `day_of_` series;
-each heatwave aspect, each SPI/SPEI scale and the custom index have their own card), and
-the daily `EHFdaily` and `ECFdaily` tables, which R does not plot, get cards with their
-days, highest value and date. For the Sydney sample that is 80 cards for the 114 tables.
-Since #200 the cards are the rows of one table, the catalogue, headed "All 80 indices"
-(`#catalogue`), in the help catalogue's order (temperature thresholds, extremes,
-percentiles, seasons, precipitation, heatwaves, drought, your own index); the family
-accordions (#113) are gone, and the families are neither a column nor a filter, the themes
-being the grouping people use. Indices are named codes first (#218): each row leads with
-the code (`Card.code`, from `results.display_name`: `TXx`, `Rx3day`, `TX90-HWN`, `SPI3`,
-`EHFdaily`), in mono, linked to the index's page, with its theme's dot; then the short
-name (`Card.title`, from `results.short_name`: the catalogue's `SHORT_NAMES` in
-`help/indices.py`, such as "Hottest day", with the output's parameter filled in, "Wettest
-3 days" for `rx3day`; each heatwave aspect in the words of the indices guide, "Number of
-heatwaves", the code saying which definition; the daily EHF and ECF tables; the user's own
-index from its threshold, "Days TN > 0 °C"). The short names were approved by the
-maintainer on 17 November 2026. Search matches the code, the short name, R's long name
-and the definition (`Card.search_text`). Then the trend per decade with an arrow and units, "Significant" (a badge) or "Not
-significant" (the 95% interval excludes zero or not, as in the trends guide), or "No
-trend", and a sparkline. Sparklines are SVG paths drawn on the server (integer coordinates
-in a 240 x 60 box; long series averaged into 240 columns; gaps where values are missing;
-the trend line dashed; SPI and SPEI as bars above and below zero; `components/spark.html`),
-so the dashboard loads no chart code. Above the table, theme chips (Heat, Cold, Rain,
-Drought, and "Also measured" for every other row, the daily EHF and ECF tables included,
-`Card.chip`, `themes.chip_of`; each with its dot and count; `?theme=`), "Significant only"
-and a search box filter the rows as you type (`js/results.js`, which keeps the filter in
-the URL); without JavaScript the same GET form is sent to `#catalogue` and the server
-filters (`dashboard_context`). Each column but the sparkline sorts the table
-(`views_indices.sort_cards`, `?sort=name|code|trend|significance&dir=ascending|descending`):
-codes and names A to Z first (case-folded, by code point; short names repeat across the
-heatwave definitions, so names tie by code), trends and significance largest first; other
-ties keep the catalogue's order and rows without a trend stay last when
-sorting by the trend (a trend sorts by its value in the index's own units). Without
-JavaScript each header is a link to the page sorted by it, the filters kept, and the filter
-form keeps the sort in hidden fields; `results.js` makes the headers buttons and sorts in
-place the same way. The sorted column has `aria-sort`, and the live line above the table
-("Showing 9 of 80 indices. Sorted by Trend per decade, descending.", `aria-live="polite"`)
-says the result. On a phone (below 40rem, #203) the table is a list: its rows are grids
-(the name and code, then the trend and significance beside the sparkline) and its header
-row a line of the sort buttons, by CSS only (`components/results.css`), so `results.js`
-and the table's semantics are unchanged. A theme tile's trend row puts the name on its
-own line when the list is under 21rem (a container query: a phone, not the 2 x 2 grid). The table scrolls inside its focusable region (at most 36rem, about 12
-rows, under the sticky header), so the page stays short: with the Sydney sample Results
-is 1,911 px tall at 1280 px wide, from 2,367 px with #113's closed accordions. Every row is
-in the HTML whatever the filters hide, and an index page's "All indices" link returns to
-its row (`#index-<key>`, highlighted by `:target`).
+**Indices: the table** (`stations/results.py`, `results.html`, `_indices.html`; the
+section was named Results until #236, and its address is still `results`). Every index
+table of the run is on it: the core's `climpact.plots.index_plots` gives the plotted
+series (with their R descriptions, units and Sen's slope trends, as the PNGs and the
+charts), grouped into one card per index (`txx` with `txx_ANN`, `txx_MON` and the two
+`day_of_` series; each heatwave aspect, each SPI/SPEI scale and the custom index have
+their own card), and the daily `EHFdaily` and `ECFdaily` tables, which R does not plot,
+get cards of their own. For the Sydney sample that is 80 cards for the 114 tables. Since
+#236 (the Results board of the design canvas) the page is a filter rail, one line that
+answers, one dense table and a detail pane; the theme tiles and the answer band (#175,
+#200) are gone.
 
-**Findings by theme first (#175).** Directly below the action row, "What changed" answers
-before the detail (wireframe 3 of `docs/design/station-flow-wireframes.html`). Each card
-has a theme (`Card.theme`, from `stations/themes.py`, the one place the mapping lives;
+The rows are in the help catalogue's order (temperature thresholds, extremes,
+percentiles, seasons, precipitation, heatwaves, drought, your own index). Indices are
+named codes first (#218): each row leads with the code (`Card.code`, from
+`results.display_name`: `TXx`, `Rx3day`, `TX90-HWN`, `SPI3`, `EHFdaily`), in mono, with its
+theme's dot; then the short name (`Card.title`, from `results.short_name`: the catalogue's
+`SHORT_NAMES` in `help/indices.py`, such as "Hottest day", with the output's parameter
+filled in, "Wettest 3 days" for `rx3day`; each heatwave aspect in the words of the
+indices guide, "Number of heatwaves", the code saying which definition; the daily EHF and
+ECF tables; the user's own index from its threshold, "Days TN > 0 °C"; a long name ends in
+an ellipsis rather than widening the table). The short names were approved by the
+maintainer on 17 November 2026. The columns (`views_indices._row`): Code, Index, Unit
+(the index's), Slope / decade (signed, by the number rules of #226; a percentage's in
+percentage points, "+1.31 pp", the `pp` an `abbr`), 95% interval ("3.79 to 6.54"), Sig.
+("yes" with the theme's dot when the interval excludes zero; a dash, read "no", when it
+does not), the series as a sparkline (headed by its years, "1936–2015") and Mean (the mean
+of the values present of the series the card shows, with the slope's places,
+`numbers.slope_decimals`). An index without a trend shows a dash, and screen readers hear
+why: "Too few values", "No trend line" (TX95t) or "Daily values". Rows are the data
+table's (#227): 32px, one line each, in one frame, the table scrolling with the page. With
+the Sydney sample at 1280 x 1180 px (the board's size) 26 rows are in view and the table
+needs no sideways scroll. Sparklines are SVG paths drawn on the server (integer
+coordinates in a 240 x 60 box; long series averaged into 240 columns; gaps where values
+are missing; the trend line dashed; SPI and SPEI as bars above and below zero;
+`components/spark.html`), so the page loads no chart code.
+
+The line above the table answers: "**22 of 80** indices with a significant trend · TMm
++0.19 °C/decade" (the mean temperature's slope, when it has one), beside the live line
+("Showing 9 of 80 indices. Sorted by Slope / decade, descending.", `aria-live="polite"`).
+The filter rail at the inline start (`filter-rail`): "Find", a search that matches the
+code, the short name, R's long name and the definition (`Card.search_text`); "Theme", a
+column of pills, All, Heat, Cold, Rain, Drought and "Also measured" (every other row, the
+daily EHF and ECF tables included; `Card.chip`, `themes.chip_of`), each with its dot and
+count (`?theme=`); "Significant only" (`?significant=1`); the line "Significant: the 95%
+interval of Sen's slope excludes zero."; the help as a quiet link ("How to read the
+table"); and at its foot the settings line (#178) and "Change the settings", which opens
+the Index settings sheet. `js/results.js` filters as you type and keeps the state in the
+URL; without JavaScript the rail is a GET form sent to the page and the server filters
+(`dashboard_context`). Code, Index, Slope / decade and Sig. sort the table
+(`views_indices.sort_cards`, `?sort=code|name|trend|significance&dir=ascending|descending`):
+codes and names A to Z first (case-folded, by code point; short names repeat across the
+heatwave definitions, so names tie by code), slopes and significance largest first; other
+ties keep the catalogue's order, and rows without a trend stay last when sorting by the
+slope (a slope sorts by its value in the index's own units). Without JavaScript each header
+is a link to the page sorted by it, the filters and the selected index kept, and the
+rail's form keeps the sort and selection in hidden fields; `results.js` makes the headers
+buttons and sorts in place the same way, `aria-sort` on the sorted column. Every row is
+in the HTML whatever the filters hide, and an index page's "All indices" link returns to
+its row (`#index-<key>`).
+
+**Indices: the detail pane** (`stations/index_detail.py`, `_index_detail.html`). Each
+row's code is a link to `?show=<key>` (the filters and order kept); the server shows that
+index's detail in the pane beside the table, the first row shown by default, and every
+other detail is in the page, hidden (about 80 KB gzipped for the whole page with the
+Sydney sample). With JavaScript the link shows the detail in place, marks the row
+(`is-selected`, the link `aria-current`), keeps `?show=` in the address and announces the
+index's name. The detail: the code and theme ("SU · Heat"), the short name as a heading,
+the definition; a chart drawn on the server (`index_detail.chart`, SVG in a 300 x 170 box,
+about the pane's width so its ticks stay about 11px): the series as a line in the theme's
+hue (or SPI and SPEI as bars from zero; longer series averaged into 129 columns), Sen's
+slope dashed across it (the core's intercept and slope, as the sparkline), the base period
+of the run shown (`views_indices.run_base`, from the job's recorded metadata) as a band
+labelled "base period", and axes: three values (the whole numbers around the data and the
+middle) and three times (the first, the middle and the last). Its text alternative
+(`index_detail.summary`) names the series, its years, the lowest and highest values and
+when, and the slope and interval; the caption says "Annual SU (days), with Sen's slope
+dashed.". Then the slope per decade, its 95% interval, the years (or months) used, "79 of
+80", and the method, "Sen's slope (zyp)"; then the links: "Open full page" (the index's
+page, with the interactive chart, its table view and CSV), the series' CSV and R's PNG,
+and "Monthly values" (the index page's monthly series) where there is one. Side by side
+from a 68rem page: the rail 10rem, the pane 17–26rem (`clamp(17rem, 22%, 26rem)`), both
+sticky under the context bar, the pane scrolling inside itself; from 48rem the rail beside
+the table and the pane under it; narrower, the rail above the table (its themes a wrapping
+row), the detail after it, focus moving to it, with "Back to the list". On a phone (below
+40rem) each row is two lines (code, name, unit and sparkline; then slope, interval,
+significance and mean) and the header a line of the sort buttons, by CSS only.
+
+On the Indices the Inputs panel does not sit beside the section (#236): the context bar's
+Inputs bar shows at every width (`station-page--inputs-bar`), so the rail, table and pane
+have the width; without JavaScript the panel shows above the section, as on a narrow
+page. Closing a sheet opened by an old address puts focus on the first visible link that
+opens it (`js/sheet.js`): the panel's Edit, or on the Indices the settings line's link.
+
+The themes (`Card.theme`, from `stations/themes.py`, the one place the mapping lives;
 Decision C of #171, by the catalogue's short name, so parameterised outputs such as
 `rx3day`, `r30mm`, `wsdi1` and `24month_spi` follow `rxdday`, `rnnmm`, `wsdid` and `spi`):
 
@@ -5267,50 +5312,27 @@ Decision C of #171, by the catalogue's short name, so parameterised outputs such
 | Also measured: Averages | txm, tnm, tmm, txgt50p, dtr | 5 |
 | Also measured: Growing season and degree days | gsl, gddgrown, hddheatn, cddcoldn, tmge5, tmlt5, tmge10, tmlt10 | 8 |
 | Also measured: Your own index | the custom index, with its definition | 1 |
-| Catalogue only | `EHFdaily`, `ECFdaily` (daily values, no trend) | 2 |
+| No theme ("Also measured" in the rail) | `EHFdaily`, `ECFdaily` (daily values, no trend) | 2 |
 
 A test checks that every short name of the core's `climate.indices.csv` is in exactly one
 theme, and that every card of the lat0 run has a theme or is one of the two daily tables.
-The page leads with one paragraph (`themes.summary`): how many indices changed
-significantly since the first year, the mean temperature's (TMm) trend, and which of the
-four themes changed ("22 of 80 indices changed significantly since 1936. Mean temperature
-rose by 0.19 °C per decade. Changed: Heat, Cold. No significant change: Rain, Drought.").
-The paragraph sits in the page's tinted band beside the count ("22 of 80 changed
-significantly"), its first sentence in bold (#200). Each of the four themes then has a
-tile (`components/theme_headline.html`, two a row under "By theme"): a badge
-("9 changed" or "No clear change"), one sentence from its trends (`themes.finding`,
-counting only the indices with a valid trend: "9 of 22 indices increased significantly.",
-"4 of 11 indices changed significantly: 2 increased and 2 decreased.", "No significant
-change across 13 indices."), up to three significant trends, one line each: the plain
-name linked to the index's page, the value with short units ("+1.31 pp/decade", the `pp`
-an `abbr` of percentage points, `Card.trend_units_title`) and the sparkline; and a link
-to the theme's indices in the catalogue (`?theme=heat#catalogue`). A theme with no
-significant trend is a quiet tile (sunken surface, one sentence, no trends): no change is a
-finding. Until #200 "Also measured" gave the other three themes a line each under the
-tiles; they are now the catalogue's "Also measured" chip. Every sentence is a
-template string in the interface language, built from the trends; nothing is written by
-hand for a station.
-
-The three trends of a theme are its largest changes against the index's own variability,
-so that days, °C, mm and % compare: `Card.change` is |Sen's slope per decade| divided by
-the sample standard deviation of the series the card shows (the annual one where there is
-one; monthly for SPI and SPEI), largest first, ties in the catalogue's order. One line
-under the themes explains this ordering where it is used (it replaces #113's single
-"Significant trends" list, which mixed every theme). The ranking is the web app's; R's
-results page has no summary. For the Sydney sample Heat shows TR, TN90p and SU, Cold
-TX10p, TN10p and TNn. The page also lists the
-index tables the core did not write (every value missing, the job's `skipped`) with the
+Until #236 each of the four themes had a tile with a sentence written from its trends and
+its three largest changes against the index's own variability (`Card.change`); the tiles,
+the sentences (`themes.finding`, `themes.summary`) and that ranking are gone: the page
+filters the data rather than narrate it. The page also lists, above the
+rail and table, the index tables the core did not write (every value missing, the job's `skipped`) with the
 likely reason: a variable the file has none of, a base period with too little data for
 the percentiles, or else the missing-data rules. The context bar carries the page's
 two actions (#200, the Results mockup): "Compare with sector data" (secondary) and
 "Download all (zip, *size*)" (primary); without a zip, "All files and the report" (the
-Files page) takes the primary's place. The Files tab beside Results replaces #173's
+Files page) takes the primary's place. The Files tab beside Indices replaces #173's
 secondary link to Files. The labels are short ("Download all", not "Download
 everything", on every page that offers the zip), which keeps the row on one line at
-1280px with wider fonts too (#115). The zip is the page's only download (#176: the
-downloads card that listed the report, the PDF of all plots and the summary files is gone;
-they are on Files). The settings used are the header's one line since #178, replacing
-the "Settings used" card, and are changed in the Inputs panel's sheet since #199. The
+1280px with wider fonts too (#115). The zip is the page's one download of the whole run
+(#176: the downloads card that listed the report, the PDF of all plots and the summary
+files is gone; they are on Files); each index's detail links its own CSV and PNG (#236).
+The settings used are one line since #178, replacing the "Settings used" card, at the
+rail's foot since #236, and are changed in the Inputs panel's sheet since #199. The
 sector comparison's section below the catalogue (#173) is gone: it is the header's
 secondary action again (#200). Building the
 cards reads every table and computes the trends (about 0.9 s for the Sydney run), so the
@@ -5416,7 +5438,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the Files page (#79, #176) |
-| Results: a carousel of the PNGs and a link to the folder or zip | the findings first: one paragraph, a headline per theme (Heat, Cold, Rain, Drought) with its largest significant trends, (#175); every index in one table with trend, significance and sparkline, filtered by theme chip, significance and search and sorted by any column (#200), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | one line that answers, then every index in one dense table with its slope per decade, 95% interval, significance, sparkline and mean, filtered by theme, significance and search and sorted by column (#200, #236), the selected index's chart, statistics and links in a detail pane beside it (#236), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see
@@ -5675,7 +5697,7 @@ holds. An unknown section or topic fails as `help_topic` does. The station pages
 | New station (#201) | `upload.file` (Your file), `load.details` (Station details) |
 | Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, and `load.data` for "Your data" (#198) |
 | Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
-| Results, an index, Files | `results.findings`, `results.catalogue`; `result.index`, `result.anomalies`, `result.trends`; `files.page` |
+| Indices, an index, Files | `results.catalogue`; `result.index`, `result.anomalies`, `result.trends`; `files.page` |
 | Sector | `sector.data`, `sector.plot`, `sector.correlation`, `sector.scatter` |
 | Batch and gridded (fields that had a help link) | `batch.options`, `gridded.task`, `gridded.output`, `gridded.settings`, `gridded.computing` |
 

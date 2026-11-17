@@ -148,8 +148,9 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 - **Theme hues** mark data. Heat, Cold, Rain and Drought each have one hue, and the
   themes under "Also measured" share a neutral. The hue colours the dot of the
   filter rail's theme and of an index's row, the sparklines, the detail pane's chart
-  line and the index page's chart line (a `hue-<theme>` class on the block, from
-  `stations.themes.hue_of`). The theme's name is always beside the hue.
+  line, and the index page's theme pill, chart line and open points, with its running
+  mean a step towards the text colour (`color-mix`, #237) (a `hue-<theme>` class on the
+  block, from `stations.themes.hue_of`). The theme's name is always beside the hue.
 - Hover is a neutral change (the sunken surface, or a thicker underline on links; a link
   takes its hover shade), never a colour of its own.
 
@@ -268,7 +269,11 @@ table with that page.
   workspace instead: its context bar (#227: its name as the h1, the provenance line, the
   page's actions, then the section tabs, Quality, Indices and Files), then the Inputs
   panel and the section's content side by side (the Indices keep the Inputs bar at every
-  width, #236). The h1 is the station name the user
+  width, #236). An index's page (#237) is a drill-down from the Indices instead: its
+  context bar has the breadcrumb (station / Indices) with the previous and next index,
+  the index as the h1 with its theme, its definition and the provenance line, and its
+  files; no tabs and no Inputs panel, and it scrolls away with the page (`flow`), so
+  the chart has the width. The h1 is the station name the user
   gives (the file name until there is one). The context bar stays in view as the page
   scrolls (not in a window under 30rem high); the page's scroll padding keeps a focused
   element out from under it (WCAG 2.4.11). On phones only the tabs and the Inputs bar
@@ -300,8 +305,10 @@ strips, worklist and detail pane.
   Quality's line describes the data the checks read instead (#235, as its board draws
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
   PR TX TN") and the file's name.
-  **Target:** the breadcrumb (workspace / station) with the previous and next station,
-  which the component takes, once stations belong to a workspace (#231, #234); "Edit
+  An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
+  next index, named codes first. **Target:** the workspace in the breadcrumb, and the
+  previous and next station on a station's pages, once stations belong to a workspace
+  (#231, #234); "Edit
   inputs" or "Workspace settings" on the provenance line, which replace the Inputs panel
   (#231, #234); a workspace's own bar, with the station count and deletion date and the
   tabs Overview, Compare an index and Files (#234). The tabs are Quality, Indices (Results
@@ -372,13 +379,15 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
 | `table` (data table) | Component | The framed dense table (#227, `table-wrap--data`, `table--data`): one frame, hairline rows 32px high and one line each, a sticky header on the sunken tint, `num` and `code` cells in mono with tabular figures, the selected row (`aria-current`) in the selected tint with an ink edge, in a keyboard-scrollable region. The plain `.table` (hairline rows, no frame) stays for tables inside a card, a disclosure or a chart until each page moves (Layout) | empty state, selected row |
-| Context bar | Component | Under the header on a station's pages (`components/context_bar.html`, #227): a breadcrumb with the previous and next station (when given), the title, the mono provenance line, the page's actions, the tabs and the Inputs bar under them; across the window and sticky (`js/context-bar.js` keeps the scroll padding to its height). `static` shows it in place on `/patterns/` | breadcrumb, sub-page title (a line, not the h1) |
+| Context bar | Component | Under the header on a station's pages (`components/context_bar.html`, #227): a breadcrumb with the previous and next item (when given; an index named codes first, #237), the title, a lead line (`lead_template`), the mono provenance line, the page's actions, the tabs and the Inputs bar under them; across the window and sticky (`js/context-bar.js` keeps the scroll padding to its height). `title_template` draws a title of its own (an index's name and theme pill); `flow` keeps it in the page's flow, for a page without tabs (an index's); `static` shows it in place on `/patterns/` | breadcrumb, sub-page title (a line, not the h1), own title, flow |
 | `index_name` | Primitive | An index named codes first (#218): the code in mono, without the code background, then the short name, "TXx Hottest day". In a page title the name is a step lighter. The catalogue puts them in two columns, Code then Index | title |
 | `summary_list` | Component | Key–value pairs | — |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. Quality's tab reads like its verdict (#222): "Checking…" (`refresh`) while the checks run, then the verdict strip's level and an icon, Ready `check-circle`, Usable `warning` or Fix first `error`, as a small pill in the status colour on its soft tint, with the count of values that look wrong after a middle dot ("Usable · 21", read as "Usable, 21 values look wrong"); a failed check stays "Needs attention". On a phone (under 40rem) the verdict is its icon on the tint, so the three tabs stay on one line at 320px; the word and count are still read. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
-| `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
+| `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV (Quality's daily charts, the gridded series; the index page draws its own since #237) | — |
+| Segmented control | Primitive | One choice of two or three side by side (`segmented`, #237): links in one strip of `border-strong` edges, the current one ink (`aria-current`), so each works without JavaScript. The index page's Values / Anomaly and Annual / Monthly | — |
+| Index page | Pattern | One index (#237, the Index board; `stations/result.html`, `stations/index_page.py`): the context bar (breadcrumb station / Indices with the previous and next index; the index as the h1 with its theme pill; its definition, unit and R's name, with "About this index" as a quiet help link; the provenance line; CSV, "PNG (R style)" and "Copy citation", a disclosure without JavaScript); then the chart in a frame beside the Trend statistics (Sen's slope, 95% interval, Significant, Years used, Base-period mean, Record; why any year was left out; the method); then the values as a framed data table, scrolling inside its frame (Year, the value with its unit, Anomaly, Rank, the date of the maximum or minimum where the core gives it, Note: Record or why the value was left out), most recent first. The chart is drawn on the server: the base period as a band, round values and years on the axes, the y axis titled with the code and units, Sen's slope's 95% interval as a shaded bow tie through the slope's middle, the values (bars for SPI and SPEI) with gaps, the 11-year running mean, Sen's slope dashed, each value left out an open point at the base-period mean; the segmented controls switch Values / Anomaly in place (`js/index-page.js`) and Annual / Monthly by link. Below 32rem the chart scrolls inside its region | annual, monthly, anomaly, bars (SPI), day of the year (TX95t: no rank or record), daily (EHF, ECF: the ten highest days) |
 | Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a column of pills (All and each theme with its dot and a mono count; the selected pill ink); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the pills in a wrapping row | — |
 | Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long), Unit, Slope / decade ("+1.31 pp" for a percentage), 95% interval, Sig. ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years, Mean. A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by …"). Code, Index, Slope and Sig. sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
 | Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then Slope, 95% interval, Years used and Method ("Sen's slope (zyp)"), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
@@ -394,6 +403,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
+| Index chart | The index page's chart (#237), drawn on the server (`index_page.chart`, `stations/_index_chart.html`) in an 860 x 340 box, both views (values and anomalies) in the page. Its text alternative gives the values and the trend; the table under it is its table view and the CSV is in the context bar. | `chart_frame` for interactive charts |
 | Finding chart | The days around one value in the Quality detail pane (#235), drawn on the server (`qc_review._chart`): a line per variable in its role colour, gaps where values are missing, the day as a band in the selected tint, the value ringed in `--chart-flag` as on the full charts, three value ticks and three date ticks. Its text alternative names the variables and dates; the days-around table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line (at the foot of the Indices' filter rail since #236): the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
@@ -452,8 +462,8 @@ years; sparklines are only for scanning, beside a number given in text.
   ("Days TN < −2 °C"); search finds the code, the short name and R's names. Charts keep
   their own titles and axis labels (`TXx: Annual warmest daily TX`), and output files
   follow R.
-- **Show the statistics** (the Indices since #236; Target: #237). Wherever there is a
-  trend: Sen's slope per decade, its 95% interval, and significant yes or no (the interval
+- **Show the statistics** (the Indices since #236, the index page since #237). Wherever
+  there is a trend: Sen's slope per decade, its 95% interval, and significant yes or no (the interval
   excludes zero). Method and years used on the index page and in the detail pane. Never a
   p-value.
 - **Keep the provenance in view.** Every station page has the provenance line in its
@@ -499,10 +509,9 @@ years; sparklines are only for scanning, beside a number given in text.
   PNG/SVG/CSV. The Indices have the zip, primary in the context bar beside "Compare with
   sector data", the Files tab, and in the detail pane the selected index's CSV and PNG
   (#236, as the Results board draws it); Quality offers its flagged values as one CSV in the
-  verdict strip (#235) and has one link to Files under the worklist; an index page has
-  only its chart's exports. **Target (#239):** Files is the workspace's (each station's
-  files, the all-station CSVs and the provenance file); an index page offers its CSV, its
-  R-style PNG and a citation.
+  verdict strip (#235) and has one link to Files under the worklist; an index page offers
+  its series' CSV, its R-style PNG and a citation (#237). **Target (#239):** Files is the
+  workspace's (each station's files, the all-station CSVs and the provenance file).
 - **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
   its value isn't self-explanatory. Section
@@ -551,7 +560,8 @@ is in the Inputs bar, the file name in the File sheet), then the three tabs on o
 and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
 scroll padding is their height, so focus never goes under them. Sheets fill the screen.
 The Indices' rows are two lines each and their detail comes after the table, Quality's
-detail comes after its list,
+detail comes after its list, an index page's statistics come under its chart, which
+scrolls inside its region below 32rem,
 and the download tables are short blocks. The accessibility tests run every page at
 320px and fail on horizontal page scroll; the phone tests check the station pages at
 320 and 375px for sticky elements covering each other, the Inputs bar's sheets and the

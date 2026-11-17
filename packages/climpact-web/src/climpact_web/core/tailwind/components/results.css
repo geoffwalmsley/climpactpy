@@ -399,10 +399,12 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  /* A long short name ends in an ellipsis rather than widening the table; it is whole
-     in the detail pane and to screen readers. */
+  /* The name takes the width the other columns leave (the cell's zero maximum and full
+     width), so the table fits whatever the fonts; a long name ends in an ellipsis. It is
+     whole in the detail pane and to screen readers. */
   .indices-table__name {
-    max-inline-size: 9rem;
+    inline-size: 100%;
+    max-inline-size: 0;
     overflow: hidden;
     font-size: var(--text-sm);
     text-overflow: ellipsis;

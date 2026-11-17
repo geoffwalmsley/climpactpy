@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 20:29+0000\n"
+"POT-Creation-Date: 2026-11-17 21:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -403,7 +403,7 @@ msgstr[1] ""
 #: gridded/templates/gridded/_progress.html:23
 #: gridded/templates/gridded/_progress.html:25
 #: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
-#: stations/qc_review.py:693 stations/qc_review.py:698
+#: stations/qc_review.py:809 stations/qc_review.py:814
 #: stations/templates/stations/_qc_distributions.html:42
 #: stations/templates/stations/_qc_progress.html:13
 #: stations/templates/stations/_qc_progress.html:15
@@ -970,8 +970,8 @@ msgstr ""
 msgid "Maximum temperature"
 msgstr ""
 
-#: charts/data.py:59 core/views.py:109 stations/qc_review.py:70
-#: stations/qc_review.py:433
+#: charts/data.py:59 core/views.py:109 stations/qc_review.py:73
+#: stations/qc_review.py:504
 #: stations/templates/stations/_qc_missing_table.html:17
 #: stations/templates/stations/_summary.html:38 stations/workspace.py:697
 msgid "TX"
@@ -982,22 +982,22 @@ msgstr ""
 msgid "Minimum temperature"
 msgstr ""
 
-#: charts/data.py:66 core/views.py:110 stations/qc_review.py:70
-#: stations/qc_review.py:433 stations/qc_review.py:1011
+#: charts/data.py:66 core/templates/core/patterns.html:297 core/views.py:110
+#: stations/qc_review.py:73 stations/qc_review.py:504
 #: stations/templates/stations/_qc_missing_table.html:18
 #: stations/templates/stations/_summary.html:39 stations/workspace.py:697
 msgid "TN"
 msgstr ""
 
 #: charts/data.py:72 gridded/forms.py:142 gridded/forms.py:229
-#: help/indices.py:188 stations/qc_review.py:62 stations/sector_plots.py:38
+#: help/indices.py:188 stations/qc_review.py:65 stations/sector_plots.py:38
 #: stations/station_file.py:57
 msgid "Precipitation"
 msgstr ""
 
-#: charts/data.py:73 core/templates/core/patterns.html:301
+#: charts/data.py:73 core/templates/core/patterns.html:296
 #: core/templates/core/patterns.html:302 core/views.py:108
-#: stations/qc_review.py:70 stations/qc_review.py:433
+#: stations/qc_review.py:73 stations/qc_review.py:504
 #: stations/templates/stations/_qc_missing_table.html:16
 #: stations/templates/stations/_summary.html:37 stations/workspace.py:697
 msgid "PR"
@@ -1014,7 +1014,7 @@ msgstr ""
 msgid "Diurnal temperature range"
 msgstr ""
 
-#: charts/data.py:80 stations/qc_review.py:70
+#: charts/data.py:80 stations/qc_review.py:73
 msgid "DTR"
 msgstr ""
 
@@ -1030,7 +1030,7 @@ msgstr ""
 msgid "TN at or above TX"
 msgstr ""
 
-#: charts/data.py:94 charts/data.py:95
+#: charts/data.py:94 charts/data.py:95 stations/qc_review.py:1621
 msgid "Large day-to-day change"
 msgstr ""
 
@@ -1038,7 +1038,7 @@ msgstr ""
 msgid "Repeated values"
 msgstr ""
 
-#: charts/data.py:98 stations/qc_review.py:40
+#: charts/data.py:98 stations/qc_review.py:43
 msgid "Repeated date"
 msgstr ""
 
@@ -1196,11 +1196,11 @@ msgid ""
 "download the CSV."
 msgstr ""
 
-#: charts/templatetags/charts.py:47 core/templates/core/patterns.html:298
-#: core/templates/core/patterns.html:315
-#: stations/templates/stations/_qc_detail.html:37
-#: stations/templates/stations/_qc_review.html:26
-#: stations/templates/stations/_qc_table.html:13
+#: charts/templatetags/charts.py:47 core/templates/core/patterns.html:308
+#: core/templates/core/patterns.html:321
+#: stations/templates/stations/_qc_values.html:21
+#: stations/templates/stations/_qc_values.html:28
+#: stations/templates/stations/_qc_values.html:77
 #: stations/templates/stations/result.html:32
 msgid "Date"
 msgstr ""
@@ -1228,7 +1228,7 @@ msgstr ""
 msgid "Date of the event"
 msgstr ""
 
-#: charts/templatetags/charts.py:52 stations/qc_review.py:557
+#: charts/templatetags/charts.py:52 stations/qc_review.py:638
 msgid "Flagged"
 msgstr ""
 
@@ -1237,8 +1237,8 @@ msgstr ""
 msgid "Trend"
 msgstr ""
 
-#: charts/templatetags/charts.py:54 stations/qc_review.py:233
-#: stations/qc_review.py:431 stations/qc_review.py:1033
+#: charts/templatetags/charts.py:54 stations/qc_review.py:243
+#: stations/qc_review.py:502 stations/qc_review.py:1238
 msgid "missing"
 msgstr ""
 
@@ -1433,7 +1433,7 @@ msgid "pp"
 msgstr ""
 
 #: core/numbers.py:154 core/templates/components/progress.html:6
-#: stations/views.py:427
+#: stations/views.py:425
 #, python-format
 msgid "%(value)s%%"
 msgstr ""
@@ -1635,7 +1635,7 @@ msgid "Next:"
 msgstr ""
 
 #: core/templates/components/context_bar.html:48
-#: core/templates/core/patterns.html:414
+#: core/templates/core/patterns.html:421
 msgid "Page actions"
 msgstr ""
 
@@ -1882,7 +1882,8 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-#: core/templates/core/language_switcher.html:11
+#: core/templates/core/language_switcher.html:11 stations/qc_review.py:675
+#: stations/qc_review.py:1621
 msgid "Change"
 msgstr ""
 
@@ -1968,53 +1969,53 @@ msgstr ""
 msgid "Tables"
 msgstr ""
 
-#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:341
+#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:348
 msgid "File groups"
 msgstr ""
 
-#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:355
+#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:362
 msgid "Tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:361
+#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:368
 msgid "Workspace tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:37 core/templates/core/patterns.html:426
+#: core/templates/core/patterns.html:37 core/templates/core/patterns.html:433
 msgid "Out-of-date results"
 msgstr ""
 
-#: core/templates/core/patterns.html:38 core/templates/core/patterns.html:441
+#: core/templates/core/patterns.html:38 core/templates/core/patterns.html:448
 msgid "Step indicator"
 msgstr ""
 
-#: core/templates/core/patterns.html:39 core/templates/core/patterns.html:452
+#: core/templates/core/patterns.html:39 core/templates/core/patterns.html:459
 #: jobs/templates/jobs/job_detail.html:15
 #: stations/templates/stations/results_progress.html:28
 msgid "Progress"
 msgstr ""
 
-#: core/templates/core/patterns.html:40 core/templates/core/patterns.html:465
+#: core/templates/core/patterns.html:40 core/templates/core/patterns.html:472
 msgid "Loading and empty states"
 msgstr ""
 
-#: core/templates/core/patterns.html:41 core/templates/core/patterns.html:477
+#: core/templates/core/patterns.html:41 core/templates/core/patterns.html:484
 msgid "Help in place"
 msgstr ""
 
-#: core/templates/core/patterns.html:42 core/templates/core/patterns.html:483
+#: core/templates/core/patterns.html:42 core/templates/core/patterns.html:490
 msgid "Section header and help"
 msgstr ""
 
-#: core/templates/core/patterns.html:43 core/templates/core/patterns.html:494
+#: core/templates/core/patterns.html:43 core/templates/core/patterns.html:501
 msgid "One surface level"
 msgstr ""
 
-#: core/templates/core/patterns.html:44 core/templates/core/patterns.html:503
+#: core/templates/core/patterns.html:44 core/templates/core/patterns.html:510
 msgid "Chart frame"
 msgstr ""
 
-#: core/templates/core/patterns.html:45 core/templates/core/patterns.html:510
+#: core/templates/core/patterns.html:45 core/templates/core/patterns.html:517
 msgid "Interactive charts"
 msgstr ""
 
@@ -2374,7 +2375,7 @@ msgstr ""
 
 #: core/templates/core/patterns.html:274
 #: stations/templates/stations/_qc_box_plot.html:14
-#: stations/templates/stations/_qc_review.html:60 stations/views_indices.py:703
+#: stations/templates/stations/_qc_values.html:18 stations/views_indices.py:703
 msgid "Values"
 msgstr ""
 
@@ -2403,12 +2404,13 @@ msgid ""
 "The verdict strip: the level in bold and one sentence, the counts on one "
 "mono line, the decision's buttons at the end. The coverage strip: missing "
 "days per year for each variable in three steps of lightness, with its table "
-"view. Then the worklist (#235): data tables whose rows link to their detail "
-"(?show=), and the detail pane beside them, in view as the list scrolls; "
-"after the list on narrow screens, with Back to the list."
+"view. Then the checks as a rail (#264): each check links to its detail (?"
+"show=), wide beside the rail: its charts, its values table with only the "
+"check's columns, and the selected value with the days around it; after the "
+"rail on narrow screens, with Back to the list."
 msgstr ""
 
-#: core/templates/core/patterns.html:283 stations/qc_review.py:808
+#: core/templates/core/patterns.html:283 stations/qc_review.py:924
 msgid "Usable."
 msgstr ""
 
@@ -2416,16 +2418,16 @@ msgstr ""
 msgid "21 values look wrong; the indices can run with them as they are."
 msgstr ""
 
-#: core/templates/core/patterns.html:285 stations/qc_review.py:818
+#: core/templates/core/patterns.html:285 stations/qc_review.py:934
 msgid "Ready to use."
 msgstr ""
 
 #: core/templates/core/patterns.html:285 help/sections.py:97
-#: stations/qc_review.py:819
+#: stations/qc_review.py:935
 msgid "Nothing looks wrong."
 msgstr ""
 
-#: core/templates/core/patterns.html:287 stations/qc_review.py:787
+#: core/templates/core/patterns.html:287 stations/qc_review.py:903
 msgid "Fix the file first."
 msgstr ""
 
@@ -2434,7 +2436,7 @@ msgstr ""
 msgid "298 values look wrong, 0.34%% of the values checked."
 msgstr ""
 
-#: core/templates/core/patterns.html:289 core/templates/core/patterns.html:487
+#: core/templates/core/patterns.html:289 core/templates/core/patterns.html:494
 #: stations/templates/stations/_qc_coverage.html:9
 msgid "Coverage"
 msgstr ""
@@ -2444,123 +2446,108 @@ msgstr ""
 msgid "every year passes the annual completeness rule"
 msgstr ""
 
-#: core/templates/core/patterns.html:294 core/templates/core/patterns.html:486
-#: help/sections.py:114 stations/templates/stations/_qc_detail.html:47
-#: stations/templates/stations/_qc_review.html:20
+#: core/templates/core/patterns.html:292
+#: stations/templates/stations/_qc_review.html:14
+msgid "Checks"
+msgstr ""
+
+#: core/templates/core/patterns.html:294 core/templates/core/patterns.html:302
+#: core/templates/core/patterns.html:493 help/sections.py:114
+#: stations/templates/stations/_qc_detail.html:17
+#: stations/templates/stations/_qc_review.html:18
 msgid "Look wrong"
 msgstr ""
 
 #: core/templates/core/patterns.html:294
-#: stations/templates/stations/_qc_review.html:20
-msgid "almost always typing errors or swapped columns"
+#: stations/templates/stations/_qc_review.html:19
+msgid "Almost always typing errors or swapped columns"
 msgstr ""
 
-#: core/templates/core/patterns.html:297
-#: stations/templates/stations/_qc_review.html:25
-msgid "Values that look wrong, by check"
-msgstr ""
-
-#: core/templates/core/patterns.html:298
-#: stations/templates/stations/_qc_review.html:26
-#: stations/templates/stations/_qc_review.html:60
-msgid "Var"
-msgstr ""
-
-#: core/templates/core/patterns.html:298
-#: stations/templates/stations/_qc_review.html:26
-msgid "Value"
-msgstr ""
-
-#: core/templates/core/patterns.html:298
-#: stations/templates/stations/_qc_review.html:26
-#: stations/templates/stations/_qc_review.html:60
-#: stations/templates/stations/downloads.html:87
-msgid "Check"
-msgstr ""
-
-#: core/templates/core/patterns.html:298
-#: stations/templates/stations/_qc_review.html:26
-msgid "Detail"
-msgstr ""
-
-#: core/templates/core/patterns.html:300 core/templates/core/patterns.html:301
-#: core/templates/core/patterns.html:302 core/templates/core/patterns.html:310
-#: stations/downloads.py:110 stations/qc_review.py:39
+#: core/templates/core/patterns.html:296 core/templates/core/patterns.html:303
+#: core/templates/core/patterns.html:316 stations/downloads.py:110
+#: stations/qc_review.py:42
 msgid "Out of range"
 msgstr ""
 
-#: core/templates/core/patterns.html:308
-#: stations/templates/stations/_qc_review.html:77
-msgid "Selected value"
+#: core/templates/core/patterns.html:297 stations/qc_review.py:41
+msgid "TN ≥ TX"
 msgstr ""
 
-#: core/templates/core/patterns.html:311
-msgid "PR 327.6 mm, over the 200 mm limit"
+#: core/templates/core/patterns.html:302
+msgid "2 rows"
 msgstr ""
 
-#: core/templates/core/patterns.html:314
-msgid "Days around 1986-08-06"
+#: core/templates/core/patterns.html:307
+msgid "Out of range: values 1 to 2 of 2, largest first"
 msgstr ""
 
-#: core/templates/core/patterns.html:315
-#: stations/templates/stations/_qc_detail.html:37
+#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: stations/templates/stations/_qc_values.html:77
 msgid "PR mm"
 msgstr ""
 
-#: core/templates/core/patterns.html:315
-#: stations/templates/stations/_qc_detail.html:37
+#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: stations/templates/stations/_qc_values.html:77
 msgid "TX °C"
 msgstr ""
 
-#: core/templates/core/patterns.html:315
-#: stations/templates/stations/_qc_detail.html:37
+#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: stations/templates/stations/_qc_values.html:77
 msgid "TN °C"
 msgstr ""
 
-#: core/templates/core/patterns.html:323
+#: core/templates/core/patterns.html:317
+msgid "PR 327.6 mm, over the 200 mm limit"
+msgstr ""
+
+#: core/templates/core/patterns.html:320
+msgid "Days around 1986-08-06"
+msgstr ""
+
+#: core/templates/core/patterns.html:329
 msgid "Line 18,481 in the file"
 msgstr ""
 
-#: core/templates/core/patterns.html:331
+#: core/templates/core/patterns.html:338
 msgid "Data table"
 msgstr ""
 
-#: core/templates/core/patterns.html:332
+#: core/templates/core/patterns.html:339
 msgid ""
 "One framed object: rows 32px high, one line each, a header on the sunken "
 "tint that stays in view, numbers and codes in mono with tabular figures, and "
 "the selected row in the selected tint with an ink edge."
 msgstr ""
 
-#: core/templates/core/patterns.html:333
+#: core/templates/core/patterns.html:340
 msgid "Annual indices, Sydney Observatory Hill"
 msgstr ""
 
-#: core/templates/core/patterns.html:333
+#: core/templates/core/patterns.html:340
 msgid "Empty table"
 msgstr ""
 
-#: core/templates/core/patterns.html:333
+#: core/templates/core/patterns.html:340
 msgid "No index values for this period."
 msgstr ""
 
-#: core/templates/core/patterns.html:342
+#: core/templates/core/patterns.html:349
 msgid ""
 "Files are offered in one place, the Files page. A long group is a closed "
 "disclosure whose summary gives the count and the total size; it opens to a "
 "table with one small download button per file, each with its format and size."
 msgstr ""
 
-#: core/templates/core/patterns.html:344 core/templates/core/patterns.html:345
+#: core/templates/core/patterns.html:351 core/templates/core/patterns.html:352
 #: stations/sector_plots.py:38
 msgid "Temperature"
 msgstr ""
 
-#: core/templates/core/patterns.html:344
+#: core/templates/core/patterns.html:351
 msgid "2 indices, 21 KB"
 msgstr ""
 
-#: core/templates/core/patterns.html:347 core/views.py:419
+#: core/templates/core/patterns.html:354 core/views.py:419
 #: gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
@@ -2568,21 +2555,22 @@ msgstr ""
 msgid "Index"
 msgstr ""
 
-#: core/templates/core/patterns.html:347 core/views.py:71
+#: core/templates/core/patterns.html:354 core/views.py:71
+#: stations/templates/stations/_qc_detail.html:41
 #: stations/templates/stations/downloads.html:130
 msgid "Table"
 msgstr ""
 
-#: core/templates/core/patterns.html:347
+#: core/templates/core/patterns.html:354
 #: stations/templates/stations/downloads.html:130
 msgid "Plot"
 msgstr ""
 
-#: core/templates/core/patterns.html:356
+#: core/templates/core/patterns.html:363
 msgid "Index views"
 msgstr ""
 
-#: core/templates/core/patterns.html:362
+#: core/templates/core/patterns.html:369
 msgid ""
 "A station's sections, under its name. Each tab is a page of its own, so they "
 "are links, not an ARIA tablist. Each has a status: an icon of its own shape "
@@ -2590,26 +2578,26 @@ msgid ""
 "link."
 msgstr ""
 
-#: core/templates/core/patterns.html:364
+#: core/templates/core/patterns.html:371
 msgid "Example: every status"
 msgstr ""
 
-#: core/templates/core/patterns.html:366
+#: core/templates/core/patterns.html:373
 msgid "Example: the first visit"
 msgstr ""
 
-#: core/templates/core/patterns.html:368
+#: core/templates/core/patterns.html:375
 msgid ""
 "Quality's tab shows the verdict of the checks: Checking… while they run, "
 "then Ready, Usable or Fix first in the verdict's colour, with the number of "
 "values that look wrong."
 msgstr ""
 
-#: core/templates/core/patterns.html:376
+#: core/templates/core/patterns.html:383
 msgid "Inputs panel and side sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:377
+#: core/templates/core/patterns.html:384
 msgid ""
 "Everything the user gave, beside a station's sections, each with one link to "
 "change it. An input changed since the results shown is tinted and says so, "
@@ -2622,30 +2610,30 @@ msgid ""
 "Without JavaScript Edit is a page with the same form."
 msgstr ""
 
-#: core/templates/core/patterns.html:382 core/views.py:472
+#: core/templates/core/patterns.html:389 core/views.py:472
 #: stations/templates/stations/results.html:39 stations/workspace.py:909
 msgid "Recalculating"
 msgstr ""
 
-#: core/templates/core/patterns.html:383
+#: core/templates/core/patterns.html:390
 #: stations/templates/stations/_input_runs.html:13
 #, python-format
 msgid "%(percent)s%% done"
 msgstr ""
 
-#: core/templates/core/patterns.html:389
+#: core/templates/core/patterns.html:396
 msgid "Open the sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:391
+#: core/templates/core/patterns.html:398
 msgid "Open the long sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:399
+#: core/templates/core/patterns.html:406
 msgid "Context bar"
 msgstr ""
 
-#: core/templates/core/patterns.html:400
+#: core/templates/core/patterns.html:407
 msgid ""
 "Under the header on every workspace and station page: the breadcrumb with "
 "the previous and next station, the title, one mono line of provenance, the "
@@ -2653,19 +2641,19 @@ msgid ""
 "stays in view as the page scrolls."
 msgstr ""
 
-#: core/templates/core/patterns.html:402 core/templates/core/patterns.html:412
+#: core/templates/core/patterns.html:409 core/templates/core/patterns.html:419
 msgid "Sydney Observatory Hill"
 msgstr ""
 
-#: core/templates/core/patterns.html:402
+#: core/templates/core/patterns.html:409
 msgid "Example: the context bar's tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:408
+#: core/templates/core/patterns.html:415
 msgid "Phone header: ⋯ menu and Inputs bar"
 msgstr ""
 
-#: core/templates/core/patterns.html:409
+#: core/templates/core/patterns.html:416
 msgid ""
 "On a phone the station's name and a ⋯ menu share one line, and the page's "
 "actions are in the menu: a disclosure, so Enter opens it, Tab goes through "
@@ -2676,17 +2664,17 @@ msgid ""
 "and the bar stay in view as the page scrolls."
 msgstr ""
 
-#: core/templates/core/patterns.html:416 stations/models.py:68
+#: core/templates/core/patterns.html:423 stations/models.py:68
 #: stations/templates/stations/_results_actions.html:6
 #: stations/templates/stations/sector.html:14
 msgid "Compare with sector data"
 msgstr ""
 
-#: core/templates/core/patterns.html:417
+#: core/templates/core/patterns.html:424
 msgid "Download all (zip, 8.0 MB)"
 msgstr ""
 
-#: core/templates/core/patterns.html:427
+#: core/templates/core/patterns.html:434
 msgid ""
 "After the user changes an input, the results stay on the page under this "
 "banner until new ones replace them. It says what changed and what happens "
@@ -2695,99 +2683,99 @@ msgid ""
 "them, and their sparklines and charts are greyed."
 msgstr ""
 
-#: core/templates/core/patterns.html:429
+#: core/templates/core/patterns.html:436
 #: stations/templates/stations/results.html:34
 msgid "Results are out of date"
 msgstr ""
 
-#: core/templates/core/patterns.html:429
+#: core/templates/core/patterns.html:436
 #: stations/templates/stations/results.html:34
 msgid ""
 "The results below are from before the change. Recalculate to bring them up "
 "to date."
 msgstr ""
 
-#: core/templates/core/patterns.html:429
+#: core/templates/core/patterns.html:436
 #: stations/templates/stations/_recalculate_form.html:10
 msgid "Recalculate"
 msgstr ""
 
-#: core/templates/core/patterns.html:431
+#: core/templates/core/patterns.html:438
 #: stations/templates/stations/results.html:28
 msgid "Results are out of date. Recalculating"
 msgstr ""
 
-#: core/templates/core/patterns.html:431
+#: core/templates/core/patterns.html:438
 msgid "The new results replace them when they are ready."
 msgstr ""
 
-#: core/templates/core/patterns.html:434
+#: core/templates/core/patterns.html:441
 msgid "22 of 80 indices changed significantly since 1936."
 msgstr ""
 
-#: core/templates/core/patterns.html:442
+#: core/templates/core/patterns.html:449
 msgid ""
 "Shown under the header during the batch and gridded flows. Completed steps "
 "link back. On a narrow screen only the current step is named. The single "
 "station uses workspace tabs instead."
 msgstr ""
 
-#: core/templates/core/patterns.html:444
+#: core/templates/core/patterns.html:451
 msgid "Example: the first step"
 msgstr ""
 
-#: core/templates/core/patterns.html:444
+#: core/templates/core/patterns.html:451
 msgid "Example: a middle step"
 msgstr ""
 
-#: core/templates/core/patterns.html:444
+#: core/templates/core/patterns.html:451
 msgid "Example: the last step"
 msgstr ""
 
-#: core/templates/core/patterns.html:453 jobs/stages.py:16
+#: core/templates/core/patterns.html:460 jobs/stages.py:16
 #: stations/workspace.py:909
 msgid "Calculating the indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:453
+#: core/templates/core/patterns.html:460
 msgid "Thresholds: about 20 seconds left"
 msgstr ""
 
-#: core/templates/core/patterns.html:453
+#: core/templates/core/patterns.html:460
 msgid "Waiting for a worker"
 msgstr ""
 
-#: core/templates/core/patterns.html:453
+#: core/templates/core/patterns.html:460
 msgid "Your run is next in the queue."
 msgstr ""
 
-#: core/templates/core/patterns.html:453
+#: core/templates/core/patterns.html:460
 msgid "Run stages"
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:473
 msgid "No runs yet"
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:473
 msgid "Runs you start appear here while they are kept."
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:473
 msgid "Start a run"
 msgstr ""
 
-#: core/templates/core/patterns.html:478
+#: core/templates/core/patterns.html:485
 msgid "What is a base period?"
 msgstr ""
 
-#: core/templates/core/patterns.html:478
+#: core/templates/core/patterns.html:485
 msgid ""
 "The years used to calculate percentile thresholds, usually 1961 to 1990 or "
 "1981 to 2010. The station needs enough data in those years."
 msgstr ""
 
-#: core/templates/core/patterns.html:484
+#: core/templates/core/patterns.html:491
 msgid ""
 "A section header is the section's title, an optional muted note, then a Help "
 "button at the end of the row, in the same place on every section. The button "
@@ -2799,23 +2787,23 @@ msgid ""
 "of its own."
 msgstr ""
 
-#: core/templates/core/patterns.html:486
+#: core/templates/core/patterns.html:493
 msgid "Almost always typing errors or swapped columns."
 msgstr ""
 
-#: core/templates/core/patterns.html:487 help/topics.py:266
+#: core/templates/core/patterns.html:494 help/topics.py:266
 msgid "Missing days per year"
 msgstr ""
 
-#: core/templates/core/patterns.html:487
+#: core/templates/core/patterns.html:494
 msgid "How to read this"
 msgstr ""
 
-#: core/templates/core/patterns.html:488 help/sections.py:120
+#: core/templates/core/patterns.html:495 help/sections.py:120
 msgid "Missing data"
 msgstr ""
 
-#: core/templates/core/patterns.html:490
+#: core/templates/core/patterns.html:497
 msgid ""
 "At most one per section, and none on sections that explain themselves. "
 "Fields have no help link of their own. They keep a short hint only when "
@@ -2823,20 +2811,20 @@ msgid ""
 "guide to the page shown."
 msgstr ""
 
-#: core/templates/core/patterns.html:495
+#: core/templates/core/patterns.html:502
 msgid ""
 "Sections sit on the page, separated by space and a heading, not by cards. A "
 "box marks only one object, such as a chart, a detail pane or a data table. "
 "Tables inside a card have hairline rows and no frame."
 msgstr ""
 
-#: core/templates/core/patterns.html:497
+#: core/templates/core/patterns.html:504
 #: stations/templates/stations/_inputs.html:16
 #: stations/templates/stations/_inputs.html:24
 msgid "Your inputs"
 msgstr ""
 
-#: core/templates/core/patterns.html:499
+#: core/templates/core/patterns.html:506
 msgid ""
 "A station's workspace header, with its name, the file and years, the page's "
 "actions and the section tabs, stays in view as the page scrolls on screens "
@@ -2844,25 +2832,25 @@ msgid ""
 "from under it."
 msgstr ""
 
-#: core/templates/core/patterns.html:504
+#: core/templates/core/patterns.html:511
 msgid ""
 "The chart scripts (#75) draw into the plot area; until then it shows a "
 "placeholder. Every chart has a text summary, a legend, a table view and a "
 "CSV download."
 msgstr ""
 
-#: core/templates/core/patterns.html:505
+#: core/templates/core/patterns.html:512
 msgid "TXx, hottest day of the year"
 msgstr ""
 
-#: core/templates/core/patterns.html:505
+#: core/templates/core/patterns.html:512
 #, python-format
 msgid ""
 "Rising by 0.21 °C per decade since 1936 (significant at 5%%). Highest 45.8 "
 "°C in 2013."
 msgstr ""
 
-#: core/templates/core/patterns.html:511
+#: core/templates/core/patterns.html:518
 msgid ""
 "The chart frame with a data URL: charts.js draws it with uPlot when it "
 "scrolls into view. Drag across the plot to zoom, double-click to show all; "
@@ -2870,19 +2858,19 @@ msgid ""
 "SVG save the current view. The data are the Sydney sample and its run."
 msgstr ""
 
-#: core/templates/core/patterns.html:513
+#: core/templates/core/patterns.html:520
 msgid "Daily series with quality-check flags"
 msgstr ""
 
-#: core/templates/core/patterns.html:516
+#: core/templates/core/patterns.html:523
 msgid "TXx, annual, with the trend"
 msgstr ""
 
-#: core/templates/core/patterns.html:519
+#: core/templates/core/patterns.html:526
 msgid "TXx, monthly"
 msgstr ""
 
-#: core/templates/core/patterns.html:522
+#: core/templates/core/patterns.html:529
 msgid "SPI, 3 months, as bars"
 msgstr ""
 
@@ -3341,7 +3329,7 @@ msgstr ""
 msgid "Enter %(max)s or less."
 msgstr ""
 
-#: gridded/forms.py:221 stations/qc_plots.py:217 stations/qc_review.py:63
+#: gridded/forms.py:221 stations/qc_plots.py:217 stations/qc_review.py:66
 msgid "Maximum temperature (TX)"
 msgstr ""
 
@@ -3350,7 +3338,7 @@ msgstr ""
 msgid "Choose the variable."
 msgstr ""
 
-#: gridded/forms.py:225 stations/qc_plots.py:218 stations/qc_review.py:64
+#: gridded/forms.py:225 stations/qc_plots.py:218 stations/qc_review.py:67
 msgid "Minimum temperature (TN)"
 msgstr ""
 
@@ -5212,7 +5200,6 @@ msgstr ""
 
 #: help/sections.py:152 stations/templates/stations/_qc_distributions.html:11
 #: stations/templates/stations/_qc_distributions.html:18
-#: stations/templates/stations/_qc_review.html:60
 msgid "By month"
 msgstr ""
 
@@ -5521,7 +5508,6 @@ msgid "No thanks"
 msgstr ""
 
 #: help/templates/help/_tour.html:15 help/templates/help/guide.html:32
-#: stations/templates/stations/_qc_table.html:32
 msgid "Next"
 msgstr ""
 
@@ -5551,7 +5537,6 @@ msgid "Other guides"
 msgstr ""
 
 #: help/templates/help/guide.html:31
-#: stations/templates/stations/_qc_table.html:30
 msgid "Previous"
 msgstr ""
 
@@ -5807,7 +5792,7 @@ msgid ""
 "tables and trend file are written either way."
 msgstr ""
 
-#: help/topics.py:183 stations/downloads.py:112 stations/qc_review.py:41
+#: help/topics.py:183 stations/downloads.py:112 stations/qc_review.py:44
 msgid "Outliers"
 msgstr ""
 
@@ -5864,7 +5849,7 @@ msgstr ""
 msgid "Which of the repeated rows is used?"
 msgstr ""
 
-#: help/topics.py:228 stations/qc_review.py:42
+#: help/topics.py:228 stations/qc_review.py:45
 msgid "Jumps in maximum temperature"
 msgstr ""
 
@@ -5878,7 +5863,7 @@ msgstr ""
 msgid "What counts as a jump?"
 msgstr ""
 
-#: help/topics.py:236 stations/qc_review.py:43
+#: help/topics.py:236 stations/qc_review.py:46
 msgid "Jumps in minimum temperature"
 msgstr ""
 
@@ -5888,7 +5873,7 @@ msgid ""
 "before."
 msgstr ""
 
-#: help/topics.py:244 stations/qc_review.py:44
+#: help/topics.py:244 stations/qc_review.py:47
 msgid "Repeated maximum temperatures"
 msgstr ""
 
@@ -5902,7 +5887,7 @@ msgstr ""
 msgid "How many repeats are flagged?"
 msgstr ""
 
-#: help/topics.py:255 stations/qc_review.py:45
+#: help/topics.py:255 stations/qc_review.py:48
 msgid "Repeated minimum temperatures"
 msgstr ""
 
@@ -7147,7 +7132,7 @@ msgstr[1] ""
 msgid "Precipitation, days with rain"
 msgstr ""
 
-#: stations/qc_plots.py:219 stations/qc_review.py:65
+#: stations/qc_plots.py:219 stations/qc_review.py:68
 msgid "Diurnal temperature range (DTR)"
 msgstr ""
 
@@ -7222,7 +7207,7 @@ msgstr ""
 msgid "Days by amount of precipitation (1 mm or more)"
 msgstr ""
 
-#: stations/qc_plots.py:336 stations/qc_review.py:376
+#: stations/qc_plots.py:336 stations/qc_review.py:395 stations/qc_review.py:415
 #, python-format
 msgid "%(low)s to %(high)s"
 msgstr ""
@@ -7231,50 +7216,46 @@ msgstr ""
 msgid "over 40"
 msgstr ""
 
-#: stations/qc_review.py:38
-msgid "TN ≥ TX"
-msgstr ""
-
-#: stations/qc_review.py:367
+#: stations/qc_review.py:386
 #, python-format
 msgid "%(variable)s, high"
 msgstr ""
 
-#: stations/qc_review.py:367
+#: stations/qc_review.py:386
 #, python-format
 msgid "%(variable)s, low"
 msgstr ""
 
-#: stations/qc_review.py:374
+#: stations/qc_review.py:393
 #, python-format
 msgid "up to %(high)s"
 msgstr ""
 
-#: stations/qc_review.py:490 stations/sector_file.py:216
+#: stations/qc_review.py:569 stations/sector_file.py:216
 #: stations/templates/stations/_summary.html:13
 #, python-format
 msgid "%(first)s to %(last)s"
 msgstr ""
 
-#: stations/qc_review.py:504
+#: stations/qc_review.py:585
 msgid ""
 "Days where the minimum temperature is equal to or higher than the maximum."
 msgstr ""
 
-#: stations/qc_review.py:506
+#: stations/qc_review.py:587
 #, python-format
 msgid ""
 "Precipitation above %(prec)s or below %(zero)s, and temperatures above "
 "%(high)s or below %(low)s."
 msgstr ""
 
-#: stations/qc_review.py:516
+#: stations/qc_review.py:597
 msgid ""
 "Dates given on more than one row of the file. The indices use the last row "
 "of each date."
 msgstr ""
 
-#: stations/qc_review.py:520
+#: stations/qc_review.py:601
 #, python-format
 msgid ""
 "Values outside the usual range for their calendar month: more than %(temp)s "
@@ -7282,143 +7263,181 @@ msgid ""
 "more than %(prec)s for precipitation (days with rain only)."
 msgstr ""
 
-#: stations/qc_review.py:526
+#: stations/qc_review.py:607
 #, python-format
 msgid ""
 "Days where the maximum temperature changes by %(jump)s or more to the next "
 "day. The date is the first of the two days."
 msgstr ""
 
-#: stations/qc_review.py:531
+#: stations/qc_review.py:612
 #, python-format
 msgid ""
 "Days where the minimum temperature changes by %(jump)s or more to the next "
 "day. The date is the first of the two days."
 msgstr ""
 
-#: stations/qc_review.py:536
+#: stations/qc_review.py:617
 #, python-format
 msgid ""
 "The same maximum temperature on more than %(days)s days in a row. The date "
 "is the second-last day of the run."
 msgstr ""
 
-#: stations/qc_review.py:541
+#: stations/qc_review.py:622
 #, python-format
 msgid ""
 "The same minimum temperature on more than %(days)s days in a row. The date "
 "is the second-last day of the run."
 msgstr ""
 
-#: stations/qc_review.py:551
+#: stations/qc_review.py:632
 msgid "PR (mm)"
 msgstr ""
 
-#: stations/qc_review.py:551 stations/qc_review.py:568
+#: stations/qc_review.py:632 stations/qc_review.py:649
 msgid "TX (°C)"
 msgstr ""
 
-#: stations/qc_review.py:551 stations/qc_review.py:569
+#: stations/qc_review.py:632 stations/qc_review.py:650
 msgid "TN (°C)"
 msgstr ""
 
-#: stations/qc_review.py:553
+#: stations/qc_review.py:634
 msgid "TX − TN (°C)"
 msgstr ""
 
-#: stations/qc_review.py:555
+#: stations/qc_review.py:636 stations/qc_review.py:672
+#: stations/qc_review.py:1572
 msgid "Rows"
 msgstr ""
 
-#: stations/qc_review.py:555
+#: stations/qc_review.py:636
 msgid "Values on each row, in file order"
 msgstr ""
 
-#: stations/qc_review.py:557
+#: stations/qc_review.py:638
 msgid "DTR (°C)"
 msgstr ""
 
-#: stations/qc_review.py:557
+#: stations/qc_review.py:638
 msgid "Usual range for the month"
 msgstr ""
 
-#: stations/qc_review.py:561
+#: stations/qc_review.py:642
 msgid "TX that day"
 msgstr ""
 
-#: stations/qc_review.py:561
+#: stations/qc_review.py:642
 msgid "TX next day"
 msgstr ""
 
-#: stations/qc_review.py:561 stations/qc_review.py:565
+#: stations/qc_review.py:642 stations/qc_review.py:646
+#: stations/qc_review.py:675
 msgid "Next day"
 msgstr ""
 
-#: stations/qc_review.py:561 stations/qc_review.py:565
+#: stations/qc_review.py:642 stations/qc_review.py:646
 msgid "Change (°C)"
 msgstr ""
 
-#: stations/qc_review.py:565
+#: stations/qc_review.py:646
 msgid "TN that day"
 msgstr ""
 
-#: stations/qc_review.py:565
+#: stations/qc_review.py:646
 msgid "TN next day"
 msgstr ""
 
-#: stations/qc_review.py:568 stations/qc_review.py:569
+#: stations/qc_review.py:649 stations/qc_review.py:650
 msgid "Equal values"
 msgstr ""
 
-#: stations/qc_review.py:568 stations/qc_review.py:569
+#: stations/qc_review.py:649 stations/qc_review.py:650
 #: stations/templates/stations/_qc_distributions.html:41
 #: stations/templates/stations/_qc_distributions.html:63
 msgid "Days"
 msgstr ""
 
-#: stations/qc_review.py:696
+#: stations/qc_review.py:668 stations/qc_review.py:1561
+msgid "TN − TX"
+msgstr ""
+
+#: stations/qc_review.py:672
+msgid "Lines in the file"
+msgstr ""
+
+#: stations/qc_review.py:678 stations/qc_review.py:1628
+msgid "Days in a row"
+msgstr ""
+
+#: stations/qc_review.py:678
+msgid "From"
+msgstr ""
+
+#: stations/qc_review.py:681
+msgid "Over by"
+msgstr ""
+
+#: stations/qc_review.py:681
+msgid "Under by"
+msgstr ""
+
+#: stations/qc_review.py:682
+msgid "Month's limit"
+msgstr ""
+
+#: stations/qc_review.py:685
+msgid "Usual range"
+msgstr ""
+
+#: stations/qc_review.py:686
+msgid "Beyond by"
+msgstr ""
+
+#: stations/qc_review.py:812
 msgid "under 0.01%"
 msgstr ""
 
-#: stations/qc_review.py:768
+#: stations/qc_review.py:884
 #, python-format
 msgid "%(n)s value checked"
 msgid_plural "%(n)s values checked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:770
+#: stations/qc_review.py:886
 #, python-format
 msgid "%(n)s looks wrong (%(percent)s)"
 msgid_plural "%(n)s look wrong (%(percent)s)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:772
+#: stations/qc_review.py:888
 #, python-format
 msgid "%(n)s worth a look"
 msgstr ""
 
-#: stations/qc_review.py:773
+#: stations/qc_review.py:889
 #, python-format
 msgid "%(n)s missing (%(percent)s)"
 msgstr ""
 
-#: stations/qc_review.py:779
+#: stations/qc_review.py:895
 #, python-format
 msgid "%(n)s of %(total)s years too incomplete for annual values"
 msgid_plural "%(n)s of %(total)s years too incomplete for annual values"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:792
+#: stations/qc_review.py:908
 #, python-format
 msgid "%(n)s value looks wrong, %(percent)s of the values checked."
 msgid_plural "%(n)s values look wrong, %(percent)s of the values checked."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:801
+#: stations/qc_review.py:917
 #, python-format
 msgid "%(n)s of %(total)s years has too much missing data for annual values."
 msgid_plural ""
@@ -7426,7 +7445,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:811
+#: stations/qc_review.py:927
 #, python-format
 msgid "%(n)s value looks wrong; the indices can run with it as it is."
 msgid_plural ""
@@ -7434,147 +7453,232 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:880
+#: stations/qc_review.py:997
 #, python-format
 msgid "%(variables)s, daily, %(first)s to %(last)s"
 msgstr ""
 
-#: stations/qc_review.py:891
+#: stations/qc_review.py:1003
+#, python-format
+msgid ", with the limit of %(limit)s"
+msgstr ""
+
+#: stations/qc_review.py:1011
 #, python-format
 msgid "%(month)s, daily"
 msgstr ""
 
-#: stations/qc_review.py:899
+#: stations/qc_review.py:1019
 #, python-format
 msgid "Line %(lines)s in the file"
 msgid_plural "Lines %(lines)s in the file"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:976
+#: stations/qc_review.py:1155
 #, python-format
 msgid "%(variable)s %(value)s, below %(limit)s"
 msgstr ""
 
-#: stations/qc_review.py:978 stations/qc_review.py:983
+#: stations/qc_review.py:1157 stations/qc_review.py:1162
 #, python-format
 msgid "%(variable)s %(value)s, over the %(limit)s limit"
 msgstr ""
 
-#: stations/qc_review.py:985
+#: stations/qc_review.py:1164
 #, python-format
 msgid "%(variable)s %(value)s, under the %(limit)s limit"
 msgstr ""
 
-#: stations/qc_review.py:1008
+#: stations/qc_review.py:1189
 #, python-format
 msgid "TN %(tn)s equals TX %(tx)s"
 msgstr ""
 
-#: stations/qc_review.py:1010
+#: stations/qc_review.py:1190
 #, python-format
 msgid "TN %(tn)s is above TX %(tx)s"
 msgstr ""
 
-#: stations/qc_review.py:1011
-#, python-format
-msgid "TX %(tx)s"
-msgstr ""
-
-#: stations/qc_review.py:1018
-#, python-format
-msgid "limit %(limit)s"
-msgstr ""
-
-#: stations/qc_review.py:1022
+#: stations/qc_review.py:1196
 #, python-format
 msgid "Given on %(n)s row of the file. The indices use the last."
 msgid_plural "Given on %(n)s rows of the file. The indices use the last."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:1026 stations/templates/stations/_qc_detail.html:47
+#: stations/qc_review.py:1211
 #, python-format
-msgid "%(n)s row"
-msgid_plural "%(n)s rows"
-msgstr[0] ""
-msgstr[1] ""
-
-#: stations/qc_review.py:1027
-msgid "all"
+msgid "%(variable)s %(value)s, %(by)s over the limit for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1027
-msgid "indices use the last"
-msgstr ""
-
-#: stations/qc_review.py:1091
-msgid "Heavy rain days"
-msgstr ""
-
-#: stations/qc_review.py:1092
-msgid "Light rain days"
-msgstr ""
-
-#: stations/qc_review.py:1093
-msgid "High maximum"
-msgstr ""
-
-#: stations/qc_review.py:1094
-msgid "Low maximum"
-msgstr ""
-
-#: stations/qc_review.py:1095
-msgid "High minimum"
-msgstr ""
-
-#: stations/qc_review.py:1096
-msgid "Low minimum"
-msgstr ""
-
-#: stations/qc_review.py:1097
-msgid "Wide daily range"
-msgstr ""
-
-#: stations/qc_review.py:1098
-msgid "Narrow daily range"
-msgstr ""
-
-#: stations/qc_review.py:1145
+#: stations/qc_review.py:1212
 #, python-format
-msgid "%(first)s and %(last)s"
+msgid "%(variable)s %(value)s, %(by)s under the limit for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1166
-msgid "All year"
-msgstr ""
-
-#: stations/qc_review.py:1169
+#: stations/qc_review.py:1214
 #, python-format
-msgid "All in %(months)s"
-msgstr ""
-
-#: stations/qc_review.py:1170
-#, python-format
-msgid "Mostly %(months)s"
+msgid "%(variable)s %(value)s, %(by)s above the usual range for %(month)s"
 msgstr ""
 
 #: stations/qc_review.py:1215
 #, python-format
-msgid "Large day-to-day change ≥ %(jump)s"
+msgid "%(variable)s %(value)s, %(by)s below the usual range for %(month)s"
 msgstr ""
 
 #: stations/qc_review.py:1218
 #, python-format
+msgid ""
+"%(variable)s %(value)s, then %(next)s the next day: a change of %(change)s"
+msgstr ""
+
+#: stations/qc_review.py:1231
+#, python-format
+msgid "%(variable)s %(value)s on %(n)s days in a row"
+msgstr ""
+
+#: stations/qc_review.py:1232
+#, python-format
+msgid "%(variable)s %(value)s on %(n)s days in a row, from %(first)s"
+msgstr ""
+
+#: stations/qc_review.py:1271
+#, python-format
+msgid "Line %(line)s: %(values)s"
+msgstr ""
+
+#: stations/qc_review.py:1379
+msgid "Heavy rain days"
+msgstr ""
+
+#: stations/qc_review.py:1380
+msgid "Light rain days"
+msgstr ""
+
+#: stations/qc_review.py:1381
+msgid "High maximum"
+msgstr ""
+
+#: stations/qc_review.py:1382
+msgid "Low maximum"
+msgstr ""
+
+#: stations/qc_review.py:1383
+msgid "High minimum"
+msgstr ""
+
+#: stations/qc_review.py:1384
+msgid "Low minimum"
+msgstr ""
+
+#: stations/qc_review.py:1385
+msgid "Wide daily range"
+msgstr ""
+
+#: stations/qc_review.py:1386
+msgid "Narrow daily range"
+msgstr ""
+
+#: stations/qc_review.py:1446
+#, python-format
+msgid "%(first)s and %(last)s"
+msgstr ""
+
+#: stations/qc_review.py:1467
+msgid "All year"
+msgstr ""
+
+#: stations/qc_review.py:1470
+#, python-format
+msgid "All in %(months)s"
+msgstr ""
+
+#: stations/qc_review.py:1471
+#, python-format
+msgid "Mostly %(months)s"
+msgstr ""
+
+#: stations/qc_review.py:1479
+msgid ""
+"The minimum is at or above the maximum of the same day. This is almost "
+"always swapped columns or a typing error; a run of days suggests columns "
+"swapped for a stretch."
+msgstr ""
+
+#: stations/qc_review.py:1484
+msgid "These are almost always typing errors or missing-value codes."
+msgstr ""
+
+#: stations/qc_review.py:1488
+msgid ""
+"Dates given on more than one row of the file; the indices use the last row "
+"of each. Keep the right row and remove the others."
+msgstr ""
+
+#: stations/qc_review.py:1493
+msgid ""
+"Look first at the largest: a day out of line with both its neighbours is "
+"usually a typing error."
+msgstr ""
+
+#: stations/qc_review.py:1498
+msgid "Long runs of one value are often missing data filled in."
+msgstr ""
+
+#: stations/qc_review.py:1505
+#, python-format
+msgid ""
+"More than %(iqr)s interquartile ranges above the usual box for the calendar "
+"month (days with rain only). Many are real storms: look first at the "
+"largest, and at any with no rain on the days either side."
+msgstr ""
+
+#: stations/qc_review.py:1514
+#, python-format
+msgid ""
+"More than %(iqr)s interquartile ranges below the usual box for the calendar "
+"month (days with rain only). Look for values in the wrong unit."
+msgstr ""
+
+#: stations/qc_review.py:1522
+#, python-format
+msgid ""
+"More than %(iqr)s interquartile ranges above the usual box for the calendar "
+"month. Look first at the largest, and at any far from the days either side."
+msgstr ""
+
+#: stations/qc_review.py:1529
+#, python-format
+msgid ""
+"More than %(iqr)s interquartile ranges below the usual box for the calendar "
+"month. Look first at the largest, and at any far from the days either side."
+msgstr ""
+
+#: stations/qc_review.py:1570
+msgid "Beyond the limit"
+msgstr ""
+
+#: stations/qc_review.py:1572
+msgid "all rows"
+msgstr ""
+
+#: stations/qc_review.py:1620
+#, python-format
+msgid "Large day-to-day change ≥ %(jump)s"
+msgstr ""
+
+#: stations/qc_review.py:1624
+#, python-format
 msgid "Same %(variable)s %(days)s+ days"
 msgstr ""
 
-#: stations/qc_review.py:1320
+#: stations/qc_review.py:1742
 #, python-format
 msgid "%(years)s and %(n)s more"
 msgstr ""
 
-#: stations/qc_review.py:1347 stations/views_indices.py:293
+#: stations/qc_review.py:1769 stations/views_indices.py:293
 #: stations/workspace.py:703
 #, python-format
 msgid "%(n)s day"
@@ -8108,7 +8212,7 @@ msgid "Monthly values"
 msgstr ""
 
 #: stations/templates/stations/_index_detail.html:48
-#: stations/templates/stations/_qc_detail.html:62
+#: stations/templates/stations/_qc_detail.html:57
 msgid "Back to the list"
 msgstr ""
 
@@ -8340,35 +8444,62 @@ msgid_plural "%(counter)s years too incomplete for annual values: %(years)s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/_qc_detail.html:36
+#: stations/templates/stations/_qc_detail.html:17
 #, python-format
-msgid "Days around %(date)s"
+msgid "%(n)s row"
+msgid_plural "%(n)s rows"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/_qc_detail.html:17
+#: stations/templates/stations/_qc_review.html:27
+msgid "Worth a look"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:42
-msgid "Show on the daily chart"
-msgstr ""
-
-#: stations/templates/stations/_qc_detail.html:47
+#: stations/templates/stations/_qc_detail.html:17
 #, python-format
 msgid "%(n)s value"
 msgid_plural "%(n)s values"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/_qc_detail.html:48
-#: stations/templates/stations/_qc_review.html:41
+#: stations/templates/stations/_qc_detail.html:19
 #, python-format
-msgid "All %(total)s rows of %(title)s"
+msgid "%(mostly)s. %(lede)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:50
-#, python-format
-msgid "%(mostly)s. %(description)s"
+#: stations/templates/stations/_qc_detail.html:22
+msgid "These values (CSV)"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:54
+#: stations/templates/stations/_qc_detail.html:23
+msgid "Show on the daily chart"
+msgstr ""
+
+#: stations/templates/stations/_qc_detail.html:29
+msgid "When"
+msgstr ""
+
+#: stations/templates/stations/_qc_detail.html:29
+#, python-format
+msgid "%(label)s, each value"
+msgstr ""
+
+#: stations/templates/stations/_qc_detail.html:30
+#, python-format
+msgid ""
+"%(title)s: each value by date, %(first)s to %(last)s. The values table lists "
+"them."
+msgstr ""
+
+#: stations/templates/stations/_qc_detail.html:41
 msgid "By calendar month"
+msgstr ""
+
+#: stations/templates/stations/_qc_detail.html:42
+#: stations/templates/stations/_qc_detail.html:49
+#, python-format
+msgid "%(title)s by calendar month"
 msgstr ""
 
 #: stations/templates/stations/_qc_details.html:9
@@ -8506,52 +8637,67 @@ msgid ""
 "Climpact yourself, restart it with the climpact-web command."
 msgstr ""
 
-#: stations/templates/stations/_qc_review.html:21
-#: stations/templates/stations/_qc_review.html:55
+#: stations/templates/stations/_qc_review.html:28
+msgid "Unusual values; many are real extremes"
+msgstr ""
+
+#: stations/templates/stations/_qc_review.html:33
 msgid "How the checks work"
-msgstr ""
-
-#: stations/templates/stations/_qc_review.html:54
-msgid "Worth a look"
-msgstr ""
-
-#: stations/templates/stations/_qc_review.html:54
-msgid "unusual values; many are real extremes"
-msgstr ""
-
-#: stations/templates/stations/_qc_review.html:59
-msgid "Unusual values, by check"
-msgstr ""
-
-#: stations/templates/stations/_qc_review.html:60
-msgid "When"
 msgstr ""
 
 #: stations/templates/stations/_qc_run_again.html:5
 msgid "Run the checks"
 msgstr ""
 
-#: stations/templates/stations/_qc_table.html:11
+#: stations/templates/stations/_qc_values.html:18
 #, python-format
-msgid "%(title)s: rows %(first)s to %(last)s of %(total)s"
+msgid "%(first)s–%(last)s of %(total)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_table.html:15
-msgid "Chart"
+#: stations/templates/stations/_qc_values.html:19
+msgid "Sort:"
 msgstr ""
 
-#: stations/templates/stations/_qc_table.html:22
-msgid "Show on chart"
+#: stations/templates/stations/_qc_values.html:20
+msgid "Largest first"
 msgstr ""
 
-#: stations/templates/stations/_qc_table.html:29
+#: stations/templates/stations/_qc_values.html:26
+#, python-format
+msgid "%(title)s: values %(first)s to %(last)s of %(total)s, by date"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:26
+#, python-format
+msgid "%(title)s: values %(first)s to %(last)s of %(total)s, largest first"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:42
 #, python-format
 msgid "Pages of %(title)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_table.html:31
+#: stations/templates/stations/_qc_values.html:43
 #, python-format
 msgid "Page %(number)s of %(pages)s"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:45
+msgid "← Previous"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:46
+msgid "Next →"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:71
+#, python-format
+msgid "limit %(limit)s"
+msgstr ""
+
+#: stations/templates/stations/_qc_values.html:76
+#, python-format
+msgid "%(title)s: days around %(date)s"
 msgstr ""
 
 #: stations/templates/stations/_qc_verdict_actions.html:15
@@ -8926,6 +9072,10 @@ msgid_plural "%(counter)s files, %(size)s"
 msgstr[0] ""
 msgstr[1] ""
 
+#: stations/templates/stations/downloads.html:87
+msgid "Check"
+msgstr ""
+
 #: stations/templates/stations/downloads.html:93
 msgid "See what the quality checks found"
 msgstr ""
@@ -9037,12 +9187,12 @@ msgid "Sydney Observatory Hill, 1936 to 2015, with its details filled in."
 msgstr ""
 
 #: stations/templates/stations/new.html:85
-#: stations/templates/stations/qc.html:88
+#: stations/templates/stations/qc.html:91
 msgid "Delete this data now"
 msgstr ""
 
 #: stations/templates/stations/new.html:87
-#: stations/templates/stations/qc.html:90
+#: stations/templates/stations/qc.html:93
 msgid "Start again with another station"
 msgstr ""
 
@@ -9056,64 +9206,64 @@ msgstr ""
 msgid "Quality: %(name)s"
 msgstr ""
 
-#: stations/templates/stations/qc.html:30
+#: stations/templates/stations/qc.html:33
 msgid "The checks below are from before the change."
 msgstr ""
 
-#: stations/templates/stations/qc.html:32
+#: stations/templates/stations/qc.html:35
 msgid "Checking again"
 msgstr ""
 
-#: stations/templates/stations/qc.html:32
+#: stations/templates/stations/qc.html:35
 msgid ""
 "The checks below are from before the change. The new checks replace them "
 "when they are ready."
 msgstr ""
 
-#: stations/templates/stations/qc.html:35
+#: stations/templates/stations/qc.html:38
 msgid "The new checks could not be run"
 msgstr ""
 
-#: stations/templates/stations/qc.html:35
+#: stations/templates/stations/qc.html:38
 msgid "The new checks were stopped"
 msgstr ""
 
-#: stations/templates/stations/qc.html:38
+#: stations/templates/stations/qc.html:41
 msgid "The checks are out of date"
 msgstr ""
 
-#: stations/templates/stations/qc.html:38
+#: stations/templates/stations/qc.html:41
 msgid "Check the station details to check the new file."
 msgstr ""
 
-#: stations/templates/stations/qc.html:47
+#: stations/templates/stations/qc.html:50
 msgid "The checks could not be run."
 msgstr ""
 
-#: stations/templates/stations/qc.html:49
+#: stations/templates/stations/qc.html:52
 msgid "Check the thresholds and run the checks again. Or replace the file."
 msgstr ""
 
-#: stations/templates/stations/qc.html:59
+#: stations/templates/stations/qc.html:62
 msgid "The checks were stopped."
 msgstr ""
 
-#: stations/templates/stations/qc.html:59
+#: stations/templates/stations/qc.html:62
 msgid "The checks have not run on this file yet."
 msgstr ""
 
-#: stations/templates/stations/qc.html:59
+#: stations/templates/stations/qc.html:62
 msgid "Keep the thresholds or change them, then run the checks."
 msgstr ""
 
-#: stations/templates/stations/qc.html:74
+#: stations/templates/stations/qc.html:77
 #, python-format
 msgid "%(counter)s check found nothing"
 msgid_plural "%(counter)s checks found nothing"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/qc.html:84
+#: stations/templates/stations/qc.html:87
 msgid "Climpact never changes your data."
 msgstr ""
 
@@ -9423,12 +9573,12 @@ msgstr ""
 msgid "Growing season and degree days"
 msgstr ""
 
-#: stations/views.py:157
+#: stations/views.py:155
 #, python-format
 msgid "%(years)s and %(count)d more"
 msgstr ""
 
-#: stations/views.py:160
+#: stations/views.py:158
 #, python-format
 msgid ""
 "Days with data in each year: %(count)d of %(total)d years misses more than "
@@ -9439,37 +9589,37 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/views.py:167
+#: stations/views.py:165
 msgid "Days with data in each year: no year misses more than 15 days."
 msgstr ""
 
-#: stations/views.py:184
+#: stations/views.py:182
 msgid "Leave it empty to use the file name."
 msgstr ""
 
-#: stations/views.py:426
+#: stations/views.py:424
 msgid "under 0.1%"
 msgstr ""
 
-#: stations/views.py:503
+#: stations/views.py:501
 msgid "The station data were deleted."
 msgstr ""
 
-#: stations/views.py:921
+#: stations/views.py:946
 msgid ""
 "The new file is loaded, but the station details need a change before the "
 "checks can run."
 msgstr ""
 
-#: stations/views.py:927
+#: stations/views.py:952
 msgid "The new file is loaded. The checks and results are updated."
 msgstr ""
 
-#: stations/views.py:995
+#: stations/views.py:1020
 msgid "The change was undone. The earlier settings and results are back."
 msgstr ""
 
-#: stations/views.py:1001
+#: stations/views.py:1026
 msgid ""
 "The recalculation has finished, so the change can no longer be undone. "
 "Change the settings back instead."

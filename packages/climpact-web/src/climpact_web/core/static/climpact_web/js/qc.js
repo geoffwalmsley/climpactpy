@@ -1,39 +1,45 @@
 /*
- * Quality (#77, #174, #202, #235): the worklist and its detail pane, and the links between
- * the findings and the daily charts under the worklist. Needs charts.js (window.ClimpactCharts) and htmx;
- * without JavaScript each row of the list is a link to ?show=<id> (the server shows that
- * detail), the tables, pagers (plain links) and downloads work and the "Show on the
- * daily chart" buttons stay hidden.
+ * Quality (#77, #174, #202, #235, #264): the checks' rail and the selected check's
+ * detail, and the links between its values and the daily charts under it. Needs charts.js
+ * (window.ClimpactCharts) and htmx; without JavaScript each check in the rail is a link
+ * to ?show=<id> (the server shows that detail), each value's date a link that selects it,
+ * the sort, pager and downloads are plain links, the By calendar month table shows under
+ * its chart and the "Show on the daily chart" buttons stay hidden.
  *
- * - The list: a row's link ([data-qc-item]; Tab moves between them, Enter selects)
+ * - The rail: a check's link ([data-qc-item]; Tab moves between them, Enter selects)
  *   shows its detail ([data-qc-detail]) in place of the one shown, marks the link
- *   (aria-current) and its row (is-selected), puts ?show=<id> in the address
- *   (replaceState, so it can be linked and reloaded) and announces the detail's title.
- *   Beside the list the pane stays in view (sticky); should it still be out of view, it
- *   is scrolled into view, focus staying on the row. When the detail is below the list
- *   (a narrow screen) focus moves to its title, and "Back to the list" ([data-qc-back])
- *   returns focus to the row. An address whose fragment names a detail
- *   (#check-<table>) shows that one.
+ *   (aria-current, is-selected), puts ?show=<id> in the address (replaceState, so it can
+ *   be linked and reloaded) and announces the detail's title. When the detail is below
+ *   the rail (a narrow screen) focus moves to its title, and "Back to the list"
+ *   ([data-qc-back]) returns focus to the check. An address whose fragment names a
+ *   detail (#check-<table>) shows that one.
+ * - The values: a row's date (or anywhere on the row) selects its value, the sort and
+ *   the pager change the table, each swapping the values fragment ([data-qc-table]) in
+ *   place (htmx). Then the When chart's ring moves to the selected value, "Show on the
+ *   daily chart" takes its date, the address takes the link's, the value's title is
+ *   announced and focus stays on what was used.
+ * - By calendar month: "Table" ([data-qc-months-toggle], aria-pressed) shows the table
+ *   in place of the chart.
  * - List to chart: "Show on the daily chart" ([data-qc-show], data-date, data-chart)
  *   opens Details and the chart's tab, moves the chart to the date
- *   (ClimpactCharts.focusDate), marks the row and moves focus to the chart.
- * - Chart to list: a click on a flagged value of a chart ("climpact:chartpick") shows the
- *   finding of that date, or the group whose table holds it (loading the page that
- *   holds it, stations:qc_table ?date=), marks its row and focuses it.
+ *   (ClimpactCharts.focusDate) and moves focus to the chart.
+ * - Chart to list: a click on a flagged value of a chart ("climpact:chartpick") selects
+ *   that value in the first check that found it (stations:qc_table ?date=, which answers
+ *   a check that did not with no content) and shows its detail.
  */
 (function () {
   "use strict";
 
   var doc = document;
-  var selected = null;
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var behavior = reduce ? "auto" : "smooth";
 
-  function scrollTo(el) {
-    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+  function all(selector, scope) {
+    return Array.prototype.slice.call((scope || doc).querySelectorAll(selector));
   }
 
   function reveal(scope) {
-    Array.prototype.forEach.call((scope || doc).querySelectorAll("[data-qc-js]"), function (el) {
+    all("[data-qc-js]", scope).forEach(function (el) {
       el.hidden = false;
     });
   }
@@ -42,17 +48,23 @@
     for (var d = el.closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
   }
 
-  function mark(date) {
-    selected = date;
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-table] tr[data-date]"), function (tr) {
-      var on = tr.getAttribute("data-date") === date;
-      tr.classList.toggle("is-selected", on);
-      if (on) tr.setAttribute("aria-current", "true");
-      else tr.removeAttribute("aria-current");
-    });
+  function say(text) {
+    var said = doc.querySelector("[data-qc-said]");
+    if (!said) return;
+    said.textContent = "";
+    window.setTimeout(function () {
+      said.textContent = (text || "").replace(/\s+/g, " ").trim();
+    }, 50);
   }
 
-  /* The list and its detail (#202). */
+  function address(href) {
+    if (!window.history || !window.history.replaceState) return;
+    var url = new URL(href, window.location.href);
+    url.hash = "";
+    window.history.replaceState(window.history.state, "", url.toString());
+  }
+
+  /* The rail and its detail (#202, #264). */
   function detailOf(id) {
     return doc.querySelector('[data-qc-detail="' + id + '"]');
   }
@@ -61,156 +73,153 @@
     var panel = detailOf(id);
     if (!panel) return null;
     options = options || {};
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-detail]"), function (el) {
+    all("[data-qc-detail]").forEach(function (el) {
       el.hidden = el !== panel;
     });
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-item]"), function (a) {
+    all("[data-qc-item]").forEach(function (a) {
       var on = a.getAttribute("data-qc-item") === id;
-      var row = a.closest("tr");
-      if (row) row.classList.toggle("is-selected", on);
+      a.classList.toggle("is-selected", on);
       if (on) a.setAttribute("aria-current", "true");
       else a.removeAttribute("aria-current");
     });
-    if (window.history && window.history.replaceState) {
-      var url = new URL(window.location.href);
-      url.searchParams.set("show", id);
-      url.hash = "";
-      window.history.replaceState(window.history.state, "", url.toString());
-    }
+    var url = new URL(window.location.href);
+    url.searchParams.set("show", id);
+    address(url.toString());
     var title = panel.querySelector(".qc-detail__title");
-    var said = doc.querySelector("[data-qc-said]");
-    if (said && options.announce !== false) {
-      said.textContent = "";
-      window.setTimeout(function () {
-        said.textContent = title ? title.textContent.replace(/\s+/g, " ").trim() : "";
-      }, 50);
-    }
+    if (options.announce !== false && title) say(title.textContent);
     if (options.focus && title) {
-      var list = doc.querySelector(".qc-work__list");
-      var below = list && list.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 1;
+      var rail = doc.querySelector(".qc-rail");
+      var below = rail && rail.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 1;
       if (below) {
         title.focus({ preventScroll: true });
-        title.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        title.scrollIntoView({ behavior: behavior, block: "start" });
       } else {
         var box = panel.getBoundingClientRect();
-        if (box.top >= window.innerHeight || box.bottom <= 0) {
-          panel.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
-        }
+        if (box.top >= window.innerHeight || box.bottom <= 0) panel.scrollIntoView({ behavior: behavior, block: "nearest" });
       }
     }
     return panel;
   }
 
-  doc.addEventListener("click", function (event) {
-    var link = event.target.closest("[data-qc-item]");
-    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (!detailOf(link.getAttribute("data-qc-item"))) return;
-    event.preventDefault();
-    show(link.getAttribute("data-qc-item"), { focus: true });
-  });
-
-  /* "Back to the list" (#235): focus on the row of the detail shown. */
-  doc.addEventListener("click", function (event) {
-    var back = event.target.closest("[data-qc-back]");
-    if (!back) return;
-    var link = doc.querySelector('[data-qc-item="' + back.getAttribute("data-qc-back") + '"]');
-    if (!link) return;
-    event.preventDefault();
-    link.focus({ preventScroll: true });
-    link.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
-  });
-
-  function openTab(panel) {
-    var tab = panel && doc.getElementById(panel.id + "-tab");
-    if (tab && tab.getAttribute("aria-selected") !== "true") tab.click();
+  function plain(event) {
+    return !(event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
   }
 
   doc.addEventListener("click", function (event) {
+    var link = event.target.closest("[data-qc-item]");
+    if (link && plain(event) && detailOf(link.getAttribute("data-qc-item"))) {
+      event.preventDefault();
+      show(link.getAttribute("data-qc-item"), { focus: true });
+      return;
+    }
+    /* "Back to the list" (#235): focus on the check of the detail shown. */
+    var back = event.target.closest("[data-qc-back]");
+    if (back) {
+      var item = doc.querySelector('[data-qc-item="' + back.getAttribute("data-qc-back") + '"]');
+      if (!item) return;
+      event.preventDefault();
+      item.focus({ preventScroll: true });
+      item.scrollIntoView({ behavior: behavior, block: "center" });
+      return;
+    }
+    /* A click anywhere on a value's row selects it, as its date's link does. */
+    var row = event.target.closest("[data-qc-table] tr[data-date]");
+    if (row && !event.target.closest("a, button") && plain(event)) {
+      var choose = row.querySelector("[data-qc-value]");
+      if (choose) choose.click();
+      return;
+    }
+    var toggle = event.target.closest("[data-qc-months-toggle]");
+    if (toggle) {
+      var on = toggle.getAttribute("aria-pressed") !== "true";
+      toggle.setAttribute("aria-pressed", on ? "true" : "false");
+      toggle.closest("[data-qc-months]").classList.toggle("is-table", on);
+      return;
+    }
     var button = event.target.closest("[data-qc-show]");
     if (!button || !window.ClimpactCharts) return;
-    var date = button.getAttribute("data-date");
     var figure = doc.getElementById(button.getAttribute("data-chart"));
     if (!figure) return;
-    mark(date);
     openAround(figure);
-    openTab(figure.closest(".tabs__panel"));
-    window.ClimpactCharts.focusDate(figure, date).then(function () {
-      scrollTo(figure);
+    var tabPanel = figure.closest(".tabs__panel");
+    var tab = tabPanel && doc.getElementById(tabPanel.id + "-tab");
+    if (tab && tab.getAttribute("aria-selected") !== "true") tab.click();
+    window.ClimpactCharts.focusDate(figure, button.getAttribute("data-date")).then(function () {
+      figure.scrollIntoView({ behavior: behavior, block: "center" });
       var plot = figure.querySelector("[data-chart-plot]");
       if (plot) plot.focus({ preventScroll: true });
     });
   });
 
-  /* The row of a date in one table, loading the page that holds it when the table has
-     more than one (a group's table may not hold the date at all: then none). */
-  function rowIn(table, date) {
-    var row = table.querySelector('tr[data-date="' + date + '"]');
-    if (row || !window.htmx || table.getAttribute("data-pages") === "1") return Promise.resolve(row);
-    var id = table.id;
-    var src = table.getAttribute("data-src");
-    src += (src.indexOf("?") < 0 ? "?" : "&") + "date=" + encodeURIComponent(date);
-    return window.htmx.ajax("GET", src, { target: table, swap: "outerHTML" }).then(function () {
-      var fresh = doc.getElementById(id);
-      return fresh ? fresh.querySelector('tr[data-date="' + date + '"]') : null;
-    });
-  }
-
-  function rowsFor(check, date) {
-    var tables = doc.querySelectorAll('[data-qc-table][data-qc-check="' + check + '"]');
-    return Promise.all(Array.prototype.map.call(tables, function (table) {
-      return rowIn(table, date);
-    }));
-  }
-
-  /* A flag picked on a chart: the finding of that date when it is in the list, or else
-     the first group or table that holds it. */
-  doc.addEventListener("climpact:chartpick", function (event) {
-    var detail = event.detail || {};
-    if (!detail.flagged) return;
-    var finding = null;
-    detail.checks.some(function (c) {
-      finding = detailOf(c + "-" + detail.date);
-      return !!finding;
-    });
-    if (finding) {
-      mark(detail.date);
-      show(finding.getAttribute("data-qc-detail"));
-      var title = finding.querySelector(".qc-detail__title");
-      scrollTo(finding);
-      if (title) title.focus({ preventScroll: true });
-      return;
+  /* After the values fragment changes: the ring, "Show on the daily chart", the address,
+     what is announced and where focus goes. */
+  doc.addEventListener("htmx:afterSwap", function (event) {
+    var target = event.detail && event.detail.target;
+    var id = target && target.id;
+    var fresh = id && doc.getElementById(id);
+    if (!fresh || !fresh.matches("[data-qc-table]")) return;
+    reveal(fresh);
+    var panel = fresh.closest("[data-qc-detail]");
+    var date = fresh.getAttribute("data-selected");
+    var ring = panel && panel.querySelector("[data-qc-ring]");
+    if (ring) {
+      ring.setAttribute("cx", fresh.getAttribute("data-ring-x") || -20);
+      ring.setAttribute("cy", fresh.getAttribute("data-ring-y") || -20);
     }
-    Promise.all(detail.checks.map(function (c) {
-      return rowsFor(c, detail.date);
-    })).then(function (lists) {
-      mark(detail.date);
-      var rows = [].concat.apply([], lists).filter(Boolean);
-      var first = rows[0];
-      if (!first) return;
-      var panel = first.closest("[data-qc-detail]");
-      if (panel) show(panel.getAttribute("data-qc-detail"));
-      openAround(first);
-      scrollTo(first);
-      first.focus({ preventScroll: true });
-    });
+    var showButton = panel && panel.querySelector(".qc-detail__links [data-qc-show]");
+    if (showButton && date) {
+      showButton.setAttribute("data-date", date);
+      showButton.setAttribute("data-chart", fresh.getAttribute("data-chart"));
+    }
+    var elt = event.detail.requestConfig && event.detail.requestConfig.elt;
+    if (!elt || !elt.getAttribute) return;
+    if (elt.getAttribute("href")) address(elt.getAttribute("href"));
+    var focus = null;
+    if (elt.hasAttribute("data-qc-value")) {
+      focus = fresh.querySelector('[data-qc-value="' + date + '"]');
+      var title = fresh.querySelector("[data-qc-value-title]");
+      if (title) say(title.textContent);
+    } else if (elt.hasAttribute("data-qc-sort")) {
+      focus = fresh.querySelector("[data-qc-sort][aria-current]");
+    } else if (elt.hasAttribute("data-qc-page")) {
+      focus = fresh.querySelector("[data-qc-region]");
+    }
+    if (focus) focus.focus({ preventScroll: true });
   });
 
-  doc.addEventListener("htmx:afterSwap", function (event) {
-    var table = event.target.closest && event.target.closest("[data-qc-table]");
-    if (!table && event.target.matches && event.target.matches("[data-qc-table]")) table = event.target;
-    var fresh = table && doc.getElementById(table.id);
-    if (!fresh) return;
-    reveal(fresh);
-    if (selected) mark(selected);
-    if (event.detail && event.detail.requestConfig && event.detail.requestConfig.elt && event.detail.requestConfig.elt.closest(".qc-pager")) {
-      var region = fresh.querySelector("[data-qc-region]");
-      if (region) region.focus();
-    }
+  /* A flag picked on a chart: its value selected in the first check that found it. */
+  doc.addEventListener("climpact:chartpick", function (event) {
+    var detail = event.detail || {};
+    if (!detail.flagged || !window.htmx) return;
+    var tables = [];
+    detail.checks.forEach(function (c) {
+      tables = tables.concat(all('[data-qc-table][data-qc-check="' + c + '"]'));
+    });
+    var date = detail.date;
+    Promise.all(tables.map(function (table) {
+      if (table.getAttribute("data-pages") === "1" && !table.querySelector('tr[data-date="' + date + '"]')) return null;
+      var id = table.id;
+      var src = table.getAttribute("data-src");
+      src += (src.indexOf("?") < 0 ? "?" : "&") + "date=" + encodeURIComponent(date);
+      return window.htmx.ajax("GET", src, { target: "#" + id, swap: "outerHTML" }).then(function () {
+        var now = doc.getElementById(id);
+        return now && now.getAttribute("data-selected") === date ? now : null;
+      });
+    })).then(function (found) {
+      var table = found.filter(Boolean)[0];
+      if (!table) return;
+      var panel = table.closest("[data-qc-detail]");
+      show(panel.getAttribute("data-qc-detail"));
+      var link = table.querySelector('[data-qc-value="' + date + '"]');
+      if (!link) return;
+      link.scrollIntoView({ behavior: behavior, block: "center" });
+      link.focus({ preventScroll: true });
+    });
   });
 
   function start() {
     reveal(doc);
-    // An address that names a detail by its fragment (#check-<table>, #finding-<id>).
+    // An address that names a detail by its fragment (#check-<table>).
     var hash = window.location.hash.slice(1);
     var target = hash && doc.getElementById(decodeURIComponent(hash));
     if (target && target.matches("[data-qc-detail]") && target.hidden) {

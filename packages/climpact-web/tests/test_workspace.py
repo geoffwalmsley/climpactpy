@@ -369,20 +369,22 @@ def test_the_inputs_bar_says_the_panel_in_one_line(client):
     assert "inputs-bar--changed" in html
 
 
-def test_edit_inputs_on_the_indices_provenance_line(client):
-    """#263: the Indices have "Edit inputs" at the end of the provenance line, which opens
-    the Inputs sheet (without JavaScript, the panel above the section); the Inputs bar
-    stays for narrow pages. The other sections keep the panel and have no such link."""
+def test_edit_inputs_on_the_provenance_line(client):
+    """#263, #264: the Indices and Quality have "Edit inputs" at the end of the
+    provenance line, which opens the Inputs sheet (without JavaScript, the panel above
+    the section); the Inputs bar stays for narrow pages. Files keeps the panel and has no
+    such link."""
     analysis, _qc, _run = in_use(client)
-    html = page(client, analysis, "indices")
-    provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
-    assert provenance.endswith(
-        '<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs"'
-        ' aria-haspopup="dialog">Edit inputs</a>'
-    )
-    assert 'id="inputs-title"' in html and "data-inputs-bar" in html
-    for path in ("quality", "downloads"):
-        assert "context-bar__edit" not in page(client, analysis, path), path
+    for path in ("indices", "quality"):
+        html = page(client, analysis, path)
+        provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
+        assert provenance.endswith(
+            '<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs"'
+            ' aria-haspopup="dialog">Edit inputs</a>'
+        ), path
+        assert 'id="inputs-title"' in html and "data-inputs-bar" in html
+        assert "station-page--inputs-bar" in html, path
+    assert "context-bar__edit" not in page(client, analysis, "downloads")
 
 
 def test_a_station_page_uses_the_whole_window(client):

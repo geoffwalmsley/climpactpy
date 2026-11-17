@@ -238,7 +238,9 @@ count in bold and the mean temperature's trend muted.
   written. Intervals are two unsigned bounds, `−0.22 to 0.31`. Anomalies have one
   decimal and a sign (`+0.4`). Other values keep up to two places (one from 10), without
   trailing zeros; the Quality tables show the file's own precision, except the days
-  around a finding, which have one decimal (`numbers.fixed`, #235).
+  around a value, which have one decimal (`numbers.fixed`, #235), and what the screen
+  works out (a month's limit and usual range, over by, beyond by, TN − TX), one decimal,
+  signed where the sign says something (`+328.6`, #264).
 - **Coordinates** are `33.86° S 151.21° E`.
 - **Counts** are grouped, `65,720` (`numbers.grouped`; Quality's tab, #222).
 - **A no-break space** joins a value and its unit (`45.8 °C`; a percentage takes none,
@@ -289,17 +291,20 @@ table with that page.
   (16rem) sits at the inline start, in view under the header as the page scrolls, where
   the content has at least 52rem (a container query, so the help drawer counts);
   narrower, the Inputs bar under the tabs takes its place (#203), and without JavaScript
-  the panel comes above the content. Quality (#235) is the verdict strip, the coverage
-  strip, then the worklist: the "Look wrong" and "Worth a look" tables with the detail pane
-  beside them; the checks that found nothing in one line; then the daily charts with the
+  the panel comes above the content. Quality (#235, #264) is the verdict strip, the
+  coverage strip, then the checks as a rail (20rem: "Look wrong" and "Worth a look", each
+  check with its variable, a by-month sparkline and its count) with the selected check's
+  detail wide beside it: its kicker, title and sentence (what the check means and what
+  to look at first), with "These values (CSV)" and "Show on the daily chart" by the
+  title; two charts with axes, When (each value by date, the selected one ringed) and By
+  calendar month (bars, with "Table" in place of the chart); then its values table (only
+  that check's columns, 12 rows a page, largest first or by date) beside the selected
+  value (a 7-day chart, PR bars with the limit dashed or TX and TN lines, and the 7-day
+  table). Then the checks that found nothing in one line; the daily charts with the
   flags and the distributions as disclosures, and one line with the thresholds and the
-  link to Files. **Target (#264):** the worklist becomes a rail of checks (about 20rem:
-  each check, its variable, a by-month sparkline and its count) with the selected
-  check's detail in the wide area beside it: its sentence; two charts with axes, When
-  (each flagged value by date) and By calendar month (bars, with a table view); then
-  its values table (only that check's columns, 12 rows a page, largest first) beside
-  the selected value (a 7-day chart and table). Nothing in it scrolls sideways at
-  1280px. While the checks run, what is in the file ("Your data", #198) takes the
+  link to Files. Like the Indices, Quality has no Inputs panel beside it (#264): "Edit
+  inputs" on the provenance line. Nothing in it scrolls sideways at 1280px or wider
+  (checked with the 67 heavy rain days of `qc_stress_1961-2020.txt`). While the checks run, what is in the file ("Your data", #198) takes the
   worklist's place.
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a chart, a
@@ -327,18 +332,20 @@ strips, worklist and detail pane.
   previous and next station on a station's pages, once stations belong to a workspace
   (#231, #234); "Edit inputs" or "Workspace settings" on the provenance line, which
   replace the Inputs panel (#231, #234; the Indices have "Edit inputs" there since
-  #263); a workspace's own bar, with the station count and deletion date and the tabs
+  #263, Quality since #264); a workspace's own bar, with the station count and deletion date and the tabs
   Overview, Compare an index and Files (#234). The tabs are Quality, Indices (Results
   until #236) and Files; Quality's shows its verdict and count, "Usable · 21" (#222).
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
-  them scrolls sideways at 1280px or wider (a table's own frame may, until its page is
-  redrawn: Quality's, #264).
+  them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
+  own frame may).
 - **Panes:** a filter rail at the inline start (about 14rem), the table, and a detail pane
-  at the inline end that stays in view as the list scrolls (`detail-pane`; on Quality,
-  #235, 22–30rem, side by side from a 56rem container, sticky under the context bar and
-  scrolling inside itself when taller than the window). Narrower, the rail goes above the
-  table and the detail after the list, with "Back to the list". The Indices (#236, #263):
+  at the inline end that stays in view as the list scrolls (`detail-pane`). Narrower,
+  the rail goes above the table and the detail after the list, with "Back to the list".
+  Quality (#264): the checks' rail (20rem, framed lists) and the check's detail (one
+  framed object) side by side from a 60rem page, the rail sticky under the context bar
+  and scrolling inside itself when taller than the window; narrower, the rail above and
+  the detail after it, its two tables one after the other. The Indices (#236, #263):
   the rail and the pane are full-height columns against the window's edges, not cards:
   the rail on the page's colour, the pane on the surface, each behind a hairline, their
   contents sticky under the context bar. Side by side from a 76rem page: the rail 14rem
@@ -383,7 +390,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `stat` | Primitive | One number with label and note; the label is a group label | — |
 | `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Your inputs") | — |
 | `section-header` | Component | A section's heading, an optional muted note (`section-header__note`), then the Help pill (`{% section_help %}`) at the end of the row. The pill is 30px high with a ringed question mark and a word: "Help", or a question where it helps (`label="How to read this"`). `quiet=True` makes it a quiet link in the text's size (`help-link`, #235: "How the checks work" on Quality), the same link and drawer | with note, with a specific label, quiet |
-| Quality worklist | Pattern | Quality (#235, the Quality board; `stations/_qc_review.html`): the verdict strip and the coverage strip, then "Look wrong" as a data table grouped by check (a group row on the sunken tint, "TN ≥ TX 10"; then Date, Var, Value with its unit, Check, Detail: what the value is checked against, "TX 8.2 °C", "limit 200 mm"; each check's first ten rows, then "All 213 rows of TN ≥ TX"), and "Worth a look" (Check, Var, Values, When: "Mostly May and June", "All year"; By month: twelve small bars, an empty month a thin mark), each a framed table with its heading inside the frame and "How the checks work" as a quiet link. Rows 30px, one line each. Each row's first cell links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced, the row has the selected tint and an ink edge (`is-selected`, the link `aria-current`). The detail pane beside the tables: for a finding, its date and check in mono, the sentence ("TN 9.5 °C is above TX 8.2 °C", codes first), a chart of the 15 days around it with axes (three values, three dates, the day as a band, the value ringed, a legend "TX °C", "TN °C", "April 1962, daily"), the days-around table (one decimal; the day in bold on the warning tint, other flagged days on a lighter one), "Show on the daily chart" and its line in the file; for a group or a check's every row, its counts by month and its rows, paged. The first finding is selected by default | finding, group, every row of a check |
+| Quality worklist | Pattern | Quality (#235, #264, the Quality board; `stations/_qc_review.html`): the verdict strip and the coverage strip, then the checks as a rail (`stations/_qc_rail_item.html`): "Look wrong" and "Worth a look", each a framed list with its heading, count and note inside the frame; each check a row ("Heavy rain days", "PR" in mono under it, twelve small bars by month with an empty month a thin mark, its count), the selected one on the selected tint with an ink edge (`is-selected`, `aria-current`); "How the checks work" as a quiet link under them. Each check links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced. The detail (`stations/_qc_detail.html`), one framed object: the kicker ("Worth a look · PR · 67 values"), the title, one sentence (what the check means, then what to look at first), "These values (CSV)" and "Show on the daily chart"; the When and By calendar month charts; then the values table and the selected value (`stations/_qc_values.html`, also the htmx fragment of `stations:qc_table`). The table has only the check's columns (`qc_review.value_columns`: heavy rain "PR mm, Month's limit mm, Over by mm"; TN ≥ TX "TN °C, TX °C, TN − TX °C"; temperature outliers "TX °C, Usual range °C, Beyond by °C"; jumps without the next day's date; flat runs with their first day; repeated dates with their lines in the file), 30px rows, 12 a page, "Sort: Largest first · Date", "Page 1 of 6 ← Previous Next →". A row's date selects its value (an address without JS, the fragment with it; the whole row can be clicked). The selected value: its date and check in mono, the sentence ("PR 350.5 mm, 328.6 mm over the limit for December", codes first), the 7-day chart, the 7-day table (one decimal; the day in bold on the warning tint, the check's other values on a lighter one), a repeated date's rows, its line in the file. The largest value is selected by default | check, value, by date, table view |
 | Verdict strip | Component | A judgement in one line (`components/verdict_strip.html`, #235): on the status's soft tint with a hairline in its hue, the level in bold and one sentence as the heading ("**Usable.** 21 values look wrong; the indices can run with them as they are."), the counts on one mono line under it, the decision's small buttons at the end. On Quality: "Flagged values (CSV)", "Replace file", "Go to indices" (primary); on red "Go to indices anyway" and "Replace file" (primary); no buttons while the checks are out of date | ready, usable, fix |
 | Coverage strip | Component | Missing days per year for each variable (`components/coverage_strip.html`, #235): in a frame, "Coverage" with a muted note (what the annual completeness rule makes of the years) and the key; a row per variable, its code, a cell a year in the three coverage steps (an SVG, `aria-hidden`) and its total; the years under them, evenly spaced. The table view follows as a disclosure. Narrower than 36rem the rows scroll | — |
 | Detail pane | Component | The selected row's detail beside its table (`detail-pane`, #235, and the Indices', #236): a frame on the surface, in view under the context bar as the list scrolls and scrolling inside itself; after the list on narrow screens, with "Back to the list", which returns focus to the row | — |
@@ -428,7 +435,8 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
 | Index chart | The index page's chart (#237), drawn on the server (`index_page.chart`, `stations/_index_chart.html`) in an 860 x 340 box, both views (values and anomalies) in the page. Its text alternative gives the values and the trend; the table under it is its table view and the CSV is in the context bar. | `chart_frame` for interactive charts |
-| Finding chart | The days around one value in the Quality detail pane (#235), drawn on the server (`qc_review._chart`): a line per variable in its role colour, gaps where values are missing, the day as a band in the selected tint, the value ringed in `--chart-flag` as on the full charts, three value ticks and three date ticks. Its text alternative names the variables and dates; the days-around table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Finding chart | The 7 days around a check's selected value on Quality (#235, #264), drawn on the server (`qc_review._chart`, `_bar_chart`): for rain a bar a day (the day in `--chart-prcp`, the others muted) with the limit it is checked against dashed; otherwise a line per variable in its role colour, gaps where values are missing, the value ringed in `--chart-flag` as on the full charts; the day as a band in the selected tint, three value ticks and three date ticks. Its text alternative names the variables, the dates and the limit; the 7-day table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Check charts | A check's two charts on Quality (#264), drawn on the server: When (`qc_review.when_chart`: each value against its date across the record as a muted dot, the selected one ringed in `--chart-flag`, three value ticks from zero for amounts, up to seven years) and By calendar month (`months_chart`: twelve muted bars, three count ticks, the months under them). Text alternatives give the check, the years and the counts by month; When's table view is the values table, By calendar month's a table that "Table" (`aria-pressed`) shows in the chart's place, under the chart without JS. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line (at the foot of the Indices' filter rail since #236): the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
@@ -572,10 +580,10 @@ years; sparklines are only for scanning, beside a number given in text.
   (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
   and a theme's hue is always beside its name.
-- **Don't take the decision out of view.** Quality is a worklist and a detail pane side
-  by side under the verdict strip and its buttons (#202, #235): reviewing a finding changes
-  the detail in place instead of opening rows down the page, and the pane stays in view as
-  the list scrolls, so the page stays short.
+- **Don't take the decision out of view.** Quality is a rail of checks and a check's
+  detail side by side under the verdict strip and its buttons (#202, #235, #264):
+  reviewing a check or a value changes the detail in place instead of opening rows down
+  the page, and the rail stays in view as the detail scrolls, so the page stays short.
 
 ## Responsive
 
@@ -594,7 +602,7 @@ is in the Inputs bar, the file name in the File sheet), then the three tabs on o
 and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
 scroll padding is their height, so focus never goes under them. Sheets fill the screen.
 The Indices' rows are two lines each and their detail comes after the table, Quality's
-detail comes after its list, an index page's statistics come under its chart, which
+check detail comes after its rail, its values table before the selected value, an index page's statistics come under its chart, which
 scrolls inside its region below 32rem,
 and the download tables are short blocks. The accessibility tests run every page at
 320px and fail on horizontal page scroll; the phone tests check the station pages at

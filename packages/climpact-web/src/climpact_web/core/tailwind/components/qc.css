@@ -1,145 +1,189 @@
-/* Quality (#77), a compact worklist (#235, the Quality board): the "Look wrong" and
-   "Worth a look" tables beside the selected row's detail pane, the detail's chart and its
-   days-around table, the disclosures under them, the tables of a check's rows, the
+/* Quality (#77), a compact worklist (#235, the Quality board): the checks as a rail with
+   the selected check's detail wide beside it (#264): its charts, its values table and
+   the selected value with the days around it; the disclosures under them, the
    missing-values table, "Your data" while the checks run, and the distribution plots
    drawn on the server (stations/qc_plots.py writes the qc-plot classes). The verdict and
-   coverage strips and the pane's frame are components (strips.css). */
+   coverage strips are components (strips.css). */
 @layer components {
-  /* == The worklist: the tables, and the detail pane beside them from a 56rem
-     container (the pane in view under the context bar as the list scrolls); after the
-     list otherwise, with "Back to the list". == */
-  .qc-work { container-type: inline-size; }
-
-  .qc-work > * + * { margin-block-start: --spacing(4); }
-
-  .qc-work__list {
+  /* == The rail and the detail: side by side where the page is 60rem wide (the rail
+     20rem, in view as the page scrolls); narrower, the rail first and the detail after it, with "Back to the list". == */
+  .qc-work {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: --spacing(4);
-    min-inline-size: 0;
   }
 
-  @container (inline-size >= 56rem) {
+  .qc-work__detail { min-inline-size: 0; }
+
+  @container station-page (inline-size >= 60rem) {
     .qc-work {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) clamp(22rem, 40%, 30rem);
-      gap: --spacing(4);
+      grid-template-columns: 20rem minmax(0, 1fr);
       align-items: start;
     }
 
-    .qc-work > * + * { margin-block-start: 0; }
-
-    .qc-work__pane {
+    /* The rail stays in view under the context bar as the detail scrolls. */
+    .qc-rail {
       position: sticky;
       inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
       max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(6));
       overflow-y: auto;
     }
 
-    .qc-detail__back { display: none; }
+    .qc-detail > .qc-detail__back { display: none; }
   }
 
-  /* A list: one framed object, its heading inside the frame, then the data table. */
-  .qc-list {
+  /* The rail: each list framed, its heading inside the frame, a check a row. */
+  .qc-rail {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(3);
     min-inline-size: 0;
+  }
+
+  .qc-rail__section {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-surface);
   }
 
-  .qc-list__head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: --spacing(1) --spacing(3);
-    align-items: baseline;
-    justify-content: space-between;
-    padding: --spacing(2.5) --spacing(3);
-  }
+  .qc-rail__head { padding: --spacing(2.5) --spacing(3) --spacing(1.5); }
 
-  .qc-list__head > h2 {
+  /* Shared: headings, figures in mono, muted notes. */
+  .qc-rail__head > h2,
+  .qc-detail__title,
+  .qc-values__title,
+  .qc-value__title {
     margin: 0;
     font-size: var(--text-sm);
     font-weight: var(--font-weight-semibold);
   }
 
-  .qc-list__count {
+  .qc-rail__total,
+  .qc-rail__var,
+  .qc-rail__count,
+  .qc-detail__kicker,
+  .qc-values__range {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-weight: var(--font-weight-medium);
   }
 
-  .qc-list__note,
-  .qc-list__muted { color: var(--color-text-muted); font-weight: var(--font-weight-normal); }
-
-  .qc-list .table--data { font-size: var(--text-sm); }
-
-  .qc-list .table--data :is(th, td) { block-size: 1.875rem; }
-
-  .qc-list .table--data thead th { block-size: auto; }
-
-  .qc-list__value { font-weight: var(--font-weight-medium); }
-
-  .qc-list__group > th {
-    block-size: 1.625rem;
-    background: var(--color-surface-sunken);
+  .qc-rail__note,
+  .qc-rail__var,
+  .qc-detail__kicker,
+  .qc-detail__lede,
+  .qc-fig__caption,
+  .qc-values__range,
+  .qc-sort__label,
+  .qc-pager__where,
+  .qc-pager__off,
+  .qc-value__rows,
+  .qc-value__lines {
+    margin: 0;
     color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-semibold);
   }
 
-  .qc-list__group-count {
-    font-family: var(--font-mono);
-    font-weight: var(--font-weight-normal);
+  .qc-rail__note,
+  .qc-rail__var,
+  .qc-detail__kicker,
+  .qc-fig__caption,
+  .qc-sort,
+  .qc-value__rows,
+  .qc-value__lines { font-size: var(--text-xs); }
+
+  .qc-rail__total { font-weight: var(--font-weight-medium); }
+
+  .qc-rail__list {
+    margin: 0;
+    padding: 0 0 --spacing(1.5);
+    list-style: none;
   }
 
-  .qc-list tbody th { font-weight: var(--font-weight-normal); }
+  .qc-rail__item {
+    display: flex;
+    gap: --spacing(2.5);
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding: --spacing(1) --spacing(3);
+    color: var(--color-text);
+    text-decoration: none;
+  }
 
-  .qc-list tr.is-selected > * { background: var(--color-selected); }
+  .qc-rail__item:hover { background: var(--color-surface-sunken); }
 
-  .qc-list tr.is-selected > :first-child { box-shadow: inset 3px 0 0 var(--color-ink); }
+  .qc-rail__item.is-selected {
+    background: var(--color-selected);
+    box-shadow: inset 3px 0 0 var(--color-ink);
+  }
 
-  [dir="rtl"] .qc-list tr.is-selected > :first-child { box-shadow: inset -3px 0 0 var(--color-ink); }
+  [dir="rtl"] .qc-rail__item.is-selected { box-shadow: inset -3px 0 0 var(--color-ink); }
 
-  .qc-list tr.is-selected a { font-weight: var(--font-weight-semibold); }
+  .qc-rail__item.is-selected .qc-rail__name { font-weight: var(--font-weight-semibold); }
 
-  /* A group's rows by calendar month: twelve bars, a thin mark for an empty month. */
+  .qc-rail__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-inline-size: 0;
+  }
+
+  .qc-rail__name {
+    overflow: hidden;
+    font-size: var(--text-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .qc-rail__count {
+    flex: none;
+    min-inline-size: 1.75rem;
+    font-size: var(--text-sm);
+    text-align: end;
+  }
+
+  .qc-rail > .help-link { align-self: flex-start; margin-inline-start: --spacing(0.5); }
+
+  /* A check's values by calendar month: twelve bars, a thin mark for an empty month. */
   .qc-bars {
     display: block;
-    inline-size: 5.125rem;
-    block-size: 1rem;
+    flex: none;
+    inline-size: 3.75rem;
+    block-size: 0.875rem;
     direction: ltr;
     fill: var(--color-text-muted);
   }
 
-  /* == The detail of the selected row. == */
+  /* == The selected check's detail. == */
   .qc-detail {
     display: grid;
-    gap: --spacing(3);
+    gap: --spacing(3.5);
+    min-inline-size: 0;
+    padding: --spacing(3.5) --spacing(4) --spacing(4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
   }
 
-  .qc-detail__kicker {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    font-variant-numeric: tabular-nums;
+  .qc-detail__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(4);
+    align-items: flex-start;
+    justify-content: space-between;
   }
 
-  .qc-detail__title {
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: var(--font-weight-semibold);
+  .qc-detail__intro {
+    display: grid;
+    gap: --spacing(1);
+    max-inline-size: 45rem;
   }
+
+  .qc-detail__title { font-size: var(--text-lg); }
 
   .qc-detail__title:focus { outline: none; }
 
   .qc-detail__title:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
-  .qc-detail__lede {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-  }
+  .qc-detail__lede { font-size: var(--text-sm); }
 
   .qc-detail__links,
   .qc-detail__back {
@@ -150,7 +194,8 @@
     font-size: var(--text-sm);
   }
 
-  .qc-detail__show {
+  .qc-detail__show,
+  .qc-fig__toggle {
     padding: 0;
     border: 0;
     background: none;
@@ -161,11 +206,44 @@
     cursor: pointer;
   }
 
-  .qc-detail__show:hover { color: var(--color-link-hover); text-decoration-thickness: 2px; }
+  .qc-detail__show:hover,
+  .qc-fig__toggle:hover { color: var(--color-link-hover); text-decoration-thickness: 2px; }
 
-  /* The chart of the days around a finding, with its axes. */
-  .qc-chart { margin: 0; }
+  .qc-fig__toggle[aria-pressed="true"] { font-weight: var(--font-weight-semibold); }
 
+  /* The check's charts: When and By calendar month, side by side where they fit. */
+  .qc-detail__charts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4);
+  }
+
+  .qc-fig {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(1);
+    min-inline-size: 0;
+    margin: 0;
+  }
+
+  /* Each chart grows with the window up to a width where its labels stay in scale. */
+  .qc-fig--when { flex: 3 1 24rem; max-inline-size: 50rem; }
+
+  .qc-fig--months { flex: 2 1 15rem; max-inline-size: 30rem; }
+
+  .qc-fig__caption { font-weight: var(--font-weight-semibold); }
+
+  .qc-fig__caption--split {
+    display: flex;
+    gap: --spacing(2);
+    justify-content: space-between;
+  }
+
+  .qc-fig__caption--split .qc-fig__toggle { font-weight: var(--font-weight-normal); }
+
+  .qc-fig__note { font-weight: var(--font-weight-normal); }
+
+  .qc-fig__plot,
   .qc-chart__plot {
     display: block;
     inline-size: 100%;
@@ -174,15 +252,132 @@
     direction: ltr;
   }
 
+  .qc-fig--when .qc-chart__tick { font-size: 15px; }
+
+
+  .qc-fig__dots { fill: var(--color-text-muted); opacity: 0.75; }
+
+  .qc-fig__ring { fill: none; stroke: var(--chart-flag); stroke-width: 2; }
+
+  .qc-fig__bar { fill: var(--color-text-muted); }
+
+  .qc-months :is(th, td) { padding-inline: --spacing(1); }
+
+  /* With JavaScript the month table takes the chart's place on "Table" (without it,
+     both show). */
+  @media (scripting: enabled) {
+    .qc-fig--months:not(.is-table) [data-qc-months-table],
+    .qc-fig--months.is-table [data-qc-months-chart] { display: none; }
+  }
+
+  /* The values table and the selected value, side by side where they fit. */
+  .qc-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4) --spacing(5);
+    align-items: flex-start;
+    padding-block-start: --spacing(3.5);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .qc-values__table {
+    display: grid;
+    flex: 1 1 25rem;
+    gap: --spacing(2);
+    min-inline-size: 0;
+  }
+
+  .qc-values__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .qc-values__range { font-weight: var(--font-weight-normal); }
+
+  .qc-sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1);
+    align-items: center;
+    margin: 0;
+  }
+
+  .qc-sort__option {
+    padding: --spacing(0.5) --spacing(2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+  }
+
+  .qc-sort__option[aria-current] {
+    background: var(--color-selected);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+  }
+
+  .qc-values .table--data,
+  .qc-daytable .table--data { font-size: var(--text-sm); }
+
+  .qc-values .table--data :is(th, td) { block-size: 1.875rem; }
+
+  .qc-values .table--data :is(th, td),
+  .qc-daytable .table--data :is(th, td) { padding-inline: --spacing(2); }
+
+  .qc-values .table--data thead th { block-size: auto; }
+
+  .qc-values tbody tr { cursor: pointer; }
+
+  .qc-values tbody th { font-weight: var(--font-weight-normal); }
+
+  .qc-values tr.is-selected > * { background: var(--color-selected); }
+
+  .qc-values tr.is-selected > :first-child { box-shadow: inset 3px 0 0 var(--color-ink); }
+
+  [dir="rtl"] .qc-values tr.is-selected > :first-child { box-shadow: inset -3px 0 0 var(--color-ink); }
+
+  .qc-values tr.is-selected a { font-weight: var(--font-weight-semibold); }
+
+  .qc-values__flagged { font-weight: var(--font-weight-semibold); }
+
+  .qc-pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(3);
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--text-sm);
+  }
+
+  .qc-pager__links { display: flex; gap: --spacing(3); }
+
+  .qc-value {
+    display: grid;
+    flex: 1 1 22.5rem;
+    gap: --spacing(2.5);
+    max-inline-size: 40rem;
+    min-inline-size: 0;
+  }
+
+  .qc-value__title { font-size: var(--text-base); }
+
+  .qc-value__rows { padding: 0; font-family: var(--font-mono); list-style: none; }
+
+  /* The chart of the days around the selected value, with its axes. */
+  .qc-chart { max-inline-size: 30rem; margin: 0; }
+
   .qc-chart__axis { stroke: var(--chart-axis); stroke-width: 1; }
   .qc-chart__grid { stroke: var(--chart-grid); stroke-width: 1; }
   .qc-chart__band { fill: var(--color-selected); }
   .qc-chart__tick { fill: var(--color-text-muted); font-family: var(--font-mono); font-size: 13px; }
   .qc-chart__line { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
-  .qc-chart__line--prcp { stroke: var(--chart-prcp); }
   .qc-chart__line--tmax { stroke: var(--chart-tmax); }
   .qc-chart__line--tmin { stroke: var(--chart-tmin); }
   .qc-chart__ring { fill: none; stroke: var(--chart-flag); stroke-width: 1.5; }
+  .qc-chart__bar { fill: var(--color-text-muted); }
+  .qc-chart__bar--this { fill: var(--chart-prcp); }
+  .qc-chart__limit { stroke: var(--color-text); stroke-width: 1.25; stroke-dasharray: 4 3; }
 
   .qc-chart__legend {
     display: flex;
@@ -196,9 +391,11 @@
   .qc-chart__legend > span { display: inline-flex; gap: --spacing(1.5); align-items: center; }
 
   .qc-chart__key { display: inline-block; inline-size: 0.875rem; block-size: 2px; }
-  .qc-chart__key--prcp { background: var(--chart-prcp); }
+  .qc-chart__key--bar { background: var(--chart-prcp); }
   .qc-chart__key--tmax { background: var(--chart-tmax); }
   .qc-chart__key--tmin { background: var(--chart-tmin); }
+  .qc-chart__key--bar { inline-size: 0.625rem; block-size: 0.625rem; }
+  .qc-chart__key--limit { block-size: 0; border-block-start: 1.5px dashed var(--color-text); }
 
   .qc-chart__key--ring {
     inline-size: 0.625rem;
@@ -207,8 +404,8 @@
     border-radius: var(--radius-full);
   }
 
-  /* The days around a finding: 24px rows, the day in bold on the warning tint, the
-     other flagged days on a lighter one. */
+  /* The days around the selected value: 24px rows, the day in bold on the warning tint,
+     the check's other values on a lighter one. */
   .qc-daytable .table--data :is(th, td) { block-size: 1.5rem; }
 
   .qc-daytable .table--data thead th { block-size: auto; }
@@ -222,9 +419,17 @@
     background: color-mix(in oklab, var(--color-warning-soft) 50%, var(--color-surface));
   }
 
-  .qc-months caption { text-align: start; }
+  /* Phones: larger ticks on the wide chart, a little less padding, and the values
+     table's headings on two lines, so its columns fit. */
+  @container station-page (inline-size < 40rem) {
+    .qc-fig--when .qc-chart__tick { font-size: 24px; }
 
-  .qc-months :is(th, td) { padding-inline: --spacing(1); }
+    .qc-detail { padding-inline: --spacing(3); }
+
+    .qc-values .table--data :is(th, td) { padding-inline: --spacing(1.5); }
+
+    .qc-values .table--data thead th { white-space: normal; }
+  }
 
   /* == Under the worklist. == */
   .qc-quiet {
@@ -297,40 +502,6 @@
 
   .file-button--enhanced .file-button__submit { display: none; }
 
-  /* position: the visually hidden text in the rows stays inside the scrolling region. */
-  .qc-table .table-wrap { position: relative; max-block-size: 32rem; }
-
-  .qc-table__date {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .qc-table__show { text-align: end; }
-
-  .qc-table tr.is-selected > * {
-    background: var(--color-selected);
-  }
-
-  .qc-table tr.is-selected > :first-child {
-    box-shadow: inset 4px 0 0 var(--color-ink);
-  }
-
-  [dir="rtl"] .qc-table tr.is-selected > :first-child {
-    box-shadow: inset -4px 0 0 var(--color-ink);
-  }
-
-  .qc-table tr:focus { outline: 2px solid var(--color-focus); outline-offset: -2px; }
-
-  .qc-flagged strong { color: var(--color-danger); }
-
-  .qc-pager {
-    display: flex;
-    flex-wrap: wrap;
-    gap: --spacing(2) --spacing(3);
-    align-items: center;
-  }
-
   .qc-missing .table-wrap,
   .qc-missing { max-block-size: 28rem; }
 
@@ -361,8 +532,8 @@
   .qc-plot__bar { fill: var(--plot-colour); }
 
   @media (forced-colors: active) {
-    .qc-list tr.is-selected > *,
-    .qc-table tr.is-selected > * { outline: 2px solid Highlight; }
+    .qc-rail__item.is-selected,
+    .qc-values tr.is-selected > * { outline: 2px solid Highlight; }
     .qc-plot__box, .qc-plot__whisker, .qc-plot__out { stroke: CanvasText; }
     .qc-plot__bar, .qc-bars { fill: CanvasText; }
   }

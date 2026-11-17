@@ -2800,7 +2800,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
-      js/qc.js       Quality: the worklist and its detail pane (#202, #235), linked to the daily charts (#77, #174)
+      js/qc.js       Quality: the checks' rail and the check's detail, its values in place (#202, #235, #264), linked to the daily charts (#77, #174)
       js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
@@ -2844,9 +2844,11 @@ packages/climpact-web/src/climpact_web/
                      QCParamsForm and QC_DEFAULTS (the thresholds)
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
                      station rows, missing data per year, the verdict and its limits, the
-                     "look wrong" findings and the "worth a look" groups (#174), the
-                     list's items (Item, Review.items, #202), the coverage strip and the
-                     flagged values as one CSV (flagged_rows, #235)
+                     checks as a rail (wrong_groups, worth_groups, Item, Review.items,
+                     #174, #202, #264), each check's values table (value_columns, sorted
+                     largest first), its When and By calendar month charts and its
+                     selected value with the days around it (build_finding), the coverage
+                     strip and the flagged values as CSV (flagged_rows, #235, #264)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
@@ -4173,7 +4175,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("What do the levels mean?" on the Quality verdict); `quiet=True` makes it a quiet link ("How the checks work" on Quality, "How to read the table" in the Indices' rail); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
-| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a chart frame, a detail pane, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The answer band (`answer-band`) went with #236: Quality's verdict is a verdict strip (#235), and the Indices answer in one line above the table. `group-label` and `stat__label` are small, uppercase and muted |
+| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a chart frame, a detail pane, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and Quality's rail (`qc-rail`, #264) is framed lists of rows. The answer band (`answer-band`) went with #236: Quality's verdict is a verdict strip (#235), and the Indices answer in one line above the table. `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `segmented` | (#237, `components/index-page.css`) one choice of two or three as links in one strip, the current one (`aria-current`) ink: the index page's Values / Anomaly and Annual / Monthly |
 | `index_name` | an index named codes first (#218): the code in mono (`index-code`, without the code background), then the short name; `title` for a page heading, the name a step lighter. Used by the index page's heading and previous/next links, Files' index table and the sector correlation table; the Indices' table sets code and name in two columns |
@@ -4239,8 +4241,10 @@ sign (`numbers.anomaly`; the standardised anomalies chart's payload has
 151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); counts grouped,
 "65,720" (`numbers.grouped`, the Quality tab's count, #222); a no-break
 space between a value and its unit. The Quality tables keep the file's own precision
-(`numbers.file_value`) with U+2212, except the days around a finding, which have one
-decimal (`numbers.fixed`, #235). Server-drawn charts (`stations/qc_plots.py`,
+(`numbers.file_value`) with U+2212, except the days around a value, which have one
+decimal (`numbers.fixed`, #235), and what the screen works out (a month's limit and usual
+range, over and beyond by, TN − TX), one decimal, signed where the sign says something
+(`numbers.signed`, #264). Server-drawn charts (`stations/qc_plots.py`,
 `sector_plots.py`, `preview.py`) and `charts.js` (its y-axis ticks, read-out and table
 view) write minus the same way. Templates use the `decimals` and `coordinates` filters
 of `{% load ui %}`. Text the user types and the downloads keep the hyphen-minus: a CSV is
@@ -5210,60 +5214,83 @@ without errors; the user corrects the file outside the app and loads it again.
     days per year": the years with any, with the months that have more than 3 missing
     days and the years left without an annual value (more than 15 days, or such a month:
     [Missing data](#missing-data)).
-  - *The worklist* (#202, #235, `stations/_qc_review.html`, `_qc_detail.html`): on the
-    left two data tables (`Review.items`, `qc_review.Item`). *Look wrong*, grouped by
-    check (TN ≥ TX, Out of range, Repeated date: the checks' titles since #235, "Values
-    too large" before): one row per finding (`FindingList`, the first `FINDINGS_SHOWN` =
-    10 of each check) with its date, variable, value with its unit, check, and what it was
-    checked against (`Finding.var`, `value`, `detail`: "TX 8.2 °C", "limit 200 mm", "indices
-    use the last"); then, for a check with more rows than are shown, a row for all of them
-    in a table. *Worth a look* (`qc_review.worth_groups`): the outliers by variable and
-    direction ("Heavy rain days", "High maximum", from the sections of `qc/outliers`), and
-    the TX and TN jumps ("Large day-to-day change ≥ 20 °C") and flat runs ("Same TN 6+
-    days": more than `flatline_days` equal values), one group each, the largest first,
-    each row with its variable, its count, when it falls (`Group.mostly`: "Mostly May and
-    June", "All in December", "All year") and twelve small bars by calendar month
-    (`Group.bars`). On the right the detail pane, sticky under the context bar beside the
-    tables from a 56rem container (a container query) and scrolling inside itself; after
-    the tables otherwise, with "Back to the list". A finding's detail: its date and check,
-    its sentence as the title, codes first ("TN 9.5 °C is above TX 8.2 °C"), a chart with
-    axes of the 7 days either side (`Finding.chart`, `qc_review._chart`: three value
-    ticks, three date ticks, the day as a band, the value ringed, a legend), the same days
-    as a table to one decimal (the chart's table view; the day in bold, the other days a
-    "look wrong" check flagged marked), "Show on the daily chart" and the line(s) of the
-    station file that give the date (`StationRows.lines`, read from the file by
-    `qc_review.file_lines`: "Line 465 in the file"). A group's, or a check's every row: its
-    variable and count, title, what the check looks for, the counts by calendar month
-    (groups) and its table. Each row's first cell is a link to `?show=<id>` (a finding
-    `<check>-<date>`, a table or group its `table_id`), so the selection works without
-    JavaScript and can be linked: the server shows that item's detail, the first finding
-    by default, an unknown id the first, and with no `show` but a `?<table>_page=` the
-    table asked for (`views.selected_item`). Every detail is in the page, the others
-    `hidden`. With JavaScript (`qc.js`) a row shows its detail in place, marks the link
-    (`aria-current`) and its row, puts `?show=` in the address (`replaceState`) and
+  - *The checks and the selected check's detail* (#202, #235, #264, the Quality board
+    redrawn on 17 November; `stations/_qc_review.html`, `_qc_rail_item.html`,
+    `_qc_detail.html`, `_qc_values.html`). At the inline start a rail of the checks that
+    found something (`Review.items`, `qc_review.Item`, each a `qc_review.Group`): *Look
+    wrong* (`wrong_groups`: TN ≥ TX, Out of range, Repeated date, in R's order) and
+    *Worth a look* (`worth_groups`: the outliers by variable and direction, "Heavy rain
+    days", "High maximum", from the sections of `qc/outliers`; the TX and TN jumps, "Large
+    day-to-day change" in the rail and "≥ 20 °C" in the detail's title; the flat runs,
+    "Same TN 6+ days": more than `flatline_days` equal values; the largest first). Each
+    check is a row with its variables ("PR", "PR TX TN", "all rows"), twelve small bars
+    by calendar month (`Group.bars`) and its count. Beside the rail (20rem, from a 60rem
+    page, sticky under the context bar and scrolling inside itself when taller than the
+    window; after it otherwise, with "Back to the list") the selected check's detail:
+    its kicker ("Worth a look · PR · 67 values"), its title and one sentence
+    (`Group.lede`: when its values fall, `Group.mostly`, what the check means with its
+    thresholds, then what to look at first), "These values (CSV)" (`quality/flagged.csv
+    ?check=<key>&group=<group>`) and "Show on the daily chart" (the selected value); two
+    charts drawn on the server with axes, *When* (`when_chart`: each value against its
+    date across the record, `Row.plot`, the selected one ringed; three value ticks, from
+    zero for amounts, `_nice`; up to seven years) and *By calendar month* (`months_chart`:
+    twelve bars with count ticks; "Table" shows its table in the chart's place, both show
+    without JavaScript); then the values table and the selected value side by side. The
+    values table has only the columns the check needs (`value_columns`, `Row.values`):
+    heavy and light rain Date, PR, the month's limit (the box plot's whisker), Over or
+    Under by; TN ≥ TX Date, TN, TX, TN − TX; out of range Date, PR, TX, TN; repeated date
+    Date, Rows, Lines in the file; temperature outliers Date, the value, the month's usual
+    range, Beyond by; jumps Date, the value, the next day's, the change; flat runs Date,
+    the value, Days in a row, From (the run's first day). It has 12 rows a page
+    (`PAGE_SIZE`), largest first (`Row.size`: how far beyond what the check expects, the
+    change, the run's length, the rows of a date; `Check.sorted_rows`) or by date. The
+    selected value (`Review.value`, `build_finding`, the largest by default): its date and
+    check, its sentence, codes first ("PR 350.5 mm, 328.6 mm over the limit for
+    December", "TN 9.5 °C is above TX 8.2 °C"), a chart of the 3 days either side
+    (`WINDOW_DAYS`, 7 either side until #264): PR bars with the limit dashed
+    (`_bar_chart`) for a rain check, otherwise TX and TN lines with the value ringed
+    (`_chart`), the day as a band; the same days as a table to one decimal (the chart's
+    table view; the day in bold, the check's other values marked), a repeated date's rows,
+    and the line(s) of the station file that give the date (`StationRows.lines`, read by
+    `qc_review.file_lines`: "Line 465 in the file"). Without JavaScript every link is an
+    address: a check `?show=<id>` (its `table_id`; an unknown id the first), its page,
+    order and value `?<id>_page=`, `_sort=` and `_value=` (`views.check_state`; with no
+    `show`, the check these name, `views.selected_item`). Every check's detail is in the
+    page, the others `hidden`. With JavaScript (`qc.js`) a check shows its detail in place,
+    marks it (`aria-current`), puts `?show=` in the address (`replaceState`) and
     announces the detail's title in a polite live region; when the detail is below the
-    list, focus moves to its title, and "Back to the list" returns it to the row. Keyboard:
-    Tab moves between the rows, Enter selects. "How the checks work" (a quiet help link,
-    `{% section_help quiet=True %}`) opens the verdict's help with every check's topic.
+    rail, focus moves to its title, and "Back to the list" returns it to the check. A
+    value's date (or a click anywhere on its row), the sort and the pager swap the values
+    fragment in place (htmx, `.../quality/checks/<check>?group=&page=&sort=&date=`,
+    `views.qc_table`); the When chart's ring then moves to the selected value
+    (`data-ring-x`, `data-ring-y`), the address takes the link's, the value's title is
+    announced and focus stays on what was used. Keyboard: Tab moves between the checks,
+    Enter selects. "How the checks work" (a quiet help link, `{% section_help quiet=True
+    %}`) opens the verdict's help with every check's topic. Like the Indices (#263),
+    Quality has no Inputs panel beside it since #264: "Edit inputs" on the provenance
+    line, so the rail and the detail have the width; at 1280 px nothing scrolls sideways
+    with the 67 heavy rain days of the QC stress file.
   - *Checks that found nothing*: one line ("4 checks found nothing: ...").
   - *Daily values, with the flags* and *Distributions*, two disclosures, then one line
     with the thresholds the checks used (a link opens their sheet) and the link to the
     quality-control files in Files (#176). "Details", one disclosure holding them, until
     #235.
-- *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
-  `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
-  `?show=<table>&<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
-  ...). The tables add what the files leave out: both days and the change for jumps (the TX
-  file holds the change and the TN file the day's value, R's slip, see
-  [Quality control](#quality-control)), the dates a flat run covers, the usual range of the
-  month for an outlier (the whiskers of `qc.boxplot_stats`), each row of a repeated date
-  (one table row per date). The flagged value is in bold.
+- *Tables*: each check in the rail has its values table in pages of 12 (htmx,
+  `.../quality/checks/<check>?group=<variable>-<direction>&page=&sort=`; plain links with
+  `?show=<table>&<table>_page=&<table>_sort=` without JavaScript, the table being
+  `outliers-prcp-high`, `tx_jumps`, ...). The tables add what the files leave out: both
+  days and the change for jumps (the TX file holds the change and the TN file the day's
+  value, R's slip, see [Quality control](#quality-control)), the first day of a flat run,
+  the month's limit or usual range for an outlier (the whiskers of `qc.boxplot_stats`)
+  and how far beyond it, the lines of a repeated date (one table row per date). The
+  flagged value is in bold. The flagged values CSV keeps every file's columns.
 - *Daily charts* (the "Daily values" disclosure): one per variable (TX, TN, DTR, precipitation) in tabs,
   from `charts:station_daily?variable=`, with the flags of the job's thresholds as rings.
-  "Show on the daily chart" in a finding's detail opens the disclosure and the row's chart and
-  moves it to the date (marked with a dashed line, focus on the chart); a click on a ring
-  shows the finding of that date in the detail, or else the group whose table holds it
-  (loading the table page that holds it), marks the row and focuses it (#202). See [Charts](#charts) for the API.
+  "Show on the daily chart" in a check's detail opens the disclosure and the selected
+  value's chart and moves it to the date (marked with a dashed line, focus on the chart);
+  a click on a ring selects that value in the first check that found it (loading the
+  page that holds it; `qc_table` answers a check that did not find the date with no
+  content), shows that check's detail and focuses the value (#202, #264). See [Charts](#charts) for the API.
 - *Distributions* (a disclosure; `qc_plots`, inline SVG with a table each), R's QC plots:
   monthly box plots (`fourboxes`, whiskers at the thresholds, so the values beyond them
   are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
@@ -5501,8 +5528,9 @@ until #263 a later rule showed it there too). On a phone (below 40rem) each row 
 lines (code, name and sparkline; then the slope with its unit, interval and
 significance) and the header a line of the sort buttons, by CSS only.
 
-On the Indices the Inputs panel does not sit beside the section (#236), so the rail, table
-and pane have the width. Since #263 "Edit inputs" at the end of the provenance line
+On the Indices the Inputs panel does not sit beside the section (#236), nor on Quality
+since #264 (`station-page--inputs-bar`, the `_workspace.html` include's `edit_inputs`),
+so the rail, table and pane have the width. Since #263 (Quality #264) "Edit inputs" at the end of the provenance line
 (`stations/_edit_inputs.html`, the context bar's `provenance_end`) opens the Inputs sheet
 where the page is at least 52rem wide; narrower, the Inputs bar under the tabs takes its
 place (and the link is hidden). On wider pages the bar shows only while it says more than
@@ -6278,7 +6306,11 @@ gzipped, 147.7 KB with everything it links), the extra being every item's detail
 page, hidden but the selected one, each finding's chart of the 30 days either side, and
 "Your data"; `qc.js` 2.7 of 3 KB. #235 made it a compact worklist: 567.2 KB of HTML
 (72.1 KB gzipped), each finding's chart now of the 7 days either side, the tables' rows
-denser; `qc.js` 3.0 of 3 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
+denser; `qc.js` 3.0 of 3 KB. #264 made it a rail of checks and the selected check's
+detail: 531.7 KB of HTML (71.3 KB gzipped), each check's two charts and one selected value
+with the 3 days either side in place of every finding's chart; `qc.js` 3.2 of 3.5 KB,
+`climpact.css` 18.7 of 19 KB (the raw stylesheet's limit 114,000 bytes, 110,000 before).
+#78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (Files since #176, which grouped its files in closed disclosures and added

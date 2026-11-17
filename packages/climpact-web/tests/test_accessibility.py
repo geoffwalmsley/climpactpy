@@ -268,9 +268,6 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the quality checks", heard=heard)  # fmt: skip
     pages["station quality results"] = here(c)
-    table = c.evaluate("(document.querySelector('a[href*=\"/quality/checks/\"]') || {}).href")
-    if table:
-        pages["station quality table"] = table
     # "Use this data" opens the results of the run queued with the checks (#178), or its
     # progress until it has finished.
     submit(c, "form[action$='/quality/continue']")
@@ -884,8 +881,8 @@ def test_input_sheet_by_keyboard(chrome, site):
     c = chrome
     c.viewport(1280, 900)
     try:
-        # The panel is beside Quality; the Indices have the Inputs bar (#236).
-        c.navigate(site["station quality results"])
+        # The panel is beside Files; the Indices and Quality have "Edit inputs" (#263, #264).
+        c.navigate(site["station downloads"])
         edit = "[data-sheet-open='sheet-base-period']"
         c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
         for _ in range(80):
@@ -927,7 +924,7 @@ def test_input_sheet_by_keyboard(chrome, site):
         c.evaluate(f"document.querySelector({json.dumps(edit)}).click()")
         c.evaluate(f"{sheet}.querySelector('button[data-sheet-close]:not(.button--icon)').click()")
         assert not c.evaluate(f"{sheet}.open")
-        assert c.evaluate("location.pathname").endswith("/quality")
+        assert c.evaluate("location.pathname").endswith("/downloads")
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
@@ -1131,8 +1128,9 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
     that fills the screen; an input's Edit there opens that input's sheet over it; Escape
     goes back to the list, with focus on that Edit, then to the page, with focus on the
     bar's Edit. No axe violation with either sheet open. At 1280 px the panel is back
-    beside Quality and the bar is gone; on the Indices "Edit inputs" on the provenance
-    line takes the bar's place (#263) and opens the same sheet, focus returning to it."""
+    beside Files and the bar is gone; on the Indices and Quality "Edit inputs" on the
+    provenance line takes the bar's place (#263, #264) and opens the same sheet, focus
+    returning to it."""
     c = chrome
     bar = "document.querySelector('[data-inputs-bar]')"
     panel = "document.querySelector('[data-inputs-panel]')"
@@ -1194,6 +1192,10 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
         assert not c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
         c.viewport(1280, 900)
         c.navigate(site["station quality results"])
+        assert not c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{panel}.checkVisibility()")
+        assert c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.navigate(site["station downloads"])
         assert not c.evaluate(f"{bar}.checkVisibility()")
         assert c.evaluate(f"{panel}.checkVisibility()")
     finally:
@@ -1618,13 +1620,14 @@ def test_indices_table_and_detail_by_keyboard(chrome, site):
 
 
 def test_quality_list_and_detail_by_keyboard(chrome, site):
-    """#202: the list's rows are links, Tab moves between them and Enter shows the row's
-    detail in place, marks the row, puts ?show= in the address and announces the
-    detail's title; on a narrow screen focus moves to the detail below the list, and "Back
-    to the list" returns it to the row (#235). Beside the list the detail pane stays in
-    view: the last row's detail is in the viewport (#235). "Show on the daily chart" in a
-    finding's detail opens the daily charts and focuses the chart (#174); "Replace file"
-    opens the Inputs panel's File sheet (#199)."""
+    """#202, #264: the rail's checks are links, Tab moves between them and Enter shows
+    the check's detail in place, marks it, puts ?show= in the address and announces the
+    detail's title; on a narrow screen focus moves to the detail below the rail, and
+    "Back to the list" returns it to the check (#235). Beside the detail the rail stays in
+    view: the last check's detail is in the viewport. A value's date selects it in place
+    (htmx), focus staying on it, its title announced; "Table" shows the months as a
+    table. "Show on the daily chart" opens the daily charts and focuses the chart
+    (#174)."""
     c = chrome
     c.navigate(site["station quality results"])
     items = "[...document.querySelectorAll('[data-qc-item]')]"
@@ -1632,7 +1635,7 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
     current = "[...document.querySelectorAll('[data-qc-item][aria-current=true]')].map(a => a.dataset.qcItem)"  # noqa: E501
     said = "document.querySelector('[data-qc-said]').textContent"
     ids = c.evaluate(f"{items}.map(a => a.dataset.qcItem)")
-    assert len(ids) == 5 + 4  # Sydney: 5 findings, 4 groups
+    assert len(ids) > 4  # Sydney: its "look wrong" checks, then 4 groups
     assert c.evaluate(shown) == [ids[0]] and c.evaluate(current) == [ids[0]]  # the first
     # Tab moves along the list.
     focus(c, f"[data-qc-item='{ids[0]}']")
@@ -1647,9 +1650,34 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         wait_for(c, f"{said} === {title}", timeout=5, what=f"the announcement of {i}")
         assert c.evaluate("document.activeElement.dataset.qcItem") == i
         assert f"show={i}" in here(c)
-    # A group's detail has its table, paged with htmx.
+    # A check's detail has its values table, paged with htmx.
     group = ids[-1]
     assert c.evaluate(f"!!document.querySelector('[data-qc-detail=\"{group}\"] [data-qc-table]')")
+    # A value selected by keyboard: in place, focus on its date, its title announced, the
+    # When chart's ring on it, its address kept.
+    detail = f"document.querySelector('[data-qc-detail=\"{group}\"]')"
+    dates = c.evaluate(
+        f"[...{detail}.querySelectorAll('[data-qc-value]')].map(a => a.dataset.qcValue)"
+    )
+    if len(dates) > 1:
+        focus(c, f"[data-qc-detail='{group}'] [data-qc-value='{dates[1]}']")
+        c.press("Enter")
+        wait_for(c, f"{detail}.querySelector('[data-qc-table]').dataset.selected === '{dates[1]}'",
+                 timeout=10, what="the value selected")  # fmt: skip
+        assert c.evaluate("document.activeElement.dataset.qcValue") == dates[1]
+        value = f"{detail}.querySelector('[data-qc-value-title]').textContent"
+        value += ".replace(/\\s+/g, ' ').trim()"
+        wait_for(c, f"{said} === {value}", timeout=5, what="the value's announcement")
+        assert f"_value={dates[1]}" in here(c)
+        ring = c.evaluate(f"{detail}.querySelector('[data-qc-ring]').getAttribute('cx')")
+        # On the value, or out of sight for a value with nothing to draw.
+        ring_x = f"{detail}.querySelector('[data-qc-table]').dataset.ringX || '-20'"
+        assert ring == c.evaluate(ring_x)
+    # By calendar month as a table.
+    focus(c, f"[data-qc-detail='{group}'] [data-qc-months-toggle]")
+    c.press("Enter")
+    assert c.evaluate(f"{detail}.querySelector('[data-qc-months-table]').checkVisibility()")
+    assert not c.evaluate(f"{detail}.querySelector('[data-qc-months-chart]').checkVisibility()")
     # Reloaded, the address shows the same detail.
     c.navigate(here(c))
     assert c.evaluate(shown) == [group] and c.evaluate(current) == [group]
@@ -1691,7 +1719,7 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         c.press("Enter")
         assert c.evaluate("document.activeElement.classList.contains('qc-detail__title')")
         assert c.evaluate(
-            "document.querySelector('.qc-work__list').getBoundingClientRect().bottom"
+            "document.querySelector('.qc-rail').getBoundingClientRect().bottom"
             " <= document.activeElement.getBoundingClientRect().top"
         )
         # "Back to the list" returns focus to the row.
@@ -1773,7 +1801,7 @@ def test_settings_sheet_by_keyboard(chrome, site):
         " return r.top >= 0 && r.bottom <= window.innerHeight + 1; })"
     )
     try:
-        c.navigate(site["station quality results"])  # the panel; the Indices have the bar
+        c.navigate(site["station downloads"])  # the panel; the Indices and Quality have the bar
         edit = "[data-inputs-panel] [data-sheet-open='sheet-settings']"
         focus(c, edit)
         c.press("Enter")
@@ -1827,10 +1855,13 @@ def test_settings_sheet_by_keyboard(chrome, site):
             assert c.evaluate(f"document.getElementById('sheet-{key}').matches(':modal')")
             c.press("Escape")
             time.sleep(0.1)
-            # The panel's Edit; on the Indices the settings line's link in the rail (#236).
+            # The first visible link that opens it: on the Indices the settings line's in
+            # the rail (#236), on Quality (no panel since #264) the thresholds line's.
             back = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
             if "/indices" in url:
                 back = f"[data-settings-line] [data-sheet-open='sheet-{key}']"
+            if "/quality" in url:
+                back = f"#thresholds [data-sheet-open='sheet-{key}']"
             assert c.evaluate(f"document.activeElement.matches({json.dumps(back)})"), url
     finally:
         c.media(prefers_color_scheme="light")

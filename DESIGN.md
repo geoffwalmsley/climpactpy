@@ -33,7 +33,8 @@ in line; the text around it describes the code as it is. The rules come from thr
   Since #256 a workspace is `/w/<id>/` and its stations `/w/<id>/<station>/…`; the
   workspace's address opens a workspace of one station straight away, and is where a
   batch's results are, until the overview replaces them (`Calculate.dc.html`, #234). Still to come:
-  Workspaces in place of Your calculations (Target: #233, #234, #242).
+  Workspaces in place of Your calculations (Target: #234, #242). Add stations (#233) is the
+  one way in, for one station or many: New station and the batch's first page lead there.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere (Target: #240).
@@ -273,8 +274,15 @@ table with that page.
   are in the Menu, and so is the theme toggle, #203. Workspaces opens the list of
   calculations until #242, and is current on station and batch pages too) → step
   indicator for the
-  batch and gridded flows → title and one-line lead → content → footer. A new station is
-  one narrow page (40rem, centred; #201): "New station", a lead, two numbered steps (Your
+  batch and gridded flows → title and one-line lead → content → footer. Stations come in
+  on Add stations (#233, the AddStations board; starting a workspace, `/add/`, has Start's
+  drop zone with the file format and the settings beside it, the content width): the h1
+  (with the workspace in a breadcrumb when adding to one), then the drop zone, the review
+  table and the line under it with Cancel and "Add N stations and check them", and beside
+  them, from 90rem, the panel "Applies to every station" (below 90rem it is one line above
+  the drop zone, so the table's eight columns fit at 1280px without scrolling sideways);
+  up to 90rem wide. A station's own setup page (a new file that needs new details) keeps
+  New station's narrow page (40rem, centred; #201): a lead, two numbered steps (Your
   file, Station details) divided by hairlines, then the one call to action. A station is a
   workspace instead: its context bar (#227: its name as the h1, the provenance line, the
   page's actions, then the section tabs, Quality, Indices and Files), then the Inputs
@@ -397,7 +405,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Detail pane | Component | The selected row's detail beside its table (`detail-pane`, #235, and the Indices', #236): a frame on the surface, in view under the context bar as the list scrolls and scrolling inside itself; after the list on narrow screens, with "Back to the list", which returns focus to the row | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
-| New station steps | Pattern | The New station page's steps (`setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
+| Review table | Pattern | Add stations' files (#233, the AddStations board; `stations/_add_table.html`, `stations/add_stations.review`): a framed data table with its heading inside the frame ("7 files read · metadata from stations_nsw.txt · paste latitude and longitude columns from a spreadsheet" and "Metadata file format"); a row a station file, 34px: File (mono, an ellipsis when long, whole in its title), Station name, Latitude and Longitude (inputs as small as the row, mono for the coordinates), Period, Days, Index settings ("Defaults" or "Custom (wsdin 4)") and Read ("Read · 6.9% missing" in success, a warning such as "Read · 2 repeated dates; checks will list them" in amber, a problem such as "Latitude needed" or "Not read: line 1 has 4 values, expected 6 (year month day PR TX TN)" in red, the only column that wraps). A row with a problem has a faint danger tint and its invalid cells the danger edge; it stays out. Under the table, a disclosure with every problem and warning and its line, and one sentence naming what is left to fix ("2 problems to fix before these stations can be added: a missing latitude and an unreadable file."). Checked as it is typed, a pasted column fills down (`js/add-stations.js`); a plain form without JavaScript. On a phone the table scrolls in its frame | problems, warnings, metadata |
+| New station steps | Pattern | The steps of a station's setup page (New station until Add stations, #233; `setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
 | File card | Component | The file read (`stations/_file_card.html`): its name, "✓ Read: first–last year, days" in success, and Replace (a file button inside the page's form) at the end; under it the days with data in each year, an SVG bar a year in success, amber (`--color-warning`) when the year misses more than 15 days (too many for annual index values), with a text alternative naming those years | gaps, no gaps |
 | `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS. Unused since Quality's corrected file became the File sheet (#199) | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
@@ -444,8 +453,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 **Target: replaced by #230.** These stay until the ticket named lands, then go (the
 theme tiles, `answer-band` and the Catalogue went with the Indices table, #236): the
 Inputs panel and Inputs bar (by "Edit inputs" on the
-context bar and workspace settings, #231, #234); New station steps, the File card and
-`file_button` (by Add stations, #233); `steps` and the batch results page (by the workspace overview's run status line and
+context bar and workspace settings, #231, #234); `file_button` (unused); `steps` and the batch results page (by the workspace overview's run status line and
 Stations table, #231, #234; board `Calculate.dc.html`); the
 Settings line and panel (by workspace settings, #231). The Side sheet stays, for
 workspace settings.
@@ -456,7 +464,6 @@ New patterns of #230 (Target; add each to `/patterns/` when it lands):
 | --- | --- | --- |
 | Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
 | Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
-| Review table | Add stations' table of files: editable name and coordinates, read status, every problem at once | #233 |
 | Stations table | A workspace's stations with their verdict, indices state and significant count; the indices state is live while a run goes (Done, Calculating with its percentage, Waiting, Not run with "Fix quality first", Failed with its fix) | #234 |
 | Run status line | One line above the Stations table, never a panel: neutral with a progress bar while stations calculate (done of total, time left, Cancel); quiet when they have finished (how many, how long, Download all, Files); red only when a station failed, naming it, why and the fix. It stays until the workspace is next opened | #234 |
 | Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
@@ -511,7 +518,9 @@ years; sparklines are only for scanning, beside a number given in text.
   ("Replace file" on Quality's verdict, "Change the settings" on Results) open the same
   sheet. The base period, thresholds and index settings are the workspace's (#254): their
   sheets say so when the workspace has several stations, and that the change can be undone
-  until its replacement is ready. **Target (#233, #234):** they are edited in the
+  until its replacement is ready. Before a workspace has stations they change on Add
+  stations, in its panel "Applies to every station" (the base period and the plots,
+  #233). **Target (#234):** they are edited in the
   workspace's settings sheet; a station's name and coordinates are edited from "Edit
   inputs" on its provenance line.
 - **Let the user take a change back.** A change to the workspace's settings recalculates
@@ -565,12 +574,11 @@ years; sparklines are only for scanning, beside a number given in text.
   defaults should be an inline action instead. The index settings are "Adjust and
   recalculate" on Results, and the defaults are calculated while the user checks the
   quality (#178). The station is a workspace of three sections beside its inputs, with
-  no steps (#179, #198). A first visit is one New station page (#201): the file, the
-  station name, latitude and longitude, the base period, then "Check and calculate";
-  thresholds and index settings start at their defaults and are changed later in Inputs.
-  **Target (#233, #234, #242):** a first visit is the landing page, then Get started,
-  then Add stations (one file or many, reviewed in one table). A one-station workspace
-  opens straight to its station; the overview appears from two stations.
+  no steps (#179, #198). A first visit is Add stations (#233): one file or many,
+  reviewed in one table, then "Add N stations and check them"; one station opens straight
+  on its Quality, checked and calculated with the defaults, which are changed later in
+  Inputs. **Target (#234, #242):** the landing page, then Get started, before Add
+  stations; the overview from two stations (until then the batch's results).
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
@@ -583,7 +591,7 @@ years; sparklines are only for scanning, beside a number given in text.
   Files, until the new results are ready.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
   where it matters, as a quiet line at the foot of the page: small muted text
-  (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).
+  (`text-sm text-text-muted`) with a lock icon. Add stations says it once (#233).
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
   and a theme's hue is always beside its name.
 - **Don't take the decision out of view.** Quality is a rail of checks and a check's

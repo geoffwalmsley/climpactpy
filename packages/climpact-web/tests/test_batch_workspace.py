@@ -1,5 +1,7 @@
-"""A batch fills its workspace (#255, part 3 of #231): once the run has finished its stations
-are the stations of the batch's workspace, each showing the batch's results; the base period
+"""A batch fills its workspace (#255, part 3 of #231): every station of the batch is a
+station of its workspace from when the run is queued, with its run state (waiting,
+calculating, done, not run, failed); those that calculated show the batch's results, those
+that failed or were left out none, only why (``Calculate.dc.html``, #234); the base period
 and the custom index are the workspace's; a change to the workspace's settings recalculates
 the batch's stations, as one change for the hosted limits; deleting the batch deletes its
 workspace."""
@@ -10,7 +12,8 @@ import pytest
 from test_batch import created, media, metadata, run_worker, station  # noqa: F401
 from test_workspace import edit, page, states
 
-from climpact_web.batch.fill import batch_index_settings, fill_workspace
+from climpact_web.batch import fill
+from climpact_web.batch.fill import batch_index_settings, fill_workspace, run_progress, run_states
 from climpact_web.batch.models import BatchRun
 from climpact_web.jobs.models import Job, JobStart, Status
 from climpact_web.stations import workspace
@@ -22,34 +25,110 @@ pytestmark = pytest.mark.django_db
 OPTIONS = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
 
 
-def finished_batch(client, *names, bad=()) -> BatchRun:
-    """A batch of ``names`` (those in ``bad`` fail in the run), run to the end."""
-    files = {f"{n}.txt": station(seed=k) for k, n in enumerate(names)}
-    for n in bad:  # read by the check, refused by the core: dates out of order
-        files[f"{n}.txt"] = "\n".join(reversed(station(days=400).splitlines())) + "\n"
-    run = created(client, metadata(*files), **files)
+def queued_batch(client, *names, bad=(), missing=()) -> BatchRun:
+    """A batch of ``names`` queued (those in ``bad`` fail in the run, those in ``missing``
+    are listed but not uploaded, so the check leaves them out)."""
+    files = {f"{n}.txt": station(seed=k) for k, n in enumerate([*names, *bad])}
+    listed = [*files, *(f"{n}.txt" for n in missing)]
+    run = created(client, metadata(*listed), **files)
     client.post(f"/batch/{run.pk}/run", OPTIONS)
+    run.refresh_from_db()
+    for n in bad:  # broken after the check, so it fails in the run itself
+        (run.job.input_dir / "stations" / f"{n}.txt").write_text(
+            "2000 1 1 0 20 10\n1999 1 1 0 20 10\n"
+        )
+    return run
+
+
+def finished_batch(client, *names, bad=(), missing=()) -> BatchRun:
+    """A batch of ``names`` (see :func:`queued_batch`), run to the end."""
+    run = queued_batch(client, *names, bad=bad, missing=missing)
     job = run_worker()
     assert job.status == Status.SUCCEEDED, job.error
     run.refresh_from_db()
     return run
 
 
-def test_a_finished_batch_fills_its_workspace(client):
-    run = finished_batch(client, "a", "b", bad=["c"])
-    space = run.workspace
-    # Nothing is added until the results are shown.
-    assert not space.stations.exists()
-    html = client.get(f"/batch/{run.pk}/results").content.decode()
-    stations = {s.station_name: s for s in space.stations.all()}
-    # The failed station is not added: it has no results to show.
-    assert set(stations) == {"a", "b"}
-    a = stations["a"]
+def states_of(run) -> dict[str, tuple]:
+    stations = {s.pk: s.station_name for s in run.workspace.stations.all()}
+    out = run_states(run.workspace.stations.all())
+    return {stations[pk]: (r.state, r.percent, r.error) for pk, r in out.items()}
+
+
+def test_every_station_is_added_when_the_batch_is_queued(client):
+    run = queued_batch(client, "a", "b", bad=["c"], missing=["d"])
+    stations = {s.station_name: s for s in run.workspace.stations.all()}
+    # Every station of the metadata file, the one left out by the check too.
+    assert set(stations) == {"a", "b", "c", "d"}
+    a, d = stations["a"], stations["d"]
     assert a.source == Source.BATCH and a.step == Step.QC and a.slug == "a"
     assert a.owner == run.owner and (a.latitude, a.longitude) == (-30, 150)
-    assert a.origin["batch"] == str(run.pk) and a.origin["job"] == str(run.job_id)
-    assert a.origin["params"]["spei_months"] == 24 and a.station_file.is_file()
-    assert space.display_name.startswith("2 stations, ")
+    assert a.origin["batch"] == str(run.pk) and a.origin["params"]["spei_months"] == 24
+    assert a.station_file.is_file() and a.origin["run"] == {
+        "job": str(run.job_id),
+        "state": "waiting",
+    }
+    # No results yet: none of the batch's, and none empty.
+    assert not workspace.batch_results(a) and workspace.shown_run(a) is None
+    # Left out: no file, not run, with why; its page is where a file is loaded.
+    assert not d.station_file.exists() and d.step == Step.UPLOAD
+    assert client.get(f"/station/{d.pk}/")["Location"] == f"/station/{d.pk}/setup"
+    assert client.get(f"/station/{d.pk}/setup").status_code == 200
+    # Waiting: its address leads to Quality, its checks not yet run.
+    assert client.get(f"/station/{a.pk}/")["Location"] == f"/station/{a.pk}/quality"
+    assert client.get(f"/station/{a.pk}/quality").status_code == 200
+    got = states_of(run)
+    assert got["a"] == got["b"] == got["c"] == ("waiting", None, "")
+    assert got["d"][0] == "not_run" and "No file named d.txt was uploaded." in got["d"][2]
+    progress = run_progress(run)
+    assert (progress.total, progress.done, progress.waiting, progress.not_run) == (3, 0, 3, 1)
+    assert not progress.finished and progress.elapsed is None
+
+
+def test_a_station_calculating_shows_how_far_it_is(client):
+    import json
+
+    from climpact_web.jobs.runners import STATIONS_FILE
+
+    run = queued_batch(client, "a", "b")
+    job = run.job
+    job.status, job.started_at = Status.RUNNING, job.created_at
+    job.save()
+    rows = [
+        {"name": "a", "state": "running", "step": 3, "total": 12, "stage": ""},
+        {"name": "b", "state": "waiting", "step": 0, "total": 12, "stage": ""},
+    ]
+    job.output_dir.mkdir(parents=True, exist_ok=True)
+    (job.output_dir / STATIONS_FILE).write_text(json.dumps({"stations": rows}))
+    assert states_of(run) == {"a": ("calculating", 25, ""), "b": ("waiting", None, "")}
+    progress = run_progress(run)
+    assert (progress.total, progress.done, progress.calculating, progress.waiting) == (2, 0, 1, 1)
+    assert progress.elapsed is not None and not progress.finished
+
+
+def test_a_finished_batch_fills_its_workspace(client):
+    run = finished_batch(client, "a", "b", bad=["c"], missing=["d"])
+    space = run.workspace
+    # The run's states, as the runner left them, before the results are shown.
+    got = states_of(run)
+    assert got["a"] == ("done", None, "") and got["c"][0] == "failed" and got["c"][2]
+    html = client.get(f"/batch/{run.pk}/results").content.decode()
+    stations = {s.station_name: s for s in space.stations.all()}
+    assert set(stations) == {"a", "b", "c", "d"}
+    a, c = stations["a"], stations["c"]
+    assert a.origin["job"] == str(run.job_id) and a.origin["run"]["state"] == "done"
+    assert space.display_name.startswith("4 stations, ")
+    # The failed station stays, with R's or our error in words, and no results.
+    got = states_of(run)
+    assert got["c"][0] == "failed" and "Error" not in got["c"][2] and got["c"][2]
+    assert got["d"][0] == "not_run"
+    assert "job" not in c.origin and workspace.shown_run(c) is None
+    progress = run_progress(run)
+    assert (progress.total, progress.done, progress.failed, progress.not_run) == (3, 2, 1, 1)
+    assert progress.finished and progress.elapsed is not None and progress.remaining is None
+    # A failed station opens on its Indices: nothing calculated, the settings to change.
+    assert client.get(f"/station/{c.pk}/")["Location"] == f"/station/{c.pk}/results"
+    assert "The indices are not calculated yet." in page(client, c, "results")
     # "Open" goes to the workspace's station; there is no separate workspace of one.
     assert f'href="/station/{a.pk}/"' in html and f'href="/station/{stations["b"].pk}/"' in html
     assert "Open as a single station" not in html and "batch/open" not in html
@@ -58,7 +137,7 @@ def test_a_finished_batch_fills_its_workspace(client):
     # Showing the results again, or polling them, adds nothing.
     client.get(f"/batch/{run.pk}/results")
     client.get(f"/batch/{run.pk}/progress")
-    assert Station.objects.count() == 2
+    assert Station.objects.count() == 4
     # The station shows the batch's results, current, with the workspace's base period.
     assert client.get(f"/station/{a.pk}/")["Location"] == f"/station/{a.pk}/results"
     html = page(client, a)
@@ -68,19 +147,37 @@ def test_a_finished_batch_fills_its_workspace(client):
     # An index page names the workspace in its breadcrumb, leading to the batch results.
     html = page(client, a, "results/txx")
     crumbs = re.findall(r'<ol class="context-bar__breadcrumb">(.*?)</ol>', html, re.S)[0]
-    assert f'href="/batch/{run.pk}/results">2 stations, ' in crumbs
+    assert f'href="/batch/{run.pk}/results">4 stations, ' in crumbs
     # The old "Open as a single station" forms lead to the same station.
     assert client.post(f"/batch/{run.pk}/open/a")["Location"] == f"/station/{a.pk}/"
-    assert client.post(f"/batch/{run.pk}/open/c").status_code == 404
+    assert client.post(f"/batch/{run.pk}/open/zz").status_code == 404
     # The batch job is kept while the stations show it.
     assert str(run.job_id) in kept_jobs()
 
 
+def test_a_job_from_before_stations_were_added_when_queued(client):
+    """A batch job queued before #255 added its stations when queued: they are all added
+    when it has finished, as they would have been."""
+    run = queued_batch(client, "a", bad=["c"], missing=["d"])
+    Station.objects.all().delete()
+    run.job.params.pop(fill.ADDED)
+    run.job.save()
+    assert run_worker().status == Status.SUCCEEDED
+    run.refresh_from_db()
+    fill_workspace(run)
+    space = Workspace.objects.get(pk=run.workspace_id)
+    stations = {s.station_name: s for s in space.stations.all()}
+    assert set(stations) == {"a", "c", "d"}
+    assert workspace.batch_results(stations["a"]) and not workspace.batch_results(stations["c"])
+    got = states_of(run)
+    assert [got[n][0] for n in "acd"] == ["done", "failed", "not_run"]
+
+
 def test_a_deleted_station_is_not_added_again(client):
-    run = finished_batch(client, "a", "b")
-    client.get(f"/batch/{run.pk}/results")
+    run = queued_batch(client, "a", "b")
     a = Station.objects.get(station_name="a")
-    client.post(f"/station/{a.pk}/delete")
+    client.post(f"/station/{a.pk}/delete")  # during the run
+    run_worker()
     client.get(f"/batch/{run.pk}/results")
     assert list(run.workspace.stations.values_list("station_name", flat=True)) == ["b"]
     assert 'href="/station/' in client.get(f"/batch/{run.pk}/results").content.decode()
@@ -113,6 +210,8 @@ def test_a_workspace_change_recalculates_the_batch_stations(client, settings):
     queued = Job.objects.filter(status=Status.QUEUED)
     assert sorted(queued.values_list("kind", flat=True)) == ["qc"] * 3 + ["station"] * 3
     assert JobStart.objects.count() == starts + 1
+    # Each station's state is its own run's now, for the overview's Stations table.
+    assert {v[0] for v in states_of(run).values()} == {"waiting"}
     for s in stations:
         s.refresh_from_db()
         assert s.indices_job.params["metadata"]["base_end"] == 2000
@@ -157,11 +256,16 @@ def test_running_the_batch_again_updates_its_stations(client):
     run = finished_batch(client, "a")
     client.get(f"/batch/{run.pk}/results")
     a = run.workspace.stations.get()
-    first_job = run.job_id
+    first_job, first_job_id = run.job_id, str(run.job_id)
     client.post(f"/batch/{run.pk}/run", {**OPTIONS, "base_start": "2001"})
+    assert states_of(run)["a"][0] == "waiting"
+    assert workspace.batch_results(Station.objects.get(pk=a.pk))
     assert run_worker().status == Status.SUCCEEDED
     run.refresh_from_db()
     assert run.job_id != first_job
+    a.refresh_from_db()
+    # Its earlier results stay on the page while the new run goes.
+    assert a.origin["job"] == first_job_id and a.origin["run"]["job"] == str(run.job_id)
     # Until the new results are shown the station is out of date (its base period changed).
     a.refresh_from_db()
     assert workspace.section_states(a)["results"] == "stale"

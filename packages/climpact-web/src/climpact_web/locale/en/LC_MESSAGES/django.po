@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 15:28+0000\n"
+"POT-Creation-Date: 2026-11-17 17:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -223,6 +223,14 @@ msgstr ""
 msgid "Choose the batch metadata file."
 msgstr ""
 
+#: batch/fill.py:302
+msgid "The station file was not found."
+msgstr ""
+
+#: batch/fill.py:369
+msgid "The run was cancelled."
+msgstr ""
+
 #: batch/forms.py:38
 msgid ""
 "A text file with a line of column names, then one line per station: "
@@ -351,7 +359,7 @@ msgstr ""
 
 #: batch/templates/batch/_options.html:9 core/views.py:208 core/views.py:456
 #: core/views.py:474 gridded/templates/gridded/setup.html:109
-#: stations/templates/stations/_unit.html:18 stations/workspace.py:675
+#: stations/templates/stations/_unit.html:18 stations/workspace.py:721
 msgid "Base period"
 msgstr ""
 
@@ -632,7 +640,7 @@ msgid "Listed"
 msgstr ""
 
 #: batch/templates/batch/check.html:47 batch/templates/batch/check.html:56
-#: stations/workspace.py:389
+#: stations/workspace.py:435
 msgid "Ready"
 msgstr ""
 
@@ -683,7 +691,7 @@ msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
 #: batch/templates/batch/check.html:90 core/views.py:206 core/views.py:455
-#: stations/workspace.py:674
+#: stations/workspace.py:720
 msgid "Station"
 msgstr ""
 
@@ -911,54 +919,50 @@ msgid_plural "%(counter)s stations, changed %(when)s ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:244
+#: batch/views.py:251
 #, python-format
 msgid "about %(n)d minute"
 msgid_plural "about %(n)d minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:314
+#: batch/views.py:321
 #, python-format
 msgid "%(count)d file loaded. The stations were checked again."
 msgid_plural "%(count)d files loaded. The stations were checked again."
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:378
+#: batch/views.py:386
 #, python-format
 msgid "Batch: %(name)s (%(count)d station)"
 msgid_plural "Batch: %(name)s (%(count)d stations)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:379
+#: batch/views.py:387
 msgid "stations"
 msgstr ""
 
-#: batch/views.py:407
+#: batch/views.py:416
 #, python-format
 msgid "And %(count)d more problems like these."
 msgstr ""
 
-#: batch/views.py:409
+#: batch/views.py:418
 msgid "Not calculated: the station file is missing."
 msgstr ""
 
-#: batch/views.py:411
+#: batch/views.py:420
 msgid "Not calculated: the station has problems."
 msgstr ""
 
-#: batch/views.py:426
+#: batch/views.py:435
 msgid "The batch and its stations were deleted."
 msgstr ""
 
-#: batch/views.py:428
+#: batch/views.py:437
 msgid "The batch files were deleted."
-msgstr ""
-
-#: batch/views.py:466
-msgid "The station file was not found."
 msgstr ""
 
 #: charts/data.py:58 core/forms.py:24 gridded/forms.py:140
@@ -969,7 +973,7 @@ msgstr ""
 #: charts/data.py:59 core/views.py:109 stations/qc_review.py:70
 #: stations/qc_review.py:433
 #: stations/templates/stations/_qc_missing_table.html:17
-#: stations/templates/stations/_summary.html:38 stations/workspace.py:653
+#: stations/templates/stations/_summary.html:38 stations/workspace.py:699
 msgid "TX"
 msgstr ""
 
@@ -981,7 +985,7 @@ msgstr ""
 #: charts/data.py:66 core/views.py:110 stations/qc_review.py:70
 #: stations/qc_review.py:433 stations/qc_review.py:1011
 #: stations/templates/stations/_qc_missing_table.html:18
-#: stations/templates/stations/_summary.html:39 stations/workspace.py:653
+#: stations/templates/stations/_summary.html:39 stations/workspace.py:699
 msgid "TN"
 msgstr ""
 
@@ -995,7 +999,7 @@ msgstr ""
 #: core/templates/core/patterns.html:302 core/views.py:108
 #: stations/qc_review.py:70 stations/qc_review.py:433
 #: stations/templates/stations/_qc_missing_table.html:16
-#: stations/templates/stations/_summary.html:37 stations/workspace.py:653
+#: stations/templates/stations/_summary.html:37 stations/workspace.py:699
 msgid "PR"
 msgstr ""
 
@@ -1952,7 +1956,7 @@ msgstr ""
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:258
 #: core/views.py:139 gridded/forms.py:113
 #: gridded/templates/gridded/_progress.html:15 help/topics.py:71
-#: stations/views_indices.py:634 stations/workspace.py:399
+#: stations/views_indices.py:634 stations/workspace.py:445
 msgid "Indices"
 msgstr ""
 
@@ -2619,7 +2623,7 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/patterns.html:382 core/views.py:466
-#: stations/templates/stations/results.html:34 stations/workspace.py:865
+#: stations/templates/stations/results.html:34 stations/workspace.py:911
 msgid "Recalculating"
 msgstr ""
 
@@ -2741,7 +2745,7 @@ msgid "Example: the last step"
 msgstr ""
 
 #: core/templates/core/patterns.html:453 jobs/stages.py:16
-#: stations/workspace.py:865
+#: stations/workspace.py:911
 msgid "Calculating the indices"
 msgstr ""
 
@@ -3011,12 +3015,12 @@ msgstr ""
 msgid "Newcastle Nobbys"
 msgstr ""
 
-#: core/views.py:123 stations/workspace.py:622
+#: core/views.py:123 stations/workspace.py:668
 #, python-format
 msgid "base %(start)s–%(end)s"
 msgstr ""
 
-#: core/views.py:124 stations/workspace.py:634
+#: core/views.py:124 stations/workspace.py:680
 msgid "ET-SCI defaults"
 msgstr ""
 
@@ -3052,7 +3056,7 @@ msgstr ""
 msgid "Example: fix first"
 msgstr ""
 
-#: core/views.py:198 stations/workspace.py:361
+#: core/views.py:198 stations/workspace.py:407
 #, python-format
 msgid "You changed the base period to %(new)s. These results use %(old)s."
 msgstr ""
@@ -3170,7 +3174,7 @@ msgstr ""
 #: stations/templates/stations/downloads.html:69
 #: stations/templates/stations/downloads.html:87
 #: stations/templates/stations/downloads.html:112
-#: stations/templates/stations/downloads.html:153 stations/workspace.py:673
+#: stations/templates/stations/downloads.html:153 stations/workspace.py:719
 msgid "File"
 msgstr ""
 
@@ -3179,21 +3183,21 @@ msgid "29,220 days · 3 variables"
 msgstr ""
 
 #: core/views.py:454 stations/templates/stations/_file_card.html:14
-#: stations/workspace.py:857
+#: stations/workspace.py:903
 msgid "Replace"
 msgstr ""
 
 #: core/views.py:455 core/views.py:456 core/views.py:457 core/views.py:458
-#: stations/templates/stations/_inputs_bar.html:13 stations/workspace.py:857
+#: stations/templates/stations/_inputs_bar.html:13 stations/workspace.py:903
 msgid "Edit"
 msgstr ""
 
-#: core/views.py:457 stations/workspace.py:676
+#: core/views.py:457 stations/workspace.py:722
 msgid "Quality thresholds"
 msgstr ""
 
 #: core/views.py:458 core/views.py:481 help/topics.py:70
-#: stations/workspace.py:677
+#: stations/workspace.py:723
 msgid "Index settings"
 msgstr ""
 
@@ -5128,7 +5132,7 @@ msgstr ""
 msgid "Up to 0.1% of the values checked look wrong. Correct them if you can."
 msgstr ""
 
-#: help/sections.py:100 stations/workspace.py:390
+#: help/sections.py:100 stations/workspace.py:436
 msgid "Usable"
 msgstr ""
 
@@ -5294,7 +5298,7 @@ msgstr ""
 
 #: help/sections.py:229 help/sections.py:290
 #: stations/templates/stations/_settings_fields.html:56
-#: stations/workspace.py:400
+#: stations/workspace.py:446
 msgid "Files"
 msgstr ""
 
@@ -5515,7 +5519,7 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-#: help/templates/help/_tour.html:15 stations/workspace.py:382
+#: help/templates/help/_tour.html:15 stations/workspace.py:428
 msgid "Done"
 msgstr ""
 
@@ -6413,7 +6417,7 @@ msgid ""
 "closing the page."
 msgstr ""
 
-#: jobs/models.py:19 stations/workspace.py:385
+#: jobs/models.py:19 stations/workspace.py:431
 msgid "Running"
 msgstr ""
 
@@ -7565,7 +7569,7 @@ msgid "%(years)s and %(n)s more"
 msgstr ""
 
 #: stations/qc_review.py:1347 stations/views_indices.py:278
-#: stations/workspace.py:659
+#: stations/workspace.py:705
 #, python-format
 msgid "%(n)s day"
 msgid_plural "%(n)s days"
@@ -9527,151 +9531,151 @@ msgstr ""
 msgid "Write the tables and draw the plots"
 msgstr ""
 
-#: stations/workspace.py:352
+#: stations/workspace.py:398
 msgid "You loaded a different station file."
 msgstr ""
 
-#: stations/workspace.py:355
+#: stations/workspace.py:401
 #, python-format
 msgid "You changed the station name to %(name)s."
 msgstr ""
 
-#: stations/workspace.py:358
+#: stations/workspace.py:404
 msgid "You changed the latitude or longitude."
 msgstr ""
 
-#: stations/workspace.py:368
+#: stations/workspace.py:414
 msgid "You changed the quality-control thresholds."
 msgstr ""
 
-#: stations/workspace.py:370
+#: stations/workspace.py:416
 msgid "You changed the settings."
 msgstr ""
 
-#: stations/workspace.py:383
+#: stations/workspace.py:429
 msgid "Needs attention"
 msgstr ""
 
-#: stations/workspace.py:384
+#: stations/workspace.py:430
 msgid "Out of date"
 msgstr ""
 
-#: stations/workspace.py:386
+#: stations/workspace.py:432
 msgid "Checking…"
 msgstr ""
 
-#: stations/workspace.py:387
+#: stations/workspace.py:433
 msgid "Not started"
 msgstr ""
 
-#: stations/workspace.py:388
+#: stations/workspace.py:434
 msgid "Not available yet"
 msgstr ""
 
-#: stations/workspace.py:391
+#: stations/workspace.py:437
 msgid "Fix first"
 msgstr ""
 
-#: stations/workspace.py:397
+#: stations/workspace.py:443
 msgid "Quality"
 msgstr ""
 
-#: stations/workspace.py:423
+#: stations/workspace.py:469
 #, python-format
 msgid "· %(n)s"
 msgstr ""
 
-#: stations/workspace.py:428
+#: stations/workspace.py:474
 #, python-format
 msgid ", %(n)s value looks wrong"
 msgid_plural ", %(n)s values look wrong"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:597
+#: stations/workspace.py:643
 #, python-format
 msgid "%(first)s–%(last)s · %(years)s yr"
 msgid_plural "%(first)s–%(last)s · %(years)s yr"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:631 stations/workspace.py:887
+#: stations/workspace.py:677 stations/workspace.py:933
 #, python-format
 msgid "%(count)s setting not the default"
 msgid_plural "%(count)s settings not the default"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:661
+#: stations/workspace.py:707
 #, python-format
 msgid "%(days)s · %(variables)s"
 msgstr ""
 
-#: stations/workspace.py:707
+#: stations/workspace.py:753
 msgid "Updates Quality, Indices and Files."
 msgstr ""
 
-#: stations/workspace.py:709
+#: stations/workspace.py:755
 msgid "Updates Indices and Files. Quality stays as it is."
 msgstr ""
 
-#: stations/workspace.py:710
+#: stations/workspace.py:756
 msgid "Updates Quality and Files. Indices stay as they are."
 msgstr ""
 
-#: stations/workspace.py:725
+#: stations/workspace.py:771
 msgid ""
 "A new station name updates Quality too, as its files are named after it."
 msgstr ""
 
-#: stations/workspace.py:734
+#: stations/workspace.py:780
 #, python-format
 msgid "It applies to the %(count)s station of this workspace."
 msgid_plural "It applies to all %(count)s stations of this workspace."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:741
+#: stations/workspace.py:787
 msgid "The station details and thresholds are kept."
 msgstr ""
 
-#: stations/workspace.py:743
+#: stations/workspace.py:789
 msgid "About half a minute for 80 years of data."
 msgstr ""
 
-#: stations/workspace.py:744
+#: stations/workspace.py:790
 msgid "What is shown now stays until its replacement is ready."
 msgstr ""
 
-#: stations/workspace.py:746
+#: stations/workspace.py:792
 msgid "You can undo the change until then."
 msgstr ""
 
-#: stations/workspace.py:796
+#: stations/workspace.py:842
 msgid "Defaults"
 msgstr ""
 
-#: stations/workspace.py:797
+#: stations/workspace.py:843
 #, python-format
 msgid "%(count)s changed"
 msgid_plural "%(count)s changed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:839
+#: stations/workspace.py:885
 #, python-format
 msgid "%(days)s days · %(count)s variables"
 msgstr ""
 
-#: stations/workspace.py:863
+#: stations/workspace.py:909
 msgid "Checking quality"
 msgstr ""
 
-#: stations/workspace.py:890
+#: stations/workspace.py:936
 msgid "defaults"
 msgstr ""
 
-#: stations/workspace.py:894
+#: stations/workspace.py:940
 #, python-format
 msgid "%(input)s changed"
 msgstr ""

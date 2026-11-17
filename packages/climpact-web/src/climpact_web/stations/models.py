@@ -190,12 +190,14 @@ class Station(models.Model):
 
     step = models.CharField(max_length=10, choices=Step.choices, default=Step.UPLOAD)
 
-    # A station opened from a batch's results (#80): {"batch": batch id, "job": the batch
-    # job's id, "station": its name, "params": the IndexParams fields of its metadata
-    # line, "outputs": its folder in the batch job's output/, "inputs": the inputs the
-    # batch's results were produced from (#179)}. Empty otherwise. Results show the
-    # batch's results until the station is calculated here. The index values of
-    # "params" are the station's own: they take the place of the workspace's (#254).
+    # A station of a batch (#80, #255): {"batch": batch id, "station": its name in the
+    # batch, "params": the IndexParams fields of its metadata line, "run": its state in
+    # the batch's latest run ({"job", "state", "error"}, batch/fill.py)} and, when the
+    # batch calculated it, "job": the batch job's id, "outputs": its folder in the job's
+    # output/, "inputs": the inputs those results were produced from (#179). Empty
+    # otherwise. Results show the batch's results until the station is calculated here.
+    # The index values of "params" are the station's own: they take the place of the
+    # workspace's (#254).
     origin = models.JSONField(default=dict, blank=True)
 
     # The jobs of the sections. A change to an input keeps them (#179): their results show

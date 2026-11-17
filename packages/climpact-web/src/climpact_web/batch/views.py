@@ -18,7 +18,6 @@ session gets 404.
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
@@ -35,13 +34,21 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.batch import check
-from climpact_web.batch.fill import JOB_METADATA, JOB_STATIONS, batch_stations, fill_workspace
+from climpact_web.batch.fill import (
+    ADDED,
+    JOB_METADATA,
+    JOB_STATIONS,
+    add_stations,
+    batch_stations,
+    fill_workspace,
+    plain_error,
+    station_status,
+)
 from climpact_web.batch.forms import AddFilesForm, OptionsForm, UploadForm, cpu_count
 from climpact_web.batch.models import BatchRun, Source
 from climpact_web.core.limits import disk_required, human_required
 from climpact_web.core.navigation import batch_steps
 from climpact_web.jobs.models import Status
-from climpact_web.jobs.runners import STATIONS_FILE
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import (
     OWNER_KEY,
@@ -373,6 +380,7 @@ def run_batch(request, run_id):
         "report": run.plots,  # each station's PDF report, with the plots (#79)
         "folder": run.folder_name,
         "skipped": skipped,
+        ADDED: True,  # the workspace's stations are added now (batch/fill.py)
     }
     title = ngettext(
         "Batch: %(name)s (%(count)d station)", "Batch: %(name)s (%(count)d stations)", len(ready)
@@ -381,6 +389,7 @@ def run_batch(request, run_id):
     run.job = job
     run.touch()
     run.save()
+    add_stations(run, job, skipped)
     return redirect("batch:results", run_id=run.pk)
 
 
@@ -433,38 +442,6 @@ def delete(request, run_id):
 
 
 STATE_ORDER = {"failed": 0, "running": 1, "waiting": 2, "done": 3, "skipped": 4}
-
-
-def station_status(job) -> list[dict]:
-    """Each station's progress, from the runner's ``stations.json`` (written as it goes)
-    or, once the job has finished, from its result."""
-    if job.status == Status.SUCCEEDED and job.result.get("stations") is not None:
-        rows = []
-        for s in job.result["stations"]:
-            rows.append({**s, "state": "done" if s["ok"] else "failed"})
-        for s in job.result.get("skipped", []):
-            rows.append({**s, "state": "skipped", "ok": False})
-        return rows
-    path = job.output_dir / STATIONS_FILE
-    try:
-        data = json.loads(path.read_text())
-    except (OSError, ValueError):
-        return []
-    return data.get("stations", [])
-
-
-def plain_error(text: str | None, job) -> str:
-    """A station's error as the user sees it: without the exception's class name or the
-    job folder's path (the error file keeps the text as written)."""
-    if not text:
-        return ""
-    text = text.replace(str(job.input_dir) + "/", "").replace(str(job.output_dir) + "/", "")
-    head, sep, rest = text.partition(": ")
-    if sep and head.isidentifier() and head[:1].isupper() and head.endswith(("Error", "Exception")):
-        text = rest
-    if text.startswith("station file not found: "):
-        text = _("The station file was not found.")
-    return text
 
 
 def results_context(request, run: BatchRun) -> dict:

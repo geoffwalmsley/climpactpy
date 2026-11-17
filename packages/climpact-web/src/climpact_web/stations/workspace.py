@@ -207,11 +207,17 @@ def shown_qc(analysis: Station) -> Job | None:
     return replaced_job(analysis, job)
 
 
+def batch_results(analysis: Station) -> bool:
+    """Whether the station shows a batch's results (``origin["job"]``). A batch's station
+    that failed in its run, was left out of it or is still waiting has none (#255)."""
+    return bool((analysis.origin or {}).get("job"))
+
+
 def committed(analysis: Station) -> bool:
-    """Whether the user has chosen to use the data ("See results"), or opened the station
-    from a batch's results. Before that, Results are not shown, nor is the speculative run
+    """Whether the user has chosen to use the data ("See results"), or the station shows a
+    batch's results. Before that, Results are not shown, nor is the speculative run
     (#178) anywhere, Files included."""
-    return analysis.reached(Step.INDICES) or bool(analysis.origin)
+    return analysis.reached(Step.INDICES) or batch_results(analysis)
 
 
 def batch_job(analysis: Station) -> Job | None:

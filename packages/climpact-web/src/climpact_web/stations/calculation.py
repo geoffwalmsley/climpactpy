@@ -202,7 +202,7 @@ def speculate(request, analysis: Station, change: str = "") -> Job | None:
     analysis.cancel_speculative()
     if not (analysis.metadata_complete and analysis.station_file.is_file()):
         return None
-    if analysis.origin and analysis.indices_job is None:
+    if workspace.batch_results(analysis) and analysis.indices_job is None:
         return None  # the batch's results are shown; the Index settings sheet recalculates
     form = bound_settings(analysis)
     if not form.is_valid():  # a batch line's settings the form no longer accepts
@@ -228,7 +228,7 @@ def commit(request, analysis: Station) -> Job | None:
     if job is not None and job.kind == "station" and job.status != Status.CANCELLED:
         promote(request, job)
         return job
-    if analysis.origin and job is None:
+    if workspace.batch_results(analysis) and job is None:
         return None  # the batch's results are the results until recalculated here
     form = bound_settings(analysis)
     if not form.is_valid():

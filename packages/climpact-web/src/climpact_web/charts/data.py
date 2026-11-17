@@ -47,6 +47,17 @@ def trend_units(units: str) -> str:
     return _("percentage points") if units == "%" else units
 
 
+def with_units(value: str, units: str) -> str:
+    """A value with its units, written the same way everywhere (#189): ``12.5%`` (a
+    percentage takes no space), ``20 days``, ``45.8 °C``, and the number alone without
+    units."""
+    if not units:
+        return value
+    if units == "%":
+        return _("%(value)s%%") % {"value": value}
+    return _("%(value)s %(units)s") % {"value": value, "units": units}
+
+
 def number(value: float, decimals: int | None = None) -> str:
     """A number for a summary: localised, at most ``decimals`` places (default: 2 for
     small values, 1 otherwise), without trailing zeros."""
@@ -463,20 +474,18 @@ def _x_label(step: str, x: float) -> str:
 def index_summary(payload: dict) -> str:
     x, y, step, units = payload["x"], payload["y"], payload["step"], payload["units"]
     present = [(v, i) for i, v in enumerate(y) if v is not None]
-    unit = f" {units}" if units else ""
     parts = [
         _("%(first)s to %(last)s.") % {"first": _x_label(step, x[0]), "last": _x_label(step, x[-1])}
     ]
     if present:
         high, low = max(present), min(present)
         parts.append(
-            _("Highest %(high)s%(unit)s in %(high_at)s, lowest %(low)s%(unit)s in %(low_at)s.")
+            _("Highest %(high)s in %(high_at)s, lowest %(low)s in %(low_at)s.")
             % {
-                "high": number(high[0]),
+                "high": with_units(number(high[0]), units),
                 "high_at": _x_label(step, x[high[1]]),
-                "low": number(low[0]),
+                "low": with_units(number(low[0]), units),
                 "low_at": _x_label(step, x[low[1]]),
-                "unit": unit,
             }
         )
     missing = len(y) - len(present)
@@ -491,18 +500,19 @@ def index_summary(payload: dict) -> str:
     if trend is not None:
         per = PER_DECADE.get(step, 1)
         slope = trend["slope"] * per
+        change = trend_units(units)
         values = {
-            "slope": number(abs(slope)),
+            "slope": with_units(number(abs(slope)), change),
+            "zero": with_units(number(0), change),
             "lower": number(trend["lower"] * per),
             "upper": number(trend["upper"] * per),
-            "unit": f" {trend_units(units)}" if units else "",
         }
         if slope > 0:
-            text = _("Trend: rising by %(slope)s%(unit)s per decade")
+            text = _("Trend: rising by %(slope)s per decade")
         elif slope < 0:
-            text = _("Trend: falling by %(slope)s%(unit)s per decade")
+            text = _("Trend: falling by %(slope)s per decade")
         else:
-            text = _("Trend: no change (0%(unit)s per decade)")
+            text = _("Trend: no change (%(zero)s per decade)")
         text = text % values
         text += " " + _("(95%% confidence interval %(lower)s to %(upper)s).") % values
         if trend["lower"] > 0 or trend["upper"] < 0:

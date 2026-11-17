@@ -29,11 +29,11 @@ in line; the text around it describes the code as it is. The rules come from thr
   batch belongs to a workspace since #253, and the base period, thresholds and index
   settings are the workspace's since #254: a change recalculates every station, and can
   be undone while it is on the way. A batch fills its workspace since #255: its stations
-  are the workspace's, and its results page stands in as the workspace page until #234.
-  Since #256 a workspace is `/w/<id>/` and its stations `/w/<id>/<station>/…`; the
-  workspace's address opens a workspace of one station straight away, and is where a
-  batch's results are, until the overview replaces them (`Calculate.dc.html`, #234). Still to come:
-  Workspaces in place of Your calculations (Target: #234, #242). Add stations (#233) is the
+  are the workspace's. Since #256 a workspace is `/w/<id>/` and its stations
+  `/w/<id>/<station>/…`; the workspace's address opens a workspace of one station
+  straight away, and one of several on its overview (#234, the Workspace and Calculate
+  boards), which replaced the batch results page. Still to come: Workspaces in place of
+  Your calculations (Target: #242). Add stations (#233) is the
   one way in, for one station or many: New station and the batch's first page lead there.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
@@ -44,7 +44,7 @@ in line; the text around it describes the code as it is. The rules come from thr
 Kept from phase 2: **primary buttons are ink** (near-black, near-white in the dark
 theme), and **a station's title is the station name** the user gives, not the file name.
 The Inputs panel is replaced by workspace settings and the station's provenance line
-(Target: #231, #234).
+(Target: #231; Workspace settings are on the workspace's own pages since #234).
 
 ## The design canvas
 
@@ -256,8 +256,9 @@ tabular figures (`font-variant-numeric: tabular-nums`); index codes, dates, file
 and the provenance line are `--font-mono`. The data table sets its `num` and `code`
 cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data tables
 (#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
-`--text-sm`. **Target (#234, #239, #242):** each other page's tables move to the data
-table with that page.
+`--text-sm`, and the workspace overview's Stations table (#234, sans headers too).
+**Target (#239, #242):** each other page's tables move to the data table with that
+page.
 
 ## Layout
 
@@ -272,9 +273,8 @@ table with that page.
   "Climpact", which go to the landing page; Workspaces and Gridded; then Index reference,
   Help and the theme toggle at the end. Below 600px the destinations and Index reference
   are in the Menu, and so is the theme toggle, #203. Workspaces opens the list of
-  calculations until #242, and is current on station and batch pages too) → step
-  indicator for the
-  batch and gridded flows → title and one-line lead → content → footer. Stations come in
+  calculations until #242, and is current on workspace and station pages too) → step
+  indicator for the gridded flow → title and one-line lead → content → footer. Stations come in
   on Add stations (#233, the AddStations board; starting a workspace, `/add/`, has Start's
   drop zone with the file format and the settings beside it, the content width): the h1
   (with the workspace in a breadcrumb when adding to one), then the drop zone, the review
@@ -334,16 +334,23 @@ strips, worklist and detail pane.
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
   PR TX TN") and the file's name.
   An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
-  next index, named codes first. A batch's station starts the breadcrumb with its
-  workspace (#255) when it has several stations, which leads to the workspace's address,
-  `/w/<id>/`, showing the batch results until #234 (#256). **Target:** the
-  workspace in the breadcrumb of every workspace of several stations, and the
-  previous and next station on a station's pages, once stations belong to a workspace
-  (#231, #234); "Edit inputs" or "Workspace settings" on the provenance line, which
-  replace the Inputs panel (#231, #234; the Indices have "Edit inputs" there since
-  #263, Quality since #264); a workspace's own bar, with the station count and deletion date and the tabs
-  Overview, Compare an index and Files (#234). The tabs are Quality, Indices (Results
-  until #236) and Files; Quality's shows its verdict and count, "Usable · 21" (#222).
+  next index, named codes first. In a workspace of several stations every station page
+  starts the breadcrumb with the workspace, which leads to its overview, then "Station 2
+  of 6", with the previous and next station (each at its furthest section) at the
+  row's end (#234, `workspace.station_nav`); a workspace of one station has "Add
+  stations" at the end of the provenance line instead. **Target:** "Edit inputs" on the
+  provenance line replaces the Inputs panel on Files too (#231; the Indices have it since
+  #263, Quality since #264). The tabs are Quality, Indices (Results until #236) and
+  Files; Quality's shows its verdict and count, "Usable · 21" (#222).
+- **The workspace's own bar** (#234, the Workspace board; `stations/_space_bar.html`):
+  "Workspace" in small muted text over its name (the h1 on the overview; a link on its
+  other pages), the mono provenance line ("6 stations", the base period, "ET-SCI
+  defaults" or how many settings are not the default, the climpact version, "kept until
+  24 Nov 2026" where workspaces expire) with Workspace settings and Rename at its end,
+  Add stations (small secondary) at the end of the title's row, then the tabs Overview,
+  Compare an index and Files, the last two not links until #238 and #239 (the lock of
+  "Not available yet"). Export ▾ and "Save workspace file" are #239 and #240. The
+  overview is a data page (the whole window), as a station's.
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
   them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
@@ -370,7 +377,9 @@ strips, worklist and detail pane.
   object", because the table is one object (`components/table.html`, `table--data`).
   Quality's are (#235), and the Indices' (#236): at 1280 x 1180px (the board's size) 26
   of the Sydney sample's indices are in view, without sideways scroll. **Target:** each
-  other page's tables move to it with that page (#234, #239, #242).
+  other page's tables move to it with that page (#239, #242). The Stations table is one
+  since #234: nothing on the overview scrolls sideways at 1280px or wider (checked with
+  7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station).
 
 ## Depth and shape
 
@@ -434,7 +443,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then two columns of statistics: Slope, 95% interval, "Mean, 1936–2015", Significant in words ("Yes: the interval excludes zero" or "No"), Years used and Method ("Sen's slope (zyp)") (#263), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
-| `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
+| `steps` | Pattern | Where the user is in the gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179), nor by the batch since #234 | — |
+| Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why, and "Download all (zip, 31.4 MB)" while every station shows the batch's results. Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
+| Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated). Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes | calculating, finished, failed, not run |
 | `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
@@ -453,9 +464,10 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 **Target: replaced by #230.** These stay until the ticket named lands, then go (the
 theme tiles, `answer-band` and the Catalogue went with the Indices table, #236): the
 Inputs panel and Inputs bar (by "Edit inputs" on the
-context bar and workspace settings, #231, #234); `file_button` (unused); `steps` and the batch results page (by the workspace overview's run status line and
-Stations table, #231, #234; board `Calculate.dc.html`); the
-Settings line and panel (by workspace settings, #231). The Side sheet stays, for
+context bar and workspace settings, #231); `file_button` (unused); the
+Settings line and panel (by workspace settings, #231). The batch results page and the
+batch's `steps` went with #234 (the overview's run status line and Stations table);
+`steps` stays for the gridded flow. The Side sheet stays, for
 workspace settings.
 
 New patterns of #230 (Target; add each to `/patterns/` when it lands):
@@ -464,8 +476,6 @@ New patterns of #230 (Target; add each to `/patterns/` when it lands):
 | --- | --- | --- |
 | Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
 | Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
-| Stations table | A workspace's stations with their verdict, indices state and significant count; the indices state is live while a run goes (Done, Calculating with its percentage, Waiting, Not run with "Fix quality first", Failed with its fix) | #234 |
-| Run status line | One line above the Stations table, never a panel: neutral with a progress bar while stations calculate (done of total, time left, Cancel); quiet when they have finished (how many, how long, Download all, Files); red only when a station failed, naming it, why and the fix. It stays until the workspace is next opened | #234 |
 | Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
@@ -509,7 +519,7 @@ years; sparklines are only for scanning, beside a number given in text.
   excludes zero). Method and years used on the index page and in the detail pane. Never a
   p-value.
 - **Keep the provenance in view.** Every station page has the provenance line in its
-  context bar (#227). **Target:** the workspace pages too (#234), and every zip holds
+  context bar (#227), and the workspace's pages theirs (#234). **Target:** every zip holds
   `climpact_run.json` (#239).
 - **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
   each edited in a side sheet that says what applying will update, with one Apply
@@ -520,15 +530,17 @@ years; sparklines are only for scanning, beside a number given in text.
   sheets say so when the workspace has several stations, and that the change can be undone
   until its replacement is ready. Before a workspace has stations they change on Add
   stations, in its panel "Applies to every station" (the base period and the plots,
-  #233). **Target (#234):** they are edited in the
-  workspace's settings sheet; a station's name and coordinates are edited from "Edit
-  inputs" on its provenance line.
+  #233). Since #234 they are also Workspace settings on the workspace's own bar: a page
+  listing the three as the Inputs panel does, each Edit opening its form on a page of its
+  own, which applies it to every station and returns to the overview. **Target (#231):**
+  the same as side sheets over the overview; a station's name and coordinates edited from
+  "Edit inputs" on its provenance line.
 - **Let the user take a change back.** A change to the workspace's settings recalculates
   every station; until that has finished, "Undo the change" beside its progress (the
   Inputs panel's runs, or the Inputs bar) puts the settings and the earlier results back
-  (#254). One place per page, and a form that works without JavaScript. **Target
-  (#234):** on the workspace's overview, the run status line shows the recalculation's
-  progress and offers Undo (`Calculate.dc.html`).
+  (#254). One place per page, and a form that works without JavaScript. On the
+  workspace's overview the run status line shows the recalculation's progress and offers
+  "Undo the change" (#234).
 - **Give each colour one job.** Ink for actions, blue for links, the
   brand blue for the logo, focus and selection, status colours for the verdict and run state, theme hues for data (see
   [Colour](#colour)).
@@ -577,8 +589,9 @@ years; sparklines are only for scanning, beside a number given in text.
   no steps (#179, #198). A first visit is Add stations (#233): one file or many,
   reviewed in one table, then "Add N stations and check them"; one station opens straight
   on its Quality, checked and calculated with the defaults, which are changed later in
-  Inputs. **Target (#234, #242):** the landing page, then Get started, before Add
-  stations; the overview from two stations (until then the batch's results).
+  Inputs; two or more open the workspace's overview, which shows them checked and
+  calculated (#234). **Target (#242):** the landing page, then Get started, before Add
+  stations.
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,

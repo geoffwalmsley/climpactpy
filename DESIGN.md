@@ -231,6 +231,7 @@ bold, not a band.
   decimal and a sign (`+0.4`). Other values keep up to two places (one from 10), without
   trailing zeros; the Quality tables show the file's own precision.
 - **Coordinates** are `33.86° S 151.21° E`.
+- **Counts** are grouped, `65,720` (`numbers.grouped`; Quality's tab, #222).
 - **A no-break space** joins a value and its unit (`45.8 °C`; a percentage takes none,
   `12.5%`). It is joined in code (`numbers.with_unit`), never written in a message
   (#205).
@@ -293,7 +294,7 @@ header (above), the context bar, the data width and the data table.
   inputs" or "Workspace settings" on the provenance line, which replace the Inputs panel
   (#231, #234); a workspace's own bar, with the station count and deletion date and the
   tabs Overview, Compare an index and Files (#234); the tabs named Quality, Indices and
-  Files, with Quality's verdict in its tab (#235, #236).
+  Files (#236). Quality's tab shows its verdict and count, "Usable · 21" (#222).
 - **Data pages use the width.** Desktop first: a station's pages fill the window up to
   92rem (`--container-data`), rather than the 72rem content width, which stays for
   reading pages.
@@ -355,7 +356,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `index_name` | Primitive | An index named codes first (#218): the code in mono, without the code background, then the short name, "TXx Hottest day". In a page title the name is a step lighter. The catalogue puts them in two columns, Code then Index | title |
 | `summary_list` | Component | Key–value pairs | — |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
-| `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
+| `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. Quality's tab reads like its verdict (#222): "Checking…" (`refresh`) while the checks run, then the verdict band's word and icon, Ready `check-circle`, Usable `warning` or Fix first `error`, as a small pill in the status colour on its soft tint, with the count of values that look wrong after a middle dot ("Usable · 21", read as "Usable, 21 values look wrong"); a failed check stays "Needs attention". On a phone (under 40rem) the verdict is its icon on the tint, so the three tabs stay on one line at 320px; the word and count are still read. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
 | `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the code and short name, the value with short units, "pp/decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |

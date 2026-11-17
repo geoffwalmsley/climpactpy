@@ -4122,7 +4122,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next station (`breadcrumb`, `step_previous`, `step_next`; no page passes them until workspaces exist, #231), the title (`heading` makes it the h1), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `static` shows it in place, not sticky, for `/patterns/` |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
 | `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
-| `workspace_tabs` | a station's sections, Quality, Results and Files (#179; Data until #198), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date" and "Running", screen-reader only for the others. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
+| `workspace_tabs` | a station's sections, Quality, Results and Files (#179; Data until #198), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
 | `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action, a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
@@ -4194,7 +4194,8 @@ mm and degree-days (`numbers.slope_decimals`), rounded half up from the value as
 did); intervals as "−0.22 to 0.31" (`numbers.interval`); anomalies to one place with a
 sign (`numbers.anomaly`; the standardised anomalies chart's payload has
 `signed_digits: 1`, which `charts.js` and the summary follow); coordinates as "33.86° S
-151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); a no-break
+151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); counts grouped,
+"65,720" (`numbers.grouped`, the Quality tab's count, #222); a no-break
 space between a value and its unit. The Quality tables keep the file's own precision
 (`numbers.file_value`) with U+2212. Server-drawn charts (`stations/qc_plots.py`,
 `sector_plots.py`, `preview.py`) and `charts.js` (its y-axis ticks, read-out and table
@@ -4676,8 +4677,13 @@ to 1981–2010. These results use 1971–2000.") and shows the new run's progres
 "Recalculate" (`.../indices` POST with `recalculate=1`: `calculation.recalculate` promotes a
 waiting run of the current inputs, or queues one with the latest settings); an index page,
 the sector comparison and Files say so too. When the replacement finishes it is shown and
-the section is current again. The Quality tab keeps the verdict's level in the checks'
-`result["verdict"]` (`views.remember_verdict`) so its tab can say "Needs attention" on red.
+the section is current again. Quality keeps the verdict's level and its count of values
+that look wrong in the checks' `result["verdict"]` and `result["verdict_wrong"]`
+(`workspace.remember_verdict`, called by `views.qc_context` before it builds the tabs, so
+the first page after the checks shows their verdict), for the Quality tab (#222).
+`workspace.qc_verdict` reads them, and works the verdict out from the checks once
+(`qc_review.review`) when it was not kept: checks not yet shown, or a verdict kept before
+#222 with its level alone.
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the context bar (#227, `components/context_bar.html`;
@@ -4716,8 +4722,9 @@ measures: only the tabs and the Inputs bar stay in view, and the scroll padding 
 height (the bar's height minus that). Until #203 the header was sticky only from 40rem wide. The
 tabs' padding is smaller, so the three fit on one line at 320px. Sheets are the full
 width. The states (`workspace.section_states`): Quality
-`locked` until the details are confirmed, `stale`, `running`, `attention` (failed, stopped, or a red
-verdict) or `done`; Results `locked` until "See results", then `stale`, `running`,
+`locked` until the details are confirmed, `stale`, `checking` (running), `attention`
+(failed or stopped), or the verdict of the checks shown: `ready`, `usable` or `fix` (#222;
+`done` only if the verdict cannot be worked out); Results `locked` until "See results", then `stale`, `running`,
 `attention` (the first run failed) or `done`; Files `locked` until there are checks or
 results, `stale` when either is. Each tab is its own page, so the existing URLs stay as
 they were (the Cloudflare rate-limit rules name them), the pages stay as light as before,

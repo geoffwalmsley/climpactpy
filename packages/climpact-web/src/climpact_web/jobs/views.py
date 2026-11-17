@@ -24,7 +24,7 @@ from climpact_web.core.limits import (
     client_key_if_hosted,
     record_job_start,
 )
-from climpact_web.jobs.models import SPECULATIVE, Job, Status, ordinary_q
+from climpact_web.jobs.models import CHANGE, SPECULATIVE, Job, Status, ordinary_q
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.storage import get_storage
 from climpact_web.jobs.worker import worker_running
@@ -53,6 +53,7 @@ def create_job(
     title: str = "",
     speculative: bool = False,
     inputs: dict | None = None,
+    change: str = "",
 ) -> Job:
     """Queue a job for this session, with its uploaded files (``{name: UploadedFile}``)
     saved into its ``input/`` folder; a key ``"<folder>/<name>"`` saves into a folder of
@@ -66,15 +67,23 @@ def create_job(
     A ``speculative`` job (#178) is checked against the limits for speculative runs instead
     (:func:`~climpact_web.core.limits.check_speculative_quotas`) and is not counted as a
     start for the daily quota until it is promoted (:func:`promote`). ``inputs`` records
-    what the job is produced from (``Job.inputs``, the station workspace's, #179)."""
+    what the job is produced from (``Job.inputs``, the station workspace's, #179).
+    ``change`` names the change the job is queued for (``params["change"]``, #254): the jobs
+    of one change count as one against the hosted limits."""
     if speculative:
-        check_speculative_quotas(request)
+        check_speculative_quotas(request, change)
         params = {**params, SPECULATIVE: True}
     else:
-        check_job_quotas(request)
+        check_job_quotas(request, change)
+    if change:
+        params = {**params, CHANGE: change}
     storage = get_storage()
     with transaction.atomic():
-        client = client_key_if_hosted(request) if speculative else record_job_start(request, kind)
+        client = (
+            client_key_if_hosted(request)
+            if speculative
+            else record_job_start(request, kind, change)
+        )
         job = Job.objects.create(
             kind=kind,
             owner=owner_token(request),
@@ -101,7 +110,7 @@ def promote(request, job: Job) -> None:
     params = {**job.params, SPECULATIVE: False}
     if Job.objects.filter(pk=job.pk).update(params=params):
         job.params = params
-        record_job_start(request, job.kind)
+        record_job_start(request, job.kind, params.get(CHANGE) or "")
 
 
 def get_job(request, job_id) -> Job:

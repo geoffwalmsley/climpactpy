@@ -595,7 +595,7 @@ def test_open_a_station_as_a_single_station(client):
     assert response["Location"] == f"/station/{analysis.pk}/results"
     assert analysis.source == Source.BATCH and analysis.step == Step.QC
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == ("a", -30, 150)
-    assert (analysis.base_start, analysis.base_end) == (2000, 2001)
+    assert (analysis.workspace.base_start, analysis.workspace.base_end) == (2000, 2001)
     assert analysis.origin["params"]["spei_months"] == 24 and analysis.origin["station"] == "a"
     assert analysis.station_file.is_file() and analysis.summary["first_year"] == 2000
     assert client.get(response["Location"]).status_code == 200

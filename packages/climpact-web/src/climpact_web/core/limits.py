@@ -12,7 +12,10 @@ install and the tests behave as before. In hosted mode:
 - **Quotas** (:func:`check_job_quotas`, called by ``create_job`` and the retry view): at
   most ``MAX_ACTIVE_JOBS_PER_IP`` jobs waiting or running, and ``MAX_DAILY_JOBS_PER_IP``
   jobs started in 24 hours, per client; no new job while more than ``MAX_QUEUED_JOBS``
-  wait.
+  wait. The jobs of one change (``params["change"]``, #254), such as a workspace's
+  recalculation of all its stations, count as one job in each of these, whatever the
+  number of stations: the change is checked once, with its first job, and its other jobs
+  are let through.
 - **Disk** (:func:`check_disk`): no upload and no job while ``MEDIA_ROOT``'s disk has less
   than ``MIN_FREE_DISK_GB`` free.
 - **Speculative runs** (#178, :func:`check_speculative_quotas`): the station calculation
@@ -192,28 +195,43 @@ def check_disk() -> None:
         )
 
 
-def check_job_quotas(request) -> None:
+def change_admitted(change: str) -> bool:
+    """Whether a job of the change ``change`` is already queued: the change was checked
+    against the limits then, and counts as that one job."""
+    from climpact_web.jobs.models import CHANGE, Job, ordinary_q
+
+    return (
+        bool(change) and Job.objects.filter(ordinary_q(), **{f"params__{CHANGE}": change}).exists()
+    )
+
+
+def check_job_quotas(request, change: str = "") -> None:
     """Refuse a new job (or a retry) when the queue, the disk or this client's quotas are
-    full (hosted mode)."""
+    full (hosted mode). A job of a change already admitted is let through: the change
+    counts once (#254)."""
     if not settings.IS_HOSTED:
         return
-    from climpact_web.jobs.models import Job, JobStart, Status, ordinary_q
+    from climpact_web.jobs.models import Job, JobStart, Status, change_groups, ordinary_q
 
     check_disk()
+    if change_admitted(change):
+        return
     if settings.MAX_QUEUED_JOBS > 0:
-        queued = Job.objects.filter(
-            ordinary_q(), status=Status.QUEUED, cancel_requested=False
-        ).count()
+        queued = change_groups(
+            Job.objects.filter(ordinary_q(), status=Status.QUEUED, cancel_requested=False)
+        )
         if queued >= settings.MAX_QUEUED_JOBS:
             raise Refused(f"queue-full:{queued}", str(BUSY_MESSAGE), status=503, retry_after=300)
     key = client_key(request)
     if settings.MAX_ACTIVE_JOBS_PER_IP > 0:
-        active = Job.objects.filter(
-            ordinary_q(),
-            client=key,
-            status__in=(Status.QUEUED, Status.RUNNING),
-            cancel_requested=False,
-        ).count()
+        active = change_groups(
+            Job.objects.filter(
+                ordinary_q(),
+                client=key,
+                status__in=(Status.QUEUED, Status.RUNNING),
+                cancel_requested=False,
+            )
+        )
         limit = settings.MAX_ACTIVE_JOBS_PER_IP
         if active >= limit:
             raise Refused(
@@ -249,25 +267,31 @@ def check_job_quotas(request) -> None:
             )
 
 
-def check_speculative_quotas(request) -> None:
+def check_speculative_quotas(request, change: str = "") -> None:
     """Refuse a speculative run (#178) unless the queue is short and the client is not
-    already using its share of the worker (hosted mode). The caller drops the run quietly."""
+    already using its share of the worker (hosted mode). The caller drops the run quietly.
+    The jobs of one change count once, as in :func:`check_job_quotas`; the run's own
+    change is already the client's when its checks were queued with it, so it takes no
+    further place."""
     if not settings.IS_HOSTED:
         return
-    from climpact_web.jobs.models import Job, Status
+    from climpact_web.jobs.models import Job, Status, change_groups
 
     check_disk()
     if settings.SPECULATIVE_MAX_QUEUED <= 0:
         raise Refused("speculative-off", str(BUSY_MESSAGE), status=503)
-    queued = Job.objects.filter(status=Status.QUEUED, cancel_requested=False).count()
+    queued = change_groups(Job.objects.filter(status=Status.QUEUED, cancel_requested=False))
     if queued >= settings.SPECULATIVE_MAX_QUEUED:
         raise Refused(f"speculative-queue:{queued}", str(BUSY_MESSAGE), status=503)
     if settings.MAX_ACTIVE_JOBS_PER_IP > 0:
-        active = Job.objects.filter(
-            client=client_key(request),
-            status__in=(Status.QUEUED, Status.RUNNING),
-            cancel_requested=False,
-        ).count()
+        active = change_groups(
+            Job.objects.filter(
+                client=client_key(request),
+                status__in=(Status.QUEUED, Status.RUNNING),
+                cancel_requested=False,
+            ),
+            besides=change,
+        )
         if active >= settings.MAX_ACTIVE_JOBS_PER_IP:
             raise Refused(f"speculative-active:{active}", str(BUSY_MESSAGE))
 
@@ -277,15 +301,18 @@ def client_key_if_hosted(request) -> str:
     return client_key(request) if settings.IS_HOSTED else ""
 
 
-def record_job_start(request, kind: str) -> str:
+def record_job_start(request, kind: str, change: str = "") -> str:
     """Note a job started by this client, for the daily quota; returns the client key
-    (stored on the job in hosted mode, blank in local mode)."""
+    (stored on the job in hosted mode, blank in local mode). The jobs of one change
+    (#254) are noted once."""
     if not settings.IS_HOSTED:
         return ""
     from climpact_web.jobs.models import JobStart
 
     key = client_key(request)
-    JobStart.objects.create(client=key, kind=kind[:50])
+    if change and JobStart.objects.filter(client=key, change=change).exists():
+        return key
+    JobStart.objects.create(client=key, kind=kind[:50], change=change)
     return key
 
 

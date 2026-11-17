@@ -9,8 +9,11 @@ side sheet, or without JavaScript a page, with that input's form (:func:`edit_in
 
 Confirming the details also queues the indices with the default settings (#178,
 :mod:`.calculation`), so they are calculated while the user looks at the quality checks.
-A later change to the file, the details or the thresholds keeps the results, shown as
-out of date, and queues their replacement (``calculation.bring_up_to_date``).
+A later change to the file or the details keeps the results, shown as out of date, and
+queues their replacement (``calculation.bring_up_to_date``). The base period, thresholds and
+index settings are the workspace's (#254): their sheets change them for every station of
+the workspace (``calculation.change_settings``), and "Undo the change" (:func:`undo`) puts
+them back while the recalculation is on the way.
 
 An analysis is visible only to the browser session that created it, like a job: any
 other session gets 404.
@@ -195,7 +198,17 @@ def keep_typed_details(analysis: Station, form: MetadataForm) -> None:
         data.get("base_start"),
         data.get("base_end"),
     ):
-        analysis.base_start, analysis.base_end = data["base_start"], data["base_end"]
+        set_base_period(analysis, data["base_start"], data["base_end"])
+
+
+def set_base_period(analysis: Station, start: int, end: int) -> None:
+    """Set the base period of the station's workspace from its first visit's details (the
+    New station page), where the workspace is still the station's own."""
+    space = analysis.workspace
+    if (space.base_start, space.base_end) != (start, end):
+        space.base_start, space.base_end = start, end
+        space.touch()
+        space.save()
 
 
 def read_file(request, analysis: Station | None):
@@ -230,7 +243,9 @@ def check_and_calculate(request, analysis: Station, form: MetadataForm):
     """Save valid details and start the checks and the speculative run together (#178);
     then to Quality, or to Results when only they are affected (a station already in use
     whose new file needed new details)."""
-    for name, value in form.cleaned_data.items():
+    data = dict(form.cleaned_data)
+    set_base_period(analysis, data.pop("base_start"), data.pop("base_end"))
+    for name, value in data.items():
         setattr(analysis, name, value)
     analysis.advance_to(Step.QC)
     queued_qc, _run = calculation.bring_up_to_date(request, analysis)
@@ -365,12 +380,13 @@ def sample_file(request):
 
 
 def initial_metadata(analysis: Station) -> dict:
+    """The station's details, with its workspace's base period."""
     return {
         "station_name": analysis.station_name,
         "latitude": analysis.latitude,
         "longitude": analysis.longitude,
-        "base_start": analysis.base_start,
-        "base_end": analysis.base_end,
+        "base_start": analysis.workspace.base_start,
+        "base_end": analysis.workspace.base_end,
     }
 
 
@@ -740,7 +756,7 @@ def input_form(analysis: Station, key: str, data=None, files=None):
     if key == "thresholds":
         if data is not None:
             return QCParamsForm(data)
-        return QCParamsForm(initial=QCParamsForm.initial_for(analysis.qc_params))
+        return QCParamsForm(initial=QCParamsForm.initial_for(analysis.workspace.qc_params))
     if key == "settings":
         if data is not None:
             return IndexParamsForm(data, station_title=calculation.station_title(analysis))
@@ -762,7 +778,7 @@ def sheet_context(analysis: Station, key: str, form=None) -> dict:
         "title": INPUT_SHEETS[key][0],
         "intro": INPUT_SHEETS[key][1],
         "form": form if form is not None else input_form(analysis, key),
-        "impact": workspace.impact(key),
+        "impact": workspace.impact(key, analysis),
     }
     if key == "settings":
         context["settings_source"] = calculation.previous_params(analysis)[5]
@@ -770,14 +786,14 @@ def sheet_context(analysis: Station, key: str, form=None) -> dict:
 
 
 def apply_thresholds(request, analysis: Station, form: QCParamsForm) -> None:
-    """Apply the Quality thresholds sheet. New thresholds replace the checks and the run
-    (the run's QC files use them too), whose results stay, out of date, until then (#179).
-    The same thresholds run the checks again when the shown ones failed, were stopped or
-    never ran: Apply is how the user runs them again since the form left Quality (#199)."""
+    """Apply the Quality thresholds sheet: the workspace's thresholds (#254). New ones
+    replace every station's checks and run (the run's QC files use them too), whose
+    results stay, out of date, until then (#179). The same thresholds run this station's
+    checks again when the shown ones failed, were stopped or never ran: Apply is how the
+    user runs them again since the form left Quality (#199)."""
     values = {k: form.cleaned_data[k] for k in QC_DEFAULTS}
-    if values != QCParamsForm.initial_for(analysis.qc_params):
-        analysis.qc_params = values
-        calculation.bring_up_to_date(request, analysis)
+    if values != QCParamsForm.initial_for(analysis.workspace.qc_params):
+        calculation.change_settings(request, analysis, qc_params=values)
         return
     job = analysis.qc_job
     if job is None or job.status in (Status.FAILED, Status.CANCELLED):
@@ -785,10 +801,24 @@ def apply_thresholds(request, analysis: Station, form: QCParamsForm) -> None:
 
 
 def apply_settings(request, analysis: Station, form) -> None:
-    """Apply the Index settings sheet: queue a run with them, which replaces the results
-    shown when it has finished (#178, "Adjust and recalculate" on Results until #199)."""
+    """Apply the Index settings sheet: the workspace's index settings and output options
+    (#254), except the index values that are the station's own (a batch's metadata line),
+    which change for this station only. A change recalculates every station of the
+    workspace; the results shown are replaced when their runs have finished (#178). The
+    same settings queue this station's run again ("Adjust and recalculate" on Results until
+    #199)."""
+    chosen = workspace.settings_of(calculation.station_params(analysis, form))
+    own = workspace.own_params(analysis)
+    shared = workspace.workspace_settings(analysis.workspace)["params"]
+    # The station's own values change for it alone: the workspace's stay as they were.
+    chosen["params"].update({name: shared[name] for name in own})
+    index_settings = {} if chosen == workspace.default_settings() else chosen
+    new_own = {name: form.job_params()[name] for name in own}
     workspace.restore_if_cancelled(analysis)
-    calculation.queue_station_run(request, analysis, form)
+    if not calculation.change_settings(
+        request, analysis, own=new_own, index_settings=index_settings
+    ):
+        calculation.queue_station_run(request, analysis, form)
     analysis.advance_to(Step.RESULTS)
     analysis.touch()
     analysis.save()
@@ -849,6 +879,12 @@ def edit_input(request, analysis_id, key):
             elif key == "settings":
                 apply_settings(request, analysis, form)
                 return redirect(next_url(request, analysis))
+            elif key == "base-period":
+                data = form.cleaned_data
+                calculation.change_settings(
+                    request, analysis, base_start=data["base_start"], base_end=data["base_end"]
+                )
+                return redirect(next_url(request, analysis))
             else:
                 for name, value in form.cleaned_data.items():
                     setattr(analysis, name, value)
@@ -867,6 +903,28 @@ def edit_input(request, analysis_id, key):
     return render(request, "stations/input_edit.html", context)
 
 
+@require_POST
+def undo(request, analysis_id):
+    """ "Undo the change" (#254): put back the workspace's settings as they were before its
+    last change, while the recalculation it started is still on the way, and show the
+    earlier checks and results again (``calculation.undo``). A plain form, so it works
+    without JavaScript; then back to the page it was sent from."""
+    analysis = get_analysis(request, analysis_id)
+    if calculation.undo(analysis.workspace):
+        messages.success(
+            request, _("The change was undone. The earlier settings and results are back.")
+        )
+    else:
+        messages.warning(
+            request,
+            _(
+                "The recalculation has finished, so the change can no longer be undone. "
+                "Change the settings back instead."
+            ),
+        )
+    return redirect(next_url(request, analysis))
+
+
 @never_cache
 @require_safe
 def inputs_progress(request, analysis_id):
@@ -875,7 +933,11 @@ def inputs_progress(request, analysis_id):
     analysis = get_analysis(request, analysis_id)
     if not workspace.set_up(analysis):
         raise Http404
-    panel = workspace.inputs_panel(analysis)
+    # The page polling, where "Undo the change" returns (htmx sends its address).
+    from urllib.parse import urlsplit
+
+    page = urlsplit(request.headers.get("HX-Current-URL", "")).path
+    panel = workspace.inputs_panel(analysis, page)
     if not panel["input_runs"]:
         response = HttpResponse(status=204)
         response["HX-Refresh"] = "true"

@@ -278,14 +278,17 @@ def test_active_jobs_per_client(hosted, caplog):
     assert response.status_code == 429
     assert "You already have 2 calculations waiting or running" in response.content.decode()
     assert f"from {IP}: active-quota:2" in caplog.text
-    # The two checks; the first one's speculative run (#178) is not counted, and took the
-    # client's last place, so the second has none (it is queued at "Use this data").
+    # The two checks, each with its speculative run (#178): a station's checks and run
+    # are one change, which counts once (#254).
     assert Job.objects.filter(kind="qc").count() == 2
-    assert Job.objects.filter(kind="station").count() == 1
+    assert Job.objects.filter(kind="station").count() == 2
     # Another address is not held up; a finished or cancelled job frees a place.
     assert start_qc(visitor(OTHER_IP, owner="owner-b")).status_code == 302
     first = Job.objects.filter(client=IP).first()
-    first.request_cancel()
+    first.request_cancel()  # its change's run still waits: no place yet
+    assert start_qc(client).status_code == 429
+    for job in Job.objects.filter(params__change=first.params["change"]):
+        job.request_cancel()
     assert start_qc(client).status_code == 302
 
 
@@ -370,7 +373,8 @@ def speculative_jobs():
 @pytest.mark.django_db
 def test_speculative_runs_do_not_count_against_the_quotas(hosted):
     """A speculative run takes no place in the client's quotas or the queue's until the
-    user asks for it; the daily count is charged when they do."""
+    user asks for it. It is one change with the checks queued with it (#254), so asking
+    for it charges nothing more to the daily count."""
     hosted.MAX_QUEUED_JOBS = 2
     client = visitor()
     assert start_qc(client).status_code == 302
@@ -383,7 +387,7 @@ def test_speculative_runs_do_not_count_against_the_quotas(hosted):
     assert client.post(f"/station/{analysis.pk}/quality/continue").status_code == 302
     analysis.refresh_from_db()
     assert not analysis.indices_job.is_speculative
-    assert JobStart.objects.filter(client=IP).count() == 2  # charged now
+    assert JobStart.objects.filter(client=IP).count() == 1  # the checks' change
 
 
 @pytest.mark.django_db

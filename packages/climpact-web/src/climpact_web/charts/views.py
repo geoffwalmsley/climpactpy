@@ -98,7 +98,7 @@ def analysis_qc_params(analysis):
     from climpact_web.jobs.runners import qc_params
 
     job = analysis.qc_job
-    return qc_params(job.params.get("qc") if job is not None else analysis.qc_params)
+    return qc_params(job.params.get("qc") if job is not None else analysis.workspace.qc_params)
 
 
 @gzip_page

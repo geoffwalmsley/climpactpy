@@ -25,6 +25,7 @@ urlpatterns = [
     path("<uuid:analysis_id>/setup/validate", views.validate, name="validate"),
     path("<uuid:analysis_id>/load", views.load, name="load"),
     path("<uuid:analysis_id>/inputs/progress", views.inputs_progress, name="inputs_progress"),
+    path("<uuid:analysis_id>/undo", views.undo, name="undo"),
     path("<uuid:analysis_id>/inputs/<slug:key>", views.edit_input, name="edit_input"),
     path("<uuid:analysis_id>/series.csv", views.series, name="series"),
     path("<uuid:analysis_id>/delete", views.delete, name="delete"),

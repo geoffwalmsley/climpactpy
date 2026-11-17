@@ -537,7 +537,7 @@ def open_station(request, run_id, name):
     metadata (name, location, base period) are filled in, and the index parameters of its
     metadata line are kept in ``origin`` for the indices step (#78)."""
     from climpact_web.stations.models import Source as StationSource
-    from climpact_web.stations.models import Station, Step
+    from climpact_web.stations.models import Station, Step, Workspace
     from climpact_web.stations.station_file import inspect_station_bytes
     from climpact_web.stations.workspace import current_inputs
 
@@ -561,7 +561,15 @@ def open_station(request, run_id, name):
     if not inspection.ok:
         raise Http404
     with transaction.atomic():
+        # A workspace of its own, with the batch's base period, until #255 opens the
+        # batch's stations in the batch's workspace.
+        space = Workspace.objects.create(
+            owner=run.owner,
+            base_start=job.params.get("base_start", run.base_start),
+            base_end=job.params.get("base_end", run.base_end),
+        )
         analysis = Station(
+            workspace=space,
             owner=run.owner,
             source=StationSource.BATCH,
             file_name=station["station_file"][:255],
@@ -570,8 +578,6 @@ def open_station(request, run_id, name):
             station_name=name,
             latitude=station["latitude"],
             longitude=station["longitude"],
-            base_start=job.params.get("base_start", run.base_start),
-            base_end=job.params.get("base_end", run.base_end),
             step=Step.QC,
             origin={
                 "batch": str(run.pk),

@@ -105,12 +105,13 @@ def station_pages() -> dict[str, str]:
     from climpact_web.jobs.models import Job, Status
     from climpact_web.stations import views, views_indices, workspace
     from climpact_web.stations.forms import MetadataForm
-    from climpact_web.stations.models import Source, Station, Step
+    from climpact_web.stations.models import Source, Station, Step, Workspace
     from climpact_web.stations.station_file import inspect_station_bytes
 
     request = RequestFactory().get("/station/")
+    space = Workspace()  # the stations' settings (#254), not saved
     inspection = inspect_station_bytes(views.sample_bytes())
-    sample = Station(source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
+    sample = Station(workspace=space, source=Source.SAMPLE, file_name=views.SAMPLE_NAME,
                              summary=inspection.summary, updated_at=timezone.now(),
                              **views.SAMPLE_METADATA)  # fmt: skip
     bad = inspect_station_bytes(
@@ -120,7 +121,7 @@ def station_pages() -> dict[str, str]:
     form = MetadataForm(views.initial_metadata(sample), summary=sample.summary)
     form.is_valid()
 
-    uploaded = Station(source=Source.UPLOAD, file_name="perth_airport.txt",
+    uploaded = Station(workspace=space, source=Source.UPLOAD, file_name="perth_airport.txt",
                                summary=inspection.summary, station_name="perth_airport",
                                updated_at=timezone.now(),
                                warnings=["2 rows have dates that do not exist (the first is "

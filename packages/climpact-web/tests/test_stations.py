@@ -108,7 +108,8 @@ def test_file_and_details_in_one_post_go_straight_to_quality(client):
     analysis = Station.objects.get()
     assert response["Location"] == f"/station/{analysis.pk}/quality"
     assert analysis.station_name == "Perth"  # empty: the file's name, as R does
-    assert (analysis.latitude, analysis.base_start, analysis.step) == (-33.9, 2000, Step.QC)
+    assert (analysis.latitude, analysis.step) == (-33.9, Step.QC)
+    assert analysis.workspace.base_start == 2000
     assert {job.kind for job in Job.objects.all()} == {"qc", "station"}
     assert Job.objects.get(kind="station").is_speculative
 
@@ -557,7 +558,7 @@ def test_metadata_matches_the_r_app_fields_and_defaults():
     form = MetadataForm()
     assert list(form.fields) == ["station_name", "latitude", "longitude", "base_start", "base_end"]
     assert (form["base_start"].initial, form["base_end"].initial) == (None, None)
-    assert Station().base_start == 1971 and Station().base_end == 2000
+    assert (Workspace().base_start, Workspace().base_end) == (1971, 2000)
 
 
 def test_min_base_days_matches_the_core():

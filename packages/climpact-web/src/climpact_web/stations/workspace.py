@@ -11,6 +11,14 @@ produced from when it is queued (``Job.inputs``):
 ``qc``        the quality-control thresholds, with R's defaults filled in
 ``settings``  a station run's index settings and output options (:func:`settings_of`)
 
+The base period, the thresholds and the index settings are the workspace's (#254,
+``Workspace``): every station of the workspace has the same, except the index values a
+batch's metadata file gives a station of its own (:func:`station_settings`). A change to
+one of them is a change to every station's inputs, so every station's results go out of
+date together and :mod:`.calculation` queues their replacements together (one change, one
+id: ``params["change"]``), which :func:`undo_available` lets the user undo while they are
+on the way.
+
 A section is out of date ("stale") when the inputs its shown job was produced from differ
 from the analysis's current ones. The comparison uses only what is stored, never the
 browser session, so it holds in every browser tab open on the analysis and in hosted mode.
@@ -27,6 +35,7 @@ an input is changed back. Queueing the replacements is :mod:`.calculation`'s.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 
@@ -51,10 +60,63 @@ RUN_INPUTS = ("file", "name", "location", "base_period", "qc", "settings")
 
 
 def qc_values(analysis: Station) -> dict:
-    """The analysis's quality-control thresholds, with R's defaults for those not set."""
+    """The quality-control thresholds of the analysis's workspace, with R's defaults for
+    those not set."""
     from climpact_web.stations.forms import QCParamsForm
 
-    return QCParamsForm.initial_for(analysis.qc_params)
+    return QCParamsForm.initial_for(analysis.workspace.qc_params)
+
+
+def default_settings() -> dict:
+    """The index settings and output options of a workspace that has none of its own, as
+    :func:`settings_of` gives them: the settings form's defaults, read from its fields
+    without importing the core."""
+    from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
+
+    fields = IndexParamsForm.base_fields
+    params = {name: fields[name].initial for name in PARAM_FIELDS}
+    params["custom"] = {
+        key: fields[f"custom_{key}"].initial for key in ("variable", "operator", "threshold")
+    }
+    return {"params": params, "plot_title": "", "plots": True, "zip": True, "report": True}
+
+
+def own_params(analysis: Station) -> dict:
+    """The index values that are the station's own, not the workspace's: those of its line
+    in a batch's metadata file (``origin["params"]``: wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD,
+    rxnday, rnnmm, txtn and SPEI, as ``IndexParams`` fields)."""
+    from climpact_web.stations.forms_indices import PARAM_FIELDS
+
+    params = (analysis.origin or {}).get("params") or {}
+    return {name: params[name] for name in PARAM_FIELDS if name in params}
+
+
+def station_settings(analysis: Station) -> dict:
+    """The index settings and output options a run of the station uses (:func:`settings_of`
+    form): the workspace's (the defaults until set), with the station's own index values
+    in place of the workspace's (:func:`own_params`). Until the workspace has settings of
+    its own, a station from a batch keeps the batch's custom index."""
+    out = workspace_settings(analysis.workspace)
+    if not analysis.workspace.index_settings and analysis.origin:
+        out["params"]["custom"] = batch_custom(batch_job(analysis))
+    out["params"].update(own_params(analysis))
+    return out
+
+
+def workspace_settings(space) -> dict:
+    """The workspace's index settings and output options (:func:`settings_of` form), with
+    the defaults for what it has not set."""
+    out = default_settings()
+    if space.index_settings:
+        chosen = settings_of(space.index_settings)
+        out.update(chosen)
+        out["params"] = {**default_settings()["params"], **chosen["params"]}
+    return out
+
+
+def batch_custom(job: Job | None) -> dict | None:
+    """The custom index a batch job calculated (its ``custom`` parameter)."""
+    return (job.params or {}).get("custom") if job is not None else None
 
 
 def settings_of(params: dict) -> dict:
@@ -71,15 +133,24 @@ def settings_of(params: dict) -> dict:
 
 
 def current_inputs(analysis: Station) -> dict:
-    """The analysis's inputs now: its file, station details and thresholds."""
-    return {"file": analysis.file_hash, "metadata": analysis.metadata, "qc": qc_values(analysis)}
+    """The analysis's inputs now: its file and station details, and its workspace's base
+    period, thresholds and index settings (with the station's own values, #254)."""
+    return {
+        "file": analysis.file_hash,
+        "metadata": analysis.metadata,
+        "qc": qc_values(analysis),
+        "settings": station_settings(analysis),
+    }
 
 
 def job_inputs(analysis: Station, kind: str, params: dict) -> dict:
-    """The inputs to record on a job of ``kind`` queued now with ``params``."""
+    """The inputs to record on a job of ``kind`` queued now with ``params``: a ``qc`` job
+    has no settings, a ``station`` job the settings it was given."""
     inputs = current_inputs(analysis)
     if kind == "station":
         inputs["settings"] = settings_of(params)
+    else:
+        del inputs["settings"]
     return inputs
 
 
@@ -192,16 +263,6 @@ def restore_if_cancelled(analysis: Station) -> None:
 # ---- staleness ---------------------------------------------------------------------------
 
 
-def wanted_run_inputs(analysis: Station) -> dict:
-    """The inputs the results should have now: the analysis's, with the settings of the
-    latest run asked for (a recalculation's new settings, #178)."""
-    wanted = current_inputs(analysis)
-    latest = analysis.indices_job
-    if latest is not None and "settings" in (latest.inputs or {}):
-        wanted["settings"] = latest.inputs["settings"]
-    return wanted
-
-
 def recorded_inputs(analysis: Station, job: Job | None) -> dict:
     """What ``job`` was produced from: its own record, or a batch's ``origin["inputs"]``."""
     if job is None:
@@ -218,15 +279,16 @@ def qc_changes(analysis: Station, job: Job | None) -> list[str]:
 
 def run_changes(analysis: Station, job: Job | None) -> list[str]:
     """The inputs that changed since the run ``job`` (the shown results) was made."""
-    return differences(recorded_inputs(analysis, job), wanted_run_inputs(analysis), RUN_INPUTS)
+    return differences(recorded_inputs(analysis, job), current_inputs(analysis), RUN_INPUTS)
 
 
 def pending_changes(analysis: Station, job: Job | None, kind: str) -> list[str]:
     """For the job a section links to (the latest asked for): the inputs it is not of, so
-    a new one must be queued. Settings are not compared: the latest run sets them."""
+    a new one must be queued. The settings are compared too since they are the
+    workspace's (#254)."""
     if job is None:
         return []
-    names = QC_INPUTS if kind == "qc" else RUN_INPUTS[:-1]
+    names = QC_INPUTS if kind == "qc" else RUN_INPUTS
     return differences(recorded_inputs(analysis, job), current_inputs(analysis), names)
 
 
@@ -249,6 +311,68 @@ def settle(analysis: Station) -> None:
             setattr(analysis, field, replaced)
 
 
+# ---- undo (#254) --------------------------------------------------------------------------
+
+
+def change_jobs(change: str):
+    """The jobs queued for the change ``change`` (``params["change"]``)."""
+    from climpact_web.jobs.models import CHANGE
+
+    return Job.objects.filter(**{f"params__{CHANGE}": change})
+
+
+def undo_available(workspace_) -> bool:
+    """Whether the workspace's last change to its settings can still be undone: until the
+    recalculation it queued has finished, while one of its jobs still waits or runs."""
+    change = (workspace_.undo or {}).get("change")
+    if not change:
+        return False
+    return (
+        change_jobs(change)
+        .filter(status__in=(Status.QUEUED, Status.RUNNING), cancel_requested=False)
+        .exists()
+    )
+
+
+@dataclass(frozen=True)
+class ChangeState:
+    """Where the workspace's last change to its settings stands, for a view to show (the
+    run status line of #234): its jobs (the checks and runs of every station), how many
+    of them have finished, failed or been cancelled, and whether it can still be undone."""
+
+    change: str
+    jobs: list
+    total: int
+    done: int
+    failed: int
+    cancelled: int
+    can_undo: bool
+
+    @property
+    def finished(self) -> bool:
+        return self.done + self.failed + self.cancelled == self.total
+
+
+def change_state(workspace_) -> ChangeState | None:
+    """The state of the workspace's last change to its settings (``Workspace.undo``), or
+    None when there is none to show: none was made, it was undone, or a station's own
+    change has replaced it since (``calculation.forget_undo``)."""
+    change = (workspace_.undo or {}).get("change")
+    if not change:
+        return None
+    jobs = list(change_jobs(change).order_by("created_at"))
+    count = Counter(job.status for job in jobs)
+    return ChangeState(
+        change=change,
+        jobs=jobs,
+        total=len(jobs),
+        done=count[Status.SUCCEEDED],
+        failed=count[Status.FAILED],
+        cancelled=count[Status.CANCELLED],
+        can_undo=undo_available(workspace_),
+    )
+
+
 def details_valid(analysis: Station) -> bool:
     """Whether the saved station details are complete and fit the data."""
     from climpact_web.stations.forms import MetadataForm
@@ -259,8 +383,8 @@ def details_valid(analysis: Station) -> bool:
         "station_name": analysis.station_name,
         "latitude": analysis.latitude,
         "longitude": analysis.longitude,
-        "base_start": analysis.base_start,
-        "base_end": analysis.base_end,
+        "base_start": analysis.workspace.base_start,
+        "base_end": analysis.workspace.base_end,
     }
     return MetadataForm(data, summary=analysis.summary).is_valid()
 
@@ -283,7 +407,7 @@ def change_sentences(analysis: Station, job: Job | None, changes: list[str]) -> 
             sentences.append(
                 _("You changed the base period to %(new)s. These results use %(old)s.")
                 % {
-                    "new": f"{analysis.base_start}–{analysis.base_end}",
+                    "new": base_period_text(analysis.workspace),
                     "old": f"{old_meta.get('base_start')}–{old_meta.get('base_end')}",
                 }
             )
@@ -528,8 +652,8 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
         parts.append({"text": years_text(first, last), "phone": True})
     if complete:
         base = _("base %(start)s–%(end)s") % {
-            "start": analysis.base_start,
-            "end": analysis.base_end,
+            "start": analysis.workspace.base_start,
+            "end": analysis.workspace.base_end,
         }
         parts.append({"text": base, "phone": False})
     if set_up(analysis):
@@ -618,8 +742,14 @@ def impact_sentence(names) -> str:
     return _("Updates Quality and Files. Indices stay as they are.")
 
 
-def impact(key: str) -> list[str]:
-    """What the sheet of input ``key`` says applying will update (#198)."""
+# The sheets of the workspace's settings (#254): a change applies to every station.
+WORKSPACE_SHEETS = ("base-period", "thresholds", "settings")
+
+
+def impact(key: str, analysis: Station | None = None) -> list[str]:
+    """What the sheet of input ``key`` says applying will update (#198); for a setting of
+    a workspace of several stations, that it applies to all of them (#254), and for every
+    setting, that the change can be undone while it is recalculated."""
     names = dict((k, n) for k, _label, n in PANEL_INPUTS)[key]
     if key == "station":
         sentences = [
@@ -628,11 +758,24 @@ def impact(key: str) -> list[str]:
         ]
     else:
         sentences = [impact_sentence(names)]
+    if key in WORKSPACE_SHEETS and analysis is not None:
+        count = analysis.workspace.stations.count()
+        if count > 1:
+            sentences.append(
+                ngettext(
+                    "It applies to the %(count)s station of this workspace.",
+                    "It applies to all %(count)s stations of this workspace.",
+                    count,
+                )
+                % {"count": count}
+            )
     if key == "file":
         sentences.append(_("The station details and thresholds are kept."))
     elif key == "settings":
         sentences.append(_("About half a minute for 80 years of data."))
     sentences.append(_("What is shown now stays until its replacement is ready."))
+    if key in WORKSPACE_SHEETS:
+        sentences.append(_("You can undo the change until then."))
     return sentences
 
 
@@ -650,6 +793,11 @@ def thresholds_changed(analysis: Station) -> int:
 
     values = qc_values(analysis)
     return sum(1 for key, default in QC_DEFAULTS.items() if values.get(key) != default)
+
+
+def base_period_text(workspace_) -> str:
+    """A workspace's base period: "1971–2000"."""
+    return f"{workspace_.base_start}–{workspace_.base_end}"
 
 
 def settings_changed(analysis: Station) -> int:
@@ -723,7 +871,7 @@ def inputs_panel(analysis: Station, path: str = "") -> dict:
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
         "station": numbers.coordinates(analysis.latitude, analysis.longitude),
-        "base-period": f"{analysis.base_start}–{analysis.base_end}",
+        "base-period": base_period_text(analysis.workspace),
         "thresholds": changed_text(custom["thresholds"]),
         "settings": changed_text(custom["settings"]),
     }
@@ -756,6 +904,8 @@ def inputs_panel(analysis: Station, path: str = "") -> dict:
         "input_next": path,
         "input_urls": urls,
         "inputs_bar": bar,
+        # "Undo the change" beside the runs while a change to the settings can be undone.
+        "input_undo": bool(runs) and undo_available(analysis.workspace),
     }
 
 

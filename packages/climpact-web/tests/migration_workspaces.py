@@ -8,6 +8,9 @@ the analysis and batch are dropped (the maintainer's decision on #231) while the
 stay, and that the new models work: a new station makes a workspace of one with a slug, a
 new batch a workspace of its own, and JSON lookups on the workspace's settings work. It
 leaves the database fully migrated.
+
+:func:`check` also runs #254's migration from #253's models: a station's base period,
+thresholds and the settings of its latest run move onto its workspace.
 """
 
 from __future__ import annotations
@@ -49,3 +52,56 @@ def check(media_root) -> None:
     assert batch.workspace_id != station.workspace_id
     Workspace.objects.filter(pk=station.workspace_id).update(qc_params={"jump": 25.0})
     assert Workspace.objects.filter(qc_params__jump=25.0).count() == 1
+
+    check_settings_move()
+
+
+def check_settings_move() -> None:
+    """#254: the settings a station kept under #253 are its workspace's after 0007."""
+    from django.core.management import call_command
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    call_command("migrate", "stations", "0006", verbosity=0)
+    old = (
+        MigrationExecutor(connection)
+        .loader.project_state([("stations", "0006_workspace_station")])
+        .apps
+    )
+    Station, Workspace, Job = (
+        old.get_model("stations", "Station"),
+        old.get_model("stations", "Workspace"),
+        old.get_model("jobs", "Job"),
+    )
+    run = Job.objects.create(
+        kind="station",
+        owner="t",
+        status="succeeded",
+        params={"params": {"wsdi_days": 3}, "plot_title": "Mine", "plots": False},
+    )
+    space = Workspace.objects.create(owner="t")
+    Station.objects.create(
+        workspace=space,
+        slug="moved",
+        owner="t",
+        base_start=1981,
+        base_end=2010,
+        qc_params={"jump": 25.0},
+        indices_job=run,
+    )
+
+    call_command("migrate", verbosity=0)
+
+    from climpact_web.stations.models import Workspace as NewWorkspace
+
+    moved = NewWorkspace.objects.get(pk=space.pk)
+    assert (moved.base_start, moved.base_end) == (1981, 2010)
+    assert moved.qc_params == {"jump": 25.0}
+    assert moved.index_settings == {
+        "params": {"wsdi_days": 3},
+        "plot_title": "Mine",
+        "plots": False,
+        "zip": True,
+        "report": True,
+    }
+    assert moved.undo == {}

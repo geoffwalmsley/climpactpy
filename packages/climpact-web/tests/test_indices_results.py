@@ -44,7 +44,7 @@ def ready_analysis(client) -> Station:
     data = {"station_name": STATION, "latitude": "0", "longitude": "0",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
-    return Station.objects.get()
+    return Station.objects.get(pk=load.split("/")[2])  # /station/<id>/setup
 
 
 def committed_analysis(client) -> Station:
@@ -70,12 +70,26 @@ def finish(job: Job, outputs: Path = LAT0, skipped=(), rename=None) -> Job:
 
 
 def finished_analysis(client, skipped=()) -> tuple[Station, Job]:
+    """A station whose results are a finished run of R's output, made with the plots and
+    the zip off: its workspace's settings (#254)."""
+    from climpact_web.stations import workspace
+
     analysis = committed_analysis(client)
     analysis.indices_job.request_cancel()  # replaced by a finished run of R's output
+    space = analysis.workspace
+    space.index_settings = {**workspace.default_settings(), "plots": False, "zip": False}
+    space.save()
+    params = {
+        "station_file": "station.txt",
+        "params": space.index_settings["params"],
+        "plots": False,
+        "zip": False,
+    }
     job = Job.objects.create(
         kind="station",
         owner=analysis.owner,
-        params={"station_file": "station.txt", "params": {}, "plots": False, "zip": False},
+        params=params,
+        inputs=workspace.job_inputs(analysis, "station", params),
     )
     finish(job, skipped=skipped)
     analysis.indices_job = job
@@ -316,8 +330,9 @@ def test_the_header_names_the_settings_that_were_changed(client):
 def test_recalculate_queues_a_station_job_with_the_parameters(client):
     analysis = committed_analysis(client)
     speculative = analysis.indices_job
-    analysis.qc_params = {"jump": "15", "flatline_days": "4"}  # step 2's thresholds (#77)
-    analysis.save()
+    # Quality's thresholds (#77), the workspace's (#254)
+    analysis.workspace.qc_params = {"jump": "15", "flatline_days": "4"}
+    analysis.workspace.save()
     data = {**defaults(), "rx_days": "7", "plot_title": "  Sydney   test ", "custom_variable": "TX",
             "custom_operator": ">=", "custom_threshold": "40", "zip": ""}  # fmt: skip
     response = apply_settings(client, analysis, data)
@@ -666,8 +681,9 @@ def test_tables_not_written_are_listed_with_the_reason(client):
     analysis, _job = finished_analysis(
         client, skipped=["indices/tn10p_ANN", "indices/tn10p_MON", "thres/x"]
     )
-    analysis.base_start, analysis.base_end = 2020, 2030  # outside the data
-    analysis.save()
+    space = analysis.workspace
+    space.base_start, space.base_end = 2020, 2030  # outside the data
+    space.save()
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     assert "1 index could not be calculated" in html
     assert "<strong>TN10p</strong> (tn10p_ANN, tn10p_MON)" in html
@@ -1407,15 +1423,17 @@ def test_use_this_data_after_the_run_was_cancelled_queues_a_new_one(client):
 
 def test_a_recalculation_keeps_the_results_until_it_finishes(client):
     """#178: new settings show their run's progress above the results it replaces;
-    cancelling it keeps them, a failure says so above them, and success replaces them."""
+    cancelling it keeps them, a failure says so above them, and success replaces them.
+    The settings are the workspace's since #254, so the results are out of date meanwhile:
+    the banner says what changed."""
     analysis, old = finished_analysis(client)
     base = f"/station/{analysis.pk}"
     apply_settings(client, analysis, {**defaults(), "rx_days": "7"})
     new = Job.objects.latest("created_at")
     assert new.params["replaces"] == str(old.pk)
     html = client.get(f"{base}/results").content.decode()
-    assert "Recalculating" in html and "data-results-table" in html
-    assert "The results below use the previous settings." in html
+    assert "Results are out of date. Recalculating" in html and "data-results-table" in html
+    assert "You changed the settings." in html
     # An index page and Files still show the previous results meanwhile.
     assert client.get(f"{base}/results/txx").status_code == 200
     assert client.get(f"{base}/downloads").status_code == 200

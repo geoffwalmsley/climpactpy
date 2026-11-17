@@ -238,9 +238,10 @@ if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
 TURNSTILE_ORIGIN = "https://challenges.cloudflare.com"
 TURNSTILE_VERIFY_URL = f"{TURNSTILE_ORIGIN}/turnstile/v0/siteverify"
 TURNSTILE_TIMEOUT = 10  # seconds to wait for Cloudflare's answer
-# Jobs waiting or running for one client address, and jobs started by it in 24 hours.
+# Jobs waiting or running for one client address, and jobs started by it in 24 hours. The
+# jobs of one change (a workspace recalculating all its stations, #254) count as one.
 MAX_ACTIVE_JOBS_PER_IP = int(env("MAX_ACTIVE_JOBS_PER_IP", "2"))
-MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "30"))
+MAX_DAILY_JOBS_PER_IP = int(env("MAX_DAILY_JOBS_PER_IP", "50"))
 # No new jobs while more than this many wait in the queue, or while MEDIA_ROOT's disk has
 # less than this much free space (uploads are refused too).
 MAX_QUEUED_JOBS = int(env("MAX_QUEUED_JOBS", "20"))

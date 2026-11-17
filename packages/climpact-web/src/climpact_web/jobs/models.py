@@ -32,6 +32,22 @@ FINISHED = (Status.SUCCEEDED, Status.FAILED, Status.CANCELLED)
 SPECULATIVE = "speculative"
 
 
+# The key of ``Job.params`` that names the change a job was queued for (#254): every job a
+# change to a workspace queues (each station's checks and run) carries the same id, and the
+# hosted limits count them as one (core.limits). Undo cancels them together.
+CHANGE = "change"
+
+
+def change_groups(jobs, besides: str = "") -> int:
+    """How many starts ``jobs`` (a queryset) are, the jobs of one change counting once;
+    with ``besides``, leaving out that change's."""
+    groups = set()
+    for pk, params in jobs.values_list("pk", "params"):
+        groups.add((params or {}).get(CHANGE) or f"job:{pk}")
+    groups.discard(besides)
+    return len(groups)
+
+
 def speculative_q() -> models.Q:
     """Jobs that are still speculative (a JSON lookup, so no migration was needed)."""
     return models.Q(**{f"params__{SPECULATIVE}": True})
@@ -190,10 +206,13 @@ class Job(models.Model):
 
 class JobStart(models.Model):
     """A job started (or retried) in hosted mode, kept for two days: the per-client daily
-    quota counts these rather than jobs, which the user can delete."""
+    quota counts these rather than jobs, which the user can delete. The jobs of one change
+    (``params["change"]``, a workspace's recalculation, #254) are one start, recorded with
+    the first of them."""
 
     client = models.CharField(max_length=64)
     kind = models.CharField(max_length=50, blank=True)
+    change = models.CharField(max_length=36, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

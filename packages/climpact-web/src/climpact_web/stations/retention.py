@@ -37,7 +37,7 @@ def kept_jobs() -> set[str]:
     succeed (``params["replaces"]``), the batch job a station opened from a batch shows
     (``origin["job"]``), and each batch's job."""
     from climpact_web.batch.models import BatchRun
-    from climpact_web.stations.models import Station
+    from climpact_web.stations.models import Station, Workspace
     from climpact_web.stations.workspace import REPLACES
 
     kept: set[str] = set()
@@ -54,6 +54,10 @@ def kept_jobs() -> set[str]:
         if (params or {}).get(REPLACES):
             kept.add(str(params[REPLACES]))
     kept.update(str(pk) for pk in BatchRun.objects.exclude(job=None).values_list("job", flat=True))
+    # The jobs a change to a workspace's settings replaced, while it can be undone (#254).
+    for undo in Workspace.objects.exclude(undo={}).values_list("undo", flat=True):
+        for jobs in (undo or {}).get("stations", {}).values():
+            kept.update(str(pk) for key, pk in jobs.items() if key.endswith("_job") and pk)
     return kept
 
 

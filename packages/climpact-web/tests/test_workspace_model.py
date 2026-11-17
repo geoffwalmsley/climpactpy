@@ -15,12 +15,13 @@ pytestmark = pytest.mark.django_db
 
 
 def test_a_new_station_makes_a_workspace_of_one():
-    station = Station.objects.create(owner="o", station_name="Sydney", base_start=1981,
-                                     base_end=2010, qc_params={"jump": 25.0})  # fmt: skip
+    station = Station.objects.create(owner="o", station_name="Sydney")
     workspace = station.workspace
     assert workspace.owner == "o" and list(workspace.stations.all()) == [station]
-    assert (workspace.base_start, workspace.base_end) == (1981, 2010)
-    assert workspace.qc_params == {"jump": 25.0}
+    # The settings are the workspace's (#254), the defaults until changed.
+    assert (workspace.base_start, workspace.base_end) == (1971, 2000)
+    assert workspace.qc_params == {} and workspace.index_settings == {}
+    assert station.metadata["base_start"] == 1971
     assert workspace.display_name == "Sydney"
 
 

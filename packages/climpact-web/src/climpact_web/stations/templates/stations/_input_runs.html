@@ -1,8 +1,10 @@
 {% load i18n %}{% comment %}
 The checks and the run of new inputs, under the Inputs panel (#198), polled by htmx
 (stations:inputs_progress, outerHTML swap) while they are under way; when they have all
-finished the view reloads the page, which then shows their results. Context: analysis,
-input_runs (stations.workspace.inputs_panel).
+finished the view reloads the page, which then shows their results. While they are the
+recalculation of a change to the workspace's settings (#254), "Undo the change" under them
+puts the settings back (stations:undo, a plain form, so without JavaScript too). Context:
+analysis, input_runs, input_undo, input_next (stations.workspace.inputs_panel).
 {% endcomment %}
 <div id="input-runs" class="inputs-panel__runs"{% if input_runs %} hx-get="{% url 'stations:inputs_progress' analysis.pk %}" hx-trigger="load delay:2s" hx-swap="outerHTML" data-poll-hidden{% endif %}>
   {% for run in input_runs %}
@@ -12,4 +14,5 @@ input_runs (stations.workspace.inputs_panel).
     <progress max="100"{% if run.job.total %} value="{{ run.job.percent }}"{% endif %} aria-labelledby="input-run-{{ run.key }}" aria-describedby="input-run-{{ run.key }}-note"></progress>
   </div>
   {% endfor %}
+  {% if input_undo %}{% include "stations/_undo_form.html" with extra_class="inputs-panel__undo" %}{% endif %}
 </div>

@@ -725,7 +725,8 @@ def test_new_thresholds_run_the_checks_again(client, checked):
     response = sheet_post(client, checked, "thresholds", data)
     assert response["Location"] == f"/station/{checked.pk}/quality"
     checked.refresh_from_db()
-    assert checked.qc_params["jump"] == 15.0 and checked.qc_job.params["qc"]["jump"] == 15.0
+    assert checked.workspace.qc_params["jump"] == 15.0
+    assert checked.qc_job.params["qc"]["jump"] == 15.0
     job = run_next()
     review = qc_review.review(job, checked.station_file)
     assert review.check("tx_jumps").count > 10
@@ -776,7 +777,7 @@ def test_replaced_file_reruns_the_checks_and_keeps_the_details(client, checked):
     assert response["Location"] == f"/station/{checked.pk}/quality"
     checked.refresh_from_db()
     assert checked.station_name == "qc_stress_1961-2020" and checked.latitude == 52.38
-    assert checked.qc_params["iqr_temp"] == 4.0
+    assert checked.workspace.qc_params["iqr_temp"] == 4.0
     assert checked.step == Step.QC and checked.file_name == "fixed.txt"
     job = run_next()
     assert job.params["qc"]["iqr_temp"] == 4.0

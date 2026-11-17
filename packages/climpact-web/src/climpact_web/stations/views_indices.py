@@ -169,7 +169,7 @@ def current_source(analysis: Station):
 
 def load_results(analysis, source):
     return results_model.results_for(
-        source, analysis.summary, (analysis.base_start, analysis.base_end)
+        source, analysis.summary, (analysis.workspace.base_start, analysis.workspace.base_end)
     )
 
 
@@ -386,13 +386,14 @@ def sort_sentence(column: str, descending: bool) -> str:
 
 
 def run_base(analysis, job) -> tuple[int, int] | None:
-    """The base period the shown results used: the run's, else the station's."""
+    """The base period the shown results used: the run's, else the workspace's."""
     meta = ((job.params or {}) if job is not None else {}).get("metadata") or {}
     start, end = meta.get("base_start"), meta.get("base_end")
     if start and end:
         return int(start), int(end)
-    if analysis.base_start and analysis.base_end:
-        return int(analysis.base_start), int(analysis.base_end)
+    space = analysis.workspace
+    if space.base_start and space.base_end:
+        return int(space.base_start), int(space.base_end)
     return None
 
 

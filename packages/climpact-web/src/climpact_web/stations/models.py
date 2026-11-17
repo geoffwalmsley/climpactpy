@@ -12,10 +12,12 @@ A :class:`Station` is one station of a workspace: Quality (#77), Indices (#78, #
 Files (#176), with the index settings (#178) and the optional sector comparison (#90). It
 holds the uploaded file (in its own folder) and its hash, the station metadata, a summary
 of the data, the furthest step reached and links to the background jobs of each section.
-Its ``slug`` names it in its workspace. Until #254 the station keeps its own base period
-and thresholds, and the workspace's are only stored.
+Its ``slug`` names it in its workspace. The base period, the thresholds and the index
+settings are the workspace's since #254: a station keeps only what is its own, its file, its
+name and location, and the per-station index values of a batch's metadata file
+(``origin["params"]``).
 
-A change to the file, the metadata or the thresholds keeps the jobs: each job records the
+A change to the file, the metadata or a workspace setting keeps the jobs: each job records the
 inputs it was produced from (``Job.inputs``), and :mod:`.workspace` compares them with the
 station's to show the results as out of date until their replacement has finished.
 
@@ -85,13 +87,19 @@ class Workspace(models.Model):
     # and BatchRun.save() bring it forward to their own updated_at.
     updated_at = models.DateTimeField(default=timezone.now, db_index=True)
 
-    # The settings every station shares (#254 moves them into use).
+    # The settings every station shares (#254): the base period; the quality-control
+    # thresholds of Quality (#77), climpact.config.QCParams fields as entered, empty until
+    # changed (R's defaults, stations.forms.QC_DEFAULTS); and the index settings and output
+    # options, as a ``station`` job's ``settings`` input (workspace.settings_of), empty for
+    # the defaults.
     base_start = models.IntegerField(default=1971)
     base_end = models.IntegerField(default=2000)
-    qc_params = models.JSONField(default=dict, blank=True)  # as Station.qc_params
-    # The index settings and output options, as a ``station`` job's ``settings`` input
-    # (workspace.settings_of); empty for the defaults.
+    qc_params = models.JSONField(default=dict, blank=True)
     index_settings = models.JSONField(default=dict, blank=True)
+    # The last change to the settings, while it can be undone (#254, workspace.undo): its
+    # id (the ``change`` of the jobs it queued), the settings before it, and each station's
+    # jobs and own index values before it. Empty when there is nothing to undo.
+    undo = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]
@@ -179,20 +187,15 @@ class Station(models.Model):
     station_name = models.CharField(max_length=100, blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    base_start = models.IntegerField(default=1971)
-    base_end = models.IntegerField(default=2000)
 
     step = models.CharField(max_length=10, choices=Step.choices, default=Step.UPLOAD)
-
-    # The quality-control thresholds of step 2 (#77): climpact.config.QCParams fields as
-    # entered; empty until changed (R's defaults, stations.forms.QC_DEFAULTS).
-    qc_params = models.JSONField(default=dict, blank=True)
 
     # A station opened from a batch's results (#80): {"batch": batch id, "job": the batch
     # job's id, "station": its name, "params": the IndexParams fields of its metadata
     # line, "outputs": its folder in the batch job's output/, "inputs": the inputs the
     # batch's results were produced from (#179)}. Empty otherwise. Results show the
-    # batch's results until the station is calculated here, starting from these settings.
+    # batch's results until the station is calculated here. The index values of
+    # "params" are the station's own: they take the place of the workspace's (#254).
     origin = models.JSONField(default=dict, blank=True)
 
     # The jobs of the sections. A change to an input keeps them (#179): their results show
@@ -221,12 +224,7 @@ class Station(models.Model):
         recording the change on the workspace."""
         if self.workspace_id is None:
             self.workspace = Workspace.objects.create(
-                owner=self.owner,
-                created_at=self.created_at,
-                updated_at=self.updated_at,
-                base_start=self.base_start,
-                base_end=self.base_end,
-                qc_params=self.qc_params,
+                owner=self.owner, created_at=self.created_at, updated_at=self.updated_at
             )
         if not self.slug or self.step == Step.UPLOAD:
             taken = set(
@@ -274,13 +272,14 @@ class Station(models.Model):
 
     @property
     def metadata(self) -> dict:
-        """The station metadata as the ``station`` job runner takes it."""
+        """The station metadata as the ``station`` job runner takes it: the station's name
+        and location, with its workspace's base period."""
         return {
             "name": self.station_name,
             "latitude": self.latitude,
             "longitude": self.longitude,
-            "base_start": self.base_start,
-            "base_end": self.base_end,
+            "base_start": self.workspace.base_start,
+            "base_end": self.workspace.base_end,
         }
 
     def reached(self, step: str) -> bool:

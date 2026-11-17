@@ -30,8 +30,9 @@ in line; the text around it describes the code as it is. The rules come from thr
   settings are the workspace's since #254: a change recalculates every station, and can
   be undone while it is on the way. A batch fills its workspace since #255: its stations
   are the workspace's, and its results page stands in as the workspace page until #234.
-  Still to come: the workspace URLs (Target: #256), and Workspaces in place of Your
-  calculations (Target: #233, #234, #242).
+  Since #256 a workspace is `/w/<id>/` and its stations `/w/<id>/<station>/…`; the
+  workspace's address opens a workspace of one station straight away. Still to come:
+  Workspaces in place of Your calculations (Target: #233, #234, #242).
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere (Target: #240).
@@ -313,7 +314,8 @@ strips, worklist and detail pane.
   PR TX TN") and the file's name.
   An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
   next index, named codes first. A batch's station starts the breadcrumb with its
-  workspace, which leads to the batch results until #234 (#255). **Target:** the
+  workspace (#255), which leads to the workspace's address, `/w/<id>/`, showing the batch
+  results until #234 (#256). **Target:** the
   workspace in the breadcrumb of every workspace of several stations, and the
   previous and next station on a station's pages, once stations belong to a workspace
   (#231, #234); "Edit

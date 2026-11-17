@@ -2799,7 +2799,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
-      js/qc.js       Quality: the list and its detail (#202), linked to the daily charts (#77, #174)
+      js/qc.js       Quality: the worklist and its detail pane (#202, #235), linked to the daily charts (#77, #174)
       js/results.js  the results catalogue's filters (#78) and column sorting (#200), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
@@ -2841,7 +2841,8 @@ packages/climpact-web/src/climpact_web/
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
                      station rows, missing data per year, the verdict and its limits, the
                      "look wrong" findings and the "worth a look" groups (#174), the
-                     list's items (Item, Review.items, #202)
+                     list's items (Item, Review.items, #202), the coverage strip and the
+                     flagged values as one CSV (flagged_rows, #235)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
@@ -4197,12 +4198,13 @@ sign (`numbers.anomaly`; the standardised anomalies chart's payload has
 151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); counts grouped,
 "65,720" (`numbers.grouped`, the Quality tab's count, #222); a no-break
 space between a value and its unit. The Quality tables keep the file's own precision
-(`numbers.file_value`) with U+2212. Server-drawn charts (`stations/qc_plots.py`,
+(`numbers.file_value`) with U+2212, except the days around a finding, which have one
+decimal (`numbers.fixed`, #235). Server-drawn charts (`stations/qc_plots.py`,
 `sector_plots.py`, `preview.py`) and `charts.js` (its y-axis ticks, read-out and table
 view) write minus the same way. Templates use the `decimals` and `coordinates` filters
 of `{% load ui %}`. Text the user types and the downloads keep the hyphen-minus: a CSV is
-written as the files are, and the Quality page still says to write `-99.9` for a missing
-value.
+written as the files are (Quality's flagged values CSV too, #235), and the help still
+says to write `-99.9` for a missing value.
 
 **Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
 sample data" buttons, a short "How it works" paragraph (#173: the four step cards repeated
@@ -4226,13 +4228,13 @@ under `forced-colors`.
 **Size.** Since #118 every page loads one stylesheet, `css/climpact.css`: 61.9 KB minified,
 11.3 KB gzipped, with every page's components (before, a page loaded `main.css`, 5.8 KB
 gzipped, `help.css`, 1.6 KB, the dark theme when it applied, and its own page
-stylesheets). Tests hold it under 95 KB (91 KB until #227 added the link and chart tokens, the app
+stylesheets). Tests hold it under 98 KB (95.5 KB until #235 added the verdict and coverage strips and Quality's worklist; 95 KB until #222; 91 KB until #227 added the link and chart tokens, the app
 shell, the context bar and the data table; 86 KB until #203 added the phone layout; 81 KB until #201 added the New station page;
 77 KB until #198 added the Inputs panel and the side sheet; 74 KB until #197 added the section header, one
 surface level and the sticky workspace header; 71 KB until #196 added the colour roles, the theme hues and
 the pattern library's interface swatches; 70 KB until #179 added the workspace tabs'
 status marks and the out-of-date block; 83 KB until #202 added Quality's list and
-detail; it is 94.1 KB) and 17 KB gzipped (16.5 KB; 16.25 KB until #227; 15.5 KB until #203; 15 KB until #202; 14.75
+detail; it is 97.4 KB) and 17.5 KB gzipped (16.7 KB; 17 KB until #235; 16.25 KB until #227; 15.5 KB until #203; 15 KB until #202; 14.75
 KB until #201; 14 KB until #198; 13.5 KB until #197; 13 KB until #196; 12.5 KB until #177 added the drawer). `ui.js` is about
 14.5 KB, held under 14.5 KB (12 KB until #83 added the announcer and focus keeping,
 14 KB until #174 added the file button; the New station page's behaviour is its own
@@ -4597,7 +4599,7 @@ imports or network requests.
 The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
 (`climpact/modules/singleStationStep1UI.R` to `singleStationStep4UI.R`). Since #179 a
 station is a workspace of sections, shown as tabs under its name (decision A): since #198
-Quality (#77, with what is in the file, "Your data", above Details), Results (#78, #79)
+Quality (#77; a compact worklist since #235), Results (#78, #79)
 and Files (#79, #176), beside the Inputs panel, where everything the user gave is changed
 ("Inputs panel" below). A first visit is one New station page (#201, "New station page"
 below): the file, the station details, then "Check and calculate", which runs the checks
@@ -4605,7 +4607,7 @@ and the indices together and opens Quality. There are no steps and no step indic
 the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
 from #178): the indices are calculated with the defaults while the user looks at the
 quality checks ("Speculative calculation" below). The output pages hold no forms but the
-decision ("See results", #202; "Use this data" before), search and filters, and small actions (Delete, Try again,
+decision ("Go to indices", #235; "See results" from #202, "Use this data" before), search and filters, and small actions (Delete, Try again,
 Cancel, Recalculate).
 R's step 4, sector correlation (#90), is an action on Results since #173, and its page
 shows the Results tab as current. A change to an input keeps the work and marks what
@@ -4693,8 +4695,11 @@ and their count, "base" and the base period, "ET-SCI defaults" or how many quali
 thresholds and index settings are not the default, and "climpact" with the core's
 installed version, `importlib.metadata`; on a phone only the years), the page's actions
 (Results' "Compare with sector data" and "Download all",
-`stations/_results_actions.html`) and `components/workspace_tabs.html`. The file name is
-no longer in the bar; the Inputs panel's File row has the file. The title is the station
+`stations/_results_actions.html`) and `components/workspace_tabs.html`. Quality's
+provenance line describes the data the checks read instead (#235, `workspace.quality_provenance`,
+as the Quality board draws it): the coordinates, the years, the days and the variables
+with data ("21,915 days · PR TX TN") and the file's name. The other pages' lines leave the
+file name out; the Inputs panel's File row has the file. The title is the station
 name given, the file name only when there is none. The bar sits on the surface over a
 hairline across the window: a box-shadow of the surface and a 1px one of the border,
 clipped to its height (`clip-path`), so it stays a child of `.station-page`, and
@@ -4804,13 +4809,14 @@ sheet `data-sheet-autoopen` and `js/sheet.js` opens it as the page loads; withou
 JavaScript a `<noscript>` refresh in the head (`stations/_open_sheet.html`) goes on to the
 sheet's page. `js/sheet.js` also opens the settings sheet for `#adjust` and the
 thresholds sheet for `#thresholds`, the old forms' anchors, which stay on the page (the
-settings line on Results, the thresholds line in Quality's Details) for a browser without
+settings line on Results, the thresholds line under Quality's worklist) for a browser without
 JavaScript. Closing a sheet opened this way focuses its Edit in the panel.
 
 **The Data tab folds into Quality (#198).** Data's summary (`_summary.html`: the period,
-missing values by variable, the daily series and the days with data per year) is the last
+missing values by variable, the daily series and the days with data per year) is a
 section of Quality, "Your data" (`id="your-data"`), so the Quality page loads the chart
-code. Once the station is set up, `stations:load` (Data's address) and `stations:setup`
+code. Since #235 it shows only while the checks run (or failed); once they have run the
+coverage strip takes its place and its anchor (`id="your-data"` on the strip's wrapper). Once the station is set up, `stations:load` (Data's address) and `stations:setup`
 redirect to `.../quality#your-data`; before that, and when a new file no longer fits the
 details, they lead to the New station page. The station's own address, `/station/<id>/`,
 opens Results after "See results", Quality once set up, else the New station page; the
@@ -4842,7 +4848,10 @@ series; `.../delete` (POST); `.../inputs/<key>` (`stations:edit_input`, #198, #1
 sheet of the Inputs panel as a page, POST applies it; `.../inputs/progress` (htmx);
 `.../quality` Quality (`stations:qc`), `.../quality/progress` (htmx),
 `.../quality/checks/<check>` (htmx: one page of a check's table, `?page=` or `?date=`),
-`.../quality/continue` (POST: "See results"); `.../quality/run` and `.../quality/file`
+`.../quality/continue` (POST: "Go to indices"); `.../quality/flagged.csv`
+(`stations:qc_flagged`, #235: every flagged value of the checks shown, one row each:
+date, check, kind ("look wrong" or "worth a look"), variable, value as the file has it,
+units and what it was checked against; `qc_review.flagged_rows`); `.../quality/run` and `.../quality/file`
 are gone since #199 (the thresholds and file sheets); `.../indices` (`stations:indices`),
 the Calculate step's address until #178: GET redirects to `.../results?settings=open`
 (with `&back=<key>` for an old `?index=<key>`), which opens the Index settings sheet, so
@@ -4925,7 +4934,7 @@ page.
   Python's default encoding, and a BOM would make the first data row a header (as it does
   in R). A header in Latin-1 is decoded as such.
 
-**"Your data" (Quality, #198; compact since #202).** Chips for the period, years and days
+**"Your data" (Quality, #198; compact since #202; only while the checks run since #235).** Chips for the period, years and days
 (from the first row's date to the last, as R's quality control), the days missing and
 the share missing per variable (one value per date, the last row of a repeated date, as
 the indices use) and, once the checks of this file have run, the years too incomplete for
@@ -4987,58 +4996,78 @@ without errors; the user corrects the file outside the app and loads it again.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
   user downloads, so every row of every file is reachable on the screen. Since #174 the
   page is a short worklist (the Sydney sample's went from about 8,250 px to about 2,100 px
-  at 1280 px wide), and since #202 a list and detail (3,125 px to 2,414 px at 1280 px
-  wide, with "Your data" now on the page in full), in this order:
-  - *The verdict and the one decision* (`qc_review.verdict`, decision B of #174). Only the
-    checks whose findings are almost always mistakes (`kind == "error"`: TN >= TX, values
-    too large, repeated dates; their rows, one per date for repeated dates) set the level;
-    outliers, jumps and flat runs are counted in the text and never change it. Green
-    "Ready to use" when nothing looks wrong; amber "Usable. N values look wrong" when up to
-    0.1% of the values checked look wrong; red "Fix the file first" above 0.1%, or when
-    more than 10% of the years are too incomplete for annual values. Both limits are
-    `VERDICT_LIMITS` (`VerdictLimits`). The values checked are PR, TX and TN present on
-    each date (the row the indices use for a repeated date). Under the title, the counts
-    against them ("87,537 values checked", "5 look wrong (under 0.01%)", ...). The band's
-    buttons are at its end (below the text when it is narrow, #202). One primary button:
-    "See results" (green, amber; "Use this data" before #202), or on red "Replace file"
-    with "See results anyway" beside it. Amber also offers "Replace file", a secondary
-    button before "See results"; green only in the Inputs panel. "Replace file" opens the panel's File sheet (#199). Continuing is always possible once the checks have run (R also allows
-    it whatever they found; R has no verdict).
-  - *List and detail* (#202, `stations/_qc_review.html`, `_qc_detail.html`): on the left
-    a list (`Review.items`, `qc_review.Item`) under two group labels. *Look wrong*: one row
-    per finding of those checks (`FindingList`, the first `FINDINGS_SHOWN` = 10 of each
-    check) with its date, a sentence ("Rain 327.6 mm, over the 200 mm limit"), the check
-    and a small SVG chart of the 7 days either side with the flagged value ringed
-    (`Finding.spark`, drawn on the server like the results' sparklines); then, for a
-    check with more rows than are shown, a row for all of them in a table. *Worth a look*
-    (`qc_review.worth_groups`): the outliers by variable and direction ("Heavy rain days",
-    "High maximum temperatures (TX)", from the sections of `qc/outliers`), and the TX and
-    TN jumps and flat runs, one group each, the largest first, each row with its
-    variable, its count, the months that hold most of it ("Mostly in January and
-    February") and its counts by calendar month as small bars (`Group.by_month`, for every
-    group since #202, `Group.bars`). On the right the selected item's detail. A finding's:
-    its date and sentence as the title, the check and what it looks for, a chart of the
-    30 days either side (`Finding.period`, `PERIOD_DAYS`) with the value ringed and a
-    legend, the 7 days either side as a table (the chart's text view) and "Show on the
-    daily chart". A group's, or a check's every row: its title and count, what the check
-    looks for, the counts by calendar month (groups) and its table. Each row is a link to
-    `?show=<id>` (a finding `<check>-<date>`, a table or group its `table_id`), so the
-    selection works without JavaScript and can be linked: the server shows that item's
-    detail, the first finding by default, an unknown id the first, and with no `show` but
-    a `?<table>_page=` the table asked for (`views.selected_item`). Every detail is in the
-    page, the others `hidden`. With JavaScript (`qc.js`) a row shows its detail in place,
-    marks the row (`aria-current`), puts `?show=` in the address (`replaceState`) and
-    announces the detail's title in a polite live region; when the detail is below the
-    list (a narrow container), focus moves to its title. Keyboard: Tab moves between the
-    rows, Enter selects. The list and detail are side by side from a 44rem container (a
-    container query), the detail after the list otherwise.
-  - *Checks that found nothing*: one line ("4 checks found nothing: ...").
-  - *Your data* (above): since #202 it holds the missing data, a sentence's worth of chips
-    and `qc/nastatistics` behind a disclosure: missing days per year and variable for the
-    years with any, with the months that have more than 3 missing days and the years left
-    without an annual value (more than 15 days, or such a month:
+  at 1280 px wide), since #202 a list and detail (3,125 px to 2,414 px at 1280 px wide,
+  with "Your data" now on the page in full), and since #235 a compact worklist to the
+  Quality board (at 1280 px: the Sydney sample 2,323 px to 1,885 px, the QC stress file
+  4,617 px to 2,295 px, Sydney with TX and TN swapped on every 100th row 3,850 px to
+  2,072 px), in this order:
+  - *The verdict strip and the one decision* (`qc_review.verdict`, decision B of #174;
+    `components/verdict_strip.html`, `stations/_qc_verdict.html`). Only the checks whose
+    findings are almost always mistakes (`kind == "error"`: TN ≥ TX, out of range,
+    repeated dates; their rows, one per date for repeated dates) set the level; outliers,
+    jumps and flat runs are counted and never change it. Green "Ready to use." when
+    nothing looks wrong; amber "Usable." when up to 0.1% of the values checked look
+    wrong; red "Fix the file first." above 0.1%, or when more than 10% of the years are
+    too incomplete for annual values. Both limits are `VERDICT_LIMITS` (`VerdictLimits`).
+    The level in bold and one sentence ("21 values look wrong; the indices can run with
+    them as they are.") are the strip's heading; under it one mono line of counts: the
+    values checked (PR, TX and TN present on each date, the row the indices use for a
+    repeated date), how many look wrong and their share, how many are worth a look, the
+    values missing and their share of all of them (`values_missing`), and the years too
+    incomplete when there are any. The buttons at its end: "Flagged values (CSV)" when
+    anything was flagged, then one primary button, "Go to indices" (green, amber; "See
+    results" from #202), with "Replace file" before it on amber; on red "Replace file" is
+    primary, with "Go to indices anyway" before it. "Replace file" opens the panel's File
+    sheet (#199). Continuing is always possible once the checks have run (R also allows it
+    whatever they found; R has no verdict).
+  - *The coverage strip* (`components/coverage_strip.html`, `stations/_qc_coverage.html`,
+    `Review.coverage`): the missing days per year of PR, TX and TN from `qc/nastatistics`,
+    a cell a year in the coverage steps (none, 1–3 days, 4 or more), each variable's total,
+    the years under them; its note says whether every year passes the annual completeness
+    rule, or which years are too incomplete. Its table view is the disclosure "Missing
+    days per year": the years with any, with the months that have more than 3 missing
+    days and the years left without an annual value (more than 15 days, or such a month:
     [Missing data](#missing-data)).
-  - *Details*, a `<details>` with everything else, below.
+  - *The worklist* (#202, #235, `stations/_qc_review.html`, `_qc_detail.html`): on the
+    left two data tables (`Review.items`, `qc_review.Item`). *Look wrong*, grouped by
+    check (TN ≥ TX, Out of range, Repeated date: the checks' titles since #235, "Values
+    too large" before): one row per finding (`FindingList`, the first `FINDINGS_SHOWN` =
+    10 of each check) with its date, variable, value with its unit, check, and what it was
+    checked against (`Finding.var`, `value`, `detail`: "TX 8.2 °C", "limit 200 mm", "indices
+    use the last"); then, for a check with more rows than are shown, a row for all of them
+    in a table. *Worth a look* (`qc_review.worth_groups`): the outliers by variable and
+    direction ("Heavy rain days", "High maximum", from the sections of `qc/outliers`), and
+    the TX and TN jumps ("Large day-to-day change ≥ 20 °C") and flat runs ("Same TN 6+
+    days": more than `flatline_days` equal values), one group each, the largest first,
+    each row with its variable, its count, when it falls (`Group.mostly`: "Mostly May and
+    June", "All in December", "All year") and twelve small bars by calendar month
+    (`Group.bars`). On the right the detail pane, sticky under the context bar beside the
+    tables from a 56rem container (a container query) and scrolling inside itself; after
+    the tables otherwise, with "Back to the list". A finding's detail: its date and check,
+    its sentence as the title, codes first ("TN 9.5 °C is above TX 8.2 °C"), a chart with
+    axes of the 7 days either side (`Finding.chart`, `qc_review._chart`: three value
+    ticks, three date ticks, the day as a band, the value ringed, a legend), the same days
+    as a table to one decimal (the chart's table view; the day in bold, the other days a
+    "look wrong" check flagged marked), "Show on the daily chart" and the line(s) of the
+    station file that give the date (`StationRows.lines`, read from the file by
+    `qc_review.file_lines`: "Line 465 in the file"). A group's, or a check's every row: its
+    variable and count, title, what the check looks for, the counts by calendar month
+    (groups) and its table. Each row's first cell is a link to `?show=<id>` (a finding
+    `<check>-<date>`, a table or group its `table_id`), so the selection works without
+    JavaScript and can be linked: the server shows that item's detail, the first finding
+    by default, an unknown id the first, and with no `show` but a `?<table>_page=` the
+    table asked for (`views.selected_item`). Every detail is in the page, the others
+    `hidden`. With JavaScript (`qc.js`) a row shows its detail in place, marks the link
+    (`aria-current`) and its row, puts `?show=` in the address (`replaceState`) and
+    announces the detail's title in a polite live region; when the detail is below the
+    list, focus moves to its title, and "Back to the list" returns it to the row. Keyboard:
+    Tab moves between the rows, Enter selects. "How the checks work" (a quiet help link,
+    `{% section_help quiet=True %}`) opens the verdict's help with every check's topic.
+  - *Checks that found nothing*: one line ("4 checks found nothing: ...").
+  - *Daily values, with the flags* and *Distributions*, two disclosures, then one line
+    with the thresholds the checks used (a link opens their sheet) and the link to the
+    quality-control files in Files (#176). "Details", one disclosure holding them, until
+    #235.
 - *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
   `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
   `?show=<table>&<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
@@ -5047,13 +5076,13 @@ without errors; the user corrects the file outside the app and loads it again.
   [Quality control](#quality-control)), the dates a flat run covers, the usual range of the
   month for an outlier (the whiskers of `qc.boxplot_stats`), each row of a repeated date
   (one table row per date). The flagged value is in bold.
-- *Daily charts* (under Details): one per variable (TX, TN, DTR, precipitation) in tabs,
+- *Daily charts* (the "Daily values" disclosure): one per variable (TX, TN, DTR, precipitation) in tabs,
   from `charts:station_daily?variable=`, with the flags of the job's thresholds as rings.
-  "Show on the daily chart" in a finding's detail opens Details and the row's chart and
+  "Show on the daily chart" in a finding's detail opens the disclosure and the row's chart and
   moves it to the date (marked with a dashed line, focus on the chart); a click on a ring
   shows the finding of that date in the detail, or else the group whose table holds it
   (loading the table page that holds it), marks the row and focuses it (#202). See [Charts](#charts) for the API.
-- *Distributions* (under Details; `qc_plots`, inline SVG with a table each), R's QC plots:
+- *Distributions* (a disclosure; `qc_plots`, inline SVG with a table each), R's QC plots:
   monthly box plots (`fourboxes`, whiskers at the thresholds, so the values beyond them
   are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
   and 3 for temperatures, as R), decimal values (`roundcheck`) and the precipitation
@@ -5912,7 +5941,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.5 of 16.75 KB (15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -5925,7 +5954,9 @@ group's first table page and the days around each finding, all in closed `<detai
 `qc.js` 1.8 of 2 KB. #202 made it a list and detail: 564.6 KB of HTML (72.2 KB
 gzipped, 147.7 KB with everything it links), the extra being every item's detail in the
 page, hidden but the selected one, each finding's chart of the 30 days either side, and
-"Your data"; `qc.js` 2.7 of 3 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
+"Your data"; `qc.js` 2.7 of 3 KB. #235 made it a compact worklist: 567.2 KB of HTML
+(72.1 KB gzipped), each finding's chart now of the 7 days either side, the tables' rows
+denser; `qc.js` 3.0 of 3 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (Files since #176, which grouped its files in closed disclosures and added

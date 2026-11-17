@@ -34,13 +34,13 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, promote
 from climpact_web.stations import workspace
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
-from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
+from climpact_web.stations.models import STATION_FILE, Station, Step
 from climpact_web.stations.workspace import REPLACES, batch_job
 
 logger = logging.getLogger("climpact_web.stations")
 
 
-def station_title(analysis: StationAnalysis) -> str:
+def station_title(analysis: Station) -> str:
     """The plots' default title: R's ``title.station`` (the core's ``station_title``)."""
     from climpact.config import StationMetadata
     from climpact.plots import station_title as core_title
@@ -54,7 +54,7 @@ def batch_custom(job: Job | None) -> dict | None:
     return (job.params or {}).get("custom") if job is not None else None
 
 
-def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, bool, str]:
+def previous_params(analysis: Station) -> tuple[dict, str, bool, bool, bool, str]:
     """The parameters to start the form from: the last calculation's, else the batch
     station's (``origin``), else the defaults. Returns (params, plot title, plots, zip,
     report, where they come from)."""
@@ -77,7 +77,7 @@ def previous_params(analysis: StationAnalysis) -> tuple[dict, str, bool, bool, b
     return {}, "", True, True, True, "default"
 
 
-def settings_form(analysis: StationAnalysis, previous=None, **initial) -> IndexParamsForm:
+def settings_form(analysis: Station, previous=None, **initial) -> IndexParamsForm:
     """The settings form, unbound, with the values of :func:`previous_params`."""
     params, plot_title, plots, zip_, report, _source = previous or previous_params(analysis)
     values = initial_from_params(params, plot_title, plots, zip_, report)
@@ -85,7 +85,7 @@ def settings_form(analysis: StationAnalysis, previous=None, **initial) -> IndexP
     return IndexParamsForm(initial=values, station_title=station_title(analysis))
 
 
-def bound_settings(analysis: StationAnalysis, previous=None) -> IndexParamsForm:
+def bound_settings(analysis: Station, previous=None) -> IndexParamsForm:
     """The form as if submitted unchanged: what the Calculate button sent before #178."""
     from django import forms
 
@@ -101,7 +101,7 @@ def bound_settings(analysis: StationAnalysis, previous=None) -> IndexParamsForm:
     return IndexParamsForm(data, station_title=station_title(analysis))
 
 
-def station_params(analysis: StationAnalysis, form: IndexParamsForm) -> dict:
+def station_params(analysis: Station, form: IndexParamsForm) -> dict:
     """The ``station`` job's parameters from a valid settings form."""
     data = form.cleaned_data
     return {
@@ -116,7 +116,7 @@ def station_params(analysis: StationAnalysis, form: IndexParamsForm) -> dict:
     }
 
 
-def _create(request, analysis: StationAnalysis, params: dict, speculative=False) -> Job:
+def _create(request, analysis: Station, params: dict, speculative=False) -> Job:
     with analysis.station_file.open("rb") as handle:
         return create_job(
             request,
@@ -132,7 +132,7 @@ def _create(request, analysis: StationAnalysis, params: dict, speculative=False)
 # ---- the quality checks (#77) ------------------------------------------------------------
 
 
-def qc_job_params(analysis: StationAnalysis) -> dict:
+def qc_job_params(analysis: Station) -> dict:
     return {
         "station_file": STATION_FILE,
         "metadata": analysis.metadata,
@@ -140,7 +140,7 @@ def qc_job_params(analysis: StationAnalysis) -> dict:
     }
 
 
-def queue_qc(request, analysis: StationAnalysis) -> Job:
+def queue_qc(request, analysis: Station) -> Job:
     """Queue the quality checks of the analysis's file with its thresholds, replacing a
     check still waiting or running. The checks shown until it has finished are named in
     its ``replaces`` (#179)."""
@@ -168,7 +168,7 @@ def queue_qc(request, analysis: StationAnalysis) -> Job:
 # ---- the index calculation (#78, #178) ---------------------------------------------------
 
 
-def queue_station_run(request, analysis: StationAnalysis, form: IndexParamsForm) -> Job | None:
+def queue_station_run(request, analysis: Station, form: IndexParamsForm) -> Job | None:
     """Queue the calculation the user asked for (the Index settings sheet, or "Use this
     data" without a speculative run). A run of this analysis still waiting or running is
     cancelled, as this one replaces it; finished results stay on the page until the new
@@ -186,7 +186,7 @@ def queue_station_run(request, analysis: StationAnalysis, form: IndexParamsForm)
     return job
 
 
-def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
+def speculate(request, analysis: Station, previous=None) -> Job | None:
     """Queue a speculative run of the analysis with the settings the form would start from
     (``previous``, else :func:`previous_params`), replacing one that is now stale. None, and
     nothing queued, when the data cannot be calculated yet, when the analysis shows a
@@ -214,7 +214,7 @@ def speculate(request, analysis: StationAnalysis, previous=None) -> Job | None:
     return job
 
 
-def commit(request, analysis: StationAnalysis) -> Job | None:
+def commit(request, analysis: Station) -> Job | None:
     """ "See results": the speculative run becomes the user's own, or, if there is none
     (refused, cancelled, failed), a run with the same settings is queued. The caller saves
     the analysis."""
@@ -230,7 +230,7 @@ def commit(request, analysis: StationAnalysis) -> Job | None:
     return queue_station_run(request, analysis, form)
 
 
-def recalculate(request, analysis: StationAnalysis) -> Job | None:
+def recalculate(request, analysis: Station) -> Job | None:
     """ "Recalculate" on out-of-date results (#179): bring the run waiting for the current
     inputs forward (a speculative one becomes the user's), or queue one with the latest
     settings. The caller saves the analysis."""
@@ -249,7 +249,7 @@ def recalculate(request, analysis: StationAnalysis) -> Job | None:
     return queue_station_run(request, analysis, form)
 
 
-def replace_run(request, analysis: StationAnalysis, previous=None) -> Job | None:
+def replace_run(request, analysis: Station, previous=None) -> Job | None:
     """Queue the run of the current inputs with the latest settings (``previous``, else
     :func:`previous_params`): a speculative one before "See results", the user's own
     after it. None when the hosted limits refuse it: the results then say they are out of
@@ -268,7 +268,7 @@ def replace_run(request, analysis: StationAnalysis, previous=None) -> Job | None
         return None
 
 
-def bring_up_to_date(request, analysis: StationAnalysis) -> tuple[bool, bool]:
+def bring_up_to_date(request, analysis: Station) -> tuple[bool, bool]:
     """After a change to the file, the station details or the thresholds (#179): cancel
     what was queued for the old inputs (:func:`workspace.settle`), then queue the checks and
     the run of the new ones, when the data can be checked and the details fit it. The

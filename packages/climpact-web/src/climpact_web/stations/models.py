@@ -1,20 +1,27 @@
-"""The single-station workspace's data model (#76, #179).
+"""Workspaces and their stations: the data model (#76, #179, #231).
 
-A :class:`StationAnalysis` is one station's workspace: Data (#76), Quality (#77), Results
-(#78, #79) and Files (#176), with the index settings (#178) and the optional sector
-comparison (#90) as actions on Results. It holds the uploaded file (in its own folder)
-and its hash, the station metadata, the quality-control thresholds, a summary of the
-data, the furthest step reached and links to the background jobs of each section. Like a
-job it belongs to the browser session that created it (the same owner token as
-:class:`climpact_web.jobs.models.Job`), and is deleted ``JOB_RETENTION_DAYS`` after it was
-last changed (:mod:`.retention`).
+A :class:`Workspace` holds stations and the settings they share (#230, decision 5): the
+base period, the quality-control thresholds and the index settings. One station is a
+workspace of one; a batch (:class:`climpact_web.batch.models.BatchRun`) fills one with
+many. Like a job it belongs to the browser session that created it (the same owner token
+as :class:`climpact_web.jobs.models.Job`). When ``WORKSPACE_EXPIRY`` is on (hosted) it is
+deleted, with its stations, batch and files, ``JOB_RETENTION_DAYS`` after the last change
+to it or to any of them (:mod:`.retention`); locally it stays until the user deletes it.
+
+A :class:`Station` is one station of a workspace: Quality (#77), Indices (#78, #236) and
+Files (#176), with the index settings (#178) and the optional sector comparison (#90). It
+holds the uploaded file (in its own folder) and its hash, the station metadata, a summary
+of the data, the furthest step reached and links to the background jobs of each section.
+Its ``slug`` names it in its workspace. Until #254 the station keeps its own base period
+and thresholds, and the workspace's are only stored.
 
 A change to the file, the metadata or the thresholds keeps the jobs: each job records the
 inputs it was produced from (``Job.inputs``), and :mod:`.workspace` compares them with the
-analysis's to show the results as out of date until their replacement has finished.
+station's to show the results as out of date until their replacement has finished.
 
-The analysis keeps its own copy of the file: a job copies the file into its own
-``input/`` folder when it is queued, so jobs and analyses expire independently.
+The station keeps its own copy of the file: a job copies the file into its own ``input/``
+folder when it is queued. A job a station shows is kept as long as the station
+(:func:`.retention.kept_jobs`).
 """
 
 from __future__ import annotations
@@ -66,8 +73,98 @@ def file_digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-class StationAnalysis(models.Model):
+class Workspace(models.Model):
+    """Stations and the settings they share. ``name`` is blank until the user names it
+    (#234): :attr:`display_name` gives the default."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.CharField(max_length=64, db_index=True)
+    name = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    # The last change to the workspace or any of its stations or batches: Station.save()
+    # and BatchRun.save() bring it forward to their own updated_at.
+    updated_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    # The settings every station shares (#254 moves them into use).
+    base_start = models.IntegerField(default=1971)
+    base_end = models.IntegerField(default=2000)
+    qc_params = models.JSONField(default=dict, blank=True)  # as Station.qc_params
+    # The index settings and output options, as a ``station`` job's ``settings`` input
+    # (workspace.settings_of); empty for the defaults.
+    index_settings = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        """The name, or the default the Flow board gives: one station's own name, else
+        "6 stations, 17 Nov"."""
+        if self.name:
+            return self.name
+        stations = list(self.stations.all()[:2])
+        if len(stations) == 1:
+            return str(stations[0])
+        count = self.stations.count()
+        from django.utils.formats import date_format
+        from django.utils.translation import ngettext
+
+        date = date_format(timezone.localtime(self.created_at), "j M")
+        return ngettext("%(count)d station, %(date)s", "%(count)d stations, %(date)s", count) % {
+            "count": count,
+            "date": date,
+        }
+
+    def touch(self) -> None:
+        self.updated_at = timezone.now()
+
+    def bring_forward(self, when: dt.datetime) -> None:
+        """Record a change made at ``when`` to one of the workspace's stations or batches."""
+        Workspace.objects.filter(pk=self.pk, updated_at__lt=when).update(updated_at=when)
+        if self.updated_at < when:
+            self.updated_at = when
+
+    @property
+    def expires_at(self) -> dt.datetime | None:
+        """When the workspace is deleted, or None when workspaces do not expire."""
+        if not settings.WORKSPACE_EXPIRY:
+            return None
+        return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
+
+    def delete_files(self) -> None:
+        for station in self.stations.all():
+            station.delete_files()
+        for run in self.batches.all():
+            run.delete_files()
+
+    def delete_if_empty(self) -> None:
+        """Delete the workspace once it has no station and no batch left."""
+        if not self.stations.exists() and not self.batches.exists():
+            self.delete()
+
+
+def slug_for(name: str, taken) -> str:
+    """A slug for a station called ``name``, not among ``taken``: ``sydney``, then
+    ``sydney-2`` and so on."""
+    from django.utils.text import slugify
+
+    base = slugify(name)[:50].strip("-") or "station"
+    slug, n = base, 1
+    while slug in taken:
+        n += 1
+        slug = f"{base}-{n}"
+    return slug
+
+
+class Station(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="stations")
+    # Names the station in its workspace (the URLs of #256): made from the station name,
+    # following it until the station details are confirmed, then kept.
+    slug = models.SlugField(max_length=60)
     owner = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -112,9 +209,41 @@ class StationAnalysis(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["workspace", "slug"], name="station_slug_unique")
+        ]
 
     def __str__(self) -> str:
         return self.station_name or self.file_name or str(self.id)
+
+    def save(self, *args, **kwargs) -> None:
+        """Save, making a workspace of one for a new station, giving it a slug, and
+        recording the change on the workspace."""
+        if self.workspace_id is None:
+            self.workspace = Workspace.objects.create(
+                owner=self.owner,
+                created_at=self.created_at,
+                updated_at=self.updated_at,
+                base_start=self.base_start,
+                base_end=self.base_end,
+                qc_params=self.qc_params,
+            )
+        if not self.slug or self.step == Step.UPLOAD:
+            taken = set(
+                Station.objects.filter(workspace_id=self.workspace_id)
+                .exclude(pk=self.pk)
+                .values_list("slug", flat=True)
+            )
+            self.slug = slug_for(self.station_name or Path(self.file_name).stem, taken)
+        super().save(*args, **kwargs)
+        self.workspace.bring_forward(self.updated_at)
+
+    def delete(self, *args, **kwargs):
+        """Delete the station, and its workspace if nothing else is left in it."""
+        workspace = self.workspace
+        result = super().delete(*args, **kwargs)
+        workspace.delete_if_empty()
+        return result
 
     # Files --------------------------------------------------------------------------
 
@@ -171,5 +300,7 @@ class StationAnalysis(models.Model):
         self.updated_at = timezone.now()
 
     @property
-    def expires_at(self) -> dt.datetime:
-        return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
+    def expires_at(self) -> dt.datetime | None:
+        """When the station's workspace, with the station, is deleted (None: never, or not
+        saved yet)."""
+        return self.workspace.expires_at if self.workspace_id else None

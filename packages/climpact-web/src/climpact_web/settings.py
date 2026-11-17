@@ -208,6 +208,10 @@ RUNS_DIR = MEDIA_ROOT / "runs"
 # Background jobs (climpact_web.jobs; TECHNICAL.md, "Background jobs").
 # Days a finished job and its files are kept; the upload page states it.
 JOB_RETENTION_DAYS = int(env("RETENTION_DAYS", "7"))
+# Whether workspaces (#231: their stations, batch and files, and the jobs they show) are
+# deleted JOB_RETENTION_DAYS after their last change. On when hosted; off locally, where a
+# workspace stays on the computer until the user deletes it.
+WORKSPACE_EXPIRY = env_bool("WORKSPACE_EXPIRY", IS_HOSTED)
 # Seconds between worker heartbeats, and without one before a running job counts as dead.
 JOB_HEARTBEAT_SECONDS = float(env("JOB_HEARTBEAT_SECONDS", "10"))
 JOB_STALE_SECONDS = float(env("JOB_STALE_SECONDS", "60"))

@@ -120,7 +120,7 @@ elapsed, remaining, delay, worker_missing, zip_file, zip_size; opened_url for a 
   </section>
   {% endif %}
 
-  {% if job.is_finished %}
-  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
+  {% if job.is_finished and run.expires_at %}
+  <p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=run.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>
   {% endif %}
 </div>

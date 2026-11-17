@@ -20,7 +20,7 @@ bars_svg, order, categories.
     {% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
     <a href="{% url 'jobs:detail' job.pk %}">{% translate "Every file of this comparison" %}</a>
   </div>
-  <p class="text-sm text-text-muted">{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</p>
+  {% if analysis.expires_at %}<p class="text-sm text-text-muted">{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</p>{% endif %}
 </section>
 
 <section class="page-section stack" aria-labelledby="sector-bars-title" id="correlations">

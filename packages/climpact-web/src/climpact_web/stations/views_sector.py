@@ -31,7 +31,7 @@ from climpact_web.core.limits import human_required
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, progress_context
 from climpact_web.stations import sector_plots, workspace
-from climpact_web.stations.models import STATION_FILE, StationAnalysis, Step
+from climpact_web.stations.models import STATION_FILE, Station, Step
 from climpact_web.stations.sector_file import (
     R_NO_COMMON_DATA,
     SAMPLE_FILE,
@@ -43,7 +43,7 @@ from climpact_web.stations.views import get_analysis
 from climpact_web.stations.views_indices import current_source
 
 
-def sector_job(analysis: StationAnalysis, source) -> Job | None:
+def sector_job(analysis: Station, source) -> Job | None:
     """The analysis's sector job, if it was made from the run shown now."""
     job = analysis.sector_job
     if job is None or source is None:
@@ -88,7 +88,7 @@ def phases(job: Job) -> list[dict]:
     return out
 
 
-def queue_sector(request, analysis: StationAnalysis, source, form: SectorForm) -> Job:
+def queue_sector(request, analysis: Station, source, form: SectorForm) -> Job:
     params = {
         "station_job": str(source.job.pk),
         "station": source.station,
@@ -109,7 +109,7 @@ def queue_sector(request, analysis: StationAnalysis, source, form: SectorForm) -
     return job
 
 
-def initial(analysis: StationAnalysis, job: Job | None) -> dict:
+def initial(analysis: Station, job: Job | None) -> dict:
     """The form starts from the last comparison's settings, else R's defaults: the station
     name as title, the y label from the file name, detrended."""
     if job is not None:

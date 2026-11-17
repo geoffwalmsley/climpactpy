@@ -19,7 +19,7 @@ from climpact_web.jobs.registry import RUNNERS
 from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations import qc_plots, qc_review
 from climpact_web.stations.forms import QC_DEFAULTS, QCParamsForm
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step
 
 pytestmark = pytest.mark.django_db
 
@@ -41,7 +41,7 @@ def run_next() -> Job:
     return run_job(job, None)
 
 
-def start(client, path=STRESS, name="qc_stress_1961-2020") -> StationAnalysis:
+def start(client, path=STRESS, name="qc_stress_1961-2020") -> Station:
     """Step 1 with the file, then "Continue": the checks are queued at once."""
     response = client.post(
         "/station/new",
@@ -49,7 +49,7 @@ def start(client, path=STRESS, name="qc_stress_1961-2020") -> StationAnalysis:
     )
     load = response["Location"]
     response = client.post(load, {"station_name": name, **META})
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     assert response["Location"] == f"/station/{analysis.pk}/quality"
     return analysis
 

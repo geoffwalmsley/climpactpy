@@ -16,7 +16,7 @@ from climpact_web.charts import data
 from climpact_web.charts.views import SAMPLE_OUTPUTS, sample_source
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY
-from climpact_web.stations.models import StationAnalysis
+from climpact_web.stations.models import Station
 from climpact_web.stations.views import SAMPLE_NAME, sample_bytes
 
 STATIC = Path(climpact_web.__file__).parent / "core" / "static" / "climpact_web"
@@ -103,7 +103,7 @@ def test_daily_payload_matches_the_csv_download(client, sample_file):
     import io
 
     payload = data.daily_payload(sample_file)
-    analysis = StationAnalysis.objects.create(owner="owner-a", file_name=SAMPLE_NAME)
+    analysis = Station.objects.create(owner="owner-a", file_name=SAMPLE_NAME)
     analysis.folder.mkdir(parents=True, exist_ok=True)
     shutil.copy(sample_file, analysis.station_file)
     text = owned_client().get(f"/station/{analysis.pk}/series.csv").content.decode()
@@ -268,10 +268,8 @@ def test_summary_numbers():
 # ---- views -----------------------------------------------------------------------------
 
 
-def make_analysis(sample_file, owner="owner-a") -> StationAnalysis:
-    analysis = StationAnalysis.objects.create(
-        owner=owner, file_name=SAMPLE_NAME, station_name="sydney"
-    )
+def make_analysis(sample_file, owner="owner-a") -> Station:
+    analysis = Station.objects.create(owner=owner, file_name=SAMPLE_NAME, station_name="sydney")
     analysis.folder.mkdir(parents=True, exist_ok=True)
     shutil.copy(sample_file, analysis.station_file)
     return analysis
@@ -428,7 +426,7 @@ def test_static_chart_frame_unchanged():
 def test_your_data_has_the_daily_chart(client):
     """Quality's "Your data" (#198; the setup page has only a strip of years, #201)."""
     setup = client.post("/station/sample")["Location"]
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     details = {"station_name": "sydney", "latitude": "-33.86", "longitude": "151.21",
                "base_start": "1971", "base_end": "2000"}  # fmt: skip
     html = client.post(setup, details, follow=True).content.decode()

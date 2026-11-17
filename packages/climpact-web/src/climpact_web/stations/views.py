@@ -51,7 +51,7 @@ from climpact_web.stations.forms import (
     UploadForm,
 )
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import Source, StationAnalysis, Step
+from climpact_web.stations.models import Source, Station, Step
 from climpact_web.stations.station_file import (
     Inspection,
     inspect_station_bytes,
@@ -77,9 +77,9 @@ def sample_bytes() -> bytes:
     return gzip.decompress((SAMPLE_DIR / f"{SAMPLE_NAME}.gz").read_bytes())
 
 
-def get_analysis(request, analysis_id) -> StationAnalysis:
+def get_analysis(request, analysis_id) -> Station:
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(StationAnalysis, pk=analysis_id, owner=owner)
+    return get_object_or_404(Station, pk=analysis_id, owner=owner)
 
 
 def default_name(file_name: str) -> str:
@@ -91,7 +91,7 @@ def default_name(file_name: str) -> str:
 # ---- Step 1: the file --------------------------------------------------------------------
 
 
-def apply_inspection(analysis: StationAnalysis, inspection: Inspection, file_name: str):
+def apply_inspection(analysis: Station, inspection: Inspection, file_name: str):
     """Keep a new file in the analysis. Its checks and results are kept too, out of date
     (#179); what was still queued for the old file is cancelled."""
     analysis.file_name = file_name[:255]
@@ -115,7 +115,7 @@ DETAIL_FIELDS = ("station_name", "latitude", "longitude", "base_start", "base_en
 
 def recent_analyses(request):
     owner = request.session.get(OWNER_KEY) or "-"
-    return StationAnalysis.objects.filter(owner=owner)[:RECENT_ANALYSES]
+    return Station.objects.filter(owner=owner)[:RECENT_ANALYSES]
 
 
 def year_strip(summary: dict) -> dict:
@@ -183,7 +183,7 @@ def setup_context(request, analysis, form, **extra) -> dict:
     return context
 
 
-def keep_typed_details(analysis: StationAnalysis, form: MetadataForm) -> None:
+def keep_typed_details(analysis: Station, form: MetadataForm) -> None:
     """Keep the details typed beside a file that was only read ("Read the file", Replace),
     those that are valid on their own, so the page they come back to still has them."""
     form.is_valid()
@@ -198,7 +198,7 @@ def keep_typed_details(analysis: StationAnalysis, form: MetadataForm) -> None:
         analysis.base_start, analysis.base_end = data["base_start"], data["base_end"]
 
 
-def read_file(request, analysis: StationAnalysis | None):
+def read_file(request, analysis: Station | None):
     """Read the file sent with the New station form, into ``analysis`` or a new one.
     Returns (analysis, upload form, inspection); the analysis is None when nothing was
     read and the page has none yet."""
@@ -211,7 +211,7 @@ def read_file(request, analysis: StationAnalysis | None):
         return analysis, upload_form, inspection
     with transaction.atomic():
         if analysis is None:
-            analysis = StationAnalysis(
+            analysis = Station(
                 owner=owner_token(request),
                 source=Source.UPLOAD,
                 station_name=default_name(uploaded.name),
@@ -226,7 +226,7 @@ def read_file(request, analysis: StationAnalysis | None):
     return analysis, upload_form, inspection
 
 
-def check_and_calculate(request, analysis: StationAnalysis, form: MetadataForm):
+def check_and_calculate(request, analysis: Station, form: MetadataForm):
     """Save valid details and start the checks and the speculative run together (#178);
     then to Quality, or to Results when only they are affected (a station already in use
     whose new file needed new details)."""
@@ -347,7 +347,7 @@ def sample(request):
         return redirect("stations:new")
     inspection = inspect_station_bytes(sample_bytes())
     with transaction.atomic():
-        analysis = StationAnalysis(owner=owner_token(request), source=Source.SAMPLE)
+        analysis = Station(owner=owner_token(request), source=Source.SAMPLE)
         apply_inspection(analysis, inspection, SAMPLE_NAME)
         for name, value in SAMPLE_METADATA.items():
             setattr(analysis, name, value)
@@ -364,7 +364,7 @@ def sample_file(request):
     return response
 
 
-def initial_metadata(analysis: StationAnalysis) -> dict:
+def initial_metadata(analysis: Station) -> dict:
     return {
         "station_name": analysis.station_name,
         "latitude": analysis.latitude,
@@ -380,7 +380,7 @@ def percent_text(variable: dict) -> str:
     return _("%(value)s%%") % {"value": f"{variable['percent_missing']:.1f}"}
 
 
-def summary_context(analysis: StationAnalysis) -> dict:
+def summary_context(analysis: Station) -> dict:
     summary = analysis.summary or {}
     if not summary:
         return {}
@@ -460,7 +460,7 @@ def delete(request, analysis_id):
 # ---- Step 2: quality control (#77) ----------------------------------------------------
 
 
-def step_two_ready(analysis: StationAnalysis) -> bool:
+def step_two_ready(analysis: Station) -> bool:
     return (
         analysis.reached(Step.QC) and analysis.metadata_complete and analysis.station_file.is_file()
     )
@@ -491,7 +491,7 @@ def selected_item(request, review) -> str:
     return ""
 
 
-def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
+def qc_context(request, analysis: Station, **extra) -> dict:
     from climpact_web.jobs.views import progress_context
 
     job, shown = analysis.qc_job, workspace.shown_qc(analysis)
@@ -716,7 +716,7 @@ INPUT_SHEETS = {
 }
 
 
-def next_url(request, analysis: StationAnalysis) -> str:
+def next_url(request, analysis: Station) -> str:
     """Where an edit returns: the page it was opened from (``next``), one of this station's,
     else the workspace's home."""
     from django.utils.http import url_has_allowed_host_and_scheme
@@ -732,7 +732,7 @@ def next_url(request, analysis: StationAnalysis) -> str:
     return workspace.home_url(analysis)
 
 
-def input_form(analysis: StationAnalysis, key: str, data=None, files=None):
+def input_form(analysis: Station, key: str, data=None, files=None):
     """The form of the sheet ``key``: unbound with the saved values, or bound to ``data``."""
     if key == "file":
         # Its own ids, apart from the first visit's file field.
@@ -754,7 +754,7 @@ def input_form(analysis: StationAnalysis, key: str, data=None, files=None):
     return form
 
 
-def sheet_context(analysis: StationAnalysis, key: str, form=None) -> dict:
+def sheet_context(analysis: Station, key: str, form=None) -> dict:
     """One sheet's context: its key, title, form and what applying it will update; for the
     index settings, where they come from (``settings_source``: a batch's line, say)."""
     context = {
@@ -769,7 +769,7 @@ def sheet_context(analysis: StationAnalysis, key: str, form=None) -> dict:
     return context
 
 
-def apply_thresholds(request, analysis: StationAnalysis, form: QCParamsForm) -> None:
+def apply_thresholds(request, analysis: Station, form: QCParamsForm) -> None:
     """Apply the Quality thresholds sheet. New thresholds replace the checks and the run
     (the run's QC files use them too), whose results stay, out of date, until then (#179).
     The same thresholds run the checks again when the shown ones failed, were stopped or
@@ -784,7 +784,7 @@ def apply_thresholds(request, analysis: StationAnalysis, form: QCParamsForm) -> 
         queue_qc(request, analysis)
 
 
-def apply_settings(request, analysis: StationAnalysis, form) -> None:
+def apply_settings(request, analysis: Station, form) -> None:
     """Apply the Index settings sheet: queue a run with them, which replaces the results
     shown when it has finished (#178, "Adjust and recalculate" on Results until #199)."""
     workspace.restore_if_cancelled(analysis)
@@ -794,7 +794,7 @@ def apply_settings(request, analysis: StationAnalysis, form) -> None:
     analysis.save()
 
 
-def apply_file(request, analysis: StationAnalysis, form: UploadForm):
+def apply_file(request, analysis: Station, form: UploadForm):
     """Replace the file from the File sheet. Returns (inspection, response): a redirect
     when the file was loaded, else the inspection whose problems the page shows."""
     uploaded = form.cleaned_data["station_file"]

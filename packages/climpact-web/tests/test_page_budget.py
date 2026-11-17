@@ -114,10 +114,10 @@ def station_qc_results(client) -> str:
 def station_calculating(client) -> str:
     """Results while the run queued with the checks goes on, after "Use this data": the
     progress and the closed "Adjust and recalculate" form (#178)."""
-    from climpact_web.stations.models import StationAnalysis, Step
+    from climpact_web.stations.models import Station, Step
 
     url = station_qc(client)
-    StationAnalysis.objects.update(step=Step.INDICES)
+    Station.objects.update(step=Step.INDICES)
     return url.replace("/quality", "/results")
 
 
@@ -127,10 +127,10 @@ def station_results(client) -> str:
     import shutil
 
     from climpact_web.jobs.models import Job, Status
-    from climpact_web.stations.models import StationAnalysis
+    from climpact_web.stations.models import Station
 
     url = station_calculating(client)
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     station = "sydney_observatory_hill_1936-2015"
     job = Job.objects.create(kind="station", owner=analysis.owner, status=Status.SUCCEEDED,
                              params={"params": {}, "plots": True, "zip": True},

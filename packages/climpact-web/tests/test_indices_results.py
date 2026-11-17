@@ -21,7 +21,7 @@ from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.stations import results as results_model
 from climpact_web.stations import themes
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step
 
 REPO = Path(__file__).resolve().parents[3]
 LAT0 = REPO / "reference" / "output" / "lat0"
@@ -37,17 +37,17 @@ def media(settings, tmp_path):
     return settings
 
 
-def ready_analysis(client) -> StationAnalysis:
+def ready_analysis(client) -> Station:
     """The Sydney sample through step 1: the checks and a speculative run of the indices
     with the default settings are queued (#178)."""
     load = client.post("/station/sample")["Location"]
     data = {"station_name": STATION, "latitude": "0", "longitude": "0",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
-    return StationAnalysis.objects.get()
+    return Station.objects.get()
 
 
-def committed_analysis(client) -> StationAnalysis:
+def committed_analysis(client) -> Station:
     """As :func:`ready_analysis`, after "Use this data" (without waiting for the checks):
     the results show the speculative run."""
     analysis = ready_analysis(client)
@@ -69,7 +69,7 @@ def finish(job: Job, outputs: Path = LAT0, skipped=(), rename=None) -> Job:
     return job
 
 
-def finished_analysis(client, skipped=()) -> tuple[StationAnalysis, Job]:
+def finished_analysis(client, skipped=()) -> tuple[Station, Job]:
     analysis = committed_analysis(client)
     analysis.indices_job.request_cancel()  # replaced by a finished run of R's output
     job = Job.objects.create(
@@ -180,7 +180,7 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
 
 def test_step_3_needs_the_station_details(client):
     load = client.post("/station/sample")["Location"]
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     assert client.get(f"/station/{analysis.pk}/indices")["Location"] == load
     assert client.get(f"/station/{analysis.pk}/inputs/settings")["Location"] == load
 
@@ -1089,7 +1089,8 @@ def test_every_index_is_one_click_away(client):
     assert f'href="{url}?show=rx1day#index-rx1day">Indices</a>' in page
 
 
-def test_downloads_and_next_step(client):
+def test_downloads_and_next_step(client, settings):
+    settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
     analysis, job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
     # The files are on the Files page (#176); here only each index's CSV and PNG, in its

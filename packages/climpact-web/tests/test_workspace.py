@@ -17,7 +17,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.stations import workspace
 from climpact_web.stations.forms import QC_DEFAULTS
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step, Workspace
 
 pytestmark = pytest.mark.django_db
 
@@ -33,7 +33,7 @@ def media(settings, tmp_path):
     return settings
 
 
-def in_use(client) -> tuple[StationAnalysis, Job, Job]:
+def in_use(client) -> tuple[Station, Job, Job]:
     """The Sydney sample through the real flow: the details confirmed, the checks run, the
     speculative run finished (with R's lat0 outputs) and "Use this data". Returns the
     analysis, its checks and its run, each with the inputs it was made from."""
@@ -456,7 +456,7 @@ def test_the_edit_pages_work_without_javascript(client):
 
 def test_tabs_follow_the_workspace_from_the_first_visit(client):
     load = client.post("/station/sample")["Location"]
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     html = client.get(load).content.decode()
     # The New station page (#201): no tabs and no Inputs panel before the station is set up.
     assert "tabs__list" not in html and "data-inputs-panel" not in html
@@ -577,9 +577,11 @@ def test_two_tabs_see_the_same_state_from_what_is_stored(client, settings, monke
 # ---- retention -------------------------------------------------------------------------------
 
 
-def test_retention_purges_out_of_date_jobs_as_before(client, settings):
-    """Out-of-date jobs are kept only as long as any job: the purge deletes them on their
-    own schedule, and the analysis still opens (here on the run in progress)."""
+def test_retention_keeps_the_jobs_a_station_shows(client, settings):
+    """An out-of-date run stays while the page shows it, beside its replacement in
+    progress, however old (#231); once the replacement has finished it is purged on its own
+    schedule."""
+    settings.WORKSPACE_EXPIRY = True
     analysis, _qc, run = in_use(client)
     new_base = {**DETAILS, "base_start": "1981", "base_end": "2010"}
     client.post(f"/station/{analysis.pk}/setup", new_base)
@@ -588,27 +590,57 @@ def test_retention_purges_out_of_date_jobs_as_before(client, settings):
     long_ago = timezone.now() - dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)
     Job.objects.filter(pk=run.pk).update(finished_at=long_ago)
     purge_expired()
-    assert not Job.objects.filter(pk=run.pk).exists() and not run.folder.exists()
-    analysis.refresh_from_db()
-    assert analysis.indices_job == new  # the analysis was changed today: kept
+    assert Job.objects.filter(pk=run.pk).exists() and run.folder.exists()
     html = page(client, analysis)
-    assert 'id="results-progress"' in html and states(html)["results"] == "running"
-    # The analysis itself goes once it has not changed for the retention period, unless one
-    # of its jobs is still queued or running.
-    StationAnalysis.objects.filter(pk=analysis.pk).update(updated_at=long_ago)
+    assert states(html)["results"] == "stale"  # the old results, beside the new run
+    Job.objects.filter(pk=new.pk).update(status=Status.SUCCEEDED, finished_at=timezone.now())
     purge_expired()
-    assert StationAnalysis.objects.filter(pk=analysis.pk).exists()
-    new.request_cancel()
+    assert not Job.objects.filter(pk=run.pk).exists() and not run.folder.exists()
+    assert Job.objects.filter(pk=new.pk).exists()
+
+
+def test_retention_deletes_the_workspace_once_idle(client, settings):
+    """The workspace, with its station, goes once it has not changed for the retention
+    period, unless one of its jobs is still queued or running."""
+    settings.WORKSPACE_EXPIRY = True
+    analysis, _qc, _run = in_use(client)
+    client.post(f"/station/{analysis.pk}/setup", {**DETAILS, "base_start": "1981"})
+    analysis.refresh_from_db()
+    long_ago = timezone.now() - dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)
+    Workspace.objects.filter(pk=analysis.workspace_id).update(updated_at=long_ago)
+    purge_expired()
+    assert Station.objects.filter(pk=analysis.pk).exists()
+    analysis.indices_job.request_cancel()
     analysis.qc_job.request_cancel()
     purge_expired()
-    assert not StationAnalysis.objects.filter(pk=analysis.pk).exists()
+    assert not Station.objects.filter(pk=analysis.pk).exists()
+    assert not Workspace.objects.filter(pk=analysis.workspace_id).exists()
+    assert not analysis.folder.exists()
+
+
+def test_without_expiry_nothing_a_workspace_shows_is_deleted(client, settings):
+    """Locally (expiry off, the default) a workspace stays until deleted, and so do the
+    jobs it shows, however old (#231)."""
+    settings.WORKSPACE_EXPIRY = False
+    analysis, qc, run = in_use(client)
+    long_ago = timezone.now() - dt.timedelta(days=365)
+    Workspace.objects.filter(pk=analysis.workspace_id).update(updated_at=long_ago)
+    Job.objects.filter(pk__in=[qc.pk, run.pk]).update(finished_at=long_ago)
+    stray = Job.objects.create(kind="station", owner="x", status=Status.SUCCEEDED,
+                               finished_at=long_ago)  # fmt: skip
+    purge_expired()
+    assert Station.objects.filter(pk=analysis.pk).exists() and analysis.folder.exists()
+    assert Job.objects.filter(pk__in=[qc.pk, run.pk]).count() == 2
+    assert not Job.objects.filter(pk=stray.pk).exists()  # shown by nothing: purged as before
+    html = page(client, analysis)
+    assert states(html)["results"] == "done"
 
 
 # ---- the migration ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db(transaction=True)
-def test_migration_records_the_inputs_of_existing_jobs(settings):
-    from migration_backfill import check
+def test_migration_drops_analyses_and_batches_and_keeps_their_jobs(settings):
+    from migration_workspaces import check
 
     check(settings.MEDIA_ROOT)

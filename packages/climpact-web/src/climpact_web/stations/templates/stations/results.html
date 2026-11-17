@@ -55,7 +55,7 @@
   {% url 'stations:results' analysis.pk as indices_action %}
   {% include "stations/_indices.html" with action=indices_action %}
 
-  <p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=job.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>
+  {% if analysis.expires_at %}<p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>{% endif %}
   </div>
   </div>
 </div>

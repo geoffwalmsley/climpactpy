@@ -3,10 +3,10 @@
 A :class:`BatchRun` is one batch going through the batch page: the uploaded metadata file
 and station files (in its own folder), the result of checking them
 (:mod:`climpact_web.batch.check`), the options chosen before it starts and the
-background job that runs it. Like a station analysis it belongs to the browser session
-that created it (the job owner token), and is deleted ``JOB_RETENTION_DAYS`` after it was
-last changed (:mod:`.retention`). The job copies the files it needs into its own
-``input/`` folder when it is queued, so batches and jobs expire independently.
+background job that runs it. It fills a workspace
+(:class:`climpact_web.stations.models.Workspace`, #231), made with it, and is deleted with
+that workspace (:mod:`climpact_web.stations.retention`). The job copies the files it needs
+into its own ``input/`` folder when it is queued; it is kept as long as the batch.
 """
 
 from __future__ import annotations
@@ -40,6 +40,9 @@ class Source(models.TextChoices):
 
 class BatchRun(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        "stations.Workspace", on_delete=models.CASCADE, related_name="batches"
+    )
     owner = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -63,6 +66,28 @@ class BatchRun(models.Model):
 
     def __str__(self) -> str:
         return self.metadata_name or str(self.id)
+
+    def save(self, *args, **kwargs) -> None:
+        """Save, making the batch's workspace when it is new and recording the change on it."""
+        from climpact_web.stations.models import Workspace
+
+        if self.workspace_id is None:
+            self.workspace = Workspace.objects.create(
+                owner=self.owner,
+                created_at=self.created_at,
+                updated_at=self.updated_at,
+                base_start=self.base_start,
+                base_end=self.base_end,
+            )
+        super().save(*args, **kwargs)
+        self.workspace.bring_forward(self.updated_at)
+
+    def delete(self, *args, **kwargs):
+        """Delete the batch, and its workspace if nothing else is left in it."""
+        workspace = self.workspace
+        result = super().delete(*args, **kwargs)
+        workspace.delete_if_empty()
+        return result
 
     # Files --------------------------------------------------------------------------
 
@@ -122,5 +147,7 @@ class BatchRun(models.Model):
         self.updated_at = timezone.now()
 
     @property
-    def expires_at(self) -> dt.datetime:
-        return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
+    def expires_at(self) -> dt.datetime | None:
+        """When the batch's workspace, with the batch, is deleted (None: never, or not
+        saved yet)."""
+        return self.workspace.expires_at if self.workspace_id else None

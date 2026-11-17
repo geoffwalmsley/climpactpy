@@ -495,10 +495,10 @@ def _size(job, relative: str | None) -> int:
 
 def opened_analyses(run: BatchRun) -> dict[str, str]:
     """Stations of this batch already opened as single-station analyses: name -> URL."""
-    from climpact_web.stations.models import StationAnalysis
+    from climpact_web.stations.models import Station
 
     out = {}
-    for analysis in StationAnalysis.objects.filter(owner=run.owner, origin__batch=str(run.pk)).only(
+    for analysis in Station.objects.filter(owner=run.owner, origin__batch=str(run.pk)).only(
         "id", "origin"
     ):
         out[analysis.origin.get("station", "")] = reverse("stations:results", args=[analysis.pk])
@@ -537,7 +537,7 @@ def open_station(request, run_id, name):
     metadata (name, location, base period) are filled in, and the index parameters of its
     metadata line are kept in ``origin`` for the indices step (#78)."""
     from climpact_web.stations.models import Source as StationSource
-    from climpact_web.stations.models import StationAnalysis, Step
+    from climpact_web.stations.models import Station, Step
     from climpact_web.stations.station_file import inspect_station_bytes
     from climpact_web.stations.workspace import current_inputs
 
@@ -549,7 +549,7 @@ def open_station(request, run_id, name):
     station = next((s for s in run.report.get("stations", []) if s["name"] == name), None)
     if result is None or not result["ok"] or station is None:
         raise Http404
-    existing = StationAnalysis.objects.filter(
+    existing = Station.objects.filter(
         owner=run.owner, origin__batch=str(run.pk), origin__station=name
     ).first()
     if existing:
@@ -561,7 +561,7 @@ def open_station(request, run_id, name):
     if not inspection.ok:
         raise Http404
     with transaction.atomic():
-        analysis = StationAnalysis(
+        analysis = Station(
             owner=run.owner,
             source=StationSource.BATCH,
             file_name=station["station_file"][:255],

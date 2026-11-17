@@ -46,7 +46,7 @@ from climpact_web.stations import calculation, themes, workspace
 from climpact_web.stations import results as results_model
 from climpact_web.stations.calculation import station_title
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step
 from climpact_web.stations.views import get_analysis, step_two_ready
 from climpact_web.stations.workspace import (
     batch_job,
@@ -59,7 +59,7 @@ from climpact_web.stations.workspace import (
 INDEX_KEY_MAX = 100
 
 
-def _ready(analysis: StationAnalysis) -> bool:
+def _ready(analysis: Station) -> bool:
     return (
         analysis.metadata_complete and analysis.reached(Step.QC) and analysis.station_file.is_file()
     )
@@ -154,7 +154,7 @@ def phases(job: Job) -> list[dict]:
     return out
 
 
-def current_source(analysis: StationAnalysis):
+def current_source(analysis: Station):
     """(job, RunSource or None): the results shown (:func:`workspace.shown_run`), else the
     run in progress (no source yet); (None, None) before the user has chosen to use the
     data, or with nothing calculated."""

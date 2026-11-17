@@ -107,10 +107,11 @@ def test_downloads_page_redirects_and_is_private(client):
     assert response["Location"] == f"/station/{analysis.pk}/results"
 
 
-def test_dashboard_and_index_page_offer_one_download(client):
+def test_dashboard_and_index_page_offer_one_download(client, settings):
     """Indices offer the zip and, in each index's detail, its CSV and PNG (#236); the
     Files tab lists the rest; an index page its series' CSV, R's plot and a citation
     (#173, #176, #200, #237)."""
+    settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
     analysis, job = finished_analysis(client)
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()

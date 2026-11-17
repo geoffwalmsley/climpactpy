@@ -1,8 +1,8 @@
 """Deleting gridded runs (and their uploaded files) past the retention period, as
-:mod:`climpact_web.batch.retention` does for batches: ``JOB_RETENTION_DAYS`` after the
-last change, unless one of the run's jobs is queued or running. Files read in place from
-this computer are never touched. Registered with the jobs app's purge in
-:class:`.apps.GriddedConfig`."""
+:mod:`climpact_web.stations.retention` does for workspaces when they expire:
+``JOB_RETENTION_DAYS`` after the last change, unless one of the run's jobs is queued or
+running. Files read in place from this computer are never touched. Registered with the
+jobs app's purge in :class:`.apps.GriddedConfig`."""
 
 from __future__ import annotations
 

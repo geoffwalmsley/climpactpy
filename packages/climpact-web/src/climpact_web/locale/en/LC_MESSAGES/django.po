@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 13:37+0000\n"
+"POT-Creation-Date: 2026-11-17 14:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -554,26 +554,28 @@ msgstr ""
 msgid "The results are deleted on %(date)s."
 msgstr ""
 
-#: batch/templates/batch/_retention.html:3
+#: batch/templates/batch/_retention.html:4
+msgid "Your files and results stay on this computer until you delete them."
+msgstr ""
+
+#: batch/templates/batch/_retention.html:7
 #, python-format
 msgid ""
-"Your files are kept for %(days)s day after your last change (until %(date)s "
-"unless you change them), then deleted. Results are kept for %(days)s day "
-"after the calculation finishes."
+"Your files and results are kept for %(days)s day after your last change "
+"(until %(date)s unless you change them), then deleted."
 msgid_plural ""
-"Your files are kept for %(days)s days after your last change (until %(date)s "
-"unless you change them), then deleted. Results are kept for %(days)s days "
-"after the calculation finishes."
+"Your files and results are kept for %(days)s days after your last change "
+"(until %(date)s unless you change them), then deleted."
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/templates/batch/_retention.html:8
-#: stations/templates/stations/_retention.html:24
+#: batch/templates/batch/_retention.html:12
+#: stations/templates/stations/_retention.html:25
 msgid "Only this browser can see them."
 msgstr ""
 
-#: batch/templates/batch/_retention.html:8
-#: stations/templates/stations/_retention.html:24
+#: batch/templates/batch/_retention.html:12
+#: stations/templates/stations/_retention.html:25
 msgid "They stay on this computer."
 msgstr ""
 
@@ -2065,7 +2067,7 @@ msgid ""
 "are decorative unless given a label."
 msgstr ""
 
-#: core/templates/core/patterns.html:101 stations/models.py:56
+#: core/templates/core/patterns.html:101 stations/models.py:63
 msgid "Calculate indices"
 msgstr ""
 
@@ -2667,7 +2669,7 @@ msgid ""
 "and the bar stay in view as the page scrolls."
 msgstr ""
 
-#: core/templates/core/patterns.html:415 stations/models.py:58
+#: core/templates/core/patterns.html:415 stations/models.py:65
 #: stations/templates/stations/_results_actions.html:6
 #: stations/templates/stations/sector.html:14
 msgid "Compare with sector data"
@@ -5551,7 +5553,7 @@ msgstr ""
 msgid "Guides"
 msgstr ""
 
-#: help/templates/help/index.html:29 stations/models.py:43
+#: help/templates/help/index.html:29 stations/models.py:50
 msgid "Sample data"
 msgstr ""
 
@@ -7014,7 +7016,7 @@ msgstr ""
 msgid "Anomaly %(units)s"
 msgstr ""
 
-#: stations/index_page.py:238 stations/templates/stations/result.html:90
+#: stations/index_page.py:238 stations/templates/stations/result.html:92
 msgid "Anomaly"
 msgstr ""
 
@@ -7101,25 +7103,32 @@ msgid ""
 "%(version)s), ET-SCI indices. Accessed %(date)s."
 msgstr ""
 
-#: stations/models.py:42
+#: stations/models.py:49
 msgid "Uploaded file"
 msgstr ""
 
-#: stations/models.py:44
+#: stations/models.py:51
 msgid "From a batch"
 msgstr ""
 
-#: stations/models.py:54
+#: stations/models.py:61
 msgid "Load data"
 msgstr ""
 
-#: stations/models.py:55
+#: stations/models.py:62
 msgid "Check quality"
 msgstr ""
 
-#: stations/models.py:57
+#: stations/models.py:64
 msgid "Results and downloads"
 msgstr ""
+
+#: stations/models.py:117
+#, python-format
+msgid "%(count)d station, %(date)s"
+msgid_plural "%(count)d stations, %(date)s"
+msgstr[0] ""
+msgstr[1] ""
 
 #: stations/qc_plots.py:216
 msgid "Precipitation, days with rain"
@@ -8542,38 +8551,37 @@ msgstr ""
 msgid "Stages of the calculation"
 msgstr ""
 
-#: stations/templates/stations/_retention.html:6
+#: stations/templates/stations/_retention.html:7
+msgid ""
+"Your file, details and results stay on this computer until you delete them."
+msgstr ""
+
+#: stations/templates/stations/_retention.html:9
 #, python-format
 msgid ""
-"Your file and details are deleted on %(date)s unless you change them. "
-"Results are deleted %(days)s day after each calculation."
+"Your file, details and results are deleted on %(date)s unless you change "
+"them."
+msgstr ""
+
+#: stations/templates/stations/_retention.html:13
+#, python-format
+msgid ""
+"Your file, station details and results are kept for %(days)s day after your "
+"last change (until %(date)s unless you change them), then deleted."
 msgid_plural ""
-"Your file and details are deleted on %(date)s unless you change them. "
-"Results are deleted %(days)s days after each calculation."
+"Your file, station details and results are kept for %(days)s days after your "
+"last change (until %(date)s unless you change them), then deleted."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/_retention.html:12
+#: stations/templates/stations/_retention.html:19
 #, python-format
 msgid ""
-"Your file and station details are kept for %(days)s day after your last "
-"change (until %(date)s unless you change them), then deleted. Results are "
-"kept for %(days)s day after each calculation finishes."
+"Your file and results are kept for %(days)s day after your last change, then "
+"deleted."
 msgid_plural ""
-"Your file and station details are kept for %(days)s days after your last "
-"change (until %(date)s unless you change them), then deleted. Results are "
-"kept for %(days)s days after each calculation finishes."
-msgstr[0] ""
-msgstr[1] ""
-
-#: stations/templates/stations/_retention.html:18
-#, python-format
-msgid ""
-"Your file is kept for %(days)s day after your last change, then deleted. "
-"Results are kept for %(days)s day after each calculation finishes."
-msgid_plural ""
-"Your file is kept for %(days)s days after your last change, then deleted. "
-"Results are kept for %(days)s days after each calculation finishes."
+"Your file and results are kept for %(days)s days after your last change, "
+"then deleted."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -9161,15 +9169,15 @@ msgstr ""
 msgid "Method: Sen's slope (zyp), as Climpact for R."
 msgstr ""
 
-#: stations/templates/stations/result.html:84
+#: stations/templates/stations/result.html:86
 msgid "Most recent first"
 msgstr ""
 
-#: stations/templates/stations/result.html:91
+#: stations/templates/stations/result.html:93
 msgid "Rank"
 msgstr ""
 
-#: stations/templates/stations/result.html:93
+#: stations/templates/stations/result.html:95
 msgid "Note"
 msgstr ""
 

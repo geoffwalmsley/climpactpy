@@ -19,7 +19,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations import sector_file, sector_plots
-from climpact_web.stations.models import StationAnalysis, Step
+from climpact_web.stations.models import Station, Step
 
 REPO = Path(__file__).resolve().parents[3]
 SYDNEY = REPO / "reference" / "output" / "sydney"
@@ -37,20 +37,20 @@ def media(settings, tmp_path):
     return settings
 
 
-def ready_analysis(client) -> StationAnalysis:
+def ready_analysis(client) -> Station:
     load = client.post("/station/sample")["Location"]
     data = {"station_name": STATION, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
     # Step 1 queues the quality checks and a speculative run of the indices (#178).
     Job.objects.all().delete()
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     analysis.step = Step.INDICES  # "Use this data"
     analysis.save()
     return analysis
 
 
-def finished_analysis(client) -> tuple[StationAnalysis, Job]:
+def finished_analysis(client) -> tuple[Station, Job]:
     """The Sydney sample with a finished station run: R's reference output."""
     analysis = ready_analysis(client)
     job = Job.objects.create(
@@ -217,11 +217,11 @@ def test_problems_shown_in_the_page_and_nothing_queued(client):
 def cli_outputs(tmp_path, detrend: bool) -> Path:
     """What ``climpact sector-correlation`` writes for the same station run."""
     from climpact.sector import run_sector_correlation
-    from climpact_web.stations.models import StationAnalysis
+    from climpact_web.stations.models import Station
 
     out = tmp_path / ("cli-detrended" if detrend else "cli-raw")
     shutil.copytree(SYDNEY / STATION / "indices", out / STATION / "indices")
-    station_file = StationAnalysis.objects.get().station_file
+    station_file = Station.objects.get().station_file
     run_sector_correlation(station_file, WHEAT, out, STATION, detrend_sector=detrend)
     return out / STATION / "corr"
 
@@ -419,7 +419,7 @@ def test_a_batch_station_opened_as_a_single_station(client, tmp_path):
     batch = run_next()
     assert batch.status == Status.SUCCEEDED, batch.log
     client.post(f"/batch/{run.pk}/open/a")
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     assert analysis.indices_job is None and analysis.origin["station"] == "a"
     html = client.get(url(analysis)).content.decode()
     assert "in the batch run" in html

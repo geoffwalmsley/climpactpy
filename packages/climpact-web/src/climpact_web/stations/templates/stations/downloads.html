@@ -18,7 +18,7 @@ calculated it holds the quality-control files alone. Context from views_download
   <div class="stack stack--sm">
     <div class="section-header"><h2>{% translate "All files" %}</h2>{% section_help "files.page" %}</div>
     <p class="lead">{% if source %}{% translate "Every file of this station. The report is the easiest to read and share." %}{% else %}{% translate "The files of the quality checks. The files of the indices appear here when you calculate them." %}{% endif %}</p>
-    {% with kept=job|default:quality.job %}<p class="text-sm text-text-muted">{% blocktranslate with date=kept.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% if from_batch %} {% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endwith %}
+    {% if analysis.expires_at or from_batch %}<p class="text-sm text-text-muted">{% if analysis.expires_at %}{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. The links work until then.{% endblocktranslate %}{% endif %}{% if analysis.expires_at and from_batch %} {% endif %}{% if from_batch %}{% translate "These are this station's files from the batch run." %}{% endif %}</p>{% endif %}
   </div>
 
   {% if stale_results or stale_quality %}

@@ -23,7 +23,7 @@ from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
-from climpact_web.stations.models import Source, StationAnalysis, Step
+from climpact_web.stations.models import Source, Station, Step, Workspace
 
 REPO = Path(__file__).resolve().parents[3]
 R_SAMPLE = REPO / "packages" / "climpact" / "tests" / "data" / "climpact.sample.batch.metadata.txt"
@@ -331,7 +331,8 @@ def test_plain_error_hides_paths_and_class_names():
 
 
 @pytest.mark.django_db
-def test_start_page(client):
+def test_start_page(client, settings):
+    settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
     html = client.get("/batch/").content.decode()
     assert re.search(r'<form method="post" action="/batch/" enctype="multipart/form-data"', html)
     assert re.search(r'<input type="file" name="station_files"[^>]*multiple', html)
@@ -590,7 +591,7 @@ def test_open_a_station_as_a_single_station(client):
     url = f"/batch/{run.pk}/open/a"
     assert client.get(url).status_code == 405
     response = client.post(url)
-    analysis = StationAnalysis.objects.get()
+    analysis = Station.objects.get()
     assert response["Location"] == f"/station/{analysis.pk}/results"
     assert analysis.source == Source.BATCH and analysis.step == Step.QC
     assert (analysis.station_name, analysis.latitude, analysis.longitude) == ("a", -30, 150)
@@ -600,7 +601,7 @@ def test_open_a_station_as_a_single_station(client):
     assert client.get(response["Location"]).status_code == 200
     # Opening it again goes to the same analysis, and the results link to it.
     assert client.post(url)["Location"] == response["Location"]
-    assert StationAnalysis.objects.count() == 1
+    assert Station.objects.count() == 1
     html = client.get(f"/batch/{run.pk}/results").content.decode()
     assert f'href="/station/{analysis.pk}/results"' in html
     assert client.post(f"/batch/{run.pk}/open/nope").status_code == 404
@@ -631,10 +632,12 @@ def test_delete_now(client):
 
 
 @pytest.mark.django_db
-def test_retention(client):
+def test_retention(client, settings):
+    """A batch goes with its workspace (#231), and stray batch folders after the period."""
+    settings.WORKSPACE_EXPIRY = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     old = timezone.now() - dt.timedelta(days=8)
-    BatchRun.objects.filter(pk=run.pk).update(updated_at=old)
+    Workspace.objects.filter(pk=run.workspace_id).update(updated_at=old)
     stray = batches_dir() / str(uuid.uuid4())
     stray.mkdir(parents=True)
     import os
@@ -644,14 +647,16 @@ def test_retention(client):
     purge_expired()
     assert list(BatchRun.objects.all()) == [keep]
     assert not run.folder.exists() and not stray.exists() and keep.folder.exists()
+    assert not Workspace.objects.filter(pk=run.workspace_id).exists()
 
 
 @pytest.mark.django_db
-def test_running_batch_is_not_purged(client):
+def test_running_batch_is_not_purged(client, settings):
+    settings.WORKSPACE_EXPIRY = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     client.post(f"/batch/{run.pk}/run", {"base_start": "2000", "base_end": "2001", "workers": "1"})
     Job.objects.update(status=Status.RUNNING, heartbeat_at=timezone.now())
-    BatchRun.objects.update(updated_at=timezone.now() - dt.timedelta(days=30))
+    Workspace.objects.update(updated_at=timezone.now() - dt.timedelta(days=30))
     purge_expired()
     assert BatchRun.objects.count() == 1
 

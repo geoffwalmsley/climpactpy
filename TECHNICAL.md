@@ -2582,6 +2582,14 @@ output is ported.
   had a value (`monthsGLOB` unset). Python computes every season and takes the SPI/SPEI
   months from their own table. No reference run is affected (see
   [Trend file](#trend-file)).
+- Climpact R's `climate.indices.csv` gives `tmge10` the long name "TX of at least 10
+  degrees_C", though it counts days with TM >= 10 °C (its definition says so). The core's
+  copy (`climpact/data/climate.indices.csv`) keeps R's text, because it is the
+  `long_name` attribute of the gridded `tmge10` netCDF files, which
+  `tests/parity/test_gridded_indices.py` compares with R's; no station output uses the
+  long name. The web app shows "TM of at least 10 °C" (`LONG_NAME_FIXES` in
+  `climpact_web/help/indices.py`, #217): the results table, theme lists, index page, help
+  and the gridded index list. Station and gridded results are identical to R's.
 
 ## Performance
 
@@ -5583,8 +5591,12 @@ exists; the tests below check both.
 `help/indices.py` builds one entry per short name (`catalogue()`), adding a display name in
 the usual spelling (`TXx`, `Rx1day`, `R95pTOT`), a group, the parameter topic for
 user-defined indices, sentence-case long names and `°C` for `degrees_C`. The definitions
-are shown as the core writes them (for example "Annual warmest daily TX"); the file's slips
-are kept (`tmge10`'s long name says "TX"). Index topic texts are the definition plus units.
+are shown as the core writes them (for example "Annual warmest daily TX"). Long names the
+file gets wrong are corrected in `LONG_NAME_FIXES` (only `tmge10`, whose R long name says
+"TX" though it counts TM days, #217; see [R behaviour not to be
+copied](#r-behaviour-not-to-be-copied)); the gridded form's index list uses it too. A test
+checks that every long name naming TX, TN or TM names a variable its definition uses.
+Index topic texts are the definition plus units.
 
 **Guide pages** (`help/guides.py`). `guides/<language>/<slug>.md`, starting with `title:` and
 `summary:` lines (Markdown `meta` extension), rendered with Python-Markdown (`markdown`, a

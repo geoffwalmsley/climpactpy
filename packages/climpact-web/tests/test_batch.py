@@ -17,8 +17,9 @@ from django.test import Client
 from django.utils import timezone
 
 from climpact_web.batch import check
+from climpact_web.batch.fill import plain_error
 from climpact_web.batch.models import BatchRun, batches_dir
-from climpact_web.batch.views import default_workers, plain_error, sample_files
+from climpact_web.batch.views import default_workers, sample_files
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
@@ -364,7 +365,8 @@ def test_upload_and_check_page(client):
     assert "No file named missing.txt was uploaded." in html
     assert "2 stations with missing files or problems will be left out" in html
     assert html.count("badge--success") == 2 and "File missing" in html and "Has problems" in html
-    assert 'href="/batch/"' in html and 'aria-current="step"' in html
+    # No batch steps since #234: the run's results are the workspace's overview.
+    assert 'aria-current="step"' not in html and "steps__" not in html
     assert "Index parameters from the metadata file" in html
     # The add-files panel opens when something is missing.
     assert re.search(
@@ -493,11 +495,11 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         "c.txt",
     ]
 
+    # The workspace's overview (#234): the run status line and a row a station.
     html = client.get(f"/w/{run.workspace_id}/").content.decode()
-    assert (
-        "Calculating the batch" in html and f'hx-get="/w/{run.workspace_id}/batch/progress"' in html
-    )
-    assert "Waiting to start" in html
+    assert "Calculating indices: 0 of 3 stations done." in html
+    assert f'hx-get="/w/{run.workspace_id}/progress"' in html
+    assert html.count('data-indices="waiting"') == 3 and 'data-indices="not_run"' in html
 
     # Break b's file after the check, so it fails in the run itself.
     (job.input_dir / "stations" / "b.txt").write_text("2000 1 1 0 20 10\n1999 1 1 0 20 10\n")
@@ -525,23 +527,20 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         assert any(n.startswith("indices/") for n in archive.namelist())
 
     html = client.get(f"/w/{run.workspace_id}/").content.decode()
-    assert "Batch results" in html and "hx-get" not in html
-    assert "2 of 3 stations calculated" in html
-    assert "1 station failed; its error is below." in html
-    assert "1 station was left out before the run." in html
+    assert "hx-get" not in html and "run-status--failed" in html
+    assert "2 of 3 stations calculated in" in html and "b failed:" in html
+    assert "missing was not run: the station file is missing." in html
     assert f"/jobs/{job.pk}/files/stations.zip" in html and "Download all (zip, " in html
-    assert f"/jobs/{job.pk}/files/stations/a.zip" in html
-    assert f"/jobs/{job.pk}/files/stations/b.errors.txt" in html
-    assert "No file named missing.txt was uploaded." in html
+    # Each station's own files are on its Files tab, not here (#234, #239).
+    assert f"/jobs/{job.pk}/files/stations/a.zip" not in html
+    assert "What is in the zip" not in html
     assert str(job.input_dir) not in html
-    # Failures are listed first.
-    assert html.index(">b</h3>") < html.index(">a</h3>")
     assert client.get(f"/jobs/{job.pk}/files/stations.zip").status_code == 200
 
     # Running again while it runs is not possible; after it, the check page offers it.
     check_html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
     assert "This batch is being calculated." not in check_html
-    assert "Calculate and download" in check_html
+    assert 'batch/run"' in check_html
 
 
 @pytest.mark.django_db
@@ -577,10 +576,11 @@ def test_progress_fragment_shows_each_station(client):
             }
         )
     )
-    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
-    assert "0 of 2 stations finished" in html
-    assert "Calculating the indices" in html and 'value="46"' in html
-    assert "Waiting" in html and "Cancel the batch" in html and "hx-get" in html
+    html = client.get(f"/w/{run.workspace_id}/progress").content.decode()
+    assert html.lstrip().startswith('<div id="workspace-progress"')
+    assert "Calculating indices: 0 of 2 stations done." in html
+    assert "Calculating · 46%" in html and 'value="46"' in html
+    assert "Waiting" in html and ">Cancel</button>" in html and "hx-get" in html
 
 
 @pytest.mark.django_db
@@ -594,7 +594,7 @@ def test_other_sessions_get_404(client):
     for url in (
         f"/w/{run.workspace_id}/batch/",
         f"/w/{run.workspace_id}/",
-        f"/w/{run.workspace_id}/batch/progress",
+        f"/w/{run.workspace_id}/progress",
     ):
         assert other.get(url).status_code == 404
     for url in (

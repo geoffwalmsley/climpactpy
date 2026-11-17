@@ -52,7 +52,7 @@ from climpact_web.stations.forms import (
     UploadForm,
 )
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import Source, Station, Step, Workspace
+from climpact_web.stations.models import Source, Station, Step
 from climpact_web.stations.station_file import (
     Inspection,
     inspect_station_bytes,
@@ -82,13 +82,33 @@ def get_analysis(request, workspace_id, slug) -> Station:
     """The station ``slug`` of the workspace ``workspace_id``, if it is this session's; 404
     otherwise, also for a station of another session's workspace."""
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(
+    station = get_object_or_404(
         Station.objects.select_related("workspace"),
         workspace_id=workspace_id,
         slug=slug,
         owner=owner,
         workspace__owner=owner,
     )
+    return filled(station)
+
+
+def filled(station: Station) -> Station:
+    """The station, with how its batch's run went recorded once the run has finished
+    (``batch.fill``), when it is opened before its workspace's overview (#234), which
+    records it otherwise."""
+    origin = station.origin or {}
+    recorded = origin.get("run") or {}
+    if recorded.get("state") != "waiting" or not origin.get("batch"):
+        return station
+    from climpact_web.batch.fill import fill_workspace
+    from climpact_web.batch.models import BatchRun
+
+    run = BatchRun.objects.filter(pk=origin["batch"], job_id=recorded.get("job")).first()
+    if run is None or run.job.status != Status.SUCCEEDED:
+        return station
+    fill_workspace(run)
+    station.refresh_from_db()
+    return station
 
 
 def get_station(request, station_id) -> Station:
@@ -758,40 +778,6 @@ def qc_continue(request, workspace_id, slug):
 def station_home(request, workspace_id, slug):
     """``/w/<id>/<station>/``: the furthest section the station has reached (#179)."""
     return redirect(workspace.home_url(get_analysis(request, workspace_id, slug)))
-
-
-@never_cache
-@require_safe
-def workspace_page(request, workspace_id):
-    """``/w/<id>/`` (#256), the one address of a batch's results. A workspace of one
-    station opens it straight away (the Flow board: no overview), at its furthest section:
-    Quality while it waits, Indices once calculated or failed (which say why), the New
-    station page when the batch had no file for it. Otherwise, until the overview of #234
-    (``Calculate.dc.html``), the batch's pages stand in: its results once it has been
-    queued, after recording how a finished run went (``batch.fill``); files waiting on Add
-    stations (#233) open their review; else the old batch check page."""
-    from climpact_web.batch import views as batch_views
-    from climpact_web.batch.fill import fill_workspace
-    from climpact_web.batch.models import BatchRun
-
-    owner = request.session.get(OWNER_KEY) or "-"
-    space = get_object_or_404(Workspace, pk=workspace_id, owner=owner)
-    batches = BatchRun.objects.filter(workspace=space, owner=owner)
-    # The batch that ran (files waiting on Add stations, #233, are a batch with no job).
-    run = batches.exclude(job=None).first()
-    if run is not None:
-        fill_workspace(run)
-    stations = list(space.stations.filter(owner=owner)[:2])
-    if len(stations) == 1 or (stations and run is None):
-        return redirect(workspace.home_url(stations[0]))
-    if run is not None:
-        return batch_views.results(request, workspace_id)
-    waiting = batches.filter(job=None).first()
-    if waiting is None:
-        raise Http404
-    if waiting.report.get("files") is not None:  # files waiting on Add stations
-        return redirect("stations:add_review", space.pk, waiting.pk)
-    return batch_views.check_page(request, workspace_id)
 
 
 # Sections renamed by #256 in the old ``/station/<id>/`` addresses: Results is ``indices``,

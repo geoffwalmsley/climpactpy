@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+Workspace settings (#234): the base period, the quality thresholds and the index settings
+every station of the workspace shares (#254), each with Edit, which opens its form on a
+page of its own (workspace_setting.html). Context from views_workspace.settings_page.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=space_name %}Workspace settings: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  <div class="stack max-w-prose">
+    <h1 class="sheet__title">{% translate "Workspace settings" %}</h1>
+    <p>{% translate "These apply to every station of the workspace. A change recalculates them all; the results shown stay until the new ones are ready, and you can undo the change until then." %}</p>
+    <div class="inputs-panel">{% include "stations/_inputs_list.html" with in_sheet=True %}</div>
+    {% if can_undo %}<p class="text-sm text-text-muted">{% translate "A change is being recalculated. Undo it from the run status line on the overview." %}</p>{% endif %}
+    <p><a href="{{ space.get_absolute_url }}">{% translate "Back to the overview" %}</a></p>
+  </div>
+</div>
+{% endblock %}

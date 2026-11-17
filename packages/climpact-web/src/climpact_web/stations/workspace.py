@@ -575,18 +575,52 @@ def sections(analysis: Station, current: str) -> list[Section]:
     return out
 
 
-def workspace_page(analysis: Station) -> dict | None:
-    """The workspace's own page in the breadcrumb, as {label, url}: its address,
-    ``/w/<id>/`` (#256), where a batch's results stand in for the overview until #234
-    (#255). None for a workspace of one station, which that address opens straight away,
-    and for a workspace without a batch (until #234)."""
-    from climpact_web.batch.models import BatchRun
+def ordered_stations(analysis: Station) -> list[Station]:
+    """The stations of the analysis's workspace in the order they were added (the
+    overview's order, #234)."""
+    return list(
+        analysis.workspace.stations.filter(owner=analysis.owner).order_by(
+            "created_at", "station_name", "pk"
+        )
+    )
 
-    has_run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False)
-    if not has_run.exists() or analysis.workspace.stations.count() < 2:
+
+def workspace_page(analysis: Station) -> dict | None:
+    """The workspace's own page in the breadcrumb, as {label, url}: its overview,
+    ``/w/<id>/`` (#256, #234). None for a workspace of one station, which that address
+    opens straight away."""
+    if analysis.workspace.stations.filter(owner=analysis.owner).count() < 2:
         return None
     space = analysis.workspace
     return {"label": space.display_name, "url": space.get_absolute_url()}
+
+
+def station_nav(analysis: Station) -> dict:
+    """The context bar's way round a workspace of several stations (#234): the breadcrumb
+    (the workspace, then "Station 2 of 6") and the previous and next station, each at its
+    furthest section. A workspace of one station has none, and "Add stations" instead
+    (``single_station``)."""
+    stations = ordered_stations(analysis)
+    if len(stations) < 2:
+        return {"breadcrumb": [], "step_previous": None, "step_next": None, "single_station": True}
+    position = next((i for i, s in enumerate(stations) if s.pk == analysis.pk), 0)
+    space = analysis.workspace
+
+    def step(station):
+        if station is None:
+            return None
+        return {"label": station.station_name or station.file_name, "url": home_url(station)}
+
+    label = _("Station %(n)s of %(count)s") % {"n": position + 1, "count": len(stations)}
+    return {
+        "breadcrumb": [
+            {"label": space.display_name, "url": space.get_absolute_url()},
+            {"label": label},
+        ],
+        "step_previous": step(stations[position - 1] if position > 0 else None),
+        "step_next": step(stations[position + 1] if position + 1 < len(stations) else None),
+        "single_station": False,
+    }
 
 
 def home_url(analysis: Station) -> str:
@@ -609,7 +643,8 @@ def set_up(analysis: Station) -> bool:
 
 def context(analysis: Station, current: str, path: str = "") -> dict:
     """The workspace's context: the context bar's ``workspace_tabs``, ``workspace_current``
-    and ``provenance``, ``data_page`` (the page uses the width, #227),
+    and ``provenance``, its breadcrumb and previous and next station (:func:`station_nav`),
+    ``data_page`` (the page uses the width, #227),
     and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
     once the station is set up. ``path`` is the page's address, where an edit returns."""
     out = {
@@ -617,6 +652,7 @@ def context(analysis: Station, current: str, path: str = "") -> dict:
         "workspace_current": current,
         "provenance": provenance(analysis, current),
         "data_page": True,  # base.html: the page uses the whole window (#227, #263)
+        **station_nav(analysis),
     }
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context

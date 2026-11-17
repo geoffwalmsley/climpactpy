@@ -372,22 +372,26 @@ def site(chrome, server):
     heard = while_running(c, "batch")
     # Keyboard focus on the cancel button stays there while the progress is polled: the
     # mark goes when the progress replaces itself (the first poll, or the batch's end).
-    cancel = "#batch-progress form[action$='/cancel'] button"
+    cancel = "#workspace-progress form[action$='/cancel'] button"
     c.evaluate(
         f"document.querySelector({json.dumps(cancel)}).focus();"
-        "document.querySelector('#batch-progress').dataset.a11yMark = '1'"
+        "document.querySelector('#workspace-progress').dataset.a11yMark = '1'"
     )
-    swapped = "!(document.querySelector('#batch-progress') || {dataset: {}}).dataset.a11yMark"
+    swapped = "!(document.querySelector('#workspace-progress') || {dataset: {}}).dataset.a11yMark"
     wait_for(c, swapped, timeout=10, what="the batch's progress to update", heard=heard)
     WHILE_RUNNING["batch"]["focus"] = c.evaluate(
-        "({swapped: !document.querySelector('#batch-progress').dataset.a11yMark,"
-        " running: document.querySelector('#batch-progress').dataset.status !== 'succeeded',"
+        "({swapped: !document.querySelector('#workspace-progress').dataset.a11yMark,"
+        " running: document.querySelector('#workspace-progress').dataset.status !== 'finished',"
         f" kept: document.activeElement === document.querySelector({json.dumps(cancel)})}})"
     )
-    wait_for(c, "document.querySelector('[data-status]') &&"
-             " document.querySelector('[data-status]').dataset.status === 'succeeded'",
+    wait_for(c, "document.querySelector('#workspace-progress') &&"
+             " document.querySelector('#workspace-progress').dataset.status === 'finished'",
              what="the batch", heard=heard)  # fmt: skip
-    pages["batch results"] = here(c)
+    # The workspace's overview (#234), its settings and Rename.
+    pages["workspace overview"] = here(c).split("#")[0]
+    pages["workspace settings"] = pages["workspace overview"] + "settings/"
+    pages["workspace setting"] = pages["workspace overview"] + "settings/base-period"
+    pages["workspace rename"] = pages["workspace overview"] + "rename"
 
     # The sample grid: thresholds, then three indices.
     c.navigate(open_url("/gridded/"))

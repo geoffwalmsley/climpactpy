@@ -8,7 +8,7 @@ the job pages with example jobs (``job-running.html``, ``job-finished.html``,
 (the New station page, #201: ``station-new.html``, ``station-new-problems.html``,
 ``station-setup.html``, ``station-setup-errors.html``; ``station-qc.html``, and
 ``station-calculating.html``: the indices' progress, #178), the batch pages (``batch-start.html``,
-``batch-check.html``, ``batch-running.html``, ``batch-results.html``), the help pages
+``batch-check.html``), the help pages
 (``help.html``, ``help-guide.html``, ``help-indices.html``, ``help-topics.html``,
 ``help-search.html``, #81) and a dark-theme copy of each
 (``*-dark.html``), with the static files copied alongside, so the pages open straight from
@@ -155,17 +155,15 @@ def station_pages() -> dict[str, str]:
 
 
 def batch_pages() -> dict[str, str]:
-    """The batch page (#80): the start page, a check with every status, a running batch and
-    its results, rendered without a database."""
+    """The batch page (#80): the start page and a check with every status, rendered
+    without a database. Its results are the workspace overview since #234."""
     from climpact_web.batch import check, views
     from climpact_web.batch.forms import UploadForm
     from climpact_web.batch.models import BatchRun
-    from climpact_web.core.navigation import batch_steps
-    from climpact_web.jobs.models import Job, Status
 
     request = RequestFactory().get("/batch/")
     now = timezone.now()
-    start = {"form": UploadForm(), "steps": batch_steps("upload"), "recent": [],
+    start = {"form": UploadForm(), "recent": [],
              "max_upload_mb": settings.MAX_UPLOAD_MB, "sample_metadata": views.SAMPLE_METADATA,
              "columns": views.column_rows()}  # fmt: skip
 
@@ -196,64 +194,9 @@ def batch_pages() -> dict[str, str]:
         meta.encode(), files).to_json(), updated_at=now, workers=4, workspace=space)  # fmt: skip
     checked = views.check_context(request, run)
 
-    job = Job(kind="batch", title="australia.txt", status=Status.RUNNING, step=41, total=92,
-              stage="darwin_1961-2020: indices:climpact:txx", created_at=now,
-              started_at=now - dt.timedelta(seconds=38),
-              params={"base_start": 1971, "base_end": 2000})  # fmt: skip
-    run.job = job
-
-    def row(name, state, **extra):
-        return {"name": name, "state": state, "step": 0, "total": 46, "stage_label": "",
-                "percent": 0, "error_text": "", "skip_lines": [], "zip": None,
-                "error_file": None, "opened_url": None, **extra}  # fmt: skip
-
-    skip = ["No file named Sydney.txt was uploaded, but sydney.txt was. Names must match the "
-            "metadata file exactly, including capitals and the extension."]  # fmt: skip
-    running_rows = [
-        row("alice_springs_1961-2020", "done", step=46, percent=100),
-        row("darwin_1961-2020", "running", step=17, percent=36,
-            stage_label="Calculating the indices"),
-        row("madrid_retiro_1961-2020", "waiting"),
-        row("perth_airport_1961-2020", "skipped", skip_lines=["Line 2 has 5 values; each line "
-            "needs 6: year, month, day, precipitation, maximum and minimum temperature."]),
-        row("Sydney", "skipped", skip_lines=skip),
-    ]  # fmt: skip
-    common = {"run": run, "job": job, "elapsed": "38 s", "remaining": "47 s", "delay": 1,
-              "worker_missing": False, "zip_file": None, "total_stations": 3,
-              "stage_label": "darwin_1961-2020: Calculating the indices",
-              "steps": batch_steps("results", {"upload": "/batch/", "check": "#"})}  # fmt: skip
-
-    def counts(done, failed, running, waiting):
-        return {"done": done, "failed": failed, "skipped": 2, "running": running,
-                "waiting": waiting}  # fmt: skip
-
-    running = {**common, "rows": running_rows, "counts": counts(1, 0, 1, 1)}
-
-    finished_job = Job(kind="batch", title="australia.txt", status=Status.SUCCEEDED, step=92,
-                       total=92, created_at=now, started_at=now - dt.timedelta(seconds=95),
-                       finished_at=now, params={"base_start": 1971, "base_end": 2000},
-                       result={"zip": "australia.zip"})  # fmt: skip
-    finished_run = BatchRun(metadata_name="australia.txt", report=run.report, updated_at=now,
-                            workspace=space)  # fmt: skip
-    finished_run.job = finished_job
-    finished_rows = [
-        row("madrid_retiro_1961-2020", "failed", error_file="australia/madrid.errors.txt",
-            error_text="The rows are not in date order: the last row (1961-01-01) is dated "
-            "before the first (2020-12-31). Sort the file by date."),
-        row("alice_springs_1961-2020", "done", zip="stations/alice_springs_1961-2020.zip",
-            opened_url="#"),
-        row("darwin_1961-2020", "done", zip="stations/darwin_1961-2020.zip",
-            opened_url="#"),
-        *running_rows[3:],
-    ]  # fmt: skip
-    finished = {**common, "run": finished_run, "job": finished_job, "rows": finished_rows,
-                "elapsed": "1 min 35 s", "remaining": "", "zip_file": "australia.zip",
-                "counts": counts(2, 1, 0, 0)}  # fmt: skip
     pages = {
         "batch-start": ("batch/start.html", start),
         "batch-check": ("batch/check.html", checked),
-        "batch-running": ("batch/results.html", running),
-        "batch-results": ("batch/results.html", finished),
     }
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 

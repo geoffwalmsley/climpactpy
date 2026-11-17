@@ -203,7 +203,7 @@ def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
 
 def test_batch_with_plots_writes_each_station_report(client):
     """A batch with plots also writes each station's report, outside the batch folder, and
-    the results page offers it with its size."""
+    the station's Files offer it."""
     from test_batch import created, metadata, run_worker, station
 
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
@@ -218,11 +218,11 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert (job.output_dir / "reports" / "a_report.pdf").read_bytes().startswith(b"%PDF")
     with zipfile.ZipFile(job.output_dir / f"{job.params['folder']}.zip") as archive:
         assert not [n for n in archive.namelist() if "report" in n]
-    # One station: the workspace's address opens it, so read the results' fragment.
-    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
+    # The station's Files offer its report (the batch results page went with #234).
+    from climpact_web.stations.models import Station
+
+    html = client.get(f"{Station.objects.get().url()}downloads").content.decode()
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
-    assert re.search(rf"Download \(zip, {SIZE}\)", html)
-    assert re.search(rf"Download all \(zip, {SIZE}\)", html)
 
 
 def test_downloads_page_lists_the_sector_comparison(client):

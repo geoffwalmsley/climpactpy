@@ -1,0 +1,11 @@
+{% load i18n ui %}{% comment %}
+The workspace's tabs (#234): Overview, then Compare an index (#238) and Files (#239), not
+available yet, so not links (with the lock of workspace_tabs' "Not available yet"). Links
+in a named nav, the current one aria-current="page", as a station's tabs.
+{% endcomment %}<nav class="print:hidden" aria-label="{% translate 'Workspace sections' %}">
+  <ul class="tabs__list m-0 flex-wrap" role="list">
+    {% for tab in space_tabs %}
+    <li>{% if tab.url %}<a class="tabs__tab" href="{{ tab.url }}" data-tab="{{ tab.key }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a>{% else %}<span class="tabs__tab" data-tab="{{ tab.key }}" data-state="locked">{{ tab.label }}<span class="status-dot">{% icon "lock" %}<span class="sr-only">{% translate "Not available yet" %}</span></span></span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</nav>

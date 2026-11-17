@@ -1,6 +1,7 @@
 """Where the app's main destinations live, for the header, the landing page and the step
-indicator of the batch and gridded flows (#71). The single station has no steps since
-#179: its sections are tabs (``stations.workspace``).
+indicator of the gridded flow (#71). The single station has no steps since #179: its
+sections are tabs (``stations.workspace``); the batch has none since #234: its stations
+are the workspace's, on its overview.
 
 The screens arrive in later tickets (#76-#81, #85). Each destination names the URL its
 ticket will add; until that URL exists the destination resolves to ``None``, so the
@@ -168,23 +169,9 @@ GRIDDED_STEPS = (
 )
 
 
-# The batch page's steps (#80): load the files, check the stations and choose the options,
-# then follow the run and download the results.
-BATCH_STEPS = (
-    Step("upload", _("Load files"), "batch:start"),
-    Step("check", _("Check stations"), "batch:check"),
-    Step("results", _("Calculate and download"), "stations:workspace"),
-)
-
-
-def batch_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The batch steps with ``current`` marked. Steps before it are complete and link back
-    when ``urls`` gives their address (a run's own URLs)."""
-    return flow_steps(BATCH_STEPS, current, urls)
-
-
 def gridded_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The gridded steps with ``current`` marked, as :func:`batch_steps`."""
+    """The gridded steps with ``current`` marked. Steps before it are complete and link
+    back when ``urls`` gives their address (a run's own URLs)."""
     return flow_steps(GRIDDED_STEPS, current, urls)
 
 

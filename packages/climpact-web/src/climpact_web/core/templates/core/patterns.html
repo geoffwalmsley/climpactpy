@@ -417,6 +417,14 @@
       </div>
     </section>
 
+    <section class="pattern" id="stations-table" aria-labelledby="stations-table-title">
+      <h2 id="stations-table-title">{% translate "Run status line and Stations table" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "A workspace's overview: one line above the table, neutral with a bar while stations calculate, quiet when they have finished and red only when one failed; then a row a station, with its verdict, its indices state as it goes and its fix, and how many indices have a significant trend." %}</p>
+      <div class="pattern__demo">
+        {% include "stations/_overview.html" with rows=overview_rows status=overview_status polling=False %}
+      </div>
+    </section>
+
     <section class="pattern" id="phone-header" aria-labelledby="phone-header-title">
       <h2 id="phone-header-title">{% translate "Phone header: ⋯ menu and Inputs bar" %}</h2>
       <p>{% translate "On a phone the station's name and a ⋯ menu share one line, and the page's actions are in the menu: a disclosure, so Enter opens it, Tab goes through its actions and Escape closes it. Under the tabs, the Inputs bar is the Inputs panel in one line: the base period, whether the settings are the defaults, and anything changed or running. Edit opens the inputs in a sheet that fills the screen, and each input's sheet opens over it. Only the tabs and the bar stay in view as the page scrolls." %}</p>
@@ -452,7 +460,7 @@
 
     <section class="pattern" id="steps" aria-labelledby="steps-title">
       <h2 id="steps-title">{% translate "Step indicator" %}</h2>
-      <p>{% translate "Shown under the header during the batch and gridded flows. Completed steps link back. On a narrow screen only the current step is named. The single station uses workspace tabs instead." %}</p>
+      <p>{% translate "Shown under the header during the gridded flow. Completed steps link back. On a narrow screen only the current step is named. A station uses workspace tabs instead, and a workspace its overview." %}</p>
       <div class="stack">
         {% translate "Example: the first step" as steps_first_label %}{% translate "Example: a middle step" as steps_middle_label %}{% translate "Example: the last step" as steps_last_label %}
         {% include "components/steps.html" with steps=steps_first label=steps_first_label %}

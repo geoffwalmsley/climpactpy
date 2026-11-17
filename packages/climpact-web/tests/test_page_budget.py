@@ -242,7 +242,7 @@ PAGES = {
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "station downloads": Page(station_downloads),  # every file with its size (#79)
     "batch check": Page(batch_check),
-    "batch results": Page(batch_results),
+    "workspace overview": Page(batch_results),  # a batch's results, since #234
     "jobs": Page(lambda client: "/jobs/"),
     "job": Page(job_detail),
     "gridded start": Page(lambda client: "/gridded/"),

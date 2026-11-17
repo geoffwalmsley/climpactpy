@@ -59,19 +59,20 @@ def test_a_workspace_of_one_station_opens_it_straight_away(client):
     assert client.get(analysis.url())["Location"] == analysis.url("qc")
 
 
-def test_a_batch_workspace_shows_the_batch_until_the_overview(client):
+def test_a_batch_workspace_opens_its_overview(client):
     run = created(client, metadata("a", "b"), **{"a.txt": station(), "b.txt": station(seed=1)})
     space = f"/w/{run.workspace_id}/"
     # Not run yet: the check page, at the workspace's address.
     response = client.get(space)
     assert response.status_code == 200 and 'action="' + space + 'batch/run"' in response.text
-    # Run: the batch results, with the batch's stations (added when it was queued).
+    # Run: the workspace's overview (#234), with the batch's stations (added when it was
+    # queued).
     run = finished_batch(client, "c", "d")
     space = f"/w/{run.workspace_id}/"
     html = client.get(space).content.decode()
-    assert "The stations calculated are the stations of this workspace." in html
+    assert 'id="stations-title"' in html and "2 stations calculated in" in html
     assert set(run.workspace.stations.values_list("slug", flat=True)) == {"c", "d"}
-    assert f'href="{space}c/"' in html and f'href="{space}d/"' in html
+    assert f'href="{space}c/indices"' in html and f'href="{space}d/indices"' in html
     # Down to one station, the workspace opens it.
     Station.objects.get(slug="c").delete()
     d = Station.objects.get(slug="d")
@@ -189,9 +190,10 @@ def test_a_batchs_waiting_failed_and_left_out_stations_open(client):
             response = client.get(station_.url(name), follow=True)
             assert response.status_code == 200, (station_.station_name, name)
     assert run_worker().status == Status.SUCCEEDED
-    # Finished: the workspace's address shows the batch; the failed station opens on its
-    # Indices, which say why and lead to the settings.
-    assert 'id="batch-stations-title"' in client.get(f"/w/{run.workspace_id}/").text
+    # Finished: the workspace's overview; the failed station opens on its Indices, which
+    # say why and lead to the settings.
+    html = client.get(f"/w/{run.workspace_id}/").text
+    assert 'id="stations-title"' in html and "c failed:" in html
     c.refresh_from_db()
     assert client.get(c.url())["Location"] == c.url("results")
     html = client.get(c.url("results")).content.decode()

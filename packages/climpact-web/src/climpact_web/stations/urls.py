@@ -1,6 +1,13 @@
 from django.urls import include, path
 
-from climpact_web.stations import views, views_add, views_downloads, views_indices, views_sector
+from climpact_web.stations import (
+    views,
+    views_add,
+    views_downloads,
+    views_indices,
+    views_sector,
+    views_workspace,
+)
 
 app_name = "stations"
 
@@ -63,8 +70,26 @@ urlpatterns = [
     path("station/sample-sector.csv", views_sector.sector_sample, name="sector_sample"),
     path("station/<uuid:station_id>/", views.old_station_url),
     path("station/<uuid:station_id>/<path:rest>", views.old_station_url),
-    # The workspace (#256): its one station, or the batch results until #234. Its batch
-    # (``/w/<id>/batch/…``, batch/urls.py) is included before these.
-    path("w/<uuid:workspace_id>/", views.workspace_page, name="workspace"),
+    # The workspace (#256): its one station, or its overview (#234) with the overview's
+    # progress, Rename, Workspace settings and Undo (stations/views_workspace.py). Its
+    # batch (``/w/<id>/batch/…``, batch/urls.py) is included before these.
+    path("w/<uuid:workspace_id>/", views_workspace.workspace_page, name="workspace"),
+    path(
+        "w/<uuid:workspace_id>/progress",
+        views_workspace.workspace_progress,
+        name="workspace_progress",
+    ),
+    path("w/<uuid:workspace_id>/rename", views_workspace.rename, name="workspace_rename"),
+    path(
+        "w/<uuid:workspace_id>/settings/",
+        views_workspace.settings_page,
+        name="workspace_settings",
+    ),
+    path(
+        "w/<uuid:workspace_id>/settings/<slug:key>",
+        views_workspace.setting,
+        name="workspace_setting",
+    ),
+    path("w/<uuid:workspace_id>/undo", views_workspace.undo, name="workspace_undo"),
     path("w/<uuid:workspace_id>/<slug:slug>/", include(station_patterns)),
 ]

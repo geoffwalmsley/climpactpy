@@ -196,15 +196,17 @@ def test_theme_toggle_hidden_without_js():
 
 
 def test_flow_steps_states():
-    steps = navigation.batch_steps("check", urls={"upload": "/u/", "check": "/c/"})
+    steps = navigation.gridded_steps("setup", urls={"files": "/u/", "setup": "/c/"})
     assert [s.state for s in steps] == ["complete", "current", "upcoming"]
     assert [s.url for s in steps] == ["/u/", None, None]
     assert [s.number for s in steps] == [1, 2, 3]
     assert [s.key for s in navigation.gridded_steps("files")] == ["files", "setup", "results"]
     with pytest.raises(ValueError):
-        navigation.batch_steps("nope")
-    # The single station has no steps since #179: its sections are tabs.
+        navigation.gridded_steps("nope")
+    # The single station has no steps since #179: its sections are tabs; the batch none
+    # since #234: its results are the workspace's overview.
     assert not hasattr(navigation, "station_steps")
+    assert not hasattr(navigation, "batch_steps")
 
 
 def test_count_filter_groups_thousands():
@@ -217,7 +219,7 @@ def test_count_filter_groups_thousands():
 
 
 def test_steps_component():
-    html = render("steps", steps=navigation.batch_steps("check", urls={"upload": "/u/"}))
+    html = render("steps", steps=navigation.gridded_steps("setup", urls={"files": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
     assert 'aria-current="step"' in html and "Step 2 of 3:" in html
     assert "Optional" not in html

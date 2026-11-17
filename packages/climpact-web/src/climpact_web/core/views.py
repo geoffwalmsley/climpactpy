@@ -10,7 +10,7 @@ import climpact
 import climpact_web
 from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
-from climpact_web.core.navigation import batch_steps, destination
+from climpact_web.core.navigation import destination, gridded_steps
 from climpact_web.help.tour import home_tour
 from climpact_web.stations.workspace import years_text
 
@@ -113,6 +113,55 @@ def add_review():
     return review(report, Workspace())
 
 
+def overview_demo() -> dict:
+    """The run status line and the Stations table of a workspace overview (#234), as on
+    the Calculate board while its stations calculate: one row in each state."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import overview as ov
+
+    def row(slug, name, ll, period, missing, quality, indices, significant=("–", "")):
+        return ov.Row(
+            station=SimpleNamespace(slug=slug),
+            name=name,
+            url="#stations-table",
+            coordinates=ll,
+            period=period,
+            missing=missing,
+            quality=quality,
+            indices=indices,
+            significant=significant[0],
+            significant_label=significant[1],
+        )
+
+    usable = ov.Quality("usable", _("Usable"), _("· 5"), _(", 5 values look wrong"))
+    rows = [
+        row("sydney", _("Sydney Observatory Hill"), "33.86° S 151.21° E", "1936–2015", "0.1%",
+            usable, ov.Indices("done", _("Done")),
+            (_("22 of 80"), _("22 of 80 indices with a significant trend"))),
+        row("nowra", _("Nowra RAN Air Station"), "34.95° S 150.54° E", "1955–2015", "3.2%",
+            ov.Quality("ready", _("Ready")), ov.Indices("calculating", _("Calculating · 40%"),
+                                                        percent=40)),
+        row("moruya", _("Moruya Heads"), "35.91° S 150.15° E", "1910–2015", "6.9%",
+            ov.Quality("locked", "–"), ov.Indices("not_run", _("Not run"),
+                                                  fix_label=_("Fix the file"), fix_url="#")),
+        row("port", _("Port Macquarie"), "31.43° S 152.87° E", "1995–2015", "0.0%",
+            ov.Quality("checking", _("Checking…")), ov.Indices("waiting", _("Waiting"))),
+        row("late", _("Late Start"), "30.00° S 140.00° E", "2000–2020", "0.3%",
+            ov.Quality("ready", _("Ready")),
+            ov.Indices("failed", _("Failed"), error=_("No data in the base period."),
+                       fix_label=_("Change base period"), fix_url="#")),
+    ]  # fmt: skip
+    status = ov.StatusLine(
+        "running",
+        _("Calculating indices: 1 of 4 stations done."),
+        _("About 25 s left. Finished stations open now. Moruya Heads was not run."),
+        35,
+        [ov.Link(_("Cancel"), "#stations-table", post=True)],
+    )
+    return {"overview_rows": rows, "overview_status": status}
+
+
 def pattern_context(form):
     tab_items = [
         {"id": "tab-annual", "label": _("Annual"), "text": _("Annual values, 1936 to 2015.")},
@@ -121,9 +170,9 @@ def pattern_context(form):
     ]
     return {
         "form": form,
-        "steps_first": batch_steps("upload"),
-        "steps_middle": batch_steps("check", urls={"upload": "#"}),
-        "steps_last": batch_steps("results", urls={k: "#" for k in ("upload", "check")}),
+        "steps_first": gridded_steps("files"),
+        "steps_middle": gridded_steps("setup", urls={"files": "#"}),
+        "steps_last": gridded_steps("results", urls={k: "#" for k in ("files", "setup")}),
         "table_columns": [
             {"label": _("Year"), "code": True},
             {"label": _("TXx (°C)"), "numeric": True},
@@ -162,6 +211,8 @@ def pattern_context(form):
         ],
         "coverage_years": [1991, 1996, 2001, 2006, 2011, 2015, 2020],
         # The context bar (#227): as a station's, with a breadcrumb and the next station.
+        # The workspace overview (#234): the run status line and the Stations table.
+        **overview_demo(),
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},
             {"label": _("Station 1 of 6")},

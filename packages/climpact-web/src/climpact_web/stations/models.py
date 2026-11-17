@@ -131,7 +131,7 @@ class Workspace(models.Model):
         self.updated_at = timezone.now()
 
     def get_absolute_url(self) -> str:
-        """``/w/<id>/``: its one station, or the batch results until #234 (#256)."""
+        """``/w/<id>/``: its one station, or its overview (#256, #234)."""
         return reverse("stations:workspace", args=[self.pk])
 
     def bring_forward(self, when: dt.datetime) -> None:
@@ -160,8 +160,8 @@ class Workspace(models.Model):
 
 
 # Words a station's slug can't be, as they name other pages of the workspace (#256):
-# ``/w/<id>/batch/`` is the workspace's batch.
-RESERVED_SLUGS = frozenset({"batch", "add"})
+# ``/w/<id>/batch/`` is the workspace's batch, ``/w/<id>/settings/`` its settings (#234).
+RESERVED_SLUGS = frozenset({"batch", "add", "settings", "progress", "rename", "undo"})
 
 
 def slug_for(name: str, taken) -> str:

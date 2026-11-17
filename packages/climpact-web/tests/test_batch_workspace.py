@@ -129,14 +129,15 @@ def test_a_finished_batch_fills_its_workspace(client):
     # A failed station opens on its Indices: nothing calculated, the settings to change.
     assert client.get(c.url())["Location"] == f"{c.url()}indices"
     assert "The indices are not calculated yet." in page(client, c)
-    # "Open" goes to the workspace's station; there is no separate workspace of one.
-    assert f'href="{a.url()}"' in html and f'href="{stations["b"].url()}"' in html
+    # The overview's rows lead to the workspace's stations (#234); there is no separate
+    # workspace of one.
+    assert f'href="{a.url()}indices"' in html and f'href="{stations["b"].url()}indices"' in html
     assert "Open as a single station" not in html and "batch/open" not in html
-    assert "The stations calculated are the stations of this workspace." in html
+    assert 'id="stations-title"' in html and 'data-indices="failed"' in html
     assert Workspace.objects.count() == 1
-    # Showing the results again, or polling them, adds nothing.
+    # Showing the overview again, or polling it, adds nothing.
     client.get(f"/w/{run.workspace_id}/")
-    client.get(f"/w/{run.workspace_id}/batch/progress")
+    client.get(f"/w/{run.workspace_id}/progress")
     assert Station.objects.count() == 4
     # The station shows the batch's results, current, with the workspace's base period.
     assert client.get(a.url())["Location"] == f"{a.url()}indices"
@@ -144,8 +145,7 @@ def test_a_finished_batch_fills_its_workspace(client):
     assert states(html)["results"] == "done"
     assert not workspace.run_changes(a, workspace.shown_run(a))
     assert "These results are from the batch run." in html
-    # An index page names the workspace in its breadcrumb, leading to the workspace, which
-    # shows the batch results until #234.
+    # An index page names the workspace in its breadcrumb, leading to its overview.
     html = page(client, a, "indices/txx")
     crumbs = re.findall(r'<ol class="context-bar__breadcrumb">(.*?)</ol>', html, re.S)[0]
     assert f'href="/w/{run.workspace_id}/">4 stations, ' in crumbs
@@ -180,10 +180,11 @@ def test_a_deleted_station_is_not_added_again(client):
     run_worker()
     client.get(f"/w/{run.workspace_id}/")
     assert list(run.workspace.stations.values_list("station_name", flat=True)) == ["b"]
-    # One station left: the workspace's address opens it; the results no longer link "a".
+    # One station left: the workspace's address opens it, and the overview's progress
+    # reloads the page, which then opens it (#234).
     assert client.get(f"/w/{run.workspace_id}/")["Location"] == Station.objects.get().url("results")
-    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
-    assert f'href="{a.url()}"' not in html and f'href="/w/{run.workspace_id}/b/"' in html
+    response = client.get(f"/w/{run.workspace_id}/progress")
+    assert response.status_code == 204 and response["HX-Refresh"] == "true"
 
 
 def test_the_base_period_and_custom_index_are_the_workspaces(client):

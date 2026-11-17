@@ -1,0 +1,1 @@
+{% load i18n %}{% url 'stations:add_to' space.pk as add_url %}{% translate "Add stations" as add_label %}{% include "components/button.html" with label=add_label href=add_url variant="secondary" size="sm" %}

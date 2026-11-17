@@ -1,7 +1,20 @@
 {% extends "base.html" %}
-{% load i18n %}
-{% block title %}{% translate "Page not found" %}{% endblock %}
+{% load i18n %}{% comment %}
+Page not found. At a workspace's address (``/w/<id>/…``, #234, from #229's expired
+station) it says why a workspace may be gone, without saying whether another browser's
+workspace exists, and leads to Add stations.
+{% endcomment %}
+{% block title %}{% if request.resolver_match and "workspace_id" in request.resolver_match.kwargs %}{% translate "Workspace not found" %}{% else %}{% translate "Page not found" %}{% endif %}{% endblock %}
 {% block content %}
+{% if request.resolver_match and "workspace_id" in request.resolver_match.kwargs %}
+<div class="stack max-w-prose">
+  <h1>{% translate "This workspace is not here" %}</h1>
+  {% if workspace_expiry %}<p>{% blocktranslate count days=job_retention_days trimmed %}A workspace is deleted {{ days }} day after its last change, and only the browser that made it can open it.{% plural %}A workspace is deleted {{ days }} days after its last change, and only the browser that made it can open it.{% endblocktranslate %}</p>
+  {% else %}<p>{% translate "It may have been deleted." %}</p>{% endif %}
+  <p><a href="{% url 'stations:add' %}">{% translate "Add stations to a new workspace" %}</a></p>
+</div>
+{% else %}
 <h1>{% translate "Page not found" %}</h1>
 <p>{% translate "There is no page at this address." %} <a href="{% url 'core:home' %}">{% translate "Go to the start page" %}</a></p>
+{% endif %}
 {% endblock %}

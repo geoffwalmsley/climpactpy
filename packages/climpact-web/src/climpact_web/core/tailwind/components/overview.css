@@ -1,0 +1,151 @@
+/* The workspace overview (#234, the Workspace and Calculate boards): the workspace's
+   context bar, the run status line and the Stations table (stations/workspace.html,
+   stations/_overview.html). The state modifiers (run-status--{{ tone }},
+   run-state--{{ state }}; the verdict is the Quality tab's pill, status-dot--{{ state }}) are built in the templates, so they
+   stay component classes. */
+@layer components {
+  /* "Add stations" at the end of a one-station workspace's provenance line. */
+  .context-bar__add {
+    font-family: var(--font-sans);
+  }
+
+  /* == The run status line: one line above the Stations table, never a panel. Neutral
+     with a progress bar while stations calculate, quiet once they have finished, red
+     only when one failed. The edge's colour is a cue only: the words say it. == */
+  .run-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(3) --spacing(6);
+    padding: --spacing(2.5) --spacing(3.5);
+    border: 1px solid var(--color-border);
+    border-inline-start: 3px solid var(--color-ink);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .run-status--done {
+    border-inline-start-color: var(--color-success);
+  }
+
+  .run-status--failed {
+    border-inline-start-color: var(--color-danger);
+  }
+
+  .run-status__text {
+    display: grid;
+    flex: 1 1 32rem;
+    gap: --spacing(1.5);
+    min-inline-size: 0;
+  }
+
+  .run-status__line span {
+    color: var(--color-text-muted);
+  }
+
+  .run-status__links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2) --spacing(4.5);
+    font-size: var(--text-sm);
+  }
+
+  /* A form's button that reads as a link (Cancel, Undo the change in the status line). */
+  .link-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-link);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  /* == A small bar: the run's progress, and a calculating station's. == */
+  .meter {
+    appearance: none;
+    inline-size: 100%;
+    block-size: 6px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+    overflow: hidden;
+    color: var(--color-ink);
+  }
+
+  .meter::-webkit-progress-bar {
+    background: inherit;
+  }
+
+  .meter::-webkit-progress-value {
+    border-radius: var(--radius-full);
+    background: var(--color-ink);
+  }
+
+  .meter::-moz-progress-bar {
+    border-radius: var(--radius-full);
+    background: var(--color-ink);
+  }
+
+  /* == The Stations table: a data table (table--data), a row a station. == */
+  /* Its headers are sans, as the Indices' (#236); the numbers under them mono. */
+  .stations-table thead th.num {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+  }
+
+
+  /* The name: an ellipsis when long, whole in its title (a row is one line). */
+  .stations-table__name a {
+    display: inline-block;
+    max-inline-size: 22rem;
+    overflow: hidden;
+    font-weight: var(--font-weight-medium);
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+
+  .stations-table__indices {
+    inline-size: 19rem;
+    font-size: var(--text-sm);
+  }
+
+  .stations-table__failed {
+    background: color-mix(in srgb, var(--color-danger-soft) 55%, var(--color-surface));
+  }
+
+  /* The indices state: its words, a bar while calculating, then its fix. */
+  .run-state {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2.5);
+    max-inline-size: 26rem;
+  }
+
+  .run-state__label {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .run-state--waiting,
+  .run-state--not_run {
+    color: var(--color-text-muted);
+  }
+
+  .run-state--failed {
+    color: var(--color-danger);
+  }
+
+  .run-state__meter {
+    flex: none;
+    inline-size: 7.5rem;
+  }
+
+  .run-state__fix {
+    flex: none;
+  }
+}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+The workspace overview (#234, the Workspace and Calculate boards): the workspace's context
+bar (stations/_space_bar.html), then the run status line and the Stations table
+(stations/_overview.html), polled while stations are checked or calculated. It replaced
+the batch results page. Context from views_workspace.workspace_page.
+{% endcomment %}
+{% block title %}{{ space_name }}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  {% include "stations/_overview.html" %}
+</div>
+{% endblock %}

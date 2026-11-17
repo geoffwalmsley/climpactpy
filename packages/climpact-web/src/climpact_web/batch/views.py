@@ -5,13 +5,13 @@
 2. ``batch:check``: every station listed as ready, missing or invalid with the reasons,
    before anything runs; add or replace files; choose the options; start.
 3. The results, at the workspace's address ``/w/<id>/`` (#256): one job runs the ready
-   stations, with each station's progress; then each station's status, errors and
-   downloads, and one zip of everything.
+   stations, and the workspace's overview (#234, ``stations.views_workspace``) shows each
+   station's progress and then its state, with one zip of everything.
 
 The batch fills its workspace (#255): the base period (and the custom index, none unless
 the workspace's settings were changed) are the workspace's, and once the run has finished
-its stations are the workspace's stations (:mod:`.fill`), which "Open" leads to. The
-results page stands in as the workspace page until #234.
+its stations are the workspace's stations (:mod:`.fill`), the rows of its overview. The
+batch results page and the batch steps went with #234.
 
 A batch is visible only to the browser session that created it, like a job: any other
 session gets 404.
@@ -28,7 +28,6 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.cache import never_cache
@@ -40,25 +39,15 @@ from climpact_web.batch.fill import (
     JOB_METADATA,
     JOB_STATIONS,
     add_stations,
-    batch_stations,
-    fill_workspace,
-    plain_error,
-    station_status,
 )
 from climpact_web.batch.forms import AddFilesForm, OptionsForm, UploadForm, cpu_count
 from climpact_web.batch.models import BatchRun, Source
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.core.navigation import batch_steps
-from climpact_web.jobs.models import Status
-from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import (
     OWNER_KEY,
     create_job,
-    format_duration,
     owner_token,
-    poll_delay,
 )
-from climpact_web.jobs.worker import worker_running
 from climpact_web.stations.forms import MIN_BASE_DAYS
 from climpact_web.stations.station_file import base_period_days, decode
 from climpact_web.stations.workspace import workspace_settings
@@ -114,14 +103,6 @@ def read(uploaded) -> bytes:
     return b"".join(uploaded.chunks())
 
 
-def run_urls(run: BatchRun) -> dict[str, str]:
-    """Links for the step indicator."""
-    urls = {"upload": reverse("batch:start"), "check": run.url("check")}
-    if run.job_id:
-        urls["results"] = run.results_url
-    return urls
-
-
 def recheck(run: BatchRun, upload_problems: list[str] | None = None) -> None:
     """Check the batch's files again (after any change) and save the result."""
     metadata = run.metadata_path.read_bytes() if run.metadata_path.is_file() else None
@@ -139,7 +120,6 @@ def start_context(request, form) -> dict:
     owner = request.session.get(OWNER_KEY) or "-"
     return {
         "form": form,
-        "steps": batch_steps("upload"),
         "recent": BatchRun.objects.filter(owner=owner)[:RECENT_BATCHES],
         "max_upload_mb": settings.MAX_UPLOAD_MB,
         "sample_metadata": SAMPLE_METADATA,
@@ -301,7 +281,6 @@ def check_context(request, run: BatchRun, options=None, add_form=None) -> dict:
         },
         "not_ready": len(stations) - run.ready_count,
         "add_form": add_form or AddFilesForm(),
-        "steps": batch_steps("check", run_urls(run)),
         "max_upload_mb": settings.MAX_UPLOAD_MB,
         "job_active": bool(run.job and not run.job.is_finished),
         **options_context(run, options or OptionsForm(initial=initial_options(run))),
@@ -463,86 +442,7 @@ def delete(request, workspace_id):
     return redirect("stations:add")
 
 
-# ---- Step 3: the run and the results ---------------------------------------------------------
-
-
-STATE_ORDER = {"failed": 0, "running": 1, "waiting": 2, "done": 3, "skipped": 4}
-
-
-def results_context(request, run: BatchRun) -> dict:
-    from django.utils import timezone
-
-    job = run.job
-    now = timezone.now()
-    rows = []
-    if job.status == Status.SUCCEEDED:
-        fill_workspace(run)
-    opened = station_urls(run) if job.status == Status.SUCCEEDED else {}
-    for s in station_status(job):
-        state = s.get("state", "waiting")
-        rows.append(
-            {
-                **s,
-                "state": state,
-                "error_text": plain_error(s.get("error"), job) if state == "failed" else "",
-                "skip_lines": (s.get("error") or "").split("\n")[1:] if state == "skipped" else [],
-                "stage_label": stage_label(s.get("stage", "")) if state == "running" else "",
-                "percent": int(100 * s["step"] / s["total"]) if s.get("total") else 0,
-                "opened_url": opened.get(s["name"]),
-                "zip_size": _size(job, s.get("zip")),
-                "report_size": _size(job, s.get("report")),
-            }
-        )
-    finished = job.status == Status.SUCCEEDED
-    counts = {
-        k: sum(1 for r in rows if r["state"] == k)
-        for k in ("done", "failed", "skipped", "running", "waiting")
-    }
-    if finished:  # failures first, so they are not missed
-        rows.sort(key=lambda r: STATE_ORDER.get(r["state"], 9))
-    remaining = job.remaining(now)
-    return {
-        "run": run,
-        "job": job,
-        "rows": rows,
-        "counts": counts,
-        "total_stations": len(rows) - counts["skipped"],
-        "stage_label": stage_label(job.stage),
-        "elapsed": format_duration(job.elapsed(now)),
-        "remaining": format_duration(remaining) if remaining is not None else "",
-        "delay": poll_delay(job, request.GET.get("hidden") == "true", now),
-        "worker_missing": job.status == Status.QUEUED and not worker_running(now),
-        "zip_file": job.result.get("zip") if finished else None,
-        "zip_size": _size(job, job.result.get("zip")) if finished else 0,
-    }
-
-
-def _size(job, relative: str | None) -> int:
-    """The size of a file of the job's output (0 when there is none), for the buttons."""
-    if not relative:
-        return 0
-    path = job.output_dir / relative
-    return path.stat().st_size if path.is_file() else 0
-
-
-def station_urls(run: BatchRun) -> dict[str, str]:
-    """The workspace's stations from this batch: their name in the batch -> their page."""
-    return {name: station.url() for name, station in batch_stations(run).items()}
-
-
-@never_cache
-@require_safe
-def results(request, workspace_id):
-    """The batch's results, shown at its workspace's address (``stations.views.
-    workspace_page``) until the workspace overview replaces them (#234)."""
-    run = get_run(request, workspace_id)
-    if run.job is None:
-        return redirect(run.url("check"))
-    context = results_context(request, run)
-    context["steps"] = batch_steps("results", run_urls(run))
-    # Stations added on Add stations (#233): this is their workspace's page until #234.
-    context["added"] = run.report.get("files") is not None
-    return render(request, "batch/results.html", context)
+# ---- The results: the workspace overview (#234) ------------------------------------------
 
 
 @require_safe
@@ -552,18 +452,3 @@ def old_results(request, workspace_id):
     run = get_run(request, workspace_id)
     query = request.META.get("QUERY_STRING", "")
     return redirect(f"{run.results_url}?{query}" if query else run.results_url)
-
-
-@never_cache
-@require_safe
-def progress(request, workspace_id):
-    """The progress and results fragment, polled by htmx while the job runs."""
-    run = get_run(request, workspace_id)
-    if run.job is None:
-        raise Http404
-    if run.job.status == Status.RUNNING:
-        from climpact_web.jobs.worker import reap_stale
-
-        if reap_stale():
-            run.job.refresh_from_db()
-    return render(request, "batch/_progress.html", results_context(request, run))

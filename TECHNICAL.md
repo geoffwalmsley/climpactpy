@@ -2904,7 +2904,8 @@ packages/climpact-web/src/climpact_web/
     models.py        BatchRun: one batch's files, check result, run options and job; it
                      fills a workspace (#231, #255)
     check.py         the pre-flight check: metadata file, each station, zip unpacking
-    fill.py          fill_workspace: a finished run's stations become the workspace's (#255)
+    fill.py          add_stations, fill_workspace, run_states, run_progress: every station of
+                     a batch is the workspace's, with its run state (#255)
     forms.py         UploadForm, AddFilesForm, OptionsForm
     retention.py     purge_stray_batch_folders, registered with the jobs app's purge
     views.py, urls.py  /batch/: start, sample, check, add files, options (htmx), run,
@@ -4666,8 +4667,8 @@ workspace" below). A new station, uploaded or the sample, makes a workspace of o
 the defaults (the New station page then sets its base period, `views.set_base_period`,
 or, in a workspace of several stations, changes it for all with
 `calculation.change_settings`). A new batch makes a workspace of its own, with no custom
-index (`batch.fill.batch_index_settings`), and once its run has finished its stations
-become the workspace's (#255, [Batch page](#batch-page)). Deleting a workspace's
+index (`batch.fill.batch_index_settings`), and every station of its run is the
+workspace's from when the run is queued (#255, [Batch page](#batch-page)). Deleting a workspace's
 last station or batch deletes it. Existing analyses and batches were dropped by #231's
 migration, not migrated (the maintainer's decision): `stations/0006_workspace_station`
 replaces `StationAnalysis` with `Station`, and `batch/0002_workspace` deletes the batches
@@ -4707,8 +4708,10 @@ records the inputs it was made from in `Job.inputs`, and the workspace compares 
 the analysis's. The checks set `qc_job`, the speculative run and the Index settings sheet
 `indices_job`, the sector comparison `sector_job`. The thresholds and index settings are
 the workspace's (#254). A station of a batch (`source` `batch`, #255) keeps the index
-values of its line in the batch's metadata file as its own (`origin["params"]`), and
-`origin["inputs"]` records what the batch's results were made from.
+values of its line in the batch's metadata file as its own (`origin["params"]`), its
+state in the batch's latest run (`origin["run"]`) and, when the batch calculated it,
+`origin["job"]` and `origin["inputs"]`, what the batch's results were made from
+(`workspace.batch_results`; a station that failed or was left out has none).
 
 **Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
 which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
@@ -5714,7 +5717,8 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
 check result as JSON (`report`, `check.BatchCheck.to_json()`); the run options `workers`
 and `plots` (the base period is the workspace's since #255); `job` (null on delete);
-`filled_job`, the run whose stations were added to the workspace (#255, null on delete). Files live in
+`filled_job`, the run whose outcome was recorded on the workspace's stations (#255, null
+on delete). Files live in
 `<MEDIA_ROOT>/batches/<id>/`: `metadata.txt` and `files/<name>`, each station file under
 its own name without folders (hidden names are ignored). Every change checks the whole
 batch again. Since #231 a batch has a `workspace`, made with it, and is deleted with it
@@ -5777,30 +5781,50 @@ report. The results page offers each station's zip and report with their sizes. 
 station's error is shown without the exception's class name or the job folder's path.
 
 **A batch fills its workspace (#255, `batch/fill.py`).** A batch is a way to fill a
-workspace, not a separate kind of result (#230, decision 5). Once the job has succeeded,
-`fill_workspace` makes each station it calculated a `Station` of the batch's workspace:
-`source` `batch`, the station file (from the job's `input/stations/`), its name and
-location (from the metadata file the job was given, `job_stations`, not the batch's check,
-which a later upload may change), its slug, step `qc`, and
-`origin = {"batch", "job", "station", "params", "outputs", "inputs"}`: the batch, its job,
-the station, the `IndexParams` fields of its metadata line, its folder in the job's
-`output/`, and the inputs the results were made from (`batch_inputs`: the run's base
-period and custom index, R's default thresholds, the workspace's output options, as
-`plots` is a run option and not an input of the results). A station that failed in the
-run or was left out before it is not added: it has no results to show, and its error
-stays on the results page and in the zip. `fill_workspace` runs the first time the results
-are shown after the run (`batch:results` and the `batch:progress` fragment, which stand in
-as the workspace page until #234) or a station is opened (`batch:open_station`, kept for
-pages from before #255, redirects to the station). It reads files, so it is not a
-migration; it is idempotent (`BatchRun.filled_job`, under a row lock), so a station the
-user deletes is not added again for that run. A new run of the batch adds its stations
-again: those still in the workspace show its results in place of their own jobs. "Open"
-on the results links to the station (`stations:workspace`, its furthest section: Indices
-for a batch station). A change to the workspace's settings recalculates the batch's
-stations like any others (#254), each with its own metadata values, as one change for the
-hosted limits; their Quality has no checks until then, so that change queues their checks
-too. This keeps one dashboard implementation (the single-station steps) rather than a
-second one for batches.
+workspace, not a separate kind of result (#230, decision 5). Every station of its metadata
+file is a `Station` of the batch's workspace, whether it calculated or not: the workspace
+overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its run state
+(Done, Calculating with its percentage, Waiting, Not run, Failed with why).
+
+- *When the run is queued* (`batch:run`), `add_stations` adds them all: `source` `batch`,
+  name, location, slug and the station file (from the batch's `files/`, when it can be
+  read), and `origin = {"batch", "station", "params", "run"}`: the batch, the station's
+  name in it, the `IndexParams` fields of its metadata line, and its state in this run
+  (`{"job", "state", "error"}`). A ready station is `waiting`, at step `qc` (its address
+  leads to Quality, its checks not yet run). One the check left out is `not_run`, with
+  the check's reasons as `error` (the text of its error file), at step `upload` and
+  without a file when it has none that can be read, so its address leads to the New
+  station page, where a corrected file is loaded. The job gets `stations_added`.
+- *When the job has succeeded*, `fill_workspace` records how it went, the first time the
+  results are shown (`batch:results` and the `batch:progress` fragment, which stand in as
+  the workspace page until #234) or a station is opened (`batch:open_station`, kept for
+  pages from before #255, redirects to the station). A station that calculated gets
+  `origin["job"]`, `["outputs"]` (its folder in the job's `output/`) and `["inputs"]`
+  (`batch_inputs`: the file and details the job was given, the run's base period and custom
+  index, R's default thresholds, the workspace's output options, as `plots` is a run
+  option and not an input of the results), and `run.state` `done`. One that failed gets
+  `failed` with R's or our error in words (`plain_error`: no exception class or job path)
+  and no results: not the batch's, nor an earlier run's. It is at step `indices`, so it
+  opens on Indices, which say nothing was calculated and lead to the settings, where the
+  fix usually is (another base period). It is idempotent (`BatchRun.filled_job`, under a
+  row lock); a station the user deleted during the run is not added again. A job queued
+  before `stations_added` adds its stations here, as they would have been when queued.
+
+A new run of the batch updates its stations when queued (file, details, `run` waiting)
+while they keep the results they show, out of date if their inputs changed, until the new
+run's replace them (with the station's own jobs from before the run). `run_states(stations)`
+gives each station's `RunState` (state, percent, error, job): its own run when one was
+queued after the batch's (a change to the workspace's settings, #254), else its batch
+run's, live from the runner's `stations.json` while the job runs (`station_status`).
+`run_progress(run)` gives the run as a whole for the run status line: done of total (those
+not run not counted), failed, calculating, waiting, not run, elapsed, remaining, finished.
+A settings change has its own, `workspace.change_state` (#254). "Open" on the results
+links to a station that calculated (`stations:workspace`). A change to the workspace's
+settings recalculates the batch's stations like any others (#254), each with its own
+metadata values, as one change for the hosted limits; their Quality has no checks until
+then, so that change queues their checks too. Stations without a file are skipped. This
+keeps one dashboard implementation (the single-station steps) rather than a second one for
+batches.
 
 R behaviour not copied, and why:
 

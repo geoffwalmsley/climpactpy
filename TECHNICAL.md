@@ -2587,9 +2587,10 @@ output is ported.
   copy (`climpact/data/climate.indices.csv`) keeps R's text, because it is the
   `long_name` attribute of the gridded `tmge10` netCDF files, which
   `tests/parity/test_gridded_indices.py` compares with R's; no station output uses the
-  long name. The web app shows "TM of at least 10 °C" (`LONG_NAME_FIXES` in
-  `climpact_web/help/indices.py`, #217): the results table, theme lists, index page, help
-  and the gridded index list. Station and gridded results are identical to R's.
+  long name. The web app uses "TM of at least 10 °C" (`LONG_NAME_FIXES` in
+  `climpact_web/help/indices.py`, #217) wherever it shows R's long name: the index page's
+  "Name in Climpact for R" line, the help and the gridded index list. Elsewhere the web app
+  names an index by its code and short name (#218), "TMge10 Days TM ≥ 10 °C". Station and gridded results are identical to R's.
 
 ## Performance
 
@@ -2917,7 +2918,7 @@ packages/climpact-web/src/climpact_web/
     sections.py      section help (#177): the topics and notes behind each section's Help
                      button (#197; an ⓘ before)
     indices.py       the index catalogue from the core's climate.indices.csv (display names,
-                     groups, parameters); writes index_messages.py
+                     short names, groups, parameters); writes index_messages.py
     index_messages.py  generated: the index names and definitions for makemessages
     guides.py        guide pages from Markdown (language folders, English fallback), the
                      generated index catalogue, link resolution, search
@@ -4134,7 +4135,8 @@ a comment listing its parameters. Labels are passed in already translated
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("How to read this" on Results' findings, "What do the levels mean?" on the Quality verdict); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
 | One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a theme tile, a chart frame, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The page's one answer is an `answer-band`: a tint with no border or shadow (`--color-surface` on the page; the Quality verdict, `qc-verdict answer-band`, keeps its status tint, `--alert-soft`), with a large `answer-band__number` (Results: the indices that changed significantly, of all). `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
-| `theme_headline`, `spark` | a theme's tile on the results page (#175, #200): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends, one line each (`trend-row`: plain name, value with short units such as "pp / decade", sparkline) and a link to the theme's indices; quiet (sunken surface, no frame but the hue's edge, the sentence muted) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
+| `index_name` | an index named codes first (#218): the code in mono (`index-code`, without the code background), then the short name; `title` for a page heading, the name a step lighter. Used by the index page's heading and previous/next links, the theme tiles' trends, Files' index table and the sector correlation table; the catalogue sets code and name in two columns |
+| `theme_headline`, `spark` | a theme's tile on the results page (#175, #200): its hue (#196: top edge, dot, `badge--hue` pill, sparklines), title, badge, one sentence, up to three trends, one line each (`trend-row`: code and short name, value with short units such as "pp / decade", sparkline) and a link to the theme's indices; quiet (sunken surface, no frame but the hue's edge, the sentence muted) without trends. `spark` is a card's sparkline from SVG path data, decorative (`aria-hidden`) because the trend is given in words beside it |
 | `theme_toggle` | see Tokens |
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
@@ -5175,13 +5177,16 @@ Since #200 the cards are the rows of one table, the catalogue, headed "All 80 in
 (`#catalogue`), in the help catalogue's order (temperature thresholds, extremes,
 percentiles, seasons, precipitation, heatwaves, drought, your own index); the family
 accordions (#113) are gone, and the families are neither a column nor a filter, the themes
-being the grouping people use. Each row leads with its plain name (`Card.title`, from
-`plain_name`: the catalogue's long name, such as "Frost days"; the indices that share one
-catalogue entry get a name of their own: each heatwave aspect in the words of the indices
-guide, "Number of heatwaves (Tx90)", each SPI/SPEI scale, "Standardised precipitation
-index, 3 months", and the daily EHF and ECF tables), linked to the index's page, with its
-theme's dot; then the code (`Card.code`: `TXx`, `TX90-HWN`; searching for it still finds
-the row), the trend per decade with an arrow and units, "Significant" (a badge) or "Not
+being the grouping people use. Indices are named codes first (#218): each row leads with
+the code (`Card.code`, from `results.display_name`: `TXx`, `Rx3day`, `TX90-HWN`, `SPI3`,
+`EHFdaily`), in mono, linked to the index's page, with its theme's dot; then the short
+name (`Card.title`, from `results.short_name`: the catalogue's `SHORT_NAMES` in
+`help/indices.py`, such as "Hottest day", with the output's parameter filled in, "Wettest
+3 days" for `rx3day`; each heatwave aspect in the words of the indices guide, "Number of
+heatwaves", the code saying which definition; the daily EHF and ECF tables; the user's own
+index from its threshold, "Days TN > 0 °C"). The short names were approved by the
+maintainer on 17 November 2026. Search matches the code, the short name, R's long name
+and the definition (`Card.search_text`). Then the trend per decade with an arrow and units, "Significant" (a badge) or "Not
 significant" (the 95% interval excludes zero or not, as in the trends guide), or "No
 trend", and a sparkline. Sparklines are SVG paths drawn on the server (integer coordinates
 in a 240 x 60 box; long series averaged into 240 columns; gaps where values are missing;
@@ -5193,8 +5198,9 @@ and a search box filter the rows as you type (`js/results.js`, which keeps the f
 the URL); without JavaScript the same GET form is sent to `#catalogue` and the server
 filters (`dashboard_context`). Each column but the sparkline sorts the table
 (`views_indices.sort_cards`, `?sort=name|code|trend|significance&dir=ascending|descending`):
-names and codes A to Z first (case-folded, by code point), trends and significance
-largest first; ties keep the catalogue's order and rows without a trend stay last when
+codes and names A to Z first (case-folded, by code point; short names repeat across the
+heatwave definitions, so names tie by code), trends and significance largest first; other
+ties keep the catalogue's order and rows without a trend stay last when
 sorting by the trend (a trend sorts by its value in the index's own units). Without
 JavaScript each header is a link to the page sorted by it, the filters kept, and the filter
 form keeps the sort in hidden fields; `results.js` makes the headers buttons and sorts in
@@ -5275,8 +5281,11 @@ cards reads every table and computes the trends (about 0.9 s for the Sydney run)
 result is cached in memory (8 runs), keyed by the files' modification times, the
 parameters and the language.
 
-**Results: one index** (`stations:result`, `result.html`). The index's plain name as the
-heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
+**Results: one index** (`stations:result`, `result.html`). The code and short name as the
+heading, "TXx Hottest day" (#218, `components/index_name.html`), the definition, R's long
+name when it differs from the short name ("Name in Climpact for R: Max TX.",
+`Card.r_name`) and the help topic; previous and next index links named the same way
+("← TXge35 Days TX ≥ 35 °C", "TNn Coldest night →"); chips for its series (yearly, monthly, the days of occurrence);
 the trend per decade with its 95% interval and significance ("+0.03 °C/decade", "95%
 interval −0.22 to 0.31"), and the highest, lowest and
 mean values with when, each with the series' units (#173: `results.with_units`, from the
@@ -5654,14 +5663,18 @@ exists; the tests below check both.
 
 **Index definitions** come from the core's `climate.indices.csv`, the single source:
 `help/indices.py` builds one entry per short name (`catalogue()`), adding a display name in
-the usual spelling (`TXx`, `Rx1day`, `R95pTOT`), a group, the parameter topic for
+the usual spelling (`TXx`, `Rx1day`, `R95pTOT`), a short name for people (`SHORT_NAMES`,
+#218: "Hottest day", "Wettest %(n)s days", translatable; `IndexInfo.short_name()` fills in
+the parameter, or the definition's letter, "Wettest d days", before one is chosen), a group, the parameter topic for
 user-defined indices, sentence-case long names and `°C` for `degrees_C`. The definitions
 are shown as the core writes them (for example "Annual warmest daily TX"). Long names the
 file gets wrong are corrected in `LONG_NAME_FIXES` (only `tmge10`, whose R long name says
 "TX" though it counts TM days, #217; see [R behaviour not to be
 copied](#r-behaviour-not-to-be-copied)); the gridded form's index list uses it too. A test
 checks that every long name naming TX, TN or TM names a variable its definition uses.
-Index topic texts are the definition plus units.
+Index topic titles are the code and short name ("TXx Hottest day"); their texts are the
+definition plus units, and R's long name when it differs ("Name in Climpact for R: Max
+TX.", `topics.r_name_sentence`).
 
 **Guide pages** (`help/guides.py`). `guides/<language>/<slug>.md`, starting with `title:` and
 `summary:` lines (Markdown `meta` extension), rendered with Python-Markdown (`markdown`, a
@@ -5688,8 +5701,8 @@ Python code rather than the R text where they differ: the flatline check flags m
 bounds exclude zero; the SPI and SPEI trend labels for the 6- and 12-month scales do not
 name the month used; the `tx95t` trend row is across days of the year. The indices guide
 ends with the catalogue: the line `[[index-catalogue]]` is replaced, before rendering, by a
-`###` heading per group and a `####` entry per index anchored `index-<short name>`
-(definition, units, yearly or monthly, whether it uses the base period, which setting it
+`###` heading per group and a `####` entry per index anchored `index-<short name>`, headed
+by its code and short name ("Rxdday Wettest d days"; definition, R's long name, units, yearly or monthly, whether it uses the base period, which setting it
 takes), so every index has a linkable, searchable definition.
 
 Not ported from the R guide: installing R and starting the Shiny app, screenshots of the

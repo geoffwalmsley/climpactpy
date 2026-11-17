@@ -352,12 +352,13 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
 | `table` (data table) | Component | The framed dense table (#227, `table-wrap--data`, `table--data`): one frame, hairline rows 32px high and one line each, a sticky header on the sunken tint, `num` and `code` cells in mono with tabular figures, the selected row (`aria-current`) in the selected tint with an ink edge, in a keyboard-scrollable region. The plain `.table` (hairline rows, no frame) stays for tables inside a card, a disclosure or a chart until each page moves (Layout) | empty state, selected row |
 | Context bar | Component | Under the header on a station's pages (`components/context_bar.html`, #227): a breadcrumb with the previous and next station (when given), the title, the mono provenance line, the page's actions, the tabs and the Inputs bar under them; across the window and sticky (`js/context-bar.js` keeps the scroll padding to its height). `static` shows it in place on `/patterns/` | breadcrumb, sub-page title (a line, not the h1) |
+| `index_name` | Primitive | An index named codes first (#218): the code in mono, without the code background, then the short name, "TXx Hottest day". In a page title the name is a step lighter. The catalogue puts them in two columns, Code then Index | title |
 | `summary_list` | Component | Key–value pairs | — |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp/decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
+| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the code and short name, the value with short units, "pp/decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
 | Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. On a phone the table becomes a list (#203): a block per index, its name and code, then its trend and significance beside the sparkline; the header row is a line of the column names that sort. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
@@ -425,10 +426,15 @@ years; sparklines are only for scanning, beside a number given in text.
   points, for trends of percentage indices), written by the rules in
   [Typography](#typography) through `core/numbers.py`, never formatted by hand in a
   template (#226).
-- **Codes first, a short name second** (Target: #218). `TXx Hottest day`: the code in
-  mono, then the short name. R's long name is the index page's definition line. Never a
-  name without its code, or a code without its name where indices are listed. Until #218
-  lands, the plain name leads, as now.
+- **Codes first, a short name second** (#218). `TXx Hottest day`: the code in mono, then
+  the short name (`components/index_name.html`; in a table, a Code column then an Index
+  column). R's long name is the index page's definition line ("Name in Climpact for R: Max
+  TX"), when it differs. Never a name without its code, or a code without its name where
+  indices are listed. Short names live in `help/indices.py` (`SHORT_NAMES`, approved by
+  the maintainer on 17 November 2026), are translatable, and follow the number rules
+  ("Days TN < −2 °C"); search finds the code, the short name and R's names. Charts keep
+  their own titles and axis labels (`TXx: Annual warmest daily TX`), and output files
+  follow R.
 - **Show the statistics** (Target: #236, #237). Wherever there is a trend: Sen's slope per
   decade, its 95% interval, and significant yes or no (the interval excludes zero). Method
   and years used on the index page and in the detail pane. Never a p-value.

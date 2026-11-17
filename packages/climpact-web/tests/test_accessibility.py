@@ -303,6 +303,7 @@ def site(chrome, server):
     pages["station edit, base period"] = results.replace("/results", "/inputs/base-period") + back
     pages["station index"] = results + "/txx"
     pages["station index, spi"] = results + "/spi"
+    pages["station index, monthly anomalies"] = results + "/txx?series=txx_MON&view=anomaly"
     pages["station downloads"] = results.replace("/results", "/downloads")
     sector = results.replace("/results", "/sector")
     pages["station sector"] = sector
@@ -1103,7 +1104,8 @@ def test_no_overlapping_sticky_elements_on_phones(chrome, site):
     try:
         for width in (320, 375):
             c.viewport(width, 700)
-            for name in ("station quality results", "station results", "station index",
+            # An index's page has nothing sticky (#237); the reflow test covers it.
+            for name in ("station quality results", "station results",
                          "station downloads", "station sector results"):  # fmt: skip
                 c.navigate(site[name])
                 height = c.evaluate("document.documentElement.scrollHeight")
@@ -1337,13 +1339,17 @@ def test_new_station_by_keyboard(chrome, site, server):
 
 def test_chart_by_keyboard(chrome, site):
     """An interactive chart's plot is a Tab stop; + zooms in, arrows move, 0 resets, and
-    each change is announced in the chart's status."""
+    each change is announced in the chart's status (Quality's daily charts; an index's
+    page draws its chart on the server since #237)."""
     c = chrome
-    c.navigate(site["station index"])
-    wait_for(c, "!!document.querySelector('#index-chart [data-chart-plot] canvas')", timeout=20,
+    c.navigate(site["station quality results"])
+    c.evaluate("document.getElementById('daily').open = true")
+    chart = "#" + c.evaluate("document.querySelector('.qc-charts [data-chart]').id")
+    c.evaluate(f"document.querySelector('{chart}').scrollIntoView()")  # drawn when in view
+    wait_for(c, f"!!document.querySelector('{chart} [data-chart-plot] canvas')", timeout=60,
              what="the chart")  # fmt: skip
-    focus(c, "#index-chart [data-chart-plot]")
-    status = "document.querySelector('#index-chart [data-chart-status]').textContent"
+    focus(c, f"{chart} [data-chart-plot]")
+    status = f"document.querySelector('{chart} [data-chart-status]').textContent"
     c.press("+")
     wait_for(c, f"!!{status}", timeout=5, what="zooming in to be announced")
     zoomed = c.evaluate(status)
@@ -1353,13 +1359,37 @@ def test_chart_by_keyboard(chrome, site):
     c.press("0")
     wait_for(c, f"{status} !== {json.dumps(moved)}", timeout=5, what="the reset to be announced")
     assert c.evaluate("document.activeElement.hasAttribute('data-chart-plot')")
-    # The table view, the data without the chart, opens from the keyboard too.
-    focus(c, "#index-chart details summary")
+
+
+def test_index_page_views_and_citation(chrome, site):
+    """#237: on an index's page the Values / Anomaly links switch the chart in place: the
+    other chart shows, the link is marked current, the address keeps ?view= and the
+    Annual / Monthly links keep it. With JavaScript, "Copy citation" is a button in place
+    of the disclosure. No axe violation in either view, in both themes."""
+    c = chrome
+    c.navigate(site["station index"])
+    shown = (
+        "[...document.querySelectorAll('[data-index-view]')]"
+        ".filter(s => !s.hasAttribute('hidden')).map(s => s.dataset.indexView)"
+    )
+    assert c.evaluate(shown) == ["values"]
+    focus(c, "[data-index-view-link='anomaly']")
     c.press("Enter")
-    wait_for(c, "document.querySelector('#index-chart details').open", timeout=5,
-             what="the table view to open")  # fmt: skip
-    assert (
-        c.evaluate("document.querySelectorAll('#index-chart details table tbody tr').length") > 10
+    time.sleep(0.1)
+    assert c.evaluate(shown) == ["anomaly"]
+    assert c.evaluate("document.activeElement.getAttribute('aria-current')") == "true"
+    assert c.evaluate("location.search") == "?view=anomaly"
+    assert "view=anomaly" in c.evaluate("document.querySelector('[data-index-period]').href")
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.transitions_done()
+        assert run_axe(c) == [], scheme
+    set_mode(c)
+    copy = "document.querySelector('.context-bar__actions [data-citation-copy]')"
+    assert c.evaluate(f"!{copy}.hidden")
+    assert c.evaluate("document.querySelector('.context-bar__actions .citation__details').hidden")
+    assert c.evaluate("document.querySelector('[data-citation-text]').textContent").startswith(
+        "sydney_observatory_hill_1936-2015, TXx (Hottest day), 1936–2015"
     )
 
 

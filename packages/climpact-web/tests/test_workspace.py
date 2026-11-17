@@ -300,9 +300,12 @@ def test_each_sheet_says_what_applying_updates(client):
 
 
 def test_the_panel_lists_every_input_on_every_section(client):
+    """Every section has the Inputs panel; an index's page (#237) has none, as its board:
+    its provenance line says what made it."""
     analysis, _qc, _run = in_use(client)
     base = f"/station/{analysis.pk}"
-    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+    assert "data-input=" not in page(client, analysis, "results/txx")
+    for path in ("quality", "results", "downloads", "sector"):
         html = page(client, analysis, path)
         inputs = re.findall(r'data-input="([\w-]+)"', html)
         assert inputs == ["file", "station", "base-period", "thresholds", "settings"], path
@@ -335,7 +338,8 @@ def test_the_inputs_bar_says_the_panel_in_one_line(client):
     the panel's list again (without the panel's data-input marks), on a page without
     JavaScript the panel itself. Not on an input's own page, which has no panel."""
     analysis, _qc, _run = in_use(client)
-    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+    assert "data-inputs-bar" not in page(client, analysis, "results/txx")  # #237
+    for path in ("quality", "results", "downloads", "sector"):
         html = page(client, analysis, path)
         assert bar(html) == "Inputs: 1971–2000 · defaults", path
         assert 'data-sheet-open="sheet-inputs"' in html and 'id="sheet-inputs"' in html

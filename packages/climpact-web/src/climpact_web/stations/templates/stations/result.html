@@ -1,73 +1,22 @@
 {% extends "base.html" %}
-{% load i18n static ui help charts %}
+{% load i18n static ui %}
 {% block title %}{% blocktranslate with code=card.code name=card.title station=analysis.station_name %}{{ code }} {{ name }}: {{ station }}{% endblocktranslate %}{% endblock %}
-{% block head %}{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/index-page.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div class="stack stack--xl station-page">
-  {% include "stations/_workspace.html" %}
-  {% comment %}The Inputs panel beside the section (#198).{% endcomment %}
-  <div class="workspace">
-  {% include "stations/_inputs.html" %}
-  <div class="workspace__main stack stack--xl">
-  <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
-    <a href="{% url 'stations:results' analysis.pk %}#index-{{ card.key }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
-    {% comment %}Previous and next, codes first (#218), as the Index board: "← TNx Warmest night".{% endcomment %}
-    {% if previous or next %}<span class="result-nav__steps">
-    {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% icon "arrow-left" "" "icon--flip" %} <span class="sr-only">{% translate "Previous:" %}</span> {% include "components/index_name.html" with code=previous.code name=previous.title only %}</a>{% endif %}
-    {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next"><span class="sr-only">{% translate "Next:" %}</span> {% include "components/index_name.html" with code=next.code name=next.title only %} {% icon "arrow-right" "" "icon--flip" %}</a>{% endif %}
-    </span>{% endif %}
-  </nav>
+{% comment %}One index (#237, the Index board): its context bar (the breadcrumb with the
+previous and next index, the index's name and theme, its definition, the provenance line
+and its files), then the chart beside the statistics, then the values as a table. A
+drill-down from the Indices: no section tabs and no Inputs panel, so the chart has the
+width; the provenance line says what made it.{% endcomment %}
+<div class="stack station-page">
+  {% include "components/context_bar.html" with title_template="stations/_index_title.html" lead_template="stations/_index_lead.html" provenance=provenance breadcrumb=breadcrumb step_previous=step_previous step_next=step_next actions="stations/_index_actions.html" flow=True tabs="" below="" %}
 
-  <header class="stack stack--sm">
-    <div class="section-header"><h1>{% include "components/index_name.html" with code=card.code name=card.title title=True only %}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
-    <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
-    <p class="text-sm text-text-muted">{% if card.r_name %}{% blocktranslate with name=card.r_name %}Name in Climpact for R: {{ name }}.{% endblocktranslate %} {% endif %}{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
-    {% if card.param_topic %}
-    {% if input_urls.settings %}<p class="text-sm">{% blocktranslate with url=input_urls.settings trimmed %}This index depends on a setting. <a href="{{ url }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">Change it in the index settings</a>. You come back here afterwards.{% endblocktranslate %}</p>{% endif %}
-    {% endif %}
-  </header>
-
-  {% if stale %}
+  {% if running and not running.job.is_finished %}
+  {% url 'stations:results' analysis.pk as results_url %}{% translate "These results are out of date. Recalculating with your new inputs: these values stay until the new ones are ready." as running_message %}{% translate "See the progress" as running_label %}
+  {% include "components/alert.html" with kind="info" title="" message=running_message action_href=results_url action_label=running_label %}
+  {% elif stale %}
   {% translate "These results are out of date. They are from before your last change." as stale_message %}{% url 'stations:results' analysis.pk as results_url %}{% translate "See what changed" as results_label %}
   {% include "components/alert.html" with kind="warning" title="" message=stale_message action_href=results_url action_label=results_label %}
-  {% endif %}
-
-  {% if card.series|length > 1 %}
-  <nav class="series-nav" aria-label="{% translate 'Series' %}">
-    <ul class="chips" role="list">
-      {% for s in card.series %}<li><a class="chip{% if s.name == series.name %} chip--current{% endif %}" href="?series={{ s.name|urlencode }}"{% if s.name == series.name %} aria-current="page"{% endif %}>{{ s.label }}</a></li>{% endfor %}
-    </ul>
-  </nav>
-  {% endif %}
-
-  {% if stats %}
-  <div class="grid gap-4 grid-cols-fit-40">
-    {% if trend.valid %}
-    {% blocktranslate with interval=trend.interval_text asvar trend_note %}95% interval {{ interval }}{% endblocktranslate %}
-    {% translate "Trend" as trend_label %}{% include "components/stat.html" with label=trend_label value=trend.per_decade_text note=trend_note %}
-    {% if trend.significant %}{% translate "Yes: the interval excludes zero" as sig_note %}{% translate "Yes" as sig_value %}{% else %}{% translate "No: the interval includes zero" as sig_note %}{% translate "No" as sig_value %}{% endif %}
-    {% translate "Significant at 5%" as sig_label %}{% include "components/stat.html" with label=sig_label value=sig_value note=sig_note %}
-    {% elif trend %}
-    {% translate "Trend" as trend_label %}{% translate "None" as none_value %}{% translate "needs at least 10 values and 70% of the series" as none_note %}
-    {% include "components/stat.html" with label=trend_label value=none_value note=none_note %}
-    {% endif %}
-    {% for s in stats %}{% include "components/stat.html" with label=s.label value=s.value note=s.note %}{% endfor %}
-  </div>
-  {% endif %}
-
-  {% if chart_url %}
-  {% if png_path %}{% url 'jobs:file' job.pk png_path as png_url %}{% endif %}
-  {% url 'jobs:file' job.pk csv_path as csv_url %}
-  {% include "components/chart_frame.html" with id="index-chart" heading=2 title=chart_title data_url=chart_url image_src=png_url csv_href=csv_url height="22rem" hue=card.hue only %}
-  {% endif %}
-
-  {% if anomaly_url %}
-  <section class="page-section stack" aria-labelledby="anomaly-heading">
-    <div class="section-header"><h2 id="anomaly-heading">{% translate "Standardised anomalies" %}</h2>{% section_help "result.anomalies" %}</div>
-    <p class="text-sm text-text-muted">{% translate "Each value's distance from the mean of all years, in standard deviations." %}</p>
-    {% translate "Standardised anomalies" as anomaly_title %}
-    {% include "components/chart_frame.html" with id="anomaly-chart" title=anomaly_title data_url=anomaly_url height="14rem" only %}
-  </section>
   {% endif %}
 
   {% if card.daily %}
@@ -84,38 +33,80 @@
       </table>
     </div>
   </section>
-  {% endif %}
+  {% else %}
+  <div class="index-page__body hue-{{ card.hue }}">
+    <section class="index-page__chart" aria-labelledby="chart-title">
+      <h2 class="sr-only" id="chart-title">{{ series_name }}</h2>
+      {% if views or periods %}<div class="index-page__toggles">
+        {% if views %}<div class="segmented" role="group" aria-label="{% translate 'Values or anomalies' %}" data-index-views>
+          {% for v in views %}<a class="segmented__item" href="{{ v.href }}" data-index-view-link="{{ v.key }}"{% if v.current %} aria-current="true"{% endif %}>{{ v.label }}</a>{% endfor %}
+        </div>{% endif %}
+        {% if periods %}<div class="segmented" role="group" aria-label="{% translate 'Period' %}">
+          {% for p in periods %}<a class="segmented__item" href="{{ p.href }}" data-index-period{% if p.current %} aria-current="true"{% endif %}>{{ p.label }}</a>{% endfor %}
+        </div>{% endif %}
+      </div>{% endif %}
+      {% if charts %}
+      <figure class="index-figure">
+        {% blocktranslate with series=series_name asvar chart_region %}Chart of {{ series }}{% endblocktranslate %}<div class="index-figure__scroll" role="region" aria-label="{{ chart_region }}" tabindex="0">
+          {% for c in charts %}{% include "stations/_index_chart.html" with chart=c.chart label=c.label view=c.view shown=c.shown only %}{% endfor %}
+        </div>
+        <figcaption class="index-legend">
+          <span>{% if bars %}<span class="index-legend__key index-legend__key--bars" aria-hidden="true"></span>{% else %}<span class="index-legend__key index-legend__key--line" aria-hidden="true"></span>{% endif %}{{ series_name }}</span>
+          {% if has_smooth %}<span><span class="index-legend__key index-legend__key--smooth" aria-hidden="true"></span>{% translate "11-year running mean" %}</span>{% endif %}
+          {% if trend.valid %}<span><span class="index-legend__key index-legend__key--trend" aria-hidden="true"></span>{% translate "Sen's slope, with 95% interval shaded" %}</span>{% endif %}
+          {% if has_gaps %}<span><span class="index-legend__key index-legend__key--gap" aria-hidden="true"></span>{% if series.step == "month" %}{% translate "Month left out: incomplete" %}{% else %}{% translate "Year left out: incomplete" %}{% endif %}</span>{% endif %}
+        </figcaption>
+      </figure>
+      {% else %}
+      <p class="text-sm text-text-muted">{% translate "Every value of this series is missing, so there is nothing to draw." %}</p>
+      {% endif %}
+    </section>
 
-  {% if not chart_url %}{% comment %}With no chart, the table's own CSV in its place (#176).{% endcomment %}
-  <p><a class="button button--secondary button--sm" href="{% url 'jobs:file' job.pk csv_path %}" download>{% icon "download" %}<span>{% blocktranslate with size=csv_size|filesizeformat %}CSV, {{ size }}{% endblocktranslate %}</span></a></p>
-  {% endif %}
+    <aside class="index-page__stats" aria-labelledby="trend-title">
+      <h2 id="trend-title">{% translate "Trend" %}</h2>
+      <dl class="index-stats">
+        <div><dt>{% translate "Sen's slope" %}</dt><dd class="index-stats__lead">{% if trend.valid %}{{ trend.per_decade_text }}{% elif trend %}{% translate "Too few values" %}{% else %}{% translate "No trend line" %}{% endif %}</dd></div>
+        <div><dt>{% translate "95% interval" %}</dt><dd class="index-stats__lead">{% if trend.valid %}{{ trend.interval_text }}{% else %}{{ "–" }}{% endif %}</dd></div>
+        <div><dt>{% translate "Significant" %}</dt><dd class="index-stats__words">{% if not trend.valid %}{{ "–" }}{% elif trend.significant %}{% translate "Yes, interval excludes 0" %}{% else %}{% translate "No, interval includes 0" %}{% endif %}</dd></div>
+        <div><dt>{{ used_label }}</dt><dd>{{ used }}</dd></div>
+        {% if base_mean %}<div><dt>{% translate "Base-period mean" %}</dt><dd>{{ base_mean }}</dd></div>{% endif %}
+        {% if record %}<div><dt>{% translate "Record" %}</dt><dd>{{ record }}</dd></div>{% endif %}
+      </dl>
+      {% if trend and not trend.valid %}<p class="index-stats__note">{% translate "A trend needs at least 10 values and 70% of the series." %}</p>{% endif %}
+      {% for line in left_out %}<p class="index-stats__note">{{ line }}</p>{% endfor %}
+      <p class="index-stats__note">{% translate "Method: Sen's slope (zyp), as Climpact for R." %}</p>
+    </aside>
+  </div>
 
-  {% if trend_rows %}
-  <section class="page-section stack" aria-labelledby="trend-title">
-    <div class="section-header"><h2 id="trend-title">{% translate "Trends in the trend file" %}</h2>{% section_help "result.trends" %}</div>
-    <div class="table-wrap" role="region" aria-labelledby="trend-caption" tabindex="0">
-      <table class="table">
-        <caption id="trend-caption" class="sr-only">{% translate "The trend file's rows for this index" %}</caption>
+  {% if rows %}
+  {% comment %}A div: the table's scrolling region is the landmark, named by the heading.{% endcomment %}
+  <div class="index-values">
+    <div class="index-values__head"><h2 id="values-title">{{ table_title }}</h2>{% if ranked %}<span class="text-sm text-text-muted">{% translate "Most recent first" %}</span>{% endif %}</div>
+    <div class="table-wrap table-wrap--data" role="region" aria-labelledby="values-title" tabindex="0">
+      <table class="table table--data">
         <thead><tr>
-          <th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Years" %}</th>
-          <th scope="col" class="numeric">{% translate "Lower bound" %}</th><th scope="col" class="numeric">{% translate "Slope" %}</th><th scope="col" class="numeric">{% translate "Upper bound" %}</th>
-          <th scope="col">{% translate "Significant" %}</th>
+          <th scope="col">{{ when_label }}</th>
+          <th scope="col" class="num">{{ value_label }}</th>
+          {% if has_anomaly %}<th scope="col" class="num">{% translate "Anomaly" %}</th>{% endif %}
+          {% if ranked %}<th scope="col" class="num">{% translate "Rank" %}</th>{% endif %}
+          {% if date_label %}<th scope="col">{{ date_label }}</th>{% endif %}
+          <th scope="col">{% translate "Note" %}</th>
         </tr></thead>
         <tbody>
-          {% for row in trend_rows %}<tr>
-            <th scope="row">{{ row.label }} <span class="text-sm text-text-muted">{{ row.per }}</span></th><td>{% blocktranslate with start=row.start end=row.end %}{{ start }} to {{ end }}{% endblocktranslate %}</td>
-            {% if row.valid %}<td class="numeric">{{ row.lower|decimals:4 }}</td><td class="numeric">{{ row.slope|decimals:4 }}</td><td class="numeric">{{ row.upper|decimals:4 }}</td>
-            <td>{% if row.significant %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
-            {% else %}<td class="numeric" colspan="3">{% translate "Too few values" %}</td><td></td>{% endif %}
+          {% for row in rows %}<tr{% if row.missing %} class="index-values__missing"{% endif %}>
+            <th scope="row" class="code">{{ row.when }}</th>
+            <td class="num">{{ row.value }}</td>
+            {% if has_anomaly %}<td class="num">{{ row.anomaly }}</td>{% endif %}
+            {% if ranked %}<td class="num">{{ row.rank }}</td>{% endif %}
+            {% if date_label %}<td class="code">{{ row.date }}</td>{% endif %}
+            <td>{{ row.note }}</td>
           </tr>{% endfor %}
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
   {% endif %}
-
-  </div>
-  </div>
+  {% endif %}
 </div>
 {% include "stations/_input_sheets.html" %}
 {% endblock %}

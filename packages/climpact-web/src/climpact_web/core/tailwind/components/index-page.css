@@ -1,0 +1,311 @@
+/* One index's page (#237, the Index board): the context bar with the index's name, theme
+   and definition; the chart beside the trend statistics; the values as a data table. The
+   chart is drawn on the server (stations/index_page.py, stations/_index_chart.html). */
+@layer components {
+  /* == The title and definition in the context bar == */
+  .index-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: --spacing(1) --spacing(3);
+  }
+
+  .index-title h1 {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--leading-tight);
+  }
+
+  .index-lead {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+
+  .index-lead .help-link {
+    margin-inline-start: --spacing(1);
+  }
+
+  /* == The segmented control: one choice of two or three, the current one ink. Links,
+     so each works without JavaScript; js/index-page.js switches the chart in place. == */
+  .segmented {
+    display: inline-flex;
+  }
+
+  .segmented__item {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: --spacing(7.5);
+    padding-inline: --spacing(3);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .segmented__item + .segmented__item {
+    border-inline-start-width: 0;
+  }
+
+  .segmented__item:first-child {
+    border-start-start-radius: var(--radius-sm);
+    border-end-start-radius: var(--radius-sm);
+  }
+
+  .segmented__item:last-child {
+    border-start-end-radius: var(--radius-sm);
+    border-end-end-radius: var(--radius-sm);
+  }
+
+  .segmented__item:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+  }
+
+  .segmented__item[aria-current] {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
+  }
+
+  /* == The chart and the statistics, side by side where there is room == */
+  .index-page__body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: --spacing(4);
+  }
+
+  .index-page__chart,
+  .index-page__stats,
+  .index-values {
+    min-inline-size: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .index-page__chart {
+    display: grid;
+    flex: 1 1 32rem;
+    gap: --spacing(2.5);
+    padding: --spacing(3.5) --spacing(4);
+  }
+
+  .index-page__stats {
+    display: grid;
+    flex: 0 0 24rem;
+    gap: --spacing(2.5);
+    padding: --spacing(3.5) --spacing(4);
+  }
+
+  .index-page__stats h2,
+  .index-values h2 {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .index-page__toggles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: --spacing(2) --spacing(3);
+  }
+
+  /* == The chart: its box is 860 x 340, so its 11px text stays readable from about
+     32rem; narrower, it scrolls inside its region rather than shrinking. == */
+  .index-figure {
+    display: grid;
+    gap: --spacing(1.5);
+    margin: 0;
+  }
+
+  .index-figure__scroll {
+    overflow-x: auto;
+  }
+
+  .index-plot {
+    display: block;
+    inline-size: 100%;
+    min-inline-size: 32rem;
+    block-size: auto;
+  }
+
+  .index-plot[hidden] {
+    display: none;
+  }
+
+  .index-plot__base { fill: var(--color-text); fill-opacity: 0.05; }
+  .index-plot__base-label { fill: var(--color-text-muted); font-size: 11px; }
+  .index-plot__grid { stroke: var(--chart-grid); stroke-width: 1; }
+  .index-plot__axis,
+  .index-plot__zero { stroke: var(--chart-axis); stroke-width: 1; }
+  .index-plot__tick { fill: var(--color-text-muted); font-family: var(--font-mono); font-size: 11px; }
+  .index-plot__title { fill: var(--color-text-muted); font-size: 11px; }
+  .index-plot__interval { fill: var(--color-text); fill-opacity: 0.09; }
+  .index-plot__line { fill: none; stroke: var(--hue, var(--color-other)); stroke-width: 1.4; stroke-linejoin: round; }
+  .index-plot__smooth {
+    fill: none;
+    stroke: color-mix(in oklab, var(--hue, var(--color-other)) 62%, var(--color-text));
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+  }
+  .index-plot__trend { stroke: var(--chart-trend); stroke-width: 1.6; stroke-dasharray: 6 4; }
+  .index-plot__gap { fill: var(--color-surface); stroke: var(--hue, var(--color-other)); stroke-width: 1.5; }
+  .index-plot__pos { stroke: var(--chart-1); }
+  .index-plot__neg { stroke: var(--chart-2); }
+
+  /* The key: a swatch of each mark, before its name. */
+  .index-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .index-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1.5);
+  }
+
+  .index-legend__key {
+    display: inline-block;
+    inline-size: 1rem;
+  }
+
+  .index-legend__key--line { block-size: 2px; background: var(--hue, var(--color-other)); }
+  .index-legend__key--bars {
+    block-size: 0.5rem;
+    background: linear-gradient(to right, var(--chart-1) 50%, var(--chart-2) 50%);
+  }
+  .index-legend__key--smooth {
+    block-size: 3px;
+    background: color-mix(in oklab, var(--hue, var(--color-other)) 62%, var(--color-text));
+  }
+  .index-legend__key--trend { border-block-start: 2px dashed var(--chart-trend); }
+  .index-legend__key--gap {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border: 1.5px solid var(--hue, var(--color-other));
+    border-radius: var(--radius-full);
+  }
+
+  /* == The statistics: two columns of label and value == */
+  .index-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: --spacing(2.5) --spacing(3.5);
+    margin: 0;
+  }
+
+  .index-stats dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .index-stats dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: normal;
+  }
+
+  .index-stats dd.index-stats__lead {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .index-stats dd.index-stats__words {
+    font-family: var(--font-sans);
+  }
+
+  .index-stats__note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* == The values: one framed object, its heading inside, the table scrolling in it. == */
+  .index-values__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: --spacing(1) --spacing(3);
+    padding: --spacing(2.5) --spacing(3);
+  }
+
+  .index-values .table-wrap--data {
+    max-block-size: 17rem;
+    border: 0;
+    border-block-start: 1px solid var(--color-border);
+    border-radius: 0;
+  }
+
+  .index-values__missing :is(td, th) {
+    color: var(--color-text-muted);
+  }
+
+  /* == The citation: a disclosure without JavaScript, a copy button with it. == */
+  .citation {
+    position: relative;
+  }
+
+  .citation__details > summary {
+    list-style: none;
+  }
+
+  .citation__details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .citation__text {
+    position: absolute;
+    inset-inline-end: 0;
+    inset-block-start: calc(100% + --spacing(1));
+    z-index: 20;
+    inline-size: min(28rem, calc(100vw - --spacing(8)));
+    margin: 0;
+    padding: --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+    font-size: var(--text-sm);
+    user-select: all;
+  }
+
+  .page-menu__panel .citation__text {
+    position: static;
+    inline-size: auto;
+    box-shadow: none;
+  }
+
+  /* Narrow: the statistics under the chart, as wide. */
+  @media (max-width: 52rem) {
+    .index-page__stats {
+      flex-basis: 100%;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .index-plot__line,
+    .index-plot__smooth,
+    .index-plot__gap,
+    .index-plot__pos,
+    .index-plot__neg {
+      stroke: CanvasText;
+    }
+
+    .segmented__item[aria-current] {
+      border-width: 3px;
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{% load i18n help %}{% comment %}
+An index page's definition line (#237, the Index board), under its title: the definition
+and unit; R's long name where it says more than the short name (#218); where the index
+depends on a setting, a link that opens it in the Index settings sheet; and the index's
+help as a quiet link (help on request, #230). Context: card, definition (the card's, ending in a full stop), units, input_urls.
+{% endcomment %}<p class="index-lead">{{ definition }}{% if units %} {% blocktranslate with units=units %}Unit {{ units }}.{% endblocktranslate %}{% endif %}{% if card.r_name %} {% blocktranslate with name=card.r_name %}Name in Climpact for R: {{ name }}.{% endblocktranslate %}{% endif %}{% if card.param_topic and input_urls.settings %} {% blocktranslate with url=input_urls.settings trimmed %}It depends on a setting: <a href="{{ url }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">change it in the index settings</a>.{% endblocktranslate %}{% endif %}
+{% translate "About this index" as help_label %}{% section_help "result.index" topics=card.help_topics title=card.code label=help_label quiet=True %}</p>

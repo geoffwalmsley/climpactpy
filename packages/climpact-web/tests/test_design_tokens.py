@@ -312,18 +312,19 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's). One compiled
 # stylesheet for every page since #118, replacing main.css, theme-dark.css and the page
 # stylesheets.
-# bytes, minified (98,000 before the Indices table and detail pane, #236; 95,500 before
+# bytes, minified (104,000 before the index page, #237; 98,000 before the Indices table
+# and detail pane, #236; 95,500 before
 # Quality as a worklist with the verdict and coverage strips, #235; 95,000 before
 # Quality's verdict in its tab, #222; 91,000 before the colour tokens, app shell, context
 # bar and data table, #227; 86,000 before the phone layout, #203; 83,000 before Quality
 # as list and detail, #202; 81,000 before the New station page, #201; 77,000 before the
 # Inputs panel and its sheets, #198; 74,000 before the section header, one surface level
 # and the workspace header, #197; 71,000 before the colour roles and theme hues, #196)
-CSS_BUDGET = 104_000
-# gzipped: 17.5 KB before #236, 17 KB before #235, 16.25 KB before #227, 15.5 KB before
-# #203, 15 KB before #202, 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197,
-# 13 KB before #196
-CSS_GZIP_BUDGET = 18_000
+CSS_BUDGET = 110_000
+# gzipped: 18 KB before #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before
+# #227, 15.5 KB before #203, 15 KB before #202, 14.75 KB before #201, 14 KB before #198,
+# 13.5 KB before #197, 13 KB before #196
+CSS_GZIP_BUDGET = 18_750
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

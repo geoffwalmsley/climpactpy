@@ -8,8 +8,6 @@ The results are R's own reference output for the Sydney sample at latitude 0
 (``reference/output/lat0``), so "every table appears" and "values match the CSV files"
 are checked against the files R writes."""
 
-import json
-import math
 import re
 import shutil
 from pathlib import Path
@@ -17,6 +15,7 @@ from pathlib import Path
 import pytest
 from django.test import Client
 
+from climpact_web.core import numbers
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.stations import results as results_model
@@ -552,52 +551,104 @@ def _cells(row: str) -> list[str]:
 
 
 def test_index_page_values_match_the_csv_and_trend_files(client):
+    """#237: the index page's statistics and table are the files': Sen's slope and its
+    interval per decade as the trend file's annual row, the record and its year, the years
+    used, the base-period mean, and every year with its value, rank and the date of its
+    extreme (the ``day_of_`` table)."""
+    from climpact.io.climpact_csv import read_climpact_csv
+
     analysis, job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results/txx").content.decode()
     txx = read_table("txx_ANN")
+    trend = read_climpact_csv(LAT0 / STATION / "trend" / f"{STATION}_trend.csv").data
+    row = trend[(trend["Index"] == "txx") & (trend.iloc[:, 1] == "annual")].iloc[0]
+    lower, slope, upper = (float(row.iloc[k]) * 10 for k in (4, 5, 6))
+    assert f'<dd class="index-stats__lead">{numbers.per_decade(slope, "°C")}</dd>' in html
+    assert f'<dd class="index-stats__lead">{numbers.interval(lower, upper, "°C")}</dd>' in html
     high = txx.loc[txx["val"].idxmax()]
-    low = txx.loc[txx["val"].idxmin()]
-
-    def stat(label, value, note):
-        value = f"{value:g}\u00a0°C"  # with the index's units (#173), a no-break space
-        tail = f'</span><span class="stat__value">{value}</span><span class="stat__note">{note}'
-        return f"{label}{tail}" in html
-
-    assert stat("Highest", high["val"], int(high["time"]))
-    assert stat("Lowest", low["val"], int(low["time"]))
-    # The interactive chart reads the job's series, with the run's trend.
-    assert f'data-chart-src="/charts/jobs/{job.pk}/series/txx_ANN.json?station={STATION}"' in html
-    payload = json.loads(
-        client.get(f"/charts/jobs/{job.pk}/series/txx_ANN.json?station={STATION}").content
+    present = txx["val"].notna().sum()
+    assert f"<dd>{high['val']:g}\u00a0°C, {int(high['time'])}</dd>" in html
+    assert f"<dt>Years used</dt><dd>{present} of {len(txx)}</dd>" in html
+    base = txx[(txx["time"] >= 1971) & (txx["time"] <= 2000)]["val"].mean()
+    assert f"<dt>Base-period mean</dt><dd>{numbers.number(base)}\u00a0°C</dd>" in html
+    # The table: every year, most recent first, as the CSV.
+    rows = re.findall(
+        r'<tr(?: class="index-values__missing")?>\s*<th scope="row" class="code">(\d+)</th>'
+        r'\s*<td class="num">([^<]+)</td>\s*<td class="num">([^<]+)</td>'
+        r'\s*<td class="num">([^<]+)</td>',
+        html,
     )
-    assert payload["y"][-1] == txx["val"].iloc[-1]
-    # Every row of the trend file for txx: yearly, monthly and the four seasons.
-    for label in ("Yearly", "Monthly", "December to February", "September to November"):
-        assert f"{label} <span" in html
-    # Annual and monthly series and the days of occurrence.
-    for label in ("Yearly", "Monthly", "Day of occurrence, yearly", "Day of occurrence, monthly"):
-        assert f">{label}</a>" in html
+    assert [int(r[0]) for r in rows] == list(reversed(txx["time"].astype(int)))
+    assert rows[0][1] == numbers.number(txx.iloc[-1]["val"])
+    record = next(r for r in rows if r[0] == str(int(high["time"])))
+    assert record[3] == "1"
+    # The date of each year's maximum, from the run's day-of-occurrence table.
+    from datetime import date, timedelta
+
+    days = results_model.build(results_model.run_source(job)).plots["day_of_txx_ANN"]
+    first = date(int(txx.iloc[-1]["time"]), 1, 1) + timedelta(days=int(days.values[-1]) - 1)
+    assert '<th scope="col">Date of maximum</th>' in html
+    assert re.search(rf'<td class="code">{first.isoformat()}</td>', html)
+    tnn = client.get(f"/station/{analysis.pk}/results/tnn").content.decode()
+    assert '<th scope="col">Date of minimum</th>' in tnn
     assert "Change it and calculate again" not in html  # txx takes no setting
+    # Annual and monthly: the period toggle; the days of occurrence are the date column.
+    assert re.search(r'aria-current="true">Annual</a>', html)
     monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
-    assert "txx_MON.json" in monthly and 'aria-current="page">Monthly' in monthly
+    assert re.search(r'aria-current="true">Monthly</a>', monthly) and "Monthly values" in monthly
+    assert '<th scope="col">Month</th>' in monthly
+    for old in ("day_of_txx_ANN", "nope"):
+        page = client.get(f"/station/{analysis.pk}/results/txx?series={old}").content.decode()
+        assert "Annual values" in page
 
 
-def test_standardised_anomalies_where_the_table_has_them(client):
-    analysis, job = finished_analysis(client)
-    html = client.get(f"/station/{analysis.pk}/results/tmm").content.decode()
-    url = f"/station/{analysis.pk}/results/tmm_ANN/anomalies.json"
-    assert f'data-chart-src="{url}"' in html
-    payload = json.loads(client.get(url).content)
-    table = read_table("tmm_ANN")
-    column = [c for c in table.columns if c.startswith("standardised")][0]
-    expected = [None if math.isnan(v) else v for v in table[column]]
-    assert payload["bars"] and payload["y"] == expected and payload["x"][0] == 1936
-    assert payload["bar_labels"] == ["Above the mean", "Below the mean"]
-    # txx has no standardised column; SPI none either.
+def test_the_anomaly_view_and_the_years_left_out(client):
+    """#237: the chart shows the values or their anomalies from the base-period mean:
+    both are drawn, the toggle's links switch them (?view=anomaly without JavaScript), and
+    the table gives each year's anomaly. A year left out is an open point on the chart,
+    with why in the statistics and the table. SPI, already standardised, has no anomaly
+    view; the standardised anomalies' chart of before is gone."""
+    analysis, _job = finished_analysis(client)
+    url = f"/station/{analysis.pk}/results/txx"
+    html = client.get(url).content.decode()
+    views = re.findall(r'<svg class="index-plot"[^>]*data-index-view="(\w+)"( hidden)?>', html)
+    assert views == [("values", ""), ("anomaly", " hidden")]
     assert (
-        "anomalies.json" not in client.get(f"/station/{analysis.pk}/results/txx").content.decode()
+        f'href="{url}?view=anomaly" data-index-view-link="anomaly">Anomaly from 1971–2000</a>'
+        in html
     )
-    assert client.get(f"/station/{analysis.pk}/results/txx_ANN/anomalies.json").status_code == 404
+    anomaly = client.get(url, {"view": "anomaly"}).content.decode()
+    views = re.findall(r'<svg class="index-plot"[^>]*data-index-view="(\w+)"( hidden)?>', anomaly)
+    assert views == [("values", " hidden"), ("anomaly", "")]
+    assert re.search(r'data-index-view-link="anomaly" aria-current="true">', anomaly)
+    # The period links keep the view.
+    assert f'href="{url}?series=txx_MON&amp;view=anomaly" data-index-period>Monthly' in anomaly
+    # Each year's anomaly: its value less the base period's mean.
+    txx = read_table("txx_ANN")
+    base = txx[(txx["time"] >= 1971) & (txx["time"] <= 2000)]["val"].mean()
+    last = txx.iloc[-1]
+    row = re.search(rf'<th scope="row" class="code">{int(last["time"])}</th>.*?</tr>', html, re.S)
+    assert numbers.anomaly(last["val"] - base) in row.group(0)
+    # The year left out: an open point on each chart, and why.
+    gone = txx[txx["val"].isna()]["time"].astype(int).tolist()
+    assert gone
+    assert html.count('class="index-plot__gap"') == 2 * len(gone)
+    assert "Year left out: incomplete" in html
+    year = gone[0]
+    row = re.search(
+        rf'<tr class="index-values__missing">\s*<th scope="row" class="code">{year}</th>.*?</tr>',
+        html,
+        re.S,
+    )
+    assert "Left out: " in row.group(0) and "days missing" in row.group(0)
+    assert re.search(
+        rf"{year} left out: \d+ days? missing, so the year fails the completeness rule.", html
+    )
+    # SPI: bars, no anomaly view; the old anomalies address is gone.
+    spi = client.get(f"/station/{analysis.pk}/results/3month_spi").content.decode()
+    assert "data-index-view-link" not in spi and 'class="index-plot__pos"' in spi
+    assert "Anomaly</th>" not in spi
+    assert client.get(f"/station/{analysis.pk}/results/tmm_ANN/anomalies.json").status_code == 404
 
 
 def test_daily_ehf_and_tables_without_plots(client):
@@ -606,9 +657,9 @@ def test_daily_ehf_and_tables_without_plots(client):
     table = read_table("EHFdaily")
     top = table.loc[table["Excess Heat Factor"].idxmax()]
     assert "The ten highest days" in html and str(top["date"]) in html
-    assert "data-chart-src" not in html
+    assert "index-plot" not in html
     html = client.get(f"/station/{analysis.pk}/results/tx95t").content.decode()
-    assert "tx95t_DAY.json" in html
+    assert "Values by day of the year" in html and "Rank</th>" not in html
 
 
 def test_tables_not_written_are_listed_with_the_reason(client):
@@ -831,9 +882,10 @@ def test_theme_hues_colour_the_rail_rows_detail_and_index_chart(client):
     assert '<tr class="hue-other" id="index-EHFdaily" data-chip="other"' in html
     assert '<div class="index-detail hue-heat" id="detail-txx"' in html
     page = client.get(f"{url}/txx").content.decode()
-    assert '<figure class="chart hue-heat" id="index-chart"' in page
+    assert '<div class="index-page__body hue-heat">' in page
+    assert '<span class="badge badge--hue hue-heat">Heat</span>' in page
     page = client.get(f"{url}/prcptot").content.decode()
-    assert '<figure class="chart hue-rain" id="index-chart"' in page
+    assert '<div class="index-page__body hue-rain">' in page
 
 
 def test_every_card_of_the_lat0_run_has_a_theme(client):
@@ -897,7 +949,7 @@ def test_indices_are_listed_codes_first(client):
     assert f"<h1>{_named('TXx', 'Hottest day', title=True)}</h1>" in page
     assert "<title>TXx Hottest day: " in page
     assert "Name in Climpact for R: Max TX." in page
-    nav = re.search(r"<nav [^>]*result-nav.*?</nav>", page, re.S).group(0)
+    nav = re.search(r'<p class="context-bar__step">.*?</p>', page, re.S).group(0)
     assert re.search(
         r'rel="prev">.*?<span class="sr-only">Previous:</span> '
         + re.escape(_named("TXge35", "Days TX ≥ 35\u00a0°C")),
@@ -1034,7 +1086,7 @@ def test_every_index_is_one_click_away(client):
     pages = set(re.findall(rf'<a href="{url}/([^"?#]+)">Open full page', html))
     assert pages == {key for key, _href in rows}
     page = client.get(f"{url}/rx1day").content.decode()
-    assert f'href="{url}#index-rx1day"' in page
+    assert f'href="{url}?show=rx1day#index-rx1day">Indices</a>' in page
 
 
 def test_downloads_and_next_step(client):
@@ -1061,7 +1113,7 @@ def test_downloads_and_next_step(client):
 
 
 def test_units_on_the_stat_row_and_percentage_point_trends(client):
-    """#173: the index page's stats carry the index's units, and a trend in a percentage
+    """#173: the index page's statistics (#237) carry the index's units, and a trend in a percentage
     index is in percentage points per decade, not percent: "pp", spelt out in its
     ``abbr`` (#226)."""
     analysis, _job = finished_analysis(client)
@@ -1070,18 +1122,18 @@ def test_units_on_the_stat_row_and_percentage_point_trends(client):
     assert f"+0.65&nbsp;{pp}" in html
     assert "% per decade" not in html and "Slope / decade" in html
     page = client.get(f"/station/{analysis.pk}/results/tx90p").content.decode()
-    for label in ("Highest", "Lowest", "Mean"):
-        assert re.search(rf'{label}</span><span class="stat__value">[0-9.,]+%</span>', page)
-    assert re.search(r'Trend</span><span class="stat__value">\S+\u00a0pp/decade</span>', page)
+    for label in ("Base-period mean", "Record"):
+        assert re.search(rf"<dt>{label}</dt><dd>[0-9.,]+%", page), label
+    assert re.search(r'<dd class="index-stats__lead">\S+\u00a0pp/decade</dd>', page)
     days = client.get(f"/station/{analysis.pk}/results/su").content.decode()
-    assert re.search(r'Highest</span><span class="stat__value">[0-9.,]+\u00a0days</span>', days)
+    assert re.search(r"<dt>Record</dt><dd>[0-9.,]+\u00a0days, \d{4}</dd>", days)
 
 
 def test_units_written_the_same_way_everywhere(client):
     """#189: a percentage index (TX90p), a count (SU) and a unitless one (SPI) write
-    their values with units one way in the table, its detail and the index page's stat
-    row: "12.5%", "20 days", the number alone, never "12.5 %" or a double space; #226: a
-    no-break space before the units, "pp" for percentage points."""
+    their values with units one way in the table, its detail and the index page's
+    statistics (#237): "12.5%", "20 days", the number alone, never "12.5 %" or a double
+    space; #226: a no-break space before the units, "pp" for percentage points."""
     analysis, _job = finished_analysis(client)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
 
@@ -1099,10 +1151,9 @@ def test_units_written_the_same_way_everywhere(client):
         ("3month_spi", r"−?[0-9.,]+", r"[+−]?[0-9.]+/decade"),
     ):
         page = client.get(f"/station/{analysis.pk}/results/{key}").content.decode()
-        for label in ("Highest", "Lowest", "Mean"):
-            assert re.search(rf'{label}</span><span class="stat__value">{value}</span>', page)
-        assert re.search(rf'Trend</span><span class="stat__value">{trend}</span>', page), key
-        assert " %</span>" not in page
+        assert re.search(rf"<dt>Record</dt><dd>{value}, \d{{4}}(-\d\d)?</dd>", page), key
+        assert re.search(rf'<dd class="index-stats__lead">{trend}</dd>', page), key
+        assert " %</dd>" not in page
 
 
 def test_trend_and_stat_units():
@@ -1130,12 +1181,13 @@ def test_recalculating_keeps_the_user_on_the_same_index(client):
         f"/station/{analysis.pk}/inputs/settings?next=%2Fstation%2F{analysis.pk}%2Fresults%2Frx3day"
     )
     assert f'href="{link}" data-sheet-open="sheet-settings"' in page
-    assert "This index depends on a setting." in page
+    assert "It depends on a setting:" in page
     response = apply_settings(client, analysis, {**defaults(), "rx_days": "7"}, "results/rx3day")
     assert response["Location"] == f"/station/{analysis.pk}/results/rx3day"
-    # While it runs, the index page stays, with the run's progress in the panel.
+    # While it runs, the index page stays and says so (#237: no Inputs panel; the run's
+    # progress is on the Indices).
     html = client.get(response["Location"]).content.decode()
-    assert '<p class="runbox__title"' in html and "Recalculating" in html
+    assert "Recalculating with your new inputs:" in html
     job = Job.objects.latest("created_at")
     finish(job, rename={"rx3day": "rx7day"})
     # The old index address leads to the same index under its new name.
@@ -1184,16 +1236,34 @@ def test_sparklines_are_small_and_keep_gaps():
     assert results_model.sparkline([float("nan")] * 3) == {}
 
 
-def test_index_page_chart_title_is_the_cleaned_definition(client):
-    """#115: the chart title is the code and the cleaned definition (°C), as the page's
-    subtitle, not R's raw plot subtitle."""
+def test_every_index_chart_has_labelled_axes(client):
+    """#237: the index page's chart has its axes labelled: the y axis titled with the
+    code and units ("TXx °C", "SU days", "Anomaly °C"), round values, and the first and
+    last years under the x axis; the definition line is the cleaned definition (#115)."""
     analysis, _job = finished_analysis(client)
-    html = client.get(f"/station/{analysis.pk}/results/su").content.decode()
-    title = re.search(r'<h2 class="chart__title" id="index-chart-title">(.*?)</h2>', html).group(1)
-    assert title == "SU: Annual number of days when TX &gt; 25\u00a0°C"
-    assert "degrees_C" not in title
-    monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
-    assert re.search(r'id="index-chart-title">TXx: [^<]*</h2>', monthly)
+    base = f"/station/{analysis.pk}/results"
+
+    def axes(html, view="values"):
+        svg = re.search(
+            rf'<svg class="index-plot"[^>]*data-index-view="{view}".*?</svg>', html, re.S
+        )
+        svg = svg.group(0)
+        title = re.search(r'class="index-plot__title"[^>]*>([^<]+)</text>', svg).group(1)
+        ticks = re.findall(r'class="index-plot__tick"[^>]*>([^<]+)</text>', svg)
+        return title, ticks
+
+    html = client.get(f"{base}/txx").content.decode()
+    title, ticks = axes(html)
+    assert title == "TXx °C" and "1936" in ticks and "2015" in ticks
+    assert len([t for t in ticks if re.fullmatch(r"[0-9]+", t) and len(t) <= 2]) >= 3
+    assert axes(html, "anomaly")[0] == "Anomaly °C"
+    assert "+5" in axes(html, "anomaly")[1]
+    html = client.get(f"{base}/su").content.decode()
+    assert axes(html)[0] == "SU days"
+    assert "Annual number of days when TX &gt; 25\u00a0°C. Unit days." in html
+    assert "degrees_C" not in html
+    monthly = client.get(f"{base}/txx?series=txx_MON").content.decode()
+    assert axes(monthly)[0] == "TXx °C" and "1936" in axes(monthly)[1]
 
 
 def test_each_section_is_a_tab_named_in_the_title(client):
@@ -1213,12 +1283,13 @@ def test_each_section_is_a_tab_named_in_the_title(client):
         current = re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html)
         assert current == [tab], path
         assert html.count("<h1") == 1 and "steps__item" not in html, path
+    # An index's page (#237, the Index board) is a drill-down from the Indices: its own h1,
+    # a breadcrumb back to the station and its Indices, and no tabs.
     html = client.get(base + "/results/txx").content.decode()
-    assert (
-        f"<h1>{_named('TXx', 'Hottest day', title=True)}</h1>" in html
-        and '<p class="context-bar__name context-bar__name--line">' in html
-    )
-    assert re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html) == ["results"]
+    assert f"<h1>{_named('TXx', 'Hottest day', title=True)}</h1>" in html
+    assert html.count("<h1") == 1 and "data-tab=" not in html
+    crumbs = re.search(r'<ol class="context-bar__breadcrumb">.*?</ol>', html, re.S).group(0)
+    assert f'<a href="{base}/">{STATION}</a>' in crumbs and ">Indices</a>" in crumbs
 
 
 def test_every_section_of_the_station_pages_has_its_help(client):
@@ -1231,7 +1302,7 @@ def test_every_section_of_the_station_pages_has_its_help(client):
         "/results": [
             "results.catalogue",
         ],
-        "/results/txx": ["result.index", "result.trends"],  # no anomalies in this fixture
+        "/results/txx": ["result.index"],
         "/downloads": ["files.page"],
     }
     for path, ids in expected.items():
@@ -1247,7 +1318,7 @@ def test_every_section_of_the_station_pages_has_its_help(client):
     # The index page's help leads with the index itself.
     html = client.get(base + "/results/txx").content.decode()
     assert 'href="/help/sections/result.index/?topics=index.txx"' in html
-    assert 'aria-label="Help: TXx"' in html
+    assert 'aria-label="About this index: TXx"' in html
 
 
 # ---- speculative runs: cancel and replace (#178) -------------------------------------------

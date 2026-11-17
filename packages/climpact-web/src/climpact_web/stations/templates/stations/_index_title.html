@@ -1,0 +1,7 @@
+{% load i18n %}{% comment %}
+An index page's title in its context bar (#237, the Index board): the index named codes
+first as the page's h1, then its theme as a pill in the theme's hue. Context: card, theme.
+{% endcomment %}<div class="index-title">
+  <h1>{% include "components/index_name.html" with code=card.code name=card.title title=True only %}</h1>
+  {% if theme %}<span class="badge badge--hue hue-{{ card.hue }}">{{ theme }}</span>{% endif %}
+</div>

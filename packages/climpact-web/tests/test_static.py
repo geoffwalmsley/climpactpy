@@ -83,8 +83,8 @@ HOOK_CLASSES = {
     "gmap__cell--selected", "gmap__svg", "gridded-checks__problems", "gridded-explore__help",
     "gridded-map", "gridded-series", "help-page",
     "job-files", "job-page", "job-progress", "numeric", "param", "qc-charts", "qc-check",
-    "qc-page", "result-nav", "results-actions",
-    "sector-settings__summary", "series-nav", "tabs", "tabs__panel-heading", "trend-summary",
+    "qc-page", "results-actions",
+    "sector-settings__summary", "tabs", "tabs__panel-heading", "trend-summary",
     "alert--info", "invalid", "ready", "success", "warning",
 }  # fmt: skip
 

@@ -47,8 +47,7 @@
     color: inherit;
   }
 
-  .chip:has(input:checked),
-  .chip--current {
+  .chip:has(input:checked) {
     border-color: var(--color-ink);
     background: var(--color-ink);
     color: var(--color-ink-contrast);
@@ -132,13 +131,6 @@
 
   .index-name--title .index-name__name {
     font-weight: var(--font-weight-medium);
-  }
-
-  /* The index page's previous and next index, at the end of its nav line. */
-  .result-nav__steps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: --spacing(2) --spacing(4);
   }
 
   /* == The Indices (#236, the Results board): the filter rail at the inline start, the
@@ -773,8 +765,7 @@
       stroke: CanvasText;
     }
 
-    .chip:has(input:checked),
-    .chip--current {
+    .chip:has(input:checked) {
       border-width: 3px;
     }
 

@@ -284,19 +284,6 @@ SECTIONS = (
         _("This index"),
         ["trend.sen_slope", "trend.confidence", "trend.minimum_data"],
     ),
-    S("result.anomalies", _("Standardised anomalies"), ["results.standardised"]),
-    S(
-        "result.trends",
-        _("Trends in the trend file"),
-        ["trend.confidence", "trend.seasons"],
-        [
-            _(
-                "These are the rows of the trend file for this index, as written. The "
-                "slope is Sen's slope per year, or per month for the monthly row, with "
-                "its 95% confidence interval."
-            )
-        ],
-    ),
     # ---- Files --------------------------------------------------------------------------
     S(
         "files.page",

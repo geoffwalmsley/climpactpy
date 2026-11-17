@@ -5,11 +5,10 @@ Everything comes from the files of a finished ``station`` job (or of one station
 the downloads hold:
 
 - the series, their descriptions, units and trends from the core's
-  :func:`climpact.plots.index_plots` (the function the PNGs and the interactive charts
+  :func:`climpact.plots.index_plots` (the function the PNGs and the charts
   use: Sen's slope and its 95% bounds as in ``trend/trend``, zyp's intercept), read from
   the index tables in ``indices/``;
 - the daily EHF and ECF tables, which R does not plot, as cards of their own;
-- the rows of ``trend/trend`` for each index (annual, monthly, seasons, SPI months);
 - the tables the core did not write because every value was missing (the job's
   ``skipped``), with the likely reason.
 
@@ -17,7 +16,7 @@ Cards are grouped as the help's index catalogue (:mod:`climpact_web.help.indices
 each card belongs to a theme (:mod:`climpact_web.stations.themes`: heat, cold, rain,
 drought, averages, growing season, the user's own index) for the filters and the hues.
 Each card has a sparkline drawn here as SVG path data, so the table needs no chart code;
-the interactive chart is on the index's own page.
+the index's own page draws its chart on the server too (:mod:`.index_page`, #237).
 
 Building the cards reads every table (about 0.2 s for 114 tables) and computes the trends
 (about 0.7 s), so the result is cached in memory, keyed by the files' modification times.
@@ -25,7 +24,6 @@ Building the cards reads every table (about 0.2 s for 114 tables) and computes t
 
 from __future__ import annotations
 
-import math
 import re
 import threading
 from collections import OrderedDict
@@ -470,16 +468,6 @@ def _definition(description: str, key: str) -> str:
     return numbers.in_text(_(catalogue.plain(text)))
 
 
-def chart_title(card: Card, series: Series) -> str:
-    """The index page's chart title (#115): the code as Climpact spells it and the
-    cleaned definition of the series shown (``SU: Annual number of days when TX > 25
-    °C``), not R's raw plot subtitle (``su: ... 25 degrees_C``)."""
-    definition = _definition(series.description, card.key)
-    if definition.startswith(card.code):
-        return definition
-    return _("%(code)s: %(definition)s") % {"code": card.code, "definition": definition}
-
-
 @dataclass
 class RunResults:
     cards: list[Card]
@@ -695,55 +683,6 @@ def skipped_tables(keys, summary: dict | None, base: tuple[int, int] | None) -> 
     return list(by_key.values())
 
 
-# ---- the trend file -----------------------------------------------------------------------
-
-
-def trend_rows(source: RunSource, key: str) -> list[dict]:
-    """The rows of ``trend/trend`` for the card ``key`` (``txx``: annual, monthly and the
-    seasons; ``3month_spi``: the months R reports; the custom index by its name)."""
-    from climpact.io.climpact_csv import read_climpact_csv
-
-    path = source.index_source.trend_path()
-    if not path.is_file():
-        return []
-    if m := _SCALE.match(key):
-        wanted = f"{m.group(2)}{m.group(1)}"
-    else:
-        wanted = key
-    table = read_climpact_csv(path).data
-    rows = []
-    for row in table[table["Index"] == wanted].itertuples(index=False):
-        lower, slope, upper = row[4], row[5], row[6]
-        valid = not any(math.isnan(v) for v in (lower, slope, upper))
-        rows.append(
-            {
-                "frequency": row[1],
-                "label": _frequency_label(str(row[1])),
-                "start": "" if math.isnan(row[2]) else int(row[2]),
-                "end": "" if math.isnan(row[3]) else int(row[3]),
-                "lower": lower,
-                "slope": slope,
-                "upper": upper,
-                "valid": valid,
-                "significant": valid and (lower > 0 or upper < 0),
-                "per": _("per month") if row[1] == "monthly" else _("per year"),
-            }
-        )
-    return rows
-
-
-def _frequency_label(value: str) -> str:
-    labels = {
-        "annual": _("Yearly"),
-        "monthly": _("Monthly"),
-        "DJF": _("December to February"),
-        "MAM": _("March to May"),
-        "JJA": _("June to August"),
-        "SON": _("September to November"),
-    }
-    return labels.get(value, value)
-
-
 # ---- cache -------------------------------------------------------------------------------
 
 _CACHE_SIZE = 8
@@ -787,23 +726,3 @@ def results_for(
         while len(_cache) > _CACHE_SIZE:
             _cache.popitem(last=False)
     return results
-
-
-def anomaly_series(source: RunSource, name: str) -> dict | None:
-    """The standardised anomalies of a table that has them (R's ``standardised values
-    (using all years)`` column), as labels and values for a bar chart; None otherwise."""
-    from climpact.io.climpact_csv import read_climpact_csv
-
-    path = source.index_source.table_path(name)
-    if not path.is_file():
-        return None
-    table = read_climpact_csv(path).data
-    column = next((c for c in table.columns if c.startswith("standardised")), None)
-    if column is None:
-        return None
-    step = "day" if name.endswith("_DAY") else "month" if name.endswith("_MON") else "year"
-    if step == "day":
-        labels = [str(i + 1) for i in range(len(table))]
-    else:
-        labels = [str(t if isinstance(t, str) else int(t)) for t in table["time"]]
-    return {"labels": labels, "values": list(table[column]), "step": step}

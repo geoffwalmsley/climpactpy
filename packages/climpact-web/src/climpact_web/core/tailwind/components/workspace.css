@@ -160,14 +160,16 @@
     clip-path: none;
   }
 
+  /* In the page's flow on a page without tabs (an index's, #237): across the window, but
+     it scrolls away with the page. */
   @media (min-height: 30rem) {
-    .context-bar:not(.context-bar--static) {
+    .context-bar:not(.context-bar--static, .context-bar--flow) {
       position: sticky;
       inset-block-start: 0;
       z-index: 10;
     }
 
-    :root:has(.context-bar:not(.context-bar--static)) {
+    :root:has(.context-bar:not(.context-bar--static, .context-bar--flow)) {
       scroll-padding-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
     }
   }
@@ -253,11 +255,11 @@
   }
 
   @media (max-width: 40rem) and (min-height: 30rem) {
-    .context-bar:not(.context-bar--static) {
+    .context-bar:not(.context-bar--static, .context-bar--flow) {
       inset-block-start: calc(-1 * var(--context-bar-above, 0px));
     }
 
-    :root:has(.context-bar:not(.context-bar--static)) {
+    :root:has(.context-bar:not(.context-bar--static, .context-bar--flow)) {
       scroll-padding-block-start: calc(
         var(--context-bar-height, 9rem) - var(--context-bar-above, 0px) + --spacing(4)
       );

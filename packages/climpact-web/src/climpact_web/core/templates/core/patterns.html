@@ -268,6 +268,12 @@
         <p class="text-2xl font-semibold m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo title=True only %}</p>
         <p class="m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo only %}</p>
       </div>
+      <h3 class="mt-6">{% translate "Index page and segmented control" %}</h3>
+      <p class="text-sm text-text-muted">{% translate "One index's page (#237): its context bar with the previous and next index, its name and theme, its definition and the provenance line, and its CSV, R's plot and a citation; then a chart drawn on the server beside the trend statistics, and the values as a data table. The chart shows the values or their anomalies from the base period, annual or monthly, by two segmented controls: links, the current one ink, so each works without JavaScript." %}</p>
+      <div class="pattern__demo index-page__toggles">
+        <div class="segmented" role="group" aria-label="{% translate 'Values or anomalies' %}"><a class="segmented__item" href="#indices-demo" aria-current="true">{% translate "Values" %}</a><a class="segmented__item" href="#indices-demo">{% blocktranslate with start=1971 end=2000 %}Anomaly from {{ start }}–{{ end }}{% endblocktranslate %}</a></div>
+        <div class="segmented" role="group" aria-label="{% translate 'Period' %}"><a class="segmented__item" href="#indices-demo" aria-current="true">{% translate "Annual" %}</a><a class="segmented__item" href="#indices-demo">{% translate "Monthly" %}</a></div>
+      </div>
     </section>
 
     <section class="pattern" id="quality" aria-labelledby="quality-title">

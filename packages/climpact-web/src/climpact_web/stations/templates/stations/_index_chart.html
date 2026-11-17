@@ -1,0 +1,23 @@
+{% load i18n %}{% comment %}
+An index page's chart (#237, the Index board), drawn on the server (stations/index_page.py,
+``chart``): the base period as a band, the axes with round values and years and the y
+axis titled with the code and units; Sen's slope's 95% interval shaded, the values as a
+line (bars for SPI and SPEI), the 11-year running mean, Sen's slope dashed; and the values
+left out as open points. Its text alternative gives the values and the trend; the table
+under it is its table view, and the CSV is in the context bar. Parameters: chart, label,
+view ("values" or "anomaly"), shown (false: hidden until its toggle shows it).
+{% endcomment %}<svg class="index-plot" viewBox="{{ chart.box }}" role="img" aria-label="{{ label }}" focusable="false" data-index-view="{{ view }}"{% if not shown %} hidden{% endif %}>
+  {% if chart.band %}<rect class="index-plot__base" x="{{ chart.band.x }}" y="{{ chart.top }}" width="{{ chart.band.width }}" height="{{ chart.height }}"/><text class="index-plot__base-label" x="{{ chart.band.label_x }}" y="{{ chart.band.label_y }}" text-anchor="middle">{% translate "base period" %}</text>{% endif %}
+  {% for tick in chart.y_ticks %}<line class="index-plot__grid" x1="{{ chart.left }}" y1="{{ tick.y }}" x2="{{ chart.right }}" y2="{{ tick.y }}"/><text class="index-plot__tick" x="{{ chart.tick_x }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+  <line class="index-plot__axis" x1="{{ chart.left }}" y1="{{ chart.top }}" x2="{{ chart.left }}" y2="{{ chart.bottom }}"/>
+  <line class="index-plot__axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+  {% if chart.zero is not None %}<line class="index-plot__zero" x1="{{ chart.left }}" y1="{{ chart.zero }}" x2="{{ chart.right }}" y2="{{ chart.zero }}"/>{% endif %}
+  <text class="index-plot__title" x="{{ chart.title_x }}" y="{{ chart.title_y }}" text-anchor="middle" transform="rotate(-90 {{ chart.title_x }} {{ chart.title_y }})">{{ chart.y_title }}</text>
+  {% for tick in chart.x_ticks %}<text class="index-plot__tick" x="{{ tick.x }}" y="{{ chart.label_y }}" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+  {% if chart.interval %}<polygon class="index-plot__interval" points="{{ chart.interval }}"/>{% endif %}
+  {% if chart.line %}<path class="index-plot__line" d="{{ chart.line }}"/>{% endif %}
+  {% if chart.pos or chart.neg %}<path class="index-plot__pos" stroke-width="{{ chart.bar_width }}" d="{{ chart.pos }}"/><path class="index-plot__neg" stroke-width="{{ chart.bar_width }}" d="{{ chart.neg }}"/>{% endif %}
+  {% if chart.smooth %}<path class="index-plot__smooth" d="{{ chart.smooth }}"/>{% endif %}
+  {% if chart.trend %}<line class="index-plot__trend" x1="{{ chart.trend.x1 }}" y1="{{ chart.trend.y1 }}" x2="{{ chart.trend.x2 }}" y2="{{ chart.trend.y2 }}"/>{% endif %}
+  {% for gap in chart.gaps %}<circle class="index-plot__gap" cx="{{ gap.x }}" cy="{{ gap.y }}" r="4"/>{% endfor %}
+</svg>

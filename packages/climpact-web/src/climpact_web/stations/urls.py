@@ -46,11 +46,6 @@ urlpatterns = [
         views_indices.results_progress,
         name="results_progress",
     ),
-    path(
-        "<uuid:analysis_id>/results/<str:name>/anomalies.json",
-        views_indices.result_anomalies,
-        name="result_anomalies",
-    ),
     path("<uuid:analysis_id>/results/<str:key>", views_indices.result, name="result"),
     # Step 5, sector data (#90): stations/views_sector.py.
     path("<uuid:analysis_id>/sector", views_sector.sector, name="sector"),

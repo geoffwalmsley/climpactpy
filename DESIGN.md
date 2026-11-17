@@ -6,46 +6,99 @@ something to check against. How the tokens, theme switch, charts and accessibili
 work is in [`TECHNICAL.md`, "Design system"](TECHNICAL.md#design-system); this file does
 not repeat it.
 
-The rules come from the UX redesign (#171). A rule not yet met everywhere is marked
-**Target**, with the ticket that brings the code in line. Phase 1 (#172–#179) left none.
-Phase 2 comes from the second design review (16 Nov 2026), whose approved mockups are
-[`docs/design/redesign-proposals.html`](docs/design/redesign-proposals.html) and, in the
-dark theme, [`redesign-proposals-dark.html`](docs/design/redesign-proposals-dark.html);
-its rules were marked **Target** with #196–#203, and #203 met the last of them. New work
-follows them.
+A rule not yet met everywhere is marked **Target**, with the ticket that brings the code
+in line; the text around it describes the code as it is. The rules come from three rounds:
 
-### Phase 2 decisions
+1. The UX redesign (#171, phases 1 and 2, #172–#179 and #196–#203), whose mockups are in
+   `docs/design/` (superseded, kept for the record). Phase 2 left no Target.
+2. **The expert workspace direction (#230), decided on 17 November 2026.** Its Targets
+   carry the ticket that builds them. Where it changed an earlier rule, the rule below
+   says the new thing and marks it Target.
 
-Taken with the approval of the mockups (#171):
+### The expert workspace direction (#230)
 
-- **The Inputs panel is the model.** Everything the user gives (the file, the station,
-  the base period, the quality thresholds, the index settings) is listed in one Inputs
-  panel, each with an Edit that opens a side sheet with only that form (#198, #199). The
-  tabs are outputs: Quality, Results and Files.
-- **Primary buttons are ink.** Near-black, near-white in the dark theme; blue is no longer
-  the action colour (see [Colour](#colour)).
-- **The station title comes from the station name** the user gives, not the file name;
-  the file name moves to the line under it (#197). The New station page asks for the
-  name with the file (#201).
+- **Experts first.** The users already work with ET-SCI. Help and plain names are there
+  on request, never in the way.
+- **Codes first.** `TXx`, `R95p` lead, in mono; a short name follows ("TXx Hottest day").
+- **Show the statistics.** Every trend is Sen's slope per decade, its 95% interval and
+  whether it is significant (the interval excludes zero). Method and years used are one
+  click away. No p-value: Climpact computes none (`climpact/trends.py`).
+- **Desktop first,** at 1280–1600px; phones get a usable stacked layout.
+- **Everything is a workspace.** A workspace holds stations and the settings they share.
+  One station is a workspace of one and opens straight to the station. Batch folds into
+  it, and Workspaces replaces Your calculations (Target: #231, #233, #234, #242).
+- **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
+  period) or the computer (local). A saved workspace file rebuilds one anywhere (Target:
+  #240).
+- **System fonts.** No web fonts (CSP, the bandwidth budget, offline use); tabular
+  figures for numbers and `--font-mono` for codes, dates and numbers in tables.
+
+Kept from phase 2: **primary buttons are ink** (near-black, near-white in the dark
+theme), and **a station's title is the station name** the user gives, not the file name.
+The Inputs panel is replaced by workspace settings and the station's provenance line
+(Target: #231, #234).
+
+## The design canvas
+
+The screens of #230 are drawn on a design canvas, in light and dark:
+<https://claude.ai/artifact/7zEuwY1xA264zmxpq3GFdu> (private: open it signed in to the
+maintainer's account, or read it with the Artifact tool). Each board is a file under
+`project/`; read one with the Artifact tool's `read` action and its `path`, for example
+`project/Quality.dc.html`. The dark boards (`*Dark.dc.html`) show the same file with the
+theme switched.
+
+| Board | Screen | Tickets |
+| --- | --- | --- |
+| `Main.dc.html` | The brief: users, principles, decisions | #230 |
+| `Flow.dc.html` | The flow, from the landing page to an index and back | #230, #231 |
+| `Landing.dc.html` | Landing page (first visit; returning bar as a tweak) | #242 |
+| `Start.dc.html` | Get started | #242, #233 |
+| `WorkspaceList.dc.html` | Workspaces (replaces Your calculations) | #242, #240 |
+| `AddStations.dc.html` | Add stations: drop zone and review table | #233 |
+| `Workspace.dc.html` | Workspace overview and the trend grid | #234, #238 |
+| `Quality.dc.html` | A station's Quality as a worklist | #235, #222 |
+| `Results.dc.html` | A station's Indices: filter rail, table, detail pane | #236, #218, #226 |
+| `Index.dc.html` | One index | #237 |
+| `Files.dc.html` | Workspace Files and provenance | #239 |
+
+**What a board is, and is not.** A board fixes a screen's layout, content, order, density
+and wording. It is not the spec for:
+
+- **Colours and type.** The canvas has its own colour values and draws in IBM Plex. Build
+  with the app's tokens ([Colour](#colour)) and the system fonts.
+- **Data.** Values, station names and "Mock-up" banners are illustrative.
+- **Behaviour the rules below decide** (accessibility, no-JS fallbacks, CSP, help).
+
+**When the canvas and this file disagree,** this file wins on rules and tokens, the
+canvas on a screen's layout and content. A real conflict goes to the maintainer; don't
+pick one silently. The canvas is read-only for implementers: a change to the design is
+agreed with the maintainer, who updates the board.
 
 ## Who it is for
 
-Climatologists at national meteorological services, and students and researchers. Many
-read English as a second language, some work on slow or metered connections, and some
-run the app offline on their own computer. They come with three questions:
+**First, people who already speak ET-SCI:** climatologists at national meteorological
+services producing monitoring and workshop outputs, and researchers running many
+stations, comparing them and citing the method. Then sector analysts (health,
+agriculture, water) after a few indices, and students and workshop trainees, who need
+the help, on request. Many read English as a second language, some work on slow or
+metered connections, and some run the app offline on their own computer. They come with
+four questions:
 
-1. Is this my station, described correctly? (name, latitude, base period)
-2. Is the data fit to use, or should I fix the file?
-3. What has changed in this station's climate, and where are the files?
+1. Are these my stations, described correctly? (names, coordinates, base period)
+2. Is each station's data fit to use, or should I fix the file?
+3. What has changed in each station's climate, and how do the stations compare?
+4. Where are the files, and the settings that made them?
 
 Screens are organised around these questions, not around the stages of the calculation.
 
 ## Visual theme
 
-**Calm, plain, precise: a scientific instrument.** Neutral surfaces, ink for actions and
-strong type hierarchy, so the data carries the colour. It replaces the R Shiny app
-(shinydashboard boxes, a sidebar menu, tabs as steps). System fonts only and no web
-fonts, for bandwidth, offline use and every script the operating system supports.
+**Calm, dense, precise: a scientific instrument.** Neutral surfaces, ink for actions and
+a strong type hierarchy, so the data carries the colour. Tables before prose: a screen
+answers in one line and then shows the data, with the statistics an expert needs beside
+each number. It replaces the R Shiny app (shinydashboard boxes, a sidebar menu, tabs as
+steps). System fonts only and no web fonts, for bandwidth, offline use and every script
+the operating system supports.
 
 ## Colour
 
@@ -62,7 +115,7 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 | `--color-text-muted` | `#4d5966` | `#a3afbb` | Hints, notes, captions |
 | `--color-border` | `#d8dee4` | `#2b3540` | Dividers, card edges |
 | `--color-border-strong` | `#78838f` | `#7a8794` | Input borders (3:1 against surface) |
-| `--color-ink` | `#111827` | `#e6eaef` | Primary buttons, the current tab and step, links (underlined), running state |
+| `--color-ink` | `#111827` | `#e6eaef` | Primary buttons, the current tab and step, links (underlined; Target #227: blue), running state |
 | `--color-ink-hover` | `#374151` | `#c3cad3` | Hover on ink |
 | `--color-ink-contrast` | `#ffffff` | `#0e1218` | Text on ink |
 | `--color-brand` | `#0a5aa8` | `#6db3f2` | The logo only |
@@ -80,8 +133,11 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 **Each colour has one job** (#196):
 
 - **Ink** for actions: primary buttons, the current tab and step, links (underlined ink
-  text, not blue), the running state (progress bars, spinners, the current stage).
+  text), the running state (progress bars, spinners, the current stage).
   Interactive icons (a disclosure's chevron, a dropzone's icon) are ink too.
+  **Target (#227):** links become blue, as on the canvas: a `--color-link` token (and its
+  hover) with light and dark values, underlined, at least 4.5:1 on the page, surface and
+  sunken surface in both themes. Primary buttons and the current tab stay ink.
 - **Brand blue** only for the logo, focus rings and selection.
 - **Status colours** (success, warning, danger) only for the verdict and run state. Info
   is neutral: an info alert or badge is ink on the sunken surface.
@@ -90,8 +146,8 @@ tokens only: a test fails on a hex colour outside the two token blocks.
   edge, its pill and dot, the filter chip's dot, the catalogue row's dot, the
   sparklines and the index page's chart line (a `hue-<theme>` class on the block, from
   `stations.themes.hue_of`). The theme's name is always beside the hue.
-- Hover is a neutral change (the sunken surface, or a thicker underline on links), never
-  a colour of its own.
+- Hover is a neutral change (the sunken surface, or a thicker underline on links; a link
+  may darken to its hover shade), never a colour of its own.
 
 **Charts** have their own tokens (`--chart-*`): eight categorical slots in a fixed order,
 never cycled; variable roles (`tmax` red, `tmin` blue, `prcp` green, checked as a set
@@ -104,6 +160,22 @@ plots and the PDF report.
 **Severity colours mean severity.** Danger is for something that stops the user or is
 almost certainly wrong. Warning is for something worth a look. Use neither for "the
 check found something" on its own (see Rules).
+
+**From the canvas to the tokens.** The canvas's colours are close to these but not the
+same values; build with the tokens:
+
+| On the canvas | Token |
+| --- | --- |
+| Page background, panel, sunken panel and table header | `page`, `surface`, `surface-sunken` |
+| Text, secondary text, muted text | `text`; `text-muted` for both lower levels |
+| Hairlines and frames; input and button edges | `border`; `border-strong` |
+| Selected row (tint and its ink edge) | `selected`, with an `ink` edge |
+| Ready, Usable, Fix first and Checking badges | `success`, `warning`, `danger` on their `-soft` tints; Checking is info (ink on `surface-sunken`) |
+| Heat, Cold, Rain, Drought, Also measured | `heat`, `cold`, `rain`, `drought`, `other` |
+| The trend scale: two steps of increase (orange) and of decrease (blue) | **Target (#227):** a four-step trend scale in `--chart-*` with light and dark values; on dark the strong step is the brighter one. Cells give the value in text, so colour is never the only cue. |
+| Coverage: complete, 1–3 days missing, 4 or more | **Target (#227, #235):** three steps of the same scale that differ in lightness, not hue alone |
+| Links (blue, underlined) | **Target (#227):** `--color-link`, a new token close to the canvas's blue; until then ink |
+| The "Mock-up" banner | Not part of the design |
 
 ## Typography
 
@@ -128,7 +200,17 @@ Weights: 400, 500, 600, and 650 for bold. Headings never skip a level.
 Small uppercase labels name groups (`group-label`, stat labels: `--text-xs`, 600,
 letter-spacing 0.06em, muted); they group without adding boxes. Where a page has an
 answer, its number is large (`--text-2xl`, 650, in the answer band), with the rest smaller
-and muted.
+and muted. **Target (#236):** on a station's Indices the answer is one line above the
+table ("22 of 80 indices with a significant trend · TM +0.19 °C/decade"), its count in
+bold, not a band.
+
+**Numbers and codes (Target: #226, #227).** Numbers in tables, statistics and the
+provenance line use tabular figures (`font-variant-numeric: tabular-nums`); index codes,
+dates, file names and the provenance line are `--font-mono`. Table cells are
+`--text-sm`; the dense Quality tables `--text-xs`. Numbers follow one set of rules
+(#226): U+2212 for minus, units on every value, two decimals for slopes and intervals in
+°C, days and %, one in mm, anomalies to one decimal and never "−0.0", coordinates as
+"33.86° S 151.21° E", and a no-break space between a value and its unit.
 
 ## Layout
 
@@ -159,6 +241,30 @@ and muted.
   (`stack--xl`), each under a section header; a box marks only one object (a theme tile,
   a chart, a progress card). The page's one answer is a tinted band (`answer-band`).
 - **Controls:** `--control-height` 2.75rem (2.25rem small), so touch targets reach 44px.
+
+**Target: the workspace frame (#230).** The station frame above gives way to this one
+as #227, #231, #234, #235 and #236 land; the boards on the canvas show each page.
+
+- **Header:** "Climpact", then Workspaces and Gridded; Index reference and Help at the
+  end. The logo goes to the landing page (#227). Single station, Batch and Your
+  calculations go.
+- **Context bar** under the header, on every workspace and station page (#227): a
+  breadcrumb (workspace / station) with the previous and next station, the title (the
+  workspace or station name), one mono line of provenance (coordinates, period, base
+  period, settings, version; on a workspace the station count and deletion date) with
+  "Edit inputs" or "Workspace settings", the page's actions at the end, then the tabs. A
+  workspace's tabs are Overview, Compare an index and Files; a station's are Quality,
+  Indices and Files.
+- **Data pages use the width.** Desktop first: tables, rails and detail panes fill the
+  window up to about 92rem, rather than the 72rem content width, which stays for reading
+  pages (#227).
+- **Panes:** a filter rail at the inline start (about 14rem), the table, and a detail pane
+  at the inline end (about 26–32rem) that stays in view as the list scrolls (#235,
+  #236). Under 60rem the rail goes above the table and the detail after the list.
+- **Data tables sit in one frame** (a `border` edge and `--radius-sm`), with hairline rows
+  of 30–34px and a header row on the sunken tint: the exception to "a box marks only one
+  object", because the table is one object (#227). At 1280px at least 25 of a station's
+  indices are in view (#236).
 
 ## Depth and shape
 
@@ -227,8 +333,33 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Settings line and panel | The settings in one muted line under the page title: the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
+**Target: replaced by #230.** These stay until the ticket named lands, then go:
+`theme_headline` and Results' `answer-band` (by the Indices table, #236); the Catalogue
+(by the same table, #236); the Inputs panel, Inputs bar and Page menu (by the context bar
+and workspace settings, #227, #231, #234); New station steps, the File card and
+`file_button` (by Add stations, #233); `steps` for batch (by the workspace, #231); the
+Settings line and panel (by workspace settings, #231). The Side sheet stays, for
+workspace settings.
+
+New patterns of #230 (Target; add each to `/patterns/` when it lands):
+
+| Pattern | Purpose | Ticket |
+| --- | --- | --- |
+| Context bar | Breadcrumb, title, the mono provenance line, actions and tabs (see Layout) | #227 |
+| Data table | The framed dense table: 30–34px rows, sticky sunken header, codes and numbers in mono with tabular figures, sortable headers, a selected row with the `selected` tint and an ink edge | #227 |
+| Filter rail | Search (code, short name, R's names), theme with counts, "Significant only", and one line defining significant | #236 |
+| Detail pane | The selected row's detail beside the table, in view as the list scrolls: a chart with axes, the statistics, links | #235, #236 |
+| Verdict strip | Quality's verdict in one sentence, the counts on one mono line, the decision's buttons | #235 |
+| Coverage strip | Missing days per year for each variable, three steps differing in lightness | #235 |
+| Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
+| Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
+| Review table | Add stations' table of files: editable name and coordinates, read status, every problem at once | #233 |
+| Stations table | A workspace's stations with their verdict, indices state and significant count | #234 |
+| Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
+
 Every chart has a text summary, a table view and a CSV download, and can be used by
-keyboard. This is not optional.
+keyboard. This is not optional. **Every chart that is read has axes** with units and
+years; sparklines are only for scanning, beside a number given in text.
 
 ## Rules
 
@@ -250,17 +381,27 @@ keyboard. This is not optional.
   semicolons; a verb on every button. Assume the reader is working in a second language.
   A page opens with one or two sentences; anything longer goes in its section's help.
 - **Give units with every number,** including stats and trends (percentage points for
-  trends of percentage indices).
-- **Plain names first, codes second.** "Hot days" with `TX90p` beside it, never the
-  code alone.
+  trends of percentage indices), written by the rules in
+  [Typography](#typography) (#226).
+- **Codes first, a short name second** (Target: #218). `TXx Hottest day`: the code in
+  mono, then the short name. R's long name is the index page's definition line. Never a
+  name without its code, or a code without its name where indices are listed. Until #218
+  lands, the plain name leads, as now.
+- **Show the statistics** (Target: #236, #237). Wherever there is a trend: Sen's slope per
+  decade, its 95% interval, and significant yes or no (the interval excludes zero). Method
+  and years used on the index page and in the detail pane. Never a p-value.
+- **Keep the provenance in view** (Target: #227, #239). Every workspace and station page
+  has the provenance line, and every zip holds `climpact_run.json`.
 - **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
   each edited in a side sheet that says what applying will update, with one Apply
   button; output pages hold no forms (#198, #199), only the decision, search and filters,
   and small actions such as Delete or Try again. Links elsewhere that change an input
   ("Replace file" on Quality's verdict, "Change the settings" on Results) open the same
-  sheet.
-- **Give each colour one job.** Ink for actions, the brand blue for the logo, focus and
-  selection, status colours for the verdict and run state, theme hues for data (see
+  sheet. **Target (#231, #233, #234):** the settings are the workspace's, edited in its
+  settings sheet; a station's name and coordinates are edited from "Edit inputs" on its
+  provenance line.
+- **Give each colour one job.** Ink for actions, blue for links (Target: #227), the
+  brand blue for the logo, focus and selection, status colours for the verdict and run state, theme hues for data (see
   [Colour](#colour)).
 - **Make help visible.** A section header is its title, an optional muted note, then a
   labelled Help button at the end of the row (a pill with a word, specific where it helps:
@@ -273,6 +414,11 @@ keyboard. This is not optional.
   with no family accordions. "No significant change" is a finding, shown in a quiet
   tile, not left out. Findings are template sentences built from the data, never
   written by hand for a station. The theme mapping lives in `stations/themes.py`.
+  **Target (#236):** the tiles go. One line answers, then one table filtered by theme
+  (with counts), significance and search: filter the data rather than narrate it.
+- **Keep it dense** (Target: #227, #235, #236). Rows of 30–34px, one line each; a row
+  never wraps to several lines to fit a sparkline. At 1280px at least 25 indices are in
+  view.
 - **Never change the user's data, and say so.** The app reports; the user decides.
 
 ### Don't
@@ -286,7 +432,10 @@ keyboard. This is not optional.
   (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
   PNG/SVG/CSV. Results have the zip, primary in the workspace header beside "Compare with
   sector data", and the Files tab; Quality has one link to Files
-  under Details; an index page has only its chart's exports.
+  under Details; an index page has only its chart's exports. **Target (#239):** Files is
+  the workspace's (each station's files, the all-station CSVs and the provenance file);
+  an index page offers its CSV, its R-style PNG and a citation; Quality offers its flagged
+  values as CSV.
 - **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
   its value isn't self-explanatory. Section
@@ -300,6 +449,9 @@ keyboard. This is not optional.
   no steps (#179, #198). A first visit is one New station page (#201): the file, the
   station name, latitude and longitude, the base period, then "Check and calculate";
   thresholds and index settings start at their defaults and are changed later in Inputs.
+  **Target (#233, #234, #242):** a first visit is the landing page, then Get started,
+  then Add stations (one file or many, reviewed in one table). A one-station workspace
+  opens straight to its station; the overview appears from two stations.
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
@@ -315,6 +467,10 @@ keyboard. This is not optional.
   in place instead of opening rows down the page, so the page stays short.
 
 ## Responsive
+
+**Desktop first** (#230): screens are designed at 1280–1600px, where the work is done.
+Phones get the same content, stacked and usable, not a matched design; the accessibility
+rules below still hold at every width.
 
 Narrow screens get the same content in one column, in the same order. Below 600px the
 header links and the theme toggle become a menu; on narrow screens the step indicator
@@ -334,14 +490,23 @@ and the download tables are short blocks. The accessibility tests run every page
 
 ## Agent prompt guide
 
+- Work on a web ticket with the `build-to-design` skill: read the ticket's Design
+  section, the rules here and the canvas boards it names before building, and compare the
+  result with the boards, in light and dark, before the pull request.
+- The canvas fixes a screen's layout, content and density; this file fixes rules and
+  tokens. Don't copy the canvas's colour values or fonts, and don't pick a side silently
+  when the two disagree: ask.
 - Use tokens only: no hex values, no Tailwind default colours or sizes (they aren't
   loaded). New colours need light and dark values and pass the contrast test. Ink for
-  actions and links, `--color-brand` only for the logo, focus and selection, status
+  actions, blue (`--color-link`, once #227 adds it) for links, `--color-brand` only for the
+  logo, focus and selection, status
   colours only for the verdict and run state, `hue-*` for a theme's data.
 - Build from `core/templates/components/` and add new parts to `/patterns/`. After
   changing classes, run `scripts/build-css.sh` and commit `css/climpact.css`.
-- One primary action per view, answer before detail, severity in proportion. Check a
-  new screen against the three user questions above.
+- One primary action per view, a one-line answer before the data, severity in
+  proportion. Check a new screen against the four user questions above.
+- When a Target here is met, take its "Target" mark away in the same pull request, and
+  describe the code as it now is.
 - Every chart keeps its text summary, table view, CSV and keyboard controls; every page
   passes the axe tests in light and dark (`uv run pytest -m browser`; they are
   deselected by default and CI runs them).

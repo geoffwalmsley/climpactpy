@@ -57,6 +57,11 @@ architecture, parity testing and the differences between the Python and R implem
   <image>...`, which puts them on the orphan `pr-screenshots` branch (never merged, so the
   images stay out of `main`) and prints the Markdown to paste into the body. Don't commit
   screenshots to the pull request's branch.
+- **Web work is built to the design.** `DESIGN.md` holds the rules and tokens; the design
+  canvas it links holds one board per screen. **Always use the `build-to-design` skill**
+  for a ticket that changes what users see: read the ticket's Design section, the rules
+  and the boards before building, and add a "Design check" to the PR. When the canvas and
+  `DESIGN.md` disagree, ask; don't pick one silently. Implementers never edit the canvas.
 - **Run the full suite once, and get the parity summary from the file, not by running it
   again.** The summary is about 60 lines, too long for a `tail` of the output, so the test
   run also writes it, with the test totals, to `.parity-summary.txt` at the repository root

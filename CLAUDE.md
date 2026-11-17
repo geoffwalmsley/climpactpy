@@ -35,6 +35,11 @@ architecture, parity testing and the differences between the Python and R implem
   template's classes or `packages/climpact-web/src/climpact_web/core/tailwind/`, run
   `scripts/build-css.sh` (get the CLI once with `scripts/fetch-tailwind.sh`; never install
   Tailwind any other way) and commit `css/climpact.css`; CI fails when it is stale.
+- A pull request that adds, changes or removes a user-facing string (templates, `_()` in
+  the web package) refreshes the English message catalogue: from
+  `packages/climpact-web/src/climpact_web`, run `uv run climpact-web manage makemessages -l
+  en --no-obsolete` and commit `locale/en/LC_MESSAGES/django.po` (needs GNU gettext;
+  `tests/test_catalogue.py` fails when it is stale, and CI requires it).
 - Changes go through pull requests; do not commit to `main`. **Only the user merges pull
   requests.** Never run `gh pr merge`, even when CI is green: take the PR to green CI and
   In review, then say it is ready. The user merges with a **merge commit**, never squash or

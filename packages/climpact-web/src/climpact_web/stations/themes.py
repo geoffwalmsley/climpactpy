@@ -132,11 +132,10 @@ def trend_text(card, signed: bool = True) -> str:
     the sign, ``0.12 °C per decade``, for "rose by")."""
     slope = card.trend["slope_text"] if signed else number(abs(card.trend["slope"]))
     if card.trend_units:
-        # A no-break space keeps the number with its units.
-        return _("%(slope)s\u00a0%(units)s per decade") % {
-            "slope": slope,
-            "units": card.trend_units,
-        }
+        # A no-break space keeps the number with its units. It is joined here, outside the
+        # message: older xgettext (0.21, Ubuntu 24.04) keeps "\u00a0" in a Python msgid as
+        # written and newer versions decode it, so the catalogue would differ (#205).
+        slope = f"{slope}\u00a0{card.trend_units}"
     return _("%(slope)s per decade") % {"slope": slope}
 
 

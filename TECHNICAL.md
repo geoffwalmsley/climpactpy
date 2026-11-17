@@ -2828,7 +2828,8 @@ packages/climpact-web/src/climpact_web/
     templates/jobs/  job_list.html, job_detail.html, _progress.html, _status.html
   stations/          the single-station workspace (label `stations`, see
                      [Single-station steps](#single-station-steps))
-    models.py        StationAnalysis: one station's workspace; file_digest
+    models.py        Workspace (stations and their shared settings, #231), Station (one
+                     station of a workspace, with its slug); slug_for, file_digest
     workspace.py     the sections each job shows, staleness from the jobs' recorded
                      inputs, settle, the tabs' states (#179), the Inputs panel, its
                      sheets and what each updates (#198, #199)
@@ -2852,7 +2853,8 @@ packages/climpact-web/src/climpact_web/
                      form's starting settings (previous_params, settings_form)
     preview.py       the static monthly preview (inline SVG), the daily chart's no-JavaScript
                      fallback
-    retention.py     purge_expired_analyses, registered with the jobs app's purge
+    retention.py     purge_expired_workspaces and kept_jobs, registered with the jobs
+                     app's purge
     results.py       the Indices' model: one card per index table,
                      sparklines, trends, tables not written and why; cached
     index_detail.py  the Indices' detail pane (#236): each index's chart drawn on the server
@@ -2896,10 +2898,11 @@ packages/climpact-web/src/climpact_web/
                      sector.html, _sector_progress.html,
                      _sector_results.html (step 5)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
-    models.py        BatchRun: one batch's files, check result, options and job
+    models.py        BatchRun: one batch's files, check result, options and job; it fills
+                     a workspace (#231)
     check.py         the pre-flight check: metadata file, each station, zip unpacking
     forms.py         UploadForm, AddFilesForm, OptionsForm
-    retention.py     purge_expired_batches, registered with the jobs app's purge
+    retention.py     purge_stray_batch_folders, registered with the jobs app's purge
     views.py, urls.py  /batch/: start, sample, check, add files, options (htmx), run,
                      results, progress fragment, open a station, delete
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
@@ -3022,6 +3025,7 @@ the variable.
 | `CLIMPACT_WEB_STATIC_ROOT` | `<data dir>/static` (local) | `collectstatic` target; required in hosted mode |
 | `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
 | `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
+| `CLIMPACT_WEB_WORKSPACE_EXPIRY` | on when hosted, off locally | whether workspaces expire `JOB_RETENTION_DAYS` after their last change (`WORKSPACE_EXPIRY`, #231); off, a workspace and the jobs it shows stay until deleted |
 | `CLIMPACT_WEB_JOB_HEARTBEAT_SECONDS` | `10` | seconds between worker heartbeats |
 | `CLIMPACT_WEB_JOB_STALE_SECONDS` | `60` | seconds without a heartbeat before a running job counts as dead |
 | `CLIMPACT_WEB_JOB_POLL_SECONDS` | `1` | seconds between a worker's checks for queued jobs |
@@ -4390,9 +4394,9 @@ than one worker must have taken jobs. Then the worker running a long job is kill
 SIGKILL: the surviving workers' `reap_stale` fails it ("no heartbeat" in the log, not
 before the stale time), a retry runs it on another worker (`attempts` 2, one marker per
 attempt), and 8 more jobs queued meanwhile run once each. The survivors stop cleanly on
-SIGTERM. A second test runs the station workspace's migrations (#179) back and forward on
-its own Postgres database and checks the backfill (`migration_backfill.py`, which
-`test_workspace.py` also runs on SQLite).
+SIGTERM. A second test runs the workspace migration (#231) back and forward on its own
+Postgres database (`migration_workspaces.py`, which `test_workspace.py` also runs on
+SQLite).
 
 ### Background jobs
 
@@ -4573,15 +4577,19 @@ connection (the next poll carries on).
 
 **Retention** (`jobs/retention.py`). A finished job and its folder are deleted
 `JOB_RETENTION_DAYS` (default 7, `CLIMPACT_WEB_RETENTION_DAYS`) after it finished; a queued
-job that never ran, that long after it was created. Running jobs are never deleted. Folders
+job that never ran, that long after it was created. Running jobs are never deleted, nor
+are the jobs another app still shows: apps register them with `register_keeper(func)`,
+`func()` giving their ids (the stations app keeps every job a station or batch shows,
+`stations.retention.kept_jobs`, #231). Folders
 under `RUNS_DIR` named like a job id but belonging to none (an interrupted upload) are
 deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
 stale jobs), for cron in a deployment. Every template gets `job_retention_days` (context
-processor `climpact_web.jobs.context_processors.jobs`), for the New station page (#76,
-#201) to state the period; the job page shows the deletion date. Other apps register their own clean-up
-with `register_purger(func)`; each purge calls `func(now, days)` (the stations app deletes
-its analyses this way, so the jobs app knows nothing of them).
+processor `climpact_web.jobs.context_processors.jobs`), with `workspace_expiry`, for the
+New station page (#76, #201) to state the period; the job page shows the job's deletion
+date. Other apps register their own clean-up with `register_purger(func)`; each purge
+calls `func(now, days)` (the stations app deletes its workspaces this way, so the jobs app
+knows nothing of them).
 
 **Storage** (`jobs/storage.py`). `LocalJobStorage` creates the folders, saves uploads
 (`save_input(job, name, file, folder="")`: the name is reduced to a file name, and a
@@ -4625,9 +4633,29 @@ R's step 4, sector correlation (#90), is an action on Results since #173, and it
 shows the Results tab as current. A change to an input keeps the work and marks what
 depends on it out of date ("Workspace and staleness" below).
 
-**Data model (#76).** A `StationAnalysis` (`stations/models.py`) is one station going
-through the steps: a UUID primary key; `owner` (the session's job owner token, so a
-session sees its analyses and its jobs, and any other session gets 404); `source`
+**Workspaces (#231).** A `Workspace` (`stations/models.py`) holds stations and the settings
+they share (#230, decision 5): a UUID; `owner` (the job owner token); `name` (blank until
+the user names it, #234; `display_name` gives the Flow board's default, one station's own
+name or "3 stations, 17 Nov"); `created_at`; `updated_at`, the last change to it or any
+of its stations or batches (`Station.save` and `BatchRun.save` bring it forward,
+`bring_forward`); and the shared settings `base_start`, `base_end`, `qc_params` and
+`index_settings`. Until #254 these are stored only: a new station or batch copies its base
+period and thresholds into them, and the pages still read the station's own. A new
+station, uploaded, the sample or opened from a batch, makes a workspace of one, and a new
+batch a workspace of its own (#255 puts a batch's stations in it). Deleting a workspace's
+last station or batch deletes it. Existing analyses and batches were dropped by #231's
+migration, not migrated (the maintainer's decision): `stations/0006_workspace_station`
+replaces `StationAnalysis` with `Station`, and `batch/0002_workspace` deletes the batches
+and adds `BatchRun.workspace`. Their jobs are kept by nothing and expire as usual; their
+folders go as stray folders. `tests/migration_workspaces.py` checks it on SQLite
+(`test_workspace.py`) and Postgres (`test_queue_postgres.py`).
+
+**Data model (#76).** A `Station` (`stations/models.py`; `StationAnalysis` before #231) is
+one station of a workspace going through the steps: a UUID primary key; `workspace`;
+`slug`, which names it in its workspace (#231: made from the station name by `slug_for`,
+unique in the workspace, `sydney`, `sydney-2`; it follows the name while the station is
+at step `upload`, then is kept); `owner` (the session's job owner token, so a
+session sees its stations and its jobs, and any other session gets 404); `source`
 (`upload` or `sample`); `file_name` (as uploaded, display only); `summary` (JSON from
 `station_file.summarise`: first and last dates, days, per variable the days present and
 missing, days with data per year, monthly means for the preview); `warnings` (about the
@@ -4641,7 +4669,8 @@ the user chose "See results", then `results` and `sector`). It only moves forwar
 defaults); and `qc_job`, `indices_job`, `sector_job`, links to the `Job` rows of the later steps (null on
 delete). The file is kept in the analysis's own folder, `<MEDIA_ROOT>/stations/<id>/station.txt`
 (not under `RUNS_DIR`, whose stray folders the jobs app deletes); a job copies it into
-its own `input/` when queued, so analyses and jobs expire independently. A change to the
+its own `input/` when queued; a job the station shows is kept as long as the station
+(`retention.kept_jobs`). A change to the
 file or the metadata keeps the job links (#179; `reset_later_steps` is gone): each job
 records the inputs it was made from in `Job.inputs`, and the workspace compares them with
 the analysis's. The checks set `qc_job`, the speculative run and the Index settings sheet
@@ -4838,13 +4867,8 @@ New station page's recent analyses link to it.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
 `stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
-`stations/0005_backfill_workspace_inputs` fills them for existing analyses: the hash of
-each analysis's file on disk, and for its linked `qc` and `station` jobs (and the run a
-recalculation replaces) the inputs in their own `params`, with that hash. Before #179 a
-change cleared the links, so a linked job was always of the analysis's current inputs: the
-backfill keeps them current. A batch station gets `origin["inputs"]`. The values the
-migration needs (R's QC defaults) are copied into it. `tests/migration_backfill.py` checks
-it on SQLite (`test_workspace.py`) and on Postgres (`test_queue_postgres.py`).
+`stations/0005_backfill_workspace_inputs` filled them for the analyses of the time. #231's
+migration (above) has since dropped those analyses.
 
 **URLs.** `/station/new` the New station page (`stations:new`, #201), and
 `/station/<id>/setup` the same page once its file is read (`stations:setup`); `/station/`
@@ -5547,15 +5571,25 @@ R behaviour not copied in step 5, and why:
 | Results: a carousel of the PNGs and a link to the folder or zip | the bar chart and scatter plots drawn on the page, each with its table, CSV and PNG, and the zip |
 | The indices must have been calculated in the same session | the comparison uses the run kept for the analysis (or its batch station) for `JOB_RETENTION_DAYS` |
 
-**Retention.** An analysis is deleted, with its folder, `JOB_RETENTION_DAYS` after it was
-last changed (`updated_at`), unless one of its jobs is queued or running
-(`stations/retention.py`, run with every purge of expired jobs); folders under
-`stations/` that belong to no analysis are deleted once older than the period. The pages
-state the period and the date the analysis will be deleted, and "Delete this data now"
-deletes it at once. The rules are unchanged by #179: jobs kept as out of date (the run a
-newer one replaces) are ordinary jobs, purged `JOB_RETENTION_DAYS` after they finished; a
-purged replaced run is simply no longer shown, and Results shows the new run's progress
-instead (`test_workspace.py::test_retention_purges_out_of_date_jobs_as_before`).
+**Retention (per workspace since #231).** `WORKSPACE_EXPIRY`
+(`CLIMPACT_WEB_WORKSPACE_EXPIRY`; on when hosted, off locally) decides whether workspaces
+expire. When on, a workspace is deleted, with its stations, batches and their folders,
+`JOB_RETENTION_DAYS` after its last change (`Workspace.updated_at`), unless a job of one
+of its stations or batches is queued or running (`stations/retention.py`,
+`purge_expired_workspaces`, run with every purge of expired jobs). When off, a workspace
+stays until the user deletes it. Either way the jobs a station or batch shows are kept
+(`kept_jobs`): its checks, run and sector comparison, the finished run or checks a
+replacement in progress, failed or cancelled replaces on the page (`params["replaces"]`),
+a batch station's batch job (`origin["job"]`), and each batch's job. So results never
+disappear under a page; a replaced job is purged on its own schedule once its replacement
+has succeeded. Other jobs (gridded runs, replaced runs no longer shown) keep the jobs
+app's rule. Folders under `stations/` and `batches/` that belong to no station or batch
+are deleted once older than the period. With expiry on, the pages state the period and
+the date the workspace will be deleted; with it off, that the data stay on this computer
+until deleted. "Delete this data now" deletes the station at once, and its workspace if
+nothing else is left in it (`test_workspace.py`: `test_retention_keeps_the_jobs_a_station_shows`,
+`test_retention_deletes_the_workspace_once_idle`,
+`test_without_expiry_nothing_a_workspace_shows_is_deleted`).
 
 ### Batch page
 
@@ -5591,9 +5625,10 @@ check result as JSON (`report`, `check.BatchCheck.to_json()`); the options `base
 `base_end`, `workers`, `plots`; `job` (null on delete). Files live in
 `<MEDIA_ROOT>/batches/<id>/`: `metadata.txt` and `files/<name>`, each station file under
 its own name without folders (hidden names are ignored). Every change checks the whole
-batch again. Retention as for analyses: `JOB_RETENTION_DAYS` after the last change unless
-its job is queued or running (`batch/retention.py`, registered with `register_purger`);
-"Delete these files now" deletes it at once.
+batch again. Since #231 a batch has a `workspace`, made with it, and is deleted with it
+(see the retention of workspaces in [Single-station steps](#single-station-steps));
+`batch/retention.py` deletes only stray batch folders. "Delete these files now" deletes it
+at once, with its workspace if nothing else is left in it.
 
 **The check** (`batch/check.py`). The metadata file is walked with
 `read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
@@ -5646,7 +5681,7 @@ station's error is shown without the exception's class name or the job folder's 
 
 **Per-station dashboards (#78).** Each finished station can be opened as a
 single-station analysis ("Open as a single station", `batch:open_station`, POST): a
-`StationAnalysis` with `source` `batch`, the station file, its name, location and the
+`Station` (in a workspace of its own until #255) with `source` `batch`, the station file, its name, location and the
 batch's base period, at step 2 (the metadata is complete), and
 `origin = {"batch", "job", "station", "params", "outputs"}`: the batch, its job, the
 station, the `IndexParams` fields of its metadata line and its folder in the job's
@@ -5960,8 +5995,9 @@ explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_
 **Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
 `source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
 (the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and
-the pre-flight result); `thresholds_job`, `indices_job`. Retention as for batches
-(`gridded/retention.py`): `JOB_RETENTION_DAYS` after the last change unless a job is
+the pre-flight result); `thresholds_job`, `indices_job`. Retention as for workspaces when
+they expire, whatever `WORKSPACE_EXPIRY` says (`gridded/retention.py`):
+`JOB_RETENTION_DAYS` after the last change unless a job is
 queued or running; only the run's own folder (uploads) is deleted, never a file read in
 place.
 

@@ -25,11 +25,13 @@ in line; the text around it describes the code as it is. The rules come from thr
   click away. No p-value: Climpact computes none (`climpact/trends.py`).
 - **Desktop first,** at 1280–1600px; phones get a usable stacked layout.
 - **Everything is a workspace.** A workspace holds stations and the settings they share.
-  One station is a workspace of one and opens straight to the station. Batch folds into
-  it, and Workspaces replaces Your calculations (Target: #231, #233, #234, #242).
+  One station is a workspace of one and opens straight to the station. Every station and
+  batch belongs to a workspace since #253. Settings move onto it (Target: #254), batch
+  folds into it (Target: #255), its URLs (Target: #256), and Workspaces replaces Your
+  calculations (Target: #233, #234, #242).
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
-  period) or the computer (local). A saved workspace file rebuilds one anywhere (Target:
-  #240).
+  period) or the computer (local: kept until deleted, and the retention notice says so).
+  A saved workspace file rebuilds one anywhere (Target: #240).
 - **System fonts.** No web fonts (CSP, the bandwidth budget, offline use); tabular
   figures for numbers and `--font-mono` for codes, dates and numbers in tables.
 

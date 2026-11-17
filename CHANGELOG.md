@@ -7,6 +7,11 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+- Workspaces (#231, #253): a station or batch now belongs to a workspace, which expires as
+  a whole after its last change. **The upgrade deletes the stations and batches people
+  have open** (decided on #231; their files go after the retention period). New setting
+  `CLIMPACT_WEB_WORKSPACE_EXPIRY`: on when hosted, off locally, where workspaces now stay
+  until deleted. The jobs a station or batch shows are kept as long as it is.
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
   reads `data-retry` as its own setting and warned in the console on every form page.

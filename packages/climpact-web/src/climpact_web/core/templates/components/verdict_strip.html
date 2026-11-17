@@ -1,0 +1,16 @@
+{% comment %}
+The verdict strip (#235, the Quality board): a judgement in one line on its status tint,
+with a hairline in the same hue. The level in bold, then one sentence (together the
+strip's heading), the counts on one mono line under it, and the decision's buttons at the
+end of the row (under the text when the strip is narrow). Parameters: id, level ("ready",
+"usable", "fix": success, warning, danger; anything else is info), title (the level in
+words: "Usable."), sentence, facts (a list, shown with middle dots between them), actions
+(optional, a template with the buttons).
+{% endcomment %}
+<section class="verdict-strip verdict-strip--{{ level }}" aria-labelledby="{{ id }}-title">
+  <div class="verdict-strip__text">
+    <h2 class="verdict-strip__sentence" id="{{ id }}-title"><b>{{ title }}</b> {{ sentence }}</h2>
+    {% if facts %}<p class="verdict-strip__facts">{% for fact in facts %}{% if not forloop.first %}<span aria-hidden="true"> {{ "·" }} </span>{% endif %}<span>{{ fact }}</span>{% endfor %}</p>{% endif %}
+  </div>
+  {% if actions %}<div class="verdict-strip__actions">{% include actions %}</div>{% endif %}
+</section>

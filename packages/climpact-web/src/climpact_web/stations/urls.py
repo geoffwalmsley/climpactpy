@@ -32,6 +32,7 @@ urlpatterns = [
     path("<uuid:analysis_id>/quality/progress", views.qc_progress, name="qc_progress"),
     path("<uuid:analysis_id>/quality/checks/<slug:check>", views.qc_table, name="qc_table"),
     path("<uuid:analysis_id>/quality/continue", views.qc_continue, name="qc_continue"),
+    path("<uuid:analysis_id>/quality/flagged.csv", views.qc_flagged, name="qc_flagged"),
     # Steps 3 and 4 (#78): stations/views_indices.py.
     path("<uuid:analysis_id>/indices", views_indices.indices, name="indices"),
     path(
@@ -44,11 +45,6 @@ urlpatterns = [
         "<uuid:analysis_id>/results/progress",
         views_indices.results_progress,
         name="results_progress",
-    ),
-    path(
-        "<uuid:analysis_id>/results/<str:name>/anomalies.json",
-        views_indices.result_anomalies,
-        name="result_anomalies",
     ),
     path("<uuid:analysis_id>/results/<str:key>", views_indices.result, name="result"),
     # Step 5, sector data (#90): stations/views_sector.py.

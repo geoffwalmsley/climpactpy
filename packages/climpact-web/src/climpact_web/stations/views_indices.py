@@ -14,8 +14,7 @@ URLs (all ``/station/<id>/...``, private to the session like the other steps):
                             ``?settings=open`` (old links) opens the Index settings sheet
 ``results/progress``        htmx: the progress fragment; when the job ends it reloads the
                             page (or opens the index the user came from)
-``results/<key>``           one index: chart, trend, anomalies, tables, downloads
-``results/<series>/anomalies.json``  the standardised anomalies, for the chart
+``results/<key>``           one index (#237): its chart, trend statistics and values
 
 There is no Calculate step since #178: the indices are calculated with the default
 settings while the user looks at the quality checks (:mod:`.calculation`), and "Use this
@@ -32,12 +31,13 @@ from urllib.parse import urlencode
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.cache import never_cache
-from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core import numbers
 from climpact_web.core.limits import human_required
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
@@ -328,11 +328,12 @@ def downloads(source) -> dict:
     return {"job": source.job, "zip": main_downloads(source)["zip"]}
 
 
-# The catalogue's sortable columns (#200): the key of ?sort=, and the direction a first
-# click sorts in (names A to Z; the largest trends and the significant ones first).
+# The table's sortable columns (#200, #236), in the table's order (codes first, #218): the
+# key of ?sort=, and the direction a first click sorts in (codes and names A to Z; the
+# largest trends and the significant ones first).
 SORTS = {
-    "name": "ascending",
     "code": "ascending",
+    "name": "ascending",
     "trend": "descending",
     "significance": "descending",
 }
@@ -346,10 +347,15 @@ def _significance_rank(card) -> int:
 
 
 def sort_cards(cards: list, sort: str, descending: bool) -> list:
-    """The catalogue's rows sorted by a column (``SORTS``), ties in the catalogue's order.
+    """The table's rows sorted by a column (``SORTS``), ties in the catalogue's order
+    (names tie by code).
     Rows without a trend stay last when sorting by the trend, whichever the direction."""
     if sort == "name":
-        return sorted(cards, key=lambda c: c.title.casefold(), reverse=descending)
+        # Short names repeat (each heatwave definition's "Number of heatwaves"), so by
+        # code within a name.
+        return sorted(
+            cards, key=lambda c: (c.title.casefold(), c.code.casefold()), reverse=descending
+        )
     if sort == "code":
         return sorted(cards, key=lambda c: c.code.casefold(), reverse=descending)
     if sort == "significance":
@@ -362,26 +368,90 @@ def sort_cards(cards: list, sort: str, descending: bool) -> list:
 
 
 def _column_labels() -> dict[str, str]:
+    """Each sortable column's header, and its name in the sentence that announces a sort
+    (the header "Sig." is "Significance" there)."""
     return {
-        "name": _("Index"),
-        "code": _("Code"),
-        "trend": _("Trend per decade"),
-        "significance": _("Significance"),
+        "code": (_("Code"), _("Code")),
+        "name": (_("Index"), _("Index")),
+        "trend": (_("Slope / decade"), _("Slope / decade")),
+        "significance": (_("Sig."), _("Significance")),
     }
 
 
 def sort_sentence(column: str, descending: bool) -> str:
-    """What a sort is announced as: "Sorted by Trend per decade, descending." """
+    """What a sort is announced as: "Sorted by Slope / decade, descending." """
     if descending:
         return _("Sorted by %(column)s, descending.") % {"column": column}
     return _("Sorted by %(column)s, ascending.") % {"column": column}
 
 
+def run_base(analysis, job) -> tuple[int, int] | None:
+    """The base period the shown results used: the run's, else the station's."""
+    meta = ((job.params or {}) if job is not None else {}).get("metadata") or {}
+    start, end = meta.get("base_start"), meta.get("base_end")
+    if start and end:
+        return int(start), int(end)
+    if analysis.base_start and analysis.base_end:
+        return int(analysis.base_start), int(analysis.base_end)
+    return None
+
+
+def _row(analysis, source, run, card, theme_label: str, base) -> dict:
+    """One index for the table and its detail (#236): the unit, the slope, its interval,
+    the mean, and the detail's chart, statistics and links. Numbers by the rules of #226."""
+    from climpact_web.stations import index_detail
+
+    plot = run.plots.get(card.main)
+    trend = card.trend if card.trend and card.trend.get("valid") else None
+    mean = index_detail.mean(plot.values) if plot is not None else None
+    places = numbers.slope_decimals(card.units)
+    page = reverse("stations:result", args=[analysis.pk, card.key])
+    job = source.job
+    links = {"page": page}
+    if not card.daily:
+        links["csv"] = reverse(
+            "jobs:file", args=[job.pk, source.table_file(card.main.removeprefix("day_of_"))]
+        )
+        png = source.plot_file(card.main)
+        if png:
+            links["png"] = reverse("jobs:file", args=[job.pk, png])
+        monthly = next(
+            (s.name for s in card.series if s.name.endswith("_MON") and s.name != card.main),
+            "",
+        )
+        if monthly:
+            links["monthly"] = f"{page}?{urlencode({'series': monthly})}"
+    row = {
+        "card": card,
+        "key": card.key,
+        "theme": theme_label,
+        "unit": card.units,
+        # Percentage points for the trend of a percentage (#226): "+1.31 pp".
+        "slope_unit": card.trend_units if card.units == "%" else "",
+        "slope": trend["slope_text"] if trend else "",
+        "interval": trend["interval_text"] if trend else "",
+        "mean": numbers.fixed(mean, places) if mean is not None else "",
+        "links": links,
+    }
+    if plot is not None:
+        row.update(
+            chart=index_detail.chart(plot, base),
+            chart_label=index_detail.summary(card, plot),
+            caption=index_detail.caption(card, plot),
+            used_label=index_detail.used_label(plot),
+            used=index_detail.values_used(card, plot),
+        )
+    return row
+
+
 def dashboard_context(request, analysis, source, run) -> dict:
-    """The Results page (#200): the answer, the theme tiles, and the catalogue as one
-    table, filtered by theme chip, "Significant only" and a search, and sorted by a column.
-    Without JavaScript the filters are a form sent to this page and the column headers are
-    links; js/results.js does the same in place."""
+    """The Indices (#236, the Results board): a filter rail (search, theme with counts,
+    "Significant only"), one line that answers, the table of every index (code, name,
+    unit, slope per decade, 95% interval, significance, sparkline, mean), sortable by
+    column, and the selected index in a detail pane beside it (``?show=<key>``, the first
+    row shown by default). Without JavaScript the filters are a form sent to this page,
+    the column headers links and each row's code a link to ``?show=``; js/results.js does
+    the same in place."""
     q = request.GET.get("q", "").strip()[:100]
     theme = request.GET.get("theme", "")
     significant = request.GET.get("significant") == "1"
@@ -402,65 +472,80 @@ def dashboard_context(request, analysis, source, run) -> dict:
         )
         if (n := sum(1 for c in ordered if c.chip == key))
     ]
-    if theme not in {c["key"] for c in chips}:
+    chip_labels = {c["key"]: c["label"] for c in chips}
+    if theme not in chip_labels:
         theme = ""
     words = q.lower().split()
-    shown = 0
+    base = run_base(analysis, source.job)
+    rows = {}
     for position, card in enumerate(ordered):
+        row = _row(analysis, source, run, card, chip_labels.get(card.chip, ""), base)
         # What js/results.js sorts and filters by, as the server does.
-        card.position = position
-        card.sort_rank = _significance_rank(card)
-        card.sort_trend = repr(float(card.trend["slope"])) if card.sort_rank else ""
-        card.hidden = bool(
+        row["position"] = position
+        row["rank"] = _significance_rank(card)
+        row["sort_trend"] = repr(float(card.trend["slope"])) if row["rank"] else ""
+        row["hidden"] = bool(
             (theme and card.chip != theme)
             or (significant and not card.significant)
             or any(w not in card.search_text for w in words)
         )
-        shown += not card.hidden
-    rows = sort_cards(ordered, sort, descending)
+        rows[card.key] = row
+    table = [rows[c.key] for c in sort_cards(ordered, sort, descending)]
+    shown = sum(1 for r in table if not r["hidden"])
+    selected = request.GET.get("show", "")[:INDEX_KEY_MAX]
+    if selected not in rows:
+        selected = next((r["key"] for r in table if not r["hidden"]), table[0]["key"])
+    rows[selected]["selected"] = True
     # Each header links to the page sorted by its column, the filters kept: the first
     # click in the column's own direction, a second the other way.
     filters = {k: v for k, v in (("q", q), ("theme", theme)) if v}
     if significant:
         filters["significant"] = "1"
+    # Each row's code shows its detail, the filters and the order kept.
+    kept = {**filters, **({"sort": sort, "dir": direction} if sort else {})}
+    for row in table:
+        row["show_href"] = f"?{urlencode({**kept, 'show': row['key']})}#detail-{row['key']}"
     labels = _column_labels()
     page = reverse("stations:results", args=[analysis.pk])
-    columns = []
+    columns = {}
     for key, first in SORTS.items():
         state = direction if key == sort else ""
         to = first
         if state:
             to = "ascending" if state == "descending" else "descending"
-        columns.append(
-            {
-                "key": key,
-                "label": labels[key],
-                "sort": state,
-                "first": first,
-                "href": f"{page}?{urlencode({**filters, 'sort': key, 'dir': to})}#catalogue",
-            }
-        )
+        columns[key] = {
+            "key": key,
+            "label": labels[key][0],
+            "name": labels[key][1],
+            "sort": state,
+            "first": first,
+            "href": f"{page}?{urlencode({**filters, 'sort': key, 'dir': to, 'show': selected})}",
+        }
     summary = analysis.summary or {}
     first_year = summary.get("first_year", "")
     last_year = summary.get("last_year", "")
+    mean = run.card(themes.MEAN_TEMPERATURE)
+    mean_trend = ""
+    if mean is not None and mean.trend and mean.trend.get("valid"):
+        mean_trend = f"{mean.code} {mean.trend['per_decade_text']}"
     return {
         "source": source,
         "run": run,
-        "rows": rows,
+        "rows": table,
         "columns": columns,
         "sort": sort,
         "direction": direction,
-        "sort_text": sort_sentence(labels[sort], descending) if sort else "",
+        "sort_text": sort_sentence(labels[sort][1], descending) if sort else "",
         "series_years": f"{first_year}–{last_year}" if first_year and last_year else "",
-        "summary_sentences": themes.summary(run.cards, found, first_year),
-        "headline_themes": [_theme_entry(analysis, t) for t in found if t.theme.headline],
         "chips": chips,
         "q": q,
         "theme": theme,
         "significant": significant,
+        "selected": selected,
         "shown": shown,
         "total": len(run.cards),
         "significant_count": sum(1 for c in run.cards if c.significant),
+        "mean_trend": mean_trend,
         "settings_line": settings_line(source.params),
         "downloads": downloads(source),
         "from_batch": source.from_batch,
@@ -482,55 +567,19 @@ def stale_context(analysis, shown, running) -> dict | None:
     }
 
 
-def _theme_entry(analysis, found: themes.ThemeResult) -> dict:
-    """A theme's tile for the template: its finding, its largest significant trends as
-    links (the value and its units apart, as the tile sets them), and a link to its
-    indices in the catalogue."""
-    page = reverse("stations:results", args=[analysis.pk])
-    n = len(found.cards)
-    return {
-        "key": found.key,
-        "label": found.label,
-        "hue": found.hue,
-        "finding": found.finding,
-        "badge": found.badge,
-        "items": [
-            {
-                "href": reverse("stations:result", args=[analysis.pk, card.key]),
-                "title": card.title,
-                "code": card.code,
-                "value": card.trend["slope_text"],
-                # Short, so the trend keeps to one line: "pp / decade" (#200).
-                "units": short_units(card),
-                "units_title": card.trend_units if card.units == "%" else "",
-                "direction": card.trend["direction"],
-                "spark": card.spark,
-            }
-            for card in found.top
-        ],
-        "more_href": f"{page}?{urlencode({'theme': found.key})}#catalogue",
-        "more_label": ngettext(
-            "See the %(n)s index in %(theme)s", "See all %(n)s indices in %(theme)s", n
-        )
-        % {"n": n, "theme": found.label},
-    }
-
-
-def short_units(card) -> str:
-    """A trend's units in a theme tile: "pp" for percentage points (spelt out in its
-    ``abbr``), the index's units otherwise."""
-    return _("pp") if card.units == "%" else card.trend_units
-
-
 # ---- one index ---------------------------------------------------------------------------
 
 
 @never_cache
 @require_safe
 def result(request, analysis_id, key):
-    """One index: the chosen series as an interactive chart with its trend, its
-    standardised anomalies and the trend file's rows. Its only downloads are the chart's
-    own (PNG, SVG, CSV); every other file is in Files (#176)."""
+    """One index (#237, the Index board): its series (annual, or monthly where the index
+    has it: ``?series=``) as a chart of the values or of their anomalies from the base
+    period (``?view=anomaly``), beside its trend statistics, and the values as a table.
+    Its context bar has the previous and next index, the provenance line and the index's
+    files: the series' CSV, R's plot and a citation (#176: every other file is in Files)."""
+    from climpact_web.stations import index_detail, index_page
+
     analysis = get_analysis(request, analysis_id)
     job, source = current_source(analysis)
     if source is None:
@@ -542,13 +591,25 @@ def result(request, analysis_id, key):
         if found is None:
             raise Http404
         return redirect("stations:result", analysis_id=analysis.pk, key=found.key)
-    names = [s.name for s in card.series]
+    # The page shows the annual or the monthly values; the days of the extremes are a
+    # column of their table, so a day-of-occurrence series opens its index's main one.
+    shown = [s for s in card.series if not s.name.startswith("day_of_")]
     name = request.GET.get("series", card.main)
-    if name not in names:
-        name = card.main
-    series = next(s for s in card.series if s.name == name)
+    series = next((s for s in shown if s.name == name), None) or next(
+        s for s in card.series if s.name == card.main
+    )
+    name = series.name
     plot = run.plots.get(name)
+    view = "anomaly" if request.GET.get("view") == "anomaly" else "values"
+    base = run_base(analysis, job)
+    page = reverse("stations:result", args=[analysis.pk, card.key])
     previous, following = run.neighbours(card)
+    theme = themes.by_key().get(card.theme)
+    links = {"csv": reverse("jobs:file", args=[job.pk, source.table_file(name)])}
+    if png := source.plot_file(name):
+        links["png"] = reverse("jobs:file", args=[job.pk, png])
+    station = analysis.station_name or analysis.file_name
+    results_page = reverse("stations:results", args=[analysis.pk])
     context = {
         "analysis": analysis,
         "job": job,
@@ -557,105 +618,120 @@ def result(request, analysis_id, key):
         "series": series,
         **workspace.context(analysis, "results", request.path),
         "stale": bool(workspace.run_changes(analysis, job)),
-        "previous": previous,
-        "next": following,
-        "trend_rows": results_model.trend_rows(source, card.key) if not card.daily else [],
-        "csv_path": source.table_file(name.removeprefix("day_of_")),
-        "csv_size": _size(source.index_source.table_path(name.removeprefix("day_of_"))),
-        "png_path": source.plot_file(name),
+        # A run of new inputs under way (#237: no Inputs panel here to show it).
+        "running": next((r for r in context_runs(analysis, request.path) if r.key == "run"), None),
+        "theme": str(theme.label) if theme else "",
+        # The daily tables' definitions name their unit already.
+        "units": "" if card.daily else numbers.unit_label(card.units),
+        "definition": card.definition
+        + ("" if not card.definition or card.definition.endswith((".", "?", "!")) else "."),
+        "links": links,
+        "breadcrumb": [
+            {"label": station, "url": reverse("stations:workspace", args=[analysis.pk])},
+            {
+                "label": _("Indices"),
+                "url": f"{results_page}?{urlencode({'show': card.key})}#index-{card.key}",
+            },
+        ],
+        "step_previous": _step(analysis, previous),
+        "step_next": _step(analysis, following),
         "from_batch": source.from_batch,
-        "chart_title": results_model.chart_title(card, series),
     }
-    if plot is not None:
-        context["trend"] = results_model.trend_summary(plot)
-        context["stats"] = series_stats(plot, series.units)
-        context["chart_url"] = (
-            reverse("charts:job_series", args=[job.pk, name])
-            + "?"
-            + urlencode({"station": source.station})
-        )
-        if (
-            not name.startswith("day_of_")
-            and results_model.anomaly_series(source, name) is not None
-        ):
-            context["anomaly_url"] = reverse("stations:result_anomalies", args=[analysis.pk, name])
+    if plot is None:
+        context["citation"] = ""
+        return render(request, "stations/result.html", context)
+    day_plot = run.plots.get(f"day_of_{name}")
+    anomaly_ok = index_page.has_anomalies(plot, base)
+    if not anomaly_ok:
+        view = "values"
+    needs = results_model._needs(results_model._info_for(card.key))
+    gone = index_page.left_out(plot, index_page.missing_days(analysis, needs))
+    charts = []
+    for v in ("values", "anomaly") if anomaly_ok else ("values",):
+        drawn = index_page.chart(card, plot, base, anomaly=v == "anomaly")
+        if drawn is not None:
+            charts.append(
+                {
+                    "view": v,
+                    "chart": drawn,
+                    "label": index_page.chart_label(card, plot, base, anomaly=v == "anomaly"),
+                    "shown": v == view,
+                }
+            )
+    kept = {"series": name} if name != card.main else {}
+    views = []
+    if anomaly_ok and charts:
+        views = [
+            {"key": "values", "label": _("Values"), "href": f"{page}?{urlencode(kept)}"},
+            {
+                "key": "anomaly",
+                "label": _("Anomaly from %(start)s–%(end)s") % {"start": base[0], "end": base[1]},
+                "href": f"{page}?{urlencode({**kept, 'view': 'anomaly'})}",
+            },
+        ]
+        for v in views:
+            v["current"] = v["key"] == view
+    periods = []
+    if len(shown) > 1:
+        labels = {"year": _("Annual"), "month": _("Monthly")}
+        for s in shown:
+            query = {**({"series": s.name} if s.name != card.main else {})}
+            if view == "anomaly":
+                query["view"] = "anomaly"
+            periods.append(
+                {
+                    "label": labels.get(s.step, s.label),
+                    "href": f"{page}?{urlencode(query)}" if query else page,
+                    "current": s.name == name,
+                }
+            )
+    mean = index_page.base_mean(plot, base)
+    when = {"year": _("Year"), "month": _("Month")}.get(plot.step, _("Day"))
+    low = index_page.low_is_record(card.key)
+    context.update(
+        trend=results_model.trend_summary(plot),
+        series_name=index_detail.series_name(card, plot),
+        charts=charts,
+        views=views,
+        periods=periods,
+        bars=plot.bars,
+        has_smooth=any(c["chart"].smooth for c in charts),
+        has_gaps=any(c["chart"].gaps for c in charts),
+        used_label=index_detail.used_label(plot),
+        used=index_detail.values_used(card, plot),
+        base_mean=numbers.with_unit(numbers.number(mean), card.units) if mean is not None else "",
+        record=index_page.record(card, plot),
+        left_out=index_page.left_out_summary(plot, gone),
+        rows=index_page.table(card, plot, day_plot, base, gone),
+        table_title={"year": _("Annual values"), "month": _("Monthly values")}.get(
+            plot.step, _("Values by day of the year")
+        ),
+        when_label=when,
+        value_label=f"{card.code} {numbers.unit_label(card.units)}".strip(),
+        has_anomaly=anomaly_ok,
+        ranked=plot.step in ("year", "month"),
+        date_label=(_("Date of minimum") if low else _("Date of maximum")) if day_plot else "",
+        citation=index_page.citation(
+            analysis, card, plot, base, workspace.core_version(), timezone.localdate()
+        ),
+    )
     return render(request, "stations/result.html", context)
 
 
-def _size(path) -> int:
-    return path.stat().st_size if path.is_file() else 0
-
-
-def series_stats(plot, units: str = "") -> list[dict]:
-    """Highest, lowest and mean of a series with when and ``units``, and the values
-    present. A day-of-occurrence series gives calendar days (``day 200``)."""
-    from climpact_web.charts.data import _x_label, number
-
-    pairs = [(float(v), i) for i, v in enumerate(plot.values) if v == v]
-    if not pairs:
+def context_runs(analysis, path: str) -> list:
+    """The runs under way the Inputs panel would show (``workspace.inputs_panel``)."""
+    if not workspace.set_up(analysis):
         return []
-    high, low = max(pairs), min(pairs)
-    mean = sum(v for v, _i in pairs) / len(pairs)
-
-    def text(value: float) -> str:
-        if plot.name.startswith("day_of_"):
-            return _("day %(value)s") % {"value": number(value)}
-        return results_model.with_units(number(value), units)
-
-    return [
-        {
-            "label": _("Highest"),
-            "value": text(high[0]),
-            "note": _x_label(plot.step, plot.x[high[1]]),
-        },
-        {
-            "label": _("Lowest"),
-            "value": text(low[0]),
-            "note": _x_label(plot.step, plot.x[low[1]]),
-        },
-        {"label": _("Mean"), "value": text(mean), "note": ""},
-        {
-            "label": _("Values"),
-            "value": str(len(pairs)),
-            "note": _("of %(total)s, %(missing)s missing")
-            % {"total": len(plot.values), "missing": len(plot.values) - len(pairs)},
-        },
-    ]
+    return workspace.inputs_panel(analysis, path)["input_runs"]
 
 
-@gzip_page
-@require_safe
-def result_anomalies(request, analysis_id, name):
-    """The standardised anomalies of a series, as an ``index`` chart payload (bars)."""
-    from climpact_web.charts import data as chart_data
-    from climpact_web.charts.views import SERIES_NAME, json_response
-
-    if not SERIES_NAME.match(name):
-        raise Http404
-    analysis = get_analysis(request, analysis_id)
-    job, source = current_source(analysis)
-    if source is None:
-        raise Http404
-    path = source.index_source.table_path(name)
-
-    def build():
-        series = results_model.anomaly_series(source, name)
-        if series is None:
-            return None
-        title = _("%(name)s: standardised anomalies") % {"name": name}
-        payload = chart_data.series_payload(
-            f"{name}_anomaly",
-            title,
-            "",
-            series["step"],
-            series["labels"],
-            series["values"],
-            bars=True,
-        )
-        payload["axis"] = _("Standard deviations from the mean")
-        payload["label"] = _("Anomaly")
-        payload["bar_labels"] = [_("Above the mean"), _("Below the mean")]
-        payload["csv"] = reverse("jobs:file", args=[job.pk, source.table_file(name)])
-        return payload
-
-    return json_response(request, ("anomalies", str(job.pk), source.station, name), [path], build)
+def _step(analysis, card) -> dict | None:
+    """The previous or next index for the context bar, named codes first (#218)."""
+    if card is None:
+        return None
+    return {
+        "url": reverse("stations:result", args=[analysis.pk, card.key]),
+        "code": card.code,
+        "name": card.title,
+        "label": card.code,
+    }

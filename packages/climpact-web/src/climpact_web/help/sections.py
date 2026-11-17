@@ -116,15 +116,6 @@ SECTIONS = (
         [_("These values are almost always mistakes, such as typing errors or swapped columns.")],
     ),
     S(
-        "quality.worth",
-        _("Worth a look"),
-        ["qc.outliers", "qc.tx_jumps", "qc.tn_jumps", "qc.tx_flatline", "qc.tn_flatline"],
-        [
-            _("These values are unusual. Many are real extremes."),
-            _("They are grouped by variable, with their counts by month, so you can see patterns."),
-        ],
-    ),
-    S(
         "quality.missing",
         _("Missing data"),
         ["qc.nastatistics", "results.missing_value"],
@@ -263,23 +254,18 @@ SECTIONS = (
     ),
     # ---- Results ------------------------------------------------------------------------
     S(
-        "results.findings",
-        _("What changed"),
-        ["trend.sen_slope", "trend.significance"],
-        [
-            _("Each theme shows up to three of its significant trends, largest first."),
-            _(
-                "Largest means the trend per decade divided by how much the index varies "
-                "from year to year. So days, °C and mm can be compared."
-            ),
-            _("“No significant change” is a finding too."),
-        ],
-    ),
-    S(
         "results.catalogue",
         _("All indices"),
-        ["trend.minimum_data", "results.missing_value", "trend.significance"],
+        ["trend.sen_slope", "trend.significance", "trend.minimum_data", "results.missing_value"],
         [
+            _(
+                "Each row is an index: its trend per decade (Sen's slope), the 95% interval "
+                "of the slope, whether it is significant, its series and its mean."
+            ),
+            _(
+                "Select a code to show the index beside the table: its chart, the years "
+                "used and the links to its page and files."
+            ),
             _(
                 "“Also measured” holds the averages, the growing season and degree days, "
                 "your own index and the daily heat and cold factors."
@@ -297,19 +283,6 @@ SECTIONS = (
         "result.index",
         _("This index"),
         ["trend.sen_slope", "trend.confidence", "trend.minimum_data"],
-    ),
-    S("result.anomalies", _("Standardised anomalies"), ["results.standardised"]),
-    S(
-        "result.trends",
-        _("Trends in the trend file"),
-        ["trend.confidence", "trend.seasons"],
-        [
-            _(
-                "These are the rows of the trend file for this index, as written. The "
-                "slope is Sen's slope per year, or per month for the monthly row, with "
-                "its 95% confidence interval."
-            )
-        ],
     ),
     # ---- Files --------------------------------------------------------------------------
     S(

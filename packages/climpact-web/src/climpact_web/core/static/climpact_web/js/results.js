@@ -1,9 +1,12 @@
-/* The results catalogue (#78, #200): one table of every index, filtered as you type (a
-   theme chip, "Significant only", a search) and sorted by a column. Without JavaScript the
-   filters are a form sent to the page and each column header a link to the page sorted by
-   it; here the headers become buttons, the rows are filtered and sorted in place as the
-   server would, aria-sort moves to the sorted column, and the live line under the filters
-   says how many rows show and how they are sorted. No dependencies, no network requests. */
+/* The Indices (#78, #200, #236): one table of every index, filtered as you type (the
+   rail's search, theme and "Significant only") and sorted by a column, and the selected
+   index in the detail pane beside it. Without JavaScript the rail is a form sent to the
+   page, each column header a link to the page sorted by it and each row's code a link to
+   ?show=; here the headers become buttons, the rows are filtered and sorted in place as
+   the server would, aria-sort moves to the sorted column, the live line says how many
+   rows show and how they are sorted, and a row's code shows its detail in place and
+   announces it (on a narrow screen focus moves to it, below the table, and "Back to the
+   list" returns it). No dependencies, no network requests. */
 (function () {
   "use strict";
 
@@ -31,7 +34,7 @@
     var shown = rows.filter(function (row) { return !row.hidden; }).length;
 
     function label(th) {
-      return th.querySelector(".sort").textContent.trim();
+      return th.getAttribute("data-sort-name") || th.querySelector(".sort").textContent.trim();
     }
 
     function say() {
@@ -55,8 +58,9 @@
         params.set("sort", sort.key);
         params.set("dir", sort.dir);
       }
+      if (selected) params.set("show", selected);
       var query = params.toString();
-      history.replaceState(null, "", location.pathname + (query ? "?" + query : "") + location.hash);
+      history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));
     }
 
     function filter() {
@@ -78,8 +82,8 @@
       remember();
     }
 
-    // As stations.views_indices.sort_cards: ties keep the catalogue's order, and rows
-    // without a trend stay last when sorting by the trend.
+    // As stations.views_indices.sort_cards: ties keep the catalogue's order (names tie by
+    // code), and rows without a trend stay last when sorting by the trend.
     function value(row, key) {
       if (key === "name" || key === "code") return row.getAttribute("data-" + key);
       if (key === "trend") return row.getAttribute("data-trend");
@@ -93,6 +97,11 @@
         if (sort.key === "name" || sort.key === "code") {
           // Lower case, by code point, as the server's casefold sort.
           var p = value(a, sort.key).toLowerCase(), q = value(b, sort.key).toLowerCase();
+          if (p === q && sort.key === "name") {
+            // Short names repeat (#218): by code within a name, as the server.
+            p = value(a, "code").toLowerCase();
+            q = value(b, "code").toLowerCase();
+          }
           by = sign * (p < q ? -1 : p > q ? 1 : 0);
         } else if (sort.key === "trend") {
           var x = value(a, "trend"), y = value(b, "trend");
@@ -118,7 +127,7 @@
       var button = document.createElement("button");
       button.type = "button";
       button.className = "sort";
-      button.textContent = link.textContent;
+      button.innerHTML = link.innerHTML;
       link.replaceWith(button);
       button.addEventListener("click", function () {
         var key = th.getAttribute("data-sort-key");
@@ -127,6 +136,63 @@
         sort = { key: key, dir: dir };
         order();
       });
+    });
+
+    // The detail pane (#236): a row's code shows its index beside the table.
+    var said = document.querySelector("[data-index-said]");
+    var current = body.querySelector("[data-index-item][aria-current]");
+    var selected = current ? current.getAttribute("data-index-item") : "";
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function detailOf(key) {
+      return document.querySelector('[data-index-detail="' + CSS.escape(key) + '"]');
+    }
+
+    function show(key, focus) {
+      var panel = detailOf(key);
+      if (!panel) return;
+      selected = key;
+      Array.prototype.forEach.call(document.querySelectorAll("[data-index-detail]"), function (el) {
+        el.hidden = el !== panel;
+      });
+      Array.prototype.forEach.call(body.querySelectorAll("[data-index-item]"), function (a) {
+        var on = a.getAttribute("data-index-item") === key;
+        a.closest("tr").classList.toggle("is-selected", on);
+        if (on) a.setAttribute("aria-current", "true");
+        else a.removeAttribute("aria-current");
+      });
+      remember();
+      var title = panel.querySelector(".index-detail__title");
+      if (said) {
+        said.textContent = "";
+        window.setTimeout(function () {
+          said.textContent = title.textContent.trim();
+        }, 50);
+      }
+      if (!focus) return;
+      var list = document.querySelector(".indices__main");
+      var aside = panel.parentNode;
+      if (list.getBoundingClientRect().bottom <= aside.getBoundingClientRect().top + 1) {
+        title.focus({ preventScroll: true });
+        title.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      }
+    }
+
+    body.addEventListener("click", function (event) {
+      var link = event.target.closest("[data-index-item]");
+      if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      show(link.getAttribute("data-index-item"), true);
+    });
+
+    document.addEventListener("click", function (event) {
+      var back = event.target.closest("[data-index-back]");
+      if (!back) return;
+      var link = body.querySelector('[data-index-item="' + CSS.escape(back.getAttribute("data-index-back")) + '"]');
+      if (!link) return;
+      event.preventDefault();
+      link.focus({ preventScroll: true });
+      link.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
     });
 
     form.addEventListener("input", filter);

@@ -26,6 +26,8 @@ BLOCKS = {LIGHT_CSS: r"@theme\s+static\s*\{", DARK_CSS: r"@variant\s+dark\s*\{"}
 CHART_PALETTE_JSON = STATIC / "chart-palette.json"
 
 CHART_ROLES = ("tmax", "tmin", "prcp", "trend", "trend-band", "flag", "grid", "axis")
+# The trend scale (#227), from the strong decrease to the strong increase.
+TREND_SCALE = ("decrease-2", "decrease-1", "increase-1", "increase-2")
 
 
 def read_tokens(path: Path) -> dict[str, str]:
@@ -70,6 +72,8 @@ def chart_palette() -> dict:
             "roles": {role: tokens[f"chart-{role}"] for role in CHART_ROLES},
             "sequential": _numbered(tokens, "chart-seq"),
             "diverging": _numbered(tokens, "chart-div"),
+            "trend_scale": [tokens[f"chart-{step}"] for step in TREND_SCALE],
+            "coverage": _numbered(tokens, "chart-coverage"),
             "surface": tokens["color-surface"],
             "text": tokens["color-text"],
             "text_muted": tokens["color-text-muted"],

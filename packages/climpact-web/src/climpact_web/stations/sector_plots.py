@@ -28,6 +28,7 @@ from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext as _
 
+from climpact_web.core import numbers
 from climpact_web.stations.qc_plots import _fmt, _nice
 
 TOKENS = {"temperature": "--chart-tmax", "precipitation": "--chart-prcp"}
@@ -66,11 +67,13 @@ def _read(path: Path) -> list[list[str]]:
 
 
 def number(value: float | None) -> str:
-    """A value as the files show it (shortest form), or "NA"."""
+    """A value as the files show it (shortest form), with U+2212 for minus (#226), or
+    "NA"."""
     if value is None:
         return "NA"
     text = repr(round(value, 10))
-    return text[:-2] if text.endswith(".0") else text
+    text = text[:-2] if text.endswith(".0") else text
+    return "0" if text == "-0" else numbers.minus(text)
 
 
 # ---- the model ---------------------------------------------------------------------------
@@ -82,6 +85,7 @@ class Bar:
     name: str  # display name, e.g. "TXx"
     cor: float | None
     category: str
+    title: str = ""  # the short name, after the code in the table (#218): "Hottest day"
 
     @property
     def cor_text(self) -> str:
@@ -151,7 +155,7 @@ class SectorResults:
 def load(job) -> SectorResults | None:
     """The results of a finished sector job, or None when its files are gone."""
     from climpact_web.help import indices as catalogue
-    from climpact_web.stations.results import display_name
+    from climpact_web.stations.results import display_name, short_name
 
     result, out = job.result or {}, job.output_dir
     if not result.get("correlation"):
@@ -165,12 +169,14 @@ def load(job) -> SectorResults | None:
         if len(row) < 3:
             continue
         index = row[0]
+        info = catalogue.index_for_output(index)
         bars.append(
             Bar(
                 index,
-                display_name(index, catalogue.index_for_output(index)),
+                display_name(index, info),
                 _float(row[1]),
                 row[2],
+                short_name(index, info),
             )
         )
     scatters = []

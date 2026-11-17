@@ -1,0 +1,5 @@
+{% comment %}
+An index, codes first (#218): the code in mono, then the short name ("TXx Hottest day").
+Parameters: code, name, and title (true in a page title: the name a step lighter). Never
+a name without its code, or a code without its name where indices are listed.
+{% endcomment %}<span class="index-name{% if title %} index-name--title{% endif %}"><code class="index-code">{{ code }}</code> <span class="index-name__name">{{ name }}</span></span>

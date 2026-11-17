@@ -496,6 +496,17 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
 
     job, shown = analysis.qc_job, workspace.shown_qc(analysis)
     changes = workspace.qc_changes(analysis, shown)
+    from climpact_web.stations import qc_review
+
+    review = None
+    if shown is not None:
+        try:
+            review = qc_review.review(shown, analysis.station_file)
+        except FileNotFoundError:
+            pass
+        if review is not None:
+            # Before the tabs, so that Quality's shows this verdict (#222).
+            workspace.remember_verdict(shown, review.verdict.level, review.verdict.wrong)
     context = {
         "analysis": analysis,
         **workspace.context(analysis, "quality", request.path),
@@ -514,56 +525,53 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
     }
     if job is not None:
         context.update(progress_context(request, job))
-    if shown is not None:
-        from climpact_web.stations import qc_plots, qc_review
+    if review is not None:
+        from climpact_web.stations import qc_plots
 
-        try:
-            review = qc_review.review(shown, analysis.station_file)
-        except FileNotFoundError:
-            review = None
-        if review is not None:
-            remember_verdict(shown, review.verdict.level)
-            pages = table_pages(request, review)
-            selected = review.item(selected_item(request, review))
-            items = [
+        pages = table_pages(request, review)
+        selected = review.item(selected_item(request, review))
+        items = [
+            {
+                "item": item,
+                "page": pages.get(item.check.table_id) if not item.finding else None,
+                "selected": item.id == selected.id,
+            }
+            for item in review.items
+        ]
+        context.update(
+            review=review,
+            items=items,
+            wrong_items=[i for i in items if i["item"].wrong],
+            # "Look wrong" by check (#235): each check's findings, then its every row.
+            wrong_groups=[
                 {
-                    "item": item,
-                    "page": pages.get(item.check.table_id) if not item.finding else None,
-                    "selected": item.id == selected.id,
+                    "check": found.check,
+                    "entries": [
+                        i for i in items if i["item"].wrong and i["item"].check is found.check
+                    ],
                 }
-                for item in review.items
-            ]
-            context.update(
-                review=review,
-                items=items,
-                wrong_items=[i for i in items if i["item"].wrong],
-                worth_items=[i for i in items if not i["item"].wrong],
-                selected=selected,
-                findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
-                groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
-                month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
-                charts=[
-                    {
-                        "variable": v,
-                        "id": qc_review.chart_id(v),
-                        "label": qc_review.variable_labels()[v],
-                    }
-                    for v in qc_review.CHART_VARIABLES
-                ],
-                monthly=qc_plots.monthly_boxes(review.rows, review.params),
-                annual=qc_plots.annual_boxes(review.rows),
-                decimals=qc_plots.decimals(review.rows),
-                histogram=qc_plots.precipitation_histogram(review.rows),
-            )
+                for found in review.findings
+            ],
+            worth_items=[i for i in items if not i["item"].wrong],
+            selected=selected,
+            findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
+            groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
+            month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
+            charts=[
+                {
+                    "variable": v,
+                    "id": qc_review.chart_id(v),
+                    "label": qc_review.variable_labels()[v],
+                }
+                for v in qc_review.CHART_VARIABLES
+            ],
+            monthly=qc_plots.monthly_boxes(review.rows, review.params),
+            annual=qc_plots.annual_boxes(review.rows),
+            decimals=qc_plots.decimals(review.rows),
+            histogram=qc_plots.precipitation_histogram(review.rows),
+        )
     context.update(extra)
     return context
-
-
-def remember_verdict(job, level: str) -> None:
-    """Keep the verdict's level with the checks, for the Quality tab's state (#179)."""
-    if (job.result or {}).get("verdict") != level:
-        job.result = {**(job.result or {}), "verdict": level}
-        type(job).objects.filter(pk=job.pk).update(result=job.result)
 
 
 @never_cache
@@ -625,6 +633,30 @@ def qc_table(request, analysis_id, check):
             number = 1
     context = {"analysis": analysis, "check": item, "page": item.page(number), "selected": date}
     return render(request, "stations/_qc_table.html", context)
+
+
+@never_cache
+@require_safe
+def qc_flagged(request, analysis_id):
+    """Every value the checks shown flagged, as one CSV (#235): the verdict strip's
+    "Flagged values (CSV)" (``qc_review.flagged_rows``)."""
+    from climpact_web.stations import qc_review
+
+    analysis = get_analysis(request, analysis_id)
+    job = workspace.shown_qc(analysis)
+    if job is None:
+        raise Http404
+    try:
+        review = qc_review.review(job, analysis.station_file)
+    except FileNotFoundError as exc:
+        raise Http404 from exc
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    name = safe_station_name(analysis.station_name or "station") or "station"
+    response["Content-Disposition"] = f'attachment; filename="{name}_flagged_values.csv"'
+    writer = csv.writer(response)
+    writer.writerow(qc_review.FLAGGED_COLUMNS)
+    writer.writerows(qc_review.flagged_rows(review))
+    return response
 
 
 @require_POST

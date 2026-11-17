@@ -8,9 +8,11 @@ from django.views.decorators.http import require_safe
 
 import climpact
 import climpact_web
+from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
 from climpact_web.core.navigation import batch_steps, destination
 from climpact_web.help.tour import home_tour
+from climpact_web.stations.workspace import years_text
 
 
 @require_safe
@@ -74,7 +76,7 @@ def pattern_context(form):
         "steps_middle": batch_steps("check", urls={"upload": "#"}),
         "steps_last": batch_steps("results", urls={k: "#" for k in ("upload", "check")}),
         "table_columns": [
-            {"label": _("Year")},
+            {"label": _("Year"), "code": True},
             {"label": _("TXx (°C)"), "numeric": True},
             {"label": _("TNn (°C)"), "numeric": True},
             {"label": _("PRCPTOT (mm)"), "numeric": True},
@@ -86,6 +88,42 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        # The verdict strip and coverage strip (#235), with the stress file's counts.
+        "verdict_facts": [
+            _("65,720 values checked"),
+            _("21 look wrong (0.03%)"),
+            _("105 worth a look"),
+            _("25 missing (0.04%)"),
+        ],
+        "coverage_rows": [
+            {
+                "name": name,
+                "cells": [
+                    {"x": i, "step": 1 if not missing.get(i) else 2 if missing[i] <= 3 else 3}
+                    for i in range(30)
+                ],
+                "total": total,
+            }
+            for name, missing, total in (
+                (_("PR"), {2: 2, 11: 1, 27: 3}, _("6 days")),
+                (_("TX"), {2: 1, 19: 4}, _("5 days")),
+                (_("TN"), {2: 1, 8: 2, 19: 4}, _("7 days")),
+            )
+        ],
+        "coverage_years": [1991, 1996, 2001, 2006, 2011, 2015, 2020],
+        # The context bar (#227): as a station's, with a breadcrumb and the next station.
+        "context_breadcrumb": [
+            {"label": _("NSW coast"), "url": "#context-bar"},
+            {"label": _("Station 1 of 6")},
+        ],
+        "context_next": {"label": _("Newcastle Nobbys"), "url": "#context-bar"},
+        "context_provenance": [
+            {"text": numbers.coordinates(-33.86, 151.21), "phone": False},
+            {"text": years_text(1936, 2015), "phone": True},
+            {"text": _("base %(start)s–%(end)s") % {"start": 1971, "end": 2000}, "phone": False},
+            {"text": _("ET-SCI defaults"), "phone": False},
+            {"text": "climpact 0.1.3", "phone": False},
+        ],
         "file_rows": [
             {
                 "name": name,
@@ -105,75 +143,13 @@ def pattern_context(form):
             {"label": _("Read station file"), "state": "done"},
             {"label": _("Quality control"), "state": "failed"},
         ],
-        # A theme tile (#175, #200): two trends with their sparklines (SVG path data in a
-        # 240 x 60 box, as stations.results.sparkline draws them).
-        "theme_items": [
-            {
-                "href": "#findings",
-                "title": _("Tropical nights"),
-                "code": "TR",
-                "value": "+4.65",
-                "units": _("days"),
-                "direction": "up",
-                "spark": {
-                    "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
-                    "trend": "M0 52L240 12",
-                },  # fmt: skip
-            },
-            {
-                "href": "#findings",
-                "title": _("Amount of warm nights"),
-                "code": "TN90p",
-                "value": "+1.31",
-                "units": _("pp"),
-                "units_title": _("percentage points"),
-                "direction": "up",
-                "spark": {
-                    "line": "M0 48L40 50L80 40L120 38L160 28L200 24L240 14",
-                    "trend": "M0 50L240 16",
-                },  # fmt: skip
-            },
-        ],
-        # The catalogue's chips (#200), as the Sydney sample's.
-        "chips_demo": [
-            {"key": "heat", "label": _("Heat"), "hue": "heat", "count": 30},
-            {"key": "cold", "label": _("Cold"), "hue": "cold", "count": 12},
-            {"key": "rain", "label": _("Rain"), "hue": "rain", "count": 13},
-            {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
-            {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
-        ],
-        "catalogue_years": "1936–2015",
-        "catalogue_counts": {"all": 80, "significant": 22},
-        # The catalogue table (#200): three rows, sorted by the trend.
-        "catalogue_demo": [
-            {
-                "title": _("Tropical nights"),
-                "code": "TR",
-                "hue": "heat",
-                "value": "+4.65",
-                "units": _("days"),
-                "direction": "up",
-                "significant": True,
-            },
-            {
-                "title": _("Amount of cold nights"),
-                "code": "TN10p",
-                "hue": "cold",
-                "value": "−1.93",
-                "units": _("percentage points"),
-                "direction": "down",
-                "significant": True,
-            },
-            {
-                "title": _("Annual total precipitation"),
-                "code": "PRCPTOT",
-                "hue": "rain",
-                "value": "−4.1",
-                "units": _("mm"),
-                "direction": "down",
-                "significant": False,
-            },
-        ],  # fmt: skip
+        # A station's Indices (#236): the rail, the table and the detail pane.
+        "indices_demo": indices_demo(),
+        # A trend by the number rules (#226), as the index page's Trend statistic.
+        "trend_demo": {
+            "value": numbers.per_decade(0.21, "°C"),
+            "interval": numbers.interval(0.08, 0.35, "°C"),
+        },
         # The Inputs panel and a side sheet (#198).
         **inputs_demo(),
         # The New station page's steps and file card (#201).
@@ -191,6 +167,33 @@ def pattern_context(form):
             [("quality", "todo"), ("results", "locked"), ("files", "locked")],
             "quality",
         ),
+        # Quality's tab shows the checks' verdict (#222): checking, then each level.
+        "workspace_verdicts": [
+            (
+                _("Example: checking"),
+                workspace_demo(
+                    [("quality", "checking"), ("results", "locked"), ("files", "locked")], "quality"
+                ),
+            ),
+            (
+                _("Example: ready"),
+                workspace_demo(
+                    [("quality", "ready"), ("results", "todo"), ("files", "done")], "quality"
+                ),
+            ),
+            (
+                _("Example: usable"),
+                workspace_demo(
+                    [("quality", "usable", 21), ("results", "done"), ("files", "done")], "quality"
+                ),
+            ),
+            (
+                _("Example: fix first"),
+                workspace_demo(
+                    [("quality", "fix", 1204), ("results", "running"), ("files", "done")], "quality"
+                ),
+            ),
+        ],
         "stale_changes": [
             _("You changed the base period to %(new)s. These results use %(old)s.")
             % {"new": "1981–2010", "old": "1971–2000"}
@@ -219,8 +222,18 @@ def pattern_context(form):
             (_("Sequential"), [f"--chart-seq-{i}" for i in range(1, 6)]),
             (_("Diverging"), [f"--chart-div-{i}" for i in range(1, 8)]),
             (
-                _("Interface: ink for actions, brand for the logo, focus and selection"),
-                ["--color-ink", "--color-ink-hover", "--color-brand", "--color-focus"]
+                _("Trend scale: a significant decrease or increase, weak and strong"),
+                ["--chart-decrease-2", "--chart-decrease-1"]
+                + ["--chart-increase-1", "--chart-increase-2"],
+            ),
+            (
+                _("Coverage: complete, 1–3 days missing, 4 or more"),
+                [f"--chart-coverage-{i}" for i in range(1, 4)],
+            ),
+            (
+                _("Interface: ink for actions, blue for links, brand for the logo and focus"),
+                ["--color-ink", "--color-ink-hover", "--color-link", "--color-link-hover"]
+                + ["--color-brand", "--color-focus"]
                 + ["--color-selected", "--color-text", "--color-text-muted"]
                 + ["--color-border-strong"],
             ),
@@ -322,6 +335,108 @@ def setup_demo() -> dict:
     }
 
 
+def indices_demo() -> dict:
+    """The Indices' rail, table and detail pane (#236) as stations/_indices.html takes
+    them: three rows of the Sydney sample, the first selected, its chart drawn by the same
+    code from an illustrative series."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import index_detail
+
+    years = list(range(1936, 2016))
+    rows = []
+    demo = (
+        # key, code, name, theme, hue, units; slope, its interval, mean, significant
+        ("su", "SU", _("Summer days"), _("Heat"), "heat", "days", 5.15, 3.79, 6.54, 93.28, True),
+        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
+         -1.93, -2.4, -1.47, 13.12, True),
+        ("prcptot", "PRCPTOT", _("Wet-day total"), _("Rain"), "rain", "mm",
+         4.6, -9.9, 19.2, 1210.1, False),
+    )  # fmt: skip
+    for i, (key, code, title, theme, hue, units, slope, lower, upper, mean, sig) in enumerate(demo):
+        values = [mean + slope * (y - 1975.5) / 10 + 6 * ((y * 7919) % 13 - 6) / 6 for y in years]
+        plot = SimpleNamespace(
+            values=values,
+            x=[float(y) for y in years],
+            step="year",
+            bars=False,
+            trend=SimpleNamespace(valid=True, intercept=mean - slope * 3.95, slope=slope / 10),
+        )
+        trend = {
+            "valid": True,
+            "per_decade_text": numbers.per_decade(slope, units),
+            "interval_text": numbers.interval(lower, upper, units),
+        }
+        card = {
+            "key": key,
+            "code": code,
+            "title": title,
+            "hue": hue,
+            "chip": hue,
+            "units": units,
+            "trend": trend,
+            "significant": sig,
+            "trend_units_title": _("percentage points") if units == "%" else "",
+            "definition": "",
+            "search_text": key,
+            "spark": {
+                "line": "M0 50L40 46L80 44L120 36L160 30L200 22L240 10",
+                "trend": "M0 52L240 12",
+            },
+        }
+        named = SimpleNamespace(code=code, units=units, trend=trend)
+        rows.append(
+            {
+                "card": card,
+                "key": key,
+                "theme": theme,
+                "unit": units,
+                "slope_unit": numbers.trend_units(units) if units == "%" else "",
+                "slope": numbers.slope(slope, units),
+                "interval": trend["interval_text"],
+                "mean": numbers.fixed(mean, numbers.slope_decimals(units)),
+                "links": {"page": "#indices-demo", "csv": "#indices-demo", "png": "#indices-demo"},
+                "chart": index_detail.chart(plot, (1971, 2000)),
+                "chart_label": index_detail.summary(named, plot),
+                "caption": index_detail.caption(named, plot),
+                "used_label": index_detail.used_label(plot),
+                "used": index_detail.values_used(named, plot),
+                "position": i,
+                "rank": 2 if sig else 1,
+                "sort_trend": repr(slope),
+                "show_href": f"?show={key}#detail-{key}",
+                "selected": i == 0,
+            }
+        )
+    columns = {
+        key: {"key": key, "label": label, "name": label, "first": first, "href": "#indices-demo"}
+        for key, label, first in (
+            ("code", _("Code"), "ascending"),
+            ("name", _("Index"), "ascending"),
+            ("trend", _("Slope / decade"), "descending"),
+            ("significance", _("Sig."), "descending"),
+        )
+    }
+    return {
+        "action": "#indices-demo",
+        "rows": rows,
+        "columns": columns,
+        "chips": [
+            {"key": "heat", "label": _("Heat"), "hue": "heat", "count": 30},
+            {"key": "cold", "label": _("Cold"), "hue": "cold", "count": 12},
+            {"key": "rain", "label": _("Rain"), "hue": "rain", "count": 13},
+            {"key": "drought", "label": _("Drought"), "hue": "drought", "count": 9},
+            {"key": "other", "label": _("Also measured"), "hue": "other", "count": 16},
+        ],
+        "series_years": "1936–2015",
+        "selected": "su",
+        "shown": 3,
+        "total": 80,
+        "significant_count": 22,
+        "mean_trend": f"TMm {numbers.per_decade(0.19, '°C')}",
+    }
+
+
 def inputs_demo() -> dict:
     """The Inputs panel (#198) for the pattern library: the inputs of the Sydney sample,
     its base period changed and two index settings, and two sheets: the base period's, and
@@ -337,7 +452,7 @@ def inputs_demo() -> dict:
 
     rows = [
         ("file", _("File"), _("29,220 days · 3 variables"), _("Replace"), False),
-        ("station", _("Station"), "-33.86°, 151.21°", _("Edit"), False),
+        ("station", _("Station"), numbers.coordinates(-33.86, 151.21), _("Edit"), False),
         ("base-period", _("Base period"), "1981–2010", _("Edit"), True),
         ("thresholds", _("Quality thresholds"), workspace.changed_text(0), _("Edit"), False),
         ("settings", _("Index settings"), workspace.changed_text(2), _("Edit"), False),
@@ -376,8 +491,9 @@ def inputs_demo() -> dict:
 
 
 def workspace_demo(states, current):
-    """Workspace tabs for the pattern library: (section, state) pairs, as
-    ``stations.workspace.sections`` gives them."""
+    """Workspace tabs for the pattern library: (section, state) pairs, or (section, state,
+    values that look wrong) for Quality's verdict, as ``stations.workspace.sections`` gives
+    them."""
     from climpact_web.stations.workspace import SECTIONS, Section
 
     labels = {key: label for key, label, _url in SECTIONS}
@@ -388,6 +504,7 @@ def workspace_demo(states, current):
             None if state == "locked" else "#workspace-tabs",
             state,
             key == current,
+            *wrong,
         )  # fmt: skip
-        for key, state in states
+        for key, state, *wrong in states
     ]

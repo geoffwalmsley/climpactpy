@@ -6,8 +6,8 @@ a chart selects its rows here.
 Parameters: analysis, check, page, selected (an ISO date to mark).
 {% endcomment %}{% url 'stations:qc_table' analysis.pk check.key as table_src %}
 <div class="qc-table stack stack--sm" id="qc-table-{{ check.table_id }}" data-qc-table="{{ check.table_id }}" data-qc-check="{{ check.key }}" data-pages="{{ page.pages }}" data-src="{{ table_src }}{% if check.group %}?group={{ check.group }}{% endif %}">
-  <div class="table-wrap" role="region" aria-labelledby="qc-table-{{ check.table_id }}-caption" tabindex="0" data-qc-region>
-    <table class="table">
+  <div class="table-wrap table-wrap--data" role="region" aria-labelledby="qc-table-{{ check.table_id }}-caption" tabindex="0" data-qc-region>
+    <table class="table table--data">
       <caption id="qc-table-{{ check.table_id }}-caption">{% blocktranslate with title=check.title first=page.first last=page.last total=check.rows|length|count trimmed %}{{ title }}: rows {{ first }} to {{ last }} of {{ total }}{% endblocktranslate %}</caption>
       <thead><tr>
         <th scope="col">{% translate "Date" %}</th>
@@ -17,7 +17,7 @@ Parameters: analysis, check, page, selected (an ISO date to mark).
       <tbody>
         {% for row in page.rows %}
         <tr data-date="{{ row.date }}" tabindex="-1"{% if row.date == selected %} class="is-selected" aria-current="true"{% endif %}>
-          <th scope="row" class="qc-table__date">{{ row.date }}</th>
+          <th scope="row" class="code qc-table__date">{{ row.date }}</th>
           {% for cell in row.cells %}<td class="{% if cell.numeric %}num{% endif %}{% if cell.strong %} qc-flagged{% endif %}">{% if cell.missing %}<span class="text-text-muted">{{ cell.text }}</span>{% elif cell.strong %}<strong>{{ cell.text }}</strong>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}
           <td class="qc-table__show" data-qc-js hidden><button type="button" class="button button--ghost button--sm" data-qc-show data-date="{{ row.date }}" data-chart="{{ row.chart_id }}">{% icon "chart" %}<span>{% translate "Show on chart" %}</span><span class="sr-only"> {{ row.date }}</span></button></td>
         </tr>

@@ -1,0 +1,25 @@
+{% load i18n ui %}{% comment %}
+Without JavaScript, the static monthly overview of the daily series (preview.py) in place
+of the interactive charts. Context: panels, variables (views.summary_context).
+{% endcomment %}
+  <noscript>
+  <figure class="series-preview" aria-labelledby="preview-title">
+    <figcaption class="stack stack--sm">
+      <h3 class="chart__title" id="preview-title">{% translate "Monthly overview" %}</h3>
+      <p class="chart__summary">{% translate "Monthly mean maximum and minimum temperature, and monthly total precipitation. Months with fewer than 20 days of data are gaps." %}</p>
+    </figcaption>
+    {% for panel in panels %}
+    <div class="series-preview__panel">
+      <p class="series-preview__label">{% if panel.key == "temperature" %}{% translate "Temperature (°C)" %}{% else %}{% translate "Precipitation (mm per month)" %}{% endif %}</p>
+      <svg viewBox="0 0 {{ panel.width }} {{ panel.height }}" role="img" aria-label="{% if panel.key == 'temperature' %}{% translate 'Monthly mean maximum and minimum temperature' %}{% else %}{% translate 'Monthly total precipitation' %}{% endif %}" focusable="false">
+        {% for tick in panel.y_labels %}<line x1="44" x2="{{ panel.width }}" y1="{{ tick.y }}" y2="{{ tick.y }}" class="series-preview__grid"/><text x="38" y="{{ tick.y }}" class="series-preview__tick" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+        {% for tick in panel.x_labels %}<text x="{{ tick.x }}" y="{{ panel.height|add:-4 }}" class="series-preview__tick" text-anchor="middle">{{ tick.text }}</text>{% endfor %}
+        {% for path in panel.paths %}<path d="{{ path.d }}" fill="none" stroke="var({{ path.token }})" stroke-width="1.25" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>{% endfor %}
+      </svg>
+    </div>
+    {% endfor %}
+    <ul class="chart__legend">
+      {% for variable in variables %}<li><span class="chart__swatch swatch-{{ variable.token|token_name }}" aria-hidden="true"></span>{{ variable.label }}</li>{% endfor %}
+    </ul>
+  </figure>
+  </noscript>

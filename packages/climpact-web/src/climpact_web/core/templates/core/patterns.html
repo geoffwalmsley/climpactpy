@@ -28,8 +28,8 @@
       <li><a href="#overlays">{% translate "Toasts and dialogs" %}</a></li>
       <li><a href="#cards">{% translate "Cards" %}</a></li>
       <li><a href="#data">{% translate "Badges, statistics, summaries" %}</a></li>
-      <li><a href="#findings">{% translate "Findings by theme" %}</a></li>
-      <li><a href="#quality">{% translate "Quality list and detail" %}</a></li>
+      <li><a href="#indices-demo">{% translate "Indices" %}</a></li>
+      <li><a href="#quality">{% translate "Quality worklist" %}</a></li>
       <li><a href="#tables">{% translate "Tables" %}</a></li>
       <li><a href="#files">{% translate "File groups" %}</a></li>
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
@@ -50,11 +50,12 @@
     <section class="pattern" id="colour" aria-labelledby="colour-title">
       <h2 id="colour-title">{% translate "Colour" %}</h2>
       <p class="max-w-prose">{% blocktranslate trimmed %}
-        Each colour has one job. Ink is for actions: primary buttons, the current tab and
-        links, which are underlined. The brand blue is only for the logo, focus rings and
+        Each colour has one job. Ink is for actions: primary buttons and the current tab.
+        Links are blue and underlined. The brand blue is only for the logo, focus rings and
         selection. Status colours are only for the verdict and run state, always with an
         icon and a label. The theme hues mark data: Heat, Cold, Rain and Drought, and a
-        neutral for "Also measured". Every text and background pair meets WCAG AA in both
+        neutral for "Also measured". The trend scale colours a significant decrease or
+        increase, and the coverage steps a year's missing days. Every text and background pair meets WCAG AA in both
         themes, and the theme hues and chart colours stay apart for colour-blind readers
         (both checked by tests from the token values). Charts outside the browser read
         <code>chart-palette.json</code>.
@@ -237,7 +238,7 @@
       <h2 id="data-title">{% translate "Badges, statistics, summaries" %}</h2>
       {% translate "Passed" as b1 %}{% translate "3 outliers" as b2 %}{% translate "12 duplicates" as b3 %}{% translate "Not calculated" as b4 %}
       {% translate "Days missing" as s1_l %}{% translate "1.2%" as s1_v %}{% translate "345 of 29,220" as s1_n %}
-      {% translate "Trend" as s2_l %}{% translate "+0.21 °C" as s2_v %}{% translate "per decade, 1936 to 2015" as s2_n %}
+      {% translate "Trend" as s2_l %}{% blocktranslate with interval=trend_demo.interval asvar s2_n %}95% interval {{ interval }}{% endblocktranslate %}
       <div class="pattern__demo stack">
         <div class="flex flex-wrap items-center gap-3">
           {% include "components/badge.html" with label=b1 kind="success" icon="check" %}
@@ -247,120 +248,91 @@
         </div>
         <div class="grid gap-5 grid-cols-fill-64">
           {% include "components/stat.html" with label=s1_l value=s1_v note=s1_n %}
-          {% include "components/stat.html" with label=s2_l value=s2_v note=s2_n %}
+          {% include "components/stat.html" with label=s2_l value=trend_demo.value note=s2_n %}
         </div>
         {% include "components/summary_list.html" with items=summary_items %}
       </div>
     </section>
 
-    <section class="pattern" id="findings" aria-labelledby="findings-title">
-      <h2 id="findings-title">{% translate "Findings by theme" %}</h2>
-      <p class="text-sm text-text-muted">{% translate "A theme tile answers first: one sentence written from the trends, then up to three significant trends, one line each: the plain name, the value with its units and a sparkline. With no significant trend it is quiet, on the sunken surface with one sentence, because no change is a finding too." %}</p>
-      <p class="text-sm text-text-muted">{% translate "Each theme has its hue: the tile's edge, its pill, its dot, its sparklines and its index charts. The filter chips and the catalogue's dots use the same hues, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
-      {% translate "Heat" as th1 %}{% translate "9 changed" as th1_badge %}{% translate "9 of 22 indices increased significantly." as th1_finding %}{% translate "See all 30 indices in Heat" as th1_more %}
-      {% translate "Rain" as th2 %}{% translate "No clear change" as th2_badge %}{% translate "No significant change across 13 indices." as th2_finding %}{% translate "See all 13 indices in Rain" as th2_more %}
-      <div class="pattern__demo theme-grid">
-        {% include "components/theme_headline.html" with id="pattern-heat" title=th1 hue="heat" badge_label=th1_badge finding=th1_finding items=theme_items more_href="#findings" more_label=th1_more only %}
-        {% include "components/theme_headline.html" with id="pattern-rain" title=th2 hue="rain" badge_label=th2_badge finding=th2_finding items="" more_href="#findings" more_label=th2_more only %}
+    <section class="pattern" id="indices-demo" aria-labelledby="indices-demo-title">
+      <h2 id="indices-demo-title">{% translate "Indices" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "A station's Indices (#236). The filter rail: a search, the themes with their counts, Significant only and the line that defines significant. One line answers above the table. The table has every index, its code first, with the slope per decade, its 95% interval, significance, a sparkline and the mean, in rows 32px high. Its column headers sort it: links without JavaScript, buttons with it. A row's code shows the index in the detail pane beside the table: a chart with axes, the base period and Sen's slope, the statistics and the links." %}</p>
+      <p class="text-sm text-text-muted">{% translate "Each theme has its hue: its dot, its sparklines and its charts, with a neutral for the indices under Also measured. The theme's name is always beside the hue." %}</p>
+      <div class="pattern__demo station-page">
+        {% include "stations/_indices.html" with action=indices_demo.action rows=indices_demo.rows columns=indices_demo.columns chips=indices_demo.chips series_years=indices_demo.series_years selected=indices_demo.selected shown=indices_demo.shown total=indices_demo.total significant_count=indices_demo.significant_count mean_trend=indices_demo.mean_trend q="" theme="" significant=False sort="" stale=False %}
       </div>
-      <h3 class="mt-6">{% translate "Catalogue" %}</h3>
-      <p class="text-sm text-text-muted">{% translate "Every index in one table under the tiles. Theme chips with their dot and count, Significant only and a search filter it as you type. Each column header sorts it: a link without JavaScript, a button with it, aria-sort on the sorted column and the result said in the live line. The table scrolls inside its region under a sticky header, so the page stays short." %}</p>
+      <h3 class="mt-6">{% translate "Index name" %}</h3>
+      <p class="text-sm text-text-muted">{% translate "Codes first: wherever an index is listed, its code leads in mono and a short name follows. Experts scan by code; the name is there for everyone else. R's long name is the index page's definition line, and search finds all three." %}</p>
+      {% translate "Hottest day" as index_name_demo %}
       <div class="pattern__demo stack stack--sm">
-        <div class="filters" role="group" aria-label="{% translate 'Theme chips' %}">
-          <label class="chip"><input type="radio" name="pattern-theme" value=""><span>{% translate "All" %}</span> <span class="chip__count">{{ catalogue_counts.all }}</span></label>
-          {% for chip in chips_demo %}<label class="chip"><input type="radio" name="pattern-theme" value="{{ chip.key }}"{% if forloop.first %} checked{% endif %}><span class="hue-dot hue-{{ chip.hue }}" aria-hidden="true"></span><span>{{ chip.label }}</span> <span class="chip__count">{{ chip.count }}</span></label>
-          {% endfor %}
-          <label class="chip"><input type="checkbox" name="pattern-significant"><span>{% translate "Significant only" %}</span> <span class="chip__count">{{ catalogue_counts.significant }}</span></label>
-          <div class="search filters__search">{% icon "search" %}<label class="sr-only" for="pattern-catalogue-q">{% translate "Find an index" %}</label><input type="search" id="pattern-catalogue-q" placeholder="{% translate 'Find an index, e.g. TXx, frost' %}"></div>
-        </div>
-        <div class="table-wrap catalogue" role="region" aria-labelledby="pattern-catalogue-caption" tabindex="0">
-          <table class="table catalogue__table">
-            <caption class="sr-only" id="pattern-catalogue-caption">{% translate "Every index and its trend. Select a column header to sort by it." %}</caption>
-            <thead><tr>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Index" %}</a></th>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Code" %}</a></th>
-              <th scope="col" class="num" aria-sort="descending"><a class="sort" href="#findings">{% translate "Trend per decade" %}</a></th>
-              <th scope="col"><a class="sort" href="#findings">{% translate "Significance" %}</a></th>
-              <th scope="col" class="catalogue__spark">{{ catalogue_years }}</th>
-            </tr></thead>
-            <tbody>
-              {% for row in catalogue_demo %}
-              <tr class="hue-{{ row.hue }}">
-                <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="#findings">{{ row.title }}</a></th>
-                <td><code class="index-code">{{ row.code }}</code></td>
-                <td class="num"><span class="trend trend--{{ row.direction }}">{{ row.value }}</span> <span class="text-text-muted">{{ row.units }}</span></td>
-                <td>{% if row.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% else %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% endif %}</td>
-                <td class="catalogue__spark">{% include "components/spark.html" with spark=theme_items.0.spark %}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        <p class="text-2xl font-semibold m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo title=True only %}</p>
+        <p class="m-0">{% include "components/index_name.html" with code="TXx" name=index_name_demo only %}</p>
+      </div>
+      <h3 class="mt-6">{% translate "Index page and segmented control" %}</h3>
+      <p class="text-sm text-text-muted">{% translate "One index's page (#237): its context bar with the previous and next index, its name and theme, its definition and the provenance line, and its CSV, R's plot and a citation; then a chart drawn on the server beside the trend statistics, and the values as a data table. The chart shows the values or their anomalies from the base period, annual or monthly, by two segmented controls: links, the current one ink, so each works without JavaScript." %}</p>
+      <div class="pattern__demo index-page__toggles">
+        <div class="segmented" role="group" aria-label="{% translate 'Values or anomalies' %}"><a class="segmented__item" href="#indices-demo" aria-current="true">{% translate "Values" %}</a><a class="segmented__item" href="#indices-demo">{% blocktranslate with start=1971 end=2000 %}Anomaly from {{ start }}–{{ end }}{% endblocktranslate %}</a></div>
+        <div class="segmented" role="group" aria-label="{% translate 'Period' %}"><a class="segmented__item" href="#indices-demo" aria-current="true">{% translate "Annual" %}</a><a class="segmented__item" href="#indices-demo">{% translate "Monthly" %}</a></div>
       </div>
     </section>
 
     <section class="pattern" id="quality" aria-labelledby="quality-title">
-      <h2 id="quality-title">{% translate "Quality list and detail" %}</h2>
-      <p>{% translate "The Quality verdict band with its decision at the end, then the findings as a list and the selected one in detail beside it (#202). Each row is a link to its detail (?show=), so it works without JavaScript; with it, the detail changes in place and is announced. Side by side when there is room, the detail after the list otherwise. Then what is in the file, in chips." %}</p>
+      <h2 id="quality-title">{% translate "Quality worklist" %}</h2>
+      <p>{% translate "The verdict strip: the level in bold and one sentence, the counts on one mono line, the decision's buttons at the end. The coverage strip: missing days per year for each variable in three steps of lightness, with its table view. Then the worklist (#235): data tables whose rows link to their detail (?show=), and the detail pane beside them, in view as the list scrolls; after the list on narrow screens, with Back to the list." %}</p>
       <div class="pattern__demo stack">
-        <section class="alert alert--warning qc-verdict answer-band" aria-labelledby="pattern-verdict-title">
-          {% icon "warning" %}
-          <div class="alert__body qc-verdict__body">
-            <div class="qc-verdict__text stack stack--sm">
-              <h3 class="qc-verdict__title" id="pattern-verdict-title">{% translate "Usable. 5 values look wrong." %}</h3>
-              <p>{% translate "Fix them in your file, or go on with the values as they are." %}</p>
-              <ul class="qc-verdict__facts" role="list"><li>{% translate "87,537 values checked" %}</li><li>{% translate "5 look wrong (under 0.01%)" %}</li></ul>
-            </div>
-            <div class="qc-verdict__actions">
-              {% translate "Replace file" as v_replace %}{% translate "See results" as v_see %}
-              {% include "components/button.html" with label=v_replace href="#quality" variant="secondary" icon="upload" %}
-              {% include "components/button.html" with label=v_see href="#quality" icon_end="arrow-right" %}
-            </div>
-          </div>
-        </section>
-        <div class="qc-md"><div class="qc-md__grid">
-          <div class="qc-md__list">
-            <div class="qc-md__group"><h3 class="group-label">{% translate "Look wrong" %} <span class="qc-count">{{ 2 }}</span></h3><p class="qc-md__note">{% translate "Almost always typing errors or swapped columns." %}</p></div>
-            <ul class="qc-md__items" role="list">
-              <li><a class="qc-item" href="#quality" aria-current="true"><span class="qc-item__date">{{ "1986-08-06" }}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Rain 327.6 mm, over the 200 mm limit" %}</span><span class="qc-item__note">{% translate "Values too large" %}</span></span><svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false"><path class="qc-spark__line qc-spark__line--prcp" d="M0 27L17 27L34 26L51 27L60 4L69 22L86 27L103 27L120 26"/><circle class="qc-spark__ring" cx="60" cy="4" r="4"/></svg></a></li>
-              <li><a class="qc-item" href="#quality"><span class="qc-item__date">{{ "1988-11-16" }}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Minimum 12.6 °C equals the maximum 12.6 °C" %}</span><span class="qc-item__note">{% translate "Minimum at or above maximum" %}</span></span></a></li>
-            </ul>
-            <div class="qc-md__group"><h3 class="group-label">{% translate "Worth a look" %} <span class="qc-count">{{ 275 }}</span></h3></div>
-            <ul class="qc-md__items" role="list">
-              <li><a class="qc-item" href="#quality"><span class="qc-item__date">{% translate "PR" %}</span><span class="qc-item__text"><span class="qc-item__title">{% translate "Heavy rain days" %}</span><span class="qc-item__note">{% translate "275 values" %}</span></span><svg class="qc-spark" viewBox="0 0 120 32" aria-hidden="true" focusable="false"><rect class="qc-spark__bar" x="1" y="10" width="8" height="22"/><rect class="qc-spark__bar" x="11" y="6" width="8" height="26"/><rect class="qc-spark__bar" x="21" y="2" width="8" height="30"/><rect class="qc-spark__bar" x="31" y="12" width="8" height="20"/><rect class="qc-spark__bar" x="41" y="16" width="8" height="16"/><rect class="qc-spark__bar" x="51" y="20" width="8" height="12"/></svg></a></li>
-            </ul>
-          </div>
-          <div class="qc-md__detail">
-            <section class="qc-detail stack stack--sm" aria-labelledby="pattern-detail-title">
-              <h3 class="qc-detail__title" id="pattern-detail-title">{% translate "6 August 1986: Rain 327.6 mm, over the 200 mm limit" %}</h3>
-              <p class="qc-detail__lede">{% translate "Values too large. Precipitation above 200 mm or below 0 mm." %}</p>
-              <div class="table-wrap" role="region" aria-labelledby="pattern-days" tabindex="0">
-                <table class="table qc-daytable">
-                  <caption id="pattern-days" class="sr-only">{% translate "Days around 1986-08-06" %}</caption>
-                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR (mm)" %}</th><th scope="col" class="num">{% translate "TX (°C)" %}</th><th scope="col" class="num">{% translate "TN (°C)" %}</th></tr></thead>
+        {% translate "Usable." as v_title %}{% translate "21 values look wrong; the indices can run with them as they are." as v_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict" level="usable" title=v_title sentence=v_sentence facts=verdict_facts actions="core/_pattern_verdict_actions.html" %}
+        {% translate "Ready to use." as r_title %}{% translate "Nothing looks wrong." as r_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict-ready" level="ready" title=r_title sentence=r_sentence facts=verdict_facts actions="" %}
+        {% translate "Fix the file first." as f_title %}{% translate "298 values look wrong, 0.34% of the values checked." as f_sentence %}
+        {% include "components/verdict_strip.html" with id="pattern-verdict-fix" level="fix" title=f_title sentence=f_sentence facts=verdict_facts actions="" %}
+        {% translate "Coverage" as c_title %}{% translate "every year passes the annual completeness rule" as c_note %}
+        {% include "components/coverage_strip.html" with id="pattern-coverage" title=c_title note=c_note rows=coverage_rows years=coverage_years count=30 table="" %}
+        <div class="qc-work">
+          <div class="qc-work__list">
+            <section class="qc-list" aria-labelledby="pattern-wrong-title">
+              <div class="qc-list__head"><h3 id="pattern-wrong-title">{% translate "Look wrong" %} <span class="qc-list__count">{{ 2 }}</span> <span class="qc-list__note">{{ "·" }} {% translate "almost always typing errors or swapped columns" %}</span></h3></div>
+              <div class="table-wrap" role="region" aria-labelledby="pattern-wrong-caption" tabindex="0">
+                <table class="table table--data">
+                  <caption id="pattern-wrong-caption" class="sr-only">{% translate "Values that look wrong, by check" %}</caption>
+                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col">{% translate "Var" %}</th><th scope="col" class="num">{% translate "Value" %}</th><th scope="col">{% translate "Check" %}</th><th scope="col">{% translate "Detail" %}</th></tr></thead>
                   <tbody>
-                    <tr><th scope="row">{{ "1986-08-05" }}</th><td class="num">{{ "0" }}</td><td class="num">{{ "17.1" }}</td><td class="num">{{ "9" }}</td></tr>
-                    <tr class="qc-days__this"><th scope="row"><strong>{{ "1986-08-06" }}</strong></th><td class="num"><strong>{{ "327.6" }}</strong></td><td class="num"><strong>{{ "15.2" }}</strong></td><td class="num"><strong>{{ "10.4" }}</strong></td></tr>
-                    <tr><th scope="row">{{ "1986-08-07" }}</th><td class="num">{{ "12.4" }}</td><td class="num">{{ "14.8" }}</td><td class="num">{{ "9.9" }}</td></tr>
+                    <tr class="qc-list__group"><th scope="colgroup" colspan="5">{% translate "Out of range" %} <span class="qc-list__group-count">{{ 2 }}</span></th></tr>
+                    <tr class="is-selected"><th scope="row" class="code"><a href="#quality" aria-current="true">{{ "1986-08-06" }}</a></th><td class="code">{% translate "PR" %}</td><td class="num qc-list__value">{{ "327.6 mm" }}</td><td>{% translate "Out of range" %}</td><td class="code qc-list__muted">{{ "limit 200 mm" }}</td></tr>
+                    <tr><th scope="row" class="code"><a href="#quality">{{ "1990-02-03" }}</a></th><td class="code">{% translate "PR" %}</td><td class="num qc-list__value">{{ "243.6 mm" }}</td><td>{% translate "Out of range" %}</td><td class="code qc-list__muted">{{ "limit 200 mm" }}</td></tr>
                   </tbody>
                 </table>
               </div>
             </section>
           </div>
-        </div></div>
-        <ul class="chips" role="list">
-          <li class="data-chip"><span>{% blocktranslate %}<b>80</b> years{% endblocktranslate %}</span></li>
-          <li class="data-chip"><span class="chart__swatch swatch-chart-prcp" aria-hidden="true"></span><span>{% blocktranslate %}Precipitation: <b>7 missing</b> (under 0.1%){% endblocktranslate %}</span></li>
-          <li class="data-chip data-chip--warning">{% icon "warning" %}<span>{% translate "1 year too incomplete for annual values: 1996" %}</span></li>
-        </ul>
+          <aside class="qc-work__pane detail-pane" aria-label="{% translate 'Selected value' %}">
+            <section class="qc-detail" aria-labelledby="pattern-detail-title">
+              <div><p class="qc-detail__kicker">{{ "1986-08-06" }} {{ "·" }} {% translate "Out of range" %}</p>
+              <h3 class="qc-detail__title" id="pattern-detail-title">{% translate "PR 327.6 mm, over the 200 mm limit" %}</h3></div>
+              <div class="table-wrap qc-daytable" role="region" aria-labelledby="pattern-days" tabindex="0">
+                <table class="table table--data">
+                  <caption id="pattern-days" class="sr-only">{% translate "Days around 1986-08-06" %}</caption>
+                  <thead><tr><th scope="col">{% translate "Date" %}</th><th scope="col" class="num">{% translate "PR mm" %}</th><th scope="col" class="num">{% translate "TX °C" %}</th><th scope="col" class="num">{% translate "TN °C" %}</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row" class="code">{{ "1986-08-05" }}</th><td class="num">{{ "0.0" }}</td><td class="num">{{ "17.1" }}</td><td class="num">{{ "9.0" }}</td></tr>
+                    <tr class="qc-days__this"><th scope="row" class="code">{{ "1986-08-06" }}</th><td class="num">{{ "327.6" }}</td><td class="num">{{ "15.2" }}</td><td class="num">{{ "10.4" }}</td></tr>
+                    <tr><th scope="row" class="code">{{ "1986-08-07" }}</th><td class="num">{{ "12.4" }}</td><td class="num">{{ "14.8" }}</td><td class="num">{{ "9.9" }}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="qc-detail__links"><span>{% translate "Line 18,481 in the file" %}</span></p>
+            </section>
+          </aside>
+        </div>
       </div>
     </section>
 
     <section class="pattern" id="tables" aria-labelledby="tables-title">
-      <h2 id="tables-title">{% translate "Tables" %}</h2>
+      <h2 id="tables-title">{% translate "Data table" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "One framed object: rows 32px high, one line each, a header on the sunken tint that stays in view, numbers and codes in mono with tabular figures, and the selected row in the selected tint with an ink edge." %}</p>
       {% translate "Annual indices, Sydney Observatory Hill" as t_caption %}{% translate "Empty table" as t_empty_caption %}{% translate "No index values for this period." as t_empty %}
       <div class="stack">
-        {% include "components/table.html" with caption=t_caption columns=table_columns rows=table_rows %}
+        {% include "components/table.html" with caption=t_caption columns=table_columns rows=table_rows selected=3 %}
         {% include "components/table.html" with caption=t_empty_caption columns=table_columns rows=None empty=t_empty %}
       </div>
     </section>
@@ -393,6 +365,10 @@
         {% include "components/workspace_tabs.html" with tabs=workspace_demo label=workspace_label %}
         {% translate "Example: the first visit" as workspace_first_label %}
         {% include "components/workspace_tabs.html" with tabs=workspace_first label=workspace_first_label %}
+        <p>{% translate "Quality's tab shows the verdict of the checks: Checking… while they run, then Ready, Usable or Fix first in the verdict's colour, with the number of values that look wrong." %}</p>
+        {% for label, tabs in workspace_verdicts %}
+        {% include "components/workspace_tabs.html" with tabs=tabs label=label %}
+        {% endfor %}
       </div>
     </section>
 
@@ -418,12 +394,21 @@
       {% include "stations/_input_sheets.html" with input_sheets=sheet_demo_list analysis=demo_analysis input_next="/patterns/" %}
     </section>
 
+    <section class="pattern" id="context-bar" aria-labelledby="context-bar-title">
+      <h2 id="context-bar-title">{% translate "Context bar" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Under the header on every workspace and station page: the breadcrumb with the previous and next station, the title, one mono line of provenance, the page's actions, then the tabs. On a page it reaches the window's edges and stays in view as the page scrolls." %}</p>
+      <div class="pattern__demo">
+        {% translate "Sydney Observatory Hill" as context_title %}{% translate "Example: the context bar's tabs" as context_tabs_label %}
+        {% include "components/context_bar.html" with title=context_title breadcrumb=context_breadcrumb step_next=context_next provenance=context_provenance tabs=workspace_first tabs_label=context_tabs_label static=True heading=False actions="" below="" %}
+      </div>
+    </section>
+
     <section class="pattern" id="phone-header" aria-labelledby="phone-header-title">
       <h2 id="phone-header-title">{% translate "Phone header: ⋯ menu and Inputs bar" %}</h2>
       <p>{% translate "On a phone the station's name and a ⋯ menu share one line, and the page's actions are in the menu: a disclosure, so Enter opens it, Tab goes through its actions and Escape closes it. Under the tabs, the Inputs bar is the Inputs panel in one line: the base period, whether the settings are the defaults, and anything changed or running. Edit opens the inputs in a sheet that fills the screen, and each input's sheet opens over it. Only the tabs and the bar stay in view as the page scrolls." %}</p>
       <div class="pattern__demo pattern__phone stack">
-        <div class="workspace-header__row">
-          <div class="workspace-header__title"><p class="workspace-header__name workspace-header__name--line">{% translate "Sydney Observatory Hill" %}</p><p class="workspace-header__sub"><span>{% blocktranslate with first=1936 last=2015 %}{{ first }}–{{ last }}{% endblocktranslate %}</span></p></div>
+        <div class="context-bar__row">
+          <div class="context-bar__title"><p class="context-bar__name context-bar__name--line">{% translate "Sydney Observatory Hill" %}</p><p class="context-bar__provenance"><span>{{ context_provenance.1.text }}</span></p></div>
           <details class="page-menu">
             <summary class="button button--secondary button--sm button--icon">{% icon "more" %}<span class="sr-only">{% translate "Page actions" %}</span></summary>
             <div class="page-menu__panel"><div>
@@ -464,7 +449,7 @@
 
     <section class="pattern" id="progress" aria-labelledby="progress-title">
       <h2 id="progress-title">{% translate "Progress" %}</h2>
-      {% translate "Calculating indices" as p_label %}{% translate "Thresholds: about 20 seconds left" as p_note %}{% translate "Waiting for a worker" as p_label2 %}{% translate "Your run is next in the queue." as p_note2 %}{% translate "Run stages" as st_label %}
+      {% translate "Calculating the indices" as p_label %}{% translate "Thresholds: about 20 seconds left" as p_note %}{% translate "Waiting for a worker" as p_label2 %}{% translate "Your run is next in the queue." as p_note2 %}{% translate "Run stages" as st_label %}
       <div class="pattern__demo stack">
         {% include "components/progress.html" with id="pattern-progress" label=p_label value=45 note=p_note %}
         {% include "components/progress.html" with id="pattern-progress-2" label=p_label2 value=None note=p_note2 %}
@@ -498,7 +483,7 @@
       <p>{% translate "A section header is the section's title, an optional muted note, then a Help button at the end of the row, in the same place on every section. The button is a pill with a word: Help, or a question where one helps. It opens the section's help in a side panel. The panel is not modal: the page stays usable. It sits beside the content on wide screens and below it on narrow ones. Escape or the close button closes it, and focus goes back to the button. Without JavaScript the button is a link to the same help on a page of its own." %}</p>
       <div class="pattern__demo stack">
         <div class="section-header"><h3>{% translate "Look wrong" %}</h3><p class="section-header__note">{% translate "Almost always typing errors or swapped columns." %}</p>{% section_help "quality.wrong" %}</div>
-        <div class="section-header"><h3>{% translate "What changed" %}</h3><p class="section-header__note">{% translate "Up to three significant trends per theme, largest first" %}</p>{% translate "How to read this" as read_label %}{% section_help "results.findings" label=read_label %}</div>
+        <div class="section-header"><h3>{% translate "Coverage" %}</h3><p class="section-header__note">{% translate "Missing days per year" %}</p>{% translate "How to read this" as read_label %}{% section_help "quality.missing" label=read_label %}</div>
         <div class="section-header"><h3>{% translate "Missing data" %}</h3>{% section_help "quality.missing" %}</div>
       </div>
       <p class="text-sm text-text-muted">{% translate "At most one per section, and none on sections that explain themselves. Fields have no help link of their own. They keep a short hint only when their value needs one. The Help button at the end of the header opens the guide to the page shown." %}</p>
@@ -506,13 +491,9 @@
 
     <section class="pattern" id="surfaces" aria-labelledby="surfaces-title">
       <h2 id="surfaces-title">{% translate "One surface level" %}</h2>
-      <p>{% translate "Sections sit on the page, separated by space and a heading, not by cards. A box marks only one object, such as a theme tile or a chart. Tables have hairline rows and no frame. The page's one answer, the Quality verdict or the Results summary, sits in a tinted band, with its number large." %}</p>
+      <p>{% translate "Sections sit on the page, separated by space and a heading, not by cards. A box marks only one object, such as a chart, a detail pane or a data table. Tables inside a card have hairline rows and no frame." %}</p>
       <div class="pattern__demo stack">
         <p class="group-label">{% translate "Your inputs" %}</p>
-        <div class="answer-band">
-          <p class="answer-band__number">{% blocktranslate with n=22 total=80 %}{{ n }}<small>of {{ total }} indices changed significantly</small>{% endblocktranslate %}</p>
-          <p>{% translate "22 of 80 indices changed significantly since 1936. Mean temperature rose by 0.19 °C per decade. Heat and cold changed; rain and drought did not." %}</p>
-        </div>
       </div>
       <p class="text-sm text-text-muted">{% translate "A station's workspace header, with its name, the file and years, the page's actions and the section tabs, stays in view as the page scrolls on screens 40rem wide or more. The page's scroll padding keeps a focused element out from under it." %}</p>
     </section>

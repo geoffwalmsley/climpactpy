@@ -74,14 +74,17 @@ def test_hosted_help_index_has_no_gridded_sample(client):
 
 
 def test_header_help_button_opens_the_pages_guide(client):
-    """#197: the Help button at the end of the header leads to the guide of the page shown,
-    or to the help's index; it is a labelled pill, not a link among the destinations."""
+    """#197: Help at the end of the header leads to the guide of the page shown, or to the
+    help's index; not a link among the destinations. A quiet link since #227, after Index
+    reference, which leads to every index's definition."""
     html = client.get("/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     assert "/help/" not in nav
-    button = re.search(r'<a class="help-button" id="app-help"[^>]*>.*?</a>', html, re.S)
+    button = re.search(r'<a class="site-header__link" id="app-help"[^>]*>.*?</a>', html, re.S)
     assert 'href="/help/" aria-label="Help"' in button.group(0)
-    assert ">Help</span>" in button.group(0)
+    assert ">Help</a>" in button.group(0)
+    reference = re.search(r'<a class="site-header__link[^"]*" href="([^"]+)">Index reference', html)
+    assert reference.group(1) == "/help/indices/#the-indices"
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
     for url, guide in [("/station/new", "station-file"), ("/batch/", "batch")]:
@@ -224,8 +227,10 @@ def test_help_links_under_a_heading_ask_a_question():
 
 def test_index_topics_come_from_the_core_definitions():
     topic = get_topic("index.txx")
-    assert str(topic.title) == "TXx: Max TX"
-    assert str(topic.text) == "Annual warmest daily TX. Units: °C."
+    # Codes first (#218); R's long name follows the definition.
+    assert str(topic.title) == "TXx Hottest day"
+    assert str(topic.text) == "Annual warmest daily TX. Units: °C. Name in Climpact for R: Max TX."
+    assert str(get_topic("index.fd").text) == "Annual number of days when TN < 0 °C. Units: days."
     assert topic.url == "/help/indices/#index-txx"
     html = render_topic('{% help_topic "index.tx90p" %}')
     assert "Annual percentage of days when TX &gt; 90th percentile. Units: % of days." in html
@@ -311,7 +316,7 @@ def test_every_section_has_a_help_page(client, section):
 
 def test_section_help_page_with_topics_and_unknown_ones(client):
     html = client.get("/help/sections/result.index/?topics=index.txx").content.decode()
-    assert "<h1>TXx: Max TX</h1>" in html and 'data-help-topic="index.txx"' in html
+    assert "<h1>TXx Hottest day</h1>" in html and 'data-help-topic="index.txx"' in html
     assert client.get("/help/sections/no.such/").status_code == 404
     assert client.get("/help/sections/result.index/?topics=no.such").status_code == 404
 
@@ -406,12 +411,40 @@ def test_catalogue_entries_read_well():
     assert by["txdtnd"].param_topic == "param.txtn_days"
 
 
+def test_long_names_name_the_variable_the_index_counts():
+    """TMge10 counts TM days; the core's file (R's) calls it "TX of at least 10" (#217).
+    Every long name that names TX, TN or TM names one its definition uses."""
+    by = indices.by_short()
+    assert by["tmge10"].long_name == "TM of at least 10 °C"
+    assert by["tmge5"].long_name == "TM of at least 5 °C"
+    assert by["txge30"].long_name == "TX of at least 30 °C"
+    variables = re.compile(r"\b(TX|TN|TM)\b")
+    spelled = {"maximum": "TX", "minimum": "TN", "mean": "TM"}  # "daily mean temperature"
+    for info in indices.catalogue():
+        definition = re.sub(
+            r"daily (maximum|minimum|mean) temperature",
+            lambda m: spelled[m.group(1)],
+            info.definition,
+        )
+        named = set(variables.findall(info.long_name))
+        assert named <= set(variables.findall(definition)), info.short
+    # The core keeps R's text: it is the gridded files' long_name, compared with R's.
+    core = {row["Short.name"]: row["Long.name"] for row in indices._rows()}
+    assert core["tmge10"] == "TX of at least 10 degrees_C"
+    # The gridded form's index list shows the corrected name too.
+    from climpact_web.gridded.forms import index_choices
+
+    labels = dict(item for _group, items in index_choices() for item in items)
+    assert labels["tmge10"] == "tmge10: TM of at least 10 degrees_C"
+
+
 def test_indices_guide_has_an_entry_for_every_index(client):
     html = client.get("/help/indices/").content.decode()
     ids = parse(html).ids
     for info in indices.catalogue():
         assert info.anchor in ids, info.short
-    assert '<h4 id="index-rxdday">Rxdday: User-defined consecutive days PR amount</h4>' in html
+    assert '<h4 id="index-rxdday">Rxdday Wettest d days</h4>' in html
+    assert "Name in Climpact for R: User-defined consecutive days PR amount." in html
     assert "You choose <em>d</em> in the index settings, in Your inputs." in html
     assert "You choose <em>nn</em> in the index settings, in Your inputs." in html
 

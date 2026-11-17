@@ -1,0 +1,54 @@
+{% load i18n static ui %}{% comment %}
+The context bar (#227, the workspace design of #230): under the app's header on every
+workspace and station page, across the window on the surface, over a hairline. In order: a
+breadcrumb (workspace / station) with the previous and next item at its end; the title
+(the page's h1, or a line above a page's own h1 when ``heading`` is false); one mono line
+of provenance (coordinates, period, base period, settings, version); the page's actions at
+the end of the title's row; then the tabs and anything under them (the Inputs bar). It
+stays in view as the page scrolls (sticky), so include it as a direct child of the page's
+block; js/context-bar.js keeps --context-bar-height to its height, which the page's
+scroll padding uses so focus never goes under it (WCAG 2.4.11).
+
+On phones (below 40rem) the title and a ⋯ menu share one line, the actions are in that
+menu (a <details> disclosure; the script closes it on Escape and on a click elsewhere),
+the provenance line keeps only its parts marked ``phone``, and only the tabs and what is
+under them stay in view.
+
+Parameters: title; heading (true: the title is the h1); provenance (a list of {text,
+phone}); breadcrumb (optional, a list of {label, url}: the last one, without a url,
+is the page); step_previous and step_next (optional, {label, url}: the previous and next
+station; with ``code`` and ``name``, an index, named codes first); title_template
+(optional: a template drawn in place of the title, which holds the page's h1, such as an
+index's name and theme, #237); lead_template (optional: a line under the title, such as
+an index's definition); flow (true: in place as the page scrolls, for a page without
+tabs, such as an index's); actions (optional, a template
+with the page's actions); tabs (optional, the sections as components/workspace_tabs.html
+takes them) and tabs_label (their navigation's name); below (optional, a template under
+the tabs, such as the Inputs bar); static (true: in place, not sticky and not across the
+window, for /patterns/).
+{% endcomment %}
+<div class="context-bar{% if static %} context-bar--static{% elif flow %} context-bar--flow{% endif %}"{% if not static %} data-context-bar{% endif %}>
+  {% if breadcrumb or step_previous or step_next %}
+  <div class="context-bar__crumbs">
+    {% if breadcrumb %}<nav aria-label="{% translate 'Breadcrumb' %}"><ol class="context-bar__breadcrumb">{% for crumb in breadcrumb %}<li>{% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}<span aria-current="page">{{ crumb.label }}</span>{% endif %}</li>{% endfor %}</ol></nav>{% endif %}
+    {% if step_previous or step_next %}<p class="context-bar__step">{% if step_previous %}<a href="{{ step_previous.url }}" rel="prev">{% icon "arrow-left" css="icon--flip" %}<span class="sr-only">{% translate "Previous:" %}</span> {% if step_previous.code %}{% include "components/index_name.html" with code=step_previous.code name=step_previous.name only %}{% else %}{{ step_previous.label }}{% endif %}</a>{% endif %}{% if step_next %}<a href="{{ step_next.url }}" rel="next"><span class="sr-only">{% translate "Next:" %}</span> {% if step_next.code %}{% include "components/index_name.html" with code=step_next.code name=step_next.name only %}{% else %}{{ step_next.label }}{% endif %}{% icon "arrow-right" css="icon--flip" %}</a>{% endif %}</p>{% endif %}
+  </div>
+  {% endif %}
+  <div class="context-bar__row">
+    <div class="context-bar__title">
+      {% if title_template %}{% include title_template %}
+      {% elif heading %}<h1 class="context-bar__name">{{ title }}</h1>
+      {% else %}<p class="context-bar__name context-bar__name--line">{{ title }}</p>{% endif %}
+      {% if lead_template %}{% include lead_template %}{% endif %}
+      {% if provenance %}<p class="context-bar__provenance">{% for part in provenance %}<span{% if not part.phone %} class="context-bar__wide"{% endif %}>{{ part.text }}</span>{% endfor %}</p>{% endif %}
+    </div>
+    {% if actions %}<div class="context-bar__actions">{% include actions %}</div>
+    <details class="page-menu" data-page-menu>
+      <summary class="button button--secondary button--sm button--icon">{% icon "more" %}<span class="sr-only">{% translate "Page actions" %}</span></summary>
+      <div class="page-menu__panel">{% include actions %}</div>
+    </details>{% endif %}
+  </div>
+  {% if tabs %}{% include "components/workspace_tabs.html" with tabs=tabs label=tabs_label %}{% endif %}
+  {% if below %}{% include below %}{% endif %}
+  {% if not static %}<script src="{% static 'climpact_web/js/context-bar.js' %}" defer></script>{% endif %}
+</div>

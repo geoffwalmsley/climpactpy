@@ -1,38 +1,18 @@
-{% load i18n static ui %}{% comment %}
-The station workspace's header (#179, #197): the station's name, a line with the file, its
-years and base period (changed in the Inputs panel beside the section, #198), the page's
-actions, then the section tabs. It stays in view as the page scrolls (sticky), so it must be
-a direct child of the page's .station-page; the page's scroll-padding keeps a focused
-element out from under it (WCAG 2.4.11), kept to the header's height by js/workspace.js.
-On phones (#203, proposal 7) the name and the ⋯ menu share one line, the actions are in
-that menu (a <details> disclosure; js/workspace.js closes it on Escape and on a click
-elsewhere), and under the tabs the Inputs bar replaces the Inputs panel: the inputs in
-one line and an Edit that opens them in a sheet (stations/_inputs.html). Only the tabs and
-the bar stay in view as the page scrolls. On the three section pages and the first visit's details the name is the page's
-h1 (``heading``); on a page inside a section (an index, the sector comparison) it is a line
-above that page's own h1. The title is the station name the user gave, the file name when
-there is none yet.
-Context: analysis, workspace_tabs, workspace_current (stations.workspace.context), heading,
-actions (optional: a template with the page's actions, such as Download all),
-inputs and inputs_bar (stations.workspace.inputs_panel; the bar shows where the page has
-the Inputs panel), no_inputs_bar (a page without the panel, such as an input's own page).
-{% endcomment %}
-<div class="workspace-header" data-workspace-header>
-  <div class="workspace-header__row">
-    <div class="workspace-header__title">
-      {% if heading %}<h1 class="workspace-header__name">{{ analysis.station_name|default:analysis.file_name }}</h1>
-      {% else %}<p class="workspace-header__name workspace-header__name--line">{{ analysis.station_name|default:analysis.file_name }}</p>{% endif %}
-      <p class="workspace-header__sub">{% if analysis.summary.first_year %}<span>{% blocktranslate with first=analysis.summary.first_year last=analysis.summary.last_year %}{{ first }}–{{ last }}{% endblocktranslate %}</span>{% endif %}{% if analysis.metadata_complete %}<span class="workspace-header__base">{% blocktranslate with start=analysis.base_start end=analysis.base_end %}base period {{ start }}–{{ end }}{% endblocktranslate %}</span>{% endif %}{% if analysis.station_name %}<span class="workspace-header__file">{{ analysis.file_name }}</span>{% endif %}</p>
-    </div>
-    {% if actions %}<div class="workspace-header__actions">{% include actions %}</div>
-    <details class="page-menu" data-page-menu>
-      <summary class="button button--secondary button--sm button--icon">{% icon "more" %}<span class="sr-only">{% translate "Page actions" %}</span></summary>
-      <div class="page-menu__panel">{% include actions %}</div>
-    </details>{% endif %}
-  </div>
-  {% include "components/workspace_tabs.html" with tabs=workspace_tabs %}
-  {% if inputs and not no_inputs_bar %}
-  {% include "stations/_inputs_bar.html" %}
-  {% endif %}
-  <script src="{% static 'climpact_web/js/workspace.js' %}" defer></script>
-</div>
+{% load i18n %}{% comment %}
+The station's context bar (#227, components/context_bar.html; the workspace header of
+#179 and #197 before it): the station's name, its provenance line (coordinates, years,
+base period, settings and version, stations.workspace.provenance), the page's actions,
+then the section tabs, and under them the Inputs bar where the page is too narrow for the
+Inputs panel beside the section (#203). It stays in view as the page scrolls, so it must
+be a direct child of the page's .station-page. On the three section pages the name is the
+page's h1 (``heading``); on a page inside a section (an index, the sector comparison) it
+is a line above that page's own h1. The title is the station name the user gave, the file
+name when there is none yet.
+Context: analysis, workspace_tabs, workspace_current and provenance
+(stations.workspace.context), heading, actions (optional: a template with the page's
+actions, such as Download all), inputs and inputs_bar (stations.workspace.inputs_panel;
+the bar shows where the page has the Inputs panel), no_inputs_bar (a page without the
+panel, such as an input's own page).
+{% endcomment %}{% translate "Station sections" as tabs_label %}
+{% if inputs and not no_inputs_bar %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" %}
+{% else %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="" %}{% endif %}

@@ -1,16 +1,19 @@
 /*
- * Quality (#77, #174, #202): the list and its detail, and the links between the findings
- * and the daily charts under Details. Needs charts.js (window.ClimpactCharts) and htmx;
+ * Quality (#77, #174, #202, #235): the worklist and its detail pane, and the links between
+ * the findings and the daily charts under the worklist. Needs charts.js (window.ClimpactCharts) and htmx;
  * without JavaScript each row of the list is a link to ?show=<id> (the server shows that
  * detail), the tables, pagers (plain links) and downloads work and the "Show on the
  * daily chart" buttons stay hidden.
  *
- * - The list: a row ([data-qc-item], a link; Tab moves between them, Enter selects)
- *   shows its detail ([data-qc-detail]) in place of the one shown, marks the row
- *   (aria-current), puts ?show=<id> in the address (replaceState, so it can be linked
- *   and reloaded) and announces the detail's title. When the detail is below the list
- *   (a narrow screen) focus moves to its title. An address whose fragment names a
- *   detail (#check-<table>) shows that one.
+ * - The list: a row's link ([data-qc-item]; Tab moves between them, Enter selects)
+ *   shows its detail ([data-qc-detail]) in place of the one shown, marks the link
+ *   (aria-current) and its row (is-selected), puts ?show=<id> in the address
+ *   (replaceState, so it can be linked and reloaded) and announces the detail's title.
+ *   Beside the list the pane stays in view (sticky); should it still be out of view, it
+ *   is scrolled into view, focus staying on the row. When the detail is below the list
+ *   (a narrow screen) focus moves to its title, and "Back to the list" ([data-qc-back])
+ *   returns focus to the row. An address whose fragment names a detail
+ *   (#check-<table>) shows that one.
  * - List to chart: "Show on the daily chart" ([data-qc-show], data-date, data-chart)
  *   opens Details and the chart's tab, moves the chart to the date
  *   (ClimpactCharts.focusDate), marks the row and moves focus to the chart.
@@ -63,7 +66,8 @@
     });
     Array.prototype.forEach.call(doc.querySelectorAll("[data-qc-item]"), function (a) {
       var on = a.getAttribute("data-qc-item") === id;
-      a.classList.toggle("is-selected", on);
+      var row = a.closest("tr");
+      if (row) row.classList.toggle("is-selected", on);
       if (on) a.setAttribute("aria-current", "true");
       else a.removeAttribute("aria-current");
     });
@@ -82,11 +86,16 @@
       }, 50);
     }
     if (options.focus && title) {
-      var list = doc.querySelector(".qc-md__list");
+      var list = doc.querySelector(".qc-work__list");
       var below = list && list.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 1;
       if (below) {
         title.focus({ preventScroll: true });
         title.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      } else {
+        var box = panel.getBoundingClientRect();
+        if (box.top >= window.innerHeight || box.bottom <= 0) {
+          panel.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+        }
       }
     }
     return panel;
@@ -98,6 +107,17 @@
     if (!detailOf(link.getAttribute("data-qc-item"))) return;
     event.preventDefault();
     show(link.getAttribute("data-qc-item"), { focus: true });
+  });
+
+  /* "Back to the list" (#235): focus on the row of the detail shown. */
+  doc.addEventListener("click", function (event) {
+    var back = event.target.closest("[data-qc-back]");
+    if (!back) return;
+    var link = doc.querySelector('[data-qc-item="' + back.getAttribute("data-qc-back") + '"]');
+    if (!link) return;
+    event.preventDefault();
+    link.focus({ preventScroll: true });
+    link.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   });
 
   function openTab(panel) {

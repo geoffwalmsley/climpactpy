@@ -128,7 +128,7 @@ calculated it holds the quality-control files alone. Context from views_download
             <thead><tr><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Series" %}</th><th scope="col">{% translate "Table" %}</th><th scope="col">{% translate "Plot" %}</th></tr></thead>
             <tbody>
               {% for item in section.cards %}{% for row in item.rows %}<tr>
-                {% if forloop.first %}<th scope="rowgroup" rowspan="{{ item.rows|length }}"><a href="{% url 'stations:result' analysis.pk item.card.key %}">{{ item.card.name }}</a></th>{% endif %}
+                {% if forloop.first %}<th scope="rowgroup" rowspan="{{ item.rows|length }}"><a href="{% url 'stations:result' analysis.pk item.card.key %}">{% include "components/index_name.html" with code=item.card.code name=item.card.title only %}</a></th>{% endif %}
                 <td>{{ row.series.label }} <span class="text-sm text-text-muted">{{ row.series.name }}</span></td>
                 <td class="download-cell">{% if row.csv %}{% url 'jobs:file' job.pk row.csv.path as d_href %}{% include "components/download_link.html" with d=row.csv href=d_href %}{% else %}<span class="text-sm text-text-muted">{% translate "in the index's table" %}</span>{% endif %}</td>
                 <td class="download-cell">{% if row.png %}{% url 'jobs:file' job.pk row.png.path as d_href %}{% include "components/download_link.html" with d=row.png href=d_href %}{% else %}<span class="text-sm text-text-muted">{% translate "none" %}</span>{% endif %}</td>

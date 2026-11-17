@@ -1,5 +1,6 @@
 @layer components {
-  /* == Tables: hairline rows and no frame (#197, one surface level) == */
+  /* == Tables: hairline rows and no frame (#197, one surface level); the data table
+     below is framed (#227) == */
   .table-wrap {
     overflow-x: auto;
   }
@@ -57,5 +58,59 @@
     font-variant-numeric: tabular-nums;
     text-align: end;
     white-space: nowrap;
+  }
+
+  /* == The data table (#227, components/table.html): one framed object, as on the design
+     canvas. Hairline rows 32px high (30-34px), one line each, a sticky header on the
+     sunken tint, numbers and codes in mono with tabular figures, and the selected row in
+     the selected tint with an ink edge. The frame is the exception to "a box marks only
+     one object": the table is one object. == */
+  .table-wrap--data {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .table--data caption {
+    padding: --spacing(2) --spacing(2.5);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .table--data :is(th, td) {
+    block-size: 2rem;
+    padding-block: 0;
+    padding-inline: --spacing(2.5);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .table--data tbody th {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .table--data thead th {
+    block-size: auto;
+    padding-block: --spacing(1.5);
+    border-block-end-color: var(--color-border-strong);
+    --table-head-bg: var(--color-surface-sunken);
+  }
+
+  .table--data :is(.num, .code) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) {
+    background: var(--color-selected);
+  }
+
+  .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) > :first-child {
+    box-shadow: inset 3px 0 0 var(--color-ink);
+  }
+
+  [dir="rtl"] .table--data tbody tr:is([aria-current], [aria-selected="true"], .is-selected) > :first-child {
+    box-shadow: inset -3px 0 0 var(--color-ink);
   }
 }

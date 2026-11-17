@@ -38,21 +38,26 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 15 KB before the phone layout (#203), 14.5 KB before Quality as list and detail
+    # 17.25 KB before the index page (#237), 16.75 KB before the Indices' rail, table and
+    # detail pane (#236), 16 KB before the
+    # colour tokens, app shell, context bar and data table (#227), 15 KB
+    # before the phone layout (#203), 14.5 KB before Quality as list and detail
     # (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the section
     # header and the workspace header (#197), 13 KB before #196, 12.5 KB before the help
     # drawer (#177)
-    "css/climpact.css": 16 * KB,
+    "css/climpact.css": 18.5 * KB,
     # The quality checks: the list and its detail (#202), the tables linked to the charts
     # (#77, #174); 2 KB before #202
     "js/qc.js": 3 * KB,
-    # The results catalogue's filters (#78) and column sorting (#200); 1.5 KB before #200
-    "js/results.js": 2.25 * KB,
+    # The Indices' filters (#78), column sorting (#200) and detail pane (#236); 1.5 KB
+    # before #200, 2.25 KB before #236
+    "js/results.js": 3 * KB,
+    "js/index-page.js": 1.25 * KB,  # the index page: anomalies in place, Copy citation (#237)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
     # The station workspace's sticky header (#197), the phone's ⋯ menu (#203; 0.5 KB before)
-    "js/workspace.js": 1 * KB,
+    "js/context-bar.js": 1 * KB,
     "js/setup.js": 0.75 * KB,  # New station: a chosen file is read at once (#201)
     "js/sheet.js": 1.5 * KB,  # the Inputs panel's side sheets (#198), old addresses (#199)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
@@ -141,6 +146,10 @@ def station_index(client) -> str:
     return station_results(client) + "/txx"
 
 
+def station_index_monthly(client) -> str:
+    return station_index(client) + "?series=txx_MON"
+
+
 def station_sector(client) -> str:
     """Step 5's results (#90): R's sample wheat file against the Sydney run, the 42 bars and
     the four scatter plots with their tables."""
@@ -217,7 +226,10 @@ PAGES = {
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
     "station calculating": Page(station_calculating),  # with the settings form (#178)
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
-    "station index": Page(station_index, charts=True),  # the index's chart (#78)
+    # The index's chart and table, drawn on the server (#237): no chart code; monthly,
+    # 960 values in two charts and the table, is the largest.
+    "station index": Page(station_index),
+    "station index, monthly": Page(station_index_monthly),
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "station downloads": Page(station_downloads),  # every file with its size (#79)
     "batch start": Page(lambda client: "/batch/"),
@@ -369,7 +381,6 @@ def test_chart_code_only_on_chart_pages():
         "station sample loaded",
         "station quality",  # "Your data"'s daily series (#198)
         "station quality results",
-        "station index",
         "gridded results, 100x100 grid",
     ]
     assert "landing" in PAGES and not PAGES["landing"].charts

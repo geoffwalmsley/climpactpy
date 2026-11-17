@@ -67,8 +67,36 @@
     color: var(--color-warning);
   }
 
-  .status-dot--running {
+  .status-dot--running,
+  .status-dot--checking {
     color: var(--color-ink);
+  }
+
+  /* Quality's verdict (#222): the verdict band's word and icon on its tint, as a small
+     pill, with the count of values that look wrong ("Usable · 21"). The transparent
+     border draws the pill in forced colours. */
+  .status-dot--ready,
+  .status-dot--usable,
+  .status-dot--fix {
+    padding: 1px --spacing(1.5);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .status-dot--ready {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+  }
+
+  .status-dot--usable {
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+  }
+
+  .status-dot--fix {
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
   }
 
   @media (forced-colors: active) {

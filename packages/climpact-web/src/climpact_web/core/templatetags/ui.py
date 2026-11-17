@@ -62,6 +62,31 @@ def count(value):
     return number_format(value, force_grouping=True)
 
 
+@register.filter
+def decimals(value, places=2):
+    """A number with exactly ``places`` decimals by the number rules (``core.numbers``,
+    #226): U+2212 for minus, never ``−0.00``. Anything that is not a number is returned
+    unchanged."""
+    from climpact_web.core import numbers
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    return numbers.fixed(number, int(places))
+
+
+@register.filter
+def coordinates(latitude, longitude):
+    """``{{ lat|coordinates:lon }}``: ``33.86° S 151.21° E`` (``core.numbers``, #226)."""
+    from climpact_web.core import numbers
+
+    try:
+        return numbers.coordinates(float(latitude), float(longitude))
+    except (TypeError, ValueError):
+        return ""
+
+
 TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js"
 
 

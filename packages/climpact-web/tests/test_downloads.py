@@ -108,8 +108,9 @@ def test_downloads_page_redirects_and_is_private(client):
 
 
 def test_dashboard_and_index_page_offer_one_download(client):
-    """Results offer the zip, nothing else, the Files tab listing the rest; an index page
-    only its chart's own exports (#173, #176, #200)."""
+    """Indices offer the zip and, in each index's detail, its CSV and PNG (#236); the
+    Files tab lists the rest; an index page its series' CSV, R's plot and a citation
+    (#173, #176, #200, #237)."""
     analysis, job = finished_analysis(client)
     complete(job)
     html = client.get(f"/station/{analysis.pk}/results").content.decode()
@@ -120,19 +121,26 @@ def test_dashboard_and_index_page_offer_one_download(client):
     assert actions.count('class="button button--secondary"') == 1 and actions.count("<a ") == 2
     assert f'href="/station/{analysis.pk}/sector"' in actions
     assert f'href="/station/{analysis.pk}/downloads"' not in actions  # the Files tab
-    # No other file on the page (#176): the zip is its only download, in the header and
-    # again in its ⋯ menu for phones (#203).
+    # No other file on the page (#176): the zip, in the header and again in its ⋯ menu
+    # for phones (#203), and each index's CSV and PNG in its detail (#236).
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
-    assert files == [f"{STATION}.zip"] * 2
+    assert files.count(f"{STATION}.zip") == 2
+    others = [f for f in files if not f.endswith(".zip")]
+    assert others and all(re.fullmatch(rf"{STATION}/(indices/\S+\.csv|plots/\S+\.png)", f)
+                          for f in others)  # fmt: skip
+    assert f"{STATION}/indices/{STATION}_txx_ANN.csv" in others
     assert 'id="downloads"' not in html and "Kept until" in html
     page = client.get(f"/station/{analysis.pk}/results/txx").content.decode()
-    # The chart's CSV is the page's one file link; the PNG plot is the no-script image.
+    # An index page (#237, the Index board): the series' CSV and R's plot, in its context
+    # bar and again in its ⋯ menu for phones, and a citation; no other file, and no tabs.
     links = re.findall(rf'<a [^>]*href="/jobs/{job.pk}/files/([^"]+)"', page)
-    assert links == [f"{STATION}/indices/{STATION}_txx_ANN.csv"]
-    assert "data-chart-csv" in page and 'id="files-title"' not in page
-    # Files is reached by its tab (#179), the only link to it.
-    assert page.count(f'href="/station/{analysis.pk}/downloads"') == 1
-    assert f'href="/station/{analysis.pk}/downloads" data-tab="files"' in page
+    csv = f"{STATION}/indices/{STATION}_txx_ANN.csv"
+    assert links.count(csv) == 2
+    assert set(links) <= {csv, f"{STATION}/plots/{STATION}_txx_ANN.png"}
+    assert "Copy citation" in page and 'id="files-title"' not in page
+    assert f'href="/station/{analysis.pk}/downloads"' not in page
+    monthly = client.get(f"/station/{analysis.pk}/results/txx?series=txx_MON").content.decode()
+    assert f"{STATION}/indices/{STATION}_txx_MON.csv" in monthly
 
 
 def test_report_path_of_a_batch_station(client, tmp_path):

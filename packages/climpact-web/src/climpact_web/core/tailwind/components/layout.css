@@ -80,8 +80,9 @@
     color: var(--color-ink-contrast);
   }
 
+  /* Clear of the context bar under the header (#227). */
   .skip-link:focus {
-    inset-block-start: --spacing(2);
+    inset-block-start: --spacing(1);
     color: var(--color-ink-contrast);
   }
 

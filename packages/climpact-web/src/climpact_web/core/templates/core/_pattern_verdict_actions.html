@@ -1,0 +1,5 @@
+{% load i18n %}{% comment %}The verdict strip's buttons on /patterns/ (#235).{% endcomment %}
+{% translate "Flagged values (CSV)" as p_csv %}{% translate "Replace file" as p_replace %}{% translate "Go to indices" as p_go %}
+{% include "components/button.html" with label=p_csv href="#quality" variant="secondary" size="sm" %}
+{% include "components/button.html" with label=p_replace href="#quality" variant="secondary" size="sm" %}
+{% include "components/button.html" with label=p_go href="#quality" size="sm" %}

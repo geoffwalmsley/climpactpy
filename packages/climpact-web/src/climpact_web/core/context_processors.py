@@ -1,7 +1,7 @@
 from django.conf import settings
 
 import climpact_web
-from climpact_web.core.navigation import nav_items, page_help
+from climpact_web.core.navigation import index_reference_url, nav_items, page_help
 
 
 def site(request):
@@ -12,4 +12,5 @@ def site(request):
         "is_hosted": settings.IS_HOSTED,
         "nav_items": nav_items(request),
         "page_help": page_help(request),
+        "index_reference_url": index_reference_url(),
     }

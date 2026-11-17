@@ -50,7 +50,52 @@ PAIRS = (
         ("brand-contrast", "brand", NON_TEXT),  # the logo's mark
         ("danger-contrast", "danger", TEXT),  # danger button
     ]
+    # Links (#227): blue, underlined, on every background a link sits on, hover too.
+    + [
+        (fg, bg, TEXT)
+        for fg in ("link", "link-hover")
+        for bg in (*BACKGROUNDS, "selected", *(f"{k}-soft" for k in STATUS))
+    ]
 )
+
+# The trend scale (#227): a cell's value is written in it, --color-surface on the strong
+# steps and --color-text on the others.
+TREND_TEXT = (
+    [("color-surface", f"chart-{k}-2") for k in ("increase", "decrease")]
+    + [("color-text", f"chart-{k}-1") for k in ("increase", "decrease")]
+)  # fmt: skip
+
+
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("fg, bg", TREND_TEXT, ids=str)
+def test_trend_scale_cells_keep_their_text_readable(theme, fg, bg):
+    t = THEMES[theme]
+    ratio = contrast(t[fg], t[bg])
+    assert ratio >= TEXT, f"{theme}: {fg} on {bg} is {ratio:.2f}:1"
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_trend_and_coverage_steps_differ_in_lightness(theme):
+    """The strong trend step stands further from the surface than the weak one (darker in
+    light, brighter in dark), and the coverage steps move away from the surface in order,
+    so neither scale depends on hue alone; the last coverage step is a mark (3:1)."""
+    t = THEMES[theme]
+    away = lambda c: contrast(t[c], t["color-surface"])  # noqa: E731
+    for k in ("increase", "decrease"):
+        assert away(f"chart-{k}-2") > away(f"chart-{k}-1") + 2, (theme, k)
+    coverage = [away(f"chart-coverage-{i}") for i in (1, 2, 3)]
+    assert coverage == sorted(coverage) and coverage[2] >= NON_TEXT, (theme, coverage)
+    lum = [relative_luminance(t[f"chart-increase-{i}"]) for i in (1, 2)]
+    assert (lum[1] < lum[0]) if theme == "light" else (lum[1] > lum[0]), theme
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_trend_scale_differs_in_colour_vision_deficiency(theme):
+    """Increase and decrease steps sit side by side in the trend grid: every pair apart."""
+    t = THEMES[theme]
+    scale = [t[f"chart-{k}"] for k in tokens.TREND_SCALE]
+    assert worst_cvd(scale, all_pairs(len(scale))) >= CVD_TARGET, theme
+
 
 # Chart marks drawn on the chart surface that must stand out without a label.
 CHART_MARKS = ("tmax", "tmin", "prcp", "trend", "flag", "axis")
@@ -192,6 +237,8 @@ def test_chart_palette_json_matches_the_css():
         assert len(on_disk[theme]["categorical"]) == 8
         assert len(on_disk[theme]["sequential"]) == 5
         assert len(on_disk[theme]["diverging"]) == 7
+        assert len(on_disk[theme]["trend_scale"]) == 4
+        assert len(on_disk[theme]["coverage"]) == 3
 
 
 def source_files() -> list[Path]:
@@ -265,15 +312,19 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's). One compiled
 # stylesheet for every page since #118, replacing main.css, theme-dark.css and the page
 # stylesheets.
-# bytes, minified (86,000 before the phone layout, #203; 83,000 before Quality as list
-# and detail, #202; 81,000 before the New
-# station page, #201; 77,000 before the Inputs
-# panel and its sheets, #198; 74,000 before the section header, one surface level and the
-# workspace header, #197; 71,000 before the colour roles and theme hues, #196)
-CSS_BUDGET = 91_000
-# gzipped: 15.5 KB before #203, 15 KB before #202, 14.75 KB before #201, 14 KB before
-# #198, 13.5 KB before #197, 13 KB before #196
-CSS_GZIP_BUDGET = 16_250
+# bytes, minified (104,000 before the index page, #237; 98,000 before the Indices table
+# and detail pane, #236; 95,500 before
+# Quality as a worklist with the verdict and coverage strips, #235; 95,000 before
+# Quality's verdict in its tab, #222; 91,000 before the colour tokens, app shell, context
+# bar and data table, #227; 86,000 before the phone layout, #203; 83,000 before Quality
+# as list and detail, #202; 81,000 before the New station page, #201; 77,000 before the
+# Inputs panel and its sheets, #198; 74,000 before the section header, one surface level
+# and the workspace header, #197; 71,000 before the colour roles and theme hues, #196)
+CSS_BUDGET = 110_000
+# gzipped: 18 KB before #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before
+# #227, 15.5 KB before #203, 15 KB before #202, 14.75 KB before #201, 14 KB before #198,
+# 13.5 KB before #197, 13 KB before #196
+CSS_GZIP_BUDGET = 18_750
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

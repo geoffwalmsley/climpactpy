@@ -24,9 +24,9 @@ class Destination:
     icon: str
     in_nav: bool = True
     gridded: bool = False  # offered only when gridded runs are (settings.GRIDDED_ENABLED)
-    # The URL whose pages the link is current on, when not the link's own: the single
-    # station's link opens New station (/station/new, #201) and is current on /station/...
-    section_name: str = ""
+    # The URL prefixes whose pages the link is current on, besides its own address: the
+    # header's Workspaces is current on every station and batch page too (#227).
+    sections: tuple[str, ...] = ()
 
     @property
     def url(self) -> str | None:
@@ -37,23 +37,31 @@ class Destination:
         return not (self.gridded and not settings.GRIDDED_ENABLED)
 
 
+# The header (#227, the workspace design of #230): Climpact, then Workspaces and Gridded;
+# Index reference and Help at its end (base.html). Single station, Batch and Your
+# calculations are no longer header links: the landing page starts a station or a batch.
+# Until the Workspaces page lands (#242), Workspaces opens the list of calculations.
 DESTINATIONS = (
     Destination(
-        "station", "stations:new", _("Single station"), "station", section_name="stations:upload"
+        "workspaces",
+        "jobs:list",
+        _("Workspaces"),
+        "layers",
+        sections=("stations:upload", "batch:start"),
     ),
+    Destination("station", "stations:new", _("Single station"), "station", in_nav=False),
     Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
-    Destination("batch", "batch:start", _("Batch"), "layers"),
+    Destination("batch", "batch:start", _("Batch"), "layers", in_nav=False),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
-    # Not a header link since #197: the Help button at the end of the header opens the
-    # current page's guide (page_help below), and the landing page links the help.
+    # Not a header link since #197: Help at the end of the header opens the current
+    # page's guide (page_help below), and the landing page links the help.
     Destination("help", "help:index", _("Help"), "book", in_nav=False),
-    Destination("jobs", "jobs:list", _("Your calculations"), "clock"),
 )
 
 
-def url_or_none(url_name: str) -> str | None:
+def url_or_none(url_name: str, *args) -> str | None:
     try:
-        return reverse(url_name)
+        return reverse(url_name, args=args or None)
     except NoReverseMatch:
         return None
 
@@ -63,18 +71,28 @@ def destination(key: str) -> Destination:
 
 
 def nav_items(request) -> list[dict]:
-    """Header links: destinations that exist and are offered in this mode."""
+    """Header links: destinations that exist and are offered in this mode. ``current`` is
+    "page" on the destination's own address and "true" on the pages under it."""
     items = []
     path = request.path if request is not None else ""
     for d in DESTINATIONS:
         url = d.url
         if d.in_nav and d.available and url:
-            section = url_or_none(d.section_name) if d.section_name else url
-            current = path == url or (section != "/" and path.startswith(section))
+            prefixes = [p for p in (url, *map(url_or_none, d.sections)) if p and p != "/"]
+            current = "page" if path == url else ""
+            if not current and any(path.startswith(p) for p in prefixes):
+                current = "true"
             items.append(
                 {"key": d.key, "label": d.label, "url": url, "icon": d.icon, "current": current}
             )
     return items
+
+
+def index_reference_url() -> str | None:
+    """The header's Index reference (#227): the definition of every index, in the guide
+    to the indices, until an index reference page of its own exists."""
+    url = url_or_none("help:guide", "indices")
+    return f"{url}#the-indices" if url else None
 
 
 # ---- The header's Help button (#197) ---------------------------------------------------

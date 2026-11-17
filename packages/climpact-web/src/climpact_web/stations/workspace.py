@@ -1,10 +1,10 @@
 """The station workspace (#179): what each section shows, and whether it is out of date.
 
-A station's pages are three sections, Quality, Results and Files, shown as tabs under the
-station's name, beside the Inputs panel (#198), which lists what the user gave and opens
-each in a side sheet to change it (:func:`inputs_panel`). A change to an input no longer
-resets the later sections. Each job records the inputs it was produced from when it is
-queued (``Job.inputs``):
+A station's pages are three sections, Quality, Indices (Results before #236) and Files,
+shown as tabs under the station's name, beside the Inputs panel (#198), which lists what
+the user gave and opens each in a side sheet to change it (:func:`inputs_panel`). A change
+to an input no longer resets the later sections. Each job records the inputs it was
+produced from when it is queued (``Job.inputs``):
 
 ``file``      the SHA-256 of the station file (``StationAnalysis.file_hash``)
 ``metadata``  the station details: name, latitude, longitude and base period
@@ -28,11 +28,13 @@ an input is changed back. Queueing the replacements is :mod:`.calculation`'s.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
+from climpact_web.core import numbers
 from climpact_web.jobs.models import Job, Status
 from climpact_web.stations.models import StationAnalysis, Step
 
@@ -296,19 +298,28 @@ def change_sentences(analysis: StationAnalysis, job: Job | None, changes: list[s
 
 # Each state's word and icon: the word is always given to screen readers, and shown for
 # the states that ask for the user's attention; the icon's shape tells them apart without
-# colour (DESIGN.md, "Don't use colour alone").
+# colour (DESIGN.md, "Don't use colour alone"). Quality's tab shows the verdict of the
+# checks instead of "done" (#222): Ready, Usable or Fix first, the words and icons of the
+# verdict band, with the count of values that look wrong; and "Checking…" while they run.
 STATES = {
     "done": (gettext_lazy("Done"), "check-circle", False),
     "attention": (gettext_lazy("Needs attention"), "warning", True),
     "stale": (gettext_lazy("Out of date"), "clock", True),
     "running": (gettext_lazy("Running"), "refresh", True),
+    "checking": (gettext_lazy("Checking…"), "refresh", True),
     "todo": (gettext_lazy("Not started"), "circle", False),
     "locked": (gettext_lazy("Not available yet"), "lock", False),
+    "ready": (gettext_lazy("Ready"), "check-circle", True),
+    "usable": (gettext_lazy("Usable"), "warning", True),
+    "fix": (gettext_lazy("Fix first"), "error", True),
 }
+
+VERDICTS = ("ready", "usable", "fix")  # qc_review.Verdict.level
 
 SECTIONS = (
     ("quality", gettext_lazy("Quality"), "stations:qc"),
-    ("results", gettext_lazy("Results"), "stations:results"),
+    # Named Indices since #236; its address stays ``results``.
+    ("results", gettext_lazy("Indices"), "stations:results"),
     ("files", gettext_lazy("Files"), "stations:downloads"),
 )
 
@@ -320,6 +331,26 @@ class Section:
     url: str | None  # None while the section is not available yet
     state: str
     current: bool = False
+    wrong: int = 0  # Quality's verdict: the values that look wrong, shown after the word
+
+    @property
+    def verdict(self) -> bool:
+        return self.state in VERDICTS
+
+    @property
+    def count(self) -> str:
+        """The verdict's count for the tab, after the word: "· 21", or "" when nothing
+        looks wrong."""
+        if not (self.verdict and self.wrong):
+            return ""
+        return _("· %(n)s") % {"n": numbers.grouped(self.wrong)}
+
+    @property
+    def count_label(self) -> str:
+        """The count for screen readers, after the word: ", 21 values look wrong"."""
+        return ngettext(", %(n)s value looks wrong", ", %(n)s values look wrong", self.wrong) % {
+            "n": numbers.grouped(self.wrong)
+        }
 
     @property
     def state_label(self) -> str:
@@ -334,13 +365,41 @@ class Section:
         return STATES[self.state][2]
 
 
+def remember_verdict(job: Job, level: str, wrong: int) -> None:
+    """Keep the verdict's level and its count of values that look wrong with the checks,
+    for the Quality tab (#179, #222)."""
+    result = job.result or {}
+    if (result.get("verdict"), result.get("verdict_wrong")) != (level, wrong):
+        job.result = {**result, "verdict": level, "verdict_wrong": wrong}
+        type(job).objects.filter(pk=job.pk).update(result=job.result)
+
+
+def qc_verdict(analysis: StationAnalysis, job: Job) -> tuple[str, int] | None:
+    """The verdict of finished checks: its level and the values that look wrong. Quality
+    keeps it when it shows the checks; the tab works it out once when it has not been kept
+    yet (checks not yet shown, or kept before #222). None when it cannot be."""
+    result = job.result or {}
+    if result.get("verdict") in VERDICTS and "verdict_wrong" in result:
+        return result["verdict"], result["verdict_wrong"]
+    from climpact_web.stations import qc_review
+
+    try:
+        verdict = qc_review.review(job, analysis.station_file).verdict
+    except FileNotFoundError:
+        return None
+    remember_verdict(job, verdict.level, verdict.wrong)
+    return verdict.level, verdict.wrong
+
+
 def _active(job: Job | None) -> bool:
     return job is not None and job.status in (Status.QUEUED, Status.RUNNING)
 
 
 def section_states(analysis: StationAnalysis) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
-    running, todo (not started) or locked (its input does not exist yet)."""
+    running, todo (not started) or locked (its input does not exist yet). Quality's is
+    instead "checking" while the checks run, and once they have finished the verdict:
+    ready, usable or fix (#222)."""
     states = {}
     qc_job, qc_shown = analysis.qc_job, shown_qc(analysis)
     qc_ready = (
@@ -351,15 +410,14 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
     elif qc_shown is not None and qc_changes(analysis, qc_shown):
         states["quality"] = "stale"
     elif _active(qc_job):
-        states["quality"] = "running"
+        states["quality"] = "checking"
     elif qc_job is None:
         states["quality"] = "todo"
     elif qc_shown is None or qc_shown != qc_job:
         states["quality"] = "attention"  # the checks failed or were stopped
-    elif (qc_shown.result or {}).get("verdict") == "fix":
-        states["quality"] = "attention"
     else:
-        states["quality"] = "done"
+        verdict = qc_verdict(analysis, qc_shown)
+        states["quality"] = verdict[0] if verdict else "done"
 
     run, run_shown = analysis.indices_job, shown_run(analysis)
     if not committed(analysis):
@@ -383,14 +441,15 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
 
 
 def sections(analysis: StationAnalysis, current: str) -> list[Section]:
-    """The tabs, with ``current`` marked: Quality, Results and Files, each with its state
+    """The tabs, with ``current`` marked: Quality, Indices and Files, each with its state
     and its address (none while it is locked)."""
     states = section_states(analysis)
     out = []
     for key, label, url_name in SECTIONS:
         state = states[key]
         url = None if state == "locked" else reverse(url_name, args=[analysis.pk])
-        out.append(Section(key, str(label), url, state, key == current))
+        wrong = qc_verdict(analysis, shown_qc(analysis))[1] if state in VERDICTS else 0
+        out.append(Section(key, str(label), url, state, key == current, wrong))
     return out
 
 
@@ -413,16 +472,105 @@ def set_up(analysis: StationAnalysis) -> bool:
 
 
 def context(analysis: StationAnalysis, current: str, path: str = "") -> dict:
-    """The workspace's context: the header's ``workspace_tabs`` and ``workspace_current``,
+    """The workspace's context: the context bar's ``workspace_tabs``, ``workspace_current``
+    and ``provenance``, ``data_page`` (the page uses the width, #227),
     and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
     once the station is set up. ``path`` is the page's address, where an edit returns."""
-    out = {"workspace_tabs": sections(analysis, current), "workspace_current": current}
+    out = {
+        "workspace_tabs": sections(analysis, current),
+        "workspace_current": current,
+        "provenance": provenance(analysis, current),
+        "data_page": True,  # base.html: the page uses the width (#227)
+    }
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context
 
         out.update(inputs_panel(analysis, path))
         out["input_sheets"] = [sheet_context(analysis, key) for key in sheet_keys(analysis)]
     return out
+
+
+def core_version() -> str:
+    """The version of the climpact package that calculates, for the provenance line."""
+    try:
+        return version("climpact")
+    except PackageNotFoundError:  # pragma: no cover - the core is always installed
+        return ""
+
+
+def years_text(first, last) -> str:
+    """A station's years and how many they are: "1936–2015 · 80 yr"."""
+    years = int(last) - int(first) + 1
+    return ngettext(
+        "%(first)s–%(last)s · %(years)s yr", "%(first)s–%(last)s · %(years)s yr", years
+    ) % {"first": first, "last": last, "years": years}
+
+
+def provenance(analysis: StationAnalysis, current: str = "") -> list[dict]:
+    """The context bar's provenance line (#227): where and when the data are from and what
+    made the results: the coordinates, the years ("1936–2015 · 80 yr"), the base period,
+    whether the quality thresholds and index settings are the defaults, and the climpact
+    version. Quality's line describes the data the checks read instead (#235, the Quality
+    board): the coordinates, the years, the days and variables in the file
+    ("21,915 days · PR TX TN") and the file's name. Each part is ``{"text", "phone"}``;
+    on a phone only the years show."""
+    if current == "quality":
+        return quality_provenance(analysis)
+    parts = []
+    summary = analysis.summary or {}
+    first, last = summary.get("first_year"), summary.get("last_year")
+    complete = analysis.metadata_complete
+    if complete:
+        parts.append(
+            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+        )
+    if first and last:
+        parts.append({"text": years_text(first, last), "phone": True})
+    if complete:
+        base = _("base %(start)s–%(end)s") % {
+            "start": analysis.base_start,
+            "end": analysis.base_end,
+        }
+        parts.append({"text": base, "phone": False})
+    if set_up(analysis):
+        custom = thresholds_changed(analysis) + settings_changed(analysis)
+        if custom:
+            settings = ngettext(
+                "%(count)s setting not the default", "%(count)s settings not the default", custom
+            ) % {"count": custom}
+        else:
+            settings = _("ET-SCI defaults")
+        parts.append({"text": settings, "phone": False})
+    if found := core_version():
+        parts.append({"text": f"climpact {found}", "phone": False})
+    return parts
+
+
+def quality_provenance(analysis: StationAnalysis) -> list[dict]:
+    """Quality's provenance line (#235): what the checks read."""
+    parts = []
+    summary = analysis.summary or {}
+    if analysis.metadata_complete:
+        parts.append(
+            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+        )
+    first, last = summary.get("first_year"), summary.get("last_year")
+    if first and last:
+        parts.append({"text": years_text(first, last), "phone": True})
+    if days := summary.get("days"):
+        codes = {"prcp": _("PR"), "tmax": _("TX"), "tmin": _("TN")}
+        present = [
+            str(codes[v["key"]])
+            for v in summary.get("variables", [])
+            if v.get("key") in codes and v.get("present", 0) > 0
+        ]
+        text = ngettext("%(n)s day", "%(n)s days", days) % {"n": numbers.grouped(days)}
+        if present:
+            text = _("%(days)s · %(variables)s") % {"days": text, "variables": " ".join(present)}
+        parts.append({"text": text, "phone": False})
+    if analysis.file_name:
+        parts.append({"text": analysis.file_name, "phone": False})
+    return parts
 
 
 # ---- the Inputs panel (#198) -------------------------------------------------------------
@@ -449,7 +597,7 @@ def sheet_keys(analysis: StationAnalysis) -> tuple[str, ...]:
 
 def affected(names) -> list[str]:
     """The sections a change to the inputs ``names`` updates: Quality if the checks depend on
-    one of them, Results if the run does, and Files with either."""
+    one of them, Indices if the run does, and Files with either."""
     out = []
     if any(n in QC_INPUTS for n in names):
         out.append("quality")
@@ -464,10 +612,10 @@ def impact_sentence(names) -> str:
     """What applying a change to ``names`` updates, in words, from :func:`affected`."""
     sections_ = affected(names)
     if "quality" in sections_ and "results" in sections_:
-        return _("Updates Quality, Results and Files.")
+        return _("Updates Quality, Indices and Files.")
     if "results" in sections_:
-        return _("Updates Results and Files. Quality stays as it is.")
-    return _("Updates Quality and Files. Results stay as they are.")
+        return _("Updates Indices and Files. Quality stays as it is.")
+    return _("Updates Quality and Files. Indices stay as they are.")
 
 
 def impact(key: str) -> list[str]:
@@ -574,7 +722,7 @@ def inputs_panel(analysis: StationAnalysis, path: str = "") -> dict:
     values = {
         "file": _("%(days)s days · %(count)s variables")
         % {"days": number_format(days, force_grouping=True), "count": count},
-        "station": f"{analysis.latitude:g}°, {analysis.longitude:g}°",
+        "station": numbers.coordinates(analysis.latitude, analysis.longitude),
         "base-period": f"{analysis.base_start}–{analysis.base_end}",
         "thresholds": changed_text(custom["thresholds"]),
         "settings": changed_text(custom["settings"]),

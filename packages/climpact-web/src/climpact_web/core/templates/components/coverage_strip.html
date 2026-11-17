@@ -1,0 +1,29 @@
+{% load i18n %}{% comment %}
+The coverage strip (#235, the Quality board): missing days per year for each variable, a
+cell a year in three steps that differ in lightness (--chart-coverage-1 to -3: complete,
+1–3 days missing, 4 or more), the variable's code before its row and its total after it,
+and the years under the rows. In a framed section with its heading, a muted note (the
+strip's text summary: what the annual completeness rule makes of the years) and the key.
+The cells are an SVG drawn to the row's width (aria-hidden); the table view comes after
+it (``table``, a template). Narrower than the strip's minimum width, the rows scroll in
+their own region. Parameters: id, title, note, rows (each {name, cells: [{x, year,
+days, step}], total}), years (the labels under the rows, evenly spaced), count (the
+number of years), table (optional template).
+{% endcomment %}
+<section class="coverage-strip" aria-labelledby="{{ id }}-title">
+  <div class="coverage-strip__head">
+    <h2 class="coverage-strip__title" id="{{ id }}-title">{{ title }}{% if note %} <span class="coverage-strip__note">{{ "·" }} {{ note }}</span>{% endif %}</h2>
+    <p class="coverage-strip__key" aria-hidden="true"><span class="coverage-strip__swatch coverage-step-1"></span>{% translate "complete" %}<span class="coverage-strip__swatch coverage-step-2"></span>{% translate "1–3 missing" %}<span class="coverage-strip__swatch coverage-step-3"></span>{% translate "4+" %}</p>
+  </div>
+  <div class="coverage-strip__scroll" aria-hidden="true">
+    {% for row in rows %}
+    <div class="coverage-strip__row">
+      <span class="coverage-strip__name">{{ row.name }}</span>
+      <svg class="coverage-strip__cells" viewBox="0 0 {{ count }} 1" preserveAspectRatio="none" focusable="false">{% for cell in row.cells %}<rect class="coverage-step-{{ cell.step }}" x="{{ cell.x }}" y="0" width="0.86" height="1"/>{% endfor %}</svg>
+      <span class="coverage-strip__total">{{ row.total }}</span>
+    </div>
+    {% endfor %}
+    <div class="coverage-strip__row"><span></span><span class="coverage-strip__years">{% for year in years %}<span>{{ year }}</span>{% endfor %}</span><span></span></div>
+  </div>
+  {% if table %}{% include table %}{% endif %}
+</section>

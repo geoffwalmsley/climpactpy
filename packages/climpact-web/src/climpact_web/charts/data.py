@@ -32,44 +32,17 @@ from django.utils.formats import number_format
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
+from climpact_web.core import numbers
+
 VARIABLES = ("tmax", "tmin", "prcp")
 # The variables a daily chart can show on its own (the QC screen, #77): DTR is TX - TN.
 DAILY_VARIABLES = ("tmax", "tmin", "dtr", "prcp")
 SCHEMA_VERSION = 1
 
-# Units as the core's tables give them -> as shown (plots._UNIT_LABELS).
-UNIT_LABELS = {"degrees_C": "°C", "°C^2": "°C²", "unitless": ""}
-
-
-def trend_units(units: str) -> str:
-    """The units of a trend, before "per decade": a change in a percentage is in percentage
-    points, not percent (#173)."""
-    return _("percentage points") if units == "%" else units
-
-
-def with_units(value: str, units: str) -> str:
-    """A value with its units, written the same way everywhere (#189): ``12.5%`` (a
-    percentage takes no space), ``20 days``, ``45.8 °C``, and the number alone without
-    units."""
-    if not units:
-        return value
-    if units == "%":
-        return _("%(value)s%%") % {"value": value}
-    return _("%(value)s %(units)s") % {"value": value, "units": units}
-
-
-def number(value: float, decimals: int | None = None) -> str:
-    """A number for a summary: localised, at most ``decimals`` places (default: 2 for
-    small values, 1 otherwise), without trailing zeros."""
-    if decimals is None:
-        decimals = 2 if abs(value) < 10 else 1
-    text = f"{value:.{decimals}f}"
-    if "." in text:
-        text = text.rstrip("0").rstrip(".")
-    if text in ("-0", ""):
-        text = "0"
-    places = len(text.split(".")[1]) if "." in text else 0
-    return number_format(float(text), places)
+# The number rules live in core.numbers (#226); these names are kept for the callers.
+trend_units = numbers.trend_units
+with_units = numbers.with_unit
+number = numbers.number
 
 
 def _finite(values) -> list[float | None]:
@@ -269,19 +242,17 @@ def daily_summary(payload: dict, flags: bool = True) -> str:
         low, high = min(present), max(present)
         values = {
             "label": s["label"],
-            "low": number(low[0], 1),
+            "low": with_units(number(low[0], 1), s["unit"]),
             "low_date": _when(start, low[1]),
-            "high": number(high[0], 1),
+            "high": with_units(number(high[0], 1), s["unit"]),
             "high_date": _when(start, high[1]),
-            "unit": s["unit"],
             "missing": missing_text,
         }
         if s["key"] == "prcp":
-            text = _("%(label)s: wettest day %(high)s %(unit)s on %(high_date)s; %(missing)s.")
+            text = _("%(label)s: wettest day %(high)s on %(high_date)s; %(missing)s.")
         else:
             text = _(
-                "%(label)s: from %(low)s %(unit)s on %(low_date)s to %(high)s %(unit)s on "
-                "%(high_date)s; %(missing)s."
+                "%(label)s: from %(low)s on %(low_date)s to %(high)s on %(high_date)s; %(missing)s."
             )
         parts.append(text % values)
     flagged = len(payload["flags"]["points"])
@@ -390,7 +361,7 @@ def index_payload(source: IndexSource, name: str) -> dict | None:
     if not found:
         return None
     plot = found[0]
-    units = UNIT_LABELS.get(plot.units, plot.units)
+    units = numbers.unit_label(plot.units)
     axis = units
     if plot.name.startswith("day_of_"):  # "Calendar day": the axis label, not a unit
         units, axis = "", _("Calendar day")
@@ -428,12 +399,20 @@ def index_payload(source: IndexSource, name: str) -> dict | None:
 
 
 def series_payload(
-    name: str, title: str, units: str, step: str, labels: list[str], values, bars: bool = False
+    name: str,
+    title: str,
+    units: str,
+    step: str,
+    labels: list[str],
+    values,
+    bars: bool = False,
+    signed_digits: int | None = None,
 ) -> dict:
     """An ``index`` payload for a series that is not a station run's index table (the
     gridded clicked-cell series, #85): ``labels`` are ``YYYY`` (``step`` "year"),
     ``YYYY-MM`` ("month") or the day of the year ("day"). No trend is drawn or described:
-    R's gridded outputs have none."""
+    R's gridded outputs have none. ``signed_digits`` shows every value signed with that
+    many places (anomalies: one, ``+0.4``, #226)."""
 
     def position(label: str) -> float:
         if step == "month":
@@ -441,7 +420,7 @@ def series_payload(
             return round(int(year) + (int(month) - 0.5) / 12, 6)
         return int(label)
 
-    units = UNIT_LABELS.get(units, units)
+    units = numbers.unit_label(units)
     payload = {
         "kind": "index",
         "version": SCHEMA_VERSION,
@@ -457,6 +436,8 @@ def series_payload(
         "trend": None,
         "trend_note": False,
     }
+    if signed_digits is not None:
+        payload["signed_digits"] = signed_digits
     payload["summary"] = index_summary(payload)
     return payload
 
@@ -479,12 +460,18 @@ def index_summary(payload: dict) -> str:
     ]
     if present:
         high, low = max(present), min(present)
+        digits = payload.get("signed_digits")
+
+        def shown(value: float) -> str:
+            text = number(value) if digits is None else numbers.signed(value, digits)
+            return with_units(text, units)
+
         parts.append(
             _("Highest %(high)s in %(high_at)s, lowest %(low)s in %(low_at)s.")
             % {
-                "high": with_units(number(high[0]), units),
+                "high": shown(high[0]),
                 "high_at": _x_label(step, x[high[1]]),
-                "low": with_units(number(low[0]), units),
+                "low": shown(low[0]),
                 "low_at": _x_label(step, x[low[1]]),
             }
         )
@@ -501,11 +488,11 @@ def index_summary(payload: dict) -> str:
         per = PER_DECADE.get(step, 1)
         slope = trend["slope"] * per
         change = trend_units(units)
+        places = numbers.slope_decimals(units)
         values = {
-            "slope": with_units(number(abs(slope)), change),
-            "zero": with_units(number(0), change),
-            "lower": number(trend["lower"] * per),
-            "upper": number(trend["upper"] * per),
+            "slope": with_units(numbers.fixed(abs(slope), places), change),
+            "zero": with_units(numbers.fixed(0, places), change),
+            "interval": numbers.interval(trend["lower"] * per, trend["upper"] * per, units),
         }
         if slope > 0:
             text = _("Trend: rising by %(slope)s per decade")
@@ -514,7 +501,7 @@ def index_summary(payload: dict) -> str:
         else:
             text = _("Trend: no change (%(zero)s per decade)")
         text = text % values
-        text += " " + _("(95%% confidence interval %(lower)s to %(upper)s).") % values
+        text += " " + _("(95%% confidence interval %(interval)s).") % values
         if trend["lower"] > 0 or trend["upper"] < 0:
             text += " " + _("The interval excludes zero: significant at the 5% level.")
         else:

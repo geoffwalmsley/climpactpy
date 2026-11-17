@@ -272,7 +272,7 @@ def test_sydney_wheat_matches_the_command_line_and_r(client, tmp_path, detrend):
     table = html.split('aria-label="Correlation with each index"')[-1].split("</table>")[0]
     for index, cor, _category in rows:
         assert f'/results/{index.strip(chr(34))}">' in table
-        assert f'<td class="num">{cor}</td>' in table
+        assert f'<td class="num">{cor.replace("-", "\u2212")}</td>' in table  # #226
     assert html.count('class="sector-plot__bar ') == 42
     assert html.count('class="sector-plot__fit"') == 4
 
@@ -446,7 +446,7 @@ def test_bar_chart_draws_na_and_both_signs():
     ]
     svg = str(sector_plots.bar_svg(bars, "t"))
     assert svg.count('class="sector-plot__bar ') == 2 and ">NA</text>" in svg
-    assert "<title>FD: NA (Temperature)</title>" in svg and ">-0.45</text>" in svg
+    assert "<title>FD: NA (Temperature)</title>" in svg and ">\u22120.45</text>" in svg
     assert sector_plots._symmetric_ticks([0.3, -0.45])[0] == -0.6
 
 

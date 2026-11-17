@@ -5,19 +5,18 @@ Everything comes from the files of a finished ``station`` job (or of one station
 the downloads hold:
 
 - the series, their descriptions, units and trends from the core's
-  :func:`climpact.plots.index_plots` (the function the PNGs and the interactive charts
+  :func:`climpact.plots.index_plots` (the function the PNGs and the charts
   use: Sen's slope and its 95% bounds as in ``trend/trend``, zyp's intercept), read from
   the index tables in ``indices/``;
 - the daily EHF and ECF tables, which R does not plot, as cards of their own;
-- the rows of ``trend/trend`` for each index (annual, monthly, seasons, SPI months);
 - the tables the core did not write because every value was missing (the job's
   ``skipped``), with the likely reason.
 
 Cards are grouped as the help's index catalogue (:mod:`climpact_web.help.indices`), and
 each card belongs to a theme (:mod:`climpact_web.stations.themes`: heat, cold, rain,
-drought, averages, growing season, the user's own index) for the findings at the top of
-the page and the filters. Each card has a sparkline drawn here as SVG path data, so the dashboard
-needs no chart code; the interactive chart is on the index's own page.
+drought, averages, growing season, the user's own index) for the filters and the hues.
+Each card has a sparkline drawn here as SVG path data, so the table needs no chart code;
+the index's own page draws its chart on the server too (:mod:`.index_page`, #237).
 
 Building the cards reads every table (about 0.2 s for 114 tables) and computes the trends
 (about 0.7 s), so the result is cached in memory, keyed by the files' modification times.
@@ -25,7 +24,6 @@ Building the cards reads every table (about 0.2 s for 114 tables) and computes t
 
 from __future__ import annotations
 
-import math
 import re
 import threading
 from collections import OrderedDict
@@ -36,6 +34,7 @@ from django.utils.translation import get_language, gettext_lazy
 from django.utils.translation import gettext as _
 
 from climpact_web.charts import data as chart_data
+from climpact_web.core import numbers
 from climpact_web.help import indices as catalogue
 from climpact_web.stations import themes
 
@@ -132,28 +131,28 @@ def card_key(series: str) -> str:
 
 
 def display_name(key: str, info) -> str:
-    """The usual spelling: ``TXx``, ``Rx3day``, ``R30mm``, ``SPI 3-month``."""
+    """The code, in the usual spelling: ``TXx``, ``Rx3day``, ``R30mm``, ``SPI3``,
+    ``TX90-HWN``, ``EHFdaily``."""
     if info is not None and key.lower() == info.short.lower():
         return info.name
     for pattern, template in _PARAM_NAMES:
         if m := pattern.match(key):
             return template.format(m.group(1))
     if m := _SCALE.match(key):
-        return _("%(index)s, %(n)s months") % {"index": m.group(2).upper(), "n": m.group(1)}
-    if key in ("EHFdaily", "ECFdaily"):
-        return _("%(index)s, daily") % {"index": key[:3]}
-    return key.replace("-", " ")
+        return f"{m.group(2).upper()}{m.group(1)}"
+    return key
 
 
-# Heatwave tables share one catalogue entry (one long name), so each aspect gets its own
-# plain name, in the words of the indices guide; the definition says which heatwaves.
+# Heatwave tables share one catalogue entry (one long name), so each aspect gets a short
+# name of its own, in the words of the indices guide; the code says which heatwaves
+# (TX90-HWN, EHF-HWN) and the definition how they are found.
 _HEATWAVE = re.compile(r"^(TX90|TN90|EHF|ECF)-([A-Z]+)$")
 _ASPECTS = {
     "HWN": gettext_lazy("Number of heatwaves"),
     "HWF": gettext_lazy("Heatwave days"),
     "HWD": gettext_lazy("Longest heatwave"),
     "HWM": gettext_lazy("Mean heatwave temperature"),
-    "HWA": gettext_lazy("Peak temperature of the hottest heatwave"),
+    "HWA": gettext_lazy("Hottest heatwave's peak"),
     "HWMD": gettext_lazy("Mean heatwave duration"),
     "HWPS": gettext_lazy("Peak heatwave severity"),
     "HWLS": gettext_lazy("Total heatwave severity"),
@@ -168,29 +167,45 @@ _ASPECTS = {
     "CWPI": gettext_lazy("Peak cold-wave intensity"),
     "CWLI": gettext_lazy("Total cold-wave intensity"),
 }
-_DEFINITION_LABEL = {"TX90": "Tx90", "TN90": "Tn90", "EHF": "EHF", "ECF": "ECF"}
+
+# The parameter in an output name, for the short names that take one (``%(n)s``).
+_PARAMETER = re.compile(r"^(?:rx|r|wsdi|csdi|tx|txb)(\d+(?:\.\d+)?)")
+
+# The user's own index: "TNgt0" is "Days TN > 0 °C".
+_CUSTOM_PARTS = re.compile(r"^(TX|TN|TM|PR|DTR)(gt|ge|lt|le)(-?\d+(?:\.\d+)?)$")
+_OPERATORS = {"gt": ">", "ge": "≥", "lt": "<", "le": "≤"}
 
 
-def plain_name(key: str, info) -> str:
-    """The card's title, in words: the catalogue's long name (``Frost days``), or for the
-    indices that share one entry, a name of their own (``Number of heatwaves (Tx90)``,
-    ``Standardised precipitation index, 3 months``, ``Excess heat factor, daily``)."""
+def short_name(key: str, info) -> str:
+    """The short name that follows the code (#218): the catalogue's (``Hottest day``),
+    with the parameter of the output name (``rx3day``: ``Wettest 3 days``); for the
+    heatwave tables, the aspect (``Number of heatwaves``); for the user's own index, its
+    threshold (``Days TN > 0 °C``)."""
     if m := _HEATWAVE.match(key):
         aspect = _ASPECTS.get(m.group(2))
         if aspect:
-            return _("%(aspect)s (%(definition)s)") % {
-                "aspect": aspect,
-                "definition": _DEFINITION_LABEL[m.group(1)],
-            }
+            return str(aspect)
     if key == "EHFdaily":
-        return _("Excess heat factor, daily")
+        return _("Daily excess heat factor")
     if key == "ECFdaily":
-        return _("Excess cold factor, daily")
+        return _("Daily excess cold factor")
     if info is None:
+        if m := _CUSTOM_PARTS.match(key):
+            name = _("Days %(variable)s %(operator)s %(value)s %(units)s") % {
+                "variable": m.group(1),
+                "operator": _OPERATORS[m.group(2)],
+                "value": m.group(3),
+                "units": "mm" if m.group(1) == "PR" else "°C",
+            }
+            return numbers.in_text(name)
         return _("Your own threshold index")
+    n = None
     if m := _SCALE.match(key):
-        return _("%(index)s, %(n)s months") % {"index": _(info.long_name), "n": m.group(1)}
-    return _(info.long_name)
+        n = m.group(1)
+    elif info.short in ("rxdday", "rnnmm", "wsdid", "csdid", "txdtnd", "txbdtnbd"):
+        if m := _PARAMETER.match(key):
+            n = m.group(1)
+    return info.short_name(n)
 
 
 def signature(key: str) -> str:
@@ -248,7 +263,7 @@ class Card:
     name: str
     definition: str
     long_name: str
-    title: str  # the plain name the card and the index page lead with
+    title: str  # the short name, after the code (#218): "Hottest day"
     units: str
     group: str
     theme: str  # themes.THEMES key, "" for a card only in the catalogue
@@ -262,7 +277,6 @@ class Card:
     count: int = 0
     missing: int = 0
     daily: dict | None = None  # EHF and ECF daily tables
-    spread: float = 0.0  # standard deviation of the series the card shows
     order: int = 0
 
     @property
@@ -282,16 +296,32 @@ class Card:
 
     @property
     def search_text(self) -> str:
-        return " ".join([self.key, self.name, self.title, self.definition, self.long_name]).lower()
+        text = " ".join([self.key, self.name, self.title, self.definition, self.long_name])
+        # Found as typed: "-2" finds "TN below −2 °C" (#226).
+        return text.replace(numbers.MINUS, "-").replace(numbers.NBSP, " ").lower()
+
+    @property
+    def r_name(self) -> str:
+        """R's long name, for the index page's definition line (#218), when it says more
+        than the short name: "Max TX" beside "TXx Hottest day", nothing beside "FD Frost
+        days"."""
+        if self.long_name.casefold() == self.title.casefold():
+            return ""
+        return self.long_name
 
     @property
     def code(self) -> str:
-        """The index's code as Climpact's files spell it: ``TXx``, ``TX90-HWN``."""
-        return self.key if _HEATWAVE.match(self.key) else self.name
+        """The index's code, which leads wherever it is listed (#218): ``TXx``, ``TX90-HWN``."""
+        return self.name
 
     @property
     def trend_units(self) -> str:
         return chart_data.trend_units(self.units)
+
+    @property
+    def trend_units_title(self) -> str:
+        """``pp`` spelt out, for its ``abbr``; "" for other units."""
+        return _("percentage points") if self.units == "%" else ""
 
     @property
     def series_text(self) -> str:
@@ -300,15 +330,6 @@ class Card:
     @property
     def significant(self) -> bool:
         return bool(self.trend and self.trend.get("significant"))
-
-    @property
-    def change(self) -> float:
-        """How big the trend is next to the index's own variability: the slope per decade
-        divided by the standard deviation of the series (0 without a trend). This puts
-        days, °C, mm and % on one scale, to rank the significant trends."""
-        if not (self.trend and self.trend.get("valid")) or not self.spread:
-            return 0.0
-        return abs(self.trend["slope"]) / self.spread
 
 
 def _x_label(step: str, x: float) -> str:
@@ -326,27 +347,22 @@ def trend_summary(plot) -> dict | None:
     per = PER_DECADE.get(plot.step, 1)
     slope, lower, upper = trend.slope * per, trend.lower * per, trend.upper * per
     significant = trend.lower > 0 or trend.upper < 0
+    units = _units(plot)
     direction = "up" if slope > 0 else "down" if slope < 0 else "flat"
     return {
         "valid": True,
         "slope": slope,
         "lower": lower,
         "upper": upper,
-        "slope_text": _signed(slope),
-        "lower_text": chart_data.number(lower),
-        "upper_text": chart_data.number(upper),
+        # The number rules (#226): "+0.21", "+0.21 °C/decade", "−0.22 to 0.31".
+        "slope_text": numbers.slope(slope, units),
+        "per_decade_text": numbers.per_decade(slope, units),
+        "interval_text": numbers.interval(lower, upper, units),
         "per_step": trend.slope,
         "p_value": trend.p_value,
         "significant": significant,
         "direction": direction,
     }
-
-
-def _signed(value: float) -> str:
-    text = chart_data.number(abs(value))
-    if text == "0":
-        return text
-    return ("+" if value > 0 else "−") + text
 
 
 def _columns(values: list[float | None]) -> list[float | None]:
@@ -420,16 +436,6 @@ def sparkline(values, bars: bool = False, trend=None) -> dict:
     return out
 
 
-def _spread(values) -> float:
-    """The sample standard deviation of the values present (0 for fewer than two)."""
-    present = [float(v) for v in values if v == v]
-    n = len(present)
-    if n < 2:
-        return 0.0
-    mean = sum(present) / n
-    return math.sqrt(sum((v - mean) ** 2 for v in present) / (n - 1))
-
-
 def _latest(plot) -> dict | None:
     for i in range(len(plot.values) - 1, -1, -1):
         v = plot.values[i]
@@ -449,7 +455,7 @@ with_units = chart_data.with_units
 def _units(plot) -> str:
     if plot.name.startswith("day_of_"):  # its trend is in days per decade
         return _("days")
-    return chart_data.UNIT_LABELS.get(plot.units, plot.units)
+    return numbers.unit_label(plot.units)
 
 
 def _definition(description: str, key: str) -> str:
@@ -459,17 +465,7 @@ def _definition(description: str, key: str) -> str:
     prefix = re.match(r"^[^:]{1,40}: ", text)
     if prefix and not text.startswith(("TX90-", "TN90-")):
         text = text[prefix.end() :]
-    return _(catalogue.plain(text))
-
-
-def chart_title(card: Card, series: Series) -> str:
-    """The index page's chart title (#115): the code as Climpact spells it and the
-    cleaned definition of the series shown (``SU: Annual number of days when TX > 25
-    °C``), not R's raw plot subtitle (``su: ... 25 degrees_C``)."""
-    definition = _definition(series.description, card.key)
-    if definition.startswith(card.code):
-        return definition
-    return _("%(code)s: %(definition)s") % {"code": card.code, "definition": definition}
+    return numbers.in_text(_(catalogue.plain(text)))
 
 
 @dataclass
@@ -529,8 +525,11 @@ def _new_card(key: str, order: int) -> Card:
         key=key,
         name=display_name(key, info),
         definition="",
-        long_name=_(info.long_name) if info is not None else _("Your own threshold index"),
-        title=plain_name(key, info),
+        # The number rules in the names too (#226): "TN below −2 °C".
+        long_name=numbers.in_text(_(info.long_name))
+        if info is not None
+        else _("Your own threshold index"),
+        title=short_name(key, info),
         units="",
         group=group,
         theme=themes.theme_of(key, info),
@@ -576,7 +575,6 @@ def build(
         card.latest = _latest(plot)
         card.count = len(plot.values)
         card.missing = int(sum(1 for v in plot.values if v != v))
-        card.spread = _spread(plot.values)
         # Annual first, then monthly, then the days of occurrence.
         card.series.sort(key=lambda s: (s.name.startswith("day_of_"), s.name.endswith("_MON")))
     for name in ("EHFdaily", "ECFdaily"):
@@ -685,55 +683,6 @@ def skipped_tables(keys, summary: dict | None, base: tuple[int, int] | None) -> 
     return list(by_key.values())
 
 
-# ---- the trend file -----------------------------------------------------------------------
-
-
-def trend_rows(source: RunSource, key: str) -> list[dict]:
-    """The rows of ``trend/trend`` for the card ``key`` (``txx``: annual, monthly and the
-    seasons; ``3month_spi``: the months R reports; the custom index by its name)."""
-    from climpact.io.climpact_csv import read_climpact_csv
-
-    path = source.index_source.trend_path()
-    if not path.is_file():
-        return []
-    if m := _SCALE.match(key):
-        wanted = f"{m.group(2)}{m.group(1)}"
-    else:
-        wanted = key
-    table = read_climpact_csv(path).data
-    rows = []
-    for row in table[table["Index"] == wanted].itertuples(index=False):
-        lower, slope, upper = row[4], row[5], row[6]
-        valid = not any(math.isnan(v) for v in (lower, slope, upper))
-        rows.append(
-            {
-                "frequency": row[1],
-                "label": _frequency_label(str(row[1])),
-                "start": "" if math.isnan(row[2]) else int(row[2]),
-                "end": "" if math.isnan(row[3]) else int(row[3]),
-                "lower": lower,
-                "slope": slope,
-                "upper": upper,
-                "valid": valid,
-                "significant": valid and (lower > 0 or upper < 0),
-                "per": _("per month") if row[1] == "monthly" else _("per year"),
-            }
-        )
-    return rows
-
-
-def _frequency_label(value: str) -> str:
-    labels = {
-        "annual": _("Yearly"),
-        "monthly": _("Monthly"),
-        "DJF": _("December to February"),
-        "MAM": _("March to May"),
-        "JJA": _("June to August"),
-        "SON": _("September to November"),
-    }
-    return labels.get(value, value)
-
-
 # ---- cache -------------------------------------------------------------------------------
 
 _CACHE_SIZE = 8
@@ -777,23 +726,3 @@ def results_for(
         while len(_cache) > _CACHE_SIZE:
             _cache.popitem(last=False)
     return results
-
-
-def anomaly_series(source: RunSource, name: str) -> dict | None:
-    """The standardised anomalies of a table that has them (R's ``standardised values
-    (using all years)`` column), as labels and values for a bar chart; None otherwise."""
-    from climpact.io.climpact_csv import read_climpact_csv
-
-    path = source.index_source.table_path(name)
-    if not path.is_file():
-        return None
-    table = read_climpact_csv(path).data
-    column = next((c for c in table.columns if c.startswith("standardised")), None)
-    if column is None:
-        return None
-    step = "day" if name.endswith("_DAY") else "month" if name.endswith("_MON") else "year"
-    if step == "day":
-        labels = [str(i + 1) for i in range(len(table))]
-    else:
-        labels = [str(t if isinstance(t, str) else int(t)) for t in table["time"]]
-    return {"labels": labels, "values": list(table[column]), "step": step}

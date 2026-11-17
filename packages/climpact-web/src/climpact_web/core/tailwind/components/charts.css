@@ -191,6 +191,34 @@
      --chart-* token (the |token_name filter writes the class; test_csp.py checks each token
      has one). chart-height-<length>: a chart frame's and its skeleton's height, one class
      per height the templates use (test_csp.py checks those too). */
+  .swatch-chart-decrease-2 {
+    --swatch: var(--chart-decrease-2);
+  }
+
+  .swatch-chart-decrease-1 {
+    --swatch: var(--chart-decrease-1);
+  }
+
+  .swatch-chart-increase-1 {
+    --swatch: var(--chart-increase-1);
+  }
+
+  .swatch-chart-increase-2 {
+    --swatch: var(--chart-increase-2);
+  }
+
+  .swatch-chart-coverage-1 {
+    --swatch: var(--chart-coverage-1);
+  }
+
+  .swatch-chart-coverage-2 {
+    --swatch: var(--chart-coverage-2);
+  }
+
+  .swatch-chart-coverage-3 {
+    --swatch: var(--chart-coverage-3);
+  }
+
   .swatch-chart-1 {
     --swatch: var(--chart-1);
   }

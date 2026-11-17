@@ -1,0 +1,27 @@
+{% load i18n %}{% comment %}
+The verdict strip's decision (#174, #202, #235): "Flagged values (CSV)" when the checks
+flagged anything; then one primary button. Green and amber: "Go to indices", with "Replace
+file" before it on amber. Red: "Replace file", with "Go to indices anyway" before it, so the
+user can always go on. "Replace file" opens the Inputs panel's File sheet, or without
+JavaScript its page (#199). Context: review, analysis, input_urls.
+{% endcomment %}{% with verdict=review.verdict %}
+{% url 'stations:qc_continue' analysis.pk as continue_url %}
+{% translate "Replace file" as replace_label %}
+{% if verdict.wrong or verdict.worth %}{% url 'stations:qc_flagged' analysis.pk as flagged_url %}{% translate "Flagged values (CSV)" as flagged_label %}
+{% include "components/button.html" with label=flagged_label href=flagged_url variant="secondary" size="sm" %}{% endif %}
+{% if verdict.level == "fix" %}
+<form method="post" action="{{ continue_url }}">
+  {% csrf_token %}
+  {% translate "Go to indices anyway" as continue_label %}
+  {% include "components/button.html" with label=continue_label type="submit" variant="secondary" size="sm" %}
+</form>
+{% include "components/button.html" with label=replace_label href=input_urls.file sheet="file" size="sm" %}
+{% else %}
+{% if verdict.level == "usable" %}{% include "components/button.html" with label=replace_label href=input_urls.file sheet="file" variant="secondary" size="sm" %}{% endif %}
+<form method="post" action="{{ continue_url }}">
+  {% csrf_token %}
+  {% translate "Go to indices" as continue_label %}
+  {% include "components/button.html" with label=continue_label type="submit" size="sm" %}
+</form>
+{% endif %}
+{% endwith %}

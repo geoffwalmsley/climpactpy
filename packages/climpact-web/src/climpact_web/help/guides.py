@@ -211,8 +211,12 @@ def catalogue_markdown() -> str:
         lines += [f"### {label} {{#{key}}}", ""]
         for short in shorts:
             info = by_short[short]
-            lines += [f"#### {info.name}: {gettext(info.long_name)} {{#{info.anchor}}}", ""]
-            lines += [gettext(info.definition) + ".", ""]
+            from climpact_web.help.topics import r_name_sentence
+
+            # Codes first (#218): "TXx Hottest day", then R's long name after the definition.
+            name = info.short_name()
+            lines += [f"#### {info.name} {name} {{#{info.anchor}}}", ""]
+            lines += [gettext(info.definition) + "." + r_name_sentence(info.long_name, name), ""]
             facts = [gettext("Units: %(units)s") % {"units": UNITS.get(info.units, info.units)}]
             if info.annual and info.monthly:
                 facts.append(gettext("yearly and monthly values"))

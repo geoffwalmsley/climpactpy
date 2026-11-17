@@ -4,7 +4,8 @@ The core's file is the single source of the definitions: the indices guide, the 
 help topics and the index names on the results screens all come from it. This module adds
 what the file lacks for people reading the app: a display name in the usual ET-SCI
 spelling (``TXx``, ``Rx1day``), a group, the parameter that sets ``d``, ``n`` or ``nn``,
-and plain units (``°C`` for ``degrees_C``).
+and plain units (``°C`` for ``degrees_C``). It also corrects the long names the file gets
+wrong (``LONG_NAME_FIXES``).
 
 The definitions are core data, not template text, so ``makemessages`` cannot find them.
 ``index_messages.py`` lists every one with ``gettext_noop`` so that translators get them in
@@ -22,6 +23,13 @@ from importlib import resources
 from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
+
+# Long names the core's file (copied from Climpact R's) gets wrong, corrected for the web
+# app only (#217). The core keeps R's text: it is the ``long_name`` attribute of the
+# gridded netCDF files, which the parity tests compare with R's.
+LONG_NAME_FIXES = {
+    "tmge10": "TM of at least 10 degrees_C",  # R: "TX of at least ...", but it counts TM days
+}
 
 # The usual spelling of each short name (ETCCDI and ET-SCI papers, the R plots).
 DISPLAY_NAMES = {
@@ -81,6 +89,74 @@ DISPLAY_NAMES = {
     "txm": "TXm",
     "tnm": "TNm",
 }
+
+# The short name that follows the code wherever an index is listed (#218, codes first:
+# "TXx Hottest day"). R's long names ("Max TX") stay as the definition line of the index
+# page. A name with ``%(n)s`` takes the index's parameter: "Rx3day Wettest 3 days"; the
+# guide, which names the index before a parameter is chosen, shows it with the letter
+# the definition uses (``SHORT_NAME_LETTERS``). Hyphens before a number are minus signs
+# when shown (``numbers.in_text``). Every short name of the core's file has one (a test
+# checks). Approved by the maintainer on 17 November 2026.
+SHORT_NAMES = {
+    "fd": _("Frost days"),
+    "tnlt2": _("Days TN < 2 °C"),
+    "tnltm2": _("Days TN < -2 °C"),
+    "tnltm20": _("Days TN < -20 °C"),
+    "id": _("Ice days"),
+    "su": _("Summer days"),
+    "tr": _("Tropical nights"),
+    "gsl": _("Growing season length"),
+    "txx": _("Hottest day"),
+    "tnn": _("Coldest night"),
+    "tnx": _("Warmest night"),
+    "txn": _("Coldest day"),
+    "dtr": _("Daily temperature range"),
+    "wsdi": _("Warm spell duration"),
+    "wsdid": _("Warm spell duration, %(n)s+ days"),
+    "csdi": _("Cold spell duration"),
+    "csdid": _("Cold spell duration, %(n)s+ days"),
+    "txgt50p": _("Days above median TX"),
+    "tx10p": _("Cool days"),
+    "tx90p": _("Warm days"),
+    "tn10p": _("Cold nights"),
+    "tn90p": _("Warm nights"),
+    "tmge5": _("Days TM ≥ 5 °C"),
+    "tmlt5": _("Days TM < 5 °C"),
+    "tmge10": _("Days TM ≥ 10 °C"),
+    "tmlt10": _("Days TM < 10 °C"),
+    "txge30": _("Days TX ≥ 30 °C"),
+    "txge35": _("Days TX ≥ 35 °C"),
+    "tx95t": _("Very warm day threshold"),
+    "hddheatn": _("Heating degree days"),
+    "cddcoldn": _("Cooling degree days"),
+    "gddgrown": _("Growing degree days"),
+    "cdd": _("Longest dry spell"),
+    "cwd": _("Longest wet spell"),
+    "r10mm": _("Days ≥ 10 mm"),
+    "r20mm": _("Days ≥ 20 mm"),
+    "rx1day": _("Wettest day"),
+    "rx5day": _("Wettest 5 days"),
+    "prcptot": _("Wet-day total"),
+    "sdii": _("Rain per wet day"),
+    "r95p": _("Very wet days total"),
+    "r99p": _("Extremely wet days total"),
+    "r95ptot": _("Share from very wet days"),
+    "r99ptot": _("Share from extremely wet days"),
+    "rxdday": _("Wettest %(n)s days"),
+    "rnnmm": _("Days ≥ %(n)s mm"),
+    "txdtnd": _("Hot days and nights, %(n)s in a row"),
+    "txbdtnbd": _("Cold days and nights, %(n)s in a row"),
+    "hw": _("Heatwaves, Tx90 and Tn90"),
+    "hwEHF": _("Heatwaves and cold waves, EHF"),
+    "spei": _("SPEI, %(n)s months"),
+    "spi": _("SPI, %(n)s months"),
+    "tmm": _("Mean temperature"),
+    "txm": _("Mean maximum"),
+    "tnm": _("Mean minimum"),
+}
+
+# The letter the core's definition gives the parameter, for names with ``%(n)s``.
+SHORT_NAME_LETTERS = {"rnnmm": "nn", "spi": "n", "spei": "n"}
 
 # Groups for the guide, in order. Every short name of the core's file is in exactly one
 # (a test checks).
@@ -149,7 +225,7 @@ UNITS = {
 class IndexInfo:
     short: str  # the core's short name, e.g. "txx", "rxdday"
     name: str  # display name, e.g. "TXx"
-    long_name: str  # sentence case, from the core's file
+    long_name: str  # sentence case, from the core's file (or LONG_NAME_FIXES)
     definition: str  # the annual row's definition, with °C
     units: str  # the core's units
     annual: bool
@@ -168,6 +244,22 @@ class IndexInfo:
     @property
     def param_topic(self) -> str | None:
         return INDEX_PARAMS.get(self.short)
+
+    def short_name(self, n: str | None = None) -> str:
+        """The short name in the interface language (``SHORT_NAMES``), with the number
+        rules; ``n`` the parameter (``3`` for ``rx3day``), else the definition's letter."""
+        return short_name(self.short, n)
+
+
+def short_name(short: str, n: str | None = None) -> str:
+    """The short name of the core's short name ``short``: ``Hottest day``,
+    ``Wettest 3 days`` (``n="3"``), ``Wettest d days``, ``Days TN < −2 °C``."""
+    from climpact_web.core import numbers
+
+    name = str(SHORT_NAMES[short])
+    if "%(n)s" in name:
+        name = name % {"n": n or SHORT_NAME_LETTERS.get(short, "d")}
+    return numbers.in_text(name)
 
 
 # Words kept capitalised when long names are put in sentence case.
@@ -216,7 +308,7 @@ def catalogue() -> tuple[IndexInfo, ...]:
             IndexInfo(
                 short=short,
                 name=DISPLAY_NAMES.get(short, short),
-                long_name=sentence_case(plain(first["Long.name"])),
+                long_name=sentence_case(plain(LONG_NAME_FIXES.get(short, first["Long.name"]))),
                 definition=plain(annual_row["Definition"]),
                 units=first["Units"],
                 annual="T" in flags,

@@ -46,7 +46,7 @@ def in_use(client) -> tuple[StationAnalysis, Job, Job]:
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job, analysis.step) == (qc, run, Step.RESULTS)
     assert workspace.section_states(analysis) == {
-        "quality": "done", "results": "done", "files": "done",
+        "quality": "usable", "results": "done", "files": "done",
     }  # fmt: skip
     return analysis, qc, run
 
@@ -100,7 +100,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     assert "You changed the base period to 1981–2010. These results use 1971–2000." in html
     assert 'class="stale-content' in html and "data-results-table" in html  # still shown
     assert 'id="results-progress"' in html
-    assert states(html) == {"quality": "done", "results": "stale", "files": "stale"}
+    assert states(html) == {"quality": "usable", "results": "stale", "files": "stale"}
     # The panel highlights the base period, with the run's progress beneath it.
     assert changed(html) == {"base-period"} and 'data-run="run"' in html
     assert "Base period · changed" in html and 'data-run="qc"' not in html
@@ -111,7 +111,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     finish(new)
     html = page(client, analysis)
     assert "out of date" not in html and 'class="stale-content' not in html
-    assert states(html)["results"] == "done" and "base period 1981–2010" in html
+    assert states(html)["results"] == "done" and "base 1981–2010" in html
     assert changed(html) == set() and "data-run=" not in html
 
 
@@ -141,7 +141,7 @@ def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(cli
     assert run_next() == new_qc
     html = page(client, analysis, "quality")
     assert "Checking again" not in html and "/quality/continue" in html
-    assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
+    assert states(html)["quality"] == "usable" and states(html)["results"] == "stale"
     finish(new_run)
     assert states(page(client, analysis))["results"] == "done"
 
@@ -165,7 +165,7 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     assert states(html)["results"] == "stale" and "data-results-table" in html
     assert run_next() == new_qc
     finish(new_run)
-    assert states(page(client, analysis)) == {"quality": "done", "results": "done",
+    assert states(page(client, analysis)) == {"quality": "usable", "results": "done",
                                               "files": "done"}  # fmt: skip
 
 
@@ -179,7 +179,7 @@ def test_new_settings_mark_results_out_of_date_until_replaced(client):
     assert_kept(qc, run)
     html = page(client, analysis)
     assert "You changed the settings." in html and "Results are out of date. Recalculating" in html
-    assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
+    assert states(html)["quality"] == "usable" and states(html)["results"] == "stale"
     assert changed(html) == {"settings"} and "Index settings · changed" in html
     assert ">1 changed<" in html.split('data-input="settings"')[1].split("</div>")[0]
     assert 'data-run="run"' in html  # the run's progress beneath the panel
@@ -256,7 +256,7 @@ def test_new_station_name_checks_again_and_new_location_does_not(client):
     analysis, qc, run = in_use(client)
     html = page(client, analysis)
     sheet = re.search(r'<dialog class="sheet" id="sheet-station".*?</dialog>', html, re.S).group(0)
-    assert "Updates Results and Files. Quality stays as it is." in sheet
+    assert "Updates Indices and Files. Quality stays as it is." in sheet
     assert "A new station name updates Quality too" in sheet
     edit(
         client, analysis, "station", {"station_name": STATION, "latitude": "-10", "longitude": "5"}
@@ -265,7 +265,7 @@ def test_new_station_name_checks_again_and_new_location_does_not(client):
     assert analysis.qc_job == qc and analysis.indices_job != run
     assert (analysis.latitude, analysis.longitude) == (-10, 5)
     html = page(client, analysis)
-    assert changed(html) == {"station"} and "−10°" not in html and "-10°, 5°" in html
+    assert changed(html) == {"station"} and "10.00°\u00a0S 5.00°\u00a0E" in html
     edit(
         client,
         analysis,
@@ -286,10 +286,10 @@ def test_each_sheet_says_what_applying_updates(client):
     )
     assert "data-sheet-open" in sheets.pop("inputs")  # the phone's list of them (#203)
     assert set(sheets) == {"file", "station", "base-period", "thresholds", "settings"}
-    assert "Updates Quality, Results and Files." in sheets["file"]
-    assert "Updates Results and Files. Quality stays as it is." in sheets["base-period"]
-    assert "Updates Quality, Results and Files." in sheets["thresholds"]
-    assert "Updates Results and Files. Quality stays as it is." in sheets["settings"]
+    assert "Updates Quality, Indices and Files." in sheets["file"]
+    assert "Updates Indices and Files. Quality stays as it is." in sheets["base-period"]
+    assert "Updates Quality, Indices and Files." in sheets["thresholds"]
+    assert "Updates Indices and Files. Quality stays as it is." in sheets["settings"]
     for key, sheet in sheets.items():
         # One primary button, Apply, and Cancel; the form posts to the edit page.
         assert sheet.count('class="button"') == 1 and ">Apply<" in sheet and ">Cancel<" in sheet
@@ -300,9 +300,12 @@ def test_each_sheet_says_what_applying_updates(client):
 
 
 def test_the_panel_lists_every_input_on_every_section(client):
+    """Every section has the Inputs panel; an index's page (#237) has none, as its board:
+    its provenance line says what made it."""
     analysis, _qc, _run = in_use(client)
     base = f"/station/{analysis.pk}"
-    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+    assert "data-input=" not in page(client, analysis, "results/txx")
+    for path in ("quality", "results", "downloads", "sector"):
         html = page(client, analysis, path)
         inputs = re.findall(r'data-input="([\w-]+)"', html)
         assert inputs == ["file", "station", "base-period", "thresholds", "settings"], path
@@ -335,7 +338,8 @@ def test_the_inputs_bar_says_the_panel_in_one_line(client):
     the panel's list again (without the panel's data-input marks), on a page without
     JavaScript the panel itself. Not on an input's own page, which has no panel."""
     analysis, _qc, _run = in_use(client)
-    for path in ("quality", "results", "downloads", "results/txx", "sector"):
+    assert "data-inputs-bar" not in page(client, analysis, "results/txx")  # #237
+    for path in ("quality", "results", "downloads", "sector"):
         html = page(client, analysis, path)
         assert bar(html) == "Inputs: 1971–2000 · defaults", path
         assert 'data-sheet-open="sheet-inputs"' in html and 'id="sheet-inputs"' in html
@@ -373,7 +377,7 @@ def test_the_page_actions_are_in_a_menu_on_phones(client):
     assert menu and "Page actions" in menu.group(0)
     assert "Compare with sector data" in menu.group(0)
     assert "All files and the report" in menu.group(0)  # Download all without a zip
-    header = html.split('class="workspace-header__actions"')[1].split("</details>")[0]
+    header = html.split('class="context-bar__actions"')[1].split("</details>")[0]
     assert header.count("Compare with sector data") == 2  # the buttons, then the menu
     assert "data-page-menu" not in page(client, analysis, "quality")  # no actions there
 
@@ -460,23 +464,52 @@ def test_tabs_follow_the_workspace_from_the_first_visit(client):
     assert client.get(f"/station/{analysis.pk}/inputs/station")["Location"] == load
     client.post(load, DETAILS)
     html = page(client, analysis, "quality")
-    assert states(html) == {"quality": "running", "results": "locked", "files": "locked"}
+    assert states(html) == {"quality": "checking", "results": "locked", "files": "locked"}
     assert "data-inputs-panel" in html and 'data-run="qc"' in html
-    assert "<span>Running</span>" in html  # the word shows for a state that needs the user
+    assert "<span>Checking…</span>" in html  # the word shows while the checks run (#222)
     run_next()
     html = page(client, analysis, "quality")
-    assert states(html)["quality"] in ("done", "attention") and states(html)["files"] == "done"
+    # The first page after the checks shows their verdict in the tab (#222).
+    assert states(html)["quality"] == "usable" and states(html)["files"] == "done"
+    assert (
+        '<span class="max-sm:sr-only">Usable</span><span class="max-sm:hidden" aria-hidden="true">'
+        "· 5</span>" in html
+    )
 
 
-def test_a_failed_check_and_a_red_verdict_need_attention(client):
+def test_failed_checks_need_attention(client):
     analysis = ready_analysis(client)
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.FAILED, error="Broken.")
-    assert states(page(client, analysis, "quality"))["quality"] == "attention"
-    Job.objects.filter(pk=analysis.qc_job.pk).update(
-        status=Status.SUCCEEDED, result={"verdict": "fix"}
-    )
-    analysis.refresh_from_db()
-    assert workspace.section_states(analysis)["quality"] == "attention"
+    html = page(client, analysis, "quality")
+    assert states(html)["quality"] == "attention" and "<span>Needs attention</span>" in html
+
+
+def test_quality_tab_shows_the_verdict_kept_with_the_checks(client):
+    """#222: the tab's state is the verdict, kept with the checks when Quality shows them;
+    the Results and Files tabs keep their run states."""
+    analysis = ready_analysis(client)
+    qc = run_next()
+    for level, wrong in [("ready", 0), ("usable", 5), ("fix", 1204)]:
+        Job.objects.filter(pk=qc.pk).update(result={**qc.result, "verdict": level,
+                                                    "verdict_wrong": wrong})  # fmt: skip
+        analysis.refresh_from_db()
+        tabs = {s.key: s for s in workspace.sections(analysis, "quality")}
+        assert tabs["quality"].state == level and tabs["quality"].verdict
+        assert tabs["quality"].count == {0: "", 5: "· 5", 1204: "· 1,204"}[wrong]
+        assert tabs["files"].state == "done" and not tabs["files"].verdict
+
+
+def test_quality_tab_works_out_a_verdict_not_kept(client):
+    """Checks not yet shown, or with a verdict kept before #222 (its level alone): the tab
+    works the verdict out from the checks once, and keeps it."""
+    analysis = ready_analysis(client)
+    qc = run_next()
+    for result in [qc.result, {**qc.result, "verdict": "fix"}]:
+        Job.objects.filter(pk=qc.pk).update(result=result)
+        analysis.refresh_from_db()
+        assert workspace.section_states(analysis)["quality"] == "usable"
+        qc.refresh_from_db()
+        assert (qc.result["verdict"], qc.result["verdict_wrong"]) == ("usable", 5)
 
 
 # ---- addresses -------------------------------------------------------------------------------
@@ -498,7 +531,7 @@ def test_old_step_addresses_lead_to_their_tabs(client):
         assert re.search(rf'data-tab="{tab}"[^>]*aria-current="page"', page(client, analysis, path))
     assert client.get(f"{base}/load")["Location"] == f"{base}/quality#your-data"
     html = page(client, analysis, "quality")
-    assert 'id="your-data"' in html and 'class="data-chip"' in html
+    assert 'id="your-data"' in html and 'class="coverage-strip"' in html  # #235
     assert 'data-tab="data"' not in html
     # The old Calculate step opens the Index settings sheet over Results (#178, #199).
     response = client.get(f"{base}/indices?index=txx")

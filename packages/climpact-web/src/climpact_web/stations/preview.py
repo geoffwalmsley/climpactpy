@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from climpact_web.core import numbers
+
 WIDTH, HEIGHT = 960, 170
 PAD_X, PAD_TOP, PAD_BOTTOM = 44, 10, 24
 
@@ -91,7 +93,7 @@ def panels(preview: dict) -> list[Panel]:
             Panel(
                 key=key,
                 paths=[{"d": _path(preview[s], x, y), "token": f"--chart-{s}"} for s in series],
-                y_labels=[{"y": round(y(t), 1), "text": f"{t:g}"} for t in ticks],
+                y_labels=[{"y": round(y(t), 1), "text": numbers.minus(f"{t:g}")} for t in ticks],
                 x_labels=x_labels,
             )
         )

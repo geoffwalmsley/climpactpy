@@ -204,13 +204,35 @@ and muted. **Target (#236):** on a station's Indices the answer is one line abov
 table ("22 of 80 indices with a significant trend · TM +0.19 °C/decade"), its count in
 bold, not a band.
 
-**Numbers and codes (Target: #226, #227).** Numbers in tables, statistics and the
-provenance line use tabular figures (`font-variant-numeric: tabular-nums`); index codes,
-dates, file names and the provenance line are `--font-mono`. Table cells are
-`--text-sm`; the dense Quality tables `--text-xs`. Numbers follow one set of rules
-(#226): U+2212 for minus, units on every value, two decimals for slopes and intervals in
-°C, days and %, one in mm, anomalies to one decimal and never "−0.0", coordinates as
-"33.86° S 151.21° E", and a no-break space between a value and its unit.
+**Numbers** follow one set of rules (#226), written by one module,
+`core/numbers.py`, which every page, chart summary and server-drawn chart uses
+(`charts.js` repeats the minus and zero rules for its axes, read-out and table):
+
+- **U+2212 for minus** (`−0.22`), in values, intervals, axis ticks and the index names
+  that hold a number (`TN below −2 °C`); never "−0.0": a value that rounds to zero has no
+  sign (`0.00`). Text the user types or a file holds keeps the hyphen-minus (`-99.9` for
+  a missing value), and downloads are written as the files are.
+- **Slopes per decade, signed, with their units:** `+0.21 °C/decade`,
+  `+5.15 days/decade`; a trend of a percentage is in percentage points, written `pp`
+  everywhere (`+1.31 pp/decade`, spelt out in an `abbr` where the markup allows). In
+  running text, "rose by 0.19 °C per decade".
+- **Places:** two for slopes and intervals in °C, days, % and the unitless indices, one
+  in mm and degree-days (`numbers.slope_decimals`); rounded half up from the value as
+  written. Intervals are two unsigned bounds, `−0.22 to 0.31`. Anomalies have one
+  decimal and a sign (`+0.4`). Other values keep up to two places (one from 10), without
+  trailing zeros; the Quality tables show the file's own precision.
+- **Coordinates** are `33.86° S 151.21° E`.
+- **A no-break space** joins a value and its unit (`45.8 °C`; a percentage takes none,
+  `12.5%`). It is joined in code (`numbers.with_unit`), never written in a message
+  (#205).
+
+In templates, `{% load ui %}` gives `{{ value|decimals:4 }}` and
+`{{ lat|coordinates:lon }}`; anything else is formatted in the view with `numbers`.
+
+**Codes and figures (Target: #227).** Numbers in tables, statistics and the provenance
+line use tabular figures (`font-variant-numeric: tabular-nums`); index codes, dates,
+file names and the provenance line are `--font-mono`. Table cells are `--text-sm`; the
+dense Quality tables `--text-xs`.
 
 ## Layout
 
@@ -313,9 +335,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `table`, `summary_list` | Component | Data in a keyboard-scrollable region, hairline rows and no frame; key–value pairs | empty state |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky workspace header (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`). The word shows for the states that need the user and is read by screen readers for all. A section not available yet is not a link. Looks like `tabs` | — |
-| `progress`, `stages`, `skeleton` | Component | Running jobs and loading content | determinate, indeterminate |
+| `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV | — |
-| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp / decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
+| `theme_headline` | Pattern | A theme tile, the finding first: one sentence from the trends, up to three trends, each on one line (the plain name, the value with short units, "pp/decade", and a sparkline), a link to the rest. Its hue on the top edge, the dot, the pill and the sparklines. Four in a 2 x 2 grid under "By theme", one a row on a phone, where each trend's name takes its own line above the value and sparkline | changed, quiet (no change: the sunken surface, one sentence, no trends) |
 | Catalogue | Pattern | Every index in one table (`stations/results.html`, `js/results.js`): above it, theme chips (`chip`, with the hue's dot and a muted count; "Also measured" for the rest), "Significant only" as a chip and a search box at the end of the row; below them a live line that says how many rows show and how they are sorted. Columns: the index (dot and plain name, a link, the row's header), code, trend per decade, significance, sparkline. On a phone the table becomes a list (#203): a block per index, its name and code, then its trend and significance beside the sparkline; the header row is a line of the column names that sort. Each header but the sparkline's sorts the table: a link without JavaScript, a button with it (`sort`, an arrow for the order), `aria-sort` on the sorted column. The table scrolls in its focusable region under a sticky header, so the page stays short. Without JavaScript the filters are a form and every row is in the page | filtered, sorted, no match |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
@@ -380,9 +402,10 @@ years; sparklines are only for scanning, beside a number given in text.
 - **Write short, plain sentences.** One idea per sentence; no chains of colons and
   semicolons; a verb on every button. Assume the reader is working in a second language.
   A page opens with one or two sentences; anything longer goes in its section's help.
-- **Give units with every number,** including stats and trends (percentage points for
-  trends of percentage indices), written by the rules in
-  [Typography](#typography) (#226).
+- **Give units with every number,** including stats and trends (`pp`, percentage
+  points, for trends of percentage indices), written by the rules in
+  [Typography](#typography) through `core/numbers.py`, never formatted by hand in a
+  template (#226).
 - **Codes first, a short name second** (Target: #218). `TXx Hottest day`: the code in
   mono, then the short name. R's long name is the index page's definition line. Never a
   name without its code, or a code without its name where indices are listed. Until #218
@@ -503,6 +526,8 @@ and the download tables are short blocks. The accessibility tests run every page
   colours only for the verdict and run state, `hue-*` for a theme's data.
 - Build from `core/templates/components/` and add new parts to `/patterns/`. After
   changing classes, run `scripts/build-css.sh` and commit `css/climpact.css`.
+- Format every number shown with `core/numbers.py` (minus, places, units, coordinates);
+  never with `floatformat` or an f-string in a page.
 - One primary action per view, a one-line answer before the data, severity in
   proportion. Check a new screen against the four user questions above.
 - When a Target here is met, take its "Target" mark away in the same pull request, and

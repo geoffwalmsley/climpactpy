@@ -2757,6 +2757,7 @@ packages/climpact-web/src/climpact_web/
                      step indicator (the single station has tabs since #179)
     tokens.py        reads the design tokens back from the Tailwind source; writes
                      chart-palette.json
+    numbers.py       the number rules (#226): minus, places, units, coordinates
     tailwind/        the stylesheet's source (#118): climpact.css (the entry: layers,
                      sources, the dark variant, custom utilities), theme.css (the tokens,
                      @theme), base.css (dark token values, element styles),
@@ -2815,7 +2816,7 @@ packages/climpact-web/src/climpact_web/
                      worker loop (JobWorker)
     retention.py     purge_expired: old jobs and their folders
     storage.py       LocalJobStorage: the per-job folders (the S3 hook for #12)
-    stages.py        readable names of the core's progress stages
+    stages.py        readable names of the core's progress stages, in words only (#226)
     views.py, urls.py  /jobs/: list, job page, progress fragment, cancel, retry, file
                      downloads
     forms.py         STATION_NAME and safe_station_name (the station name rules)
@@ -4153,6 +4154,26 @@ read-out and announcements (`charts.js`). Dates of the app's own events (when re
 deleted, when a job started) stay written out ("14 November 2026"). The output files are
 not affected.
 
+**The number rules (#226).** Every other number a page shows is written by
+`core/numbers.py`, the one formatting module (the rules are in `DESIGN.md`, Typography):
+U+2212 for minus (`numbers.minus`, also in the index names and definitions that hold a
+number, `numbers.in_text`: "TN below −2 °C"), and never "−0.0"; slopes signed and per
+decade with their units (`numbers.per_decade`: "+0.21 °C/decade", "+1.31 pp/decade");
+slopes and 95% intervals to two places in °C, days, % and the unitless indices, one in
+mm and degree-days (`numbers.slope_decimals`), rounded half up from the value as written
+(`Decimal(repr(value))`, so the trend file's 0.03125 shows as 0.0313, as `floatformat`
+did); intervals as "−0.22 to 0.31" (`numbers.interval`); anomalies to one place with a
+sign (`numbers.anomaly`; the standardised anomalies chart's payload has
+`signed_digits: 1`, which `charts.js` and the summary follow); coordinates as "33.86° S
+151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); a no-break
+space between a value and its unit. The Quality tables keep the file's own precision
+(`numbers.file_value`) with U+2212. Server-drawn charts (`stations/qc_plots.py`,
+`sector_plots.py`, `preview.py`) and `charts.js` (its y-axis ticks, read-out and table
+view) write minus the same way. Templates use the `decimals` and `coordinates` filters
+of `{% load ui %}`. Text the user types and the downloads keep the hyphen-minus: a CSV is
+written as the files are, and the Quality page still says to write `-99.9` for a missing
+value.
+
 **Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
 sample data" buttons, a short "How it works" paragraph (#173: the four step cards repeated
 the step indicator and the tour), the other ways to run Climpact (batch, gridded in
@@ -4281,8 +4302,9 @@ comments (which move whenever code above a string changes), the `POT-Creation-Da
 and gettext versions' line wrapping do not fail it; locations may lag until the next
 refresh. Keep `\u` escapes out of Python messages: Ubuntu 24.04's xgettext 0.21 keeps
 `\u00a0` as written, newer versions decode it, so the two catalogues differ (and the 0.21
-one never matches at run time). `stations/themes.py`'s `trend_text` joins the slope and its
-units with a no-break space outside the message for this reason. Without GNU gettext (`xgettext`, `msgmerge`, `msguniq`, `msgattrib`) it skips,
+one never matches at run time). `core/numbers.py` joins every value and its units with a
+no-break space outside the messages for this reason (#226), and
+`tests/test_numbers.py` checks that no msgid holds one. Without GNU gettext (`xgettext`, `msgmerge`, `msguniq`, `msgattrib`) it skips,
 unless `CLIMPACT_REQUIRE_GETTEXT` is set (CI), when it fails. To add a
 language, add it to `LANGUAGES` in `settings.py`, run `makemessages -l <code>`, translate
 the `.po` file and run `compilemessages`. The help guides are translated as Markdown files, one folder per
@@ -4496,7 +4518,8 @@ by the [Content Security Policy](#content-security-policy)). The delay is 1 s fo
 run, 2 s up to a minute and 5 s after; 30 s while the tab is hidden, and a poll at once
 when it is shown again. A finished job's fragment has no `hx-get`, so polling stops. It
 shows the status, the readable stage (`jobs/stages.py`: `indices:climpact:spi` is
-"Calculating indices (spi)"), step *n* of *total* with the percentage, the time so far and
+"Calculating the indices"; the stage's ids after the first ":", a module, an index or a
+file, are not shown, #226), step *n* of *total* with the percentage, the time so far and
 a linear estimate of the time left (from the second step and 2 s on), for a queued job a
 warning when no worker has been seen for `JOB_STALE_SECONDS`, and the cancel, retry and download controls.
 Each GET is a plain request, so polling works through proxies and survives a dropped
@@ -5178,8 +5201,8 @@ tile (`components/theme_headline.html`, two a row under "By theme"): a badge
 counting only the indices with a valid trend: "9 of 22 indices increased significantly.",
 "4 of 11 indices changed significantly: 2 increased and 2 decreased.", "No significant
 change across 13 indices."), up to three significant trends, one line each: the plain
-name linked to the index's page, the value with short units ("+1.31 pp / decade", the `pp`
-an `abbr` of percentage points, `views_indices.short_units`) and the sparkline; and a link
+name linked to the index's page, the value with short units ("+1.31 pp/decade", the `pp`
+an `abbr` of percentage points, `Card.trend_units_title`) and the sparkline; and a link
 to the theme's indices in the catalogue (`?theme=heat#catalogue`). A theme with no
 significant trend is a quiet tile (sunken surface, one sentence, no trends): no change is a
 finding. Until #200 "Also measured" gave the other three themes a line each under the
@@ -5215,17 +5238,20 @@ parameters and the language.
 
 **Results: one index** (`stations:result`, `result.html`). The index's plain name as the
 heading, with its code above it (#113), the definition and help topic; chips for its series (yearly, monthly, the days of occurrence);
-the trend per decade with its 95% interval and significance, and the highest, lowest and
+the trend per decade with its 95% interval and significance ("+0.03 °C/decade", "95%
+interval −0.22 to 0.31"), and the highest, lowest and
 mean values with when, each with the series' units (#173: `results.with_units`, from the
 core's index definitions via `results._units`; "12.5%", "20 days", "day 200" for a day of
 occurrence). Every value written with its units goes through the one helper,
-`charts.data.with_units` (`results.with_units` is the same function; templates use the
-`with_units` filter of `{% load charts %}`), so the rule is the same everywhere (#189): a
-percentage takes no space ("12.5%"), other units one ("20 days", "45.8 °C"), and a
-unitless value is the number alone. It writes the trend stat here, the highest, lowest and
-trend in the chart's text summary (`charts.data.index_summary`), and `charts.js` follows
-it in the chart's read-out. A unitless trend reads "+0.63 per decade". A trend in a percentage index is in percentage points per decade
-(`charts.data.trend_units`), here, on the results page and in the chart's text summary;
+`core.numbers.with_unit` (`charts.data.with_units` and `results.with_units` are the same
+function; templates use the `with_units` filter of `{% load charts %}`), so the rule is
+the same everywhere (#189, #226): a percentage takes no space ("12.5%"), other units a
+no-break space ("20 days", "45.8 °C"), and a unitless value is the number alone. It
+writes the trend stat here, the highest, lowest and trend in the chart's text summary
+(`charts.data.index_summary`), and `charts.js` follows it in the chart's read-out. A
+unitless trend reads "+0.63/decade". A trend in a percentage index is in percentage
+points per decade, written "pp" (`charts.data.trend_units`), here, on the results page
+and in the chart's text summary;
 a day-of-occurrence series' trend is in days per decade; the series as an interactive chart (`charts:job_series`, with the
 trend line, table view, CSV, and the run's PNG as the fallback without JavaScript), titled
 with the code and the cleaned definition (`results.chart_title`: "SU: Annual number of days

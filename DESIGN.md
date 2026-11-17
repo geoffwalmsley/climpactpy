@@ -64,8 +64,8 @@ theme switched.
 | `AddStations.dc.html` | Add stations: drop zone and review table | #233 |
 | `Workspace.dc.html` | Workspace overview and the trend grid | #234, #238 |
 | `Calculate.dc.html` | The workspace overview while its stations calculate and once they have finished (replaces batch results and the batch steps; three states in the board) | #234, #231 |
-| `Quality.dc.html` | A station's Quality as a worklist | #235, #222 |
-| `Results.dc.html` | A station's Indices: filter rail, table, detail pane | #236, #218, #226 |
+| `Quality.dc.html` | A station's Quality: the checks as a rail, the selected check's detail wide beside it (redrawn 17 Nov) | #235, #222, #264 |
+| `Results.dc.html` | A station's Indices: filter rail, table, detail pane, across the whole window (redrawn 17 Nov) | #236, #218, #226, #263 |
 | `Index.dc.html` | One index | #237 |
 | `Files.dc.html` | Workspace Files and provenance | #239 |
 
@@ -260,7 +260,8 @@ table with that page.
 
 - **Width:** content up to `--container-content` (72rem), reading text up to
   `--container-prose` (42rem); a data page (a station's sections: `data_page` in its
-  context) up to `--container-data` (92rem, #227).
+  context) up to `--container-data` (92rem, #227). **Target (#263):** a station's pages
+  have no max width; reading pages keep 72rem.
 - **Spacing:** one step is 0.25rem (`--spacing`), a 4px grid. Common steps: 2 (0.5rem)
   inside controls, 4 to 5 (1–1.25rem) inside cards, 8 to 12 (2–3rem) between sections.
 - **Breakpoints:** `sm` 40rem, `md` 52rem, `lg` 60rem, `xl` 64rem. Logical properties
@@ -293,7 +294,13 @@ table with that page.
   strip, then the worklist: the "Look wrong" and "Worth a look" tables with the detail pane
   beside them; the checks that found nothing in one line; then the daily charts with the
   flags and the distributions as disclosures, and one line with the thresholds and the
-  link to Files. While the checks run, what is in the file ("Your data", #198) takes the
+  link to Files. **Target (#264):** the worklist becomes a rail of checks (about 20rem:
+  each check, its variable, a by-month sparkline and its count) with the selected
+  check's detail in the wide area beside it: its sentence; two charts with axes, When
+  (each flagged value by date) and By calendar month (bars, with a table view); then
+  its values table (only that check's columns, 12 rows a page, largest first) beside
+  the selected value (a 7-day chart and table). Nothing in it scrolls sideways at
+  1280px. While the checks run, what is in the file ("Your data", #198) takes the
   worklist's place.
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a chart, a
@@ -335,7 +342,12 @@ strips, worklist and detail pane.
   rail 10rem and sticky, the table, the pane `clamp(17rem, 22%, 26rem)`, side by side from
   a 68rem page; from 48rem the rail beside the table and the pane under it; narrower, the
   rail above (its themes a wrapping row) and the detail after the table. The Inputs bar
-  replaces the panel there at every width, so the three have the width.
+  replaces the panel there at every width, so the three have the width. **Target
+  (#263):** the rail about 14rem, its themes plain list rows (the current one on
+  `--sel` with an inset edge); the pane `clamp(22rem, 28%, 32rem)`; the rail and pane
+  full-height columns against the window's edges, not cards; on desktop "Edit inputs"
+  on the provenance line replaces the Inputs bar. The table opens sorted by the size of
+  the trend with the first row's pane shown.
 - **Data tables sit in one frame** (a `border` edge and `--radius-sm`), with hairline rows
   of 32px and a header row on the sunken tint: the exception to "a box marks only one
   object", because the table is one object (`components/table.html`, `table--data`).
@@ -400,7 +412,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Segmented control | Primitive | One choice of two or three side by side (`segmented`, #237): links in one strip of `border-strong` edges, the current one ink (`aria-current`), so each works without JavaScript. The index page's Values / Anomaly and Annual / Monthly | — |
 | Index page | Pattern | One index (#237, the Index board; `stations/result.html`, `stations/index_page.py`): the context bar (breadcrumb station / Indices with the previous and next index; the index as the h1 with its theme pill; its definition, unit and R's name, with "About this index" as a quiet help link; the provenance line; CSV, "PNG (R style)" and "Copy citation", a disclosure without JavaScript); then the chart in a frame beside the Trend statistics (Sen's slope, 95% interval, Significant, Years used, Base-period mean, Record; why any year was left out; the method); then the values as a framed data table, scrolling inside its frame (Year, the value with its unit, Anomaly, Rank, the date of the maximum or minimum where the core gives it, Note: Record or why the value was left out), most recent first. The chart is drawn on the server: the base period as a band, round values and years on the axes, the y axis titled with the code and units, Sen's slope's 95% interval as a shaded bow tie through the slope's middle, the values (bars for SPI and SPEI) with gaps, the 11-year running mean, Sen's slope dashed, each value left out an open point at the base-period mean; the segmented controls switch Values / Anomaly in place (`js/index-page.js`) and Annual / Monthly by link. Below 32rem the chart scrolls inside its region | annual, monthly, anomaly, bars (SPI), day of the year (TX95t: no rank or record), daily (EHF, ECF: the ten highest days) |
 | Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a column of pills (All and each theme with its dot and a mono count; the selected pill ink); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the pills in a wrapping row | — |
-| Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long), Unit, Slope / decade ("+1.31 pp" for a percentage), 95% interval, Sig. ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years, Mean. A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by …"). Code, Index, Slope and Sig. sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
+| Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long), Unit, Slope / decade ("+1.31 pp" for a percentage), 95% interval, Sig. ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years, Mean. **Target (#263):** six columns: Code, Index, Slope per decade with its unit beside it in muted text, 95% interval, Significant, the series (about 144px); the mean moves to the pane. A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by …"). Code, Index, Slope and Sig. sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
 | Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then Slope, 95% interval, Years used and Method ("Sen's slope (zyp)"), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |

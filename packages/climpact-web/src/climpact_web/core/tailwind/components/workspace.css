@@ -287,11 +287,24 @@
       }
     }
 
-    /* The Indices (#236): the bar at every width, so the table and its detail have the
-       width (the panel is hidden there, inputs.css). */
-    .station-page--inputs-bar .inputs-bar {
+    /* The Indices (#236, #263): no panel (inputs.css), so the table and its detail have
+       the width; where the page is wide enough, "Edit inputs" on the provenance line
+       takes the bar's place, and the bar shows only while it says more than the line:
+       an input changed since the results shown, or a run under way. */
+    .station-page--inputs-bar .inputs-bar:is(.inputs-bar--changed, :has(.inputs-bar__run)) {
       display: flex;
     }
+
+    @container station-page (inline-size < 52rem) {
+      .context-bar__edit {
+        display: none;
+      }
+    }
+  }
+
+  /* "Edit inputs" at the end of the provenance line (#263), a link in the text's face. */
+  .context-bar__edit {
+    font-family: var(--font-sans);
   }
 
   .inputs-bar__text {

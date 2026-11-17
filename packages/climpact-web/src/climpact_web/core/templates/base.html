@@ -71,8 +71,8 @@
   {# The page and the help drawer beside it (below it on narrow screens), #177. #}
   <div class="drawer-layout" data-drawer-layout>
     <main id="main" class="site-main" tabindex="-1">
-      {# A data page (a station's sections, data_page) uses the width: 92rem, not 72rem (#227). #}
-      <div class="mx-auto w-full {% if data_page %}max-w-data{% else %}max-w-content{% endif %} px-4 sm:px-6">
+      {# A data page (a station's sections, data_page) uses the whole window (#227, #263); the others 72rem. #}
+      <div class="mx-auto w-full {% if not data_page %}max-w-content {% endif %}px-4 sm:px-6">
         {% include "components/messages.html" %}
         {% block content %}{% endblock %}
       </div>

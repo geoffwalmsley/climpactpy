@@ -125,10 +125,9 @@
   --radius-lg: 12px;
   --radius-full: 999px;
 
-  /* Widths: max-w-content (the page), max-w-data (a data page: tables, rails and panes,
-     #227), max-w-prose (a line of reading text). */
+  /* Widths: max-w-content (the page; a data page, a station's sections, has no max
+     width, #263), max-w-prose (a line of reading text). */
   --container-content: 72rem;
-  --container-data: 92rem;
   --container-prose: 42rem;
 
   /* Breakpoints: sm: from 40rem (640px), md: 52rem, lg: 60rem, xl: 64rem; max-sm: below

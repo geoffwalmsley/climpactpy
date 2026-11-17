@@ -12,7 +12,10 @@ Context: analysis, workspace_tabs, workspace_current and provenance
 (stations.workspace.context), heading, actions (optional: a template with the page's
 actions, such as Download all), inputs and inputs_bar (stations.workspace.inputs_panel;
 the bar shows where the page has the Inputs panel), no_inputs_bar (a page without the
-panel, such as an input's own page).
+panel, such as an input's own page); edit_inputs (the Indices, #263: "Edit inputs" at
+the end of the provenance line, which takes the Inputs bar's place where the page is
+wide enough).
 {% endcomment %}{% translate "Station sections" as tabs_label %}
-{% if inputs and not no_inputs_bar %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" %}
+{% if inputs and edit_inputs %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" provenance_end="stations/_edit_inputs.html" %}
+{% elif inputs and not no_inputs_bar %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" %}
 {% else %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="" %}{% endif %}

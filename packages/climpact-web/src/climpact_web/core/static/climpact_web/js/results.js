@@ -1,5 +1,6 @@
-/* The Indices (#78, #200, #236): one table of every index, filtered as you type (the
-   rail's search, theme and "Significant only") and sorted by a column, and the selected
+/* The Indices (#78, #200, #236, #263): one table of every index, filtered as you type
+   (the rail's search, theme and "Significant only") and sorted by a column (at first by
+   the size of the trend, the table's data-default-sort, which no column has), and the selected
    index in the detail pane beside it. Without JavaScript the rail is a form sent to the
    page, each column header a link to the page sorted by it and each row's code a link to
    ?show=; here the headers become buttons, the rows are filtered and sorted in place as
@@ -21,12 +22,11 @@
     var empty = document.querySelector("[data-results-empty]");
     var submit = form.querySelector("[data-results-submit]");
     if (submit) submit.hidden = true;
-    var sort = { key: "", dir: "" };
-    headers.forEach(function (th) {
-      if (th.hasAttribute("aria-sort")) {
-        sort = { key: th.getAttribute("data-sort-key"), dir: th.getAttribute("aria-sort") };
-      }
-    });
+    var initial = table.getAttribute("data-default-sort") || "";
+    var sort = {
+      key: table.getAttribute("data-sort") || initial,
+      dir: table.getAttribute("data-dir") || "descending"
+    };
     // The no-JavaScript sort is kept by hidden fields; from here on it is in `sort`.
     Array.prototype.slice.call(form.querySelectorAll("input[type=hidden]")).forEach(
       function (input) { input.remove(); }
@@ -44,6 +44,8 @@
       var th = headers.filter(function (h) { return h.getAttribute("data-sort-key") === sort.key; })[0];
       if (th) {
         text += " " + table.getAttribute("data-" + sort.dir).replace("%(column)s", label(th));
+      } else if (sort.key && sort.key === initial) {
+        text += " " + table.getAttribute("data-size");
       }
       count.textContent = text;
     }
@@ -54,7 +56,7 @@
       if (String(data.get("q") || "").trim()) params.set("q", data.get("q"));
       if (data.get("theme")) params.set("theme", data.get("theme"));
       if (data.get("significant") === "1") params.set("significant", "1");
-      if (sort.key) {
+      if (sort.key && sort.key !== initial) {
         params.set("sort", sort.key);
         params.set("dir", sort.dir);
       }
@@ -83,7 +85,7 @@
     }
 
     // As stations.views_indices.sort_cards: ties keep the catalogue's order (names tie by
-    // code), and rows without a trend stay last when sorting by the trend.
+    // code), and rows without a trend stay last when sorting by the trend or its size.
     function value(row, key) {
       if (key === "name" || key === "code") return row.getAttribute("data-" + key);
       if (key === "trend") return row.getAttribute("data-trend");
@@ -103,9 +105,10 @@
             q = value(b, "code").toLowerCase();
           }
           by = sign * (p < q ? -1 : p > q ? 1 : 0);
-        } else if (sort.key === "trend") {
+        } else if (sort.key === "trend" || sort.key === "size") {
           var x = value(a, "trend"), y = value(b, "trend");
           if (x === "" || y === "") by = (x === "") - (y === "");
+          else if (sort.key === "size") by = sign * (Math.abs(Number(x)) - Math.abs(Number(y)));
           else by = sign * (Number(x) - Number(y));
         } else if (sort.key) {
           by = sign * (value(a, sort.key) - value(b, sort.key));

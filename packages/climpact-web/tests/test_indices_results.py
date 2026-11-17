@@ -524,7 +524,7 @@ def test_every_table_of_the_lat0_run_is_on_the_dashboard(client):
 
 def test_card_values_match_the_csv_files(client):
     """#236: a row's slope per decade, 95% interval and significance are the trend file's
-    (annual row), and its mean is the mean of the index table."""
+    (annual row), and the mean in its detail (#263) is the mean of the index table."""
     from climpact.io.climpact_csv import read_climpact_csv
 
     analysis, _job = finished_analysis(client)
@@ -536,11 +536,13 @@ def test_card_values_match_the_csv_files(client):
         row = trend[(trend["Index"] == key) & (trend["Frequency"] == "annual")].iloc[0]
         places = 1 if key == "prcptot" else 2
         slope, lower, upper = (row[c] * 10 for c in ("Slope", "Lower bound", "Upper bound"))
-        assert cells[3] == _signed(slope, places), key
-        assert cells[4] == f"{_plain(lower, places)} to {_plain(upper, places)}", key
+        unit = {"txx": "°C", "su": "days", "prcptot": "mm"}[key]
+        assert cells[2] == f"{_signed(slope, places)} {unit}", key
+        assert cells[3] == f"{_plain(lower, places)} to {_plain(upper, places)}", key
         significant = row["Lower bound"] > 0 or row["Upper bound"] < 0
-        assert cells[5] == ("yes" if significant else "no"), key
-        assert cells[7] == _plain(table[table.columns[1]].mean(), places), key
+        assert cells[4] == ("yes" if significant else "no"), key
+        mean = _plain(table[table.columns[1]].mean(), places)
+        assert f"<dd>{mean}\u00a0{unit}</dd>" in _detail(html, key), key
 
 
 def _signed(value: float, places: int) -> str:
@@ -552,6 +554,14 @@ def _plain(value: float, places: int) -> str:
     from climpact_web.core import numbers
 
     return numbers.fixed(value, places)
+
+
+def _detail(html: str, key: str) -> str:
+    return re.search(
+        rf'<div class="index-detail[^"]*" id="detail-{re.escape(key)}".*?index-detail__back',
+        html,
+        re.S,
+    ).group(0)
 
 
 def _row(html: str, key: str) -> str:
@@ -759,41 +769,46 @@ def test_one_line_answers_above_the_table(client):
 
 
 def test_the_table_shows_the_statistics(client):
-    """#236: Code, Index, Unit, Slope / decade, 95% interval, Sig., the series and Mean;
-    every index with a trend has its interval and significance; a percentage's slope is in
-    percentage points; an index without a trend says why to screen readers."""
+    """#236, #263: Code, Index, Slope per decade with its unit, 95% interval, Significant
+    and the series; every index with a trend has its interval and significance; a
+    percentage's slope is in percentage points; an index without a trend says why to
+    screen readers."""
     analysis, job = finished_analysis(client)
     url = f"{analysis.url()}indices"
     html = client.get(url).content.decode()
     head = html.split("<thead>")[1].split("</thead>")[0]
     assert _cells(head) == [
-        "Code", "Index", "Unit", "Slope / decade", "95% interval", "Sig.", "1936–2015", "Mean",
+        "Code", "Index", "Slope per decade", "95% interval", "Significant", "1936–2015",
     ]  # fmt: skip
     assert _cells(_row(html, "su")) == [
-        "SU", "Summer days", "days", "+5.15", "3.79 to 6.54", "yes", "", "93.28",
+        "SU", "Summer days", "+5.15 days", "3.79 to 6.54", "yes", "",
     ]  # fmt: skip
     pp = '<abbr title="percentage points">pp</abbr>'
-    assert f"+1.31&nbsp;{pp}" in _row(html, "tn90p")
-    assert _cells(_row(html, "tx95t"))[3:6] == ["No trend line", "", ""]
-    assert _cells(_row(html, "EHFdaily"))[3:6] == ["Daily values", "", ""]
+    assert f'+1.31&nbsp;<span class="indices-table__unit">{pp}</span>' in _row(html, "tn90p")
+    assert _cells(_row(html, "tx95t"))[2:5] == ["No trend line", "", ""]
+    assert _cells(_row(html, "EHFdaily"))[2:5] == ["Daily values", "", ""]
     run = results_model.build(results_model.run_source(job))
     for card in run.cards:
         cells = _cells(_row(html, card.key))
+        assert len(cells) == 6, card.key
         if card.trend and card.trend.get("valid"):
-            assert " to " in cells[4] and cells[5] in ("yes", "no"), card.key
-            assert (cells[5] == "yes") == card.significant, card.key
+            assert " to " in cells[3] and cells[4] in ("yes", "no"), card.key
+            assert (cells[4] == "yes") == card.significant, card.key
     assert html.count('<span class="indices-table__yes">') == 22
 
 
 def test_the_detail_pane_shows_the_selected_index(client):
-    """#236: a row's code links to ?show=<key> (the filters and order kept), whose detail
-    the server shows beside the table: its code and theme, name and definition, a chart
-    with axes (the base period as a band, Sen's slope dashed), the slope, its interval, the
-    years used and the method, and its links. The first row shown is selected by default."""
+    """#236, #263: a row's code links to ?show=<key> (the filters and order kept), whose
+    detail the server shows beside the table: its code and theme, name and definition, a
+    chart with axes (the base period as a band, Sen's slope dashed), the slope, its
+    interval, the mean over the record, whether it is significant in words, the years used
+    and the method, and its links. The first row shown, the largest trend, is selected by
+    default."""
     analysis, job = finished_analysis(client)
     url = f"{analysis.url()}indices"
     html = client.get(url).content.decode()
-    assert _shown(html) == ["fd"] and _current(html) == ["fd"]
+    first = _order(html)[0]
+    assert first != "fd" and _shown(html) == [first] and _current(html) == [first]
     html = client.get(url, {"show": "su", "theme": "heat"}).content.decode()
     assert _shown(html) == ["su"] and _current(html) == ["su"]
     assert 'class="hue-heat is-selected" id="index-su"' in html
@@ -808,6 +823,9 @@ def test_the_detail_pane_shows_the_selected_index(client):
     text = re.sub(" +", " ", text)
     assert "SU · Heat Summer days Annual number of days when TX > 25\u00a0°C" in text
     assert "Slope +5.15\u00a0days/decade 95% interval 3.79 to 6.54" in text
+    assert re.search(
+        r"Mean, 1936–2015 [0-9.]+\u00a0days Significant Yes: the interval excludes zero", text
+    )
     assert re.search(r"Years used \d+ of 80 Method Sen's slope \(zyp\)", text)
     # The chart: its axes, three values and three years, the base period, the trend.
     assert re.findall(r'class="index-chart__tick"[^>]*>([^<]+)<', detail)[3:] == [
@@ -1027,19 +1045,36 @@ def _header(html: str, key: str) -> str:
 def test_the_catalogue_sorts_by_column_without_javascript(client):
     """#200: each column header is a link to the page sorted by it, with the filters kept;
     the sorted column has aria-sort, and the line above the table says how it is sorted.
-    The rows are the same indices in every order."""
+    The rows are the same indices in every order. #263: the page opens sorted by the size
+    of the trend (no column's), largest first, the rows without a trend last."""
     from climpact_web.stations.views_indices import sort_cards
 
     analysis, job = finished_analysis(client)
     url = f"{analysis.url()}indices"
     html = client.get(url).content.decode()
     default = _order(html)
-    assert default[:3] == ["fd", "tnlt2", "tnltm2"]  # the catalogue's order
-    assert "aria-sort" not in html.split("<tbody>")[0] and "indices.</p>" in html
-    # A first click: names A to Z, the largest trends and the significant first.
-    assert f'href="{url}?sort=name&amp;dir=ascending&amp;show=fd"' in _header(html, "name")
-    assert f'href="{url}?sort=trend&amp;dir=descending&amp;show=fd"' in _header(html, "trend")
     run = results_model.build(results_model.run_source(job))
+    cards = {c.key: c for c in run.cards}
+    sizes = [
+        abs(cards[k].trend["slope"])
+        for k in default
+        if cards[k].trend and cards[k].trend.get("valid")
+    ]
+    assert sizes == sorted(sizes, reverse=True) and default[0] == "gddgrow10"
+    assert all(not (cards[k].trend and cards[k].trend.get("valid")) for k in default[len(sizes) :])
+    assert "aria-sort" not in html.split("<tbody>")[0]
+    assert "indices. Sorted by the size of the trend, largest first.</p>" in html
+    assert 'name="sort"' not in html  # the default is kept by leaving it out
+    assert 'data-default-sort="size" data-sort="size" data-dir="descending"' in html
+    # A first click: names A to Z, the largest trends and the significant first.
+    show = default[0]
+    assert f'href="{url}?sort=name&amp;dir=ascending&amp;show={show}"' in _header(html, "name")
+    assert f'href="{url}?sort=trend&amp;dir=descending&amp;show={show}"' in _header(html, "trend")
+    # The order is the function's, which js/results.js mirrors.
+    from climpact_web.stations.views_indices import DEFAULT_SORT
+
+    ordered = [c for section in run.sections() for c in section["cards"]]
+    assert default == [c.key for c in sort_cards(ordered, DEFAULT_SORT, True)]
     titles = {c.key: c.title for c in run.cards}
     page = client.get(url, {"sort": "name", "dir": "ascending"}).content.decode()
     rows = _order(page)
@@ -1057,7 +1092,6 @@ def test_the_catalogue_sorts_by_column_without_javascript(client):
     # By trend: largest first, the rows without a trend last.
     page = client.get(url, {"sort": "trend"}).content.decode()  # the column's direction
     assert 'aria-sort="descending" data-sort-key="trend"' in page
-    cards = {c.key: c for c in run.cards}
     slopes = [
         cards[k].trend["slope"]
         for k in _order(page)
@@ -1137,8 +1171,8 @@ def test_units_on_the_stat_row_and_percentage_point_trends(client):
     analysis, _job = finished_analysis(client)
     html = client.get(f"{analysis.url()}indices").content.decode()
     pp = '<abbr title="percentage points">pp</abbr>'
-    assert f"+0.65&nbsp;{pp}" in html
-    assert "% per decade" not in html and "Slope / decade" in html
+    assert f'+0.65&nbsp;<span class="indices-table__unit">{pp}</span>' in html
+    assert "% per decade" not in html and "Slope per decade" in html
     page = client.get(f"{analysis.url()}indices/tx90p").content.decode()
     for label in ("Base-period mean", "Record"):
         assert re.search(rf"<dt>{label}</dt><dd>[0-9.,]+%", page), label
@@ -1155,10 +1189,15 @@ def test_units_written_the_same_way_everywhere(client):
     analysis, _job = finished_analysis(client)
     html = client.get(f"{analysis.url()}indices").content.decode()
 
-    assert _cells(_row(html, "tx90p"))[2:4] == ["%", "+0.65 pp"]
-    assert _cells(_row(html, "su"))[2] == "days"
+    assert _cells(_row(html, "tx90p"))[2] == "+0.65 pp"
+    assert '+5.15&nbsp;<span class="indices-table__unit">days</span>' in _row(html, "su")
     spi = _cells(_row(html, "3month_spi"))
-    assert spi[2] == "" and re.fullmatch(r"[+−]?[0-9.,]+", spi[3])
+    assert re.fullmatch(r"[+−]?[0-9.,]+", spi[2])
+    # The detail's mean (#263): "12.5%", "20 days", the number alone.
+    for key, value in (("tx90p", r"[0-9.,]+%"), ("su", r"[0-9.,]+\u00a0days"),
+                       ("3month_spi", r"−?[0-9.,]+")):  # fmt: skip
+        mean = re.search(rf'id="detail-{key}".*?<dt>Mean, [^<]+</dt><dd>([^<]+)</dd>', html, re.S)
+        assert re.fullmatch(value, mean.group(1)), key
     # The detail: a unitless trend says "/decade" with nothing before it.
     slope = re.search(r'id="detail-3month_spi".*?<dt>Slope</dt><dd>([^<]+)</dd>', html, re.S)
     slope = slope.group(1)

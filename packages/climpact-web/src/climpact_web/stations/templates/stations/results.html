@@ -3,16 +3,21 @@
 {% block title %}{% blocktranslate with name=analysis.station_name %}Indices: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% include "stations/_open_sheet.html" %}{% endblock %}
 {% block content %}
-<div class="stack stack--xl station-page station-page--inputs-bar">
+<div class="stack stack--xl station-page station-page--inputs-bar station-page--indices">
   {% comment %}The page's two actions in the workspace header (#200): the zip, primary, and
-  the sector comparison. Every other file is on the Files tab (#176).{% endcomment %}
-  {% include "stations/_workspace.html" with heading=True actions="stations/_results_actions.html" %}
-  {% comment %}The Inputs as the bar under the tabs at every width, so the table and its
-  detail have the width (#236; the Inputs panel beside the section on the other pages,
-  #198). Without JavaScript the panel shows above the section.{% endcomment %}
+  the sector comparison. Every other file is on the Files tab (#176). "Edit inputs" on the
+  provenance line (#263).{% endcomment %}
+  {% include "stations/_workspace.html" with heading=True actions="stations/_results_actions.html" edit_inputs=True %}
+  {% comment %}No Inputs panel beside the section, so the table and its detail have the
+  width (#236; the panel is beside the section on the other pages, #198): "Edit inputs" on
+  the provenance line opens its sheet, and on narrow pages the Inputs bar under the tabs
+  (#263). Without JavaScript the panel shows above the section. The rail and the detail
+  pane reach the window's edges; the notes above them and the line below keep the
+  page's margins.{% endcomment %}
   <div class="workspace">
   {% include "stations/_inputs.html" %}
-  <div class="workspace__main stack">
+  <div class="workspace__main indices-page">
+  <div class="indices-page__notes stack">
   {% comment %}Out of date after a change (#179): the banner says what changed, with the new
   run's progress, or "Recalculate". The results stay below it until the new ones are ready.{% endcomment %}
   {% if stale %}
@@ -52,10 +57,12 @@
   </div>
   {% endif %}
 
+  </div>
+
   {% url 'stations:results' analysis.workspace_id analysis.slug as indices_action %}
   {% include "stations/_indices.html" with action=indices_action %}
 
-  {% if analysis.expires_at %}<p class="text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>{% endif %}
+  {% if analysis.expires_at %}<p class="indices-page__kept text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>{% endif %}
   </div>
   </div>
 </div>

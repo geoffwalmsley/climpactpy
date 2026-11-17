@@ -3,11 +3,12 @@ One index in the Indices' detail pane (#236, the Results board), hidden unless i
 one shown: its code and theme, its short name and definition; its series as a chart with
 axes (the base period as a band, Sen's slope dashed; the text alternative gives the
 values and the trend, and the index page has the table view and the interactive chart);
-the slope per decade, its 95% interval, the values used and the method; then the links to
-the index page, its CSV and PNG, and its monthly values. On a narrow screen the pane
+two columns of statistics (#263): the slope per decade, its 95% interval, the mean over
+the record, whether the trend is significant (in words), the values used and the method;
+then the links to the index page, its CSV and PNG, and its monthly values. On a narrow screen the pane
 follows the table: "Back to the list" returns to the index's row. A div, not a section:
 short names repeat (each heatwave definition's "Heatwave days"), and only one is shown.
-Parameters: row (views_indices._row), analysis.
+Parameters: row (views_indices._row), series_years, analysis.
 {% endcomment %}{% with card=row.card chart=row.chart %}
 <div class="index-detail hue-{{ card.hue }}" id="detail-{{ card.key }}" data-index-detail="{{ card.key }}"{% if not row.selected %} hidden{% endif %}>
   <div>
@@ -33,8 +34,10 @@ Parameters: row (views_indices._row), analysis.
   <dl class="index-detail__stats">
     <div><dt>{% translate "Slope" %}</dt><dd>{% if card.trend.valid %}{{ card.trend.per_decade_text }}{% elif card.daily %}{% translate "Daily values" %}{% elif card.trend %}{% translate "Too few values" %}{% else %}{% translate "No trend line" %}{% endif %}</dd></div>
     <div><dt>{% translate "95% interval" %}</dt><dd>{% if card.trend.valid %}{{ card.trend.interval_text }}{% else %}{{ "–" }}{% endif %}</dd></div>
+    {% if row.mean_text %}<div><dt>{% if series_years %}{% blocktranslate with years=series_years %}Mean, {{ years }}{% endblocktranslate %}{% else %}{% translate "Mean" %}{% endif %}</dt><dd>{{ row.mean_text }}</dd></div>{% endif %}
+    <div><dt>{% translate "Significant" %}</dt><dd class="index-detail__words">{% if not card.trend.valid %}{{ "–" }}{% elif card.significant %}{% translate "Yes: the interval excludes zero" %}{% else %}{% translate "No" %}{% endif %}</dd></div>
     {% if row.used %}<div><dt>{{ row.used_label }}</dt><dd>{{ row.used }}</dd></div>{% endif %}
-    <div><dt>{% translate "Method" %}</dt><dd class="index-detail__method">{% translate "Sen's slope (zyp)" %}</dd></div>
+    <div><dt>{% translate "Method" %}</dt><dd class="index-detail__words">{% translate "Sen's slope (zyp)" %}</dd></div>
   </dl>
   <p class="index-detail__links">
     <a href="{{ row.links.page }}">{% translate "Open full page" %}<span class="sr-only"> {{ card.code }}</span></a>

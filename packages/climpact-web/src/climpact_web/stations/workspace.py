@@ -616,7 +616,7 @@ def context(analysis: Station, current: str, path: str = "") -> dict:
         "workspace_tabs": sections(analysis, current),
         "workspace_current": current,
         "provenance": provenance(analysis, current),
-        "data_page": True,  # base.html: the page uses the width (#227)
+        "data_page": True,  # base.html: the page uses the whole window (#227, #263)
     }
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context

@@ -1,0 +1,6 @@
+{% load i18n %}{% comment %}
+"Edit inputs" at the end of the Indices' provenance line (#263, the Results board): it
+opens the Inputs sheet (stations/_inputs.html), and takes the Inputs bar's place where
+the page is wide enough (workspace.css). Without JavaScript it leads to the Inputs panel,
+which shows above the section.
+{% endcomment %}<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs" aria-haspopup="dialog">{% translate "Edit inputs" %}</a>

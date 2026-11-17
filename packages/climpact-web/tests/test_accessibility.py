@@ -1131,7 +1131,8 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
     that fills the screen; an input's Edit there opens that input's sheet over it; Escape
     goes back to the list, with focus on that Edit, then to the page, with focus on the
     bar's Edit. No axe violation with either sheet open. At 1280 px the panel is back
-    beside Quality and the bar is gone; the Indices keep the bar at every width (#236)."""
+    beside Quality and the bar is gone; on the Indices "Edit inputs" on the provenance
+    line takes the bar's place (#263) and opens the same sheet, focus returning to it."""
     c = chrome
     bar = "document.querySelector('[data-inputs-bar]')"
     panel = "document.querySelector('[data-inputs-panel]')"
@@ -1176,8 +1177,22 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
         assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
         c.viewport(1280, 900)
         c.settle(0.1)
-        assert c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{bar}.checkVisibility()")
         assert not c.evaluate(f"{panel}.checkVisibility()")
+        line_edit = ".context-bar__provenance a[data-sheet-open='sheet-inputs']"
+        assert c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.evaluate(f"document.querySelector({json.dumps(line_edit)}).focus()")
+        c.press("Enter")
+        time.sleep(0.1)
+        assert c.evaluate(f"{inputs}.open && {inputs}.contains(document.activeElement)")
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{inputs}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(line_edit)})")
+        c.viewport(375, 812)
+        c.settle(0.1)
+        assert not c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.viewport(1280, 900)
         c.navigate(site["station quality results"])
         assert not c.evaluate(f"{bar}.checkVisibility()")
         assert c.evaluate(f"{panel}.checkVisibility()")
@@ -1444,7 +1459,8 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     and "Significant only", and sorted by its column headers, which are buttons here
     (links without JavaScript): Enter sorts, again reverses, aria-sort moves to the sorted
     column, and the live line says how many rows show and how they are sorted. The order is
-    the server's, and the state is kept in the address."""
+    the server's, and the state is kept in the address. It opens sorted by the size of the
+    trend (#263), which no column has and the address leaves out."""
     c = chrome
     rows = "[...document.querySelectorAll('[data-results-table] tbody tr')]"
     shown = rows + ".filter(function (r) { return !r.hidden })"
@@ -1458,6 +1474,11 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     by_name = c.evaluate(keys)  # the server's order
     c.navigate(site["station results"])
     assert c.evaluate(f"{shown}.length") == 80 and c.evaluate(sorted_by) == []
+    sizes = c.evaluate(
+        shown + ".filter(function (r) { return r.dataset.trend !== '' })"
+        ".map(function (r) { return Math.abs(Number(r.dataset.trend)) })"
+    )
+    assert sizes == sorted(sizes, reverse=True) and len(sizes) > 60
     assert c.evaluate("document.getElementById('results-count').getAttribute('aria-live')") == (
         "polite"
     )
@@ -1469,7 +1490,9 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     focus(c, "#results-q")
     c.send("Input.insertText", text="frost")
     wait_for(c, f"{shown}.length === 1", timeout=10, what="the search to filter")
-    assert c.evaluate(said) == "Showing 1 of 80 indices." and "q=frost" in here(c)
+    size = "Sorted by the size of the trend, largest first."
+    assert c.evaluate(said) == f"Showing 1 of 80 indices. {size}" and "q=frost" in here(c)
+    assert "sort=" not in here(c)
     c.evaluate("var q = document.getElementById('results-q'); q.value = '';"
                " q.dispatchEvent(new Event('input', {bubbles: true}))")  # fmt: skip
     assert c.evaluate(f"{shown}.length") == 80 and "q=" not in here(c)
@@ -1482,20 +1505,20 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     focus(c, "input[name=significant]")
     c.press(" ")
     wait_for(c, f"{shown}.length === 9", timeout=10, what="Significant only")
-    assert c.evaluate(said) == "Showing 9 of 80 indices."
+    assert c.evaluate(said) == f"Showing 9 of 80 indices. {size}"
     assert "theme=heat" in here(c) and "significant=1" in here(c)
 
     # Sorting by keyboard: Enter on a header sorts, again reverses; announced.
     focus(c, "th[data-sort-key=trend] button")
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend descending"]
-    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Slope / decade, descending."
+    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Slope per decade, descending."
     slopes = c.evaluate(shown + ".map(function (r) { return Number(r.dataset.trend) })")
     assert slopes == sorted(slopes, reverse=True)
-    assert c.evaluate("document.activeElement.textContent") == "Slope / decade"
+    assert c.evaluate("document.activeElement.textContent") == "Slope per decade"
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend ascending"]
-    assert c.evaluate(said).endswith("Sorted by Slope / decade, ascending.")
+    assert c.evaluate(said).endswith("Sorted by Slope per decade, ascending.")
     assert "sort=trend" in here(c) and "dir=ascending" in here(c)
 
     # Every row again, sorted by name: the server's order.

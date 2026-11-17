@@ -337,8 +337,8 @@ def setup_demo() -> dict:
 
 def indices_demo() -> dict:
     """The Indices' rail, table and detail pane (#236) as stations/_indices.html takes
-    them: three rows of the Sydney sample, the first selected, its chart drawn by the same
-    code from an illustrative series."""
+    them: three rows of the Sydney sample, largest trend first (#263), the first selected,
+    its chart drawn by the same code from an illustrative series."""
     from types import SimpleNamespace
 
     from climpact_web.stations import index_detail
@@ -348,10 +348,10 @@ def indices_demo() -> dict:
     demo = (
         # key, code, name, theme, hue, units; slope, its interval, mean, significant
         ("su", "SU", _("Summer days"), _("Heat"), "heat", "days", 5.15, 3.79, 6.54, 93.28, True),
-        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
-         -1.93, -2.4, -1.47, 13.12, True),
         ("prcptot", "PRCPTOT", _("Wet-day total"), _("Rain"), "rain", "mm",
          4.6, -9.9, 19.2, 1210.1, False),
+        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
+         -1.93, -2.4, -1.47, 13.12, True),
     )  # fmt: skip
     for i, (key, code, title, theme, hue, units, slope, lower, upper, mean, sig) in enumerate(demo):
         values = [mean + slope * (y - 1975.5) / 10 + 6 * ((y * 7919) % 13 - 6) / 6 for y in years]
@@ -391,10 +391,14 @@ def indices_demo() -> dict:
                 "key": key,
                 "theme": theme,
                 "unit": units,
-                "slope_unit": numbers.trend_units(units) if units == "%" else "",
+                "slope_unit": numbers.trend_units(units),
+                "slope_pp": units == "%",
                 "slope": numbers.slope(slope, units),
                 "interval": trend["interval_text"],
                 "mean": numbers.fixed(mean, numbers.slope_decimals(units)),
+                "mean_text": numbers.with_unit(
+                    numbers.fixed(mean, numbers.slope_decimals(units)), units
+                ),
                 "links": {"page": "#indices-demo", "csv": "#indices-demo", "png": "#indices-demo"},
                 "chart": index_detail.chart(plot, (1971, 2000)),
                 "chart_label": index_detail.summary(named, plot),
@@ -413,8 +417,8 @@ def indices_demo() -> dict:
         for key, label, first in (
             ("code", _("Code"), "ascending"),
             ("name", _("Index"), "ascending"),
-            ("trend", _("Slope / decade"), "descending"),
-            ("significance", _("Sig."), "descending"),
+            ("trend", _("Slope per decade"), "descending"),
+            ("significance", _("Significant"), "descending"),
         )
     }
     return {
@@ -434,6 +438,8 @@ def indices_demo() -> dict:
         "total": 80,
         "significant_count": 22,
         "mean_trend": f"TMm {numbers.per_decade(0.19, '°C')}",
+        "default_sort": "size",
+        "sort_text": _("Sorted by the size of the trend, largest first."),
     }
 
 

@@ -4882,8 +4882,8 @@ hairline across the window: a box-shadow of the surface and a 1px one of the bor
 clipped to its height (`clip-path`), so it stays a child of `.station-page`, and
 `.site-main` clips its inline overflow (`overflow-x: clip`, which makes no scrolling box)
 so it never covers the help drawer; the page's top padding is 0. `workspace.context`
-also sets `data_page`, so `base.html` gives a station's pages the 92rem column
-(`max-w-data`, `--container-data`) instead of 72rem. The bar is sticky (`.context-bar`,
+also sets `data_page`, so `base.html` gives a station's pages the whole window, with no
+max width (#263; 92rem from #227 until then), instead of the 72rem content column. The bar is sticky (`.context-bar`,
 a direct child of `.station-page`) in a window at least 30rem high; shorter, where it
 would hide most of the page, it scrolls away. The page's `scroll-padding-block-start` is
 its height plus 1rem, so an element that takes focus, or a `#fragment`, is never under it
@@ -5399,10 +5399,20 @@ their own card), and the daily `EHFdaily` and `ECFdaily` tables, which R does no
 get cards of their own. For the Sydney sample that is 80 cards for the 114 tables. Since
 #236 (the Results board of the design canvas) the page is a filter rail, one line that
 answers, one dense table and a detail pane; the theme tiles and the answer band (#175,
-#200) are gone.
+#200) are gone. Since #263 they use the whole window: the rail and the pane are
+full-height columns against the window's edges (`station-page--indices`: `.indices`
+reaches out through the page's gutter), the rail on the page's colour and the pane on the
+surface, each behind a hairline; the notes above them (out of date, a recalculation,
+skipped indices) and the retention line below keep the page's margins.
 
-The rows are in the help catalogue's order (temperature thresholds, extremes,
-percentiles, seasons, precipitation, heatwaves, drought, your own index). Indices are
+The table opens sorted by the size of the trend (#263, the board's "sorted by |slope /
+unit|"): `views_indices.DEFAULT_SORT`, `"size"`, the absolute slope per decade in the
+index's own units, largest first, rows without a trend last, ties in the help
+catalogue's order (temperature thresholds, extremes, percentiles, seasons,
+precipitation, heatwaves, drought, your own index). With the Sydney sample that opens on
+GDDgrow10 (+69.0 degree-days a decade), then CDDcold18 and HDDheat18; the first row's
+detail is shown. No column has this order, so no header has `aria-sort`, and the address
+and the rail's form leave it out. Indices are
 named codes first (#218): each row leads with the code (`Card.code`, from
 `results.display_name`: `TXx`, `Rx3day`, `TX90-HWN`, `SPI3`, `EHFdaily`), in mono, with its
 theme's dot; then the short name (`Card.title`, from `results.short_name`: the catalogue's
@@ -5411,35 +5421,41 @@ filled in, "Wettest 3 days" for `rx3day`; each heatwave aspect in the words of t
 indices guide, "Number of heatwaves", the code saying which definition; the daily EHF and
 ECF tables; the user's own index from its threshold, "Days TN > 0 °C"; a long name ends in
 an ellipsis rather than widening the table). The short names were approved by the
-maintainer on 17 November 2026. The columns (`views_indices._row`): Code, Index, Unit
-(the index's), Slope / decade (signed, by the number rules of #226; a percentage's in
-percentage points, "+1.31 pp", the `pp` an `abbr`), 95% interval ("3.79 to 6.54"), Sig.
-("yes" with the theme's dot when the interval excludes zero; a dash, read "no", when it
-does not), the series as a sparkline (headed by its years, "1936–2015") and Mean (the mean
-of the values present of the series the card shows, with the slope's places,
-`numbers.slope_decimals`). An index without a trend shows a dash, and screen readers hear
-why: "Too few values", "No trend line" (TX95t) or "Daily values". Rows are the data
-table's (#227): 32px, one line each, in one frame, the table scrolling with the page. With
-the Sydney sample at 1280 x 1180 px (the board's size) 26 rows are in view and the table
-needs no sideways scroll. Sparklines are SVG paths drawn on the server (integer
+maintainer on 17 November 2026. The six columns (#263, `views_indices._row`): Code,
+Index (its full name in a `title` where it ends in an ellipsis), Slope per decade (signed,
+by the number rules of #226, with its unit beside it, muted, after a no-break space:
+"+5.15 days", a percentage's in percentage points, "+1.31 pp", the `pp` an `abbr`), 95%
+interval ("3.79 to 6.54"), Significant ("yes" with the theme's dot when the interval
+excludes zero; a dash, read "no", when it does not) and the series as a sparkline (headed
+by its years, "1936–2015"; 9rem where the page is at least 86rem wide, 6rem narrower).
+The Unit and Mean columns went with #263: the mean is in the detail pane. An index
+without a trend shows a dash, and screen readers hear why: "Too few values", "No trend
+line" (TX95t) or "Daily values". Rows are the data table's (#227): 32px, one line each,
+in one frame, the table scrolling with the page. With the Sydney sample at 1280 x 1180 px
+26 rows are in view and the table needs no sideways scroll at 1280px or wider; the
+qc_stress file (`reference/input/qc_stress_1961-2020.txt`) leaves the Index column about
+110px at 1280px, so long names end in an ellipsis there. Sparklines are SVG paths drawn on the server (integer
 coordinates in a 240 x 60 box; long series averaged into 240 columns; gaps where values
 are missing; the trend line dashed; SPI and SPEI as bars above and below zero;
 `components/spark.html`), so the page loads no chart code.
 
 The line above the table answers: "**22 of 80** indices with a significant trend · TMm
 +0.19 °C/decade" (the mean temperature's slope, when it has one), beside the live line
-("Showing 9 of 80 indices. Sorted by Slope / decade, descending.", `aria-live="polite"`).
+("Showing 9 of 80 indices. Sorted by Slope per decade, descending.", or "Sorted by the
+size of the trend, largest first." for the default; `aria-live="polite"`).
 The filter rail at the inline start (`filter-rail`): "Find", a search that matches the
 code, the short name, R's long name and the definition (`Card.search_text`); "Theme", a
-column of pills, All, Heat, Cold, Rain, Drought and "Also measured" (every other row, the
+list of plain rows (#263; the current one on `--color-selected` with an ink edge, as a
+selected table row), All, Heat, Cold, Rain, Drought and "Also measured" (every other row, the
 daily EHF and ECF tables included; `Card.chip`, `themes.chip_of`), each with its dot and
 count (`?theme=`); "Significant only" (`?significant=1`); the line "Significant: the 95%
 interval of Sen's slope excludes zero."; the help as a quiet link ("How to read the
 table"); and at its foot the settings line (#178) and "Change the settings", which opens
 the Index settings sheet. `js/results.js` filters as you type and keeps the state in the
 URL; without JavaScript the rail is a GET form sent to the page and the server filters
-(`dashboard_context`). Code, Index, Slope / decade and Sig. sort the table
-(`views_indices.sort_cards`, `?sort=code|name|trend|significance&dir=ascending|descending`):
+(`dashboard_context`). Code, Index, Slope per decade and Significant sort the table
+(`views_indices.sort_cards`, `?sort=code|name|trend|significance&dir=ascending|descending`,
+and `size` for the default order):
 codes and names A to Z first (case-folded, by code point; short names repeat across the
 heatwave definitions, so names tie by code), slopes and significance largest first; other
 ties keep the catalogue's order, and rows without a trend stay last when sorting by the
@@ -5457,8 +5473,9 @@ other detail is in the page, hidden (about 80 KB gzipped for the whole page with
 Sydney sample). With JavaScript the link shows the detail in place, marks the row
 (`is-selected`, the link `aria-current`), keeps `?show=` in the address and announces the
 index's name. The detail: the code and theme ("SU · Heat"), the short name as a heading,
-the definition; a chart drawn on the server (`index_detail.chart`, SVG in a 300 x 170 box,
-about the pane's width so its ticks stay about 11px): the series as a line in the theme's
+the definition; a chart drawn on the server (`index_detail.chart`, SVG in a 380 x 200 box,
+about the width of the pane's content (#263) so its ticks stay about 11px, the plot 50
+units from the left for a tick of six figures): the series as a line in the theme's
 hue (or SPI and SPEI as bars from zero; longer series averaged into 129 columns), Sen's
 slope dashed across it (the core's intercept and slope, as the sparkline), the base period
 of the run shown (`views_indices.run_base`, from the job's recorded metadata) as a band
@@ -5466,21 +5483,32 @@ labelled "base period", and axes: three values (the whole numbers around the dat
 middle) and three times (the first, the middle and the last). Its text alternative
 (`index_detail.summary`) names the series, its years, the lowest and highest values and
 when, and the slope and interval; the caption says "Annual SU (days), with Sen's slope
-dashed.". Then the slope per decade, its 95% interval, the years (or months) used, "79 of
-80", and the method, "Sen's slope (zyp)"; then the links: "Open full page" (the index's
+dashed.". Then six statistics in two columns (#263; one column when the pane's content is
+under 20rem, as at 1280px): the slope per decade, its 95% interval, the mean over the
+record ("Mean, 1936–2015", the mean of the values present, with the slope's places and
+the index's units), whether the trend is significant in words ("Yes: the interval
+excludes zero" or "No"), the years (or months) used, "79 of 80", and the method, "Sen's
+slope (zyp)"; then the links: "Open full page" (the index's
 page, with the interactive chart, its table view and CSV), the series' CSV and R's PNG,
 and "Monthly values" (the index page's monthly series) where there is one. Side by side
-from a 68rem page: the rail 10rem, the pane 17–26rem (`clamp(17rem, 22%, 26rem)`), both
-sticky under the context bar, the pane scrolling inside itself; from 48rem the rail beside
-the table and the pane under it; narrower, the rail above the table (its themes a wrapping
-row), the detail after it, focus moving to it, with "Back to the list". On a phone (below
-40rem) each row is two lines (code, name, unit and sparkline; then slope, interval,
-significance and mean) and the header a line of the sort buttons, by CSS only.
+from a 76rem page (#263): the rail 14rem (12.5rem until the page is 86rem wide, so the
+names keep some room at 1280px), the table, the pane `clamp(22rem, 28%, 32rem)`; the
+contents of the rail and the pane (`filter-rail__body`, `indices__pane-body`) sticky under
+the context bar, the pane's scrolling inside itself. From 48rem the rail beside the table
+and the pane under it; narrower, the rail above the table (its themes a wrapping row), the
+detail after it, focus moving to it, with "Back to the list" (hidden beside the table:
+until #263 a later rule showed it there too). On a phone (below 40rem) each row is two
+lines (code, name and sparkline; then the slope with its unit, interval and
+significance) and the header a line of the sort buttons, by CSS only.
 
-On the Indices the Inputs panel does not sit beside the section (#236): the context bar's
-Inputs bar shows at every width (`station-page--inputs-bar`), so the rail, table and pane
-have the width; without JavaScript the panel shows above the section, as on a narrow
-page. Closing a sheet opened by an old address puts focus on the first visible link that
+On the Indices the Inputs panel does not sit beside the section (#236), so the rail, table
+and pane have the width. Since #263 "Edit inputs" at the end of the provenance line
+(`stations/_edit_inputs.html`, the context bar's `provenance_end`) opens the Inputs sheet
+where the page is at least 52rem wide; narrower, the Inputs bar under the tabs takes its
+place (and the link is hidden). On wider pages the bar shows only while it says more than
+the line: an input changed since the results shown (`inputs-bar--changed`) or a run under
+way, with its "Undo". Without JavaScript the panel shows above the section, as on a
+narrow page, and "Edit inputs" leads to it. Closing a sheet opened by an old address puts focus on the first visible link that
 opens it (`js/sheet.js`): the panel's Edit, or on the Indices the settings line's link.
 
 The themes (`Card.theme`, from `stations/themes.py`, the one place the mapping lives;
@@ -5654,7 +5682,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the Files page (#79, #176) |
-| Results: a carousel of the PNGs and a link to the folder or zip | one line that answers, then every index in one dense table with its slope per decade, 95% interval, significance, sparkline and mean, filtered by theme, significance and search and sorted by column (#200, #236), the selected index's chart, statistics and links in a detail pane beside it (#236), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | one line that answers, then every index in one dense table with its slope per decade, 95% interval, significance and sparkline, filtered by theme, significance and search, sorted by the size of the trend or by column (#200, #236, #263), the selected index's chart, statistics (with its mean) and links in a detail pane beside it (#236), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see

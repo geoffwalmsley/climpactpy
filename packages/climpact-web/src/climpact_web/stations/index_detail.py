@@ -19,13 +19,14 @@ from django.utils.translation import gettext as _
 from climpact_web.charts import data as chart_data
 from climpact_web.core import numbers
 
-# The box is about the pane's width in pixels (17-26rem), so its 12px ticks stay
-# about that size.
-CHART_W, CHART_H = 300, 170
-PLOT_LEFT, PLOT_RIGHT, PLOT_TOP, PLOT_BOTTOM = 36, 294, 10, 142
-X_LABEL_Y = 160
+# The box is about the width of the pane's content in pixels (19-29rem, #263), so its
+# 11px ticks stay about that size.
+CHART_W, CHART_H = 380, 200
+# The plot's left edge leaves room for a tick of six figures ("3046.5").
+PLOT_LEFT, PLOT_RIGHT, PLOT_TOP, PLOT_BOTTOM = 50, 374, 10, 170
+X_LABEL_Y = 188
 # Longer series (SPI and SPEI, monthly) are averaged into this many columns, about two
-# units of the box each, which keeps the page small.
+# and a half units of the box each, which keeps the page small.
 COLUMNS = 129
 
 

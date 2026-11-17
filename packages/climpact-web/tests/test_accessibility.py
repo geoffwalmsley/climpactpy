@@ -811,20 +811,25 @@ def test_tabs_by_keyboard(chrome, site):
 
 def test_workspace_tabs_by_keyboard(chrome, site):
     """The workspace tabs (#179): links in a named navigation, one Tab stop each in order,
-    each named with its status in words; the current one is aria-current="page", and
-    Enter opens a section. A tab not available yet is not a Tab stop."""
+    each named with its status in words (Quality's with the verdict, #222); the current one
+    is aria-current="page", and Enter opens a section. A tab not available yet is not a Tab
+    stop."""
     c = chrome
     c.navigate(site["station results, out of date"])
     tabs = (
         "Array.prototype.map.call(document.querySelectorAll('nav[aria-label=\"Station"
-        " sections\"] [data-tab]'), function (t) { return [t.dataset.tab, t.tagName,"
-        " t.textContent.replace(/\\s+/g, ' ').trim(), t.getAttribute('aria-current')] })"
-    )
+        " sections\"] [data-tab]'), function (t) { var n = t.cloneNode(true);"
+        " n.querySelectorAll('[aria-hidden=true]').forEach(function (h) { h.remove() });"
+        " return [t.dataset.tab, t.tagName, n.textContent.replace(/\\s+/g, ' ').trim(),"
+        " t.getAttribute('aria-current')] })"
+    )  # each tab's name as read: what is aria-hidden (the icon, the count) left out
     found = c.evaluate(tabs)
     assert [t[0] for t in found] == ["quality", "results", "files"]
     assert all(t[1] == "A" for t in found)
     assert found[1][2] == "Results Out of date" and found[1][3] == "page"
-    assert found[0][2] == "Quality Done" and found[2][2] == "Files Out of date"
+    # Quality's is its verdict (#222): the Sydney sample's is amber, 5 values look wrong.
+    assert found[0][2] == "Quality Usable, 5 values look wrong"
+    assert found[2][2] == "Files Out of date"
     focus(c, "[data-tab=quality]")
     for key in ("results", "files"):
         c.press("Tab")

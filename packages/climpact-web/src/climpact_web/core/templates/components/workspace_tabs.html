@@ -4,11 +4,14 @@ under its name. Each tab is its own page, so this is navigation (a list of links
 current one aria-current="page"), not an ARIA tablist: the keyboard moves between them
 with Tab, and each opens its page. It reuses the tabs component's look. Each tab has a
 status: done, needs attention, out of date, running, not started or not available yet.
-The status is an icon of its own shape and a word (shown for the states that need the
-user, read by screen readers for all), never colour alone. A tab not available yet is not
-a link.
+Quality's shows the verdict of the checks instead (#222): Ready, Usable or Fix first in
+the verdict's tint, with the count of values that look wrong ("Usable · 21"), and
+"Checking…" while they run; on a phone the verdict is its icon on the tint, so the three
+tabs fit on one line at 320px (the word and count are still read). The status is an icon of its own shape and a word (shown for
+the states that need the user, read by screen readers for all), never colour alone. A tab
+not available yet is not a link.
 Parameters: tabs (stations.workspace.sections: key, label, url, state, state_label, icon,
-word_shown, current), label (optional, the navigation's name).
+word_shown, current, count, count_label), label (optional, the navigation's name).
 {% endcomment %}
 <nav class="print:hidden" aria-label="{% if label %}{{ label }}{% else %}{% translate 'Station sections' %}{% endif %}">
   <ul class="tabs__list m-0 flex-wrap" role="list">
@@ -16,7 +19,7 @@ word_shown, current), label (optional, the navigation's name).
     <li>
       {% if tab.url %}<a class="tabs__tab" href="{{ tab.url }}" data-tab="{{ tab.key }}" data-state="{{ tab.state }}"{% if tab.current %} aria-current="page"{% endif %}>{% else %}<span class="tabs__tab" data-tab="{{ tab.key }}" data-state="{{ tab.state }}">{% endif %}
         {{ tab.label }}
-        <span class="status-dot status-dot--{{ tab.state }}">{% icon tab.icon %}<span{% if not tab.word_shown %} class="sr-only"{% endif %}>{{ tab.state_label }}</span></span>
+        <span class="status-dot status-dot--{{ tab.state }}">{% icon tab.icon %}<span{% if not tab.word_shown %} class="sr-only"{% elif tab.verdict %} class="max-sm:sr-only"{% endif %}>{{ tab.state_label }}</span>{% if tab.count %}<span class="max-sm:hidden" aria-hidden="true">{{ tab.count }}</span><span class="sr-only">{{ tab.count_label }}</span>{% endif %}</span>
       {% if tab.url %}</a>{% else %}</span>{% endif %}
     </li>
     {% endfor %}

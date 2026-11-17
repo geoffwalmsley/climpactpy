@@ -496,6 +496,17 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
 
     job, shown = analysis.qc_job, workspace.shown_qc(analysis)
     changes = workspace.qc_changes(analysis, shown)
+    from climpact_web.stations import qc_review
+
+    review = None
+    if shown is not None:
+        try:
+            review = qc_review.review(shown, analysis.station_file)
+        except FileNotFoundError:
+            pass
+        if review is not None:
+            # Before the tabs, so that Quality's shows this verdict (#222).
+            workspace.remember_verdict(shown, review.verdict.level, review.verdict.wrong)
     context = {
         "analysis": analysis,
         **workspace.context(analysis, "quality", request.path),
@@ -514,56 +525,43 @@ def qc_context(request, analysis: StationAnalysis, **extra) -> dict:
     }
     if job is not None:
         context.update(progress_context(request, job))
-    if shown is not None:
-        from climpact_web.stations import qc_plots, qc_review
+    if review is not None:
+        from climpact_web.stations import qc_plots
 
-        try:
-            review = qc_review.review(shown, analysis.station_file)
-        except FileNotFoundError:
-            review = None
-        if review is not None:
-            remember_verdict(shown, review.verdict.level)
-            pages = table_pages(request, review)
-            selected = review.item(selected_item(request, review))
-            items = [
+        pages = table_pages(request, review)
+        selected = review.item(selected_item(request, review))
+        items = [
+            {
+                "item": item,
+                "page": pages.get(item.check.table_id) if not item.finding else None,
+                "selected": item.id == selected.id,
+            }
+            for item in review.items
+        ]
+        context.update(
+            review=review,
+            items=items,
+            wrong_items=[i for i in items if i["item"].wrong],
+            worth_items=[i for i in items if not i["item"].wrong],
+            selected=selected,
+            findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
+            groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
+            month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
+            charts=[
                 {
-                    "item": item,
-                    "page": pages.get(item.check.table_id) if not item.finding else None,
-                    "selected": item.id == selected.id,
+                    "variable": v,
+                    "id": qc_review.chart_id(v),
+                    "label": qc_review.variable_labels()[v],
                 }
-                for item in review.items
-            ]
-            context.update(
-                review=review,
-                items=items,
-                wrong_items=[i for i in items if i["item"].wrong],
-                worth_items=[i for i in items if not i["item"].wrong],
-                selected=selected,
-                findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
-                groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
-                month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
-                charts=[
-                    {
-                        "variable": v,
-                        "id": qc_review.chart_id(v),
-                        "label": qc_review.variable_labels()[v],
-                    }
-                    for v in qc_review.CHART_VARIABLES
-                ],
-                monthly=qc_plots.monthly_boxes(review.rows, review.params),
-                annual=qc_plots.annual_boxes(review.rows),
-                decimals=qc_plots.decimals(review.rows),
-                histogram=qc_plots.precipitation_histogram(review.rows),
-            )
+                for v in qc_review.CHART_VARIABLES
+            ],
+            monthly=qc_plots.monthly_boxes(review.rows, review.params),
+            annual=qc_plots.annual_boxes(review.rows),
+            decimals=qc_plots.decimals(review.rows),
+            histogram=qc_plots.precipitation_histogram(review.rows),
+        )
     context.update(extra)
     return context
-
-
-def remember_verdict(job, level: str) -> None:
-    """Keep the verdict's level with the checks, for the Quality tab's state (#179)."""
-    if (job.result or {}).get("verdict") != level:
-        job.result = {**(job.result or {}), "verdict": level}
-        type(job).objects.filter(pk=job.pk).update(result=job.result)
 
 
 @never_cache

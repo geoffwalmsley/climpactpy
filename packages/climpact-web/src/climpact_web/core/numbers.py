@@ -9,6 +9,7 @@
 - **Intervals** are ``−0.22 to 0.31``: two unsigned bounds.
 - **Anomalies** have one decimal and a sign: ``+0.4``, ``−1.2``, ``0.0``.
 - **Coordinates** are ``33.86° S 151.21° E``.
+- **Counts** are grouped: ``65,720`` (:func:`grouped`).
 - **Units** follow a value after a no-break space (``45.8 °C``); a percentage takes none
   (``12.5%``). The no-break space is joined here, never written in a message: older
   xgettext keeps ``\\u00a0`` in a msgid as written and newer versions decode it (#205).
@@ -86,6 +87,11 @@ def _rounded(value: float, decimals: int) -> Decimal:
         Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP
     )
     return abs(rounded) if rounded == 0 else rounded
+
+
+def grouped(n: int) -> str:
+    """A count, localised and grouped: ``21``, ``65,720``."""
+    return minus(number_format(n, force_grouping=True))
 
 
 def fixed(value: float, decimals: int) -> str:

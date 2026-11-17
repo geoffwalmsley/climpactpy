@@ -46,7 +46,7 @@ def in_use(client) -> tuple[StationAnalysis, Job, Job]:
     analysis.refresh_from_db()
     assert (analysis.qc_job, analysis.indices_job, analysis.step) == (qc, run, Step.RESULTS)
     assert workspace.section_states(analysis) == {
-        "quality": "done", "results": "done", "files": "done",
+        "quality": "usable", "results": "done", "files": "done",
     }  # fmt: skip
     return analysis, qc, run
 
@@ -100,7 +100,7 @@ def test_new_base_period_marks_results_out_of_date_until_replaced(client):
     assert "You changed the base period to 1981–2010. These results use 1971–2000." in html
     assert 'class="stale-content' in html and "data-results-table" in html  # still shown
     assert 'id="results-progress"' in html
-    assert states(html) == {"quality": "done", "results": "stale", "files": "stale"}
+    assert states(html) == {"quality": "usable", "results": "stale", "files": "stale"}
     # The panel highlights the base period, with the run's progress beneath it.
     assert changed(html) == {"base-period"} and 'data-run="run"' in html
     assert "Base period · changed" in html and 'data-run="qc"' not in html
@@ -141,7 +141,7 @@ def test_corrected_file_marks_quality_and_results_out_of_date_until_replaced(cli
     assert run_next() == new_qc
     html = page(client, analysis, "quality")
     assert "Checking again" not in html and "/quality/continue" in html
-    assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
+    assert states(html)["quality"] == "usable" and states(html)["results"] == "stale"
     finish(new_run)
     assert states(page(client, analysis))["results"] == "done"
 
@@ -165,7 +165,7 @@ def test_new_thresholds_mark_quality_and_results_out_of_date_until_replaced(clie
     assert states(html)["results"] == "stale" and "data-results-table" in html
     assert run_next() == new_qc
     finish(new_run)
-    assert states(page(client, analysis)) == {"quality": "done", "results": "done",
+    assert states(page(client, analysis)) == {"quality": "usable", "results": "done",
                                               "files": "done"}  # fmt: skip
 
 
@@ -179,7 +179,7 @@ def test_new_settings_mark_results_out_of_date_until_replaced(client):
     assert_kept(qc, run)
     html = page(client, analysis)
     assert "You changed the settings." in html and "Results are out of date. Recalculating" in html
-    assert states(html)["quality"] == "done" and states(html)["results"] == "stale"
+    assert states(html)["quality"] == "usable" and states(html)["results"] == "stale"
     assert changed(html) == {"settings"} and "Index settings · changed" in html
     assert ">1 changed<" in html.split('data-input="settings"')[1].split("</div>")[0]
     assert 'data-run="run"' in html  # the run's progress beneath the panel
@@ -460,23 +460,52 @@ def test_tabs_follow_the_workspace_from_the_first_visit(client):
     assert client.get(f"/station/{analysis.pk}/inputs/station")["Location"] == load
     client.post(load, DETAILS)
     html = page(client, analysis, "quality")
-    assert states(html) == {"quality": "running", "results": "locked", "files": "locked"}
+    assert states(html) == {"quality": "checking", "results": "locked", "files": "locked"}
     assert "data-inputs-panel" in html and 'data-run="qc"' in html
-    assert "<span>Running</span>" in html  # the word shows for a state that needs the user
+    assert "<span>Checking…</span>" in html  # the word shows while the checks run (#222)
     run_next()
     html = page(client, analysis, "quality")
-    assert states(html)["quality"] in ("done", "attention") and states(html)["files"] == "done"
+    # The first page after the checks shows their verdict in the tab (#222).
+    assert states(html)["quality"] == "usable" and states(html)["files"] == "done"
+    assert (
+        '<span class="max-sm:sr-only">Usable</span><span class="max-sm:hidden" aria-hidden="true">'
+        "· 5</span>" in html
+    )
 
 
-def test_a_failed_check_and_a_red_verdict_need_attention(client):
+def test_failed_checks_need_attention(client):
     analysis = ready_analysis(client)
     Job.objects.filter(pk=analysis.qc_job.pk).update(status=Status.FAILED, error="Broken.")
-    assert states(page(client, analysis, "quality"))["quality"] == "attention"
-    Job.objects.filter(pk=analysis.qc_job.pk).update(
-        status=Status.SUCCEEDED, result={"verdict": "fix"}
-    )
-    analysis.refresh_from_db()
-    assert workspace.section_states(analysis)["quality"] == "attention"
+    html = page(client, analysis, "quality")
+    assert states(html)["quality"] == "attention" and "<span>Needs attention</span>" in html
+
+
+def test_quality_tab_shows_the_verdict_kept_with_the_checks(client):
+    """#222: the tab's state is the verdict, kept with the checks when Quality shows them;
+    the Results and Files tabs keep their run states."""
+    analysis = ready_analysis(client)
+    qc = run_next()
+    for level, wrong in [("ready", 0), ("usable", 5), ("fix", 1204)]:
+        Job.objects.filter(pk=qc.pk).update(result={**qc.result, "verdict": level,
+                                                    "verdict_wrong": wrong})  # fmt: skip
+        analysis.refresh_from_db()
+        tabs = {s.key: s for s in workspace.sections(analysis, "quality")}
+        assert tabs["quality"].state == level and tabs["quality"].verdict
+        assert tabs["quality"].count == {0: "", 5: "· 5", 1204: "· 1,204"}[wrong]
+        assert tabs["files"].state == "done" and not tabs["files"].verdict
+
+
+def test_quality_tab_works_out_a_verdict_not_kept(client):
+    """Checks not yet shown, or with a verdict kept before #222 (its level alone): the tab
+    works the verdict out from the checks once, and keeps it."""
+    analysis = ready_analysis(client)
+    qc = run_next()
+    for result in [qc.result, {**qc.result, "verdict": "fix"}]:
+        Job.objects.filter(pk=qc.pk).update(result=result)
+        analysis.refresh_from_db()
+        assert workspace.section_states(analysis)["quality"] == "usable"
+        qc.refresh_from_db()
+        assert (qc.result["verdict"], qc.result["verdict_wrong"]) == ("usable", 5)
 
 
 # ---- addresses -------------------------------------------------------------------------------

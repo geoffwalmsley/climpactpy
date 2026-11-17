@@ -298,15 +298,23 @@ def change_sentences(analysis: StationAnalysis, job: Job | None, changes: list[s
 
 # Each state's word and icon: the word is always given to screen readers, and shown for
 # the states that ask for the user's attention; the icon's shape tells them apart without
-# colour (DESIGN.md, "Don't use colour alone").
+# colour (DESIGN.md, "Don't use colour alone"). Quality's tab shows the verdict of the
+# checks instead of "done" (#222): Ready, Usable or Fix first, the words and icons of the
+# verdict band, with the count of values that look wrong; and "Checking…" while they run.
 STATES = {
     "done": (gettext_lazy("Done"), "check-circle", False),
     "attention": (gettext_lazy("Needs attention"), "warning", True),
     "stale": (gettext_lazy("Out of date"), "clock", True),
     "running": (gettext_lazy("Running"), "refresh", True),
+    "checking": (gettext_lazy("Checking…"), "refresh", True),
     "todo": (gettext_lazy("Not started"), "circle", False),
     "locked": (gettext_lazy("Not available yet"), "lock", False),
+    "ready": (gettext_lazy("Ready"), "check-circle", True),
+    "usable": (gettext_lazy("Usable"), "warning", True),
+    "fix": (gettext_lazy("Fix first"), "error", True),
 }
+
+VERDICTS = ("ready", "usable", "fix")  # qc_review.Verdict.level
 
 SECTIONS = (
     ("quality", gettext_lazy("Quality"), "stations:qc"),
@@ -322,6 +330,26 @@ class Section:
     url: str | None  # None while the section is not available yet
     state: str
     current: bool = False
+    wrong: int = 0  # Quality's verdict: the values that look wrong, shown after the word
+
+    @property
+    def verdict(self) -> bool:
+        return self.state in VERDICTS
+
+    @property
+    def count(self) -> str:
+        """The verdict's count for the tab, after the word: "· 21", or "" when nothing
+        looks wrong."""
+        if not (self.verdict and self.wrong):
+            return ""
+        return _("· %(n)s") % {"n": numbers.grouped(self.wrong)}
+
+    @property
+    def count_label(self) -> str:
+        """The count for screen readers, after the word: ", 21 values look wrong"."""
+        return ngettext(", %(n)s value looks wrong", ", %(n)s values look wrong", self.wrong) % {
+            "n": numbers.grouped(self.wrong)
+        }
 
     @property
     def state_label(self) -> str:
@@ -336,13 +364,41 @@ class Section:
         return STATES[self.state][2]
 
 
+def remember_verdict(job: Job, level: str, wrong: int) -> None:
+    """Keep the verdict's level and its count of values that look wrong with the checks,
+    for the Quality tab (#179, #222)."""
+    result = job.result or {}
+    if (result.get("verdict"), result.get("verdict_wrong")) != (level, wrong):
+        job.result = {**result, "verdict": level, "verdict_wrong": wrong}
+        type(job).objects.filter(pk=job.pk).update(result=job.result)
+
+
+def qc_verdict(analysis: StationAnalysis, job: Job) -> tuple[str, int] | None:
+    """The verdict of finished checks: its level and the values that look wrong. Quality
+    keeps it when it shows the checks; the tab works it out once when it has not been kept
+    yet (checks not yet shown, or kept before #222). None when it cannot be."""
+    result = job.result or {}
+    if result.get("verdict") in VERDICTS and "verdict_wrong" in result:
+        return result["verdict"], result["verdict_wrong"]
+    from climpact_web.stations import qc_review
+
+    try:
+        verdict = qc_review.review(job, analysis.station_file).verdict
+    except FileNotFoundError:
+        return None
+    remember_verdict(job, verdict.level, verdict.wrong)
+    return verdict.level, verdict.wrong
+
+
 def _active(job: Job | None) -> bool:
     return job is not None and job.status in (Status.QUEUED, Status.RUNNING)
 
 
 def section_states(analysis: StationAnalysis) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
-    running, todo (not started) or locked (its input does not exist yet)."""
+    running, todo (not started) or locked (its input does not exist yet). Quality's is
+    instead "checking" while the checks run, and once they have finished the verdict:
+    ready, usable or fix (#222)."""
     states = {}
     qc_job, qc_shown = analysis.qc_job, shown_qc(analysis)
     qc_ready = (
@@ -353,15 +409,14 @@ def section_states(analysis: StationAnalysis) -> dict[str, str]:
     elif qc_shown is not None and qc_changes(analysis, qc_shown):
         states["quality"] = "stale"
     elif _active(qc_job):
-        states["quality"] = "running"
+        states["quality"] = "checking"
     elif qc_job is None:
         states["quality"] = "todo"
     elif qc_shown is None or qc_shown != qc_job:
         states["quality"] = "attention"  # the checks failed or were stopped
-    elif (qc_shown.result or {}).get("verdict") == "fix":
-        states["quality"] = "attention"
     else:
-        states["quality"] = "done"
+        verdict = qc_verdict(analysis, qc_shown)
+        states["quality"] = verdict[0] if verdict else "done"
 
     run, run_shown = analysis.indices_job, shown_run(analysis)
     if not committed(analysis):
@@ -392,7 +447,8 @@ def sections(analysis: StationAnalysis, current: str) -> list[Section]:
     for key, label, url_name in SECTIONS:
         state = states[key]
         url = None if state == "locked" else reverse(url_name, args=[analysis.pk])
-        out.append(Section(key, str(label), url, state, key == current))
+        wrong = qc_verdict(analysis, shown_qc(analysis))[1] if state in VERDICTS else 0
+        out.append(Section(key, str(label), url, state, key == current, wrong))
     return out
 
 

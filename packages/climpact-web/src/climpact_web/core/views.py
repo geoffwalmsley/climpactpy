@@ -212,6 +212,33 @@ def pattern_context(form):
             [("quality", "todo"), ("results", "locked"), ("files", "locked")],
             "quality",
         ),
+        # Quality's tab shows the checks' verdict (#222): checking, then each level.
+        "workspace_verdicts": [
+            (
+                _("Example: checking"),
+                workspace_demo(
+                    [("quality", "checking"), ("results", "locked"), ("files", "locked")], "quality"
+                ),
+            ),
+            (
+                _("Example: ready"),
+                workspace_demo(
+                    [("quality", "ready"), ("results", "todo"), ("files", "done")], "quality"
+                ),
+            ),
+            (
+                _("Example: usable"),
+                workspace_demo(
+                    [("quality", "usable", 21), ("results", "done"), ("files", "done")], "quality"
+                ),
+            ),
+            (
+                _("Example: fix first"),
+                workspace_demo(
+                    [("quality", "fix", 1204), ("results", "running"), ("files", "done")], "quality"
+                ),
+            ),
+        ],
         "stale_changes": [
             _("You changed the base period to %(new)s. These results use %(old)s.")
             % {"new": "1981–2010", "old": "1971–2000"}
@@ -407,8 +434,9 @@ def inputs_demo() -> dict:
 
 
 def workspace_demo(states, current):
-    """Workspace tabs for the pattern library: (section, state) pairs, as
-    ``stations.workspace.sections`` gives them."""
+    """Workspace tabs for the pattern library: (section, state) pairs, or (section, state,
+    values that look wrong) for Quality's verdict, as ``stations.workspace.sections`` gives
+    them."""
     from climpact_web.stations.workspace import SECTIONS, Section
 
     labels = {key: label for key, label, _url in SECTIONS}
@@ -419,6 +447,7 @@ def workspace_demo(states, current):
             None if state == "locked" else "#workspace-tabs",
             state,
             key == current,
+            *wrong,
         )  # fmt: skip
-        for key, state in states
+        for key, state, *wrong in states
     ]

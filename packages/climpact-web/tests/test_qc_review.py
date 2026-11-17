@@ -447,6 +447,7 @@ def test_months_that_hold_most_rows():
 def test_results_page(client, checked):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     assert "Usable. 21 values look wrong." in page
+    assert_tab_shows_verdict(page, "usable", "Usable", "warning", "21")
     # One decision (#202): "See results" is the one primary button, after "Replace file",
     # which opens the Inputs panel's File sheet (#199), so the drop zone is only there.
     verdict = verdict_of(page)
@@ -498,6 +499,25 @@ def test_results_page(client, checked):
 def verdict_of(page: str) -> str:
     start = page.index('class="alert alert--')
     return page[start : page.index("</section>", start)]
+
+
+def quality_tab(page: str) -> str:
+    """Quality's tab in the context bar (#222)."""
+    start = page.index('data-tab="quality"')
+    return page[start : page.index("</li>", start)]
+
+
+def assert_tab_shows_verdict(page: str, level: str, word: str, icon: str, count: str):
+    """The tab says what the verdict band says (#222): its word, its icon and its tint,
+    with the count of values that look wrong."""
+    tab = quality_tab(page)
+    assert f'data-state="{level}"' in tab and f"status-dot--{level}" in tab
+    assert f"icons.svg#{icon}" in tab and f'<span class="max-sm:sr-only">{word}</span>' in tab
+    if count:
+        assert f'<span class="max-sm:hidden" aria-hidden="true">· {count}</span>' in tab
+        assert f'<span class="sr-only">, {count} values look wrong</span>' in tab
+    else:
+        assert "·" not in tab and "look wrong" not in tab
 
 
 def details_shown(page: str) -> list[str]:
@@ -571,6 +591,7 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
     assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
     assert "Ready to use" in page
+    assert_tab_shows_verdict(page, "ready", "Ready", "check-circle", "")
     # Green: "See results" alone; the file is replaced from the Inputs panel (#199).
     verdict = verdict_of(page)
     assert verdict.count('class="button"') == 1 and "<span>See results</span>" in verdict
@@ -588,6 +609,7 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
     page = client.get(f"/station/{checked.pk}/quality").content.decode()
     verdict = verdict_of(page)
     assert "Fix the file first" in verdict and "alert--error" in verdict
+    assert_tab_shows_verdict(page, "fix", "Fix first", "error", "21")
     assert re.search(r'<a href="[^"]+" data-sheet-open="sheet-file"[^>]*class="button"', verdict)
     assert "<span>See results anyway</span>" in verdict
     assert 'class="button button--secondary"' in verdict

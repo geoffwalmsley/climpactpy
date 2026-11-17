@@ -48,11 +48,12 @@ DESTINATIONS = (
         "jobs:list",
         _("Workspaces"),
         "layers",
-        sections=("stations:upload", "batch:start", "/w/"),
+        sections=("stations:add", "stations:upload", "batch:start", "/w/"),
     ),
-    Destination("station", "stations:new", _("Single station"), "station", in_nav=False),
-    Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
-    Destination("batch", "batch:start", _("Batch"), "layers", in_nav=False),
+    # Add stations (#233) is the one way in, for one station or many.
+    Destination("station", "stations:add", _("Single station"), "station", in_nav=False),
+    Destination("sample", "stations:add_sample", _("Try with sample data"), "play", in_nav=False),
+    Destination("batch", "stations:add", _("Batch"), "layers", in_nav=False),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
     # Not a header link since #197: Help at the end of the header opens the current
     # page's guide (page_help below), and the landing page links the help.
@@ -103,6 +104,9 @@ def index_reference_url() -> str | None:
 # covers its other pages. Pages without one open the help's index.
 PAGE_GUIDES = {
     "stations:new": "station-file",
+    "stations:add": "station-file",
+    "stations:add_to": "station-file",
+    "stations:add_review": "station-file",
     "stations:setup": "station-file",
     "stations:qc": "quality-control",
     "stations:results": "indices",

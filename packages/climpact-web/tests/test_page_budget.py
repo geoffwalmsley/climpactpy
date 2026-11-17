@@ -38,13 +38,14 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 18.5 KB before Quality's check detail wide (#264), 17.25 KB before the index page
-    # (#237), 16.75 KB before the Indices' rail, table and detail pane (#236), 16 KB before
-    # the colour tokens, app shell, context bar and data table (#227), 15 KB before the phone
-    # layout (#203), 14.5 KB before Quality as list and detail (#202), 14 KB before the Inputs
-    # panel and its sheets (#198), 13.5 KB before the section header and the workspace header
-    # (#197), 13 KB before #196, 12.5 KB before the help drawer (#177)
-    "css/climpact.css": 19 * KB,
+    # 19 KB before Add stations (#233), 18.5 KB before Quality's check detail wide (#264),
+    # 17.25 KB before the index page (#237), 16.75 KB before the Indices' rail, table and
+    # detail pane (#236), 16 KB before the colour tokens, app shell, context bar and data
+    # table (#227), 15 KB before the phone layout (#203), 14.5 KB before Quality as list and
+    # detail (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the
+    # section header and the workspace header (#197), 13 KB before #196, 12.5 KB before the
+    # help drawer (#177)
+    "css/climpact.css": 20 * KB,
     # The quality checks: the rail and the check's detail with its values in place (#264),
     # the list and its detail (#202), the tables linked to the charts (#77, #174); 3 KB
     # before #264, 2 KB before #202
@@ -59,6 +60,9 @@ ASSET_BUDGETS = {
     # The station workspace's sticky header (#197), the phone's ⋯ menu (#203; 0.5 KB before)
     "js/context-bar.js": 1 * KB,
     "js/setup.js": 0.75 * KB,  # New station: a chosen file is read at once (#201)
+    # Add stations (#233): files sent at once, the table checked as it is typed, a pasted
+    # column filled down
+    "js/add-stations.js": 2.5 * KB,
     "js/sheet.js": 1.5 * KB,  # the Inputs panel's side sheets (#198), old addresses (#199)
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
@@ -168,6 +172,10 @@ def station_downloads(client) -> str:
     return station_results(client).replace("/indices", "/downloads")
 
 
+def add_review(client) -> str:
+    return client.post("/add/sample-batch")["Location"]
+
+
 def batch_check(client) -> str:
     return client.post("/batch/sample")["Location"]
 
@@ -220,7 +228,8 @@ def gridded_results_large_grid(client) -> str:
 
 PAGES = {
     "landing": Page(lambda client: "/"),
-    "station new": Page(lambda client: "/station/new"),
+    "add stations": Page(lambda client: "/add/"),  # starting a workspace (#233)
+    "add stations, review": Page(add_review),  # the sample batch's two files
     "station sample loaded": Page(station_sample, charts=True),  # the daily charts (#75)
     "station quality": Page(station_qc, charts=True),  # the checks queued; "Your data" (#198)
     "station quality results": Page(station_qc_results, charts=True),  # daily charts (#77)
@@ -232,7 +241,6 @@ PAGES = {
     "station index, monthly": Page(station_index_monthly),
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "station downloads": Page(station_downloads),  # every file with its size (#79)
-    "batch start": Page(lambda client: "/batch/"),
     "batch check": Page(batch_check),
     "batch results": Page(batch_results),
     "jobs": Page(lambda client: "/jobs/"),

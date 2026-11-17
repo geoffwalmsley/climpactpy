@@ -230,9 +230,9 @@ def test_landing_page(client):
     html = client.get("/").content.decode()
     assert "<h1" in html and "indices of climate extremes" in html
     # Step 1 exists (#76): start is a link, the sample a one-click POST form
-    assert re.search(r'<a href="/station/new"[^>]*>.*?Start with your data', html, re.S)
+    assert re.search(r'<a href="/add/"[^>]*>.*?Start with your data', html, re.S)  # #233
     assert re.search(
-        r'<form method="post" action="/station/sample">.*?csrfmiddlewaretoken.*?'
+        r'<form method="post" action="/add/sample">.*?csrfmiddlewaretoken.*?'
         r'<button type="submit".*?Try with sample data',
         html,
         re.S,
@@ -242,7 +242,7 @@ def test_landing_page(client):
     how = re.search(r'aria-labelledby="how-title">.*?</section>', html, re.S).group(0)
     assert "<h3" not in how and "<li" not in how
     assert re.search(r'<a [^>]*href="/gridded/"', html)  # gridded (#85), local mode
-    assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
+    assert re.search(r'<a [^>]*href="/add/"', html)  # batch is Add stations (#80, #233)
     for title in ("Batch", "Gridded", "Help", "Command line"):
         assert title in html
     assert "/static/climpact_web/js/ui.js" in html

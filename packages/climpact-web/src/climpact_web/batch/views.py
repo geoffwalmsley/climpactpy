@@ -90,9 +90,9 @@ def get_run(request, workspace_id) -> BatchRun:
     """The batch of the workspace ``workspace_id`` (#256), if it is this session's; 404
     otherwise. A batch makes its own workspace, so a workspace has one at most."""
     owner = request.session.get(OWNER_KEY) or "-"
-    run = BatchRun.objects.filter(
-        workspace_id=workspace_id, owner=owner, workspace__owner=owner
-    ).first()
+    runs = BatchRun.objects.filter(workspace_id=workspace_id, owner=owner, workspace__owner=owner)
+    # The batch that ran, before files waiting on Add stations (#233), a batch with no job.
+    run = runs.exclude(job=None).first() or runs.first()
     if run is None:
         raise Http404
     return run
@@ -164,18 +164,18 @@ def default_workers(stations: int) -> int:
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
 def start(request):
-    """Upload the metadata file and the station files."""
-    if request.method == "POST":
-        form = UploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            run = create_run(
-                request,
-                metadata=form.cleaned_data["metadata_file"],
-                station_files=form.cleaned_data["station_files"],
-            )
-            return redirect(run.url("check"))
-    else:
-        form = UploadForm()
+    """Upload the metadata file and the station files. Its page is Add stations since
+    #233: a visit goes there; a form sent from before still works."""
+    if request.method != "POST":
+        return redirect("stations:add")
+    form = UploadForm(request.POST, request.FILES)
+    if form.is_valid():
+        run = create_run(
+            request,
+            metadata=form.cleaned_data["metadata_file"],
+            station_files=form.cleaned_data["station_files"],
+        )
+        return redirect(run.url("check"))
     return render(request, "batch/start.html", start_context(request, form))
 
 
@@ -312,6 +312,11 @@ def check_context(request, run: BatchRun, options=None, add_form=None) -> dict:
 @require_safe
 def check_page(request, workspace_id):
     run = get_run(request, workspace_id)
+    if run.report.get("files") is not None:
+        # Files of Add stations (#233): their review while they wait, then the workspace.
+        if run.job_id:
+            return redirect(run.results_url)
+        return redirect("stations:add_review", run.workspace_id, run.pk)
     return render(request, "batch/check.html", check_context(request, run))
 
 
@@ -455,7 +460,7 @@ def delete(request, workspace_id):
         messages.success(request, _("The batch and its stations were deleted."))
     else:
         messages.success(request, _("The batch files were deleted."))
-    return redirect("batch:start")
+    return redirect("stations:add")
 
 
 # ---- Step 3: the run and the results ---------------------------------------------------------
@@ -535,6 +540,8 @@ def results(request, workspace_id):
         return redirect(run.url("check"))
     context = results_context(request, run)
     context["steps"] = batch_steps("results", run_urls(run))
+    # Stations added on Add stations (#233): this is their workspace's page until #234.
+    context["added"] = run.report.get("files") is not None
     return render(request, "batch/results.html", context)
 
 

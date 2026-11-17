@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load i18n static ui %}
+{% comment %}
+Add stations (#233; boards AddStations.dc.html and, for the empty page that starts a
+workspace, Start.dc.html's drop zone). One form holds the drop zone, the review table and,
+through form="add-form", the settings in the panel beside them, so whatever is sent keeps
+what was typed. Without JavaScript the files are sent with "Add the files"; with it a
+chosen or dropped file is sent at once, the table is checked as it is typed and a column
+pasted from a spreadsheet fills the cells under the one pasted into
+(js/add-stations.js). Context from stations/views_add.page_context.
+{% endcomment %}
+{% block title %}{% if run or space %}{% translate "Add stations" %}{% else %}{% translate "Start a workspace" %}{% endif %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/add-stations.js' %}" defer></script>{% endblock %}
+{% block content %}
+{% url 'stations:sample_file' as template_url %}{% url 'batch:sample_metadata' as metadata_url %}{% url 'help:guide' 'batch' as batch_guide %}{% url 'help:guide' 'station-file' as file_guide %}
+{% if run or space %}
+<div class="add-stations">
+  <header class="add-stations__head">
+    {% if space %}<nav aria-label="{% translate 'Breadcrumb' %}"><ol class="add-stations__crumbs"><li><a href="{{ space.get_absolute_url }}">{{ space.display_name }}</a></li><li aria-current="page">{% translate "Add stations" %}</li></ol></nav>{% endif %}
+    <h1>{% translate "Add stations" %}</h1>
+  </header>
+
+  <div class="add-stations__layout">
+    <div class="add-stations__main">
+      <form method="post" action="{{ action }}" enctype="multipart/form-data" id="add-form" class="add-stations__form" novalidate{% if run %} data-check-url="{% url 'stations:add_check' run.workspace_id run.pk %}"{% endif %}>
+        {% csrf_token %}
+        {# Enter in a cell checks the table (the first submit button is the form's default). #}
+        <button type="submit" name="intent" value="check" class="sr-only" tabindex="-1" aria-hidden="true">{% translate "Check the table" %}</button>
+
+        <section class="add-drop" aria-labelledby="drop-title" data-add-drop>
+          <div class="add-drop__text">
+            <h2 class="add-drop__title" id="drop-title">{% translate "Drop station files, a metadata file or a zip" %}</h2>
+            <p class="add-drop__format" id="drop-format">{% translate "year month day PR TX TN · missing as −99.9 · spaces or tabs" %}</p>
+          </div>
+          <div class="add-drop__actions">
+            <label class="button button--secondary add-drop__choose">{% icon "upload" %}<span>{% translate "Choose files" %}</span><input type="file" name="files" multiple accept="{{ accept }}" aria-describedby="drop-format" data-add-files></label>
+            <button type="submit" name="intent" value="files" class="button button--secondary" data-nojs>{% translate "Add the files" %}</button>
+            <button type="submit" name="intent" value="sample" class="button button--secondary">{% icon "play" %}<span>{% translate "Use the sample station" %}</span></button>
+          </div>
+          {% if upload_error %}<p class="field__error add-drop__error" role="alert">{% icon "error" %}{{ upload_error }}</p>{% endif %}
+        </section>
+
+        {% if review.upload_problems or review.metadata.problems or review.metadata.warnings %}
+        <div class="alert alert--warning" role="status">
+          {% icon "warning" %}
+          <div class="alert__body">
+            <h2 class="alert__title">{% if review.metadata.problems %}{% blocktranslate with name=review.metadata.name %}The metadata file {{ name }} could not be used{% endblocktranslate %}{% else %}{% translate "About the files" %}{% endif %}</h2>
+            <ul>
+              {% for problem in review.metadata.problems %}<li>{{ problem.message }}{% if problem.text %} <code>{{ problem.text }}</code>{% endif %}</li>{% endfor %}
+              {% for warning in review.metadata.warnings %}<li>{{ warning }}</li>{% endfor %}
+              {% for problem in review.upload_problems %}<li>{{ problem }}</li>{% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if rows %}
+        {% include "stations/_add_table.html" %}
+
+        {% if review.noted_rows %}
+        <details class="disclosure add-problems">
+          <summary>{% icon "warning" %}<span>{% translate "Every problem and warning, with its line in the file" %}</span>{% icon "chevron-down" %}</summary>
+          <div class="disclosure__body">
+            <ul class="add-problems__list">
+              {% for row in review.noted_rows %}
+              <li><span class="code">{{ row.file }}</span>
+                <ul>{% for problem in row.problems %}<li>{{ problem.message }}{% if problem.text %} <code>{{ problem.text }}</code>{% endif %}</li>{% endfor %}
+                {% if row.hidden_problems %}<li>{% blocktranslate count counter=row.hidden_problems trimmed %}And {{ counter }} more problem like these.{% plural %}And {{ counter }} more problems like these.{% endblocktranslate %}</li>{% endif %}
+                {% for warning in row.warnings %}<li class="add-problems__warning">{{ warning }}</li>{% endfor %}</ul>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </details>
+        {% endif %}
+
+        <div class="add-stations__foot">
+          <p class="add-stations__summary" aria-live="polite" data-add-summary>{% if add_error %}<strong>{{ add_error }}</strong> {% endif %}{{ summary }}</p>
+          <div class="add-stations__buttons">
+            <button type="submit" name="intent" value="cancel" class="button button--secondary">{% translate "Cancel" %}</button>
+            <button type="submit" name="intent" value="add" class="button" data-add-button data-label-one="{{ labels.one }}" data-label-many="{{ labels.many }}" data-label-none="{{ labels.none }}">{{ button_label }}</button>
+          </div>
+        </div>
+        {% elif space %}
+        <p class="text-sm text-text-muted">{% blocktranslate with name=space.display_name %}The stations you add join {{ name }} and use its settings.{% endblocktranslate %}</p>
+        {% endif %}
+        {% turnstile %}
+      </form>
+    </div>
+
+    <aside class="add-settings" aria-labelledby="settings-title">
+      <h2 id="settings-title">{% translate "Applies to every station" %}</h2>
+      <dl class="add-settings__list">
+        {% for item in settings_rows %}<div><dt>{{ item.label }}</dt><dd{% if item.mono %} class="code"{% endif %}>{{ item.value }}</dd></div>{% endfor %}
+      </dl>
+      {% if settings_form %}
+      <details class="add-settings__change"{% if settings_open %} open{% endif %}>
+        <summary>{% translate "Change workspace settings" %}</summary>
+        <div class="add-settings__form">
+          {% include "components/form_errors.html" with form=settings_form %}
+          <div class="form__row">
+            {% include "components/field.html" with field=settings_form.base_start narrow=True %}
+            {% include "components/field.html" with field=settings_form.base_end narrow=True %}
+          </div>
+          {% if settings_form.workers %}{% include "components/field.html" with field=settings_form.workers narrow=True %}{% endif %}
+          {% include "components/field.html" with field=settings_form.plots %}
+          <p class="text-sm text-text-muted">{% translate "The quality thresholds and index settings start at their defaults. Change them in a station's Inputs once it is added." %}</p>
+          <button type="submit" name="intent" value="settings" form="add-form" class="button button--secondary button--sm">{% translate "Apply" %}</button>
+        </div>
+      </details>
+      {% else %}
+      <p class="text-sm text-text-muted">{% translate "Change them from a station's Inputs: every station is recalculated." %}</p>
+      {% endif %}
+      <p class="add-settings__note">{% translate "A metadata file can set wsdin, csdin, the degree-day bases, rxnday, rnnmm, txtn and SPEI per station; those stations show “Custom” in the table." %}</p>
+    </aside>
+  </div>
+  {% include "stations/_retention.html" with quiet=True analysis=None %}
+</div>
+{% else %}
+<div class="add-start">
+  <header class="stack stack--sm">
+    <h1>{% translate "Start a workspace" %}</h1>
+    <p class="lead">{% translate "A workspace holds your stations and their settings. Start with one station or a whole network; you can add more later." %}</p>
+  </header>
+  <div class="add-start__layout">
+    <form method="post" action="{{ action }}" enctype="multipart/form-data" id="add-form" class="add-start__drop" aria-labelledby="start-drop-title" data-add-drop novalidate>
+      {% csrf_token %}
+      {% icon "upload" "" "add-start__icon" %}
+      <h2 id="start-drop-title">{% translate "Drop station files here" %}</h2>
+      <p id="start-drop-hint">{% translate "One file per station. Add a metadata file for coordinates and per-station settings, or drop a zip of everything." %}</p>
+      {% if upload_error %}<p class="field__error" role="alert">{% icon "error" %}{{ upload_error }}</p>{% endif %}
+      <div class="add-start__buttons">
+        <label class="button button--lg add-drop__choose">{% icon "upload" %}<span>{% translate "Choose files" %}</span><input type="file" name="files" multiple accept="{{ accept }}" aria-describedby="start-drop-hint" data-add-files></label>
+        <button type="submit" name="intent" value="files" class="button button--lg" data-nojs>{% translate "Add the files" %}</button>
+        <button type="submit" form="sample-form" class="button button--secondary button--lg">{% icon "play" %}<span>{% translate "Use the sample station" %}</span></button>
+      </div>
+      {% turnstile %}
+    </form>
+    <div class="add-start__side">
+      <section class="add-start__card" aria-labelledby="format-title">
+        <h2 id="format-title">{% translate "File format" %}</h2>
+        <pre class="add-start__sample" tabindex="0" aria-label="{% translate 'Two lines of a station file' %}">{{ file_sample }}</pre>
+        <p>{% translate "year month day PR TX TN, separated by spaces or tabs; −99.9 for missing." %}</p>
+        <p class="add-start__links"><a href="{{ template_url }}" download>{% translate "Template" %}</a><a href="{{ metadata_url }}" download>{% translate "Metadata file" %}</a><a href="{{ file_guide }}">{% translate "Converting from other formats" %}</a></p>
+      </section>
+      <section class="add-start__card" aria-labelledby="start-settings-title">
+        <h2 id="start-settings-title">{% translate "Settings" %}</h2>
+        <p>{% blocktranslate with start=settings_rows.0.value trimmed %}Base period <span class="code">{{ start }}</span> and the ET-SCI default settings. You can change them after the files are read, before anything is calculated.{% endblocktranslate %}</p>
+      </section>
+    </div>
+  </div>
+  <form method="post" action="{% url 'stations:add_sample' %}" id="sample-form" hidden>{% csrf_token %}</form>
+  {% include "stations/_retention.html" with quiet=True analysis=None %}
+</div>
+{% endif %}
+{% endblock %}

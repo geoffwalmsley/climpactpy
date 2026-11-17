@@ -64,6 +64,55 @@ def patterns(request):
     return render(request, "core/patterns.html", pattern_context(form))
 
 
+def add_review():
+    """Three files on Add stations (#233): one read with its metadata, one with no
+    coordinates yet, one that cannot be read."""
+    from climpact_web.stations.add_stations import review
+    from climpact_web.stations.models import Workspace
+
+    def read(first, last, days, missing):
+        summary = {
+            "first_date": f"{first}-01-01",
+            "last_date": f"{last}-12-31",
+            "first_year": first,
+            "last_year": last,
+            "days": days,
+            "missing": {},
+            "missing_percent": missing,
+        }
+        return {"ok": True, "problems": [], "problem_count": 0, "warnings": [],
+                "repeats": 0, "summary": summary}  # fmt: skip
+
+    line = {"message": "", "line": 1, "text": "2000,1,1,0.0", "short": ""}
+    line["short"] = _("line 1 has 4 values, expected 6 (year month day PR TX TN)")
+    report = {
+        "files": {
+            "moruya_heads_069018.txt": read(1910, 2015, 38_716, 6.9),
+            "coffs_harbour_059040.txt": read(1943, 2015, 26_663, 0.4),
+            "taree_airport.csv": {
+                "ok": False,
+                "problems": [line],
+                "problem_count": 1,
+                "warnings": [],
+                "repeats": 0,
+                "summary": None,
+            },  # fmt: skip
+        },
+        "metadata": {
+            "name": "stations_nsw.txt",
+            "rows": {
+                "moruya_heads_069018.txt": {
+                    "line": 2,
+                    "latitude": -35.91,
+                    "longitude": 150.15,
+                    "params": {},
+                }
+            },  # fmt: skip
+        },
+    }
+    return review(report, Workspace())
+
+
 def pattern_context(form):
     tab_items = [
         {"id": "tab-annual", "label": _("Annual"), "text": _("Annual values, 1936 to 2015.")},
@@ -88,6 +137,7 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        "add_review": add_review(),  # Add stations' review table (#233)
         # The verdict strip and coverage strip (#235), with the stress file's counts.
         "verdict_facts": [
             _("65,720 values checked"),

@@ -9,7 +9,7 @@ station, then calculates them all in the background. Each station gets the same 
 as a single station would, except the sector correlation, which is only on the
 single-station steps.
 
-To see how it works, use the [sample batch](url:batch:start): two stations made from the
+To see how it works, use the [sample batch](url:stations:add): two stations made from the
 Sydney sample data.
 
 ## The metadata file {#the-metadata-file}

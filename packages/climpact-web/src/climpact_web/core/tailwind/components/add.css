@@ -1,0 +1,502 @@
+/* Add stations (#233, boards AddStations.dc.html and Start.dc.html): the drop zone, the
+   review table of the files with editable name and coordinates, the line that says what
+   stands in the way and the panel of the settings every station shares. The review table
+   is a data table (one frame, 34px rows); its cells are inputs as small as the row. */
+@layer components {
+  .add-stations {
+    display: grid;
+    gap: --spacing(4);
+    max-inline-size: 90rem;
+    padding-block: --spacing(5) --spacing(8);
+  }
+
+  .add-stations__head {
+    display: grid;
+    gap: --spacing(1);
+  }
+
+  .add-stations__crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1.5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .add-stations__crumbs li + li::before {
+    content: "/";
+    margin-inline-end: --spacing(1.5);
+  }
+
+  .add-stations__layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: --spacing(5);
+  }
+
+  /* The main column takes what the panel leaves (the board: 680px and up, the panel at
+     most 340px); under about 60rem the panel goes under it. */
+  .add-stations__main {
+    flex: 999 1 40rem;
+    min-inline-size: 0;
+  }
+
+  .add-stations__form {
+    display: grid;
+    gap: --spacing(4);
+  }
+
+  /* The drop zone: one dashed box, its title and the format in mono, the buttons at the
+     end. The whole box takes a drop (js/add-stations.js). */
+  .add-drop {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(3) --spacing(4);
+    padding: --spacing(4);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .add-drop.is-over,
+  .add-start__drop.is-over {
+    border-color: var(--color-ink);
+    background: var(--color-selected);
+  }
+
+  .add-drop__text {
+    display: grid;
+    flex: 1 1 18rem;
+    gap: --spacing(1);
+  }
+
+  .add-drop__title {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .add-drop__format {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .add-drop__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+  }
+
+  .add-drop__error {
+    flex-basis: 100%;
+  }
+
+  /* The file input inside its label (the button): kept in the page, so the label opens
+     it and the form sends it, but out of sight. */
+  .add-drop__choose {
+    position: relative;
+  }
+
+  .add-drop__choose input[type="file"] {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .add-drop__choose:focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* The review table: a framed data table with its heading inside the frame. */
+  .add-review {
+    overflow: hidden;
+  }
+
+  .add-review__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: --spacing(1) --spacing(3);
+    padding: --spacing(2.5) --spacing(3);
+  }
+
+  .add-review__head h2 {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .add-review__note {
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .add-review__scroll {
+    overflow-x: auto;
+  }
+
+  .add-table {
+    inline-size: 100%;
+  }
+
+  .add-table :is(th, td) {
+    block-size: 2.125rem;
+    padding-inline: --spacing(1.5);
+  }
+
+  /* A long file name, and long custom settings, end in an ellipsis; the whole text is the
+     cell's title. */
+  .add-table__file span,
+  .add-table__settings span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .add-table__file span {
+    max-inline-size: 11rem;
+  }
+
+  .add-table__settings {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .add-table__settings span {
+    max-inline-size: 8rem;
+  }
+
+  /* The Read column wraps: it holds the sentence that says what is wrong. */
+  .add-table .add-table__status {
+    min-inline-size: 10rem;
+    font-size: var(--text-xs);
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .add-table tbody tr.is-problem {
+    background: color-mix(in oklab, var(--color-danger-soft) 35%, var(--color-surface));
+  }
+
+  .add-status {
+    display: inline;
+  }
+
+  .add-status--ok {
+    color: var(--color-success);
+  }
+
+  .add-status--warning {
+    color: var(--color-warning);
+  }
+
+  .add-status--problem {
+    color: var(--color-danger);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* A cell is an input as small as the row (28px), in the table's type. */
+  .add-table .cell {
+    min-block-size: 0;
+    block-size: 1.75rem;
+    padding-block: 0;
+    padding-inline: --spacing(1.5);
+    border-color: var(--color-border-strong);
+    font-size: var(--text-xs);
+  }
+
+  .add-table .cell--name {
+    inline-size: 11rem;
+  }
+
+  .add-table .cell--coord {
+    inline-size: 4.75rem;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .add-table .cell.is-invalid {
+    background: color-mix(in oklab, var(--color-danger-soft) 60%, var(--color-surface));
+  }
+
+  .add-table [aria-invalid="true"] {
+    border-width: 1px !important;
+  }
+
+  .add-problems {
+    font-size: var(--text-sm);
+  }
+
+  .add-problems__list {
+    display: grid;
+    gap: --spacing(2);
+    padding-inline-start: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+  }
+
+  .add-problems__list ul {
+    padding-inline-start: --spacing(5);
+    list-style: disc;
+  }
+
+  .add-problems__warning {
+    color: var(--color-text-muted);
+  }
+
+  .add-problems__list code {
+    font-size: var(--text-xs);
+    word-break: break-all;
+  }
+
+  .add-stations__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(3);
+  }
+
+  .add-stations__summary {
+    flex: 1 1 20rem;
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .add-stations__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+  }
+
+  /* The settings every station shares: one box beside the table, a list of name and
+     value, the change in place. Below 90rem (1440px) it is one line above the files, so the
+     table keeps its eight columns without scrolling sideways at 1280px. */
+  .add-settings {
+    display: grid;
+    flex: 1 1 17.5rem;
+    gap: --spacing(3);
+    max-inline-size: 21.25rem;
+    padding: --spacing(3.5) --spacing(4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .add-settings h2 {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .add-settings__list {
+    display: grid;
+    gap: --spacing(2.5);
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .add-settings__list div {
+    display: flex;
+    justify-content: space-between;
+    gap: --spacing(2);
+  }
+
+  .add-settings__list dt {
+    color: var(--color-text-muted);
+  }
+
+  .add-settings__list dd {
+    margin: 0;
+    text-align: end;
+  }
+
+  .add-settings__list dd.code {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .add-settings__change summary {
+    color: var(--color-link);
+    font-size: var(--text-sm);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .add-settings__change summary:hover {
+    color: var(--color-link-hover);
+  }
+
+  .add-settings__form {
+    display: grid;
+    gap: --spacing(3);
+    max-inline-size: 26rem;
+    padding-block-start: --spacing(3);
+  }
+
+  .add-settings__form .form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: --spacing(3);
+  }
+
+  .add-settings__form .button {
+    justify-self: start;
+  }
+
+  .add-settings__note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  @media (width < 90rem) {
+    .add-stations__main {
+      flex-basis: 100%;
+    }
+
+    .add-settings {
+      flex-basis: 100%;
+      order: -1;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: baseline;
+      gap: --spacing(1) --spacing(4);
+      max-inline-size: none;
+      padding-block: --spacing(2.5);
+    }
+
+    .add-settings__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: --spacing(1) --spacing(5);
+    }
+
+    .add-settings__list div {
+      justify-content: flex-start;
+    }
+
+    .add-settings__list dd {
+      font-weight: var(--font-weight-medium);
+    }
+
+    .add-settings__change,
+    .add-settings > p {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (width < 40rem) {
+    .add-settings {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Starting a workspace (Start.dc.html's drop zone and its two notes beside it). */
+  .add-start {
+    display: grid;
+    gap: --spacing(6);
+    padding-block: --spacing(8) --spacing(10);
+  }
+
+  .add-start__layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: --spacing(6);
+  }
+
+  .add-start__drop {
+    display: flex;
+    flex: 3 1 32rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: --spacing(3.5);
+    min-inline-size: 0;
+    padding: --spacing(12) --spacing(7);
+    border: 2px dashed var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    text-align: center;
+  }
+
+  .add-start__drop h2 {
+    font-size: var(--text-xl);
+  }
+
+  .add-start__drop p {
+    max-inline-size: 29rem;
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  .add-start__icon {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    color: var(--color-text-muted);
+  }
+
+  .add-start__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: --spacing(2.5);
+  }
+
+  .add-start__side {
+    display: flex;
+    flex: 2 1 20rem;
+    flex-direction: column;
+    gap: --spacing(4);
+    min-inline-size: 0;
+  }
+
+  .add-start__card {
+    display: grid;
+    gap: --spacing(2.5);
+    padding: --spacing(4.5) --spacing(5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+  }
+
+  .add-start__card h2 {
+    font-size: var(--text-base);
+  }
+
+  .add-start__card p {
+    margin: 0;
+  }
+
+  .add-start__card .code {
+    font-family: var(--font-mono);
+  }
+
+  .add-start__sample {
+    margin: 0;
+    padding: --spacing(2.5) --spacing(3);
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.6;
+  }
+
+  .add-start__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3.5);
+  }
+}

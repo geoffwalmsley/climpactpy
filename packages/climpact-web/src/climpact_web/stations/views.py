@@ -299,6 +299,8 @@ def new_station(request, workspace_id=None, slug=None):
     the file. A station already set up has no setup page: its address leads to Quality's
     "Your data", and later changes are made in the Inputs panel (#198)."""
     analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
+    if analysis is None and request.method != "POST":
+        return redirect("stations:add")  # New station is Add stations since #233
     if analysis is not None and request.method != "POST" and workspace.set_up(analysis):
         return redirect(analysis.url("qc") + "#your-data")
     if request.method != "POST":
@@ -368,8 +370,8 @@ def new_station(request, workspace_id=None, slug=None):
 
 @require_http_methods(["GET", "HEAD", "POST"])
 def upload(request):
-    """The upload page's old address (before #201): to the New station page."""
-    return redirect("stations:new")
+    """The upload page's old address (before #201): to Add stations (#233)."""
+    return redirect("stations:add")
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
@@ -388,7 +390,7 @@ def sample(request):
     """One click: an analysis of the Sydney sample with its metadata filled in, on its
     setup page, to check and calculate."""
     if request.method != "POST":
-        return redirect("stations:new")
+        return redirect("stations:add")
     inspection = inspect_station_bytes(sample_bytes())
     with transaction.atomic():
         analysis = Station(owner=owner_token(request), source=Source.SAMPLE)
@@ -499,7 +501,7 @@ def delete(request, workspace_id, slug):
     analysis.delete_files()
     analysis.delete()
     messages.success(request, _("The station data were deleted."))
-    return redirect("stations:new")
+    return redirect("stations:add")
 
 
 # ---- Step 2: quality control (#77) ----------------------------------------------------
@@ -766,23 +768,29 @@ def workspace_page(request, workspace_id):
     Quality while it waits, Indices once calculated or failed (which say why), the New
     station page when the batch had no file for it. Otherwise, until the overview of #234
     (``Calculate.dc.html``), the batch's pages stand in: its results once it has been
-    queued, after recording how a finished run went (``batch.fill``), else its check page."""
+    queued, after recording how a finished run went (``batch.fill``); files waiting on Add
+    stations (#233) open their review; else the old batch check page."""
     from climpact_web.batch import views as batch_views
     from climpact_web.batch.fill import fill_workspace
     from climpact_web.batch.models import BatchRun
 
     owner = request.session.get(OWNER_KEY) or "-"
     space = get_object_or_404(Workspace, pk=workspace_id, owner=owner)
-    run = BatchRun.objects.filter(workspace=space, owner=owner).first()
-    if run is not None and run.job_id:
+    batches = BatchRun.objects.filter(workspace=space, owner=owner)
+    # The batch that ran (files waiting on Add stations, #233, are a batch with no job).
+    run = batches.exclude(job=None).first()
+    if run is not None:
         fill_workspace(run)
     stations = list(space.stations.filter(owner=owner)[:2])
     if len(stations) == 1 or (stations and run is None):
         return redirect(workspace.home_url(stations[0]))
-    if run is None:
-        raise Http404
-    if run.job_id:
+    if run is not None:
         return batch_views.results(request, workspace_id)
+    waiting = batches.filter(job=None).first()
+    if waiting is None:
+        raise Http404
+    if waiting.report.get("files") is not None:  # files waiting on Add stations
+        return redirect("stations:add_review", space.pk, waiting.pk)
     return batch_views.check_page(request, workspace_id)
 
 

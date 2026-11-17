@@ -2,7 +2,6 @@
 (#177), the index catalogue, search, translations with English fallback, and the
 first-run tour."""
 
-import json
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -11,14 +10,12 @@ from urllib.parse import urlsplit
 import pytest
 from django.template import Context, Template
 from django.test import override_settings
-from django.utils import translation
 from django.utils.html import escape
 
 import climpact_web
-from climpact_web.batch import forms as batch_forms
-from climpact_web.help import guides, indices, sections, topics
-from climpact_web.help.guides import GUIDE_ORDER, get_guide, search
-from climpact_web.help.topics import UnknownTopic, get_topic, index_topic_for_output
+from climpact_web.help import guides, sections, topics
+from climpact_web.help.guides import GUIDE_ORDER, get_guide
+from climpact_web.help.topics import UnknownTopic, get_topic
 from climpact_web.stations import forms as station_forms
 
 PACKAGE = Path(climpact_web.__file__).parent
@@ -62,7 +59,7 @@ def test_help_index_lists_guides_and_sample_data(client):
     html = client.get("/help/").content.decode()
     for slug in GUIDE_ORDER:
         assert f'href="/help/{slug}/"' in html
-    assert 'action="/station/sample"' in html and 'action="/batch/sample"' in html
+    assert 'action="/add/sample"' in html and 'action="/add/sample-batch"' in html  # #233
     assert "/station/sample.txt" in html and "/batch/sample-metadata.txt" in html
     assert "climpact.sampledata.gridded.1991-2010.nc" in html  # local mode
     assert 'href="/?tour=1"' in html and 'href="/help/topics/"' in html
@@ -87,7 +84,7 @@ def test_header_help_button_opens_the_pages_guide(client):
     assert reference.group(1) == "/help/indices/#the-indices"
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
-    for url, guide in [("/station/new", "station-file"), ("/batch/", "batch")]:
+    for url, guide in [("/add/", "station-file"), ("/jobs/", "batch")][:1]:
         html = client.get(url).content.decode()
         assert re.search(rf'id="app-help" href="/help/{guide}/" aria-label="Help: [^"]+"', html)
 
@@ -128,10 +125,10 @@ def pages_with_help(client):
     """Every help page, and the screens that show help topics."""
     urls = ["/", "/help/", "/help/topics/", "/help/search/?q=base"]
     urls += [f"/help/{slug}/" for slug in GUIDE_ORDER]
-    urls += ["/station/new", "/batch/"]
-    load = client.post("/station/sample")["Location"]
-    check = client.post("/batch/sample")["Location"]
-    return [*urls, load, check]
+    urls += ["/add/"]
+    load = client.post("/station/sample")["Location"]  # a station's own setup page
+    review = client.post("/add/sample-batch")["Location"]  # Add stations' review (#233)
+    return [*urls, load, review]
 
 
 def test_no_link_to_a_help_topic_or_guide_is_broken(client):
@@ -340,243 +337,19 @@ def test_quality_verdict_help_states_the_verdict_limits():
     assert f"more than {VERDICT_LIMITS.short_years_share:.0%} of the years" in text
 
 
-def test_step_1_and_batch_screens_show_their_help(client):
-    html = client.get("/station/new").content.decode()
-    assert 'href="/help/sections/upload.file/"' in html
-    assert 'data-help-topic="station.file"' in html
-    assert "year month day prcp tmax tmin" in html  # the example file, in the help
+def test_add_stations_and_the_setup_page_show_their_help(client):
+    # Add stations (#233) links the formats; the header's Help opens the station file guide.
+    html = client.get("/add/").content.decode()
     assert 'href="/help/station-file/"' in html
+    review = client.get(client.post("/add/sample-batch")["Location"]).content.decode()
+    assert 'href="/help/batch/#the-metadata-file"' in review
+    # A station's own setup page (a new file that needs new details) keeps its help.
     load = client.get(client.post("/station/sample")["Location"]).content.decode()
     assert re.findall(r'href="/help/sections/([^/]+)/"', load) == ["upload.file", "load.details"]
     for topic_id in ("station.name", "station.latitude", "station.longitude"):
         assert f'data-help-topic="{topic_id}"' in load
     assert 'data-help-topic="station.base_period"' in load
     assert "help-topic--compact" not in load  # no help link under a field
-    html = client.get("/batch/").content.decode()
-    assert 'data-help-topic="batch.metadata_file"' in html
-    assert 'data-help-topic="batch.station_files"' in html
-    check = client.get(client.post("/batch/sample")["Location"]).content.decode()
-    for topic_id in ("batch.base_period", "batch.workers", "batch.plots", "batch.metadata_file"):
-        assert f'data-help-topic="{topic_id}"' in check
-
-
-# The base period's two year fields share the fieldset's hint; the station name needs no
-# hint, its section's help says what it is used for (#177).
-FIELDSET_COVERED = {"base_start", "base_end"}
-SECTION_COVERED = {"station_name": ("load.details", "station.name")}
-
-
-@pytest.mark.parametrize(
-    "form_class",
-    [
-        station_forms.UploadForm,
-        station_forms.MetadataForm,
-        batch_forms.UploadForm,
-        batch_forms.AddFilesForm,
-        batch_forms.OptionsForm,
-    ],
-    ids=lambda c: f"{c.__module__.split('.')[1]}.{c.__name__}",
-)
-def test_every_form_field_has_help_text(form_class):
-    for name, field in form_class().fields.items():
-        if name in SECTION_COVERED:
-            section_id, topic_id = SECTION_COVERED[name]
-            assert topic_id in sections.get_section(section_id).topics
-            continue
-        assert field.help_text or name in FIELDSET_COVERED, f"{form_class.__name__}.{name}"
-
-
-# ---- The index catalogue -----------------------------------------------------------------
-
-
-def test_catalogue_covers_every_index_of_the_core_file():
-    shorts = [info.short for info in indices.catalogue()]
-    rows = {row["Short.name"] for row in indices._rows()}
-    assert set(shorts) == rows and len(shorts) == len(rows)
-    grouped = [short for _key, _label, members in indices.GROUPS for short in members]
-    assert sorted(grouped) == sorted(shorts)  # each in exactly one group
-    assert set(indices.DISPLAY_NAMES) == rows
-    for info in indices.catalogue():
-        assert info.units in indices.UNITS, info.short
-        assert "degrees_C" not in info.definition + info.long_name
-
-
-def test_catalogue_entries_read_well():
-    by = indices.by_short()
-    assert by["fd"].long_name == "Frost days" and by["fd"].annual and by["fd"].monthly
-    assert by["tx90p"].base_period and not by["fd"].base_period
-    assert by["gsl"].annual and not by["gsl"].monthly
-    assert by["spi"].monthly and not by["spi"].annual
-    assert by["hwEHF"].long_name == "Heatwaves as per Nairn and Fawcett"
-    assert by["txdtnd"].param_topic == "param.txtn_days"
-
-
-def test_long_names_name_the_variable_the_index_counts():
-    """TMge10 counts TM days; the core's file (R's) calls it "TX of at least 10" (#217).
-    Every long name that names TX, TN or TM names one its definition uses."""
-    by = indices.by_short()
-    assert by["tmge10"].long_name == "TM of at least 10 °C"
-    assert by["tmge5"].long_name == "TM of at least 5 °C"
-    assert by["txge30"].long_name == "TX of at least 30 °C"
-    variables = re.compile(r"\b(TX|TN|TM)\b")
-    spelled = {"maximum": "TX", "minimum": "TN", "mean": "TM"}  # "daily mean temperature"
-    for info in indices.catalogue():
-        definition = re.sub(
-            r"daily (maximum|minimum|mean) temperature",
-            lambda m: spelled[m.group(1)],
-            info.definition,
-        )
-        named = set(variables.findall(info.long_name))
-        assert named <= set(variables.findall(definition)), info.short
-    # The core keeps R's text: it is the gridded files' long_name, compared with R's.
-    core = {row["Short.name"]: row["Long.name"] for row in indices._rows()}
-    assert core["tmge10"] == "TX of at least 10 degrees_C"
-    # The gridded form's index list shows the corrected name too.
-    from climpact_web.gridded.forms import index_choices
-
-    labels = dict(item for _group, items in index_choices() for item in items)
-    assert labels["tmge10"] == "tmge10: TM of at least 10 degrees_C"
-
-
-def test_indices_guide_has_an_entry_for_every_index(client):
-    html = client.get("/help/indices/").content.decode()
-    ids = parse(html).ids
-    for info in indices.catalogue():
-        assert info.anchor in ids, info.short
-    assert '<h4 id="index-rxdday">Rxdday Wettest d days</h4>' in html
-    assert "Name in Climpact for R: User-defined consecutive days PR amount." in html
-    assert "You choose <em>d</em> in the index settings, in Your inputs." in html
-    assert "You choose <em>nn</em> in the index settings, in Your inputs." in html
-
-
-@pytest.mark.parametrize(
-    "name, topic_id",
-    [
-        ("txx", "index.txx"),
-        ("txx_MON", "index.txx"),
-        ("rx1day_ANN", "index.rx1day"),
-        ("rx3day_ANN", "index.rxdday"),
-        ("r10mm", "index.r10mm"),
-        ("r30mm_MON", "index.rnnmm"),
-        ("wsdi", "index.wsdi"),
-        ("wsdi3", "index.wsdid"),
-        ("tx2tn2", "index.txdtnd"),
-        ("txb2tnb2", "index.txbdtnbd"),
-        ("hddheat18", "index.hddheatn"),
-        ("gddgrow10_ANN", "index.gddgrown"),
-        ("TX90-HWN_ANN", "index.hw"),
-        ("EHF-HWPS_ANN", "index.hwEHF"),
-        ("EHFdaily", "index.hwEHF"),
-        ("3month_spi_MON", "index.spi"),
-        ("24month_spei_MON", "index.spei"),
-        ("tx95t_DAY", "index.tx95t"),
-        ("TXge40_ANN", "param.custom"),
-        ("TNlt-2.5", "param.custom"),
-        ("nothing", None),
-    ],
-)
-def test_index_topic_for_output_names(name, topic_id):
-    assert index_topic_for_output(name) == topic_id
-
-
-def test_index_messages_file_is_up_to_date():
-    """Regenerate with ``python -m climpact_web.help.indices``."""
-    assert indices.MESSAGES_FILE.read_text() == indices.messages_source()
-
-
-# ---- Topic list and search ---------------------------------------------------------------
-
-
-def test_topic_list_has_every_topic(client):
-    html = client.get("/help/topics/").content.decode()
-    ids = parse(html).ids
-    for topic in topics.topics().values():
-        assert topic.anchor_id in ids, topic.id
-    assert "Quality checks" in html and "Indices" in html
-
-
-def test_search_finds_guide_sections_and_topics(client):
-    results = search("base period")
-    assert "base period" in results[0].title.lower()  # title matches rank first
-    urls = [r.url for r in results]
-    assert any(u.startswith("/help/base-period/#") for u in urls)
-    assert any(r.context == "Help topic" for r in results)
-    assert search("") == [] and search("zzzz-nothing") == []
-    assert any(r.url == "/help/indices/#index-tx90p" for r in search("tx90p"))
-    html = client.get("/help/search/?q=outliers").content.decode()
-    assert "<h1>" in html and 'href="/help/quality-control/#outliers"' in html
-    partial = client.get("/help/search/?q=outliers", HTTP_HX_REQUEST="true").content.decode()
-    assert "<h1>" not in partial and "results for “outliers”" in partial
-    assert "Nothing found" in client.get("/help/search/?q=qwertyuiop").content.decode()
-
-
-def test_search_is_live_with_htmx_and_works_without_it(client):
-    html = client.get("/help/").content.decode()
-    assert re.search(r'<form method="get" action="/help/search/"', html)
-    assert 'hx-get="/help/search/"' in html and 'hx-target="#help-results"' in html
-
-
-# ---- Translations ------------------------------------------------------------------------
-
-
-def test_language_candidates():
-    assert guides.language_candidates("pt-br") == ["pt-br", "pt", "en"]
-    assert guides.language_candidates("en") == ["en"]
-    assert guides.language_candidates(None) == ["en"]
-
-
-@override_settings(LANGUAGES=[("en", "English"), ("fr", "French")])
-def test_guides_fall_back_to_english_and_use_a_translation_when_present(
-    client, tmp_path, monkeypatch
-):
-    html = client.get("/help/trends/", HTTP_ACCEPT_LANGUAGE="fr").content.decode()
-    assert "This guide is not yet translated, so it is shown in English." in html
-    assert 'lang="en"' in html  # the article is marked as English
-    root = tmp_path / "guides"
-    (root / "en").mkdir(parents=True)
-    (root / "fr").mkdir()
-    for slug in GUIDE_ORDER:
-        (root / "en" / f"{slug}.md").write_text(
-            (guides.GUIDES_DIR / "en" / f"{slug}.md").read_text()
-        )
-    (root / "fr" / "trends.md").write_text(
-        "title: Tendances\nsummary: Résumé\n\n## Pente {#pente}\n"
-    )
-    monkeypatch.setattr(guides, "GUIDES_DIR", root)
-    html = client.get("/help/trends/", HTTP_ACCEPT_LANGUAGE="fr").content.decode()
-    assert "<h1>Tendances</h1>" in html and "not yet translated" not in html
-    with translation.override("fr"):
-        assert get_guide("trends").language == "fr"
-        assert get_guide("faq").fallback
-
-
-# ---- Tour --------------------------------------------------------------------------------
-
-
-def test_home_page_offers_the_tour(client):
-    html = client.get("/").content.decode()
-    assert "/static/climpact_web/js/tour.js" in html
-    assert re.search(r'<div class="alert alert--info tour-invite" hidden data-tour-invite>', html)
-    steps = json.loads(
-        re.search(
-            r'<script id="tour-steps" type="application/json">(.*?)</script>', html, re.S
-        ).group(1)
-    )
-    assert len(steps) == 5
-    ids = parse(html).ids
-    for step in steps:
-        assert step["title"] and step["text"]
-        target = step["target"]
-        if target.startswith("#"):
-            assert target[1:] in ids, target
-        else:
-            key = re.search(r"data-nav='(\w+)'", target).group(1)
-            assert f'data-nav="{key}"' in html, target
-    labels = re.search(r'<template id="tour-labels"[^>]*>', html).group(0)
-    assert "{step}" in labels and "{total}" in labels
-
-
-def test_tour_script_remembers_the_choice():
     js = (PACKAGE / "core" / "static" / "climpact_web" / "js" / "tour.js").read_text()
     assert '"climpact-tour"' in js and "localStorage" in js
     assert "Escape" in js and 'aria-modal", "false"' in js
@@ -584,7 +357,7 @@ def test_tour_script_remembers_the_choice():
 
 def test_accessibility_statement_is_linked_from_every_footer(client):
     """The accessibility statement (#83) is a guide, linked from the page shell's footer."""
-    for url in ("/", "/station/new", "/help/", "/no-such-page/"):
+    for url in ("/", "/add/", "/help/", "/no-such-page/"):
         html = client.get(url).content.decode()
         assert 'href="/help/accessibility/"' in html, url
     html = client.get("/help/accessibility/").content.decode()

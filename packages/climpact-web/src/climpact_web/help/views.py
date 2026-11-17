@@ -18,9 +18,9 @@ from climpact_web.help.topics import KINDS, topics
 def sample_data() -> dict:
     """Where each flow's sample lives; ``None`` for a screen that does not exist yet."""
     return {
-        "station_sample": url_or_none("stations:sample"),
+        "station_sample": url_or_none("stations:add_sample"),
         "station_file": url_or_none("stations:sample_file"),
-        "batch_sample": url_or_none("batch:sample"),
+        "batch_sample": url_or_none("stations:add_sample_batch"),
         "batch_metadata": url_or_none("batch:sample_metadata"),
         "gridded_url": None if settings.IS_HOSTED else url_or_none("gridded:start"),
         "show_gridded": not settings.IS_HOSTED,

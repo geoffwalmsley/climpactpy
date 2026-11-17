@@ -344,6 +344,12 @@
       </div>
     </section>
 
+    <section class="pattern" id="review-table" aria-labelledby="review-table-title">
+      <h2 id="review-table-title">{% translate "Review table" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Add stations' files, a row each: the station name, latitude and longitude typed in the table, the period and days read, the index settings and what reading found. Every problem shows at once; a row with one is tinted and stays out." %}</p>
+      {% include "stations/_add_table.html" with review=add_review rows=add_review.rows %}
+    </section>
+
     <section class="pattern" id="files" aria-labelledby="files-title">
       <h2 id="files-title">{% translate "File groups" %}</h2>
       <p class="text-sm text-text-muted">{% translate "Files are offered in one place, the Files page. A long group is a closed disclosure whose summary gives the count and the total size; it opens to a table with one small download button per file, each with its format and size." %}</p>

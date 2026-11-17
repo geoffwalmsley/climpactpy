@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static ui %}
 {% block title %}{% translate "Batch results" %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{# Stations added on Add stations (#233) have no batch steps: the workspace's page. #}
+{% block steps %}{% if not added %}{% include "components/steps.html" %}{% endif %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
     <h1>{% if job.status == "succeeded" %}{% translate "Batch results" %}{% else %}{% translate "Calculating the batch" %}{% endif %}</h1>
-    <p class="lead">{% blocktranslate with name=run.metadata_name|default:_("Your batch") start=job.params.base_start end=job.params.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
+    <p class="lead">{% blocktranslate with name=run.metadata_name|default:run.workspace.display_name start=job.params.base_start end=job.params.base_end %}{{ name }}, base period {{ start }} to {{ end }}.{% endblocktranslate %}</p>
   </header>
 
   {% include "batch/_progress.html" %}
@@ -26,8 +27,13 @@
   </details>
 
   <p class="flex flex-wrap items-center gap-3">
+    {% if added %}
+    <a href="{% url 'stations:add_to' run.workspace_id %}">{% translate "Add stations to this workspace" %}</a>
+    <a href="{% url 'stations:add' %}">{% translate "Start a new workspace" %}</a>
+    {% else %}
     <a href="{% url 'batch:check' run.workspace_id %}">{% icon "arrow-left" "" "icon--flip" %} {% translate "Change the files or options and calculate again" %}</a>
-    <a href="{% url 'batch:start' %}">{% translate "Start a new batch" %}</a>
+    <a href="{% url 'stations:add' %}">{% translate "Start a new batch" %}</a>
+    {% endif %}
   </p>
 </div>
 {% endblock %}

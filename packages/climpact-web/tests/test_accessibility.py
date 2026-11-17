@@ -170,6 +170,27 @@ def wait_for(
     )
 
 
+# A station file of two years, readable.
+GOOD_FILE = "".join(
+    f"{d.year} {d.month} {d.day} 0 20 10\n"
+    for d in (dt.date(2000, 1, 1) + dt.timedelta(days=k) for k in range(731))
+)
+
+
+def setup_sample(c: Chrome, open_url) -> None:
+    """The Sydney sample on its station's setup page (``/station/sample``, the old New
+    station's sample, which Add stations replaced, #233): the page a station's new file
+    that needs new details comes back to."""
+    c.navigate(open_url("/add/"))
+    c.evaluate(
+        "var f = document.createElement('form'); f.method = 'post';"
+        " f.action = '/station/sample'; f.id = 'old-sample';"
+        " f.appendChild(document.querySelector('[name=csrfmiddlewaretoken]').cloneNode());"
+        " document.body.appendChild(f)"
+    )
+    submit(c, "#old-sample")
+
+
 def choose_file(c: Chrome, input: str, name: str, text: str) -> None:
     """Choose a file in a file input (a CSS selector) as the file picker would, and wait
     for the page the change sends the form to (the New station page's, #201)."""
@@ -218,8 +239,7 @@ def site(chrome, server):
     for name, path in [
         ("landing", "/"),
         ("pattern library", "/patterns/"),
-        ("station new", "/station/new"),
-        ("batch start", "/batch/"),
+        ("add stations", "/add/"),
         ("gridded start", "/gridded/"),
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),
@@ -232,21 +252,24 @@ def site(chrome, server):
         pages[name] = open_url(path)
 
     def upload_errors(c):
-        """ "Check and calculate" with no file: the file's step asks for one (#201)."""
-        c.navigate(open_url("/station/new"))
-        submit(c, "#new-station", "#new-station button[value=go]")
+        """Add stations sent without a file: it asks for one (#233)."""
+        c.navigate(open_url("/add/"))
+        c.evaluate("document.querySelector('[data-nojs]').hidden = false")
+        submit(c, "#add-form", "#add-form button[value=files]")
 
     def file_errors(c):
-        """A file that cannot be read, chosen (so sent at once): its problems (#201)."""
-        c.navigate(open_url("/station/new"))
-        choose_file(c, "#id_station_file", "bad.txt", "2000 1 1 0 20 10\n2000 1 2 0.4 21\n")
+        """Files chosen (so sent at once), one that cannot be read and one with no
+        coordinates: the review table says so, every problem at once (#233)."""
+        c.navigate(open_url("/add/"))
+        choose_file(c, "[data-add-files]", "bad.txt", "2000 1 1 0 20 10\n2000 1 2 0.4 21\n")
+        choose_file(c, "[data-add-files]", "good.txt", GOOD_FILE)
 
-    pages["station new, errors"] = upload_errors
-    pages["station new, file errors"] = file_errors
+    pages["add stations, errors"] = upload_errors
+    pages["add stations, file errors"] = file_errors
 
-    # Station steps 1-5 with the Sydney sample.
-    c.navigate(open_url("/station/new"))
-    submit(c, "#sample-form")
+    # Station steps 1-5 with the Sydney sample, from a station's own setup page (a new
+    # file that needs new details; Add stations' sample opens Quality at once).
+    setup_sample(c, open_url)
     load = pages["station sample loaded"] = here(c)
 
     def metadata_errors(c):
@@ -260,10 +283,9 @@ def site(chrome, server):
     pages["station details, errors"] = metadata_errors
 
     # The rest on a second sample, so the first stays on its details page: once they are
-    # confirmed, its address leads to Quality (#198).
-    c.navigate(open_url("/station/new"))
+    # confirmed, its address leads to Quality (#198). Add stations' sample (#233).
+    c.navigate(open_url("/add/"))
     submit(c, "#sample-form")
-    submit(c, "#new-station", "#new-station button[value=go]")
     heard = while_running(c, "station quality checks")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the quality checks", heard=heard)  # fmt: skip
@@ -315,9 +337,8 @@ def site(chrome, server):
     # a new base period in the Inputs panel's sheet (#198), its run's progress over the old
     # results, then that run cancelled, which leaves the old results out of date under
     # "Recalculate".
-    c.navigate(open_url("/station/new"))
+    c.navigate(open_url("/add/"))
     submit(c, "#sample-form")
-    submit(c, "#new-station", "#new-station button[value=go]")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the second station's checks")  # fmt: skip
     submit(c, "form[action$='/quality/continue']")
@@ -342,11 +363,12 @@ def site(chrome, server):
     )
     pages["job"] = job
 
-    # The sample batch.
-    c.navigate(open_url("/batch/"))
-    submit(c, "form[action$='/batch/sample']")
-    pages["batch check"] = here(c)
-    submit(c, "form[action$='/run']")
+    # The sample batch, from the help: its two files reviewed on Add stations (#233), then
+    # added, which runs them as a batch.
+    c.navigate(open_url("/help/"))
+    submit(c, "form[action$='/add/sample-batch']")
+    pages["add stations, review"] = here(c)
+    submit(c, "#add-form", "#add-form button[value=add]")
     heard = while_running(c, "batch")
     # Keyboard focus on the cancel button stays there while the progress is polled: the
     # mark goes when the progress replaces itself (the first poll, or the batch's end).
@@ -931,7 +953,6 @@ def test_input_sheet_by_keyboard(chrome, site):
 
 
 STATION_PAGES = (
-    "station new",
     "station sample loaded",
     "station quality results",
     "station results",
@@ -1274,10 +1295,10 @@ def test_help_reachable_from_every_section_of_the_station_pages(chrome, site):
 
 
 def test_drop_zone_by_keyboard(chrome, site):
-    """The drop zone's file input is a Tab stop, shows its focus on the drop zone, and
+    """Add stations' file input (#233) is a Tab stop, shows its focus on its button, and
     Space or Enter opens the file chooser."""
     c = chrome
-    c.navigate(site["station new"])
+    c.navigate(site["add stations"])
     c.evaluate(START)
     for _ in range(40):
         c.press("Tab")
@@ -1285,9 +1306,8 @@ def test_drop_zone_by_keyboard(chrome, site):
             break
     else:
         raise AssertionError("Tab never reached the file input")
-    ring = c.evaluate("getComputedStyle(document.activeElement.closest('[data-dropzone]'))"
-                      ".outlineStyle")  # fmt: skip
-    assert ring != "none", "the drop zone shows no focus"
+    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
+    assert ring != "none", "the file button shows no focus"
     c.send("Page.setInterceptFileChooserDialog", enabled=True)
     try:
         c.events.clear()
@@ -1297,45 +1317,46 @@ def test_drop_zone_by_keyboard(chrome, site):
         c.send("Page.setInterceptFileChooserDialog", enabled=False)
 
 
-def test_new_station_by_keyboard(chrome, site, server):
-    """#201: the New station page in Tab order (the file, the sample, the details, then
-    "Check and calculate"); a chosen file is read at once and the page comes back with
-    focus on the file card and the details typed kept; Replace is the next Tab stop; no
-    axe violation in light, dark and at 320 px; Enter on "Check and calculate" lands on
-    Quality. Errors in the file or the details take focus to their summary."""
+# The focused element's name ("name" for "name-0") or, for a button, its intent.
+NAME_OF_FOCUSED = (
+    "(function (e) { return e.name === 'intent' ? e.value"
+    " : (e.name || '').replace(/-\\d+$/, '') })(document.activeElement)"
+)
+CHANGED = "document.activeElement.dispatchEvent(new Event('change', {bubbles: true}))"
+
+
+def test_add_stations_by_keyboard(chrome, site, server):
+    """#233: Add stations' review in Tab order (the files, the sample, then each row's
+    name, latitude and longitude, then Cancel and Add); a chosen file is sent at once; the
+    table is checked as it is typed (the button's count and the row's Read column change);
+    Enter in a cell moves down a row; no axe violation in light, dark and at 320 px; Enter
+    on the Add button lands on the station's Quality. The details' errors on a station's
+    own setup page take focus to their summary."""
     c = chrome
-    for name in ("station new, errors", "station new, file errors", "station details, errors"):
-        open_page(c, site[name])
-        assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')"), name
-    c.navigate(urljoin(server, "/station/new"))
-    assert c.evaluate("document.getElementById('read-file').hidden")  # sent on choosing
+    open_page(c, site["station details, errors"])
+    assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
+    c.navigate(urljoin(server, "/add/"))
+    assert c.evaluate("document.querySelector('[data-nojs]').hidden")  # sent on choosing
+    choose_file(c, "[data-add-files]", "keyboard_hill_2000-2001.txt", GOOD_FILE)
+    assert "/add/" in c.evaluate("location.pathname")
+    button = "document.querySelector('[data-add-button]')"
+    assert c.evaluate(f"{button}.textContent") == "Add 0 stations and check them"
     c.evaluate(START)
     order = []
     for _ in range(40):
         c.press("Tab")
-        el = c.evaluate("(function (e) { return e.name === 'intent' ? e.value"
-                        " : e.name || e.textContent.trim() })(document.activeElement)")  # fmt: skip
-        if el in ("station_file", "Use the sample data", "station_name", "latitude",
-                  "longitude", "base_start", "base_end", "go"):  # fmt: skip
+        el = c.evaluate(NAME_OF_FOCUSED)
+        if el in ("files", "sample", "name", "lat", "lon", "cancel", "add"):
             order.append(el)
-        if el == "go":
+        if el == "add":
             break
-    assert order == ["station_file", "Use the sample data", "station_name", "latitude",
-                     "longitude", "base_start", "base_end", "go"]  # fmt: skip
-    c.evaluate("var f = document.getElementById('new-station'); f.station_name.value ="
-               " 'Keyboard Hill'; f.latitude.value = '-35.3'; f.longitude.value = '149.1';"
-               " f.base_start.value = '2000'; f.base_end.value = '2001'")  # fmt: skip
-    days = (dt.date(2000, 1, 1) + dt.timedelta(days=k) for k in range(731))
-    text = "".join(f"{d.year} {d.month} {d.day} 0 20 10\n" for d in days)
-    choose_file(c, "#id_station_file", "keyboard.txt", text)
-    assert c.evaluate("location.pathname").endswith("/setup")
-    assert c.evaluate("document.activeElement.id") == "file-card"
-    assert c.evaluate("document.getElementById('id_station_name').value") == "Keyboard Hill"
-    assert c.evaluate("document.getElementById('id_latitude').value") == "-35.3"
-    c.press("Tab")
-    assert c.evaluate("document.activeElement.closest('[data-setup-replace]') !== null")
-    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
-    assert ring != "none", "Replace shows no focus"
+    assert order == ["files", "sample", "name", "lat", "lon", "cancel", "add"]
+    for cell, value in (("latitude", "-35.3"), ("longitude", "149.1")):
+        focus(c, f"[data-cell={cell}]")
+        c.evaluate(f"document.activeElement.value = '{value}'; {CHANGED}")
+    wait_for(c, f"{button}.textContent === 'Add 1 station and check it'",
+             what="the table checked as it is typed")  # fmt: skip
+    assert c.evaluate("document.querySelector('[data-status]').textContent").startswith("Read")
     try:
         for scheme, width in (("light", 1280), ("dark", 1280), ("light", 320)):
             c.media(prefers_color_scheme=scheme)
@@ -1346,12 +1367,13 @@ def test_new_station_by_keyboard(chrome, site, server):
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
-    focus(c, "#new-station button[value=go]")
+    focus(c, "[data-add-button]")
     c.events.clear()
     c.press("Enter")
     c.wait_event("Page.loadEventFired", timeout=60)
     c.settle()
     assert c.evaluate("location.pathname").endswith("/quality")
+    assert "Keyboard Hill" in c.evaluate("document.querySelector('h1').textContent")
 
 
 def test_chart_by_keyboard(chrome, site):
@@ -1406,7 +1428,7 @@ def test_index_page_views_and_citation(chrome, site):
     assert c.evaluate(f"!{copy}.hidden")
     assert c.evaluate("document.querySelector('.context-bar__actions .citation__details').hidden")
     assert c.evaluate("document.querySelector('[data-citation-text]').textContent").startswith(
-        "sydney_observatory_hill_1936-2015, TXx (Hottest day), 1936–2015"
+        "Sydney Observatory Hill, TXx (Hottest day), 1936–2015"  # the sample's name (#219)
     )
 
 
@@ -2006,7 +2028,7 @@ def test_turnstile_widget_within_the_policy(chrome, turnstile_server):
     when challenges.cloudflare.com cannot be reached, unless the widget was blocked."""
     c = chrome
     c.csp_violations.clear()
-    c.navigate(urljoin(turnstile_server, "/station/new"))
+    c.navigate(urljoin(turnstile_server, "/add/"))
     assert "https://challenges.cloudflare.com" in (policy_of(c) or "")
     token = "(document.querySelector('[name=cf-turnstile-response]') || {}).value"
     deadline = time.monotonic() + 30
@@ -2036,8 +2058,7 @@ def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
     violation. Skipped when Cloudflare cannot be reached, as above."""
     c = chrome
     c.csp_violations.clear()
-    c.navigate(urljoin(turnstile_server, "/station/new"))
-    submit(c, "#sample-form")
+    setup_sample(c, lambda path: urljoin(turnstile_server, path))
     load = here(c)
     assert load.endswith("/setup")
     c.events.clear()

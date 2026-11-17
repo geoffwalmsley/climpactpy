@@ -88,8 +88,11 @@ def batch_inputs(station, job: Job, entry: check.StationCheck, file_hash: str) -
     params = job.params or {}
     inputs = current_inputs(station)
     inputs["file"] = file_hash
+    # Add stations (#233) names a batch's stations: the job ran each under its name in the
+    # batch (the file's stem, as R names them), the station has the name the user gave.
+    names = params.get("names") or {}
     inputs["metadata"].update(
-        name=entry.name,
+        name=names.get(entry.name, entry.name),
         latitude=entry.latitude,
         longitude=entry.longitude,
         base_start=params.get("base_start", 1971),
@@ -127,7 +130,8 @@ def _place(run: BatchRun, existing: dict, name: str, station_file: str, entry: d
     if station is None:
         station = Station(workspace=run.workspace, owner=run.owner, source=Source.BATCH)
     station.file_name = station_file[:255]
-    station.station_name = name[:100]
+    # The name the user gave on Add stations (#233), else the batch's (the file's stem).
+    station.station_name = (entry.get("station_name") or name)[:100]
     station.latitude, station.longitude = entry["latitude"], entry["longitude"]
     text, inspection = _read(path) if path is not None else (None, None)
     if text is not None:
@@ -137,7 +141,10 @@ def _place(run: BatchRun, existing: dict, name: str, station_file: str, entry: d
         if entry.get("ready"):
             station.advance_to(Step.QC)
     origin = dict(station.origin or {})
-    origin.update(batch=str(run.pk), station=name, params=entry["params"])
+    # The station's own index values: its metadata line's (Add stations keeps only those,
+    # the job's metadata file has the workspace's for the others).
+    own = entry["own_params"] if "own_params" in entry else entry["params"]
+    origin.update(batch=str(run.pk), station=name, params=own)
     station.origin = origin
     return station
 

@@ -161,7 +161,7 @@ class Workspace(models.Model):
 
 # Words a station's slug can't be, as they name other pages of the workspace (#256):
 # ``/w/<id>/batch/`` is the workspace's batch.
-RESERVED_SLUGS = frozenset({"batch"})
+RESERVED_SLUGS = frozenset({"batch", "add"})
 
 
 def slug_for(name: str, taken) -> str:

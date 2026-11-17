@@ -331,16 +331,9 @@ def test_plain_error_hides_paths_and_class_names():
 
 
 @pytest.mark.django_db
-def test_start_page(client, settings):
-    settings.WORKSPACE_EXPIRY = True  # the deletion date is shown (hosted)
-    html = client.get("/batch/").content.decode()
-    assert re.search(r'<form method="post" action="/batch/" enctype="multipart/form-data"', html)
-    assert re.search(r'<input type="file" name="station_files"[^>]*multiple', html)
-    assert re.search(r'<input type="file" name="metadata_file"', html)
-    assert "Drop files here or choose them" in html
-    assert 'action="/batch/sample"' in html and "/batch/sample-metadata.txt" in html
-    assert 'aria-current="step"' in html and "Load files" in html
-    assert "kept for 7 days" in html
+def test_start_page_is_add_stations(client):
+    # The batch's first page is Add stations since #233; a form sent from before works.
+    assert client.get("/batch/")["Location"] == "/add/"
     response = client.get("/batch/sample-metadata.txt")
     assert response.content == R_SAMPLE.read_bytes()
 
@@ -622,7 +615,7 @@ def test_other_sessions_get_404(client):
 def test_delete_now(client):
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     response = client.post(f"/w/{run.workspace_id}/batch/delete")
-    assert response["Location"] == "/batch/"
+    assert response["Location"] == "/add/"
     assert not BatchRun.objects.exists() and not run.folder.exists()
 
 
@@ -662,11 +655,11 @@ def test_running_batch_is_not_purged(client, settings):
 @pytest.mark.django_db
 def test_landing_page_and_header_link_to_batch(client):
     html = client.get("/").content.decode()
-    assert 'href="/batch/"' in html
+    assert 'href="/add/"' in html and 'href="/batch/"' not in html  # Add stations, #233
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     # The header is Workspaces and Gridded since #227; the landing page starts a batch.
     assert re.findall(r'href="([^"]+)"', nav) == ["/jobs/", "/gridded/"]
-    batch = client.get("/batch/").content.decode()
+    batch = client.get("/add/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', batch, re.S)[0]
     assert '<a href="/jobs/" data-nav="workspaces" aria-current="true">' in nav
 

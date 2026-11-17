@@ -72,30 +72,11 @@ def metadata(**changes) -> dict:
 
 
 @pytest.mark.django_db
-def test_new_station_page_works_without_javascript(client):
-    html = client.get("/station/new").content.decode()
-    # One plain multipart form with a real file input and the details: js/setup.js only
-    # sends a chosen file at once, and ui.js adds drag and drop.
-    form = re.search(
-        r'<form method="post" action="/station/new" enctype="multipart/form-data".*?</form>',
-        html,
-        re.S,
-    ).group(0)
-    assert re.search(r'<input type="file" name="station_file"[^>]*accept="[^"]*\.txt', form)
-    assert "Drop a file here or choose one" in form and "read as soon as you choose it" in form
-    for name in ("station_name", "latitude", "longitude", "base_start", "base_end"):
-        assert f'name="{name}"' in form
-    assert 'value="1971"' in form and 'value="2000"' in form  # R's suggested base period
-    assert "Leave it empty to use the file name." in form
-    assert re.findall(r'<button type="submit"[^>]*value="(\w+)"', form) == ["read", "go"]
-    assert 'hx-post="/station/validate"' in form
-    # The sample: its own form, sent by a button in the file's step.
-    assert re.search(r'<form method="post" action="/station/sample" id="sample-form" hidden>', html)
-    assert 'form="sample-form"' in form
-    assert "js/setup.js" in html
-    # No step indicator, and no workspace tabs before there is a station (#179).
-    assert 'aria-current="step"' not in html and "Station sections" not in html
-    assert "<h1>New station</h1>" in html
+def test_new_station_is_add_stations(client):
+    # The New station page is Add stations since #233 (tests/test_add_stations.py); a
+    # station's own setup page stays, for a new file that needs new details.
+    assert client.get("/station/new")["Location"] == "/add/"
+    assert not Station.objects.exists()
 
 
 @pytest.mark.django_db
@@ -173,8 +154,8 @@ def test_details_errors_after_the_file_was_read_in_the_same_post(client):
 
 @pytest.mark.django_db
 def test_old_upload_and_load_addresses_redirect(client):
-    assert client.get("/station/")["Location"] == "/station/new"
-    assert client.post("/station/")["Location"] == "/station/new"
+    assert client.get("/station/")["Location"] == "/add/"
+    assert client.post("/station/")["Location"] == "/add/"
     analysis = loaded(client)
     base = f"/w/{analysis.workspace_id}/{analysis.slug}"
     assert client.get(f"{base}/load")["Location"] == f"{base}/setup"
@@ -463,7 +444,7 @@ def test_setup_page_has_the_file_then_the_details_then_one_button(client):
 
 @pytest.mark.django_db
 def test_sample_get_goes_to_the_upload_page_and_the_file_downloads(client):
-    assert client.get("/station/sample")["Location"] == "/station/new"
+    assert client.get("/station/sample")["Location"] == "/add/"
     assert not Station.objects.exists()
     response = client.get("/station/sample.txt")
     assert response.content == SYDNEY.read_bytes()
@@ -747,16 +728,8 @@ def test_delete_now(client):
     analysis = loaded(client)
     folder = analysis.folder
     response = client.post(f"{analysis.url()}delete")
-    assert response["Location"] == "/station/new"
+    assert response["Location"] == "/add/"
     assert not Station.objects.exists() and not folder.exists()
-
-
-@pytest.mark.django_db
-def test_upload_page_lists_recent_analyses(client):
-    analysis = loaded(client, name="perth.txt")
-    html = client.get("/station/new").content.decode()
-    assert "Continue where you left off" in html and f'href="{analysis.url()}"' in html
-    assert "Continue where you left off" not in Client().get("/station/new").content.decode()
 
 
 # ---- Ownership -------------------------------------------------------------------------

@@ -1,0 +1,46 @@
+{% load i18n %}{% comment %}
+Add stations' review table (#233): a row per station file, the station name, latitude and
+longitude as inputs of the page's form, the period, days, index settings and what reading
+found. Context: review and rows (stations/add_stations.review). On /patterns/ too.
+{% endcomment %}{% url 'help:guide' 'batch' as batch_guide %}
+<div class="table-wrap table-wrap--data add-review">
+  <div class="add-review__head">
+    <h2 id="review-title">{% blocktranslate count counter=review.station_files trimmed %}{{ counter }} file read{% plural %}{{ counter }} files read{% endblocktranslate %}<span class="add-review__note"> {% if review.metadata.name %}{% blocktranslate with name=review.metadata.name %}· metadata from {{ name }} · paste latitude and longitude columns from a spreadsheet{% endblocktranslate %}{% else %}{% translate "· paste latitude and longitude columns from a spreadsheet" %}{% endif %}</span></h2>
+    <a href="{{ batch_guide }}#the-metadata-file" class="text-xs">{% translate "Metadata file format" %}</a>
+  </div>
+  <div class="add-review__scroll" role="region" aria-labelledby="review-title" tabindex="0">
+    <table class="table table--data add-table">
+      <thead><tr>
+        <th scope="col">{% translate "File" %}</th>
+        <th scope="col">{% translate "Station name" %}</th>
+        <th scope="col">{% translate "Latitude" %}</th>
+        <th scope="col">{% translate "Longitude" %}</th>
+        <th scope="col">{% translate "Period" %}</th>
+        <th scope="col" class="num">{% translate "Days" %}</th>
+        <th scope="col">{% translate "Index settings" %}</th>
+        <th scope="col">{% translate "Read" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr{% if not row.addable %} class="is-problem"{% endif %} data-add-row="{{ row.file }}" data-state="{{ row.state }}">
+          <th scope="row" class="code add-table__file" title="{{ row.file }}"><span>{{ row.file }}</span></th>
+          {% if row.readable %}
+          <td><input type="hidden" name="file-{{ forloop.counter0 }}" value="{{ row.file }}">
+            <input class="cell cell--name{% if row.name_error %} is-invalid{% endif %}" name="name-{{ forloop.counter0 }}" value="{{ row.name }}" maxlength="100" autocomplete="off" aria-label="{% blocktranslate with file=row.file %}Station name for {{ file }}{% endblocktranslate %}" aria-describedby="status-{{ forloop.counter0 }}"{% if row.name_error %} aria-invalid="true"{% endif %} data-cell="name"></td>
+          <td><input class="cell cell--coord{% if row.latitude_error %} is-invalid{% endif %}" name="lat-{{ forloop.counter0 }}" value="{{ row.latitude }}" inputmode="decimal" autocomplete="off" aria-label="{% blocktranslate with file=row.file %}Latitude for {{ file }}{% endblocktranslate %}" aria-describedby="status-{{ forloop.counter0 }}"{% if row.latitude_error %} aria-invalid="true"{% endif %} data-cell="latitude"></td>
+          <td><input class="cell cell--coord{% if row.longitude_error %} is-invalid{% endif %}" name="lon-{{ forloop.counter0 }}" value="{{ row.longitude }}" inputmode="decimal" autocomplete="off" aria-label="{% blocktranslate with file=row.file %}Longitude for {{ file }}{% endblocktranslate %}" aria-describedby="status-{{ forloop.counter0 }}"{% if row.longitude_error %} aria-invalid="true"{% endif %} data-cell="longitude"></td>
+          {% else %}
+          <td>{{ row.name|default:"–" }}</td>
+          <td class="code">{{ row.latitude|default:"–" }}</td>
+          <td class="code">{{ row.longitude|default:"–" }}</td>
+          {% endif %}
+          <td class="num">{{ row.period|default:"–" }}</td>
+          <td class="num">{{ row.days|default:"–" }}</td>
+          <td class="add-table__settings" title="{{ row.settings }}"><span>{{ row.settings }}</span></td>
+          <td class="add-table__status"><span id="status-{{ forloop.counter0 }}" class="add-status add-status--{{ row.status_kind }}" data-status>{{ row.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

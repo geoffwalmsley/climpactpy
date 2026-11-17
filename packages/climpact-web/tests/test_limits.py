@@ -150,7 +150,7 @@ def test_turnstile_is_off_in_local_mode_and_without_keys(settings, client):
     settings.TURNSTILE_SITE_KEY = "test-site-key"
     settings.TURNSTILE_SECRET_KEY = "test-secret-key"
     assert not limits.turnstile_enabled()  # local mode
-    assert "cf-turnstile" not in client.get("/station/new").content.decode()
+    assert "cf-turnstile" not in client.get("/add/").content.decode()
     assert upload(client).status_code == 302
     settings.IS_HOSTED = True
     settings.TURNSTILE_SITE_KEY = settings.TURNSTILE_SECRET_KEY = ""
@@ -159,13 +159,13 @@ def test_turnstile_is_off_in_local_mode_and_without_keys(settings, client):
 
 @pytest.mark.django_db
 def test_job_forms_show_the_widget_once_with_its_script(turnstile):
-    html = visitor().get("/station/new").content.decode()
+    html = visitor().get("/add/").content.decode()
     assert html.count('class="cf-turnstile" data-sitekey="test-site-key"') == 1
     assert html.count("challenges.cloudflare.com/turnstile/v0/api.js") == 1
     assert "<noscript>" in html
-    # The widget sits inside the New station form, before "Check and calculate" (#201).
-    form = html.split('action="/station/new"', 1)[1].split("</form>", 1)[0]
-    assert form.index("cf-turnstile") < form.index('value="go"')
+    # The widget sits inside Add stations' form, with its files (#233).
+    form = html.split('action="/add/"', 1)[1].split("</form>", 1)[0]
+    assert form.index('value="files"') < form.index("cf-turnstile")
     # Pages without such a form load nothing from Cloudflare.
     assert "challenges.cloudflare.com" not in visitor().get("/help/").content.decode()
 
@@ -220,7 +220,8 @@ def test_cloudflare_unreachable_refuses_with_busy(turnstile, monkeypatch):
 @pytest.mark.django_db
 def test_get_requests_and_the_sample_need_no_token(turnstile):
     client = visitor()
-    assert client.get("/station/new").status_code == 200
+    assert client.get("/add/").status_code == 200
+    assert client.post("/add/sample").status_code == 302
     assert client.post("/station/sample").status_code == 302
     assert turnstile == []
 

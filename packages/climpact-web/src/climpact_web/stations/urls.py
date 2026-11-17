@@ -1,6 +1,6 @@
 from django.urls import include, path
 
-from climpact_web.stations import views, views_downloads, views_indices, views_sector
+from climpact_web.stations import views, views_add, views_downloads, views_indices, views_sector
 
 app_name = "stations"
 
@@ -47,6 +47,14 @@ station_patterns = [
 # ``/station/<id>/…`` address, from before #256, redirects to the station's new one while
 # the station is kept (``views.old_station_url``).
 urlpatterns = [
+    # Add stations (#233): start a workspace, or add stations to one; the files dropped
+    # wait under ``/w/<id>/add/<files>/`` to be reviewed and added (stations/views_add.py).
+    path("add/", views_add.start, name="add"),
+    path("add/sample", views_add.sample, name="add_sample"),
+    path("add/sample-batch", views_add.sample_batch, name="add_sample_batch"),
+    path("w/<uuid:workspace_id>/add/", views_add.add_to, name="add_to"),
+    path("w/<uuid:workspace_id>/add/<uuid:run_id>/", views_add.review_page, name="add_review"),
+    path("w/<uuid:workspace_id>/add/<uuid:run_id>/check", views_add.add_check, name="add_check"),
     path("station/", views.upload, name="upload"),
     path("station/new", views.new_station, name="new"),
     path("station/validate", views.validate, name="validate_new"),

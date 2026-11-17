@@ -87,7 +87,7 @@ views.qc_context.
     {% csrf_token %}
     {% translate "Delete this data now" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="text-sm" href="{% url 'stations:new' %}">{% translate "Start again with another station" %}</a>
+    <a class="text-sm" href="{% url 'stations:add' %}">{% translate "Start again with another station" %}</a>
   </form>
   </div>
   </div>

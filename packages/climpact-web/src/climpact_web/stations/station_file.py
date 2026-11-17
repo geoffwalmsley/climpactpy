@@ -68,6 +68,7 @@ class Problem:
     message: str
     line: int | None = None
     text: str = ""
+    short: str = ""  # the problem in a few words, for a table cell (Add stations, #233)
 
 
 @dataclass
@@ -77,6 +78,7 @@ class Inspection:
     warnings: list[str] = field(default_factory=list)
     summary: dict | None = None
     text: str = ""  # the file as accepted (UTF-8, no BOM, "\n" line ends)
+    repeats: int = 0  # dates that appear more than once (a warning, #233's Read column)
 
     @property
     def ok(self) -> bool:
@@ -177,6 +179,12 @@ def _check_lines(text: str, result: Inspection) -> list[tuple[int, list[float]]]
                     ),
                     number,
                     shorten(line),
+                    ngettext(
+                        "line %(line)d has %(count)d value, expected 6 (year month day PR TX TN)",
+                        "line %(line)d has %(count)d values, expected 6 (year month day PR TX TN)",
+                        len(fields),
+                    )
+                    % {"line": number, "count": len(fields)},
                 )
             )
             continue
@@ -205,6 +213,8 @@ def _check_lines(text: str, result: Inspection) -> list[tuple[int, list[float]]]
                         % {"line": number, "value": value[:20], "column": column_label(column)},
                         number,
                         shorten(line),
+                        _("line %(line)d: “%(value)s” is not a number")
+                        % {"line": number, "value": value[:20]},
                     )
                 )
                 break
@@ -310,6 +320,7 @@ def _warn_about_rows(rows: list[tuple[int, list[float]]], result: Inspection) ->
     for n, d in dated:
         lines_by_date.setdefault(d, []).append(n)
     repeats = [(d, lines) for d, lines in lines_by_date.items() if len(lines) > 1]
+    result.repeats = len(repeats)
     if repeats:
         date, lines = repeats[0]
         result.warnings.append(

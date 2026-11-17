@@ -78,8 +78,8 @@
       remember();
     }
 
-    // As stations.views_indices.sort_cards: ties keep the catalogue's order, and rows
-    // without a trend stay last when sorting by the trend.
+    // As stations.views_indices.sort_cards: ties keep the catalogue's order (names tie by
+    // code), and rows without a trend stay last when sorting by the trend.
     function value(row, key) {
       if (key === "name" || key === "code") return row.getAttribute("data-" + key);
       if (key === "trend") return row.getAttribute("data-trend");
@@ -93,6 +93,11 @@
         if (sort.key === "name" || sort.key === "code") {
           // Lower case, by code point, as the server's casefold sort.
           var p = value(a, sort.key).toLowerCase(), q = value(b, sort.key).toLowerCase();
+          if (p === q && sort.key === "name") {
+            // Short names repeat (#218): by code within a name, as the server.
+            p = value(a, "code").toLowerCase();
+            q = value(b, "code").toLowerCase();
+          }
           by = sign * (p < q ? -1 : p > q ? 1 : 0);
         } else if (sort.key === "trend") {
           var x = value(a, "trend"), y = value(b, "trend");

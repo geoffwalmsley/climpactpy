@@ -137,7 +137,7 @@ def pattern_context(form):
             },
             {
                 "href": "#findings",
-                "title": _("Amount of warm nights"),
+                "title": _("Warm nights"),
                 "code": "TN90p",
                 "value": numbers.slope(1.31, "%"),
                 "units": _("pp"),
@@ -176,7 +176,7 @@ def pattern_context(form):
                 "significant": True,
             },
             {
-                "title": _("Amount of cold nights"),
+                "title": _("Cold nights"),
                 "code": "TN10p",
                 "hue": "cold",
                 "value": numbers.slope(-1.93, "%"),
@@ -186,7 +186,7 @@ def pattern_context(form):
                 "significant": True,
             },
             {
-                "title": _("Annual total precipitation"),
+                "title": _("Wet-day total"),
                 "code": "PRCPTOT",
                 "hue": "rain",
                 "value": numbers.slope(-4.1, "mm"),

@@ -133,28 +133,28 @@ def card_key(series: str) -> str:
 
 
 def display_name(key: str, info) -> str:
-    """The usual spelling: ``TXx``, ``Rx3day``, ``R30mm``, ``SPI 3-month``."""
+    """The code, in the usual spelling: ``TXx``, ``Rx3day``, ``R30mm``, ``SPI3``,
+    ``TX90-HWN``, ``EHFdaily``."""
     if info is not None and key.lower() == info.short.lower():
         return info.name
     for pattern, template in _PARAM_NAMES:
         if m := pattern.match(key):
             return template.format(m.group(1))
     if m := _SCALE.match(key):
-        return _("%(index)s, %(n)s months") % {"index": m.group(2).upper(), "n": m.group(1)}
-    if key in ("EHFdaily", "ECFdaily"):
-        return _("%(index)s, daily") % {"index": key[:3]}
-    return key.replace("-", " ")
+        return f"{m.group(2).upper()}{m.group(1)}"
+    return key
 
 
-# Heatwave tables share one catalogue entry (one long name), so each aspect gets its own
-# plain name, in the words of the indices guide; the definition says which heatwaves.
+# Heatwave tables share one catalogue entry (one long name), so each aspect gets a short
+# name of its own, in the words of the indices guide; the code says which heatwaves
+# (TX90-HWN, EHF-HWN) and the definition how they are found.
 _HEATWAVE = re.compile(r"^(TX90|TN90|EHF|ECF)-([A-Z]+)$")
 _ASPECTS = {
     "HWN": gettext_lazy("Number of heatwaves"),
     "HWF": gettext_lazy("Heatwave days"),
     "HWD": gettext_lazy("Longest heatwave"),
     "HWM": gettext_lazy("Mean heatwave temperature"),
-    "HWA": gettext_lazy("Peak temperature of the hottest heatwave"),
+    "HWA": gettext_lazy("Hottest heatwave's peak"),
     "HWMD": gettext_lazy("Mean heatwave duration"),
     "HWPS": gettext_lazy("Peak heatwave severity"),
     "HWLS": gettext_lazy("Total heatwave severity"),
@@ -169,29 +169,45 @@ _ASPECTS = {
     "CWPI": gettext_lazy("Peak cold-wave intensity"),
     "CWLI": gettext_lazy("Total cold-wave intensity"),
 }
-_DEFINITION_LABEL = {"TX90": "Tx90", "TN90": "Tn90", "EHF": "EHF", "ECF": "ECF"}
+
+# The parameter in an output name, for the short names that take one (``%(n)s``).
+_PARAMETER = re.compile(r"^(?:rx|r|wsdi|csdi|tx|txb)(\d+(?:\.\d+)?)")
+
+# The user's own index: "TNgt0" is "Days TN > 0 °C".
+_CUSTOM_PARTS = re.compile(r"^(TX|TN|TM|PR|DTR)(gt|ge|lt|le)(-?\d+(?:\.\d+)?)$")
+_OPERATORS = {"gt": ">", "ge": "≥", "lt": "<", "le": "≤"}
 
 
-def plain_name(key: str, info) -> str:
-    """The card's title, in words: the catalogue's long name (``Frost days``), or for the
-    indices that share one entry, a name of their own (``Number of heatwaves (Tx90)``,
-    ``Standardised precipitation index, 3 months``, ``Excess heat factor, daily``)."""
+def short_name(key: str, info) -> str:
+    """The short name that follows the code (#218): the catalogue's (``Hottest day``),
+    with the parameter of the output name (``rx3day``: ``Wettest 3 days``); for the
+    heatwave tables, the aspect (``Number of heatwaves``); for the user's own index, its
+    threshold (``Days TN > 0 °C``)."""
     if m := _HEATWAVE.match(key):
         aspect = _ASPECTS.get(m.group(2))
         if aspect:
-            return _("%(aspect)s (%(definition)s)") % {
-                "aspect": aspect,
-                "definition": _DEFINITION_LABEL[m.group(1)],
-            }
+            return str(aspect)
     if key == "EHFdaily":
-        return _("Excess heat factor, daily")
+        return _("Daily excess heat factor")
     if key == "ECFdaily":
-        return _("Excess cold factor, daily")
+        return _("Daily excess cold factor")
     if info is None:
+        if m := _CUSTOM_PARTS.match(key):
+            name = _("Days %(variable)s %(operator)s %(value)s %(units)s") % {
+                "variable": m.group(1),
+                "operator": _OPERATORS[m.group(2)],
+                "value": m.group(3),
+                "units": "mm" if m.group(1) == "PR" else "°C",
+            }
+            return numbers.in_text(name)
         return _("Your own threshold index")
+    n = None
     if m := _SCALE.match(key):
-        return _("%(index)s, %(n)s months") % {"index": _(info.long_name), "n": m.group(1)}
-    return _(info.long_name)
+        n = m.group(1)
+    elif info.short in ("rxdday", "rnnmm", "wsdid", "csdid", "txdtnd", "txbdtnbd"):
+        if m := _PARAMETER.match(key):
+            n = m.group(1)
+    return info.short_name(n)
 
 
 def signature(key: str) -> str:
@@ -249,7 +265,7 @@ class Card:
     name: str
     definition: str
     long_name: str
-    title: str  # the plain name the card and the index page lead with
+    title: str  # the short name, after the code (#218): "Hottest day"
     units: str
     group: str
     theme: str  # themes.THEMES key, "" for a card only in the catalogue
@@ -288,9 +304,18 @@ class Card:
         return text.replace(numbers.MINUS, "-").replace(numbers.NBSP, " ").lower()
 
     @property
+    def r_name(self) -> str:
+        """R's long name, for the index page's definition line (#218), when it says more
+        than the short name: "Max TX" beside "TXx Hottest day", nothing beside "FD Frost
+        days"."""
+        if self.long_name.casefold() == self.title.casefold():
+            return ""
+        return self.long_name
+
+    @property
     def code(self) -> str:
-        """The index's code as Climpact's files spell it: ``TXx``, ``TX90-HWN``."""
-        return self.key if _HEATWAVE.match(self.key) else self.name
+        """The index's code, which leads wherever it is listed (#218): ``TXx``, ``TX90-HWN``."""
+        return self.name
 
     @property
     def trend_units(self) -> str:
@@ -536,7 +561,7 @@ def _new_card(key: str, order: int) -> Card:
         long_name=numbers.in_text(_(info.long_name))
         if info is not None
         else _("Your own threshold index"),
-        title=numbers.in_text(plain_name(key, info)),
+        title=short_name(key, info),
         units="",
         group=group,
         theme=themes.theme_of(key, info),

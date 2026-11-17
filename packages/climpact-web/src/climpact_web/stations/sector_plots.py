@@ -85,6 +85,7 @@ class Bar:
     name: str  # display name, e.g. "TXx"
     cor: float | None
     category: str
+    title: str = ""  # the short name, after the code in the table (#218): "Hottest day"
 
     @property
     def cor_text(self) -> str:
@@ -154,7 +155,7 @@ class SectorResults:
 def load(job) -> SectorResults | None:
     """The results of a finished sector job, or None when its files are gone."""
     from climpact_web.help import indices as catalogue
-    from climpact_web.stations.results import display_name
+    from climpact_web.stations.results import display_name, short_name
 
     result, out = job.result or {}, job.output_dir
     if not result.get("correlation"):
@@ -168,12 +169,14 @@ def load(job) -> SectorResults | None:
         if len(row) < 3:
             continue
         index = row[0]
+        info = catalogue.index_for_output(index)
         bars.append(
             Bar(
                 index,
-                display_name(index, catalogue.index_for_output(index)),
+                display_name(index, info),
                 _float(row[1]),
                 row[2],
+                short_name(index, info),
             )
         )
     scatters = []

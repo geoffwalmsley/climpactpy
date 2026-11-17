@@ -727,8 +727,9 @@ def _index_topics() -> list[Topic]:
         topics.append(
             Topic(
                 id=info.topic_id,
-                title=f"{info.name}: {gettext(info.long_name)}",
-                text=_IndexText(info.definition, units),
+                # Codes first (#218): "TXx Hottest day"; R's long name is in the text.
+                title=f"{info.name} {info.short_name()}",
+                text=_IndexText(info.definition, units, info.long_name, info.short_name()),
                 guide="indices",
                 anchor=info.anchor,
                 kind="index",
@@ -741,20 +742,34 @@ class _IndexText:
     """An index definition translated when shown (the definitions are core data, listed
     for translators in ``index_messages.py``), with its units."""
 
-    def __init__(self, definition: str, units):
+    def __init__(self, definition: str, units, long_name: str = "", short_name: str = ""):
         self.definition = definition
         self.units = units
+        self.long_name = long_name
+        self.short_name = short_name
 
     def __str__(self) -> str:
-        return gettext("%(definition)s. Units: %(units)s.") % {
+        text = gettext("%(definition)s. Units: %(units)s.") % {
             "definition": gettext(self.definition),
             "units": self.units,
         }
+        return text + r_name_sentence(self.long_name, self.short_name)
 
     def __html__(self) -> str:
         from django.utils.html import escape
 
         return escape(str(self))
+
+
+def r_name_sentence(long_name: str, short_name: str) -> str:
+    """ " Name in Climpact for R: Max TX.", R's long name after an index's definition
+    (#218), or "" when it is the short name ("Frost days")."""
+    from climpact_web.core import numbers
+
+    name = numbers.in_text(gettext(long_name)) if long_name else ""
+    if not name or name.casefold() == short_name.casefold():
+        return ""
+    return " " + gettext("Name in Climpact for R: %(name)s.") % {"name": name}
 
 
 def topics() -> dict[str, Topic]:

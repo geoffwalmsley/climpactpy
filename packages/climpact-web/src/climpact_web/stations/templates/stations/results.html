@@ -111,8 +111,8 @@
       <tbody>
         {% for card in rows %}
         <tr class="hue-{{ card.hue }}" id="index-{{ card.key }}" data-chip="{{ card.chip }}" data-search="{{ card.search_text }}" data-order="{{ card.position }}" data-name="{{ card.title }}" data-code="{{ card.code }}" data-trend="{{ card.sort_trend }}" data-rank="{{ card.sort_rank }}"{% if card.significant %} data-significant{% endif %}{% if card.hidden %} hidden{% endif %}>
-          <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="{% url 'stations:result' analysis.pk card.key %}">{{ card.title }}</a></th>
-          <td><code class="index-code">{{ card.code }}</code></td>
+          <th scope="row"><span class="hue-dot" aria-hidden="true"></span><a href="{% url 'stations:result' analysis.pk card.key %}"><code class="index-code">{{ card.code }}</code></a></th>
+          <td>{{ card.title }}</td>
           <td class="num">{% if card.trend.valid %}<span class="trend trend--{{ card.trend.direction }}">{{ card.trend.slope_text }}</span>{% if card.trend_units %}&nbsp;<span class="text-text-muted">{% if card.trend_units_title %}<abbr title="{{ card.trend_units_title }}">{{ card.trend_units }}</abbr>{% else %}{{ card.trend_units }}{% endif %}</span>{% endif %}{% elif card.daily %}<span class="text-text-muted">{% translate "Daily values" %}</span>{% elif card.trend %}<span class="text-text-muted">{% translate "Too few values" %}</span>{% else %}<span class="text-text-muted">{% translate "No trend line" %}</span>{% endif %}</td>
           <td>{% if card.significant %}{% translate "Significant" as sig %}{% include "components/badge.html" with label=sig kind="info" %}{% elif card.trend.valid %}<span class="text-text-muted">{% translate "Not significant" %}</span>{% else %}<span class="text-text-muted">{% translate "No trend" %}</span>{% endif %}</td>
           <td class="catalogue__spark">{% if card.spark %}{% include "components/spark.html" with spark=card.spark %}{% endif %}</td>

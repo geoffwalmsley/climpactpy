@@ -2,8 +2,9 @@
 Theme tile (#175, #200): one theme's finding, answer first. Parameters: id, title, level
 (heading level, default 3), hue (the theme's colour, themes.hue_of: heat, cold, rain,
 drought or other; #196), badge_label, finding (one sentence), items (up to three trends,
-one line each: href, title, value, units (short: pp for percentage points), units_title
-(the units spelt out when abbreviated), direction, spark), more_href and more_label.
+one line each: href, code and title (named codes first, #218), value, units (short: pp
+for percentage points), units_title (the units spelt out when abbreviated), direction,
+spark), more_href and more_label.
 Without items it is quiet, on the sunken surface: no change is a finding too.
 {% endcomment %}
 <section class="card theme-headline {% if hue %}hue-{{ hue }}{% else %}hue-other{% endif %}{% if not items %} theme-headline--quiet{% endif %}" aria-labelledby="{{ id }}-title">
@@ -17,7 +18,7 @@ Without items it is quiet, on the sunken surface: no change is a finding too.
   <ol class="trend-rows" role="list">
     {% for item in items %}
     <li class="trend-row">
-      <a class="trend-row__name" href="{{ item.href }}">{{ item.title }}</a>
+      <a class="trend-row__name" href="{{ item.href }}">{% if item.code %}{% include "components/index_name.html" with code=item.code name=item.title only %}{% else %}{{ item.title }}{% endif %}</a>
       <span class="trend-row__value"><span class="trend trend--{{ item.direction }}">{{ item.value }}</span>{% if item.units %}&nbsp;{% endif %}<span class="trend-row__units">{% if item.units_title %}<abbr title="{{ item.units_title }}">{{ item.units }}</abbr>{% else %}{{ item.units }}{% endif %}{% translate "/decade" %}</span></span>
       {% if item.spark %}{% include "components/spark.html" with spark=item.spark %}{% endif %}
     </li>

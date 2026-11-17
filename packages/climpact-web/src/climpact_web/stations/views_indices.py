@@ -328,11 +328,12 @@ def downloads(source) -> dict:
     return {"job": source.job, "zip": main_downloads(source)["zip"]}
 
 
-# The catalogue's sortable columns (#200): the key of ?sort=, and the direction a first
-# click sorts in (names A to Z; the largest trends and the significant ones first).
+# The catalogue's sortable columns (#200), in the table's order (codes first, #218): the
+# key of ?sort=, and the direction a first click sorts in (codes and names A to Z; the
+# largest trends and the significant ones first).
 SORTS = {
-    "name": "ascending",
     "code": "ascending",
+    "name": "ascending",
     "trend": "descending",
     "significance": "descending",
 }
@@ -346,10 +347,15 @@ def _significance_rank(card) -> int:
 
 
 def sort_cards(cards: list, sort: str, descending: bool) -> list:
-    """The catalogue's rows sorted by a column (``SORTS``), ties in the catalogue's order.
+    """The catalogue's rows sorted by a column (``SORTS``), ties in the catalogue's order
+    (names tie by code).
     Rows without a trend stay last when sorting by the trend, whichever the direction."""
     if sort == "name":
-        return sorted(cards, key=lambda c: c.title.casefold(), reverse=descending)
+        # Short names repeat (each heatwave definition's "Number of heatwaves"), so by
+        # code within a name.
+        return sorted(
+            cards, key=lambda c: (c.title.casefold(), c.code.casefold()), reverse=descending
+        )
     if sort == "code":
         return sorted(cards, key=lambda c: c.code.casefold(), reverse=descending)
     if sort == "significance":

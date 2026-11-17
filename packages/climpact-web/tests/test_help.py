@@ -227,8 +227,10 @@ def test_help_links_under_a_heading_ask_a_question():
 
 def test_index_topics_come_from_the_core_definitions():
     topic = get_topic("index.txx")
-    assert str(topic.title) == "TXx: Max TX"
-    assert str(topic.text) == "Annual warmest daily TX. Units: °C."
+    # Codes first (#218); R's long name follows the definition.
+    assert str(topic.title) == "TXx Hottest day"
+    assert str(topic.text) == "Annual warmest daily TX. Units: °C. Name in Climpact for R: Max TX."
+    assert str(get_topic("index.fd").text) == "Annual number of days when TN < 0 °C. Units: days."
     assert topic.url == "/help/indices/#index-txx"
     html = render_topic('{% help_topic "index.tx90p" %}')
     assert "Annual percentage of days when TX &gt; 90th percentile. Units: % of days." in html
@@ -314,7 +316,7 @@ def test_every_section_has_a_help_page(client, section):
 
 def test_section_help_page_with_topics_and_unknown_ones(client):
     html = client.get("/help/sections/result.index/?topics=index.txx").content.decode()
-    assert "<h1>TXx: Max TX</h1>" in html and 'data-help-topic="index.txx"' in html
+    assert "<h1>TXx Hottest day</h1>" in html and 'data-help-topic="index.txx"' in html
     assert client.get("/help/sections/no.such/").status_code == 404
     assert client.get("/help/sections/result.index/?topics=no.such").status_code == 404
 
@@ -441,7 +443,8 @@ def test_indices_guide_has_an_entry_for_every_index(client):
     ids = parse(html).ids
     for info in indices.catalogue():
         assert info.anchor in ids, info.short
-    assert '<h4 id="index-rxdday">Rxdday: User-defined consecutive days PR amount</h4>' in html
+    assert '<h4 id="index-rxdday">Rxdday Wettest d days</h4>' in html
+    assert "Name in Climpact for R: User-defined consecutive days PR amount." in html
     assert "You choose <em>d</em> in the index settings, in Your inputs." in html
     assert "You choose <em>nn</em> in the index settings, in Your inputs." in html
 

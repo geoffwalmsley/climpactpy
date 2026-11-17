@@ -666,11 +666,14 @@ def test_findings_by_theme_lead_the_results(client):
     assert ">9 changed</span>" in heat
     assert "9 of 22 indices increased significantly." in heat  # 22 of the 30 have a trend
     assert '<p class="answer-band__number">22<small>of 80 changed significantly</small>' in html
-    # Up to three trends, largest change first, one line each: the plain name, linked, the
+    # Up to three trends, largest change first, one line each: the code and short name
+    # (#218), linked, the
     # value with its units, and the sparkline.
     keys = re.findall(rf'href="{url}/([^"#?]+)"', heat)
     assert keys == ["tr", "tn90p", "su"]
-    assert f'<a class="trend-row__name" href="{url}/tr">Tropical nights</a>' in heat
+    assert (
+        f'<a class="trend-row__name" href="{url}/tr">{_named("TR", "Tropical nights")}</a>' in heat
+    )
     assert '>+4.65</span>&nbsp;<span class="trend-row__units">days/decade</span>' in heat
     assert (
         '+1.31</span>&nbsp;<span class="trend-row__units"><abbr title="percentage points">pp'
@@ -845,37 +848,93 @@ def test_every_card_of_the_lat0_run_has_a_theme(client):
         assert themes.theme_of(key, info(key)) == theme, key
 
 
-def test_cards_and_index_page_lead_with_the_plain_name(client):
+def _named(code: str, name: str, title: bool = False) -> str:
+    """An index named codes first (components/index_name.html, #218)."""
+    modifier = " index-name--title" if title else ""
+    return (
+        f'<span class="index-name{modifier}"><code class="index-code">{code}</code> '
+        f'<span class="index-name__name">{name}</span></span>'
+    )
+
+
+def test_indices_are_listed_codes_first(client):
+    """#218: the code leads, in mono, and the short name follows it: the catalogue's first
+    two columns, the index page's title and its previous and next links. R's long name is
+    the index page's definition line, and search finds the code, the short name and R's
+    names."""
     analysis, _job = finished_analysis(client)
     url = f"/station/{analysis.pk}/results"
     html = client.get(url).content.decode()
-    assert f'<a href="{url}/fd">Frost days</a></th>' in html
-    assert '<td><code class="index-code">FD</code></td>' in html
-    assert f'<a href="{url}/TX90-HWN">Number of heatwaves (Tx90)</a></th>' in html
-    assert '<code class="index-code">TX90-HWN</code>' in html
-    assert f'<a href="{url}/3month_spi">Standardised precipitation index, 3 months</a>' in html
-    # Codes still find their index.
-    assert "Showing 1 of 80 indices." in client.get(url, {"q": "tnltm20"}).content.decode()
+    assert (
+        f'<a href="{url}/fd"><code class="index-code">FD</code></a></th>\n'
+        "          <td>Frost days</td>"
+    ) in html
+    assert f'<a href="{url}/TX90-HWN"><code class="index-code">TX90-HWN</code></a>' in html
+    assert "<td>Number of heatwaves</td>" in html
+    assert f'<a href="{url}/3month_spi"><code class="index-code">SPI3</code></a>' in html
+    assert "<td>SPI, 3\u00a0months</td>" not in html and "<td>SPI, 3 months</td>" in html
+    assert f'<a href="{url}/rx3day"><code class="index-code">Rx3day</code></a>' in html
+    assert "<td>Wettest 3\u00a0days</td>" in html
+    assert "<td>Days TN &lt; \u22122\u00a0°C</td>" in html  # the number rules (#226)
+    assert "<td>Days TN &gt; 0\u00a0°C</td>" in html  # the sample's own index, TNgt0
+    # The columns: Code, then Index.
+    headers = re.findall(r'<th scope="col"[^>]*data-sort-key="(\w+)"', html)
+    assert headers[:2] == ["code", "name"]
+    # Search finds the code, the short name and R's long name and definition.
+    for q in ("tnltm20", "hottest day", "max 1-day pr", "warmest daily tx"):
+        found = client.get(url, {"q": q}).content.decode()
+        assert "Showing 1 of 80 indices." in found, q
     page = client.get(f"{url}/txx").content.decode()
-    assert "<h1>Max TX</h1>" in page and '<code class="index-code">TXx</code>' in page
-    assert "<title>Max TX (TXx): " in page
+    assert f"<h1>{_named('TXx', 'Hottest day', title=True)}</h1>" in page
+    assert "<title>TXx Hottest day: " in page
+    assert "Name in Climpact for R: Max TX." in page
+    nav = re.search(r"<nav [^>]*result-nav.*?</nav>", page, re.S).group(0)
+    assert re.search(
+        r'rel="prev">.*?<span class="sr-only">Previous:</span> '
+        + re.escape(_named("TXge35", "Days TX ≥ 35\u00a0°C")),
+        nav,
+    )
+    assert '<span class="sr-only">Next:</span> ' + _named("TNn", "Coldest night") in nav
+    # No R line when R's long name is the short name.
+    assert "Name in Climpact for R: Frost days" not in client.get(f"{url}/fd").content.decode()
     # TMge10 counts TM days, whatever R's long name says (#217).
-    assert f'<a href="{url}/tmge10">TM of at least 10\u00a0°C</a></th>' in html
+    assert "<td>Days TM ≥ 10\u00a0°C</td>" in html
     assert "TX of at least 10" not in html
     page = client.get(f"{url}/tmge10").content.decode()
-    assert "<h1>TM of at least 10\u00a0°C</h1>" in page
-    assert "<title>TM of at least 10\u00a0°C (TMge10): " in page
+    assert f"<h1>{_named('TMge10', 'Days TM ≥ 10\u00a0°C', title=True)}</h1>" in page
+    assert "Name in Climpact for R: TM of at least 10\u00a0°C." in page
 
 
-def test_plain_names_of_indices_that_share_a_catalogue_entry():
+def test_short_names():
+    """#218: every index has a short name; parameters, heatwave aspects, the daily EHF
+    tables and the user's own index get theirs from the output name."""
+    from climpact_web.help.indices import SHORT_NAMES
+
     by_short = results_model.catalogue.by_short()
-    name = results_model.plain_name
-    assert name("EHF-HWLI", by_short["hwEHF"]) == "Total heatwave intensity (EHF)"
-    assert name("TN90-HWA", by_short["hw"]) == "Peak temperature of the hottest heatwave (Tn90)"
-    assert name("24month_spei", by_short["spei"]).endswith(", 24 months")
-    assert name("EHFdaily", by_short["hwEHF"]) == "Excess heat factor, daily"
-    assert name("TNgt0", None) == "Your own threshold index"
-    assert name("fd", by_short["fd"]) == "Frost days"
+    assert set(SHORT_NAMES) == set(by_short)
+    name = results_model.short_name
+    assert name("txx", by_short["txx"]) == "Hottest day"
+    assert name("EHF-HWLI", by_short["hwEHF"]) == "Total heatwave intensity"
+    assert name("TN90-HWA", by_short["hw"]) == "Hottest heatwave's peak"
+    assert name("24month_spei", by_short["spei"]) == "SPEI, 24 months"
+    assert name("rx7day", by_short["rxdday"]) == "Wettest 7\u00a0days"
+    assert name("r25.5mm", by_short["rnnmm"]) == "Days ≥ 25.5\u00a0mm"
+    assert name("wsdi4", by_short["wsdid"]) == "Warm spell duration, 4+ days"
+    assert name("txb3tnb3", by_short["txbdtnbd"]) == "Cold days and nights, 3 in a row"
+    assert name("tx3tn3", by_short["txdtnd"]) == "Hot days and nights, 3 in a row"
+    assert name("hddheat18", by_short["hddheatn"]) == "Heating degree days"
+    assert name("EHFdaily", by_short["hwEHF"]) == "Daily excess heat factor"
+    assert name("TNgt0", None) == "Days TN > 0\u00a0°C"
+    assert name("PRge-1", None) == "Days PR ≥ \u22121\u00a0mm"
+    assert name("TXle35.5", None) == "Days TX ≤ 35.5\u00a0°C"
+    assert name("tnltm2", by_short["tnltm2"]) == "Days TN < \u22122\u00a0°C"
+    # The guide's names, before a parameter is chosen.
+    assert by_short["rxdday"].short_name() == "Wettest d days"
+    assert by_short["rnnmm"].short_name() == "Days ≥ nn mm"
+    assert by_short["spi"].short_name() == "SPI, n months"
+    # Codes as the board spells them.
+    assert results_model.display_name("3month_spi", by_short["spi"]) == "SPI3"
+    assert results_model.display_name("EHFdaily", by_short["hwEHF"]) == "EHFdaily"
 
 
 def _order(html: str) -> list[str]:
@@ -1138,7 +1197,7 @@ def test_each_section_is_a_tab_named_in_the_title(client):
         assert html.count("<h1") == 1 and "steps__item" not in html, path
     html = client.get(base + "/results/txx").content.decode()
     assert (
-        "<h1>Max TX</h1>" in html
+        f"<h1>{_named('TXx', 'Hottest day', title=True)}</h1>" in html
         and '<p class="context-bar__name context-bar__name--line">' in html
     )
     assert re.findall(r'data-tab="(\w+)" data-state="\w+" aria-current="page"', html) == ["results"]

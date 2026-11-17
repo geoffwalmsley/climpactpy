@@ -249,6 +249,34 @@
     text-transform: none;
   }
 
+  /* An index named codes first (#218, components/index_name.html): the code in mono at
+     the size of the text around it, then the short name. In a page title the code keeps
+     the title's weight and the name is a step lighter. */
+  .index-name .index-code,
+  .catalogue__table tbody th .index-code {
+    padding: 0;
+    background: none;
+  }
+
+  .index-name .index-code {
+    font-size: 0.9em;
+  }
+
+  .index-name--title .index-code {
+    font-size: 0.95em;
+  }
+
+  .index-name--title .index-name__name {
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* The index page's previous and next index, at the end of its nav line. */
+  .result-nav__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(4);
+  }
+
   /* == The catalogue: every index in one table, sortable by column (#200) == */
   /* At most about twelve rows high, scrolling under its sticky header, so the page stays
      short; the region is focusable, so it scrolls by keyboard. */
@@ -270,6 +298,12 @@
     white-space: nowrap;
   }
 
+  /* Codes first (#218): the code leads the row, in mono; the short name follows it. */
+  .catalogue__table tbody th .index-code {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
   .catalogue__table tbody th .hue-dot {
     margin-inline-end: --spacing(2);
   }
@@ -287,8 +321,8 @@
     block-size: 1.5rem;
   }
 
-  /* Phones (#203, proposal 7): the table becomes a list, one block a row: the name and
-     its code, then the trend and its significance beside the sparkline. The header row
+  /* Phones (#203, proposal 7): the table becomes a list, one block a row: the code and
+     its short name (#218), then the trend and its significance beside the sparkline. The header row
      is a line of the column names that sort, kept above the rows as they scroll. The
      rows stay a table's rows to screen readers. */
   @media (max-width: 40rem) {
@@ -326,10 +360,10 @@
     .catalogue__table tbody tr:not([hidden]) {
       display: grid;
       grid-template-areas:
-        "name code"
+        "code name"
         "trend spark"
         "sig spark";
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr);
       gap: --spacing(1) --spacing(3);
       align-items: center;
       padding-block: --spacing(3);
@@ -344,12 +378,11 @@
     }
 
     .catalogue__table tbody th {
-      grid-area: name;
+      grid-area: code;
     }
 
     .catalogue__table tbody td:nth-of-type(1) {
-      grid-area: code;
-      justify-self: end;
+      grid-area: name;
     }
 
     .catalogue__table tbody td:nth-of-type(2) {

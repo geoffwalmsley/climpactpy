@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help charts %}
-{% block title %}{% blocktranslate with title=card.title name=card.name station=analysis.station_name %}{{ title }} ({{ name }}): {{ station }}{% endblocktranslate %}{% endblock %}
+{% block title %}{% blocktranslate with code=card.code name=card.title station=analysis.station_name %}{{ code }} {{ name }}: {{ station }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% if chart_url %}{% chart_scripts %}{% endif %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page">
@@ -11,15 +11,17 @@
   <div class="workspace__main stack stack--xl">
   <nav class="flex flex-wrap items-center justify-between gap-3 text-sm result-nav" aria-label="{% translate 'Indices' %}">
     <a href="{% url 'stations:results' analysis.pk %}#index-{{ card.key }}">{% icon "arrow-left" "" "icon--flip" %} {% translate "All indices" %}</a>
-    {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% blocktranslate with name=previous.name %}Previous: {{ name }}{% endblocktranslate %}</a>{% endif %}
-    {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next">{% blocktranslate with name=next.name %}Next: {{ name }}{% endblocktranslate %}</a>{% endif %}
+    {% comment %}Previous and next, codes first (#218), as the Index board: "← TNx Warmest night".{% endcomment %}
+    {% if previous or next %}<span class="result-nav__steps">
+    {% if previous %}<a href="{% url 'stations:result' analysis.pk previous.key %}" rel="prev">{% icon "arrow-left" "" "icon--flip" %} <span class="sr-only">{% translate "Previous:" %}</span> {% include "components/index_name.html" with code=previous.code name=previous.title only %}</a>{% endif %}
+    {% if next %}<a href="{% url 'stations:result' analysis.pk next.key %}" rel="next"><span class="sr-only">{% translate "Next:" %}</span> {% include "components/index_name.html" with code=next.code name=next.title only %} {% icon "arrow-right" "" "icon--flip" %}</a>{% endif %}
+    </span>{% endif %}
   </nav>
 
   <header class="stack stack--sm">
-    <p class="eyebrow"><code class="index-code">{{ card.code }}</code></p>
-    <div class="section-header"><h1>{{ card.title }}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
+    <div class="section-header"><h1>{% include "components/index_name.html" with code=card.code name=card.title title=True only %}</h1>{% section_help "result.index" topics=card.help_topics title=card.code %}</div>
     <p class="lead">{% if card.units %}{% blocktranslate with definition=card.definition units=card.units %}{{ definition }} ({{ units }}){% endblocktranslate %}{% else %}{{ card.definition }}{% endif %}</p>
-    <p class="text-sm text-text-muted">{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
+    <p class="text-sm text-text-muted">{% if card.r_name %}{% blocktranslate with name=card.r_name %}Name in Climpact for R: {{ name }}.{% endblocktranslate %} {% endif %}{% blocktranslate with name=analysis.station_name %}Station {{ name }}.{% endblocktranslate %}{% if from_batch %} {% translate "From the batch run." %}{% endif %}</p>
     {% if card.param_topic %}
     {% if input_urls.settings %}<p class="text-sm">{% blocktranslate with url=input_urls.settings trimmed %}This index depends on a setting. <a href="{{ url }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">Change it in the index settings</a>. You come back here afterwards.{% endblocktranslate %}</p>{% endif %}
     {% endif %}

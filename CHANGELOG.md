@@ -12,6 +12,14 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
   have open** (decided on #231; their files go after the retention period). New setting
   `CLIMPACT_WEB_WORKSPACE_EXPIRY`: on when hosted, off locally, where workspaces now stay
   until deleted. The jobs a station or batch shows are kept as long as it is.
+- Workspace settings (#254): the base period, the quality thresholds and the index
+  settings belong to the workspace. A change recalculates every station in it, as one
+  change, and "Undo the change" beside the recalculation puts the settings and the earlier
+  results back while it is still on the way. A station's own values from a batch metadata
+  file stay its own. A change to the index settings now marks the results out of date, as
+  the other inputs do. Hosted limits: the jobs of one change count as one job for the
+  daily quota and the active-job cap, and `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` now
+  defaults to 50 (was 30).
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
   reads `data-retry` as its own setting and warned in the console on every form page.

@@ -26,9 +26,10 @@ in line; the text around it describes the code as it is. The rules come from thr
 - **Desktop first,** at 1280–1600px; phones get a usable stacked layout.
 - **Everything is a workspace.** A workspace holds stations and the settings they share.
   One station is a workspace of one and opens straight to the station. Every station and
-  batch belongs to a workspace since #253. Settings move onto it (Target: #254), batch
-  folds into it (Target: #255), its URLs (Target: #256), and Workspaces replaces Your
-  calculations (Target: #233, #234, #242).
+  batch belongs to a workspace since #253, and the base period, thresholds and index
+  settings are the workspace's since #254: a change recalculates every station, and can
+  be undone while it is on the way. Batch folds into it (Target: #255), its URLs (Target:
+  #256), and Workspaces replaces Your calculations (Target: #233, #234, #242).
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere (Target: #240).
@@ -376,8 +377,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `alert`, `messages`, `toasts` | Component | Page and transient feedback | info, success, warning, error; dismissible; live |
 | `disclosure` | Component | Content that opens in place (`<details>`): a row between hairlines, not a box | — |
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
-| Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. Sticky under the context bar when beside the content | changed; with a run |
-| Inputs bar | Component | The Inputs panel in one line, under the workspace tabs where the content has less than 52rem (`stations/_inputs_bar.html`, the mockups' `.inputsbar`; #203): "Inputs:" then the base period and "defaults" or how many settings are not the default, then each input changed since what is shown (warning colour, and the bar takes the warning tint) and each run under way, and a small secondary Edit at the end. Edit opens the Inputs sheet: the panel's list in a side sheet, which on a phone fills the screen; each input's Edit there opens its own sheet over it, and Escape steps back to the list, then the bar. Only with JavaScript; without it the panel shows above the content. On a phone it reaches the screen's edges, under a hairline | changed; with a run |
+| Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. While that run is a change to the workspace's settings (#254), a small secondary "Undo the change" under it, a plain form (`stations/_undo_form.html`). Sticky under the context bar when beside the content | changed; with a run; with undo |
+| Inputs bar | Component | The Inputs panel in one line, under the workspace tabs where the content has less than 52rem (`stations/_inputs_bar.html`, the mockups' `.inputsbar`; #203): "Inputs:" then the base period and "defaults" or how many settings are not the default, then each input changed since what is shown (warning colour, and the bar takes the warning tint) and each run under way, and a small secondary Edit at the end, after a small secondary "Undo" while a change to the workspace's settings can be undone (#254). Edit opens the Inputs sheet: the panel's list in a side sheet, which on a phone fills the screen; each input's Edit there opens its own sheet over it, and Escape steps back to the list, then the bar. Only with JavaScript; without it the panel shows above the content. On a phone it reaches the screen's edges, under a hairline | changed; with a run; with undo |
 | Page menu (⋯) | Component | On a phone the page's actions (Results: the sector comparison, Download all) move from the context bar into a ⋯ button at the end of the name's line (`page-menu` in `components/context_bar.html`; #203). A disclosure, not an ARIA menu: a native `<details>` whose summary is the button ("Page actions" for screen readers), so it works without JavaScript; Enter or Space opens it, Tab goes through the actions (full-width buttons, one a line, in a raised panel), Escape closes it and returns focus to the button, and a click or focus elsewhere closes it (`js/context-bar.js`) | — |
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
@@ -479,9 +480,17 @@ years; sparklines are only for scanning, beside a number given in text.
   button; output pages hold no forms (#198, #199), only the decision, search and filters,
   and small actions such as Delete or Try again. Links elsewhere that change an input
   ("Replace file" on Quality's verdict, "Change the settings" on Results) open the same
-  sheet. **Target (#231, #233, #234):** the settings are the workspace's, edited in its
-  settings sheet; a station's name and coordinates are edited from "Edit inputs" on its
-  provenance line.
+  sheet. The base period, thresholds and index settings are the workspace's (#254): their
+  sheets say so when the workspace has several stations, and that the change can be undone
+  until its replacement is ready. **Target (#233, #234):** they are edited in the
+  workspace's settings sheet; a station's name and coordinates are edited from "Edit
+  inputs" on its provenance line.
+- **Let the user take a change back.** A change to the workspace's settings recalculates
+  every station; until that has finished, "Undo the change" beside its progress (the
+  Inputs panel's runs, or the Inputs bar) puts the settings and the earlier results back
+  (#254). One place per page, and a form that works without JavaScript. **Target
+  (#234):** on the workspace's overview, the run status line shows the recalculation's
+  progress and offers Undo (`Calculate.dc.html`).
 - **Give each colour one job.** Ink for actions, blue for links, the
   brand blue for the logo, focus and selection, status colours for the verdict and run state, theme hues for data (see
   [Colour](#colour)).

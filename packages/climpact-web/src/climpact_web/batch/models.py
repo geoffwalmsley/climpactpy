@@ -79,6 +79,12 @@ class BatchRun(models.Model):
         (#256). A batch makes its own workspace, so the workspace names it."""
         return reverse(f"batch:{name}", args=[self.workspace_id])
 
+    @property
+    def results_url(self) -> str:
+        """The batch's results: its workspace's own address, ``/w/<workspace>/`` (#256),
+        where the workspace overview replaces them (#234)."""
+        return reverse("stations:workspace", args=[self.workspace_id])
+
     def save(self, *args, **kwargs) -> None:
         """Save, making the batch's workspace when it is new and recording the change on it.
         A batch's workspace starts with no custom index, as Climpact for R's batch

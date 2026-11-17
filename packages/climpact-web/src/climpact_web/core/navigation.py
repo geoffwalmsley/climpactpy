@@ -169,7 +169,7 @@ GRIDDED_STEPS = (
 BATCH_STEPS = (
     Step("upload", _("Load files"), "batch:start"),
     Step("check", _("Check stations"), "batch:check"),
-    Step("results", _("Calculate and download"), "batch:results"),
+    Step("results", _("Calculate and download"), "stations:workspace"),
 )
 
 

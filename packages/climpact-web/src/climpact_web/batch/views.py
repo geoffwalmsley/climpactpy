@@ -4,8 +4,9 @@
    the sample batch.
 2. ``batch:check``: every station listed as ready, missing or invalid with the reasons,
    before anything runs; add or replace files; choose the options; start.
-3. ``batch:results``: one job runs the ready stations, with each station's progress;
-   then each station's status, errors and downloads, and one zip of everything.
+3. The results, at the workspace's address ``/w/<id>/`` (#256): one job runs the ready
+   stations, with each station's progress; then each station's status, errors and
+   downloads, and one zip of everything.
 
 The batch fills its workspace (#255): the base period (and the custom index, none unless
 the workspace's settings were changed) are the workspace's, and once the run has finished
@@ -104,7 +105,7 @@ def old_batch_url(request, run_id, rest=""):
     404 after that, or for another session's batch."""
     owner = request.session.get(OWNER_KEY) or "-"
     run = get_object_or_404(BatchRun, pk=run_id, owner=owner)
-    target = run.url("check") + rest
+    target = run.results_url if rest == "results" else run.url("check") + rest
     query = request.META.get("QUERY_STRING", "")
     return redirect(f"{target}?{query}" if query else target)
 
@@ -117,7 +118,7 @@ def run_urls(run: BatchRun) -> dict[str, str]:
     """Links for the step indicator."""
     urls = {"upload": reverse("batch:start"), "check": run.url("check")}
     if run.job_id:
-        urls["results"] = run.url("results")
+        urls["results"] = run.results_url
     return urls
 
 
@@ -367,7 +368,7 @@ def run_batch(request, workspace_id):
     if not form.is_valid() or not run.ready_count:
         return render(request, "batch/check.html", check_context(request, run, options=form))
     if run.job and not run.job.is_finished:
-        return redirect(run.url("results"))
+        return redirect(run.results_url)
     data = form.cleaned_data
     set_base_period(run, data["base_start"], data["base_end"])
     run.workers = data.get("workers") or 1
@@ -409,7 +410,7 @@ def run_batch(request, workspace_id):
     run.touch()
     run.save()
     add_stations(run, job, skipped)
-    return redirect(run.url("results"))
+    return redirect(run.results_url)
 
 
 def set_base_period(run: BatchRun, start: int, end: int) -> None:
@@ -527,12 +528,23 @@ def station_urls(run: BatchRun) -> dict[str, str]:
 @never_cache
 @require_safe
 def results(request, workspace_id):
+    """The batch's results, shown at its workspace's address (``stations.views.
+    workspace_page``) until the workspace overview replaces them (#234)."""
     run = get_run(request, workspace_id)
     if run.job is None:
         return redirect(run.url("check"))
     context = results_context(request, run)
     context["steps"] = batch_steps("results", run_urls(run))
     return render(request, "batch/results.html", context)
+
+
+@require_safe
+def old_results(request, workspace_id):
+    """``/w/<id>/batch/results``: a temporary (302) redirect to the workspace's address,
+    which shows the results (#256)."""
+    run = get_run(request, workspace_id)
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{run.results_url}?{query}" if query else run.results_url)
 
 
 @never_cache

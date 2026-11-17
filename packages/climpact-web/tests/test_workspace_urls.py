@@ -7,10 +7,11 @@ import re
 
 import pytest
 from django.test import Client
-from test_batch import created, media, metadata, station  # noqa: F401
-from test_batch_workspace import finished_batch
+from test_batch import created, media, metadata, run_worker, station  # noqa: F401
+from test_batch_workspace import finished_batch, queued_batch
 from test_indices_results import STATION, ready_analysis
 
+from climpact_web.jobs.models import Status
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.stations.models import Station, Workspace, slug_for
 
@@ -106,11 +107,22 @@ def test_old_station_addresses_redirect_while_the_station_is_kept(client):
 
 def test_old_batch_addresses_redirect_while_the_batch_is_kept(client):
     run = created(client, metadata("a"), **{"a.txt": station()})
-    old, new = f"/batch/{run.pk}/", f"/w/{run.workspace_id}/batch/"
-    for path in ("", "results", "progress", "files?x=1"):
+    space = f"/w/{run.workspace_id}/"
+    old, new = f"/batch/{run.pk}/", space + "batch/"
+    for path, target in [
+        ("", new),
+        ("progress", new + "progress"),
+        ("files?x=1", new + "files?x=1"),
+        # The results are the workspace's own address, where the overview will be (#234).
+        ("results", space),
+        ("results?x=1", space + "?x=1"),
+    ]:
         response = client.get(old + path)
-        assert response.status_code == 302 and response["Location"] == new + path, path
+        assert response.status_code == 302 and response["Location"] == target, path
     assert client.get(new).status_code == 200
+    # The results' interim address under the workspace leads there too.
+    assert client.get(new + "results")["Location"] == space
+    assert other_session().get(new + "results").status_code == 404
     assert other_session().get(old).status_code == 404
     assert client.post(old + "run").status_code == 405
     run.workspace.delete()
@@ -129,7 +141,7 @@ def test_no_session_reaches_another_sessions_workspace(client):
         analysis.url("edit_input", "base-period"),
         f"/w/{run.workspace_id}/",
         f"/w/{run.workspace_id}/batch/",
-        f"/w/{run.workspace_id}/batch/results",
+        f"/w/{run.workspace_id}/",
     ):
         assert other.get(url).status_code == 404, url
     assert other.post(analysis.url("undo")).status_code == 404
@@ -159,3 +171,47 @@ def test_an_edit_returns_only_to_its_own_stations_pages(client):
     ]:
         response = client.post(sheet, {**data, "next": back})
         assert response["Location"] == target, back
+
+
+def test_a_batchs_waiting_failed_and_left_out_stations_open(client):
+    """Every station of a batch is in its workspace (#255), those that wait, failed or
+    were left out too: each address opens a page, never an error."""
+    run = queued_batch(client, "a", bad=["c"], missing=["d"])
+    a, c, d = (Station.objects.get(station_name=n) for n in "acd")
+    # Queued: the waiting stations lead to Quality, the one without a file to the New
+    # station page, where a file is loaded.
+    assert client.get(a.url())["Location"] == a.url("qc")
+    assert client.get(c.url())["Location"] == c.url("qc")
+    assert client.get(d.url())["Location"] == d.url("setup")
+    assert client.get(d.url("qc"))["Location"] == d.url("setup")
+    for station_ in (a, c, d):
+        for name in ("qc", "results", "downloads", "recalculate", "station"):
+            response = client.get(station_.url(name), follow=True)
+            assert response.status_code == 200, (station_.station_name, name)
+    assert run_worker().status == Status.SUCCEEDED
+    # Finished: the workspace's address shows the batch; the failed station opens on its
+    # Indices, which say why and lead to the settings.
+    assert 'id="batch-stations-title"' in client.get(f"/w/{run.workspace_id}/").text
+    c.refresh_from_db()
+    assert client.get(c.url())["Location"] == c.url("results")
+    html = client.get(c.url("results")).content.decode()
+    assert "The batch could not calculate this station." in html
+    assert "The last row of the station file" in html and "Check the settings and calculate" in html
+    assert client.get(a.url("results")).status_code == 200
+    assert "could not calculate" not in client.get(a.url("results")).content.decode()
+
+
+def test_a_workspace_of_one_failed_station_opens_it(client):
+    run = finished_batch(client, bad=["c"])
+    c = Station.objects.get()
+    # The workspace's address, and the results' old ones, lead to the station's Indices,
+    # where it says why it failed.
+    for url in (f"/w/{run.workspace_id}/", f"/w/{run.workspace_id}/batch/results"):
+        response = client.get(url, follow=True)
+        assert response.redirect_chain[-1][0] == c.url("results"), url
+        assert "The batch could not calculate this station." in response.text
+    # A batch of one station still waiting: its Quality, its checks not yet run.
+    run = queued_batch(client, "a")
+    assert client.get(f"/w/{run.workspace_id}/")["Location"] == Station.objects.get(
+        station_name="a"
+    ).url("qc")

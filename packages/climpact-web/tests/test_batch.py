@@ -488,7 +488,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     data = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
     response = client.post(f"/w/{run.workspace_id}/batch/run", data)
     run.refresh_from_db()
-    assert response["Location"] == f"/w/{run.workspace_id}/batch/results"
+    assert response["Location"] == f"/w/{run.workspace_id}/"
     job = run.job
     assert job.kind == "batch" and job.status == Status.QUEUED
     assert job.params["folder"] == "stations" and job.params["zip"] and not job.params["plots"]
@@ -500,7 +500,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         "c.txt",
     ]
 
-    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/").content.decode()
     assert (
         "Calculating the batch" in html and f'hx-get="/w/{run.workspace_id}/batch/progress"' in html
     )
@@ -531,7 +531,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     with zipfile.ZipFile(job.output_dir / "stations" / "a.zip") as archive:
         assert any(n.startswith("indices/") for n in archive.namelist())
 
-    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
+    html = client.get(f"/w/{run.workspace_id}/").content.decode()
     assert "Batch results" in html and "hx-get" not in html
     assert "2 of 3 stations calculated" in html
     assert "1 station failed; its error is below." in html
@@ -600,7 +600,7 @@ def test_other_sessions_get_404(client):
     other.cookies["sessionid"] = session.session_key
     for url in (
         f"/w/{run.workspace_id}/batch/",
-        f"/w/{run.workspace_id}/batch/results",
+        f"/w/{run.workspace_id}/",
         f"/w/{run.workspace_id}/batch/progress",
     ):
         assert other.get(url).status_code == 404
@@ -611,7 +611,11 @@ def test_other_sessions_get_404(client):
     ):
         assert other.post(url).status_code == 404
     assert client.get(f"/batch/{uuid.uuid4()}/").status_code == 404
-    assert client.get(f"/w/{run.workspace_id}/batch/results").status_code == 302  # not started yet
+    # Not started yet: the workspace's address is the check page; the results' old one
+    # leads there.
+    space = f"/w/{run.workspace_id}/"
+    assert 'batch/run"' in client.get(space).content.decode()
+    assert client.get(f"{space}batch/results")["Location"] == space
 
 
 @pytest.mark.django_db

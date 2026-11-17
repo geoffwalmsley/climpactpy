@@ -46,7 +46,7 @@ from climpact_web.stations import calculation, themes, workspace
 from climpact_web.stations import results as results_model
 from climpact_web.stations.calculation import station_title
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import Station, Step
+from climpact_web.stations.models import Source, Station, Step
 from climpact_web.stations.views import get_analysis, step_two_ready
 from climpact_web.stations.workspace import (
     batch_job,
@@ -197,6 +197,21 @@ def results(request, workspace_id, slug):
     return render_results(request, analysis)
 
 
+def batch_failure(analysis) -> str:
+    """Why a batch's station failed in its run, in words (``batch.fill.run_states``), for
+    its Indices: its workspace's address opens on them when it is the only station (#256).
+    Empty for any other station. As a sentence: the runner's errors start in lower case."""
+    if analysis.source != Source.BATCH:
+        return ""
+    from climpact_web.batch.fill import FAILED, run_states
+
+    state = run_states([analysis]).get(analysis.pk)
+    if state is None or state.state != FAILED or not state.error:
+        return ""
+    error = state.error[:1].upper() + state.error[1:]
+    return error if error.endswith((".", "!", "?")) else error + "."
+
+
 def render_results(request, analysis):
     """The results page: the dashboard, with a recalculation's progress above it, or the
     progress of the first run."""
@@ -214,6 +229,7 @@ def render_results(request, analysis):
     if job is None or source is None:
         if job is None:  # nothing calculated: the run was refused, say, or cancelled
             context["no_run"] = True
+            context["run_failure"] = batch_failure(analysis)
         elif job.status == Status.SUCCEEDED:  # finished, but without index tables
             context["missing_outputs"] = True
         else:

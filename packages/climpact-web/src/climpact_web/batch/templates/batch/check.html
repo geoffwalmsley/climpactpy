@@ -10,7 +10,7 @@
   </header>
 
   {% if job_active %}
-  {% url 'batch:results' run.workspace_id as results_url %}{% translate "Follow its progress" as follow_label %}
+  {% url 'stations:workspace' run.workspace_id as results_url %}{% translate "Follow its progress" as follow_label %}
   {% translate "This batch is being calculated." as active_message %}
   {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
   {% endif %}

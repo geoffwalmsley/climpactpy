@@ -736,10 +736,12 @@ def station_home(request, workspace_id, slug):
 @never_cache
 @require_safe
 def workspace_page(request, workspace_id):
-    """``/w/<id>/`` (#256). A workspace of one station opens it straight away (the Flow
-    board: no overview), at its furthest section. Otherwise, until the overview of #234,
-    the batch's pages stand in: its results once it has run, after adding the stations
-    it calculated (``batch.fill``), else its check page."""
+    """``/w/<id>/`` (#256), the one address of a batch's results. A workspace of one
+    station opens it straight away (the Flow board: no overview), at its furthest section:
+    Quality while it waits, Indices once calculated or failed (which say why), the New
+    station page when the batch had no file for it. Otherwise, until the overview of #234
+    (``Calculate.dc.html``), the batch's pages stand in: its results once it has been
+    queued, after recording how a finished run went (``batch.fill``), else its check page."""
     from climpact_web.batch import views as batch_views
     from climpact_web.batch.fill import fill_workspace
     from climpact_web.batch.models import BatchRun

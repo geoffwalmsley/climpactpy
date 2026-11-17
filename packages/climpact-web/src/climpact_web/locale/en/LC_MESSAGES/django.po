@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:56+0000\n"
+"POT-Creation-Date: 2026-11-17 18:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,7 +359,7 @@ msgstr ""
 
 #: batch/templates/batch/_options.html:9 core/views.py:208 core/views.py:456
 #: core/views.py:476 gridded/templates/gridded/setup.html:109
-#: stations/templates/stations/_unit.html:18 stations/workspace.py:723
+#: stations/templates/stations/_unit.html:18 stations/workspace.py:719
 msgid "Base period"
 msgstr ""
 
@@ -691,7 +691,7 @@ msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
 #: batch/templates/batch/check.html:90 core/views.py:206 core/views.py:455
-#: stations/workspace.py:722
+#: stations/workspace.py:718
 msgid "Station"
 msgstr ""
 
@@ -919,49 +919,49 @@ msgid_plural "%(counter)s stations, changed %(when)s ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:270
+#: batch/views.py:271
 #, python-format
 msgid "about %(n)d minute"
 msgid_plural "about %(n)d minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:340
+#: batch/views.py:341
 #, python-format
 msgid "%(count)d file loaded. The stations were checked again."
 msgid_plural "%(count)d files loaded. The stations were checked again."
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:405
+#: batch/views.py:406
 #, python-format
 msgid "Batch: %(name)s (%(count)d station)"
 msgid_plural "Batch: %(name)s (%(count)d stations)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/views.py:406
+#: batch/views.py:407
 msgid "stations"
 msgstr ""
 
-#: batch/views.py:435
+#: batch/views.py:436
 #, python-format
 msgid "And %(count)d more problems like these."
 msgstr ""
 
-#: batch/views.py:437
+#: batch/views.py:438
 msgid "Not calculated: the station file is missing."
 msgstr ""
 
-#: batch/views.py:439
+#: batch/views.py:440
 msgid "Not calculated: the station has problems."
 msgstr ""
 
-#: batch/views.py:454
+#: batch/views.py:455
 msgid "The batch and its stations were deleted."
 msgstr ""
 
-#: batch/views.py:456
+#: batch/views.py:457
 msgid "The batch files were deleted."
 msgstr ""
 
@@ -973,7 +973,7 @@ msgstr ""
 #: charts/data.py:59 core/views.py:109 stations/qc_review.py:70
 #: stations/qc_review.py:433
 #: stations/templates/stations/_qc_missing_table.html:17
-#: stations/templates/stations/_summary.html:38 stations/workspace.py:701
+#: stations/templates/stations/_summary.html:38 stations/workspace.py:697
 msgid "TX"
 msgstr ""
 
@@ -985,7 +985,7 @@ msgstr ""
 #: charts/data.py:66 core/views.py:110 stations/qc_review.py:70
 #: stations/qc_review.py:433 stations/qc_review.py:1011
 #: stations/templates/stations/_qc_missing_table.html:18
-#: stations/templates/stations/_summary.html:39 stations/workspace.py:701
+#: stations/templates/stations/_summary.html:39 stations/workspace.py:697
 msgid "TN"
 msgstr ""
 
@@ -999,14 +999,14 @@ msgstr ""
 #: core/templates/core/patterns.html:302 core/views.py:108
 #: stations/qc_review.py:70 stations/qc_review.py:433
 #: stations/templates/stations/_qc_missing_table.html:16
-#: stations/templates/stations/_summary.html:37 stations/workspace.py:701
+#: stations/templates/stations/_summary.html:37 stations/workspace.py:697
 msgid "PR"
 msgstr ""
 
 #: charts/data.py:74 stations/forms.py:108 stations/qc_plots.py:216
 #: stations/templates/stations/_indices_unit.html:26
 #: stations/templates/stations/_indices_unit.html:37
-#: stations/views_indices.py:299
+#: stations/views_indices.py:315
 msgid "mm"
 msgstr ""
 
@@ -1108,7 +1108,7 @@ msgstr ""
 msgid "Calendar day"
 msgstr ""
 
-#: charts/data.py:379 stations/views_indices.py:690
+#: charts/data.py:379 stations/views_indices.py:706
 msgid "Day"
 msgstr ""
 
@@ -1210,12 +1210,12 @@ msgstr ""
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
 #: stations/templates/stations/_summary.html:36
-#: stations/templates/stations/_summary.html:78 stations/views_indices.py:690
+#: stations/templates/stations/_summary.html:78 stations/views_indices.py:706
 msgid "Year"
 msgstr ""
 
 #: charts/templatetags/charts.py:49 gridded/templates/gridded/_explore.html:37
-#: stations/views_indices.py:690
+#: stations/views_indices.py:706
 msgid "Month"
 msgstr ""
 
@@ -1956,7 +1956,7 @@ msgstr ""
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:258
 #: core/views.py:139 gridded/forms.py:113
 #: gridded/templates/gridded/_progress.html:15 help/topics.py:71
-#: stations/views_indices.py:633 stations/workspace.py:444
+#: stations/views_indices.py:649 stations/workspace.py:444
 msgid "Indices"
 msgstr ""
 
@@ -1990,7 +1990,7 @@ msgstr ""
 
 #: core/templates/core/patterns.html:39 core/templates/core/patterns.html:452
 #: jobs/templates/jobs/job_detail.html:15
-#: stations/templates/stations/results_progress.html:24
+#: stations/templates/stations/results_progress.html:28
 msgid "Progress"
 msgstr ""
 
@@ -2374,11 +2374,11 @@ msgstr ""
 
 #: core/templates/core/patterns.html:274
 #: stations/templates/stations/_qc_box_plot.html:14
-#: stations/templates/stations/_qc_review.html:60 stations/views_indices.py:666
+#: stations/templates/stations/_qc_review.html:60 stations/views_indices.py:682
 msgid "Values"
 msgstr ""
 
-#: core/templates/core/patterns.html:274 stations/views_indices.py:669
+#: core/templates/core/patterns.html:274 stations/views_indices.py:685
 #, python-format
 msgid "Anomaly from %(start)s–%(end)s"
 msgstr ""
@@ -2389,12 +2389,12 @@ msgid "Period"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:69
-#: stations/views_indices.py:677
+#: stations/views_indices.py:693
 msgid "Annual"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:70
-#: stations/results.py:235 stations/views_indices.py:677
+#: stations/results.py:235 stations/views_indices.py:693
 msgid "Monthly"
 msgstr ""
 
@@ -2564,7 +2564,7 @@ msgstr ""
 #: gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
-#: stations/templates/stations/downloads.html:130 stations/views_indices.py:374
+#: stations/templates/stations/downloads.html:130 stations/views_indices.py:390
 msgid "Index"
 msgstr ""
 
@@ -2623,7 +2623,7 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/patterns.html:382 core/views.py:466
-#: stations/templates/stations/results.html:34 stations/workspace.py:913
+#: stations/templates/stations/results.html:34 stations/workspace.py:909
 msgid "Recalculating"
 msgstr ""
 
@@ -2745,7 +2745,7 @@ msgid "Example: the last step"
 msgstr ""
 
 #: core/templates/core/patterns.html:453 jobs/stages.py:16
-#: stations/workspace.py:913
+#: stations/workspace.py:909
 msgid "Calculating the indices"
 msgstr ""
 
@@ -3015,12 +3015,12 @@ msgstr ""
 msgid "Newcastle Nobbys"
 msgstr ""
 
-#: core/views.py:123 stations/workspace.py:670
+#: core/views.py:123 stations/workspace.py:666
 #, python-format
 msgid "base %(start)s–%(end)s"
 msgstr ""
 
-#: core/views.py:124 stations/workspace.py:682
+#: core/views.py:124 stations/workspace.py:678
 msgid "ET-SCI defaults"
 msgstr ""
 
@@ -3150,15 +3150,15 @@ msgstr ""
 msgid "percentage points"
 msgstr ""
 
-#: core/views.py:414 stations/views_indices.py:373
+#: core/views.py:414 stations/views_indices.py:389
 msgid "Code"
 msgstr ""
 
-#: core/views.py:416 stations/views_indices.py:375
+#: core/views.py:416 stations/views_indices.py:391
 msgid "Slope / decade"
 msgstr ""
 
-#: core/views.py:417 stations/views_indices.py:376
+#: core/views.py:417 stations/views_indices.py:392
 msgid "Sig."
 msgstr ""
 
@@ -3166,7 +3166,7 @@ msgstr ""
 msgid "Drought"
 msgstr ""
 
-#: core/views.py:429 stations/views_indices.py:471
+#: core/views.py:429 stations/views_indices.py:487
 msgid "Also measured"
 msgstr ""
 
@@ -3174,7 +3174,7 @@ msgstr ""
 #: stations/templates/stations/downloads.html:69
 #: stations/templates/stations/downloads.html:87
 #: stations/templates/stations/downloads.html:112
-#: stations/templates/stations/downloads.html:153 stations/workspace.py:721
+#: stations/templates/stations/downloads.html:153 stations/workspace.py:717
 msgid "File"
 msgstr ""
 
@@ -3183,21 +3183,21 @@ msgid "29,220 days · 3 variables"
 msgstr ""
 
 #: core/views.py:454 stations/templates/stations/_file_card.html:14
-#: stations/workspace.py:905
+#: stations/workspace.py:901
 msgid "Replace"
 msgstr ""
 
 #: core/views.py:455 core/views.py:456 core/views.py:457 core/views.py:458
-#: stations/templates/stations/_inputs_bar.html:13 stations/workspace.py:905
+#: stations/templates/stations/_inputs_bar.html:13 stations/workspace.py:901
 msgid "Edit"
 msgstr ""
 
-#: core/views.py:457 stations/workspace.py:724
+#: core/views.py:457 stations/workspace.py:720
 msgid "Quality thresholds"
 msgstr ""
 
 #: core/views.py:458 core/views.py:483 help/topics.py:70
-#: stations/workspace.py:725
+#: stations/workspace.py:721
 msgid "Index settings"
 msgstr ""
 
@@ -6029,7 +6029,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:385 stations/forms_indices.py:122
-#: stations/views_indices.py:292
+#: stations/views_indices.py:308
 msgid "Days for WSDId"
 msgstr ""
 
@@ -6041,7 +6041,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:395 stations/forms_indices.py:129
-#: stations/views_indices.py:293
+#: stations/views_indices.py:309
 msgid "Days for CSDId"
 msgstr ""
 
@@ -6053,7 +6053,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:405 stations/forms_indices.py:136
-#: stations/views_indices.py:294
+#: stations/views_indices.py:310
 msgid "Days for Rxdday"
 msgstr ""
 
@@ -6064,7 +6064,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:415 stations/forms_indices.py:142
-#: stations/views_indices.py:295
+#: stations/views_indices.py:311
 msgid "Days for TXdTNd and TXbdTNbd"
 msgstr ""
 
@@ -6116,7 +6116,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:465 stations/forms_indices.py:163
-#: stations/views_indices.py:300
+#: stations/views_indices.py:316
 msgid "Extra SPI and SPEI time scale"
 msgstr ""
 
@@ -6844,7 +6844,7 @@ msgstr ""
 msgid "Enter the number of days for TXdTNd and TXbdTNbd."
 msgstr ""
 
-#: stations/forms_indices.py:147 stations/views_indices.py:296
+#: stations/forms_indices.py:147 stations/views_indices.py:312
 msgid "Base temperature for HDDheat"
 msgstr ""
 
@@ -6852,11 +6852,11 @@ msgstr ""
 msgid "Default 18 °C."
 msgstr ""
 
-#: stations/forms_indices.py:148 stations/views_indices.py:297
+#: stations/forms_indices.py:148 stations/views_indices.py:313
 msgid "Base temperature for CDDcold"
 msgstr ""
 
-#: stations/forms_indices.py:149 stations/views_indices.py:298
+#: stations/forms_indices.py:149 stations/views_indices.py:314
 msgid "Base temperature for GDDgrow"
 msgstr ""
 
@@ -6864,7 +6864,7 @@ msgstr ""
 msgid "Default 10 °C."
 msgstr ""
 
-#: stations/forms_indices.py:151 stations/views_indices.py:299
+#: stations/forms_indices.py:151 stations/views_indices.py:315
 msgid "Precipitation amount for Rnnmm"
 msgstr ""
 
@@ -7568,8 +7568,8 @@ msgstr ""
 msgid "%(years)s and %(n)s more"
 msgstr ""
 
-#: stations/qc_review.py:1347 stations/views_indices.py:277
-#: stations/workspace.py:707
+#: stations/qc_review.py:1347 stations/views_indices.py:293
+#: stations/workspace.py:703
 #, python-format
 msgid "%(n)s day"
 msgid_plural "%(n)s days"
@@ -7792,7 +7792,7 @@ msgid "Every value in the file is missing."
 msgstr ""
 
 #: stations/sector_file.py:218 stations/templates/stations/downloads.html:136
-#: stations/views_indices.py:287
+#: stations/views_indices.py:303
 msgid "none"
 msgstr ""
 
@@ -8076,7 +8076,7 @@ msgid "Open full page"
 msgstr ""
 
 #: stations/templates/stations/_index_detail.html:43
-#: stations/views_indices.py:707
+#: stations/views_indices.py:723
 msgid "Monthly values"
 msgstr ""
 
@@ -8226,7 +8226,7 @@ msgid "months"
 msgstr ""
 
 #: stations/templates/stations/_indices_unit.html:31
-#: stations/views_indices.py:301
+#: stations/views_indices.py:317
 msgid "Custom threshold index"
 msgstr ""
 
@@ -9286,18 +9286,22 @@ msgstr ""
 msgid "The indices are not calculated yet. Check the settings, then calculate."
 msgstr ""
 
-#: stations/templates/stations/results_progress.html:20
+#: stations/templates/stations/results_progress.html:19
+msgid "The batch could not calculate this station."
+msgstr ""
+
+#: stations/templates/stations/results_progress.html:24
 msgid "Check the settings and calculate"
 msgstr ""
 
-#: stations/templates/stations/results_progress.html:26
+#: stations/templates/stations/results_progress.html:30
 #: stations/templates/stations/sector.html:44
 msgid ""
 "Reload this page to see the progress. The results appear here when they are "
 "ready."
 msgstr ""
 
-#: stations/templates/stations/results_progress.html:28
+#: stations/templates/stations/results_progress.html:32
 msgid ""
 "You can leave this page. The calculation carries on, and this address shows "
 "the results when it has finished."
@@ -9437,21 +9441,21 @@ msgstr ""
 msgid "The station data were deleted."
 msgstr ""
 
-#: stations/views.py:919
+#: stations/views.py:921
 msgid ""
 "The new file is loaded, but the station details need a change before the "
 "checks can run."
 msgstr ""
 
-#: stations/views.py:925
+#: stations/views.py:927
 msgid "The new file is loaded. The checks and results are updated."
 msgstr ""
 
-#: stations/views.py:993
+#: stations/views.py:995
 msgid "The change was undone. The earlier settings and results are back."
 msgstr ""
 
-#: stations/views.py:999
+#: stations/views.py:1001
 msgid ""
 "The recalculation has finished, so the change can no longer be undone. "
 "Change the settings back instead."
@@ -9473,49 +9477,49 @@ msgstr ""
 msgid "Make the zip file"
 msgstr ""
 
-#: stations/views_indices.py:280
+#: stations/views_indices.py:296
 #, python-format
 msgid "%(n)s month"
 msgid_plural "%(n)s months"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/views_indices.py:318
+#: stations/views_indices.py:334
 msgid "Climpact's default settings."
 msgstr ""
 
-#: stations/views_indices.py:319
+#: stations/views_indices.py:335
 #, python-format
 msgid "Settings changed: %(settings)s."
 msgstr ""
 
-#: stations/views_indices.py:376
+#: stations/views_indices.py:392
 msgid "Significance"
 msgstr ""
 
-#: stations/views_indices.py:383
+#: stations/views_indices.py:399
 #, python-format
 msgid "Sorted by %(column)s, descending."
 msgstr ""
 
-#: stations/views_indices.py:384
+#: stations/views_indices.py:400
 #, python-format
 msgid "Sorted by %(column)s, ascending."
 msgstr ""
 
-#: stations/views_indices.py:707
+#: stations/views_indices.py:723
 msgid "Annual values"
 msgstr ""
 
-#: stations/views_indices.py:708
+#: stations/views_indices.py:724
 msgid "Values by day of the year"
 msgstr ""
 
-#: stations/views_indices.py:714
+#: stations/views_indices.py:730
 msgid "Date of minimum"
 msgstr ""
 
-#: stations/views_indices.py:714
+#: stations/views_indices.py:730
 msgid "Date of maximum"
 msgstr ""
 
@@ -9592,90 +9596,90 @@ msgid_plural ", %(n)s values look wrong"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:645
+#: stations/workspace.py:641
 #, python-format
 msgid "%(first)s–%(last)s · %(years)s yr"
 msgid_plural "%(first)s–%(last)s · %(years)s yr"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:679 stations/workspace.py:935
+#: stations/workspace.py:675 stations/workspace.py:931
 #, python-format
 msgid "%(count)s setting not the default"
 msgid_plural "%(count)s settings not the default"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:709
+#: stations/workspace.py:705
 #, python-format
 msgid "%(days)s · %(variables)s"
 msgstr ""
 
-#: stations/workspace.py:755
+#: stations/workspace.py:751
 msgid "Updates Quality, Indices and Files."
 msgstr ""
 
-#: stations/workspace.py:757
+#: stations/workspace.py:753
 msgid "Updates Indices and Files. Quality stays as it is."
 msgstr ""
 
-#: stations/workspace.py:758
+#: stations/workspace.py:754
 msgid "Updates Quality and Files. Indices stay as they are."
 msgstr ""
 
-#: stations/workspace.py:773
+#: stations/workspace.py:769
 msgid ""
 "A new station name updates Quality too, as its files are named after it."
 msgstr ""
 
-#: stations/workspace.py:782
+#: stations/workspace.py:778
 #, python-format
 msgid "It applies to the %(count)s station of this workspace."
 msgid_plural "It applies to all %(count)s stations of this workspace."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:789
+#: stations/workspace.py:785
 msgid "The station details and thresholds are kept."
 msgstr ""
 
-#: stations/workspace.py:791
+#: stations/workspace.py:787
 msgid "About half a minute for 80 years of data."
 msgstr ""
 
-#: stations/workspace.py:792
+#: stations/workspace.py:788
 msgid "What is shown now stays until its replacement is ready."
 msgstr ""
 
-#: stations/workspace.py:794
+#: stations/workspace.py:790
 msgid "You can undo the change until then."
 msgstr ""
 
-#: stations/workspace.py:844
+#: stations/workspace.py:840
 msgid "Defaults"
 msgstr ""
 
-#: stations/workspace.py:845
+#: stations/workspace.py:841
 #, python-format
 msgid "%(count)s changed"
 msgid_plural "%(count)s changed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:887
+#: stations/workspace.py:883
 #, python-format
 msgid "%(days)s days · %(count)s variables"
 msgstr ""
 
-#: stations/workspace.py:911
+#: stations/workspace.py:907
 msgid "Checking quality"
 msgstr ""
 
-#: stations/workspace.py:938
+#: stations/workspace.py:934
 msgid "defaults"
 msgstr ""
 
-#: stations/workspace.py:942
+#: stations/workspace.py:938
 #, python-format
 msgid "%(input)s changed"
 msgstr ""

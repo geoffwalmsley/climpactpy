@@ -218,7 +218,8 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert (job.output_dir / "reports" / "a_report.pdf").read_bytes().startswith(b"%PDF")
     with zipfile.ZipFile(job.output_dir / f"{job.params['folder']}.zip") as archive:
         assert not [n for n in archive.namelist() if "report" in n]
-    html = client.get(f"/w/{run.workspace_id}/batch/results").content.decode()
+    # One station: the workspace's address opens it, so read the results' fragment.
+    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
     assert re.search(rf"Download \(zip, {SIZE}\)", html)
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)

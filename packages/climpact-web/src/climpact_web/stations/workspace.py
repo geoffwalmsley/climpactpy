@@ -576,21 +576,17 @@ def sections(analysis: Station, current: str) -> list[Section]:
 
 
 def workspace_page(analysis: Station) -> dict | None:
-    """The workspace's own page in the breadcrumb, as {label, url}: until #234 gives
-    workspaces a page, a batch's results stand in for it (#255). That is the workspace's
-    address, ``/w/<id>/`` (#256), when it has several stations; with one, which the
-    workspace's address opens straight away, the batch results' own. None for a workspace
-    of one station without a batch."""
+    """The workspace's own page in the breadcrumb, as {label, url}: its address,
+    ``/w/<id>/`` (#256), where a batch's results stand in for the overview until #234
+    (#255). None for a workspace of one station, which that address opens straight away,
+    and for a workspace without a batch (until #234)."""
     from climpact_web.batch.models import BatchRun
 
-    run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False).first()
-    if run is None:
+    has_run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False)
+    if not has_run.exists() or analysis.workspace.stations.count() < 2:
         return None
-    several = analysis.workspace.stations.count() > 1
-    return {
-        "label": analysis.workspace.display_name,
-        "url": analysis.workspace.get_absolute_url() if several else run.url("results"),
-    }
+    space = analysis.workspace
+    return {"label": space.display_name, "url": space.get_absolute_url()}
 
 
 def home_url(analysis: Station) -> str:

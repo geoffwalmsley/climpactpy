@@ -14,7 +14,11 @@
   {% comment %}Nothing to show: the run was refused or cancelled before it started, or it wrote
   no index tables. One button opens the Index settings sheet, whose Apply calculates (#199).{% endcomment %}
   {% if missing_outputs %}{% translate "This calculation finished without index tables. Calculate the indices again to see them here." as empty_message %}{% else %}{% translate "The indices are not calculated yet. Check the settings, then calculate." as empty_message %}{% endif %}
+  {% if run_failure %}{% translate "The batch could not calculate this station." as failure_title %}
+  {% include "components/alert.html" with kind="error" title=failure_title message=run_failure %}
+  {% else %}
   {% include "components/alert.html" with kind="info" title="" message=empty_message %}
+  {% endif %}
   {% translate "Check the settings and calculate" as calculate_label %}
   <p>{% include "components/button.html" with label=calculate_label href=input_urls.settings sheet="settings" icon="sliders" %}</p>
   {% else %}

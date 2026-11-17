@@ -67,6 +67,14 @@
     --swatch: var(--color-ink-hover);
   }
 
+  .swatch-color-link {
+    --swatch: var(--color-link);
+  }
+
+  .swatch-color-link-hover {
+    --swatch: var(--color-link-hover);
+  }
+
   .swatch-color-brand {
     --swatch: var(--color-brand);
   }

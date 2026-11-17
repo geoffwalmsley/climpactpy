@@ -14,12 +14,14 @@
   --color-text-muted: #4d5966;
   --color-border: #d8dee4;
   --color-border-strong: #78838f;
-  /* Colour roles (#196): ink for actions (primary buttons, the current tab, links), the
-     brand blue only for the logo, focus rings and selection, status colours only for
-     the verdict and run state. */
+  /* Colour roles (#196): ink for actions (primary buttons, the current tab), blue for
+     links (#227), the brand blue only for the logo, focus rings and selection, status
+     colours only for the verdict and run state. */
   --color-ink: #111827;
   --color-ink-hover: #374151;
   --color-ink-contrast: #ffffff;
+  --color-link: #1f55a3;
+  --color-link-hover: #173f7a;
   --color-brand: #0a5aa8;
   --color-brand-contrast: #ffffff;
   --color-selected: #eaf2ff;
@@ -79,6 +81,19 @@
   --chart-div-5: #f4b3ab;
   --chart-div-6: #e34948;
   --chart-div-7: #a3262a;
+  /* The trend scale (#227): two steps of decrease (blue) and of increase (orange) for a
+     significant Sen's slope, the strong step darker here and brighter on dark. A cell's
+     text is --color-surface on the strong steps and --color-text on the others, and
+     always gives the value, so colour is never the only cue. */
+  --chart-decrease-2: #1e5099;
+  --chart-decrease-1: #84a9dd;
+  --chart-increase-1: #f2a774;
+  --chart-increase-2: #b4480f;
+  /* Coverage (#227, #235): a year complete, 1-3 days missing, 4 or more; the steps
+     differ in lightness, not only in hue. */
+  --chart-coverage-1: #dcefe2;
+  --chart-coverage-2: #f2a774;
+  --chart-coverage-3: #b4480f;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue",
     Arial, sans-serif;
@@ -110,8 +125,10 @@
   --radius-lg: 12px;
   --radius-full: 999px;
 
-  /* Widths: max-w-content (the page), max-w-prose (a line of reading text). */
+  /* Widths: max-w-content (the page), max-w-data (a data page: tables, rails and panes,
+     #227), max-w-prose (a line of reading text). */
   --container-content: 72rem;
+  --container-data: 92rem;
   --container-prose: 42rem;
 
   /* Breakpoints: sm: from 40rem (640px), md: 52rem, lg: 60rem, xl: 64rem; max-sm: below

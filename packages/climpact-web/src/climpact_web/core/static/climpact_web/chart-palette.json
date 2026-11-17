@@ -37,6 +37,17 @@
       "#e34948",
       "#a3262a"
     ],
+    "trend_scale": [
+      "#1e5099",
+      "#84a9dd",
+      "#f2a774",
+      "#b4480f"
+    ],
+    "coverage": [
+      "#dcefe2",
+      "#f2a774",
+      "#b4480f"
+    ],
     "surface": "#ffffff",
     "text": "#16202b",
     "text_muted": "#4d5966"
@@ -77,6 +88,17 @@
       "#6b2a2a",
       "#c94646",
       "#f08a84"
+    ],
+    "trend_scale": [
+      "#7cabf0",
+      "#24426e",
+      "#6e3618",
+      "#f28c4e"
+    ],
+    "coverage": [
+      "#16301f",
+      "#7d4220",
+      "#f28c4e"
     ],
     "surface": "#151c24",
     "text": "#e5ebf1",

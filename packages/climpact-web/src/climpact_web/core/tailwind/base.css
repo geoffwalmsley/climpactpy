@@ -25,6 +25,8 @@
       --color-ink: #e6eaef;
       --color-ink-hover: #c3cad3;
       --color-ink-contrast: #0e1218;
+      --color-link: #8db6f2;
+      --color-link-hover: #b8d0f6;
       --color-brand: #6db3f2;
       --color-brand-contrast: #08111b;
       --color-selected: #1c2a3d;
@@ -76,6 +78,13 @@
       --chart-div-5: #6b2a2a;
       --chart-div-6: #c94646;
       --chart-div-7: #f08a84;
+      --chart-decrease-2: #7cabf0;
+      --chart-decrease-1: #24426e;
+      --chart-increase-1: #6e3618;
+      --chart-increase-2: #f28c4e;
+      --chart-coverage-1: #16301f;
+      --chart-coverage-2: #7d4220;
+      --chart-coverage-3: #f28c4e;
     }
   }
 }
@@ -140,15 +149,16 @@
     margin-block: 0 --spacing(4);
   }
 
-  /* Links are underlined ink (#196), not blue: colour is kept for data and status. */
+  /* Links are underlined blue (#227, as on the design canvas); buttons and the current
+     tab stay ink. Hover darkens the blue (lightens it on dark) and thickens the line. */
   a {
-    color: var(--color-ink);
+    color: var(--color-link);
     text-decoration-thickness: 1px;
     text-underline-offset: 0.15em;
   }
 
   a:hover {
-    color: var(--color-ink-hover);
+    color: var(--color-link-hover);
     text-decoration-thickness: 2px;
   }
 

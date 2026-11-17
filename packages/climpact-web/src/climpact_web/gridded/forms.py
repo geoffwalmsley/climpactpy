@@ -131,10 +131,11 @@ def index_choices() -> list[tuple[str, list[tuple[str, str]]]]:
     """The indices R's gridded code writes, grouped by the variable they need, as
     ``(group label, [(short name, label)])``; labels name the long name."""
     from climpact.gridded.indices import _BY_VARIABLE, index_files
+    from climpact_web.help.indices import LONG_NAME_FIXES
 
     names = {}
     for spec in index_files():
-        names.setdefault(spec.index, spec.long_name)
+        names.setdefault(spec.index, LONG_NAME_FIXES.get(spec.index, spec.long_name))
     labels = {
         "tmax": _("Maximum temperature"),
         "tmin": _("Minimum temperature"),

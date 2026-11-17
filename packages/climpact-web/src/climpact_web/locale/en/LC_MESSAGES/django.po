@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-16 23:02+0000\n"
+"POT-Creation-Date: 2026-11-17 07:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -275,7 +275,7 @@ msgstr ""
 msgid "Choose the files to add."
 msgstr ""
 
-#: batch/forms.py:114 gridded/forms.py:257 stations/forms.py:191
+#: batch/forms.py:114 gridded/forms.py:258 stations/forms.py:191
 msgid "First year"
 msgstr ""
 
@@ -288,7 +288,7 @@ msgstr ""
 msgid "Enter a year, e.g. 1971."
 msgstr ""
 
-#: batch/forms.py:126 gridded/forms.py:258 stations/forms.py:201
+#: batch/forms.py:126 gridded/forms.py:259 stations/forms.py:201
 msgid "Last year"
 msgstr ""
 
@@ -324,20 +324,20 @@ msgstr ""
 msgid "Enter how many stations to calculate at the same time (1 or more)."
 msgstr ""
 
-#: batch/forms.py:167 gridded/forms.py:383
+#: batch/forms.py:167 gridded/forms.py:384
 msgid "Enter a whole number, e.g. 2."
 msgstr ""
 
-#: batch/forms.py:168 gridded/forms.py:384
+#: batch/forms.py:168 gridded/forms.py:385
 msgid "You need at least 1."
 msgstr ""
 
-#: batch/forms.py:169 gridded/forms.py:385
+#: batch/forms.py:169 gridded/forms.py:386
 #, python-format
 msgid "You cannot use more than %(count)d on this computer."
 msgstr ""
 
-#: batch/forms.py:178 gridded/forms.py:439 stations/forms.py:237
+#: batch/forms.py:178 gridded/forms.py:440 stations/forms.py:237
 msgid "The last year must not be before the first year."
 msgstr ""
 
@@ -966,7 +966,7 @@ msgstr ""
 msgid "%(value)s %(units)s"
 msgstr ""
 
-#: charts/data.py:85 core/forms.py:24 gridded/forms.py:139
+#: charts/data.py:85 core/forms.py:24 gridded/forms.py:140
 #: stations/station_file.py:58
 msgid "Maximum temperature"
 msgstr ""
@@ -976,7 +976,7 @@ msgstr ""
 msgid "TX"
 msgstr ""
 
-#: charts/data.py:92 core/forms.py:24 gridded/forms.py:140
+#: charts/data.py:92 core/forms.py:24 gridded/forms.py:141
 #: stations/station_file.py:59
 msgid "Minimum temperature"
 msgstr ""
@@ -986,8 +986,8 @@ msgstr ""
 msgid "TN"
 msgstr ""
 
-#: charts/data.py:99 gridded/forms.py:141 gridded/forms.py:228
-#: help/indices.py:112 stations/qc_review.py:60 stations/sector_plots.py:37
+#: charts/data.py:99 gridded/forms.py:142 gridded/forms.py:229
+#: help/indices.py:120 stations/qc_review.py:60 stations/sector_plots.py:37
 #: stations/station_file.py:57
 msgid "Precipitation"
 msgstr ""
@@ -2933,7 +2933,7 @@ msgstr ""
 msgid "Tropical nights"
 msgstr ""
 
-#: core/views.py:116 core/views.py:154 help/indices.py:136
+#: core/views.py:116 core/views.py:154 help/indices.py:144
 #: stations/forms.py:122 stations/qc_plots.py:305 stations/qc_plots.py:340
 #: stations/results.py:451 stations/templates/stations/_indices_unit.html:12
 #: stations/templates/stations/_indices_unit.html:14
@@ -2954,7 +2954,7 @@ msgstr ""
 msgid "Cold"
 msgstr ""
 
-#: core/views.py:142 help/indices.py:117 stations/themes.py:63
+#: core/views.py:142 help/indices.py:125 stations/themes.py:63
 msgid "Drought"
 msgstr ""
 
@@ -3164,286 +3164,286 @@ msgstr ""
 msgid "Never"
 msgstr ""
 
-#: gridded/forms.py:142
+#: gridded/forms.py:143
 msgid "Both temperatures"
 msgstr ""
 
-#: gridded/forms.py:186 gridded/forms.py:187 gridded/forms.py:188
-#: gridded/forms.py:189
+#: gridded/forms.py:187 gridded/forms.py:188 gridded/forms.py:189
+#: gridded/forms.py:190
 #, python-format
 msgid "Enter a year, e.g. %(year)s."
 msgstr ""
 
-#: gridded/forms.py:198
+#: gridded/forms.py:199
 msgid "Enter a value."
 msgstr ""
 
-#: gridded/forms.py:199
+#: gridded/forms.py:200
 msgid "Enter a whole number."
 msgstr ""
 
-#: gridded/forms.py:199
+#: gridded/forms.py:200
 msgid "Enter a number."
 msgstr ""
 
-#: gridded/forms.py:202
+#: gridded/forms.py:203
 #, python-format
 msgid "Enter %(min)s or more."
 msgstr ""
 
-#: gridded/forms.py:204
+#: gridded/forms.py:205
 #, python-format
 msgid "Enter %(max)s or less."
 msgstr ""
 
-#: gridded/forms.py:220 stations/qc_plots.py:214 stations/qc_review.py:61
+#: gridded/forms.py:221 stations/qc_plots.py:214 stations/qc_review.py:61
 msgid "Maximum temperature (TX)"
 msgstr ""
 
-#: gridded/forms.py:221 gridded/forms.py:225 gridded/forms.py:229
+#: gridded/forms.py:222 gridded/forms.py:226 gridded/forms.py:230
 #: gridded/inspection.py:323
 msgid "Choose the variable."
 msgstr ""
 
-#: gridded/forms.py:224 stations/qc_plots.py:215 stations/qc_review.py:62
+#: gridded/forms.py:225 stations/qc_plots.py:215 stations/qc_review.py:62
 msgid "Minimum temperature (TN)"
 msgstr ""
 
-#: gridded/forms.py:233 help/sections.py:387
+#: gridded/forms.py:234 help/sections.py:387
 msgid "What to calculate"
 msgstr ""
 
-#: gridded/forms.py:239
+#: gridded/forms.py:240
 msgid "Percentile thresholds for the indices"
 msgstr ""
 
-#: gridded/forms.py:246
+#: gridded/forms.py:247
 msgid "Thresholds file on this computer"
 msgstr ""
 
-#: gridded/forms.py:247
+#: gridded/forms.py:248
 msgid "The full path of a file written by a thresholds run of Climpact."
 msgstr ""
 
-#: gridded/forms.py:252 gridded/templates/gridded/_progress.html:15
+#: gridded/forms.py:253 gridded/templates/gridded/_progress.html:15
 #: gridded/templates/gridded/_progress.html:74 help/topics.py:670
 msgid "Thresholds file"
 msgstr ""
 
-#: gridded/forms.py:261
+#: gridded/forms.py:262
 msgid "Output file name format"
 msgstr ""
 
-#: gridded/forms.py:263
+#: gridded/forms.py:264
 msgid ""
 "In the CMIP5 form var_daily_model_scenario_run_start-end.nc, as in Climpact "
 "for R. Each index file takes its name from this, with var replaced by the "
 "index."
 msgstr ""
 
-#: gridded/forms.py:271
+#: gridded/forms.py:272
 msgid "Thresholds file name"
 msgstr ""
 
-#: gridded/forms.py:277
+#: gridded/forms.py:278
 msgid "Institution name"
 msgstr ""
 
-#: gridded/forms.py:278
+#: gridded/forms.py:279
 msgid "Written into every output file's metadata."
 msgstr ""
 
-#: gridded/forms.py:280
+#: gridded/forms.py:281
 msgid "Enter your institution's name."
 msgstr ""
 
-#: gridded/forms.py:283
+#: gridded/forms.py:284
 msgid "Institution ID"
 msgstr ""
 
-#: gridded/forms.py:284
+#: gridded/forms.py:285
 msgid "Usually an abbreviation, e.g. BoM."
 msgstr ""
 
-#: gridded/forms.py:286
+#: gridded/forms.py:287
 msgid "Enter your institution's ID (usually an abbreviation)."
 msgstr ""
 
-#: gridded/forms.py:290 help/topics.py:680
+#: gridded/forms.py:291 help/topics.py:680
 msgid "Indices to calculate"
 msgstr ""
 
-#: gridded/forms.py:293
+#: gridded/forms.py:294
 #, python-format
 msgid "%(value)s is not an index Climpact calculates."
 msgstr ""
 
-#: gridded/forms.py:296
+#: gridded/forms.py:297
 msgid "WSDI days"
 msgstr ""
 
-#: gridded/forms.py:296
+#: gridded/forms.py:297
 msgid "For wsdi<n>: 1 to 10."
 msgstr ""
 
-#: gridded/forms.py:297
+#: gridded/forms.py:298
 msgid "CSDI days"
 msgstr ""
 
-#: gridded/forms.py:297
+#: gridded/forms.py:298
 msgid "For csdi<n>: 1 to 10."
 msgstr ""
 
-#: gridded/forms.py:298
+#: gridded/forms.py:299
 msgid "Rx days"
 msgstr ""
 
-#: gridded/forms.py:298
+#: gridded/forms.py:299
 msgid "For rx<n>day."
 msgstr ""
 
-#: gridded/forms.py:299
+#: gridded/forms.py:300
 msgid "TXTN days"
 msgstr ""
 
-#: gridded/forms.py:299
+#: gridded/forms.py:300
 msgid "For tx<n>tn<n> and txb<n>tnb<n>."
 msgstr ""
 
-#: gridded/forms.py:300
+#: gridded/forms.py:301
 msgid "Heating base temperature"
 msgstr ""
 
-#: gridded/forms.py:300
+#: gridded/forms.py:301
 msgid "For hddheat<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:301
+#: gridded/forms.py:302
 msgid "Cooling base temperature"
 msgstr ""
 
-#: gridded/forms.py:301
+#: gridded/forms.py:302
 msgid "For cddcold<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:302
+#: gridded/forms.py:303
 msgid "Growing base temperature"
 msgstr ""
 
-#: gridded/forms.py:302
+#: gridded/forms.py:303
 msgid "For gddgrow<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:303
+#: gridded/forms.py:304
 msgid "Rnn threshold"
 msgstr ""
 
-#: gridded/forms.py:303
+#: gridded/forms.py:304
 msgid "For r<nn>mm, mm."
 msgstr ""
 
-#: gridded/forms.py:306
+#: gridded/forms.py:307
 msgid "Processor cores to use"
 msgstr ""
 
-#: gridded/forms.py:311
+#: gridded/forms.py:312
 msgid "Values read at once (millions)"
 msgstr ""
 
-#: gridded/forms.py:313
+#: gridded/forms.py:314
 msgid ""
 "Bounds the memory used: about 8 MB per million. Climpact for R calls this "
 "the number of data values to process at once. Do not change it unless you "
 "know you need to."
 msgstr ""
 
-#: gridded/forms.py:322
+#: gridded/forms.py:323
 msgid "Copy the files to a temporary file laid out by cell first"
 msgstr ""
 
-#: gridded/forms.py:324
+#: gridded/forms.py:325
 msgid ""
 "Files chunked by time step are very slow to read cell by cell; a temporary "
 "copy makes the run much faster on large grids. The values are the same "
 "either way."
 msgstr ""
 
-#: gridded/forms.py:331
+#: gridded/forms.py:332
 msgid "Folder for the temporary copy"
 msgstr ""
 
-#: gridded/forms.py:332
+#: gridded/forms.py:333
 msgid "Default: the calculation's own folder."
 msgstr ""
 
-#: gridded/forms.py:337
+#: gridded/forms.py:338
 msgid "Also copy the results to this folder"
 msgstr ""
 
-#: gridded/forms.py:339
+#: gridded/forms.py:340
 msgid ""
 "A folder on this computer, created if needed. The results can be downloaded "
 "from the results page either way."
 msgstr ""
 
-#: gridded/forms.py:362
+#: gridded/forms.py:363
 msgid "Choose a variable"
 msgstr ""
 
-#: gridded/forms.py:377
+#: gridded/forms.py:378
 #, python-format
 msgid ""
 "Your computer has %(count)d processor cores. More cores calculate more cells "
 "at the same time."
 msgstr ""
 
-#: gridded/forms.py:382
+#: gridded/forms.py:383
 msgid "Enter how many cores to use (1 or more)."
 msgstr ""
 
-#: gridded/forms.py:395
+#: gridded/forms.py:396
 msgid ""
 "Use the CMIP5 form var_daily_model_scenario_run_start-end.nc: at least six "
 "parts separated by _, ending in the years and .nc."
 msgstr ""
 
-#: gridded/forms.py:405
+#: gridded/forms.py:406
 msgid "Use a file name ending in .nc, with letters, digits and . _ + - only."
 msgstr ""
 
-#: gridded/forms.py:414
+#: gridded/forms.py:415
 msgid "Enter the full path of an existing folder."
 msgstr ""
 
-#: gridded/forms.py:416 gridded/forms.py:431
+#: gridded/forms.py:417 gridded/forms.py:432
 msgid "Climpact cannot write to this folder."
 msgstr ""
 
-#: gridded/forms.py:426
+#: gridded/forms.py:427
 msgid "Enter the full path of a folder."
 msgstr ""
 
-#: gridded/forms.py:428
+#: gridded/forms.py:429
 msgid "This is a file, not a folder."
 msgstr ""
 
-#: gridded/forms.py:447
+#: gridded/forms.py:448
 msgid "Choose the thresholds file."
 msgstr ""
 
-#: gridded/forms.py:451
+#: gridded/forms.py:452
 msgid "Enter the path of the thresholds file."
 msgstr ""
 
-#: gridded/forms.py:455
+#: gridded/forms.py:456
 msgid "No such file."
 msgstr ""
 
-#: gridded/forms.py:457 gridded/inspection.py:149
+#: gridded/forms.py:458 gridded/inspection.py:149
 msgid "This is not a netCDF file."
 msgstr ""
 
-#: gridded/forms.py:478
+#: gridded/forms.py:479
 #, python-format
 msgid ""
 "With a thresholds file, the data must have no day in the base period, as in "
@@ -3452,7 +3452,7 @@ msgid ""
 "files instead."
 msgstr ""
 
-#: gridded/forms.py:489
+#: gridded/forms.py:490
 #, python-format
 msgid ""
 "The files cover %(days)d days of this base period (%(first)s to %(last)s are "
@@ -4443,7 +4443,7 @@ msgid "Annual number of days when TM < 5 °C"
 msgstr ""
 
 #: help/index_messages.py:66
-msgid "TX of at least 10 °C"
+msgid "TM of at least 10 °C"
 msgstr ""
 
 #: help/index_messages.py:67
@@ -4707,47 +4707,47 @@ msgstr ""
 msgid "Annual mean daily minimum temperature"
 msgstr ""
 
-#: help/indices.py:90
+#: help/indices.py:98
 msgid "Temperature: days above or below a fixed value"
 msgstr ""
 
-#: help/indices.py:96
+#: help/indices.py:104
 msgid "Temperature: extremes, means and range"
 msgstr ""
 
-#: help/indices.py:101
+#: help/indices.py:109
 msgid "Temperature: compared with the base period"
 msgstr ""
 
-#: help/indices.py:107
+#: help/indices.py:115
 msgid "Temperature: growing season and degree days"
 msgstr ""
 
-#: help/indices.py:116
+#: help/indices.py:124
 msgid "Heatwaves"
 msgstr ""
 
-#: help/indices.py:138
+#: help/indices.py:146
 msgid "% of days"
 msgstr ""
 
-#: help/indices.py:139
+#: help/indices.py:147
 msgid "degree-days"
 msgstr ""
 
-#: help/indices.py:141
+#: help/indices.py:149
 msgid "mm per day"
 msgstr ""
 
-#: help/indices.py:142
+#: help/indices.py:150
 msgid "events"
 msgstr ""
 
-#: help/indices.py:143
+#: help/indices.py:151
 msgid "no units"
 msgstr ""
 
-#: help/indices.py:144
+#: help/indices.py:152
 msgid "several"
 msgstr ""
 

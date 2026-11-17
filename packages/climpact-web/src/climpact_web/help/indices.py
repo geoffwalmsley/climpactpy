@@ -4,7 +4,8 @@ The core's file is the single source of the definitions: the indices guide, the 
 help topics and the index names on the results screens all come from it. This module adds
 what the file lacks for people reading the app: a display name in the usual ET-SCI
 spelling (``TXx``, ``Rx1day``), a group, the parameter that sets ``d``, ``n`` or ``nn``,
-and plain units (``°C`` for ``degrees_C``).
+and plain units (``°C`` for ``degrees_C``). It also corrects the long names the file gets
+wrong (``LONG_NAME_FIXES``).
 
 The definitions are core data, not template text, so ``makemessages`` cannot find them.
 ``index_messages.py`` lists every one with ``gettext_noop`` so that translators get them in
@@ -22,6 +23,13 @@ from importlib import resources
 from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
+
+# Long names the core's file (copied from Climpact R's) gets wrong, corrected for the web
+# app only (#217). The core keeps R's text: it is the ``long_name`` attribute of the
+# gridded netCDF files, which the parity tests compare with R's.
+LONG_NAME_FIXES = {
+    "tmge10": "TM of at least 10 degrees_C",  # R: "TX of at least ...", but it counts TM days
+}
 
 # The usual spelling of each short name (ETCCDI and ET-SCI papers, the R plots).
 DISPLAY_NAMES = {
@@ -149,7 +157,7 @@ UNITS = {
 class IndexInfo:
     short: str  # the core's short name, e.g. "txx", "rxdday"
     name: str  # display name, e.g. "TXx"
-    long_name: str  # sentence case, from the core's file
+    long_name: str  # sentence case, from the core's file (or LONG_NAME_FIXES)
     definition: str  # the annual row's definition, with °C
     units: str  # the core's units
     annual: bool
@@ -216,7 +224,7 @@ def catalogue() -> tuple[IndexInfo, ...]:
             IndexInfo(
                 short=short,
                 name=DISPLAY_NAMES.get(short, short),
-                long_name=sentence_case(plain(first["Long.name"])),
+                long_name=sentence_case(plain(LONG_NAME_FIXES.get(short, first["Long.name"]))),
                 definition=plain(annual_row["Definition"]),
                 units=first["Units"],
                 annual="T" in flags,

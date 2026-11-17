@@ -63,7 +63,7 @@ MESSAGES = (
     gettext_noop("Annual number of days when TM >= 5 °C"),
     gettext_noop("TM below 5 °C"),
     gettext_noop("Annual number of days when TM < 5 °C"),
-    gettext_noop("TX of at least 10 °C"),
+    gettext_noop("TM of at least 10 °C"),
     gettext_noop("Annual number of days when TM >= 10 °C"),
     gettext_noop("TM below 10 °C"),
     gettext_noop("Annual number of days when TM < 10 °C"),

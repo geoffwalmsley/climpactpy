@@ -855,6 +855,12 @@ def test_cards_and_index_page_lead_with_the_plain_name(client):
     page = client.get(f"{url}/txx").content.decode()
     assert "<h1>Max TX</h1>" in page and '<code class="index-code">TXx</code>' in page
     assert "<title>Max TX (TXx): " in page
+    # TMge10 counts TM days, whatever R's long name says (#217).
+    assert f'<a href="{url}/tmge10">TM of at least 10 °C</a></th>' in html
+    assert "TX of at least 10" not in html
+    page = client.get(f"{url}/tmge10").content.decode()
+    assert "<h1>TM of at least 10 °C</h1>" in page
+    assert "<title>TM of at least 10 °C (TMge10): " in page
 
 
 def test_plain_names_of_indices_that_share_a_catalogue_entry():

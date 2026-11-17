@@ -406,6 +406,33 @@ def test_catalogue_entries_read_well():
     assert by["txdtnd"].param_topic == "param.txtn_days"
 
 
+def test_long_names_name_the_variable_the_index_counts():
+    """TMge10 counts TM days; the core's file (R's) calls it "TX of at least 10" (#217).
+    Every long name that names TX, TN or TM names one its definition uses."""
+    by = indices.by_short()
+    assert by["tmge10"].long_name == "TM of at least 10 °C"
+    assert by["tmge5"].long_name == "TM of at least 5 °C"
+    assert by["txge30"].long_name == "TX of at least 30 °C"
+    variables = re.compile(r"\b(TX|TN|TM)\b")
+    spelled = {"maximum": "TX", "minimum": "TN", "mean": "TM"}  # "daily mean temperature"
+    for info in indices.catalogue():
+        definition = re.sub(
+            r"daily (maximum|minimum|mean) temperature",
+            lambda m: spelled[m.group(1)],
+            info.definition,
+        )
+        named = set(variables.findall(info.long_name))
+        assert named <= set(variables.findall(definition)), info.short
+    # The core keeps R's text: it is the gridded files' long_name, compared with R's.
+    core = {row["Short.name"]: row["Long.name"] for row in indices._rows()}
+    assert core["tmge10"] == "TX of at least 10 degrees_C"
+    # The gridded form's index list shows the corrected name too.
+    from climpact_web.gridded.forms import index_choices
+
+    labels = dict(item for _group, items in index_choices() for item in items)
+    assert labels["tmge10"] == "tmge10: TM of at least 10 degrees_C"
+
+
 def test_indices_guide_has_an_entry_for_every_index(client):
     html = client.get("/help/indices/").content.decode()
     ids = parse(html).ids

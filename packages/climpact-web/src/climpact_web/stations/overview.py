@@ -26,7 +26,6 @@ from django.utils.translation import ngettext
 
 from climpact_web.batch.fill import CALCULATING, DONE, FAILED, NOT_RUN, WAITING, run_states
 from climpact_web.core import numbers
-from climpact_web.jobs.models import Status
 from climpact_web.jobs.views import format_duration
 from climpact_web.stations import workspace
 from climpact_web.stations.models import Station, Workspace
@@ -155,9 +154,7 @@ def _significant(station: Station, indices: Indices) -> tuple[str, str]:
         return "–", _("no results")
     from climpact_web.stations import results as results_model
 
-    job = workspace.shown_run(station)
-    if job is None and station.indices_job is not None:
-        job = station.indices_job if station.indices_job.status == Status.SUCCEEDED else None
+    job = workspace.shown_run(station)  # the results the station's Indices show (#277)
     if job is None:
         return "–", _("no results")
     name = (station.origin or {}).get("station") if job.kind == "batch" else None
@@ -201,7 +198,13 @@ def rows(space: Workspace, owner: str) -> list[Row]:
         summary = station.summary or {}
         first, last = summary.get("first_year"), summary.get("last_year")
         quality = _quality(station, workspace.section_states(station)["quality"])
-        indices = _indices(station, states.get(station.pk), quality, space)
+        # A run not in use yet (speculative, before "Go to indices") is not the station's
+        # results: its Indices are locked, and Files and the trend grid show none (#277).
+        # A batch's state is the batch's, which the station shows once done.
+        state = states.get(station.pk)
+        if state is not None and state.job is not None and state.job.kind == "station":
+            state = state if workspace.committed(station) else None
+        indices = _indices(station, state, quality, space)
         significant, significant_label = _significant(station, indices)
         complete = station.latitude is not None and station.longitude is not None
         out.append(

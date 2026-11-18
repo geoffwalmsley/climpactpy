@@ -236,6 +236,32 @@ def commit(request, analysis: Station) -> Job | None:
     return queue_station_run(request, analysis, form)
 
 
+def in_workspace_of_several(analysis: Station) -> bool:
+    """Whether the station shares its workspace with others (#277)."""
+    return analysis.workspace.stations.exclude(pk=analysis.pk).exists()
+
+
+def commit_workspace(request, space: Workspace) -> None:
+    """A workspace of several stations has chosen to calculate (#277): the speculative run
+    of each station set up but not yet in use becomes the user's own, as "Go to indices"
+    would make it, so the overview, the station's Indices, Files and the trend grid all
+    show its results. A station of a batch is left to its batch: the batch's results are
+    its own once they come (``workspace.batch_results``). A run the hosted limits refuse
+    is left out; the station's Indices then offer to calculate it."""
+    for station in space.stations.select_related("indices_job", "workspace"):
+        if workspace.committed(station) or (station.origin or {}).get("run"):
+            continue
+        if not workspace.set_up(station):
+            continue
+        try:
+            commit(request, station)
+        except Refused as refused:
+            logger.info("No run for station %s: %s", station.pk, refused.reason)
+        station.advance_to(Step.INDICES)
+        station.touch()
+        station.save()
+
+
 def recalculate(request, analysis: Station) -> Job | None:
     """ "Recalculate" on out-of-date results (#179): bring the run waiting for the current
     inputs forward (a speculative one becomes the user's), or queue one with the latest

@@ -5914,8 +5914,10 @@ page lead to it. `stations/views_add.py`, `stations/add_stations.py`,
   latitude and longitude, fill both), and Enter moves down a row.
 - **Adding** takes the complete rows; the others stay out. One row becomes a station of
   the workspace with its own jobs, as New station did: its checks and a speculative run
-  (`calculation.bring_up_to_date`), then its Quality (the workspace's page when it has
-  other stations). Its metadata line's index values are its own (`origin["params"]`).
+  (`calculation.bring_up_to_date`), then its Quality. Added to a workspace that has other
+  stations, its run is the user's own at once, as a batch's stations' are (#277: the
+  station is at `Step.INDICES` before its jobs are queued, so the run is an ordinary job),
+  and the workspace's page opens. Its metadata line's index values are its own (`origin["params"]`).
   Several rows run as a batch that fills the workspace (`add_many`, `batch.fill`): the
   waiting files become the batch, a `batch` job with the workspace's base period, custom
   index and plots, each station named in the batch by its file's stem (made safe and
@@ -5925,7 +5927,11 @@ page lead to it. `stations/views_add.py`, `stations/add_stations.py`,
   (`own_params`), the job's metadata file has the workspace's for the rest. Each station's
   quality checks are queued beside the batch as one change for the hosted limits; the
   workspace's address shows its overview (#234), with the stations checked and calculated
-  as they go.
+  as they go. Either way, a station that was in the workspace before and whose run was
+  still speculative (a workspace of one, before "Go to indices") is put in use as "Go to
+  indices" would (`calculation.commit_workspace`, #277): a workspace of several stations
+  has chosen to calculate, and its overview, Files and trend grid show every station's
+  results. A batch's stations are left to their batch.
 - **Settings.** The panel "Applies to every station" lists the base period, the
   thresholds, the index settings and the plots. While the workspace has no station they
   change in place ("Change workspace settings": the base period, the plots and PDF
@@ -6128,11 +6134,13 @@ the batch steps.
   missing over PR, TX and TN, the Quality verdict with its count (`workspace.qc_verdict`;
   "Checking…" while the checks run; "–" without checks), the indices state
   (`batch.fill.run_states`; a station of no batch with no run of its own uses its Indices
-  tab's state) with its fix ("Fix the file" for a station left out without a usable file,
+  tab's state; a station's own run that is not in use yet, before "Go to indices", is not
+  shown, as its Indices are locked: "–", #277) with its fix ("Fix the file" for a station left out without a usable file,
   "Fix quality first" for one not run whose verdict is Fix first, "Change base period"
   when a failure names the base period), and how many of its indices have a significant
   trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'
-  answer line).
+  answer line), counted from the results the station's Indices show (`workspace.shown_run`),
+  as Files and the trend grid are, so the four agree (#277).
 - **Trends across stations** under the table (#238, [Trends across
   stations](#trends-across-stations)).
 - **Live.** While a station waits, calculates or is checked, `#workspace-progress` (the

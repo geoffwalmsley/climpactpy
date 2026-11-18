@@ -455,10 +455,17 @@ def add_one(request, run: BatchRun, row) -> Station:
             station.origin = {"params": row.params}  # the metadata line's own values
         _keep_file(station, inspection, row.file)
         station.advance_to(Step.QC)
+        several = space.stations.exists()
+        if several:
+            # A workspace of several stations has chosen to calculate (#277): the run is
+            # the user's own at once, as a batch's stations are, not speculative.
+            station.advance_to(Step.INDICES)
         station.save()
         run.delete_files()
         run.delete()
     calculation.bring_up_to_date(request, station)
+    if several:
+        calculation.commit_workspace(request, space)  # the first station, if not yet
     return station
 
 
@@ -552,3 +559,4 @@ def add_many(request, run: BatchRun, rows) -> None:
     for station in Station.objects.filter(workspace=space, origin__batch=str(run.pk)):
         if workspace.set_up(station):
             calculation.queue_qc(request, station, change)
+    calculation.commit_workspace(request, space)  # a station there before, if not yet (#277)

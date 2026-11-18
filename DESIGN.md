@@ -35,9 +35,9 @@ in line; the text around it describes the code as it is. The rules come from thr
   boards), which replaced the batch results page. Since #241 a station can be copied to
   another workspace or a new one ("Copy to workspace…" on its provenance line and in the
   Stations table, a page of its own); the copy is recalculated with that workspace's
-  settings. Still to come: Workspaces in place of
-  Your calculations (Target: #242). Add stations (#233) is the
-  one way in, for one station or many: New station and the batch's first page lead there.
+  settings. Workspaces (#242) lists every workspace of the browser in place of Your
+  calculations. Add stations (#233) is the one way in, for one station or many: Get
+  started, New station and the batch's first page lead there.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere (Target: #240).
@@ -261,8 +261,8 @@ and the provenance line are `--font-mono`. The data table sets its `num` and `co
 cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data tables
 (#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
 `--text-sm`, the workspace overview's Stations table (#234, sans headers too) and the
-workspace Files' By station table (#239). **Target (#242):** each other page's tables
-move to the data table with that page.
+workspace Files' By station table (#239), and the Workspaces table and Get started's
+"Or continue a workspace" (#242). The jobs list and the gridded pages keep the plain table.
 
 ## Layout
 
@@ -275,9 +275,10 @@ move to the data table with that page.
   only, so right-to-left scripts work (checked by `test_static.py`).
 - **Page frame:** header (#227: one row about 48px high across the window: the logo and
   "Climpact", which go to the landing page; Workspaces and Gridded; then Index reference,
-  Help and the theme toggle at the end. Below 600px the destinations and Index reference
-  are in the Menu, and so is the theme toggle, #203. Workspaces opens the list of
-  calculations until #242, and is current on workspace and station pages too) → step
+  Help and the theme toggle at the end, and on the landing page Get started (from 40rem).
+  Below 600px the destinations and Index reference are in the Menu, and so is the theme
+  toggle, #203. Workspaces opens the Workspaces page, `/w/` (#242), and is current on
+  workspace and station pages too) → step
   indicator for the gridded flow → title and one-line lead → content → footer. Stations come in
   on Add stations (#233, the AddStations board; starting a workspace, `/add/`, has Start's
   drop zone with the file format and the settings beside it, the content width): the h1
@@ -318,6 +319,14 @@ move to the data table with that page.
   inputs" on the provenance line. Nothing in it scrolls sideways at 1280px or wider
   (checked with the 67 heavy rain days of `qc_stress_1961-2020.txt`). While the checks run, what is in the file ("Your data", #198) takes the
   worklist's place.
+- **The landing page** (#242, the Landing board): bands across the window, each with
+  its content up to 77.5rem: "Welcome back" for a returning visitor, the hero (the
+  question, the lead, Get started and See an example, beside a preview of the Sydney
+  sample's real output: TXx drawn as the detail pane draws a series and four rows of the
+  Indices table), the facts (the parity suite's), How it works with three miniatures of
+  the real screens, What you get on the surface, What you need, and a closing band on the
+  selected tint. The bands are the exception to "one surface level": a page that
+  introduces the app, not a data page.
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a chart, a
   data table, a detail pane, a progress card).
@@ -391,8 +400,10 @@ strips, worklist and detail pane.
   of 32px and a header row on the sunken tint: the exception to "a box marks only one
   object", because the table is one object (`components/table.html`, `table--data`).
   Quality's are (#235), and the Indices' (#236): at 1280 x 1180px (the board's size) 26
-  of the Sydney sample's indices are in view, without sideways scroll. **Target:** each
-  other page's tables move to it with that page (#242). The Stations table is one
+  of the Sydney sample's indices are in view, without sideways scroll. The Workspaces
+  table is one since #242 (checked with seven workspaces: a 90-character name, one
+  deleted in two days, one with a failed station, one with files not yet added; nothing
+  scrolls sideways at 1280px or wider, and on a phone it scrolls in its frame). The Stations table is one
   since #234: nothing on the overview scrolls sideways at 1280px or wider (checked with
   7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station);
   the workspace Files' By station table since #239 (checked the same way with 8); the
@@ -465,6 +476,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `steps` | Pattern | Where the user is in the gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179), nor by the batch since #234 | — |
 | Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why (the files are in Export ▾ and on Files since #239). Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
 | Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated), then "Copy…" (Copy to workspace…, #241) at the row's end, its column header for screen readers only. Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes. A station added to a workspace of several is calculated at once, as a batch's are (#277: no "Go to indices" first), so its row, its Indices tab, Files and the trend grid agree | calculating, finished, failed, not run |
+| Workspaces table | Pattern | Every workspace of the browser (#242, the WorkspaceList board; `stations/_workspaces_table.html`, `stations.workspace_list`), a data table, most recently changed first: Name (a link, with a muted hint of its stations under it: one station's years, several stations' first two names "and 4 more"; each line ends in an ellipsis; rows 44px for the two lines), Stations, Status (one station's Quality pill with its count; several stations' counts by verdict, "2 ready", "2 usable", "1 fix first", "1 checking" on the sunken tint, and "1 failed" on the danger tint), Base period, Updated, "Deleted on" where workspaces expire ("20 Nov · in 2 days" in warning colour under three days away) and Delete (a quiet link to a confirmation page). Get started's "Or continue a workspace" is the same table cut to Name, Stations, Updated and Deleted on, three rows | expiring soon, failed, files waiting |
 | `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
 | Workspace files | Pattern | The workspace's Files (#239, the Files board; `stations/workspace_files.html`, `stations/workspace_files.py`): three framed boxes in a row, one a file (its name, its format and size in mono, what is in it, Download: "Download (out of date)" while a station's results are), "What is in the zip"; By station, a data table of each station's R files (Folder (zip), Report (PDF), All plots (PDF), Trends, Thresholds, Missing values, Quality flags: a size, "8 files", or why it is missing); then the provenance file (`climpact_run.json`, scrolling in its frame) with "Copy methods text", beside "Keeping the files". The files wait, with a line saying so, while a station is being calculated | ready, calculating, no results |
 | Trend grid | Pattern | Stations by indices (#238, `stations/_trends.html`, `stations/trend_grid.py`): a data table in its own frame, scrolling sideways inside it when the user chooses many indices, the station's name sticky at the inline start (an ellipsis from 11rem; "(no results)" after it). By default TXx, TNn, TN90p, TX10p, SU, TR, WSDI, PRCPTOT, Rx1day, R95p and CDD; chosen ones follow the defaults' order. Each header is the code (a link that selects the column, `?index=`; `js/trends.js` shows its plot in place), the short name in its `title` and for screen readers, the slope's units under it (`pp` for a percentage). Each cell is Sen's slope per decade, always written (`numbers.slope`), a link to the station's index page, its interval and significance in words for screen readers: filled on the trend scale when the 95% interval excludes zero (the strong step from half the column's largest significant slope, the weak one below), a dashed `border-strong` edge when it does not, "–" for too few values, hatched for a station without results. The selected column's header is on the selected tint with an ink edge under it. "Grid as CSV" is the workspace's Trends file's rows for the grid's indices | selected column, not significant, too few values, no results, many columns |
@@ -492,11 +504,8 @@ batch's `steps` went with #234 (the overview's run status line and Stations tabl
 `steps` stays for the gridded flow. The Side sheet stays, for
 workspace settings.
 
-New patterns of #230 (Target; add each to `/patterns/` when it lands):
-
-| Pattern | Purpose | Ticket |
-| --- | --- | --- |
-| Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
+The new patterns of #230 have all landed and are on `/patterns/`; the Workspaces table
+was the last (#242).
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional. **Every chart that is read has axes** with units and
@@ -617,8 +626,8 @@ years; sparklines are only for scanning, beside a number given in text.
   reviewed in one table, then "Add N stations and check them"; one station opens straight
   on its Quality, checked and calculated with the defaults, which are changed later in
   Inputs; two or more open the workspace's overview, which shows them checked and
-  calculated (#234). **Target (#242):** the landing page, then Get started, before Add
-  stations.
+  calculated (#234). Before it, the landing page (#242) leads to Get started (Add
+  stations' empty page), or opens the sample's Indices at once ("See an example").
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,

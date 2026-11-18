@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2753,6 +2753,8 @@ packages/climpact-web/src/climpact_web/
                      the background worker as a child process in local mode
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
                      the context processor `site`
+    landing.py       the landing page's preview of the Sydney sample's real output, its
+                     facts (the parity suite's counts) and the miniatures' values (#242)
     navigation.py    the app's destinations (header links, landing page) and the
                      gridded steps (`gridded_steps`) for the step indicator (the single
                      station has tabs since #179; the batch has none since #234)
@@ -2893,6 +2895,9 @@ packages/climpact-web/src/climpact_web/
     copy_station.py  Copy to workspace… (#241): the workspaces a station can go to
                      (`targets`), the form (`CopyForm`) and the copy (`copy_to`)
     views_copy.py    /w/<id>/<station>/copy (#241): the Copy to workspace page
+    workspace_list.py  Workspaces (#242): each workspace's row (`entry`, `entries`):
+                     its hint, station count, status summary, dates; `latest` for the
+                     landing page's "Welcome back"
     workspace_files.py  the workspace's Files (#239): each station's results as Files
                      sees them (`entries`), the all-station trends and indices CSVs,
                      climpact_run.json (`provenance`) and its methods sentence, the zips,
@@ -3000,7 +3005,9 @@ packages/climpact-web/src/climpact_web/
     views.py, urls.py  /charts/: a station analysis's daily series, a finished job's index
                      series and their list, the pattern library's examples; ETag caching
     templatetags/charts.py  `{% chart_scripts %}`: the chart assets and text for a page
-    sample_outputs/sydney/  four index tables and the trend rows of the Sydney sample's run
+    sample_outputs/sydney/  index tables (TXx, SU, TR, TN10p, PRCPTOT annual; TXx and SPI
+                     monthly) and the trend rows of the Sydney sample's run, for the chart
+                     demos and the landing page's preview (#242)
                      (pattern library examples and tests)
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/docs/accessibility-audit.md  the accessibility audit (#83): what was
@@ -3021,7 +3028,8 @@ packages/climpact-web/tests/
                      (test_add_stations.py, #233), Quality (test_qc_review.py), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
                      #179, #198), the workspace overview (test_workspace_overview.py,
-                     #234), the workspace's Files (test_workspace_files.py, #239), trends across stations
+                     #234), the workspace's Files (test_workspace_files.py, #239), the landing page,
+                     Get started and Workspaces (test_workspaces_list.py, #242), trends across stations
                      (test_trend_grid.py, #238), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
@@ -4239,8 +4247,8 @@ analysis.
 was in the 72rem column, 69px): the logo and "Climpact" (to the landing page), the header
 links, then Index reference, Help and the theme toggle at the end. The header links are
 only Workspaces and Gridded (`in_nav`); Single station, Batch and Your calculations went,
-and the landing page starts a station or a batch. Workspaces opens `jobs:list` until the
-Workspaces page lands (#242); it is `aria-current="page"` there and `aria-current="true"`
+and the landing page leads to Get started (Add stations). Workspaces opens the Workspaces
+page (`stations:workspaces`, `/w/`, #242); it is `aria-current="page"` there and `aria-current="true"`
 on every `/station/`, `/batch/` and `/w/` page (`Destination.sections`, URL names or
 paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
@@ -4294,10 +4302,8 @@ of `{% load ui %}`. Text the user types and the downloads keep the hyphen-minus:
 written as the files are (Quality's flagged values CSV too, #235), and the help still
 says to write `-99.9` for a missing value.
 
-**Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
-sample data" buttons, a short "How it works" paragraph (#173: the four step cards repeated
-the step indicator and the tour), the other ways to run Climpact (batch, gridded in
-local mode, help, the command line) and a note on where data is kept (local or hosted).
+**Pages.** The landing page (`/`, #242) is described in [Landing page and
+Workspaces](#landing-page-and-workspaces).
 The pattern library (`/patterns/`, with `PATTERN_LIBRARY`) shows every component, the
 palette and the icons, and is what the user review and the accessibility audit (#83) use.
 
@@ -4630,8 +4636,10 @@ output file of a finished job (paths outside `output/` give 404). Any other sess
 bar and note, alerts for failure, cancellation and a missing worker, the zip download
 button and the file list in a disclosure; the list is a table with an empty state, and
 the station form uses the field and drop zone components with an error summary. The
-header links to the list as Workspaces (#227; "Your calculations" before), until the
-Workspaces page replaces it (#242).
+header linked to the list as Workspaces from #227 until the Workspaces page (#242)
+replaced it there. The list stays for the gridded runs, which are not workspaces: the
+Workspaces page links to it when the session has one, and so do the gridded setup page,
+the gridded guide and a job's page.
 
 **Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
 server chooses: `hx-trigger="load delay:<n>s, climpact:visible from:document"` with
@@ -6206,6 +6214,62 @@ period, and "A new workspace, with this workspace's settings"; Copy and Cancel (
 - The hosted limits are checked before anything is copied (`check_job_quotas`), and the
   page's form carries the Turnstile widget (`human_required`).
 
+### Landing page and Workspaces
+
+The landing page, Get started and Workspaces (#242; the Landing, Start, WorkspaceList and
+Flow boards).
+
+- **Landing page** (`core/templates/core/home.html`, `core.views.home`, `core/landing.py`):
+  bands across the window (the base template's `bleed`: no width or gutter on the main's
+  container, each band's content up to 77.5rem). A returning visitor (a session with a
+  workspace) gets "Welcome back. Continue with <the workspace changed last>" and All
+  workspaces (`workspace_list.latest`). The hero has Get started (`/add/`, also at the end
+  of the header from 40rem, the `header_action` block) and "See an example: Sydney,
+  1936–2015", a POST to `stations:add_sample` with `show=indices`: the sample is added and
+  checked as "Use the sample station" does, its run is made the user's at once
+  (`calculation.commit`, as "Go to indices"; a run the hosted limits refuse leaves the
+  Indices offering to calculate it) and its Indices open. The preview beside it is the
+  sample's real output, read from `charts/sample_outputs/sydney` (Climpact's files for
+  the sample, text-identical to R's): TXx drawn as the Indices' detail pane draws a series
+  (`index_detail.chart`, with its text alternative), and SU, TR, TN10p and PRCPTOT as rows
+  of the Indices table (slope per decade, `pp` for a percentage, 95% interval,
+  significant), all from the core's trend fit (`results.trend_summary`), cached per
+  language. The facts are constants in `core/landing.py`, from the parity summary: 80
+  indices; 16 reference datasets (14 stations and the `lat0` and `qc_stress` test cases);
+  all 1,791 CSV files written for them text-identical to Climpact for R 3.4.3. A test checks
+  the run counts and the R version against `reference/stations.csv` and the reference
+  output when the repository is there. "How it works" has three miniatures of the real
+  screens (hidden from screen readers), whose values are the reference runs' own (three
+  reference files and coordinates; `qc_stress`'s verdict, "Usable · 21", and three of its
+  findings; the trend grid of Sydney, Perth and Darwin). Then What you get, What you need
+  (the format, the template and the metadata file's guide) and a closing Get started with
+  the retention sentence. The first-run tour (#81) stays, with its steps updated.
+- **Get started** is Add stations' empty page (`/add/`, #233). A returning visitor also
+  gets "Or continue a workspace": the three workspaces changed last (Name, Stations,
+  Updated, and "Deleted on" where workspaces expire) and All workspaces
+  (`views_add.start_context`, `RECENT`).
+- **Workspaces** (`/w/`, `stations:workspaces`, `views_workspace.workspaces_page`,
+  `stations/workspace_list.py`, `stations/workspaces.html` and `_workspaces_table.html`)
+  replaced "Your calculations" in the header. Every workspace of the session (`owner`),
+  most recently changed first, in one data table: Name (a link to the workspace, with a
+  hint under it: one station's years, several stations' first two names "and N more", or
+  the files waiting to be added on Add stations), Stations, Status (one station: its
+  Quality verdict pill with its count, as its tab; several: the counts by verdict, "2
+  ready", "1 usable", "1 fix first", "1 checking"; and "1 failed" for the stations whose
+  indices failed, as their Stations rows say: a speculative run is not counted), Base
+  period, Updated ("today 09:42", "yesterday 16:10", "15 Nov"), "Deleted on" where
+  workspaces expire (`WORKSPACE_EXPIRY`; in warning colour with "in 2 days", "tomorrow" or
+  "today" when under three days away) and Delete. Locally the lead says the workspaces
+  stay until deleted; hosted, a note says how it differs on one's own computer.
+- **Delete a workspace** (`/w/<id>/delete`, `stations:workspace_delete`,
+  `views_workspace.delete_workspace`, `stations/workspace_delete.html`): a page naming its
+  stations and saying they can't be recovered, then a POST that cancels the jobs still
+  queued or running for it, deletes its files (`Workspace.delete_files`) and the rows,
+  and returns to Workspaces. Another session's workspace is 404. #274 shares it on the
+  workspace's Files. `delete` is a reserved station slug.
+- The page-not-found page at a workspace's address leads to Workspaces and to a new
+  workspace; the refused page (#125) to Workspaces.
+
 ### Workspace files
 
 The workspace's Files tab, `/w/<id>/files/` (#239; board `Files.dc.html`;
@@ -6466,9 +6530,9 @@ gridded screen once `gridded:start` exists. R's sector sample
 (`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide and offered by the sector
 step (#90).
 
-**First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
-landing page (the start buttons, "How it works", other ways to run Climpact, the header's
-Help link and Workspaces in the header), passed as `json_script` data with translated text. On a first
+**First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Four steps on the
+landing page (Get started and See an example, "How it works", the header's Help link and
+Workspaces in the header; #242 dropped the step on the other ways to run Climpact), passed as `json_script` data with translated text. On a first
 visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
 finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
 once. `/?tour=1` (the help index's "Take the tour" link) starts it at once. The tour box is

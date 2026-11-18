@@ -660,10 +660,10 @@ def test_landing_page_and_header_link_to_batch(client):
     assert 'href="/add/"' in html and 'href="/batch/"' not in html  # Add stations, #233
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
     # The header is Workspaces and Gridded since #227; the landing page starts a batch.
-    assert re.findall(r'href="([^"]+)"', nav) == ["/jobs/", "/gridded/"]
+    assert re.findall(r'href="([^"]+)"', nav) == ["/w/", "/gridded/"]
     batch = client.get("/add/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', batch, re.S)[0]
-    assert '<a href="/jobs/" data-nav="workspaces" aria-current="true">' in nav
+    assert '<a href="/w/" data-nav="workspaces" aria-current="true">' in nav
 
 
 def test_skipped_names_are_safe_and_never_collide():

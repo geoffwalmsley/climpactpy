@@ -41,12 +41,12 @@ class Destination:
 
 # The header (#227, the workspace design of #230): Climpact, then Workspaces and Gridded;
 # Index reference and Help at its end (base.html). Single station, Batch and Your
-# calculations are no longer header links: the landing page starts a station or a batch.
-# Until the Workspaces page lands (#242), Workspaces opens the list of calculations.
+# calculations are no longer header links: Workspaces (#242) replaced them, and the
+# landing page leads to Get started (Add stations).
 DESTINATIONS = (
     Destination(
         "workspaces",
-        "jobs:list",
+        "stations:workspaces",
         _("Workspaces"),
         "layers",
         sections=("stations:add", "stations:upload", "batch:start", "/w/"),

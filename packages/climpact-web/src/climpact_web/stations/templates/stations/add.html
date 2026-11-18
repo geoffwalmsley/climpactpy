@@ -149,6 +149,29 @@ pasted from a spreadsheet fills the cells under the one pasted into
       </section>
     </div>
   </div>
+  {% if recent %}{# A returning visitor (#242, the Start board): the workspaces changed last. #}
+  <section class="add-start__recent" aria-labelledby="recent-title">
+    <div class="add-start__recent-head">
+      <h2 id="recent-title">{% translate "Or continue a workspace" %}</h2>
+      <a href="{% url 'stations:workspaces' %}">{% translate "All workspaces" %}</a>
+    </div>
+    <div class="table-wrap table-wrap--data" role="region" aria-label="{% translate 'Workspaces changed last' %}" tabindex="0">
+      <table class="table table--data workspaces-table workspaces-table--recent">
+        <thead><tr><th scope="col">{% translate "Name" %}</th><th scope="col" class="text-end">{% translate "Stations" %}</th><th scope="col">{% translate "Updated" %}</th>{% if workspace_expiry %}<th scope="col">{% translate "Deleted on" %}</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for e in recent %}
+          <tr>
+            <th scope="row" class="workspaces-table__name"><a href="{{ e.url }}" title="{{ e.name }}">{{ e.name }}</a></th>
+            <td class="num">{{ e.stations }}</td>
+            <td class="text-text-muted"><time datetime="{{ e.updated_iso }}">{{ e.updated }}</time></td>
+            {% if workspace_expiry %}<td>{% if e.deleted_soon %}<time class="workspaces-table__soon" datetime="{{ e.deleted_iso }}">{{ e.deleted_on }} {{ "·" }} {{ e.deleted_soon }}</time>{% else %}<time class="text-text-muted" datetime="{{ e.deleted_iso }}">{{ e.deleted_on }}</time>{% endif %}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
   <form method="post" action="{% url 'stations:add_sample' %}" id="sample-form" hidden>{% csrf_token %}</form>
   {% include "stations/_retention.html" with quiet=True analysis=None %}
 </div>

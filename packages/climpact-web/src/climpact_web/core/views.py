@@ -17,29 +17,26 @@ from climpact_web.stations.workspace import years_text
 
 @require_safe
 def home(request):
-    """The landing page: what Climpact does and the ways to start."""
-    ways = []
-    for key, description in (
-        ("batch", _("Process many stations in one run from a batch metadata file.")),
-        (
-            "gridded",
-            _("Calculate indices and thresholds on gridded netCDF data, and map the results.")
-            if settings.IS_HOSTED
-            else _(
-                "Calculate indices and thresholds on gridded netCDF data on this computer, "
-                "and map the results."
-            ),
-        ),
-        ("help", _("Guides to preparing station files, base periods and reading results.")),
-    ):
-        d = destination(key)
-        if d.available:
-            ways.append({"label": d.label, "icon": d.icon, "url": d.url, "text": description})
+    """The landing page (#242, the Landing board): what Climpact does, a preview of the
+    Sydney sample's real output, the facts, how it works, what you get and what you need;
+    Get started (Add stations) and See an example (the sample, opened on its Indices).
+    A returning visitor gets "Welcome back" with the workspace changed last."""
+    from climpact_web.core import landing
+    from climpact_web.jobs.views import OWNER_KEY
+    from climpact_web.stations import workspace_list
+
+    owner = request.session.get(OWNER_KEY)
+    gridded = destination("gridded")
     context = {
         "start_url": destination("station").url,
         "sample_url": destination("sample").url,
-        "ways": ways,
+        "gridded_url": gridded.url if gridded.available else None,
+        "preview": landing.preview(),
+        "facts": landing.facts(),
+        "mini": landing.miniatures(),
+        "returning": workspace_list.latest(owner) if owner else None,
         "tour_steps": home_tour(),
+        "bleed": True,  # the bands reach the window's edges
     }
     return render(request, "core/home.html", context)
 
@@ -162,6 +159,43 @@ def overview_demo() -> dict:
     return {"overview_rows": rows, "overview_status": status}
 
 
+def workspaces_demo() -> dict:
+    """The Workspaces table (#242), as on the WorkspaceList board: several stations with
+    their verdicts and a failure, one station with its verdict, one deleted in 2 days."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations.workspace_list import Entry, Status
+
+    def entry(pk, name, hint, n, statuses, base, updated, deleted, soon=""):
+        return Entry(
+            space=SimpleNamespace(pk=pk),
+            name=name,
+            url="#workspaces-table",
+            hint=hint,
+            stations=n,
+            statuses=statuses,
+            base_period=base,
+            updated=updated,
+            deleted_on=deleted,
+            deleted_soon=soon,
+            delete_url="#workspaces-table",
+        )
+
+    rows = [
+        entry("nsw", _("NSW coast"), _("Sydney Observatory Hill, Newcastle Nobbys and 4 more"), 6,
+              [Status("ready", _("2 ready")), Status("usable", _("2 usable")),
+               Status("fix", _("1 fix first")), Status("failed", _("1 failed"))],
+              "1971–2000", _("today 09:42"), _("24 Nov")),
+        entry("syd", _("Sydney Observatory Hill"), "1936–2015 · 80 yr", 1,
+              [Status("usable", _("Usable · 5"), _(", 5 values look wrong"))],
+              "1971–2000", _("yesterday 16:10"), _("23 Nov")),
+        entry("pac", _("Pacific islands workshop"), _("Apia, Nadi, Nukuʻalofa and 9 more"), 12,
+              [Status("ready", _("11 ready")), Status("checking", _("1 checking"))],
+              "1981–2010", _("12 Nov"), _("19 Nov"), _("in 2 days")),
+    ]  # fmt: skip
+    return {"workspaces_demo": rows}
+
+
 def trends_demo() -> dict:
     """Trends across stations (#238): four stations by four indices, one without results,
     with each state of a cell, and the first column's interval plot."""
@@ -274,6 +308,7 @@ def pattern_context(form):
         # The workspace overview (#234): the run status line and the Stations table.
         **overview_demo(),
         **trends_demo(),  # Trends across stations (#238)
+        **workspaces_demo(),  # the Workspaces table (#242)
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},
             {"label": _("Station 1 of 6")},

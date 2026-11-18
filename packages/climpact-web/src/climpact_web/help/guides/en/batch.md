@@ -84,7 +84,7 @@ As a rough guide, a station takes about 10 seconds with plots and 4 without.
 
 While it runs, the page shows the progress of the whole batch and of each station. You
 can leave the page: the calculation carries on, and you can return to it from
-[Your calculations](url:jobs:list).
+[Workspaces](url:stations:workspaces).
 
 When it has finished you can download everything in one zip, laid out as Climpact for R
 does, or each station's zip. A station that failed has an error file

@@ -78,7 +78,11 @@ urlpatterns = [
     # The workspace (#256): its one station, or its overview (#234) with the overview's
     # progress, Rename, Workspace settings and Undo (stations/views_workspace.py). Its
     # batch (``/w/<id>/batch/…``, batch/urls.py) is included before these.
+    # Workspaces (#242): every workspace of this browser, which replaced "Your
+    # calculations"; Delete a workspace (#274 shares it on the workspace's Files).
+    path("w/", views_workspace.workspaces_page, name="workspaces"),
     path("w/<uuid:workspace_id>/", views_workspace.workspace_page, name="workspace"),
+    path("w/<uuid:workspace_id>/delete", views_workspace.delete_workspace, name="workspace_delete"),
     path(
         "w/<uuid:workspace_id>/progress",
         views_workspace.workspace_progress,

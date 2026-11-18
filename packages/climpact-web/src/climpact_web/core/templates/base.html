@@ -46,6 +46,7 @@
         {% if show_language_switcher %}
         {% include "core/language_switcher.html" %}
         {% endif %}
+        {% block header_action %}{% endblock %}
       </div>
       {% if nav_items %}
       {# Below 600px the links above are hidden and this menu shows them, with Index reference; <details> needs no JavaScript. The theme toggle moves into it too, so the brand keeps its room (#203). #}
@@ -70,9 +71,9 @@
   {% block steps %}{% endblock %}
   {# The page and the help drawer beside it (below it on narrow screens), #177. #}
   <div class="drawer-layout" data-drawer-layout>
-    <main id="main" class="site-main" tabindex="-1">
-      {# A data page (a station's sections, data_page) uses the whole window (#227, #263); the others 72rem. #}
-      <div class="mx-auto w-full {% if not data_page %}max-w-content {% endif %}px-4 sm:px-6">
+    <main id="main" class="site-main{% if bleed %} site-main--bleed{% endif %}" tabindex="-1">
+      {# A data page (a station's sections, data_page) uses the whole window (#227, #263); the others 72rem. The landing page's bands reach the window's edges (bleed, #242) and set their own width. #}
+      <div class="mx-auto w-full {% if bleed %}{% elif not data_page %}max-w-content px-4 sm:px-6{% else %}px-4 sm:px-6{% endif %}">
         {% include "components/messages.html" %}
         {% block content %}{% endblock %}
       </div>

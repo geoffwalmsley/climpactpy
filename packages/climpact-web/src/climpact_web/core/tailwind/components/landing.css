@@ -1,0 +1,505 @@
+/* The landing page (#242, the Landing board; core/templates/core/home.html): bands across
+   the window (the main's container has no width or gutter there: bleed), each with its
+   content up to 77.5rem (the board's 1240px). The hero and What you get on the surface,
+   the closing band on the selected tint, the others on the page. */
+@layer components {
+  .site-main--bleed {
+    padding-block: 0;
+  }
+
+  .landing__band {
+    padding-block: --spacing(14);
+    padding-inline: --spacing(4);
+  }
+
+  @media (width >= 40rem) {
+    .landing__band {
+      padding-inline: --spacing(6);
+    }
+  }
+
+  .landing__band--hero,
+  .landing__band--surface {
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .landing__band--surface {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .landing__band--hero {
+    padding-block: --spacing(16) --spacing(14);
+  }
+
+  .landing__band--facts {
+    padding-block: --spacing(7);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .landing__band--close {
+    padding-block: --spacing(12);
+    border-block-start: 1px solid var(--color-border);
+    background: var(--color-selected);
+  }
+
+  .landing__inner {
+    max-inline-size: 77.5rem;
+    margin-inline: auto;
+  }
+
+  .landing__muted {
+    color: var(--color-text-muted);
+  }
+
+  .landing__heading {
+    font-size: var(--text-2xl);
+  }
+
+  .landing__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(4);
+  }
+
+  /* "Welcome back" for a returning visitor: one line under the header. */
+  .landing__welcome {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: --spacing(1) --spacing(4);
+    padding: --spacing(2.5) --spacing(6);
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-selected);
+    font-size: var(--text-sm);
+  }
+
+  .landing__welcome p {
+    margin: 0;
+  }
+
+  .landing__welcome p > a {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  /* The header's Get started, on the landing page only; the hero has it on a phone. */
+  .site-header__start {
+    display: none;
+  }
+
+  @media (width >= 40rem) {
+    .site-header__start {
+      display: inline-flex;
+    }
+  }
+
+  /* == The hero: the question, the lead and the actions beside the preview. == */
+  .landing-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(12);
+  }
+
+  .landing-hero__text {
+    display: flex;
+    flex: 1 1 28rem;
+    flex-direction: column;
+    gap: --spacing(5);
+    min-inline-size: 0;
+  }
+
+  .landing-hero__text > * {
+    margin: 0;
+  }
+
+  .landing-hero__eyebrow {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .landing-hero__title {
+    font-size: var(--text-hero);
+    letter-spacing: -0.01em;
+    line-height: 1.12;
+  }
+
+  .landing-hero__lead {
+    max-inline-size: 38rem;
+    font-size: var(--text-md);
+  }
+
+  .landing-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(3);
+  }
+
+  .landing-hero__actions form {
+    margin: 0;
+  }
+
+  .landing-hero__note {
+    font-size: var(--text-sm);
+  }
+
+  /* The preview: one framed object, the chart and four rows of the Indices table. */
+  .landing-preview {
+    display: flex;
+    flex: 1 1 30rem;
+    flex-direction: column;
+    gap: --spacing(3);
+    min-inline-size: 0;
+    margin: 0;
+    padding: --spacing(4.5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-page);
+  }
+
+  .landing-preview__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: --spacing(1) --spacing(3);
+  }
+
+  .landing-preview__head p {
+    margin: 0;
+  }
+
+  .landing-preview__title {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .landing-preview__title .code {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .landing-preview__title .landing__muted {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .landing-preview__trend {
+    font-size: var(--text-sm);
+  }
+
+  .landing-preview :is(.code, .landing-preview__num) {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .landing-preview__chart {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .landing-preview__table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    border-block-start: 1px solid var(--color-border);
+    font-size: var(--text-xs);
+  }
+
+  .landing-preview__table :is(th, td) {
+    padding-block: --spacing(1.5);
+    padding-inline: 0 --spacing(3);
+    border-block-end: 1px solid var(--color-border);
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .landing-preview__table tr:last-child > * {
+    border-block-end: 0;
+  }
+
+  .landing-preview__table th {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .landing-preview__name {
+    overflow: hidden;
+    max-inline-size: 0;
+    inline-size: 40%;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    text-overflow: ellipsis;
+  }
+
+  .landing-preview__num {
+    text-align: end;
+  }
+
+  /* On a phone the rows keep the code, name, slope and significance. */
+  @media (width < 36rem) {
+    .landing-preview__table :is(td, th):nth-child(4) {
+      display: none;
+    }
+
+    .landing-preview__name {
+      inline-size: auto;
+      max-inline-size: none;
+      white-space: normal;
+    }
+
+    .landing-preview__table :is(th, td) {
+      padding-inline-end: --spacing(2);
+    }
+
+    .landing-preview__table .landing-preview__unit {
+      min-inline-size: 0;
+    }
+  }
+
+  .landing-preview__unit {
+    display: inline-block;
+    min-inline-size: 2.25rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+    text-align: start;
+  }
+
+  .landing-preview__unit abbr {
+    text-decoration: none;
+  }
+
+  .landing-preview__table td:last-child {
+    padding-inline-end: 0;
+  }
+
+  .landing-preview__yes {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1.5);
+  }
+
+  .landing-preview__dot {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--color-text);
+  }
+
+  .landing-preview__caption {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* == The facts: four numbers in a row, two on a tablet, one on a phone. == */
+  .landing-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: --spacing(6);
+    margin-block: 0;
+  }
+
+  .landing-facts > div {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(1);
+  }
+
+  .landing-facts dd {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .landing-facts__value {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--leading-tight);
+  }
+
+  .landing-facts code {
+    font-size: var(--text-xs);
+  }
+
+  /* == How it works: three steps, each a miniature of its screen. == */
+  .landing-how {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: --spacing(6);
+    margin-block-end: 0;
+    margin-inline: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .landing-how li {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(3.5);
+  }
+
+  .landing-how li > :is(h3, p) {
+    margin: 0;
+  }
+
+  .landing-how h3 {
+    font-size: var(--text-lg);
+  }
+
+  .landing-how__step {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .landing-mini {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(1.5);
+    block-size: 10.5rem;
+    padding: --spacing(3.5);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: 0.6875rem;
+  }
+
+  .landing-mini p {
+    margin: 0;
+  }
+
+  .landing-mini__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.5rem 3.5rem;
+    gap: --spacing(2);
+    padding-block-start: --spacing(1);
+    border-block-start: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+  }
+
+  .landing-mini__row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-mini__row--head {
+    padding-block-start: 0;
+    border-block-start: 0;
+    color: var(--color-text-muted);
+  }
+
+  .landing-mini--qc .landing-mini__row {
+    grid-template-columns: 5rem 2rem minmax(0, 1fr);
+  }
+
+  .landing-mini__ok {
+    color: var(--color-success);
+  }
+
+  .landing-mini__grid {
+    display: grid;
+    grid-template-columns: 4.5rem repeat(4, minmax(0, 1fr));
+    gap: 3px;
+    font-family: var(--font-mono);
+    text-align: center;
+  }
+
+  .landing-mini__grid > span {
+    padding-block: --spacing(1);
+  }
+
+  .landing-mini__grid > :first-child {
+    text-align: start;
+  }
+
+  .landing-mini__grid--head > span {
+    padding-block: 0;
+    color: var(--color-text-muted);
+  }
+
+  /* The trend grid's cells (#238): filled on the strong step when significant, a dashed
+     edge when not. */
+  .landing-mini__up {
+    background: var(--chart-increase-2);
+    color: var(--color-surface);
+  }
+
+  .landing-mini__ns {
+    outline: 1px dashed var(--color-border-strong);
+    outline-offset: -2px;
+    color: var(--color-text-muted);
+  }
+
+  .landing-mini__files {
+    padding-block-start: --spacing(1.5);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* == What you get and What you need: an introduction beside the detail. == */
+  .landing-split {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(12);
+  }
+
+  .landing-split--centre {
+    align-items: center;
+  }
+
+  .landing-split__intro {
+    flex: 1 1 19rem;
+  }
+
+  .landing-get {
+    display: grid;
+    flex: 2 1 36rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: --spacing(6) --spacing(8);
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .landing-get dt {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .landing-get dd {
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  .landing-need__sample {
+    flex: 1 1 26rem;
+    min-inline-size: 0;
+    margin: 0;
+    padding: --spacing(4.5) --spacing(5);
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.7;
+  }
+
+  /* == The closing band. == */
+  .landing-close {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(6);
+  }
+
+  .landing-close__title {
+    font-size: var(--text-xl);
+  }
+
+  .landing-close p {
+    font-size: var(--text-sm);
+  }
+}

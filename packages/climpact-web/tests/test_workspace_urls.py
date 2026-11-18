@@ -42,7 +42,7 @@ def test_a_stations_pages_are_under_its_workspace(client):
     assert f'hx-get="{base}quality/progress"' in html
     assert f'href="{base}inputs/base-period?next=' in html
     # The header's Workspaces is current on it (#227).
-    assert '<a href="/jobs/" data-nav="workspaces" aria-current="true">' in html
+    assert '<a href="/w/" data-nav="workspaces" aria-current="true">' in html
     # Only the charts' data keeps the station's id (an API, not a page: /charts/station/).
     assert not re.findall(r'"/station/(?!new")', html.replace("/charts/station/", ""))
 

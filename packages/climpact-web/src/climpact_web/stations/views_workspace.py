@@ -481,3 +481,75 @@ def undo(request, workspace_id):
             ),
         )
     return redirect(space.get_absolute_url())
+
+
+# ---- Workspaces (#242) -------------------------------------------------------------------
+
+
+@never_cache
+@require_safe
+def workspaces_page(request):
+    """``/w/``: every workspace of this browser (hosted) or computer (local), which
+    replaced "Your calculations" (the WorkspaceList board)."""
+    from climpact_web.stations import workspace_list
+
+    owner = _owner(request)
+    return render(
+        request,
+        "stations/workspaces.html",
+        {
+            "entries": workspace_list.entries(owner),
+            "gridded_runs": _gridded_runs(owner),
+        },
+    )
+
+
+def _gridded_runs(owner: str) -> bool:
+    """Whether the session has gridded calculations, which "Your calculations" lists
+    (gridded runs are not workspaces)."""
+    from django.conf import settings
+
+    if not settings.GRIDDED_ENABLED:
+        return False
+    from climpact_web.jobs.models import Job
+
+    return Job.objects.filter(owner=owner, kind__startswith="gridded").exists()
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD", "POST"])
+def delete_workspace(request, workspace_id):
+    """Delete a workspace now, with its stations, files and results (the WorkspaceList
+    board's Delete; #274 shares it on the workspace's Files): a page that names the
+    stations and says the files can't be recovered, then the POST. Calculations still
+    queued or running for it are cancelled first."""
+    from climpact_web.jobs.models import Job
+
+    owner = _owner(request)
+    space = get_workspace(request, workspace_id)
+    stations = list(overview.ordered(space, owner))
+    if request.method == "POST":
+        name = space.display_name
+        jobs = [
+            pk
+            for s in stations
+            for pk in (s.qc_job_id, s.indices_job_id, s.sector_job_id)
+            if pk is not None
+        ]
+        jobs += [pk for pk in space.batches.values_list("job_id", flat=True) if pk is not None]
+        for job in Job.objects.filter(pk__in=jobs, owner=owner):
+            if job.can_cancel:
+                job.request_cancel()
+        space.delete_files()
+        Workspace.objects.filter(pk=space.pk).delete()
+        messages.success(request, _("%(name)s was deleted.") % {"name": name})
+        return redirect("stations:workspaces")
+    return render(
+        request,
+        "stations/workspace_delete.html",
+        {
+            "space": space,
+            "space_name": space.display_name,
+            "station_names": [str(s) for s in stations],
+        },
+    )

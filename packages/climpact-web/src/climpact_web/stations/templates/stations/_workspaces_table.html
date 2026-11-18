@@ -1,0 +1,40 @@
+{% load i18n %}{% comment %}
+The Workspaces table (#242, the WorkspaceList board): a data table, a row a workspace.
+Name (a link, with a hint of its stations under it, each line ending in an ellipsis),
+Stations, Status (the stations' verdicts as pills, and any failed), Base period, Updated,
+"Deleted on" where workspaces expire (workspace_expiry; highlighted under three days
+away) and Delete. Context: entries (stations.workspace_list.entries); shown on
+/patterns/ with demo rows.
+{% endcomment %}
+  <div class="table-wrap table-wrap--data" role="region" aria-labelledby="workspaces-caption" tabindex="0">
+    <table class="table table--data workspaces-table">
+      <caption id="workspaces-caption" class="sr-only">{% translate "Your workspaces, most recently changed first" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Name" %}</th>
+          <th scope="col" class="text-end">{% translate "Stations" %}</th>
+          <th scope="col">{% translate "Status" %}</th>
+          <th scope="col">{% translate "Base period" %}</th>
+          <th scope="col">{% translate "Updated" %}</th>
+          {% if workspace_expiry %}<th scope="col">{% translate "Deleted on" %}</th>{% endif %}
+          <th scope="col" class="workspaces-table__actions"><span class="sr-only">{% translate "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr data-workspace="{{ e.space.pk }}">
+          <th scope="row" class="workspaces-table__name">
+            <a href="{{ e.url }}" title="{{ e.name }}">{{ e.name }}</a>
+            {% if e.hint %}<span class="workspaces-table__hint" title="{{ e.hint }}">{{ e.hint }}</span>{% endif %}
+          </th>
+          <td class="num">{{ e.stations }}</td>
+          <td><span class="workspaces-table__status">{% for s in e.statuses %}<span class="status-dot status-dot--{{ s.state }}">{{ s.label }}{% if s.count_label %}<span class="sr-only">{{ s.count_label }}</span>{% endif %}</span>{% empty %}<span class="text-text-muted">{{ "–" }}</span>{% endfor %}</span></td>
+          <td class="code">{{ e.base_period }}</td>
+          <td><time datetime="{{ e.updated_iso }}">{{ e.updated }}</time></td>
+          {% if workspace_expiry %}<td>{% if e.deleted_soon %}<time class="workspaces-table__soon" datetime="{{ e.deleted_iso }}">{{ e.deleted_on }} {{ "·" }} {{ e.deleted_soon }}</time>{% else %}<time datetime="{{ e.deleted_iso }}">{{ e.deleted_on }}</time>{% endif %}</td>{% endif %}
+          <td class="workspaces-table__actions"><a class="workspaces-table__delete" href="{{ e.delete_url }}">{% translate "Delete" %}<span class="sr-only"> {{ e.name }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>

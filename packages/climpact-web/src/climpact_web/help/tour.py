@@ -5,7 +5,6 @@ whose ``target`` selector matches nothing on the page is skipped, so the tour su
 layout changes. Without JavaScript there is no tour; the page explains itself anyway.
 """
 
-from django.conf import settings
 from django.utils.translation import gettext as _
 
 STORAGE_KEY = "climpact-tour"  # localStorage: "done" once finished or dismissed
@@ -17,28 +16,17 @@ def home_tour() -> list[dict[str, str]]:
             "target": "#hero-actions",
             "title": _("Start here"),
             "text": _(
-                "Load a station file of daily data, or try Climpact first with the sample "
-                "data for Sydney. Nothing is calculated until you ask."
+                "Get started with your own station files, or see an example: the sample "
+                "station for Sydney, opened on its indices."
             ),
         },
         {
             "target": "#how-title",
-            "title": _("One station, three tabs"),
+            "title": _("A workspace of stations"),
             "text": _(
-                "Quality, Indices and Files, beside your inputs. The indices are "
-                "calculated while you check the quality, so the results are ready to "
-                "explore. Change any input later: what it affects is marked out of date "
-                "and calculated again."
-            ),
-        },
-        {
-            "target": "#ways-title",
-            "title": _("Many stations at once"),
-            "text": _("Process many stations in one run from a batch metadata file.")
-            if settings.IS_HOSTED
-            else _(
-                "Process many stations in one run from a batch metadata file, or "
-                "gridded netCDF data on this computer."
+                "Add one station or a whole network. Each station's data is checked and its "
+                "indices calculated with the defaults; change the settings later and what "
+                "they affect is calculated again."
             ),
         },
         {
@@ -53,8 +41,8 @@ def home_tour() -> list[dict[str, str]]:
             "target": ".site-nav a[data-nav='workspaces']",
             "title": _("Workspaces"),
             "text": _(
-                "Calculations run in the background. Come back to them here, even after "
-                "closing the page."
+                "Every workspace you start is listed here. Calculations run in the "
+                "background: come back to them, even after closing the page."
             ),
         },
     ]

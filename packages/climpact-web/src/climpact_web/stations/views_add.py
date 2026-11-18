@@ -41,7 +41,7 @@ from climpact_web.batch import check
 from climpact_web.batch.fill import ADDED, JOB_METADATA, JOB_STATIONS, add_stations
 from climpact_web.batch.forms import OptionsForm, cpu_count
 from climpact_web.batch.models import BatchRun
-from climpact_web.core.limits import disk_required, human_required
+from climpact_web.core.limits import Refused, disk_required, human_required
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
 from climpact_web.stations import add_stations as review_module
@@ -249,16 +249,33 @@ def start(request):
         if uploads:
             run = stage(request, None, uploads)
             return redirect(review_url(run))
-        context = page_context(request, None, None, upload_error=_("Choose the station files."))
+        context = start_context(request, upload_error=_("Choose the station files."))
         return render(request, "stations/add.html", context, status=400)
-    return render(request, "stations/add.html", page_context(request, None, None))
+    return render(request, "stations/add.html", start_context(request))
+
+
+# Get started's "Or continue a workspace": the workspaces changed last (the Start board).
+RECENT = 3
+
+
+def start_context(request, **extra) -> dict:
+    """``/add/`` before any file: Get started, with the workspaces changed last for a
+    returning visitor."""
+    from climpact_web.stations import workspace_list
+
+    context = page_context(request, None, None, **extra)
+    context["recent"] = workspace_list.entries(_owner(request), limit=RECENT)
+    return context
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
 @disk_required
 def sample(request):
     """ "Use the sample station" on an empty Add stations: the Sydney sample with its
-    details, added to a new workspace and checked at once; its Quality opens."""
+    details, added to a new workspace and checked at once; its Quality opens. The landing
+    page's "See an example" (``show=indices``, #242) opens its Indices instead: the run
+    is the user's at once, as "Go to indices" would make it, and the Indices show its
+    progress until it has finished."""
     if request.method != "POST":
         return redirect("stations:add")
     from climpact_web.stations.views import SAMPLE_NAME as FILE
@@ -278,6 +295,15 @@ def sample(request):
         station.advance_to(Step.QC)
         station.save()
         calculation.bring_up_to_date(request, station)
+        if request.POST.get("show") == "indices":
+            try:
+                calculation.commit(request, station)
+            except Refused:
+                pass  # the Indices then offer to calculate it
+            station.advance_to(Step.RESULTS)
+            station.touch()
+            station.save()
+            return redirect(station.url("results"))
     return redirect(station.url("qc"))
 
 

@@ -425,6 +425,14 @@
       </div>
     </section>
 
+    <section class="pattern" id="workspaces-table" aria-labelledby="workspaces-table-title">
+      <h2 id="workspaces-table-title">{% translate "Workspaces table" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Every workspace of this browser: its name with a hint of its stations, the station count, the stations' verdicts as pills and any failure, the base period, when it changed, when it is deleted (highlighted under three days away) and Delete." %}</p>
+      <div class="pattern__demo">
+        {% include "stations/_workspaces_table.html" with entries=workspaces_demo workspace_expiry=True %}
+      </div>
+    </section>
+
     <section class="pattern" id="trend-grid" aria-labelledby="trend-grid-title">
       <h2 id="trend-grid-title">{% translate "Trend grid and interval plot" %}</h2>
       <p class="text-sm text-text-muted">{% translate "Trends across stations: Sen's slope per decade of each station's indices, always written, filled on the trend scale when the 95% interval excludes zero, a dashed edge when it does not, hatched without results; beside it the selected column's interval plot, each station's slope as a dot and its interval as a line about zero." %}</p>

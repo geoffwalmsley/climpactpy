@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load charts i18n static ui %}
 {% block title %}{% blocktranslate with code=card.code name=card.title station=analysis.station_name %}{{ code }} {{ name }}: {{ station }}{% endblocktranslate %}{% endblock %}
-{% block head %}<script src="{% static 'climpact_web/js/index-page.js' %}" defer></script>{% endblock %}
+{% block head %}{% if chart_data %}{% chart_scripts %}{% endif %}<script src="{% static 'climpact_web/js/index-page.js' %}" defer></script>{% endblock %}
 {% block content %}
 {% comment %}One index (#237, the Index board): its context bar (the breadcrumb with the
 previous and next index, the index's name and theme, its definition, the provenance line
@@ -46,10 +46,14 @@ width; the provenance line says what made it.{% endcomment %}
         </div>{% endif %}
       </div>{% endif %}
       {% if charts %}
-      <figure class="index-figure">
+      {% comment %}The chart drawn on the server is the chart without JavaScript and in print;
+      with it, charts.js draws the same marks from #index-chart-data in the plot under it
+      and adds the read-out, zoom, move, Show all and PNG and SVG of the view (#283).{% endcomment %}
+      <figure class="index-figure" id="index-chart" data-chart-data="index-chart-data" data-chart-view="{% if views %}{% for v in views %}{% if v.current %}{{ v.key }}{% endif %}{% endfor %}{% else %}values{% endif %}"{% if at %} data-chart-at="{{ at }}"{% endif %}>
         {% blocktranslate with series=series_name asvar chart_region %}Chart of {{ series }}{% endblocktranslate %}<div class="index-figure__scroll" role="region" aria-label="{{ chart_region }}" tabindex="0">
           {% for c in charts %}{% include "stations/_index_chart.html" with chart=c.chart label=c.label view=c.view shown=c.shown only %}{% endfor %}
         </div>
+        {% include "stations/_index_chart_tools.html" %}
         <figcaption class="index-legend">
           <span>{% if bars %}<span class="index-legend__key index-legend__key--bars" aria-hidden="true"></span>{% else %}<span class="index-legend__key index-legend__key--line" aria-hidden="true"></span>{% endif %}{{ series_name }}</span>
           {% if has_smooth %}<span><span class="index-legend__key index-legend__key--smooth" aria-hidden="true"></span>{% translate "11-year running mean" %}</span>{% endif %}
@@ -57,6 +61,7 @@ width; the provenance line says what made it.{% endcomment %}
           {% if has_gaps %}<span><span class="index-legend__key index-legend__key--gap" aria-hidden="true"></span>{% if series.step == "month" %}{% translate "Month left out: incomplete" %}{% else %}{% translate "Year left out: incomplete" %}{% endif %}</span>{% endif %}
         </figcaption>
       </figure>
+      {{ chart_data|json_script:"index-chart-data" }}
       {% else %}
       <p class="text-sm text-text-muted">{% translate "Every value of this series is missing, so there is nothing to draw." %}</p>
       {% endif %}
@@ -93,7 +98,7 @@ width; the provenance line says what made it.{% endcomment %}
           <th scope="col">{% translate "Note" %}</th>
         </tr></thead>
         <tbody>
-          {% for row in rows %}<tr{% if row.missing %} class="index-values__missing"{% endif %}>
+          {% for row in rows %}<tr id="value-{{ row.when }}"{% if row.missing %} class="index-values__missing"{% endif %}{% if row.selected %} aria-current="true"{% endif %}>
             <th scope="row" class="code">{{ row.when }}</th>
             <td class="num">{{ row.value }}</td>
             {% if has_anomaly %}<td class="num">{{ row.anomaly }}</td>{% endif %}

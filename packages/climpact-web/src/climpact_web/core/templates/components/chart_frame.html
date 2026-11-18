@@ -23,32 +23,12 @@ which an index chart draws its line in.
     </div>
   </div>
   {% if legend %}<ul class="chart__legend">{% for item in legend %}<li><span class="chart__swatch swatch-{{ item.token|token_name }}" aria-hidden="true"></span>{{ item.label }}</li>{% endfor %}</ul>{% elif data_url %}<ul class="chart__legend" data-chart-legend hidden></ul>{% endif %}
-  {% if data_url %}
-  <div class="chart__toolbar flex flex-wrap items-center gap-3" role="toolbar" aria-label="{% translate 'Chart controls' %}" aria-controls="{{ id }}-plot" data-chart-toolbar hidden>
-    <div class="chart__tools">
-      <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-in" title="{% translate 'Zoom in' %}">{% translate "Zoom in" as zoom_in %}{% icon "zoom-in" zoom_in %}</button>
-      <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-out" title="{% translate 'Zoom out' %}">{% translate "Zoom out" as zoom_out %}{% icon "zoom-out" zoom_out %}</button>
-      <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="left" title="{% translate 'Earlier' %}">{% translate "Earlier" as earlier %}{% icon "arrow-left" earlier %}</button>
-      <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="right" title="{% translate 'Later' %}">{% translate "Later" as later %}{% icon "arrow-right" later %}</button>
-      <button type="button" class="button button--ghost button--sm" data-chart-action="reset">{% icon "refresh" %}<span>{% translate "Show all" %}</span></button>
-    </div>
-    <div class="chart__tools">
-      <button type="button" class="button button--ghost button--sm" data-chart-action="png">{% icon "image" %}<span>{% translate "PNG" %}</span></button>
-      <button type="button" class="button button--ghost button--sm" data-chart-action="svg">{% icon "image" %}<span>{% translate "SVG" %}</span></button>
-    </div>
-  </div>
-  {% endif %}
+  {% if data_url %}{% include "components/chart_toolbar.html" %}{% endif %}
   <div class="chart__plot chart-height-{{ height|default:'16rem' }}" id="{{ id }}-plot" data-chart-plot{% if data_url %} tabindex="0" role="group" aria-roledescription="{% translate 'chart' %}" aria-labelledby="{{ id }}-title" aria-describedby="{{ id }}-summary {{ id }}-keys"{% endif %}>
     {% include "components/skeleton.html" with chart_block=True height=height|default:"16rem" lines=0 label=_("Loading chart") %}
     {% if data_url %}<noscript>{% if image_src %}<img class="chart__image" src="{{ image_src }}" alt="{{ summary }}">{% else %}<p class="chart__nojs">{% translate "The interactive chart needs JavaScript. The summary, the table and the CSV download have the same data." %}</p>{% endif %}</noscript>{% endif %}
   </div>
-  {% if data_url %}
-  <div>
-    <p class="chart__readout" data-chart-readout aria-hidden="true">&nbsp;</p>
-    <p class="sr-only" id="{{ id }}-keys">{% translate "Keyboard: plus and minus zoom, the arrow keys move earlier and later, 0 shows the whole series." %}</p>
-    <p class="sr-only" role="status" data-chart-status></p>
-  </div>
-  {% endif %}
+  {% if data_url %}{% include "components/chart_readout.html" %}{% endif %}
   {% if table_template %}
   <details class="disclosure">
     <summary>{% icon "table" %}<span>{% translate "View as table" %}</span>{% icon "chevron-down" %}</summary>

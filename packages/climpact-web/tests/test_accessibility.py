@@ -1387,9 +1387,9 @@ def test_add_stations_by_keyboard(chrome, site, server):
 
 
 def test_chart_by_keyboard(chrome, site):
-    """An interactive chart's plot is a Tab stop; + zooms in, arrows move, 0 resets, and
-    each change is announced in the chart's status (Quality's daily charts; an index's
-    page draws its chart on the server since #237)."""
+    """An interactive chart's plot is a Tab stop; + zooms in, the arrow keys read out each
+    value (#283), Shift with an arrow key moves, 0 resets, and each change is announced in
+    the chart's status (Quality's daily charts)."""
     c = chrome
     c.navigate(site["station quality results"])
     c.evaluate("document.getElementById('daily').open = true")
@@ -1402,8 +1402,12 @@ def test_chart_by_keyboard(chrome, site):
     c.press("+")
     wait_for(c, f"!!{status}", timeout=5, what="zooming in to be announced")
     zoomed = c.evaluate(status)
-    c.press("ArrowLeft")
-    wait_for(c, f"{status} !== {json.dumps(zoomed)}", timeout=5, what="moving to be announced")
+    c.press("ArrowRight")
+    wait_for(c, f"{status} !== {json.dumps(zoomed)}", timeout=5, what="a value read out")
+    first = c.evaluate(status)
+    assert re.match(r"\d{4}-\d\d-\d\d · ", first), first  # the first day in view
+    c.press("ArrowLeft", shift=True)
+    wait_for(c, f"{status} !== {json.dumps(first)}", timeout=5, what="moving to be announced")
     moved = c.evaluate(status)
     c.press("0")
     wait_for(c, f"{status} !== {json.dumps(moved)}", timeout=5, what="the reset to be announced")
@@ -1439,6 +1443,127 @@ def test_index_page_views_and_citation(chrome, site):
     assert c.evaluate("document.querySelector('.context-bar__actions .pop__details').hidden")
     assert c.evaluate("document.querySelector('[data-citation-text]').textContent").startswith(
         "Sydney Observatory Hill, TXx (Hottest day), 1936–2015"  # the sample's name (#219)
+    )
+
+
+def wait_text(c: Chrome, expression: str, pattern: str, what: str) -> str:
+    """Wait until the text of ``expression`` matches ``pattern``; return it."""
+    wait_for(c, f"new RegExp({json.dumps(pattern)}).test({expression})", timeout=10, what=what)
+    return c.evaluate(expression)
+
+
+def test_index_chart_reads_out_by_keyboard(chrome, site):
+    """#283: the index page's chart is drawn by charts.js from the page's data, with every
+    layer the server draws (the server's chart then hidden): its plot is a Tab stop, the
+    arrow keys read out each year (value, anomaly, running mean, or why it was left out),
+    announced in its status line; the toolbar zooms; Values / Anomaly switches the chart
+    drawn. ?at= reads out that year and selects its row. No axe violation, both themes."""
+    c = chrome
+    c.navigate(site["station index"] + "?at=1996")
+    plot = "#index-chart-plot"
+    wait_for(c, f"!!document.querySelector('{plot} canvas')", timeout=30, what="the chart")
+    assert c.evaluate("document.getElementById('index-chart').classList.contains('is-hydrated')")
+    assert (
+        c.evaluate("getComputedStyle(document.querySelector('.index-figure__scroll')).display")
+        == "none"
+    )
+    readout = "document.querySelector('#index-chart [data-chart-readout]').textContent"
+    status = "document.querySelector('#index-chart [data-chart-status]').textContent"
+    assert c.evaluate(readout).startswith("1996")
+    assert c.evaluate("document.querySelector('.index-values tr[aria-current]').id") == "value-1996"
+    focus(c, plot)
+    c.press("ArrowRight")
+    text = wait_text(c, status, "^1997", "1997 read out")
+    assert re.search(
+        r"TXx \d[\d.]*\s°C · Anomaly [+−]?\d[\d.]*\s°C · 11-year running mean", text
+    ), text
+    c.press("Home")
+    wait_text(c, status, "^1936", "the first year read out")
+    c.press("End")
+    wait_text(c, status, "^2015", "the last year read out")
+    c.press("ArrowRight")  # at the end of the series: stays on its last year
+    wait_text(c, status, "^2015", "the last year still")
+    # Zoomed in, Home reads out the first year in view.
+    c.press("+")
+    c.press("Home")
+    first = wait_text(c, status, "^(19[4-9]\\d|20)", "the first year in view")
+    assert int(first[:4]) > 1936, first
+    # Anomalies: the same chart, switched in place.
+    focus(c, "[data-index-view-link='anomaly']")
+    c.press("Enter")
+    wait_for(c, "document.getElementById('index-chart').dataset.chartView === 'anomaly'", timeout=5,
+             what="the anomaly view")  # fmt: skip
+    focus(c, plot)
+    c.press("Home")
+    wait_text(c, status, "^\\d{4}", "a year read out in the anomaly view")
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.transitions_done()
+        assert run_axe(c) == [], scheme
+    set_mode(c)
+
+
+def test_index_chart_bars_read_out(chrome, site):
+    """#283: SPI's bars (a monthly series): each month is read out by key, as the table
+    writes it."""
+    c = chrome
+    c.navigate(site["station index"].replace("/txx", "/3month_spi"))
+    plot = "#index-chart-plot"
+    wait_for(c, f"!!document.querySelector('{plot} canvas')", timeout=30, what="the chart")
+    focus(c, plot)
+    c.press("End")
+    status = "document.querySelector('#index-chart [data-chart-status]').textContent"
+    wait_text(c, status, r"^\d{4}-12 · SPI", "December read out")
+
+
+def test_indices_detail_chart_reads_out_and_opens_a_year(chrome, site):
+    """#283: the Indices' detail chart is a Tab stop; the arrow keys read out each year
+    (announced), and Enter opens the index page at that year, which reads it out."""
+    c = chrome
+    c.navigate(site["station results"] + "?show=txx")
+    svg = "#detail-txx svg[data-readout]"
+    assert c.evaluate(f"document.querySelector('{svg}').getAttribute('role')") == "group"
+    focus(c, svg)
+    status = "document.querySelector('#detail-txx [data-readout-status]').textContent"
+    c.press("ArrowLeft")  # from the last year
+    year = wait_text(c, status, r"^\d{4} · TXx ", "a year read out").split(" ")[0]
+    c.press("Enter")
+    wait_for(c, f"location.search === '?at={year}'", timeout=10, what="the index page")
+    wait_for(
+        c, "!!document.querySelector('#index-chart-plot canvas')", timeout=30, what="the chart"
+    )
+    readout = "document.querySelector('#index-chart [data-chart-readout]').textContent"
+    assert c.evaluate(readout).startswith(year)
+    assert (
+        c.evaluate("document.querySelector('.index-values tr[aria-current]').id") == f"value-{year}"
+    )
+
+
+def test_quality_charts_read_out_by_keyboard(chrome, site):
+    """#283: a check's When chart reads out each value by date, and Enter selects it in
+    the values table (its title announced, the address updated); By calendar month reads
+    out each month's count; the 7-day chart each day's PR, TX and TN."""
+    c = chrome
+    c.navigate(site["station quality results"])
+    detail = "document.querySelector('[data-qc-detail]:not([hidden])')"
+    when = f"{detail}.querySelector('svg[data-qc-when]')"
+    c.evaluate(f"{when}.focus()")
+    status = f"{detail}.querySelectorAll('[data-readout-status]')"
+    c.press("Home")
+    date = wait_text(c, f"{status}[0].textContent", r"^\d{4}-\d\d-\d\d · ", "a value read out")
+    date = date.split(" ")[0]
+    c.press("Enter")
+    selected = f"{detail}.querySelector('[data-qc-table]').dataset.selected"
+    wait_for(c, f"{selected} === '{date}'", timeout=10, what="the value selected in the table")
+    assert f"_value={date}" in here(c)
+    assert c.evaluate("document.activeElement.hasAttribute('data-qc-when')")
+    c.evaluate(f"{detail}.querySelector('svg[data-qc-months-chart]').focus()")
+    c.press("ArrowRight")
+    wait_text(c, f"{status}[1].textContent", r"^Feb · \d+ (value|row)", "February read out")
+    c.evaluate(f"{detail}.querySelector('.qc-value svg[data-readout]').focus()")
+    c.press("ArrowRight")
+    wait_text(
+        c, f"{status}[2].textContent", r"^\d{4}-\d\d-\d\d · PR .* · TX .* · TN ", "a day read out"
     )
 
 

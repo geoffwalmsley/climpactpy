@@ -551,11 +551,13 @@ def check_detail(review, group, number: int, sort: str, date: str) -> dict:
     row = check.row_of(date) if date else None
     if row is None or row not in page.rows:
         row = page.rows[0] if page.rows else None
+    months = qc_review.months_chart(group.by_month)
+    months["readout"] = qc_review.months_readout(group, months)
     return {
         "page": page,
         "value": review.value(check, row),
         "when": review.when(group, row),
-        "months": qc_review.months_chart(group.by_month),
+        "months": months,
         "selected_date": row.date if row else "",
     }
 

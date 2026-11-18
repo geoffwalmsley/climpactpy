@@ -5,6 +5,8 @@
  * works without JavaScript); here a click shows its chart in place, marks its link
  * current and keeps the address, so the Annual/Monthly links keep the choice.
  *
+ * The interactive chart (charts.js, #283) follows the toggle (ClimpactCharts.setView).
+ *
  * Copy citation: without JavaScript a disclosure shows the text; here a button takes its
  * place and copies it, and says so (#announcer). If the clipboard refuses, the text is
  * shown as without JavaScript.
@@ -36,8 +38,18 @@
         period.href = url.href;
       });
       history.replaceState(null, "", link.href);
+      // The interactive chart (#283) shows the same view.
+      var figure = doc.querySelector("[data-chart-data]");
+      if (figure && window.ClimpactCharts) window.ClimpactCharts.setView(figure, view);
+      else if (figure) figure.setAttribute("data-chart-view", view);
     });
   }
+
+  // ?at= (a value picked on the Indices' chart, #283): its row, selected by the server,
+  // scrolled into view inside the table's region, so the page stays at the chart.
+  var picked = doc.querySelector(".index-values tr[aria-current]");
+  var region = picked && picked.closest("[role=region]");
+  if (region) region.scrollTop = picked.offsetTop - region.clientHeight / 2;
 
   doc.querySelectorAll("[data-citation]").forEach(function (box) {
     var details = box.querySelector("details");

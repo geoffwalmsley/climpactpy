@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+The read-out under a chart drawn on the server (#283, js/chart-readout.js): the values
+under the pointer or the keyboard's cursor (shown once the chart is used; the keyboard's
+moves are announced in the status line) and how the keyboard works, which the chart's
+data-readout-keys names. Parameters: id (unique on the page), action ("open": Enter
+opens the index page at the value; "select": Enter selects it in the values table).
+{% endcomment %}<p class="chart__readout" data-readout-text aria-hidden="true" hidden>&nbsp;</p>
+<p id="{{ id }}-keys" hidden>{% if action == "open" %}{% translate "Keyboard: the left and right arrow keys read out each value, Home and End the first and last; Enter opens the index page at that value." %}{% elif action == "select" %}{% translate "Keyboard: the left and right arrow keys read out each value, Home and End the first and last; Enter selects that value in the table." %}{% else %}{% translate "Keyboard: the left and right arrow keys read out each value, Home and End the first and last." %}{% endif %}</p>
+<p class="sr-only" role="status" data-readout-status></p>

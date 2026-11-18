@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Indices: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script>{% include "stations/_open_sheet.html" %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/results.js' %}" defer></script><script src="{% static 'climpact_web/js/chart-readout.js' %}" defer></script>{% include "stations/_open_sheet.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page station-page--inputs-bar station-page--indices">
   {% comment %}The page's two actions in the workspace header (#200): the zip, primary, and

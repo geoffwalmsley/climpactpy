@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui charts help %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
-{% block head %}{% chart_scripts %}<script src="{% static 'climpact_web/js/trends.js' %}" defer></script>{% endblock %}
+{% block head %}{% chart_scripts %}<script src="{% static 'climpact_web/js/trends.js' %}" defer></script><script src="{% static 'climpact_web/js/chart-readout.js' %}" defer></script>{% endblock %}
 {% block content %}
 <header class="section__header">
   <p class="eyebrow">{% translate "Design system" %}</p>

@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+An interactive chart's read-out (#75, #283): the values under the pointer or the
+keyboard's cursor (shown, not read: the keyboard's moves are announced in the status
+line), how the keyboard works, and the status line. Parameters: id (the chart's).
+{% endcomment %}<div>
+  <p class="chart__readout" data-chart-readout aria-hidden="true">&nbsp;</p>
+  <p class="sr-only" id="{{ id }}-keys">{% translate "Keyboard: the left and right arrow keys read out each value, Home and End the first and last in view; Shift with an arrow key moves earlier and later, plus and minus zoom, 0 shows the whole series." %}</p>
+  <p class="sr-only" role="status" data-chart-status></p>
+</div>

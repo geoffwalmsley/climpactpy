@@ -2,7 +2,9 @@
 One index in the Indices' detail pane (#236, the Results board), hidden unless it is the
 one shown: its code and theme, its short name and definition; its series as a chart with
 axes (the base period as a band, Sen's slope dashed; the text alternative gives the
-values and the trend, and the index page has the table view and the interactive chart);
+values and the trend, and the index page has the table view and the interactive chart),
+with a read-out of each value by pointer or keyboard, a value opening the index page at
+it (#283, js/chart-readout.js);
 two columns of statistics (#263): the slope per decade, its 95% interval, the mean over
 the record, whether the trend is significant (in words), the values used and the method;
 then the links to the index page, its CSV and PNG, and its monthly values. On a narrow screen the pane
@@ -18,7 +20,7 @@ Parameters: row (views_indices._row), series_years, analysis.
   </div>
   {% if chart %}
   <figure class="index-chart">
-    <svg class="index-chart__plot" viewBox="{{ chart.box }}" role="img" aria-label="{{ row.chart_label }}" focusable="false">
+    <svg class="index-chart__plot" viewBox="{{ chart.box }}" role="img" aria-label="{{ row.chart_label }}" focusable="false" data-readout='{{ row.readout }}' data-readout-keys="detail-{{ card.key }}-keys" data-readout-role="{% translate 'chart' %}">
       {% if chart.band %}<rect class="index-chart__band" x="{{ chart.band.x }}" y="{{ chart.top }}" width="{{ chart.band.width }}" height="{{ chart.height }}"/><text class="index-chart__band-label" x="{{ chart.band.label_x }}" y="{{ chart.band.label_y }}" text-anchor="middle">{% translate "base period" %}</text>{% endif %}
       <line class="index-chart__grid" x1="{{ chart.left }}" y1="{{ chart.grid_y }}" x2="{{ chart.right }}" y2="{{ chart.grid_y }}"/>
       <line class="index-chart__axis" x1="{{ chart.left }}" y1="{{ chart.top }}" x2="{{ chart.left }}" y2="{{ chart.bottom }}"/>
@@ -28,6 +30,7 @@ Parameters: row (views_indices._row), series_years, analysis.
       {% if chart.line %}<path class="index-chart__line" d="{{ chart.line }}"/>{% else %}<line class="index-chart__zero" x1="{{ chart.left }}" y1="{{ chart.zero }}" x2="{{ chart.right }}" y2="{{ chart.zero }}"/><path class="index-chart__pos" stroke-width="{{ chart.bar_width }}" d="{{ chart.pos }}"/><path class="index-chart__neg" stroke-width="{{ chart.bar_width }}" d="{{ chart.neg }}"/>{% endif %}
       {% if chart.trend %}<line class="index-chart__trend" x1="{{ chart.left }}" y1="{{ chart.trend.y1 }}" x2="{{ chart.right }}" y2="{{ chart.trend.y2 }}"/>{% endif %}
     </svg>
+    {% include "components/readout.html" with id="detail-"|add:card.key action=card.daily|yesno:",open" %}
     <figcaption>{{ row.caption }}</figcaption>
   </figure>
   {% endif %}

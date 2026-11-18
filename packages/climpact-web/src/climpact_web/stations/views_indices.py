@@ -39,6 +39,7 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 
 from climpact_web.core import numbers
 from climpact_web.core.limits import human_required
+from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.stages import stage_label
 from climpact_web.jobs.views import progress_context
@@ -468,8 +469,20 @@ def _row(analysis, source, run, card, theme_label: str, base) -> dict:
         "links": links,
     }
     if plot is not None:
+        chart = index_detail.chart(plot, base)
         row.update(
-            chart=index_detail.chart(plot, base),
+            chart=chart,
+            readout=index_detail.readout(
+                card,
+                plot,
+                chart,
+                "" if card.daily else page,
+                src=reverse("charts:job_series", args=[job.pk, card.main])
+                + "?"
+                + urlencode({"station": source.station}),
+            )
+            if chart
+            else "",
             chart_label=index_detail.summary(card, plot),
             caption=index_detail.caption(card, plot),
             used_label=index_detail.used_label(plot),
@@ -725,6 +738,14 @@ def result(request, workspace_id, slug, key):
             )
     mean = index_page.base_mean(plot, base)
     when = {"year": _("Year"), "month": _("Month")}.get(plot.step, _("Day"))
+    rows = index_page.table(card, plot, day_plot, base, gone)
+    # ?at=1944 (a year picked on the Indices' chart, #283): its row is selected and the
+    # interactive chart reads it out.
+    at = request.GET.get("at", "")
+    if not any(r["when"] == at for r in rows):
+        at = ""
+    for r in rows:
+        r["selected"] = r["when"] == at
     low = index_page.low_is_record(card.key)
     context.update(
         trend=results_model.trend_summary(plot),
@@ -740,7 +761,13 @@ def result(request, workspace_id, slug, key):
         base_mean=numbers.with_unit(numbers.number(mean), card.units) if mean is not None else "",
         record=index_page.record(card, plot),
         left_out=index_page.left_out_summary(plot, gone),
-        rows=index_page.table(card, plot, day_plot, base, gone),
+        rows=rows,
+        at=at,
+        chart_data=index_page.payload(
+            card, plot, base, gone, day_plot, name=f"{safe_station_name(station)}_{name}"
+        )
+        if charts
+        else None,
         table_title={"year": _("Annual values"), "month": _("Monthly values")}.get(
             plot.step, _("Values by day of the year")
         ),

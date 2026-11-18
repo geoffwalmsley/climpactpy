@@ -1,0 +1,17 @@
+{% load i18n ui %}{% comment %}
+An interactive chart's controls (#75; chart_frame.html, the index page's chart, #283):
+zoom, move earlier and later, Show all, and PNG and SVG of the view. Hidden until
+charts.js draws the chart. Parameters: id (the chart's; the plot is id-plot).
+{% endcomment %}<div class="chart__toolbar flex flex-wrap items-center gap-3" role="toolbar" aria-label="{% translate 'Chart controls' %}" aria-controls="{{ id }}-plot" data-chart-toolbar hidden>
+  <div class="chart__tools">
+    <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-in" title="{% translate 'Zoom in' %}">{% translate "Zoom in" as zoom_in %}{% icon "zoom-in" zoom_in %}</button>
+    <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="zoom-out" title="{% translate 'Zoom out' %}">{% translate "Zoom out" as zoom_out %}{% icon "zoom-out" zoom_out %}</button>
+    <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="left" title="{% translate 'Earlier' %}">{% translate "Earlier" as earlier %}{% icon "arrow-left" earlier %}</button>
+    <button type="button" class="button button--secondary button--sm button--icon" data-chart-action="right" title="{% translate 'Later' %}">{% translate "Later" as later %}{% icon "arrow-right" later %}</button>
+    <button type="button" class="button button--ghost button--sm" data-chart-action="reset">{% icon "refresh" %}<span>{% translate "Show all" %}</span></button>
+  </div>
+  <div class="chart__tools">
+    <button type="button" class="button button--ghost button--sm" data-chart-action="png">{% icon "image" %}<span>{% translate "PNG" %}</span></button>
+    <button type="button" class="button button--ghost button--sm" data-chart-action="svg">{% icon "image" %}<span>{% translate "SVG" %}</span></button>
+  </div>
+</div>

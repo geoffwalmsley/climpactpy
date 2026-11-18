@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+The index page's interactive chart (#283), under the chart drawn on the server: the
+controls, the plot charts.js draws into (hidden until it does; the server's chart is then
+hidden on screen, and printed in its place), and the read-out. Its table view is the
+values table under the chart, its CSV in the context bar.
+{% endcomment %}{% include "components/chart_toolbar.html" with id="index-chart" %}
+<div class="chart__plot index-figure__plot" id="index-chart-plot" data-chart-plot hidden tabindex="0" role="group" aria-roledescription="{% translate 'chart' %}" aria-labelledby="chart-title" aria-describedby="index-chart-summary index-chart-keys"></div>
+<p class="sr-only" id="index-chart-summary">{{ chart_data.summary }}</p>
+<div hidden data-chart-reveal>{% include "components/chart_readout.html" with id="index-chart" %}</div>

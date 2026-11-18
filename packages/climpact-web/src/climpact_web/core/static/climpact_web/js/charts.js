@@ -8,11 +8,25 @@
  *
  * Payload kinds (see charts/data.py): "daily" (a panel per kind of variable present:
  * temperature, DTR, precipitation; QC flags as rings, missing values as gaps) and "index"
- * (a line with the trend, or bars for SPI/SPEI).
+ * (a line with the trend, or bars for SPI/SPEI). An index payload with "layers" and
+ * "views" (the index page, #283: stations/index_page.py payload) also draws the base
+ * period as a band, Sen's slope's 95% interval as a bow tie, the 11-year running mean and
+ * the values left out as open points, as the page's server chart does, and switches
+ * between its values and anomalies (setView).
+ *
+ * The data comes from data-chart-src (a URL) or data-chart-data (the id of a JSON script
+ * in the page). data-chart-view names the first view; data-chart-at a value ("1944",
+ * "1944-03") to mark and read out once drawn.
+ *
+ * Keyboard (the plot is focusable): the left and right arrow keys move a cursor from value
+ * to value and read each one out (announced in the status line), Home and End go to the
+ * first and last in view; Shift with an arrow key moves the view, + and - zoom, 0 shows
+ * the whole series.
  *
  * API (window.ClimpactCharts):
  *   hydrate(scope)            draw the charts inside scope (done on page load, htmx:load)
  *   get(figureOrId)           the chart of a frame (null before hydrate)
+ *   setView(figureOrId, key)  index charts with views: show "values" or "anomaly"
  *   focusDate(figureOrId, isoDate, {span: days})
  *                             daily charts: show span days (default 61) centred on the
  *                             date and mark it with a vertical line; loads the chart first
@@ -76,11 +90,31 @@
     var p = window.Climpact && window.Climpact.chartPalette ? window.Climpact.chartPalette() : null;
     p = p || { categorical: ["#2a78d6", "#eb6834"], roles: {}, surface: "#fff", text: "#000", text_muted: "#555" };
     p.hue = el ? getComputedStyle(el).getPropertyValue("--hue").trim() : "";
+    if (el && el.hasAttribute("data-chart-data")) {
+      var line = "var(--hue, var(--color-other))";
+      p.css = {
+        "--line": cssColour(el, line),
+        "--smooth": cssColour(el, "color-mix(in oklab, " + line + " 62%, var(--color-text))")
+      };
+    }
     return p;
+  }
+
+  /* A CSS colour expression in the chart frame's context (its --hue), as the canvas needs
+     it: the index page's line and running mean (#283), in the server chart's colours. */
+  function cssColour(el, expr) {
+    var probe = doc.createElement("span");
+    probe.hidden = true;
+    probe.style.color = expr;
+    el.appendChild(probe);
+    var c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
   }
 
   function colour(pal, token) {
     if (token === "--hue") return pal.hue || pal.categorical[0];
+    if (pal.css && pal.css[token]) return pal.css[token];
     var name = token.replace(/^--chart-/, "");
     if (/^\d+$/.test(name)) return pal.categorical[+name - 1];
     return pal.roles[name] || getComputedStyle(doc.documentElement).getPropertyValue(token).trim();
@@ -159,9 +193,22 @@
     };
   }
 
-  function indexModel(p) {
+  // A value's key as the page's tables write it: "1944", "1944-03", "200" (a day).
+  function whenKey(step, v) {
+    if (step === "month") {
+      var year = Math.floor(v);
+      var month = Math.round((v - year) * 12 + 0.5);
+      return year + "-" + (month < 10 ? "0" : "") + month;
+    }
+    return String(Math.round(v));
+  }
+
+  function indexModel(p, viewKey) {
     var x = p.x;
-    var y = p.y;
+    var layers = p.layers || null;
+    var view = p.views ? p.views[viewKey] || p.views.values : null;
+    var y = view ? view.y : p.y;
+    var offset = view ? view.offset || 0 : 0;
     var series = [];
     var legend = [];
     if (p.bars) {
@@ -169,16 +216,47 @@
       series.push({ label: wet, short: p.label, unit: p.units, token: "--chart-1", bars: true, values: y.map(function (v) { return v != null && v >= 0 ? v : null; }) });
       series.push({ label: dry, short: p.label, unit: p.units, token: "--chart-2", bars: true, values: y.map(function (v) { return v != null && v < 0 ? v : null; }) });
       legend.push({ label: wet, token: "--chart-1", box: true }, { label: dry, token: "--chart-2", box: true });
+    } else if (layers) {
+      // The index page (#283): the line as #237 draws it, without markers.
+      series.push({ label: p.label, short: p.label, unit: p.units, token: "--line", values: y, line: true });
+      legend.push({ label: p.label, token: "--line" });
     } else {
       // The index's line in its theme's colour (#196), from the frame's hue-* class.
       series.push({ label: p.label, short: p.label, unit: p.units, token: "--hue", values: y, markers: p.step !== "month" && x.length <= 200, thin: p.step === "month" });
       legend.push({ label: p.label, token: "--hue" });
     }
+    if (view && view.smooth) {
+      series.push({ label: layers.smooth_label, short: layers.smooth_label, unit: p.units, token: "--smooth", values: view.smooth, smooth: true });
+      legend.push({ label: layers.smooth_label, token: "--smooth", thick: true });
+    }
+    var extent = [];
+    var interval = null;
     if (p.trend) {
       var tr = p.trend;
-      series.push({ label: tr.label, short: t("trend"), unit: p.units, token: "--chart-trend", trend: true, values: x.map(function (v, i) { return tr.intercept + tr.slope * i; }) });
+      series.push({ label: tr.label, short: t("trend"), unit: p.units, token: "--chart-trend", trend: true, values: x.map(function (v, i) { return tr.intercept + tr.slope * i - offset; }) });
       legend.push({ label: tr.label, token: "--chart-trend", dash: true });
+      if (layers && layers.interval) {
+        // Sen's slope's 95% interval: the lines of the lower and upper slopes through the
+        // slope's middle (index_page.chart).
+        var mid = (x.length - 1) / 2, centre = tr.intercept + tr.slope * mid - offset;
+        interval = { mid: mid, centre: centre, lower: tr.lower, upper: tr.upper, last: x.length - 1 };
+        [tr.lower, tr.upper].forEach(function (slope) {
+          extent.push(centre - slope * mid, centre + slope * (x.length - 1 - mid));
+        });
+      }
     }
+    if (view && view.gaps) {
+      // [index, level] of each value left out, as a series of its own.
+      var gaps = x.map(function () {
+        return null;
+      });
+      view.gaps.forEach(function (g) {
+        gaps[g[0]] = g[1];
+      });
+      series.push({ label: layers.gap_label, short: layers.gap_label, unit: p.units, token: "--line", values: gaps, gap: true });
+      legend.push({ label: layers.gap_label, token: "--line", ring: true, fixed: true });
+    }
+    var anomalyView = !!(view && view.signed_digits != null);
     var spacing = p.step === "month" ? 1 / 12 : 1;
     return {
       kind: "index",
@@ -186,11 +264,20 @@
       step: p.step,
       x: x,
       minSpan: spacing * 4,
-      panels: [{ key: "index", label: p.axis || p.units, series: series, zero: p.bars }],
+      panels: [{ key: "index", label: (view && view.axis) || p.axis || p.units, series: series, zero: p.bars || anomalyView, zeroLine: anomalyView, extent: extent }],
       weights: [1],
       legend: legend,
       dates: p.dates,
-      signedDigits: p.signed_digits,
+      signedDigits: view && view.signed_digits != null ? view.signed_digits : p.signed_digits,
+      layers: layers,
+      band: layers ? layers.base : null,
+      interval: interval,
+      values: p.views ? p.views.values.y : null,
+      anomalies: p.views && p.views.anomaly ? p.views.anomaly.y : null,
+      smooth: view ? view.smooth : null,
+      key: function (v) {
+        return whenKey(p.step, v);
+      },
       label: function (v) {
         if (p.step === "month") {
           var year = Math.floor(v);
@@ -225,6 +312,15 @@
       out.width = 2;
     }
     if (s.markers) out.points = { show: true, size: 6, width: 1.5, fill: pal.surface, stroke: c };
+    if (s.line) out.width = 1.4;
+    if (s.smooth) out.width = 2.2;
+    if (s.gap) {
+      // A value left out: an open point at the base-period mean (#237, #283).
+      out.paths = function () {
+        return null;
+      };
+      out.points = { show: true, size: 8, width: 1.5, fill: pal.surface, stroke: c, space: 0 };
+    }
     if (s.flag) {
       out.paths = function () {
         return null;
@@ -291,6 +387,10 @@
               min = Math.min(0, min);
               max = Math.max(0, max);
             }
+            (panel.extent || []).forEach(function (v) {
+              min = Math.min(min, v);
+              max = Math.max(max, v);
+            });
             return uPlot.rangeNum(min, max, 0.08, true);
           }
         }
@@ -309,6 +409,11 @@
         return uSeries(s, pal, chart.flagsHidden);
       })),
       hooks: {
+        drawAxes: [
+          function (u) {
+            drawLayers(u, chart, panel, pal, font);
+          }
+        ],
         setScale: [
           function (u, key) {
             if (key === "x") chart.scaled(u);
@@ -355,6 +460,62 @@
     return opts;
   }
 
+  /* The index page's marks under the series (#283), as index_page.chart draws them: the
+     base period as a band with its label, Sen's slope's 95% interval as a bow tie, and
+     the zero line of the anomalies. */
+  function drawLayers(u, chart, panel, pal, font) {
+    var model = chart.model, ctx = u.ctx, r = u.bbox, ratio = window.devicePixelRatio || 1;
+    if (!model.band && !model.interval && !panel.zeroLine) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.left, r.top, r.width, r.height);
+    ctx.clip();
+    if (model.band) {
+      var b0 = u.valToPos(model.band.from, "x", true), b1 = u.valToPos(model.band.to, "x", true);
+      ctx.globalAlpha = 0.05;
+      ctx.fillStyle = pal.text;
+      ctx.fillRect(b0, r.top, b1 - b0, r.height);
+      ctx.globalAlpha = 1;
+      // Its label in the middle of the part in view, when that is wide enough for it.
+      var l0 = Math.max(b0, r.left), l1 = Math.min(b1, r.left + r.width);
+      ctx.font = font.replace(/^\d+px/, 11 * ratio + "px");
+      if (ctx.measureText(model.band.label).width + 8 * ratio <= l1 - l0) {
+        ctx.fillStyle = pal.text_muted;
+        ctx.textAlign = "center";
+        ctx.fillText(model.band.label, (l0 + l1) / 2, r.top + 13 * ratio);
+      }
+    }
+    var iv = model.interval;
+    if (iv) {
+      var x = model.x;
+      var at = function (i, slope) {
+        return [u.valToPos(x[i], "x", true), u.valToPos(iv.centre + slope * (i - iv.mid), "y", true)];
+      };
+      var xm = u.valToPos(x[0] + (x[iv.last] - x[0]) / 2, "x", true), ym = u.valToPos(iv.centre, "y", true);
+      var points = [at(0, iv.lower), [xm, ym], at(iv.last, iv.upper), at(iv.last, iv.lower), [xm, ym], at(0, iv.upper)];
+      ctx.globalAlpha = 0.09;
+      ctx.fillStyle = pal.text;
+      ctx.beginPath();
+      points.forEach(function (pt, i) {
+        if (i) ctx.lineTo(pt[0], pt[1]);
+        else ctx.moveTo(pt[0], pt[1]);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (panel.zeroLine) {
+      var z = Math.round(u.valToPos(0, "y", true)) + 0.5;
+      ctx.strokeStyle = pal.roles.axis;
+      ctx.lineWidth = ratio;
+      ctx.beginPath();
+      ctx.moveTo(r.left, z);
+      ctx.lineTo(r.left + r.width, z);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   /* ---- A chart ---- */
 
   function Chart(el) {
@@ -367,28 +528,53 @@
     this.syncing = false;
   }
 
+  /* The payload: from the page (data-chart-data, the id of a JSON script) or the URL. */
+  Chart.prototype.source = function () {
+    var inline = this.el.getAttribute("data-chart-data");
+    if (inline) {
+      return new Promise(function (resolve) {
+        resolve(JSON.parse(doc.getElementById(inline).textContent));
+      });
+    }
+    return fetch(this.el.getAttribute("data-chart-src"), { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    });
+  };
+
   Chart.prototype.load = function () {
     var self = this;
     this.requested = true;
-    fetch(this.el.getAttribute("data-chart-src"), { credentials: "same-origin", headers: { Accept: "application/json" } })
-      .then(function (r) {
-        if (!r.ok) throw new Error(r.status);
-        return r.json();
-      })
+    this.source()
       .then(function (payload) {
         if (!window.uPlot) throw new Error("uPlot");
         self.payload = payload;
-        self.model = payload.kind === "daily" ? dailyModel(payload) : indexModel(payload);
+        self.view = self.el.getAttribute("data-chart-view") || "values";
+        self.model = payload.kind === "daily" ? dailyModel(payload) : indexModel(payload, self.view);
         self.fill();
         self.draw();
         self.wire();
         self.loaded = true;
+        self.markAt(self.el.getAttribute("data-chart-at"));
         (self.waiting || []).forEach(function (resolve) {
           resolve(self);
         });
         self.waiting = null;
       })
       .catch(function () {
+        if (self.el.hasAttribute("data-chart-data")) {
+          // The page's own chart: the server's drawing stays, as without JavaScript.
+          self.plots.forEach(function (u) {
+            u.destroy();
+          });
+          self.plots = [];
+          self.el.classList.remove("is-hydrated");
+          self.plotEl.hidden = true;
+          Array.prototype.forEach.call(self.el.querySelectorAll("[data-chart-toolbar], [data-chart-reveal]"), function (n) {
+            n.hidden = true;
+          });
+          return;
+        }
         self.plotEl.innerHTML = "";
         var p = doc.createElement("p");
         p.className = "chart__error";
@@ -419,7 +605,7 @@
         sw.setAttribute("aria-hidden", "true");
         // The QC flags' legend entry shows and hides the rings (#115).
         var holder = li;
-        if (item.ring) {
+        if (item.ring && !item.fixed) {
           holder = doc.createElement("button");
           holder.type = "button";
           holder.className = "chart__legend-toggle";
@@ -438,6 +624,12 @@
     }
     var toolbar = el.querySelector("[data-chart-toolbar]");
     if (toolbar) toolbar.hidden = false;
+    // The index page (#283): the plot and read-out take the server chart's place.
+    Array.prototype.forEach.call(el.querySelectorAll("[data-chart-reveal]"), function (n) {
+      n.hidden = false;
+    });
+    this.plotEl.hidden = false;
+    el.classList.add("is-hydrated");
     var table = el.querySelector("[data-chart-table]");
     if (table) table.hidden = false;
   };
@@ -526,27 +718,125 @@
     else if (name === "svg") this.exportSvg();
   };
 
+  // As data.with_units (#189): "12.5%", "20 days", the number alone without units.
+  // A no-break space between a value and its unit (#226).
+  function withUnit(text, unit) {
+    return text + (!unit ? "" : unit === "%" ? "%" : " " + unit);
+  }
+
+  /* What the read-out says of the idx-th value. */
+  Chart.prototype.text = function (idx) {
+    var model = this.model, parts = [model.layers ? model.key(model.x[idx]) : model.label(model.x[idx])];
+    if (model.dates && model.dates[idx]) parts[0] += " (" + model.dates[idx] + ")";
+    if (model.layers) {
+      // The index page (#283): the value, its anomaly and the running mean, or why the
+      // value was left out.
+      var p = this.payload, v = model.values[idx];
+      if (v == null) {
+        var note = (model.layers.notes || []).filter(function (n) {
+          return n[0] === idx;
+        })[0];
+        parts.push(note ? note[1] : t("missing"));
+        return parts.join(" · ");
+      }
+      parts.push(p.label + " " + withUnit(num(v), p.units));
+      if (model.anomalies && model.anomalies[idx] != null) parts.push(model.layers.anomaly_label + " " + withUnit(signedFixed(model.anomalies[idx], 1), p.units));
+      if (model.smooth && model.smooth[idx] != null) parts.push(model.layers.smooth_label + " " + withUnit(value(model, model.smooth[idx]), p.units));
+      return parts.join(" · ");
+    }
+    model.panels.forEach(function (panel) {
+      panel.series.forEach(function (s) {
+        if (s.flag || s.gap) return;
+        var v = s.values[idx];
+        if (s.bars && v == null && model.kind === "index") return;
+        parts.push(s.short + " " + (v == null ? t("missing") : withUnit(value(model, v), s.unit)));
+      });
+    });
+    if (model.flagInfo && model.flagInfo[idx]) parts.push(t("flagged") + ": " + model.flagInfo[idx].join(", "));
+    return parts.join(" · ");
+  };
+
   Chart.prototype.hover = function (idx) {
     if (!this.readout) return;
+    if (idx == null) idx = this.cursor != null ? this.cursor : this.pinned;
     if (idx == null) {
       this.readout.innerHTML = "&nbsp;";
       return;
     }
-    var model = this.model, parts = [model.label(model.x[idx])];
-    if (model.dates && model.dates[idx]) parts[0] += " (" + model.dates[idx] + ")";
-    model.panels.forEach(function (panel) {
-      panel.series.forEach(function (s) {
-        if (s.flag) return;
-        var v = s.values[idx];
-        if (s.bars && v == null && model.kind === "index") return;
-        // As data.with_units (#189): "12.5%", "20 days", the number alone without units.
-        // A no-break space between a value and its unit (#226).
-        var unit = !s.unit ? "" : s.unit === "%" ? "%" : "\u00a0" + s.unit;
-        parts.push(s.short + " " + (v == null ? t("missing") : value(model, v) + unit));
-      });
+    this.readout.textContent = this.text(idx);
+  };
+
+  /* The keyboard's cursor (#283): the idx-th value read out and shown with the
+     crosshair, the view moved to it when it is outside; announced in the status line. */
+  Chart.prototype.step = function (idx) {
+    var model = this.model, n = model.x.length;
+    idx = Math.max(0, Math.min(n - 1, idx));
+    var r = this.range(), x = model.x[idx];
+    this.cursor = idx;
+    if (this.status) this.status.textContent = this.text(idx);
+    if (x < r[0] || x > r[1]) {
+      var span = r[1] - r[0], self = this;
+      this.setRange(x - span / 2, x + span / 2);
+      // After uPlot has applied the new scale.
+      setTimeout(function () {
+        self.placeCursor();
+      }, 0);
+    } else {
+      this.placeCursor();
+    }
+  };
+
+  Chart.prototype.placeCursor = function () {
+    var idx = this.cursor;
+    if (idx == null) return;
+    var x = this.model.x[idx];
+    this.plots.forEach(function (u) {
+      var left = u.valToPos(x, "x");
+      if (left < 0 || left > u.bbox.width / (window.devicePixelRatio || 1) + 0.5) return;
+      u.setCursor({ left: left, top: u.bbox.height / (window.devicePixelRatio || 1) / 2 });
     });
-    if (model.flagInfo && model.flagInfo[idx]) parts.push(t("flagged") + ": " + model.flagInfo[idx].join(", "));
-    this.readout.textContent = parts.join(" · ");
+    this.hover(idx);
+  };
+
+  Chart.prototype.key = function (name) {
+    var v = this.visible();
+    var current = this.cursor;
+    if (current == null || current < v[0] || current > v[1]) current = this.pinned != null && this.pinned >= v[0] && this.pinned <= v[1] ? this.pinned : null;
+    if (name === "next") this.step(current == null ? v[0] : current + 1);
+    else if (name === "previous") this.step(current == null ? v[1] : current - 1);
+    else if (name === "first") this.step(v[0]);
+    else if (name === "last") this.step(v[1]);
+  };
+
+  /* data-chart-at (#283): a value, by the key its table writes ("1944", "1944-03"),
+     marked with a line and read out; the keyboard's cursor starts there. */
+  Chart.prototype.markAt = function (at) {
+    var model = this.model;
+    if (!at || !model.key) return;
+    for (var i = 0; i < model.x.length; i++) {
+      if (model.key(model.x[i]) === at) {
+        this.pinned = this.cursor = i;
+        this.mark(model.x[i]);
+        this.hover(i);
+        return;
+      }
+    }
+  };
+
+  /* An index chart's view (#283): "values" or "anomaly", keeping the range shown. */
+  Chart.prototype.setView = function (key) {
+    this.el.setAttribute("data-chart-view", key);
+    if (!this.loaded || !this.payload.views || key === this.view) return;
+    this.view = key;
+    var range = this.range();
+    this.model = indexModel(this.payload, key);
+    this.draw(range);
+    if (this.marked != null) this.mark(this.marked);
+    var self = this;
+    setTimeout(function () {
+      self.placeCursor();
+    }, 0);
+    this.hover(null);
   };
 
   Chart.prototype.visible = function () {
@@ -743,7 +1033,7 @@
     ctx.font = 12 * ratio + "px " + family;
     var flagsHidden = this.flagsHidden;
     this.model.legend.forEach(function (item) {
-      if (item.ring && flagsHidden) return;
+      if (item.ring && !item.fixed && flagsHidden) return;
       var c = colour(pal, item.token);
       ctx.fillStyle = c;
       ctx.strokeStyle = c;
@@ -756,7 +1046,7 @@
         ctx.fillRect(x, y + 10 * ratio, 6 * ratio, 3 * ratio);
         ctx.fillRect(x + 9 * ratio, y + 10 * ratio, 5 * ratio, 3 * ratio);
       } else {
-        ctx.fillRect(x, y + 10 * ratio, 14 * ratio, item.box ? 10 * ratio : 3 * ratio);
+        ctx.fillRect(x, y + 10 * ratio, 14 * ratio, item.box ? 10 * ratio : (item.thick ? 4 : 3) * ratio);
       }
       ctx.fillStyle = pal.text_muted;
       ctx.fillText(item.label, x + 20 * ratio, y + 16 * ratio);
@@ -820,6 +1110,7 @@
       });
       g.push("<text " + attr({ transform: "translate(12," + (bb.top + bb.height / 2) + ") rotate(-90)", "text-anchor": "middle" }) + ">" + esc(panel.label) + "</text>");
       g.push('<g clip-path="url(#clip' + pi + ')">');
+      g.push(svgLayers(model, panel, px, py, pal, bb));
       panel.series.forEach(function (s) {
         if (s.flag && self.flagsHidden) return;
         g.push(svgSeries(s, model.x, vis, px, py, colour(pal, s.token), pal, bb));
@@ -831,9 +1122,9 @@
     });
     var x = pad, legend = [];
     model.legend.forEach(function (item) {
-      if (item.ring && self.flagsHidden) return;
+      if (item.ring && !item.fixed && self.flagsHidden) return;
       var c = colour(pal, item.token);
-      legend.push(item.ring ? "<circle " + attr({ cx: x + 7, cy: y0 + 12, r: 4.5, fill: "none", stroke: c, "stroke-width": 1.5 }) + "/>" : item.dash ? "<line " + attr({ x1: x, x2: x + 14, y1: y0 + 11.5, y2: y0 + 11.5, stroke: c, "stroke-width": 3, "stroke-dasharray": "6 3" }) + "/>" : "<rect " + attr({ x: x, y: y0 + 10, width: 14, height: item.box ? 10 : 3, fill: c }) + "/>");
+      legend.push(item.ring ? "<circle " + attr({ cx: x + 7, cy: y0 + 12, r: 4.5, fill: "none", stroke: c, "stroke-width": 1.5 }) + "/>" : item.dash ? "<line " + attr({ x1: x, x2: x + 14, y1: y0 + 11.5, y2: y0 + 11.5, stroke: c, "stroke-width": 3, "stroke-dasharray": "6 3" }) + "/>" : "<rect " + attr({ x: x, y: y0 + 10, width: 14, height: item.box ? 10 : item.thick ? 4 : 3, fill: c }) + "/>");
       legend.push("<text " + attr({ x: x + 20, y: y0 + 16, fill: pal.text_muted }) + ">" + esc(item.label) + "</text>");
       x += item.label.length * 6.5 + 40;
     });
@@ -847,16 +1138,38 @@
     save(new Blob([svg], { type: "image/svg+xml" }), this.fileName("svg"));
   };
 
+  /* The index page's band, interval and zero line as SVG (drawLayers, #283). */
+  function svgLayers(model, panel, px, py, pal, bb) {
+    var out = [];
+    if (model.band) {
+      var b0 = px(model.band.from), b1 = px(model.band.to);
+      out.push("<rect " + attr({ x: b0, y: bb.top, width: +(b1 - b0).toFixed(1), height: bb.height, fill: pal.text, "fill-opacity": 0.05 }) + "/>");
+      var l0 = Math.max(b0, bb.left), l1 = Math.min(b1, bb.left + bb.width);
+      if (l1 - l0 >= model.band.label.length * 6 + 8) out.push("<text " + attr({ x: +((l0 + l1) / 2).toFixed(1), y: bb.top + 13, "text-anchor": "middle", "font-size": 11 }) + ">" + esc(model.band.label) + "</text>");
+    }
+    var iv = model.interval;
+    if (iv) {
+      var x = model.x, xm = px(x[0] + (x[iv.last] - x[0]) / 2), ym = py(iv.centre);
+      var at = function (i, slope) {
+        return px(x[i]) + "," + py(iv.centre + slope * (i - iv.mid));
+      };
+      var points = [at(0, iv.lower), xm + "," + ym, at(iv.last, iv.upper), at(iv.last, iv.lower), xm + "," + ym, at(0, iv.upper)];
+      out.push("<polygon " + attr({ points: points.join(" "), fill: pal.text, "fill-opacity": 0.09 }) + "/>");
+    }
+    if (panel.zeroLine) out.push("<line " + attr({ x1: bb.left, x2: bb.left + bb.width, y1: py(0), y2: py(0), stroke: pal.roles.axis }) + "/>");
+    return out.join("");
+  }
+
   /* One series as SVG, over the visible points. Long series are reduced to the lowest and
      highest value of each pixel column (the look of the canvas at that width). */
   function svgSeries(s, x, vis, px, py, c, pal, bb) {
     var i, v, cols = {}, out = [];
-    if (s.flag || s.markers) {
+    if (s.flag || s.markers || s.gap) {
       for (i = vis[0]; i <= vis[1]; i++) {
         v = s.values[i];
-        if (v != null) out.push("<circle " + attr({ cx: px(x[i]), cy: py(v), r: s.flag ? 3.5 : 2.5, fill: s.flag ? "none" : pal.surface, stroke: c, "stroke-opacity": s.flag ? 0.75 : 1, "stroke-width": s.flag ? 1.25 : 1.5 }) + "/>");
+        if (v != null) out.push("<circle " + attr({ cx: px(x[i]), cy: py(v), r: s.flag ? 3.5 : s.gap ? 4 : 2.5, fill: s.flag ? "none" : pal.surface, stroke: c, "stroke-opacity": s.flag ? 0.75 : 1, "stroke-width": s.flag ? 1.25 : 1.5 }) + "/>");
       }
-      if (s.flag) return out.join("");
+      if (s.flag || s.gap) return out.join("");
     }
     if (s.bars) {
       var zero = py(0), w = Math.max(1, bb.width / Math.max(1, vis[1] - vis[0] + 1) * 0.9);
@@ -907,7 +1220,7 @@
       }
     }
     flush();
-    out.unshift("<path " + attr({ d: d.join(""), fill: "none", stroke: c, "stroke-width": s.trend ? 2 : s.thin ? 1 : 1.5, "stroke-dasharray": s.trend ? "6 4" : "none", "stroke-linejoin": "round" }) + "/>");
+    out.unshift("<path " + attr({ d: d.join(""), fill: "none", stroke: c, "stroke-width": s.trend ? 2 : s.thin ? 1 : s.smooth ? 2.2 : s.line ? 1.4 : 1.5, "stroke-dasharray": s.trend ? "6 4" : "none", "stroke-linejoin": "round" }) + "/>");
     return out.join("");
   }
 
@@ -922,9 +1235,17 @@
       if (button && el.contains(button)) self.action(button.getAttribute("data-chart-action"));
     });
     this.plotEl.addEventListener("keydown", function (event) {
-      var keys = { "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", _: "zoom-out", ArrowLeft: "left", ArrowRight: "right", 0: "reset", Home: "reset" };
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // The arrow keys read out each value (#283); with Shift they move the view.
+      var cursor = { ArrowLeft: "previous", ArrowRight: "next", Home: "first", End: "last" };
+      if (cursor[event.key] && !(event.shiftKey && /^Arrow/.test(event.key))) {
+        event.preventDefault();
+        self.key(cursor[event.key]);
+        return;
+      }
+      var keys = { "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", _: "zoom-out", ArrowLeft: "left", ArrowRight: "right", 0: "reset" };
       var name = keys[event.key];
-      if (!name || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (!name) return;
       event.preventDefault();
       self.action(name);
     });
@@ -962,7 +1283,7 @@
     : null;
 
   function hydrate(scope) {
-    Array.prototype.forEach.call((scope || doc).querySelectorAll("[data-chart-src]"), function (el) {
+    Array.prototype.forEach.call((scope || doc).querySelectorAll("[data-chart-src], [data-chart-data]"), function (el) {
       if (el._chart) return;
       el._chart = new Chart(el);
       charts.push(el._chart);
@@ -989,6 +1310,11 @@
   window.ClimpactCharts = {
     hydrate: hydrate,
     get: chartOf,
+    setView: function (target, key) {
+      var chart = chartOf(target);
+      if (chart) chart.setView(key);
+      else if (target && target.setAttribute) target.setAttribute("data-chart-view", key);
+    },
     focusDate: function (target, iso, options) {
       var chart = chartOf(target);
       if (!chart) return Promise.reject(new Error("no chart"));

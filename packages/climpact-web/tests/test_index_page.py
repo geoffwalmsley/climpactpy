@@ -169,3 +169,32 @@ def test_the_citation_names_the_station_index_years_and_software(base):
     assert text.startswith("Sydney, TXx (Hottest day), 1961–2015")
     assert ("base period 1961–1990" in text) == bool(base)
     assert "climpact 0.1.3" in text and text.endswith("Accessed 2026-11-17.")
+
+
+def test_the_interactive_charts_data():
+    """#283: the payload charts.js draws the index page's chart from: the values and
+    anomalies, each view's running mean, the values left out at the base-period mean (or
+    zero) with why, the base period, and Sen's slope moved by the anomalies' mean."""
+    values = [38.0 + (i % 5) for i in range(30)]
+    values[10] = NAN
+    trend = PlotTrend(lower=-0.01, slope=0.02, upper=0.05, intercept=39.0, p_value=0.5)
+    plot = annual(values, trend=trend)
+    base = (1971, 1980)
+    gone = index_page.left_out(plot, {1971: 20})
+    data = index_page.payload(card(), plot, base, gone, name="sydney_txx_ANN")
+    assert data["kind"] == "index" and data["name"] == "sydney_txx_ANN"
+    assert data["layers"]["base"] == {"from": 1970.5, "to": 1980.5, "label": "base period"}
+    assert data["layers"]["notes"] == [[10, "Left out: 20 days missing"]]
+    assert data["layers"]["interval"] and data["trend"]["lower"] == -0.01
+    mean = index_page.base_mean(plot, base)
+    values_view, anomaly = data["views"]["values"], data["views"]["anomaly"]
+    assert values_view["gaps"] == [[10, round(mean, 1)]] and anomaly["gaps"] == [[10, 0]]
+    assert anomaly["offset"] == pytest.approx(mean) and values_view["offset"] == 0
+    assert anomaly["y"][0] == round(38.0 - mean, 2) and anomaly["signed_digits"] == 1
+    assert values_view["smooth"] == index_page._rounded(index_page.running_mean(
+        index_page._values(plot), 11))  # fmt: skip
+    # Without a base period: one view, the values left out at the series' mean.
+    plain = index_page.payload(card(), plot, None, gone)
+    assert list(plain["views"]) == ["values"] and plain["layers"]["base"] is None
+    present = [v for v in values if v == v]
+    assert plain["views"]["values"]["gaps"] == [[10, round(sum(present) / len(present), 1)]]

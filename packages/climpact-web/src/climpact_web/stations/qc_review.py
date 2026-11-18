@@ -29,6 +29,7 @@ from pathlib import Path
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
+from climpact_web.charts import data as chart_data
 from climpact_web.core import numbers
 
 PAGE_SIZE = 12  # rows of a check's values table a page (#264)
@@ -1079,6 +1080,7 @@ def _chart(window, variables: tuple[str, ...], ring: str | None, date: str) -> d
     centre = next(i for i, (d, _v) in enumerate(window) if d == date)
     value = window[centre][1][ring] if ring else None
     return {
+        "xs": [x(i) for i in range(n)],
         "lines": lines,
         "ring": None if value is None else {"x": x(centre), "y": y(value)},
         "band": {"x": round(x(centre) - step / 2, 1), "width": round(step, 1)},
@@ -1125,6 +1127,7 @@ def _bar_chart(window, date: str, limit: float | None) -> dict:
         )
     centre = next(i for i, (d, _v) in enumerate(window) if d == date)
     return {
+        "xs": [x(i) for i in range(n)],
         "bars": bars,
         "bar_width": width,
         "limit_y": None if limit is None else y(limit),
@@ -1239,6 +1242,20 @@ def _day_cell(value: float | None) -> Cell:
     return Cell(numbers.fixed(value, 1))
 
 
+def days_readout(days: list[dict], xs: list[float], date: str) -> str:
+    """The 7-day chart's read-out (#283): each day's PR, TX and TN, codes first."""
+    shorts = short_labels()
+    points = []
+    for day, x in zip(days, xs, strict=True):
+        parts = []
+        for key, cell in zip(("prcp", "tmax", "tmin"), day["cells"], strict=True):
+            text = cell.text if cell.missing else numbers.with_unit(cell.text, UNITS[key])
+            parts.append(f"{shorts[key]} {text}")
+        points.append([x, None, day["date"], " · ".join(parts)])
+    start = next((i for i, d in enumerate(days) if d["date"] == date), 0)
+    return _json({"points": points, "top": PLOT_TOP, "bottom": PLOT_BOTTOM, "start": start})
+
+
 def build_finding(
     check: Check, row: Row, station: StationRows, params, flagged: set[str] | None = None
 ) -> Finding:
@@ -1263,6 +1280,8 @@ def build_finding(
         }
         for d, v in window
     ]
+    if chart:
+        chart["readout"] = days_readout(days, chart["xs"], row.date)
     lines = station.lines.get(row.date, [])
     listed = []
     if check.key == "duplicates":
@@ -1340,7 +1359,54 @@ def when_chart(rows: list[Row], first: str, last: str, zero: bool, selected: Row
         "x_ticks": x_ticks,
         "first": start.year,
         "last": end.year,
+        "low": low,
+        "high": high,
+        "start": first,
+        "span": span,
     }
+
+
+_json = chart_data.attr_json
+
+
+def when_readout(group: Group, chart: dict, selected: Row | None) -> str:
+    """The When chart's read-out (#283, js/chart-readout.js) as JSON: each value by date
+    (day offsets from the record's first day) and its value, named by the chart's y
+    label; the nearest dot to the pointer, and the selected one first for the keyboard. A
+    value picked selects its row in the values table (qc.js)."""
+    start = dt.date.fromisoformat(chart["start"])
+    rows = sorted((r for r in group.check.rows if r.plot is not None), key=lambda r: r.date)
+    selected_date = selected.date if selected else ""
+    return _json(
+        {
+            "x0": WHEN_LEFT,
+            "dx": (WHEN_RIGHT - WHEN_LEFT) / chart["span"],
+            "low": chart["low"],
+            "high": chart["high"],
+            "top": WHEN_TOP,
+            "bottom": WHEN_BOTTOM,
+            "d": [(dt.date.fromisoformat(r.date) - start).days for r in rows],
+            "v": [chart_data.shown(r.plot) for r in rows],
+            "when": {"step": "date", "first": chart["start"]},
+            "label": _("%(label)s:") % {"label": group.y_label},
+            "unit": "",
+            "near": "xy",
+            "pick": True,
+            "start": next((i for i, r in enumerate(rows) if r.date == selected_date), None),
+        }
+    )
+
+
+def months_readout(group: Group, chart: dict) -> str:
+    """The By calendar month chart's read-out (#283): each month's count."""
+    points = []
+    for bar in chart["bars"]:
+        if group.wrong:
+            text = ngettext("%(n)s row", "%(n)s rows", bar["n"])
+        else:
+            text = ngettext("%(n)s value", "%(n)s values", bar["n"])
+        points.append([bar["cx"], None, bar["name"], text % {"n": numbers.grouped(bar["n"])}])
+    return _json({"points": points, "top": MONTHS_TOP, "bottom": MONTHS_BOTTOM, "start": 0})
 
 
 def month_names() -> list[str]:
@@ -1726,9 +1792,12 @@ class Review:
         return build_finding(check, row, self.rows, self.params, flagged)
 
     def when(self, group: Group, selected: Row | None) -> dict:
-        return when_chart(
+        chart = when_chart(
             group.check.rows, self.rows.first_date, self.rows.last_date, group.zero, selected
         )
+        if chart:
+            chart["readout"] = when_readout(group, chart, selected)
+        return chart
 
     @property
     def years_short(self) -> list[YearMissing]:

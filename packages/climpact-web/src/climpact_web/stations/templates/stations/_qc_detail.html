@@ -5,7 +5,9 @@ and one sentence (what the check means and what to look at first), with "These v
 (CSV)" and "Show on the daily chart" (the selected value, with JavaScript) by the title;
 two charts with axes side by side, When (each value against its date across the record,
 the selected one ringed; its table view is the values table) and By calendar month
-(twelve bars, its table view one click away, shown without JavaScript); then the values
+(twelve bars, its table view one click away, shown without JavaScript), each with a
+read-out by pointer and keyboard (#283, js/chart-readout.js; a When dot picked selects
+its row in the values table, qc.js); then the values
 table and the selected value (stations/_qc_values.html). On a narrow screen the detail
 follows the rail: "Back to the list" returns to the check's row.
 Parameters: item (qc_review.Item), shown, entry (its page, value, when, months,
@@ -27,7 +29,7 @@ selected_date), analysis, month_names.
     {% if when %}
     <figure class="qc-fig qc-fig--when">
       <figcaption class="qc-fig__caption">{% translate "When" %} <span class="qc-fig__note">{{ "·" }} {% blocktranslate with label=group.y_label trimmed %}{{ label }}, each value{% endblocktranslate %}</span></figcaption>
-      <svg class="qc-fig__plot" viewBox="0 0 640 170" role="img" focusable="false" aria-label="{% blocktranslate with title=group.title first=when.first last=when.last trimmed %}{{ title }}: each value by date, {{ first }} to {{ last }}. The values table lists them.{% endblocktranslate %}" data-qc-when>
+      <svg class="qc-fig__plot" viewBox="0 0 640 170" role="img" focusable="false" aria-label="{% blocktranslate with title=group.title first=when.first last=when.last trimmed %}{{ title }}: each value by date, {{ first }} to {{ last }}. The values table lists them.{% endblocktranslate %}" data-qc-when data-readout='{{ when.readout }}' data-readout-keys="{{ item.anchor }}-when-keys" data-readout-role="{% translate 'chart' %}">
         {% for tick in when.y_ticks %}<line class="qc-chart__grid" x1="44" y1="{{ tick.y }}" x2="632" y2="{{ tick.y }}"/><text class="qc-chart__tick" x="38" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
         <line class="qc-chart__axis" x1="44" y1="8" x2="44" y2="146"/>
         <line class="qc-chart__axis" x1="44" y1="146" x2="632" y2="146"/>
@@ -35,15 +37,17 @@ selected_date), analysis, month_names.
         <path class="qc-fig__dots" d="{{ when.dots }}"/>
         <circle class="qc-fig__ring" r="6.5" cx="{{ when.ring.x|default:'-20' }}" cy="{{ when.ring.y|default:'-20' }}" data-qc-ring/>
       </svg>
+      {% include "components/readout.html" with id=item.anchor|add:"-when" action="select" %}
     </figure>
     {% endif %}
     <figure class="qc-fig qc-fig--months" data-qc-months>
       <figcaption class="qc-fig__caption qc-fig__caption--split"><span>{% translate "By calendar month" %}</span><button type="button" class="qc-fig__toggle" data-qc-js hidden data-qc-months-toggle aria-pressed="false">{% translate "Table" %}</button></figcaption>
-      <svg class="qc-fig__plot" viewBox="0 0 360 170" role="img" focusable="false" aria-label="{% blocktranslate with title=group.title trimmed %}{{ title }} by calendar month{% endblocktranslate %}: {% for bar in months.bars %}{{ bar.name }} {{ bar.n }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-qc-months-chart>
+      <svg class="qc-fig__plot" viewBox="0 0 360 170" role="img" focusable="false" aria-label="{% blocktranslate with title=group.title trimmed %}{{ title }} by calendar month{% endblocktranslate %}: {% for bar in months.bars %}{{ bar.name }} {{ bar.n }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-qc-months-chart data-readout='{{ months.readout }}' data-readout-keys="{{ item.anchor }}-months-keys" data-readout-role="{% translate 'chart' %}">
         {% for tick in months.y_ticks %}<line class="qc-chart__grid" x1="30" y1="{{ tick.y }}" x2="354" y2="{{ tick.y }}"/><text class="qc-chart__tick" x="24" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
         <line class="qc-chart__axis" x1="30" y1="146" x2="354" y2="146"/>
         {% for bar in months.bars %}{% if bar.n %}<rect class="qc-fig__bar" x="{{ bar.x }}" y="{{ bar.y }}" width="18" height="{{ bar.h }}"/>{% endif %}<text class="qc-chart__tick" x="{{ bar.cx }}" y="164" text-anchor="middle">{{ bar.name }}</text>{% endfor %}
       </svg>
+      {% include "components/readout.html" with id=item.anchor|add:"-months" %}
       <div class="table-wrap qc-months" role="region" aria-labelledby="{{ item.anchor }}-months" tabindex="0" data-qc-months-table>
         <table class="table table--data">
           <caption id="{{ item.anchor }}-months" class="sr-only">{% blocktranslate with title=group.title trimmed %}{{ title }} by calendar month{% endblocktranslate %}</caption>

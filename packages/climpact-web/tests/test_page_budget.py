@@ -50,15 +50,21 @@ ASSET_BUDGETS = {
     # help drawer (#177)
     "css/climpact.css": 22.75 * KB,
     # The quality checks: the rail and the check's detail with its values in place (#264),
-    # the list and its detail (#202), the tables linked to the charts (#77, #174); 3 KB
-    # before #264, 2 KB before #202
-    "js/qc.js": 3.5 * KB,
+    # the list and its detail (#202), the tables linked to the charts (#77, #174), a When
+    # dot picked selects its row (#283); 3.5 KB before #283, 3 KB before #264, 2 KB before
+    # #202
+    "js/qc.js": 3.75 * KB,
     # The Indices' filters (#78), column sorting (#200) and detail pane (#236); 1.5 KB
     # before #200, 2.25 KB before #236
     "js/results.js": 3 * KB,
     "js/copy.js": 0.75 * KB,  # Files' "Copy methods text" (#239)
     "js/trends.js": 0.75 * KB,  # the trend grid: a column's interval plot in place (#238)
-    "js/index-page.js": 1.25 * KB,  # the index page: anomalies in place, Copy citation (#237)
+    # the index page: anomalies in place, Copy citation (#237), the interactive chart
+    # follows them and ?at='s row in view (#283); 1.25 KB before #283
+    "js/index-page.js": 1.5 * KB,
+    # The read-out of the charts drawn on the server: the Indices' detail, Quality's check
+    # charts (#283)
+    "js/chart-readout.js": 4 * KB,
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
@@ -78,7 +84,8 @@ ASSET_BUDGETS = {
     "icons/favicon.svg": 0.5 * KB,
     "chart-palette.json": 1.5 * KB,  # not linked by pages; for code that cannot read CSS
     # The interactive charts (#75), on chart pages only.
-    "js/charts.js": 14 * KB,
+    # 14 KB before the index page's layers, views and keyboard read-out (#283)
+    "js/charts.js": 16 * KB,
     "vendor/uplot/uPlot.iife.min.js": 24 * KB,
     "vendor/uplot/uPlot.min.css": 1 * KB,
 }
@@ -242,8 +249,9 @@ PAGES = {
     "station results, 80 indices": Page(station_results),  # sparklines, no chart code
     # The index's chart and table, drawn on the server (#237): no chart code; monthly,
     # 960 values in two charts and the table, is the largest.
-    "station index": Page(station_index),
-    "station index, monthly": Page(station_index_monthly),
+    # The interactive index chart (#283)
+    "station index": Page(station_index, charts=True),
+    "station index, monthly": Page(station_index_monthly, charts=True),
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "station downloads": Page(station_downloads),  # every file with its size (#79)
     "batch check": Page(batch_check),
@@ -394,6 +402,8 @@ def test_chart_code_only_on_chart_pages():
         "station sample loaded",
         "station quality",  # "Your data"'s daily series (#198)
         "station quality results",
+        "station index",  # the interactive index chart (#283)
+        "station index, monthly",
         "gridded results, 100x100 grid",
     ]
     assert "landing" in PAGES and not PAGES["landing"].charts

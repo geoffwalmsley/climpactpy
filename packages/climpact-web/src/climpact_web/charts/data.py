@@ -45,6 +45,29 @@ with_units = numbers.with_unit
 number = numbers.number
 
 
+def attr_json(data: dict) -> str:
+    """``data`` as compact JSON for a single-quoted HTML attribute (``data-readout='…'``,
+    #283): only ``&``, ``<``, ``>`` and ``'`` escaped, so the page carries no ``&quot;``."""
+    import json
+
+    from django.utils.safestring import mark_safe
+
+    text = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+    for c, entity in (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ("'", "&#39;")):
+        text = text.replace(c, entity)
+    # Safe: every character that could end the attribute or start markup is escaped.
+    return mark_safe(text)
+
+
+def shown(value: float | None) -> float | None:
+    """A value rounded as a read-out writes it (``core.numbers.number``: two places below
+    10, one from 10), so a read-out's data carries no more figures than it shows."""
+    if value is None or value != value:
+        return None
+    value = float(value)
+    return round(value, 2 if abs(value) < 10 else 1)
+
+
 def _finite(values) -> list[float | None]:
     return [None if v is None or v != v else float(v) for v in values]
 

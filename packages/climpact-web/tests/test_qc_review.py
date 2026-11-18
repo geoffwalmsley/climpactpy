@@ -503,6 +503,34 @@ def test_check_charts_have_axes(checked):
     assert not high.zero and high.y_label == "TX\u00a0°C"
 
 
+def test_check_charts_read_out_their_values(checked):
+    """#283: When reads out each value by date (sorted by date, the selected one first for
+    the keyboard; a value picked selects its row), By calendar month each month's count,
+    and the 7-day chart each day's PR, TX and TN."""
+    import json
+
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    rain = review.table("outliers", "prcp-high")
+    group, top = review.group_of(rain), rain.sorted_rows()[0]
+    when = review.when(group, top)
+    data = json.loads(when["readout"])
+    assert len(data["v"]) == 67 and data["pick"] and data["near"] == "xy"
+    assert data["d"] == sorted(data["d"]) and data["when"]["first"] == "1961-01-01"
+    assert data["v"][data["start"]] == top.plot and data["label"] == "PR mm:"
+    # The dot's place on the chart, as when_chart draws it.
+    x = data["x0"] + data["d"][data["start"]] * data["dx"]
+    assert x == pytest.approx(when["ring"]["x"], abs=0.1)
+    months = qc_review.months_chart(group.by_month)
+    points = json.loads(qc_review.months_readout(group, months))["points"]
+    assert [p[2] for p in points][:2] == ["Jan", "Feb"]
+    assert points[0][3] == f"{group.by_month[0]} value" + ("" if group.by_month[0] == 1 else "s")
+    finding = review.value(rain, top)
+    days = json.loads(finding.chart["readout"])
+    assert len(days["points"]) == len(finding.days)
+    assert days["points"][days["start"]][2] == top.date
+    assert days["points"][days["start"]][3].startswith("PR 350.5 mm · TX ")
+
+
 def test_selected_value_text_and_its_days(checked):
     """#264: a check's selected value in a sentence (codes first, a no-break space before
     each unit), the 7 days around it as a chart and a table, and its lines in the file."""

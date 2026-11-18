@@ -139,6 +139,34 @@
     display: none;
   }
 
+  /* With JavaScript (#283) charts.js draws the chart in the plot under the server's,
+     which then shows only in print. */
+  .index-figure.is-hydrated .index-figure__scroll {
+    display: none;
+  }
+
+  .index-figure__plot {
+    min-block-size: 21rem;
+  }
+
+  @media (max-width: 32rem) {
+    .index-figure__plot {
+      min-block-size: 16rem;
+    }
+  }
+
+  @media print {
+    .index-figure.is-hydrated .index-figure__scroll {
+      display: block;
+    }
+
+    .index-figure [data-chart-toolbar],
+    .index-figure [data-chart-reveal],
+    .index-figure__plot {
+      display: none;
+    }
+  }
+
   .index-plot__base { fill: var(--color-text); fill-opacity: 0.05; }
   .index-plot__base-label { fill: var(--color-text-muted); font-size: 11px; }
   .index-plot__grid { stroke: var(--chart-grid); stroke-width: 1; }

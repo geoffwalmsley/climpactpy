@@ -26,6 +26,9 @@
  * - Chart to list: a click on a flagged value of a chart ("climpact:chartpick") selects
  *   that value in the first check that found it (stations:qc_table ?date=, which answers
  *   a check that did not with no content) and shows its detail.
+ * - When (#283): a dot picked by pointer or keyboard ("climpact:readoutpick",
+ *   chart-readout.js) selects its value in the check's table, on the page holding it in
+ *   the table's order; focus stays on the chart.
  */
 (function () {
   "use strict";
@@ -185,6 +188,28 @@
       focus = fresh.querySelector("[data-qc-region]");
     }
     if (focus) focus.focus({ preventScroll: true });
+  });
+
+  /* A value picked on a check's When chart (#283): selected in its table, in place. */
+  doc.addEventListener("climpact:readoutpick", function (event) {
+    var svg = event.target;
+    var panel = svg.closest && svg.closest("[data-qc-detail]");
+    var table = panel && panel.querySelector("[data-qc-table]");
+    if (!table || !svg.hasAttribute("data-qc-when") || !window.htmx) return;
+    var date = event.detail.when;
+    var id = table.id;
+    var src = table.getAttribute("data-src");
+    src += (src.indexOf("?") < 0 ? "?" : "&") + "sort=" + encodeURIComponent(table.getAttribute("data-sort") || "size") + "&date=" + encodeURIComponent(date);
+    window.htmx.ajax("GET", src, { target: "#" + id, swap: "outerHTML" }).then(function () {
+      var now = doc.getElementById(id);
+      var title = now && now.querySelector("[data-qc-value-title]");
+      if (title) say(title.textContent);
+      var link = now && now.querySelector('[data-qc-value="' + date + '"]');
+      if (link) address(link.getAttribute("href"));
+      var row = now && now.querySelector('tr[data-date="' + date + '"]');
+      var region = row && row.closest("[data-qc-region]");
+      if (region) region.scrollTop = Math.max(0, row.offsetTop - region.clientHeight / 2);
+    });
   });
 
   /* A flag picked on a chart: its value selected in the first check that found it. */

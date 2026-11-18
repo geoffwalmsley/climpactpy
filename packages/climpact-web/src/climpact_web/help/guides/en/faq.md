@@ -57,7 +57,7 @@ are only visible in your browser session; you can delete them at any time.
 ## The calculation is slow or seems stuck {#slow}
 
 A station takes about 10 seconds with plots. The progress page updates as it goes; you can
-leave it and come back from [Your calculations](url:jobs:list). If a calculation stops
+leave it and come back from [Workspaces](url:stations:workspaces). If a calculation stops
 unexpectedly, the page says so and offers to try again.
 
 ## Can I add my own indices? {#own-indices}

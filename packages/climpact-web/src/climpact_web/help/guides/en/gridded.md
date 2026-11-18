@@ -11,7 +11,7 @@ hosted Climpact offers gridded runs only if its operator has switched them on, a
 by upload only. They are also available from the `climpact` command line.
 
 The calculation runs in the background: you can close the page and come back to it from
-**Your calculations**.
+[Your calculations](url:jobs:list), which Workspaces links to.
 
 A small grid takes minutes; a national grid over decades can take hours.
 

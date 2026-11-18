@@ -84,6 +84,7 @@ def purge_expired_workspaces(now: dt.datetime, days: int) -> int:
             count += 1
 
     known = {str(pk) for pk in Station.objects.values_list("pk", flat=True)}
+    known |= {str(pk) for pk in Workspace.objects.values_list("pk", flat=True)}  # Files
     delete_stray_folders(stations_dir(), known, cutoff)
     if count:
         logger.info("Deleted %d expired workspace(s)", count)

@@ -394,23 +394,8 @@ def check_parameters(station: StationCheck) -> None:
             _("Longitude %(value)s is outside -180 to 180.") % {"value": f"{station.longitude:g}"},
             station.line,
         )
-    rules = [
-        ("wsdin", not 1 <= p["wsdi_days"] <= 10, _("%(column)s must be between 1 and 10.")),
-        ("csdin", not 1 <= p["csdi_days"] <= 10, _("%(column)s must be between 1 and 10.")),
-        ("rxnday", p["rx_days"] < 1, _("%(column)s must be 1 or more.")),
-        ("txtn", p["txtn_days"] < 1, _("%(column)s must be 1 or more.")),
-        ("rnnmm", p["rnnmm"] < 0, _("%(column)s must be 0 or more.")),
-        ("SPEI", p["spei_months"] < 1, _("%(column)s must be 1 or more.")),
-    ]
-    for column, bad, message in rules:
-        if bad:
-            value = p[PARAM_FIELDS[column]]
-            station.add(
-                (message % {"column": column_label(column)})
-                + " "
-                + _("It is %(value)s.") % {"value": f"{value:g}"},
-                station.line,
-            )
+    for message in parameter_problems(p):
+        station.add(message, station.line)
     if station.latitude == 0:
         station.warnings.append(
             _(
@@ -418,6 +403,29 @@ def check_parameters(station: StationCheck) -> None:
                 "which decides the season used for the growing season length and heatwaves."
             )
         )
+
+
+def parameter_problems(p: dict) -> list[str]:
+    """R's ``validate_climdexInputParams`` for a metadata line's index values (IndexParams
+    fields), in plain language; none for values not given."""
+    rules = [
+        ("wsdin", lambda v: not 1 <= v <= 10, _("%(column)s must be between 1 and 10.")),
+        ("csdin", lambda v: not 1 <= v <= 10, _("%(column)s must be between 1 and 10.")),
+        ("rxnday", lambda v: v < 1, _("%(column)s must be 1 or more.")),
+        ("txtn", lambda v: v < 1, _("%(column)s must be 1 or more.")),
+        ("rnnmm", lambda v: v < 0, _("%(column)s must be 0 or more.")),
+        ("SPEI", lambda v: v < 1, _("%(column)s must be 1 or more.")),
+    ]
+    out = []
+    for column, bad, message in rules:
+        value = p.get(PARAM_FIELDS[column])
+        if value is not None and bad(value):
+            out.append(
+                (message % {"column": column_label(column)})
+                + " "
+                + _("It is %(value)s.") % {"value": f"{value:g}"}
+            )
+    return out
 
 
 def check_name(station: StationCheck) -> bool:

@@ -1,12 +1,17 @@
 {% load i18n %}{% comment %}
 Results' page actions, in the workspace header (#200, the Results mockup): the sector
 comparison (secondary) and Download all (primary, the zip). Every other file is on the
-Files tab (#176); without a zip, its link takes Download all's place.
-Context: analysis, downloads.
+Files tab (#176); without a zip, its link takes Download all's place. While the results
+are out of date (#223: ``stale``, the banner's context) the zip is the old run's: "Download
+all (out of date)", secondary, until the new results are ready; in the phone's ⋯ menu too,
+which holds these actions. The zip is R's with the provenance file added
+(``stations:station_zip``, #239).
+Context: analysis, downloads, stale.
 {% endcomment %}<div class="flex flex-wrap items-center gap-2 results-actions">{% url 'stations:sector' analysis.workspace_id analysis.slug as sector_url %}{% translate "Compare with sector data" as sector_label %}
 {% include "components/button.html" with label=sector_label href=sector_url variant="secondary" %}
-{% if downloads.zip %}{% url 'jobs:file' downloads.job.pk downloads.zip.path as zip_url %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
-{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}
+{% if downloads.zip %}{% url 'stations:station_zip' analysis.workspace_id analysis.slug as zip_url %}{% if stale %}{% translate "Download all (out of date)" as zip_label %}
+{% include "components/button.html" with label=zip_label href=zip_url icon="download" variant="secondary" %}{% else %}{% blocktranslate with size=downloads.zip.size|filesizeformat asvar zip_label %}Download all (zip, {{ size }}){% endblocktranslate %}
+{% include "components/button.html" with label=zip_label href=zip_url icon="download" %}{% endif %}
 {% else %}{% url 'stations:downloads' analysis.workspace_id analysis.slug as files_url %}{% translate "All files and the report" as files_label %}
 {% include "components/button.html" with label=files_label href=files_url icon_end="arrow-right" %}
 {% endif %}</div>

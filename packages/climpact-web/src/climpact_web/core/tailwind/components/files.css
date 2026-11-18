@@ -1,0 +1,26 @@
+/* The workspace's Files (#239, the Files board; stations/workspace_files.html). The rest
+   is utilities and shared components: the frames are border, rounded-sm and bg-surface,
+   Export ▾ and "Copy methods text" the popover (.pop, disclosure.css). */
+@layer components {
+  /* The provenance file wide, beside how long the files are kept. */
+  .space-files__foot {
+    display: grid;
+    align-items: start;
+    gap: --spacing(4);
+  }
+
+  @media (min-width: 52rem) {
+    .space-files__foot {
+      grid-template-columns: minmax(0, 1fr) minmax(16rem, 25rem);
+    }
+  }
+
+  /* climpact_run.json scrolls in its own frame. */
+  .space-files__json {
+    max-block-size: 28rem;
+    margin: 0;
+    overflow: auto;
+    font-size: var(--text-xs);
+    line-height: 1.55;
+  }
+}

@@ -1,6 +1,7 @@
 """Where the app's main destinations live, for the header, the landing page and the step
-indicator of the batch and gridded flows (#71). The single station has no steps since
-#179: its sections are tabs (``stations.workspace``).
+indicator of the gridded flow (#71). The single station has no steps since #179: its
+sections are tabs (``stations.workspace``); the batch has none since #234: its stations
+are the workspace's, on its overview.
 
 The screens arrive in later tickets (#76-#81, #85). Each destination names the URL its
 ticket will add; until that URL exists the destination resolves to ``None``, so the
@@ -40,19 +41,20 @@ class Destination:
 
 # The header (#227, the workspace design of #230): Climpact, then Workspaces and Gridded;
 # Index reference and Help at its end (base.html). Single station, Batch and Your
-# calculations are no longer header links: the landing page starts a station or a batch.
-# Until the Workspaces page lands (#242), Workspaces opens the list of calculations.
+# calculations are no longer header links: Workspaces (#242) replaced them, and the
+# landing page leads to Get started (Add stations).
 DESTINATIONS = (
     Destination(
         "workspaces",
-        "jobs:list",
+        "stations:workspaces",
         _("Workspaces"),
         "layers",
-        sections=("stations:upload", "batch:start", "/w/"),
+        sections=("stations:add", "stations:upload", "batch:start", "/w/"),
     ),
-    Destination("station", "stations:new", _("Single station"), "station", in_nav=False),
-    Destination("sample", "stations:sample", _("Try with sample data"), "play", in_nav=False),
-    Destination("batch", "batch:start", _("Batch"), "layers", in_nav=False),
+    # Add stations (#233) is the one way in, for one station or many.
+    Destination("station", "stations:add", _("Single station"), "station", in_nav=False),
+    Destination("sample", "stations:add_sample", _("Try with sample data"), "play", in_nav=False),
+    Destination("batch", "stations:add", _("Batch"), "layers", in_nav=False),
     Destination("gridded", "gridded:start", _("Gridded"), "grid", gridded=True),
     # Not a header link since #197: Help at the end of the header opens the current
     # page's guide (page_help below), and the landing page links the help.
@@ -103,6 +105,9 @@ def index_reference_url() -> str | None:
 # covers its other pages. Pages without one open the help's index.
 PAGE_GUIDES = {
     "stations:new": "station-file",
+    "stations:add": "station-file",
+    "stations:add_to": "station-file",
+    "stations:add_review": "station-file",
     "stations:setup": "station-file",
     "stations:qc": "quality-control",
     "stations:results": "indices",
@@ -164,23 +169,9 @@ GRIDDED_STEPS = (
 )
 
 
-# The batch page's steps (#80): load the files, check the stations and choose the options,
-# then follow the run and download the results.
-BATCH_STEPS = (
-    Step("upload", _("Load files"), "batch:start"),
-    Step("check", _("Check stations"), "batch:check"),
-    Step("results", _("Calculate and download"), "stations:workspace"),
-)
-
-
-def batch_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The batch steps with ``current`` marked. Steps before it are complete and link back
-    when ``urls`` gives their address (a run's own URLs)."""
-    return flow_steps(BATCH_STEPS, current, urls)
-
-
 def gridded_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The gridded steps with ``current`` marked, as :func:`batch_steps`."""
+    """The gridded steps with ``current`` marked. Steps before it are complete and link
+    back when ``urls`` gives their address (a run's own URLs)."""
     return flow_steps(GRIDDED_STEPS, current, urls)
 
 

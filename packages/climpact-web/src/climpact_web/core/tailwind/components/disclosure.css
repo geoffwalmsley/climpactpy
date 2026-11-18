@@ -35,4 +35,49 @@
   .disclosure__body > :last-child {
     margin-block-end: 0;
   }
+
+  /* == A popover: a disclosure whose panel floats under its button, at the inline end.
+     The index page's citation (#237), Files' methods text (a disclosure without
+     JavaScript, a copy button with it) and the workspace's Export ▾ (#239). In the ⋯
+     menu on phones it is in place. == */
+  .pop {
+    position: relative;
+  }
+
+  .pop__details > summary {
+    list-style: none;
+  }
+
+  .pop__details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pop__panel {
+    position: absolute;
+    inset-inline-end: 0;
+    inset-block-start: calc(100% + --spacing(1));
+    z-index: 20;
+    inline-size: min(28rem, calc(100vw - --spacing(8)));
+    margin: 0;
+    padding: --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+    font-size: var(--text-sm);
+  }
+
+  .pop__panel--text {
+    user-select: all;
+  }
+
+  .pop__panel--menu {
+    inline-size: max-content;
+  }
+
+  .page-menu__panel .pop__panel {
+    position: static;
+    inline-size: auto;
+    box-shadow: none;
+  }
 }

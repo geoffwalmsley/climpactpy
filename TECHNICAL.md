@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates, then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2753,9 +2753,11 @@ packages/climpact-web/src/climpact_web/
                      the background worker as a child process in local mode
   core/              the UI shell app (label `core`): landing page, /patterns/, /healthz,
                      the context processor `site`
+    landing.py       the landing page's preview of the Sydney sample's real output, its
+                     facts (the parity suite's counts) and the miniatures' values (#242)
     navigation.py    the app's destinations (header links, landing page) and the
-                     batch and gridded steps (`batch_steps`, `gridded_steps`) for the
-                     step indicator (the single station has tabs since #179)
+                     gridded steps (`gridded_steps`) for the step indicator (the single
+                     station has tabs since #179; the batch has none since #234)
     tokens.py        reads the design tokens back from the Tailwind source; writes
                      chart-palette.json
     numbers.py       the number rules (#226): minus, places, units, coordinates
@@ -2782,14 +2784,20 @@ packages/climpact-web/src/climpact_web/
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
-      js/setup.js    the New station page (#201): a chosen or dropped file is read at once,
-                     Replace on the file card, focus on the card after reading
+      js/setup.js    a station's setup page (New station, #201): a chosen or dropped file is
+                     read at once, Replace on the file card, focus on the card after reading
+      js/add-stations.js  Add stations (#233): files sent as soon as they are chosen or
+                     dropped, the table checked as it is typed, a pasted column filled
+                     down, Enter moving down a row
       js/context-bar.js  keeps the page's scroll padding to the height of the sticky
                      context bar (#227; the workspace header's js/workspace.js, #197; on
                      phones the part that stays, #203), and closes the phone's ⋯ page
-                     menu on Escape or a click elsewhere (#203), loaded by
-                     components/context_bar.html
+                     menu and the workspace's Export ▾ (#239) on Escape or a click
+                     elsewhere (#203), loaded by components/context_bar.html
+      js/copy.js     Files' "Copy methods text" (#239): the text's disclosure becomes a
+                     button that copies it
       js/index-page.js  an index's page (#237): Values / Anomaly in place, Copy citation
+      js/trends.js   the trend grid (#238): a column's interval plot in place
       js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), the
                      sheet an old address asks for as the page loads (#199), and the
                      phone's Inputs sheet from the Inputs bar (#203), loaded by
@@ -2800,7 +2808,7 @@ packages/climpact-web/src/climpact_web/
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
-      js/qc.js       Quality: the worklist and its detail pane (#202, #235), linked to the daily charts (#77, #174)
+      js/qc.js       Quality: the checks' rail and the check's detail, its values in place (#202, #235, #264), linked to the daily charts (#77, #174)
       js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
       js/sector.js   step 5 (#90): fills the y-axis label from the chosen file's name
       icons/icons.svg     the icon sprite (drawn for this project); favicon.svg
@@ -2844,9 +2852,11 @@ packages/climpact-web/src/climpact_web/
                      QCParamsForm and QC_DEFAULTS (the thresholds)
     qc_review.py     step 2's results: reads the qc job's files back, adds context from the
                      station rows, missing data per year, the verdict and its limits, the
-                     "look wrong" findings and the "worth a look" groups (#174), the
-                     list's items (Item, Review.items, #202), the coverage strip and the
-                     flagged values as one CSV (flagged_rows, #235)
+                     checks as a rail (wrong_groups, worth_groups, Item, Review.items,
+                     #174, #202, #264), each check's values table (value_columns, sorted
+                     largest first), its When and By calendar month charts and its
+                     selected value with the days around it (build_finding), the coverage
+                     strip and the flagged values as CSV (flagged_rows, #235, #264)
     qc_plots.py      step 2's distribution plots (R's QC plots) as inline SVG with tables
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
@@ -2867,13 +2877,48 @@ packages/climpact-web/src/climpact_web/
                      the statistics, why values were left out, the table and the citation
     themes.py        the Indices' themes (#175): the index-to-theme mapping (Heat, Cold,
                      Rain, Drought, "Also measured") the rail filters by, and their hues
+    add_stations.py  Add stations (#233): each file read once (read_files), the review
+                     table with every problem in one pass (review), tidy_name
+    views_add.py     /add/, /w/<id>/add/ and the files waiting at /w/<id>/add/<files>/
+                     (#233): staging, the review form, its live check, the sample and the
+                     sample batch, adding one station (add_one) or several (add_many)
     views.py, urls.py  /station/new and /w/<id>/<station>/ (#256): the New station page
                      (new_station: the file and the details, #201), the sample, field
                      validation, the old upload and Load addresses' redirects, daily CSV,
                      delete; Quality: the checks, progress, table pages, continue; the
                      Inputs panel's sheets (edit_input: file, station, base period,
-                     thresholds, index settings) and their runs' progress; the workspace's
-                     own address (workspace_page) and the old /station/<id>/ redirects
+                     thresholds, index settings) and their runs' progress; the old
+                     /station/<id>/ redirects; `filled` records a finished batch's run on
+                     a station opened before its workspace's overview
+    overview.py      the workspace overview's model (#234): the Stations table's rows
+                     (`rows`) and the run status line (`status_line`)
+    copy_station.py  Copy to workspace… (#241): the workspaces a station can go to
+                     (`targets`), the form (`CopyForm`) and the copy (`copy_to`)
+    views_copy.py    /w/<id>/<station>/copy (#241): the Copy to workspace page
+    workspace_file.py  the workspace file (#240): climpact_workspace.zip written (`write`:
+                     workspace.json, the station files, metadata.txt, climpact_run.json),
+                     read and checked as untrusted (`read`, `NotAWorkspaceFile`) and
+                     rebuilt through Add stations' routes (`open_into`)
+    views_workspace_file.py  /w/<id>/workspace.zip (Save file) and /w/open/ (Open a
+                     workspace file, #240)
+    workspace_list.py  Workspaces (#242): each workspace's row (`entry`, `entries`):
+                     its hint, station count, status summary, dates; `latest` for the
+                     landing page's "Welcome back"
+    workspace_files.py  the workspace's Files (#239): each station's results as Files
+                     sees them (`entries`), the all-station trends and indices CSVs,
+                     climpact_run.json (`provenance`) and its methods sentence, the zips,
+                     made once per `fingerprint` under <MEDIA_ROOT>/stations/<workspace>/files/
+                     (`build`), and the By station table (`table`)
+    trend_grid.py    trends across stations (#238): the trend grid of the stations'
+                     results (`grid`: columns, cells on the trend scale, every column's
+                     interval plot, `interval_plot`) and its CSV (`grid_csv`)
+    views_files.py   /w/<id>/files/ (#239): the Files page, its three downloads and a
+                     station's zip with its provenance file (`station_zip`)
+    views_workspace.py  /w/<id>/ (#234): the workspace's address (`workspace_page`: one
+                     station opens it, several the overview), the overview's polled
+                     fragment (`workspace_progress`), Compare an index (`compare_page`,
+                     /w/<id>/compare/, and the grid's CSV, `compare_csv`, #238), Rename,
+                     Workspace settings (a page and one page a setting) and Undo
     views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
                      old Calculate address, each index's page, anomalies JSON
@@ -2888,7 +2933,8 @@ packages/climpact-web/src/climpact_web/
     views_sector.py  step 5: the form, the sector job, its progress and results, the sample
     sample_data/     sydney_observatory_hill_1936-2015.txt.gz, R's sample (173 KB);
                      wheat_yield_nsw_1922-1999.csv, R's sample sector file (795 bytes)
-    templates/stations/  new.html (New station, #201) and _file_card.html (its file card
+    templates/stations/  add.html (Add stations and starting a workspace, #233), new.html
+                     (a station's setup page, New station until #233) and _file_card.html (its file card
                      and days-with-data strip), qc.html (and its _qc_*.html parts),
                      _unit.html (a field group validated by htmx), _summary.html,
                      _problems.html, _retention.html; the Inputs panel (_inputs.html,
@@ -2901,7 +2947,15 @@ packages/climpact-web/src/climpact_web/
                      _index_chart.html (one index, #237),
                      downloads.html (Files, #79, #176),
                      sector.html, _sector_progress.html,
-                     _sector_results.html (step 5)
+                     _sector_results.html (step 5); workspace.html, _overview.html
+                     (the run status line and Stations table), _space_bar.html and its
+                     _space_*.html parts (the workspace's context bar; _space_actions.html
+                     has Export ▾, #239), workspace_files.html (the workspace's Files),
+                     _trends.html and workspace_compare.html (trends across stations,
+                     #238),
+                     workspace_settings.html, workspace_setting.html,
+                     workspace_rename.html (#234); _station_links.html (the end of a
+                     station's provenance line)
   batch/             batch processing of stations (label `batch`, see [Batch page](#batch-page))
     models.py        BatchRun: one batch's files, check result, run options and job; it
                      fills a workspace (#231, #255)
@@ -2911,11 +2965,10 @@ packages/climpact-web/src/climpact_web/
     forms.py         UploadForm, AddFilesForm, OptionsForm
     retention.py     purge_stray_batch_folders, registered with the jobs app's purge
     views.py, urls.py  /batch/: start and sample; /w/<id>/batch/ (#256): check, add files,
-                     options (htmx), run, progress fragment, delete; the results, shown
-                     at /w/<id>/; the old /batch/<id>/ redirects
+                     options (htmx), run, delete; `results` leads to the workspace's
+                     overview at /w/<id>/ (#234); the old /batch/<id>/ redirects
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
-    templates/batch/  start.html, check.html, results.html, _options.html,
-                     _progress.html, _retention.html
+    templates/batch/  start.html, check.html, _options.html, _retention.html
   gridded/           gridded runs (label `gridded`, see [Gridded pages](#gridded-pages))
     models.py        GriddedRun: one set of netCDF files, their inspection, the variable
                      names, the parameters and the thresholds and indices jobs
@@ -2958,7 +3011,9 @@ packages/climpact-web/src/climpact_web/
     views.py, urls.py  /charts/: a station analysis's daily series, a finished job's index
                      series and their list, the pattern library's examples; ETag caching
     templatetags/charts.py  `{% chart_scripts %}`: the chart assets and text for a page
-    sample_outputs/sydney/  four index tables and the trend rows of the Sydney sample's run
+    sample_outputs/sydney/  index tables (TXx, SU, TR, TN10p, PRCPTOT annual; TXx and SPI
+                     monthly) and the trend rows of the Sydney sample's run, for the chart
+                     demos and the landing page's preview (#242)
                      (pattern library examples and tests)
   locale/en/LC_MESSAGES/django.po   the message catalogue (English, from makemessages)
 packages/climpact-web/docs/accessibility-audit.md  the accessibility audit (#83): what was
@@ -2975,9 +3030,13 @@ packages/climpact-web/tests/
                      (test_catalogue.py, #205), static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
-                     the New station page (test_stations.py, #201), Quality (test_qc_review.py), the
+                     the New station page (test_stations.py, #201), Add stations
+                     (test_add_stations.py, #233), Quality (test_qc_review.py), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
-                     #179, #198), the batch page (test_batch.py), the
+                     #179, #198), the workspace overview (test_workspace_overview.py,
+                     #234), the workspace's Files (test_workspace_files.py, #239), the landing page,
+                     Get started and Workspaces (test_workspaces_list.py, #242), trends across stations
+                     (test_trend_grid.py, #238), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
@@ -4159,9 +4218,9 @@ a comment listing its parameters. Labels are passed in already translated
 | `alert`, `messages`, `toasts` | info, success, warning, error, each with its own icon; dismissible; Django messages render as alerts; toasts via `Climpact.toast()` or an `HX-Trigger: {"toast": {...}}` response header; error toasts stay until dismissed |
 | `card`, `badge`, `stat`, `summary_list` | cards can be one link (the title's link covers the card); badges always carry text; a stat without a note keeps its value on the same line as its neighbours' |
 | `table` | the data table (#227, `table-wrap--data`, `table--data`): one frame (`border`, `--radius-sm`) on the surface, rows 32px high and one line each, a sticky header on the sunken tint over a `border-strong` rule; caption, `numeric` columns at the end and `code` columns, both mono with tabular figures; `selected` marks a row `aria-current="true"` (selected tint, ink edge on its first cell); a focusable scrolling region for wide tables, empty text. Page tables still use the plain `.table` until their tickets move them |
-| `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next item (`breadcrumb`, `step_previous`, `step_next`: an index's page passes the station / Indices and the previous and next index, `{code, name}` named codes first, #237; the previous and next station wait for workspaces, #231), the title (`heading` makes it the h1; `title_template` a title of its own, an index's h1 and theme pill), `lead_template` (a line under it, an index's definition), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `flow` keeps it across the window but in the page's flow, not sticky (an index's page, which has no tabs); `static` shows it in place, not sticky, for `/patterns/` |
+| `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next item (`breadcrumb`, `step_previous`, `step_next`: an index's page passes the station / Indices and the previous and next index, `{code, name}` named codes first, #237; a station's pages in a workspace of several stations the workspace / "Station 2 of 6" and the previous and next station, `workspace.station_nav`, #234; the workspace's own pages draw it through `stations/_space_bar.html`), the title (`heading` makes it the h1; `title_template` a title of its own, an index's h1 and theme pill), `lead_template` (a line under it, an index's definition), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `flow` keeps it across the window but in the page's flow, not sticky (an index's page, which has no tabs); `static` shows it in place, not sticky, for `/patterns/` |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `steps` | the step indicator of the batch and gridded pages (the single station has `workspace_tabs` instead since #179; the component still marks a step `optional`, which no flow uses now); from `navigation.batch_steps(current, urls)` or `gridded_steps`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
+| `steps` | the step indicator of the gridded pages (the single station has `workspace_tabs` instead since #179, and the batch none since #234; the component still marks a step `optional`, which no flow uses now); from `navigation.gridded_steps(current, urls)`; completed steps link back; `aria-current="step"`; below 40rem only the current step's label shows; `label` names the navigation when a page has more than one. It sits in the page container, so its first step lines up with the header and the content (#115) |
 | `workspace_tabs` | a station's sections, Quality, Indices and Files (#179; Data until #198, Results until #236), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
 | `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
@@ -4173,7 +4232,7 @@ a comment listing its parameters. Labels are passed in already translated
 | Side sheet | (#198, `sheet`, `js/sheet.js`) a modal `<dialog>` at the inline end, full height, at most 26rem wide: header with the title and a close button, the form's body (`sheet__body`), an `impact` note in the warning tint saying what applying updates, and a foot (`sheet__foot`) with Apply and Cancel. Its `.sheet__panel` fills the dialog, so a click on the dialog itself is on the backdrop. The body scrolls and the foot stays, so a long form (the index settings, #199, in `settings-group`s under rules) keeps Apply in view. Any link opens a sheet with `components/button.html`'s `sheet` or `data-sheet-open`. Shown on `/patterns/` with the panel, the base period's sheet and the index settings' |
 | `drawer` | the help drawer (#177, decision E): one `<aside id="help-drawer">` per page, in `base.html` after `<main>` (a top-level complementary landmark), hidden until a section's Help button opens it. Not modal: no backdrop and no focus trap. From 64rem it is a sticky column beside the content (`drawer-layout--open` on the grid that holds `<main>` and the drawer), below that it follows the content. `js/drawer.js` copies the button's `<template>` into it and focuses its title; Escape or the close button closes it and focus goes back to the button, unless focus has moved on to the page. See [Help](#help) |
 | Section header | (#197) `<div class="section-header">`: the section's heading, an optional `section-header__note` (muted, small), then `{% section_help %}`'s Help pill (`help-button`: a 30px pill with a ringed question mark and a word, `margin-inline-start: auto`, so it ends the row on every section). The word is "Help" or the `label=` given ("What do the levels mean?" on the Quality verdict); `quiet=True` makes it a quiet link ("How the checks work" on Quality, "How to read the table" in the Indices' rail); the accessible name is the label, a colon and the section's title. The header's Help (`#app-help`, `base.html`; a pill until #227, now a quiet link) leads to the page's guide (`navigation.page_help`, `PAGE_GUIDES` by URL name or namespace; the help's index elsewhere, `aria-current="page"` on the help pages); Help is not among the header links (`Destination("help", in_nav=False)`) |
-| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a chart frame, a detail pane, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and the Quality worklist (`qc-findings`, `qc-groups`, `qc-details`) is rows between hairlines. The answer band (`answer-band`) went with #236: Quality's verdict is a verdict strip (#235), and the Indices answer in one line above the table. `group-label` and `stat__label` are small, uppercase and muted |
+| One surface level | (#197, `components/workspace.css`) a page's sections are `page-section`s on the page, separated by `stack--xl` (48px) and a section header, not cards. A box marks one object (a chart frame, a detail pane, a progress card). Tables (`table-wrap`) have no frame, except the data table (#227): hairline rows, the header row small and muted on the page's colour (the surface's inside a card, dialog, drawer or chart frame, `--table-head-bg`). A `disclosure` is a row between hairlines, not a box, and Quality's rail (`qc-rail`, #264) is framed lists of rows. The answer band (`answer-band`) went with #236: Quality's verdict is a verdict strip (#235), and the Indices answer in one line above the table. `group-label` and `stat__label` are small, uppercase and muted |
 | `chart_frame` | title (an `h3`, or the level given as `heading`), text summary, legend, plot area with a skeleton until a chart draws into `[data-chart-plot]`, CSV link and table view; with `data_url` an interactive chart (#75, see [Charts](#charts)). The header is a two-column grid: the CSV button keeps its top-right slot when the summary arrives with the data (#115) |
 | `segmented` | (#237, `components/index-page.css`) one choice of two or three as links in one strip, the current one (`aria-current`) ink: the index page's Values / Anomaly and Annual / Monthly |
 | `index_name` | an index named codes first (#218): the code in mono (`index-code`, without the code background), then the short name; `title` for a page heading, the name a step lighter. Used by the index page's heading and previous/next links, Files' index table and the sector correlation table; the Indices' table sets code and name in two columns |
@@ -4194,8 +4253,8 @@ analysis.
 was in the 72rem column, 69px): the logo and "Climpact" (to the landing page), the header
 links, then Index reference, Help and the theme toggle at the end. The header links are
 only Workspaces and Gridded (`in_nav`); Single station, Batch and Your calculations went,
-and the landing page starts a station or a batch. Workspaces opens `jobs:list` until the
-Workspaces page lands (#242); it is `aria-current="page"` there and `aria-current="true"`
+and the landing page leads to Get started (Add stations). Workspaces opens the Workspaces
+page (`stations:workspaces`, `/w/`, #242); it is `aria-current="page"` there and `aria-current="true"`
 on every `/station/`, `/batch/` and `/w/` page (`Destination.sections`, URL names or
 paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
@@ -4239,18 +4298,18 @@ sign (`numbers.anomaly`; the standardised anomalies chart's payload has
 151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); counts grouped,
 "65,720" (`numbers.grouped`, the Quality tab's count, #222); a no-break
 space between a value and its unit. The Quality tables keep the file's own precision
-(`numbers.file_value`) with U+2212, except the days around a finding, which have one
-decimal (`numbers.fixed`, #235). Server-drawn charts (`stations/qc_plots.py`,
+(`numbers.file_value`) with U+2212, except the days around a value, which have one
+decimal (`numbers.fixed`, #235), and what the screen works out (a month's limit and usual
+range, over and beyond by, TN − TX), one decimal, signed where the sign says something
+(`numbers.signed`, #264). Server-drawn charts (`stations/qc_plots.py`,
 `sector_plots.py`, `preview.py`) and `charts.js` (its y-axis ticks, read-out and table
 view) write minus the same way. Templates use the `decimals` and `coordinates` filters
 of `{% load ui %}`. Text the user types and the downloads keep the hyphen-minus: a CSV is
 written as the files are (Quality's flagged values CSV too, #235), and the help still
 says to write `-99.9` for a missing value.
 
-**Pages.** The landing page (`/`) says what Climpact does, has the start and "try with
-sample data" buttons, a short "How it works" paragraph (#173: the four step cards repeated
-the step indicator and the tour), the other ways to run Climpact (batch, gridded in
-local mode, help, the command line) and a note on where data is kept (local or hosted).
+**Pages.** The landing page (`/`, #242) is described in [Landing page and
+Workspaces](#landing-page-and-workspaces).
 The pattern library (`/patterns/`, with `PATTERN_LIBRARY`) shows every component, the
 palette and the icons, and is what the user review and the accessibility audit (#83) use.
 
@@ -4583,8 +4642,10 @@ output file of a finished job (paths outside `output/` give 404). Any other sess
 bar and note, alerts for failure, cancellation and a missing worker, the zip download
 button and the file list in a disclosure; the list is a table with an empty state, and
 the station form uses the field and drop zone components with an error summary. The
-header links to the list as Workspaces (#227; "Your calculations" before), until the
-Workspaces page replaces it (#242).
+header linked to the list as Workspaces from #227 until the Workspaces page (#242)
+replaced it there. The list stays for the gridded runs, which are not workspaces: the
+Workspaces page links to it when the session has one, and so do the gridded setup page,
+the gridded guide and a job's page.
 
 **Polling.** The fragment replaces itself (`hx-swap="outerHTML"`) after a delay the
 server chooses: `hx-trigger="load delay:<n>s, climpact:visible from:document"` with
@@ -4647,9 +4708,10 @@ The single-station pages (#76-#79, #90, #178, #179) replace the R app's tabs
 station is a workspace of sections, shown as tabs under its name (decision A): since #198
 Quality (#77; a compact worklist since #235), Results (#78, #79)
 and Files (#79, #176), beside the Inputs panel, where everything the user gave is changed
-("Inputs panel" below). A first visit is one New station page (#201, "New station page"
-below): the file, the station details, then "Check and calculate", which runs the checks
-and the indices together and opens Quality. There are no steps and no step indicator. R's step 3, the index settings, is
+("Inputs panel" below). Since #233 a first visit is Add stations ([Add stations](#add-stations)):
+one file added there is checked and calculated as the New station page (#201, "New station
+page" below) did, and opens Quality; that page stays as a station's setup page, for a new
+file that needs new details. There are no steps and no step indicator. R's step 3, the index settings, is
 the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
 from #178): the indices are calculated with the defaults while the user looks at the
 quality checks ("Speculative calculation" below). The output pages hold no forms but the
@@ -4697,28 +4759,35 @@ reverses `stations:<name>` with the workspace and the slug; templates use
 `{% url 'stations:<name>' analysis.workspace_id analysis.slug %}`) and its batch
 `/w/<id>/batch/…` (`BatchRun.url(name)`: a batch makes its own workspace, so the workspace
 names it; `batch.views.get_run` takes the workspace's). `batch` is therefore not a station
-slug (`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
+slug, nor are `add` (Add stations' `/w/<id>/add/`, #233) and the overview's `settings`,
+`progress`, `rename` and `undo` (#234), and `files` (the workspace's Files,
+`/w/<id>/files/`, #239) and `compare` (Compare an index, `/w/<id>/compare/`, #238)
+(`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
 are included before the stations' (`climpact_web/urls.py`). Every lookup is by the
 session's owner token on both the station or batch and its workspace
 (`views.get_analysis`, `batch.views.get_run`), so another session's workspace, a slug the
 workspace doesn't have, or a station under another workspace gives 404.
 
-- **`/w/<id>/`** (`views.workspace_page`) is the one address of a batch's results, so the
-  workspace overview (#234, `Calculate.dc.html`) replaces the view there without moving
-  any link. A workspace of one station opens it straight away, at its furthest section
-  (the Flow board: "one station: open it straight away, no overview"): Quality while it
-  waits, Indices once calculated or failed (which say why: `views_indices.batch_failure`,
-  from `batch.fill.run_states`), the New station page for one the batch had no file for.
-  Otherwise, until the overview, the batch stands in: once it is queued, the batch
-  results (`batch.views.results`), after `batch.fill.fill_workspace` has recorded how a
-  finished run went; before, its check page. Several stations and no batch (not made by
-  any page yet) open the most recently changed one. Every link to the results goes here
+- **`/w/<id>/`** (`views_workspace.workspace_page`) is the workspace's address. A
+  workspace of one station opens it straight away, at its furthest section (the Flow
+  board: "one station: open it straight away, no overview"): Quality while it waits,
+  Indices once calculated or failed (which say why: `views_indices.batch_failure`, from
+  `batch.fill.run_states`), the New station page for one the batch had no file for. A
+  workspace of two or more opens its overview (#234, [Workspace overview](#workspace-overview)),
+  after `batch.fill.fill_workspace` has recorded how a finished batch went. Without
+  stations, files waiting on Add stations open their review, and a batch of the old
+  upload its check page. Every link to a batch's results goes here
   (`BatchRun.results_url`): the redirect after Calculate, "Follow its progress" on the
-  check page, the step indicator, the breadcrumb and the recent batches; the htmx polling
-  is of the fragment, `/w/<id>/batch/progress`.
-- **Pages with no workspace yet** keep their addresses: `/station/new`, `/station/sample`
-  and the station's sample files, `/batch/` and `/batch/sample`. A workspace is made when
-  the file is read or the batch uploaded, and the redirect after it goes to the new address.
+  check page, the breadcrumb and the recent batches. `progress`, `rename`, `settings` and
+  `undo` are the overview's own addresses, so they are not station slugs either.
+- **Pages with no workspace yet** keep their addresses: `/add/` (Add stations, #233),
+  `/add/sample` and `/add/sample-batch`, the station's sample files and the sample
+  metadata file. `/station/new`, `/station/`, `/batch/` and a GET of `/station/sample` or
+  `/batch/sample` lead to `/add/`; their POSTs (the old New station form, the old batch
+  upload and the old samples) still work but no page sends them. A workspace is made when
+  files are dropped on Add stations, and the redirect after it goes to the new address.
+  Files waiting on Add stations are a batch with no job: `/w/<id>/` and `/w/<id>/batch/`
+  lead to their review, and a batch that ran comes before them (`batch.views.get_run`).
 - **Old addresses** (`views.old_station_url`, `batch.views.old_batch_url`): a GET or HEAD of
   `/station/<id>/<path>` or `/batch/<id>/<path>` redirects, with its query string, to the
   station's or batch's address under its workspace while it is kept, and gives 404 after
@@ -4776,8 +4845,12 @@ on all of them. The current `settings` are the station's (`workspace.station_set
 #254): the workspace's `index_settings` with the defaults filled in
 (`workspace.workspace_settings`, `default_settings`), the station's own values in place of
 the workspace's (`workspace.own_params`). A batch's custom index is its workspace's too
-(#255): the workspace starts with none, so the fallback to the batch job's custom index
-that #254 had is gone. Before #254 the settings
+(#255): a workspace made by the old batch upload starts with none, as Climpact for R's
+batch calculates none, so the fallback to the batch job's custom index that #254 had is
+gone. A workspace started on Add stations (#233) has the default settings, the custom
+index included, whether its stations run one by one or as a batch: its batch zip then has
+the custom index's files, which R's batch never writes (a web-only difference; the core's
+batch and its parity test are unchanged). Before #254 the settings
 were those of the latest run asked for and were not compared when deciding what to queue;
 now a change to them is an input change like the others. An input a job did not record
 (a job from before #179) never differs. A section
@@ -4815,7 +4888,14 @@ the sector comparison and Files say so too. When the replacement finishes it is 
 the section is current again. A change to the index settings now gives the same banner
 ("You changed the settings."), as the settings are an input of the workspace's (#254);
 the Recalculation card is left for a run of unchanged inputs ("Recalculate", "Try again",
-or Apply with the same settings). Quality keeps the verdict's level and its count of values
+or Apply with the same settings). The header says nothing of the new inputs for the old
+results (#223): while the results shown are out of date, the provenance line of the
+Indices, an index page and Files describes the run on the page
+(`workspace.provenance_inputs`: its recorded coordinates, base period, thresholds and
+settings, in place of the current ones, which the Inputs panel and bar show as
+"· changed"), and "Download all" is the old run's zip, so it reads "Download all (out of
+date)" in the context bar and its ⋯ menu, "Download all (zip, 8.0 MB, out of date)" on
+Files, and is secondary in both until the new results are ready, cancelled or not. Quality keeps the verdict's level and its count of values
 that look wrong in the checks' `result["verdict"]` and `result["verdict_wrong"]`
 (`workspace.remember_verdict`, called by `views.qc_context` before it builds the tabs, so
 the first page after the checks shows their verdict), for the Quality tab (#222).
@@ -4862,7 +4942,7 @@ be undone. A change to one station's file or details forgets the record
 nothing. The jobs the record names are kept while it is there (`retention.kept_jobs`). A view reads
 where the change stands from `workspace.change_state(space)` (a `ChangeState`: its jobs,
 how many finished, failed or were cancelled, `finished`, and `can_undo`), or None when the
-record is empty; #234's run status line on the workspace's overview is meant to use it.
+record is empty; the run status line on the workspace's overview uses it for Undo (#234).
 
 **Tabs (#179).** `workspace.sections` gives each section its address and state, and
 `stations/_workspace.html` draws the context bar (#227, `components/context_bar.html`;
@@ -4870,7 +4950,8 @@ the workspace header of #197 before it): the station's name as the h1 of the thr
 section pages, the provenance line (`workspace.provenance`: the coordinates, the years
 and their count, "base" and the base period, "ET-SCI defaults" or how many quality
 thresholds and index settings are not the default, and "climpact" with the core's
-installed version, `importlib.metadata`; on a phone only the years), the page's actions
+installed version, `importlib.metadata`; on a phone only the years; the shown run's values
+while its results are out of date, #223), the page's actions
 (Results' "Compare with sector data" and "Download all",
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. Quality's
 provenance line describes the data the checks read instead (#235, `workspace.quality_provenance`,
@@ -4878,12 +4959,14 @@ as the Quality board draws it): the coordinates, the years, the days and the var
 with data ("21,915 days · PR TX TN") and the file's name. The other pages' lines leave the
 file name out; the Inputs panel's File row has the file. The title is the station
 name given, the file name only when there is none. The bar sits on the surface over a
-hairline across the window: a box-shadow of the surface and a 1px one of the border,
-clipped to its height (`clip-path`), so it stays a child of `.station-page`, and
+hairline across the window: a layer behind it (`.context-bar::before`, 100vmax past
+each side, with the border below; #239, a box-shadow clipped to the bar's height until
+then, which also cut off the ⋯ menu, the citation and Export ▾ that open below the
+bar), so it stays a child of `.station-page`, and
 `.site-main` clips its inline overflow (`overflow-x: clip`, which makes no scrolling box)
 so it never covers the help drawer; the page's top padding is 0. `workspace.context`
-also sets `data_page`, so `base.html` gives a station's pages the 92rem column
-(`max-w-data`, `--container-data`) instead of 72rem. The bar is sticky (`.context-bar`,
+also sets `data_page`, so `base.html` gives a station's pages the whole window, with no
+max width (#263; 92rem from #227 until then), instead of the 72rem content column. The bar is sticky (`.context-bar`,
 a direct child of `.station-page`) in a window at least 30rem high; shorter, where it
 would hide most of the page, it scrolls away. The page's `scroll-padding-block-start` is
 its height plus 1rem, so an element that takes focus, or a `#fragment`, is never under it
@@ -5210,60 +5293,83 @@ without errors; the user corrects the file outside the app and loads it again.
     days per year": the years with any, with the months that have more than 3 missing
     days and the years left without an annual value (more than 15 days, or such a month:
     [Missing data](#missing-data)).
-  - *The worklist* (#202, #235, `stations/_qc_review.html`, `_qc_detail.html`): on the
-    left two data tables (`Review.items`, `qc_review.Item`). *Look wrong*, grouped by
-    check (TN ≥ TX, Out of range, Repeated date: the checks' titles since #235, "Values
-    too large" before): one row per finding (`FindingList`, the first `FINDINGS_SHOWN` =
-    10 of each check) with its date, variable, value with its unit, check, and what it was
-    checked against (`Finding.var`, `value`, `detail`: "TX 8.2 °C", "limit 200 mm", "indices
-    use the last"); then, for a check with more rows than are shown, a row for all of them
-    in a table. *Worth a look* (`qc_review.worth_groups`): the outliers by variable and
-    direction ("Heavy rain days", "High maximum", from the sections of `qc/outliers`), and
-    the TX and TN jumps ("Large day-to-day change ≥ 20 °C") and flat runs ("Same TN 6+
-    days": more than `flatline_days` equal values), one group each, the largest first,
-    each row with its variable, its count, when it falls (`Group.mostly`: "Mostly May and
-    June", "All in December", "All year") and twelve small bars by calendar month
-    (`Group.bars`). On the right the detail pane, sticky under the context bar beside the
-    tables from a 56rem container (a container query) and scrolling inside itself; after
-    the tables otherwise, with "Back to the list". A finding's detail: its date and check,
-    its sentence as the title, codes first ("TN 9.5 °C is above TX 8.2 °C"), a chart with
-    axes of the 7 days either side (`Finding.chart`, `qc_review._chart`: three value
-    ticks, three date ticks, the day as a band, the value ringed, a legend), the same days
-    as a table to one decimal (the chart's table view; the day in bold, the other days a
-    "look wrong" check flagged marked), "Show on the daily chart" and the line(s) of the
-    station file that give the date (`StationRows.lines`, read from the file by
-    `qc_review.file_lines`: "Line 465 in the file"). A group's, or a check's every row: its
-    variable and count, title, what the check looks for, the counts by calendar month
-    (groups) and its table. Each row's first cell is a link to `?show=<id>` (a finding
-    `<check>-<date>`, a table or group its `table_id`), so the selection works without
-    JavaScript and can be linked: the server shows that item's detail, the first finding
-    by default, an unknown id the first, and with no `show` but a `?<table>_page=` the
-    table asked for (`views.selected_item`). Every detail is in the page, the others
-    `hidden`. With JavaScript (`qc.js`) a row shows its detail in place, marks the link
-    (`aria-current`) and its row, puts `?show=` in the address (`replaceState`) and
+  - *The checks and the selected check's detail* (#202, #235, #264, the Quality board
+    redrawn on 17 November; `stations/_qc_review.html`, `_qc_rail_item.html`,
+    `_qc_detail.html`, `_qc_values.html`). At the inline start a rail of the checks that
+    found something (`Review.items`, `qc_review.Item`, each a `qc_review.Group`): *Look
+    wrong* (`wrong_groups`: TN ≥ TX, Out of range, Repeated date, in R's order) and
+    *Worth a look* (`worth_groups`: the outliers by variable and direction, "Heavy rain
+    days", "High maximum", from the sections of `qc/outliers`; the TX and TN jumps, "Large
+    day-to-day change" in the rail and "≥ 20 °C" in the detail's title; the flat runs,
+    "Same TN 6+ days": more than `flatline_days` equal values; the largest first). Each
+    check is a row with its variables ("PR", "PR TX TN", "all rows"), twelve small bars
+    by calendar month (`Group.bars`) and its count. Beside the rail (20rem, from a 60rem
+    page, sticky under the context bar and scrolling inside itself when taller than the
+    window; after it otherwise, with "Back to the list") the selected check's detail:
+    its kicker ("Worth a look · PR · 67 values"), its title and one sentence
+    (`Group.lede`: when its values fall, `Group.mostly`, what the check means with its
+    thresholds, then what to look at first), "These values (CSV)" (`quality/flagged.csv
+    ?check=<key>&group=<group>`) and "Show on the daily chart" (the selected value); two
+    charts drawn on the server with axes, *When* (`when_chart`: each value against its
+    date across the record, `Row.plot`, the selected one ringed; three value ticks, from
+    zero for amounts, `_nice`; up to seven years) and *By calendar month* (`months_chart`:
+    twelve bars with count ticks; "Table" shows its table in the chart's place, both show
+    without JavaScript); then the values table and the selected value side by side. The
+    values table has only the columns the check needs (`value_columns`, `Row.values`):
+    heavy and light rain Date, PR, the month's limit (the box plot's whisker), Over or
+    Under by; TN ≥ TX Date, TN, TX, TN − TX; out of range Date, PR, TX, TN; repeated date
+    Date, Rows, Lines in the file; temperature outliers Date, the value, the month's usual
+    range, Beyond by; jumps Date, the value, the next day's, the change; flat runs Date,
+    the value, Days in a row, From (the run's first day). It has 12 rows a page
+    (`PAGE_SIZE`), largest first (`Row.size`: how far beyond what the check expects, the
+    change, the run's length, the rows of a date; `Check.sorted_rows`) or by date. The
+    selected value (`Review.value`, `build_finding`, the largest by default): its date and
+    check, its sentence, codes first ("PR 350.5 mm, 328.6 mm over the limit for
+    December", "TN 9.5 °C is above TX 8.2 °C"), a chart of the 3 days either side
+    (`WINDOW_DAYS`, 7 either side until #264): PR bars with the limit dashed
+    (`_bar_chart`) for a rain check, otherwise TX and TN lines with the value ringed
+    (`_chart`), the day as a band; the same days as a table to one decimal (the chart's
+    table view; the day in bold, the check's other values marked), a repeated date's rows,
+    and the line(s) of the station file that give the date (`StationRows.lines`, read by
+    `qc_review.file_lines`: "Line 465 in the file"). Without JavaScript every link is an
+    address: a check `?show=<id>` (its `table_id`; an unknown id the first), its page,
+    order and value `?<id>_page=`, `_sort=` and `_value=` (`views.check_state`; with no
+    `show`, the check these name, `views.selected_item`). Every check's detail is in the
+    page, the others `hidden`. With JavaScript (`qc.js`) a check shows its detail in place,
+    marks it (`aria-current`), puts `?show=` in the address (`replaceState`) and
     announces the detail's title in a polite live region; when the detail is below the
-    list, focus moves to its title, and "Back to the list" returns it to the row. Keyboard:
-    Tab moves between the rows, Enter selects. "How the checks work" (a quiet help link,
-    `{% section_help quiet=True %}`) opens the verdict's help with every check's topic.
+    rail, focus moves to its title, and "Back to the list" returns it to the check. A
+    value's date (or a click anywhere on its row), the sort and the pager swap the values
+    fragment in place (htmx, `.../quality/checks/<check>?group=&page=&sort=&date=`,
+    `views.qc_table`); the When chart's ring then moves to the selected value
+    (`data-ring-x`, `data-ring-y`), the address takes the link's, the value's title is
+    announced and focus stays on what was used. Keyboard: Tab moves between the checks,
+    Enter selects. "How the checks work" (a quiet help link, `{% section_help quiet=True
+    %}`) opens the verdict's help with every check's topic. Like the Indices (#263),
+    Quality has no Inputs panel beside it since #264: "Edit inputs" on the provenance
+    line, so the rail and the detail have the width; at 1280 px nothing scrolls sideways
+    with the 67 heavy rain days of the QC stress file.
   - *Checks that found nothing*: one line ("4 checks found nothing: ...").
   - *Daily values, with the flags* and *Distributions*, two disclosures, then one line
     with the thresholds the checks used (a link opens their sheet) and the link to the
     quality-control files in Files (#176). "Details", one disclosure holding them, until
     #235.
-- *Tables*: each "look wrong" check and each group has a table in pages of 50 (htmx,
-  `.../quality/checks/<check>?group=<variable>-<direction>&page=`; plain links with
-  `?show=<table>&<table>_page=` without JavaScript, the table being `outliers-prcp-high`, `tx_jumps`,
-  ...). The tables add what the files leave out: both days and the change for jumps (the TX
-  file holds the change and the TN file the day's value, R's slip, see
-  [Quality control](#quality-control)), the dates a flat run covers, the usual range of the
-  month for an outlier (the whiskers of `qc.boxplot_stats`), each row of a repeated date
-  (one table row per date). The flagged value is in bold.
+- *Tables*: each check in the rail has its values table in pages of 12 (htmx,
+  `.../quality/checks/<check>?group=<variable>-<direction>&page=&sort=`; plain links with
+  `?show=<table>&<table>_page=&<table>_sort=` without JavaScript, the table being
+  `outliers-prcp-high`, `tx_jumps`, ...). The tables add what the files leave out: both
+  days and the change for jumps (the TX file holds the change and the TN file the day's
+  value, R's slip, see [Quality control](#quality-control)), the first day of a flat run,
+  the month's limit or usual range for an outlier (the whiskers of `qc.boxplot_stats`)
+  and how far beyond it, the lines of a repeated date (one table row per date). The
+  flagged value is in bold. The flagged values CSV keeps every file's columns.
 - *Daily charts* (the "Daily values" disclosure): one per variable (TX, TN, DTR, precipitation) in tabs,
   from `charts:station_daily?variable=`, with the flags of the job's thresholds as rings.
-  "Show on the daily chart" in a finding's detail opens the disclosure and the row's chart and
-  moves it to the date (marked with a dashed line, focus on the chart); a click on a ring
-  shows the finding of that date in the detail, or else the group whose table holds it
-  (loading the table page that holds it), marks the row and focuses it (#202). See [Charts](#charts) for the API.
+  "Show on the daily chart" in a check's detail opens the disclosure and the selected
+  value's chart and moves it to the date (marked with a dashed line, focus on the chart);
+  a click on a ring selects that value in the first check that found it (loading the
+  page that holds it; `qc_table` answers a check that did not find the date with no
+  content), shows that check's detail and focuses the value (#202, #264). See [Charts](#charts) for the API.
 - *Distributions* (a disclosure; `qc_plots`, inline SVG with a table each), R's QC plots:
   monthly box plots (`fourboxes`, whiskers at the thresholds, so the values beyond them
   are the outliers), box plots by year (`boxseries`, whiskers at 4 IQR for precipitation
@@ -5399,10 +5505,20 @@ their own card), and the daily `EHFdaily` and `ECFdaily` tables, which R does no
 get cards of their own. For the Sydney sample that is 80 cards for the 114 tables. Since
 #236 (the Results board of the design canvas) the page is a filter rail, one line that
 answers, one dense table and a detail pane; the theme tiles and the answer band (#175,
-#200) are gone.
+#200) are gone. Since #263 they use the whole window: the rail and the pane are
+full-height columns against the window's edges (`station-page--indices`: `.indices`
+reaches out through the page's gutter), the rail on the page's colour and the pane on the
+surface, each behind a hairline; the notes above them (out of date, a recalculation,
+skipped indices) and the retention line below keep the page's margins.
 
-The rows are in the help catalogue's order (temperature thresholds, extremes,
-percentiles, seasons, precipitation, heatwaves, drought, your own index). Indices are
+The table opens sorted by the size of the trend (#263, the board's "sorted by |slope /
+unit|"): `views_indices.DEFAULT_SORT`, `"size"`, the absolute slope per decade in the
+index's own units, largest first, rows without a trend last, ties in the help
+catalogue's order (temperature thresholds, extremes, percentiles, seasons,
+precipitation, heatwaves, drought, your own index). With the Sydney sample that opens on
+GDDgrow10 (+69.0 degree-days a decade), then CDDcold18 and HDDheat18; the first row's
+detail is shown. No column has this order, so no header has `aria-sort`, and the address
+and the rail's form leave it out. Indices are
 named codes first (#218): each row leads with the code (`Card.code`, from
 `results.display_name`: `TXx`, `Rx3day`, `TX90-HWN`, `SPI3`, `EHFdaily`), in mono, with its
 theme's dot; then the short name (`Card.title`, from `results.short_name`: the catalogue's
@@ -5411,35 +5527,41 @@ filled in, "Wettest 3 days" for `rx3day`; each heatwave aspect in the words of t
 indices guide, "Number of heatwaves", the code saying which definition; the daily EHF and
 ECF tables; the user's own index from its threshold, "Days TN > 0 °C"; a long name ends in
 an ellipsis rather than widening the table). The short names were approved by the
-maintainer on 17 November 2026. The columns (`views_indices._row`): Code, Index, Unit
-(the index's), Slope / decade (signed, by the number rules of #226; a percentage's in
-percentage points, "+1.31 pp", the `pp` an `abbr`), 95% interval ("3.79 to 6.54"), Sig.
-("yes" with the theme's dot when the interval excludes zero; a dash, read "no", when it
-does not), the series as a sparkline (headed by its years, "1936–2015") and Mean (the mean
-of the values present of the series the card shows, with the slope's places,
-`numbers.slope_decimals`). An index without a trend shows a dash, and screen readers hear
-why: "Too few values", "No trend line" (TX95t) or "Daily values". Rows are the data
-table's (#227): 32px, one line each, in one frame, the table scrolling with the page. With
-the Sydney sample at 1280 x 1180 px (the board's size) 26 rows are in view and the table
-needs no sideways scroll. Sparklines are SVG paths drawn on the server (integer
+maintainer on 17 November 2026. The six columns (#263, `views_indices._row`): Code,
+Index (its full name in a `title` where it ends in an ellipsis), Slope per decade (signed,
+by the number rules of #226, with its unit beside it, muted, after a no-break space:
+"+5.15 days", a percentage's in percentage points, "+1.31 pp", the `pp` an `abbr`), 95%
+interval ("3.79 to 6.54"), Significant ("yes" with the theme's dot when the interval
+excludes zero; a dash, read "no", when it does not) and the series as a sparkline (headed
+by its years, "1936–2015"; 9rem where the page is at least 86rem wide, 6rem narrower).
+The Unit and Mean columns went with #263: the mean is in the detail pane. An index
+without a trend shows a dash, and screen readers hear why: "Too few values", "No trend
+line" (TX95t) or "Daily values". Rows are the data table's (#227): 32px, one line each,
+in one frame, the table scrolling with the page. With the Sydney sample at 1280 x 1180 px
+26 rows are in view and the table needs no sideways scroll at 1280px or wider; the
+qc_stress file (`reference/input/qc_stress_1961-2020.txt`) leaves the Index column about
+110px at 1280px, so long names end in an ellipsis there. Sparklines are SVG paths drawn on the server (integer
 coordinates in a 240 x 60 box; long series averaged into 240 columns; gaps where values
 are missing; the trend line dashed; SPI and SPEI as bars above and below zero;
 `components/spark.html`), so the page loads no chart code.
 
 The line above the table answers: "**22 of 80** indices with a significant trend · TMm
 +0.19 °C/decade" (the mean temperature's slope, when it has one), beside the live line
-("Showing 9 of 80 indices. Sorted by Slope / decade, descending.", `aria-live="polite"`).
+("Showing 9 of 80 indices. Sorted by Slope per decade, descending.", or "Sorted by the
+size of the trend, largest first." for the default; `aria-live="polite"`).
 The filter rail at the inline start (`filter-rail`): "Find", a search that matches the
 code, the short name, R's long name and the definition (`Card.search_text`); "Theme", a
-column of pills, All, Heat, Cold, Rain, Drought and "Also measured" (every other row, the
+list of plain rows (#263; the current one on `--color-selected` with an ink edge, as a
+selected table row), All, Heat, Cold, Rain, Drought and "Also measured" (every other row, the
 daily EHF and ECF tables included; `Card.chip`, `themes.chip_of`), each with its dot and
 count (`?theme=`); "Significant only" (`?significant=1`); the line "Significant: the 95%
 interval of Sen's slope excludes zero."; the help as a quiet link ("How to read the
 table"); and at its foot the settings line (#178) and "Change the settings", which opens
 the Index settings sheet. `js/results.js` filters as you type and keeps the state in the
 URL; without JavaScript the rail is a GET form sent to the page and the server filters
-(`dashboard_context`). Code, Index, Slope / decade and Sig. sort the table
-(`views_indices.sort_cards`, `?sort=code|name|trend|significance&dir=ascending|descending`):
+(`dashboard_context`). Code, Index, Slope per decade and Significant sort the table
+(`views_indices.sort_cards`, `?sort=code|name|trend|significance&dir=ascending|descending`,
+and `size` for the default order):
 codes and names A to Z first (case-folded, by code point; short names repeat across the
 heatwave definitions, so names tie by code), slopes and significance largest first; other
 ties keep the catalogue's order, and rows without a trend stay last when sorting by the
@@ -5457,8 +5579,9 @@ other detail is in the page, hidden (about 80 KB gzipped for the whole page with
 Sydney sample). With JavaScript the link shows the detail in place, marks the row
 (`is-selected`, the link `aria-current`), keeps `?show=` in the address and announces the
 index's name. The detail: the code and theme ("SU · Heat"), the short name as a heading,
-the definition; a chart drawn on the server (`index_detail.chart`, SVG in a 300 x 170 box,
-about the pane's width so its ticks stay about 11px): the series as a line in the theme's
+the definition; a chart drawn on the server (`index_detail.chart`, SVG in a 380 x 200 box,
+about the width of the pane's content (#263) so its ticks stay about 11px, the plot 50
+units from the left for a tick of six figures): the series as a line in the theme's
 hue (or SPI and SPEI as bars from zero; longer series averaged into 129 columns), Sen's
 slope dashed across it (the core's intercept and slope, as the sparkline), the base period
 of the run shown (`views_indices.run_base`, from the job's recorded metadata) as a band
@@ -5466,21 +5589,33 @@ labelled "base period", and axes: three values (the whole numbers around the dat
 middle) and three times (the first, the middle and the last). Its text alternative
 (`index_detail.summary`) names the series, its years, the lowest and highest values and
 when, and the slope and interval; the caption says "Annual SU (days), with Sen's slope
-dashed.". Then the slope per decade, its 95% interval, the years (or months) used, "79 of
-80", and the method, "Sen's slope (zyp)"; then the links: "Open full page" (the index's
+dashed.". Then six statistics in two columns (#263; one column when the pane's content is
+under 20rem, as at 1280px): the slope per decade, its 95% interval, the mean over the
+record ("Mean, 1936–2015", the mean of the values present, with the slope's places and
+the index's units), whether the trend is significant in words ("Yes: the interval
+excludes zero" or "No"), the years (or months) used, "79 of 80", and the method, "Sen's
+slope (zyp)"; then the links: "Open full page" (the index's
 page, with the interactive chart, its table view and CSV), the series' CSV and R's PNG,
 and "Monthly values" (the index page's monthly series) where there is one. Side by side
-from a 68rem page: the rail 10rem, the pane 17–26rem (`clamp(17rem, 22%, 26rem)`), both
-sticky under the context bar, the pane scrolling inside itself; from 48rem the rail beside
-the table and the pane under it; narrower, the rail above the table (its themes a wrapping
-row), the detail after it, focus moving to it, with "Back to the list". On a phone (below
-40rem) each row is two lines (code, name, unit and sparkline; then slope, interval,
-significance and mean) and the header a line of the sort buttons, by CSS only.
+from a 76rem page (#263): the rail 14rem (12.5rem until the page is 86rem wide, so the
+names keep some room at 1280px), the table, the pane `clamp(22rem, 28%, 32rem)`; the
+contents of the rail and the pane (`filter-rail__body`, `indices__pane-body`) sticky under
+the context bar, the pane's scrolling inside itself. From 48rem the rail beside the table
+and the pane under it; narrower, the rail above the table (its themes a wrapping row), the
+detail after it, focus moving to it, with "Back to the list" (hidden beside the table:
+until #263 a later rule showed it there too). On a phone (below 40rem) each row is two
+lines (code, name and sparkline; then the slope with its unit, interval and
+significance) and the header a line of the sort buttons, by CSS only.
 
-On the Indices the Inputs panel does not sit beside the section (#236): the context bar's
-Inputs bar shows at every width (`station-page--inputs-bar`), so the rail, table and pane
-have the width; without JavaScript the panel shows above the section, as on a narrow
-page. Closing a sheet opened by an old address puts focus on the first visible link that
+On the Indices the Inputs panel does not sit beside the section (#236), nor on Quality
+since #264 (`station-page--inputs-bar`, the `_workspace.html` include's `edit_inputs`),
+so the rail, table and pane have the width. Since #263 (Quality #264) "Edit inputs" at the end of the provenance line
+(`stations/_edit_inputs.html`, the context bar's `provenance_end`) opens the Inputs sheet
+where the page is at least 52rem wide; narrower, the Inputs bar under the tabs takes its
+place (and the link is hidden). On wider pages the bar shows only while it says more than
+the line: an input changed since the results shown (`inputs-bar--changed`) or a run under
+way, with its "Undo". Without JavaScript the panel shows above the section, as on a
+narrow page, and "Edit inputs" leads to it. Closing a sheet opened by an old address puts focus on the first visible link that
 opens it (`js/sheet.js`): the panel's Edit, or on the Indices the settings line's link.
 
 The themes (`Card.theme`, from `stations/themes.py`, the one place the mapping lives;
@@ -5590,8 +5725,9 @@ pages link to it instead of listing files (#176, DESIGN.md "Don't offer download
 everywhere"): Results have one "Download all (zip)" (the Files tab beside it), Quality one link
 under Details, an index page its series' CSV and R's plot (#237). The groups, in order:
 
-- *The whole calculation*: the zip (unchanged R layout, `zip_station`; "Download all", the
-  page's one primary button) and the PDF report (see [PDF report](#pdf-report)); one that
+- *The whole calculation*: the zip (R's layout, `zip_station`, with `climpact_run.json`
+  added, #239: `stations:station_zip`, see [Workspace files](#workspace-files);
+  "Download all", the page's one primary button, as on the Indices) and the PDF report (see [PDF report](#pdf-report)); one that
   was not made (unticked in the settings, or a job older than the report) says so and
   links to the Index settings sheet (#199).
 - *Summary files*: the trend and threshold files.
@@ -5619,8 +5755,9 @@ jobs' output folders and the zip's members, and checks each is reachable from Fi
 that every file link on Results, an index page and Quality is on Files too.
 
 Everything is a file a job wrote; the page only reads sizes (`stat`). The job page (each
-file and the zip, `jobs.views.output_size`) and the batch results (the zips and each
-station's report) show sizes too. The Sydney page is 119 KB of HTML, 42.1 KB gzipped with
+file and the zip, `jobs.views.output_size`) and the workspace's Files (#239) show sizes
+too; the station's zip is the one file made on request (#239: R's zip with the provenance
+file added, kept with the workspace's files). The Sydney page is 119 KB of HTML, 42.1 KB gzipped with
 its files.
 
 **Recalculating keeps the user on the same index.** An index that depends on a setting
@@ -5637,10 +5774,10 @@ scale and the custom index together; an old index URL redirects the same way.
 in the batch job (`charts.views.job_stations`, its own `skipped_outputs`) on the same
 dashboard, with a note, until it is calculated again here; the Index settings sheet
 starts from its metadata line's parameters and the workspace's custom index (none unless
-changed). "Open" on the batch results goes to this dashboard. An index page's breadcrumb
-starts with the workspace (`workspace.workspace_page`) when it has several stations: its
-address, `/w/<id>/`, which shows the batch results until #234 gives workspaces a page. A
-workspace of one station has no workspace crumb, as `/w/<id>/` opens the station itself.
+changed). Its row on the workspace overview leads to this dashboard. An index page's
+breadcrumb starts with the workspace (`workspace.workspace_page`) when it has several
+stations, which leads to its overview, `/w/<id>/` (#234). A workspace of one station has
+no workspace crumb, as `/w/<id>/` opens the station itself.
 A station that failed in the batch says why on its Indices, above "Check the settings and
 calculate" (`views_indices.batch_failure`).
 
@@ -5654,7 +5791,7 @@ R behaviour not copied in R's steps 3 and 4 (the settings and the results), and 
 | The custom index is always calculated | on by default (R's TN > 0), and can be left out |
 | Plots and zip always made | both on by default, each can be left out |
 | One download: the zip of the station folder (or the folder's path) | the zip, a PDF report (not in R, beside the zip), the plots PDF and every file with its size on the Files page (#79, #176) |
-| Results: a carousel of the PNGs and a link to the folder or zip | one line that answers, then every index in one dense table with its slope per decade, 95% interval, significance, sparkline and mean, filtered by theme, significance and search and sorted by column (#200, #236), the selected index's chart, statistics and links in a detail pane beside it (#236), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
+| Results: a carousel of the PNGs and a link to the folder or zip | one line that answers, then every index in one dense table with its slope per decade, 95% interval, significance and sparkline, filtered by theme, significance and search, sorted by the size of the trend or by column (#200, #236, #263), the selected index's chart, statistics (with its mean) and links in a detail pane beside it (#236), an interactive chart per series with trend, anomalies and the trend file's rows, the tables not written and why |
 
 **Step 5: sector data (#90).** Replaces the R app's step 4 (`singleStationStep4UI.R`,
 `singleStationStep4.R`; the calculation is the core's `climpact.sector`, see
@@ -5730,7 +5867,9 @@ expire. When on, a workspace is deleted, with its stations, batches and their fo
 `JOB_RETENTION_DAYS` after its last change (`Workspace.updated_at`), unless a job of one
 of its stations or batches is queued or running (`stations/retention.py`,
 `purge_expired_workspaces`, run with every purge of expired jobs). When off, a workspace
-stays until the user deletes it. Either way the jobs a station or batch shows are kept
+stays until the user deletes it. The workspace's Files (#239,
+`<MEDIA_ROOT>/stations/<workspace>/files/`) go with it (`Workspace.delete_files`), and the
+purge's stray-folder sweep leaves a living workspace's folder alone. Either way the jobs a station or batch shows are kept
 (`kept_jobs`): its checks, run and sector comparison, the finished run or checks a
 replacement in progress, failed or cancelled replaces on the page (`params["replaces"]`),
 a batch station's batch job (`origin["job"]`), and each batch's job. So results never
@@ -5744,13 +5883,93 @@ nothing else is left in it (`test_workspace.py`: `test_retention_keeps_the_jobs_
 `test_retention_deletes_the_workspace_once_idle`,
 `test_without_expiry_nothing_a_workspace_shows_is_deleted`).
 
+### Add stations
+
+Add stations (#233, boards `AddStations.dc.html` and the drop zone of `Start.dc.html`) is
+the one way into a workspace, for one station or many; New station and the batch's first
+page lead to it. `stations/views_add.py`, `stations/add_stations.py`,
+`stations/templates/stations/add.html`, `js/add-stations.js`.
+
+- **Addresses.** `/add/` starts a workspace: the drop zone, the file format and the
+  settings every station will share. "Use the sample station" (`/add/sample`) adds the
+  Sydney sample, named "Sydney Observatory Hill" (#219), to a new workspace and opens its
+  Quality, checked and calculated at once. `/w/<id>/add/` adds stations to a workspace.
+  Dropped files wait at `/w/<id>/add/<files>/` for review; `/add/sample-batch` (the help's
+  "Use the sample batch") puts R's sample batch there.
+- **Waiting files** are a `BatchRun` of the workspace with no job: its `files/` folder and
+  `metadata.txt` as a batch keeps them. Each station file is read once, when it arrives
+  (`add_stations.read_files`, the single-station check `inspect_station_bytes`), and what
+  was found is kept in `BatchRun.report`: `files` (each file's problems, warnings,
+  repeated dates and short summary, in the order they came), `metadata` (the metadata
+  file's stations by file, read with `batch.check.check_metadata`, and its problems),
+  `upload_problems` (`batch.check.unpack`: a zip that cannot be opened, two files of one
+  name) and `edits` (what was typed in the table). A file of the same name replaces the
+  one before; a later metadata file replaces the earlier one. Loose files and zips are
+  taken alike; a metadata file is recognised by its first line (`looks_like_metadata`).
+- **The review table** (`add_stations.review`), a row per station file and one per
+  metadata line whose file did not come: the file, the station name, latitude and
+  longitude (inputs), the period, the days, the index settings ("Defaults", or the
+  metadata line's values that differ from the workspace's, "Custom (wsdin 4)"), and Read.
+  Every problem is found in one pass: a file that cannot be read ("Not read: line 1 has 4
+  values, expected 6 (year month day PR TX TN)", the problem's `short` text, and how many
+  more), a missing or out-of-range latitude or longitude, a station name missing, not
+  allowed or given twice, a metadata value out of range (`batch.check.parameter_problems`,
+  R's `validate_climdexInputParams`), a base period the data do not reach. The name and
+  coordinates are checked by the New station form's rules (`stations.forms.MetadataForm`).
+  Repeated dates, a base period the data barely cover and the other file warnings are
+  warnings, not problems. Default names come from the file (`tidy_name`: no extension, no
+  trailing year range, underscores as spaces, lower-case words capitalised), coordinates
+  from the metadata file. The line under the table names the problems in a sentence; a
+  disclosure lists every problem and warning with its line in the file.
+- **One form** holds the drop zone, the table and (through `form="add-form"`) the settings
+  panel, so whatever is sent keeps what was typed: more files, the sample, the settings,
+  Cancel or "Add N stations and check them". Without JavaScript the files go with "Add the
+  files" and Enter in a cell checks the table again. With it a chosen or dropped file is
+  sent at once, the table is checked as it is typed (`add_check`, JSON: each row's state,
+  the line under the table and the button's label; what was typed is kept), a column
+  pasted from a spreadsheet fills the cells under the one pasted into (two columns,
+  latitude and longitude, fill both), and Enter moves down a row.
+- **Adding** takes the complete rows; the others stay out. One row becomes a station of
+  the workspace with its own jobs, as New station did: its checks and a speculative run
+  (`calculation.bring_up_to_date`), then its Quality. Added to a workspace that has other
+  stations, its run is the user's own at once, as a batch's stations' are (#277: the
+  station is at `Step.INDICES` before its jobs are queued, so the run is an ordinary job),
+  and the workspace's page opens. Its metadata line's index values are its own (`origin["params"]`).
+  Several rows run as a batch that fills the workspace (`add_many`, `batch.fill`): the
+  waiting files become the batch, a `batch` job with the workspace's base period, custom
+  index and plots, each station named in the batch by its file's stem (made safe and
+  unique, as R names a batch's stations and their folders), with the name the user gave
+  as its station name (the job's `names` parameter, so `fill.batch_inputs` records it and
+  the results are current). A station's own index values are only its metadata line's
+  (`own_params`), the job's metadata file has the workspace's for the rest. Each station's
+  quality checks are queued beside the batch as one change for the hosted limits; the
+  workspace's address shows its overview (#234), with the stations checked and calculated
+  as they go. Either way, a station that was in the workspace before and whose run was
+  still speculative (a workspace of one, before "Go to indices") is put in use as "Go to
+  indices" would (`calculation.commit_workspace`, #277): a workspace of several stations
+  has chosen to calculate, and its overview, Files and trend grid show every station's
+  results. A batch's stations are left to their batch.
+- **Settings.** The panel "Applies to every station" lists the base period, the
+  thresholds, the index settings and the plots. While the workspace has no station they
+  change in place ("Change workspace settings": the base period, the plots and PDF
+  reports and, locally, the stations calculated at the same time); afterwards a change
+  recalculates every station and is made from a station's Inputs or the workspace's
+  Workspace settings (#234). Below 90rem the panel is one line above the files, so the
+  table keeps its eight columns without scrolling sideways at 1280px. A workspace started
+  here has the default settings, the custom index included, for one station or many.
+- **Cancel** deletes the waiting files, with a workspace that holds nothing else.
+
 ### Batch page
 
 The batch page (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R`
-and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
+and `batchStep1.R`): many stations from R's batch metadata file, run as one job. Since
+#233 its first page and check page are [Add stations](#add-stations)'s: `/batch/` leads to
+`/add/`, and stations added there run as a batch; the pages below stay for a batch
+uploaded from before (their POST handlers until #271). Its results are the workspace's
+overview since #234 ([Workspace overview](#workspace-overview)).
 
-**Flow** (`batch:start`, `batch:check`, `stations:workspace`; the step indicator's three steps,
-`navigation.batch_steps`):
+**Flow** (`batch:start`, `batch:check`, `stations:workspace`; no step indicator since
+#234):
 
 1. `/batch/`: two drop zones, the metadata file and the station files (several at once,
    or a zip; a zip may also hold the metadata file, found by its first line, 12 column
@@ -5767,13 +5986,12 @@ and `batchStep1.R`): many stations from R's batch metadata file, run as one job.
    metadata file (checked again at once); the options; and "Calculate *N* stations". A
    batch with some stations not ready can start: those are left out and reported.
 3. `/w/<id>/`, the workspace's address (#256; `/batch/<id>/results` before, and
-   `/w/<id>/batch/results` while #256 was in review, both redirect), where the workspace
-   overview replaces the page (#234): one `batch` job for the ready stations. A fragment polled by
-   htmx (`batch:progress`, the job page's delays) shows the whole batch's progress and
-   each station (waiting, calculating with its own bar and stage, finished, failed, left
-   out). When it has finished: a summary, "Download all (zip)", and for each
-   station its zip and "Open" (its station in the workspace, #255), or its error and error file;
-   failures are listed first. The cancel and retry controls are the job's.
+   `/w/<id>/batch/results` while #256 was in review, both redirect): one `batch` job for
+   the ready stations, shown by the workspace's overview (#234): the run status line and a
+   Stations-table row a station, polled while it runs. The batch results page, its
+   progress fragment (`batch:progress`), per-station downloads and "What is in the zip"
+   went with #234; each station's files are on its Files tab, and the workspace's are
+   Files' (#239).
 
 **Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
@@ -5839,7 +6057,7 @@ outside the batch folder, so the zip keeps R's layout. During the run
 `BatchStatus` writes each station's state to `output/stations.json` (atomically, when a
 station starts or ends and at most every 0.5 s), which the progress fragment reads; at the
 end the job's `result` lists each station with its files, error, error file, zip and
-report. The results page offers each station's zip and report with their sizes. A
+report. The overview's run status line offers the whole zip with its size. A
 station's error is shown without the exception's class name or the job folder's path.
 
 **A batch fills its workspace (#255, `batch/fill.py`).** A batch is a way to fill a
@@ -5858,8 +6076,8 @@ overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its
   without a file when it has none that can be read, so its address leads to the New
   station page, where a corrected file is loaded. The job gets `stations_added`.
 - *When the job has succeeded*, `fill_workspace` records how it went, the first time the
-  results are shown (the workspace's address `/w/<id>/` and the `batch:progress`
-  fragment, which stand in as the workspace page until #234). A station that calculated gets
+  workspace's overview or its polled fragment is shown, or one of its stations is opened
+  (`stations.views.filled`, through `get_analysis`, for a station opened first). A station that calculated gets
   `origin["job"]`, `["outputs"]` (its folder in the job's `output/`) and `["inputs"]`
   (`batch_inputs`: the file and details the job was given, the run's base period and custom
   index, R's default thresholds, the workspace's output options, as `plots` is a run
@@ -5879,8 +6097,9 @@ queued after the batch's (a change to the workspace's settings, #254), else its 
 run's, live from the runner's `stations.json` while the job runs (`station_status`).
 `run_progress(run)` gives the run as a whole for the run status line: done of total (those
 not run not counted), failed, calculating, waiting, not run, elapsed, remaining, finished.
-A settings change has its own, `workspace.change_state` (#254). "Open" on the results
-links to the station (`/w/<id>/<station>/`, `stations:station`, its furthest section). A change to the workspace's
+A settings change has its own, `workspace.change_state` (#254). The overview's run status
+line sums up the stations' `RunState`s instead, so a batch and a recalculation read the
+same. Each row links to the station's furthest section. A change to the workspace's
 settings recalculates the batch's stations like any others (#254), each with its own
 metadata values, as one change for the hosted limits; their Quality has no checks until
 then, so that change queues their checks too. Stations without a file are skipped. This
@@ -5898,6 +6117,341 @@ R behaviour not copied, and why:
 | Plots are always drawn | a checkbox, on by default (plots and reports are about two thirds of the run time) |
 | One zip of the batch folder | the same zip, each station's own zip and its PDF report |
 | Station files only as separate uploads | separate files or zips, with the metadata file in the zip if wanted |
+
+### Workspace overview
+
+A workspace of two or more stations opens on its overview, `/w/<id>/` (#234; boards
+`Workspace.dc.html` and `Calculate.dc.html`; `stations/views_workspace.py`,
+`stations/overview.py`, `stations/workspace.html`). It replaced the batch results page and
+the batch steps.
+
+- **The workspace's context bar** (`stations/_space_bar.html`, through
+  `components/context_bar.html`): "Workspace", the name (`Workspace.display_name`) as the
+  h1, the provenance line (`views_workspace.bar_context`: the station count, the base
+  period, "ET-SCI defaults" or how many thresholds and index settings are not the default,
+  the climpact version, "kept until" the deletion date where workspaces expire) with
+  Workspace settings and Rename at its end, Add stations, and the tabs Overview, Compare an
+  index (#238) and Files (#239). Export ▾ (#239, `_space_actions.html`) on
+  the overview, Compare an index and Files: Everything (zip), the trends and indices of all stations (CSV),
+  and All files; until every station has finished it says the files are not made yet.
+- **The run status line** (`overview.status_line`): from the stations' rows. While any
+  station waits or calculates: "Calculating indices: 3 of 5 stations done." with the
+  batch job's time left, a bar (the finished stations plus each calculating one's
+  percentage) and Cancel (the batch job, `jobs:cancel`) or "Undo the change" when a change
+  to the workspace's settings can still be undone (`stations:workspace_undo`,
+  `calculation.undo`). Once finished, quiet: how many were calculated and in how long
+  (from the first job's start to the last one's end) and the stations not run and why.
+  The batch's zip is no longer offered here (#239): Export ▾ and Files have the
+  workspace's files, made from whatever each station shows.
+  Red when one failed: it is named with its error, and Workspace settings is offered.
+  Stations the batch check left out (`not_run`) are not counted in the total.
+- **The Stations table** (`overview.rows`), in the order the stations were added
+  (`overview.ordered`: `created_at`, then name): the name (a link to the station's
+  furthest section, `workspace.home_url`), coordinates, years, the share of all values
+  missing over PR, TX and TN, the Quality verdict with its count (`workspace.qc_verdict`;
+  "Checking…" while the checks run; "–" without checks), the indices state
+  (`batch.fill.run_states`; a station of no batch with no run of its own uses its Indices
+  tab's state; a station's own run that is not in use yet, before "Go to indices", is not
+  shown, as its Indices are locked: "–", #277) with its fix ("Fix the file" for a station left out without a usable file,
+  "Fix quality first" for one not run whose verdict is Fix first, "Change base period"
+  when a failure names the base period), and how many of its indices have a significant
+  trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'
+  answer line), counted from the results the station's Indices show (`workspace.shown_run`),
+  as Files and the trend grid are, so the four agree (#277).
+- **Trends across stations** under the table (#238, [Trends across
+  stations](#trends-across-stations)).
+- **Live.** While a station waits, calculates or is checked, `#workspace-progress` (the
+  status line, the table and the trends) polls `stations:workspace_progress` with the job page's
+  delays (`poll_delay`), which records a finished batch first (`fill_workspace`); it stops
+  once nothing is on the way, and asks for a reload (`HX-Refresh`) when the workspace is
+  down to one station. Focus on Cancel survives the swap (`ui.js`), and the first sentence
+  is announced, at once when the run has finished.
+- **Rename** (`stations:workspace_rename`): a page with the name; empty gives the default
+  back ("6 stations, 17 Nov", or the one station's name).
+- **Workspace settings** (`stations:workspace_settings`): the base period, quality
+  thresholds and index settings as the Inputs panel lists them; each Edit opens its form
+  on a page of its own (`stations:workspace_setting`, the Inputs panel's form,
+  `_input_form.html` with `action`), which applies it through
+  `calculation.change_settings` with the first station as the change's anchor (it changes
+  every station, as the station's sheets do) and returns to the overview. The base period
+  is not checked against one station's data here: a station that does not cover it fails
+  in its run and is named in red. The index settings start from the workspace's
+  (`workspace.workspace_settings`), so a station's own metadata-line values stay its own.
+- **Station pages** in a workspace of several stations start their context bar's
+  breadcrumb with the workspace and "Station 2 of 6", with the previous and next station
+  (`workspace.station_nav`); a workspace of one station has "Add stations" at the end of
+  the provenance line instead (`stations/_station_links.html`). Every station set up has
+  "Copy to workspace…" there too, and "Copy…" at the end of its row of the Stations table
+  (#241, [Copy to workspace](#copy-to-workspace)).
+- **A workspace that is not here** (another browser's, deleted or never made): any
+  `/w/<id>/…` address gives 404 with "This workspace is not here", how long workspaces
+  are kept where they expire, and Add stations (`404.html`, from the URL's
+  `workspace_id`), without saying whether another session's exists.
+
+### Copy to workspace
+
+"Copy to workspace…" (#241; the Flow board's rules: "Copy to workspace… from a station to
+put it in another; it is recalculated with that workspace's settings";
+`stations/copy_station.py`, `stations/views_copy.py`, `stations/copy.html`) puts a copy of
+a station in another workspace of this browser's, or in a new one. It is offered at the
+end of a station's provenance line (`stations/_station_links.html`, `copy_url` from
+`workspace.context`) and as "Copy…" at the end of each row of the workspace's Stations
+table (`overview.Row.copy_url`), for a station that is set up (`workspace.set_up`: a file
+and details that fit it). The page, `/w/<id>/<station>/copy` (`stations:copy`), is a page
+of the station, under its context bar: the workspaces that hold a station, changed last
+first, each with its name, station count (unless its default name says it) and base
+period, and "A new workspace, with this workspace's settings"; Copy and Cancel (back to
+`next`, the page it was opened from).
+
+- **What is copied:** the station file, its name and location, its file name, summary and
+  warnings, and its own index values (a batch metadata line's, `origin["params"]`).
+  Nothing of its jobs or the batch it came from: its checks and run are queued again
+  (`calculation.bring_up_to_date`) with the settings of the workspace it goes to. The
+  station copied, its jobs and its workspace are not changed.
+- **A new workspace** starts with the settings of the station's workspace (base period,
+  thresholds, index settings), so the copy gives the same results until they are changed.
+  The copy's run is in use at once if the station's was (`workspace.committed`, "Go to
+  indices"); then it opens on its Indices, else on its Quality.
+- **An existing workspace** has several stations after the copy, so the copy's run, and
+  any station's there still speculative, is in use at once (`calculation.commit_workspace`,
+  #277), and its overview opens with a message. A workspace that has a station of the same
+  name (any case) is marked in the list and refused with why: the results are named after
+  the station.
+- The hosted limits are checked before anything is copied (`check_job_quotas`), and the
+  page's form carries the Turnstile widget (`human_required`).
+
+### Landing page and Workspaces
+
+The landing page, Get started and Workspaces (#242; the Landing, Start, WorkspaceList and
+Flow boards).
+
+- **Landing page** (`core/templates/core/home.html`, `core.views.home`, `core/landing.py`):
+  bands across the window (the base template's `bleed`: no width or gutter on the main's
+  container, each band's content up to 77.5rem). A returning visitor (a session with a
+  workspace) gets "Welcome back. Continue with <the workspace changed last>" and All
+  workspaces (`workspace_list.latest`). The hero has Get started (`/add/`, also at the end
+  of the header from 40rem, the `header_action` block) and "See an example: Sydney,
+  1936–2015", a POST to `stations:add_sample` with `show=indices`: the sample is added and
+  checked as "Use the sample station" does, its run is made the user's at once
+  (`calculation.commit`, as "Go to indices"; a run the hosted limits refuse leaves the
+  Indices offering to calculate it) and its Indices open. The preview beside it is the
+  sample's real output, read from `charts/sample_outputs/sydney` (Climpact's files for
+  the sample, text-identical to R's): TXx drawn as the Indices' detail pane draws a series
+  (`index_detail.chart`, with its text alternative), and SU, TR, TN10p and PRCPTOT as rows
+  of the Indices table (slope per decade, `pp` for a percentage, 95% interval,
+  significant), all from the core's trend fit (`results.trend_summary`), cached per
+  language. The facts are constants in `core/landing.py`, from the parity summary: 80
+  indices; 16 reference datasets (14 stations and the `lat0` and `qc_stress` test cases);
+  all 1,791 CSV files written for them text-identical to Climpact for R 3.4.3. A test checks
+  the run counts and the R version against `reference/stations.csv` and the reference
+  output when the repository is there. "How it works" has three miniatures of the real
+  screens (hidden from screen readers), whose values are the reference runs' own (three
+  reference files and coordinates; `qc_stress`'s verdict, "Usable · 21", and three of its
+  findings; the trend grid of Sydney, Perth and Darwin). Then What you get, What you need
+  (the format, the template and the metadata file's guide) and a closing Get started with
+  the retention sentence. The first-run tour (#81) stays, with its steps updated.
+- **Get started** is Add stations' empty page (`/add/`, #233). A returning visitor also
+  gets "Or continue a workspace": the three workspaces changed last (Name, Stations,
+  Updated, and "Deleted on" where workspaces expire) and All workspaces
+  (`views_add.start_context`, `RECENT`).
+- **Workspaces** (`/w/`, `stations:workspaces`, `views_workspace.workspaces_page`,
+  `stations/workspace_list.py`, `stations/workspaces.html` and `_workspaces_table.html`)
+  replaced "Your calculations" in the header. Every workspace of the session (`owner`),
+  most recently changed first, in one data table: Name (a link to the workspace, with a
+  hint under it: one station's years, several stations' first two names "and N more", or
+  the files waiting to be added on Add stations), Stations, Status (one station: its
+  Quality verdict pill with its count, as its tab; several: the counts by verdict, "2
+  ready", "1 usable", "1 fix first", "1 checking"; and "1 failed" for the stations whose
+  indices failed, as their Stations rows say: a speculative run is not counted), Base
+  period, Updated ("today 09:42", "yesterday 16:10", "15 Nov"), "Deleted on" where
+  workspaces expire (`WORKSPACE_EXPIRY`; in warning colour with "in 2 days", "tomorrow" or
+  "today" when under three days away), Save file (#240, for a workspace with a station set
+  up) and Delete. "Open a workspace file" sits beside "New workspace", and a note under the
+  table says what Save file does. Locally the lead says the workspaces stay until deleted;
+  hosted, a second note says how it differs on one's own computer.
+- **Delete a workspace** (`/w/<id>/delete`, `stations:workspace_delete`,
+  `views_workspace.delete_workspace`, `stations/workspace_delete.html`): a page naming its
+  stations and saying they can't be recovered, then a POST that cancels the jobs still
+  queued or running for it, deletes its files (`Workspace.delete_files`) and the rows,
+  and returns to Workspaces. Another session's workspace is 404. #274 shares it on the
+  workspace's Files. `delete` is a reserved station slug.
+- The page-not-found page at a workspace's address leads to Workspaces and to a new
+  workspace; the refused page (#125) to Workspaces.
+
+### Workspace file
+
+Save file and Open a workspace file (#240; the WorkspaceList and Start boards;
+`stations/workspace_file.py`, `stations/views_workspace_file.py`,
+`stations/workspace_open.html`). Hosted workspaces are deleted after the retention period
+and belong to one browser; the file keeps one, or moves it to another computer.
+
+- **Save file** (`/w/<id>/workspace.zip`, `stations:workspace_file`, on each row of
+  Workspaces) downloads `climpact_workspace.zip`, made in a temporary file and streamed:
+  - `workspace.json`: `format` `climpact-workspace`, `format_version` 1 (`FORMAT_VERSION`),
+    the software, when it was saved, the workspace's name, its settings with every value
+    filled in (`base_period`, `quality_thresholds`, `indices` in `workspace_settings`
+    form), and each station: its name, its entry (`stations/<slug>.txt`), its original
+    file name, the SHA-256 of the file (`Station.file_hash`), latitude, longitude, years,
+    its own index values (`workspace.own_params`), whether it is the sample and whether its
+    results were in use (`workspace.committed`).
+  - `stations/<slug>.txt`: each station's file as the workspace keeps it.
+  - `metadata.txt`: the stations in R's batch metadata format (`check.metadata_text`, each
+    with every index value it is calculated with), so `stations/` can be run as a batch
+    in Climpact for R. Opening ignores it.
+  - `climpact_run.json`: #239's provenance file (`workspace_files.provenance`).
+  Only stations that are set up (`workspace.set_up`) are saved; a workspace with none has
+  no Save file (the address returns to Workspaces with a message).
+- **Open a workspace file** (`/w/open/`, `stations:workspace_open`) is a page of its own,
+  from Workspaces' "Open a workspace file" and Get started's "Or open a saved workspace
+  file": the file field, the Turnstile widget (`human_required`; the page works without
+  JavaScript) and Open. `open_into` makes a new workspace of this session with the saved
+  name and settings (none stored where they are the defaults) and adds the stations
+  through Add stations' own routes: their files wait in a `BatchRun` with a report built
+  from the manifest (each file read once, `add_stations.read_file`; the metadata rows
+  carry the locations and own index values, the edits the names), reviewed by
+  `add_stations.review`, then one station is added by `views_add.add_one` (and its run is
+  made the user's again, `calculation.commit`, when it was in use; it opens on its
+  Indices, else its Quality) and several by `views_add.add_many` (a batch; the overview
+  opens). A batch runs with R's default quality thresholds (`batch.fill.batch_inputs`), so
+  when the workspace has its own each station is also queued as a station run
+  (`calculation.refresh`) in the batch's change, which `add_many` now returns: one job for
+  the hosted limits. The limits are checked before anything is made
+  (`check_job_quotas`); a refusal by them, or by the review (a row that Add stations would
+  not add, named with its problem), makes nothing.
+- **The zip is untrusted** (`read`). Each refusal is a `NotAWorkspaceFile` with a plain
+  message under the field, and nothing is made: not a zip; over the upload limit
+  (`MAX_UPLOAD_MB`, the middleware's 413, checked again on the upload); no
+  `workspace.json` (a zip of station files is pointed to Add stations); more than
+  `MAX_ENTRIES` entries (`check.MAX_FILES` stations and the others); an entry that is not
+  part of the format (only `workspace.json`, `metadata.txt`, `climpact_run.json`,
+  `stations/` and `stations/<slug>.txt` with a slug's characters are allowed), with a
+  backslash or NUL, an absolute path or drive letter, `.` or `..`, a symbolic link, the
+  encrypted flag, a compression other than stored or deflated, or a name given twice;
+  more uncompressed data than `MAX_UNPACKED_BYTES` (`check.MAX_UNPACKED_BYTES`, 500 MB) in
+  all, `MAX_STATION_BYTES` (64 MB) in a station file or `MAX_MANIFEST_BYTES` (4 MB) in the
+  others, checked against the header first and then counted while each entry is read in
+  64 KB chunks, with an entry that unpacks to more than `MAX_RATIO` (200) times its
+  compressed size past its first megabyte refused as a zip bomb (a header that understates
+  a size fails zipfile's CRC check, "cannot be read"); `workspace.json` not UTF-8 JSON
+  (`NaN` and `Infinity` refused) or not an object; another `format`, a missing
+  `format_version` or a newer one ("saved by a newer version of Climpact (format 2; this
+  one reads format 1)"); settings the settings pages would refuse (the base period's two
+  years in order, `QCParamsForm`, `IndexParamsForm`, booleans for the output options); no
+  stations, more than `check.MAX_FILES`, a station without a name or numeric coordinates,
+  own index values that are not `IndexParams` fields with numbers, a station file missing
+  or listed twice, a station file whose SHA-256 differs from the saved one, a station file
+  in `stations/` that no station lists; and whatever Add stations' review refuses (an
+  unreadable file, a coordinate out of range, a name given twice, a base period the data
+  do not reach). The station's original file name is only used once made safe
+  (`safe_file_name`: no folders, letters, digits and `._()- `).
+- `tests/test_workspace_file.py` saves and opens a batch workspace with a failed station
+  and compares its stations, settings and trends after both are calculated, and tests
+  each refusal.
+
+### Workspace files
+
+The workspace's Files tab, `/w/<id>/files/` (#239; board `Files.dc.html`;
+`stations/workspace_files.py`, `stations/views_files.py`, `stations/workspace_files.html`).
+A workspace of one station has none: the address leads to its station's Files.
+
+- **The workspace files**, each with its size: *Everything* (`/w/<id>/files/everything.zip`:
+  each station's folder in R's batch layout, `<station>/indices/…`, `plots/`, `trend/`,
+  `thres/`, `qc/`, a failed station's `<station>.errors.txt` as R's batch zip writes it,
+  and the three files below at the top; CSV deflated, PNG and PDF stored, as
+  `climpact.plots.zip_folder`), *Trends, all stations* (`trends.csv`) and *Indices, all
+  stations* (`indices.csv`). They download as `<workspace name>.zip`,
+  `<workspace name>_trends.csv` and `<workspace name>_indices.csv`. "What is in the zip"
+  (from the batch results page until #234) is under them.
+- **Trends, all stations** (`workspace_files.trends_csv`): `station, index, slope, lower,
+  upper, significant, years_used, units`, one row per station and index: the trend the
+  Indices show (`results.Card.trend` of the index's main series, the annual one where
+  there is one), Sen's slope and its 95% bounds **per decade** (R's trend file's annual
+  values times 10, monthly times 120), `significant` yes or no (the interval excludes
+  zero), the years with a value, and the slope's unit ("°C/decade"). An index without a
+  trend (too few values, R's `min_trend_data`) has empty slope and bounds; TX95t's day of
+  the year and the daily EHF and ECF tables have no row. `units` is a column the board does
+  not draw, so the slope's unit is in the file.
+- **Indices, all stations** (`workspace_files.indices_csv`): `station, index, year, month,
+  value`, long format: every yearly value (month empty) and monthly value of each
+  station's index tables, from the values the charts read (`results.RunResults.plots`),
+  written with 15 significant digits as R's tables, a missing value empty. The daily
+  tables and TX95t stay in the stations' folders. `index` is the code the app shows
+  (`TXx`, `SPI3`, `TX90-HWN`); `station` the station's name.
+- **By station** (`workspace_files.table`): a data table of each station's R files:
+  Folder (zip) (the station's zip with its provenance file, below), Report (PDF), All
+  plots (PDF), Trends (`<station>_trend.csv`), Thresholds (`<station>_thres.csv`),
+  Missing values (the checks' `nastatistics` file) and Quality flags (how many other files
+  the checks wrote, a link to them on the station's Files). Each is a link with its size
+  or says why it is missing: "not run", "failed", "calculating", "waiting", "checking",
+  or "–" ("none" for screen readers) for a file the run did not make (plots or report
+  switched off).
+- **`climpact_run.json`** (`workspace_files.provenance`) in every zip the app offers for
+  results: Everything, and each station's zip (R's `<station>.zip` as the run wrote it,
+  copied with the file added, or the station's folder zipped when the run made no zip;
+  `stations:station_zip`, `/w/<id>/<station>/zip`, also the station's Files and the
+  Indices' "Download all"). It holds `software` (the climpact version and the Climpact
+  version it ports), `created` (UTC), `workspace`, `base_period`, `index_settings` (the
+  provenance line's "ET-SCI defaults" or how many settings are not the default),
+  `settings` (the quality thresholds and the index settings in full), `trend` and per
+  station its name, file name, SHA-256 (`Station.file_hash`, the file as kept), latitude,
+  longitude, years and its folder, or why it has no results; a station whose results are
+  out of date says so. A station's zip holds its own station only. The page shows the
+  file (scrolling in its frame), and "Copy methods text" (`workspace_files.methods_text`):
+  one sentence made from it, with the version, the base period, the settings and the trend
+  method. Without JavaScript it is a disclosure that shows the text (`js/copy.js`).
+- **Keeping the files**: when the workspace's files are deleted (or, local, that they stay
+  until deleted). "Keep 7 more days" and "Delete workspace now" on the board are #274.
+- **Made once, kept until something changes.** The files are made from the results each
+  station shows (`workspace.shown_run`, the batch's or its own run) the first time Files,
+  a download or a station's zip asks for them (`workspace_files.build`), in a folder named
+  by a fingerprint of what they come from (the workspace's name, base period, thresholds
+  and index settings, the climpact version, and per station its name, file, coordinates,
+  run and whether its results are out of date), written to a temporary folder and renamed,
+  so two requests never see half a folder; older folders are deleted. While a station
+  waits or calculates, or says done but its job has not finished (a batch zips after its
+  last station), nothing is made: Files says so, Export ▾ says so, and the downloads lead
+  to Files; a station's zip is then R's zip as the run wrote it. Out-of-date results
+  (#223) make "Download (out of date)". With the 8 stations of the heavy-data check
+  (Sydney, `qc_stress_1961-2020.txt`, Alice Springs, Darwin, Perth, Nairobi, a failed and a
+  left-out one) Everything is 42.5 MB, the trends 35 KB and the indices 9.0 MB, made in a
+  few seconds on the first visit.
+
+### Trends across stations
+
+The trend grid and the interval plot (#238; board `Workspace.dc.html`;
+`stations/trend_grid.py`, `stations/_trends.html`, `js/trends.js`), under the overview's
+Stations table and alone on Compare an index, `/w/<id>/compare/`
+(`views_workspace.compare_page`; a workspace of one station leads to its Indices).
+
+- **What it reads.** The results each station shows, as Files reads them
+  (`workspace_files.entries`, the overview's rows passed in so they are made once; the
+  cards from `results.results_for`, cached): each index's `results.Card.trend`, Sen's
+  slope and 95% bounds per decade. A station without results shown (not run, failed,
+  waiting, or not yet opened with "Go to indices") is a row of hatched cells. While any
+  station waits or calculates the section says the trends come once every station has
+  been calculated, and comes in with the overview's last poll.
+- **Columns** (`trend_grid.columns_for`): TXx, TNn, TN90p, TX10p, SU, TR, WSDI,
+  PRCPTOT, Rx1day, R95p and CDD, those some station has; "Choose indices" offers every
+  index with a trend at some station, by theme (`trend_grid.available`). A choice is
+  `?cols=` (repeated), kept for the workspace in the session
+  (`trend_grid.SESSION_KEY`; `?cols=default` forgets it); the chosen columns keep the
+  defaults' order first, then the order offered.
+- **Cells** (`trend_grid._cell`): the slope (`numbers.slope`) always written; filled on
+  the trend scale when the interval excludes zero, the strong step when the slope is at
+  least half the column's largest significant slope (`_scale`), the weak one below;
+  `not-significant` (a dashed edge), `invalid` ("–", too few values for a trend), `none`
+  (hatched). Each is a link to the station's index page with the slope, interval and
+  significance in words for screen readers.
+- **The interval plot** (`trend_grid.interval_plot`): every column's is in the page, the
+  selected one (`?index=`, else the first column) shown; `js/trends.js` switches them in
+  place when a column's code is clicked and keeps the address. The axis is symmetric about
+  zero, to a round end past every interval (`index_page.nice_ticks`); stations without a
+  trend are listed under it.
+- **CSV** (`views_workspace.compare_csv`, `/w/<id>/compare/trends.csv?cols=…`,
+  `trend_grid.grid_csv`): the rows of the workspace's Trends file
+  (`workspace_files.trends_csv`, same columns) for the grid's indices, a column of the grid
+  a block of rows, the stations in the overview's order; one index for the plot's "CSV,
+  all stations". `test_trend_grid.py` checks it against R's per-station trend files.
 
 ### Help
 
@@ -6054,9 +6608,9 @@ gridded screen once `gridded:start` exists. R's sector sample
 (`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide and offered by the sector
 step (#90).
 
-**First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Five steps on the
-landing page (the start buttons, "How it works", other ways to run Climpact, the header's
-Help link and Workspaces in the header), passed as `json_script` data with translated text. On a first
+**First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Four steps on the
+landing page (Get started and See an example, "How it works", the header's Help link and
+Workspaces in the header; #242 dropped the step on the other ways to run Climpact), passed as `json_script` data with translated text. On a first
 visit a dismissible invitation appears ("Take the tour" or "No thanks"); starting,
 finishing or dismissing stores `climpact-tour=done` in `localStorage`, so it is offered
 once. `/?tour=1` (the help index's "Take the tour" link) starts it at once. The tour box is
@@ -6250,7 +6804,11 @@ gzipped, 147.7 KB with everything it links), the extra being every item's detail
 page, hidden but the selected one, each finding's chart of the 30 days either side, and
 "Your data"; `qc.js` 2.7 of 3 KB. #235 made it a compact worklist: 567.2 KB of HTML
 (72.1 KB gzipped), each finding's chart now of the 7 days either side, the tables' rows
-denser; `qc.js` 3.0 of 3 KB. #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
+denser; `qc.js` 3.0 of 3 KB. #264 made it a rail of checks and the selected check's
+detail: 531.7 KB of HTML (71.3 KB gzipped), each check's two charts and one selected value
+with the 3 days either side in place of every finding's chart; `qc.js` 3.2 of 3.5 KB,
+`climpact.css` 18.7 of 19 KB (the raw stylesheet's limit 114,000 bytes, 110,000 before).
+#78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
 downloads page (Files since #176, which grouped its files in closed disclosures and added

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+One of the workspace's settings on its own page (#234): the Inputs panel's sheet form
+(stations/_input_form.html) sent to views_workspace.setting, which applies it to every
+station. Context: the workspace's bar, analysis (the station the form's checks use),
+sheet, action, next.
+{% endcomment %}
+{% block title %}{% blocktranslate with title=sheet.title name=space_name %}{{ title }}: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  <div class="stack edit-input max-w-prose">
+    <h1 class="sheet__title">{{ sheet.title }}</h1>
+    {% include "stations/_input_form.html" with form_id="input-form" in_sheet=False %}
+  </div>
+</div>
+{% endblock %}

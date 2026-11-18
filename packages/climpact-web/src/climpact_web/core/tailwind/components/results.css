@@ -1,4 +1,4 @@
-/* A station's Indices (#78, #178, #200, #236): the filter rail, the table of every index
+/* A station's Indices (#78, #178, #200, #236, #263): the filter rail, the table of every index
    and the detail pane beside it (the Results board); the theme hues, the index names
    codes first, the sort buttons, the sparklines, a recalculation's progress and the
    downloads table. */
@@ -15,48 +15,6 @@
     margin: 0;
     padding: 0;
     list-style: none;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: var(--control-height-sm);
-    padding-inline: --spacing(3);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-full);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: var(--text-sm);
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .chip input {
-    position: absolute;
-    opacity: 0;
-  }
-
-  /* A chip's count, after its name: muted, unless the chip is selected. */
-  .chip__count {
-    margin-inline-start: --spacing(1);
-    color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .chip:has(input:checked) .chip__count {
-    color: inherit;
-  }
-
-  .chip:has(input:checked) {
-    border-color: var(--color-ink);
-    background: var(--color-ink);
-    color: var(--color-ink-contrast);
-    font-weight: var(--font-weight-medium);
-  }
-
-  .chip:has(input:focus-visible) {
-    outline: 3px solid var(--color-focus);
-    outline-offset: 2px;
   }
 
   /* == Theme hues (#196) == */
@@ -98,15 +56,6 @@
     background: var(--hue, var(--color-other));
   }
 
-  .chip .hue-dot {
-    margin-inline-end: --spacing(2);
-  }
-
-  /* On a selected chip the dot keeps its hue, ringed so it shows on the ink. */
-  .chip:has(input:checked) .hue-dot {
-    box-shadow: 0 0 0 2px var(--color-ink-contrast);
-  }
-
   .index-code {
     font-size: var(--text-xs);
     letter-spacing: normal;
@@ -133,60 +82,137 @@
     font-weight: var(--font-weight-medium);
   }
 
-  /* == The Indices (#236, the Results board): the filter rail at the inline start, the
-     table, and the selected index's detail at the inline end, in view under the context
-     bar as the table scrolls with the page. Narrower, the rail goes above the table and
-     the detail after it, with "Back to the list". == */
+  /* == The Indices (#236, #263, the Results board): across the whole window, the filter
+     rail at the inline start, the table, and the selected index's detail pane at the
+     inline end. The rail and the pane are full-height columns against the window's
+     edges (their own surface and a hairline), not cards; their contents stay in view
+     under the context bar as the table scrolls with the page. Narrower, the pane goes
+     under the table (from 48rem the rail stays beside it), then the rail above the
+     table and the detail after it, with "Back to the list". == */
+  .station-page--indices > .context-bar + * {
+    margin-block-start: 0;
+  }
+
+  .indices-page {
+    display: grid;
+    min-inline-size: 0;
+  }
+
+  /* The notes above the table (out of date, a recalculation, skipped indices) and the
+     line below it keep the page's margins. */
+  .indices-page__notes:has(> *) {
+    padding-block: --spacing(6) --spacing(2);
+  }
+
+  .indices-page__kept {
+    margin-block: --spacing(4) 0;
+  }
+
   .indices {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: --spacing(4);
-    align-items: start;
+    align-items: stretch;
+  }
+
+  /* On the station's page the columns reach the window's edges: out through the page's
+     gutter (base.html: px-4, sm:px-6). */
+  .station-page--indices .indices {
+    margin-inline: calc(-1 * --spacing(4));
+    min-block-size: calc(100vh - var(--context-bar-height, 9rem));
+  }
+
+  @media (min-width: 40rem) {
+    .station-page--indices .indices {
+      margin-inline: calc(-1 * --spacing(6));
+    }
+  }
+
+  .indices__rail {
+    padding: --spacing(4) --spacing(4) --spacing(3);
+    border-block-end: 1px solid var(--color-border);
   }
 
   .indices__main {
     display: grid;
     gap: --spacing(2);
+    align-content: start;
     min-inline-size: 0;
+    padding: --spacing(3.5) --spacing(4) --spacing(6);
+  }
+
+  /* A column, not the detail pane's card (strips.css): no frame of its own. */
+  .indices > .indices__pane {
+    padding: --spacing(4) --spacing(4) --spacing(6);
+    border: 0;
+    border-block-start: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-surface);
   }
 
   @container station-page (inline-size >= 48rem) {
     .indices {
-      grid-template-columns: 10rem minmax(0, 1fr);
-    }
-
-    .indices__pane {
-      grid-column: 1 / -1;
+      grid-template-columns: var(--indices-rail, 14rem) minmax(0, 1fr);
     }
 
     .indices__rail {
+      padding: --spacing(4) --spacing(3) --spacing(4) --spacing(4);
+      border-block-end: 0;
+      border-inline-end: 1px solid var(--color-border);
+    }
+
+    .indices__main {
+      padding-inline: --spacing(5);
+    }
+
+    .indices > .indices__pane {
+      grid-column: 1 / -1;
+      padding-inline: --spacing(6);
+    }
+
+    .filter-rail__body {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
+      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
     }
   }
 
-  @container station-page (inline-size >= 68rem) {
+  @container station-page (inline-size >= 76rem) {
+    /* The rail a little narrower until the page is 86rem wide (1440px, the board's), so
+       the table's names keep some room at 1280px. */
     .indices {
-      grid-template-columns: 10rem minmax(0, 1fr) clamp(17rem, 22%, 26rem);
-      column-gap: --spacing(3);
+      --indices-rail: 12.5rem;
+
+      grid-template-columns: var(--indices-rail) minmax(0, 1fr) clamp(22rem, 28%, 32rem);
     }
 
-    .indices__pane {
+    @container station-page (inline-size >= 86rem) {
+      .indices {
+        --indices-rail: 14rem;
+      }
+    }
+
+    .indices > .indices__pane {
       grid-column: auto;
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--color-border);
+    }
+
+    .indices__pane-body {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
-      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(6));
+      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
+      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(8));
       overflow-y: auto;
     }
 
-    .index-detail__back {
+    /* Beside the table, no way back is needed (more specific than the links' flex
+       below, which hid it nowhere before #263). */
+    .indices__pane .index-detail__back {
       display: none;
     }
   }
 
-  /* The rail: the search, the themes as a column of pills with their counts, "Significant
-     only" and the line that defines it. */
-  .filter-rail {
+  /* The rail: the search, the themes as a list with their counts, "Significant only"
+     and the line that defines it. */
+  .filter-rail__body {
     display: grid;
     gap: --spacing(4);
     align-content: start;
@@ -201,10 +227,18 @@
     border: 0;
   }
 
+  fieldset.filter-rail__group {
+    gap: 0;
+  }
+
   .filter-rail__label {
     padding: 0;
     color: var(--color-text-muted);
     font-size: var(--text-xs);
+  }
+
+  fieldset.filter-rail__group > .filter-rail__label {
+    margin-block-end: --spacing(1);
   }
 
   .filter-rail input[type="search"] {
@@ -214,6 +248,8 @@
     font-size: var(--text-sm);
   }
 
+  /* A theme: a plain row, its dot, name and count; the current one on the selected tint
+     with an ink edge, as a selected row. */
   .filter-pill {
     display: flex;
     gap: --spacing(2);
@@ -221,11 +257,13 @@
     justify-content: space-between;
     min-block-size: 2.125rem;
     padding: --spacing(1.5) --spacing(2.5);
-    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-sm);
-    background: var(--color-surface);
     font-size: var(--text-sm);
     cursor: pointer;
+  }
+
+  .filter-pill:hover {
+    background: var(--color-surface-sunken);
   }
 
   .filter-pill input {
@@ -247,24 +285,18 @@
   }
 
   .filter-pill:has(input:checked) {
-    border-color: var(--color-ink);
-    background: var(--color-ink);
-    color: var(--color-ink-contrast);
+    background: var(--color-selected);
+    box-shadow: inset 3px 0 0 var(--color-ink);
     font-weight: var(--font-weight-medium);
   }
 
-  .filter-pill:has(input:checked) .filter-pill__count {
-    color: inherit;
-  }
-
-  /* On the selected pill the dot keeps its hue, ringed so it shows on the ink. */
-  .filter-pill:has(input:checked) .hue-dot {
-    box-shadow: 0 0 0 2px var(--color-ink-contrast);
+  [dir="rtl"] .filter-pill:has(input:checked) {
+    box-shadow: inset -3px 0 0 var(--color-ink);
   }
 
   .filter-pill:has(input:focus-visible) {
     outline: 3px solid var(--color-focus);
-    outline-offset: 2px;
+    outline-offset: -1px;
   }
 
   .filter-rail__check {
@@ -311,17 +343,16 @@
     margin-block-start: 0.125rem;
   }
 
-  /* Narrower: the rail above the table, its pills in a wrapping row. */
+  /* Narrower: the rail above the table, its themes in a wrapping row. */
   @container station-page (inline-size < 48rem) {
     .filter-rail fieldset {
       display: flex;
       flex-wrap: wrap;
-      gap: --spacing(2);
+      gap: --spacing(1) --spacing(2);
     }
 
     .filter-rail legend {
       flex-basis: 100%;
-      margin-block-end: --spacing(1.5);
     }
   }
 
@@ -411,9 +442,19 @@
     font-weight: var(--font-weight-medium);
   }
 
-  .indices-table__slope abbr {
+  /* The slope's unit beside it, muted, at the start of a fixed width so the numbers
+     keep their column (#263: "+5.15 days"). */
+  .indices-table__unit {
+    display: inline-block;
+    min-inline-size: 2.25rem;
     color: var(--color-text-muted);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     font-weight: var(--font-weight-normal);
+    text-align: start;
+  }
+
+  .indices-table__unit abbr {
     text-decoration: none;
   }
 
@@ -437,22 +478,34 @@
     block-size: 0.5rem;
   }
 
-  .indices-table__spark {
-    inline-size: 4.25rem;
+  /* The series: 6rem, and about 144px (9rem) where the page is 86rem or wider (#263, the
+     board's 1440px); not capped at the cell's width (the preflight's max-width), so the
+     table gives the column its width and the name what is left. */
+  .indices-table__spark,
+  .indices-table__spark .spark {
+    inline-size: 6rem;
   }
 
   .indices-table__spark .spark {
-    inline-size: 4.25rem;
-    block-size: 1.25rem;
+    max-inline-size: none;
+    block-size: 1.375rem;
+  }
+
+  @container station-page (inline-size >= 86rem) {
+    .indices-table__spark,
+    .indices-table__spark .spark {
+      inline-size: 9rem;
+    }
   }
 
   .indices-table thead abbr {
     text-decoration: none;
   }
 
-  /* Phones (#203, #236): each row a block of two lines, the code, short name, unit and
-     sparkline, then the slope, its interval, significance and mean; the header is a line
-     of the column names that sort. The rows stay a table's rows to screen readers. */
+  /* Phones (#203, #236): each row a block of two lines, the code, short name and
+     sparkline, then the slope with its unit, its interval and significance; the header
+     is a line of the column names that sort. The rows stay a table's rows to screen
+     readers. */
   @media (max-width: 40rem) {
     .indices-table,
     .indices-table thead,
@@ -482,9 +535,9 @@
     .indices-table tbody tr:not([hidden]) {
       display: grid;
       grid-template-areas:
-        "code name unit spark"
-        "slope interval sig mean";
-      grid-template-columns: 5.25rem minmax(0, 1fr) auto 4.25rem;
+        "code name name spark"
+        "slope slope interval sig";
+      grid-template-columns: 5.25rem 4.5rem minmax(0, 1fr) 4.25rem;
       gap: --spacing(0.5) --spacing(2);
       align-items: center;
       padding: --spacing(2) --spacing(2.5);
@@ -513,12 +566,15 @@
 
     .indices-table tbody th { grid-area: code; }
     .indices-table tbody td:nth-of-type(1) { grid-area: name; max-inline-size: none; }
-    .indices-table tbody td:nth-of-type(2) { grid-area: unit; }
-    .indices-table tbody td:nth-of-type(3) { grid-area: slope; }
-    .indices-table tbody td:nth-of-type(4) { grid-area: interval; }
-    .indices-table tbody td:nth-of-type(5) { grid-area: sig; }
-    .indices-table tbody td:nth-of-type(6) { grid-area: spark; }
-    .indices-table tbody td.num:nth-of-type(7) { grid-area: mean; text-align: end; }
+    .indices-table tbody td:nth-of-type(2) { grid-area: slope; }
+    .indices-table tbody td:nth-of-type(3) { grid-area: interval; }
+    .indices-table tbody td:nth-of-type(4) { grid-area: sig; }
+    .indices-table tbody td:nth-of-type(5) { grid-area: spark; }
+
+    .indices-table tbody .indices-table__spark,
+    .indices-table tbody .indices-table__spark .spark {
+      inline-size: 4.25rem;
+    }
   }
 
   /* The detail pane: the index's code and theme, its name and definition, the chart
@@ -560,10 +616,10 @@
     font-size: var(--text-sm);
   }
 
-  /* At most the pane's widest, so the ticks stay small when the pane is the page's width
-     (under the table, below 68rem). */
+  /* The pane's width; at most the pane's widest, so the ticks stay small when the pane is
+     the page's width (under the table). */
   .index-chart {
-    max-inline-size: 26rem;
+    max-inline-size: 29rem;
     margin: 0;
   }
 
@@ -592,9 +648,11 @@
     font-size: var(--text-xs);
   }
 
+  /* Two columns (#263), each at least as wide as its numbers, which keep to one line
+     ("+69.0 degree-days/decade" never breaks at its hyphen); the words wrap. */
   .index-detail__stats {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(auto, 1fr));
     gap: --spacing(2.5) --spacing(4);
     margin: 0;
     font-size: var(--text-xs);
@@ -611,7 +669,11 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .index-detail__stats dd.index-detail__method {
+  .index-detail__stats dd:not(.index-detail__words) {
+    white-space: nowrap;
+  }
+
+  .index-detail__stats dd.index-detail__words {
     font-family: var(--font-sans);
   }
 
@@ -765,10 +827,6 @@
       stroke: CanvasText;
     }
 
-    .chip:has(input:checked) {
-      border-width: 3px;
-    }
-
     .hue-dot {
       background: CanvasText;
     }
@@ -780,7 +838,8 @@
     }
 
     .filter-pill:has(input:checked) {
-      border-width: 3px;
+      outline: 2px solid CanvasText;
+      outline-offset: -2px;
     }
   }
 

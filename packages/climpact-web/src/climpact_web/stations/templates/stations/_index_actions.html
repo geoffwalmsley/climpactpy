@@ -5,10 +5,10 @@ disclosure that shows the text without JavaScript; js/index-page.js puts a butto
 copies it in its place. Context: links ({csv, png}), citation, card.
 {% endcomment %}<a class="button button--secondary button--sm" href="{{ links.csv }}" download>{% translate "CSV" %}<span class="sr-only"> {{ card.code }}</span></a>
 {% if links.png %}<a class="button button--secondary button--sm" href="{{ links.png }}" download>{% translate "PNG (R style)" %}<span class="sr-only"> {{ card.code }}</span></a>{% endif %}
-<div class="citation" data-citation>
-  <details class="citation__details">
+<div class="pop" data-citation>
+  <details class="pop__details">
     <summary class="button button--secondary button--sm">{% translate "Citation" %}</summary>
-    <p class="citation__text" data-citation-text>{{ citation }}</p>
+    <p class="pop__panel pop__panel--text" data-citation-text>{{ citation }}</p>
   </details>
   <button type="button" class="button button--secondary button--sm" data-citation-copy data-copied="{% translate 'Citation copied' %}" hidden>{% translate "Copy citation" %}</button>
 </div>

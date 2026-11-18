@@ -7,9 +7,11 @@ header and the foot, so Apply stays in view however long the form (the index set
 The station's fields are checked as they change, as on the first visit
 (stations/_unit.html), and so are the index settings (stations/_indices_unit.html).
 Context: analysis, sheet (views.sheet_context: key, title, intro, form, impact,
-settings_source), next, form_id, in_sheet.
+settings_source), next, form_id, in_sheet; action (optional: where the form is sent, a
+workspace's setting, #234) and workspace_level (its base period is not checked against one
+station's data).
 {% endcomment %}
-<form method="post" action="{% url 'stations:edit_input' analysis.workspace_id analysis.slug sheet.key %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
+<form method="post" action="{% if action %}{{ action }}{% else %}{% url 'stations:edit_input' analysis.workspace_id analysis.slug sheet.key %}{% endif %}" class="form sheet__form" id="{{ form_id }}" novalidate{% if sheet.key == "file" %} enctype="multipart/form-data"{% endif %}>
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   <div class="sheet__body stack">
@@ -24,7 +26,7 @@ settings_source), next, form_id, in_sheet.
       {% include "stations/_unit.html" with group="longitude" form=sheet.form %}
     </div>
     {% elif sheet.key == "base-period" %}
-    {% include "stations/_unit.html" with group="base_period" form=sheet.form %}
+    {% if workspace_level %}{% include "stations/_unit.html" with group="base_period" form=sheet.form analysis=None %}{% else %}{% include "stations/_unit.html" with group="base_period" form=sheet.form %}{% endif %}
     {% elif sheet.key == "thresholds" %}
     {% section_help "quality.thresholds" inline=True %}
     <div class="settings-group__fields">

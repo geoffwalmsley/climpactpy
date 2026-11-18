@@ -65,7 +65,10 @@
      sunken tint, numbers and codes in mono with tabular figures, and the selected row in
      the selected tint with an ink edge. The frame is the exception to "a box marks only
      one object": the table is one object. == */
+  /* Positioned, so text for screen readers in a cell (sr-only, absolute) stays inside the
+     scrolling frame instead of widening the page (#234). */
   .table-wrap--data {
+    position: relative;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-surface);

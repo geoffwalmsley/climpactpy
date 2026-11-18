@@ -30,18 +30,21 @@
   if (window.ResizeObserver) new ResizeObserver(update).observe(header);
   else window.addEventListener("resize", update);
 
-  var menu = header.querySelector("[data-page-menu]");
-  if (!menu) return;
-  var button = menu.querySelector("summary");
-  menu.addEventListener("keydown", function (event) {
-    if (event.key !== "Escape" || !menu.open) return;
-    menu.open = false;
-    button.focus();
-    event.preventDefault();
+  // The ⋯ menu on phones, and menus among the page's actions (Export ▾, #239): closed on
+  // Escape and on a click or focus elsewhere.
+  header.querySelectorAll("[data-page-menu], [data-menu]").forEach(function (menu) {
+    var button = menu.querySelector("summary");
+    menu.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !menu.open) return;
+      menu.open = false;
+      button.focus();
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    function outside(event) {
+      if (menu.open && !menu.contains(event.target)) menu.open = false;
+    }
+    doc.addEventListener("click", outside);
+    doc.addEventListener("focusin", outside);
   });
-  function outside(event) {
-    if (menu.open && !menu.contains(event.target)) menu.open = false;
-  }
-  doc.addEventListener("click", outside);
-  doc.addEventListener("focusin", outside);
 })();

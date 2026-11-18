@@ -352,6 +352,9 @@ SORTS = {
     "trend": "descending",
     "significance": "descending",
 }
+# The order the table opens in (#263, the Results board): by the size of the trend, the
+# slope per decade without its sign, largest first. It is no column's: ?sort=size.
+DEFAULT_SORT = "size"
 
 
 def _significance_rank(card) -> int:
@@ -375,10 +378,14 @@ def sort_cards(cards: list, sort: str, descending: bool) -> list:
         return sorted(cards, key=lambda c: c.code.casefold(), reverse=descending)
     if sort == "significance":
         return sorted(cards, key=_significance_rank, reverse=descending)
-    if sort == "trend":
+    if sort in ("trend", "size"):
         with_trend = [c for c in cards if c.trend and c.trend.get("valid")]
         without = [c for c in cards if c not in with_trend]
-        return sorted(with_trend, key=lambda c: c.trend["slope"], reverse=descending) + without
+
+        def key(c):
+            return abs(c.trend["slope"]) if sort == "size" else c.trend["slope"]
+
+        return sorted(with_trend, key=key, reverse=descending) + without
     return list(cards)
 
 
@@ -388,13 +395,18 @@ def _column_labels() -> dict[str, str]:
     return {
         "code": (_("Code"), _("Code")),
         "name": (_("Index"), _("Index")),
-        "trend": (_("Slope / decade"), _("Slope / decade")),
-        "significance": (_("Sig."), _("Significance")),
+        "trend": (_("Slope per decade"), _("Slope per decade")),
+        "significance": (_("Significant"), _("Significant")),
     }
 
 
+def size_sentence() -> str:
+    """What the default order is announced as (#263)."""
+    return _("Sorted by the size of the trend, largest first.")
+
+
 def sort_sentence(column: str, descending: bool) -> str:
-    """What a sort is announced as: "Sorted by Slope / decade, descending." """
+    """What a sort is announced as: "Sorted by Slope per decade, descending." """
     if descending:
         return _("Sorted by %(column)s, descending.") % {"column": column}
     return _("Sorted by %(column)s, ascending.") % {"column": column}
@@ -413,8 +425,9 @@ def run_base(analysis, job) -> tuple[int, int] | None:
 
 
 def _row(analysis, source, run, card, theme_label: str, base) -> dict:
-    """One index for the table and its detail (#236): the unit, the slope, its interval,
-    the mean, and the detail's chart, statistics and links. Numbers by the rules of #226."""
+    """One index for the table and its detail (#236, #263): the slope with its unit, its
+    interval, and the detail's chart, statistics (with the mean and whether the trend is
+    significant) and links. Numbers by the rules of #226."""
     from climpact_web.stations import index_detail
 
     plot = run.plots.get(card.main)
@@ -442,11 +455,16 @@ def _row(analysis, source, run, card, theme_label: str, base) -> dict:
         "key": card.key,
         "theme": theme_label,
         "unit": card.units,
-        # Percentage points for the trend of a percentage (#226): "+1.31 pp".
-        "slope_unit": card.trend_units if card.units == "%" else "",
+        # The slope's unit beside it (#263: "+5.15 days"), percentage points for the trend
+        # of a percentage (#226): "+1.31 pp".
+        "slope_unit": numbers.trend_units(card.units),
+        "slope_pp": numbers.unit_label(card.units) == "%",
         "slope": trend["slope_text"] if trend else "",
         "interval": trend["interval_text"] if trend else "",
         "mean": numbers.fixed(mean, places) if mean is not None else "",
+        "mean_text": numbers.with_unit(numbers.fixed(mean, places), card.units)
+        if mean is not None
+        else "",
         "links": links,
     }
     if plot is not None:
@@ -461,22 +479,22 @@ def _row(analysis, source, run, card, theme_label: str, base) -> dict:
 
 
 def dashboard_context(request, analysis, source, run) -> dict:
-    """The Indices (#236, the Results board): a filter rail (search, theme with counts,
-    "Significant only"), one line that answers, the table of every index (code, name,
-    unit, slope per decade, 95% interval, significance, sparkline, mean), sortable by
-    column, and the selected index in a detail pane beside it (``?show=<key>``, the first
-    row shown by default). Without JavaScript the filters are a form sent to this page,
-    the column headers links and each row's code a link to ``?show=``; js/results.js does
-    the same in place."""
+    """The Indices (#236, #263, the Results board): a filter rail (search, theme with
+    counts, "Significant only"), one line that answers, the table of every index (code,
+    name, slope per decade with its unit, 95% interval, significance, sparkline), sortable
+    by column and opening sorted by the size of the trend, and the selected index in a
+    detail pane beside it (``?show=<key>``, the first row shown by default). Without
+    JavaScript the filters are a form sent to this page, the column headers links and each
+    row's code a link to ``?show=``; js/results.js does the same in place."""
     q = request.GET.get("q", "").strip()[:100]
     theme = request.GET.get("theme", "")
     significant = request.GET.get("significant") == "1"
     sort = request.GET.get("sort", "")
     if sort not in SORTS:
-        sort = ""
+        sort = DEFAULT_SORT
     direction = request.GET.get("dir", "")
     if direction not in ("ascending", "descending"):
-        direction = SORTS.get(sort, "")
+        direction = SORTS.get(sort, "descending")
     descending = direction == "descending"
     found = run.themes()
     ordered = [c for s in run.sections() for c in s["cards"]]
@@ -518,7 +536,7 @@ def dashboard_context(request, analysis, source, run) -> dict:
     if significant:
         filters["significant"] = "1"
     # Each row's code shows its detail, the filters and the order kept.
-    kept = {**filters, **({"sort": sort, "dir": direction} if sort else {})}
+    kept = {**filters, **({"sort": sort, "dir": direction} if sort != DEFAULT_SORT else {})}
     for row in table:
         row["show_href"] = f"?{urlencode({**kept, 'show': row['key']})}#detail-{row['key']}"
     labels = _column_labels()
@@ -551,7 +569,10 @@ def dashboard_context(request, analysis, source, run) -> dict:
         "columns": columns,
         "sort": sort,
         "direction": direction,
-        "sort_text": sort_sentence(labels[sort][1], descending) if sort else "",
+        "default_sort": DEFAULT_SORT,
+        "sort_text": sort_sentence(labels[sort][1], descending)
+        if sort in labels
+        else size_sentence(),
         "series_years": f"{first_year}–{last_year}" if first_year and last_year else "",
         "chips": chips,
         "q": q,

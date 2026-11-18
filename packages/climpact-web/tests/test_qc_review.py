@@ -208,7 +208,7 @@ def test_every_flag_of_the_stress_station_is_in_its_table(client, checked):
                 shown += re.findall(r'<tr data-date="([\d-]+)"', html)
         assert sorted(shown) == sorted(listed), check.key
     prcp = review.table("outliers", "prcp-high")
-    assert prcp.count == 67 and prcp.page(1).pages == 2  # 50 a page
+    assert prcp.count == 67 and prcp.page(1).pages == 6  # 12 a page
 
 
 CHART_OF = {
@@ -416,9 +416,12 @@ def test_stress_station_verdict_and_worklist(checked):
         "105 worth a look",
         "25 missing (0.04%)",
     ]
-    assert [f.check.key for f in review.findings] == ["tmaxmin", "toolarge", "duplicates"]
-    assert len(review.findings[0].findings) == qc_review.FINDINGS_SHOWN  # 10 shown
-    assert not review.findings[0].more and not review.findings[1].more
+    # The rail (#264): each "look wrong" check with its variables and count.
+    assert [(g.id, g.title, g.variable, g.count) for g in review.wrong] == [
+        ("tmaxmin", "TN ≥ TX", "TN", 10),
+        ("toolarge", "Out of range", "PR TX TN", 6),
+        ("duplicates", "Repeated date", "all rows", 5),
+    ]
     groups = [g.check.table_id for g in review.groups]
     assert groups[:2] == ["outliers-prcp-high", "tx_jumps"]  # the largest first
     assert sum(g.count for g in review.groups) == review.verdict.worth == 105
@@ -426,60 +429,133 @@ def test_stress_station_verdict_and_worklist(checked):
     dtr = next(g for g in review.groups if g.check.group == "dtr-high")
     assert dtr.title == "Wide daily range" and dtr.variable == "DTR" and sum(dtr.by_month) == 8
     assert dtr.mostly == "Mostly December"
-    titles = {g.check.table_id: g.title for g in review.groups}
-    assert titles["tx_jumps"] == "Large day-to-day change ≥ 20\u00a0°C"
-    assert titles["tn_flatline"] == "Same TN 6+ days"  # more than 5 equal values
-    # The bars by month (#235): twelve, an empty month a thin mark.
+    titles = {g.check.table_id: (g.title, g.rail_title) for g in review.groups}
+    assert titles["tx_jumps"] == ("Large day-to-day change ≥ 20\u00a0°C", "Large day-to-day change")
+    assert titles["tn_flatline"] == ("Same TN 6+ days", "")  # more than 5 equal values
+    # The bars by month (#235, #264): twelve, an empty month a thin mark.
     bars = dtr.bars
-    assert len(bars) == 12 and [b["x"] for b in bars] == [7 * m for m in range(12)]
-    assert bars[11]["h"] == 16 and bars[1]["h"] == 0.6
+    assert len(bars) == 12 and [b["x"] for b in bars] == [5 * m for m in range(12)]
+    assert bars[11]["h"] == qc_review.BARS_H and bars[1]["h"] == 0.6
     months = [r.date[5:7] for r in dtr.check.rows]
     assert months == sorted(months)  # by calendar month
+    # Each check's sentence: what it means, then what to look at first.
+    rain = review.table("outliers", "prcp-high")
+    assert review.group_of(rain).lede.startswith("More than 5 interquartile ranges above")
+    assert "look first at the largest" in review.group_of(rain).lede
 
 
-def test_finding_text_and_its_days(checked):
+def test_each_check_has_its_own_columns_largest_first(checked):
+    """#264: a check's values table has only the columns it needs, 12 rows a page,
+    largest first (how far beyond what the check expects), or by date."""
     review = qc_review.review(checked.qc_job, checked.station_file)
-    toolarge = review.findings[1]
-    first = toolarge.findings[0]
-    # Codes first, a no-break space before each unit (#225, #235).
+    nb = "\u00a0"
+    columns = {g.id: [c for c, _n in g.check.value_columns] for g in review.wrong + review.groups}
+    assert columns["outliers-prcp-high"] == [f"PR{nb}mm", f"Month's limit{nb}mm", f"Over by{nb}mm"]
+    assert columns["tmaxmin"] == [f"TN{nb}°C", f"TX{nb}°C", f"TN − TX{nb}°C"]
+    assert columns["toolarge"] == [f"PR{nb}mm", f"TX{nb}°C", f"TN{nb}°C"]
+    assert columns["duplicates"] == ["Rows", "Lines in the file"]
+    assert columns["outliers-dtr-high"] == [f"DTR{nb}°C", f"Usual range{nb}°C", f"Beyond by{nb}°C"]
+    assert columns["tx_jumps"] == [f"TX{nb}°C", f"Next day{nb}°C", f"Change{nb}°C"]
+    assert columns["tn_flatline"] == [f"TN{nb}°C", "Days in a row", "From"]
+    for table in review.tables:
+        assert all(len(r.values) == len(table.value_columns) for r in table.rows), table.table_id
+    rain = review.table("outliers", "prcp-high")
+    page = rain.page(1)
+    assert len(page.rows) == qc_review.PAGE_SIZE == 12 and page.pages == 6
+    sizes = [r.size for r in rain.sorted_rows()]
+    assert sizes == sorted(sizes, reverse=True)
+    assert [c.text for c in page.rows[0].values] == ["350.5", "21.9", "+328.6"]
+    assert page.rows[0].values[0].strong
+    dates = [r.date for r in rain.page(1, "date").rows]
+    assert dates == sorted(dates) and rain.page(1, "nope").sort == "size"
+    assert rain.page_of(rain.sorted_rows()[30].date) == 3
+    tmaxmin = review.table("tmaxmin")
+    assert [c.text for c in tmaxmin.page(1).rows[0].values] == ["21.3", "9.2", "+12.1"]
+    assert [c.text for c in tmaxmin.page(1).rows[-1].values][2] == "0.0"  # TN equals TX
+    duplicates = review.table("duplicates")
+    assert duplicates.page(1).rows[0].values[0].text == "3"  # the most rows first
+    flat = review.table("tn_flatline").row_of("1968-04-11")
+    assert [c.text for c in flat.values] == ["0", "12", "1968-04-01"]
+    jump = review.table("tx_jumps").row_of("1963-07-03")
+    assert [c.text for c in jump.values] == ["27.5", "50", "22.5"]
+
+
+def test_check_charts_have_axes(checked):
+    """#264: When (each value against its date, the selected one ringed) and By calendar
+    month (twelve bars), each with three value ticks."""
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    rain = review.table("outliers", "prcp-high")
+    group, top = review.group_of(rain), rain.sorted_rows()[0]
+    when = review.when(group, top)
+    assert when["dots"].count("M") == 67
+    assert [t["text"] for t in when["y_ticks"]] == ["400", "200", "0"]
+    years = [(t["text"], t["anchor"]) for t in when["x_ticks"]]
+    assert years[0] == (1961, "start") and years[-1] == (2020, "end") and len(years) == 7
+    assert (when["first"], when["last"]) == (1961, 2020)
+    assert qc_review.WHEN_LEFT < when["ring"]["x"] < qc_review.WHEN_RIGHT
+    months = qc_review.months_chart(group.by_month)
+    assert len(months["bars"]) == 12 and months["bars"][0]["name"] == "Jan"
+    assert [t["text"] for t in months["y_ticks"]] == ["10", "5", "0"]
+    assert qc_review._nice(0, 350.5, zero=True) == (0, 400, 200)
+    assert qc_review._nice(-9.6, 3.7) == (-10, 10, 0)
+    # Temperatures are not drawn from zero.
+    high = next(g for g in review.groups if g.check.group == "tmax-high")
+    assert not high.zero and high.y_label == "TX\u00a0°C"
+
+
+def test_selected_value_text_and_its_days(checked):
+    """#264: a check's selected value in a sentence (codes first, a no-break space before
+    each unit), the 7 days around it as a chart and a table, and its lines in the file."""
+    review = qc_review.review(checked.qc_job, checked.station_file)
+    toolarge = review.check("toolarge")
+    first = review.value(toolarge, toolarge.rows[0])
     assert first.date == "1963-07-02"
     assert first.text == "PR 200.1\u00a0mm, over the 200\u00a0mm limit"
-    assert (first.var, first.value, first.detail) == ("PR", "200.1\u00a0mm", "limit 200\u00a0mm")
-    low = toolarge.findings[1]
-    assert low.text == "PR \u22120.1\u00a0mm, below 0\u00a0mm" and low.detail == "limit 0\u00a0mm"
-    assert len(first.days) == 2 * qc_review.WINDOW_DAYS + 1
+    low = review.value(toolarge, toolarge.rows[1])
+    assert low.text == "PR \u22120.1\u00a0mm, below 0\u00a0mm"
+    assert len(first.days) == 2 * qc_review.WINDOW_DAYS + 1 == 7
     assert [d["this"] for d in first.days].index(True) == qc_review.WINDOW_DAYS
     # The days around it to one decimal.
     assert all(c.missing or "." in c.text for d in first.days for c in d["cells"])
-    # Its chart has axes: three values and three dates, the day as a band.
+    # Rain: a bar a day, the limit dashed, three values and three dates.
     chart = first.chart
-    assert chart["ring"] is not None and chart["lines"][0]["variable"] == "prcp"
-    assert len(chart["y_ticks"]) == 3 and [t["text"] for t in chart["x_ticks"]] == [
-        "06-25",
-        "07-02",
-        "07-09",
-    ]
+    assert len(chart["bars"]) == 7 and [b["this"] for b in chart["bars"]].count(True) == 1
+    assert chart["limit_y"] is not None and chart["limit_text"] == "200.0\u00a0mm"
+    assert len(chart["y_ticks"]) == 3
+    assert [t["text"] for t in chart["x_ticks"]] == ["06-29", "07-02", "07-05"]
     assert first.legend == [{"variable": "prcp", "label": "PR\u00a0mm"}]
+    assert first.chart_label.endswith("with the limit of 200.0\u00a0mm")
     # Its line in the file (the stress file has no header: line = day of the record).
     assert first.lines and first.lines_text == f"Line {first.lines[0]} in the file"
-    tmaxmin = review.findings[0].findings
-    assert tmaxmin[0].text == "TN 9.5\u00a0°C is above TX 8.2\u00a0°C"
-    assert (tmaxmin[0].var, tmaxmin[0].value, tmaxmin[0].detail) == (
-        "TN",
-        "9.5\u00a0°C",
-        "TX 8.2\u00a0°C",
-    )
-    assert any(t.text.startswith("TN 7.4\u00a0°C equals TX") for t in tmaxmin)
-    # The neighbouring days the checks also flagged are marked.
-    assert [d["date"] for d in tmaxmin[0].days if d["flagged"]][:3] == [
+    tmaxmin = review.check("tmaxmin")
+    value = review.value(tmaxmin, tmaxmin.rows[0])
+    assert value.text == "TN 9.5\u00a0°C is above TX 8.2\u00a0°C"
+    assert [line["variable"] for line in value.chart["lines"]] == ["tmax", "tmin"]
+    assert value.chart["ring"] is not None
+    texts = [review.value(tmaxmin, r).text for r in tmaxmin.rows]
+    assert any(t.startswith("TN 7.4\u00a0°C equals TX") for t in texts)
+    # The check's other values among the days are marked.
+    assert [d["date"] for d in value.days if d["flagged"]] == [
         "1962-04-10",
         "1962-04-11",
         "1962-04-12",
     ]
-    duplicate = review.findings[2].findings[0]
-    assert duplicate.text.startswith("Given on ") and duplicate.var == "all"
-    assert duplicate.value == "2 rows" and duplicate.detail == "indices use the last"
-    assert len(duplicate.lines) == 2  # a repeated date has two lines
+    duplicates = review.check("duplicates")
+    duplicate = review.value(duplicates, duplicates.rows[0])
+    assert duplicate.text.startswith("Given on ") and len(duplicate.lines) == 2
+    assert [r.split(":")[0] for r in duplicate.rows_listed] == [
+        f"Line {n}" for n in duplicate.lines
+    ]
+    rain = review.table("outliers", "prcp-high")
+    value = review.value(rain, rain.sorted_rows()[0])
+    assert value.text == "PR 350.5\u00a0mm, 328.6\u00a0mm over the limit for December"
+    jumps = review.check("tx_jumps")
+    value = review.value(jumps, jumps.row_of("1963-07-03"))
+    assert value.text == ("TX 27.5\u00a0°C, then 50\u00a0°C the next day: a change of 22.5\u00a0°C")
+    flat = review.check("tn_flatline")
+    value = review.value(flat, flat.row_of("1968-04-11"))
+    assert value.text == "TN 0\u00a0°C on 12 days in a row, from 1968-04-01"
+    assert review.value(flat, None) is None
 
 
 def test_months_that_hold_most_rows():
@@ -521,6 +597,12 @@ def test_results_page(client, checked):
     provenance = page.split('class="context-bar__provenance"')[1].split("</p>")[0]
     assert "21,915 days · PR TX TN" in provenance and checked.file_name in provenance
     assert "base 1971" not in provenance
+    # "Edit inputs" at its end opens the Inputs sheet (#264, as on the Indices, #263), so
+    # the rail and the detail have the width: no Inputs panel beside the section.
+    assert '<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs"' in (
+        provenance
+    )
+    assert "station-page--inputs-bar" in page
     # No forms on the page but the decision and "Delete" (#199): the thresholds and the
     # file are changed in the Inputs panel's sheets.
     actions = re.findall(r'<form[^>]* action="([^"]+)"', without_sheets(page))
@@ -534,7 +616,7 @@ def test_results_page(client, checked):
     )
     assert 'class="data-chip"' not in page  # "Your data"'s chips
     items = len(qc_review.review(checked.qc_job, checked.station_file).items)
-    assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items == 21 + 11
+    assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items == 3 + 11
     for name in QC_DEFAULTS:
         assert f'data-help-topic="qcparam.{name}"' in page
     for variable in qc_review.CHART_VARIABLES:
@@ -591,66 +673,76 @@ def selected_rows(page: str) -> list[str]:
     return re.findall(r'data-qc-item="([^"]+)" aria-current="true"', page)
 
 
-def test_every_finding_and_group_is_reachable_from_the_list(client, checked):
-    """#202: each finding, each check's every row and each group is a row of the list,
-    a link to its detail (?show=), which is in the page, hidden unless selected; the
-    first finding is selected by default."""
+def detail_of(page: str, item_id: str) -> str:
+    """A check's detail in the page, up to the next one."""
+    start = page.index(f'data-qc-detail="{item_id}"')
+    end = page.find("data-qc-detail=", start + 20)
+    return page[start : end if end > 0 else len(page)]
+
+
+def test_every_check_is_in_the_rail(client, checked):
+    """#264: each "look wrong" check, then each "worth a look" group, is a row of the
+    rail, a link to its detail (?show=), which is in the page, hidden unless selected;
+    the first is selected by default. Every value is in one of their tables."""
     review = qc_review.review(checked.qc_job, checked.station_file)
     items = review.items
-    assert [i.kind for i in items] == ["finding"] * 21 + ["group"] * len(review.groups)
-    assert len({i.id for i in items}) == len(items)
-    # Every finding of every "look wrong" check, and every row of every group.
-    findings = {(f.check.key, d.date) for f in review.findings for d in f.findings}
-    assert {(i.check.key, i.finding.date) for i in items if i.finding} == findings
-    grouped = sum(i.group.count for i in items if i.group)
-    assert grouped == review.verdict.worth
+    assert [i.id for i in items[:3]] == ["tmaxmin", "toolarge", "duplicates"]
+    assert [i.wrong for i in items] == [True] * 3 + [False] * len(review.groups)
+    assert len({i.id for i in items}) == len(items) == 3 + 11
+    assert sum(i.group.count for i in items) == 21 + 105
     page = client.get(f"{checked.url()}quality").content.decode()
     first = items[0]
     assert details_shown(page) == [first.id] and selected_rows(page) == [first.id]
     for item in items:
         assert f'href="?show={item.id}#{item.anchor}" data-qc-item="{item.id}"' in page
         assert f'id="{item.anchor}" data-qc-detail="{item.id}"' in page
-    # A check with more findings than are shown has a row for its every row (a table).
-    tmaxmin = review.findings[0]
-    tmaxmin.findings = tmaxmin.findings[:3]
-    assert tmaxmin.more
-    kinds = [(i.kind, i.id) for i in review.items]
-    assert ("table", "tmaxmin") in kinds and kinds.index(("table", "tmaxmin")) == 14
-    assert review.item("tmaxmin").anchor == "check-tmaxmin"
-    assert review.item("nope").id == review.items[0].id  # unknown: the first
+    assert review.item("nope").id == items[0].id  # unknown: the first
 
 
 def test_selecting_without_javascript(client, checked):
-    """#202: ?show=<id> shows that item's detail and marks its row; a group's detail has
-    its rows by calendar month and its rows, paged, and its pager keeps the selection."""
-    review = qc_review.review(checked.qc_job, checked.station_file)
-    finding = review.items[7]
+    """#202, #264: ?show=<id> shows that check's detail and marks it in the rail; its
+    largest value is selected, or the one ?<id>_value= names; a group's pager keeps
+    the selection."""
     url = f"{checked.url()}quality"
-    page = client.get(f"{url}?show={finding.id}").content.decode()
-    assert details_shown(page) == [finding.id] and selected_rows(page) == [finding.id]
-    detail = page[page.index(f'id="{finding.anchor}"') :].split("</section>")[0]
-    assert finding.finding.text in detail and "qc-chart__plot" in detail
-    assert detail.count("<tr") == 1 + 2 * qc_review.WINDOW_DAYS + 1  # the days around it
-    assert 'class="qc-days__this"' in detail and "qc-chart__ring" in detail
-    assert finding.finding.lines_text in detail and 'data-qc-back="' in detail
-    # The row of the selected item is marked too (#235).
-    row = page.split(f'data-qc-row="{finding.id}"')[0].rsplit("<tr", 1)[1]
-    assert 'class="is-selected"' in row
+    page = client.get(f"{url}?show=tmaxmin").content.decode()
+    assert details_shown(page) == ["tmaxmin"] and selected_rows(page) == ["tmaxmin"]
+    detail = detail_of(page, "tmaxmin")
+    assert "Look wrong · TN · 10 rows" in detail and "<span>TN ≥ TX</span>" not in detail
+    assert "TN 21.3\u00a0°C is above TX 9.2\u00a0°C" in detail  # the largest first
+    assert "data-qc-when" in detail and "qc-fig__ring" in detail
+    assert "qc-chart__plot" in detail and "qc-chart__ring" in detail
+    days = detail.split('class="table-wrap qc-daytable"')[1].split("</table>")[0]
+    assert days.count("<tr") == 1 + 7 and 'class="qc-days__this"' in days
+    assert "in the file" in detail and 'data-qc-back="tmaxmin"' in detail
+    assert "quality/flagged.csv?check=tmaxmin" in detail
+    assert '<tr data-date="1967-02-02" class="is-selected">' in detail
+    rail = page.split('data-qc-item="tmaxmin"')[0].rsplit("<a", 1)[1]
+    assert "is-selected" in rail
+    # Another value, by its address.
+    page = client.get(f"{url}?show=tmaxmin&tmaxmin_value=1962-04-10").content.decode()
+    detail = detail_of(page, "tmaxmin")
+    assert "TN 9.5\u00a0°C is above TX 8.2\u00a0°C" in detail
+    assert '<tr data-date="1962-04-10" class="is-selected">' in detail
+    assert 'data-qc-value="1962-04-10" aria-current="true"' in detail
     page = client.get(f"{url}?show=outliers-prcp-high").content.decode()
     assert details_shown(page) == ["outliers-prcp-high"]
-    detail = page[page.index('id="check-outliers-prcp-high"') :]
-    assert "By calendar month" in detail and "rows 1 to 50 of 67" in detail
-    assert 'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=2' in detail
-    # Unknown: the first finding.
+    detail = detail_of(page, "outliers-prcp-high")
+    assert "By calendar month" in detail and "values 1 to 12 of 67, largest first" in detail
+    assert "Jan 6, Feb 5" not in detail and "by calendar month: Jan " in detail
+    assert (
+        'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=2'
+        '&amp;outliers-prcp-high_sort=size#check-outliers-prcp-high"' in detail
+    )
+    # Unknown: the first check.
     page = client.get(f"{url}?show=nope").content.decode()
-    assert details_shown(page) == [review.items[0].id]
+    assert details_shown(page) == ["tmaxmin"]
 
 
 def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     review = qc_review.review(checked.qc_job, checked.station_file)
     for check in review.checks:
         check.rows, check.count = [], 0
-    review.findings, review.groups = [], []
+    review.wrong, review.groups = [], []
     review.verdict = qc_review.verdict(review.checks, [], review.verdict.values)
     monkeypatch.setattr(qc_review, "review", lambda job, path: review)
     page = client.get(f"{checked.url()}quality").content.decode()
@@ -686,26 +778,41 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
 
 
 def test_pages_without_javascript(client, checked):
-    """The pager's links carry the page of each table in the query string, and the
-    selection (#202); a page asked for without ?show= shows its table."""
-    page = client.get(f"{checked.url()}quality?outliers-prcp-high_page=2").content.decode()
+    """The pager's and the sort's links carry the page and order of each table in the
+    query string, and the selection (#202, #264); a page asked for without ?show= shows
+    its check."""
+    page = client.get(f"{checked.url()}quality?outliers-prcp-high_page=6").content.decode()
     assert details_shown(page) == ["outliers-prcp-high"]
-    section = page[page.index('id="qc-table-outliers-prcp-high"') :]
-    assert "rows 51 to 67 of 67" in section
+    section = detail_of(page, "outliers-prcp-high")
+    assert "values 61 to 67 of 67" in section and "Page 6 of 6" in section
     assert (
-        'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=1#check-outliers-prcp-high"'
-        in section
+        'href="?show=outliers-prcp-high&amp;outliers-prcp-high_page=5'
+        '&amp;outliers-prcp-high_sort=size#check-outliers-prcp-high"' in section
     )
+    page = client.get(f"{checked.url()}quality?outliers-prcp-high_sort=date").content.decode()
+    section = detail_of(page, "outliers-prcp-high")
+    assert "values 1 to 12 of 67, by date" in section
+    dates = re.findall(r'<tr data-date="([\d-]+)"', section)
+    assert dates == sorted(dates)
+    assert re.search(r'data-qc-sort aria-current="true">Date<', section)
 
 
 def test_table_page_of_a_date(client, checked):
+    """The values fragment (htmx, #264): with ?date= the page that holds that value, the
+    value selected; a date the check did not find gets no content."""
     review = qc_review.review(checked.qc_job, checked.station_file)
-    row = review.table("outliers", "prcp-high").rows[60]
+    row = review.table("outliers", "prcp-high").sorted_rows()[60]
     url = f"{checked.url()}quality/checks/outliers?group=prcp-high&date={row.date}"
     html = client.get(url).content.decode()
-    assert "rows 51 to 67 of 67" in html
-    selected = f'<tr data-date="{row.date}" tabindex="-1" class="is-selected" aria-current="true">'
-    assert selected in html
+    assert "values 61 to 67 of 67" in html
+    assert f'<tr data-date="{row.date}" class="is-selected">' in html
+    assert f'data-selected="{row.date}"' in html and "data-ring-x=" in html
+    assert 'class="qc-value"' in html
+    html = client.get(url + "&sort=date&page=1").content.decode()
+    assert "by date" in html and 'class="is-selected"' in html
+    other = f"{checked.url()}quality/checks/tmaxmin?date={row.date}"
+    assert client.get(other, HTTP_HX_REQUEST="true").status_code == 204
+    assert client.get(other).status_code == 200
     assert client.get(f"{checked.url()}quality/checks/nope").status_code == 404
     assert client.get(f"{checked.url()}quality/checks/outliers").status_code == 404
     assert client.get(f"{checked.url()}quality/checks/outliers?group=nope").status_code == 404
@@ -926,3 +1033,17 @@ def test_flagged_values_csv(client, checked):
     assert len(rows) - 1 == len(qc_review.flagged_rows(review))
     other = Client()
     assert other.get(f"{checked.url()}quality/flagged.csv").status_code == 404
+
+
+def test_one_checks_values_csv(client, checked):
+    """#264: a check's detail offers its values alone ("These values (CSV)")."""
+    url = f"{checked.url()}quality/flagged.csv"
+    response = client.get(f"{url}?check=outliers&group=prcp-high")
+    assert "_outliers-prcp-high_values.csv" in response["Content-Disposition"]
+    rows = list(csv.reader(io.StringIO(response.content.decode())))
+    assert rows[0] == list(qc_review.FLAGGED_COLUMNS) and len(rows) == 1 + 67
+    assert {r[1] for r in rows[1:]} == {"Outliers"} and {r[3] for r in rows[1:]} == {"PR"}
+    rows = list(csv.reader(io.StringIO(client.get(f"{url}?check=duplicates").content.decode())))
+    assert len(rows) == 1 + 5
+    assert client.get(f"{url}?check=nope").status_code == 404
+    assert client.get(f"{url}?check=outliers&group=nope").status_code == 404

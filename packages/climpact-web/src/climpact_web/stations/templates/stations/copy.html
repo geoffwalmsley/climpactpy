@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n ui %}{% comment %}
+Copy to workspace… (#241; the Flow board's rules): where a copy of the station goes, a
+workspace of this browser's or a new one. Its file, name, location and own index values
+are copied, and it is checked and calculated with that workspace's settings; this station
+is not changed. Context from views_copy.copy: the station's context bar, form, back.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=analysis.station_name %}Copy to workspace: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--xl station-page">
+  {% include "stations/_workspace.html" with no_inputs_bar=True copying=True %}
+  <form method="post" class="form stack max-w-prose" novalidate>
+    {% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
+    <h1 class="sheet__title">{% translate "Copy to workspace" %}</h1>
+    <p class="text-sm">{% blocktranslate with name=analysis.station_name %}A copy of {{ name }}, its file, name and location, is checked and calculated with the settings of the workspace it goes to. This station stays as it is.{% endblocktranslate %}</p>
+    {% include "components/form_errors.html" with form=form %}
+    {% include "components/field.html" with field=form.target %}
+    {% turnstile %}
+    <div class="flex flex-wrap items-center gap-3">
+      {% translate "Copy" as copy_label %}{% include "components/button.html" with label=copy_label type="submit" %}
+      {% translate "Cancel" as cancel_label %}{% include "components/button.html" with label=cancel_label href=back variant="ghost" %}
+    </div>
+  </form>
+</div>
+{% endblock %}

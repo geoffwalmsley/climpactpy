@@ -50,7 +50,8 @@ def test_downloads_page_lists_every_file_with_its_size(client):
     assert response.status_code == 200
     html = response.content.decode()
     files = f"/jobs/{job.pk}/files/"
-    assert f'href="{files}{STATION}.zip"' in html
+    # The zip: R's with the provenance file added (#239).
+    assert f'href="{analysis.url()}zip"' in html
     assert f'href="{files}{STATION}_report.pdf"' in html
     assert f'href="{files}{STATION}/plots/{STATION}_all_plots.pdf"' in html
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
@@ -124,7 +125,7 @@ def test_dashboard_and_index_page_offer_one_download(client, settings):
     # No other file on the page (#176): the zip, in the header and again in its ⋯ menu
     # for phones (#203), and each index's CSV and PNG in its detail (#236).
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
-    assert files.count(f"{STATION}.zip") == 2
+    assert html.count(f'href="{analysis.url()}zip"') == 2  # R's zip and its provenance (#239)
     others = [f for f in files if not f.endswith(".zip")]
     assert others and all(re.fullmatch(rf"{STATION}/(indices/\S+\.csv|plots/\S+\.png)", f)
                           for f in others)  # fmt: skip
@@ -203,7 +204,7 @@ def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
 
 def test_batch_with_plots_writes_each_station_report(client):
     """A batch with plots also writes each station's report, outside the batch folder, and
-    the results page offers it with its size."""
+    the station's Files offer it."""
     from test_batch import created, metadata, run_worker, station
 
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
@@ -218,11 +219,11 @@ def test_batch_with_plots_writes_each_station_report(client):
     assert (job.output_dir / "reports" / "a_report.pdf").read_bytes().startswith(b"%PDF")
     with zipfile.ZipFile(job.output_dir / f"{job.params['folder']}.zip") as archive:
         assert not [n for n in archive.namelist() if "report" in n]
-    # One station: the workspace's address opens it, so read the results' fragment.
-    html = client.get(f"/w/{run.workspace_id}/batch/progress").content.decode()
+    # The station's Files offer its report (the batch results page went with #234).
+    from climpact_web.stations.models import Station
+
+    html = client.get(f"{Station.objects.get().url()}downloads").content.decode()
     assert f"/jobs/{job.pk}/files/reports/a_report.pdf" in html
-    assert re.search(rf"Download \(zip, {SIZE}\)", html)
-    assert re.search(rf"Download all \(zip, {SIZE}\)", html)
 
 
 def test_downloads_page_lists_the_sector_comparison(client):
@@ -272,6 +273,9 @@ def test_files_page_reaches_every_file_of_the_station(client):
     analysis.save()
     html = client.get(f"{analysis.url()}downloads").content.decode()
     linked = set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', html))
+    # The zip is offered as R's with the provenance file added (#239).
+    assert f'href="{analysis.url()}zip"' in html
+    linked.add(f"/jobs/{job.pk}/files/{STATION}.zip")
     qc_names = {h.rsplit("/", 1)[1] for h in linked if h.startswith(f"/jobs/{qc_job.pk}/")}
 
     def reachable(j, path) -> bool:

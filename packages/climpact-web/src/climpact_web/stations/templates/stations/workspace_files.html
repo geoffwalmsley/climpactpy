@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load i18n static ui %}{% comment %}
+The workspace's Files (#239, the Files board): the workspace's context bar with Files
+current, then the three workspace files (Everything, Trends and Indices of all stations,
+each with its size), "What is in the zip", the By station table of R's files (a link with
+its size, or why the file is missing), then the provenance file with "Copy methods text"
+beside how long the files are kept. While a station is still being calculated
+the workspace files wait for it. Context from views_files.files_page.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=space_name %}Files: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/copy.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  <div class="stack stack--lg">
+    {% if busy %}<p class="m-0 text-sm text-text-muted" role="status">{% translate "The workspace files are made once every station has been calculated." %} <a href="{{ space.get_absolute_url }}">{% translate "See how the stations are going" %}</a></p>
+    {% elif not has_results %}<p class="m-0 text-sm text-text-muted">{% translate "No station has results yet, so there are no workspace files." %}</p>{% endif %}
+
+    <section aria-labelledby="whole-title" class="stack stack--sm">
+      <h2 id="whole-title" class="sr-only">{% translate "Whole workspace" %}</h2>
+      <ul class="m-0 grid list-none gap-3 p-0 grid-cols-fit-64" role="list">
+        <li class="border border-border rounded-sm bg-surface p-5 stack stack--sm">
+          <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="m-0 text-base">{% translate "Everything" %}</h3>{% if built %}<span class="font-mono text-xs text-text-muted">{% blocktranslate with size=everything_size|filesizeformat %}zip · {{ size }}{% endblocktranslate %}</span>{% endif %}</div>
+          <p class="text-sm">{% translate "Every station's folder in Climpact for R's layout, plus the workspace files below." %}</p>
+          {% if built %}<a class="text-sm font-medium" href="{% url 'stations:workspace_everything' space.pk %}" download>{% if out_of_date %}{% translate "Download (out of date)" %}{% else %}{% translate "Download" %}{% endif %}<span class="sr-only"> {% translate "everything (zip)" %}</span></a>{% endif %}
+        </li>
+        <li class="border border-border rounded-sm bg-surface p-5 stack stack--sm">
+          <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="m-0 text-base">{% translate "Trends, all stations" %}</h3>{% if built %}<span class="font-mono text-xs text-text-muted">{% blocktranslate with size=trends_size|filesizeformat %}csv · {{ size }}{% endblocktranslate %}</span>{% endif %}</div>
+          <p class="font-mono text-xs">{{ trends_columns }}{% translate " (per decade)" %}</p>
+          {% if built %}<a class="text-sm font-medium" href="{% url 'stations:workspace_trends' space.pk %}" download>{% if out_of_date %}{% translate "Download (out of date)" %}{% else %}{% translate "Download" %}{% endif %}<span class="sr-only"> {% translate "trends, all stations (CSV)" %}</span></a>{% endif %}
+        </li>
+        <li class="border border-border rounded-sm bg-surface p-5 stack stack--sm">
+          <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="m-0 text-base">{% translate "Indices, all stations" %}</h3>{% if built %}<span class="font-mono text-xs text-text-muted">{% blocktranslate with size=indices_size|filesizeformat %}csv · {{ size }}{% endblocktranslate %}</span>{% endif %}</div>
+          <p class="font-mono text-xs">{{ indices_columns }}{% translate " (long format)" %}</p>
+          {% if built %}<a class="text-sm font-medium" href="{% url 'stations:workspace_indices' space.pk %}" download>{% if out_of_date %}{% translate "Download (out of date)" %}{% else %}{% translate "Download" %}{% endif %}<span class="sr-only"> {% translate "indices, all stations (CSV)" %}</span></a>{% endif %}
+        </li>
+      </ul>
+      <details class="disclosure">
+        <summary>{% icon "folder" %}<span>{% translate "What is in the zip" %}</span>{% icon "chevron-down" %}</summary>
+        <div class="disclosure__body max-w-prose text-sm">
+          <p>{% translate "Each station's results are in a folder of their own, as Climpact for R writes them. A station that could not be calculated has a file named after it ending in .errors.txt, with the reason." %}</p>
+          <ul>
+            <li>{% translate "plots: an image of each index (when plots were drawn), and all of them in one PDF;" %}</li>
+            <li>{% translate "indices: a CSV file of each index's values;" %}</li>
+            <li>{% translate "trend: the linear trend of each index;" %}</li>
+            <li>{% translate "thres: the percentile thresholds calculated for each variable;" %}</li>
+            <li>{% translate "qc: the quality-control diagnostics." %}</li>
+          </ul>
+          <p>{% translate "Beside the folders: climpact_run.json (how the files were made), and the trends and indices of all stations as above. The indices file has every yearly and monthly value; the daily tables (EHF, ECF) and TX95t are only in the stations' folders." %}</p>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="by-station-title" class="stack stack--sm">
+      <div class="section-header">
+        <h2 id="by-station-title">{% translate "By station" %}</h2>
+        <p class="section-header__note ms-auto text-xs">{% blocktranslate trimmed %}The same files Climpact for R writes, named <span class="font-mono">&lt;station&gt;_&lt;file&gt;.csv</span>{% endblocktranslate %}</p>
+      </div>
+      <div class="table-wrap table-wrap--data" role="region" aria-label="{% translate 'Files of each station' %}" tabindex="0">
+        <table class="table table--data">
+          <thead>
+            <tr>
+              <th scope="col">{% translate "Station" %}</th>
+              {% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr data-station="{{ row.entry.station.slug }}">
+              <th scope="row" class="stations-table__name"><a href="{{ row.entry.station.url }}downloads" title="{{ row.entry.name }}">{{ row.entry.name }}</a></th>
+              {% for cell in row.cells %}<td class="code">{% if cell.has %}<a href="{{ cell.url }}"{% if not cell.text %} download{% endif %}>{% if cell.text %}{{ cell.text }}{% else %}{{ cell.size|filesizeformat }}{% endif %}<span class="sr-only"> {% blocktranslate with label=cell.label name=row.entry.name %}{{ label }}, {{ name }}{% endblocktranslate %}</span></a>{% else %}<span class="text-text-muted">{{ cell.why }}</span>{% if cell.why == "–" %}<span class="sr-only">{% translate "none" %}</span>{% endif %}{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="space-files__foot">
+      <section class="border border-border rounded-sm bg-surface p-5 stack stack--sm min-w-0" aria-labelledby="provenance-title">
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 id="provenance-title" class="m-0 text-base">{% translate "Provenance" %} <span class="text-sm font-normal text-text-muted">{% blocktranslate %}· written as <span class="font-mono">climpact_run.json</span> into every zip{% endblocktranslate %}</span></h2>
+          {% if built %}<div class="pop text-sm" data-copy>
+            <details class="pop__details">
+              <summary class="link-button">{% translate "Methods text" %}</summary>
+              <p class="pop__panel pop__panel--text" data-copy-text>{{ methods_text }}</p>
+            </details>
+            <button type="button" class="link-button" data-copy-button data-copied="{% translate 'Methods text copied' %}" hidden>{% translate "Copy methods text" %}</button>
+          </div>{% endif %}
+        </div>
+        {% if built %}<pre class="space-files__json" tabindex="0" role="region" aria-label="{% translate 'climpact_run.json' %}">{{ provenance_text }}</pre>
+        {% else %}<p class="m-0 text-sm text-text-muted">{% translate "Written when the workspace files are made." %}</p>{% endif %}
+      </section>
+      <section class="border border-border rounded-sm bg-surface p-5 stack stack--sm" aria-labelledby="keep-title">
+        <h2 id="keep-title" class="m-0 text-base">{% translate "Keeping the files" %}</h2>
+        <p class="m-0 text-sm">{% if space.expires_at %}{% blocktranslate with date=space.expires_at|date:"j M Y" trimmed %}
+          Input files and results are deleted on <b>{{ date }}</b>. Download what you need before then; the provenance file lets you rerun the same calculation.
+        {% endblocktranslate %}{% else %}{% translate "Input files and results stay on this computer until you delete them. The provenance file lets you rerun the same calculation." %}{% endif %}</p>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

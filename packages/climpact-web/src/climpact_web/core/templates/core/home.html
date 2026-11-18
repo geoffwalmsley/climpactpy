@@ -1,99 +1,185 @@
 {% extends "base.html" %}
-{% load i18n static ui %}
+{% load i18n static ui %}{% comment %}
+The landing page (#242, the Landing board): bands across the window (bleed), each with
+its content up to 77.5rem. "Welcome back" for a returning visitor (the workspace changed
+last); the hero with Get started and See an example (the Sydney sample, opened on its
+Indices) beside a preview of the sample's real output (core/landing.py: TXx drawn as the
+Indices' detail pane draws a series, four indices as rows of the Indices table); the facts
+(the parity suite's); How it works with miniatures of the real screens (illustrations,
+hidden from screen readers; their values are the reference stations' own, and
+Quality's the qc_stress file's); What you get;
+What you need; and a closing Get started. Context from core.views.home.
+{% endcomment %}
 {% block title_suffix %}{% endblock %}
 {% block title %}{% translate "Climpact: indices of climate extremes" %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/tour.js' %}" defer></script>{% endblock %}
+{% block header_action %}{% if start_url %}{% translate "Get started" as start_label %}{% include "components/button.html" with label=start_label href=start_url size="sm" extra_class="site-header__start" %}{% endif %}{% endblock %}
 {% block content %}
 {% include "help/_tour.html" %}
-<section class="grid items-center gap-8 pt-6 pb-12 lg:grid-cols-[1.15fr_1fr]" aria-labelledby="hero-title">
-  <div>
-    <p class="eyebrow">{% translate "Climate indices for national meteorological services" %}</p>
-    <h1 class="text-hero tracking-[-0.02em]" id="hero-title">{% translate "Turn daily station records into indices of climate extremes" %}</h1>
-    <p class="lead">{% blocktranslate trimmed %}
-      Upload daily temperature and rainfall for a station. Climpact checks the data quality,
-      calculates the ET-SCI indices and their trends, and gives you charts, tables and files
-      in the same layout as Climpact in R.
-    {% endblocktranslate %}</p>
-    <div class="mt-6 mb-3 flex flex-wrap items-center gap-3" id="hero-actions">
-      {% translate "Start with your data" as start_label %}
-      {% translate "Try with sample data" as sample_label %}
-      {% if start_url %}
-      {% include "components/button.html" with label=start_label href=start_url size="lg" icon="upload" %}
-      {% else %}
-      {% include "components/button.html" with label=start_label size="lg" icon="upload" disabled=True %}
-      {% endif %}
-      {% if sample_url %}
-      {# Loading the sample creates the session's analysis, so it is a POST (one click). #}
-      <form method="post" action="{{ sample_url }}">{% csrf_token %}{% include "components/button.html" with label=sample_label type="submit" size="lg" variant="secondary" icon="play" %}</form>
-      {% else %}
-      {% include "components/button.html" with label=sample_label size="lg" variant="secondary" icon="play" disabled=True %}
+{% translate "Get started" as start_label %}
+{% url 'stations:sample_file' as template_url %}{% url 'help:guide' 'batch' as metadata_guide %}{% url 'help:guide' 'indices' as indices_guide %}
+<div>
+  {% if returning %}
+  <div class="landing__welcome" role="region" aria-label="{% translate 'Welcome back' %}">
+    <p>{% blocktranslate with url=returning.url name=returning.name trimmed %}Welcome back. Continue with <a href="{{ url }}">{{ name }}</a>{% endblocktranslate %}
+      <span class="landing__muted">{% blocktranslate count counter=returning.stations|default:0 with updated=returning.updated trimmed %}({{ counter }} station, updated {{ updated }}){% plural %}({{ counter }} stations, updated {{ updated }}){% endblocktranslate %}</span></p>
+    <a href="{% url 'stations:workspaces' %}">{% translate "All workspaces" %}</a>
+  </div>
+  {% endif %}
+
+  <section class="landing__band landing__band--hero" aria-labelledby="hero-title">
+    <div class="landing__inner landing-hero">
+      <div class="landing-hero__text">
+        <p class="landing-hero__eyebrow">{% translate "ET-SCI climate indices · free and open source" %}</p>
+        <h1 class="landing-hero__title" id="hero-title">{% translate "How have the extremes changed at your stations?" %}</h1>
+        <p class="landing-hero__lead">{% blocktranslate with n=facts.indices trimmed %}Climpact turns daily rainfall and temperature records into the {{ n }} ET-SCI indices: frost days, hottest day, heatwaves, wet spells, drought. It checks the data first, fits a trend to every index and writes the same files as Climpact for R.{% endblocktranslate %}</p>
+        <div class="landing-hero__actions" id="hero-actions">
+          {% if start_url %}{% include "components/button.html" with label=start_label href=start_url size="lg" %}{% endif %}
+          {% if sample_url %}
+          {# The sample opened on its Indices (#242): a POST, as loading it makes a workspace. #}
+          <form method="post" action="{{ sample_url }}">{% csrf_token %}<input type="hidden" name="show" value="indices">
+            {% blocktranslate with years=preview.years|default:"1936–2015" asvar example_label %}See an example: Sydney, {{ years }}{% endblocktranslate %}
+            {% include "components/button.html" with label=example_label type="submit" size="lg" variant="secondary" %}</form>
+          {% endif %}
+        </div>
+        <p class="landing__muted landing-hero__note">{% if is_hosted %}{% translate "Runs in your browser; nothing to install. Only this browser can open your workspaces." %}{% else %}{% translate "This copy runs on your own computer. Your data stays here, and no internet connection is needed." %}{% endif %}</p>
+      </div>
+
+      {% if preview %}
+      <figure class="landing-preview hue-heat" aria-labelledby="preview-caption">
+        <div class="landing-preview__head">
+          <p class="landing-preview__title"><span class="code">{{ preview.code }}</span> {{ preview.name }} <span class="landing__muted">{{ "·" }} {{ preview.station }}</span></p>
+          <p class="landing-preview__trend"><span class="code">{{ preview.slope }}</span> <span class="landing__muted code">{% blocktranslate with interval=preview.interval %}({{ interval }}){% endblocktranslate %}</span>{% if not preview.significant %} <span class="landing__muted">{% translate "not significant" %}</span>{% endif %}</p>
+        </div>
+        {% with chart=preview.chart %}
+        <svg class="index-chart__plot landing-preview__chart" viewBox="{{ chart.box }}" role="img" aria-label="{{ preview.summary }}" focusable="false">
+          {% if chart.band %}<rect class="index-chart__band" x="{{ chart.band.x }}" y="{{ chart.top }}" width="{{ chart.band.width }}" height="{{ chart.height }}"/><text class="index-chart__band-label" x="{{ chart.band.label_x }}" y="{{ chart.band.label_y }}" text-anchor="middle">{% translate "base period" %}</text>{% endif %}
+          <line class="index-chart__grid" x1="{{ chart.left }}" y1="{{ chart.grid_y }}" x2="{{ chart.right }}" y2="{{ chart.grid_y }}"/>
+          <line class="index-chart__axis" x1="{{ chart.left }}" y1="{{ chart.top }}" x2="{{ chart.left }}" y2="{{ chart.bottom }}"/>
+          <line class="index-chart__axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+          {% for tick in chart.y_ticks %}<text class="index-chart__tick" x="{{ chart.tick_x }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+          {% for tick in chart.x_ticks %}<text class="index-chart__tick" x="{{ tick.x }}" y="{{ chart.label_y }}" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+          {% if chart.line %}<path class="index-chart__line" d="{{ chart.line }}"/>{% endif %}
+          {% if chart.trend %}<line class="index-chart__trend" x1="{{ chart.left }}" y1="{{ chart.trend.y1 }}" x2="{{ chart.right }}" y2="{{ chart.trend.y2 }}"/>{% endif %}
+        </svg>
+        {% endwith %}
+        <div class="landing-preview__rows" role="region" aria-label="{% translate 'Four more indices' %}" tabindex="0">
+        <table class="landing-preview__table">
+          <caption class="sr-only">{% blocktranslate with station=preview.station trimmed %}Four more indices at {{ station }}: Sen's slope per decade and its 95% interval{% endblocktranslate %}</caption>
+          <thead class="sr-only"><tr><th scope="col">{% translate "Code" %}</th><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Slope per decade" %}</th><th scope="col">{% translate "95% interval" %}</th><th scope="col">{% translate "Significant" %}</th></tr></thead>
+          <tbody>
+            {% for row in preview.rows %}
+            <tr>
+              <th scope="row" class="code">{{ row.code }}</th>
+              <td class="landing-preview__name">{{ row.name }}</td>
+              <td class="code landing-preview__num">{{ row.slope }}&nbsp;<span class="landing-preview__unit">{% if row.pp %}<abbr title="{% translate 'percentage points' %}">{{ row.units }}</abbr>{% else %}{{ row.units }}{% endif %}</span></td>
+              <td class="code landing-preview__num landing__muted">{{ row.interval }}</td>
+              <td>{% if row.significant %}<span class="landing-preview__yes"><span class="landing-preview__dot" aria-hidden="true"></span>{% translate "yes" %}</span>{% else %}<span aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% translate "no" %}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <figcaption id="preview-caption" class="landing-preview__caption">{% blocktranslate with station=preview.station years=preview.years trimmed %}The output of the sample station, {{ station }}, {{ years }}: Sen's slope per decade, with its 95% interval. Significant: the interval excludes zero.{% endblocktranslate %}</figcaption>
+      </figure>
       {% endif %}
     </div>
-    {% if not start_url %}
-    <p class="text-sm text-text-muted">{% blocktranslate trimmed %}
-      The upload screens are being built. Until then, use the <code>climpact</code> command line.
-    {% endblocktranslate %}</p>
-    {% else %}
-    <p class="text-sm text-text-muted">{% translate "The sample is Sydney Observatory Hill, 1936 to 2015." %}</p>
-    {% endif %}
-  </div>
-  <figure class="m-0 rounded-lg border border-border bg-surface p-5 shadow-raised [&_svg]:block [&_svg]:h-auto [&_svg]:w-full">
-    <svg viewBox="0 0 600 220" aria-hidden="true" focusable="false">
-      <g stroke="var(--chart-grid)" stroke-width="1"><path d="M40 40H580M40 80H580M40 120H580M40 160H580"/></g>
-      <path d="M40 200H580" stroke="var(--chart-axis)" stroke-width="1.5"/>
-      <path d="M40 132 560 66V90L40 152Z" fill="var(--chart-trend-band)" opacity="0.7"/>
-      <polyline fill="none" stroke="var(--chart-1)" stroke-width="2.5" stroke-linejoin="round" points="40.0,123.3 48.8,112.7 57.6,121.5 66.4,121.9 75.3,129.0 84.1,119.1 92.9,101.4 101.7,109.5 110.5,101.0 119.3,110.3 128.1,107.7 136.9,109.7 145.8,132.7 154.6,99.7 163.4,103.4 172.2,102.8 181.0,130.1 189.8,130.1 198.6,118.4 207.5,112.3 216.3,101.7 225.1,105.5 233.9,97.5 242.7,111.7 251.5,98.8 260.3,97.0 269.2,109.7 278.0,78.6 286.8,92.7 295.6,83.8 304.4,106.3 313.2,107.1 322.0,101.4 330.8,97.6 339.7,87.4 348.5,91.6 357.3,99.8 366.1,105.6 374.9,99.3 383.7,76.3 392.5,101.5 401.4,87.3 410.2,84.3 419.0,108.1 427.8,87.7 436.6,70.9 445.4,112.7 454.2,90.3 463.1,86.8 471.9,95.2 480.7,77.6 489.5,84.1 498.3,101.3 507.1,71.2 515.9,72.6 524.7,68.3 533.6,61.2 542.4,74.3 551.2,76.7 560.0,94.1"/>
-      <path d="M40 142 560 78" stroke="var(--chart-trend)" stroke-width="2" stroke-dasharray="6 5"/>
-      <circle cx="436.6" cy="70.9" r="5" fill="var(--chart-1)" stroke="var(--color-surface)" stroke-width="2"/>
-    </svg>
-    <figcaption class="mt-3 text-sm text-text-muted">{% translate "Illustration: a yearly index of warm days with its linear trend and confidence band." %}</figcaption>
-  </figure>
-</section>
+  </section>
 
-<section class="section" aria-labelledby="how-title">
-  <div class="max-w-prose">
-    <h2 id="how-title">{% translate "How it works" %}</h2>
-    <p>{% blocktranslate trimmed %}
-      Load a text file of daily maximum and minimum temperature and precipitation. Climpact
-      checks the data quality, then calculates the indices and their trends. You see the
-      results on screen at each step, and download the tables and plots at the end.
-    {% endblocktranslate %}</p>
-  </div>
-</section>
+  <section class="landing__band landing__band--facts" aria-label="{% translate 'Facts' %}">
+    <dl class="landing__inner landing-facts">
+      <div><dt class="landing-facts__value code">{{ facts.indices }}</dt><dd>{% translate "ET-SCI indices per station, with a trend for each" %}</dd></div>
+      <div><dt class="landing-facts__value code">{{ facts.runs }}</dt><dd>{% blocktranslate with stations=facts.stations cases=facts.test_cases trimmed %}reference datasets tested: {{ stations }} stations from Yakutsk to Darwin, and {{ cases }} test cases{% endblocktranslate %}</dd></div>
+      <div><dt class="landing-facts__value code">{{ "100%" }}</dt><dd>{% blocktranslate with files=facts.files version=facts.r_version trimmed %}of the {{ files }} files written for them identical to Climpact for R {{ version }}, character for character{% endblocktranslate %}</dd></div>
+      {% if is_hosted %}
+      <div><dt class="landing-facts__value code">{{ 0 }}</dt><dd>{% translate "things to install; or run it yourself with" %} <code>pip install climpact-web</code></dd></div>
+      {% else %}
+      <div><dt class="landing-facts__value code">{{ 0 }}</dt><dd>{% translate "files sent anywhere: this copy runs on your own computer" %}</dd></div>
+      {% endif %}
+    </dl>
+  </section>
 
-<section class="section" aria-labelledby="ways-title">
-  <div class="section__header">
-    <h2 id="ways-title">{% translate "Other ways to run Climpact" %}</h2>
-  </div>
-  <div class="grid gap-5 grid-cols-fill-64">
-    {% for way in ways %}
-    {% translate "Available soon" as soon %}
-    {% if way.url %}
-    {% include "components/card.html" with title=way.label text=way.text icon=way.icon href=way.url %}
-    {% else %}
-    {% include "components/card.html" with title=way.label text=way.text icon=way.icon muted=True badge_label=soon badge_kind="" %}
-    {% endif %}
-    {% endfor %}
-    {% translate "Command line" as cli_title %}
-    {% translate "Run single stations, batches and gridded data from a terminal or a script with the climpact command." as cli_text %}
-    {% include "components/card.html" with title=cli_title text=cli_text icon="terminal" %}
-  </div>
-</section>
+  <section class="landing__band" aria-labelledby="how-title">
+    <div class="landing__inner stack stack--lg">
+      <h2 class="landing__heading" id="how-title">{% translate "How it works" %}</h2>
+      <ol class="landing-how">
+        <li>
+          <div class="landing-mini" aria-hidden="true">
+            <div class="landing-mini__row landing-mini__row--head"><span>{% translate "file" %}</span><span>{% translate "lat" %}</span><span>{% translate "lon" %}</span></div>
+            {% for name, lat, lon in mini.files %}<div class="landing-mini__row"><span>{{ name }}</span><span>{{ lat }}</span><span>{{ lon }}</span></div>{% endfor %}
+            <p class="landing-mini__ok">{% translate "3 files read" %}</p>
+          </div>
+          <p class="landing-how__step code" aria-hidden="true">{{ "01" }}</p>
+          <h3>{% translate "Add your stations" %}</h3>
+          <p>{% translate "Drop one daily file or a whole network. You check names and coordinates before anything runs." %}</p>
+        </li>
+        <li>
+          <div class="landing-mini landing-mini--qc" aria-hidden="true">
+            <p><span class="status-dot status-dot--usable">{% translate "Usable · 21 look wrong" %}</span></p>
+            {% with d=mini.qc_dates %}
+            <div class="landing-mini__row"><span>{{ d.0.0 }}</span><span>{{ d.0.1 }}</span><span>{% translate "21.3 above TX 9.2" %}</span></div>
+            <div class="landing-mini__row"><span>{{ d.1.0 }}</span><span>{{ d.1.1 }}</span><span>{% translate "350.5: too large" %}</span></div>
+            <div class="landing-mini__row"><span>{{ d.2.0 }}</span><span>{% translate "all" %}</span><span>{% translate "date given 3 times" %}</span></div>
+            {% endwith %}
+          </div>
+          <p class="landing-how__step code" aria-hidden="true">{{ "02" }}</p>
+          <h3>{% translate "Check the data" %}</h3>
+          <p>{% translate "Every value is checked: swapped columns, impossible values, repeated dates, jumps and flat runs. Each station gets a verdict." %}</p>
+        </li>
+        <li>
+          <div class="landing-mini" aria-hidden="true">
+            <div class="landing-mini__grid landing-mini__grid--head"><span></span>{% for code in mini.grid_codes %}<span>{{ code }}</span>{% endfor %}</div>
+            {% for name, cells in mini.grid %}<div class="landing-mini__grid"><span>{{ name }}</span>{% for value, significant in cells %}<span class="{% if significant %}landing-mini__up{% else %}landing-mini__ns{% endif %}">{{ value }}</span>{% endfor %}</div>{% endfor %}
+            <p class="landing-mini__files">{{ mini.folders }}</p>
+          </div>
+          <p class="landing-how__step code" aria-hidden="true">{{ "03" }}</p>
+          <h3>{% translate "Read the trends, take the files" %}</h3>
+          <p>{% translate "Every index with its slope and interval, compared across stations, then downloaded in Climpact for R's folder layout." %}</p>
+        </li>
+      </ol>
+    </div>
+  </section>
 
-<section class="section" aria-labelledby="about-title">
-  <div class="max-w-prose">
-    <h2 id="about-title">{% translate "About the indices" %}</h2>
-    <p>{% blocktranslate trimmed %}
-      The indices describe how often, how long and how intensely extremes occur: the hottest
-      day of the year, warm spells, the longest dry period, heavy rainfall and more. They are
-      defined by the Expert Team on Sector-specific Climate Indices (ET-SCI) and calculated
-      the same way as in Climpact for R, so results can be compared between countries.
-    {% endblocktranslate %}</p>
-    {% if is_hosted %}
-    <p>{% translate "You can also install Climpact on your own computer and use it without an internet connection." %}</p>
-    {% else %}
-    <p>{% translate "This copy of Climpact runs on your own computer. Your data stays here and no internet connection is needed." %}</p>
-    {% endif %}
-  </div>
-</section>
+  <section class="landing__band landing__band--surface" aria-labelledby="what-title">
+    <div class="landing__inner landing-split">
+      <div class="landing-split__intro stack stack--sm">
+        <h2 class="landing__heading" id="what-title">{% translate "What you get" %}</h2>
+        <p>{% translate "The full ET-SCI set, defined by the WMO Expert Team on Sector-specific Climate Indices, calculated exactly as Climpact for R does." %}</p>
+        {% if index_reference_url %}<p><a href="{{ index_reference_url }}">{% translate "Browse the index reference" %}</a></p>{% endif %}
+      </div>
+      <dl class="landing-get">
+        <div><dt>{% translate "Temperature" %}</dt><dd>{% translate "Hottest day and coldest night, frost and summer days, warm and cold spells, percentile indices, degree days." %}</dd></div>
+        <div><dt>{% translate "Rain and drought" %}</dt><dd>{% translate "Wettest days, very wet days, dry and wet spells, SPI and SPEI." %}</dd></div>
+        <div><dt>{% translate "Heatwaves" %}</dt><dd>{% translate "Number, duration and intensity, from TX90, TN90 and the Excess Heat Factor." %}</dd></div>
+        <div><dt>{% translate "Outputs" %}</dt><dd>{% translate "Index CSVs, trends, thresholds, plots and a PDF report per station, and a sector comparison." %}</dd></div>
+        {% if gridded_url %}<div><dt><a href="{{ gridded_url }}">{% translate "Gridded data" %}</a></dt><dd>{% translate "NetCDF in, index fields out, with the same definitions." %}</dd></div>{% endif %}
+        <div><dt>{% translate "Open source" %}</dt><dd>{% if is_hosted %}{% translate "A Python port of Climpact. Run it on your own computer, where workspaces stay until you delete them, or from a script with the climpact command." %}{% else %}{% translate "A Python port of Climpact. Workspaces on this computer stay until you delete them; the climpact command runs the same calculations from a script." %}{% endif %}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="landing__band" aria-labelledby="need-title">
+    <div class="landing__inner landing-split landing-split--centre">
+      <div class="landing-split__intro stack stack--sm">
+        <h2 class="landing__heading" id="need-title">{% translate "What you need" %}</h2>
+        <p>{% translate "A text file of daily values per station: year, month, day, rainfall (mm), maximum and minimum temperature (°C). Missing values as −99.9. Thirty years or more gives the trends meaning." %}</p>
+        <p class="landing__links"><a href="{{ template_url }}" download>{% translate "Download a template" %}</a><a href="{{ metadata_guide }}#the-metadata-file">{% translate "About the metadata file" %}</a></p>
+      </div>
+      <pre class="landing-need__sample" tabindex="0" aria-label="{% translate 'The first lines of a station file' %}"><code>1936  1  1    0.0   24.3   15.1
+1936  1  2    3.2   22.8   16.0
+1936  1  3  -99.9   25.1   17.4
+1936  1  4   12.6   21.0   16.8</code></pre>
+    </div>
+  </section>
+
+  <section class="landing__band landing__band--close" aria-labelledby="close-title">
+    <div class="landing__inner landing-close">
+      <div class="stack stack--sm">
+        <h2 class="landing-close__title" id="close-title">{% translate "Try it with your own stations" %}</h2>
+        <p>{% if workspace_expiry %}{% blocktranslate count days=job_retention_days trimmed %}Only this browser can see your workspaces. They are deleted {{ days }} day after your last change.{% plural %}Only this browser can see your workspaces. They are deleted {{ days }} days after your last change.{% endblocktranslate %}{% else %}{% translate "Your workspaces stay on this computer until you delete them." %}{% endif %}</p>
+      </div>
+      {% if start_url %}{% include "components/button.html" with label=start_label href=start_url size="lg" %}{% endif %}
+    </div>
+  </section>
+</div>
 {% endblock %}

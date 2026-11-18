@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% block title %}{% translate "Batch processing" %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
   <header class="stack stack--sm">
@@ -45,7 +44,7 @@
       <section class="card stack" aria-labelledby="time-title">
         <span class="card__icon">{% icon "clock" %}</span>
         <h2 class="card__title" id="time-title">{% translate "How long it takes" %}</h2>
-        <p class="card__body">{% translate "About 10 seconds per station with plots, a few seconds without. The calculation runs in the background: you can leave the page and come back to it from Your calculations." %}</p>
+        <p class="card__body">{% translate "About 10 seconds per station with plots, a few seconds without. The calculation runs in the background: you can leave the page and come back to it from Workspaces." %}</p>
       </section>
     </div>
   </div>

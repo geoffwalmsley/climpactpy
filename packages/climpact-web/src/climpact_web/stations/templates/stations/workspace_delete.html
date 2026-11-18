@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+Delete a workspace (#242; the Workspaces list's Delete, which #274 shares on the
+workspace's Files): it names the stations and says the files can't be recovered, then one
+danger button. A plain form: no JavaScript needed. Context from
+views_workspace.delete_workspace.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=space_name %}Delete {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<form method="post" class="stack max-w-prose" novalidate>
+  {% csrf_token %}
+  <h1>{% blocktranslate with name=space_name %}Delete {{ name }}?{% endblocktranslate %}</h1>
+  <p>{% blocktranslate count counter=station_names|length trimmed %}This deletes its {{ counter }} station, with its files and results. They can’t be recovered.{% plural %}This deletes its {{ counter }} stations, with their files and results. They can’t be recovered.{% endblocktranslate %}</p>
+  {% if station_names %}<ul class="workspace-delete__stations">{% for name in station_names %}<li>{{ name }}</li>{% endfor %}</ul>{% endif %}
+  <div class="flex flex-wrap items-center gap-3">
+    {% translate "Delete workspace" as delete_label %}{% include "components/button.html" with label=delete_label type="submit" variant="danger" %}
+    {% url 'stations:workspaces' as back_url %}{% translate "Cancel" as cancel_label %}{% include "components/button.html" with label=cancel_label href=back_url variant="ghost" %}
+  </div>
+</form>
+{% endblock %}

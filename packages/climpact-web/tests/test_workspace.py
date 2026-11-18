@@ -369,6 +369,42 @@ def test_the_inputs_bar_says_the_panel_in_one_line(client):
     assert "inputs-bar--changed" in html
 
 
+def test_edit_inputs_on_the_provenance_line(client):
+    """#263, #264: the Indices and Quality have "Edit inputs" at the end of the
+    provenance line, which opens the Inputs sheet (without JavaScript, the panel above
+    the section); the Inputs bar stays for narrow pages. Files keeps the panel and has no
+    such link."""
+    analysis, _qc, _run = in_use(client)
+    for path in ("indices", "quality"):
+        html = page(client, analysis, path)
+        provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
+        # Then "Add stations", as the workspace has one station (#234), and "Copy to
+        # workspace…" (#241), back to this page.
+        copy = (
+            f"{analysis.url('copy')}?next={analysis.url('qc' if path == 'quality' else 'results')}"
+        )
+        assert provenance.endswith(
+            '<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs"'
+            ' aria-haspopup="dialog">Edit inputs</a><a class="context-bar__add"'
+            f' href="/w/{analysis.workspace_id}/add/">Add stations</a>'
+            f'<a class="context-bar__add" href="{copy}">Copy to workspace…</a>\n'
+        ), path
+        assert 'id="inputs-title"' in html and "data-inputs-bar" in html
+        assert "station-page--inputs-bar" in html, path
+    assert "context-bar__edit" not in page(client, analysis, "downloads")
+
+
+def test_a_station_page_uses_the_whole_window(client):
+    """#263: a station's pages have no max width (#227 gave them 92rem); other pages keep
+    the 72rem content width."""
+    analysis, _qc, _run = in_use(client)
+    for path in ("quality", "indices", "downloads"):
+        html = page(client, analysis, path)
+        main = html.split('<main id="main"')[1].split(">", 2)[1]
+        assert "max-w-" not in main and "w-full" in main, path
+    assert "max-w-content" in client.get("/").content.decode()
+
+
 def test_the_page_actions_are_in_a_menu_on_phones(client):
     """#203: Results' actions (the sector comparison and Download all) are in the header,
     and again in its ⋯ menu, a <details> disclosure shown instead on phones (CSS)."""

@@ -575,18 +575,52 @@ def sections(analysis: Station, current: str) -> list[Section]:
     return out
 
 
-def workspace_page(analysis: Station) -> dict | None:
-    """The workspace's own page in the breadcrumb, as {label, url}: its address,
-    ``/w/<id>/`` (#256), where a batch's results stand in for the overview until #234
-    (#255). None for a workspace of one station, which that address opens straight away,
-    and for a workspace without a batch (until #234)."""
-    from climpact_web.batch.models import BatchRun
+def ordered_stations(analysis: Station) -> list[Station]:
+    """The stations of the analysis's workspace in the order they were added (the
+    overview's order, #234)."""
+    return list(
+        analysis.workspace.stations.filter(owner=analysis.owner).order_by(
+            "created_at", "station_name", "pk"
+        )
+    )
 
-    has_run = BatchRun.objects.filter(workspace=analysis.workspace_id, job__isnull=False)
-    if not has_run.exists() or analysis.workspace.stations.count() < 2:
+
+def workspace_page(analysis: Station) -> dict | None:
+    """The workspace's own page in the breadcrumb, as {label, url}: its overview,
+    ``/w/<id>/`` (#256, #234). None for a workspace of one station, which that address
+    opens straight away."""
+    if analysis.workspace.stations.filter(owner=analysis.owner).count() < 2:
         return None
     space = analysis.workspace
     return {"label": space.display_name, "url": space.get_absolute_url()}
+
+
+def station_nav(analysis: Station) -> dict:
+    """The context bar's way round a workspace of several stations (#234): the breadcrumb
+    (the workspace, then "Station 2 of 6") and the previous and next station, each at its
+    furthest section. A workspace of one station has none, and "Add stations" instead
+    (``single_station``)."""
+    stations = ordered_stations(analysis)
+    if len(stations) < 2:
+        return {"breadcrumb": [], "step_previous": None, "step_next": None, "single_station": True}
+    position = next((i for i, s in enumerate(stations) if s.pk == analysis.pk), 0)
+    space = analysis.workspace
+
+    def step(station):
+        if station is None:
+            return None
+        return {"label": station.station_name or station.file_name, "url": home_url(station)}
+
+    label = _("Station %(n)s of %(count)s") % {"n": position + 1, "count": len(stations)}
+    return {
+        "breadcrumb": [
+            {"label": space.display_name, "url": space.get_absolute_url()},
+            {"label": label},
+        ],
+        "step_previous": step(stations[position - 1] if position > 0 else None),
+        "step_next": step(stations[position + 1] if position + 1 < len(stations) else None),
+        "single_station": False,
+    }
 
 
 def home_url(analysis: Station) -> str:
@@ -609,18 +643,21 @@ def set_up(analysis: Station) -> bool:
 
 def context(analysis: Station, current: str, path: str = "") -> dict:
     """The workspace's context: the context bar's ``workspace_tabs``, ``workspace_current``
-    and ``provenance``, ``data_page`` (the page uses the width, #227),
+    and ``provenance``, its breadcrumb and previous and next station (:func:`station_nav`),
+    ``data_page`` (the page uses the width, #227),
     and the Inputs panel (``inputs``, ``input_sheets``, ``input_runs``; :func:`inputs_panel`)
     once the station is set up. ``path`` is the page's address, where an edit returns."""
     out = {
         "workspace_tabs": sections(analysis, current),
         "workspace_current": current,
         "provenance": provenance(analysis, current),
-        "data_page": True,  # base.html: the page uses the width (#227)
+        "data_page": True,  # base.html: the page uses the whole window (#227, #263)
+        **station_nav(analysis),
     }
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context
 
+        out["copy_url"] = analysis.url("copy")  # Copy to workspace… (#241)
         out.update(inputs_panel(analysis, path))
         out["input_sheets"] = [sheet_context(analysis, key) for key in sheet_keys(analysis)]
     return out
@@ -652,24 +689,26 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
     on a phone only the years show."""
     if current == "quality":
         return quality_provenance(analysis)
+    inputs = provenance_inputs(analysis, current)
+    meta = inputs["metadata"]
     parts = []
     summary = analysis.summary or {}
     first, last = summary.get("first_year"), summary.get("last_year")
     complete = analysis.metadata_complete
     if complete:
         parts.append(
-            {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
+            {"text": numbers.coordinates(meta["latitude"], meta["longitude"]), "phone": False}
         )
     if first and last:
         parts.append({"text": years_text(first, last), "phone": True})
     if complete:
         base = _("base %(start)s–%(end)s") % {
-            "start": analysis.workspace.base_start,
-            "end": analysis.workspace.base_end,
+            "start": meta["base_start"],
+            "end": meta["base_end"],
         }
         parts.append({"text": base, "phone": False})
     if set_up(analysis):
-        custom = thresholds_changed(analysis) + settings_changed(analysis)
+        custom = thresholds_count(inputs["qc"]) + settings_count(inputs["settings"])
         if custom:
             settings = ngettext(
                 "%(count)s setting not the default", "%(count)s settings not the default", custom
@@ -680,6 +719,24 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
     if found := core_version():
         parts.append({"text": f"climpact {found}", "phone": False})
     return parts
+
+
+def provenance_inputs(analysis: Station, current: str = "") -> dict:
+    """The inputs the provenance line describes (:func:`current_inputs` form): those of
+    the results on the page. On the Indices, an index's page and Files (``results``,
+    ``files``) they are the shown run's while it is out of date (#223): after a change
+    the page still shows the old results, so the line must not claim the new inputs
+    for them (the Inputs panel and bar show the new values, "· changed"). An input the
+    run did not record (a batch's results without settings) is the current one."""
+    inputs = current_inputs(analysis)
+    if current in ("results", "files"):
+        shown = shown_run(analysis)
+        if shown is not None and run_changes(analysis, shown):
+            recorded = recorded_inputs(analysis, shown)
+            for key in ("metadata", "qc", "settings"):
+                if recorded.get(key):
+                    inputs[key] = recorded[key]
+    return inputs
 
 
 def quality_provenance(analysis: Station) -> list[dict]:
@@ -801,9 +858,13 @@ def changed_inputs(analysis: Station) -> set[str]:
 
 def thresholds_changed(analysis: Station) -> int:
     """How many of the quality-control thresholds differ from R's defaults."""
+    return thresholds_count(qc_values(analysis))
+
+
+def thresholds_count(values: dict) -> int:
+    """How many of the quality-control thresholds ``values`` differ from R's defaults."""
     from climpact_web.stations.forms import QC_DEFAULTS
 
-    values = qc_values(analysis)
     return sum(1 for key, default in QC_DEFAULTS.items() if values.get(key) != default)
 
 
@@ -813,14 +874,21 @@ def base_period_text(workspace_) -> str:
 
 
 def settings_changed(analysis: Station) -> int:
-    """How many index settings and output options of the latest run asked for (or the
-    batch's) differ from the defaults: each parameter, the custom index, a plot title of
-    the user's, and each of the plots, zip and report switched off. From the settings
-    form's defaults, without importing the core."""
-    from climpact_web.stations.calculation import previous_params
+    """How many of the station's index settings and output options (its workspace's, with
+    its own index values) differ from the defaults: each parameter, the custom index, a
+    plot title of the user's, and each of the plots, zip and report switched off. From the
+    settings form's defaults, without importing the core."""
+    return settings_count(station_settings(analysis))
+
+
+def settings_count(settings: dict) -> int:
+    """How many of ``settings`` (:func:`settings_of` form) differ from the defaults: see
+    :func:`settings_changed`."""
     from climpact_web.stations.forms_indices import PARAM_FIELDS, IndexParamsForm
 
-    params, plot_title, plots, zip_, report, _source = previous_params(analysis)
+    params = settings.get("params") or {}
+    plot_title = settings.get("plot_title") or ""
+    plots, zip_, report = (bool(settings.get(k, True)) for k in ("plots", "zip", "report"))
     fields = IndexParamsForm.base_fields
     count = sum(
         1 for name in PARAM_FIELDS if name in params and params[name] != fields[name].initial

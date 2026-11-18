@@ -10,36 +10,33 @@ import climpact
 import climpact_web
 from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
-from climpact_web.core.navigation import batch_steps, destination
+from climpact_web.core.navigation import destination, gridded_steps
 from climpact_web.help.tour import home_tour
 from climpact_web.stations.workspace import years_text
 
 
 @require_safe
 def home(request):
-    """The landing page: what Climpact does and the ways to start."""
-    ways = []
-    for key, description in (
-        ("batch", _("Process many stations in one run from a batch metadata file.")),
-        (
-            "gridded",
-            _("Calculate indices and thresholds on gridded netCDF data, and map the results.")
-            if settings.IS_HOSTED
-            else _(
-                "Calculate indices and thresholds on gridded netCDF data on this computer, "
-                "and map the results."
-            ),
-        ),
-        ("help", _("Guides to preparing station files, base periods and reading results.")),
-    ):
-        d = destination(key)
-        if d.available:
-            ways.append({"label": d.label, "icon": d.icon, "url": d.url, "text": description})
+    """The landing page (#242, the Landing board): what Climpact does, a preview of the
+    Sydney sample's real output, the facts, how it works, what you get and what you need;
+    Get started (Add stations) and See an example (the sample, opened on its Indices).
+    A returning visitor gets "Welcome back" with the workspace changed last."""
+    from climpact_web.core import landing
+    from climpact_web.jobs.views import OWNER_KEY
+    from climpact_web.stations import workspace_list
+
+    owner = request.session.get(OWNER_KEY)
+    gridded = destination("gridded")
     context = {
         "start_url": destination("station").url,
         "sample_url": destination("sample").url,
-        "ways": ways,
+        "gridded_url": gridded.url if gridded.available else None,
+        "preview": landing.preview(),
+        "facts": landing.facts(),
+        "mini": landing.miniatures(),
+        "returning": workspace_list.latest(owner) if owner else None,
         "tour_steps": home_tour(),
+        "bleed": True,  # the bands reach the window's edges
     }
     return render(request, "core/home.html", context)
 
@@ -64,6 +61,201 @@ def patterns(request):
     return render(request, "core/patterns.html", pattern_context(form))
 
 
+def add_review():
+    """Three files on Add stations (#233): one read with its metadata, one with no
+    coordinates yet, one that cannot be read."""
+    from climpact_web.stations.add_stations import review
+    from climpact_web.stations.models import Workspace
+
+    def read(first, last, days, missing):
+        summary = {
+            "first_date": f"{first}-01-01",
+            "last_date": f"{last}-12-31",
+            "first_year": first,
+            "last_year": last,
+            "days": days,
+            "missing": {},
+            "missing_percent": missing,
+        }
+        return {"ok": True, "problems": [], "problem_count": 0, "warnings": [],
+                "repeats": 0, "summary": summary}  # fmt: skip
+
+    line = {"message": "", "line": 1, "text": "2000,1,1,0.0", "short": ""}
+    line["short"] = _("line 1 has 4 values, expected 6 (year month day PR TX TN)")
+    report = {
+        "files": {
+            "moruya_heads_069018.txt": read(1910, 2015, 38_716, 6.9),
+            "coffs_harbour_059040.txt": read(1943, 2015, 26_663, 0.4),
+            "taree_airport.csv": {
+                "ok": False,
+                "problems": [line],
+                "problem_count": 1,
+                "warnings": [],
+                "repeats": 0,
+                "summary": None,
+            },  # fmt: skip
+        },
+        "metadata": {
+            "name": "stations_nsw.txt",
+            "rows": {
+                "moruya_heads_069018.txt": {
+                    "line": 2,
+                    "latitude": -35.91,
+                    "longitude": 150.15,
+                    "params": {},
+                }
+            },  # fmt: skip
+        },
+    }
+    return review(report, Workspace())
+
+
+def overview_demo() -> dict:
+    """The run status line and the Stations table of a workspace overview (#234), as on
+    the Calculate board while its stations calculate: one row in each state."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import overview as ov
+
+    def row(slug, name, ll, period, missing, quality, indices, significant=("–", "")):
+        return ov.Row(
+            station=SimpleNamespace(slug=slug),
+            name=name,
+            url="#stations-table",
+            coordinates=ll,
+            period=period,
+            missing=missing,
+            quality=quality,
+            indices=indices,
+            significant=significant[0],
+            significant_label=significant[1],
+        )
+
+    usable = ov.Quality("usable", _("Usable"), _("· 5"), _(", 5 values look wrong"))
+    rows = [
+        row("sydney", _("Sydney Observatory Hill"), "33.86° S 151.21° E", "1936–2015", "0.1%",
+            usable, ov.Indices("done", _("Done")),
+            (_("22 of 80"), _("22 of 80 indices with a significant trend"))),
+        row("nowra", _("Nowra RAN Air Station"), "34.95° S 150.54° E", "1955–2015", "3.2%",
+            ov.Quality("ready", _("Ready")), ov.Indices("calculating", _("Calculating · 40%"),
+                                                        percent=40)),
+        row("moruya", _("Moruya Heads"), "35.91° S 150.15° E", "1910–2015", "6.9%",
+            ov.Quality("locked", "–"), ov.Indices("not_run", _("Not run"),
+                                                  fix_label=_("Fix the file"), fix_url="#")),
+        row("port", _("Port Macquarie"), "31.43° S 152.87° E", "1995–2015", "0.0%",
+            ov.Quality("checking", _("Checking…")), ov.Indices("waiting", _("Waiting"))),
+        row("late", _("Late Start"), "30.00° S 140.00° E", "2000–2020", "0.3%",
+            ov.Quality("ready", _("Ready")),
+            ov.Indices("failed", _("Failed"), error=_("No data in the base period."),
+                       fix_label=_("Change base period"), fix_url="#")),
+    ]  # fmt: skip
+    status = ov.StatusLine(
+        "running",
+        _("Calculating indices: 1 of 4 stations done."),
+        _("About 25 s left. Finished stations open now. Moruya Heads was not run."),
+        35,
+        [ov.Link(_("Cancel"), "#stations-table", post=True)],
+    )
+    return {"overview_rows": rows, "overview_status": status}
+
+
+def workspaces_demo() -> dict:
+    """The Workspaces table (#242), as on the WorkspaceList board: several stations with
+    their verdicts and a failure, one station with its verdict, one deleted in 2 days."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations.workspace_list import Entry, Status
+
+    def entry(pk, name, hint, n, statuses, base, updated, deleted, soon=""):
+        return Entry(
+            space=SimpleNamespace(pk=pk),
+            name=name,
+            url="#workspaces-table",
+            hint=hint,
+            stations=n,
+            statuses=statuses,
+            base_period=base,
+            updated=updated,
+            deleted_on=deleted,
+            deleted_soon=soon,
+            delete_url="#workspaces-table",
+        )
+
+    rows = [
+        entry("nsw", _("NSW coast"), _("Sydney Observatory Hill, Newcastle Nobbys and 4 more"), 6,
+              [Status("ready", _("2 ready")), Status("usable", _("2 usable")),
+               Status("fix", _("1 fix first")), Status("failed", _("1 failed"))],
+              "1971–2000", _("today 09:42"), _("24 Nov")),
+        entry("syd", _("Sydney Observatory Hill"), "1936–2015 · 80 yr", 1,
+              [Status("usable", _("Usable · 5"), _(", 5 values look wrong"))],
+              "1971–2000", _("yesterday 16:10"), _("23 Nov")),
+        entry("pac", _("Pacific islands workshop"), _("Apia, Nadi, Nukuʻalofa and 9 more"), 12,
+              [Status("ready", _("11 ready")), Status("checking", _("1 checking"))],
+              "1981–2010", _("12 Nov"), _("19 Nov"), _("in 2 days")),
+    ]  # fmt: skip
+    return {"workspaces_demo": rows}
+
+
+def trends_demo() -> dict:
+    """Trends across stations (#238): four stations by four indices, one without results,
+    with each state of a cell, and the first column's interval plot."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import trend_grid
+
+    indices = [  # code, short name, units, theme
+        ("TXx", _("Hottest day"), "°C", "heat"),
+        ("TN90p", _("Warm nights"), "%", "heat"),
+        ("TX10p", _("Cool days"), "%", "cold"),
+        ("PRCPTOT", _("Wet-day total"), "mm", "rain"),
+    ]
+    values = {  # slope, lower, upper per decade
+        _("Sydney Observatory Hill"): [(0.21, 0.1, 0.33), (1.31, 0.8, 1.9), (-1.84, -2.4, -1.2),
+                                       (4.1, -8.0, 16.0)],
+        _("Newcastle Nobbys"): [(0.12, -0.03, 0.27), (1.62, 1.0, 2.2), (-0.6, -0.9, -0.3),
+                                (-31.0, -55.0, -6.0)],
+        _("Nowra RAN Air Station"): [(0.3, 0.12, 0.47), (0.7, -0.2, 1.6), (-1.05, -1.9, -0.2),
+                                     (-12.0, -40.0, 15.0)],
+    }  # fmt: skip
+
+    def card(code, name, units, theme, slope, lower, upper):
+        trend = {
+            "valid": True,
+            "slope": slope,
+            "lower": lower,
+            "upper": upper,
+            "significant": lower > 0 or upper < 0,
+            "slope_text": numbers.slope(slope, units),
+            "per_decade_text": numbers.per_decade(slope, units),
+            "interval_text": numbers.interval(lower, upper, units),
+        }
+        return SimpleNamespace(
+            key=code.lower(), title=name, trend=trend, significant=trend["significant"],
+            trend_units=numbers.trend_units(units),
+            trend_units_title=_("percentage points") if units == "%" else "",
+            theme=theme, hue=theme,
+        )  # fmt: skip
+
+    place = SimpleNamespace(url=lambda *args: "#trend-grid")
+    stations = [
+        trend_grid._Station(
+            SimpleNamespace(name=name, source=True, why="", station=place),
+            {i[0]: card(*i, *v) for i, v in zip(indices, rows, strict=True)},
+        )
+        for name, rows in values.items()
+    ]
+    stations.append(
+        trend_grid._Station(
+            SimpleNamespace(name=_("Moruya Heads"), source=None, why=_("failed"), station=place),
+            {},
+        )
+    )
+    found = trend_grid.grid_of(stations, [i[0] for i in indices], None)
+    for plot in found.plots:
+        plot.csv_url = "#trend-grid"
+    return {"trends_demo": found}
+
+
 def pattern_context(form):
     tab_items = [
         {"id": "tab-annual", "label": _("Annual"), "text": _("Annual values, 1936 to 2015.")},
@@ -72,9 +264,9 @@ def pattern_context(form):
     ]
     return {
         "form": form,
-        "steps_first": batch_steps("upload"),
-        "steps_middle": batch_steps("check", urls={"upload": "#"}),
-        "steps_last": batch_steps("results", urls={k: "#" for k in ("upload", "check")}),
+        "steps_first": gridded_steps("files"),
+        "steps_middle": gridded_steps("setup", urls={"files": "#"}),
+        "steps_last": gridded_steps("results", urls={k: "#" for k in ("files", "setup")}),
         "table_columns": [
             {"label": _("Year"), "code": True},
             {"label": _("TXx (°C)"), "numeric": True},
@@ -88,6 +280,7 @@ def pattern_context(form):
             ["2014", "40.1", "5.2", "1,120.6"],
         ],
         "tab_items": tab_items,
+        "add_review": add_review(),  # Add stations' review table (#233)
         # The verdict strip and coverage strip (#235), with the stress file's counts.
         "verdict_facts": [
             _("65,720 values checked"),
@@ -112,6 +305,10 @@ def pattern_context(form):
         ],
         "coverage_years": [1991, 1996, 2001, 2006, 2011, 2015, 2020],
         # The context bar (#227): as a station's, with a breadcrumb and the next station.
+        # The workspace overview (#234): the run status line and the Stations table.
+        **overview_demo(),
+        **trends_demo(),  # Trends across stations (#238)
+        **workspaces_demo(),  # the Workspaces table (#242)
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},
             {"label": _("Station 1 of 6")},
@@ -337,8 +534,8 @@ def setup_demo() -> dict:
 
 def indices_demo() -> dict:
     """The Indices' rail, table and detail pane (#236) as stations/_indices.html takes
-    them: three rows of the Sydney sample, the first selected, its chart drawn by the same
-    code from an illustrative series."""
+    them: three rows of the Sydney sample, largest trend first (#263), the first selected,
+    its chart drawn by the same code from an illustrative series."""
     from types import SimpleNamespace
 
     from climpact_web.stations import index_detail
@@ -348,10 +545,10 @@ def indices_demo() -> dict:
     demo = (
         # key, code, name, theme, hue, units; slope, its interval, mean, significant
         ("su", "SU", _("Summer days"), _("Heat"), "heat", "days", 5.15, 3.79, 6.54, 93.28, True),
-        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
-         -1.93, -2.4, -1.47, 13.12, True),
         ("prcptot", "PRCPTOT", _("Wet-day total"), _("Rain"), "rain", "mm",
          4.6, -9.9, 19.2, 1210.1, False),
+        ("tn10p", "TN10p", _("Cold nights"), _("Cold"), "cold", "%",
+         -1.93, -2.4, -1.47, 13.12, True),
     )  # fmt: skip
     for i, (key, code, title, theme, hue, units, slope, lower, upper, mean, sig) in enumerate(demo):
         values = [mean + slope * (y - 1975.5) / 10 + 6 * ((y * 7919) % 13 - 6) / 6 for y in years]
@@ -391,10 +588,14 @@ def indices_demo() -> dict:
                 "key": key,
                 "theme": theme,
                 "unit": units,
-                "slope_unit": numbers.trend_units(units) if units == "%" else "",
+                "slope_unit": numbers.trend_units(units),
+                "slope_pp": units == "%",
                 "slope": numbers.slope(slope, units),
                 "interval": trend["interval_text"],
                 "mean": numbers.fixed(mean, numbers.slope_decimals(units)),
+                "mean_text": numbers.with_unit(
+                    numbers.fixed(mean, numbers.slope_decimals(units)), units
+                ),
                 "links": {"page": "#indices-demo", "csv": "#indices-demo", "png": "#indices-demo"},
                 "chart": index_detail.chart(plot, (1971, 2000)),
                 "chart_label": index_detail.summary(named, plot),
@@ -413,8 +614,8 @@ def indices_demo() -> dict:
         for key, label, first in (
             ("code", _("Code"), "ascending"),
             ("name", _("Index"), "ascending"),
-            ("trend", _("Slope / decade"), "descending"),
-            ("significance", _("Sig."), "descending"),
+            ("trend", _("Slope per decade"), "descending"),
+            ("significance", _("Significant"), "descending"),
         )
     }
     return {
@@ -434,6 +635,8 @@ def indices_demo() -> dict:
         "total": 80,
         "significant_count": 22,
         "mean_trend": f"TMm {numbers.per_decade(0.19, '°C')}",
+        "default_sort": "size",
+        "sort_text": _("Sorted by the size of the trend, largest first."),
     }
 
 

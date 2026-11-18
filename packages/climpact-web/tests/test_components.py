@@ -196,15 +196,17 @@ def test_theme_toggle_hidden_without_js():
 
 
 def test_flow_steps_states():
-    steps = navigation.batch_steps("check", urls={"upload": "/u/", "check": "/c/"})
+    steps = navigation.gridded_steps("setup", urls={"files": "/u/", "setup": "/c/"})
     assert [s.state for s in steps] == ["complete", "current", "upcoming"]
     assert [s.url for s in steps] == ["/u/", None, None]
     assert [s.number for s in steps] == [1, 2, 3]
     assert [s.key for s in navigation.gridded_steps("files")] == ["files", "setup", "results"]
     with pytest.raises(ValueError):
-        navigation.batch_steps("nope")
-    # The single station has no steps since #179: its sections are tabs.
+        navigation.gridded_steps("nope")
+    # The single station has no steps since #179: its sections are tabs; the batch none
+    # since #234: its results are the workspace's overview.
     assert not hasattr(navigation, "station_steps")
+    assert not hasattr(navigation, "batch_steps")
 
 
 def test_count_filter_groups_thousands():
@@ -217,7 +219,7 @@ def test_count_filter_groups_thousands():
 
 
 def test_steps_component():
-    html = render("steps", steps=navigation.batch_steps("check", urls={"upload": "/u/"}))
+    html = render("steps", steps=navigation.gridded_steps("setup", urls={"files": "/u/"}))
     assert '<a class="steps__link" href="/u/">' in html
     assert 'aria-current="step"' in html and "Step 2 of 3:" in html
     assert "Optional" not in html
@@ -228,29 +230,23 @@ def test_steps_component():
 
 def test_landing_page(client):
     html = client.get("/").content.decode()
-    assert "<h1" in html and "indices of climate extremes" in html
-    # Step 1 exists (#76): start is a link, the sample a one-click POST form
-    assert re.search(r'<a href="/station/new"[^>]*>.*?Start with your data', html, re.S)
+    assert "<h1" in html and "How have the extremes changed at your stations?" in html
+    # Get started is Add stations (#233, #242); See an example a one-click POST of the
+    # sample (#242; test_workspaces_list.py has the rest of the page).
+    assert re.search(r'<a href="/add/"[^>]*>.*?Get started', html, re.S)
     assert re.search(
-        r'<form method="post" action="/station/sample">.*?csrfmiddlewaretoken.*?'
-        r'<button type="submit".*?Try with sample data',
+        r'<form method="post" action="/add/sample">.*?csrfmiddlewaretoken.*?'
+        r'<button type="submit".*?See an example',
         html,
         re.S,
     )
-    assert "Available soon" not in html  # every other way to run Climpact exists now
-    # "How it works" is a short paragraph, not the steps again (#173).
-    how = re.search(r'aria-labelledby="how-title">.*?</section>', html, re.S).group(0)
-    assert "<h3" not in how and "<li" not in how
     assert re.search(r'<a [^>]*href="/gridded/"', html)  # gridded (#85), local mode
-    assert re.search(r'<a [^>]*href="/batch/"', html)  # batch exists (#80)
-    for title in ("Batch", "Gridded", "Help", "Command line"):
-        assert title in html
     assert "/static/climpact_web/js/ui.js" in html
     # One stylesheet carries both themes (#118): data-theme on <html> picks one.
     assert "/static/climpact_web/css/climpact.css" in html and "theme-dark" not in html
     nav = re.findall(r'<nav class="site-nav".*?</nav>', html, re.S)[0]
-    # The app shell (#227): Workspaces (the calculations until #242) and Gridded.
-    assert re.findall(r'href="([^"]+)"', nav) == ["/jobs/", "/gridded/"]
+    # The app shell (#227): Workspaces (#242) and Gridded.
+    assert re.findall(r'href="([^"]+)"', nav) == ["/w/", "/gridded/"]
     # Help is at the end of the header since #197, leading to the help or the page's guide.
     assert re.search(r'<a class="site-header__link" id="app-help" href="/help/"', html)
     # Below 600px a <details> menu (no JavaScript) holds the same links (#115), and Index
@@ -267,7 +263,8 @@ def test_landing_page(client):
 @override_settings(IS_HOSTED=True, GRIDDED_ENABLED=False)
 def test_landing_page_hosted_hides_gridded(client):
     html = client.get("/").content.decode()
-    assert "Gridded" not in html and "install Climpact on your own computer" in html
+    assert "Gridded" not in html and "Run it on your own computer" in html
+    assert "pip install climpact-web" in html
 
 
 def stub(name):

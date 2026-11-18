@@ -1,0 +1,75 @@
+{% load i18n ui %}{% comment %}
+The overview's run status line and Stations table (#234, the Calculate board), polled by
+htmx (outerHTML swap) while stations are checked or calculated: views_workspace.
+workspace_progress returns this block alone. Context: rows (stations.overview.rows),
+status (overview.status_line, or None), polling, delay, page, space; each row's "Copy…"
+(Copy to workspace…, #241, row.copy_url) in the last column; and Trends across
+stations (#238, stations/_trends.html: views_workspace.trends_context), which waits while
+a station is calculated and so comes in with the last poll.
+{% endcomment %}
+<div id="workspace-progress" class="stack stack--lg page-section" data-status="{% if polling %}running{% else %}finished{% endif %}"
+  {% if polling %}hx-get="{% url 'stations:workspace_progress' space.pk %}"
+  hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  {% if status %}
+  <div class="run-status run-status--{{ status.tone }}" role="status">
+    <div class="run-status__text">
+      <p class="run-status__line m-0 text-sm" data-announce{% if status.tone != "running" %}="now"{% endif %}><strong>{{ status.head }}</strong>{% if status.rest %} <span>{{ status.rest }}</span>{% endif %}</p>
+      {% if status.tone == "running" %}<progress class="meter max-w-prose" max="100" value="{{ status.percent }}" aria-hidden="true"></progress>{% endif %}
+    </div>
+    {% if status.links %}
+    <div class="run-status__links">
+      {% for link in status.links %}
+      {% if link.post %}<form method="post" action="{{ link.url }}">{% csrf_token %}{% if link.next %}<input type="hidden" name="next" value="{{ link.next }}">{% endif %}<button type="submit" class="link-button">{{ link.label }}</button></form>
+      {% else %}<a href="{{ link.url }}">{{ link.label }}</a>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <section class="stack stack--sm page-section" aria-labelledby="stations-title">
+    <div class="section-header">
+      <h2 id="stations-title">{% translate "Stations" %}</h2>
+      <p class="section-header__note ms-auto text-xs">{% if polling %}{% translate "Rows update as each station finishes. Indices open once a station is done." %}{% else %}{% translate "Select a station to open its Quality and Indices." %}{% endif %}</p>
+    </div>
+    <div class="table-wrap table-wrap--data" role="region" aria-label="{% translate 'Stations table' %}" tabindex="0">
+      <table class="table table--data stations-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Station" %}</th>
+            <th scope="col">{% translate "Lat, lon" %}</th>
+            <th scope="col">{% translate "Period" %}</th>
+            <th scope="col" class="num">{% translate "Missing" %}</th>
+            <th scope="col">{% translate "Quality" %}</th>
+            <th scope="col" class="stations-table__indices">{% translate "Indices" %}</th>
+            <th scope="col" class="num">{% translate "Significant" %}</th>
+            <th scope="col" class="stations-table__actions"><span class="sr-only">{% translate "Actions" %}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-station="{{ row.station.slug }}" data-indices="{{ row.indices.state|default:'none' }}"{% if row.indices.state == "failed" %} class="stations-table__failed"{% endif %}>
+            <th scope="row" class="stations-table__name"><a href="{{ row.url }}" title="{{ row.name }}">{{ row.name }}</a></th>
+            <td class="code">{{ row.coordinates }}</td>
+            <td class="code">{{ row.period }}</td>
+            <td class="num">{{ row.missing }}</td>
+            <td>{% if row.quality.verdict %}<span class="status-dot status-dot--{{ row.quality.state }}">{{ row.quality.label }}{% if row.quality.count %}<span aria-hidden="true"> {{ row.quality.count }}</span><span class="sr-only">{{ row.quality.count_label }}</span>{% endif %}</span>{% elif row.quality.state == "checking" %}<span class="status-dot status-dot--checking">{{ row.quality.label }}</span>{% else %}<span class="text-text-muted">{{ row.quality.label }}</span>{% endif %}</td>
+            <td class="stations-table__indices">
+              <span class="run-state run-state--{{ row.indices.state|default:'none' }}">
+                <span class="run-state__label">{% if row.indices.state == "failed" and row.indices.error %}{% blocktranslate with error=row.indices.error %}Failed: {{ error }}{% endblocktranslate %}{% else %}{{ row.indices.label }}{% endif %}</span>
+                {% if row.indices.percent is not None %}<progress class="meter run-state__meter" max="100" value="{{ row.indices.percent }}" aria-hidden="true"></progress>{% endif %}
+                {% if row.indices.fix_url %}<a class="run-state__fix" href="{{ row.indices.fix_url }}">{{ row.indices.fix_label }}<span class="sr-only"> {% blocktranslate with name=row.name %}({{ name }}){% endblocktranslate %}</span></a>{% endif %}
+              </span>
+            </td>
+            <td class="num"><span aria-hidden="true">{{ row.significant }}</span><span class="sr-only">{{ row.significant_label }}</span></td>
+            <td class="stations-table__actions">{% if row.copy_url %}<a href="{{ row.copy_url }}?next={{ page|urlencode }}">{% translate "Copy…" %}<span class="sr-only"> {% blocktranslate with name=row.name %}{{ name }} to another workspace{% endblocktranslate %}</span></a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if trends or trends_waiting %}{% include "stations/_trends.html" %}{% endif %}
+</div>

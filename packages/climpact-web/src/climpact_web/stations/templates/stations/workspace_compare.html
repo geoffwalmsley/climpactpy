@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n static %}{% comment %}
+Compare an index (#238): the workspace's context bar with Compare an index current, then
+Trends across stations (stations/_trends.html), the overview's without the Stations table.
+Context from views_workspace.compare_page.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=space_name %}Compare an index: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block head %}<script src="{% static 'climpact_web/js/trends.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  {% include "stations/_trends.html" %}
+</div>
+{% endblock %}

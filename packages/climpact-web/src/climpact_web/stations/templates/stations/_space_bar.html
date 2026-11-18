@@ -1,0 +1,9 @@
+{% load i18n %}{% comment %}
+The workspace's context bar (#234, the Workspace board; components/context_bar.html):
+"Workspace" over its name, the mono provenance line (the stations, base period, settings,
+climpact version and deletion date) with Workspace settings and Rename at its end, Add
+stations at the end of the title's row, then the tabs: Overview, Compare an index (#238)
+and Files (#239). On the overview, Compare an index and Files the name is the h1;
+on the workspace's other pages (Rename, Workspace settings) a line above their own h1.
+Context: views_workspace.bar_context.
+{% endcomment %}{% include "components/context_bar.html" with title_template="stations/_space_title.html" provenance=space_provenance provenance_end="stations/_space_links.html" actions="stations/_space_actions.html" tabs="" below="stations/_space_tabs.html" breadcrumb="" step_previous="" step_next="" %}

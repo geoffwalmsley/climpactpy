@@ -1,0 +1,119 @@
+{% load i18n ui %}{% comment %}
+Trends across stations (#238, the Workspace board): the trend grid (stations by indices,
+each cell Sen's slope per decade, written in it: filled on the trend scale when the 95%
+interval excludes zero, a dashed edge when not, hatched without results) beside the
+selected column's interval plot (each station's slope as a dot, its interval as a line,
+about a zero line, on a shared axis). On the overview, under the Stations table, and on
+Compare an index. Each column's code is a link that selects it (?index=); js/trends.js
+shows its plot in place instead. "Choose indices" (?cols=, remembered for the workspace)
+and the grid's CSV above it. Context: views_workspace.trends_context (trends: a
+trend_grid.Grid, trends_page, trends_csv, trends_waiting).
+{% endcomment %}<section id="trends" class="stack stack--sm page-section" aria-labelledby="trends-title" data-trends>
+  <div class="trends__head">
+    <div>
+      <h2 id="trends-title" class="m-0">{% translate "Trends across stations" %}</h2>
+      <p class="m-0 mt-1 text-sm text-text-muted">{% translate "Sen's slope per decade. Filled cells: the 95% interval excludes zero. Select a column to see it on the right." %}</p>
+    </div>
+    <div class="trend-legend text-xs" role="group" aria-label="{% translate 'Key' %}">
+      <span>{% translate "Decrease" %}</span>
+      <span class="trend-legend__scale" aria-hidden="true"><span class="trend-swatch trend-cell--decrease-2"></span><span class="trend-swatch trend-cell--decrease-1"></span><span class="trend-swatch trend-swatch--zero"></span><span class="trend-swatch trend-cell--increase-1"></span><span class="trend-swatch trend-cell--increase-2"></span></span>
+      <span>{% translate "Increase" %}</span>
+      <span class="trend-legend__item"><span class="trend-swatch trend-swatch--dashed" aria-hidden="true"></span>{% translate "Not significant" %}</span>
+      <span class="trend-legend__item"><span class="trend-swatch trend-cell--none" aria-hidden="true"></span>{% translate "No results" %}</span>
+    </div>
+  </div>
+
+  {% if trends_waiting %}
+  <p class="m-0 text-sm text-text-muted">{% translate "The trends appear once every station has been calculated." %}</p>
+  {% elif not trends.has_results %}
+  <p class="m-0 text-sm text-text-muted">{% translate "No station has results yet, so there are no trends to compare." %}</p>
+  {% else %}
+  <div class="trends__tools text-sm">
+    <details class="trend-choose">
+      <summary><span>{% translate "Choose indices" %}</span> <span class="font-mono text-xs text-text-muted">{% blocktranslate with shown=trends.columns|length total=trends.choice_count %}{{ shown }} of {{ total }}{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+      <form class="trend-choose__form" method="get" action="{{ trends_page }}#trends">
+        <input type="hidden" name="index" value="{{ trends.selected }}">
+        <div class="trend-choose__groups">
+          {% for group in trends.choices %}
+          <fieldset class="trend-choose__group">
+            <legend class="group-label hue-{{ group.hue }}"><span class="hue-dot" aria-hidden="true"></span>{{ group.label }}</legend>
+            {% for choice in group.items %}
+            <label class="trend-choose__item"><input type="checkbox" name="cols" value="{{ choice.code }}"{% if choice.code in trends.chosen %} checked{% endif %}> {% include "components/index_name.html" with code=choice.code name=choice.title title=False %}</label>
+            {% endfor %}
+          </fieldset>
+          {% endfor %}
+        </div>
+        <div class="trend-choose__actions">
+          <button type="submit" class="button button--sm">{% translate "Show these indices" %}</button>
+          <a href="{{ trends_page }}?cols=default#trends">{% translate "Back to the usual eleven" %}</a>
+        </div>
+      </form>
+    </details>
+    <a href="{{ trends_csv }}" download>{% translate "Grid as CSV" %}</a>
+  </div>
+
+  <div class="trends__body">
+    <div class="table-wrap table-wrap--data trend-grid-wrap" role="region" aria-label="{% translate 'Trend grid' %}" tabindex="0">
+      <table class="table table--data trend-grid">
+        <caption class="sr-only">{% translate "Sen's slope per decade of each station's indices, with its 95% interval and whether it is significant." %}</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="trend-grid__name">{% translate "Station" %}</th>
+            {% for column in trends.columns %}
+            <th scope="col" class="trend-grid__col"{% if column.code == trends.selected %} data-selected{% endif %} data-trend-col="{{ column.code }}">
+              <a class="trend-grid__pick" href="{{ trends_page }}?index={{ column.code|urlencode }}#trends" data-trend-pick="{{ column.code }}" title="{{ column.code }} {{ column.title }}"{% if column.code == trends.selected %} aria-current="true"{% endif %}><code>{{ column.code }}</code><span class="sr-only"> {{ column.title }}</span></a>
+              <span class="trend-grid__unit">{% if column.units_title %}<abbr title="{{ column.units_title }}">{{ column.units }}</abbr>{% else %}{{ column.units|default:"–" }}{% endif %}</span>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in trends.rows %}
+          <tr{% if not row.has_results %} class="trend-grid__empty"{% endif %}>
+            <th scope="row" class="trend-grid__name"><span class="trend-grid__station" title="{{ row.name }}">{{ row.name }}</span>{% if not row.has_results %} <span class="trend-grid__none">{% translate "(no results)" %}</span>{% endif %}</th>
+            {% for cell in row.cells %}
+            <td class="num trend-cell trend-cell--{{ cell.state }}">{% if cell.url %}<a href="{{ cell.url }}" title="{{ cell.label }}"><span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span></a>{% elif cell.text %}<span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span>{% else %}<span class="sr-only">{{ cell.label }}</span>{% endif %}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <aside class="interval-pane" aria-label="{% translate 'Interval plot' %}">
+      {% for plot in trends.plots %}
+      <div class="stack stack--sm" data-trend-plot="{{ plot.choice.code }}"{% if not plot.selected %} hidden{% endif %}>
+        <div>
+          <p class="m-0 font-mono text-xs text-text-muted">{% if plot.choice.units %}{% blocktranslate with code=plot.choice.code units=plot.choice.units %}{{ code }} · {{ units }} per decade{% endblocktranslate %}{% else %}{% blocktranslate with code=plot.choice.code %}{{ code }} · per decade{% endblocktranslate %}{% endif %}</p>
+          <h3 class="m-0 text-lg">{{ plot.choice.title }}</h3>
+        </div>
+        <p class="sr-only">{{ plot.summary }}</p>
+        {% if plot.bars %}
+        <ul class="interval-plot__rows" role="list">
+          {% for bar in plot.bars %}
+          <li class="interval-plot__row">
+            <div class="interval-plot__line"><a class="interval-plot__name" href="{{ bar.url }}" title="{{ bar.name }}">{{ bar.name }}</a><span class="interval-plot__value"><span class="font-medium">{{ bar.slope }}</span> <span class="text-text-muted">{{ bar.interval }}</span></span></div>
+            <svg class="interval-plot__svg" viewBox="0 0 360 16" width="100%" height="16" role="img" aria-label="{{ bar.label }}">
+              <line class="interval-plot__zero" x1="180" y1="0" x2="180" y2="16"></line>
+              <line class="interval-plot__interval" x1="{{ bar.low }}" y1="8" x2="{{ bar.high }}" y2="8"></line>
+              <circle class="interval-plot__dot interval-plot__dot--{{ bar.state }}" cx="{{ bar.x }}" cy="8" r="5"></circle>
+            </svg>
+          </li>
+          {% endfor %}
+        </ul>
+        <svg class="interval-plot__axis" viewBox="0 0 360 24" width="100%" height="24" aria-hidden="true">
+          <line class="interval-plot__axis-line" x1="6" y1="1" x2="354" y2="1"></line>
+          {% for tick in plot.ticks %}<line class="interval-plot__axis-line" x1="{{ tick.x }}" y1="1" x2="{{ tick.x }}" y2="5"></line><text class="interval-plot__tick" x="{{ tick.x }}" y="18" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+        </svg>
+        {% else %}
+        <p class="m-0 text-sm text-text-muted">{% translate "No station has a trend for this index." %}</p>
+        {% endif %}
+        {% if plot.left_out %}<p class="m-0 text-xs text-text-muted">{% translate "Not shown:" %} {{ plot.left_out|join:"; " }}</p>{% endif %}
+        <p class="m-0 text-xs text-text-muted">{% translate "Dot: slope. Line: 95% interval. Centre line: zero. Grey dot: not significant." %}</p>
+        <div class="flex flex-wrap gap-4 text-sm"><a href="{{ plot.csv_url }}" download>{% translate "CSV, all stations" %}</a></div>
+      </div>
+      {% endfor %}
+    </aside>
+  </div>
+  {% endif %}
+</section>

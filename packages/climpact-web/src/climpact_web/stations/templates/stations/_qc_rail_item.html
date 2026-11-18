@@ -1,0 +1,10 @@
+{% load i18n ui %}{% comment %}
+One check in Quality's rail (#264): its name and variable, its values by calendar month
+as twelve small bars (an empty month a thin mark) and its count. The selected one has
+the selected tint and an ink edge (is-selected, aria-current).
+Parameters: entry (an item of views.qc_context's items).
+{% endcomment %}{% with item=entry.item group=entry.item.group %}<li><a class="qc-rail__item{% if entry.selected %} is-selected{% endif %}" id="qc-row-{{ item.id }}" href="?show={{ item.id }}#{{ item.anchor }}" data-qc-item="{{ item.id }}"{% if entry.selected %} aria-current="true"{% endif %}>
+  <span class="qc-rail__text"><span class="qc-rail__name">{{ group.rail_title|default:group.title }}</span><span class="qc-rail__var">{{ group.variable }}</span></span>
+  {% if group.bars %}<svg class="qc-bars" viewBox="0 0 60 14" aria-hidden="true" focusable="false">{% for bar in group.bars %}<rect x="{{ bar.x }}" y="{{ bar.y }}" width="3.5" height="{{ bar.h }}"/>{% endfor %}</svg>{% endif %}
+  <span class="qc-rail__count"><span class="sr-only">{{ ", " }}</span>{{ group.count|count }}</span>
+</a></li>{% endwith %}

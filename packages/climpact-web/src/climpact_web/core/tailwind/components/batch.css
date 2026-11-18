@@ -21,23 +21,16 @@
   }
 
   /* The status colour is a cue only: the badge's text says it. */
-  .batch-item--ready,
-  .batch-item--done {
+  .batch-item--ready {
     border-inline-start-color: var(--color-success);
   }
 
-  .batch-item--missing,
-  .batch-item--skipped {
+  .batch-item--missing {
     border-inline-start-color: var(--color-warning);
   }
 
-  .batch-item--invalid,
-  .batch-item--failed {
+  .batch-item--invalid {
     border-inline-start-color: var(--color-danger);
-  }
-
-  .batch-item--running {
-    border-inline-start-color: var(--color-ink);
   }
 
   .batch-item__head {
@@ -57,26 +50,13 @@
     margin: 0;
   }
 
-  .batch-item__problems {
+  .batch-item__problems,
+  .batch-item__error {
     margin: 0;
   }
 
   .batch-item__error {
-    margin: 0;
     color: var(--color-danger);
-  }
-
-  .batch-item__progress {
-    display: grid;
-    gap: --spacing(1);
-  }
-
-  .batch-item__progress progress {
-    inline-size: 100%;
-  }
-
-  .batch-item__actions form {
-    display: contents;
   }
 
   .batch-coverage ul {

@@ -29,21 +29,29 @@ in line; the text around it describes the code as it is. The rules come from thr
   batch belongs to a workspace since #253, and the base period, thresholds and index
   settings are the workspace's since #254: a change recalculates every station, and can
   be undone while it is on the way. A batch fills its workspace since #255: its stations
-  are the workspace's, and its results page stands in as the workspace page until #234.
-  Since #256 a workspace is `/w/<id>/` and its stations `/w/<id>/<station>/…`; the
-  workspace's address opens a workspace of one station straight away, and is where a
-  batch's results are, until the overview replaces them (`Calculate.dc.html`, #234). Still to come:
-  Workspaces in place of Your calculations (Target: #233, #234, #242).
+  are the workspace's. Since #256 a workspace is `/w/<id>/` and its stations
+  `/w/<id>/<station>/…`; the workspace's address opens a workspace of one station
+  straight away, and one of several on its overview (#234, the Workspace and Calculate
+  boards), which replaced the batch results page. Since #241 a station can be copied to
+  another workspace or a new one ("Copy to workspace…" on its provenance line and in the
+  Stations table, a page of its own); the copy is recalculated with that workspace's
+  settings. Workspaces (#242) lists every workspace of the browser in place of Your
+  calculations. Add stations (#233) is the one way in, for one station or many: Get
+  started, New station and the batch's first page lead there.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
-  A saved workspace file rebuilds one anywhere (Target: #240).
+  A saved workspace file rebuilds one anywhere since #240: Save file on each row of
+  Workspaces downloads `climpact_workspace.zip` (the input files, metadata and settings,
+  and `climpact_run.json`); "Open a workspace file" (Workspaces) and "Or open a saved
+  workspace file" (Get started) lead to a page of its own that rebuilds it in this
+  browser, its indices calculated again.
 - **System fonts.** No web fonts (CSP, the bandwidth budget, offline use); tabular
   figures for numbers and `--font-mono` for codes, dates and numbers in tables.
 
 Kept from phase 2: **primary buttons are ink** (near-black, near-white in the dark
 theme), and **a station's title is the station name** the user gives, not the file name.
 The Inputs panel is replaced by workspace settings and the station's provenance line
-(Target: #231, #234).
+(Target: #231; Workspace settings are on the workspace's own pages since #234).
 
 ## The design canvas
 
@@ -170,7 +178,8 @@ seven-step diverging scale for maps; the **trend scale** (#227: `--chart-decreas
 `-decrease-1`, `-increase-1`, `-increase-2`, blue for a significant decrease and orange
 for an increase, the strong step darker in light and brighter in dark; a cell's value is
 written in it, in `--color-surface` on the strong steps and `--color-text` on the weak
-ones); and the **coverage steps** (`--chart-coverage-1` to `-3`: complete, 1–3 days
+ones: the trend grid's cells and the interval plot's dots since #238, at least 5.4:1 in
+both themes); and the **coverage steps** (`--chart-coverage-1` to `-3`: complete, 1–3 days
 missing, 4 or more, moving away from the surface in lightness). QC flags are hollow rings in ink, told apart by
 shape rather than colour. `chart-palette.json` carries the same values (with `trend_scale` and `coverage`) to the static
 plots and the PDF report.
@@ -238,7 +247,9 @@ count in bold and the mean temperature's trend muted.
   written. Intervals are two unsigned bounds, `−0.22 to 0.31`. Anomalies have one
   decimal and a sign (`+0.4`). Other values keep up to two places (one from 10), without
   trailing zeros; the Quality tables show the file's own precision, except the days
-  around a finding, which have one decimal (`numbers.fixed`, #235).
+  around a value, which have one decimal (`numbers.fixed`, #235), and what the screen
+  works out (a month's limit and usual range, over by, beyond by, TN − TX), one decimal,
+  signed where the sign says something (`+328.6`, #264).
 - **Coordinates** are `33.86° S 151.21° E`.
 - **Counts** are grouped, `65,720` (`numbers.grouped`; Quality's tab, #222).
 - **A no-break space** joins a value and its unit (`45.8 °C`; a percentage takes none,
@@ -253,27 +264,34 @@ tabular figures (`font-variant-numeric: tabular-nums`); index codes, dates, file
 and the provenance line are `--font-mono`. The data table sets its `num` and `code`
 cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data tables
 (#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
-`--text-sm`. **Target (#234, #239, #242):** each other page's tables move to the data
-table with that page.
+`--text-sm`, the workspace overview's Stations table (#234, sans headers too) and the
+workspace Files' By station table (#239), and the Workspaces table and Get started's
+"Or continue a workspace" (#242). The jobs list and the gridded pages keep the plain table.
 
 ## Layout
 
 - **Width:** content up to `--container-content` (72rem), reading text up to
   `--container-prose` (42rem); a data page (a station's sections: `data_page` in its
-  context) up to `--container-data` (92rem, #227). **Target (#263):** a station's pages
-  have no max width; reading pages keep 72rem.
+  context) has no max width and uses the whole window (#263; 92rem from #227 until then).
 - **Spacing:** one step is 0.25rem (`--spacing`), a 4px grid. Common steps: 2 (0.5rem)
   inside controls, 4 to 5 (1–1.25rem) inside cards, 8 to 12 (2–3rem) between sections.
 - **Breakpoints:** `sm` 40rem, `md` 52rem, `lg` 60rem, `xl` 64rem. Logical properties
   only, so right-to-left scripts work (checked by `test_static.py`).
 - **Page frame:** header (#227: one row about 48px high across the window: the logo and
   "Climpact", which go to the landing page; Workspaces and Gridded; then Index reference,
-  Help and the theme toggle at the end. Below 600px the destinations and Index reference
-  are in the Menu, and so is the theme toggle, #203. Workspaces opens the list of
-  calculations until #242, and is current on station and batch pages too) → step
-  indicator for the
-  batch and gridded flows → title and one-line lead → content → footer. A new station is
-  one narrow page (40rem, centred; #201): "New station", a lead, two numbered steps (Your
+  Help and the theme toggle at the end, and on the landing page Get started (from 40rem).
+  Below 600px the destinations and Index reference are in the Menu, and so is the theme
+  toggle, #203. Workspaces opens the Workspaces page, `/w/` (#242), and is current on
+  workspace and station pages too) → step
+  indicator for the gridded flow → title and one-line lead → content → footer. Stations come in
+  on Add stations (#233, the AddStations board; starting a workspace, `/add/`, has Start's
+  drop zone with the file format and the settings beside it, the content width): the h1
+  (with the workspace in a breadcrumb when adding to one), then the drop zone, the review
+  table and the line under it with Cancel and "Add N stations and check them", and beside
+  them, from 90rem, the panel "Applies to every station" (below 90rem it is one line above
+  the drop zone, so the table's eight columns fit at 1280px without scrolling sideways);
+  up to 90rem wide. A station's own setup page (a new file that needs new details) keeps
+  New station's narrow page (40rem, centred; #201): a lead, two numbered steps (Your
   file, Station details) divided by hairlines, then the one call to action. A station is a
   workspace instead: its context bar (#227: its name as the h1, the provenance line, the
   page's actions, then the section tabs, Quality, Indices and Files), then the Inputs
@@ -290,18 +308,29 @@ table with that page.
   (16rem) sits at the inline start, in view under the header as the page scrolls, where
   the content has at least 52rem (a container query, so the help drawer counts);
   narrower, the Inputs bar under the tabs takes its place (#203), and without JavaScript
-  the panel comes above the content. Quality (#235) is the verdict strip, the coverage
-  strip, then the worklist: the "Look wrong" and "Worth a look" tables with the detail pane
-  beside them; the checks that found nothing in one line; then the daily charts with the
+  the panel comes above the content. Quality (#235, #264) is the verdict strip, the
+  coverage strip, then the checks as a rail (20rem: "Look wrong" and "Worth a look", each
+  check with its variable, a by-month sparkline and its count) with the selected check's
+  detail wide beside it: its kicker, title and sentence (what the check means and what
+  to look at first), with "These values (CSV)" and "Show on the daily chart" by the
+  title; two charts with axes, When (each value by date, the selected one ringed) and By
+  calendar month (bars, with "Table" in place of the chart); then its values table (only
+  that check's columns, 12 rows a page, largest first or by date) beside the selected
+  value (a 7-day chart, PR bars with the limit dashed or TX and TN lines, and the 7-day
+  table). Then the checks that found nothing in one line; the daily charts with the
   flags and the distributions as disclosures, and one line with the thresholds and the
-  link to Files. **Target (#264):** the worklist becomes a rail of checks (about 20rem:
-  each check, its variable, a by-month sparkline and its count) with the selected
-  check's detail in the wide area beside it: its sentence; two charts with axes, When
-  (each flagged value by date) and By calendar month (bars, with a table view); then
-  its values table (only that check's columns, 12 rows a page, largest first) beside
-  the selected value (a 7-day chart and table). Nothing in it scrolls sideways at
-  1280px. While the checks run, what is in the file ("Your data", #198) takes the
+  link to Files. Like the Indices, Quality has no Inputs panel beside it (#264): "Edit
+  inputs" on the provenance line. Nothing in it scrolls sideways at 1280px or wider
+  (checked with the 67 heavy rain days of `qc_stress_1961-2020.txt`). While the checks run, what is in the file ("Your data", #198) takes the
   worklist's place.
+- **The landing page** (#242, the Landing board): bands across the window, each with
+  its content up to 77.5rem: "Welcome back" for a returning visitor, the hero (the
+  question, the lead, Get started and See an example, beside a preview of the Sydney
+  sample's real output: TXx drawn as the detail pane draws a series and four rows of the
+  Indices table), the facts (the parity suite's), How it works with three miniatures of
+  the real screens, What you get on the surface, What you need, and a closing band on the
+  selected tint. The bands are the exception to "one surface level": a page that
+  introduces the app, not a data page.
 - **Sections:** one surface level. A page's sections sit on the page, 48px apart
   (`stack--xl`), each under a section header; a box marks only one object (a chart, a
   data table, a detail pane, a progress card).
@@ -316,44 +345,74 @@ strips, worklist and detail pane.
   across the window on the surface over a hairline, the title (the station name), one
   mono line of provenance (coordinates, years and their count, base period, "ET-SCI
   defaults" or how many settings are not the default, the climpact version;
-  `stations.workspace.provenance`), the page's actions at the end, then the tabs.
+  `stations.workspace.provenance`; the shown run's while its results are out of date,
+  #223), the page's actions at the end, then the tabs.
   Quality's line describes the data the checks read instead (#235, as its board draws
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
   PR TX TN") and the file's name.
   An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
-  next index, named codes first. A batch's station starts the breadcrumb with its
-  workspace (#255) when it has several stations, which leads to the workspace's address,
-  `/w/<id>/`, showing the batch results until #234 (#256). **Target:** the
-  workspace in the breadcrumb of every workspace of several stations, and the
-  previous and next station on a station's pages, once stations belong to a workspace
-  (#231, #234); "Edit
-  inputs" or "Workspace settings" on the provenance line, which replace the Inputs panel
-  (#231, #234); a workspace's own bar, with the station count and deletion date and the
-  tabs Overview, Compare an index and Files (#234). The tabs are Quality, Indices (Results
-  until #236) and Files; Quality's shows its verdict and count, "Usable · 21" (#222).
-- **Data pages use the width.** Desktop first: a station's pages fill the window up to
-  92rem (`--container-data`), rather than the 72rem content width, which stays for
-  reading pages.
+  next index, named codes first. In a workspace of several stations every station page
+  starts the breadcrumb with the workspace, which leads to its overview, then "Station 2
+  of 6", with the previous and next station (each at its furthest section) at the
+  row's end (#234, `workspace.station_nav`); a workspace of one station has "Add
+  stations" at the end of the provenance line instead. **Target:** "Edit inputs" on the
+  provenance line replaces the Inputs panel on Files too (#231; the Indices have it since
+  #263, Quality since #264). The tabs are Quality, Indices (Results until #236) and
+  Files; Quality's shows its verdict and count, "Usable · 21" (#222).
+- **The workspace's own bar** (#234, the Workspace board; `stations/_space_bar.html`):
+  "Workspace" in small muted text over its name (the h1 on the overview; a link on its
+  other pages), the mono provenance line ("6 stations", the base period, "ET-SCI
+  defaults" or how many settings are not the default, the climpact version, "kept until
+  24 Nov 2026" where workspaces expire) with Workspace settings and Rename at its end,
+  Add stations (small secondary) at the end of the title's row, then the tabs Overview,
+  Compare an index (#238) and Files. Export ▾ (#239), primary at the end of the title's
+  row on the overview, Compare an index and Files: Everything (zip), Trends and Indices
+  of all stations (CSV), and All files. "Save file" is on Workspaces (#240). On Compare an
+  index and Files the name is the h1 too. The overview is a data page (the whole
+  window), as a station's.
+- **Trends across stations** (#238, the Workspace board; `stations/_trends.html`) under
+  the overview's Stations table, and alone on Compare an index (`/w/<id>/compare/`): the
+  heading and one line ("Sen's slope per decade. Filled cells: the 95% interval excludes
+  zero. …") with the legend at the row's end, then "Choose indices" (a disclosure: every
+  index with a trend, by theme, codes first; remembered for the workspace in the session)
+  and "Grid as CSV", then the trend grid beside the selected column's interval plot (the
+  grid `flex: 999 1 40rem`, the plot 20–25rem, under the grid when there is no room).
+  The trends wait, with a line saying so, while a station is calculated, and come in
+  with the overview's last poll.
+- **Data pages use the width.** Desktop first: a station's pages fill the whole window
+  (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
+  them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
+  own frame may).
 - **Panes:** a filter rail at the inline start (about 14rem), the table, and a detail pane
-  at the inline end that stays in view as the list scrolls (`detail-pane`; on Quality,
-  #235, 22–30rem, side by side from a 56rem container, sticky under the context bar and
-  scrolling inside itself when taller than the window). Narrower, the rail goes above the
-  table and the detail after the list, with "Back to the list". The Indices (#236): the
-  rail 10rem and sticky, the table, the pane `clamp(17rem, 22%, 26rem)`, side by side from
-  a 68rem page; from 48rem the rail beside the table and the pane under it; narrower, the
-  rail above (its themes a wrapping row) and the detail after the table. The Inputs bar
-  replaces the panel there at every width, so the three have the width. **Target
-  (#263):** the rail about 14rem, its themes plain list rows (the current one on
-  `--sel` with an inset edge); the pane `clamp(22rem, 28%, 32rem)`; the rail and pane
-  full-height columns against the window's edges, not cards; on desktop "Edit inputs"
-  on the provenance line replaces the Inputs bar. The table opens sorted by the size of
-  the trend with the first row's pane shown.
+  at the inline end that stays in view as the list scrolls (`detail-pane`). Narrower,
+  the rail goes above the table and the detail after the list, with "Back to the list".
+  Quality (#264): the checks' rail (20rem, framed lists) and the check's detail (one
+  framed object) side by side from a 60rem page, the rail sticky under the context bar
+  and scrolling inside itself when taller than the window; narrower, the rail above and
+  the detail after it, its two tables one after the other. The Indices (#236, #263):
+  the rail and the pane are full-height columns against the window's edges, not cards:
+  the rail on the page's colour, the pane on the surface, each behind a hairline, their
+  contents sticky under the context bar. Side by side from a 76rem page: the rail 14rem
+  (12.5rem below 86rem, so the table's names keep room at 1280px), the table, the pane
+  `clamp(22rem, 28%, 32rem)`; from 48rem the rail beside the table and the pane under it;
+  narrower, the rail above (its themes a wrapping row) and the detail after the table.
+  No Inputs panel there, so the three have the width: "Edit inputs" on the provenance
+  line opens the Inputs sheet, and the Inputs bar shows under 52rem, or wider only while
+  an input has changed or a run is under way. The table opens sorted by the size of the
+  trend with the first row's pane shown.
 - **Data tables sit in one frame** (a `border` edge and `--radius-sm`), with hairline rows
   of 32px and a header row on the sunken tint: the exception to "a box marks only one
   object", because the table is one object (`components/table.html`, `table--data`).
   Quality's are (#235), and the Indices' (#236): at 1280 x 1180px (the board's size) 26
-  of the Sydney sample's indices are in view, without sideways scroll. **Target:** each
-  other page's tables move to it with that page (#234, #239, #242).
+  of the Sydney sample's indices are in view, without sideways scroll. The Workspaces
+  table is one since #242 (checked with seven workspaces: a 90-character name, one
+  deleted in two days, one with a failed station, one with files not yet added; nothing
+  scrolls sideways at 1280px or wider, and on a phone it scrolls in its frame). The Stations table is one
+  since #234: nothing on the overview scrolls sideways at 1280px or wider (checked with
+  7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station);
+  the workspace Files' By station table since #239 (checked the same way with 8); the
+  trend grid since #238 (eight stations, two without results, long names: 11 columns fit
+  at 1280px with about 90px to spare, and with all 77 indices it scrolls inside its frame).
 
 ## Depth and shape
 
@@ -382,13 +441,14 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `stat` | Primitive | One number with label and note; the label is a group label | — |
 | `group-label` | Primitive | Small, uppercase, muted text that names a group without a box ("Your inputs") | — |
 | `section-header` | Component | A section's heading, an optional muted note (`section-header__note`), then the Help pill (`{% section_help %}`) at the end of the row. The pill is 30px high with a ringed question mark and a word: "Help", or a question where it helps (`label="How to read this"`). `quiet=True` makes it a quiet link in the text's size (`help-link`, #235: "How the checks work" on Quality), the same link and drawer | with note, with a specific label, quiet |
-| Quality worklist | Pattern | Quality (#235, the Quality board; `stations/_qc_review.html`): the verdict strip and the coverage strip, then "Look wrong" as a data table grouped by check (a group row on the sunken tint, "TN ≥ TX 10"; then Date, Var, Value with its unit, Check, Detail: what the value is checked against, "TX 8.2 °C", "limit 200 mm"; each check's first ten rows, then "All 213 rows of TN ≥ TX"), and "Worth a look" (Check, Var, Values, When: "Mostly May and June", "All year"; By month: twelve small bars, an empty month a thin mark), each a framed table with its heading inside the frame and "How the checks work" as a quiet link. Rows 30px, one line each. Each row's first cell links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced, the row has the selected tint and an ink edge (`is-selected`, the link `aria-current`). The detail pane beside the tables: for a finding, its date and check in mono, the sentence ("TN 9.5 °C is above TX 8.2 °C", codes first), a chart of the 15 days around it with axes (three values, three dates, the day as a band, the value ringed, a legend "TX °C", "TN °C", "April 1962, daily"), the days-around table (one decimal; the day in bold on the warning tint, other flagged days on a lighter one), "Show on the daily chart" and its line in the file; for a group or a check's every row, its counts by month and its rows, paged. The first finding is selected by default | finding, group, every row of a check |
+| Quality worklist | Pattern | Quality (#235, #264, the Quality board; `stations/_qc_review.html`): the verdict strip and the coverage strip, then the checks as a rail (`stations/_qc_rail_item.html`): "Look wrong" and "Worth a look", each a framed list with its heading, count and note inside the frame; each check a row ("Heavy rain days", "PR" in mono under it, twelve small bars by month with an empty month a thin mark, its count), the selected one on the selected tint with an ink edge (`is-selected`, `aria-current`); "How the checks work" as a quiet link under them. Each check links to `?show=<id>`, so it works without JS and can be linked; with JS the detail changes in place and is announced. The detail (`stations/_qc_detail.html`), one framed object: the kicker ("Worth a look · PR · 67 values"), the title, one sentence (what the check means, then what to look at first), "These values (CSV)" and "Show on the daily chart"; the When and By calendar month charts; then the values table and the selected value (`stations/_qc_values.html`, also the htmx fragment of `stations:qc_table`). The table has only the check's columns (`qc_review.value_columns`: heavy rain "PR mm, Month's limit mm, Over by mm"; TN ≥ TX "TN °C, TX °C, TN − TX °C"; temperature outliers "TX °C, Usual range °C, Beyond by °C"; jumps without the next day's date; flat runs with their first day; repeated dates with their lines in the file), 30px rows, 12 a page, "Sort: Largest first · Date", "Page 1 of 6 ← Previous Next →". A row's date selects its value (an address without JS, the fragment with it; the whole row can be clicked). The selected value: its date and check in mono, the sentence ("PR 350.5 mm, 328.6 mm over the limit for December", codes first), the 7-day chart, the 7-day table (one decimal; the day in bold on the warning tint, the check's other values on a lighter one), a repeated date's rows, its line in the file. The largest value is selected by default | check, value, by date, table view |
 | Verdict strip | Component | A judgement in one line (`components/verdict_strip.html`, #235): on the status's soft tint with a hairline in its hue, the level in bold and one sentence as the heading ("**Usable.** 21 values look wrong; the indices can run with them as they are."), the counts on one mono line under it, the decision's small buttons at the end. On Quality: "Flagged values (CSV)", "Replace file", "Go to indices" (primary); on red "Go to indices anyway" and "Replace file" (primary); no buttons while the checks are out of date | ready, usable, fix |
 | Coverage strip | Component | Missing days per year for each variable (`components/coverage_strip.html`, #235): in a frame, "Coverage" with a muted note (what the annual completeness rule makes of the years) and the key; a row per variable, its code, a cell a year in the three coverage steps (an SVG, `aria-hidden`) and its total; the years under them, evenly spaced. The table view follows as a disclosure. Narrower than 36rem the rows scroll | — |
 | Detail pane | Component | The selected row's detail beside its table (`detail-pane`, #235, and the Indices', #236): a frame on the surface, in view under the context bar as the list scrolls and scrolling inside itself; after the list on narrow screens, with "Back to the list", which returns focus to the row | — |
 | `field`, `field_errors` | Component | Label, short hint, input, unit, inline error; no help link of its own | narrow, with unit |
 | `dropzone` | Component | File input with drag and drop; works without JS | — |
-| New station steps | Pattern | The New station page's steps (`setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
+| Review table | Pattern | Add stations' files (#233, the AddStations board; `stations/_add_table.html`, `stations/add_stations.review`): a framed data table with its heading inside the frame ("7 files read · metadata from stations_nsw.txt · paste latitude and longitude columns from a spreadsheet" and "Metadata file format"); a row a station file, 34px: File (mono, an ellipsis when long, whole in its title), Station name, Latitude and Longitude (inputs as small as the row, mono for the coordinates), Period, Days, Index settings ("Defaults" or "Custom (wsdin 4)") and Read ("Read · 6.9% missing" in success, a warning such as "Read · 2 repeated dates; checks will list them" in amber, a problem such as "Latitude needed" or "Not read: line 1 has 4 values, expected 6 (year month day PR TX TN)" in red, the only column that wraps). A row with a problem has a faint danger tint and its invalid cells the danger edge; it stays out. Under the table, a disclosure with every problem and warning and its line, and one sentence naming what is left to fix ("2 problems to fix before these stations can be added: a missing latitude and an unreadable file."). Checked as it is typed, a pasted column fills down (`js/add-stations.js`); a plain form without JavaScript. On a phone the table scrolls in its frame | problems, warnings, metadata |
+| New station steps | Pattern | The steps of a station's setup page (New station until Add stations, #233; `setup__step`, #201): a number in an ink circle (a CSS counter, so no text to translate; a success tick once done), the step's section header and its fields, each step under a hairline; then `setup__cta`, the one primary button and a muted note beside it on what it does and what keeps its default. No boxes: the file card is the only one | step done |
 | File card | Component | The file read (`stations/_file_card.html`): its name, "✓ Read: first–last year, days" in success, and Replace (a file button inside the page's form) at the end; under it the days with data in each year, an SVG bar a year in success, amber (`--color-warning`) when the year misses more than 15 days (too many for annual index values), with a text alternative naming those years | gaps, no gaps |
 | `file_button` | Component | A button that opens the file picker and sends the chosen file at once, for a second upload where a drop zone takes too much room; a file input and a submit button without JS. Unused since Quality's corrected file became the File sheet (#199) | primary, secondary; lg, sm |
 | `form_errors` | Component | Error summary that links to each field, focused on load | — |
@@ -398,6 +458,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
 | Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. While that run is a change to the workspace's settings (#254), a small secondary "Undo the change" under it, a plain form (`stations/_undo_form.html`). Sticky under the context bar when beside the content | changed; with a run; with undo |
 | Inputs bar | Component | The Inputs panel in one line, under the workspace tabs where the content has less than 52rem (`stations/_inputs_bar.html`, the mockups' `.inputsbar`; #203): "Inputs:" then the base period and "defaults" or how many settings are not the default, then each input changed since what is shown (warning colour, and the bar takes the warning tint) and each run under way, and a small secondary Edit at the end, after a small secondary "Undo" while a change to the workspace's settings can be undone (#254). Edit opens the Inputs sheet: the panel's list in a side sheet, which on a phone fills the screen; each input's Edit there opens its own sheet over it, and Escape steps back to the list, then the bar. Only with JavaScript; without it the panel shows above the content. On a phone it reaches the screen's edges, under a hairline | changed; with a run; with undo |
+| Popover | Component | A disclosure whose panel floats under its button at the inline end (`pop`, `pop__details`, `pop__panel` in `disclosure.css`, #239; the index page's citation since #237): a native `<details>`, so it works without JavaScript. Export ▾ (`pop__panel--menu`, the menu's links one a line; `js/context-bar.js` closes it on Escape and on a click elsewhere), "Citation" and Files' "Methods text" (`pop__panel--text`: the text, which a copy button replaces with JavaScript, `js/copy.js` and `js/index-page.js`). In the ⋯ menu on phones it opens in place. The context bar's surface reaches the window's edges from a layer behind it (`::before`), so nothing that opens below the bar is cut off | menu, text |
 | Page menu (⋯) | Component | On a phone the page's actions (Results: the sector comparison, Download all) move from the context bar into a ⋯ button at the end of the name's line (`page-menu` in `components/context_bar.html`; #203). A disclosure, not an ARIA menu: a native `<details>` whose summary is the button ("Page actions" for screen readers), so it works without JavaScript; Enter or Space opens it, Tab goes through the actions (full-width buttons, one a line, in a raised panel), Escape closes it and returns focus to the button, and a click or focus elsewhere closes it (`js/context-bar.js`) | — |
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
@@ -411,13 +472,19 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV (Quality's daily charts, the gridded series; the index page draws its own since #237) | — |
 | Segmented control | Primitive | One choice of two or three side by side (`segmented`, #237): links in one strip of `border-strong` edges, the current one ink (`aria-current`), so each works without JavaScript. The index page's Values / Anomaly and Annual / Monthly | — |
 | Index page | Pattern | One index (#237, the Index board; `stations/result.html`, `stations/index_page.py`): the context bar (breadcrumb station / Indices with the previous and next index; the index as the h1 with its theme pill; its definition, unit and R's name, with "About this index" as a quiet help link; the provenance line; CSV, "PNG (R style)" and "Copy citation", a disclosure without JavaScript); then the chart in a frame beside the Trend statistics (Sen's slope, 95% interval, Significant, Years used, Base-period mean, Record; why any year was left out; the method); then the values as a framed data table, scrolling inside its frame (Year, the value with its unit, Anomaly, Rank, the date of the maximum or minimum where the core gives it, Note: Record or why the value was left out), most recent first. The chart is drawn on the server: the base period as a band, round values and years on the axes, the y axis titled with the code and units, Sen's slope's 95% interval as a shaded bow tie through the slope's middle, the values (bars for SPI and SPEI) with gaps, the 11-year running mean, Sen's slope dashed, each value left out an open point at the base-period mean; the segmented controls switch Values / Anomaly in place (`js/index-page.js`) and Annual / Monthly by link. Below 32rem the chart scrolls inside its region | annual, monthly, anomaly, bars (SPI), day of the year (TX95t: no rank or record), daily (EHF, ECF: the ten highest days) |
-| Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a column of pills (All and each theme with its dot and a mono count; the selected pill ink); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the pills in a wrapping row | — |
-| Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long), Unit, Slope / decade ("+1.31 pp" for a percentage), 95% interval, Sig. ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years, Mean. **Target (#263):** six columns: Code, Index, Slope per decade with its unit beside it in muted text, 95% interval, Significant, the series (about 144px); the mean moves to the pane. A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by …"). Code, Index, Slope and Sig. sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
-| Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then Slope, 95% interval, Years used and Method ("Sen's slope (zyp)"), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
+| Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a list of plain rows (All and each theme with its dot and a mono count; the current one on the `selected` tint with an ink edge, as a selected table row, #263); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the themes in a wrapping row | — |
+| Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long, whole in its `title`), Slope per decade with its unit beside it in muted text ("+5.15 days", "+1.31 pp" for a percentage), 95% interval, Significant ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years (144px where the page is 86rem wide, 96px narrower) (#263). A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by the size of the trend, largest first."). It opens sorted by the size of the trend, the slope per decade without its sign, largest first (#263). Code, Index, Slope and Significant sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines | filtered, sorted, selected row, no match |
+| Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then two columns of statistics: Slope, 95% interval, "Mean, 1936–2015", Significant in words ("Yes: the interval excludes zero" or "No"), Years used and Method ("Sen's slope (zyp)") (#263), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values" | with a trend, without, daily |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
-| `steps` | Pattern | Where the user is in the batch or gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179) | — |
-| `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast | updating, out of date |
+| `steps` | Pattern | Where the user is in the gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179), nor by the batch since #234 | — |
+| Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why (the files are in Export ▾ and on Files since #239). Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
+| Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated), then "Copy…" (Copy to workspace…, #241) at the row's end, its column header for screen readers only. Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes. A station added to a workspace of several is calculated at once, as a batch's are (#277: no "Go to indices" first), so its row, its Indices tab, Files and the trend grid agree | calculating, finished, failed, not run |
+| Workspaces table | Pattern | Every workspace of the browser (#242, the WorkspaceList board; `stations/_workspaces_table.html`, `stations.workspace_list`), a data table, most recently changed first: Name (a link, with a muted hint of its stations under it: one station's years, several stations' first two names "and 4 more"; each line ends in an ellipsis; rows 44px for the two lines), Stations, Status (one station's Quality pill with its count; several stations' counts by verdict, "2 ready", "2 usable", "1 fix first", "1 checking" on the sunken tint, and "1 failed" on the danger tint), Base period, Updated, "Deleted on" where workspaces expire ("20 Nov · in 2 days" in warning colour under three days away) and Delete (a quiet link to a confirmation page). Get started's "Or continue a workspace" is the same table cut to Name, Stations, Updated and Deleted on, three rows | expiring soon, failed, files waiting |
+| `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
+| Workspace files | Pattern | The workspace's Files (#239, the Files board; `stations/workspace_files.html`, `stations/workspace_files.py`): three framed boxes in a row, one a file (its name, its format and size in mono, what is in it, Download: "Download (out of date)" while a station's results are), "What is in the zip"; By station, a data table of each station's R files (Folder (zip), Report (PDF), All plots (PDF), Trends, Thresholds, Missing values, Quality flags: a size, "8 files", or why it is missing); then the provenance file (`climpact_run.json`, scrolling in its frame) with "Copy methods text", beside "Keeping the files". The files wait, with a line saying so, while a station is being calculated | ready, calculating, no results |
+| Trend grid | Pattern | Stations by indices (#238, `stations/_trends.html`, `stations/trend_grid.py`): a data table in its own frame, scrolling sideways inside it when the user chooses many indices, the station's name sticky at the inline start (an ellipsis from 11rem; "(no results)" after it). By default TXx, TNn, TN90p, TX10p, SU, TR, WSDI, PRCPTOT, Rx1day, R95p and CDD; chosen ones follow the defaults' order. Each header is the code (a link that selects the column, `?index=`; `js/trends.js` shows its plot in place), the short name in its `title` and for screen readers, the slope's units under it (`pp` for a percentage). Each cell is Sen's slope per decade, always written (`numbers.slope`), a link to the station's index page, its interval and significance in words for screen readers: filled on the trend scale when the 95% interval excludes zero (the strong step from half the column's largest significant slope, the weak one below), a dashed `border-strong` edge when it does not, "–" for too few values, hatched for a station without results. The selected column's header is on the selected tint with an ink edge under it. "Grid as CSV" is the workspace's Trends file's rows for the grid's indices | selected column, not significant, too few values, no results, many columns |
+| Interval plot | Pattern | The selected column beside the grid (#238): the code and "units per decade" in mono over the short name; a row a station, its name (a link to its index page) with its slope and interval, then a 360 x 16 line: the zero line, the interval as a thick muted line, the slope as a dot (the strong step of its direction when significant, `border-strong` when not); one axis under them, symmetric about zero, its ends round (`index_page.nice_ticks`). Stations left out say why under it ("Not shown: … no results"), then the key line and "CSV, all stations". Every column's plot is in the page, the others hidden. Its table view is the grid's column, its text summary the count of significant trends | significant, not significant, left out |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
@@ -427,29 +494,22 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Pattern | Purpose | Built from |
 | --- | --- | --- |
 | Index chart | The index page's chart (#237), drawn on the server (`index_page.chart`, `stations/_index_chart.html`) in an 860 x 340 box, both views (values and anomalies) in the page. Its text alternative gives the values and the trend; the table under it is its table view and the CSV is in the context bar. | `chart_frame` for interactive charts |
-| Finding chart | The days around one value in the Quality detail pane (#235), drawn on the server (`qc_review._chart`): a line per variable in its role colour, gaps where values are missing, the day as a band in the selected tint, the value ringed in `--chart-flag` as on the full charts, three value ticks and three date ticks. Its text alternative names the variables and dates; the days-around table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Finding chart | The 7 days around a check's selected value on Quality (#235, #264), drawn on the server (`qc_review._chart`, `_bar_chart`): for rain a bar a day (the day in `--chart-prcp`, the others muted) with the limit it is checked against dashed; otherwise a line per variable in its role colour, gaps where values are missing, the value ringed in `--chart-flag` as on the full charts; the day as a band in the selected tint, three value ticks and three date ticks. Its text alternative names the variables, the dates and the limit; the 7-day table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. | `chart_frame` for the full chart |
+| Check charts | A check's two charts on Quality (#264), drawn on the server: When (`qc_review.when_chart`: each value against its date across the record as a muted dot, the selected one ringed in `--chart-flag`, three value ticks from zero for amounts, up to seven years) and By calendar month (`months_chart`: twelve muted bars, three count ticks, the months under them). Text alternatives give the check, the years and the counts by month; When's table view is the values table, By calendar month's a table that "Table" (`aria-pressed`) shows in the chart's place, under the chart without JS. | `chart_frame` for the full chart |
 | Settings line and panel | The settings in one muted line (at the foot of the Indices' filter rail since #236): the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
 **Target: replaced by #230.** These stay until the ticket named lands, then go (the
 theme tiles, `answer-band` and the Catalogue went with the Indices table, #236): the
 Inputs panel and Inputs bar (by "Edit inputs" on the
-context bar and workspace settings, #231, #234); New station steps, the File card and
-`file_button` (by Add stations, #233); `steps` and the batch results page (by the workspace overview's run status line and
-Stations table, #231, #234; board `Calculate.dc.html`); the
-Settings line and panel (by workspace settings, #231). The Side sheet stays, for
+context bar and workspace settings, #231); `file_button` (unused); the
+Settings line and panel (by workspace settings, #231). The batch results page and the
+batch's `steps` went with #234 (the overview's run status line and Stations table);
+`steps` stays for the gridded flow. The Side sheet stays, for
 workspace settings.
 
-New patterns of #230 (Target; add each to `/patterns/` when it lands):
-
-| Pattern | Purpose | Ticket |
-| --- | --- | --- |
-| Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
-| Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
-| Review table | Add stations' table of files: editable name and coordinates, read status, every problem at once | #233 |
-| Stations table | A workspace's stations with their verdict, indices state and significant count; the indices state is live while a run goes (Done, Calculating with its percentage, Waiting, Not run with "Fix quality first", Failed with its fix) | #234 |
-| Run status line | One line above the Stations table, never a panel: neutral with a progress bar while stations calculate (done of total, time left, Cancel); quiet when they have finished (how many, how long, Download all, Files); red only when a station failed, naming it, why and the fix. It stays until the workspace is next opened | #234 |
-| Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
+The new patterns of #230 have all landed and are on `/patterns/`; the Workspaces table
+was the last (#242).
 
 Every chart has a text summary, a table view and a CSV download, and can be used by
 keyboard. This is not optional. **Every chart that is read has axes** with units and
@@ -492,8 +552,10 @@ years; sparklines are only for scanning, beside a number given in text.
   excludes zero). Method and years used on the index page and in the detail pane. Never a
   p-value.
 - **Keep the provenance in view.** Every station page has the provenance line in its
-  context bar (#227). **Target:** the workspace pages too (#234), and every zip holds
-  `climpact_run.json` (#239).
+  context bar (#227), and the workspace's pages theirs (#234). Every zip the app offers
+  holds `climpact_run.json` (#239): the software, when, the base period, the settings,
+  the trend method and each station's file, SHA-256 and coordinates; the workspace's
+  Files shows it, with "Copy methods text".
 - **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
   each edited in a side sheet that says what applying will update, with one Apply
   button; output pages hold no forms (#198, #199), only the decision, search and filters,
@@ -501,15 +563,19 @@ years; sparklines are only for scanning, beside a number given in text.
   ("Replace file" on Quality's verdict, "Change the settings" on Results) open the same
   sheet. The base period, thresholds and index settings are the workspace's (#254): their
   sheets say so when the workspace has several stations, and that the change can be undone
-  until its replacement is ready. **Target (#233, #234):** they are edited in the
-  workspace's settings sheet; a station's name and coordinates are edited from "Edit
-  inputs" on its provenance line.
+  until its replacement is ready. Before a workspace has stations they change on Add
+  stations, in its panel "Applies to every station" (the base period and the plots,
+  #233). Since #234 they are also Workspace settings on the workspace's own bar: a page
+  listing the three as the Inputs panel does, each Edit opening its form on a page of its
+  own, which applies it to every station and returns to the overview. **Target (#231):**
+  the same as side sheets over the overview; a station's name and coordinates edited from
+  "Edit inputs" on its provenance line.
 - **Let the user take a change back.** A change to the workspace's settings recalculates
   every station; until that has finished, "Undo the change" beside its progress (the
   Inputs panel's runs, or the Inputs bar) puts the settings and the earlier results back
-  (#254). One place per page, and a form that works without JavaScript. **Target
-  (#234):** on the workspace's overview, the run status line shows the recalculation's
-  progress and offers Undo (`Calculate.dc.html`).
+  (#254). One place per page, and a form that works without JavaScript. On the
+  workspace's overview the run status line shows the recalculation's progress and offers
+  "Undo the change" (#234).
 - **Give each colour one job.** Ink for actions, blue for links, the
   brand blue for the logo, focus and selection, status colours for the verdict and run state, theme hues for data (see
   [Colour](#colour)).
@@ -537,14 +603,19 @@ years; sparklines are only for scanning, beside a number given in text.
   table inside a card or disclosure has hairline rows and no frame, and disclosures are
   rows between hairlines.
   Inside a card, separate groups with spacing and headings, not another border.
-- **Don't offer downloads everywhere.** Files live in one Files section
-  (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
+- **Don't offer downloads everywhere.** Files live in one Files section (a station's,
+  `stations:downloads`; a workspace's, `stations:workspace_files`, #239); elsewhere at
+  most one "Download all" link, plus each chart's own
   PNG/SVG/CSV. The Indices have the zip, primary in the context bar beside "Compare with
   sector data", the Files tab, and in the detail pane the selected index's CSV and PNG
   (#236, as the Results board draws it); Quality offers its flagged values as one CSV in the
   verdict strip (#235) and has one link to Files under the worklist; an index page offers
-  its series' CSV, its R-style PNG and a citation (#237). **Target (#239):** Files is the
-  workspace's (each station's files, the all-station CSVs and the provenance file).
+  its series' CSV, its R-style PNG and a citation (#237). The workspace's Files (#239, the
+  Files board) has the workspace files (Everything, Trends and Indices of all stations,
+  each with its size), each station's R files in one table (a size, or why the file is
+  missing: "not run", "failed", "checking"), and the provenance file; on the overview,
+  Export ▾ is its one way to them, so the run status line no longer offers the batch's
+  zip.
 - **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
   its value isn't self-explanatory. Section
@@ -555,26 +626,31 @@ years; sparklines are only for scanning, beside a number given in text.
   defaults should be an inline action instead. The index settings are "Adjust and
   recalculate" on Results, and the defaults are calculated while the user checks the
   quality (#178). The station is a workspace of three sections beside its inputs, with
-  no steps (#179, #198). A first visit is one New station page (#201): the file, the
-  station name, latitude and longitude, the base period, then "Check and calculate";
-  thresholds and index settings start at their defaults and are changed later in Inputs.
-  **Target (#233, #234, #242):** a first visit is the landing page, then Get started,
-  then Add stations (one file or many, reviewed in one table). A one-station workspace
-  opens straight to its station; the overview appears from two stations.
+  no steps (#179, #198). A first visit is Add stations (#233): one file or many,
+  reviewed in one table, then "Add N stations and check them"; one station opens straight
+  on its Quality, checked and calculated with the defaults, which are changed later in
+  Inputs; two or more open the workspace's overview, which shows them checked and
+  calculated (#234). Before it, the landing page (#242) leads to Get started (Add
+  stations' empty page), or opens the sample's Indices at once ("See an example").
 - **Don't throw work away when an input changes.** A new file, new station details, new
   thresholds or new settings keep the checks and results already made. They show as out
   of date (`stale_banner`, and the section's tab) until their replacement has finished,
   so the user can compare. Mark only what depends on the change: the base period changes
-  Results and Files, not Quality.
+  Results and Files, not Quality. Nothing in the header claims the new inputs for the old
+  results (#223): while they are out of date, the provenance line of the Indices, an
+  index page and Files describes the run on the page (its base period, coordinates and
+  settings; the Inputs panel and bar have the new values, "· changed"), and "Download
+  all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
+  Files, until the new results are ready.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
   where it matters, as a quiet line at the foot of the page: small muted text
-  (`text-sm text-text-muted`) with a lock icon. The New station page says it once (#201).
+  (`text-sm text-text-muted`) with a lock icon. Add stations says it once (#233).
 - **Don't use colour alone.** Badges, flags and chart series carry a word or a shape too,
   and a theme's hue is always beside its name.
-- **Don't take the decision out of view.** Quality is a worklist and a detail pane side
-  by side under the verdict strip and its buttons (#202, #235): reviewing a finding changes
-  the detail in place instead of opening rows down the page, and the pane stays in view as
-  the list scrolls, so the page stays short.
+- **Don't take the decision out of view.** Quality is a rail of checks and a check's
+  detail side by side under the verdict strip and its buttons (#202, #235, #264):
+  reviewing a check or a value changes the detail in place instead of opening rows down
+  the page, and the rail stays in view as the detail scrolls, so the page stays short.
 
 ## Responsive
 
@@ -593,7 +669,7 @@ is in the Inputs bar, the file name in the File sheet), then the three tabs on o
 and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
 scroll padding is their height, so focus never goes under them. Sheets fill the screen.
 The Indices' rows are two lines each and their detail comes after the table, Quality's
-detail comes after its list, an index page's statistics come under its chart, which
+check detail comes after its rail, its values table before the selected value, an index page's statistics come under its chart, which
 scrolls inside its region below 32rem,
 and the download tables are short blocks. The accessibility tests run every page at
 320px and fail on horizontal page scroll; the phone tests check the station pages at

@@ -1,22 +1,26 @@
 {% load i18n help ui %}{% comment %}
-A station's Indices (#236, the Results board): the filter rail (search; the themes with
-their counts; "Significant only" and the line that defines it), one line that answers
-("22 of 80 indices with a significant trend · TMm +0.19 °C/decade") beside the live line,
-the table of every index (code, short name, unit, slope per decade, 95% interval,
-significance, sparkline, mean; 32px rows, sortable by code, name, slope and
-significance), and the selected index in the detail pane beside it
-(stations/_index_detail.html). Without JavaScript the rail is a form sent to ``action``,
-each column header a link to the page sorted by it and each row's code a link to
-``?show=<key>``, whose detail the server shows; js/results.js filters, sorts and shows
-the detail in place. Side by side from 68rem; narrower, the rail goes above the table and
-the detail after it, with "Back to the list"; on a phone each row is two lines.
-Context: action, rows, columns (views_indices.dashboard_context: each row's card, unit,
-slope, interval, mean, chart and links), chips, q, theme, significant, sort, direction,
-sort_text, series_years, shown, total, significant_count, mean_trend, stale, and
-settings_line and input_urls (the settings line, on a station's page only).
+A station's Indices (#236, #263, the Results board): the filter rail (search; the themes
+as a list with their counts; "Significant only" and the line that defines it), one line
+that answers ("22 of 80 indices with a significant trend · TMm +0.19 °C/decade") beside
+the live line, the table of every index (code, short name, slope per decade with its
+unit, 95% interval, significance, sparkline; 32px rows, sortable by code, name, slope
+and significance, and opening sorted by the size of the trend, ``default_sort``), and
+the selected index in the detail pane beside it (stations/_index_detail.html). Without
+JavaScript the rail is a form sent to ``action``, each column header a link to the page
+sorted by it and each row's code a link to ``?show=<key>``, whose detail the server
+shows; js/results.js filters, sorts and shows the detail in place. The rail and the pane
+are full-height columns against the window's edges (#263); see results.css for the
+widths. Narrower, the pane goes under the table, then the rail above it, and the detail
+after the table has "Back to the list"; on a phone each row is two lines.
+Context: action, rows, columns (views_indices.dashboard_context: each row's card, slope
+and its unit, interval, mean, chart and links), chips, q, theme, significant, sort,
+direction, default_sort, sort_text, series_years, shown, total, significant_count,
+mean_trend, stale, and settings_line and input_urls (the settings line, on a station's
+page only).
 {% endcomment %}
 <div class="{% if stale %}stale-content {% endif %}indices" id="indices">
   <form class="indices__rail filter-rail" method="get" action="{{ action }}" role="search" aria-label="{% translate 'Filter the indices' %}" data-results-filter>
+    <div class="filter-rail__body">
     <div class="filter-rail__group">
       <label class="filter-rail__label" for="results-q">{% translate "Find" %}</label>
       <input type="search" id="results-q" name="q" value="{{ q }}" placeholder="{% translate 'TXx, R95p, frost…' %}" autocomplete="off">
@@ -30,7 +34,7 @@ settings_line and input_urls (the settings line, on a station's page only).
     <label class="filter-rail__check"><input type="checkbox" name="significant" value="1"{% if significant %} checked{% endif %}>{% translate "Significant only" %}</label>
     <p class="filter-rail__note">{% translate "Significant: the 95% interval of Sen's slope excludes zero." %}</p>
     {% translate "How to read the table" as read_label %}{% section_help "results.catalogue" label=read_label quiet=True %}
-    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ direction }}">{% endif %}<input type="hidden" name="show" value="{{ selected }}">
+    {% if sort and sort != default_sort %}<input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ direction }}">{% endif %}<input type="hidden" name="show" value="{{ selected }}">
     <div class="filters__submit" data-results-submit>
       {% translate "Show these" as filter_label %}
       {% include "components/button.html" with label=filter_label type="submit" variant="secondary" size="sm" %}
@@ -39,6 +43,7 @@ settings_line and input_urls (the settings line, on a station's page only).
     table keeps its rows: the defaults, or what was changed, and the link that opens the
     Index settings sheet (#199). ``adjust``, the old form's anchor.{% endcomment %}
     <p class="filter-rail__settings" id="adjust" data-settings-line>{% icon "sliders" %}<span>{{ settings_line }} <a href="{{ input_urls.settings }}" data-sheet-open="sheet-settings" aria-haspopup="dialog">{% translate "Change the settings" %}</a></span></p>{% endif %}
+    </div>
   </form>
 
   <section class="indices__main" aria-labelledby="indices-title">
@@ -48,29 +53,25 @@ settings_line and input_urls (the settings line, on a station's page only).
       <p class="indices__count" id="results-count" aria-live="polite" aria-atomic="true" data-results-count data-template="{% translate 'Showing %(shown)s of %(total)s indices.' %}">{% blocktranslate with shown=shown total=total %}Showing {{ shown }} of {{ total }} indices.{% endblocktranslate %}{% if sort_text %} {{ sort_text }}{% endif %}</p>
     </div>
     <div class="table-wrap table-wrap--data" role="region" aria-labelledby="indices-caption" tabindex="0">
-      <table class="table table--data indices-table" data-results-table data-ascending="{% translate 'Sorted by %(column)s, ascending.' %}" data-descending="{% translate 'Sorted by %(column)s, descending.' %}">
+      <table class="table table--data indices-table" data-results-table data-ascending="{% translate 'Sorted by %(column)s, ascending.' %}" data-descending="{% translate 'Sorted by %(column)s, descending.' %}" data-default-sort="{{ default_sort }}" data-sort="{{ sort }}" data-dir="{{ direction }}" data-size="{% translate 'Sorted by the size of the trend, largest first.' %}">
         <caption class="sr-only" id="indices-caption">{% translate "Every index and its trend. Select a code to show the index beside the table, a column header to sort by it." %}</caption>
         <thead><tr>
           {% with c=columns.code %}<th scope="col"{% if c.sort %} aria-sort="{{ c.sort }}"{% endif %} data-sort-key="{{ c.key }}" data-sort-first="{{ c.first }}" data-sort-name="{{ c.name }}"><a class="sort" href="{{ c.href }}">{{ c.label }}</a></th>{% endwith %}
           {% with c=columns.name %}<th scope="col"{% if c.sort %} aria-sort="{{ c.sort }}"{% endif %} data-sort-key="{{ c.key }}" data-sort-first="{{ c.first }}" data-sort-name="{{ c.name }}"><a class="sort" href="{{ c.href }}">{{ c.label }}</a></th>{% endwith %}
-          <th scope="col">{% translate "Unit" %}</th>
           {% with c=columns.trend %}<th scope="col" class="num"{% if c.sort %} aria-sort="{{ c.sort }}"{% endif %} data-sort-key="{{ c.key }}" data-sort-first="{{ c.first }}" data-sort-name="{{ c.name }}"><a class="sort" href="{{ c.href }}">{{ c.label }}</a></th>{% endwith %}
           <th scope="col" class="num">{% translate "95% interval" %}</th>
-          {% with c=columns.significance %}<th scope="col"{% if c.sort %} aria-sort="{{ c.sort }}"{% endif %} data-sort-key="{{ c.key }}" data-sort-first="{{ c.first }}" data-sort-name="{{ c.name }}"><a class="sort" href="{{ c.href }}"><abbr title="{% translate 'Significant' %}">{{ c.label }}</abbr></a></th>{% endwith %}
+          {% with c=columns.significance %}<th scope="col"{% if c.sort %} aria-sort="{{ c.sort }}"{% endif %} data-sort-key="{{ c.key }}" data-sort-first="{{ c.first }}" data-sort-name="{{ c.name }}"><a class="sort" href="{{ c.href }}">{{ c.label }}</a></th>{% endwith %}
           <th scope="col" class="indices-table__spark">{% if series_years %}{{ series_years }}{% else %}{% translate "Series" %}{% endif %}</th>
-          <th scope="col" class="num">{% translate "Mean" %}</th>
         </tr></thead>
         <tbody>
           {% for row in rows %}{% with card=row.card %}
           <tr class="hue-{{ card.hue }}{% if row.selected %} is-selected{% endif %}" id="index-{{ card.key }}" data-chip="{{ card.chip }}" data-search="{{ card.search_text }}" data-order="{{ row.position }}" data-name="{{ card.title }}" data-code="{{ card.code }}" data-trend="{{ row.sort_trend }}" data-rank="{{ row.rank }}"{% if card.significant %} data-significant{% endif %}{% if row.hidden %} hidden{% endif %}>
             <th scope="row" class="code"><span class="hue-dot" aria-hidden="true"></span><a href="{{ row.show_href }}" data-index-item="{{ card.key }}"{% if row.selected %} aria-current="true"{% endif %}>{{ card.code }}</a></th>
-            <td class="indices-table__name">{{ card.title }}</td>
-            <td class="code indices-table__muted">{{ row.unit }}</td>
-            <td class="num indices-table__slope">{% if row.slope %}{{ row.slope }}{% if row.slope_unit %}&nbsp;<abbr title="{{ card.trend_units_title }}">{{ row.slope_unit }}</abbr>{% endif %}{% else %}<span class="indices-table__none" aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% if card.daily %}{% translate "Daily values" %}{% elif card.trend %}{% translate "Too few values" %}{% else %}{% translate "No trend line" %}{% endif %}</span>{% endif %}</td>
+            <td class="indices-table__name" title="{{ card.title }}">{{ card.title }}</td>
+            <td class="num indices-table__slope">{% if row.slope %}{{ row.slope }}&nbsp;<span class="indices-table__unit">{% if row.slope_pp %}<abbr title="{{ card.trend_units_title }}">{{ row.slope_unit }}</abbr>{% else %}{{ row.slope_unit }}{% endif %}</span>{% else %}<span class="indices-table__none" aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% if card.daily %}{% translate "Daily values" %}{% elif card.trend %}{% translate "Too few values" %}{% else %}{% translate "No trend line" %}{% endif %}</span>{% endif %}</td>
             <td class="num indices-table__muted">{{ row.interval }}</td>
             <td class="indices-table__sig">{% if card.significant %}<span class="indices-table__yes"><span class="hue-dot" aria-hidden="true"></span>{% translate "yes" %}</span>{% elif row.slope %}<span aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% translate "no" %}</span>{% endif %}</td>
             <td class="indices-table__spark">{% if card.spark %}{% include "components/spark.html" with spark=card.spark %}{% endif %}</td>
-            <td class="num">{{ row.mean }}</td>
           </tr>
           {% endwith %}{% endfor %}
         </tbody>
@@ -80,8 +81,10 @@ settings_line and input_urls (the settings line, on a station's page only).
   </section>
 
   <aside class="indices__pane detail-pane" id="index-detail" aria-label="{% translate 'Selected index' %}">
+    <div class="indices__pane-body">
     <p class="sr-only" aria-live="polite" data-index-said></p>
     {% for row in rows %}{% include "stations/_index_detail.html" %}{% endfor %}
+    </div>
   </aside>
 </div>
 

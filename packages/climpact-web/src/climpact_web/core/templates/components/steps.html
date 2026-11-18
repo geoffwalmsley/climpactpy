@@ -1,7 +1,7 @@
 {% load i18n %}{% comment %}
-Step indicator for the batch and gridded pages (the single station has workspace tabs since
-#179). Parameter: steps, from climpact_web.core.navigation.batch_steps or
-gridded_steps(current, urls); label (optional,
+Step indicator for the gridded pages (the single station has workspace tabs since #179,
+and the batch none since #234). Parameter: steps, from
+climpact_web.core.navigation.gridded_steps(current, urls); label (optional,
 the navigation's name when a page shows more than one). Completed steps link back when
 they have a URL. On narrow screens only the current step's label shows.
 {% endcomment %}

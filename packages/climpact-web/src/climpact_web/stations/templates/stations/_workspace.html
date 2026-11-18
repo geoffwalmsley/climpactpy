@@ -12,7 +12,11 @@ Context: analysis, workspace_tabs, workspace_current and provenance
 (stations.workspace.context), heading, actions (optional: a template with the page's
 actions, such as Download all), inputs and inputs_bar (stations.workspace.inputs_panel;
 the bar shows where the page has the Inputs panel), no_inputs_bar (a page without the
-panel, such as an input's own page).
+panel, such as an input's own page); edit_inputs (the Indices, #263, and Quality, #264:
+"Edit inputs" at the end of the provenance line, which takes the Inputs bar's place where
+the page is wide enough). From workspace.context too: the breadcrumb to the workspace and
+the previous and next station (#234), or, in a workspace of one station, "Add stations"
+at the end of the provenance line (stations/_station_links.html).
 {% endcomment %}{% translate "Station sections" as tabs_label %}
-{% if inputs and not no_inputs_bar %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" %}
-{% else %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="" %}{% endif %}
+{% if inputs and not no_inputs_bar %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="stations/_inputs_bar.html" provenance_end="stations/_station_links.html" %}
+{% else %}{% include "components/context_bar.html" with title=analysis.station_name|default:analysis.file_name tabs=workspace_tabs below="" provenance_end="stations/_station_links.html" %}{% endif %}

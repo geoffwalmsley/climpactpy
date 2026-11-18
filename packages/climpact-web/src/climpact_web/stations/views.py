@@ -23,7 +23,6 @@ other session gets 404.
 from __future__ import annotations
 
 import csv
-import datetime as dt
 import gzip
 from pathlib import Path
 
@@ -32,7 +31,6 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ngettext
@@ -54,7 +52,7 @@ from climpact_web.stations.forms import (
     UploadForm,
 )
 from climpact_web.stations.forms_indices import IndexParamsForm
-from climpact_web.stations.models import Source, Station, Step, Workspace
+from climpact_web.stations.models import Source, Station, Step
 from climpact_web.stations.station_file import (
     Inspection,
     inspect_station_bytes,
@@ -84,13 +82,33 @@ def get_analysis(request, workspace_id, slug) -> Station:
     """The station ``slug`` of the workspace ``workspace_id``, if it is this session's; 404
     otherwise, also for a station of another session's workspace."""
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(
+    station = get_object_or_404(
         Station.objects.select_related("workspace"),
         workspace_id=workspace_id,
         slug=slug,
         owner=owner,
         workspace__owner=owner,
     )
+    return filled(station)
+
+
+def filled(station: Station) -> Station:
+    """The station, with how its batch's run went recorded once the run has finished
+    (``batch.fill``), when it is opened before its workspace's overview (#234), which
+    records it otherwise."""
+    origin = station.origin or {}
+    recorded = origin.get("run") or {}
+    if recorded.get("state") != "waiting" or not origin.get("batch"):
+        return station
+    from climpact_web.batch.fill import fill_workspace
+    from climpact_web.batch.models import BatchRun
+
+    run = BatchRun.objects.filter(pk=origin["batch"], job_id=recorded.get("job")).first()
+    if run is None or run.job.status != Status.SUCCEEDED:
+        return station
+    fill_workspace(run)
+    station.refresh_from_db()
+    return station
 
 
 def get_station(request, station_id) -> Station:
@@ -301,6 +319,8 @@ def new_station(request, workspace_id=None, slug=None):
     the file. A station already set up has no setup page: its address leads to Quality's
     "Your data", and later changes are made in the Inputs panel (#198)."""
     analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
+    if analysis is None and request.method != "POST":
+        return redirect("stations:add")  # New station is Add stations since #233
     if analysis is not None and request.method != "POST" and workspace.set_up(analysis):
         return redirect(analysis.url("qc") + "#your-data")
     if request.method != "POST":
@@ -370,8 +390,8 @@ def new_station(request, workspace_id=None, slug=None):
 
 @require_http_methods(["GET", "HEAD", "POST"])
 def upload(request):
-    """The upload page's old address (before #201): to the New station page."""
-    return redirect("stations:new")
+    """The upload page's old address (before #201): to Add stations (#233)."""
+    return redirect("stations:add")
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
@@ -390,7 +410,7 @@ def sample(request):
     """One click: an analysis of the Sydney sample with its metadata filled in, on its
     setup page, to check and calculate."""
     if request.method != "POST":
-        return redirect("stations:new")
+        return redirect("stations:add")
     inspection = inspect_station_bytes(sample_bytes())
     with transaction.atomic():
         analysis = Station(owner=owner_token(request), source=Source.SAMPLE)
@@ -501,7 +521,7 @@ def delete(request, workspace_id, slug):
     analysis.delete_files()
     analysis.delete()
     messages.success(request, _("The station data were deleted."))
-    return redirect("stations:new")
+    return redirect("stations:add")
 
 
 # ---- Step 2: quality control (#77) ----------------------------------------------------
@@ -513,27 +533,56 @@ def step_two_ready(analysis: Station) -> bool:
     )
 
 
-def table_pages(request, review) -> dict[str, object]:
-    """The page of each table on the screen, by its ``table_id``: ``?<table_id>_page=``
-    (the pager without htmx)."""
-    pages = {}
-    for table in review.tables:
-        try:
-            number = int(request.GET.get(f"{table.table_id}_page", 1))
-        except ValueError:
-            number = 1
-        pages[table.table_id] = table.page(number)
-    return pages
+def _number(text: str | None, default: int = 1) -> int:
+    try:
+        return int(text or default)
+    except ValueError:
+        return default
+
+
+def check_detail(review, group, number: int, sort: str, date: str) -> dict:
+    """What a check's detail shows (#264): a page of its values table, sorted largest
+    first or by date, the selected value (``date`` when it is on that page, else the
+    page's first row) with the days around it, and its two charts."""
+    from climpact_web.stations import qc_review
+
+    check = group.check
+    page = check.page(number, sort)
+    row = check.row_of(date) if date else None
+    if row is None or row not in page.rows:
+        row = page.rows[0] if page.rows else None
+    return {
+        "page": page,
+        "value": review.value(check, row),
+        "when": review.when(group, row),
+        "months": qc_review.months_chart(group.by_month),
+        "selected_date": row.date if row else "",
+    }
+
+
+def check_state(request, check) -> tuple[int, str, str]:
+    """A check's page, order and selected value from the address, without JavaScript:
+    ``?<table_id>_page=``, ``_sort=`` (size or date) and ``_value=`` (a date; its page
+    when no page is given)."""
+    prefix = check.table_id
+    sort = request.GET.get(f"{prefix}_sort", "size")
+    date = request.GET.get(f"{prefix}_value", "")
+    if f"{prefix}_page" in request.GET:
+        number = _number(request.GET.get(f"{prefix}_page"))
+    else:
+        number = check.page_of(date, sort) if date else 1
+    return number, sort, date
 
 
 def selected_item(request, review) -> str:
-    """The item of the list shown in detail (#202): ``?show=``, or without it the table
-    whose page the address asks for (a pager's link), or none (the first)."""
+    """The check shown in detail (#202, #264): ``?show=``, or without it the check whose
+    page, order or value the address asks for (a link in its detail), or none (the
+    first)."""
     show = request.GET.get("show", "")
     if show:
         return show
     for table in review.tables:
-        if f"{table.table_id}_page" in request.GET:
+        if any(f"{table.table_id}_{k}" in request.GET for k in ("page", "sort", "value")):
             return table.table_id
     return ""
 
@@ -575,35 +624,23 @@ def qc_context(request, analysis: Station, **extra) -> dict:
     if review is not None:
         from climpact_web.stations import qc_plots
 
-        pages = table_pages(request, review)
         selected = review.item(selected_item(request, review))
         items = [
             {
                 "item": item,
-                "page": pages.get(item.check.table_id) if not item.finding else None,
                 "selected": item.id == selected.id,
+                **check_detail(review, item.group, *check_state(request, item.check)),
             }
             for item in review.items
         ]
         context.update(
             review=review,
             items=items,
+            # The rail (#264): "Look wrong", then "Worth a look", each check a row.
             wrong_items=[i for i in items if i["item"].wrong],
-            # "Look wrong" by check (#235): each check's findings, then its every row.
-            wrong_groups=[
-                {
-                    "check": found.check,
-                    "entries": [
-                        i for i in items if i["item"].wrong and i["item"].check is found.check
-                    ],
-                }
-                for found in review.findings
-            ],
             worth_items=[i for i in items if not i["item"].wrong],
             selected=selected,
-            findings=[{"list": f, "page": pages[f.check.table_id]} for f in review.findings],
-            groups=[{"group": g, "page": pages[g.check.table_id]} for g in review.groups],
-            month_names=[date_format(dt.date(2001, m, 1), "M") for m in range(1, 13)],
+            month_names=qc_review.month_names(),
             charts=[
                 {
                     "variable": v,
@@ -658,8 +695,11 @@ def qc_progress(request, workspace_id, slug):
 @never_cache
 @require_safe
 def qc_table(request, workspace_id, slug, check):
-    """One page of a table (htmx): a check's, or with ``?group=`` one of its groups;
-    ``?page=``, or ``?date=`` for the page holding that date (a flag picked on a chart)."""
+    """A check's values table and selected value (htmx, #264): a check's, or with
+    ``?group=`` one of its groups; ``?page=`` and ``?sort=`` (size or date), and
+    ``?date=`` for the value selected, on the page holding it when no page is given. A
+    date the check did not find, asked for with htmx (a flag picked on a daily chart),
+    gets no content, so the detail stays as it was."""
     from climpact_web.stations import qc_review
 
     analysis = get_analysis(request, workspace_id, slug)
@@ -667,19 +707,20 @@ def qc_table(request, workspace_id, slug, check):
     if check not in qc_review.CHECK_KEYS or job is None:
         raise Http404
     review = qc_review.review(job, analysis.station_file)
-    item = review.table(check, request.GET.get("group", ""))
-    if item is None:
+    table = review.table(check, request.GET.get("group", ""))
+    if table is None:
         raise Http404
-    date = request.GET.get("date", "")
-    if date:
-        number = item.page_of(date)
+    sort, date = request.GET.get("sort", "size"), request.GET.get("date", "")
+    if date and table.row_of(date) is None and request.headers.get("HX-Request"):
+        return HttpResponse(status=204)
+    if "page" in request.GET or not date:
+        number = _number(request.GET.get("page"))
     else:
-        try:
-            number = int(request.GET.get("page", 1))
-        except ValueError:
-            number = 1
-    context = {"analysis": analysis, "check": item, "page": item.page(number), "selected": date}
-    return render(request, "stations/_qc_table.html", context)
+        number = table.page_of(date, sort)
+    group = review.group_of(table)
+    context = {"analysis": analysis, "group": group, "check": table}
+    context.update(check_detail(review, group, number, sort, date))
+    return render(request, "stations/_qc_values.html", context)
 
 
 @never_cache
@@ -699,10 +740,16 @@ def qc_flagged(request, workspace_id, slug):
         raise Http404 from exc
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     name = safe_station_name(analysis.station_name or "station") or "station"
-    response["Content-Disposition"] = f'attachment; filename="{name}_flagged_values.csv"'
+    # One check's values (#264): ?check= and, for an outliers group, &group=.
+    key, group = request.GET.get("check", ""), request.GET.get("group", "")
+    if key and review.table(key, group) is None:
+        raise Http404
+    part = f"{key}-{group}" if group else key
+    file_name = f"{name}_{part}_values.csv" if key else f"{name}_flagged_values.csv"
+    response["Content-Disposition"] = f'attachment; filename="{file_name}"'
     writer = csv.writer(response)
     writer.writerow(qc_review.FLAGGED_COLUMNS)
-    writer.writerows(qc_review.flagged_rows(review))
+    writer.writerows(qc_review.flagged_rows(review, key, group))
     return response
 
 
@@ -731,34 +778,6 @@ def qc_continue(request, workspace_id, slug):
 def station_home(request, workspace_id, slug):
     """``/w/<id>/<station>/``: the furthest section the station has reached (#179)."""
     return redirect(workspace.home_url(get_analysis(request, workspace_id, slug)))
-
-
-@never_cache
-@require_safe
-def workspace_page(request, workspace_id):
-    """``/w/<id>/`` (#256), the one address of a batch's results. A workspace of one
-    station opens it straight away (the Flow board: no overview), at its furthest section:
-    Quality while it waits, Indices once calculated or failed (which say why), the New
-    station page when the batch had no file for it. Otherwise, until the overview of #234
-    (``Calculate.dc.html``), the batch's pages stand in: its results once it has been
-    queued, after recording how a finished run went (``batch.fill``), else its check page."""
-    from climpact_web.batch import views as batch_views
-    from climpact_web.batch.fill import fill_workspace
-    from climpact_web.batch.models import BatchRun
-
-    owner = request.session.get(OWNER_KEY) or "-"
-    space = get_object_or_404(Workspace, pk=workspace_id, owner=owner)
-    run = BatchRun.objects.filter(workspace=space, owner=owner).first()
-    if run is not None and run.job_id:
-        fill_workspace(run)
-    stations = list(space.stations.filter(owner=owner)[:2])
-    if len(stations) == 1 or (stations and run is None):
-        return redirect(workspace.home_url(stations[0]))
-    if run is None:
-        raise Http404
-    if run.job_id:
-        return batch_views.results(request, workspace_id)
-    return batch_views.check_page(request, workspace_id)
 
 
 # Sections renamed by #256 in the old ``/station/<id>/`` addresses: Results is ``indices``,

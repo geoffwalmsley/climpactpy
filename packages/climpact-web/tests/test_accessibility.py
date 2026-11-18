@@ -170,6 +170,27 @@ def wait_for(
     )
 
 
+# A station file of two years, readable.
+GOOD_FILE = "".join(
+    f"{d.year} {d.month} {d.day} 0 20 10\n"
+    for d in (dt.date(2000, 1, 1) + dt.timedelta(days=k) for k in range(731))
+)
+
+
+def setup_sample(c: Chrome, open_url) -> None:
+    """The Sydney sample on its station's setup page (``/station/sample``, the old New
+    station's sample, which Add stations replaced, #233): the page a station's new file
+    that needs new details comes back to."""
+    c.navigate(open_url("/add/"))
+    c.evaluate(
+        "var f = document.createElement('form'); f.method = 'post';"
+        " f.action = '/station/sample'; f.id = 'old-sample';"
+        " f.appendChild(document.querySelector('[name=csrfmiddlewaretoken]').cloneNode());"
+        " document.body.appendChild(f)"
+    )
+    submit(c, "#old-sample")
+
+
 def choose_file(c: Chrome, input: str, name: str, text: str) -> None:
     """Choose a file in a file input (a CSS selector) as the file picker would, and wait
     for the page the change sends the form to (the New station page's, #201)."""
@@ -218,8 +239,8 @@ def site(chrome, server):
     for name, path in [
         ("landing", "/"),
         ("pattern library", "/patterns/"),
-        ("station new", "/station/new"),
-        ("batch start", "/batch/"),
+        ("add stations", "/add/"),
+        ("workspace open", "/w/open/"),  # Open a workspace file (#240)
         ("gridded start", "/gridded/"),
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),
@@ -232,21 +253,24 @@ def site(chrome, server):
         pages[name] = open_url(path)
 
     def upload_errors(c):
-        """ "Check and calculate" with no file: the file's step asks for one (#201)."""
-        c.navigate(open_url("/station/new"))
-        submit(c, "#new-station", "#new-station button[value=go]")
+        """Add stations sent without a file: it asks for one (#233)."""
+        c.navigate(open_url("/add/"))
+        c.evaluate("document.querySelector('[data-nojs]').hidden = false")
+        submit(c, "#add-form", "#add-form button[value=files]")
 
     def file_errors(c):
-        """A file that cannot be read, chosen (so sent at once): its problems (#201)."""
-        c.navigate(open_url("/station/new"))
-        choose_file(c, "#id_station_file", "bad.txt", "2000 1 1 0 20 10\n2000 1 2 0.4 21\n")
+        """Files chosen (so sent at once), one that cannot be read and one with no
+        coordinates: the review table says so, every problem at once (#233)."""
+        c.navigate(open_url("/add/"))
+        choose_file(c, "[data-add-files]", "bad.txt", "2000 1 1 0 20 10\n2000 1 2 0.4 21\n")
+        choose_file(c, "[data-add-files]", "good.txt", GOOD_FILE)
 
-    pages["station new, errors"] = upload_errors
-    pages["station new, file errors"] = file_errors
+    pages["add stations, errors"] = upload_errors
+    pages["add stations, file errors"] = file_errors
 
-    # Station steps 1-5 with the Sydney sample.
-    c.navigate(open_url("/station/new"))
-    submit(c, "#sample-form")
+    # Station steps 1-5 with the Sydney sample, from a station's own setup page (a new
+    # file that needs new details; Add stations' sample opens Quality at once).
+    setup_sample(c, open_url)
     load = pages["station sample loaded"] = here(c)
 
     def metadata_errors(c):
@@ -260,17 +284,13 @@ def site(chrome, server):
     pages["station details, errors"] = metadata_errors
 
     # The rest on a second sample, so the first stays on its details page: once they are
-    # confirmed, its address leads to Quality (#198).
-    c.navigate(open_url("/station/new"))
+    # confirmed, its address leads to Quality (#198). Add stations' sample (#233).
+    c.navigate(open_url("/add/"))
     submit(c, "#sample-form")
-    submit(c, "#new-station", "#new-station button[value=go]")
     heard = while_running(c, "station quality checks")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the quality checks", heard=heard)  # fmt: skip
     pages["station quality results"] = here(c)
-    table = c.evaluate("(document.querySelector('a[href*=\"/quality/checks/\"]') || {}).href")
-    if table:
-        pages["station quality table"] = table
     # "Use this data" opens the results of the run queued with the checks (#178), or its
     # progress until it has finished.
     submit(c, "form[action$='/quality/continue']")
@@ -318,9 +338,8 @@ def site(chrome, server):
     # a new base period in the Inputs panel's sheet (#198), its run's progress over the old
     # results, then that run cancelled, which leaves the old results out of date under
     # "Recalculate".
-    c.navigate(open_url("/station/new"))
+    c.navigate(open_url("/add/"))
     submit(c, "#sample-form")
-    submit(c, "#new-station", "#new-station button[value=go]")
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the second station's checks")  # fmt: skip
     submit(c, "form[action$='/quality/continue']")
@@ -345,30 +364,39 @@ def site(chrome, server):
     )
     pages["job"] = job
 
-    # The sample batch.
-    c.navigate(open_url("/batch/"))
-    submit(c, "form[action$='/batch/sample']")
-    pages["batch check"] = here(c)
-    submit(c, "form[action$='/run']")
+    # The sample batch, from the help: its two files reviewed on Add stations (#233), then
+    # added, which runs them as a batch.
+    c.navigate(open_url("/help/"))
+    submit(c, "form[action$='/add/sample-batch']")
+    pages["add stations, review"] = here(c)
+    submit(c, "#add-form", "#add-form button[value=add]")
     heard = while_running(c, "batch")
     # Keyboard focus on the cancel button stays there while the progress is polled: the
     # mark goes when the progress replaces itself (the first poll, or the batch's end).
-    cancel = "#batch-progress form[action$='/cancel'] button"
+    cancel = "#workspace-progress form[action$='/cancel'] button"
     c.evaluate(
         f"document.querySelector({json.dumps(cancel)}).focus();"
-        "document.querySelector('#batch-progress').dataset.a11yMark = '1'"
+        "document.querySelector('#workspace-progress').dataset.a11yMark = '1'"
     )
-    swapped = "!(document.querySelector('#batch-progress') || {dataset: {}}).dataset.a11yMark"
+    swapped = "!(document.querySelector('#workspace-progress') || {dataset: {}}).dataset.a11yMark"
     wait_for(c, swapped, timeout=10, what="the batch's progress to update", heard=heard)
     WHILE_RUNNING["batch"]["focus"] = c.evaluate(
-        "({swapped: !document.querySelector('#batch-progress').dataset.a11yMark,"
-        " running: document.querySelector('#batch-progress').dataset.status !== 'succeeded',"
+        "({swapped: !document.querySelector('#workspace-progress').dataset.a11yMark,"
+        " running: document.querySelector('#workspace-progress').dataset.status !== 'finished',"
         f" kept: document.activeElement === document.querySelector({json.dumps(cancel)})}})"
     )
-    wait_for(c, "document.querySelector('[data-status]') &&"
-             " document.querySelector('[data-status]').dataset.status === 'succeeded'",
+    wait_for(c, "document.querySelector('#workspace-progress') &&"
+             " document.querySelector('#workspace-progress').dataset.status === 'finished'",
              what="the batch", heard=heard)  # fmt: skip
-    pages["batch results"] = here(c)
+    # The workspace's overview (#234), its settings and Rename.
+    pages["workspace overview"] = here(c).split("#")[0]
+    pages["workspace settings"] = pages["workspace overview"] + "settings/"
+    pages["workspace setting"] = pages["workspace overview"] + "settings/base-period"
+    pages["workspace rename"] = pages["workspace overview"] + "rename"
+    pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
+    pages["workspace compare"] = pages["workspace overview"] + "compare/"  # #238
+    # Copy to workspace… (#241), from the first row of the Stations table.
+    pages["station copy"] = c.evaluate("document.querySelector('.stations-table__actions a').href")
 
     # The sample grid: thresholds, then three indices.
     c.navigate(open_url("/gridded/"))
@@ -884,8 +912,8 @@ def test_input_sheet_by_keyboard(chrome, site):
     c = chrome
     c.viewport(1280, 900)
     try:
-        # The panel is beside Quality; the Indices have the Inputs bar (#236).
-        c.navigate(site["station quality results"])
+        # The panel is beside Files; the Indices and Quality have "Edit inputs" (#263, #264).
+        c.navigate(site["station downloads"])
         edit = "[data-sheet-open='sheet-base-period']"
         c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
         for _ in range(80):
@@ -927,14 +955,13 @@ def test_input_sheet_by_keyboard(chrome, site):
         c.evaluate(f"document.querySelector({json.dumps(edit)}).click()")
         c.evaluate(f"{sheet}.querySelector('button[data-sheet-close]:not(.button--icon)').click()")
         assert not c.evaluate(f"{sheet}.open")
-        assert c.evaluate("location.pathname").endswith("/quality")
+        assert c.evaluate("location.pathname").endswith("/downloads")
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
 
 
 STATION_PAGES = (
-    "station new",
     "station sample loaded",
     "station quality results",
     "station results",
@@ -1057,7 +1084,8 @@ def test_sticky_context_bar_never_covers_focus(chrome, site):
                     )
                     assert 30 < bar < 80, (name, bar)
         c.viewport(640, 440)  # a short window: it scrolls away with the page
-        assert c.evaluate(f"getComputedStyle({header}).position") == "static"
+        # Not sticky: relative since #239, for the layer behind it that reaches the edges.
+        assert c.evaluate(f"getComputedStyle({header}).position") == "relative"
     finally:
         c.viewport(1280, 900)
 
@@ -1131,7 +1159,9 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
     that fills the screen; an input's Edit there opens that input's sheet over it; Escape
     goes back to the list, with focus on that Edit, then to the page, with focus on the
     bar's Edit. No axe violation with either sheet open. At 1280 px the panel is back
-    beside Quality and the bar is gone; the Indices keep the bar at every width (#236)."""
+    beside Files and the bar is gone; on the Indices and Quality "Edit inputs" on the
+    provenance line takes the bar's place (#263, #264) and opens the same sheet, focus
+    returning to it."""
     c = chrome
     bar = "document.querySelector('[data-inputs-bar]')"
     panel = "document.querySelector('[data-inputs-panel]')"
@@ -1176,9 +1206,27 @@ def test_phone_inputs_bar_opens_the_sheets(chrome, site):
         assert c.evaluate(f"document.activeElement.matches({json.dumps(edit)})")
         c.viewport(1280, 900)
         c.settle(0.1)
-        assert c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{bar}.checkVisibility()")
         assert not c.evaluate(f"{panel}.checkVisibility()")
+        line_edit = ".context-bar__provenance a[data-sheet-open='sheet-inputs']"
+        assert c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.evaluate(f"document.querySelector({json.dumps(line_edit)}).focus()")
+        c.press("Enter")
+        time.sleep(0.1)
+        assert c.evaluate(f"{inputs}.open && {inputs}.contains(document.activeElement)")
+        c.press("Escape")
+        time.sleep(0.1)
+        assert not c.evaluate(f"{inputs}.open")
+        assert c.evaluate(f"document.activeElement.matches({json.dumps(line_edit)})")
+        c.viewport(375, 812)
+        c.settle(0.1)
+        assert not c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.viewport(1280, 900)
         c.navigate(site["station quality results"])
+        assert not c.evaluate(f"{bar}.checkVisibility()")
+        assert not c.evaluate(f"{panel}.checkVisibility()")
+        assert c.evaluate(f"document.querySelector({json.dumps(line_edit)}).checkVisibility()")
+        c.navigate(site["station downloads"])
         assert not c.evaluate(f"{bar}.checkVisibility()")
         assert c.evaluate(f"{panel}.checkVisibility()")
     finally:
@@ -1257,10 +1305,10 @@ def test_help_reachable_from_every_section_of_the_station_pages(chrome, site):
 
 
 def test_drop_zone_by_keyboard(chrome, site):
-    """The drop zone's file input is a Tab stop, shows its focus on the drop zone, and
+    """Add stations' file input (#233) is a Tab stop, shows its focus on its button, and
     Space or Enter opens the file chooser."""
     c = chrome
-    c.navigate(site["station new"])
+    c.navigate(site["add stations"])
     c.evaluate(START)
     for _ in range(40):
         c.press("Tab")
@@ -1268,9 +1316,8 @@ def test_drop_zone_by_keyboard(chrome, site):
             break
     else:
         raise AssertionError("Tab never reached the file input")
-    ring = c.evaluate("getComputedStyle(document.activeElement.closest('[data-dropzone]'))"
-                      ".outlineStyle")  # fmt: skip
-    assert ring != "none", "the drop zone shows no focus"
+    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
+    assert ring != "none", "the file button shows no focus"
     c.send("Page.setInterceptFileChooserDialog", enabled=True)
     try:
         c.events.clear()
@@ -1280,45 +1327,46 @@ def test_drop_zone_by_keyboard(chrome, site):
         c.send("Page.setInterceptFileChooserDialog", enabled=False)
 
 
-def test_new_station_by_keyboard(chrome, site, server):
-    """#201: the New station page in Tab order (the file, the sample, the details, then
-    "Check and calculate"); a chosen file is read at once and the page comes back with
-    focus on the file card and the details typed kept; Replace is the next Tab stop; no
-    axe violation in light, dark and at 320 px; Enter on "Check and calculate" lands on
-    Quality. Errors in the file or the details take focus to their summary."""
+# The focused element's name ("name" for "name-0") or, for a button, its intent.
+NAME_OF_FOCUSED = (
+    "(function (e) { return e.name === 'intent' ? e.value"
+    " : (e.name || '').replace(/-\\d+$/, '') })(document.activeElement)"
+)
+CHANGED = "document.activeElement.dispatchEvent(new Event('change', {bubbles: true}))"
+
+
+def test_add_stations_by_keyboard(chrome, site, server):
+    """#233: Add stations' review in Tab order (the files, the sample, then each row's
+    name, latitude and longitude, then Cancel and Add); a chosen file is sent at once; the
+    table is checked as it is typed (the button's count and the row's Read column change);
+    Enter in a cell moves down a row; no axe violation in light, dark and at 320 px; Enter
+    on the Add button lands on the station's Quality. The details' errors on a station's
+    own setup page take focus to their summary."""
     c = chrome
-    for name in ("station new, errors", "station new, file errors", "station details, errors"):
-        open_page(c, site[name])
-        assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')"), name
-    c.navigate(urljoin(server, "/station/new"))
-    assert c.evaluate("document.getElementById('read-file').hidden")  # sent on choosing
+    open_page(c, site["station details, errors"])
+    assert c.evaluate("document.activeElement.hasAttribute('data-error-summary')")
+    c.navigate(urljoin(server, "/add/"))
+    assert c.evaluate("document.querySelector('[data-nojs]').hidden")  # sent on choosing
+    choose_file(c, "[data-add-files]", "keyboard_hill_2000-2001.txt", GOOD_FILE)
+    assert "/add/" in c.evaluate("location.pathname")
+    button = "document.querySelector('[data-add-button]')"
+    assert c.evaluate(f"{button}.textContent") == "Add 0 stations and check them"
     c.evaluate(START)
     order = []
     for _ in range(40):
         c.press("Tab")
-        el = c.evaluate("(function (e) { return e.name === 'intent' ? e.value"
-                        " : e.name || e.textContent.trim() })(document.activeElement)")  # fmt: skip
-        if el in ("station_file", "Use the sample data", "station_name", "latitude",
-                  "longitude", "base_start", "base_end", "go"):  # fmt: skip
+        el = c.evaluate(NAME_OF_FOCUSED)
+        if el in ("files", "sample", "name", "lat", "lon", "cancel", "add"):
             order.append(el)
-        if el == "go":
+        if el == "add":
             break
-    assert order == ["station_file", "Use the sample data", "station_name", "latitude",
-                     "longitude", "base_start", "base_end", "go"]  # fmt: skip
-    c.evaluate("var f = document.getElementById('new-station'); f.station_name.value ="
-               " 'Keyboard Hill'; f.latitude.value = '-35.3'; f.longitude.value = '149.1';"
-               " f.base_start.value = '2000'; f.base_end.value = '2001'")  # fmt: skip
-    days = (dt.date(2000, 1, 1) + dt.timedelta(days=k) for k in range(731))
-    text = "".join(f"{d.year} {d.month} {d.day} 0 20 10\n" for d in days)
-    choose_file(c, "#id_station_file", "keyboard.txt", text)
-    assert c.evaluate("location.pathname").endswith("/setup")
-    assert c.evaluate("document.activeElement.id") == "file-card"
-    assert c.evaluate("document.getElementById('id_station_name').value") == "Keyboard Hill"
-    assert c.evaluate("document.getElementById('id_latitude').value") == "-35.3"
-    c.press("Tab")
-    assert c.evaluate("document.activeElement.closest('[data-setup-replace]') !== null")
-    ring = c.evaluate("getComputedStyle(document.activeElement.closest('label')).outlineStyle")
-    assert ring != "none", "Replace shows no focus"
+    assert order == ["files", "sample", "name", "lat", "lon", "cancel", "add"]
+    for cell, value in (("latitude", "-35.3"), ("longitude", "149.1")):
+        focus(c, f"[data-cell={cell}]")
+        c.evaluate(f"document.activeElement.value = '{value}'; {CHANGED}")
+    wait_for(c, f"{button}.textContent === 'Add 1 station and check it'",
+             what="the table checked as it is typed")  # fmt: skip
+    assert c.evaluate("document.querySelector('[data-status]').textContent").startswith("Read")
     try:
         for scheme, width in (("light", 1280), ("dark", 1280), ("light", 320)):
             c.media(prefers_color_scheme=scheme)
@@ -1329,12 +1377,13 @@ def test_new_station_by_keyboard(chrome, site, server):
     finally:
         c.media(prefers_color_scheme="light")
         c.viewport(1280, 900)
-    focus(c, "#new-station button[value=go]")
+    focus(c, "[data-add-button]")
     c.events.clear()
     c.press("Enter")
     c.wait_event("Page.loadEventFired", timeout=60)
     c.settle()
     assert c.evaluate("location.pathname").endswith("/quality")
+    assert "Keyboard Hill" in c.evaluate("document.querySelector('h1').textContent")
 
 
 def test_chart_by_keyboard(chrome, site):
@@ -1387,9 +1436,9 @@ def test_index_page_views_and_citation(chrome, site):
     set_mode(c)
     copy = "document.querySelector('.context-bar__actions [data-citation-copy]')"
     assert c.evaluate(f"!{copy}.hidden")
-    assert c.evaluate("document.querySelector('.context-bar__actions .citation__details').hidden")
+    assert c.evaluate("document.querySelector('.context-bar__actions .pop__details').hidden")
     assert c.evaluate("document.querySelector('[data-citation-text]').textContent").startswith(
-        "sydney_observatory_hill_1936-2015, TXx (Hottest day), 1936–2015"
+        "Sydney Observatory Hill, TXx (Hottest day), 1936–2015"  # the sample's name (#219)
     )
 
 
@@ -1444,7 +1493,8 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     and "Significant only", and sorted by its column headers, which are buttons here
     (links without JavaScript): Enter sorts, again reverses, aria-sort moves to the sorted
     column, and the live line says how many rows show and how they are sorted. The order is
-    the server's, and the state is kept in the address."""
+    the server's, and the state is kept in the address. It opens sorted by the size of the
+    trend (#263), which no column has and the address leaves out."""
     c = chrome
     rows = "[...document.querySelectorAll('[data-results-table] tbody tr')]"
     shown = rows + ".filter(function (r) { return !r.hidden })"
@@ -1458,6 +1508,11 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     by_name = c.evaluate(keys)  # the server's order
     c.navigate(site["station results"])
     assert c.evaluate(f"{shown}.length") == 80 and c.evaluate(sorted_by) == []
+    sizes = c.evaluate(
+        shown + ".filter(function (r) { return r.dataset.trend !== '' })"
+        ".map(function (r) { return Math.abs(Number(r.dataset.trend)) })"
+    )
+    assert sizes == sorted(sizes, reverse=True) and len(sizes) > 60
     assert c.evaluate("document.getElementById('results-count').getAttribute('aria-live')") == (
         "polite"
     )
@@ -1469,7 +1524,9 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     focus(c, "#results-q")
     c.send("Input.insertText", text="frost")
     wait_for(c, f"{shown}.length === 1", timeout=10, what="the search to filter")
-    assert c.evaluate(said) == "Showing 1 of 80 indices." and "q=frost" in here(c)
+    size = "Sorted by the size of the trend, largest first."
+    assert c.evaluate(said) == f"Showing 1 of 80 indices. {size}" and "q=frost" in here(c)
+    assert "sort=" not in here(c)
     c.evaluate("var q = document.getElementById('results-q'); q.value = '';"
                " q.dispatchEvent(new Event('input', {bubbles: true}))")  # fmt: skip
     assert c.evaluate(f"{shown}.length") == 80 and "q=" not in here(c)
@@ -1482,20 +1539,20 @@ def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     focus(c, "input[name=significant]")
     c.press(" ")
     wait_for(c, f"{shown}.length === 9", timeout=10, what="Significant only")
-    assert c.evaluate(said) == "Showing 9 of 80 indices."
+    assert c.evaluate(said) == f"Showing 9 of 80 indices. {size}"
     assert "theme=heat" in here(c) and "significant=1" in here(c)
 
     # Sorting by keyboard: Enter on a header sorts, again reverses; announced.
     focus(c, "th[data-sort-key=trend] button")
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend descending"]
-    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Slope / decade, descending."
+    assert c.evaluate(said) == "Showing 9 of 80 indices. Sorted by Slope per decade, descending."
     slopes = c.evaluate(shown + ".map(function (r) { return Number(r.dataset.trend) })")
     assert slopes == sorted(slopes, reverse=True)
-    assert c.evaluate("document.activeElement.textContent") == "Slope / decade"
+    assert c.evaluate("document.activeElement.textContent") == "Slope per decade"
     c.press("Enter")
     assert c.evaluate(sorted_by) == ["trend ascending"]
-    assert c.evaluate(said).endswith("Sorted by Slope / decade, ascending.")
+    assert c.evaluate(said).endswith("Sorted by Slope per decade, ascending.")
     assert "sort=trend" in here(c) and "dir=ascending" in here(c)
 
     # Every row again, sorted by name: the server's order.
@@ -1595,13 +1652,14 @@ def test_indices_table_and_detail_by_keyboard(chrome, site):
 
 
 def test_quality_list_and_detail_by_keyboard(chrome, site):
-    """#202: the list's rows are links, Tab moves between them and Enter shows the row's
-    detail in place, marks the row, puts ?show= in the address and announces the
-    detail's title; on a narrow screen focus moves to the detail below the list, and "Back
-    to the list" returns it to the row (#235). Beside the list the detail pane stays in
-    view: the last row's detail is in the viewport (#235). "Show on the daily chart" in a
-    finding's detail opens the daily charts and focuses the chart (#174); "Replace file"
-    opens the Inputs panel's File sheet (#199)."""
+    """#202, #264: the rail's checks are links, Tab moves between them and Enter shows
+    the check's detail in place, marks it, puts ?show= in the address and announces the
+    detail's title; on a narrow screen focus moves to the detail below the rail, and
+    "Back to the list" returns it to the check (#235). Beside the detail the rail stays in
+    view: the last check's detail is in the viewport. A value's date selects it in place
+    (htmx), focus staying on it, its title announced; "Table" shows the months as a
+    table. "Show on the daily chart" opens the daily charts and focuses the chart
+    (#174)."""
     c = chrome
     c.navigate(site["station quality results"])
     items = "[...document.querySelectorAll('[data-qc-item]')]"
@@ -1609,7 +1667,7 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
     current = "[...document.querySelectorAll('[data-qc-item][aria-current=true]')].map(a => a.dataset.qcItem)"  # noqa: E501
     said = "document.querySelector('[data-qc-said]').textContent"
     ids = c.evaluate(f"{items}.map(a => a.dataset.qcItem)")
-    assert len(ids) == 5 + 4  # Sydney: 5 findings, 4 groups
+    assert len(ids) > 4  # Sydney: its "look wrong" checks, then 4 groups
     assert c.evaluate(shown) == [ids[0]] and c.evaluate(current) == [ids[0]]  # the first
     # Tab moves along the list.
     focus(c, f"[data-qc-item='{ids[0]}']")
@@ -1624,9 +1682,34 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         wait_for(c, f"{said} === {title}", timeout=5, what=f"the announcement of {i}")
         assert c.evaluate("document.activeElement.dataset.qcItem") == i
         assert f"show={i}" in here(c)
-    # A group's detail has its table, paged with htmx.
+    # A check's detail has its values table, paged with htmx.
     group = ids[-1]
     assert c.evaluate(f"!!document.querySelector('[data-qc-detail=\"{group}\"] [data-qc-table]')")
+    # A value selected by keyboard: in place, focus on its date, its title announced, the
+    # When chart's ring on it, its address kept.
+    detail = f"document.querySelector('[data-qc-detail=\"{group}\"]')"
+    dates = c.evaluate(
+        f"[...{detail}.querySelectorAll('[data-qc-value]')].map(a => a.dataset.qcValue)"
+    )
+    if len(dates) > 1:
+        focus(c, f"[data-qc-detail='{group}'] [data-qc-value='{dates[1]}']")
+        c.press("Enter")
+        wait_for(c, f"{detail}.querySelector('[data-qc-table]').dataset.selected === '{dates[1]}'",
+                 timeout=10, what="the value selected")  # fmt: skip
+        assert c.evaluate("document.activeElement.dataset.qcValue") == dates[1]
+        value = f"{detail}.querySelector('[data-qc-value-title]').textContent"
+        value += ".replace(/\\s+/g, ' ').trim()"
+        wait_for(c, f"{said} === {value}", timeout=5, what="the value's announcement")
+        assert f"_value={dates[1]}" in here(c)
+        ring = c.evaluate(f"{detail}.querySelector('[data-qc-ring]').getAttribute('cx')")
+        # On the value, or out of sight for a value with nothing to draw.
+        ring_x = f"{detail}.querySelector('[data-qc-table]').dataset.ringX || '-20'"
+        assert ring == c.evaluate(ring_x)
+    # By calendar month as a table.
+    focus(c, f"[data-qc-detail='{group}'] [data-qc-months-toggle]")
+    c.press("Enter")
+    assert c.evaluate(f"{detail}.querySelector('[data-qc-months-table]').checkVisibility()")
+    assert not c.evaluate(f"{detail}.querySelector('[data-qc-months-chart]').checkVisibility()")
     # Reloaded, the address shows the same detail.
     c.navigate(here(c))
     assert c.evaluate(shown) == [group] and c.evaluate(current) == [group]
@@ -1668,7 +1751,7 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         c.press("Enter")
         assert c.evaluate("document.activeElement.classList.contains('qc-detail__title')")
         assert c.evaluate(
-            "document.querySelector('.qc-work__list').getBoundingClientRect().bottom"
+            "document.querySelector('.qc-rail').getBoundingClientRect().bottom"
             " <= document.activeElement.getBoundingClientRect().top"
         )
         # "Back to the list" returns focus to the row.
@@ -1750,7 +1833,7 @@ def test_settings_sheet_by_keyboard(chrome, site):
         " return r.top >= 0 && r.bottom <= window.innerHeight + 1; })"
     )
     try:
-        c.navigate(site["station quality results"])  # the panel; the Indices have the bar
+        c.navigate(site["station downloads"])  # the panel; the Indices and Quality have the bar
         edit = "[data-inputs-panel] [data-sheet-open='sheet-settings']"
         focus(c, edit)
         c.press("Enter")
@@ -1804,10 +1887,13 @@ def test_settings_sheet_by_keyboard(chrome, site):
             assert c.evaluate(f"document.getElementById('sheet-{key}').matches(':modal')")
             c.press("Escape")
             time.sleep(0.1)
-            # The panel's Edit; on the Indices the settings line's link in the rail (#236).
+            # The first visible link that opens it: on the Indices the settings line's in
+            # the rail (#236), on Quality (no panel since #264) the thresholds line's.
             back = f"[data-inputs-panel] [data-sheet-open='sheet-{key}']"
             if "/indices" in url:
                 back = f"[data-settings-line] [data-sheet-open='sheet-{key}']"
+            if "/quality" in url:
+                back = f"#thresholds [data-sheet-open='sheet-{key}']"
             assert c.evaluate(f"document.activeElement.matches({json.dumps(back)})"), url
     finally:
         c.media(prefers_color_scheme="light")
@@ -1952,7 +2038,7 @@ def test_turnstile_widget_within_the_policy(chrome, turnstile_server):
     when challenges.cloudflare.com cannot be reached, unless the widget was blocked."""
     c = chrome
     c.csp_violations.clear()
-    c.navigate(urljoin(turnstile_server, "/station/new"))
+    c.navigate(urljoin(turnstile_server, "/add/"))
     assert "https://challenges.cloudflare.com" in (policy_of(c) or "")
     token = "(document.querySelector('[name=cf-turnstile-response]') || {}).value"
     deadline = time.monotonic() + 30
@@ -1982,8 +2068,7 @@ def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
     violation. Skipped when Cloudflare cannot be reached, as above."""
     c = chrome
     c.csp_violations.clear()
-    c.navigate(urljoin(turnstile_server, "/station/new"))
-    submit(c, "#sample-form")
+    setup_sample(c, lambda path: urljoin(turnstile_server, path))
     load = here(c)
     assert load.endswith("/setup")
     c.events.clear()

@@ -20,7 +20,8 @@ is the page); step_previous and step_next (optional, {label, url}: the previous 
 station; with ``code`` and ``name``, an index, named codes first); title_template
 (optional: a template drawn in place of the title, which holds the page's h1, such as an
 index's name and theme, #237); lead_template (optional: a line under the title, such as
-an index's definition); flow (true: in place as the page scrolls, for a page without
+an index's definition); provenance_end (optional: a template at the end of the provenance
+line, such as the Indices' "Edit inputs", #263); flow (true: in place as the page scrolls, for a page without
 tabs, such as an index's); actions (optional, a template
 with the page's actions); tabs (optional, the sections as components/workspace_tabs.html
 takes them) and tabs_label (their navigation's name); below (optional, a template under
@@ -40,7 +41,7 @@ window, for /patterns/).
       {% elif heading %}<h1 class="context-bar__name">{{ title }}</h1>
       {% else %}<p class="context-bar__name context-bar__name--line">{{ title }}</p>{% endif %}
       {% if lead_template %}{% include lead_template %}{% endif %}
-      {% if provenance %}<p class="context-bar__provenance">{% for part in provenance %}<span{% if not part.phone %} class="context-bar__wide"{% endif %}>{{ part.text }}</span>{% endfor %}</p>{% endif %}
+      {% if provenance %}<p class="context-bar__provenance">{% for part in provenance %}<span{% if not part.phone %} class="context-bar__wide"{% endif %}>{{ part.text }}</span>{% endfor %}{% if provenance_end %}{% include provenance_end %}{% endif %}</p>{% endif %}
     </div>
     {% if actions %}<div class="context-bar__actions">{% include actions %}</div>
     <details class="page-menu" data-page-menu>

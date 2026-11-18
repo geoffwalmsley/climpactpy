@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 23:27+0000\n"
+"POT-Creation-Date: 2026-11-18 00:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -521,7 +521,9 @@ msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
 #: batch/templates/batch/check.html:89 core/views.py:307 core/views.py:562
-#: stations/templates/stations/_overview.html:37 stations/workspace.py:774
+#: stations/templates/stations/_overview.html:37
+#: stations/templates/stations/workspace_files.html:63
+#: stations/workspace.py:774
 msgid "Station"
 msgstr ""
 
@@ -2363,18 +2365,18 @@ msgstr ""
 #: gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
-#: stations/templates/stations/downloads.html:134 stations/views_indices.py:397
+#: stations/templates/stations/downloads.html:135 stations/views_indices.py:397
 msgid "Index"
 msgstr ""
 
 #: core/templates/core/patterns.html:360 core/views.py:169
 #: stations/templates/stations/_qc_detail.html:41
-#: stations/templates/stations/downloads.html:134
+#: stations/templates/stations/downloads.html:135
 msgid "Table"
 msgstr ""
 
 #: core/templates/core/patterns.html:360
-#: stations/templates/stations/downloads.html:134
+#: stations/templates/stations/downloads.html:135
 msgid "Plot"
 msgstr ""
 
@@ -2490,7 +2492,7 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/patterns.html:437 stations/models.py:68
-#: stations/templates/stations/_results_actions.html:9
+#: stations/templates/stations/_results_actions.html:10
 #: stations/templates/stations/sector.html:14
 msgid "Compare with sector data"
 msgstr ""
@@ -2926,7 +2928,7 @@ msgid "base %(start)s–%(end)s"
 msgstr ""
 
 #: core/views.py:225 stations/views_add.py:107 stations/views_workspace.py:72
-#: stations/workspace.py:716
+#: stations/workspace.py:716 stations/workspace_files.py:268
 msgid "ET-SCI defaults"
 msgstr ""
 
@@ -2939,10 +2941,12 @@ msgid "Quality control"
 msgstr ""
 
 #: core/views.py:239 help/sections.py:166 stations/downloads.py:104
+#: stations/views_files.py:45
 msgid "Thresholds"
 msgstr ""
 
 #: core/views.py:241 help/topics.py:72 stations/downloads.py:103
+#: stations/views_files.py:44
 msgid "Trends"
 msgstr ""
 
@@ -3085,10 +3089,10 @@ msgstr ""
 
 #: core/views.py:561 gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_add_table.html:14
-#: stations/templates/stations/downloads.html:73
-#: stations/templates/stations/downloads.html:91
-#: stations/templates/stations/downloads.html:116
-#: stations/templates/stations/downloads.html:157 stations/workspace.py:773
+#: stations/templates/stations/downloads.html:74
+#: stations/templates/stations/downloads.html:92
+#: stations/templates/stations/downloads.html:117
+#: stations/templates/stations/downloads.html:158 stations/workspace.py:773
 msgid "File"
 msgstr ""
 
@@ -3103,7 +3107,7 @@ msgstr ""
 
 #: core/views.py:562 core/views.py:563 core/views.py:564 core/views.py:565
 #: stations/templates/stations/_inputs_bar.html:13
-#: stations/views_workspace.py:276 stations/workspace.py:968
+#: stations/views_workspace.py:284 stations/workspace.py:968
 msgid "Edit"
 msgstr ""
 
@@ -5190,7 +5194,7 @@ msgstr ""
 
 #: help/sections.py:181 help/sections.py:238
 #: stations/templates/stations/_settings_fields.html:14
-#: stations/templates/stations/downloads.html:103
+#: stations/templates/stations/downloads.html:104
 msgid "Plots"
 msgstr ""
 
@@ -5254,7 +5258,7 @@ msgstr ""
 
 #: help/sections.py:229 help/sections.py:290
 #: stations/templates/stations/_settings_fields.html:56
-#: stations/views_workspace.py:108 stations/workspace.py:445
+#: stations/views_workspace.py:110 stations/workspace.py:445
 msgid "Files"
 msgstr ""
 
@@ -5283,7 +5287,7 @@ msgid ""
 msgstr ""
 
 #: help/sections.py:251 help/sections.py:297 stations/downloads.py:87
-#: stations/templates/stations/downloads.html:54
+#: stations/templates/stations/downloads.html:55
 msgid "Report"
 msgstr ""
 
@@ -5339,7 +5343,7 @@ msgid ""
 msgstr ""
 
 #: help/sections.py:303 help/topics.py:68
-#: stations/templates/stations/downloads.html:83 stations/views_indices.py:131
+#: stations/templates/stations/downloads.html:84 stations/views_indices.py:131
 msgid "Quality checks"
 msgstr ""
 
@@ -5351,7 +5355,7 @@ msgid ""
 "PNG or SVG above its chart."
 msgstr ""
 
-#: help/sections.py:312 stations/templates/stations/downloads.html:126
+#: help/sections.py:312 stations/templates/stations/downloads.html:127
 msgid "Each index"
 msgstr ""
 
@@ -5361,7 +5365,7 @@ msgid ""
 "Climpact for R writes the same files in its corr folder."
 msgstr ""
 
-#: help/sections.py:319 stations/templates/stations/downloads.html:110
+#: help/sections.py:319 stations/templates/stations/downloads.html:111
 msgid "Sector comparison"
 msgstr ""
 
@@ -6448,7 +6452,7 @@ msgid "Download all results (zip, %(size)s)"
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:50
-#: stations/templates/stations/downloads.html:154
+#: stations/templates/stations/downloads.html:155
 #, python-format
 msgid "%(counter)s file"
 msgid_plural "%(counter)s files"
@@ -6740,6 +6744,7 @@ msgid "%(name)s: quality checks"
 msgstr ""
 
 #: stations/downloads.py:78 stations/templates/stations/downloads.html:39
+#: stations/templates/stations/workspace_files.html:23
 msgid "Everything"
 msgstr ""
 
@@ -6787,7 +6792,7 @@ msgstr ""
 msgid "Flat runs in TN"
 msgstr ""
 
-#: stations/downloads.py:117
+#: stations/downloads.py:117 stations/views_files.py:46
 msgid "Missing values"
 msgstr ""
 
@@ -7393,64 +7398,57 @@ msgstr ""
 msgid "Undo the change"
 msgstr ""
 
-#: stations/overview.py:341
-#: stations/templates/stations/_results_actions.html:12
-#: stations/templates/stations/downloads.html:46
-#, python-format
-msgid "Download all (zip, %(size)s)"
-msgstr ""
-
-#: stations/overview.py:349
+#: stations/overview.py:333
 #, python-format
 msgid "%(done)s of %(total)s station calculated in %(time)s."
 msgid_plural "%(done)s of %(total)s stations calculated in %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:358
+#: stations/overview.py:342
 #, python-format
 msgid "%(done)s of %(total)s station calculated."
 msgid_plural "%(done)s of %(total)s stations calculated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:365
+#: stations/overview.py:349
 #, python-format
 msgid "%(name)s failed:"
 msgstr ""
 
-#: stations/overview.py:366
+#: stations/overview.py:350 stations/workspace_files.py:377
 msgid "The station could not be calculated."
 msgstr ""
 
-#: stations/overview.py:370
+#: stations/overview.py:354
 msgid "Change the base period in Workspace settings, or remove the station."
 msgstr ""
 
-#: stations/overview.py:373
+#: stations/overview.py:357
 #, python-format
 msgid "%(count)s failed:"
 msgid_plural "%(count)s failed:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:376
+#: stations/overview.py:360
 msgid "their rows say why."
 msgstr ""
 
-#: stations/overview.py:380 stations/templates/stations/_space_links.html:1
+#: stations/overview.py:364 stations/templates/stations/_space_links.html:1
 #: stations/templates/stations/workspace_settings.html:12
 msgid "Workspace settings"
 msgstr ""
 
-#: stations/overview.py:385
+#: stations/overview.py:369
 #, python-format
 msgid "%(done)s station calculated in %(time)s."
 msgid_plural "%(done)s stations calculated in %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:393
+#: stations/overview.py:377
 #, python-format
 msgid "%(done)s station calculated."
 msgid_plural "%(done)s stations calculated."
@@ -8226,7 +8224,8 @@ msgstr ""
 msgid "Every value in the file is missing."
 msgstr ""
 
-#: stations/sector_file.py:218 stations/templates/stations/downloads.html:140
+#: stations/sector_file.py:218 stations/templates/stations/downloads.html:141
+#: stations/templates/stations/workspace_files.html:71
 #: stations/views_indices.py:303
 msgid "none"
 msgstr ""
@@ -8698,7 +8697,7 @@ msgid ""
 msgstr ""
 
 #: stations/templates/stations/_indices.html:65
-#: stations/templates/stations/downloads.html:134
+#: stations/templates/stations/downloads.html:135
 msgid "Series"
 msgstr ""
 
@@ -9128,11 +9127,17 @@ msgstr ""
 msgid "Change the station details so they fit the data"
 msgstr ""
 
-#: stations/templates/stations/_results_actions.html:11
+#: stations/templates/stations/_results_actions.html:12
 msgid "Download all (out of date)"
 msgstr ""
 
-#: stations/templates/stations/_results_actions.html:14
+#: stations/templates/stations/_results_actions.html:13
+#: stations/templates/stations/downloads.html:47
+#, python-format
+msgid "Download all (zip, %(size)s)"
+msgstr ""
+
+#: stations/templates/stations/_results_actions.html:15
 msgid "All files and the report"
 msgstr ""
 
@@ -9313,12 +9318,37 @@ msgid ""
 "nothing to choose."
 msgstr ""
 
-#: stations/templates/stations/_space_actions.html:1
+#: stations/templates/stations/_space_actions.html:8
 #: stations/templates/stations/_station_links.html:6
 #: stations/templates/stations/add.html:12
 #: stations/templates/stations/add.html:19
 #: stations/templates/stations/add.html:20
 msgid "Add stations"
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:10
+msgid "Export"
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:12
+msgid "Everything (zip)"
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:13
+msgid "Trends, all stations (CSV)"
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:14
+msgid "Indices, all stations (CSV)"
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:15
+msgid "The files are made once every station has finished."
+msgstr ""
+
+#: stations/templates/stations/_space_actions.html:16
+#: stations/templates/stations/downloads.html:20
+msgid "All files"
 msgstr ""
 
 #: stations/templates/stations/_space_links.html:1
@@ -9526,12 +9556,9 @@ msgid ""
 msgstr ""
 
 #: stations/templates/stations/downloads.html:10
+#: stations/templates/stations/workspace_files.html:10
 #, python-format
 msgid "Files: %(name)s"
-msgstr ""
-
-#: stations/templates/stations/downloads.html:20
-msgid "All files"
 msgstr ""
 
 #: stations/templates/stations/downloads.html:21
@@ -9583,125 +9610,128 @@ msgstr ""
 msgid "The whole calculation"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:44
+#: stations/templates/stations/downloads.html:45
 #, python-format
 msgid "Download all (zip, %(size)s, out of date)"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:49
+#: stations/templates/stations/downloads.html:50
 msgid "Not made. The zip was switched off in the settings."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:50
-#: stations/templates/stations/downloads.html:61
+#: stations/templates/stations/downloads.html:51
+#: stations/templates/stations/downloads.html:62
 msgid "Change the index settings"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:57
+#: stations/templates/stations/downloads.html:58
 #, python-format
 msgid "Download the report (PDF, %(size)s)"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:60
+#: stations/templates/stations/downloads.html:61
 msgid ""
 "Not made. The report was switched off, or this calculation is older than the "
 "report."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:69
+#: stations/templates/stations/downloads.html:70
 msgid "Summary files"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:72
+#: stations/templates/stations/downloads.html:73
 msgid "Summary files to download"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:73
+#: stations/templates/stations/downloads.html:74
 msgid "Contents"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:73
-#: stations/templates/stations/downloads.html:91
-#: stations/templates/stations/downloads.html:116
-#: stations/templates/stations/downloads.html:157
+#: stations/templates/stations/downloads.html:74
+#: stations/templates/stations/downloads.html:92
+#: stations/templates/stations/downloads.html:117
+#: stations/templates/stations/downloads.html:158
+#: stations/templates/stations/workspace_files.html:25
+#: stations/templates/stations/workspace_files.html:30
+#: stations/templates/stations/workspace_files.html:35
 msgid "Download"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:84
+#: stations/templates/stations/downloads.html:85
 msgid "What each check found, and the days missing per year, as CSV."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:84
+#: stations/templates/stations/downloads.html:85
 msgid "The zip of the calculation has the same files."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:88
+#: stations/templates/stations/downloads.html:89
 msgid "Each check's file"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:88
+#: stations/templates/stations/downloads.html:89
 #, python-format
 msgid "%(counter)s file, %(size)s"
 msgid_plural "%(counter)s files, %(size)s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/downloads.html:91
+#: stations/templates/stations/downloads.html:92
 msgid "Check"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:97
+#: stations/templates/stations/downloads.html:98
 msgid "See what the quality checks found"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:104
+#: stations/templates/stations/downloads.html:105
 msgid "All the plots in one PDF."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:105
+#: stations/templates/stations/downloads.html:106
 msgid "Not made. The plots were switched off in the settings."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:115
+#: stations/templates/stations/downloads.html:116
 msgid "Sector comparison files to download"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:121
+#: stations/templates/stations/downloads.html:122
 msgid "See the sector comparison"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:127
+#: stations/templates/stations/downloads.html:128
 msgid "A table (CSV) per index and a plot (PNG) per series."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:127
+#: stations/templates/stations/downloads.html:128
 msgid "The plots were switched off in the settings."
 msgstr ""
 
-#: stations/templates/stations/downloads.html:131
+#: stations/templates/stations/downloads.html:132
 #, python-format
 msgid "%(counter)s index, %(size)s"
 msgid_plural "%(counter)s indices, %(size)s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/downloads.html:139
+#: stations/templates/stations/downloads.html:140
 msgid "in the index's table"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:152
+#: stations/templates/stations/downloads.html:153
 msgid "Other files"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:154
+#: stations/templates/stations/downloads.html:155
 msgid "The calculation's other files"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:165
+#: stations/templates/stations/downloads.html:166
 msgid "Every file of this calculation, as a list"
 msgstr ""
 
-#: stations/templates/stations/downloads.html:167
+#: stations/templates/stations/downloads.html:168
 #: stations/templates/stations/sector.html:31 stations/views_indices.py:133
 msgid "Calculate the indices"
 msgstr ""
@@ -10140,6 +10170,180 @@ msgstr ""
 msgid "Guide: sector correlation"
 msgstr ""
 
+#: stations/templates/stations/workspace_files.html:16
+msgid "The workspace files are made once every station has been calculated."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:16
+msgid "See how the stations are going"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:17
+msgid "No station has results yet, so there are no workspace files."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:20
+msgid "Whole workspace"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:23
+#, python-format
+msgid "zip · %(size)s"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:24
+msgid ""
+"Every station's folder in Climpact for R's layout, plus the workspace files "
+"below."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:25
+#: stations/templates/stations/workspace_files.html:30
+#: stations/templates/stations/workspace_files.html:35
+msgid "Download (out of date)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:25
+msgid "everything (zip)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:28
+msgid "Trends, all stations"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:28
+#: stations/templates/stations/workspace_files.html:33
+#, python-format
+msgid "csv · %(size)s"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:29
+msgid " (per decade)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:30
+msgid "trends, all stations (CSV)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:33
+msgid "Indices, all stations"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:34
+msgid " (long format)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:35
+msgid "indices, all stations (CSV)"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:39
+msgid "What is in the zip"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:41
+msgid ""
+"Each station's results are in a folder of their own, as Climpact for R "
+"writes them. A station that could not be calculated has a file named after "
+"it ending in .errors.txt, with the reason."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:43
+msgid ""
+"plots: an image of each index (when plots were drawn), and all of them in "
+"one PDF;"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:44
+msgid "indices: a CSV file of each index's values;"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:45
+msgid "trend: the linear trend of each index;"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:46
+msgid "thres: the percentile thresholds calculated for each variable;"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:47
+msgid "qc: the quality-control diagnostics."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:49
+msgid ""
+"Beside the folders: climpact_run.json (how the files were made), and the "
+"trends and indices of all stations as above. The indices file has every "
+"yearly and monthly value; the daily tables (EHF, ECF) and TX95t are only in "
+"the stations' folders."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:56
+msgid "By station"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:57
+msgid ""
+"The same files Climpact for R writes, named <span class=\"font-"
+"mono\">&lt;station&gt;_&lt;file&gt;.csv</span>"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:59
+msgid "Files of each station"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:71
+#, python-format
+msgid "%(label)s, %(name)s"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:82
+msgid "Provenance"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:82
+msgid ""
+"· written as <span class=\"font-mono\">climpact_run.json</span> into every "
+"zip"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:85
+msgid "Methods text"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:88
+msgid "Methods text copied"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:88
+msgid "Copy methods text"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:91
+msgid "climpact_run.json"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:92
+msgid "Written when the workspace files are made."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:95
+msgid "Keeping the files"
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:96
+#, python-format
+msgid ""
+"Input files and results are deleted on <b>%(date)s</b>. Download what you "
+"need before then; the provenance file lets you rerun the same calculation."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:98
+msgid ""
+"Input files and results stay on this computer until you delete them. The "
+"provenance file lets you rerun the same calculation."
+msgstr ""
+
 #: stations/templates/stations/workspace_rename.html:6
 #, python-format
 msgid "Rename: %(name)s"
@@ -10221,11 +10425,11 @@ msgstr ""
 msgid "The new file is loaded. The checks and results are updated."
 msgstr ""
 
-#: stations/views.py:1014 stations/views_workspace.py:370
+#: stations/views.py:1014 stations/views_workspace.py:378
 msgid "The change was undone. The earlier settings and results are back."
 msgstr ""
 
-#: stations/views.py:1020 stations/views_workspace.py:376
+#: stations/views.py:1020 stations/views_workspace.py:384
 msgid ""
 "The recalculation has finished, so the change can no longer be undone. "
 "Change the settings back instead."
@@ -10273,6 +10477,22 @@ msgid "Add stations: %(name)s (%(count)d station)"
 msgid_plural "Add stations: %(name)s (%(count)d stations)"
 msgstr[0] ""
 msgstr[1] ""
+
+#: stations/views_files.py:41
+msgid "Folder (zip)"
+msgstr ""
+
+#: stations/views_files.py:42
+msgid "Report (PDF)"
+msgstr ""
+
+#: stations/views_files.py:43
+msgid "All plots (PDF)"
+msgstr ""
+
+#: stations/views_files.py:47
+msgid "Quality flags"
+msgstr ""
 
 #: stations/views_indices.py:130
 msgid "Read the data"
@@ -10372,12 +10592,12 @@ msgstr ""
 msgid "Compare an index"
 msgstr ""
 
-#: stations/views_workspace.py:219
+#: stations/views_workspace.py:227
 #, python-format
 msgid "The workspace is now called %(name)s."
 msgstr ""
 
-#: stations/views_workspace.py:340
+#: stations/views_workspace.py:348
 msgid "The settings are changed. Every station is being recalculated."
 msgstr ""
 
@@ -10499,3 +10719,63 @@ msgstr ""
 #, python-format
 msgid "%(input)s changed"
 msgstr ""
+
+#: stations/workspace_files.py:87 stations/workspace_files.py:530
+msgid "checking"
+msgstr ""
+
+#: stations/workspace_files.py:89
+msgid "not run"
+msgstr ""
+
+#: stations/workspace_files.py:91
+msgid "failed"
+msgstr ""
+
+#: stations/workspace_files.py:93
+msgid "calculating"
+msgstr ""
+
+#: stations/workspace_files.py:95
+msgid "waiting"
+msgstr ""
+
+#: stations/workspace_files.py:96
+msgid "not calculated"
+msgstr ""
+
+#: stations/workspace_files.py:269
+msgid "the ET-SCI default settings"
+msgstr ""
+
+#: stations/workspace_files.py:271
+#, python-format
+msgid "%(settings)s (otherwise the ET-SCI defaults)"
+msgstr ""
+
+#: stations/workspace_files.py:273
+#, python-format
+msgid ""
+"Climate indices for %(count)s station were calculated with climpact "
+"%(version)s, a Python port of Climpact %(r)s, using the base period "
+"%(start)s–%(end)s and %(settings)s."
+msgid_plural ""
+"Climate indices for %(count)s stations were calculated with climpact "
+"%(version)s, a Python port of Climpact %(r)s, using the base period "
+"%(start)s–%(end)s and %(settings)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/workspace_files.py:289
+#, python-format
+msgid ""
+"Trends are Sen's slopes with 95%% confidence intervals (zyp); a trend is "
+"significant when its interval excludes zero."
+msgstr ""
+
+#: stations/workspace_files.py:548
+#, python-format
+msgid "%(count)s file"
+msgid_plural "%(count)s files"
+msgstr[0] ""
+msgstr[1] ""

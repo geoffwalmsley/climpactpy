@@ -253,41 +253,6 @@
     color: var(--color-text-muted);
   }
 
-  /* == The citation: a disclosure without JavaScript, a copy button with it. == */
-  .citation {
-    position: relative;
-  }
-
-  .citation__details > summary {
-    list-style: none;
-  }
-
-  .citation__details > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .citation__text {
-    position: absolute;
-    inset-inline-end: 0;
-    inset-block-start: calc(100% + --spacing(1));
-    z-index: 20;
-    inline-size: min(28rem, calc(100vw - --spacing(8)));
-    margin: 0;
-    padding: --spacing(3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-overlay);
-    font-size: var(--text-sm);
-    user-select: all;
-  }
-
-  .page-menu__panel .citation__text {
-    position: static;
-    inline-size: auto;
-    box-shadow: none;
-  }
-
   /* Narrow: the statistics under the chart, as wide. */
   @media (max-width: 52rem) {
     .index-page__stats {

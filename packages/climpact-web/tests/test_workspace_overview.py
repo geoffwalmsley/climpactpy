@@ -49,14 +49,15 @@ def test_a_workspace_of_several_stations_opens_its_overview(client):
     assert f'href="{url}add/"' in html and ">Add stations<" in html
     tabs = html.split('aria-label="Workspace sections"')[1].split("</nav>")[0]
     assert f'href="{url}" data-tab="overview" aria-current="page">Overview</a>' in tabs
-    assert "Compare an index" in tabs and "Files" in tabs and tabs.count("<a ") == 1
+    assert "Compare an index" in tabs and f'href="{url}files/" data-tab="files"' in tabs
+    assert tabs.count("<a ") == 2  # Compare an index is not a link until #238
     # No batch steps, no per-station downloads, no bottom links (#234).
     assert "steps__" not in html and "What is in the zip" not in html
     assert "Start a new batch" not in html and "Change the files or options" not in html
     # The run status line, quiet once finished, and a row a station in the order added.
     assert status_line(html).startswith("done: 2 stations calculated in")
     assert "d was not run: the station file is missing." in status_line(html)
-    assert "Download all (zip, " in html and "hx-get" not in html
+    assert "Download all (zip, " not in html and "hx-get" not in html  # Export ▾ (#239)
     assert rows(html) == {"a": "done", "b": "done", "d": "not_run"}
     assert list(rows(html)) == ["a", "b", "d"]
     # Each row: its page, coordinates, years, missing values, verdict and significance.

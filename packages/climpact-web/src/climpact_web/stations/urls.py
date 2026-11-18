@@ -4,6 +4,7 @@ from climpact_web.stations import (
     views,
     views_add,
     views_downloads,
+    views_files,
     views_indices,
     views_sector,
     views_workspace,
@@ -47,6 +48,8 @@ station_patterns = [
     path("sector/progress", views_sector.sector_progress, name="sector_progress"),
     # Files (#79): stations/views_downloads.py.
     path("downloads", views_downloads.downloads, name="downloads"),
+    # The station's folder as a zip with its provenance file (#239): stations/views_files.py.
+    path("zip", views_files.station_zip, name="station_zip"),
 ]
 
 # The pages without a station yet keep their ``/station/`` addresses: the New station page
@@ -91,5 +94,25 @@ urlpatterns = [
         name="workspace_setting",
     ),
     path("w/<uuid:workspace_id>/undo", views_workspace.undo, name="workspace_undo"),
+    # The workspace's Files (#239): stations/views_files.py.
+    path("w/<uuid:workspace_id>/files/", views_files.files_page, name="workspace_files"),
+    path(
+        "w/<uuid:workspace_id>/files/everything.zip",
+        views_files.download,
+        {"what": "everything"},
+        name="workspace_everything",
+    ),
+    path(
+        "w/<uuid:workspace_id>/files/trends.csv",
+        views_files.download,
+        {"what": "trends"},
+        name="workspace_trends",
+    ),
+    path(
+        "w/<uuid:workspace_id>/files/indices.csv",
+        views_files.download,
+        {"what": "indices"},
+        name="workspace_indices",
+    ),
     path("w/<uuid:workspace_id>/<slug:slug>/", include(station_patterns)),
 ]

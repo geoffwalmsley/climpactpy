@@ -48,11 +48,12 @@ def provenance(html) -> str:
 
 
 def zip_buttons(html) -> list[str]:
-    """Each link to the zip on the page: its class and its label."""
+    """Each link to the zip on the page (R's zip with the provenance file, #239): its
+    class and its label."""
     return [
         f"{css} | {label}"
         for css, label in re.findall(
-            rf'<a href="[^"]*/files/{ZIP}" class="([^"]*)">.*?<span>([^<]*)</span>', html, re.S
+            r'<a href="/w/[^"]*/zip" class="([^"]*)">.*?<span>([^<]*)</span>', html, re.S
         )
     ]
 

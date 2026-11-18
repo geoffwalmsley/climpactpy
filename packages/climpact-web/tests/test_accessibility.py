@@ -392,6 +392,7 @@ def site(chrome, server):
     pages["workspace settings"] = pages["workspace overview"] + "settings/"
     pages["workspace setting"] = pages["workspace overview"] + "settings/base-period"
     pages["workspace rename"] = pages["workspace overview"] + "rename"
+    pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
 
     # The sample grid: thresholds, then three indices.
     c.navigate(open_url("/gridded/"))
@@ -1079,7 +1080,8 @@ def test_sticky_context_bar_never_covers_focus(chrome, site):
                     )
                     assert 30 < bar < 80, (name, bar)
         c.viewport(640, 440)  # a short window: it scrolls away with the page
-        assert c.evaluate(f"getComputedStyle({header}).position") == "static"
+        # Not sticky: relative since #239, for the layer behind it that reaches the edges.
+        assert c.evaluate(f"getComputedStyle({header}).position") == "relative"
     finally:
         c.viewport(1280, 900)
 
@@ -1430,7 +1432,7 @@ def test_index_page_views_and_citation(chrome, site):
     set_mode(c)
     copy = "document.querySelector('.context-bar__actions [data-citation-copy]')"
     assert c.evaluate(f"!{copy}.hidden")
-    assert c.evaluate("document.querySelector('.context-bar__actions .citation__details').hidden")
+    assert c.evaluate("document.querySelector('.context-bar__actions .pop__details').hidden")
     assert c.evaluate("document.querySelector('[data-citation-text]').textContent").startswith(
         "Sydney Observatory Hill, TXx (Hottest day), 1936–2015"  # the sample's name (#219)
     )

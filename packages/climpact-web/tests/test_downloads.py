@@ -50,7 +50,8 @@ def test_downloads_page_lists_every_file_with_its_size(client):
     assert response.status_code == 200
     html = response.content.decode()
     files = f"/jobs/{job.pk}/files/"
-    assert f'href="{files}{STATION}.zip"' in html
+    # The zip: R's with the provenance file added (#239).
+    assert f'href="{analysis.url()}zip"' in html
     assert f'href="{files}{STATION}_report.pdf"' in html
     assert f'href="{files}{STATION}/plots/{STATION}_all_plots.pdf"' in html
     assert re.search(rf"Download all \(zip, {SIZE}\)", html)
@@ -124,7 +125,7 @@ def test_dashboard_and_index_page_offer_one_download(client, settings):
     # No other file on the page (#176): the zip, in the header and again in its ⋯ menu
     # for phones (#203), and each index's CSV and PNG in its detail (#236).
     files = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', html)
-    assert files.count(f"{STATION}.zip") == 2
+    assert html.count(f'href="{analysis.url()}zip"') == 2  # R's zip and its provenance (#239)
     others = [f for f in files if not f.endswith(".zip")]
     assert others and all(re.fullmatch(rf"{STATION}/(indices/\S+\.csv|plots/\S+\.png)", f)
                           for f in others)  # fmt: skip
@@ -272,6 +273,9 @@ def test_files_page_reaches_every_file_of_the_station(client):
     analysis.save()
     html = client.get(f"{analysis.url()}downloads").content.decode()
     linked = set(re.findall(r'href="(/jobs/[^"]+/files/[^"]+)"', html))
+    # The zip is offered as R's with the provenance file added (#239).
+    assert f'href="{analysis.url()}zip"' in html
+    linked.add(f"/jobs/{job.pk}/files/{STATION}.zip")
     qc_names = {h.rsplit("/", 1)[1] for h in linked if h.startswith(f"/jobs/{qc_job.pk}/")}
 
     def reachable(j, path) -> bool:

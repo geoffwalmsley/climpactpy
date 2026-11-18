@@ -148,10 +148,14 @@ class Workspace(models.Model):
         return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
 
     def delete_files(self) -> None:
+        import shutil
+
         for station in self.stations.all():
             station.delete_files()
         for run in self.batches.all():
             run.delete_files()
+        # The workspace's Files (#239): stations/workspace_files.py.
+        shutil.rmtree(stations_dir() / str(self.id), ignore_errors=True)
 
     def delete_if_empty(self) -> None:
         """Delete the workspace once it has no station and no batch left."""
@@ -160,8 +164,9 @@ class Workspace(models.Model):
 
 
 # Words a station's slug can't be, as they name other pages of the workspace (#256):
-# ``/w/<id>/batch/`` is the workspace's batch, ``/w/<id>/settings/`` its settings (#234).
-RESERVED_SLUGS = frozenset({"batch", "add", "settings", "progress", "rename", "undo"})
+# ``/w/<id>/batch/`` is the workspace's batch, ``/w/<id>/settings/`` its settings (#234),
+# ``/w/<id>/files/`` its Files (#239).
+RESERVED_SLUGS = frozenset({"batch", "add", "settings", "progress", "rename", "undo", "files"})
 
 
 def slug_for(name: str, taken) -> str:

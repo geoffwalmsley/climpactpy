@@ -530,7 +530,9 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     assert "hx-get" not in html and "run-status--failed" in html
     assert "2 of 3 stations calculated in" in html and "b failed:" in html
     assert "missing was not run: the station file is missing." in html
-    assert f"/jobs/{job.pk}/files/stations.zip" in html and "Download all (zip, " in html
+    # The workspace files are in Export ▾ and on Files, not on the status line (#239).
+    assert f"/w/{run.workspace_id}/files/everything.zip" in html
+    assert "Download all (zip, " not in html
     # Each station's own files are on its Files tab, not here (#234, #239).
     assert f"/jobs/{job.pk}/files/stations/a.zip" not in html
     assert "What is in the zip" not in html

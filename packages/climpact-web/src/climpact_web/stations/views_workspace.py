@@ -56,8 +56,8 @@ def _ran(space: Workspace, owner: str):
 
 
 class Tab:
-    """One of the workspace's tabs: Overview, Compare an index (#238) and Files (#239),
-    the last two not available yet (no link)."""
+    """One of the workspace's tabs: Overview, Compare an index (#238, not available yet:
+    no link) and Files (#239)."""
 
     def __init__(self, key, label, url, current=False):
         self.key, self.label, self.url, self.current = key, label, url, current
@@ -105,7 +105,12 @@ def bar_context(request, space: Workspace, current: str = "overview") -> dict:
                 current == "overview",
             ),
             Tab("compare", _("Compare an index"), None),
-            Tab("files", _("Files"), None),
+            Tab(
+                "files",
+                _("Files"),
+                reverse("stations:workspace_files", args=[space.pk]),
+                current == "files",
+            ),
         ],
         "space_current": current,
         "data_page": True,
@@ -130,6 +135,9 @@ def overview_context(request, space: Workspace) -> dict:
         "space": space,
         "rows": table,
         "status": overview.status_line(space, table, run, page),
+        # Export ▾ (#239): the workspace files, once every station has finished.
+        "space_export": not any(r.indices.state in overview.RUNNING for r in table)
+        and any(r.indices.state == overview.DONE for r in table),
         "polling": active,
         "delay": delay,
         "page": page,

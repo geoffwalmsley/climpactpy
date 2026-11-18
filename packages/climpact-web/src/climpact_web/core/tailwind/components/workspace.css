@@ -26,23 +26,31 @@
   /* == The context bar (#227, components/context_bar.html; the workspace header of #197
      before it): a breadcrumb, the title, the mono provenance line, the page's actions,
      then the tabs, on the surface across the window over a hairline. The surface and the
-     hairline reach the window's edges by a box-shadow clipped to the bar's height, so the
-     bar keeps its place in the page's column; .site-main clips what would reach past
-     the content (the help drawer). == */
+     hairline reach the window's edges from a layer behind the bar (::before), so the bar
+     keeps its place in the page's column and a menu that opens below it (Export ▾, the ⋯
+     menu, a citation) is not cut off, as a clip-path would; .site-main clips what would
+     reach past the content (the help drawer). == */
   .site-main:has(.context-bar:not(.context-bar--static)) {
     padding-block-start: 0;
     overflow-x: clip;
   }
 
   .context-bar {
+    position: relative;
+    isolation: isolate;
     display: grid;
     gap: --spacing(2);
     padding-block-start: --spacing(3);
+  }
+
+  .context-bar::before {
+    content: "";
+    position: absolute;
+    inset-block: 0 -1px;
+    inset-inline: -100vmax;
+    z-index: -1;
+    border-block-end: 1px solid var(--color-border);
     background: var(--color-surface);
-    box-shadow:
-      0 0 0 100vmax var(--color-surface),
-      0 1px 0 100vmax var(--color-border);
-    clip-path: inset(0 -100vmax -1px);
   }
 
   .context-bar__crumbs {
@@ -156,8 +164,11 @@
   /* In place, for /patterns/: its own hairline, no sticking. */
   .context-bar--static {
     border-block-end: 1px solid var(--color-border);
-    box-shadow: none;
-    clip-path: none;
+    background: var(--color-surface);
+  }
+
+  .context-bar--static::before {
+    content: none;
   }
 
   /* In the page's flow on a page without tabs (an index's, #237): across the window, but

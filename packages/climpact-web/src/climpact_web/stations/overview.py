@@ -280,7 +280,7 @@ def status_line(
     space: Workspace, table: list[Row], batch=None, page: str = ""
 ) -> StatusLine | None:
     """The run status line (``Calculate.dc.html``): None when no station has been run.
-    ``batch`` is the workspace's batch that ran (``BatchRun``), for its zip, its time left
+    ``batch`` is the workspace's batch that ran (``BatchRun``), for its time left
     and Cancel; ``page`` the overview's address, where Cancel and Undo return."""
     run = [r for r in table if r.indices.state in (*RUNNING, DONE, FAILED)]
     not_run = [r for r in table if r.indices.state == NOT_RUN]
@@ -326,22 +326,6 @@ def status_line(
     took = _elapsed(jobs, now)
     values = {"done": len(done), "total": total, "time": format_duration(took)}
     links = []
-    # The batch's zip holds every station's results while they are the batch's.
-    if (
-        batch_job is not None
-        and batch_job.status == Status.SUCCEEDED
-        and batch_job.result.get("zip")
-        and done
-        and all(r.indices.job == batch_job for r in done)
-    ):
-        path = batch_job.output_dir / batch_job.result["zip"]
-        size = path.stat().st_size if path.is_file() else 0
-        from django.template.defaultfilters import filesizeformat
-
-        label = _("Download all (zip, %(size)s)") % {"size": filesizeformat(size)}
-        links.append(
-            Link(label, reverse("jobs:file", args=[batch_job.pk, batch_job.result["zip"]]))
-        )
     if failed:
         if took is not None:
             head = (

@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2895,6 +2895,12 @@ packages/climpact-web/src/climpact_web/
     copy_station.py  Copy to workspace… (#241): the workspaces a station can go to
                      (`targets`), the form (`CopyForm`) and the copy (`copy_to`)
     views_copy.py    /w/<id>/<station>/copy (#241): the Copy to workspace page
+    workspace_file.py  the workspace file (#240): climpact_workspace.zip written (`write`:
+                     workspace.json, the station files, metadata.txt, climpact_run.json),
+                     read and checked as untrusted (`read`, `NotAWorkspaceFile`) and
+                     rebuilt through Add stations' routes (`open_into`)
+    views_workspace_file.py  /w/<id>/workspace.zip (Save file) and /w/open/ (Open a
+                     workspace file, #240)
     workspace_list.py  Workspaces (#242): each workspace's row (`entry`, `entries`):
                      its hint, station count, status summary, dates; `latest` for the
                      landing page's "Welcome back"
@@ -6259,8 +6265,10 @@ Flow boards).
   indices failed, as their Stations rows say: a speculative run is not counted), Base
   period, Updated ("today 09:42", "yesterday 16:10", "15 Nov"), "Deleted on" where
   workspaces expire (`WORKSPACE_EXPIRY`; in warning colour with "in 2 days", "tomorrow" or
-  "today" when under three days away) and Delete. Locally the lead says the workspaces
-  stay until deleted; hosted, a note says how it differs on one's own computer.
+  "today" when under three days away), Save file (#240, for a workspace with a station set
+  up) and Delete. "Open a workspace file" sits beside "New workspace", and a note under the
+  table says what Save file does. Locally the lead says the workspaces stay until deleted;
+  hosted, a second note says how it differs on one's own computer.
 - **Delete a workspace** (`/w/<id>/delete`, `stations:workspace_delete`,
   `views_workspace.delete_workspace`, `stations/workspace_delete.html`): a page naming its
   stations and saying they can't be recovered, then a POST that cancels the jobs still
@@ -6269,6 +6277,76 @@ Flow boards).
   workspace's Files. `delete` is a reserved station slug.
 - The page-not-found page at a workspace's address leads to Workspaces and to a new
   workspace; the refused page (#125) to Workspaces.
+
+### Workspace file
+
+Save file and Open a workspace file (#240; the WorkspaceList and Start boards;
+`stations/workspace_file.py`, `stations/views_workspace_file.py`,
+`stations/workspace_open.html`). Hosted workspaces are deleted after the retention period
+and belong to one browser; the file keeps one, or moves it to another computer.
+
+- **Save file** (`/w/<id>/workspace.zip`, `stations:workspace_file`, on each row of
+  Workspaces) downloads `climpact_workspace.zip`, made in a temporary file and streamed:
+  - `workspace.json`: `format` `climpact-workspace`, `format_version` 1 (`FORMAT_VERSION`),
+    the software, when it was saved, the workspace's name, its settings with every value
+    filled in (`base_period`, `quality_thresholds`, `indices` in `workspace_settings`
+    form), and each station: its name, its entry (`stations/<slug>.txt`), its original
+    file name, the SHA-256 of the file (`Station.file_hash`), latitude, longitude, years,
+    its own index values (`workspace.own_params`), whether it is the sample and whether its
+    results were in use (`workspace.committed`).
+  - `stations/<slug>.txt`: each station's file as the workspace keeps it.
+  - `metadata.txt`: the stations in R's batch metadata format (`check.metadata_text`, each
+    with every index value it is calculated with), so `stations/` can be run as a batch
+    in Climpact for R. Opening ignores it.
+  - `climpact_run.json`: #239's provenance file (`workspace_files.provenance`).
+  Only stations that are set up (`workspace.set_up`) are saved; a workspace with none has
+  no Save file (the address returns to Workspaces with a message).
+- **Open a workspace file** (`/w/open/`, `stations:workspace_open`) is a page of its own,
+  from Workspaces' "Open a workspace file" and Get started's "Or open a saved workspace
+  file": the file field, the Turnstile widget (`human_required`; the page works without
+  JavaScript) and Open. `open_into` makes a new workspace of this session with the saved
+  name and settings (none stored where they are the defaults) and adds the stations
+  through Add stations' own routes: their files wait in a `BatchRun` with a report built
+  from the manifest (each file read once, `add_stations.read_file`; the metadata rows
+  carry the locations and own index values, the edits the names), reviewed by
+  `add_stations.review`, then one station is added by `views_add.add_one` (and its run is
+  made the user's again, `calculation.commit`, when it was in use; it opens on its
+  Indices, else its Quality) and several by `views_add.add_many` (a batch; the overview
+  opens). A batch runs with R's default quality thresholds (`batch.fill.batch_inputs`), so
+  when the workspace has its own each station is also queued as a station run
+  (`calculation.refresh`) in the batch's change, which `add_many` now returns: one job for
+  the hosted limits. The limits are checked before anything is made
+  (`check_job_quotas`); a refusal by them, or by the review (a row that Add stations would
+  not add, named with its problem), makes nothing.
+- **The zip is untrusted** (`read`). Each refusal is a `NotAWorkspaceFile` with a plain
+  message under the field, and nothing is made: not a zip; over the upload limit
+  (`MAX_UPLOAD_MB`, the middleware's 413, checked again on the upload); no
+  `workspace.json` (a zip of station files is pointed to Add stations); more than
+  `MAX_ENTRIES` entries (`check.MAX_FILES` stations and the others); an entry that is not
+  part of the format (only `workspace.json`, `metadata.txt`, `climpact_run.json`,
+  `stations/` and `stations/<slug>.txt` with a slug's characters are allowed), with a
+  backslash or NUL, an absolute path or drive letter, `.` or `..`, a symbolic link, the
+  encrypted flag, a compression other than stored or deflated, or a name given twice;
+  more uncompressed data than `MAX_UNPACKED_BYTES` (`check.MAX_UNPACKED_BYTES`, 500 MB) in
+  all, `MAX_STATION_BYTES` (64 MB) in a station file or `MAX_MANIFEST_BYTES` (4 MB) in the
+  others, checked against the header first and then counted while each entry is read in
+  64 KB chunks, with an entry that unpacks to more than `MAX_RATIO` (200) times its
+  compressed size past its first megabyte refused as a zip bomb (a header that understates
+  a size fails zipfile's CRC check, "cannot be read"); `workspace.json` not UTF-8 JSON
+  (`NaN` and `Infinity` refused) or not an object; another `format`, a missing
+  `format_version` or a newer one ("saved by a newer version of Climpact (format 2; this
+  one reads format 1)"); settings the settings pages would refuse (the base period's two
+  years in order, `QCParamsForm`, `IndexParamsForm`, booleans for the output options); no
+  stations, more than `check.MAX_FILES`, a station without a name or numeric coordinates,
+  own index values that are not `IndexParams` fields with numbers, a station file missing
+  or listed twice, a station file whose SHA-256 differs from the saved one, a station file
+  in `stations/` that no station lists; and whatever Add stations' review refuses (an
+  unreadable file, a coordinate out of range, a name given twice, a base period the data
+  do not reach). The station's original file name is only used once made safe
+  (`safe_file_name`: no folders, letters, digits and `._()- `).
+- `tests/test_workspace_file.py` saves and opens a batch workspace with a failed station
+  and compares its stations, settings and trends after both are calculated, and tests
+  each refusal.
 
 ### Workspace files
 

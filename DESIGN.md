@@ -40,7 +40,11 @@ in line; the text around it describes the code as it is. The rules come from thr
   started, New station and the batch's first page lead there.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
-  A saved workspace file rebuilds one anywhere (Target: #240).
+  A saved workspace file rebuilds one anywhere since #240: Save file on each row of
+  Workspaces downloads `climpact_workspace.zip` (the input files, metadata and settings,
+  and `climpact_run.json`); "Open a workspace file" (Workspaces) and "Or open a saved
+  workspace file" (Get started) lead to a page of its own that rebuilds it in this
+  browser, its indices calculated again.
 - **System fonts.** No web fonts (CSP, the bandwidth budget, offline use); tabular
   figures for numbers and `--font-mono` for codes, dates and numbers in tables.
 
@@ -363,7 +367,7 @@ strips, worklist and detail pane.
   Add stations (small secondary) at the end of the title's row, then the tabs Overview,
   Compare an index (#238) and Files. Export ▾ (#239), primary at the end of the title's
   row on the overview, Compare an index and Files: Everything (zip), Trends and Indices
-  of all stations (CSV), and All files. "Save workspace file" is #240. On Compare an
+  of all stations (CSV), and All files. "Save file" is on Workspaces (#240). On Compare an
   index and Files the name is the h1 too. The overview is a data page (the whole
   window), as a station's.
 - **Trends across stations** (#238, the Workspace board; `stations/_trends.html`) under

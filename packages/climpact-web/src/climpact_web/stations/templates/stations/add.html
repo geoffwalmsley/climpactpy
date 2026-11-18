@@ -134,6 +134,7 @@ pasted from a spreadsheet fills the cells under the one pasted into
         <button type="submit" name="intent" value="files" class="button button--lg" data-nojs>{% translate "Add the files" %}</button>
         <button type="submit" form="sample-form" class="button button--secondary button--lg">{% icon "play" %}<span>{% translate "Use the sample station" %}</span></button>
       </div>
+      <a class="add-start__open" href="{% url 'stations:workspace_open' %}">{% translate "Or open a saved workspace file" %}</a>
       {% turnstile %}
     </form>
     <div class="add-start__side">

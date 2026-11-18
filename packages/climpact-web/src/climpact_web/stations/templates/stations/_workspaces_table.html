@@ -3,7 +3,7 @@ The Workspaces table (#242, the WorkspaceList board): a data table, a row a work
 Name (a link, with a hint of its stations under it, each line ending in an ellipsis),
 Stations, Status (the stations' verdicts as pills, and any failed), Base period, Updated,
 "Deleted on" where workspaces expire (workspace_expiry; highlighted under three days
-away) and Delete. Context: entries (stations.workspace_list.entries); shown on
+away), then Save file (#240: the workspace file, when it has a station set up) and Delete. Context: entries (stations.workspace_list.entries); shown on
 /patterns/ with demo rows.
 {% endcomment %}
   <div class="table-wrap table-wrap--data" role="region" aria-labelledby="workspaces-caption" tabindex="0">
@@ -32,7 +32,7 @@ away) and Delete. Context: entries (stations.workspace_list.entries); shown on
           <td class="code">{{ e.base_period }}</td>
           <td><time datetime="{{ e.updated_iso }}">{{ e.updated }}</time></td>
           {% if workspace_expiry %}<td>{% if e.deleted_soon %}<time class="workspaces-table__soon" datetime="{{ e.deleted_iso }}">{{ e.deleted_on }} {{ "·" }} {{ e.deleted_soon }}</time>{% else %}<time datetime="{{ e.deleted_iso }}">{{ e.deleted_on }}</time>{% endif %}</td>{% endif %}
-          <td class="workspaces-table__actions"><a class="workspaces-table__delete" href="{{ e.delete_url }}">{% translate "Delete" %}<span class="sr-only"> {{ e.name }}</span></a></td>
+          <td class="workspaces-table__actions">{% if e.save_url %}<a href="{{ e.save_url }}" download>{% translate "Save file" %}<span class="sr-only"> {{ e.name }}</span></a>{% endif %}<a class="workspaces-table__delete" href="{{ e.delete_url }}">{% translate "Delete" %}<span class="sr-only"> {{ e.name }}</span></a></td>
         </tr>
         {% endfor %}
       </tbody>

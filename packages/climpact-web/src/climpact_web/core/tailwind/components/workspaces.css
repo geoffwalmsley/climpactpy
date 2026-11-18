@@ -19,6 +19,13 @@
     font-size: var(--text-xl);
   }
 
+  /* "Open a workspace file" beside "New workspace" (#240). */
+  .workspaces__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+  }
+
   .workspaces__lead {
     color: var(--color-text-muted);
     font-size: var(--text-sm);
@@ -91,6 +98,11 @@
     text-align: end;
   }
 
+  /* Save file (#240), then Delete, as the board spaces them. */
+  .workspaces-table__actions a + a {
+    margin-inline-start: --spacing(3.5);
+  }
+
   /* Delete is quiet, as the board draws it: muted, still underlined. */
   .workspaces-table__delete {
     color: var(--color-text-muted);
@@ -100,7 +112,16 @@
     color: var(--color-text);
   }
 
+  /* The notes under the table, side by side where there is room (the board's two boxes). */
+  .workspaces__notes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4);
+  }
+
   .workspaces__note {
+    flex: 1 1 26rem;
+    min-inline-size: 0;
     max-inline-size: 48rem;
     padding: --spacing(3.5) --spacing(4);
     border: 1px solid var(--color-border);

@@ -240,6 +240,7 @@ def site(chrome, server):
         ("landing", "/"),
         ("pattern library", "/patterns/"),
         ("add stations", "/add/"),
+        ("workspace open", "/w/open/"),  # Open a workspace file (#240)
         ("gridded start", "/gridded/"),
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),

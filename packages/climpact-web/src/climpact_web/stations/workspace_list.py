@@ -56,6 +56,7 @@ class Entry:
     deleted_iso: str = ""
     deleted_soon: str = ""  # "in 2 days", "tomorrow", "today": under SOON away
     delete_url: str = ""
+    save_url: str = ""  # Save file (#240), when it has a station to save
 
 
 def owned(owner: str):
@@ -199,6 +200,11 @@ def entry(space: Workspace, owner: str, now: dt.datetime | None = None) -> Entry
         deleted_iso=expires.isoformat() if expires else "",
         deleted_soon=soon_text(expires, now) if expires else "",
         delete_url=reverse("stations:workspace_delete", args=[space.pk]),
+        save_url=(
+            reverse("stations:workspace_file", args=[space.pk])
+            if any(workspace.set_up(s) for s in stations)
+            else ""
+        ),
     )
 
 

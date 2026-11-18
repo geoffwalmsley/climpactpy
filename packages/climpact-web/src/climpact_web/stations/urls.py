@@ -9,6 +9,7 @@ from climpact_web.stations import (
     views_indices,
     views_sector,
     views_workspace,
+    views_workspace_file,
 )
 
 app_name = "stations"
@@ -81,6 +82,13 @@ urlpatterns = [
     # Workspaces (#242): every workspace of this browser, which replaced "Your
     # calculations"; Delete a workspace (#274 shares it on the workspace's Files).
     path("w/", views_workspace.workspaces_page, name="workspaces"),
+    # The workspace file (#240): Open a workspace file, and Save file on each row.
+    path("w/open/", views_workspace_file.open_file, name="workspace_open"),
+    path(
+        "w/<uuid:workspace_id>/workspace.zip",
+        views_workspace_file.save,
+        name="workspace_file",
+    ),
     path("w/<uuid:workspace_id>/", views_workspace.workspace_page, name="workspace"),
     path("w/<uuid:workspace_id>/delete", views_workspace.delete_workspace, name="workspace_delete"),
     path(

@@ -445,6 +445,11 @@
     color: var(--color-text-muted);
   }
 
+  /* "Or open a saved workspace file" (#240), under the buttons, as the Start board. */
+  .add-start__open {
+    font-size: var(--text-sm);
+  }
+
   .add-start__buttons {
     display: flex;
     flex-wrap: wrap;

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n ui %}{% comment %}
+Open a workspace file (#240), from Workspaces' "Open a workspace file" and Get started's
+"Or open a saved workspace file" (the WorkspaceList and Start boards, which draw the two
+links but not this page). The file field, the human check where the site has one, and
+Open: a new workspace of this browser is made from the file, and its stations are checked
+and calculated again. A refused file says why under the field. Context from
+views_workspace_file.open_file: form.
+{% endcomment %}
+{% block title %}{% translate "Open a workspace file" %}{% endblock %}
+{% block content %}
+<div class="stack">
+  <nav aria-label="{% translate 'Breadcrumb' %}"><ol class="add-stations__crumbs"><li><a href="{% url 'stations:workspaces' %}">{% translate "Workspaces" %}</a></li><li aria-current="page">{% translate "Open a workspace file" %}</li></ol></nav>
+  <form method="post" enctype="multipart/form-data" class="form stack max-w-prose" novalidate>
+    {% csrf_token %}
+    <h1>{% translate "Open a workspace file" %}</h1>
+    <p>{% if workspace_expiry %}{% blocktranslate trimmed with file="climpact_workspace.zip" %}A workspace file (<code>{{ file }}</code>) holds a workspace's input files and settings. Opening it makes a new workspace in this browser with the same stations and settings; the checks and indices are calculated again.{% endblocktranslate %}{% else %}{% blocktranslate trimmed with file="climpact_workspace.zip" %}A workspace file (<code>{{ file }}</code>) holds a workspace's input files and settings. Opening it makes a new workspace on this computer with the same stations and settings; the checks and indices are calculated again.{% endblocktranslate %}{% endif %}</p>
+    {% include "components/form_errors.html" with form=form %}
+    {% include "components/dropzone.html" with field=form.file hint=form.file.help_text %}
+    {% turnstile %}
+    <div class="flex flex-wrap items-center gap-3">
+      {% translate "Open" as open_label %}{% include "components/button.html" with label=open_label type="submit" %}
+      {% url 'stations:workspaces' as back %}{% translate "Cancel" as cancel_label %}{% include "components/button.html" with label=cancel_label href=back variant="ghost" %}
+    </div>
+  </form>
+</div>
+{% endblock %}

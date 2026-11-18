@@ -4,8 +4,9 @@ Workspaces (#242, the WorkspaceList board), which replaced "Your calculations": 
 workspace of this browser (hosted) or computer (local), most recently changed first, in
 one data table. Name (a link, with a hint of its stations under it), Stations, Status (the
 stations' verdicts as pills, and any failed), Base period, Updated, "Deleted on" where
-workspaces expire (highlighted under three days away) and Delete. "Open a workspace file"
-and each row's "Save file" are #240's. Context from views_workspace.workspaces_page:
+workspaces expire (highlighted under three days away), Save file and Delete. "Open a
+workspace file" beside "New workspace" and each row's "Save file" are the workspace file
+(#240), explained in the note under the table. Context from views_workspace.workspaces_page:
 entries (stations.workspace_list.entries), gridded_runs.
 {% endcomment %}
 {% block title %}{% translate "Workspaces" %}{% endblock %}
@@ -16,8 +17,12 @@ entries (stations.workspace_list.entries), gridded_runs.
       <h1>{% translate "Workspaces" %}</h1>
       <p class="workspaces__lead">{% if workspace_expiry %}{% blocktranslate count days=job_retention_days trimmed %}In this browser only. Each is deleted {{ days }} day after its last change.{% plural %}In this browser only. Each is deleted {{ days }} days after its last change.{% endblocktranslate %}{% else %}{% translate "On this computer. Workspaces stay until you delete them." %}{% endif %}</p>
     </div>
-    {% url 'stations:add' as new_url %}{% translate "New workspace" as new_label %}
-    {% include "components/button.html" with label=new_label href=new_url %}
+    <div class="workspaces__actions">
+      {% url 'stations:workspace_open' as open_url %}{% translate "Open a workspace file" as open_label %}
+      {% include "components/button.html" with label=open_label href=open_url variant="secondary" %}
+      {% url 'stations:add' as new_url %}{% translate "New workspace" as new_label %}
+      {% include "components/button.html" with label=new_label href=new_url %}
+    </div>
   </header>
 
   {% if entries %}
@@ -31,8 +36,11 @@ entries (stations.workspace_list.entries), gridded_runs.
   <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Gridded calculations are not workspaces: they are listed in <a href="{{ jobs_url }}">Your calculations</a>.{% endblocktranslate %}</p>
   {% endif %}
 
-  {% if workspace_expiry %}
-  <p class="workspaces__note"><strong>{% translate "Running Climpact on your own computer?" %}</strong> {% translate "Workspaces stay until you delete them, and this page shows every workspace on the computer." %}</p>
-  {% endif %}
+  <div class="workspaces__notes">
+    <p class="workspaces__note">{% blocktranslate trimmed with file="climpact_workspace.zip" %}<strong>Save file</strong> downloads the workspace's input files and settings as one zip (<code>{{ file }}</code>). Open it here or on another computer to rebuild the workspace; the indices are calculated again.{% endblocktranslate %}</p>
+    {% if workspace_expiry %}
+    <p class="workspaces__note"><strong>{% translate "Running Climpact on your own computer?" %}</strong> {% translate "Workspaces stay until you delete them, and this page shows every workspace on the computer." %}</p>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

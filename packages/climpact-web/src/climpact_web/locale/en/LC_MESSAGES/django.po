@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 02:48+0000\n"
+"POT-Creation-Date: 2026-11-18 02:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -464,7 +464,7 @@ msgstr ""
 #: batch/templates/batch/check.html:42
 #: stations/templates/stations/_overview.html:33
 #: stations/templates/stations/_workspaces_table.html:15
-#: stations/templates/stations/add.html:160
+#: stations/templates/stations/add.html:161
 msgid "Stations"
 msgstr ""
 
@@ -1158,8 +1158,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: core/navigation.py:50 core/templates/refused.html:11 help/tour.py:42
-#: stations/templates/stations/workspaces.html:11
-#: stations/templates/stations/workspaces.html:16
+#: stations/templates/stations/workspace_open.html:13
+#: stations/templates/stations/workspaces.html:12
+#: stations/templates/stations/workspaces.html:17
 msgid "Workspaces"
 msgstr ""
 
@@ -1430,6 +1431,7 @@ msgstr ""
 #: help/templates/help/guide.html:6 help/templates/help/search.html:6
 #: help/templates/help/section.html:9 help/templates/help/topics.html:6
 #: stations/templates/stations/add.html:19
+#: stations/templates/stations/workspace_open.html:13
 msgid "Breadcrumb"
 msgstr ""
 
@@ -1474,6 +1476,7 @@ msgstr ""
 #: stations/templates/stations/add.html:80
 #: stations/templates/stations/copy.html:21
 #: stations/templates/stations/workspace_delete.html:17
+#: stations/templates/stations/workspace_open.html:23
 #: stations/templates/stations/workspace_rename.html:17
 msgid "Cancel"
 msgstr ""
@@ -1619,7 +1622,7 @@ msgid_plural "(%(counter)s stations, updated %(updated)s)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: core/templates/core/home.html:26 stations/templates/stations/add.html:156
+#: core/templates/core/home.html:26 stations/templates/stations/add.html:157
 msgid "All workspaces"
 msgstr ""
 
@@ -5732,7 +5735,7 @@ msgstr ""
 msgid "Your data against the station's temperatures"
 msgstr ""
 
-#: help/sections.py:355 stations/templates/stations/add.html:147
+#: help/sections.py:355 stations/templates/stations/add.html:148
 msgid "Settings"
 msgstr ""
 
@@ -9886,18 +9889,22 @@ msgid "Your workspaces, most recently changed first"
 msgstr ""
 
 #: stations/templates/stations/_workspaces_table.html:14
-#: stations/templates/stations/add.html:160
+#: stations/templates/stations/add.html:161
 msgid "Name"
 msgstr ""
 
 #: stations/templates/stations/_workspaces_table.html:18
-#: stations/templates/stations/add.html:160
+#: stations/templates/stations/add.html:161
 msgid "Updated"
 msgstr ""
 
 #: stations/templates/stations/_workspaces_table.html:19
-#: stations/templates/stations/add.html:160
+#: stations/templates/stations/add.html:161
 msgid "Deleted on"
+msgstr ""
+
+#: stations/templates/stations/_workspaces_table.html:35
+msgid "Save file"
 msgstr ""
 
 #: stations/templates/stations/add.html:12
@@ -9987,32 +9994,36 @@ msgid ""
 "settings, or drop a zip of everything."
 msgstr ""
 
-#: stations/templates/stations/add.html:141
-msgid "File format"
+#: stations/templates/stations/add.html:137
+msgid "Or open a saved workspace file"
 msgstr ""
 
 #: stations/templates/stations/add.html:142
-msgid "Two lines of a station file"
+msgid "File format"
 msgstr ""
 
 #: stations/templates/stations/add.html:143
+msgid "Two lines of a station file"
+msgstr ""
+
+#: stations/templates/stations/add.html:144
 msgid ""
 "year month day PR TX TN, separated by spaces or tabs; −99.9 for missing."
 msgstr ""
 
-#: stations/templates/stations/add.html:144
+#: stations/templates/stations/add.html:145
 msgid "Template"
 msgstr ""
 
-#: stations/templates/stations/add.html:144
+#: stations/templates/stations/add.html:145
 msgid "Metadata file"
 msgstr ""
 
-#: stations/templates/stations/add.html:144
+#: stations/templates/stations/add.html:145
 msgid "Converting from other formats"
 msgstr ""
 
-#: stations/templates/stations/add.html:148
+#: stations/templates/stations/add.html:149
 #, python-format
 msgid ""
 "Base period <span class=\"code\">%(start)s</span> and the ET-SCI default "
@@ -10020,11 +10031,11 @@ msgid ""
 "calculated."
 msgstr ""
 
-#: stations/templates/stations/add.html:155
+#: stations/templates/stations/add.html:156
 msgid "Or continue a workspace"
 msgstr ""
 
-#: stations/templates/stations/add.html:158
+#: stations/templates/stations/add.html:159
 msgid "Workspaces changed last"
 msgstr ""
 
@@ -10867,6 +10878,33 @@ msgid ""
 "provenance file lets you rerun the same calculation."
 msgstr ""
 
+#: stations/templates/stations/workspace_open.html:10
+#: stations/templates/stations/workspace_open.html:13
+#: stations/templates/stations/workspace_open.html:16
+#: stations/templates/stations/workspaces.html:21
+msgid "Open a workspace file"
+msgstr ""
+
+#: stations/templates/stations/workspace_open.html:17
+#, python-format
+msgid ""
+"A workspace file (<code>%(file)s</code>) holds a workspace's input files and "
+"settings. Opening it makes a new workspace in this browser with the same "
+"stations and settings; the checks and indices are calculated again."
+msgstr ""
+
+#: stations/templates/stations/workspace_open.html:17
+#, python-format
+msgid ""
+"A workspace file (<code>%(file)s</code>) holds a workspace's input files and "
+"settings. Opening it makes a new workspace on this computer with the same "
+"stations and settings; the checks and indices are calculated again."
+msgstr ""
+
+#: stations/templates/stations/workspace_open.html:22
+msgid "Open"
+msgstr ""
+
 #: stations/templates/stations/workspace_rename.html:6
 #, python-format
 msgid "Rename: %(name)s"
@@ -10898,7 +10936,7 @@ msgstr ""
 msgid "Back to the overview"
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:17
+#: stations/templates/stations/workspaces.html:18
 #, python-format
 msgid ""
 "In this browser only. Each is deleted %(days)s day after its last change."
@@ -10907,38 +10945,46 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/workspaces.html:17
+#: stations/templates/stations/workspaces.html:18
 msgid "On this computer. Workspaces stay until you delete them."
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:19
+#: stations/templates/stations/workspaces.html:23
 msgid "New workspace"
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:26
+#: stations/templates/stations/workspaces.html:31
 msgid "You have no workspaces yet."
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:26
+#: stations/templates/stations/workspaces.html:31
 msgid "Workspaces you start in this browser appear here while they are kept."
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:26
+#: stations/templates/stations/workspaces.html:31
 msgid "Workspaces you start on this computer appear here."
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:31
+#: stations/templates/stations/workspaces.html:36
 #, python-format
 msgid ""
 "Gridded calculations are not workspaces: they are listed in <a "
 "href=\"%(jobs_url)s\">Your calculations</a>."
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:35
+#: stations/templates/stations/workspaces.html:40
+#, python-format
+msgid ""
+"<strong>Save file</strong> downloads the workspace's input files and "
+"settings as one zip (<code>%(file)s</code>). Open it here or on another "
+"computer to rebuild the workspace; the indices are calculated again."
+msgstr ""
+
+#: stations/templates/stations/workspaces.html:42
 msgid "Running Climpact on your own computer?"
 msgstr ""
 
-#: stations/templates/stations/workspaces.html:35
+#: stations/templates/stations/workspaces.html:42
 msgid ""
 "Workspaces stay until you delete them, and this page shows every workspace "
 "on the computer."
@@ -11086,7 +11132,7 @@ msgstr ""
 msgid "%(name)s was added and is being checked."
 msgstr ""
 
-#: stations/views_add.py:576
+#: stations/views_add.py:577
 #, python-format
 msgid "Add stations: %(name)s (%(count)d station)"
 msgid_plural "Add stations: %(name)s (%(count)d stations)"
@@ -11226,6 +11272,27 @@ msgstr ""
 msgid "%(name)s was deleted."
 msgstr ""
 
+#: stations/views_workspace_file.py:41
+#, python-format
+msgid "%(name)s has no station to save yet."
+msgstr ""
+
+#: stations/views_workspace_file.py:63
+#, python-format
+msgid "climpact_workspace.zip, from Save file on Workspaces; up to %(mb)d MB."
+msgstr ""
+
+#: stations/views_workspace_file.py:93
+#, python-format
+msgid ""
+"%(name)s was opened from the workspace file. Its station is being checked "
+"and calculated again."
+msgid_plural ""
+"%(name)s was opened from the workspace file. Its %(count)d stations are "
+"being checked and calculated again."
+msgstr[0] ""
+msgstr[1] ""
+
 #: stations/workspace.py:397
 msgid "You loaded a different station file."
 msgstr ""
@@ -11345,6 +11412,209 @@ msgstr ""
 msgid "%(input)s changed"
 msgstr ""
 
+#: stations/workspace_file.py:225
+#, python-format
+msgid ""
+"This workspace file is damaged or was changed after it was saved: %(detail)s"
+msgstr ""
+
+#: stations/workspace_file.py:234
+#, python-format
+msgid "%(name)s has a name no workspace file uses."
+msgstr ""
+
+#: stations/workspace_file.py:236
+#, python-format
+msgid "%(name)s is an absolute path."
+msgstr ""
+
+#: stations/workspace_file.py:238
+#, python-format
+msgid "%(name)s points outside the workspace file."
+msgstr ""
+
+#: stations/workspace_file.py:241
+#, python-format
+msgid "%(name)s is a symbolic link."
+msgstr ""
+
+#: stations/workspace_file.py:243
+#, python-format
+msgid "%(name)s is encrypted."
+msgstr ""
+
+#: stations/workspace_file.py:245
+#, python-format
+msgid "%(name)s is compressed in a way workspace files are not."
+msgstr ""
+
+#: stations/workspace_file.py:250 stations/workspace_file.py:509
+#, python-format
+msgid "%(name)s is not part of a workspace file."
+msgstr ""
+
+#: stations/workspace_file.py:260
+#, python-format
+msgid ""
+"This file unpacks to more data than a workspace can hold (%(mb)d MB at "
+"most). It may be a zip bomb, or not a workspace file."
+msgstr ""
+
+#: stations/workspace_file.py:276 stations/workspace_file.py:670
+msgid ""
+"This is not a zip file. A workspace file is the climpact_workspace.zip that "
+"Save file downloads."
+msgstr ""
+
+#: stations/workspace_file.py:282
+#, python-format
+msgid ""
+"This zip holds %(count)d files; a workspace file holds at most %(max)d "
+"stations."
+msgstr ""
+
+#: stations/workspace_file.py:288
+msgid ""
+"This zip has no workspace.json, so it is not a workspace file. To add "
+"station files, use Add stations instead."
+msgstr ""
+
+#: stations/workspace_file.py:298 stations/workspace_file.py:508
+#, python-format
+msgid "This is not a workspace file that can be opened: %(problem)s"
+msgstr ""
+
+#: stations/workspace_file.py:302
+#, python-format
+msgid "%(name)s is in it twice."
+msgstr ""
+
+#: stations/workspace_file.py:328
+#, python-format
+msgid "%(name)s cannot be read."
+msgstr ""
+
+#: stations/workspace_file.py:342
+msgid "workspace.json is not valid JSON."
+msgstr ""
+
+#: stations/workspace_file.py:344
+msgid "workspace.json does not describe a workspace."
+msgstr ""
+
+#: stations/workspace_file.py:355
+msgid ""
+"workspace.json is not a Climpact workspace file's: it names no workspace "
+"format."
+msgstr ""
+
+#: stations/workspace_file.py:359
+msgid "workspace.json has no format version."
+msgstr ""
+
+#: stations/workspace_file.py:363
+#, python-format
+msgid ""
+"This workspace file was saved by a newer version of Climpact (format "
+"%(version)d; this one reads format %(supported)d). Update Climpact, or open "
+"it where it was saved."
+msgstr ""
+
+#: stations/workspace_file.py:380
+msgid "its settings are missing."
+msgstr ""
+
+#: stations/workspace_file.py:388
+msgid "its base period is not two years in order."
+msgstr ""
+
+#: stations/workspace_file.py:391
+msgid "its quality thresholds are missing."
+msgstr ""
+
+#: stations/workspace_file.py:394
+msgid "its quality thresholds are out of range."
+msgstr ""
+
+#: stations/workspace_file.py:399
+msgid "its index settings are missing."
+msgstr ""
+
+#: stations/workspace_file.py:402
+msgid "its custom index is not one."
+msgstr ""
+
+#: stations/workspace_file.py:407
+msgid "its output options are not valid."
+msgstr ""
+
+#: stations/workspace_file.py:424
+msgid "its index settings are not valid."
+msgstr ""
+
+#: stations/workspace_file.py:428
+msgid "its index settings are out of range."
+msgstr ""
+
+#: stations/workspace_file.py:454
+msgid "it lists no stations."
+msgstr ""
+
+#: stations/workspace_file.py:457
+#, python-format
+msgid ""
+"This workspace file has %(count)d stations; at most %(max)d can be opened."
+msgstr ""
+
+#: stations/workspace_file.py:463
+#, python-format
+msgid "station %(n)d is not described."
+msgstr ""
+
+#: stations/workspace_file.py:467
+#, python-format
+msgid "station %(n)d has no name."
+msgstr ""
+
+#: stations/workspace_file.py:469
+#, python-format
+msgid "the file of %(name)s is missing."
+msgstr ""
+
+#: stations/workspace_file.py:473
+#, python-format
+msgid "%(name)s has no %(what)s."
+msgstr ""
+
+#: stations/workspace_file.py:478
+#, python-format
+msgid "the index values of %(name)s are not valid."
+msgstr ""
+
+#: stations/workspace_file.py:482
+#, python-format
+msgid "%(name)s has no SHA-256."
+msgstr ""
+
+#: stations/workspace_file.py:489
+#, python-format
+msgid "the file of %(name)s is not the one saved (its SHA-256 differs)."
+msgstr ""
+
+#: stations/workspace_file.py:522
+msgid "its name is not valid."
+msgstr ""
+
+#: stations/workspace_file.py:622
+#, python-format
+msgid "%(name)s cannot be opened: %(problem)s"
+msgstr ""
+
+#: stations/workspace_file.py:676
+#, python-format
+msgid "This file is larger than %(mb)d MB, the most this site takes."
+msgstr ""
+
 #: stations/workspace_files.py:87 stations/workspace_files.py:531
 msgid "checking"
 msgstr ""
@@ -11401,81 +11671,81 @@ msgid_plural "%(count)s files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:77
+#: stations/workspace_list.py:78
 #, python-format
 msgid "today %(time)s"
 msgstr ""
 
-#: stations/workspace_list.py:79
+#: stations/workspace_list.py:80
 #, python-format
 msgid "yesterday %(time)s"
 msgstr ""
 
-#: stations/workspace_list.py:93
+#: stations/workspace_list.py:94
 msgid "today"
 msgstr ""
 
-#: stations/workspace_list.py:95
+#: stations/workspace_list.py:96
 msgid "tomorrow"
 msgstr ""
 
-#: stations/workspace_list.py:96
+#: stations/workspace_list.py:97
 #, python-format
 msgid "in %(n)d day"
 msgid_plural "in %(n)d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:132
+#: stations/workspace_list.py:133
 #, python-format
 msgid "%(n)d ready"
 msgid_plural "%(n)d ready"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:133
+#: stations/workspace_list.py:134
 #, python-format
 msgid "%(n)d usable"
 msgid_plural "%(n)d usable"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:134
+#: stations/workspace_list.py:135
 #, python-format
 msgid "%(n)d fix first"
 msgid_plural "%(n)d fix first"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:135
+#: stations/workspace_list.py:136
 #, python-format
 msgid "%(n)d checking"
 msgid_plural "%(n)d checking"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:143
+#: stations/workspace_list.py:144
 #, python-format
 msgid "%(n)d failed"
 msgid_plural "%(n)d failed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:154
+#: stations/workspace_list.py:155
 #, python-format
 msgid "%(n)d file waiting to be added"
 msgid_plural "%(n)d files waiting to be added"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:164
+#: stations/workspace_list.py:165
 #, python-format
 msgid "%(names)s and %(n)d more"
 msgid_plural "%(names)s and %(n)d more"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_list.py:168
+#: stations/workspace_list.py:169
 #, python-format
 msgid "%(first)s and %(second)s"
 msgstr ""

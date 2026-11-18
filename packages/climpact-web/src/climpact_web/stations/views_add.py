@@ -513,10 +513,11 @@ def batch_names(rows) -> dict[str, str]:
     return names
 
 
-def add_many(request, run: BatchRun, rows) -> None:
+def add_many(request, run: BatchRun, rows) -> str:
     """Several stations: one batch job runs them (the workspace's base period, custom index
     and plots), each a station of the workspace from now on (``batch.fill``), and each
-    station's quality checks are queued beside it, as one change for the hosted limits."""
+    station's quality checks are queued beside it, as one change for the hosted limits.
+    Returns the change's id (opening a workspace file adds to it, ``workspace_file``)."""
     from climpact_web.batch.views import set_base_period
     from climpact_web.stations.workspace import workspace_settings
 
@@ -586,3 +587,4 @@ def add_many(request, run: BatchRun, rows) -> None:
         if workspace.set_up(station):
             calculation.queue_qc(request, station, change)
     calculation.commit_workspace(request, space)  # a station there before, if not yet (#277)
+    return change

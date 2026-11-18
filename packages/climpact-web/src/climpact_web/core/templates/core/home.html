@@ -63,6 +63,7 @@ What you need; and a closing Get started. Context from core.views.home.
           {% if chart.trend %}<line class="index-chart__trend" x1="{{ chart.left }}" y1="{{ chart.trend.y1 }}" x2="{{ chart.right }}" y2="{{ chart.trend.y2 }}"/>{% endif %}
         </svg>
         {% endwith %}
+        <div class="landing-preview__rows" role="region" aria-label="{% translate 'Four more indices' %}" tabindex="0">
         <table class="landing-preview__table">
           <caption class="sr-only">{% blocktranslate with station=preview.station trimmed %}Four more indices at {{ station }}: Sen's slope per decade and its 95% interval{% endblocktranslate %}</caption>
           <thead class="sr-only"><tr><th scope="col">{% translate "Code" %}</th><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Slope per decade" %}</th><th scope="col">{% translate "95% interval" %}</th><th scope="col">{% translate "Significant" %}</th></tr></thead>
@@ -78,6 +79,7 @@ What you need; and a closing Get started. Context from core.views.home.
             {% endfor %}
           </tbody>
         </table>
+        </div>
         <figcaption id="preview-caption" class="landing-preview__caption">{% blocktranslate with station=preview.station years=preview.years trimmed %}The output of the sample station, {{ station }}, {{ years }}: Sen's slope per decade, with its 95% interval. Significant: the interval excludes zero.{% endblocktranslate %}</figcaption>
       </figure>
       {% endif %}

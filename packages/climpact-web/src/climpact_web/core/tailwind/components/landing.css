@@ -201,6 +201,12 @@
     block-size: auto;
   }
 
+  /* The rows scroll inside the figure rather than widen the page on a narrow phone. */
+  .landing-preview__rows {
+    min-inline-size: 0;
+    overflow-x: auto;
+  }
+
   .landing-preview__table {
     inline-size: 100%;
     border-collapse: collapse;
@@ -239,6 +245,10 @@
 
   /* On a phone the rows keep the code, name, slope and significance. */
   @media (width < 36rem) {
+    .landing-preview {
+      padding: --spacing(3);
+    }
+
     .landing-preview__table :is(td, th):nth-child(4) {
       display: none;
     }

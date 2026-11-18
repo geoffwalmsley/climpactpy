@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 02:23+0000\n"
+"POT-Creation-Date: 2026-11-18 02:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1672,19 +1672,23 @@ msgstr ""
 msgid "base period"
 msgstr ""
 
-#: core/templates/core/home.html:67
+#: core/templates/core/home.html:66
+msgid "Four more indices"
+msgstr ""
+
+#: core/templates/core/home.html:68
 #, python-format
 msgid ""
 "Four more indices at %(station)s: Sen's slope per decade and its 95%% "
 "interval"
 msgstr ""
 
-#: core/templates/core/home.html:68 core/views.py:615
+#: core/templates/core/home.html:69 core/views.py:615
 #: stations/views_indices.py:396
 msgid "Code"
 msgstr ""
 
-#: core/templates/core/home.html:68 core/templates/core/patterns.html:360
+#: core/templates/core/home.html:69 core/templates/core/patterns.html:360
 #: core/views.py:616 gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
@@ -1692,12 +1696,12 @@ msgstr ""
 msgid "Index"
 msgstr ""
 
-#: core/templates/core/home.html:68 core/views.py:617
+#: core/templates/core/home.html:69 core/views.py:617
 #: stations/views_indices.py:398
 msgid "Slope per decade"
 msgstr ""
 
-#: core/templates/core/home.html:68
+#: core/templates/core/home.html:69
 #: stations/templates/stations/_index_detail.html:36
 #: stations/templates/stations/_indices.html:63
 #: stations/templates/stations/result.html:70
@@ -1705,240 +1709,240 @@ msgstr ""
 msgid "95%% interval"
 msgstr ""
 
-#: core/templates/core/home.html:68 core/views.py:618
+#: core/templates/core/home.html:69 core/views.py:618
 #: stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_overview.html:46
 #: stations/templates/stations/result.html:71 stations/views_indices.py:399
 msgid "Significant"
 msgstr ""
 
-#: core/templates/core/home.html:74 core/views.py:235 core/views.py:576
+#: core/templates/core/home.html:75 core/views.py:235 core/views.py:576
 #: stations/results.py:324
 msgid "percentage points"
 msgstr ""
 
-#: core/templates/core/home.html:76
+#: core/templates/core/home.html:77
 #: stations/templates/stations/_indices.html:74
 msgid "yes"
 msgstr ""
 
-#: core/templates/core/home.html:76
+#: core/templates/core/home.html:77
 #: stations/templates/stations/_indices.html:74
 msgid "no"
 msgstr ""
 
-#: core/templates/core/home.html:81
+#: core/templates/core/home.html:83
 #, python-format
 msgid ""
 "The output of the sample station, %(station)s, %(years)s: Sen's slope per "
 "decade, with its 95%% interval. Significant: the interval excludes zero."
 msgstr ""
 
-#: core/templates/core/home.html:87
+#: core/templates/core/home.html:89
 msgid "Facts"
 msgstr ""
 
-#: core/templates/core/home.html:89
+#: core/templates/core/home.html:91
 msgid "ET-SCI indices per station, with a trend for each"
 msgstr ""
 
-#: core/templates/core/home.html:90
+#: core/templates/core/home.html:92
 #, python-format
 msgid ""
 "reference datasets tested: %(stations)s stations from Yakutsk to Darwin, and "
 "%(cases)s test cases"
 msgstr ""
 
-#: core/templates/core/home.html:91
+#: core/templates/core/home.html:93
 #, python-format
 msgid ""
 "of the %(files)s files written for them identical to Climpact for R "
 "%(version)s, character for character"
 msgstr ""
 
-#: core/templates/core/home.html:93
+#: core/templates/core/home.html:95
 msgid "things to install; or run it yourself with"
 msgstr ""
 
-#: core/templates/core/home.html:95
+#: core/templates/core/home.html:97
 msgid "files sent anywhere: this copy runs on your own computer"
 msgstr ""
 
-#: core/templates/core/home.html:102
+#: core/templates/core/home.html:104
 msgid "How it works"
 msgstr ""
 
-#: core/templates/core/home.html:106
+#: core/templates/core/home.html:108
 msgid "file"
 msgstr ""
 
-#: core/templates/core/home.html:106
+#: core/templates/core/home.html:108
 msgid "lat"
 msgstr ""
 
-#: core/templates/core/home.html:106
+#: core/templates/core/home.html:108
 msgid "lon"
 msgstr ""
 
-#: core/templates/core/home.html:108
+#: core/templates/core/home.html:110
 msgid "3 files read"
 msgstr ""
 
-#: core/templates/core/home.html:111
+#: core/templates/core/home.html:113
 msgid "Add your stations"
 msgstr ""
 
-#: core/templates/core/home.html:112
+#: core/templates/core/home.html:114
 msgid ""
 "Drop one daily file or a whole network. You check names and coordinates "
 "before anything runs."
 msgstr ""
 
-#: core/templates/core/home.html:116
+#: core/templates/core/home.html:118
 msgid "Usable · 21 look wrong"
 msgstr ""
 
-#: core/templates/core/home.html:118
+#: core/templates/core/home.html:120
 msgid "21.3 above TX 9.2"
 msgstr ""
 
-#: core/templates/core/home.html:119
+#: core/templates/core/home.html:121
 msgid "350.5: too large"
 msgstr ""
 
-#: core/templates/core/home.html:120
+#: core/templates/core/home.html:122
 msgid "all"
 msgstr ""
 
-#: core/templates/core/home.html:120
+#: core/templates/core/home.html:122
 msgid "date given 3 times"
 msgstr ""
 
-#: core/templates/core/home.html:124
+#: core/templates/core/home.html:126
 msgid "Check the data"
 msgstr ""
 
-#: core/templates/core/home.html:125
+#: core/templates/core/home.html:127
 msgid ""
 "Every value is checked: swapped columns, impossible values, repeated dates, "
 "jumps and flat runs. Each station gets a verdict."
 msgstr ""
 
-#: core/templates/core/home.html:134
+#: core/templates/core/home.html:136
 msgid "Read the trends, take the files"
 msgstr ""
 
-#: core/templates/core/home.html:135
+#: core/templates/core/home.html:137
 msgid ""
 "Every index with its slope and interval, compared across stations, then "
 "downloaded in Climpact for R's folder layout."
 msgstr ""
 
-#: core/templates/core/home.html:144
+#: core/templates/core/home.html:146
 msgid "What you get"
 msgstr ""
 
-#: core/templates/core/home.html:145
+#: core/templates/core/home.html:147
 msgid ""
 "The full ET-SCI set, defined by the WMO Expert Team on Sector-specific "
 "Climate Indices, calculated exactly as Climpact for R does."
 msgstr ""
 
-#: core/templates/core/home.html:146
+#: core/templates/core/home.html:148
 msgid "Browse the index reference"
 msgstr ""
 
-#: core/templates/core/home.html:149 core/templates/core/patterns.html:357
+#: core/templates/core/home.html:151 core/templates/core/patterns.html:357
 #: core/templates/core/patterns.html:358 stations/sector_plots.py:38
 msgid "Temperature"
 msgstr ""
 
-#: core/templates/core/home.html:149
+#: core/templates/core/home.html:151
 msgid ""
 "Hottest day and coldest night, frost and summer days, warm and cold spells, "
 "percentile indices, degree days."
 msgstr ""
 
-#: core/templates/core/home.html:150
+#: core/templates/core/home.html:152
 msgid "Rain and drought"
 msgstr ""
 
-#: core/templates/core/home.html:150
+#: core/templates/core/home.html:152
 msgid "Wettest days, very wet days, dry and wet spells, SPI and SPEI."
 msgstr ""
 
-#: core/templates/core/home.html:151 help/indices.py:192
+#: core/templates/core/home.html:153 help/indices.py:192
 msgid "Heatwaves"
 msgstr ""
 
-#: core/templates/core/home.html:151
+#: core/templates/core/home.html:153
 msgid ""
 "Number, duration and intensity, from TX90, TN90 and the Excess Heat Factor."
 msgstr ""
 
-#: core/templates/core/home.html:152
+#: core/templates/core/home.html:154
 msgid "Outputs"
 msgstr ""
 
-#: core/templates/core/home.html:152
+#: core/templates/core/home.html:154
 msgid ""
 "Index CSVs, trends, thresholds, plots and a PDF report per station, and a "
 "sector comparison."
 msgstr ""
 
-#: core/templates/core/home.html:153 gridded/templates/gridded/start.html:3
+#: core/templates/core/home.html:155 gridded/templates/gridded/start.html:3
 #: help/topics.py:75
 msgid "Gridded data"
 msgstr ""
 
-#: core/templates/core/home.html:153
+#: core/templates/core/home.html:155
 msgid "NetCDF in, index fields out, with the same definitions."
 msgstr ""
 
-#: core/templates/core/home.html:154
+#: core/templates/core/home.html:156
 msgid "Open source"
 msgstr ""
 
-#: core/templates/core/home.html:154
+#: core/templates/core/home.html:156
 msgid ""
 "A Python port of Climpact. Run it on your own computer, where workspaces "
 "stay until you delete them, or from a script with the climpact command."
 msgstr ""
 
-#: core/templates/core/home.html:154
+#: core/templates/core/home.html:156
 msgid ""
 "A Python port of Climpact. Workspaces on this computer stay until you delete "
 "them; the climpact command runs the same calculations from a script."
 msgstr ""
 
-#: core/templates/core/home.html:162
+#: core/templates/core/home.html:164
 msgid "What you need"
 msgstr ""
 
-#: core/templates/core/home.html:163
+#: core/templates/core/home.html:165
 msgid ""
 "A text file of daily values per station: year, month, day, rainfall (mm), "
 "maximum and minimum temperature (°C). Missing values as −99.9. Thirty years "
 "or more gives the trends meaning."
 msgstr ""
 
-#: core/templates/core/home.html:164
+#: core/templates/core/home.html:166
 msgid "Download a template"
 msgstr ""
 
-#: core/templates/core/home.html:164
+#: core/templates/core/home.html:166
 msgid "About the metadata file"
 msgstr ""
 
-#: core/templates/core/home.html:166
+#: core/templates/core/home.html:168
 msgid "The first lines of a station file"
 msgstr ""
 
-#: core/templates/core/home.html:176
+#: core/templates/core/home.html:178
 msgid "Try it with your own stations"
 msgstr ""
 
-#: core/templates/core/home.html:177
+#: core/templates/core/home.html:179
 #, python-format
 msgid ""
 "Only this browser can see your workspaces. They are deleted %(days)s day "
@@ -1949,7 +1953,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: core/templates/core/home.html:177
+#: core/templates/core/home.html:179
 msgid "Your workspaces stay on this computer until you delete them."
 msgstr ""
 

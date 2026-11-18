@@ -133,7 +133,8 @@ def test_station_pages_lead_round_the_workspace(client):
         assert "Station 2 of 3" in crumbs
         assert f'href="{a.url()}indices" rel="prev"' in html, path
         assert f'href="{c.url()}indices" rel="next"' in html, path
-        assert "context-bar__add" not in html
+        assert f'class="context-bar__add" href="/w/{run.workspace_id}/add/"' not in html
+        assert ">Copy to workspace…</a>" in html  # #241
     first = page(client, a)
     assert 'rel="prev"' not in first and 'rel="next"' in first
 

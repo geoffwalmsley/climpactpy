@@ -3,6 +3,7 @@ from django.urls import include, path
 from climpact_web.stations import (
     views,
     views_add,
+    views_copy,
     views_downloads,
     views_files,
     views_indices,
@@ -17,10 +18,10 @@ app_name = "stations"
 # ``downloads``; ``setup`` is the New station page once its file is read, and ``load`` the
 # first visit's details' old address. ``inputs/<key>`` is a sheet of the Inputs panel as a
 # page: the file, the station, the base period, the thresholds and the index settings
-# (#198, #199). The station's own address opens the furthest section reached; ``recalculate``
-# is "Recalculate" on out-of-date results (and on GET the Index settings sheet over
-# Indices). The URL names keep the names they had under ``/station/<id>/``: ``results`` is
-# Indices and ``result`` an index's page.
+# (#198, #199); ``copy`` is Copy to workspace… (#241). The station's own address opens
+# the furthest section reached; ``recalculate`` is "Recalculate" on out-of-date results
+# (and on GET the Index settings sheet over Indices). The URL names keep the names they
+# had under ``/station/<id>/``: ``results`` is Indices and ``result`` an index's page.
 station_patterns = [
     path("", views.station_home, name="station"),
     path("setup", views.new_station, name="setup"),
@@ -31,6 +32,7 @@ station_patterns = [
     path("inputs/<slug:key>", views.edit_input, name="edit_input"),
     path("series.csv", views.series, name="series"),
     path("delete", views.delete, name="delete"),
+    path("copy", views_copy.copy, name="copy"),
     path("quality", views.qc, name="qc"),
     path("quality/progress", views.qc_progress, name="qc_progress"),
     path("quality/checks/<slug:check>", views.qc_table, name="qc_table"),

@@ -378,11 +378,16 @@ def test_edit_inputs_on_the_provenance_line(client):
     for path in ("indices", "quality"):
         html = page(client, analysis, path)
         provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
-        # Then "Add stations", as the workspace has one station (#234).
+        # Then "Add stations", as the workspace has one station (#234), and "Copy to
+        # workspace…" (#241), back to this page.
+        copy = (
+            f"{analysis.url('copy')}?next={analysis.url('qc' if path == 'quality' else 'results')}"
+        )
         assert provenance.endswith(
             '<a class="context-bar__edit" href="#inputs-title" data-sheet-open="sheet-inputs"'
             ' aria-haspopup="dialog">Edit inputs</a><a class="context-bar__add"'
-            f' href="/w/{analysis.workspace_id}/add/">Add stations</a>\n'
+            f' href="/w/{analysis.workspace_id}/add/">Add stations</a>'
+            f'<a class="context-bar__add" href="{copy}">Copy to workspace…</a>\n'
         ), path
         assert 'id="inputs-title"' in html and "data-inputs-bar" in html
         assert "station-page--inputs-bar" in html, path

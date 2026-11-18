@@ -394,6 +394,8 @@ def site(chrome, server):
     pages["workspace rename"] = pages["workspace overview"] + "rename"
     pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
     pages["workspace compare"] = pages["workspace overview"] + "compare/"  # #238
+    # Copy to workspace… (#241), from the first row of the Stations table.
+    pages["station copy"] = c.evaluate("document.querySelector('.stations-table__actions a').href")
 
     # The sample grid: thresholds, then three indices.
     c.navigate(open_url("/gridded/"))

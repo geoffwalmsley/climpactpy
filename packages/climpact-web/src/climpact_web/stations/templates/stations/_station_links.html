@@ -1,6 +1,7 @@
 {% load i18n %}{% comment %}
 The links at the end of a station's provenance line: "Edit inputs" on the Indices and
 Quality (#263, #264; stations/_edit_inputs.html, with ``edit_inputs`` and the Inputs
-panel), and "Add stations" in a workspace of one station (#234), which leads to Add
-stations for this workspace; adding one makes it a workspace of two, with its overview.
-{% endcomment %}{% if inputs and edit_inputs %}{% include "stations/_edit_inputs.html" %}{% endif %}{% if single_station and analysis.workspace_id %}<a class="context-bar__add" href="{% url 'stations:add_to' analysis.workspace_id %}">{% translate "Add stations" %}</a>{% endif %}
+panel), "Add stations" in a workspace of one station (#234), which leads to Add
+stations for this workspace; adding one makes it a workspace of two, with its overview;
+and "Copy to workspace…" (#241, ``copy_url``) once the station is set up.
+{% endcomment %}{% if inputs and edit_inputs %}{% include "stations/_edit_inputs.html" %}{% endif %}{% if single_station and analysis.workspace_id %}<a class="context-bar__add" href="{% url 'stations:add_to' analysis.workspace_id %}">{% translate "Add stations" %}</a>{% endif %}{% if copy_url and not copying %}<a class="context-bar__add" href="{{ copy_url }}?next={{ request.get_full_path|urlencode }}">{% translate "Copy to workspace…" %}</a>{% endif %}

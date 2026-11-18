@@ -76,6 +76,7 @@ class Row:
     indices: Indices
     significant: str = ""
     significant_label: str = ""
+    copy_url: str = ""  # Copy to workspace… (#241), once the station is set up
 
 
 def _quality(station: Station, state: str) -> Quality:
@@ -221,6 +222,7 @@ def rows(space: Workspace, owner: str) -> list[Row]:
                 indices=indices,
                 significant=significant,
                 significant_label=significant_label,
+                copy_url=station.url("copy") if workspace.set_up(station) else "",
             )
         )
     return out

@@ -657,6 +657,7 @@ def context(analysis: Station, current: str, path: str = "") -> dict:
     if current != "setup" and set_up(analysis):
         from climpact_web.stations.views import sheet_context
 
+        out["copy_url"] = analysis.url("copy")  # Copy to workspace… (#241)
         out.update(inputs_panel(analysis, path))
         out["input_sheets"] = [sheet_context(analysis, key) for key in sheet_keys(analysis)]
     return out

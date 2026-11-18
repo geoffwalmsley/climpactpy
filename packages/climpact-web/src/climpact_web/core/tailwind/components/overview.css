@@ -112,6 +112,13 @@
     font-size: var(--text-sm);
   }
 
+  /* Copy to workspace… (#241): a short link at the row's end. */
+  .stations-table__actions {
+    inline-size: 1%;
+    font-size: var(--text-sm);
+    text-align: end;
+  }
+
   .stations-table__failed {
     background: color-mix(in srgb, var(--color-danger-soft) 55%, var(--color-surface));
   }

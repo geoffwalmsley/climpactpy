@@ -2,7 +2,8 @@
 The overview's run status line and Stations table (#234, the Calculate board), polled by
 htmx (outerHTML swap) while stations are checked or calculated: views_workspace.
 workspace_progress returns this block alone. Context: rows (stations.overview.rows),
-status (overview.status_line, or None), polling, delay, page, space; and Trends across
+status (overview.status_line, or None), polling, delay, page, space; each row's "Copy…"
+(Copy to workspace…, #241, row.copy_url) in the last column; and Trends across
 stations (#238, stations/_trends.html: views_workspace.trends_context), which waits while
 a station is calculated and so comes in with the last poll.
 {% endcomment %}
@@ -43,6 +44,7 @@ a station is calculated and so comes in with the last poll.
             <th scope="col">{% translate "Quality" %}</th>
             <th scope="col" class="stations-table__indices">{% translate "Indices" %}</th>
             <th scope="col" class="num">{% translate "Significant" %}</th>
+            <th scope="col" class="stations-table__actions"><span class="sr-only">{% translate "Actions" %}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -61,6 +63,7 @@ a station is calculated and so comes in with the last poll.
               </span>
             </td>
             <td class="num"><span aria-hidden="true">{{ row.significant }}</span><span class="sr-only">{{ row.significant_label }}</span></td>
+            <td class="stations-table__actions">{% if row.copy_url %}<a href="{{ row.copy_url }}?next={{ page|urlencode }}">{% translate "Copy…" %}<span class="sr-only"> {% blocktranslate with name=row.name %}{{ name }} to another workspace{% endblocktranslate %}</span></a>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

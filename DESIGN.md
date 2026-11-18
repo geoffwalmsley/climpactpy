@@ -256,9 +256,9 @@ tabular figures (`font-variant-numeric: tabular-nums`); index codes, dates, file
 and the provenance line are `--font-mono`. The data table sets its `num` and `code`
 cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data tables
 (#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
-`--text-sm`, and the workspace overview's Stations table (#234, sans headers too).
-**Target (#239, #242):** each other page's tables move to the data table with that
-page.
+`--text-sm`, the workspace overview's Stations table (#234, sans headers too) and the
+workspace Files' By station table (#239). **Target (#242):** each other page's tables
+move to the data table with that page.
 
 ## Layout
 
@@ -348,8 +348,10 @@ strips, worklist and detail pane.
   defaults" or how many settings are not the default, the climpact version, "kept until
   24 Nov 2026" where workspaces expire) with Workspace settings and Rename at its end,
   Add stations (small secondary) at the end of the title's row, then the tabs Overview,
-  Compare an index and Files, the last two not links until #238 and #239 (the lock of
-  "Not available yet"). Export ▾ and "Save workspace file" are #239 and #240. The
+  Compare an index and Files, Compare not a link until #238 (the lock of "Not available
+  yet"). Export ▾ (#239), primary at the end of the title's row on the overview and
+  Files: Everything (zip), Trends and Indices of all stations (CSV), and All files.
+  "Save workspace file" is #240. On Files the name is the h1 too. The
   overview is a data page (the whole window), as a station's.
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
@@ -377,9 +379,10 @@ strips, worklist and detail pane.
   object", because the table is one object (`components/table.html`, `table--data`).
   Quality's are (#235), and the Indices' (#236): at 1280 x 1180px (the board's size) 26
   of the Sydney sample's indices are in view, without sideways scroll. **Target:** each
-  other page's tables move to it with that page (#239, #242). The Stations table is one
+  other page's tables move to it with that page (#242). The Stations table is one
   since #234: nothing on the overview scrolls sideways at 1280px or wider (checked with
-  7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station).
+  7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station);
+  the workspace Files' By station table since #239 (checked the same way with 8).
 
 ## Depth and shape
 
@@ -425,6 +428,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `dialog` | Component | Native modal with focus kept inside | confirm, danger |
 | Inputs panel | Component | Everything the user gave, beside a station's sections (`stations/_inputs.html`): a group label, then each input as a row of its name (muted), its value (semibold) and one link at the end, Edit or Replace, on a sunken tint without a border. The thresholds and index settings read "Defaults" or how many were changed ("2 changed"). An input changed since the checks or results shown has the warning tint and says "changed" after its name; the run of the new inputs shows its progress in a box beneath the list, polled until it finishes. While that run is a change to the workspace's settings (#254), a small secondary "Undo the change" under it, a plain form (`stations/_undo_form.html`). Sticky under the context bar when beside the content | changed; with a run; with undo |
 | Inputs bar | Component | The Inputs panel in one line, under the workspace tabs where the content has less than 52rem (`stations/_inputs_bar.html`, the mockups' `.inputsbar`; #203): "Inputs:" then the base period and "defaults" or how many settings are not the default, then each input changed since what is shown (warning colour, and the bar takes the warning tint) and each run under way, and a small secondary Edit at the end, after a small secondary "Undo" while a change to the workspace's settings can be undone (#254). Edit opens the Inputs sheet: the panel's list in a side sheet, which on a phone fills the screen; each input's Edit there opens its own sheet over it, and Escape steps back to the list, then the bar. Only with JavaScript; without it the panel shows above the content. On a phone it reaches the screen's edges, under a hairline | changed; with a run; with undo |
+| Popover | Component | A disclosure whose panel floats under its button at the inline end (`pop`, `pop__details`, `pop__panel` in `disclosure.css`, #239; the index page's citation since #237): a native `<details>`, so it works without JavaScript. Export ▾ (`pop__panel--menu`, the menu's links one a line; `js/context-bar.js` closes it on Escape and on a click elsewhere), "Citation" and Files' "Methods text" (`pop__panel--text`: the text, which a copy button replaces with JavaScript, `js/copy.js` and `js/index-page.js`). In the ⋯ menu on phones it opens in place. The context bar's surface reaches the window's edges from a layer behind it (`::before`), so nothing that opens below the bar is cut off | menu, text |
 | Page menu (⋯) | Component | On a phone the page's actions (Results: the sector comparison, Download all) move from the context bar into a ⋯ button at the end of the name's line (`page-menu` in `components/context_bar.html`; #203). A disclosure, not an ARIA menu: a native `<details>` whose summary is the button ("Page actions" for screen readers), so it works without JavaScript; Enter or Space opens it, Tab goes through the actions (full-width buttons, one a line, in a raised panel), Escape closes it and returns focus to the button, and a click or focus elsewhere closes it (`js/context-bar.js`) | — |
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
@@ -444,9 +448,10 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
 | `steps` | Pattern | Where the user is in the gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179), nor by the batch since #234 | — |
-| Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why, and "Download all (zip, 31.4 MB)" while every station shows the batch's results. Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
+| Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why (the files are in Export ▾ and on Files since #239). Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
 | Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated). Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes | calculating, finished, failed, not run |
 | `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
+| Workspace files | Pattern | The workspace's Files (#239, the Files board; `stations/workspace_files.html`, `stations/workspace_files.py`): three framed boxes in a row, one a file (its name, its format and size in mono, what is in it, Download: "Download (out of date)" while a station's results are), "What is in the zip"; By station, a data table of each station's R files (Folder (zip), Report (PDF), All plots (PDF), Trends, Thresholds, Missing values, Quality flags: a size, "8 files", or why it is missing); then the provenance file (`climpact_run.json`, scrolling in its frame) with "Copy methods text", beside "Keeping the files". The files wait, with a line saying so, while a station is being calculated | ready, calculating, no results |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
@@ -519,8 +524,10 @@ years; sparklines are only for scanning, beside a number given in text.
   excludes zero). Method and years used on the index page and in the detail pane. Never a
   p-value.
 - **Keep the provenance in view.** Every station page has the provenance line in its
-  context bar (#227), and the workspace's pages theirs (#234). **Target:** every zip holds
-  `climpact_run.json` (#239).
+  context bar (#227), and the workspace's pages theirs (#234). Every zip the app offers
+  holds `climpact_run.json` (#239): the software, when, the base period, the settings,
+  the trend method and each station's file, SHA-256 and coordinates; the workspace's
+  Files shows it, with "Copy methods text".
 - **Separate what the user enters from what they get.** Inputs live in the Inputs panel,
   each edited in a side sheet that says what applying will update, with one Apply
   button; output pages hold no forms (#198, #199), only the decision, search and filters,
@@ -568,14 +575,19 @@ years; sparklines are only for scanning, beside a number given in text.
   table inside a card or disclosure has hairline rows and no frame, and disclosures are
   rows between hairlines.
   Inside a card, separate groups with spacing and headings, not another border.
-- **Don't offer downloads everywhere.** Files live in one Files section
-  (`stations:downloads`); elsewhere at most one "Download all" link, plus each chart's own
+- **Don't offer downloads everywhere.** Files live in one Files section (a station's,
+  `stations:downloads`; a workspace's, `stations:workspace_files`, #239); elsewhere at
+  most one "Download all" link, plus each chart's own
   PNG/SVG/CSV. The Indices have the zip, primary in the context bar beside "Compare with
   sector data", the Files tab, and in the detail pane the selected index's CSV and PNG
   (#236, as the Results board draws it); Quality offers its flagged values as one CSV in the
   verdict strip (#235) and has one link to Files under the worklist; an index page offers
-  its series' CSV, its R-style PNG and a citation (#237). **Target (#239):** Files is the
-  workspace's (each station's files, the all-station CSVs and the provenance file).
+  its series' CSV, its R-style PNG and a citation (#237). The workspace's Files (#239, the
+  Files board) has the workspace files (Everything, Trends and Indices of all stations,
+  each with its size), each station's R files in one table (a size, or why the file is
+  missing: "not run", "failed", "checking"), and the provenance file; on the overview,
+  Export ▾ is its one way to them, so the run status line no longer offers the batch's
+  zip.
 - **Don't put a help link under every field.** One Help button per section opens that section's help
   in the drawer (in a modal sheet, a disclosure in place); a field keeps a hint only when
   its value isn't self-explanatory. Section

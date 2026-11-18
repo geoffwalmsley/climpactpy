@@ -171,7 +171,8 @@ seven-step diverging scale for maps; the **trend scale** (#227: `--chart-decreas
 `-decrease-1`, `-increase-1`, `-increase-2`, blue for a significant decrease and orange
 for an increase, the strong step darker in light and brighter in dark; a cell's value is
 written in it, in `--color-surface` on the strong steps and `--color-text` on the weak
-ones); and the **coverage steps** (`--chart-coverage-1` to `-3`: complete, 1–3 days
+ones: the trend grid's cells and the interval plot's dots since #238, at least 5.4:1 in
+both themes); and the **coverage steps** (`--chart-coverage-1` to `-3`: complete, 1–3 days
 missing, 4 or more, moving away from the surface in lightness). QC flags are hollow rings in ink, told apart by
 shape rather than colour. `chart-palette.json` carries the same values (with `trend_scale` and `coverage`) to the static
 plots and the PDF report.
@@ -348,11 +349,20 @@ strips, worklist and detail pane.
   defaults" or how many settings are not the default, the climpact version, "kept until
   24 Nov 2026" where workspaces expire) with Workspace settings and Rename at its end,
   Add stations (small secondary) at the end of the title's row, then the tabs Overview,
-  Compare an index and Files, Compare not a link until #238 (the lock of "Not available
-  yet"). Export ▾ (#239), primary at the end of the title's row on the overview and
-  Files: Everything (zip), Trends and Indices of all stations (CSV), and All files.
-  "Save workspace file" is #240. On Files the name is the h1 too. The
-  overview is a data page (the whole window), as a station's.
+  Compare an index (#238) and Files. Export ▾ (#239), primary at the end of the title's
+  row on the overview, Compare an index and Files: Everything (zip), Trends and Indices
+  of all stations (CSV), and All files. "Save workspace file" is #240. On Compare an
+  index and Files the name is the h1 too. The overview is a data page (the whole
+  window), as a station's.
+- **Trends across stations** (#238, the Workspace board; `stations/_trends.html`) under
+  the overview's Stations table, and alone on Compare an index (`/w/<id>/compare/`): the
+  heading and one line ("Sen's slope per decade. Filled cells: the 95% interval excludes
+  zero. …") with the legend at the row's end, then "Choose indices" (a disclosure: every
+  index with a trend, by theme, codes first; remembered for the workspace in the session)
+  and "Grid as CSV", then the trend grid beside the selected column's interval plot (the
+  grid `flex: 999 1 40rem`, the plot 20–25rem, under the grid when there is no room).
+  The trends wait, with a line saying so, while a station is calculated, and come in
+  with the overview's last poll.
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
   them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
@@ -382,7 +392,9 @@ strips, worklist and detail pane.
   other page's tables move to it with that page (#242). The Stations table is one
   since #234: nothing on the overview scrolls sideways at 1280px or wider (checked with
   7 stations, among them `qc_stress_1961-2020.txt`, a failed and a left-out station);
-  the workspace Files' By station table since #239 (checked the same way with 8).
+  the workspace Files' By station table since #239 (checked the same way with 8); the
+  trend grid since #238 (eight stations, two without results, long names: 11 columns fit
+  at 1280px with about 90px to spare, and with all 77 indices it scrolls inside its frame).
 
 ## Depth and shape
 
@@ -452,6 +464,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated). Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes | calculating, finished, failed, not run |
 | `stale_banner` | Pattern | Results kept on the page after an input changed: what changed, in words, and what happens next. An info alert with the new run's progress while it is on the way; a warning alert with one action ("Recalculate", or a link to fix the input) otherwise. The results below sit in a `stale-content` block: a dashed warning edge and greyed sparklines, the text at full contrast. Meanwhile the header describes the results shown and "Download all (out of date)" is secondary (#223) | updating, out of date |
 | Workspace files | Pattern | The workspace's Files (#239, the Files board; `stations/workspace_files.html`, `stations/workspace_files.py`): three framed boxes in a row, one a file (its name, its format and size in mono, what is in it, Download: "Download (out of date)" while a station's results are), "What is in the zip"; By station, a data table of each station's R files (Folder (zip), Report (PDF), All plots (PDF), Trends, Thresholds, Missing values, Quality flags: a size, "8 files", or why it is missing); then the provenance file (`climpact_run.json`, scrolling in its frame) with "Copy methods text", beside "Keeping the files". The files wait, with a line saying so, while a station is being calculated | ready, calculating, no results |
+| Trend grid | Pattern | Stations by indices (#238, `stations/_trends.html`, `stations/trend_grid.py`): a data table in its own frame, scrolling sideways inside it when the user chooses many indices, the station's name sticky at the inline start (an ellipsis from 11rem; "(no results)" after it). By default TXx, TNn, TN90p, TX10p, SU, TR, WSDI, PRCPTOT, Rx1day, R95p and CDD; chosen ones follow the defaults' order. Each header is the code (a link that selects the column, `?index=`; `js/trends.js` shows its plot in place), the short name in its `title` and for screen readers, the slope's units under it (`pp` for a percentage). Each cell is Sen's slope per decade, always written (`numbers.slope`), a link to the station's index page, its interval and significance in words for screen readers: filled on the trend scale when the 95% interval excludes zero (the strong step from half the column's largest significant slope, the weak one below), a dashed `border-strong` edge when it does not, "–" for too few values, hatched for a station without results. The selected column's header is on the selected tint with an ink edge under it. "Grid as CSV" is the workspace's Trends file's rows for the grid's indices | selected column, not significant, too few values, no results, many columns |
+| Interval plot | Pattern | The selected column beside the grid (#238): the code and "units per decade" in mono over the short name; a row a station, its name (a link to its index page) with its slope and interval, then a 360 x 16 line: the zero line, the interval as a thick muted line, the slope as a dot (the strong step of its direction when significant, `border-strong` when not); one axis under them, symmetric about zero, its ends round (`index_page.nice_ticks`). Stations left out say why under it ("Not shown: … no results"), then the key line and "CSV, all stations". Every column's plot is in the page, the others hidden. Its table view is the grid's column, its text summary the count of significant trends | significant, not significant, left out |
 | `empty_state` | Pattern | Nothing to show yet, with the next action | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
 
@@ -479,8 +493,6 @@ New patterns of #230 (Target; add each to `/patterns/` when it lands):
 
 | Pattern | Purpose | Ticket |
 | --- | --- | --- |
-| Trend grid | Stations by indices, each cell Sen's slope; filled when significant on the trend scale, dashed when not, hatched without results | #238 |
-| Interval plot | Each station's slope as a dot and its 95% interval as a line, with a zero line | #238 |
 | Workspaces table | Each workspace with its stations, status summary and deletion date | #242 |
 
 Every chart has a text summary, a table view and a CSV download, and can be used by

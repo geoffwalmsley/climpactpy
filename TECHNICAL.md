@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2795,6 +2795,7 @@ packages/climpact-web/src/climpact_web/
       js/copy.js     Files' "Copy methods text" (#239): the text's disclosure becomes a
                      button that copies it
       js/index-page.js  an index's page (#237): Values / Anomaly in place, Copy citation
+      js/trends.js   the trend grid (#238): a column's interval plot in place
       js/sheet.js    opens an Inputs panel's side sheet, a modal dialog (#198), the
                      sheet an old address asks for as the page loads (#199), and the
                      phone's Inputs sheet from the Inputs bar (#203), loaded by
@@ -2894,12 +2895,16 @@ packages/climpact-web/src/climpact_web/
                      climpact_run.json (`provenance`) and its methods sentence, the zips,
                      made once per `fingerprint` under <MEDIA_ROOT>/stations/<workspace>/files/
                      (`build`), and the By station table (`table`)
+    trend_grid.py    trends across stations (#238): the trend grid of the stations'
+                     results (`grid`: columns, cells on the trend scale, every column's
+                     interval plot, `interval_plot`) and its CSV (`grid_csv`)
     views_files.py   /w/<id>/files/ (#239): the Files page, its three downloads and a
                      station's zip with its provenance file (`station_zip`)
     views_workspace.py  /w/<id>/ (#234): the workspace's address (`workspace_page`: one
                      station opens it, several the overview), the overview's polled
-                     fragment (`workspace_progress`), Rename, Workspace settings (a page
-                     and one page a setting) and Undo
+                     fragment (`workspace_progress`), Compare an index (`compare_page`,
+                     /w/<id>/compare/, and the grid's CSV, `compare_csv`, #238), Rename,
+                     Workspace settings (a page and one page a setting) and Undo
     views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
                      old Calculate address, each index's page, anomalies JSON
@@ -2932,6 +2937,8 @@ packages/climpact-web/src/climpact_web/
                      (the run status line and Stations table), _space_bar.html and its
                      _space_*.html parts (the workspace's context bar; _space_actions.html
                      has Export ▾, #239), workspace_files.html (the workspace's Files),
+                     _trends.html and workspace_compare.html (trends across stations,
+                     #238),
                      workspace_settings.html, workspace_setting.html,
                      workspace_rename.html (#234); _station_links.html (the end of a
                      station's provenance line)
@@ -3011,7 +3018,8 @@ packages/climpact-web/tests/
                      (test_add_stations.py, #233), Quality (test_qc_review.py), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
                      #179, #198), the workspace overview (test_workspace_overview.py,
-                     #234), the workspace's Files (test_workspace_files.py, #239), the batch page (test_batch.py), the
+                     #234), the workspace's Files (test_workspace_files.py, #239), trends across stations
+                     (test_trend_grid.py, #238), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
@@ -4736,7 +4744,8 @@ reverses `stations:<name>` with the workspace and the slug; templates use
 names it; `batch.views.get_run` takes the workspace's). `batch` is therefore not a station
 slug, nor are `add` (Add stations' `/w/<id>/add/`, #233) and the overview's `settings`,
 `progress`, `rename` and `undo` (#234), and `files` (the workspace's Files,
-`/w/<id>/files/`, #239) (`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
+`/w/<id>/files/`, #239) and `compare` (Compare an index, `/w/<id>/compare/`, #238)
+(`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
 are included before the stations' (`climpact_web/urls.py`). Every lookup is by the
 session's owner token on both the station or batch and its workspace
 (`views.get_analysis`, `batch.views.get_run`), so another session's workspace, a slug the
@@ -6099,8 +6108,8 @@ the batch steps.
   period, "ET-SCI defaults" or how many thresholds and index settings are not the default,
   the climpact version, "kept until" the deletion date where workspaces expire) with
   Workspace settings and Rename at its end, Add stations, and the tabs Overview, Compare an
-  index (#238, not a link yet) and Files (#239). Export ▾ (#239, `_space_actions.html`) on
-  the overview and Files: Everything (zip), the trends and indices of all stations (CSV),
+  index (#238) and Files (#239). Export ▾ (#239, `_space_actions.html`) on
+  the overview, Compare an index and Files: Everything (zip), the trends and indices of all stations (CSV),
   and All files; until every station has finished it says the files are not made yet.
 - **The run status line** (`overview.status_line`): from the stations' rows. While any
   station waits or calculates: "Calculating indices: 3 of 5 stations done." with the
@@ -6124,8 +6133,10 @@ the batch steps.
   when a failure names the base period), and how many of its indices have a significant
   trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'
   answer line).
+- **Trends across stations** under the table (#238, [Trends across
+  stations](#trends-across-stations)).
 - **Live.** While a station waits, calculates or is checked, `#workspace-progress` (the
-  status line and the table) polls `stations:workspace_progress` with the job page's
+  status line, the table and the trends) polls `stations:workspace_progress` with the job page's
   delays (`poll_delay`), which records a finished batch first (`fill_workspace`); it stops
   once nothing is on the way, and asks for a reload (`HX-Refresh`) when the workspace is
   down to one station. Focus on Cancel survives the swap (`ui.js`), and the first sentence
@@ -6217,6 +6228,43 @@ A workspace of one station has none: the address leads to its station's Files.
   (Sydney, `qc_stress_1961-2020.txt`, Alice Springs, Darwin, Perth, Nairobi, a failed and a
   left-out one) Everything is 42.5 MB, the trends 35 KB and the indices 9.0 MB, made in a
   few seconds on the first visit.
+
+### Trends across stations
+
+The trend grid and the interval plot (#238; board `Workspace.dc.html`;
+`stations/trend_grid.py`, `stations/_trends.html`, `js/trends.js`), under the overview's
+Stations table and alone on Compare an index, `/w/<id>/compare/`
+(`views_workspace.compare_page`; a workspace of one station leads to its Indices).
+
+- **What it reads.** The results each station shows, as Files reads them
+  (`workspace_files.entries`, the overview's rows passed in so they are made once; the
+  cards from `results.results_for`, cached): each index's `results.Card.trend`, Sen's
+  slope and 95% bounds per decade. A station without results shown (not run, failed,
+  waiting, or not yet opened with "Go to indices") is a row of hatched cells. While any
+  station waits or calculates the section says the trends come once every station has
+  been calculated, and comes in with the overview's last poll.
+- **Columns** (`trend_grid.columns_for`): TXx, TNn, TN90p, TX10p, SU, TR, WSDI,
+  PRCPTOT, Rx1day, R95p and CDD, those some station has; "Choose indices" offers every
+  index with a trend at some station, by theme (`trend_grid.available`). A choice is
+  `?cols=` (repeated), kept for the workspace in the session
+  (`trend_grid.SESSION_KEY`; `?cols=default` forgets it); the chosen columns keep the
+  defaults' order first, then the order offered.
+- **Cells** (`trend_grid._cell`): the slope (`numbers.slope`) always written; filled on
+  the trend scale when the interval excludes zero, the strong step when the slope is at
+  least half the column's largest significant slope (`_scale`), the weak one below;
+  `not-significant` (a dashed edge), `invalid` ("–", too few values for a trend), `none`
+  (hatched). Each is a link to the station's index page with the slope, interval and
+  significance in words for screen readers.
+- **The interval plot** (`trend_grid.interval_plot`): every column's is in the page, the
+  selected one (`?index=`, else the first column) shown; `js/trends.js` switches them in
+  place when a column's code is clicked and keeps the address. The axis is symmetric about
+  zero, to a round end past every interval (`index_page.nice_ticks`); stations without a
+  trend are listed under it.
+- **CSV** (`views_workspace.compare_csv`, `/w/<id>/compare/trends.csv?cols=…`,
+  `trend_grid.grid_csv`): the rows of the workspace's Trends file
+  (`workspace_files.trends_csv`, same columns) for the grid's indices, a column of the grid
+  a block of rows, the stations in the overview's order; one index for the plot's "CSV,
+  all stations". `test_trend_grid.py` checks it against R's per-station trend files.
 
 ### Help
 

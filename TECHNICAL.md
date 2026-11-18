@@ -37,7 +37,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -2890,6 +2890,9 @@ packages/climpact-web/src/climpact_web/
                      a station opened before its workspace's overview
     overview.py      the workspace overview's model (#234): the Stations table's rows
                      (`rows`) and the run status line (`status_line`)
+    copy_station.py  Copy to workspace… (#241): the workspaces a station can go to
+                     (`targets`), the form (`CopyForm`) and the copy (`copy_to`)
+    views_copy.py    /w/<id>/<station>/copy (#241): the Copy to workspace page
     workspace_files.py  the workspace's Files (#239): each station's results as Files
                      sees them (`entries`), the all-station trends and indices CSVs,
                      climpact_run.json (`provenance`) and its methods sentence, the zips,
@@ -6163,11 +6166,45 @@ the batch steps.
 - **Station pages** in a workspace of several stations start their context bar's
   breadcrumb with the workspace and "Station 2 of 6", with the previous and next station
   (`workspace.station_nav`); a workspace of one station has "Add stations" at the end of
-  the provenance line instead (`stations/_station_links.html`).
+  the provenance line instead (`stations/_station_links.html`). Every station set up has
+  "Copy to workspace…" there too, and "Copy…" at the end of its row of the Stations table
+  (#241, [Copy to workspace](#copy-to-workspace)).
 - **A workspace that is not here** (another browser's, deleted or never made): any
   `/w/<id>/…` address gives 404 with "This workspace is not here", how long workspaces
   are kept where they expire, and Add stations (`404.html`, from the URL's
   `workspace_id`), without saying whether another session's exists.
+
+### Copy to workspace
+
+"Copy to workspace…" (#241; the Flow board's rules: "Copy to workspace… from a station to
+put it in another; it is recalculated with that workspace's settings";
+`stations/copy_station.py`, `stations/views_copy.py`, `stations/copy.html`) puts a copy of
+a station in another workspace of this browser's, or in a new one. It is offered at the
+end of a station's provenance line (`stations/_station_links.html`, `copy_url` from
+`workspace.context`) and as "Copy…" at the end of each row of the workspace's Stations
+table (`overview.Row.copy_url`), for a station that is set up (`workspace.set_up`: a file
+and details that fit it). The page, `/w/<id>/<station>/copy` (`stations:copy`), is a page
+of the station, under its context bar: the workspaces that hold a station, changed last
+first, each with its name, station count (unless its default name says it) and base
+period, and "A new workspace, with this workspace's settings"; Copy and Cancel (back to
+`next`, the page it was opened from).
+
+- **What is copied:** the station file, its name and location, its file name, summary and
+  warnings, and its own index values (a batch metadata line's, `origin["params"]`).
+  Nothing of its jobs or the batch it came from: its checks and run are queued again
+  (`calculation.bring_up_to_date`) with the settings of the workspace it goes to. The
+  station copied, its jobs and its workspace are not changed.
+- **A new workspace** starts with the settings of the station's workspace (base period,
+  thresholds, index settings), so the copy gives the same results until they are changed.
+  The copy's run is in use at once if the station's was (`workspace.committed`, "Go to
+  indices"); then it opens on its Indices, else on its Quality.
+- **An existing workspace** has several stations after the copy, so the copy's run, and
+  any station's there still speculative, is in use at once (`calculation.commit_workspace`,
+  #277), and its overview opens with a message. A workspace that has a station of the same
+  name (any case) is marked in the list and refused with why: the results are named after
+  the station.
+- The hosted limits are checked before anything is copied (`check_job_quotas`), and the
+  page's form carries the Turnstile widget (`human_required`).
 
 ### Workspace files
 

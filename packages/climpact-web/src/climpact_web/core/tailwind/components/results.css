@@ -118,7 +118,7 @@
      gutter (base.html: px-4, sm:px-6). */
   .station-page--indices .indices {
     margin-inline: calc(-1 * --spacing(4));
-    min-block-size: calc(100vh - var(--context-bar-height, 9rem));
+    min-block-size: calc(100vh - var(--frame-height));
   }
 
   @media (min-width: 40rem) {
@@ -171,7 +171,7 @@
 
     .filter-rail__body {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
+      inset-block-start: calc(var(--frame-height) + --spacing(4));
     }
   }
 
@@ -198,8 +198,8 @@
 
     .indices__pane-body {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
-      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(8));
+      inset-block-start: calc(var(--frame-height) + --spacing(4));
+      max-block-size: calc(100vh - var(--frame-height) - --spacing(8));
       overflow-y: auto;
     }
 

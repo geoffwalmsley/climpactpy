@@ -73,7 +73,7 @@
     position: absolute;
     inset-inline-start: --spacing(2);
     inset-block-start: -10rem;
-    z-index: 20;
+    z-index: 30; /* over the sticky header (25, #284) */
     padding: --spacing(2) --spacing(4);
     border-radius: var(--radius-sm);
     background: var(--color-ink);

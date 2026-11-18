@@ -231,6 +231,38 @@
     }
   }
 
+  /* == The header stays in view on every page (#284), with the context bar under it
+     (workspace.css), except in a window under 30rem high (a phone on its side), where
+     nothing sticks. --site-header-height is its height where it sticks and 0 where it
+     doesn't; js/site-header.js measures it. The estimates, used without JavaScript (so
+     without the theme toggle), are one row and, between 600px and 52rem, two, where the
+     links wrap under the brand. --frame-height is what the sticky parts of a station's
+     page stay under: the header and the context bar (js/context-bar.js keeps
+     --context-bar-height). Above popovers (20), below toasts (30) and the tour (40). == */
+  :root {
+    --site-header-height: 0px;
+    --frame-height: calc(var(--site-header-height) + var(--context-bar-height, 9rem));
+  }
+
+  @media (min-height: 30rem) {
+    :root {
+      --site-header-height: var(--site-header-measured, calc(3rem + 1px));
+      scroll-padding-block-start: calc(var(--site-header-height) + --spacing(4));
+    }
+
+    .site-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 25;
+    }
+  }
+
+  @media (min-width: 37.5rem) and (max-width: 52rem) and (min-height: 30rem) {
+    :root {
+      --site-header-height: var(--site-header-measured, calc(5.5rem + 1px));
+    }
+  }
+
   .theme-toggle {
     display: inline-flex;
     padding: 2px;

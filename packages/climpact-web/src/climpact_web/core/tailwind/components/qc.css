@@ -21,11 +21,11 @@
       align-items: start;
     }
 
-    /* The rail stays in view under the context bar as the detail scrolls. */
+    /* The rail stays in view under the header and the context bar as the detail scrolls. */
     .qc-rail {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(3));
-      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(6));
+      inset-block-start: calc(var(--frame-height) + --spacing(3));
+      max-block-size: calc(100vh - var(--frame-height) - --spacing(6));
       overflow-y: auto;
     }
 

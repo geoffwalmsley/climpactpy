@@ -87,9 +87,9 @@
 
     .help-toc {
       position: sticky;
-      inset-block-start: --spacing(4);
+      inset-block-start: calc(var(--site-header-height) + --spacing(4));
       align-self: start;
-      max-block-size: calc(100vh - --spacing(8));
+      max-block-size: calc(100vh - var(--site-header-height) - --spacing(8));
       overflow-y: auto;
     }
   }

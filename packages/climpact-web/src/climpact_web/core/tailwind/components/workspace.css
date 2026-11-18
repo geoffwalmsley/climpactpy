@@ -157,10 +157,11 @@
     margin-block-start: --spacing(6);
   }
 
-  /* Sticky wherever the window is tall enough: not in a short window (a phone on its
-     side), where it would hide most of the page. The scroll padding keeps an element
-     that takes focus, or a #fragment, out from under it (WCAG 2.4.11); js/context-bar.js
-     keeps --context-bar-height to the bar's real height. */
+  /* Sticky under the header (#284) wherever the window is tall enough: not in a short
+     window (a phone on its side), where it would hide most of the page. The scroll
+     padding keeps an element that takes focus, or a #fragment, out from under both
+     (WCAG 2.4.11); js/context-bar.js keeps --context-bar-height to the bar's real
+     height, js/site-header.js --site-header-height to the header's. */
   /* In place, for /patterns/: its own hairline, no sticking. */
   .context-bar--static {
     border-block-end: 1px solid var(--color-border);
@@ -176,12 +177,12 @@
   @media (min-height: 30rem) {
     .context-bar:not(.context-bar--static, .context-bar--flow) {
       position: sticky;
-      inset-block-start: 0;
+      inset-block-start: var(--site-header-height);
       z-index: 10;
     }
 
     :root:has(.context-bar:not(.context-bar--static, .context-bar--flow)) {
-      scroll-padding-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
+      scroll-padding-block-start: calc(var(--frame-height) + --spacing(4));
     }
   }
 
@@ -267,12 +268,12 @@
 
   @media (max-width: 40rem) and (min-height: 30rem) {
     .context-bar:not(.context-bar--static, .context-bar--flow) {
-      inset-block-start: calc(-1 * var(--context-bar-above, 0px));
+      inset-block-start: calc(var(--site-header-height) - var(--context-bar-above, 0px));
     }
 
     :root:has(.context-bar:not(.context-bar--static, .context-bar--flow)) {
       scroll-padding-block-start: calc(
-        var(--context-bar-height, 9rem) - var(--context-bar-above, 0px) + --spacing(4)
+        var(--frame-height) - var(--context-bar-above, 0px) + --spacing(4)
       );
     }
   }

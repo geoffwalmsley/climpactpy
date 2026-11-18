@@ -393,6 +393,7 @@ def site(chrome, server):
     pages["workspace setting"] = pages["workspace overview"] + "settings/base-period"
     pages["workspace rename"] = pages["workspace overview"] + "rename"
     pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
+    pages["workspace compare"] = pages["workspace overview"] + "compare/"  # #238
 
     # The sample grid: thresholds, then three indices.
     c.navigate(open_url("/gridded/"))

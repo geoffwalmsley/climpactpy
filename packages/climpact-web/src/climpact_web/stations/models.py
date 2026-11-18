@@ -165,8 +165,10 @@ class Workspace(models.Model):
 
 # Words a station's slug can't be, as they name other pages of the workspace (#256):
 # ``/w/<id>/batch/`` is the workspace's batch, ``/w/<id>/settings/`` its settings (#234),
-# ``/w/<id>/files/`` its Files (#239).
-RESERVED_SLUGS = frozenset({"batch", "add", "settings", "progress", "rename", "undo", "files"})
+# ``/w/<id>/files/`` its Files (#239), ``/w/<id>/compare/`` Compare an index (#238).
+RESERVED_SLUGS = frozenset(
+    {"batch", "add", "settings", "progress", "rename", "undo", "files", "compare"}
+)
 
 
 def slug_for(name: str, taken) -> str:

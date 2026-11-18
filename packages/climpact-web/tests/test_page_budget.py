@@ -38,7 +38,8 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 20 KB before the workspace's Files (#239), 19 KB before Add stations (#233),
+    # 20.25 KB before the trend grid (#238), 20 KB before the workspace's Files (#239),
+    # 19 KB before Add stations (#233),
     # 18.5 KB before Quality's check detail wide (#264),
     # 17.25 KB before the index page (#237), 16.75 KB before the Indices' rail, table and
     # detail pane (#236), 16 KB before the colour tokens, app shell, context bar and data
@@ -46,7 +47,7 @@ ASSET_BUDGETS = {
     # detail (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the
     # section header and the workspace header (#197), 13 KB before #196, 12.5 KB before the
     # help drawer (#177)
-    "css/climpact.css": 20.25 * KB,
+    "css/climpact.css": 21.5 * KB,
     # The quality checks: the rail and the check's detail with its values in place (#264),
     # the list and its detail (#202), the tables linked to the charts (#77, #174); 3 KB
     # before #264, 2 KB before #202
@@ -55,6 +56,7 @@ ASSET_BUDGETS = {
     # before #200, 2.25 KB before #236
     "js/results.js": 3 * KB,
     "js/copy.js": 0.75 * KB,  # Files' "Copy methods text" (#239)
+    "js/trends.js": 0.75 * KB,  # the trend grid: a column's interval plot in place (#238)
     "js/index-page.js": 1.25 * KB,  # the index page: anomalies in place, Copy citation (#237)
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here

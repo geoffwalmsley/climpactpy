@@ -1,12 +1,12 @@
 {% load i18n ui %}{% comment %}
 The workspace's actions (#234, #239; the Workspace board): Add stations, and on the
-overview and Files, Export ▾: the workspace files (Everything, Trends and Indices of all
+overview, Compare an index and Files, Export ▾: the workspace files (Everything, Trends and Indices of all
 stations) and a link to Files. A disclosure, so it works without JavaScript;
 js/context-bar.js closes it on Escape and on a click elsewhere. Until every station has
 finished (``space_export`` false) it says the files are not ready. Included twice: in the
 bar and, on phones, in the ⋯ menu.
 {% endcomment %}{% url 'stations:add_to' space.pk as add_url %}{% translate "Add stations" as add_label %}{% include "components/button.html" with label=add_label href=add_url variant="secondary" size="sm" %}
-{% if space_current == "overview" or space_current == "files" %}<div class="pop"><details class="pop__details" data-menu>
+{% if space_current == "overview" or space_current == "files" or space_current == "compare" %}<div class="pop"><details class="pop__details" data-menu>
   <summary class="button button--sm">{% translate "Export" %}{% icon "chevron-down" %}</summary>
   <ul class="pop__panel pop__panel--menu grid gap-3 list-none" role="list">
     {% if space_export %}<li><a href="{% url 'stations:workspace_everything' space.pk %}" download>{% translate "Everything (zip)" %}</a></li>

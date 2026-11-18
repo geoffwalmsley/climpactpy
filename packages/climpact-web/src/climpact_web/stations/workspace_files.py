@@ -96,13 +96,14 @@ class Entry:
         return _("not calculated")
 
 
-def entries(space: Workspace, owner: str) -> list[Entry]:
+def entries(space: Workspace, owner: str, table: list | None = None) -> list[Entry]:
     """Every station of the workspace, in the overview's order, with the results it
-    shows (the Indices' :func:`~climpact_web.stations.views_indices.current_source`)."""
+    shows (the Indices' :func:`~climpact_web.stations.views_indices.current_source`).
+    ``table`` is the overview's rows when the caller has them already."""
     from climpact_web.stations import results as results_model
 
     out, taken = [], set()
-    for row in overview.rows(space, owner):
+    for row in table if table is not None else overview.rows(space, owner):
         station = row.station
         entry = Entry(station, row)
         job = workspace.shown_run(station)

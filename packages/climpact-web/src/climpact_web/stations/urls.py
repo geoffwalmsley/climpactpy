@@ -94,6 +94,13 @@ urlpatterns = [
         name="workspace_setting",
     ),
     path("w/<uuid:workspace_id>/undo", views_workspace.undo, name="workspace_undo"),
+    # Compare an index (#238): the trend grid and its CSV.
+    path("w/<uuid:workspace_id>/compare/", views_workspace.compare_page, name="workspace_compare"),
+    path(
+        "w/<uuid:workspace_id>/compare/trends.csv",
+        views_workspace.compare_csv,
+        name="workspace_compare_csv",
+    ),
     # The workspace's Files (#239): stations/views_files.py.
     path("w/<uuid:workspace_id>/files/", views_files.files_page, name="workspace_files"),
     path(

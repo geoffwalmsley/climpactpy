@@ -162,6 +162,66 @@ def overview_demo() -> dict:
     return {"overview_rows": rows, "overview_status": status}
 
 
+def trends_demo() -> dict:
+    """Trends across stations (#238): four stations by four indices, one without results,
+    with each state of a cell, and the first column's interval plot."""
+    from types import SimpleNamespace
+
+    from climpact_web.stations import trend_grid
+
+    indices = [  # code, short name, units, theme
+        ("TXx", _("Hottest day"), "°C", "heat"),
+        ("TN90p", _("Warm nights"), "%", "heat"),
+        ("TX10p", _("Cool days"), "%", "cold"),
+        ("PRCPTOT", _("Wet-day total"), "mm", "rain"),
+    ]
+    values = {  # slope, lower, upper per decade
+        _("Sydney Observatory Hill"): [(0.21, 0.1, 0.33), (1.31, 0.8, 1.9), (-1.84, -2.4, -1.2),
+                                       (4.1, -8.0, 16.0)],
+        _("Newcastle Nobbys"): [(0.12, -0.03, 0.27), (1.62, 1.0, 2.2), (-0.6, -0.9, -0.3),
+                                (-31.0, -55.0, -6.0)],
+        _("Nowra RAN Air Station"): [(0.3, 0.12, 0.47), (0.7, -0.2, 1.6), (-1.05, -1.9, -0.2),
+                                     (-12.0, -40.0, 15.0)],
+    }  # fmt: skip
+
+    def card(code, name, units, theme, slope, lower, upper):
+        trend = {
+            "valid": True,
+            "slope": slope,
+            "lower": lower,
+            "upper": upper,
+            "significant": lower > 0 or upper < 0,
+            "slope_text": numbers.slope(slope, units),
+            "per_decade_text": numbers.per_decade(slope, units),
+            "interval_text": numbers.interval(lower, upper, units),
+        }
+        return SimpleNamespace(
+            key=code.lower(), title=name, trend=trend, significant=trend["significant"],
+            trend_units=numbers.trend_units(units),
+            trend_units_title=_("percentage points") if units == "%" else "",
+            theme=theme, hue=theme,
+        )  # fmt: skip
+
+    place = SimpleNamespace(url=lambda *args: "#trend-grid")
+    stations = [
+        trend_grid._Station(
+            SimpleNamespace(name=name, source=True, why="", station=place),
+            {i[0]: card(*i, *v) for i, v in zip(indices, rows, strict=True)},
+        )
+        for name, rows in values.items()
+    ]
+    stations.append(
+        trend_grid._Station(
+            SimpleNamespace(name=_("Moruya Heads"), source=None, why=_("failed"), station=place),
+            {},
+        )
+    )
+    found = trend_grid.grid_of(stations, [i[0] for i in indices], None)
+    for plot in found.plots:
+        plot.csv_url = "#trend-grid"
+    return {"trends_demo": found}
+
+
 def pattern_context(form):
     tab_items = [
         {"id": "tab-annual", "label": _("Annual"), "text": _("Annual values, 1936 to 2015.")},
@@ -213,6 +273,7 @@ def pattern_context(form):
         # The context bar (#227): as a station's, with a breadcrumb and the next station.
         # The workspace overview (#234): the run status line and the Stations table.
         **overview_demo(),
+        **trends_demo(),  # Trends across stations (#238)
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},
             {"label": _("Station 1 of 6")},

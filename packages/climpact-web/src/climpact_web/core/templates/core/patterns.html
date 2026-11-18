@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static ui charts help %}
 {% block title %}{% translate "Pattern library" %}{% endblock %}
-{% block head %}{% chart_scripts %}{% endblock %}
+{% block head %}{% chart_scripts %}<script src="{% static 'climpact_web/js/trends.js' %}" defer></script>{% endblock %}
 {% block content %}
 <header class="section__header">
   <p class="eyebrow">{% translate "Design system" %}</p>
@@ -422,6 +422,14 @@
       <p class="text-sm text-text-muted">{% translate "A workspace's overview: one line above the table, neutral with a bar while stations calculate, quiet when they have finished and red only when one failed; then a row a station, with its verdict, its indices state as it goes and its fix, and how many indices have a significant trend." %}</p>
       <div class="pattern__demo">
         {% include "stations/_overview.html" with rows=overview_rows status=overview_status polling=False %}
+      </div>
+    </section>
+
+    <section class="pattern" id="trend-grid" aria-labelledby="trend-grid-title">
+      <h2 id="trend-grid-title">{% translate "Trend grid and interval plot" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Trends across stations: Sen's slope per decade of each station's indices, always written, filled on the trend scale when the 95% interval excludes zero, a dashed edge when it does not, hatched without results; beside it the selected column's interval plot, each station's slope as a dot and its interval as a line about zero." %}</p>
+      <div class="pattern__demo">
+        {% include "stations/_trends.html" with trends=trends_demo trends_page="#trend-grid" trends_csv="#trend-grid" trends_waiting=False %}
       </div>
     </section>
 

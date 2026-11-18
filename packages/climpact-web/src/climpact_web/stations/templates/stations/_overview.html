@@ -2,7 +2,9 @@
 The overview's run status line and Stations table (#234, the Calculate board), polled by
 htmx (outerHTML swap) while stations are checked or calculated: views_workspace.
 workspace_progress returns this block alone. Context: rows (stations.overview.rows),
-status (overview.status_line, or None), polling, delay, page, space.
+status (overview.status_line, or None), polling, delay, page, space; and Trends across
+stations (#238, stations/_trends.html: views_workspace.trends_context), which waits while
+a station is calculated and so comes in with the last poll.
 {% endcomment %}
 <div id="workspace-progress" class="stack stack--lg page-section" data-status="{% if polling %}running{% else %}finished{% endif %}"
   {% if polling %}hx-get="{% url 'stations:workspace_progress' space.pk %}"
@@ -65,4 +67,6 @@ status (overview.status_line, or None), polling, delay, page, space.
       </table>
     </div>
   </section>
+
+  {% if trends or trends_waiting %}{% include "stations/_trends.html" %}{% endif %}
 </div>

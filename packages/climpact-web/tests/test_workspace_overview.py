@@ -50,7 +50,7 @@ def test_a_workspace_of_several_stations_opens_its_overview(client):
     tabs = html.split('aria-label="Workspace sections"')[1].split("</nav>")[0]
     assert f'href="{url}" data-tab="overview" aria-current="page">Overview</a>' in tabs
     assert "Compare an index" in tabs and f'href="{url}files/" data-tab="files"' in tabs
-    assert tabs.count("<a ") == 2  # Compare an index is not a link until #238
+    assert tabs.count("<a ") == 3  # Compare an index is a link since #238
     # No batch steps, no per-station downloads, no bottom links (#234).
     assert "steps__" not in html and "What is in the zip" not in html
     assert "Start a new batch" not in html and "Change the files or options" not in html

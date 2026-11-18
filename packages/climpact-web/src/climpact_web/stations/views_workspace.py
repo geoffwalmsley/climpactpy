@@ -1,5 +1,5 @@
 """The workspace's own pages (#234): its overview at ``/w/<id>/``, the overview's
-progress fragment, Rename, Workspace settings and Undo.
+progress fragment, Compare an index (#238), Rename, Workspace settings and Undo.
 
 A workspace of one station opens that station straight away (the Flow board: no
 overview); one of two or more opens its overview (:mod:`.overview`), which replaced the
@@ -24,7 +24,7 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 
 from climpact_web.core.limits import human_required
 from climpact_web.jobs.views import OWNER_KEY, poll_delay
-from climpact_web.stations import calculation, overview, workspace
+from climpact_web.stations import calculation, overview, trend_grid, workspace, workspace_files
 from climpact_web.stations.forms import BasePeriodForm, QCParamsForm
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
 from climpact_web.stations.models import Workspace
@@ -56,8 +56,7 @@ def _ran(space: Workspace, owner: str):
 
 
 class Tab:
-    """One of the workspace's tabs: Overview, Compare an index (#238, not available yet:
-    no link) and Files (#239)."""
+    """One of the workspace's tabs: Overview, Compare an index (#238) and Files (#239)."""
 
     def __init__(self, key, label, url, current=False):
         self.key, self.label, self.url, self.current = key, label, url, current
@@ -104,7 +103,12 @@ def bar_context(request, space: Workspace, current: str = "overview") -> dict:
                 reverse("stations:workspace", args=[space.pk]),
                 current == "overview",
             ),
-            Tab("compare", _("Compare an index"), None),
+            Tab(
+                "compare",
+                _("Compare an index"),
+                reverse("stations:workspace_compare", args=[space.pk]),
+                current == "compare",
+            ),
             Tab(
                 "files",
                 _("Files"),
@@ -114,6 +118,43 @@ def bar_context(request, space: Workspace, current: str = "overview") -> dict:
         ],
         "space_current": current,
         "data_page": True,
+    }
+
+
+# ---- trends across stations ----------------------------------------------------------------
+
+
+def chosen_columns(request, space: Workspace) -> list[str] | None:
+    """The indices the user chose for the trend grid: ``?cols=`` (remembered for the
+    workspace in the session), else the ones chosen before, else None (the defaults).
+    ``?cols=default`` forgets the choice."""
+    key = trend_grid.SESSION_KEY.format(space.pk)
+    wanted = [c for c in request.GET.getlist("cols") if c]
+    if wanted == ["default"]:
+        request.session.pop(key, None)
+        return None
+    if wanted:
+        request.session[key] = wanted[:200]
+        return wanted
+    return request.session.get(key)
+
+
+def trends_context(request, space: Workspace, table: list, page: str) -> dict:
+    """The trend grid and the selected column's interval plot (the Workspace board's
+    "Trends across stations"); none while a station is still being calculated."""
+    if any(r.indices.state in overview.RUNNING for r in table):
+        return {"trends": None, "trends_waiting": True}
+    items = workspace_files.entries(space, _owner(request), table)
+    found = trend_grid.grid(items, chosen_columns(request, space), request.GET.get("index"))
+    csv_url = reverse("stations:workspace_compare_csv", args=[space.pk])
+    query = "&".join(f"cols={c.code}" for c in found.columns)
+    for plot in found.plots:
+        plot.csv_url = f"{csv_url}?cols={plot.choice.code}"
+    return {
+        "trends": found,
+        "trends_page": page,
+        "trends_csv": f"{csv_url}?{query}",
+        "trends_waiting": False,
     }
 
 
@@ -141,6 +182,7 @@ def overview_context(request, space: Workspace) -> dict:
         "polling": active,
         "delay": delay,
         "page": page,
+        **trends_context(request, space, table, page),
     }
 
 
@@ -197,6 +239,59 @@ def workspace_progress(request, workspace_id):
         response["HX-Refresh"] = "true"
         return response
     return render(request, "stations/_overview.html", overview_context(request, space))
+
+
+# ---- Compare an index ----------------------------------------------------------------------
+
+
+@never_cache
+@require_safe
+def compare_page(request, workspace_id):
+    """Compare an index (#238): the trend grid and the selected index's interval plot on a
+    page of their own, the overview's "Trends across stations" without the Stations table.
+    A workspace of one station has nothing to compare: its Indices."""
+    from climpact_web.stations.views_files import items_of
+
+    space = get_workspace(request, workspace_id)
+    items = items_of(request, space)
+    if len(items) == 1:
+        return redirect(items[0].station.url("results"))
+    if not items:
+        raise Http404
+    page = reverse("stations:workspace_compare", args=[space.pk])
+    table = [e.row for e in items]
+    context = {
+        **bar_context(request, space, "compare"),
+        **trends_context(request, space, table, page),
+        "space": space,
+        # Export ▾ (#239), as on the overview: once every station has finished.
+        "space_export": not workspace_files.busy(items)
+        and any(e.source is not None for e in items),
+    }
+    return render(request, "stations/workspace_compare.html", context)
+
+
+@never_cache
+@require_safe
+def compare_csv(request, workspace_id):
+    """The trend grid as CSV (``?cols=`` the grid's indices, in its order; one for the
+    interval plot's "CSV, all stations"): the rows of the workspace's Trends file
+    (``workspace_files.trends_csv``) for those indices."""
+    from climpact_web.stations.views_files import items_of
+
+    space = get_workspace(request, workspace_id)
+    items = items_of(request, space)
+    codes = [c for c in request.GET.getlist("cols") if c][:200]
+    if not codes:
+        codes = [c.code for c in trend_grid.grid(items, None, None).columns]
+    response = HttpResponse(
+        trend_grid.grid_csv(items, codes), content_type="text/csv; charset=utf-8"
+    )
+    base = workspace_files.download_name(space, "trends").removesuffix("_trends.csv")
+    code = workspace_files._UNSAFE.sub("_", codes[0])
+    name = f"{base}_{code}_trend.csv" if len(codes) == 1 else f"{base}_trend_grid.csv"
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
+    return response
 
 
 # ---- Rename ------------------------------------------------------------------------------

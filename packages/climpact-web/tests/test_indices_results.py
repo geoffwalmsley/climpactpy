@@ -763,6 +763,29 @@ def test_tables_not_written_are_listed_with_the_reason(client):
     assert "percentiles could not be calculated" in html
 
 
+def test_a_run_that_calculated_no_index_says_why(client):
+    """#268: a station whose TX, TN and PR are all missing finishes with every index
+    skipped. Its Indices say why and that there is nothing to show, with the way on
+    (replace the file); its Files and an index's address open without an error."""
+    analysis, job = finished_analysis(client)
+    folder = job.output_dir / STATION / "indices"
+    skipped = [f"indices/{p.stem.removeprefix(f'{STATION}_')}" for p in folder.glob("*.csv")]
+    shutil.rmtree(folder)
+    folder.mkdir()
+    job.result = {**job.result, "skipped": skipped}
+    job.save()
+    response = client.get(f"{analysis.url()}indices")
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert re.search(r"\d+ indices could not be calculated", html)
+    assert "No index to show" in html
+    assert analysis.url("edit_input", "file") in html  # the way on: replace the file
+    assert "indices-table" not in html and "index-detail" not in html
+    assert client.get(f"{analysis.url()}downloads").status_code == 200
+    assert client.get(f"{analysis.url()}indices/txx_ANN").status_code in (302, 404)
+    assert client.get(f"{analysis.url()}indices", {"show": "txx_ANN"}).status_code == 200
+
+
 def test_the_reason_names_a_variable_with_no_data():
     summary = {"variables": [{"key": "prcp", "present": 0}, {"key": "tmax", "present": 9}]}
     [entry] = results_model.skipped_tables(["indices/r30mm_ANN"], summary, None)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 08:26+0000\n"
+"POT-Creation-Date: 2026-11-20 09:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -890,7 +890,7 @@ msgstr ""
 msgid "Calendar day"
 msgstr ""
 
-#: charts/data.py:402 stations/views_indices.py:740
+#: charts/data.py:402 stations/views_indices.py:743
 msgid "Day"
 msgstr ""
 
@@ -992,12 +992,12 @@ msgstr ""
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
 #: stations/templates/stations/_summary.html:36
-#: stations/templates/stations/_summary.html:78 stations/views_indices.py:740
+#: stations/templates/stations/_summary.html:78 stations/views_indices.py:743
 msgid "Year"
 msgstr ""
 
 #: charts/templatetags/charts.py:49 gridded/templates/gridded/_explore.html:37
-#: stations/views_indices.py:740
+#: stations/views_indices.py:743
 msgid "Month"
 msgstr ""
 
@@ -1182,8 +1182,8 @@ msgstr ""
 msgid "Gridded"
 msgstr ""
 
-#: core/navigation.py:61 core/templates/base.html:42
-#: core/templates/base.html:43 core/templates/components/drawer.html:11
+#: core/navigation.py:61 core/templates/base.html:43
+#: core/templates/base.html:44 core/templates/components/drawer.html:11
 #: help/templates/help/_section_help.html:12 help/templates/help/guide.html:6
 #: help/templates/help/index.html:3 help/templates/help/index.html:7
 #: help/templates/help/search.html:6 help/templates/help/section.html:9
@@ -1304,48 +1304,48 @@ msgstr ""
 msgid "The server could not finish this request. Please try again."
 msgstr ""
 
-#: core/templates/base.html:8 core/templates/base.html:28
+#: core/templates/base.html:8 core/templates/base.html:29
 msgid "Climpact"
 msgstr ""
 
-#: core/templates/base.html:21
+#: core/templates/base.html:22
 msgid "Skip to main content"
 msgstr ""
 
-#: core/templates/base.html:31 core/templates/base.html:56
+#: core/templates/base.html:32 core/templates/base.html:57
 msgid "Main"
 msgstr ""
 
-#: core/templates/base.html:40 core/templates/base.html:61
+#: core/templates/base.html:41 core/templates/base.html:62
 msgid "Index reference"
 msgstr ""
 
-#: core/templates/base.html:42 help/templates/help/_section_help.html:12
+#: core/templates/base.html:43 help/templates/help/_section_help.html:12
 #: help/templates/help/section.html:6
 #, python-format
 msgid "Help: %(title)s"
 msgstr ""
 
-#: core/templates/base.html:54
+#: core/templates/base.html:55
 msgid "Menu"
 msgstr ""
 
-#: core/templates/base.html:64 core/templates/components/theme_toggle.html:2
+#: core/templates/base.html:65 core/templates/components/theme_toggle.html:2
 msgid "Colour theme"
 msgstr ""
 
-#: core/templates/base.html:86
+#: core/templates/base.html:87
 msgid ""
 "Climpact calculates the climate indices defined by the WMO Expert Team on "
 "Sector-specific Climate Indices (ET-SCI)."
 msgstr ""
 
-#: core/templates/base.html:90
+#: core/templates/base.html:91
 #, python-format
 msgid "Climpact web, version %(version)s"
 msgstr ""
 
-#: core/templates/base.html:91
+#: core/templates/base.html:92
 msgid "Accessibility"
 msgstr ""
 
@@ -2063,7 +2063,7 @@ msgstr ""
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:258
 #: core/views.py:336 gridded/forms.py:113
 #: gridded/templates/gridded/_progress.html:15 help/topics.py:71
-#: stations/templates/stations/_overview.html:45 stations/views_indices.py:683
+#: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:444
 msgid "Indices"
 msgstr ""
@@ -2487,11 +2487,11 @@ msgstr ""
 
 #: core/templates/core/patterns.html:274
 #: stations/templates/stations/_qc_box_plot.html:14
-#: stations/templates/stations/_qc_values.html:19 stations/views_indices.py:716
+#: stations/templates/stations/_qc_values.html:19 stations/views_indices.py:719
 msgid "Values"
 msgstr ""
 
-#: core/templates/core/patterns.html:274 stations/views_indices.py:719
+#: core/templates/core/patterns.html:274 stations/views_indices.py:722
 #, python-format
 msgid "Anomaly from %(start)s–%(end)s"
 msgstr ""
@@ -2504,12 +2504,12 @@ msgid "Period"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:261
-#: stations/views_indices.py:727
+#: stations/views_indices.py:730
 msgid "Annual"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:262
-#: stations/results.py:235 stations/views_indices.py:727
+#: stations/results.py:235 stations/views_indices.py:730
 msgid "Monthly"
 msgstr ""
 
@@ -8980,7 +8980,7 @@ msgid "Open full page"
 msgstr ""
 
 #: stations/templates/stations/_index_detail.html:49
-#: stations/views_indices.py:771
+#: stations/views_indices.py:774
 msgid "Monthly values"
 msgstr ""
 
@@ -9600,7 +9600,7 @@ msgid "Every file of this comparison"
 msgstr ""
 
 #: stations/templates/stations/_sector_results.html:23
-#: stations/templates/stations/results.html:68
+#: stations/templates/stations/results.html:79
 #, python-format
 msgid "Kept until %(date)s. This page's address works until then."
 msgstr ""
@@ -10553,18 +10553,34 @@ msgid ""
 "them here."
 msgstr ""
 
-#: stations/templates/stations/results.html:54
+#: stations/templates/stations/results.html:55
+msgid "No index to show"
+msgstr ""
+
+#: stations/templates/stations/results.html:55
+msgid "The calculation made no index table. The list below says why."
+msgstr ""
+
+#: stations/templates/stations/results.html:55
+msgid "The calculation made no index table."
+msgstr ""
+
+#: stations/templates/stations/results.html:55
+msgid "Replace the file"
+msgstr ""
+
+#: stations/templates/stations/results.html:63
 #, python-format
 msgid "%(counter)s index could not be calculated"
 msgid_plural "%(counter)s indices could not be calculated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/results.html:55
+#: stations/templates/stations/results.html:64
 msgid "All their values are missing, so they have no table:"
 msgstr ""
 
-#: stations/templates/stations/results.html:57
+#: stations/templates/stations/results.html:66
 #, python-format
 msgid "<strong>%(name)s</strong> (%(tables)s): %(reason)s"
 msgstr ""
@@ -11247,19 +11263,19 @@ msgstr ""
 msgid "Sorted by %(column)s, ascending."
 msgstr ""
 
-#: stations/views_indices.py:771
+#: stations/views_indices.py:774
 msgid "Annual values"
 msgstr ""
 
-#: stations/views_indices.py:772
+#: stations/views_indices.py:775
 msgid "Values by day of the year"
 msgstr ""
 
-#: stations/views_indices.py:778
+#: stations/views_indices.py:781
 msgid "Date of minimum"
 msgstr ""
 
-#: stations/views_indices.py:778
+#: stations/views_indices.py:781
 msgid "Date of maximum"
 msgstr ""
 

@@ -541,8 +541,11 @@ def dashboard_context(request, analysis, source, run) -> dict:
     shown = sum(1 for r in table if not r["hidden"])
     selected = request.GET.get("show", "")[:INDEX_KEY_MAX]
     if selected not in rows:
-        selected = next((r["key"] for r in table if not r["hidden"]), table[0]["key"])
-    rows[selected]["selected"] = True
+        # The first row shown, else the first row; none in a run with no index table (#268).
+        selected = next((r["key"] for r in table if not r["hidden"]), "")
+        selected = selected or (table[0]["key"] if table else "")
+    if selected:
+        rows[selected]["selected"] = True
     # Each header links to the page sorted by its column, the filters kept: the first
     # click in the column's own direction, a second the other way.
     filters = {k: v for k, v in (("q", q), ("theme", theme)) if v}

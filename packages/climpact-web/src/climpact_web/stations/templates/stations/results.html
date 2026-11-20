@@ -44,6 +44,14 @@
   {% include "components/alert.html" with kind="info" title="" message=batch_note %}
   {% endif %}
 
+  {% if not rows %}
+  {% comment %}A run that made no index table, every index skipped (#268): no rail, table or
+  pane: the answer first, the list of what could not be calculated
+  under it, and the way on, replacing the file.{% endcomment %}
+  {% translate "No index to show" as empty_title %}{% if run.skipped %}{% translate "The calculation made no index table. The list below says why." as empty_text %}{% else %}{% translate "The calculation made no index table." as empty_text %}{% endif %}{% translate "Replace the file" as empty_action %}
+  {% include "components/empty_state.html" with icon="table" level=2 title=empty_title text=empty_text action_label=empty_action action_href=input_urls.file action_sheet="file" %}
+  {% endif %}
+
   {% if run.skipped %}
   <div class="alert alert--warning">
     {% icon "warning" %}
@@ -59,8 +67,10 @@
 
   </div>
 
+  {% if rows %}
   {% url 'stations:results' analysis.workspace_id analysis.slug as indices_action %}
   {% include "stations/_indices.html" with action=indices_action %}
+  {% endif %}
 
   {% if analysis.expires_at %}<p class="indices-page__kept text-sm text-text-muted flex items-start gap-2">{% icon "lock" %}<span>{% blocktranslate with date=analysis.expires_at|date:"j F Y" %}Kept until {{ date }}. This page's address works until then.{% endblocktranslate %}</span></p>{% endif %}
   </div>

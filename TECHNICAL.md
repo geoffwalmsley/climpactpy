@@ -6960,8 +6960,9 @@ line and the sample grid. Then three boxes: stations or a grid, scenarios, the s
 Workspaces' note links here when the session has gridded runs.
 
 A run is named from its files until it is renamed (`runs.default_name`): the first file's
-name without the variable names, `day`, the dates and the extension, then the spacing and
-the period ("era5 SEA 0.25°, 1961–2020"); the sample is "Sample grid, 1991–2010".
+name without the variable names (the guessed ones, ERA5's `mx2t`, `mn2t` and `t2m`, and the
+run's chosen ones, #321), `day`, the dates and the extension, then the spacing and the
+period ("era5 SEA 0.25°, 1961–2020"); the sample is "Sample grid, 1991–2010".
 `GriddedRun.name` holds a name given on `<run>/rename/` (empty: the default again).
 
 **A run's pages** (#289, the GridFiles board). `gridded/_run_bar.html` draws

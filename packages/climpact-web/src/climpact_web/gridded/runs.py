@@ -29,9 +29,10 @@ from climpact_web.gridded.models import GriddedRun, Source
 from climpact_web.jobs.models import Status
 
 DASH = "–"
-# Words dropped from a file name when a run is named after it: the variables, the
-# frequency and the dates say nothing about which grid it is.
-NAME_NOISE = {"day", "daily", "nc", "netcdf", "tas"} | {
+# Words dropped from a file name when a run is named after it: the variables (the guessed
+# names, ERA5's and the run's chosen ones), the frequency and the dates say nothing about
+# which grid it is.
+NAME_NOISE = {"day", "daily", "nc", "netcdf", "tas", "mx2t", "mn2t", "t2m"} | {
     name for names in inspection.GUESSES.values() for name in names
 }
 DATES = re.compile(r"^\d{4,8}(-\d{4,8})?$")
@@ -105,10 +106,11 @@ def default_name(run: GriddedRun) -> str:
         label = _("Sample grid")
     else:
         stems = [Path(f["name"]).stem for f in run.files] or [str(run.pk)[:8]]
+        noise = NAME_NOISE | {name.lower() for name in (run.names or {}).values() if name}
         words = []
         for word in re.split(r"[_\s]+", stems[0]):
             parts = [p for p in word.split(".") if p]
-            parts = [p for p in parts if p.lower() not in NAME_NOISE and not DATES.match(p)]
+            parts = [p for p in parts if p.lower() not in noise and not DATES.match(p)]
             if parts:
                 words.append(".".join(parts))
         label = " ".join(words) or stems[0]

@@ -36,8 +36,14 @@ SAMPLES = {"uuid": SAMPLE_UUID, "str": "su_ANN", "slug": "station-data", "path":
 # The URLs that start a job or take an upload: the paths the one rate-limiting rule of
 # Cloudflare's free plan counts. That rule can match only the path, not the method, so it
 # must leave out the htmx polls (`.../progress`) and the htmx POSTs sent as a form is
-# filled in (`.../validate`, `gridded/<id>/checks`).
+# filled in (`.../validate`, `gridded/<id>/checks`, Add stations' `.../check`). Add
+# stations' pages take the files dropped and add the stations, queueing their jobs (#310).
 RATE_LIMITED = {
+    "stations:add",
+    "stations:add_sample",
+    "stations:add_sample_batch",
+    "stations:add_to",
+    "stations:add_review",
     "stations:setup",
     "stations:qc_continue",
     "stations:recalculate",
@@ -112,6 +118,9 @@ def test_rate_limit_counts_only_job_starting_paths():
     assert not rule(paths["stations:qc_progress"])
     assert not rule(paths["stations:validate"])
     assert not rule(paths["jobs:file"])
+    # Add stations' table is checked as it is typed (#310); its review page is counted.
+    assert not rule(paths["stations:add_check"])
+    assert rule(f"/w/{SAMPLE_UUID}/add/{SAMPLE_UUID}/")
 
 
 def test_waf_rules_leave_the_app_alone():

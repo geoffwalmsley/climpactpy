@@ -382,10 +382,14 @@ progress with htmx once a second (`.../quality/progress`, `.../indices/progress`
 `/jobs/<id>/progress`, `/w/<id>/progress`), and form fields are checked with htmx POSTs as
 they change (`.../setup/validate`, `.../settings/validate`). A prefix rule would block an
 ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only the URLs
-that take an upload or start a job (*load*, *replace file*, *run quality checks*, *replace
-file after QC*, *continue*, *recalculate*, *sector*, job retry, and gridded upload and
-sample, which are off in hosted mode). Their GETs are page loads. A person filling in the forms makes 2–4 of these
-requests in 10 seconds, and a script making a burst makes many more. Tune the number from
+that take an upload or start a job: Add stations (`/add/`, `/add/sample`,
+`/add/sample-batch`, `/w/*/add/` and its review form `/w/*/add/*/`, but not the table's
+check as it is typed, `/w/*/add/*/check`), a station's setup page, the Inputs sheets,
+*continue*, *recalculate*, *sector*, job retry, and gridded upload and sample, which are
+off in hosted mode. Their GETs are page loads. A person filling in the forms makes 2–4 of
+these requests in 10 seconds, and at most about 5 while adding stations (the Add stations
+page, a drop and the review page it leads to, then a second drop and the review page
+again); a script making a burst makes many more. Tune the number from
 **Security › Analytics** once there is traffic.
 
 ### E7. Caching `/static/` at the edge (5 min)

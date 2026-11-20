@@ -3730,8 +3730,13 @@ are under `/w/` (`*` matches any number of path segments, so `/w/*/setup` is
 `/station/<id>/…` and `/batch/<id>/…` addresses only redirect a GET, so they are not
 counted. The old New station and batch forms (`/station/new`, `/station/sample`,
 `/batch/`, `/batch/sample`, `/w/*/batch/files`, `/w/*/batch/run`) left the rule with #271:
-their addresses only redirect to Add stations. Add stations' own paths (`/add/…`,
-`/w/*/add/…`) are not counted yet (#310). A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+their addresses only redirect to Add stations. Since #310 the rule counts Add stations'
+own paths, which take the files dropped or add the stations and queue their jobs: `/add/`,
+`/add/sample`, `/add/sample-batch`, `/w/*/add/` and `/w/*/add/*/` (the review form), but
+not `/w/*/add/*/check`, the table's check as it is typed (`add` is a reserved station slug,
+so neither pattern matches a station's pages). A normal Add stations flow makes at most
+about 5 counted requests in any 10 s (the page, the drop and its redirect, a second drop and
+its redirect), and 6 to 8 counted requests in all. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this. Bot Fight Mode is off (see the table). The same test checks

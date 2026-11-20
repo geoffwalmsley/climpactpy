@@ -211,8 +211,8 @@ def gridded_setup(client) -> str:
 
 
 def gridded_results_large_grid(client) -> str:
-    """The results page of a finished gridded run on a 100 x 100 grid: the largest map
-    drawn (maps.MAX_MAP_CELLS) and its table, with the values all different."""
+    """The Map tab of a finished gridded run on a 100 x 100 grid: the largest map drawn
+    (maps.MAX_MAP_CELLS) and its table, with the values all different."""
     from climpact_web.gridded.models import GriddedRun
     from climpact_web.jobs.models import Job, Status
 
@@ -236,7 +236,12 @@ def gridded_results_large_grid(client) -> str:
         v[:] = 20 + 20 * np.random.default_rng(0).random((20, n, n))
     run.indices_job = job
     run.save()
-    return f"/gridded/{run.pk}/results"
+    return f"/gridded/{run.pk}/"
+
+
+def gridded_files(client) -> str:
+    """The Files tab of the same run (#289)."""
+    return gridded_results_large_grid(client) + "files/"
 
 
 PAGES = {
@@ -259,9 +264,11 @@ PAGES = {
     "workspace overview": Page(batch_results),  # a batch's results, since #234
     "jobs": Page(lambda client: "/jobs/"),
     "job": Page(job_detail),
-    "gridded start": Page(lambda client: "/gridded/"),
+    "gridded start": Page(lambda client: "/gridded/"),  # the runs (#289)
+    "gridded new run": Page(lambda client: "/gridded/new/"),
     "gridded set-up": Page(gridded_setup),
     "gridded results, 100x100 grid": Page(gridded_results_large_grid, charts=True),  # cell series
+    "gridded files": Page(gridded_files),
     "help": Page(lambda client: "/help/"),
     "help guide": Page(lambda client: "/help/quality-control/"),
     "help indices": Page(lambda client: "/help/indices/"),

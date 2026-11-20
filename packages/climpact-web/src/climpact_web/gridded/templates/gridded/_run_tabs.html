@@ -1,0 +1,8 @@
+{% load i18n %}{% comment %}
+A gridded run's tabs (#289): Map, Files and Set-up. Links in a named nav, the current one
+aria-current="page", as a workspace's tabs.
+{% endcomment %}<nav class="print:hidden" aria-label="{% translate 'Run sections' %}">
+  <ul class="tabs__list m-0 flex-wrap" role="list">
+    {% for tab in run_tabs %}<li><a class="tabs__tab" href="{{ tab.url }}" data-tab="{{ tab.key }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a></li>{% endfor %}
+  </ul>
+</nav>

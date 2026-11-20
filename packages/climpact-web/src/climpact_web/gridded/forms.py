@@ -107,6 +107,17 @@ class UploadForm(forms.Form):
         return files
 
 
+class RenameForm(forms.Form):
+    """Rename a run (#289): a name of its own, or empty for the one made from its files."""
+
+    name = forms.CharField(
+        label=_("Run name"),
+        max_length=200,
+        required=False,
+        help_text=_("Leave it empty for a name made from the files."),
+    )
+
+
 # ---- Set-up --------------------------------------------------------------------------------
 
 TASKS = (

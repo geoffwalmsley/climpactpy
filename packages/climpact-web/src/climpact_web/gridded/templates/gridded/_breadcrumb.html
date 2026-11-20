@@ -1,0 +1,10 @@
+{% load i18n %}{% comment %}
+The breadcrumb of the pages before a run (#289; DESIGN.md, the gridded frame): "Gridded /
+New run" on New gridded run, "Gridded / New run / set-up" on a run's set-up until it
+starts. The context bar's breadcrumb style. Parameter: crumbs ("new" or "setup").
+{% endcomment %}<nav aria-label="{% translate 'Breadcrumb' %}" class="context-bar__crumbs"><ol class="context-bar__breadcrumb">
+  <li><a href="{% url 'gridded:start' %}">{% translate "Gridded" %}</a></li>
+  {% if crumbs == "setup" %}<li><a href="{% url 'gridded:new' %}">{% translate "New run" %}</a></li>
+  <li><span aria-current="page">{% translate "set-up" %}</span></li>
+  {% else %}<li><span aria-current="page">{% translate "New run" %}</span></li>{% endif %}
+</ol></nav>

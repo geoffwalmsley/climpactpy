@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n static ui charts %}{% comment %}
+A gridded run's Map tab (#289; the address of the run itself): the run's context bar, then
+the jobs while they run, or why one failed (gridded/_progress.html, until the stages of
+#294), and once they have finished the explorer, a map of an index and a cell's series
+(gridded/_explore.html, until the map of #295). A thresholds-only run has no map: it says
+where its file is. Context from views.run_page.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=run_name %}Map: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block head %}{% chart_scripts %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "gridded/_run_bar.html" %}
+
+  {% if not all_done %}{% include "gridded/_progress.html" %}{% endif %}
+
+  {% if map or explore_error %}
+  <section class="stack" id="explore-section" aria-labelledby="explore-title">
+    <h2 id="explore-title">{% translate "Explore the indices" %}</h2>
+    {% include "gridded/_explore.html" %}
+  </section>
+  {% elif all_done %}
+  <p class="m-0 text-sm text-text-muted">{% url 'gridded:files' run.pk as files_url %}{% blocktranslate trimmed %}This run made a thresholds file only, so there is no map. The file is on <a href="{{ files_url }}">Files</a>.{% endblocktranslate %}</p>
+  {% endif %}
+</div>
+{% endblock %}

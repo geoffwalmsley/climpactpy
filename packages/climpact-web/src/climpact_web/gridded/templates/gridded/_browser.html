@@ -10,13 +10,13 @@ The folder browser of the local file chooser (inside its form). Parameters: brow
   {% if browse.error %}<p class="field__warning">{% icon "warning" %}<span>{{ browse.error }}</span></p>{% endif %}
   <ul class="file-browser__list" aria-label="{% translate 'Folders and netCDF files' %}">
     {% if browse.parent %}
-    <li><button type="submit" name="action" value="browse:{{ browse.parent }}" class="file-browser__item" hx-post="{% url 'gridded:start' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "arrow-left" "" "icon--flip" %}<span>{% translate "Up one folder" %}</span></button></li>
+    <li><button type="submit" name="action" value="browse:{{ browse.parent }}" class="file-browser__item" hx-post="{% url 'gridded:new' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "arrow-left" "" "icon--flip" %}<span>{% translate "Up one folder" %}</span></button></li>
     {% endif %}
     {% for folder in browse.folders %}
-    <li><button type="submit" name="action" value="browse:{{ folder.path }}" class="file-browser__item" hx-post="{% url 'gridded:start' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "folder" %}<span>{{ folder.name }}</span></button></li>
+    <li><button type="submit" name="action" value="browse:{{ folder.path }}" class="file-browser__item" hx-post="{% url 'gridded:new' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "folder" %}<span>{{ folder.name }}</span></button></li>
     {% endfor %}
     {% for file in browse.files %}
-    <li><button type="submit" name="action" value="add:{{ file.path }}" class="file-browser__item file-browser__item--file" hx-post="{% url 'gridded:start' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "file" %}<span>{{ file.name }}</span><span class="text-sm text-text-muted">{{ file.size }}</span><span class="file-browser__add">{% translate "Add" %}</span></button></li>
+    <li><button type="submit" name="action" value="add:{{ file.path }}" class="file-browser__item file-browser__item--file" hx-post="{% url 'gridded:new' %}" hx-target="#gridded-chooser" hx-swap="outerHTML">{% icon "file" %}<span>{{ file.name }}</span><span class="text-sm text-text-muted">{{ file.size }}</span><span class="file-browser__add">{% translate "Add" %}</span></button></li>
     {% endfor %}
     {% if not browse.folders and not browse.files %}<li class="text-sm text-text-muted file-browser__empty">{% translate "No folders or netCDF files here." %}</li>{% endif %}
   </ul>

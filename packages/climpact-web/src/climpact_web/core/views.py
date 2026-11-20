@@ -10,7 +10,7 @@ import climpact
 import climpact_web
 from climpact_web.core import numbers
 from climpact_web.core.forms import PatternDemoForm
-from climpact_web.core.navigation import destination, gridded_steps
+from climpact_web.core.navigation import destination
 from climpact_web.help.tour import home_tour
 from climpact_web.stations.workspace import years_text
 
@@ -264,9 +264,6 @@ def pattern_context(form):
     ]
     return {
         "form": form,
-        "steps_first": gridded_steps("files"),
-        "steps_middle": gridded_steps("setup", urls={"files": "#"}),
-        "steps_last": gridded_steps("results", urls={k: "#" for k in ("files", "setup")}),
         "table_columns": [
             {"label": _("Year"), "code": True},
             {"label": _("TXx (°C)"), "numeric": True},

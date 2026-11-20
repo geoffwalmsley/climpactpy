@@ -1,17 +1,27 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
-{% block title %}{% translate "Check and set up" %}{% endblock %}
+{% comment %}
+A gridded run's set-up (#85; #293 redraws it). Before the run starts: "Gridded / New run /
+set-up" over the run's name as the h1, with Rename. Once it has started, the run's Set-up
+tab (#289): the run's context bar, then the same form, which starts the run again.
+Context from views.setup_context.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=run_name %}Set-up: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/gridded.js' %}" defer></script>{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
 {% block content %}
 <div class="stack stack--lg station-page">
+  {% if run.jobs %}
+  {% include "gridded/_run_bar.html" %}
+  {% else %}
   <header class="stack stack--sm">
-    <h1>{% translate "Check the files and set up the run" %}</h1>
+    {% include "gridded/_breadcrumb.html" with crumbs="setup" %}
+    <h1>{{ run_name }} <a class="text-sm font-normal" href="{% url 'gridded:rename' run.pk %}">{% translate "Rename" %}<span class="sr-only"> {% translate "the run" %}</span></a></h1>
     <p class="lead">{% blocktranslate count counter=files|length trimmed %}Climpact has read the file below. Nothing has been calculated yet.{% plural %}Climpact has read the {{ counter }} files below. Nothing has been calculated yet.{% endblocktranslate %}</p>
   </header>
+  {% endif %}
 
   {% if job_active %}
-  {% url 'gridded:results' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
+  {% url 'gridded:run' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
   {% translate "This run is being calculated." as active_message %}
   {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
   {% endif %}
@@ -184,7 +194,7 @@
       {% translate "Start the calculation" as run_label %}
       {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
     </div>
-    <p class="text-sm text-text-muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to it from Your calculations, which Workspaces links to." %}</p>
+    <p class="text-sm text-text-muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to the run from Gridded." %}</p>
   </form>
 
   {% include "gridded/_retention.html" %}
@@ -192,7 +202,7 @@
     {% csrf_token %}
     {% translate "Forget this run" as delete_label %}
     {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="text-sm" href="{% url 'gridded:start' %}">{% translate "Choose other files" %}</a>
+    <a class="text-sm" href="{% url 'gridded:new' %}">{% translate "Choose other files" %}</a>
   </form>
 </div>
 {% endblock %}

@@ -1,0 +1,6 @@
+{% load i18n %}{% comment %}
+A gridded run's actions (#289): "Run again with other files" (New gridded run) once no
+job is queued or running, and "Download all (zip, size)" once every job has finished.
+Included twice: in the bar and, on phones, in the ⋯ menu.
+{% endcomment %}{% if not run_state.active %}{% url 'gridded:new' as new_url %}{% translate "Run again with other files" as again_label %}{% include "components/button.html" with label=again_label href=new_url variant="secondary" size="sm" %}{% endif %}
+{% if run_done %}{% url 'gridded:download_all' run.pk as zip_url %}{% blocktranslate asvar zip_label with size=run_size|filesizeformat %}Download all (zip, {{ size }}){% endblocktranslate %}{% include "components/button.html" with label=zip_label href=zip_url size="sm" %}{% endif %}

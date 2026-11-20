@@ -1,15 +1,23 @@
 """The gridded pages (#85), replacing the R app's two gridded screens
-(``griddedStep1UI.R``, indices, and ``griddedStep2UI.R``, thresholds).
+(``griddedStep1UI.R``, indices, and ``griddedStep2UI.R``, thresholds). A run is a place
+of its own, like a workspace (#289, the Grid boards):
 
-1. ``gridded:start``: choose the netCDF files: by path on this computer (local mode, read
-   in place, with a folder browser), by upload (size-limited), or the sample grid.
-2. ``gridded:setup``: what each file holds (variables, units, calendar, grid, dates);
-   which variable is TX, TN and precipitation; what to calculate (indices, a thresholds
-   file, or both) and the parameters, checked as they change and again with the core's
-   own reader before anything runs.
-3. ``gridded:results``: the thresholds and indices jobs with their progress (the
-   rechunking stage included); then the files to download, a map of an index at one
-   time step and the time series of a chosen cell, each with a table.
+- ``gridded:start`` (``/gridded/``): Gridded, the browser's runs in a table
+  (:func:`climpact_web.gridded.runs.entries`), New gridded run, and the sample grid.
+- ``gridded:new``: choose the netCDF files: by path on this computer (local mode, read
+  in place, with a folder browser), by upload (size-limited), or the sample grid.
+- ``gridded:setup`` (``<run>/setup/``): what each file holds (variables, units,
+  calendar, grid, dates); which variable is TX, TN and precipitation; what to calculate
+  (indices, a thresholds file, or both) and the parameters, checked as they change and
+  again with the core's own reader before anything runs. Before a run it has a
+  breadcrumb; after, it is the run's Set-up tab.
+- ``gridded:run`` (``<run>/``), the run's Map tab: the thresholds and indices jobs with
+  their progress (the rechunking stage included) while they run, then a map of an index
+  at one time step and the time series of a chosen cell, each with a table. The old
+  ``<run>/results`` address redirects here.
+- ``gridded:files`` (``<run>/files/``), the Files tab: the index files grouped by theme,
+  variable needed or frequency, each group with its zip; Download all, the links for
+  ``wget -i`` and the run's record (``run.json``, the log).
 
 Gridded runs are offered in local mode, and in hosted mode only with
 ``CLIMPACT_WEB_GRIDDED_HOSTED`` (``settings.GRIDDED_ENABLED``); otherwise every page is
@@ -31,6 +39,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.core import signing
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
@@ -43,12 +52,12 @@ from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.core.navigation import gridded_steps
-from climpact_web.gridded import inspection, maps
+from climpact_web.gridded import inspection, maps, runs
 from climpact_web.gridded.forms import (
     MIN_BASE_DAYS,
     SLOW_INDICES,
     PathsForm,
+    RenameForm,
     SetupForm,
     UploadForm,
     all_indices,
@@ -67,7 +76,6 @@ from climpact_web.jobs.worker import worker_running
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_FILE = "climpact.sampledata.gridded.3x4.1991-2010.nc"
 SAMPLE_INSTITUTION = ("Climpact sample", "CPS")
-RECENT_RUNS = 5
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._+-]")
 
 
@@ -100,14 +108,28 @@ def get_run(request, run_id) -> GriddedRun:
     return get_object_or_404(GriddedRun, pk=run_id, owner=owner)
 
 
-def run_urls(run: GriddedRun) -> dict[str, str]:
-    urls = {"files": reverse("gridded:start"), "setup": reverse("gridded:setup", args=[run.pk])}
-    if run.jobs:
-        urls["results"] = reverse("gridded:results", args=[run.pk])
-    return urls
+# ---- Gridded: the runs ----------------------------------------------------------------------
 
 
-# ---- Step 1: the files ---------------------------------------------------------------------
+@never_cache
+@gridded_enabled
+@require_safe
+def start(request):
+    """``/gridded/``: the browser's runs (the computer's, locally), most recently changed
+    first (the GridList board); with none, one line and the sample grid."""
+    owner = request.session.get(OWNER_KEY) or "-"
+    return render(
+        request,
+        "gridded/start.html",
+        {
+            "entries": runs.entries(owner),
+            "local": not settings.IS_HOSTED,
+            "sample_name": SAMPLE_FILE,
+        },
+    )
+
+
+# ---- New run: the files ----------------------------------------------------------------------
 
 
 def browse_listing(folder: str | None) -> dict:
@@ -148,7 +170,6 @@ def browse_listing(folder: str | None) -> dict:
 
 
 def start_context(request, paths_form=None, upload_form=None, browse=None) -> dict:
-    owner = request.session.get(OWNER_KEY) or "-"
     local = not settings.IS_HOSTED
     if paths_form is None and local:
         paths_form = PathsForm()
@@ -160,8 +181,6 @@ def start_context(request, paths_form=None, upload_form=None, browse=None) -> di
         "paths_form": paths_form,
         "upload_form": upload_form or UploadForm(),
         "browse": browse,
-        "steps": gridded_steps("files"),
-        "recent": GriddedRun.objects.filter(owner=owner)[:RECENT_RUNS],
         "max_upload_mb": settings.GRIDDED_MAX_UPLOAD_MB,
         "sample_name": SAMPLE_FILE,
         "local": local,
@@ -170,14 +189,14 @@ def start_context(request, paths_form=None, upload_form=None, browse=None) -> di
 
 @gridded_enabled
 @require_http_methods(["GET", "HEAD", "POST"])
-def start(request):
-    """Choose the files. Local mode: paths on this computer, with a folder browser whose
-    buttons post the same form (so it works without JavaScript; htmx swaps only the
-    chooser)."""
+def new(request):
+    """New gridded run: choose the files. Local mode: paths on this computer, with a
+    folder browser whose buttons post the same form (so it works without JavaScript; htmx
+    swaps only the chooser)."""
     if request.method != "POST" or settings.IS_HOSTED:
         if request.method == "POST":
-            return redirect("gridded:start")
-        return render(request, "gridded/start.html", start_context(request))
+            return redirect("gridded:new")
+        return render(request, "gridded/new.html", start_context(request))
     action = request.POST.get("action", "use")
     data = request.POST.copy()
     if action.startswith("add:"):
@@ -200,15 +219,13 @@ def start(request):
     if not form.is_valid():
         context = start_context(request, form)
         context["paths_value"] = data.get("paths", "")
-        return render(request, "gridded/start.html", context)
+        return render(request, "gridded/new.html", context)
     run = create_run(request, Source.PATH, form.cleaned_data["paths"])
     return redirect("gridded:setup", run_id=run.pk)
 
 
 def render_chooser(request, context):
-    template = (
-        "gridded/_chooser.html" if request.headers.get("HX-Request") else "gridded/start.html"
-    )
+    template = "gridded/_chooser.html" if request.headers.get("HX-Request") else "gridded/new.html"
     return render(request, template, context)
 
 
@@ -228,7 +245,7 @@ def upload(request):
     """Uploaded netCDF files, kept in the run's own folder."""
     form = UploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        return render(request, "gridded/start.html", start_context(request, upload_form=form))
+        return render(request, "gridded/new.html", start_context(request, upload_form=form))
     with transaction.atomic():
         run = GriddedRun(owner=owner_token(request), source=Source.UPLOAD)
         run.save()
@@ -261,7 +278,7 @@ def sample(request):
     """One click: a 3 x 4 cut of Climpact's sample grid (south-eastern Australia,
     1991-2010), read in place from the package."""
     if request.method != "POST":
-        return redirect("gridded:start")
+        return redirect("gridded:new")
     run = create_run(request, Source.SAMPLE, [str(SAMPLE_DIR / SAMPLE_FILE)])
     run.files[0]["name"] = SAMPLE_FILE
     run.save()
@@ -279,12 +296,12 @@ def sample_file(request):
 @local_only
 @require_safe
 def browse(request):
-    """htmx: the folder browser on its own (the start page's chooser)."""
+    """htmx: the folder browser on its own (New gridded run's chooser)."""
     context = start_context(request, browse=browse_listing(request.GET.get("dir")))
     return render(request, "gridded/_browser.html", context)
 
 
-# ---- Step 2: check and set up -----------------------------------------------------------------
+# ---- Set-up ----------------------------------------------------------------------------------
 
 
 def base_days(summary: inspection.Summary, start: int, end: int) -> int:
@@ -443,11 +460,11 @@ def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: st
         "coverage": coverage,
         "outputs": outputs_preview(form, summary),
         "index_groups": groups,
-        "steps": gridded_steps("setup", run_urls(run)),
         "preflight_error": preflight_error,
         "local": not settings.IS_HOSTED,
         "job_active": run.job_active,
         "max_upload_mb": settings.GRIDDED_MAX_UPLOAD_MB,
+        **(bar_context(run, "setup") if run.jobs else {"run_name": run.display_name}),
     }
 
 
@@ -477,11 +494,17 @@ def setup(request, run_id):
         message = _("The files cannot be read together: %(error)s") % {"error": exc}
         return render(request, "gridded/setup.html", setup_context(request, run, form, message))
     if run.job_active:
-        return redirect("gridded:results", run_id=run.pk)
+        return redirect(run)
     run.names = names
-    run.options = options_json(run, data, checked)
+    run.options = {**options_json(run, data, checked), **_kept(run.options)}
     queue_jobs(request, run)
-    return redirect("gridded:results", run_id=run.pk)
+    return redirect(run)
+
+
+def _kept(options: dict) -> dict:
+    """What the run worked out once and keeps across a new start: the inputs' checksums
+    (the cells with data belong to the old results, so they go)."""
+    return {k: options[k] for k in ("checksums",) if k in options}
 
 
 def save_thresholds_upload(run: GriddedRun, form: SetupForm) -> None:
@@ -578,9 +601,13 @@ def checks(request, run_id):
 
 
 @gridded_enabled
-@require_POST
+@require_http_methods(["GET", "HEAD", "POST"])
 def delete(request, run_id):
+    """Forget this run: GET asks first, POST deletes the run, its results and its uploaded
+    files (never a file read in place)."""
     run = get_run(request, run_id)
+    if request.method != "POST":
+        return render(request, "gridded/delete.html", {"run": run, "run_name": run.display_name})
     run.delete_files()
     run.delete()
     messages.success(
@@ -592,7 +619,59 @@ def delete(request, run_id):
     return redirect("gridded:start")
 
 
-# ---- Step 3: the jobs and the results -------------------------------------------------------
+@never_cache
+@gridded_enabled
+@require_http_methods(["GET", "HEAD", "POST"])
+def rename(request, run_id):
+    """Rename the run: a name of its own, or empty for the one made from its files."""
+    run = get_run(request, run_id)
+    form = RenameForm(request.POST or None, initial={"name": run.display_name})
+    if request.method == "POST" and form.is_valid():
+        name = form.cleaned_data["name"].strip()
+        run.name = "" if name == runs.default_name(run) else name
+        run.touch()
+        run.save(update_fields=["name", "updated_at"])
+        messages.success(request, _("The run is now called %(name)s.") % {"name": run.display_name})
+        return redirect(run)
+    context = {**bar_context(run, "rename", heading=False), "form": form}
+    return render(request, "gridded/rename.html", context)
+
+
+# ---- The run's context bar -------------------------------------------------------------------
+
+
+def bar_context(run: GriddedRun, current: str, heading: bool = True) -> dict:
+    """The run's context bar (gridded/_run_bar.html; the GridFiles board): "Gridded / run",
+    the name, the provenance line with Rename and Forget this run, the actions, then the
+    tabs Map, Files and Set-up."""
+    tabs = [
+        ("map", _("Map"), reverse("gridded:run", args=[run.pk])),
+        ("files", _("Files"), reverse("gridded:files", args=[run.pk])),
+        ("setup", _("Set-up"), reverse("gridded:setup", args=[run.pk])),
+    ]
+    state = runs.state(run)
+    done = runs.all_done(run)
+    return {
+        "run": run,
+        "run_name": run.display_name,
+        "run_heading": heading,
+        "run_breadcrumb": [
+            {"label": _("Gridded"), "url": reverse("gridded:start")},
+            {"label": _("run")},
+        ],
+        "run_provenance": runs.provenance(run),
+        "run_tabs": [
+            {"key": key, "label": label, "url": url, "current": key == current}
+            for key, label, url in tabs
+        ],
+        "run_state": state,
+        "run_done": done,
+        "run_size": runs.total_size(run) if done else 0,
+        "data_page": True,  # base.html: the page uses the whole window
+    }
+
+
+# ---- Map: the jobs and the results ------------------------------------------------------------
 
 
 def job_rows(request, run: GriddedRun) -> list[dict]:
@@ -610,7 +689,7 @@ def job_rows(request, run: GriddedRun) -> list[dict]:
                 "elapsed": format_duration(job.elapsed(now)),
                 "remaining": format_duration(remaining) if remaining is not None else "",
                 "worker_missing": job.status == Status.QUEUED and not worker_running(now),
-                "files": maps.output_files(job) if job.status == Status.SUCCEEDED else [],
+                "files": len(maps.output_files(job)) if job.status == Status.SUCCEEDED else 0,
             }
         )
     return rows
@@ -675,7 +754,7 @@ def explore_context(request, run: GriddedRun) -> dict:
     series = maps.draw_series(series_values, layer.times)
     state = {"file": chosen.path, "var": layer.variable, "t": t, "scale": scale}
     base = reverse("gridded:explore", args=[run.pk])
-    page = reverse("gridded:results", args=[run.pk])
+    page = reverse("gridded:run", args=[run.pk])
     for c in drawing.cells:
         query = urlencode({**state, "cell": f"{c.y},{c.x}"})
         c.href = f"{page}?{query}#explore"
@@ -734,16 +813,26 @@ def _cell(value, ny: int, nx: int) -> tuple[int, int] | None:
 @never_cache
 @gridded_enabled
 @require_safe
-def results(request, run_id):
+def run_page(request, run_id):
+    """The run's Map tab: the jobs while they run (or why one failed), then the map and a
+    cell's series (the explorer, until the map of #295). A run not started yet opens its
+    set-up."""
     run = get_run(request, run_id)
     if not run.jobs:
         return redirect("gridded:setup", run_id=run.pk)
     context = progress_context(request, run)
     context.update(explore_context(request, run))
-    context["steps"] = gridded_steps("results", run_urls(run))
-    infos, _problems, summary = run_summary(run)
-    context["summary"] = summary
-    return render(request, "gridded/results.html", context)
+    context.update(bar_context(run, "map"))
+    return render(request, "gridded/run.html", context)
+
+
+@gridded_enabled
+@require_safe
+def results(request, run_id):
+    """The results page's old address: the run, with the explorer's query string."""
+    run = get_run(request, run_id)
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(run.get_absolute_url() + (f"?{query}" if query else ""), permanent=True)
 
 
 @never_cache
@@ -781,9 +870,7 @@ def explore(request, run_id):
     response = render(request, "gridded/_explore.html", context)
     state = {k: request.GET[k] for k in ("file", "var", "t", "scale") if k in request.GET}
     state["cell"] = f"{context['cell'][0]},{context['cell'][1]}" if "cell" in context else ""
-    response["HX-Push-Url"] = (
-        reverse("gridded:results", args=[run.pk]) + "?" + urlencode(state) + "#explore"
-    )
+    response["HX-Push-Url"] = run.get_absolute_url() + "?" + urlencode(state) + "#explore"
     return response
 
 
@@ -875,22 +962,157 @@ def series_json(request, run_id):
     return json_response(request, key, [path], build)
 
 
-@gridded_enabled
-@require_safe
-def download_all(request, run_id):
-    """Every file the run's jobs wrote, in one zip (stored: netCDF is compressed already),
-    built in a temporary file."""
-    run = get_run(request, run_id)
-    files = []
-    for job in run.jobs:
-        if job.status == Status.SUCCEEDED:
-            files += [(job.output_dir / f.path, f.name) for f in maps.output_files(job)]
-    if not files:
-        raise Http404
+def _zip_response(run: GriddedRun, files: list, suffix: str = "") -> FileResponse:
+    """The files in one zip (stored: netCDF is compressed already), built in a temporary
+    file."""
     spool = tempfile.TemporaryFile()
     with zipfile.ZipFile(spool, "w", zipfile.ZIP_STORED, allowZip64=True) as archive:
         for path, name in files:
             archive.write(path, f"climpact_gridded/{name}")
     spool.seek(0)
     institution = SAFE_NAME.sub("_", run.options.get("institution_id") or "climpact")
-    return FileResponse(spool, as_attachment=True, filename=f"{institution}_gridded.zip")
+    return FileResponse(spool, as_attachment=True, filename=f"{institution}_gridded{suffix}.zip")
+
+
+@gridded_enabled
+@require_safe
+def download_all(request, run_id):
+    """Every file the run's jobs wrote, in one zip."""
+    run = get_run(request, run_id)
+    files = [(job.output_dir / f.path, f.name) for job, f in runs.output_files(run)]
+    if not files:
+        raise Http404
+    return _zip_response(run, files)
+
+
+# ---- Files: the index files and the run's record ----------------------------------------------
+
+
+def files_context(request, run: GriddedRun) -> dict:
+    by = request.GET.get("by")
+    if by not in runs.GROUPS:
+        by = "theme"
+    rows = runs.file_rows(run) if runs.all_done(run) else []
+    thresholds = runs.thresholds_file(run)
+    copied = next((j.result.get("copied_to") for j in run.jobs if j.result.get("copied_to")), "")
+    outputs = runs.output_files(run)
+    trends = next((f for _job, f in outputs if f.name == "trends.nc"), None)
+    return {
+        "by": by,
+        "groupings": runs.GROUPINGS,
+        "groups": runs.file_groups(run, by, rows),
+        "index_count": len(rows),
+        "index_size": sum(r.file.size for r in rows),
+        "file_count": len(outputs),
+        "trends_file": trends,
+        "thresholds_path": thresholds,
+        "thresholds_size": thresholds.stat().st_size if thresholds and thresholds.exists() else 0,
+        "copied_to": copied if not settings.IS_HOSTED else "",
+        "thresholds_read": Path(str(run.options.get("thresholds_file") or "")).name,
+        "local": not settings.IS_HOSTED,
+    }
+
+
+@never_cache
+@gridded_enabled
+@require_safe
+def files(request, run_id):
+    """The run's Files tab (the GridFiles board)."""
+    run = get_run(request, run_id)
+    if not run.jobs:
+        return redirect("gridded:setup", run_id=run.pk)
+    context = {**bar_context(run, "files"), **files_context(request, run)}
+    return render(request, "gridded/files.html", context)
+
+
+@gridded_enabled
+@require_safe
+def download_group(request, run_id, by, group):
+    """One group of the Files tab (a theme, a variable or a frequency) in one zip."""
+    run = get_run(request, run_id)
+    if by not in runs.GROUPS or not runs.all_done(run):
+        raise Http404
+    found = next((g for g in runs.file_groups(run, by) if g.key == group), None)
+    if found is None:
+        raise Http404
+    job = run.indices_job
+    files = [(job.output_dir / r.file.path, r.file.name) for r in found.rows]
+    return _zip_response(run, files, f"_{SAFE_NAME.sub('_', group)}")
+
+
+FILE_LINK_SALT = "climpact_web.gridded.file"
+
+
+def file_key(run: GriddedRun) -> str:
+    """The key in the links for ``wget -i``: it lets a download tool without this
+    browser's session fetch the run's files (and nothing else) while the run is kept."""
+    return signing.dumps(str(run.pk), salt=FILE_LINK_SALT, compress=True)
+
+
+def _key_allows(key: str | None, run_id) -> bool:
+    if not key:
+        return False
+    max_age = dt.timedelta(days=settings.JOB_RETENTION_DAYS + 1)
+    try:
+        return signing.loads(key, salt=FILE_LINK_SALT, max_age=max_age) == str(run_id)
+    except signing.BadSignature:
+        return False
+
+
+@gridded_enabled
+@require_safe
+def run_file(request, run_id, relative):
+    """One file a run's job wrote: for this browser's session, or with the key of the
+    run's link list (:func:`file_key`)."""
+    if _key_allows(request.GET.get("k"), run_id):
+        run = get_object_or_404(GriddedRun, pk=run_id)
+    else:
+        run = get_run(request, run_id)
+    for job, f in runs.output_files(run):
+        if f.path == relative:
+            path = job.output_dir / f.path
+            return FileResponse(path.open("rb"), as_attachment=True, filename=f.name)
+    raise Http404
+
+
+@gridded_enabled
+@require_safe
+def links(request, run_id):
+    """Every file of the run as a link, one per line, for ``wget -i`` (big runs: a
+    download tool can resume where a zip in the browser cannot)."""
+    run = get_run(request, run_id)
+    files = runs.output_files(run)
+    if not files:
+        raise Http404
+    key = file_key(run)
+    lines = [
+        request.build_absolute_uri(reverse("gridded:file", args=[run.pk, f.path]))
+        + "?"
+        + urlencode({"k": key})
+        for _job, f in files
+    ]
+    response = HttpResponse("\n".join(lines) + "\n", content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="climpact_gridded_links.txt"'
+    return response
+
+
+@gridded_enabled
+@require_safe
+def run_record(request, run_id):
+    """``run.json``: the settings, versions and the inputs' checksums."""
+    run = get_run(request, run_id)
+    response = HttpResponse(runs.record_text(run), content_type="application/json")
+    response["Content-Disposition"] = 'attachment; filename="run.json"'
+    return response
+
+
+@gridded_enabled
+@require_safe
+def run_log(request, run_id):
+    """``climpact.log``: when each job started and finished, and why one failed."""
+    run = get_run(request, run_id)
+    if not run.jobs:
+        raise Http404
+    response = HttpResponse(runs.log_text(run), content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="climpact.log"'
+    return response

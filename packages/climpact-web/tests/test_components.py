@@ -194,21 +194,19 @@ def test_theme_toggle_hidden_without_js():
     assert "data-theme-toggle hidden" in html and html.count("aria-pressed") == 3
 
 
-# ---- Step indicator --------------------------------------------------------------------
+# ---- Step indicator ----------------------------------------------------------------------
 
 
-def test_flow_steps_states():
-    steps = navigation.gridded_steps("setup", urls={"files": "/u/", "setup": "/c/"})
-    assert [s.state for s in steps] == ["complete", "current", "upcoming"]
-    assert [s.url for s in steps] == ["/u/", None, None]
-    assert [s.number for s in steps] == [1, 2, 3]
-    assert [s.key for s in navigation.gridded_steps("files")] == ["files", "setup", "results"]
-    with pytest.raises(ValueError):
-        navigation.gridded_steps("nope")
-    # The single station has no steps since #179: its sections are tabs; the batch none
-    # since #234: its results are the workspace's overview.
-    assert not hasattr(navigation, "station_steps")
-    assert not hasattr(navigation, "batch_steps")
+def test_no_step_indicator():
+    """No page has steps: the station's sections are tabs (#179), the batch's stations
+    the workspace's (#234), and a gridded run has tabs and a breadcrumb (#289)."""
+    for name in ("gridded_steps", "flow_steps", "station_steps", "batch_steps", "Step"):
+        assert not hasattr(navigation, name), name
+    from django.template import TemplateDoesNotExist
+    from django.template.loader import get_template
+
+    with pytest.raises(TemplateDoesNotExist):
+        get_template("components/steps.html")
 
 
 def test_count_filter_groups_thousands():
@@ -218,13 +216,6 @@ def test_count_filter_groups_thousands():
     assert count(29220) == "29,220" and count(7) == "7" and count("1234") == "1,234"
     assert count(1234.0) == "1,234" and count(2.5) == 2.5 and count("n/a") == "n/a"
     assert count(None) is None
-
-
-def test_steps_component():
-    html = render("steps", steps=navigation.gridded_steps("setup", urls={"files": "/u/"}))
-    assert '<a class="steps__link" href="/u/">' in html
-    assert 'aria-current="step"' in html and "Step 2 of 3:" in html
-    assert "Optional" not in html
 
 
 # ---- Landing page and navigation -------------------------------------------------------
@@ -313,7 +304,7 @@ def test_pattern_library(client):
     html = response.content.decode()
     for section in ("colour", "buttons", "forms", "dropzone", "alerts", "overlays", "cards"):
         assert f'id="{section}"' in html
-    for section in ("tables", "tabs", "steps", "progress", "loading", "help", "charts"):
+    for section in ("tables", "tabs", "progress", "loading", "help", "charts"):
         assert f'id="{section}"' in html
     assert 'aria-invalid="true"' in html and "data-error-summary" in html
     assert not re.search(r'(src|href)="(https?:)?//', html)  # nothing from the network

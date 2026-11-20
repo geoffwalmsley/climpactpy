@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 10:04+0000\n"
+"POT-Creation-Date: 2026-11-20 10:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -283,7 +283,7 @@ msgstr ""
 msgid "Choose the files to add."
 msgstr ""
 
-#: batch/forms.py:114 gridded/forms.py:258 stations/forms.py:191
+#: batch/forms.py:114 gridded/forms.py:269 stations/forms.py:191
 msgid "First year"
 msgstr ""
 
@@ -296,7 +296,7 @@ msgstr ""
 msgid "Enter a year, e.g. 1971."
 msgstr ""
 
-#: batch/forms.py:126 gridded/forms.py:259 stations/forms.py:201
+#: batch/forms.py:126 gridded/forms.py:270 stations/forms.py:201
 msgid "Last year"
 msgstr ""
 
@@ -332,24 +332,24 @@ msgstr ""
 msgid "Enter how many stations to calculate at the same time (1 or more)."
 msgstr ""
 
-#: batch/forms.py:167 gridded/forms.py:384
+#: batch/forms.py:167 gridded/forms.py:395
 msgid "Enter a whole number, e.g. 2."
 msgstr ""
 
-#: batch/forms.py:168 gridded/forms.py:385
+#: batch/forms.py:168 gridded/forms.py:396
 msgid "You need at least 1."
 msgstr ""
 
-#: batch/forms.py:169 gridded/forms.py:386
+#: batch/forms.py:169 gridded/forms.py:397
 #, python-format
 msgid "You cannot use more than %(count)d on this computer."
 msgstr ""
 
-#: batch/forms.py:178 gridded/forms.py:440 stations/forms.py:237
+#: batch/forms.py:178 gridded/forms.py:451 stations/forms.py:237
 msgid "The last year must not be before the first year."
 msgstr ""
 
-#: batch/models.py:40 gridded/models.py:35
+#: batch/models.py:40 gridded/models.py:36
 msgid "Uploaded files"
 msgstr ""
 
@@ -357,8 +357,8 @@ msgstr ""
 msgid "Sample batch"
 msgstr ""
 
-#: batch/templates/batch/_options.html:9 core/views.py:405 core/views.py:662
-#: core/views.py:682 gridded/templates/gridded/setup.html:109
+#: batch/templates/batch/_options.html:9 core/views.py:402 core/views.py:659
+#: core/views.py:679 gridded/templates/gridded/setup.html:119
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
 #: stations/views_add.py:102 stations/workspace.py:776
@@ -440,7 +440,7 @@ msgstr ""
 msgid "Your files are loaded. Add the metadata file that lists the stations."
 msgstr ""
 
-#: batch/templates/batch/check.html:12 gridded/templates/gridded/setup.html:14
+#: batch/templates/batch/check.html:12 gridded/templates/gridded/setup.html:24
 msgid "Follow its progress"
 msgstr ""
 
@@ -523,7 +523,7 @@ msgstr ""
 msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
-#: batch/templates/batch/check.html:89 core/views.py:403 core/views.py:661
+#: batch/templates/batch/check.html:89 core/views.py:400 core/views.py:658
 #: stations/templates/stations/_overview.html:40
 #: stations/templates/stations/_trends.html:61
 #: stations/templates/stations/workspace_files.html:63
@@ -747,38 +747,38 @@ msgstr ""
 msgid "The batch files were deleted."
 msgstr ""
 
-#: charts/data.py:81 core/forms.py:24 gridded/forms.py:140
+#: charts/data.py:81 core/forms.py:24 gridded/forms.py:151 gridded/runs.py:449
 #: stations/station_file.py:58
 msgid "Maximum temperature"
 msgstr ""
 
-#: charts/data.py:82 core/views.py:302 stations/qc_review.py:74
+#: charts/data.py:82 core/views.py:299 stations/qc_review.py:74
 #: stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:17
 #: stations/templates/stations/_summary.html:38 stations/workspace.py:754
 msgid "TX"
 msgstr ""
 
-#: charts/data.py:88 core/forms.py:24 gridded/forms.py:141
+#: charts/data.py:88 core/forms.py:24 gridded/forms.py:152 gridded/runs.py:450
 #: stations/station_file.py:59
 msgid "Minimum temperature"
 msgstr ""
 
-#: charts/data.py:89 core/templates/core/patterns.html:297 core/views.py:303
+#: charts/data.py:89 core/templates/core/patterns.html:296 core/views.py:300
 #: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:18
 #: stations/templates/stations/_summary.html:39 stations/workspace.py:754
 msgid "TN"
 msgstr ""
 
-#: charts/data.py:95 gridded/forms.py:142 gridded/forms.py:229
-#: help/indices.py:188 stations/qc_review.py:66 stations/sector_plots.py:38
-#: stations/station_file.py:57
+#: charts/data.py:95 gridded/forms.py:153 gridded/forms.py:240
+#: gridded/runs.py:451 help/indices.py:188 stations/qc_review.py:66
+#: stations/sector_plots.py:38 stations/station_file.py:57
 msgid "Precipitation"
 msgstr ""
 
-#: charts/data.py:96 core/templates/core/patterns.html:296
-#: core/templates/core/patterns.html:302 core/views.py:301
+#: charts/data.py:96 core/templates/core/patterns.html:295
+#: core/templates/core/patterns.html:301 core/views.py:298
 #: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:16
 #: stations/templates/stations/_summary.html:37 stations/workspace.py:754
@@ -978,8 +978,8 @@ msgid ""
 "download the CSV."
 msgstr ""
 
-#: charts/templatetags/charts.py:47 core/templates/core/patterns.html:308
-#: core/templates/core/patterns.html:321
+#: charts/templatetags/charts.py:47 core/templates/core/patterns.html:307
+#: core/templates/core/patterns.html:320
 #: stations/templates/stations/_qc_values.html:22
 #: stations/templates/stations/_qc_values.html:29
 #: stations/templates/stations/_qc_values.html:79
@@ -987,7 +987,7 @@ msgstr ""
 msgid "Date"
 msgstr ""
 
-#: charts/templatetags/charts.py:48 core/views.py:271
+#: charts/templatetags/charts.py:48 core/views.py:268
 #: gridded/templates/gridded/_explore.html:37
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
@@ -1014,7 +1014,7 @@ msgstr ""
 msgid "Flagged"
 msgstr ""
 
-#: charts/templatetags/charts.py:53 core/templates/core/patterns.html:241
+#: charts/templatetags/charts.py:53 core/templates/core/patterns.html:240
 #: stations/templates/stations/result.html:73
 msgid "Trend"
 msgstr ""
@@ -1046,7 +1046,7 @@ msgid "Used in output file names. Defaults to the file name."
 msgstr ""
 
 #: core/forms.py:15 gridded/templates/gridded/_explore.html:95
-#: gridded/templates/gridded/setup.html:36 stations/forms.py:165
+#: gridded/templates/gridded/setup.html:46 stations/forms.py:165
 #: stations/templates/stations/_add_table.html:16
 msgid "Latitude"
 msgstr ""
@@ -1064,7 +1064,7 @@ msgid "Base period end"
 msgstr ""
 
 #: core/forms.py:23 gridded/templates/gridded/_explore.html:30
-#: gridded/templates/gridded/setup.html:43 stations/forms_indices.py:177
+#: gridded/templates/gridded/setup.html:53 stations/forms_indices.py:177
 msgid "Variable"
 msgstr ""
 
@@ -1172,12 +1172,15 @@ msgstr ""
 msgid "Try with sample data"
 msgstr ""
 
-#: core/navigation.py:57 core/templates/core/patterns.html:228
+#: core/navigation.py:57 core/templates/core/patterns.html:227
 #: help/templates/help/index.html:43
 msgid "Batch"
 msgstr ""
 
-#: core/navigation.py:58 core/templates/core/patterns.html:229
+#: core/navigation.py:58 core/templates/core/patterns.html:228
+#: gridded/templates/gridded/_breadcrumb.html:6
+#: gridded/templates/gridded/start.html:11
+#: gridded/templates/gridded/start.html:16 gridded/views.py:659
 #: help/templates/help/index.html:53
 msgid "Gridded"
 msgstr ""
@@ -1189,19 +1192,6 @@ msgstr ""
 #: help/templates/help/search.html:6 help/templates/help/section.html:9
 #: help/templates/help/section.html:11 help/templates/help/topics.html:6
 msgid "Help"
-msgstr ""
-
-#: core/navigation.py:166 stations/templates/stations/add.html:36
-#: stations/templates/stations/add.html:133
-msgid "Choose files"
-msgstr ""
-
-#: core/navigation.py:167 gridded/templates/gridded/setup.html:3
-msgid "Check and set up"
-msgstr ""
-
-#: core/navigation.py:168
-msgid "Calculate and explore"
 msgstr ""
 
 #: core/numbers.py:145
@@ -1334,18 +1324,18 @@ msgstr ""
 msgid "Colour theme"
 msgstr ""
 
-#: core/templates/base.html:87
+#: core/templates/base.html:86
 msgid ""
 "Climpact calculates the climate indices defined by the WMO Expert Team on "
 "Sector-specific Climate Indices (ET-SCI)."
 msgstr ""
 
-#: core/templates/base.html:91
+#: core/templates/base.html:90
 #, python-format
 msgid "Climpact web, version %(version)s"
 msgstr ""
 
-#: core/templates/base.html:92
+#: core/templates/base.html:91
 msgid "Accessibility"
 msgstr ""
 
@@ -1434,6 +1424,7 @@ msgid "SVG"
 msgstr ""
 
 #: core/templates/components/context_bar.html:34
+#: gridded/templates/gridded/_breadcrumb.html:5
 #: help/templates/help/guide.html:6 help/templates/help/search.html:6
 #: help/templates/help/section.html:9 help/templates/help/topics.html:6
 #: stations/templates/stations/add.html:19
@@ -1450,7 +1441,7 @@ msgid "Next:"
 msgstr ""
 
 #: core/templates/components/context_bar.html:48
-#: core/templates/core/patterns.html:451
+#: core/templates/core/patterns.html:450
 msgid "Page actions"
 msgstr ""
 
@@ -1473,8 +1464,10 @@ msgid "Close"
 msgstr ""
 
 #: core/templates/components/dialog.html:16
-#: core/templates/core/patterns.html:145 core/views.py:157
-#: gridded/templates/gridded/_progress.html:40
+#: core/templates/core/patterns.html:144 core/views.py:157
+#: gridded/templates/gridded/_progress.html:42
+#: gridded/templates/gridded/delete.html:15
+#: gridded/templates/gridded/rename.html:18
 #: jobs/templates/jobs/_progress.html:31 stations/overview.py:328
 #: stations/templates/stations/_input_form.html:46
 #: stations/templates/stations/_results_progress.html:36
@@ -1557,7 +1550,6 @@ msgid "Loading"
 msgstr ""
 
 #: core/templates/components/stages.html:9
-#: core/templates/components/steps.html:15
 msgid "(done)"
 msgstr ""
 
@@ -1571,19 +1563,6 @@ msgstr ""
 
 #: core/templates/components/stages.html:9
 msgid "(not started)"
-msgstr ""
-
-#: core/templates/components/steps.html:8
-msgid "Progress through the steps"
-msgstr ""
-
-#: core/templates/components/steps.html:15
-#, python-format
-msgid "Step %(number)s of %(total)s:"
-msgstr ""
-
-#: core/templates/components/steps.html:15
-msgid "Optional"
 msgstr ""
 
 #: core/templates/components/table.html:18
@@ -1710,20 +1689,20 @@ msgid ""
 "interval"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:618
-#: stations/views_indices.py:397
+#: core/templates/core/home.html:69 core/views.py:615
+#: gridded/templates/gridded/files.html:42 stations/views_indices.py:397
 msgid "Code"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/templates/core/patterns.html:360
-#: core/views.py:619 gridded/templates/gridded/_explore.html:23
-#: gridded/templates/gridded/_progress.html:75
+#: core/templates/core/home.html:69 core/templates/core/patterns.html:359
+#: core/views.py:616 gridded/templates/gridded/_explore.html:23
+#: gridded/templates/gridded/files.html:42
 #: stations/templates/stations/_sector_results.html:51
 #: stations/templates/stations/downloads.html:135 stations/views_indices.py:398
 msgid "Index"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:620
+#: core/templates/core/home.html:69 core/views.py:617
 #: stations/views_indices.py:399
 msgid "Slope per decade"
 msgstr ""
@@ -1736,14 +1715,14 @@ msgstr ""
 msgid "95%% interval"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:621
+#: core/templates/core/home.html:69 core/views.py:618
 #: stations/templates/stations/_index_detail.html:41
 #: stations/templates/stations/_overview.html:46
 #: stations/templates/stations/result.html:77 stations/views_indices.py:400
 msgid "Significant"
 msgstr ""
 
-#: core/templates/core/home.html:75 core/views.py:235 core/views.py:576
+#: core/templates/core/home.html:75 core/views.py:235 core/views.py:573
 #: stations/results.py:324
 msgid "percentage points"
 msgstr ""
@@ -1879,8 +1858,8 @@ msgstr ""
 msgid "Browse the index reference"
 msgstr ""
 
-#: core/templates/core/home.html:151 core/templates/core/patterns.html:357
-#: core/templates/core/patterns.html:358 stations/sector_plots.py:38
+#: core/templates/core/home.html:151 core/templates/core/patterns.html:356
+#: core/templates/core/patterns.html:357 stations/sector_plots.py:38
 msgid "Temperature"
 msgstr ""
 
@@ -1917,8 +1896,7 @@ msgid ""
 "sector comparison."
 msgstr ""
 
-#: core/templates/core/home.html:155 gridded/templates/gridded/start.html:3
-#: help/topics.py:75
+#: core/templates/core/home.html:155 help/topics.py:75
 msgid "Gridded data"
 msgstr ""
 
@@ -2012,63 +1990,63 @@ msgstr ""
 msgid "Components"
 msgstr ""
 
-#: core/templates/core/patterns.html:19 core/templates/core/patterns.html:51
+#: core/templates/core/patterns.html:19 core/templates/core/patterns.html:50
 msgid "Colour"
 msgstr ""
 
-#: core/templates/core/patterns.html:20 core/templates/core/patterns.html:74
+#: core/templates/core/patterns.html:20 core/templates/core/patterns.html:73
 msgid "Typography"
 msgstr ""
 
-#: core/templates/core/patterns.html:21 core/templates/core/patterns.html:92
+#: core/templates/core/patterns.html:21 core/templates/core/patterns.html:91
 msgid "Icons"
 msgstr ""
 
-#: core/templates/core/patterns.html:22 core/templates/core/patterns.html:100
+#: core/templates/core/patterns.html:22 core/templates/core/patterns.html:99
 msgid "Buttons"
 msgstr ""
 
-#: core/templates/core/patterns.html:23 core/templates/core/patterns.html:121
+#: core/templates/core/patterns.html:23 core/templates/core/patterns.html:120
 msgid "Form fields"
 msgstr ""
 
-#: core/templates/core/patterns.html:24 core/templates/core/patterns.html:154
+#: core/templates/core/patterns.html:24 core/templates/core/patterns.html:153
 msgid "File drop zone"
 msgstr ""
 
-#: core/templates/core/patterns.html:25 core/templates/core/patterns.html:163
+#: core/templates/core/patterns.html:25 core/templates/core/patterns.html:162
 msgid "File button"
 msgstr ""
 
-#: core/templates/core/patterns.html:26 core/templates/core/patterns.html:173
+#: core/templates/core/patterns.html:26 core/templates/core/patterns.html:172
 msgid "New station steps"
 msgstr ""
 
-#: core/templates/core/patterns.html:27 core/templates/core/patterns.html:200
+#: core/templates/core/patterns.html:27 core/templates/core/patterns.html:199
 msgid "Alerts"
 msgstr ""
 
-#: core/templates/core/patterns.html:28 core/templates/core/patterns.html:214
+#: core/templates/core/patterns.html:28 core/templates/core/patterns.html:213
 msgid "Toasts and dialogs"
 msgstr ""
 
-#: core/templates/core/patterns.html:29 core/templates/core/patterns.html:226
+#: core/templates/core/patterns.html:29 core/templates/core/patterns.html:225
 msgid "Cards"
 msgstr ""
 
-#: core/templates/core/patterns.html:30 core/templates/core/patterns.html:238
+#: core/templates/core/patterns.html:30 core/templates/core/patterns.html:237
 msgid "Badges, statistics, summaries"
 msgstr ""
 
-#: core/templates/core/patterns.html:31 core/templates/core/patterns.html:258
-#: core/views.py:336 gridded/forms.py:113
-#: gridded/templates/gridded/_progress.html:15 help/topics.py:71
+#: core/templates/core/patterns.html:31 core/templates/core/patterns.html:257
+#: core/views.py:333 gridded/forms.py:124
+#: gridded/templates/gridded/_progress.html:17 help/topics.py:71
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:444
 msgid "Indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:32 core/templates/core/patterns.html:280
+#: core/templates/core/patterns.html:32 core/templates/core/patterns.html:279
 msgid "Quality worklist"
 msgstr ""
 
@@ -2076,57 +2054,53 @@ msgstr ""
 msgid "Tables"
 msgstr ""
 
-#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:354
+#: core/templates/core/patterns.html:34 core/templates/core/patterns.html:353
 msgid "File groups"
 msgstr ""
 
-#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:368
+#: core/templates/core/patterns.html:35 core/templates/core/patterns.html:367
 msgid "Tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:374
+#: core/templates/core/patterns.html:36 core/templates/core/patterns.html:373
 msgid "Workspace tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:37 core/templates/core/patterns.html:463
+#: core/templates/core/patterns.html:37 core/templates/core/patterns.html:462
 msgid "Out-of-date results"
 msgstr ""
 
-#: core/templates/core/patterns.html:38 core/templates/core/patterns.html:478
-msgid "Step indicator"
-msgstr ""
-
-#: core/templates/core/patterns.html:39 core/templates/core/patterns.html:489
+#: core/templates/core/patterns.html:38 core/templates/core/patterns.html:477
 #: jobs/templates/jobs/job_detail.html:15
 #: stations/templates/stations/results_progress.html:28
 msgid "Progress"
 msgstr ""
 
-#: core/templates/core/patterns.html:40 core/templates/core/patterns.html:502
+#: core/templates/core/patterns.html:39 core/templates/core/patterns.html:490
 msgid "Loading and empty states"
 msgstr ""
 
-#: core/templates/core/patterns.html:41 core/templates/core/patterns.html:514
+#: core/templates/core/patterns.html:40 core/templates/core/patterns.html:502
 msgid "Help in place"
 msgstr ""
 
-#: core/templates/core/patterns.html:42 core/templates/core/patterns.html:520
+#: core/templates/core/patterns.html:41 core/templates/core/patterns.html:508
 msgid "Section header and help"
 msgstr ""
 
-#: core/templates/core/patterns.html:43 core/templates/core/patterns.html:531
+#: core/templates/core/patterns.html:42 core/templates/core/patterns.html:519
 msgid "One surface level"
 msgstr ""
 
-#: core/templates/core/patterns.html:44 core/templates/core/patterns.html:540
+#: core/templates/core/patterns.html:43 core/templates/core/patterns.html:528
 msgid "Chart frame"
 msgstr ""
 
-#: core/templates/core/patterns.html:45 core/templates/core/patterns.html:547
+#: core/templates/core/patterns.html:44 core/templates/core/patterns.html:535
 msgid "Interactive charts"
 msgstr ""
 
-#: core/templates/core/patterns.html:52
+#: core/templates/core/patterns.html:51
 msgid ""
 "Each colour has one job. Ink is for actions: primary buttons and the current "
 "tab. Links are blue and underlined. The brand blue is only for the logo, "
@@ -2140,117 +2114,117 @@ msgid ""
 "read <code>chart-palette.json</code>."
 msgstr ""
 
-#: core/templates/core/patterns.html:76
+#: core/templates/core/patterns.html:75
 msgid "Eyebrow"
 msgstr ""
 
-#: core/templates/core/patterns.html:77
+#: core/templates/core/patterns.html:76
 msgid "Heading 1: station results"
 msgstr ""
 
-#: core/templates/core/patterns.html:78
+#: core/templates/core/patterns.html:77
 msgid "Heading 2: temperature indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:79
+#: core/templates/core/patterns.html:78
 msgid "Heading 3: warm days"
 msgstr ""
 
-#: core/templates/core/patterns.html:80
+#: core/templates/core/patterns.html:79
 msgid "Heading 4: trend"
 msgstr ""
 
-#: core/templates/core/patterns.html:81
+#: core/templates/core/patterns.html:80
 msgid "A lead paragraph introduces a page in a sentence or two."
 msgstr ""
 
-#: core/templates/core/patterns.html:82
+#: core/templates/core/patterns.html:81
 msgid ""
 "Body text uses the system font of each device, so nothing is downloaded and "
 "every script the operating system supports displays. Lines are kept to a "
 "readable length. <a href=\"#type\">A link</a> and <code>inline code</code>."
 msgstr ""
 
-#: core/templates/core/patterns.html:87
+#: core/templates/core/patterns.html:86
 msgid "Small, muted text for notes and captions."
 msgstr ""
 
-#: core/templates/core/patterns.html:93
+#: core/templates/core/patterns.html:92
 msgid ""
 "An SVG sprite drawn for this app, inserted with the icon template tag. Icons "
 "are decorative unless given a label."
 msgstr ""
 
-#: core/templates/core/patterns.html:101 stations/models.py:66
+#: core/templates/core/patterns.html:100 stations/models.py:66
 msgid "Calculate indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:101 help/templates/help/_tour.html:15
+#: core/templates/core/patterns.html:100 help/templates/help/_tour.html:15
 msgid "Back"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Reset"
 msgstr ""
 
-#: core/templates/core/patterns.html:101 core/templates/core/patterns.html:219
+#: core/templates/core/patterns.html:100 core/templates/core/patterns.html:218
 msgid "Delete run"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Download all"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Working"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Not yet"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Next step"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Refresh"
 msgstr ""
 
-#: core/templates/core/patterns.html:101
+#: core/templates/core/patterns.html:100
 msgid "Small"
 msgstr ""
 
-#: core/templates/core/patterns.html:122
+#: core/templates/core/patterns.html:121
 msgid ""
 "Labels above inputs, hints under labels, errors inline and summarised at the "
 "top. This form is shown after a submission with mistakes."
 msgstr ""
 
-#: core/templates/core/patterns.html:128
+#: core/templates/core/patterns.html:127
 #: stations/templates/stations/_unit.html:11
 msgid "°N"
 msgstr ""
 
-#: core/templates/core/patterns.html:141 core/templates/core/patterns.html:142
+#: core/templates/core/patterns.html:140 core/templates/core/patterns.html:141
 msgid "Search indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:145
+#: core/templates/core/patterns.html:144
 msgid "Save"
 msgstr ""
 
-#: core/templates/core/patterns.html:155
+#: core/templates/core/patterns.html:154
 msgid ""
 "A real file input inside a large target. Without JavaScript it is a plain "
 "file input; with it, files can be dropped and the chosen file is shown."
 msgstr ""
 
-#: core/templates/core/patterns.html:157
+#: core/templates/core/patterns.html:156
 msgid "Text file (.txt or .csv), up to 50 MB"
 msgstr ""
 
-#: core/templates/core/patterns.html:164
+#: core/templates/core/patterns.html:163
 msgid ""
 "A button that opens the file picker and sends the chosen file at once, for a "
 "second upload where a drop zone would take too much room. Without JavaScript "
@@ -2258,15 +2232,15 @@ msgid ""
 "is chosen."
 msgstr ""
 
-#: core/templates/core/patterns.html:166
+#: core/templates/core/patterns.html:165
 msgid "Upload a corrected file"
 msgstr ""
 
-#: core/templates/core/patterns.html:166
+#: core/templates/core/patterns.html:165
 msgid "Upload and check again"
 msgstr ""
 
-#: core/templates/core/patterns.html:174
+#: core/templates/core/patterns.html:173
 msgid ""
 "A first visit's only page: numbered steps divided by a hairline, a tick once "
 "a step is done, then one call to action with a note on what it does. The "
@@ -2274,164 +2248,164 @@ msgid ""
 "days with data in each year, amber where a year misses more than 15 days."
 msgstr ""
 
-#: core/templates/core/patterns.html:179
+#: core/templates/core/patterns.html:178
 #: stations/templates/stations/new.html:25
 msgid "Your file"
 msgstr ""
 
-#: core/templates/core/patterns.html:187 help/sections.py:69 help/topics.py:66
+#: core/templates/core/patterns.html:186 help/sections.py:69 help/topics.py:66
 #: stations/templates/stations/new.html:58
 msgid "Station details"
 msgstr ""
 
-#: core/templates/core/patterns.html:188
+#: core/templates/core/patterns.html:187
 msgid "The fields the results depend on, with short hints only."
 msgstr ""
 
-#: core/templates/core/patterns.html:192
+#: core/templates/core/patterns.html:191
 #: stations/templates/stations/new.html:73
 msgid "Check and calculate"
 msgstr ""
 
-#: core/templates/core/patterns.html:194
+#: core/templates/core/patterns.html:193
 #: stations/templates/stations/new.html:75
 msgid ""
 "Quality thresholds and index settings use the defaults. You can change them "
 "later in Inputs."
 msgstr ""
 
-#: core/templates/core/patterns.html:201
+#: core/templates/core/patterns.html:200
 msgid "Quality control finished"
 msgstr ""
 
-#: core/templates/core/patterns.html:201
+#: core/templates/core/patterns.html:200
 msgid "The data passed every check. You can calculate the indices."
 msgstr ""
 
-#: core/templates/core/patterns.html:202
+#: core/templates/core/patterns.html:201
 msgid "Base period is short"
 msgstr ""
 
-#: core/templates/core/patterns.html:202
+#: core/templates/core/patterns.html:201
 msgid ""
 "The base period has fewer than 30 years, so percentile thresholds are less "
 "reliable."
 msgstr ""
 
-#: core/templates/core/patterns.html:203
+#: core/templates/core/patterns.html:202
 msgid "The file could not be read"
 msgstr ""
 
-#: core/templates/core/patterns.html:203
+#: core/templates/core/patterns.html:202
 msgid ""
 "Line 1204 has 3 values; each line needs year, month, day, precipitation, "
 "maximum and minimum temperature."
 msgstr ""
 
-#: core/templates/core/patterns.html:204
+#: core/templates/core/patterns.html:203
 msgid "Results are kept for 7 days."
 msgstr ""
 
-#: core/templates/core/patterns.html:204
+#: core/templates/core/patterns.html:203
 msgid "Read more"
 msgstr ""
 
-#: core/templates/core/patterns.html:215
+#: core/templates/core/patterns.html:214
 msgid ""
 "Toasts confirm something that happened in the background and disappear on "
 "their own; errors stay until dismissed. Dialogs ask for a decision and keep "
 "focus inside until closed."
 msgstr ""
 
-#: core/templates/core/patterns.html:217
+#: core/templates/core/patterns.html:216
 msgid "Station file uploaded."
 msgstr ""
 
-#: core/templates/core/patterns.html:217
+#: core/templates/core/patterns.html:216
 msgid "Show a toast"
 msgstr ""
 
-#: core/templates/core/patterns.html:218
+#: core/templates/core/patterns.html:217
 msgid "The worker stopped. Try again."
 msgstr ""
 
-#: core/templates/core/patterns.html:218
+#: core/templates/core/patterns.html:217
 msgid "Show an error toast"
 msgstr ""
 
-#: core/templates/core/patterns.html:221
+#: core/templates/core/patterns.html:220
 msgid "Delete this run?"
 msgstr ""
 
-#: core/templates/core/patterns.html:221
+#: core/templates/core/patterns.html:220
 msgid ""
 "The uploaded file and all results will be deleted. This cannot be undone."
 msgstr ""
 
-#: core/templates/core/patterns.html:221
+#: core/templates/core/patterns.html:220
 #: stations/templates/stations/_workspaces_table.html:35
 msgid "Delete"
 msgstr ""
 
-#: core/templates/core/patterns.html:227
+#: core/templates/core/patterns.html:226
 msgid "TXx: hottest day"
 msgstr ""
 
-#: core/templates/core/patterns.html:227
+#: core/templates/core/patterns.html:226
 msgid "Annual maximum of daily maximum temperature."
 msgstr ""
 
-#: core/templates/core/patterns.html:227
+#: core/templates/core/patterns.html:226
 msgid "+0.21 °C per decade"
 msgstr ""
 
-#: core/templates/core/patterns.html:228
+#: core/templates/core/patterns.html:227
 msgid "Process many stations in one run."
 msgstr ""
 
-#: core/templates/core/patterns.html:229
+#: core/templates/core/patterns.html:228
 msgid "Indices on netCDF grids, on your own computer."
 msgstr ""
 
-#: core/templates/core/patterns.html:229
+#: core/templates/core/patterns.html:228
 msgid "Available soon"
 msgstr ""
 
-#: core/templates/core/patterns.html:239
+#: core/templates/core/patterns.html:238
 msgid "Passed"
 msgstr ""
 
-#: core/templates/core/patterns.html:239
+#: core/templates/core/patterns.html:238
 msgid "3 outliers"
 msgstr ""
 
-#: core/templates/core/patterns.html:239
+#: core/templates/core/patterns.html:238
 msgid "12 duplicates"
 msgstr ""
 
-#: core/templates/core/patterns.html:239
+#: core/templates/core/patterns.html:238
 msgid "Not calculated"
 msgstr ""
 
-#: core/templates/core/patterns.html:240
+#: core/templates/core/patterns.html:239
 msgid "Days missing"
 msgstr ""
 
-#: core/templates/core/patterns.html:240
+#: core/templates/core/patterns.html:239
 #, python-format
 msgid "1.2%%"
 msgstr ""
 
-#: core/templates/core/patterns.html:240
+#: core/templates/core/patterns.html:239
 msgid "345 of 29,220"
 msgstr ""
 
-#: core/templates/core/patterns.html:241
+#: core/templates/core/patterns.html:240
 #, python-format
 msgid "95%% interval %(interval)s"
 msgstr ""
 
-#: core/templates/core/patterns.html:259
+#: core/templates/core/patterns.html:258
 #, python-format
 msgid ""
 "A station's Indices (#236, #263). The filter rail: a search, the themes as a "
@@ -2444,33 +2418,33 @@ msgid ""
 "the base period and Sen's slope, the statistics with the mean, and the links."
 msgstr ""
 
-#: core/templates/core/patterns.html:260
+#: core/templates/core/patterns.html:259
 msgid ""
 "Each theme has its hue: its dot, its sparklines and its charts, with a "
 "neutral for the indices under Also measured. The theme's name is always "
 "beside the hue."
 msgstr ""
 
-#: core/templates/core/patterns.html:264
+#: core/templates/core/patterns.html:263
 msgid "Index name"
 msgstr ""
 
-#: core/templates/core/patterns.html:265
+#: core/templates/core/patterns.html:264
 msgid ""
 "Codes first: wherever an index is listed, its code leads in mono and a short "
 "name follows. Experts scan by code; the name is there for everyone else. R's "
 "long name is the index page's definition line, and search finds all three."
 msgstr ""
 
-#: core/templates/core/patterns.html:266 core/views.py:207 help/indices.py:109
+#: core/templates/core/patterns.html:265 core/views.py:207 help/indices.py:109
 msgid "Hottest day"
 msgstr ""
 
-#: core/templates/core/patterns.html:271
+#: core/templates/core/patterns.html:270
 msgid "Index page and segmented control"
 msgstr ""
 
-#: core/templates/core/patterns.html:272
+#: core/templates/core/patterns.html:271
 msgid ""
 "One index's page (#237): its context bar with the previous and next index, "
 "its name and theme, its definition and the provenance line, and its CSV, R's "
@@ -2480,40 +2454,41 @@ msgid ""
 "controls: links, the current one ink, so each works without JavaScript."
 msgstr ""
 
-#: core/templates/core/patterns.html:274
+#: core/templates/core/patterns.html:273
 #: stations/templates/stations/result.html:42
 msgid "Values or anomalies"
 msgstr ""
 
-#: core/templates/core/patterns.html:274
+#: core/templates/core/patterns.html:273
 #: stations/templates/stations/_qc_box_plot.html:14
 #: stations/templates/stations/_qc_values.html:19 stations/views_indices.py:719
 msgid "Values"
 msgstr ""
 
-#: core/templates/core/patterns.html:274 stations/views_indices.py:722
+#: core/templates/core/patterns.html:273 stations/views_indices.py:722
 #, python-format
 msgid "Anomaly from %(start)s–%(end)s"
 msgstr ""
 
-#: core/templates/core/patterns.html:275 core/views.py:404
+#: core/templates/core/patterns.html:274 core/views.py:401
+#: gridded/templates/gridded/_runs_table.html:16
 #: stations/templates/stations/_add_table.html:18
 #: stations/templates/stations/_overview.html:42
 #: stations/templates/stations/result.html:45
 msgid "Period"
 msgstr ""
 
-#: core/templates/core/patterns.html:275 core/views.py:261
+#: core/templates/core/patterns.html:274 core/views.py:261 gridded/runs.py:455
 #: stations/views_indices.py:730
 msgid "Annual"
 msgstr ""
 
-#: core/templates/core/patterns.html:275 core/views.py:262
+#: core/templates/core/patterns.html:274 core/views.py:262 gridded/runs.py:456
 #: stations/results.py:235 stations/views_indices.py:730
 msgid "Monthly"
 msgstr ""
 
-#: core/templates/core/patterns.html:281
+#: core/templates/core/patterns.html:280
 msgid ""
 "The verdict strip: the level in bold and one sentence, the counts on one "
 "mono line, the decision's buttons at the end. The coverage strip: missing "
@@ -2524,132 +2499,132 @@ msgid ""
 "rail on narrow screens, with Back to the list."
 msgstr ""
 
-#: core/templates/core/patterns.html:283 stations/qc_review.py:925
+#: core/templates/core/patterns.html:282 stations/qc_review.py:925
 msgid "Usable."
 msgstr ""
 
-#: core/templates/core/patterns.html:283
+#: core/templates/core/patterns.html:282
 msgid "21 values look wrong; the indices can run with them as they are."
 msgstr ""
 
-#: core/templates/core/patterns.html:285 stations/qc_review.py:935
+#: core/templates/core/patterns.html:284 stations/qc_review.py:935
 msgid "Ready to use."
 msgstr ""
 
-#: core/templates/core/patterns.html:285 help/sections.py:97
+#: core/templates/core/patterns.html:284 help/sections.py:97
 #: stations/qc_review.py:936
 msgid "Nothing looks wrong."
 msgstr ""
 
-#: core/templates/core/patterns.html:287 stations/qc_review.py:904
+#: core/templates/core/patterns.html:286 stations/qc_review.py:904
 msgid "Fix the file first."
 msgstr ""
 
-#: core/templates/core/patterns.html:287
+#: core/templates/core/patterns.html:286
 #, python-format
 msgid "298 values look wrong, 0.34%% of the values checked."
 msgstr ""
 
-#: core/templates/core/patterns.html:289 core/templates/core/patterns.html:524
+#: core/templates/core/patterns.html:288 core/templates/core/patterns.html:512
 #: stations/templates/stations/_qc_coverage.html:9
 msgid "Coverage"
 msgstr ""
 
-#: core/templates/core/patterns.html:289
+#: core/templates/core/patterns.html:288
 #: stations/templates/stations/_qc_coverage.html:8
 msgid "every year passes the annual completeness rule"
 msgstr ""
 
-#: core/templates/core/patterns.html:292
+#: core/templates/core/patterns.html:291
 #: stations/templates/stations/_qc_review.html:14
 msgid "Checks"
 msgstr ""
 
-#: core/templates/core/patterns.html:294 core/templates/core/patterns.html:302
-#: core/templates/core/patterns.html:523 help/sections.py:114
+#: core/templates/core/patterns.html:293 core/templates/core/patterns.html:301
+#: core/templates/core/patterns.html:511 help/sections.py:114
 #: stations/templates/stations/_qc_detail.html:19
 #: stations/templates/stations/_qc_review.html:18
 msgid "Look wrong"
 msgstr ""
 
-#: core/templates/core/patterns.html:294
+#: core/templates/core/patterns.html:293
 #: stations/templates/stations/_qc_review.html:19
 msgid "Almost always typing errors or swapped columns"
 msgstr ""
 
-#: core/templates/core/patterns.html:296 core/templates/core/patterns.html:303
-#: core/templates/core/patterns.html:316 stations/downloads.py:110
+#: core/templates/core/patterns.html:295 core/templates/core/patterns.html:302
+#: core/templates/core/patterns.html:315 stations/downloads.py:110
 #: stations/qc_review.py:43
 msgid "Out of range"
 msgstr ""
 
-#: core/templates/core/patterns.html:297 stations/qc_review.py:42
+#: core/templates/core/patterns.html:296 stations/qc_review.py:42
 msgid "TN ≥ TX"
 msgstr ""
 
-#: core/templates/core/patterns.html:302
+#: core/templates/core/patterns.html:301
 msgid "2 rows"
 msgstr ""
 
-#: core/templates/core/patterns.html:307
+#: core/templates/core/patterns.html:306
 msgid "Out of range: values 1 to 2 of 2, largest first"
 msgstr ""
 
-#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: core/templates/core/patterns.html:307 core/templates/core/patterns.html:320
 #: stations/templates/stations/_qc_values.html:79
 msgid "PR mm"
 msgstr ""
 
-#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: core/templates/core/patterns.html:307 core/templates/core/patterns.html:320
 #: stations/templates/stations/_qc_values.html:79
 msgid "TX °C"
 msgstr ""
 
-#: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
+#: core/templates/core/patterns.html:307 core/templates/core/patterns.html:320
 #: stations/templates/stations/_qc_values.html:79
 msgid "TN °C"
 msgstr ""
 
-#: core/templates/core/patterns.html:317
+#: core/templates/core/patterns.html:316
 msgid "PR 327.6 mm, over the 200 mm limit"
 msgstr ""
 
-#: core/templates/core/patterns.html:320
+#: core/templates/core/patterns.html:319
 msgid "Days around 1986-08-06"
 msgstr ""
 
-#: core/templates/core/patterns.html:329
+#: core/templates/core/patterns.html:328
 msgid "Line 18,481 in the file"
 msgstr ""
 
-#: core/templates/core/patterns.html:338
+#: core/templates/core/patterns.html:337
 msgid "Data table"
 msgstr ""
 
-#: core/templates/core/patterns.html:339
+#: core/templates/core/patterns.html:338
 msgid ""
 "One framed object: rows 32px high, one line each, a header on the sunken "
 "tint that stays in view, numbers and codes in mono with tabular figures, and "
 "the selected row in the selected tint with an ink edge."
 msgstr ""
 
-#: core/templates/core/patterns.html:340
+#: core/templates/core/patterns.html:339
 msgid "Annual indices, Sydney Observatory Hill"
 msgstr ""
 
-#: core/templates/core/patterns.html:340
+#: core/templates/core/patterns.html:339
 msgid "Empty table"
 msgstr ""
 
-#: core/templates/core/patterns.html:340
+#: core/templates/core/patterns.html:339
 msgid "No index values for this period."
 msgstr ""
 
-#: core/templates/core/patterns.html:348
+#: core/templates/core/patterns.html:347
 msgid "Review table"
 msgstr ""
 
-#: core/templates/core/patterns.html:349
+#: core/templates/core/patterns.html:348
 msgid ""
 "Add stations' files, a row each: the station name, latitude and longitude "
 "typed in the table, the period and days read, the index settings and what "
@@ -2657,33 +2632,33 @@ msgid ""
 "stays out."
 msgstr ""
 
-#: core/templates/core/patterns.html:355
+#: core/templates/core/patterns.html:354
 msgid ""
 "Files are offered in one place, the Files page. A long group is a closed "
 "disclosure whose summary gives the count and the total size; it opens to a "
 "table with one small download button per file, each with its format and size."
 msgstr ""
 
-#: core/templates/core/patterns.html:357
+#: core/templates/core/patterns.html:356
 msgid "2 indices, 21 KB"
 msgstr ""
 
-#: core/templates/core/patterns.html:360 core/views.py:263
+#: core/templates/core/patterns.html:359 core/views.py:263
 #: stations/templates/stations/_qc_detail.html:44
 #: stations/templates/stations/downloads.html:135
 msgid "Table"
 msgstr ""
 
-#: core/templates/core/patterns.html:360
+#: core/templates/core/patterns.html:359
 #: stations/templates/stations/downloads.html:135
 msgid "Plot"
 msgstr ""
 
-#: core/templates/core/patterns.html:369
+#: core/templates/core/patterns.html:368
 msgid "Index views"
 msgstr ""
 
-#: core/templates/core/patterns.html:375
+#: core/templates/core/patterns.html:374
 msgid ""
 "A station's sections, under its name. Each tab is a page of its own, so they "
 "are links, not an ARIA tablist. Each has a status: an icon of its own shape "
@@ -2691,26 +2666,26 @@ msgid ""
 "link."
 msgstr ""
 
-#: core/templates/core/patterns.html:377
+#: core/templates/core/patterns.html:376
 msgid "Example: every status"
 msgstr ""
 
-#: core/templates/core/patterns.html:379
+#: core/templates/core/patterns.html:378
 msgid "Example: the first visit"
 msgstr ""
 
-#: core/templates/core/patterns.html:381
+#: core/templates/core/patterns.html:380
 msgid ""
 "Quality's tab shows the verdict of the checks: Checking… while they run, "
 "then Ready, Usable or Fix first in the verdict's colour, with the number of "
 "values that look wrong."
 msgstr ""
 
-#: core/templates/core/patterns.html:389
+#: core/templates/core/patterns.html:388
 msgid "Inputs panel and side sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:390
+#: core/templates/core/patterns.html:389
 msgid ""
 "Everything the user gave, beside a station's sections, each with one link to "
 "change it. An input changed since the results shown is tinted and says so, "
@@ -2723,30 +2698,30 @@ msgid ""
 "Without JavaScript Edit is a page with the same form."
 msgstr ""
 
-#: core/templates/core/patterns.html:395 core/views.py:672
+#: core/templates/core/patterns.html:394 core/views.py:669
 #: stations/templates/stations/results.html:39 stations/workspace.py:977
 msgid "Recalculating"
 msgstr ""
 
-#: core/templates/core/patterns.html:396
+#: core/templates/core/patterns.html:395
 #: stations/templates/stations/_input_runs.html:13
 #, python-format
 msgid "%(percent)s%% done"
 msgstr ""
 
-#: core/templates/core/patterns.html:402
+#: core/templates/core/patterns.html:401
 msgid "Open the sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:404
+#: core/templates/core/patterns.html:403
 msgid "Open the long sheet"
 msgstr ""
 
-#: core/templates/core/patterns.html:412
+#: core/templates/core/patterns.html:411
 msgid "Context bar"
 msgstr ""
 
-#: core/templates/core/patterns.html:413
+#: core/templates/core/patterns.html:412
 msgid ""
 "Under the header on every workspace and station page: the breadcrumb with "
 "the previous and next station, the title, one mono line of provenance, the "
@@ -2754,20 +2729,20 @@ msgid ""
 "stays in view as the page scrolls."
 msgstr ""
 
-#: core/templates/core/patterns.html:415 core/templates/core/patterns.html:449
+#: core/templates/core/patterns.html:414 core/templates/core/patterns.html:448
 #: core/views.py:136 core/views.py:189 core/views.py:213
 msgid "Sydney Observatory Hill"
 msgstr ""
 
-#: core/templates/core/patterns.html:415
+#: core/templates/core/patterns.html:414
 msgid "Example: the context bar's tabs"
 msgstr ""
 
-#: core/templates/core/patterns.html:421
+#: core/templates/core/patterns.html:420
 msgid "Run status line and Stations table"
 msgstr ""
 
-#: core/templates/core/patterns.html:422
+#: core/templates/core/patterns.html:421
 msgid ""
 "A workspace's overview: one line above the table, neutral with a bar while "
 "stations calculate, quiet when they have finished and red only when one "
@@ -2775,11 +2750,11 @@ msgid ""
 "and its fix, and how many indices have a significant trend."
 msgstr ""
 
-#: core/templates/core/patterns.html:429
+#: core/templates/core/patterns.html:428
 msgid "Workspaces table"
 msgstr ""
 
-#: core/templates/core/patterns.html:430
+#: core/templates/core/patterns.html:429
 msgid ""
 "Every workspace of this browser: its name with a hint of its stations, the "
 "station count, the stations' verdicts as pills and any failure, the base "
@@ -2787,11 +2762,11 @@ msgid ""
 "away) and Delete."
 msgstr ""
 
-#: core/templates/core/patterns.html:437
+#: core/templates/core/patterns.html:436
 msgid "Trend grid and interval plot"
 msgstr ""
 
-#: core/templates/core/patterns.html:438
+#: core/templates/core/patterns.html:437
 #, python-format
 msgid ""
 "Trends across stations: Sen's slope per decade of each station's indices, "
@@ -2801,11 +2776,11 @@ msgid ""
 "interval as a line about zero."
 msgstr ""
 
-#: core/templates/core/patterns.html:445
+#: core/templates/core/patterns.html:444
 msgid "Phone header: ⋯ menu and Inputs bar"
 msgstr ""
 
-#: core/templates/core/patterns.html:446
+#: core/templates/core/patterns.html:445
 msgid ""
 "On a phone the station's name and a ⋯ menu share one line, and the page's "
 "actions are in the menu: a disclosure, so Enter opens it, Tab goes through "
@@ -2816,17 +2791,17 @@ msgid ""
 "and the bar stay in view as the page scrolls."
 msgstr ""
 
-#: core/templates/core/patterns.html:453 stations/models.py:68
+#: core/templates/core/patterns.html:452 stations/models.py:68
 #: stations/templates/stations/_results_actions.html:10
 #: stations/templates/stations/sector.html:14
 msgid "Compare with sector data"
 msgstr ""
 
-#: core/templates/core/patterns.html:454
+#: core/templates/core/patterns.html:453
 msgid "Download all (zip, 8.0 MB)"
 msgstr ""
 
-#: core/templates/core/patterns.html:464
+#: core/templates/core/patterns.html:463
 msgid ""
 "After the user changes an input, the results stay on the page under this "
 "banner until new ones replace them. It says what changed and what happens "
@@ -2835,99 +2810,80 @@ msgid ""
 "them, and their sparklines and charts are greyed."
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:465
 #: stations/templates/stations/results.html:34
 msgid "Results are out of date"
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:465
 #: stations/templates/stations/results.html:34
 msgid ""
 "The results below are from before the change. Recalculate to bring them up "
 "to date."
 msgstr ""
 
-#: core/templates/core/patterns.html:466
+#: core/templates/core/patterns.html:465
 #: stations/templates/stations/_recalculate_form.html:10
 msgid "Recalculate"
 msgstr ""
 
-#: core/templates/core/patterns.html:468
+#: core/templates/core/patterns.html:467
 #: stations/templates/stations/results.html:28
 msgid "Results are out of date. Recalculating"
 msgstr ""
 
-#: core/templates/core/patterns.html:468
+#: core/templates/core/patterns.html:467
 msgid "The new results replace them when they are ready."
 msgstr ""
 
-#: core/templates/core/patterns.html:471
+#: core/templates/core/patterns.html:470
 msgid "22 of 80 indices changed significantly since 1936."
 msgstr ""
 
-#: core/templates/core/patterns.html:479
-msgid ""
-"Shown under the header during the gridded flow. Completed steps link back. "
-"On a narrow screen only the current step is named. A station uses workspace "
-"tabs instead, and a workspace its overview."
-msgstr ""
-
-#: core/templates/core/patterns.html:481
-msgid "Example: the first step"
-msgstr ""
-
-#: core/templates/core/patterns.html:481
-msgid "Example: a middle step"
-msgstr ""
-
-#: core/templates/core/patterns.html:481
-msgid "Example: the last step"
-msgstr ""
-
-#: core/templates/core/patterns.html:490 jobs/stages.py:16
+#: core/templates/core/patterns.html:478 jobs/stages.py:16
 #: stations/workspace.py:977
 msgid "Calculating the indices"
 msgstr ""
 
-#: core/templates/core/patterns.html:490
+#: core/templates/core/patterns.html:478
 msgid "Thresholds: about 20 seconds left"
 msgstr ""
 
-#: core/templates/core/patterns.html:490
+#: core/templates/core/patterns.html:478
 msgid "Waiting for a worker"
 msgstr ""
 
-#: core/templates/core/patterns.html:490
+#: core/templates/core/patterns.html:478
 msgid "Your run is next in the queue."
 msgstr ""
 
-#: core/templates/core/patterns.html:490
+#: core/templates/core/patterns.html:478
 msgid "Run stages"
 msgstr ""
 
-#: core/templates/core/patterns.html:503
+#: core/templates/core/patterns.html:491
 msgid "No runs yet"
 msgstr ""
 
-#: core/templates/core/patterns.html:503
+#: core/templates/core/patterns.html:491
 msgid "Runs you start appear here while they are kept."
 msgstr ""
 
-#: core/templates/core/patterns.html:503
+#: core/templates/core/patterns.html:491
 msgid "Start a run"
 msgstr ""
 
-#: core/templates/core/patterns.html:515
+#: core/templates/core/patterns.html:503
 msgid "What is a base period?"
 msgstr ""
 
-#: core/templates/core/patterns.html:515
+#: core/templates/core/patterns.html:503
 msgid ""
 "The years used to calculate percentile thresholds, usually 1961 to 1990 or "
 "1981 to 2010. The station needs enough data in those years."
 msgstr ""
 
-#: core/templates/core/patterns.html:521
+#: core/templates/core/patterns.html:509
 msgid ""
 "A section header is the section's title, an optional muted note, then a Help "
 "button at the end of the row, in the same place on every section. The button "
@@ -2939,23 +2895,23 @@ msgid ""
 "of its own."
 msgstr ""
 
-#: core/templates/core/patterns.html:523
+#: core/templates/core/patterns.html:511
 msgid "Almost always typing errors or swapped columns."
 msgstr ""
 
-#: core/templates/core/patterns.html:524 help/topics.py:266
+#: core/templates/core/patterns.html:512 help/topics.py:266
 msgid "Missing days per year"
 msgstr ""
 
-#: core/templates/core/patterns.html:524
+#: core/templates/core/patterns.html:512
 msgid "How to read this"
 msgstr ""
 
-#: core/templates/core/patterns.html:525 help/sections.py:120
+#: core/templates/core/patterns.html:513 help/sections.py:120
 msgid "Missing data"
 msgstr ""
 
-#: core/templates/core/patterns.html:527
+#: core/templates/core/patterns.html:515
 msgid ""
 "At most one per section, and none on sections that explain themselves. "
 "Fields have no help link of their own. They keep a short hint only when "
@@ -2963,20 +2919,20 @@ msgid ""
 "guide to the page shown."
 msgstr ""
 
-#: core/templates/core/patterns.html:532
+#: core/templates/core/patterns.html:520
 msgid ""
 "Sections sit on the page, separated by space and a heading, not by cards. A "
 "box marks only one object, such as a chart, a detail pane or a data table. "
 "Tables inside a card have hairline rows and no frame."
 msgstr ""
 
-#: core/templates/core/patterns.html:534
+#: core/templates/core/patterns.html:522
 #: stations/templates/stations/_inputs.html:16
 #: stations/templates/stations/_inputs.html:24
 msgid "Your inputs"
 msgstr ""
 
-#: core/templates/core/patterns.html:536
+#: core/templates/core/patterns.html:524
 msgid ""
 "A station's workspace header, with its name, the file and years, the page's "
 "actions and the section tabs, stays in view as the page scrolls on screens "
@@ -2984,25 +2940,25 @@ msgid ""
 "from under it."
 msgstr ""
 
-#: core/templates/core/patterns.html:541
+#: core/templates/core/patterns.html:529
 msgid ""
 "The chart scripts (#75) draw into the plot area; until then it shows a "
 "placeholder. Every chart has a text summary, a legend, a table view and a "
 "CSV download."
 msgstr ""
 
-#: core/templates/core/patterns.html:542
+#: core/templates/core/patterns.html:530
 msgid "TXx, hottest day of the year"
 msgstr ""
 
-#: core/templates/core/patterns.html:542
+#: core/templates/core/patterns.html:530
 #, python-format
 msgid ""
 "Rising by 0.21 °C per decade since 1936 (significant at 5%%). Highest 45.8 "
 "°C in 2013."
 msgstr ""
 
-#: core/templates/core/patterns.html:548
+#: core/templates/core/patterns.html:536
 msgid ""
 "The chart frame with a data URL: charts.js draws it with uPlot when it "
 "scrolls into view. Drag across the plot to zoom, double-click to show all; "
@@ -3010,19 +2966,19 @@ msgid ""
 "SVG save the current view. The data are the Sydney sample and its run."
 msgstr ""
 
-#: core/templates/core/patterns.html:550
+#: core/templates/core/patterns.html:538
 msgid "Daily series with quality-check flags"
 msgstr ""
 
-#: core/templates/core/patterns.html:553
+#: core/templates/core/patterns.html:541
 msgid "TXx, annual, with the trend"
 msgstr ""
 
-#: core/templates/core/patterns.html:556
+#: core/templates/core/patterns.html:544
 msgid "TXx, monthly"
 msgstr ""
 
-#: core/templates/core/patterns.html:559
+#: core/templates/core/patterns.html:547
 msgid "SPI, 3 months, as bars"
 msgstr ""
 
@@ -3062,7 +3018,7 @@ msgid ""
 "again, or reload the page."
 msgstr ""
 
-#: core/templatetags/ui.py:129 gridded/templates/gridded/_progress.html:61
+#: core/templatetags/ui.py:129 gridded/templates/gridded/_progress.html:63
 #: jobs/templates/jobs/_progress.html:75
 #: stations/templates/stations/_results_progress.html:61
 msgid "Try again"
@@ -3139,7 +3095,7 @@ msgstr ""
 msgid "Late Start"
 msgstr ""
 
-#: core/views.py:149 jobs/models.py:21 jobs/stages.py:23
+#: core/views.py:149 gridded/runs.py:197 jobs/models.py:21 jobs/stages.py:23
 #: stations/overview.py:144
 msgid "Failed"
 msgstr ""
@@ -3160,7 +3116,7 @@ msgstr ""
 msgid "About 25 s left. Finished stations open now. Moruya Heads was not run."
 msgstr ""
 
-#: core/views.py:185 core/views.py:313
+#: core/views.py:185 core/views.py:310
 msgid "NSW coast"
 msgstr ""
 
@@ -3240,11 +3196,11 @@ msgstr ""
 msgid "Cool days"
 msgstr ""
 
-#: core/views.py:210 core/views.py:548 help/indices.py:139
+#: core/views.py:210 core/views.py:545 help/indices.py:139
 msgid "Wet-day total"
 msgstr ""
 
-#: core/views.py:215 core/views.py:316
+#: core/views.py:215 core/views.py:313
 msgid "Newcastle Nobbys"
 msgstr ""
 
@@ -3264,194 +3220,199 @@ msgstr ""
 msgid "The same values as a table."
 msgstr ""
 
-#: core/views.py:272
+#: core/views.py:269
 msgid "TXx (°C)"
 msgstr ""
 
-#: core/views.py:273
+#: core/views.py:270
 msgid "TNn (°C)"
 msgstr ""
 
-#: core/views.py:274
+#: core/views.py:271
 msgid "PRCPTOT (mm)"
 msgstr ""
 
-#: core/views.py:286
+#: core/views.py:283
 msgid "65,720 values checked"
 msgstr ""
 
-#: core/views.py:287
+#: core/views.py:284
 msgid "21 look wrong (0.03%)"
 msgstr ""
 
-#: core/views.py:288
+#: core/views.py:285
 msgid "105 worth a look"
 msgstr ""
 
-#: core/views.py:289
+#: core/views.py:286
 msgid "25 missing (0.04%)"
 msgstr ""
 
-#: core/views.py:301
+#: core/views.py:298
 msgid "6 days"
 msgstr ""
 
-#: core/views.py:302
+#: core/views.py:299
 msgid "5 days"
 msgstr ""
 
-#: core/views.py:303
+#: core/views.py:300
 msgid "7 days"
 msgstr ""
 
-#: core/views.py:314
+#: core/views.py:311
 msgid "Station 1 of 6"
 msgstr ""
 
-#: core/views.py:320 stations/views_workspace.py:87 stations/workspace.py:705
+#: core/views.py:317 gridded/runs.py:410 stations/views_workspace.py:87
+#: stations/workspace.py:705
 #, python-format
 msgid "base %(start)s–%(end)s"
 msgstr ""
 
-#: core/views.py:321 stations/views_add.py:107 stations/views_workspace.py:71
+#: core/views.py:318 stations/views_add.py:107 stations/views_workspace.py:71
 #: stations/workspace.py:717 stations/workspace_files.py:269
 msgid "ET-SCI defaults"
 msgstr ""
 
-#: core/views.py:333 core/views.py:340
+#: core/views.py:330 core/views.py:337
 msgid "Read station file"
 msgstr ""
 
-#: core/views.py:334 core/views.py:341
+#: core/views.py:331 core/views.py:338
 msgid "Quality control"
 msgstr ""
 
-#: core/views.py:335 help/sections.py:166 stations/downloads.py:104
-#: stations/views_files.py:45
+#: core/views.py:332 gridded/templates/gridded/_runs_table.html:17
+#: help/sections.py:166 stations/downloads.py:104 stations/views_files.py:45
 msgid "Thresholds"
 msgstr ""
 
-#: core/views.py:337 help/topics.py:72 stations/downloads.py:103
+#: core/views.py:334 help/topics.py:72 stations/downloads.py:103
 #: stations/views_files.py:44
 msgid "Trends"
 msgstr ""
 
-#: core/views.py:370
+#: core/views.py:367
 msgid "Example: checking"
 msgstr ""
 
-#: core/views.py:376
+#: core/views.py:373
 msgid "Example: ready"
 msgstr ""
 
-#: core/views.py:382
+#: core/views.py:379
 msgid "Example: usable"
 msgstr ""
 
-#: core/views.py:388
+#: core/views.py:385
 msgid "Example: fix first"
 msgstr ""
 
-#: core/views.py:395 stations/workspace.py:406
+#: core/views.py:392 stations/workspace.py:406
 #, python-format
 msgid "You changed the base period to %(new)s. These results use %(old)s."
 msgstr ""
 
-#: core/views.py:404
+#: core/views.py:401
 msgid "1936 to 2015"
 msgstr ""
 
-#: core/views.py:405
+#: core/views.py:402
 msgid "1961 to 1990"
 msgstr ""
 
-#: core/views.py:406
+#: core/views.py:403
 msgid "Missing days"
 msgstr ""
 
-#: core/views.py:406
+#: core/views.py:403
 msgid "1.2%"
 msgstr ""
 
-#: core/views.py:409
+#: core/views.py:406
 msgid "Annual value"
 msgstr ""
 
-#: core/views.py:410
+#: core/views.py:407
 msgid "Linear trend"
 msgstr ""
 
-#: core/views.py:413
+#: core/views.py:410
 msgid "Categorical, in order"
 msgstr ""
 
-#: core/views.py:415
+#: core/views.py:412
 msgid "Variables and marks"
 msgstr ""
 
-#: core/views.py:419
+#: core/views.py:416
 msgid "Sequential"
 msgstr ""
 
-#: core/views.py:420
+#: core/views.py:417
 msgid "Diverging"
 msgstr ""
 
-#: core/views.py:422
+#: core/views.py:419
 msgid "Trend scale: a significant decrease or increase, weak and strong"
 msgstr ""
 
-#: core/views.py:427
+#: core/views.py:424
 msgid "Coverage: complete, 1–3 days missing, 4 or more"
 msgstr ""
 
-#: core/views.py:431
+#: core/views.py:428
 msgid ""
 "Interface: ink for actions, blue for links, brand for the logo and focus"
 msgstr ""
 
-#: core/views.py:438
+#: core/views.py:435
 msgid "Status: the verdict and run state only"
 msgstr ""
 
-#: core/views.py:442
+#: core/views.py:439
 msgid "Theme hues, each with its tint"
 msgstr ""
 
-#: core/views.py:547 help/index_messages.py:18 help/indices.py:106
+#: core/views.py:544 help/index_messages.py:18 help/indices.py:106
 msgid "Summer days"
 msgstr ""
 
-#: core/views.py:547 core/views.py:629 stations/themes.py:39
+#: core/views.py:544 core/views.py:626 gridded/runs.py:442
+#: stations/themes.py:39
 msgid "Heat"
 msgstr ""
 
-#: core/views.py:548 core/views.py:631 stations/themes.py:53
+#: core/views.py:545 core/views.py:628 gridded/runs.py:444
+#: stations/themes.py:53
 msgid "Rain"
 msgstr ""
 
-#: core/views.py:550 help/indices.py:121
+#: core/views.py:547 help/indices.py:121
 msgid "Cold nights"
 msgstr ""
 
-#: core/views.py:550 core/views.py:630 stations/themes.py:46
+#: core/views.py:547 core/views.py:627 gridded/runs.py:443
+#: stations/themes.py:46
 msgid "Cold"
 msgstr ""
 
-#: core/views.py:632 help/indices.py:193 stations/themes.py:58
+#: core/views.py:629 gridded/runs.py:445 help/indices.py:193
+#: stations/themes.py:58
 msgid "Drought"
 msgstr ""
 
-#: core/views.py:633 stations/views_indices.py:518
+#: core/views.py:630 stations/views_indices.py:518
 msgid "Also measured"
 msgstr ""
 
-#: core/views.py:642 stations/templates/stations/_indices.html:57
+#: core/views.py:639 stations/templates/stations/_indices.html:57
 #: stations/views_indices.py:406
 msgid "Sorted by the size of the trend, largest first."
 msgstr ""
 
-#: core/views.py:660 gridded/templates/gridded/_progress.html:75
+#: core/views.py:657 gridded/templates/gridded/files.html:42
 #: stations/templates/stations/_add_table.html:14
 #: stations/templates/stations/downloads.html:74
 #: stations/templates/stations/downloads.html:92
@@ -3460,36 +3421,36 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: core/views.py:660
+#: core/views.py:657
 msgid "29,220 days · 3 variables"
 msgstr ""
 
-#: core/views.py:660 stations/templates/stations/_file_card.html:14
+#: core/views.py:657 stations/templates/stations/_file_card.html:14
 #: stations/workspace.py:969
 msgid "Replace"
 msgstr ""
 
-#: core/views.py:661 core/views.py:662 core/views.py:663 core/views.py:664
+#: core/views.py:658 core/views.py:659 core/views.py:660 core/views.py:661
 #: stations/templates/stations/_inputs_bar.html:13
 #: stations/views_workspace.py:379 stations/workspace.py:969
 msgid "Edit"
 msgstr ""
 
-#: core/views.py:663 stations/views_add.py:106 stations/workspace.py:777
+#: core/views.py:660 stations/views_add.py:106 stations/workspace.py:777
 msgid "Quality thresholds"
 msgstr ""
 
-#: core/views.py:664 core/views.py:689 help/topics.py:70
+#: core/views.py:661 core/views.py:686 help/topics.py:70
 #: stations/templates/stations/_add_table.html:20 stations/views_add.py:107
 #: stations/workspace.py:778
 msgid "Index settings"
 msgstr ""
 
-#: core/views.py:683
+#: core/views.py:680
 msgid "The years the percentile indices are compared with."
 msgstr ""
 
-#: core/views.py:690
+#: core/views.py:687
 msgid "The choices some indices depend on, and the files a run writes."
 msgstr ""
 
@@ -3560,313 +3521,321 @@ msgid "%(name)s is not a netCDF file."
 msgstr ""
 
 #: gridded/forms.py:114
+msgid "Run name"
+msgstr ""
+
+#: gridded/forms.py:117
+msgid "Leave it empty for a name made from the files."
+msgstr ""
+
+#: gridded/forms.py:125 gridded/runs.py:240
 msgid "Thresholds file only"
 msgstr ""
 
-#: gridded/forms.py:115
+#: gridded/forms.py:126
 msgid "Thresholds file, then indices"
 msgstr ""
 
-#: gridded/forms.py:118
+#: gridded/forms.py:129
 msgid "Calculate them from the base period of these files"
 msgstr ""
 
-#: gridded/forms.py:119
+#: gridded/forms.py:130
 msgid "Read them from a thresholds file"
 msgstr ""
 
-#: gridded/forms.py:122
+#: gridded/forms.py:133
 msgid "Automatic: when the files are chunked by time step"
 msgstr ""
 
-#: gridded/forms.py:123
+#: gridded/forms.py:134
 msgid "Always"
 msgstr ""
 
-#: gridded/forms.py:124
+#: gridded/forms.py:135
 msgid "Never"
 msgstr ""
 
-#: gridded/forms.py:143
+#: gridded/forms.py:154 gridded/runs.py:452
 msgid "Both temperatures"
 msgstr ""
 
-#: gridded/forms.py:187 gridded/forms.py:188 gridded/forms.py:189
-#: gridded/forms.py:190
+#: gridded/forms.py:198 gridded/forms.py:199 gridded/forms.py:200
+#: gridded/forms.py:201
 #, python-format
 msgid "Enter a year, e.g. %(year)s."
 msgstr ""
 
-#: gridded/forms.py:199
+#: gridded/forms.py:210
 msgid "Enter a value."
 msgstr ""
 
-#: gridded/forms.py:200
+#: gridded/forms.py:211
 msgid "Enter a whole number."
 msgstr ""
 
-#: gridded/forms.py:200
+#: gridded/forms.py:211
 msgid "Enter a number."
 msgstr ""
 
-#: gridded/forms.py:203
+#: gridded/forms.py:214
 #, python-format
 msgid "Enter %(min)s or more."
 msgstr ""
 
-#: gridded/forms.py:205
+#: gridded/forms.py:216
 #, python-format
 msgid "Enter %(max)s or less."
 msgstr ""
 
-#: gridded/forms.py:221 stations/qc_plots.py:217 stations/qc_review.py:67
+#: gridded/forms.py:232 stations/qc_plots.py:217 stations/qc_review.py:67
 msgid "Maximum temperature (TX)"
 msgstr ""
 
-#: gridded/forms.py:222 gridded/forms.py:226 gridded/forms.py:230
+#: gridded/forms.py:233 gridded/forms.py:237 gridded/forms.py:241
 #: gridded/inspection.py:323
 msgid "Choose the variable."
 msgstr ""
 
-#: gridded/forms.py:225 stations/qc_plots.py:218 stations/qc_review.py:68
+#: gridded/forms.py:236 stations/qc_plots.py:218 stations/qc_review.py:68
 msgid "Minimum temperature (TN)"
 msgstr ""
 
-#: gridded/forms.py:234 help/sections.py:360
+#: gridded/forms.py:245 help/sections.py:360
 msgid "What to calculate"
 msgstr ""
 
-#: gridded/forms.py:240
+#: gridded/forms.py:251
 msgid "Percentile thresholds for the indices"
 msgstr ""
 
-#: gridded/forms.py:247
+#: gridded/forms.py:258
 msgid "Thresholds file on this computer"
 msgstr ""
 
-#: gridded/forms.py:248
+#: gridded/forms.py:259
 msgid "The full path of a file written by a thresholds run of Climpact."
 msgstr ""
 
-#: gridded/forms.py:253 gridded/templates/gridded/_progress.html:15
-#: gridded/templates/gridded/_progress.html:74 help/topics.py:670
+#: gridded/forms.py:264 gridded/templates/gridded/_progress.html:17
+#: help/topics.py:670
 msgid "Thresholds file"
 msgstr ""
 
-#: gridded/forms.py:262
+#: gridded/forms.py:273
 msgid "Output file name format"
 msgstr ""
 
-#: gridded/forms.py:264
+#: gridded/forms.py:275
 msgid ""
 "In the CMIP5 form var_daily_model_scenario_run_start-end.nc, as in Climpact "
 "for R. Each index file takes its name from this, with var replaced by the "
 "index."
 msgstr ""
 
-#: gridded/forms.py:272
+#: gridded/forms.py:283
 msgid "Thresholds file name"
 msgstr ""
 
-#: gridded/forms.py:278
+#: gridded/forms.py:289
 msgid "Institution name"
 msgstr ""
 
-#: gridded/forms.py:279
+#: gridded/forms.py:290
 msgid "Written into every output file's metadata."
 msgstr ""
 
-#: gridded/forms.py:281
+#: gridded/forms.py:292
 msgid "Enter your institution's name."
 msgstr ""
 
-#: gridded/forms.py:284
+#: gridded/forms.py:295
 msgid "Institution ID"
 msgstr ""
 
-#: gridded/forms.py:285
+#: gridded/forms.py:296
 msgid "Usually an abbreviation, e.g. BoM."
 msgstr ""
 
-#: gridded/forms.py:287
+#: gridded/forms.py:298
 msgid "Enter your institution's ID (usually an abbreviation)."
 msgstr ""
 
-#: gridded/forms.py:291 help/topics.py:680
+#: gridded/forms.py:302 help/topics.py:680
 msgid "Indices to calculate"
 msgstr ""
 
-#: gridded/forms.py:294
+#: gridded/forms.py:305
 #, python-format
 msgid "%(value)s is not an index Climpact calculates."
 msgstr ""
 
-#: gridded/forms.py:297
+#: gridded/forms.py:308
 msgid "WSDI days"
 msgstr ""
 
-#: gridded/forms.py:297
+#: gridded/forms.py:308
 msgid "For wsdi<n>: 1 to 10."
 msgstr ""
 
-#: gridded/forms.py:298
+#: gridded/forms.py:309
 msgid "CSDI days"
 msgstr ""
 
-#: gridded/forms.py:298
+#: gridded/forms.py:309
 msgid "For csdi<n>: 1 to 10."
 msgstr ""
 
-#: gridded/forms.py:299
+#: gridded/forms.py:310
 msgid "Rx days"
 msgstr ""
 
-#: gridded/forms.py:299
+#: gridded/forms.py:310
 msgid "For rx<n>day."
 msgstr ""
 
-#: gridded/forms.py:300
+#: gridded/forms.py:311
 msgid "TXTN days"
 msgstr ""
 
-#: gridded/forms.py:300
+#: gridded/forms.py:311
 msgid "For tx<n>tn<n> and txb<n>tnb<n>."
 msgstr ""
 
-#: gridded/forms.py:301
+#: gridded/forms.py:312
 msgid "Heating base temperature"
 msgstr ""
 
-#: gridded/forms.py:301
+#: gridded/forms.py:312
 msgid "For hddheat<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:302
+#: gridded/forms.py:313
 msgid "Cooling base temperature"
 msgstr ""
 
-#: gridded/forms.py:302
+#: gridded/forms.py:313
 msgid "For cddcold<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:303
+#: gridded/forms.py:314
 msgid "Growing base temperature"
 msgstr ""
 
-#: gridded/forms.py:303
+#: gridded/forms.py:314
 msgid "For gddgrow<n>, °C."
 msgstr ""
 
-#: gridded/forms.py:304
+#: gridded/forms.py:315
 msgid "Rnn threshold"
 msgstr ""
 
-#: gridded/forms.py:304
+#: gridded/forms.py:315
 msgid "For r<nn>mm, mm."
 msgstr ""
 
-#: gridded/forms.py:307
+#: gridded/forms.py:318
 msgid "Processor cores to use"
 msgstr ""
 
-#: gridded/forms.py:312
+#: gridded/forms.py:323
 msgid "Values read at once (millions)"
 msgstr ""
 
-#: gridded/forms.py:314
+#: gridded/forms.py:325
 msgid ""
 "Bounds the memory used: about 8 MB per million. Climpact for R calls this "
 "the number of data values to process at once. Do not change it unless you "
 "know you need to."
 msgstr ""
 
-#: gridded/forms.py:323
+#: gridded/forms.py:334
 msgid "Copy the files to a temporary file laid out by cell first"
 msgstr ""
 
-#: gridded/forms.py:325
+#: gridded/forms.py:336
 msgid ""
 "Files chunked by time step are very slow to read cell by cell; a temporary "
 "copy makes the run much faster on large grids. The values are the same "
 "either way."
 msgstr ""
 
-#: gridded/forms.py:332
+#: gridded/forms.py:343
 msgid "Folder for the temporary copy"
 msgstr ""
 
-#: gridded/forms.py:333
+#: gridded/forms.py:344
 msgid "Default: the calculation's own folder."
 msgstr ""
 
-#: gridded/forms.py:338
+#: gridded/forms.py:349
 msgid "Also copy the results to this folder"
 msgstr ""
 
-#: gridded/forms.py:340
+#: gridded/forms.py:351
 msgid ""
 "A folder on this computer, created if needed. The results can be downloaded "
 "from the results page either way."
 msgstr ""
 
-#: gridded/forms.py:363
+#: gridded/forms.py:374
 msgid "Choose a variable"
 msgstr ""
 
-#: gridded/forms.py:378
+#: gridded/forms.py:389
 #, python-format
 msgid ""
 "Your computer has %(count)d processor cores. More cores calculate more cells "
 "at the same time."
 msgstr ""
 
-#: gridded/forms.py:383
+#: gridded/forms.py:394
 msgid "Enter how many cores to use (1 or more)."
 msgstr ""
 
-#: gridded/forms.py:396
+#: gridded/forms.py:407
 msgid ""
 "Use the CMIP5 form var_daily_model_scenario_run_start-end.nc: at least six "
 "parts separated by _, ending in the years and .nc."
 msgstr ""
 
-#: gridded/forms.py:406
+#: gridded/forms.py:417
 msgid "Use a file name ending in .nc, with letters, digits and . _ + - only."
 msgstr ""
 
-#: gridded/forms.py:415
+#: gridded/forms.py:426
 msgid "Enter the full path of an existing folder."
 msgstr ""
 
-#: gridded/forms.py:417 gridded/forms.py:432
+#: gridded/forms.py:428 gridded/forms.py:443
 msgid "Climpact cannot write to this folder."
 msgstr ""
 
-#: gridded/forms.py:427
+#: gridded/forms.py:438
 msgid "Enter the full path of a folder."
 msgstr ""
 
-#: gridded/forms.py:429
+#: gridded/forms.py:440
 msgid "This is a file, not a folder."
 msgstr ""
 
-#: gridded/forms.py:448
+#: gridded/forms.py:459
 msgid "Choose the thresholds file."
 msgstr ""
 
-#: gridded/forms.py:452
+#: gridded/forms.py:463
 msgid "Enter the path of the thresholds file."
 msgstr ""
 
-#: gridded/forms.py:456
+#: gridded/forms.py:467
 msgid "No such file."
 msgstr ""
 
-#: gridded/forms.py:458 gridded/inspection.py:149
+#: gridded/forms.py:469 gridded/inspection.py:149
 msgid "This is not a netCDF file."
 msgstr ""
 
-#: gridded/forms.py:479
+#: gridded/forms.py:490
 #, python-format
 msgid ""
 "With a thresholds file, the data must have no day in the base period, as in "
@@ -3875,7 +3844,7 @@ msgid ""
 "files instead."
 msgstr ""
 
-#: gridded/forms.py:490
+#: gridded/forms.py:501
 #, python-format
 msgid ""
 "The files cover %(days)d days of this base period (%(first)s to %(last)s are "
@@ -3960,12 +3929,172 @@ msgstr ""
 msgid "Its dates differ from %(name)s's; the files must share their time axis."
 msgstr ""
 
-#: gridded/models.py:34 gridded/templates/gridded/_chooser.html:9
+#: gridded/models.py:35 gridded/templates/gridded/_chooser.html:9
 msgid "Files on this computer"
 msgstr ""
 
-#: gridded/models.py:36
+#: gridded/models.py:37 gridded/runs.py:105
 msgid "Sample grid"
+msgstr ""
+
+#: gridded/runs.py:131 jobs/views.py:125
+#, python-format
+msgid "%(s)d s"
+msgstr ""
+
+#: gridded/runs.py:134
+#, python-format
+msgid "%(m)d min"
+msgstr ""
+
+#: gridded/runs.py:135 jobs/views.py:130
+#, python-format
+msgid "%(h)d h %(m)d min"
+msgstr ""
+
+#: gridded/runs.py:146 stations/station_file.py:50
+msgid "maximum temperature"
+msgstr ""
+
+#: gridded/runs.py:147 stations/station_file.py:51
+msgid "minimum temperature"
+msgstr ""
+
+#: gridded/runs.py:148 stations/station_file.py:49
+msgid "precipitation"
+msgstr ""
+
+#: gridded/runs.py:157
+msgid "a file cannot be read"
+msgstr ""
+
+#: gridded/runs.py:165
+#, python-format
+msgid "%(variable)s units"
+msgstr ""
+
+#: gridded/runs.py:186
+#, python-format
+msgid "Not started: %(problem)s"
+msgstr ""
+
+#: gridded/runs.py:187 stations/workspace.py:432
+msgid "Not started"
+msgstr ""
+
+#: gridded/runs.py:191 stations/overview.py:132
+#, python-format
+msgid "Calculating · %(percent)s%%"
+msgstr ""
+
+#: gridded/runs.py:193 stations/overview.py:127
+msgid "Calculating"
+msgstr ""
+
+#: gridded/runs.py:195 gridded/templates/gridded/_progress.html:24
+#: jobs/models.py:18 stations/templates/stations/_input_runs.html:13
+msgid "Waiting to start"
+msgstr ""
+
+#: gridded/runs.py:199 jobs/models.py:22
+msgid "Cancelled"
+msgstr ""
+
+#: gridded/runs.py:202 jobs/models.py:20
+msgid "Finished"
+msgstr ""
+
+#: gridded/runs.py:207
+#, python-format
+msgid "Finished %(when)s, %(took)s"
+msgstr ""
+
+#: gridded/runs.py:209
+#, python-format
+msgid "Finished %(when)s"
+msgstr ""
+
+#: gridded/runs.py:242 gridded/runs.py:419
+#, python-format
+msgid "%(count)s index"
+msgid_plural "%(count)s indices"
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/runs.py:264
+#, python-format
+msgid "%(base)s, file kept"
+msgstr ""
+
+#: gridded/runs.py:269
+#, python-format
+msgid "From %(source)s"
+msgstr ""
+
+#: gridded/runs.py:392
+#, python-format
+msgid "%(ny)s × %(nx)s cell"
+msgid_plural "%(ny)s × %(nx)s cells"
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/runs.py:398
+#, python-format
+msgid "%(cells)s, %(count)s with data"
+msgstr ""
+
+#: gridded/runs.py:414 stations/workspace_files.py:93
+msgid "calculating"
+msgstr ""
+
+#: gridded/runs.py:420 stations/workspace_files.py:549
+#, python-format
+msgid "%(count)s file"
+msgid_plural "%(count)s files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/runs.py:424
+msgid "thresholds file"
+msgstr ""
+
+#: gridded/runs.py:430 stations/views_workspace.py:94
+#, python-format
+msgid "kept until %(date)s"
+msgstr ""
+
+#: gridded/runs.py:437 stations/templates/stations/_indices.html:29
+msgid "Theme"
+msgstr ""
+
+#: gridded/runs.py:438
+msgid "Variable needed"
+msgstr ""
+
+#: gridded/runs.py:439
+msgid "Frequency"
+msgstr ""
+
+#: gridded/runs.py:446
+msgid "Other"
+msgstr ""
+
+#: gridded/runs.py:457 stations/results.py:239
+msgid "Daily"
+msgstr ""
+
+#: gridded/runs.py:500
+#, python-format
+msgid "%(first)s … (%(count)s)"
+msgstr ""
+
+#: gridded/templates/gridded/_breadcrumb.html:7
+#: gridded/templates/gridded/_breadcrumb.html:9
+msgid "New run"
+msgstr ""
+
+#: gridded/templates/gridded/_breadcrumb.html:8
+msgid "set-up"
 msgstr ""
 
 #: gridded/templates/gridded/_browser.html:8
@@ -4130,7 +4259,7 @@ msgid "%(name)s, %(when)s, by latitude (rows) and longitude (columns)"
 msgstr ""
 
 #: gridded/templates/gridded/_explore.html:104
-#: gridded/templates/gridded/_series_table.html:5 gridded/views.py:864
+#: gridded/templates/gridded/_series_table.html:5 gridded/views.py:951
 #, python-format
 msgid "%(name)s at %(where)s"
 msgstr ""
@@ -4144,18 +4273,13 @@ msgstr ""
 msgid "This cell has no values."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:22
+#: gridded/templates/gridded/_progress.html:24
 #: stations/templates/stations/_input_runs.html:13
 msgid "Starting"
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:22 jobs/models.py:18
-#: stations/templates/stations/_input_runs.html:13
-msgid "Waiting to start"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:23
 #: gridded/templates/gridded/_progress.html:25
+#: gridded/templates/gridded/_progress.html:27
 #: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
 #: stations/qc_review.py:810 stations/qc_review.py:815
 #: stations/templates/stations/_qc_distributions.html:42
@@ -4169,14 +4293,14 @@ msgstr ""
 msgid "%(percent)s%%"
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:27
+#: gridded/templates/gridded/_progress.html:29
 #: stations/templates/stations/_results_progress.html:22
 #: stations/templates/stations/_sector_progress.html:20
 #, python-format
 msgid "Step %(step)s of %(total)s."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:28
+#: gridded/templates/gridded/_progress.html:30
 #: jobs/templates/jobs/_progress.html:20
 #: stations/templates/stations/_qc_progress.html:18
 #: stations/templates/stations/_results_progress.html:23
@@ -4185,7 +4309,7 @@ msgstr ""
 msgid "Time so far: %(elapsed)s."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:29
+#: gridded/templates/gridded/_progress.html:31
 #: jobs/templates/jobs/_progress.html:21
 #: stations/templates/stations/_results_progress.html:24
 #: stations/templates/stations/_sector_progress.html:22
@@ -4193,87 +4317,46 @@ msgstr ""
 msgid "About %(remaining)s left."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:30
+#: gridded/templates/gridded/_progress.html:32
 msgid "The indices start when the thresholds file is finished."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:33
+#: gridded/templates/gridded/_progress.html:35
 #: jobs/templates/jobs/_progress.html:24
 #: stations/templates/stations/_results_progress.html:33
 #: stations/templates/stations/_sector_progress.html:31
 msgid "Cancelling…"
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:35
+#: gridded/templates/gridded/_progress.html:37
 msgid ""
 "No calculation worker is running, so this cannot start yet. If you run "
 "Climpact yourself, restart it with the climpact-web command."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:50
+#: gridded/templates/gridded/_progress.html:52
 #: jobs/templates/jobs/_progress.html:64
 #: stations/templates/stations/_results_progress.html:48
 msgid "The calculation failed."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:56
+#: gridded/templates/gridded/_progress.html:58
 #: jobs/templates/jobs/_progress.html:70
 #: stations/templates/stations/_results_progress.html:54
 #: stations/templates/stations/sector.html:57
 msgid "The calculation was cancelled."
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:67
-#, python-format
-msgid "Finished in %(elapsed)s: %(counter)s file."
-msgid_plural "Finished in %(elapsed)s: %(counter)s files."
-msgstr[0] ""
-msgstr[1] ""
-
-#: gridded/templates/gridded/_progress.html:67
-#, python-format
-msgid "Also copied to %(folder)s."
-msgstr ""
-
 #: gridded/templates/gridded/_progress.html:70
 #, python-format
-msgid "The file to download"
-msgid_plural "The %(counter)s files to download"
+msgid ""
+"Finished in %(elapsed)s: %(counter)s file, on <a "
+"href=\"%(files_url)s\">Files</a>."
+msgid_plural ""
+"Finished in %(elapsed)s: %(counter)s files, on <a "
+"href=\"%(files_url)s\">Files</a>."
 msgstr[0] ""
 msgstr[1] ""
-
-#: gridded/templates/gridded/_progress.html:74
-msgid "Index files"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:75
-msgid "Frequency"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:75
-msgid "Size"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:78
-msgid "annual"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:78
-msgid "monthly"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:78
-msgid "daily"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:90
-msgid "Download all (zip)"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:91
-#, python-format
-msgid "The results are deleted on %(date)s."
-msgstr ""
 
 #: gridded/templates/gridded/_retention.html:1
 #, python-format
@@ -4299,42 +4382,356 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+#: gridded/templates/gridded/_run_actions.html:5
+msgid "Run again with other files"
+msgstr ""
+
+#: gridded/templates/gridded/_run_actions.html:6
+#: gridded/templates/gridded/files.html:75
+#: stations/templates/stations/_results_actions.html:13
+#: stations/templates/stations/downloads.html:47
+#, python-format
+msgid "Download all (zip, %(size)s)"
+msgstr ""
+
+#: gridded/templates/gridded/_run_links.html:1
+#: gridded/templates/gridded/rename.html:17
+#: gridded/templates/gridded/setup.html:18
+#: stations/templates/stations/_space_links.html:1
+#: stations/templates/stations/workspace_rename.html:16
+msgid "Rename"
+msgstr ""
+
+#: gridded/templates/gridded/_run_links.html:1
+#: gridded/templates/gridded/setup.html:18
+msgid "the run"
+msgstr ""
+
+#: gridded/templates/gridded/_run_links.html:1
+#: gridded/templates/gridded/delete.html:14
+#: gridded/templates/gridded/setup.html:203
+msgid "Forget this run"
+msgstr ""
+
+#: gridded/templates/gridded/_run_tabs.html:4
+msgid "Run sections"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:11
+msgid "Your gridded runs, most recently changed first"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:14
+msgid "Run"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:15
+#: gridded/templates/gridded/setup.html:43
+msgid "Grid"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:18
+msgid "Calculates"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:19
+msgid "State"
+msgstr ""
+
+#: gridded/templates/gridded/_runs_table.html:20
+msgid "Kept until"
+msgstr ""
+
 #: gridded/templates/gridded/_series_table.html:6
 msgid "Time"
 msgstr ""
 
-#: gridded/templates/gridded/results.html:3
-#: gridded/templates/gridded/results.html:9
-msgid "Gridded results"
-msgstr ""
-
-#: gridded/templates/gridded/results.html:3
-#: gridded/templates/gridded/results.html:9
-msgid "Calculating the grid"
-msgstr ""
-
-#: gridded/templates/gridded/results.html:10
+#: gridded/templates/gridded/delete.html:7
 #, python-format
-msgid "%(files)s: %(ny)s × %(nx)s cells, base period %(start)s to %(end)s."
+msgid "Forget %(name)s"
 msgstr ""
 
-#: gridded/templates/gridded/results.html:17
+#: gridded/templates/gridded/delete.html:11
+#, python-format
+msgid "Forget %(name)s?"
+msgstr ""
+
+#: gridded/templates/gridded/delete.html:12
+msgid ""
+"This deletes the run and its results. They can’t be recovered. The netCDF "
+"files it read are where they were, unchanged."
+msgstr ""
+
+#: gridded/templates/gridded/delete.html:12
+msgid "This deletes the run and its results. They can’t be recovered."
+msgstr ""
+
+#: gridded/templates/gridded/delete.html:12
+msgid ""
+"This deletes the run, its results and the uploaded files. They can’t be "
+"recovered."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:14
+#: stations/templates/stations/downloads.html:10
+#: stations/templates/stations/workspace_files.html:10
+#, python-format
+msgid "Files: %(name)s"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:22
+msgid "Index files"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:22
+#: gridded/templates/gridded/files.html:39
+#, python-format
+msgid "%(counter)s file · %(size)s"
+msgid_plural "%(counter)s files · %(size)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/templates/gridded/files.html:25
+msgid "Group by"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:29
+#: stations/templates/stations/_qc_box_plot.html:13
+msgid "Group"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:42
+msgid "Freq."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:42
+msgid "Variables"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:42
+msgid "Size"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:58
+msgid "Download these (zip)"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:63
+#, python-format
+msgid ""
+"The files are listed here once the run has finished. <a "
+"href=\"%(map_url)s\">See how it is going</a>"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:65
+msgid ""
+"This run made no index files: it calculated a thresholds file only, listed "
+"with the run's record."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:67
+#, python-format
+msgid ""
+"The run did not finish, so it has no files. <a href=\"%(map_url)s\">What "
+"happened</a>"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:71
+msgid "Downloads and the record"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:74 stations/downloads.py:78
+#: stations/templates/stations/downloads.html:39
+#: stations/templates/stations/workspace_files.html:23
+msgid "Everything"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:77
+#, python-format
+msgid "The %(counter)s link as a text file, for <code>wget -i</code>"
+msgid_plural "The %(counter)s links as a text file, for <code>wget -i</code>"
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/templates/gridded/files.html:78
+#, python-format
+msgid ""
+"Copied to <span class=\"font-mono wrap-anywhere\">%(folder)s</span> when the "
+"run finished (this computer)."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:83
+msgid "The run's record"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:85
+msgid "Settings, versions, inputs' checksums"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:86
+msgid "When each job ran, and any errors"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:87
+#, python-format
+msgid "Thresholds, base %(start)s–%(end)s · %(size)s"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:88
+#, python-format
+msgid "Each cell's trend and base-period mean, and the grid mean · %(size)s"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:91
+#, python-format
+msgid ""
+"This run read its thresholds from a file: <span class=\"font-mono wrap-"
+"anywhere\">%(name)s</span>."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:92
+msgid ""
+"No thresholds file: this run calculated its thresholds and did not keep "
+"them. Choose “Thresholds file, then indices” in Set-up to keep them for a "
+"scenario run."
+msgstr ""
+
+#: gridded/templates/gridded/files.html:97
+msgid "Reading the files"
+msgstr ""
+
+#: gridded/templates/gridded/files.html:98
+msgid ""
+"One variable per file, named after the index, on the input grid; "
+"<code>hw_ANN</code> holds 10 variables and <code>spi_MON</code> a "
+"<code>scale</code> dimension. The same layout as Climpact for R."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:8 gridded/templates/gridded/new.html:13
+#: gridded/templates/gridded/start.html:20
+msgid "New gridded run"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:14
+msgid ""
+"Choose netCDF files of daily maximum and minimum temperature and "
+"precipitation. Climpact shows what they contain before anything is "
+"calculated, then calculates every index (or a thresholds file) for each cell "
+"of the grid."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:27
+msgid "Or upload copies"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:27
+msgid "Your netCDF files"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:28
+#, python-format
+msgid ""
+"netCDF, up to %(size)s MB in all. One file with all three variables, or one "
+"file for each."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:31
+msgid ""
+"Uploading copies the files into Climpact's data folder. Choosing them by "
+"path is quicker for large files."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:34
+msgid "Upload and check"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:41
+msgid "No files to hand?"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:42
+msgid ""
+"Try a small cut of Climpact's sample grid: 3 by 4 cells over south-eastern "
+"Australia, daily from 1991 to 2010. It calculates in about a minute."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:45
+#: gridded/templates/gridded/start.html:34
+msgid "Use the sample grid"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:48
+#: stations/templates/stations/new.html:90
+#, python-format
+msgid "Download the sample file (%(sample_name)s)"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:56
+msgid "What the files must contain"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:58
+msgid ""
+"CF netCDF files (netCDF-3 or netCDF-4) with daily values on a grid, as "
+"Climpact for R reads them:"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:60
+msgid ""
+"maximum and minimum temperature in K or degrees_C, and precipitation in kg "
+"m-2 d-1, kg m-2 s-1 or mm/day;"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:61
+msgid ""
+"each variable with dimensions time, latitude and longitude (any order), in "
+"one file or in separate files that share the same days and grid;"
+msgstr ""
+
+#: gridded/templates/gridded/new.html:62
+msgid ""
+"a time variable with units such as days since 1950-01-01, in the standard, "
+"noleap (365_day) or 360_day calendar."
+msgstr ""
+
+#: gridded/templates/gridded/new.html:64
+msgid ""
+"The variables can have any names: you choose which is which on the next "
+"page. All three are needed."
+msgstr ""
+
+#: gridded/templates/gridded/rename.html:7
+#: stations/templates/stations/workspace_rename.html:6
+#, python-format
+msgid "Rename: %(name)s"
+msgstr ""
+
+#: gridded/templates/gridded/rename.html:13
+msgid "Rename the run"
+msgstr ""
+
+#: gridded/templates/gridded/run.html:9
+#, python-format
+msgid "Map: %(name)s"
+msgstr ""
+
+#: gridded/templates/gridded/run.html:19
 msgid "Explore the indices"
 msgstr ""
 
-#: gridded/templates/gridded/results.html:23
-msgid "Change the parameters and calculate again"
-msgstr ""
-
-#: gridded/templates/gridded/results.html:24
-msgid "Start with other files"
+#: gridded/templates/gridded/run.html:23
+#, python-format
+msgid ""
+"This run made a thresholds file only, so there is no map. The file is on <a "
+"href=\"%(files_url)s\">Files</a>."
 msgstr ""
 
 #: gridded/templates/gridded/setup.html:9
-msgid "Check the files and set up the run"
+#, python-format
+msgid "Set-up: %(name)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:10
+#: gridded/templates/gridded/setup.html:19
 #, python-format
 msgid "Climpact has read the file below. Nothing has been calculated yet."
 msgid_plural ""
@@ -4343,343 +4740,336 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: gridded/templates/gridded/setup.html:15
+#: gridded/templates/gridded/setup.html:25
 msgid "This run is being calculated."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:20
+#: gridded/templates/gridded/setup.html:30
 msgid "The files"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:26
+#: gridded/templates/gridded/setup.html:36
 msgid "Readable"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:27
+#: gridded/templates/gridded/setup.html:37
 msgid "Cannot be used"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:33
-msgid "Grid"
-msgstr ""
-
-#: gridded/templates/gridded/setup.html:33
+#: gridded/templates/gridded/setup.html:43
 #, python-format
 msgid "%(ny)s × %(nx)s cells"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:34
+#: gridded/templates/gridded/setup.html:44
 msgid "Dates"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:34
+#: gridded/templates/gridded/setup.html:44
 #, python-format
 msgid "%(first)s to %(last)s (%(days)s days)"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:35
+#: gridded/templates/gridded/setup.html:45
 msgid "Calendar"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:36
-#: gridded/templates/gridded/setup.html:37
+#: gridded/templates/gridded/setup.html:46
+#: gridded/templates/gridded/setup.html:47
 #, python-format
 msgid "%(lo)s to %(hi)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:37 stations/forms.py:178
+#: gridded/templates/gridded/setup.html:47 stations/forms.py:178
 #: stations/templates/stations/_add_table.html:17
 msgid "Longitude"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:38
+#: gridded/templates/gridded/setup.html:48
 msgid "Format"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:38
+#: gridded/templates/gridded/setup.html:48
 #, python-format
 msgid "%(format)s, %(size)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:42
+#: gridded/templates/gridded/setup.html:52
 #, python-format
 msgid "Daily grid variables in %(name)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:43
+#: gridded/templates/gridded/setup.html:53
 msgid "Description"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:43
+#: gridded/templates/gridded/setup.html:53
 msgid "Units"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:43
+#: gridded/templates/gridded/setup.html:53
 msgid "Dimensions"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:61
+#: gridded/templates/gridded/setup.html:71
 msgid "The run cannot start"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:73
+#: gridded/templates/gridded/setup.html:83
 msgid "1. Variables"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:74
+#: gridded/templates/gridded/setup.html:84
 msgid ""
 "Which variable in the files is which. Climpact guessed from their names and "
 "units; check them."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:85
+#: gridded/templates/gridded/setup.html:95
 msgid "2. What to calculate"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:88
+#: gridded/templates/gridded/setup.html:98
 msgid ""
 "Indices: one netCDF file per index and frequency (monthly, annual), as "
 "Climpact for R writes them."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:89
+#: gridded/templates/gridded/setup.html:99
 msgid ""
 "Thresholds file only: the base-period percentiles of every cell, to "
 "calculate indices for other data later, e.g. a future scenario with "
 "thresholds from a historical run."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:90
+#: gridded/templates/gridded/setup.html:100
 msgid "Thresholds file, then indices: both, one after the other."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:97
+#: gridded/templates/gridded/setup.html:107
 #, python-format
 msgid "netCDF, up to %(size)s MB."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:99
+#: gridded/templates/gridded/setup.html:109
 #, python-format
 msgid "Loaded: %(name)s. Choose another file to replace it."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:101
+#: gridded/templates/gridded/setup.html:111
 msgid ""
 "A thresholds file is only for data with no day in its base period (enter "
 "that base period below), as in Climpact for R."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:107
+#: gridded/templates/gridded/setup.html:117
 msgid "3. Base period"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:110
+#: gridded/templates/gridded/setup.html:120
 msgid ""
 "The years the percentile thresholds are calculated from. WMO's reference "
 "period is 1971 to 2000."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:120
+#: gridded/templates/gridded/setup.html:130
 msgid "4. Output"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:131
+#: gridded/templates/gridded/setup.html:141
 msgid "5. Indices"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:134
+#: gridded/templates/gridded/setup.html:144
 msgid ""
 "All are chosen; leave them all to calculate every index, as Climpact for R "
 "does when the list is empty. The heatwave, SPI and SPEI indices (marked) "
 "take most of the time."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:138
+#: gridded/templates/gridded/setup.html:148
 msgid "Choose all"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:139
+#: gridded/templates/gridded/setup.html:149
 msgid "Choose none"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:146
+#: gridded/templates/gridded/setup.html:156
 msgid "slow"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:153 help/sections.py:370
+#: gridded/templates/gridded/setup.html:163 help/sections.py:370
 msgid "Index parameters"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:155
+#: gridded/templates/gridded/setup.html:165
 msgid ""
 "The parameters of the indices named after a number. The defaults are those "
 "of Climpact for R's gridded calculation."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:166
+#: gridded/templates/gridded/setup.html:176
 msgid ""
 "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also "
 "lists Perkins and Alexander (2013), but its calculation accepts only Nairn "
 "and Fawcett."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:172
+#: gridded/templates/gridded/setup.html:182
 msgid "Advanced: memory, speed and temporary files"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:174
+#: gridded/templates/gridded/setup.html:184
 msgid "For large grids, or a computer short of memory."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:184
+#: gridded/templates/gridded/setup.html:194
 msgid "Start the calculation"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:187
+#: gridded/templates/gridded/setup.html:197
 msgid ""
 "Gridded calculations can take from a minute to many hours, depending on the "
 "size of the grid and the computer. They run in the background: you can close "
-"this page and come back to it from Your calculations, which Workspaces links "
-"to."
+"this page and come back to the run from Gridded."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:193
-msgid "Forget this run"
-msgstr ""
-
-#: gridded/templates/gridded/setup.html:195
+#: gridded/templates/gridded/setup.html:205
 msgid "Choose other files"
 msgstr ""
 
-#: gridded/templates/gridded/start.html:8
-msgid "Calculate indices on gridded data"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:9
+#: gridded/templates/gridded/start.html:17
 msgid ""
-"Choose netCDF files of daily maximum and minimum temperature and "
-"precipitation. Climpact shows what they contain before anything is "
-"calculated, then calculates every index (or a thresholds file) for each cell "
-"of the grid."
-msgstr ""
-
-#: gridded/templates/gridded/start.html:22
-msgid "Or upload copies"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:22
-msgid "Your netCDF files"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:23
-#, python-format
-msgid ""
-"netCDF, up to %(size)s MB in all. One file with all three variables, or one "
-"file for each."
+"The indices for every cell of a daily grid, from netCDF files of TX, TN and "
+"precipitation: one netCDF file per index and frequency, as Climpact for R "
+"writes them, with a map and each cell's series."
 msgstr ""
 
 #: gridded/templates/gridded/start.html:26
-msgid ""
-"Uploading copies the files into Climpact's data folder. Choosing them by "
-"path is quicker for large files."
+msgid "Your runs"
 msgstr ""
 
 #: gridded/templates/gridded/start.html:29
-msgid "Upload and check"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:36
-msgid "No files to hand?"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:37
+#, python-format
 msgid ""
-"Try a small cut of Climpact's sample grid: 3 by 4 cells over south-eastern "
-"Australia, daily from 1991 to 2010. It calculates in about a minute."
+"Runs are kept in this browser for %(days)s day after their last change. "
+"Download what you want to keep."
+msgid_plural ""
+"Runs are kept in this browser for %(days)s days after their last change. "
+"Download what you want to keep."
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/templates/gridded/start.html:29
+#, python-format
+msgid ""
+"Runs are kept on this computer for %(days)s day after their last change; "
+"files read in place are never touched. Download what you want to keep."
+msgid_plural ""
+"Runs are kept on this computer for %(days)s days after their last change; "
+"files read in place are never touched. Download what you want to keep."
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/templates/gridded/start.html:33
+msgid ""
+"No runs yet. Start one with New gridded run, or try the sample grid: 3 × 4 "
+"cells, 1991–2010, under a minute."
 msgstr ""
 
-#: gridded/templates/gridded/start.html:40
-msgid "Use the sample grid"
+#: gridded/templates/gridded/start.html:39
+msgid "About gridded runs"
+msgstr ""
+
+#: gridded/templates/gridded/start.html:42
+msgid "Stations or a grid?"
 msgstr ""
 
 #: gridded/templates/gridded/start.html:43
-#: stations/templates/stations/new.html:90
 #, python-format
-msgid "Download the sample file (%(sample_name)s)"
+msgid ""
+"Station series get quality checks, trend tables and index pages: use <a "
+"href=\"%(workspaces_url)s\">Workspaces</a>. Grids get the index files and a "
+"map; no quality checks."
 msgstr ""
 
-#: gridded/templates/gridded/start.html:51
-msgid "What the files must contain"
+#: gridded/templates/gridded/start.html:46
+msgid "Scenarios"
+msgstr ""
+
+#: gridded/templates/gridded/start.html:47
+msgid ""
+"For a future period with no day in the base period, run the historical files "
+"with “Thresholds file, then indices”, then the scenario with that thresholds "
+"file."
+msgstr ""
+
+#: gridded/templates/gridded/start.html:50
+msgid "Try it"
 msgstr ""
 
 #: gridded/templates/gridded/start.html:53
 msgid ""
-"CF netCDF files (netCDF-3 or netCDF-4) with daily values on a grid, as "
-"Climpact for R reads them:"
+"<button type=\"submit\" class=\"link-button\">The sample grid</button>: 3 × "
+"4 cells, 1991–2010, under a minute."
 msgstr ""
 
-#: gridded/templates/gridded/start.html:55
-msgid ""
-"maximum and minimum temperature in K or degrees_C, and precipitation in kg "
-"m-2 d-1, kg m-2 s-1 or mm/day;"
+#: gridded/templates/gridded/start.html:53
+msgid "Gridded help"
 msgstr ""
 
-#: gridded/templates/gridded/start.html:56
-msgid ""
-"each variable with dimensions time, latitude and longitude (any order), in "
-"one file or in separate files that share the same days and grid;"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:57
-msgid ""
-"a time variable with units such as days since 1950-01-01, in the standard, "
-"noleap (365_day) or 360_day calendar."
-msgstr ""
-
-#: gridded/templates/gridded/start.html:59
-msgid ""
-"The variables can have any names: you choose which is which on the next "
-"page. All three are needed."
-msgstr ""
-
-#: gridded/templates/gridded/start.html:65
-#: stations/templates/stations/new.html:96
-msgid "Continue where you left off"
-msgstr ""
-
-#: gridded/templates/gridded/start.html:68
-#, python-format
-msgid "changed %(when)s ago"
-msgstr ""
-
-#: gridded/views.py:123
+#: gridded/views.py:145
 msgid "This folder cannot be read."
 msgstr ""
 
-#: gridded/views.py:477
+#: gridded/views.py:494
 #, python-format
 msgid "The files cannot be read together: %(error)s"
 msgstr ""
 
-#: gridded/views.py:546
+#: gridded/views.py:569
 #, python-format
 msgid "Gridded thresholds: %(files)s"
 msgstr ""
 
-#: gridded/views.py:561
+#: gridded/views.py:584
 #, python-format
 msgid "Gridded indices: %(files)s"
 msgstr ""
 
-#: gridded/views.py:588
+#: gridded/views.py:615
 msgid "The gridded run was deleted."
 msgstr ""
 
-#: gridded/views.py:590
+#: gridded/views.py:617
 msgid "The gridded run and its uploaded files were deleted."
 msgstr ""
 
-#: gridded/views.py:652
+#: gridded/views.py:634
+#, python-format
+msgid "The run is now called %(name)s."
+msgstr ""
+
+#: gridded/views.py:648
+msgid "Map"
+msgstr ""
+
+#: gridded/views.py:649 help/sections.py:229 help/sections.py:290
+#: stations/templates/stations/_settings_fields.html:56
+#: stations/views_workspace.py:114 stations/workspace.py:445
+msgid "Files"
+msgstr ""
+
+#: gridded/views.py:650
+msgid "Set-up"
+msgstr ""
+
+#: gridded/views.py:660
+msgid "run"
+msgstr ""
+
+#: gridded/views.py:731
 msgid "This file could not be read."
 msgstr ""
 
@@ -5603,12 +5993,6 @@ msgstr ""
 #: help/sections.py:224
 msgid ""
 "Climpact uses this definition for every station. There is nothing to choose."
-msgstr ""
-
-#: help/sections.py:229 help/sections.py:290
-#: stations/templates/stations/_settings_fields.html:56
-#: stations/views_workspace.py:114 stations/workspace.py:445
-msgid "Files"
 msgstr ""
 
 #: help/sections.py:234
@@ -6715,14 +7099,6 @@ msgstr ""
 msgid "Running"
 msgstr ""
 
-#: jobs/models.py:20
-msgid "Finished"
-msgstr ""
-
-#: jobs/models.py:22
-msgid "Cancelled"
-msgstr ""
-
 #: jobs/stages.py:11
 msgid "Reading the data"
 msgstr ""
@@ -6858,19 +7234,9 @@ msgstr ""
 msgid "Calculations you start appear here while they are kept."
 msgstr ""
 
-#: jobs/views.py:125
-#, python-format
-msgid "%(s)d s"
-msgstr ""
-
 #: jobs/views.py:128
 #, python-format
 msgid "%(m)d min %(s)d s"
-msgstr ""
-
-#: jobs/views.py:130
-#, python-format
-msgid "%(h)d h %(m)d min"
 msgstr ""
 
 #: settings.py:171
@@ -7112,11 +7478,6 @@ msgstr ""
 msgid ""
 "%(workspace)s already has a station called %(name)s. Choose another "
 "workspace, or rename this station first."
-msgstr ""
-
-#: stations/downloads.py:78 stations/templates/stations/downloads.html:39
-#: stations/templates/stations/workspace_files.html:23
-msgid "Everything"
 msgstr ""
 
 #: stations/downloads.py:80
@@ -7713,15 +8074,6 @@ msgstr[1] ""
 
 #: stations/overview.py:110
 msgid "Not calculated:"
-msgstr ""
-
-#: stations/overview.py:127
-msgid "Calculating"
-msgstr ""
-
-#: stations/overview.py:132
-#, python-format
-msgid "Calculating · %(percent)s%%"
 msgstr ""
 
 #: stations/overview.py:139 stations/overview.py:268
@@ -8517,10 +8869,6 @@ msgstr ""
 msgid "Day of occurrence, yearly"
 msgstr ""
 
-#: stations/results.py:239
-msgid "Daily"
-msgstr ""
-
 #: stations/results.py:240
 msgid "Yearly"
 msgstr ""
@@ -8726,18 +9074,6 @@ msgstr ""
 
 #: stations/station_file.py:48
 msgid "day"
-msgstr ""
-
-#: stations/station_file.py:49
-msgid "precipitation"
-msgstr ""
-
-#: stations/station_file.py:50
-msgid "maximum temperature"
-msgstr ""
-
-#: stations/station_file.py:51
-msgid "minimum temperature"
 msgstr ""
 
 #: stations/station_file.py:126
@@ -9021,10 +9357,6 @@ msgstr ""
 msgid "TXx, R95p, frost…"
 msgstr ""
 
-#: stations/templates/stations/_indices.html:29
-msgid "Theme"
-msgstr ""
-
 #: stations/templates/stations/_indices.html:30
 msgid "All"
 msgstr ""
@@ -9221,10 +9553,6 @@ msgstr ""
 #: stations/templates/stations/_qc_box_plot.html:6
 #: stations/templates/stations/_qc_distributions.html:35
 msgid "No data."
-msgstr ""
-
-#: stations/templates/stations/_qc_box_plot.html:13
-msgid "Group"
 msgstr ""
 
 #: stations/templates/stations/_qc_box_plot.html:15
@@ -9522,12 +9850,6 @@ msgstr ""
 msgid "Download all (out of date)"
 msgstr ""
 
-#: stations/templates/stations/_results_actions.html:13
-#: stations/templates/stations/downloads.html:47
-#, python-format
-msgid "Download all (zip, %(size)s)"
-msgstr ""
-
 #: stations/templates/stations/_results_actions.html:15
 msgid "All files and the report"
 msgstr ""
@@ -9740,11 +10062,6 @@ msgstr ""
 #: stations/templates/stations/_space_actions.html:16
 #: stations/templates/stations/downloads.html:20
 msgid "All files"
-msgstr ""
-
-#: stations/templates/stations/_space_links.html:1
-#: stations/templates/stations/workspace_rename.html:16
-msgid "Rename"
 msgstr ""
 
 #: stations/templates/stations/_space_links.html:1
@@ -9978,6 +10295,11 @@ msgstr ""
 msgid "year month day PR TX TN · missing as −99.9 · spaces or tabs"
 msgstr ""
 
+#: stations/templates/stations/add.html:36
+#: stations/templates/stations/add.html:133
+msgid "Choose files"
+msgstr ""
+
 #: stations/templates/stations/add.html:37
 #: stations/templates/stations/add.html:134
 msgid "Add the files"
@@ -10111,12 +10433,6 @@ msgstr ""
 
 #: stations/templates/stations/copy.html:20
 msgid "Copy"
-msgstr ""
-
-#: stations/templates/stations/downloads.html:10
-#: stations/templates/stations/workspace_files.html:10
-#, python-format
-msgid "Files: %(name)s"
 msgstr ""
 
 #: stations/templates/stations/downloads.html:21
@@ -10357,6 +10673,10 @@ msgstr ""
 #: stations/templates/stations/new.html:87
 #: stations/templates/stations/qc.html:93
 msgid "Start again with another station"
+msgstr ""
+
+#: stations/templates/stations/new.html:96
+msgid "Continue where you left off"
 msgstr ""
 
 #: stations/templates/stations/new.html:99
@@ -10963,11 +11283,6 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: stations/templates/stations/workspace_rename.html:6
-#, python-format
-msgid "Rename: %(name)s"
-msgstr ""
-
 #: stations/templates/stations/workspace_rename.html:12
 msgid "Rename the workspace"
 msgstr ""
@@ -11026,8 +11341,8 @@ msgstr ""
 #: stations/templates/stations/workspaces.html:36
 #, python-format
 msgid ""
-"Gridded calculations are not workspaces: they are listed in <a "
-"href=\"%(jobs_url)s\">Your calculations</a>."
+"Gridded runs are not workspaces: they are listed on <a "
+"href=\"%(gridded_url)s\">Gridded</a>."
 msgstr ""
 
 #: stations/templates/stations/workspaces.html:40
@@ -11303,11 +11618,6 @@ msgid_plural "%(count)s settings not the default"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/views_workspace.py:94
-#, python-format
-msgid "kept until %(date)s"
-msgstr ""
-
 #: stations/views_workspace.py:102
 msgid "Overview"
 msgstr ""
@@ -11378,10 +11688,6 @@ msgstr ""
 
 #: stations/workspace.py:429
 msgid "Out of date"
-msgstr ""
-
-#: stations/workspace.py:432
-msgid "Not started"
 msgstr ""
 
 #: stations/workspace.py:436
@@ -11681,10 +11987,6 @@ msgstr ""
 msgid "not run"
 msgstr ""
 
-#: stations/workspace_files.py:93
-msgid "calculating"
-msgstr ""
-
 #: stations/workspace_files.py:95
 msgid "waiting"
 msgstr ""
@@ -11721,13 +12023,6 @@ msgid ""
 "Trends are Sen's slopes with 95%% confidence intervals (zyp); a trend is "
 "significant when its interval excludes zero."
 msgstr ""
-
-#: stations/workspace_files.py:549
-#, python-format
-msgid "%(count)s file"
-msgid_plural "%(count)s files"
-msgstr[0] ""
-msgstr[1] ""
 
 #: stations/workspace_list.py:78
 #, python-format

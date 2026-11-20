@@ -194,4 +194,170 @@
     min-inline-size: 0;
     overflow-wrap: anywhere;
   }
+
+  /* == A run as a place of its own (#289, the GridList and GridFiles boards); the rest is
+     utilities. == */
+
+  /* Rename and Forget this run on the run's provenance line, in the text's face (shown
+     at every width: they are not in the ⋯ menu). */
+  .gridded-bar__link {
+    font-family: var(--font-sans);
+  }
+
+  /* Gridded's table: the Run and Thresholds cells end in an ellipsis rather than widen
+     the page (their whole text is the title). */
+  .gridded-runs__name,
+  .gridded-runs__thresholds,
+  .gridded-group__name,
+  .gridded-group__file,
+  .gridded-group__vars {
+    max-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gridded-runs__name {
+    inline-size: 28%;
+    min-inline-size: 12rem;
+    font-size: var(--text-sm);
+  }
+
+  .gridded-runs__muted,
+  .gridded-group__name {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .gridded-runs__thresholds {
+    inline-size: 20%;
+    min-inline-size: 9rem;
+  }
+
+  .gridded-group__name {
+    min-inline-size: 7rem;
+  }
+
+  .gridded-runs__state-cell {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2.5);
+    font-size: var(--text-sm);
+  }
+
+  .gridded-runs__meter {
+    flex: none;
+    inline-size: 5rem;
+  }
+
+  .gridded-state--done,
+  .gridded-state--new,
+  .gridded-state--cancelled {
+    color: var(--color-text-muted);
+  }
+
+  .gridded-state--problem,
+  .gridded-state--failed {
+    color: var(--color-danger);
+  }
+
+  /* The Files tab: the index files, and beside them (from 64rem) the downloads, the
+     record and the note. */
+  .gridded-files {
+    display: grid;
+    align-items: start;
+    gap: --spacing(6) --spacing(8);
+  }
+
+  @media (min-width: 64rem) {
+    .gridded-files {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+
+  .gridded-files__by select {
+    inline-size: auto;
+    min-block-size: 0;
+    block-size: 2rem;
+    padding-block: 0;
+    font-size: var(--text-sm);
+  }
+
+  /* A group of files (the File group pattern), framed. "Download these (zip)" sits at
+     the end of the summary's line, beside the summary rather than in it (a link inside a
+     summary is a control inside a control); on a phone, under it. */
+  .gridded-group {
+    position: relative;
+  }
+
+  .gridded-group__details {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .gridded-group__details > summary {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2.5);
+    min-block-size: 2.75rem;
+    padding-inline: --spacing(3) 12rem;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .gridded-group__details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .gridded-group__details > summary .icon {
+    flex: none;
+    color: var(--color-ink);
+    transition: rotate var(--duration);
+  }
+
+  .gridded-group__details[open] > summary .icon {
+    rotate: 180deg;
+  }
+
+  .gridded-group__details .table-wrap {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .gridded-group__zip {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: --spacing(3);
+    display: flex;
+    align-items: center;
+    block-size: 2.75rem;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 30rem) {
+    .gridded-group__details > summary {
+      padding-inline-end: --spacing(3);
+    }
+
+    .gridded-group__zip {
+      position: static;
+      block-size: auto;
+    }
+  }
+
+  /* The table fits the column: the index's name, the file and its variables end in an
+     ellipsis (their whole text is the title). */
+  .gridded-group__name {
+    inline-size: 24%;
+  }
+
+  .gridded-group__file {
+    inline-size: 40%;
+    min-inline-size: 10rem;
+  }
+
+  .gridded-group__vars {
+    inline-size: 18%;
+  }
 }

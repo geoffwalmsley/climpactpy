@@ -35,7 +35,6 @@
       <li><a href="#tabs">{% translate "Tabs" %}</a></li>
       <li><a href="#workspace-tabs">{% translate "Workspace tabs" %}</a></li>
       <li><a href="#stale">{% translate "Out-of-date results" %}</a></li>
-      <li><a href="#steps">{% translate "Step indicator" %}</a></li>
       <li><a href="#progress">{% translate "Progress" %}</a></li>
       <li><a href="#loading">{% translate "Loading and empty states" %}</a></li>
       <li><a href="#help">{% translate "Help in place" %}</a></li>
@@ -471,17 +470,6 @@
           <p>{% translate "22 of 80 indices changed significantly since 1936." %}</p>
           {% include "components/spark.html" with spark=spark_line %}
         </div>
-      </div>
-    </section>
-
-    <section class="pattern" id="steps" aria-labelledby="steps-title">
-      <h2 id="steps-title">{% translate "Step indicator" %}</h2>
-      <p>{% translate "Shown under the header during the gridded flow. Completed steps link back. On a narrow screen only the current step is named. A station uses workspace tabs instead, and a workspace its overview." %}</p>
-      <div class="stack">
-        {% translate "Example: the first step" as steps_first_label %}{% translate "Example: a middle step" as steps_middle_label %}{% translate "Example: the last step" as steps_last_label %}
-        {% include "components/steps.html" with steps=steps_first label=steps_first_label %}
-        {% include "components/steps.html" with steps=steps_middle label=steps_middle_label %}
-        {% include "components/steps.html" with steps=steps_last label=steps_last_label %}
       </div>
     </section>
 

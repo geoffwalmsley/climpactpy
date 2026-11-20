@@ -1,74 +1,58 @@
 {% extends "base.html" %}
-{% load i18n static ui help %}
-{% block title %}{% translate "Gridded data" %}{% endblock %}
-{% block steps %}{% include "components/steps.html" %}{% endblock %}
+{% load i18n %}{% comment %}
+Gridded (#289, the GridList board), which replaced the gridded start page and its
+"Recent runs": the title and lead with New gridded run (primary) at the title's end, then
+"Your runs", a data table with a row a run (Run, Grid, Period, Thresholds, Calculates,
+State with a bar while calculating, Kept until) and how long runs are kept; with no runs,
+one line and the sample grid in its place. Then three boxes: stations or a grid,
+scenarios, and the sample. Context from views.start: entries (runs.entries), local,
+sample_name.
+{% endcomment %}
+{% block title %}{% translate "Gridded" %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg station-page">
-  <header class="stack stack--sm">
-    <h1>{% translate "Calculate indices on gridded data" %}</h1>
-    <p class="lead">{% translate "Choose netCDF files of daily maximum and minimum temperature and precipitation. Climpact shows what they contain before anything is calculated, then calculates every index (or a thresholds file) for each cell of the grid." %}</p>
+<div class="stack stack--lg">
+  <header class="workspaces__head">
+    <div class="stack stack--sm max-w-prose">
+      <h1>{% translate "Gridded" %}</h1>
+      <p class="workspaces__lead">{% translate "The indices for every cell of a daily grid, from netCDF files of TX, TN and precipitation: one netCDF file per index and frequency, as Climpact for R writes them, with a map and each cell's series." %}</p>
+    </div>
+    <div class="workspaces__actions">
+      {% url 'gridded:new' as new_url %}{% translate "New gridded run" as new_label %}
+      {% include "components/button.html" with label=new_label href=new_url %}
+    </div>
   </header>
 
-  {% include "components/form_errors.html" with form=upload_form %}
-
-  <div class="grid items-start gap-5 grid-cols-fit-88 *:min-w-0">
-    {% if local %}
-    {% include "gridded/_chooser.html" %}
+  <section class="grid gap-2 min-w-0" aria-labelledby="runs-title">
+    <h2 id="runs-title" class="m-0 text-base">{% translate "Your runs" %}</h2>
+    {% if entries %}
+    {% include "gridded/_runs_table.html" %}
+    <p class="m-0 text-sm text-text-muted">{% if is_hosted %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept in this browser for {{ days }} day after their last change. Download what you want to keep.{% plural %}Runs are kept in this browser for {{ days }} days after their last change. Download what you want to keep.{% endblocktranslate %}{% else %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept on this computer for {{ days }} day after their last change; files read in place are never touched. Download what you want to keep.{% plural %}Runs are kept on this computer for {{ days }} days after their last change; files read in place are never touched. Download what you want to keep.{% endblocktranslate %}{% endif %}</p>
+    {% else %}
+    <form method="post" action="{% url 'gridded:sample' %}" class="flex flex-wrap items-center gap-3 p-4 border border-border rounded-sm bg-surface text-sm">
+      {% csrf_token %}
+      <p class="m-0">{% translate "No runs yet. Start one with New gridded run, or try the sample grid: 3 × 4 cells, 1991–2010, under a minute." %}</p>
+      {% translate "Use the sample grid" as sample_label %}{% include "components/button.html" with label=sample_label type="submit" variant="secondary" size="sm" %}
+    </form>
     {% endif %}
-
-    <div class="stack">
-      <form method="post" action="{% url 'gridded:upload' %}" enctype="multipart/form-data" class="card stack" novalidate>
-        {% csrf_token %}
-        <h2 class="card__title">{% if local %}{% translate "Or upload copies" %}{% else %}{% translate "Your netCDF files" %}{% endif %}</h2>
-        {% blocktranslate asvar hint with size=max_upload_mb %}netCDF, up to {{ size }} MB in all. One file with all three variables, or one file for each.{% endblocktranslate %}
-        {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
-        {% if not local %}{% help_topic "gridded.files" %}{% endif %}
-        {% if local %}<p class="text-sm text-text-muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
-        {% turnstile %}
-        <div>
-          {% translate "Upload and check" as upload_label %}
-          {% include "components/button.html" with label=upload_label type="submit" icon="upload" variant=local|yesno:"secondary,primary" %}
-        </div>
-      </form>
-
-      <section class="card stack" aria-labelledby="sample-title">
-        <span class="card__icon">{% icon "play" %}</span>
-        <h2 class="card__title" id="sample-title">{% translate "No files to hand?" %}</h2>
-        <p class="card__body">{% translate "Try a small cut of Climpact's sample grid: 3 by 4 cells over south-eastern Australia, daily from 1991 to 2010. It calculates in about a minute." %}</p>
-        <form method="post" action="{% url 'gridded:sample' %}">
-          {% csrf_token %}
-          {% translate "Use the sample grid" as sample_label %}
-          {% include "components/button.html" with label=sample_label type="submit" variant="secondary" icon="play" %}
-        </form>
-        <p class="text-sm"><a href="{% url 'gridded:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
-      </section>
-    </div>
-  </div>
-
-  {% include "gridded/_retention.html" %}
-
-  <details class="disclosure">
-    <summary>{% icon "help" %}<span>{% translate "What the files must contain" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body max-w-prose">
-      <p>{% translate "CF netCDF files (netCDF-3 or netCDF-4) with daily values on a grid, as Climpact for R reads them:" %}</p>
-      <ul>
-        <li>{% translate "maximum and minimum temperature in K or degrees_C, and precipitation in kg m-2 d-1, kg m-2 s-1 or mm/day;" %}</li>
-        <li>{% translate "each variable with dimensions time, latitude and longitude (any order), in one file or in separate files that share the same days and grid;" %}</li>
-        <li>{% translate "a time variable with units such as days since 1950-01-01, in the standard, noleap (365_day) or 360_day calendar." %}</li>
-      </ul>
-      <p>{% translate "The variables can have any names: you choose which is which on the next page. All three are needed." %}</p>
-    </div>
-  </details>
-
-  {% if recent %}
-  <section class="stack stack--sm" aria-labelledby="recent-title">
-    <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
-    <ul class="grid gap-2 ps-5 wrap-anywhere">
-      {% for item in recent %}
-      <li><a href="{% if item.jobs %}{% url 'gridded:results' item.pk %}{% else %}{% url 'gridded:setup' item.pk %}{% endif %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with when=item.updated_at|timesince %}changed {{ when }} ago{% endblocktranslate %}</span></li>
-      {% endfor %}
-    </ul>
   </section>
-  {% endif %}
+
+  <section class="grid gap-4 grid-cols-fit-64" aria-label="{% translate 'About gridded runs' %}">
+    {% url 'stations:workspaces' as workspaces_url %}
+    <div class="border border-border rounded-sm bg-surface p-4 stack stack--sm text-sm text-text-muted min-w-0">
+      <h2 class="m-0 text-base text-text">{% translate "Stations or a grid?" %}</h2>
+      <p class="m-0">{% blocktranslate trimmed %}Station series get quality checks, trend tables and index pages: use <a href="{{ workspaces_url }}">Workspaces</a>. Grids get the index files and a map; no quality checks.{% endblocktranslate %}</p>
+    </div>
+    <div class="border border-border rounded-sm bg-surface p-4 stack stack--sm text-sm text-text-muted min-w-0">
+      <h2 class="m-0 text-base text-text">{% translate "Scenarios" %}</h2>
+      <p class="m-0">{% translate "For a future period with no day in the base period, run the historical files with “Thresholds file, then indices”, then the scenario with that thresholds file." %}</p>
+    </div>
+    <div class="border border-border rounded-sm bg-surface p-4 stack stack--sm text-sm text-text-muted min-w-0">
+      <h2 class="m-0 text-base text-text">{% translate "Try it" %}</h2>
+      <form method="post" action="{% url 'gridded:sample' %}">
+        {% csrf_token %}{% url 'help:guide' 'gridded' as guide_url %}
+        <p class="m-0">{% blocktranslate trimmed %}<button type="submit" class="link-button">The sample grid</button>: 3 × 4 cells, 1991–2010, under a minute.{% endblocktranslate %} <a href="{{ guide_url }}">{% translate "Gridded help" %}</a></p>
+      </form>
+    </div>
+  </section>
 </div>
 {% endblock %}

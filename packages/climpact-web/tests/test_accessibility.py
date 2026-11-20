@@ -242,6 +242,7 @@ def site(chrome, server):
         ("add stations", "/add/"),
         ("workspace open", "/w/open/"),  # Open a workspace file (#240)
         ("gridded start", "/gridded/"),
+        ("gridded new run", "/gridded/new/"),  # #289
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),
         ("help indices", "/help/indices/"),
@@ -410,6 +411,11 @@ def site(chrome, server):
     heard = while_running(c, "gridded run")
     wait_for(c, "!!document.querySelector('.gmap')", what="the gridded run", heard=heard)
     pages["gridded results"] = here(c)
+    run_url = pages["gridded results"].split("?")[0]  # the run's Map tab (#289)
+    pages["gridded files"] = run_url + "files/"
+    pages["gridded rename"] = run_url + "rename/"
+    pages["gridded forget"] = run_url + "delete"
+    pages["gridded runs"] = open_url("/gridded/")
 
     # The error pages without a URL.
     def too_large(c):

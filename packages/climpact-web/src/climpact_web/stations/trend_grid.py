@@ -9,7 +9,9 @@ blue for a decrease, the strong step for a slope at least half the largest in it
 a dashed edge when it does not, hatched for a station without results. A station whose
 results are out of date (``workspace_files.Entry.out_of_date``: its recalculation failed, or
 was not run or cancelled) is tagged "· out of date" after its name, in the grid and in the
-plot, as Files and its Indices say (#279).
+plot, as Files and its Indices say (#279). A station whose run made no index table (every
+index skipped, as for a file whose values are all missing) is hatched and tagged "· no
+indices", as its row on the overview and its Indices tab say (#298, #315).
 
 The **interval plot** is the selected column: each station's slope as a dot and its 95%
 interval as a line about a zero line, on an axis shared by the stations (symmetric about
@@ -89,6 +91,7 @@ class GridRow:
     why: str = ""  # without results: "not run", "failed"...
     out_of_date: bool = False  # its results are from before a change (#279)
     failed: bool = False  # hatched though it has results: they are out of date and it failed
+    no_indices: bool = False  # hatched: its run made no index table (#298, #315)
 
 
 @dataclass
@@ -141,23 +144,26 @@ class _Station:
     cards: dict  # code -> results.Card with a trend
     out_of_date: bool = False  # the trends shown are from before a change (#279)
     failed: bool = False  # out of date and failed, hidden (``SHOW_FAILED_OUT_OF_DATE``)
+    no_indices: bool = False  # its run made no index table (#298): nothing to show
 
     @property
     def has_results(self) -> bool:
-        return self.entry.source is not None and not self.failed
+        return self.entry.source is not None and not self.failed and not self.no_indices
 
 
 def _stations(items: list[workspace_files.Entry]) -> list[_Station]:
     out = []
     for entry in items:
         cards = {}
-        out_of_date = entry.source is not None and entry.out_of_date
+        # A run that skipped every index (#298) has no trend to show, out of date or not.
+        no_indices = entry.source is not None and not entry.source.has_tables
+        out_of_date = entry.source is not None and entry.out_of_date and not no_indices
         failed = out_of_date and entry.failed and not SHOW_FAILED_OUT_OF_DATE
-        if entry.source is not None and not failed:
+        if entry.source is not None and not failed and not no_indices:
             run = workspace_files._results(entry)
             ordered = [c for theme in run.themes() for c in theme.cards]
             cards = {c.code: c for c in ordered if c.trend is not None}
-        out.append(_Station(entry, cards, out_of_date and not failed, failed))
+        out.append(_Station(entry, cards, out_of_date and not failed, failed, no_indices))
     return out
 
 
@@ -240,6 +246,8 @@ def _cell(station: _Station, choice: Choice, scale: float) -> Cell:
     entry = station.entry
     if station.failed:
         return Cell("none", label=_("%(code)s: failed") % {"code": choice.code})
+    if station.no_indices:
+        return Cell("none", label=_("%(code)s: no indices") % {"code": choice.code})
     if entry.source is None:
         return Cell("none", label=_("%(code)s: no results") % {"code": choice.code})
     card = station.cards.get(choice.code)
@@ -296,6 +304,9 @@ def interval_plot(stations: list[_Station], choice: Choice) -> IntervalPlot:
         card = s.cards.get(choice.code)
         if s.failed:
             left_out.append(_("%(name)s: failed") % {"name": entry.name})
+            continue
+        if s.no_indices:
+            left_out.append(_("%(name)s: no indices") % {"name": entry.name})
             continue
         if entry.source is None:
             left_out.append(_("%(name)s: no results") % {"name": entry.name})
@@ -361,7 +372,16 @@ def grid_of(stations: list[_Station], wanted: list[str] | None, selected: str | 
         cells = [_cell(s, c, scales[c.code]) for c in columns]
         url = s.entry.station.url("results")
         rows.append(
-            GridRow(s.entry.name, url, cells, s.has_results, s.entry.why, s.out_of_date, s.failed)
+            GridRow(
+                s.entry.name,
+                url,
+                cells,
+                s.has_results,
+                s.entry.why,
+                s.out_of_date,
+                s.failed,
+                s.no_indices,
+            )
         )
     codes = [c.code for c in columns]
     by_code = {c.code: c for c in choices}

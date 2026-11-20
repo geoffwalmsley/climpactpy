@@ -197,9 +197,9 @@ def workspaces_demo() -> dict:
 
 
 def trends_demo() -> dict:
-    """Trends across stations (#238): four stations by four indices, one without results
-    and one whose results are out of date (#279), with each state of a cell, and the first
-    column's interval plot."""
+    """Trends across stations (#238): five stations by four indices, one without results,
+    one whose results are out of date (#279) and one whose run made no index (#315), with
+    each state of a cell, and the first column's interval plot."""
     from types import SimpleNamespace
 
     from climpact_web.stations import trend_grid
@@ -251,6 +251,13 @@ def trends_demo() -> dict:
         trend_grid._Station(
             SimpleNamespace(name=_("Moruya Heads"), source=None, why=_("failed"), station=place),
             {},
+        )
+    )
+    stations.append(
+        trend_grid._Station(
+            SimpleNamespace(name=_("Empty Hill"), source=True, why="", station=place),
+            {},
+            no_indices=True,
         )
     )
     found = trend_grid.grid_of(stations, [i[0] for i in indices], None)

@@ -6643,7 +6643,8 @@ A workspace of one station has none: the address leads to its station's Files.
   the year and the daily EHF and ECF tables have no row. `units` is a column the board does
   not draw, so the slope's unit is in the file. `out_of_date` (#279) is yes for every row
   of a station whose results are from before a change (`workspace_files.Entry.out_of_date`:
-  its recalculation failed, was not run or was cancelled), no otherwise.
+  its recalculation failed, was not run or was cancelled), no otherwise. A station
+  without results, or whose run made no index table (#298), has no row.
 - **Indices, all stations** (`workspace_files.indices_csv`): `station, index, year, month,
   value`, long format: every yearly value (month empty) and monthly value of each
   station's index tables, from the values the charts read (`results.RunResults.plots`),
@@ -6729,6 +6730,16 @@ Stations table and alone on Compare an index, `/w/<id>/compare/`
   are hidden and its row hatched "· failed" as the Calculate board draws a failed row
   (`_Station.failed`, `GridRow.failed`; the plot lists it "failed"). Its rows stay in the
   CSV either way, marked `out_of_date` yes.
+- **A station with no indices** (#315). A station whose run shown made no index table
+  (every index skipped, as for a file whose TX, TN and PR are all missing;
+  `results.RunSource.has_tables` false, the overview's "No indices", #298) has nothing to
+  draw: its row is hatched as a station without results (`_Station.no_indices`,
+  `GridRow.no_indices`, `trend-grid__empty`), "· no indices" follows its name (the dot
+  `aria-hidden`, as "· failed"), each cell's words are "<code>: no indices", and the
+  interval plot lists it "<name>: no indices" under "Not shown". Out-of-date results that
+  made no index are drawn the same, without the out-of-date tag. It has no rows in the
+  CSV, as a station without results has none: there is no slope to write, and an empty
+  row would read as "too few values for a trend".
 - **Columns** (`trend_grid.columns_for`): TXx, TNn, TN90p, TX10p, SU, TR, WSDI,
   PRCPTOT, Rx1day, R95p and CDD, those some station has; "Choose indices" offers every
   index with a trend at some station, by theme (`trend_grid.available`). A choice is
@@ -6739,7 +6750,7 @@ Stations table and alone on Compare an index, `/w/<id>/compare/`
   the trend scale when the interval excludes zero, the strong step when the slope is at
   least half the column's largest significant slope (`_scale`), the weak one below;
   `not-significant` (a dashed edge), `invalid` ("–", too few values for a trend), `none`
-  (hatched). Each is a link to the station's index page with the slope, interval and
+  (hatched: no results, failed, or no indices). Each is a link to the station's index page with the slope, interval and
   significance in words for screen readers.
 - **The interval plot** (`trend_grid.interval_plot`): every column's is in the page, the
   selected one (`?index=`, else the first column) shown; `js/trends.js` switches them in

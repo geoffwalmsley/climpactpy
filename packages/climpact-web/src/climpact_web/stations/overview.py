@@ -99,7 +99,7 @@ def _quality(station: Station, state: str) -> Quality:
             "n": numbers.grouped(wrong)
         }
         return Quality(state, label, count, count_label)
-    if state == "locked":  # no checks: a file the batch left out, say
+    if state == "locked":  # no checks: a station without a usable file
         return Quality(state, "–")
     return Quality(state, str(workspace.STATES[state][0]))
 
@@ -114,12 +114,8 @@ def _sentence(text: str) -> str:
 
 
 def not_run_reason(error: str) -> str:
-    """The first line of why a station was not run, without "Not calculated: "."""
-    head = (error or "").split("\n", 1)[0].strip()
-    for prefix in (_("Not calculated:"), "Not calculated:"):
-        if head.startswith(prefix):
-            head = head[len(prefix) :].strip()
-    return head
+    """The first line of why a station was not run (its batch job was cancelled)."""
+    return (error or "").split("\n", 1)[0].strip()
 
 
 def base_period_problem(error: str) -> bool:
@@ -143,7 +139,7 @@ def _no_indices_reason(station: Station, job) -> str:
 def _indices(station: Station, state, quality: Quality, space: Workspace) -> Indices:
     """The Indices column: the station's run state in words, with its fix."""
     if state is None:
-        # No run of a batch nor of its own: before its checks, or a file left out.
+        # No run of a batch nor of its own: before its checks, or without a usable file.
         section = workspace.section_states(station)["results"]
         if section == "running":
             return Indices(CALCULATING, _("Calculating"))

@@ -1,17 +1,14 @@
-"""Checking a batch before it runs (#80): the metadata file, then each station it lists.
+"""Reading a batch's files (#80): the metadata file, and zips of station files.
 
 The core (:func:`climpact.batch.read_batch_metadata`) stays the authority on what the
 metadata file means, but its errors are written for the command line and it stops at the
-first. This module walks the file first with the same rules (whitespace-separated
+first. :func:`check_metadata` walks the file first with the same rules (whitespace-separated
 fields, ``#`` comments and blank lines skipped, the first line a header) and reports every
 problem in plain language with its **line number** and the line itself, as the station
-file check of step 1 does (:mod:`climpact_web.stations.station_file`).
-
-Each station is then *ready*, *missing* (no file of that name was uploaded) or *invalid*
-(its file has problems, its name cannot be used, or its location or index parameters are
-out of range), with the reasons. Station files are checked by the single-station check
-(:func:`~climpact_web.stations.station_file.inspect_station_bytes`), so a file accepted
-here is accepted in step 1 and the other way round.
+file check does (:mod:`climpact_web.stations.station_file`). Add stations (#233) reads a
+metadata file with it and checks each line's index values with :func:`parameter_problems`;
+:func:`metadata_text` writes a batch job's metadata file. Add stations adds only the
+stations it can run, so every station of a batch runs (#311).
 
 Uploads may be loose files or zip files holding them (and the metadata file); see
 :func:`unpack`.
@@ -19,7 +16,6 @@ Uploads may be loose files or zip files holding them (and the metadata file); se
 
 from __future__ import annotations
 
-import re
 import zipfile
 from dataclasses import asdict, dataclass, field
 from io import BytesIO
@@ -28,13 +24,7 @@ from pathlib import PurePosixPath
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
-from climpact_web.jobs.forms import STATION_NAME
-from climpact_web.stations.station_file import (
-    MAX_PROBLEMS_SHOWN,
-    decode,
-    inspect_station_bytes,
-    shorten,
-)
+from climpact_web.stations.station_file import MAX_PROBLEMS_SHOWN, decode, shorten
 
 # The metadata columns, as climpact.batch.COLUMNS (R's read.file.list.metadata).
 COLUMNS = (
@@ -97,7 +87,7 @@ class Problem:
 
 @dataclass
 class StationCheck:
-    """One row of the metadata file, and what was found for it."""
+    """One row of the metadata file."""
 
     name: str
     station_file: str
@@ -105,28 +95,15 @@ class StationCheck:
     latitude: float
     longitude: float
     params: dict  # IndexParams fields from the metadata row
-    status: str = "ready"  # "ready", "missing" or "invalid"
-    problems: list[dict] = field(default_factory=list)
-    problem_count: int = 0
-    warnings: list[str] = field(default_factory=list)
-    summary: dict | None = None  # period and missing data, from the file
-
-    def add(self, message: str, line: int | None = None, text: str = "") -> None:
-        self.problem_count += 1
-        if len(self.problems) < MAX_PROBLEMS_SHOWN:
-            self.problems.append(asdict(Problem(message, line, text)))
 
 
 @dataclass
 class BatchCheck:
-    """Everything the check page shows: as JSON in ``BatchRun.check``."""
+    """What reading a metadata file found wrong with it (:func:`check_metadata`)."""
 
     metadata_problems: list[dict] = field(default_factory=list)
     metadata_problem_count: int = 0
     metadata_warnings: list[str] = field(default_factory=list)
-    stations: list[StationCheck] = field(default_factory=list)
-    extra_files: list[str] = field(default_factory=list)
-    upload_problems: list[str] = field(default_factory=list)
 
     def add(self, message: str, line: int | None = None, text: str = "") -> None:
         self.metadata_problem_count += 1
@@ -136,9 +113,6 @@ class BatchCheck:
     @property
     def metadata_ok(self) -> bool:
         return not self.metadata_problem_count
-
-    def to_json(self) -> dict:
-        return asdict(self)
 
 
 # ---- Uploads ----------------------------------------------------------------------------
@@ -377,32 +351,7 @@ def check_metadata(raw: bytes, result: BatchCheck) -> list[StationCheck]:
     return stations
 
 
-# ---- Each station -----------------------------------------------------------------------
-
-
-def check_parameters(station: StationCheck) -> None:
-    """R's ``validate_climdexInputParams`` and the location ranges, in plain language.
-    In R a bad parameter stops the whole batch; here it stops only its station."""
-    p = station.params
-    if not -90 <= station.latitude <= 90:
-        station.add(
-            _("Latitude %(value)s is outside -90 to 90.") % {"value": f"{station.latitude:g}"},
-            station.line,
-        )
-    if not -180 <= station.longitude <= 180:
-        station.add(
-            _("Longitude %(value)s is outside -180 to 180.") % {"value": f"{station.longitude:g}"},
-            station.line,
-        )
-    for message in parameter_problems(p):
-        station.add(message, station.line)
-    if station.latitude == 0:
-        station.warnings.append(
-            _(
-                "Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
-                "which decides the season used for the growing season length and heatwaves."
-            )
-        )
+# ---- The stations ----------------------------------------------------------------------
 
 
 def parameter_problems(p: dict) -> list[str]:
@@ -428,34 +377,6 @@ def parameter_problems(p: dict) -> list[str]:
     return out
 
 
-def check_name(station: StationCheck) -> bool:
-    if "/" in station.station_file or "\\" in station.station_file:
-        station.add(
-            _(
-                "“%(file)s” is a folder path. Give only the file's name, e.g. "
-                "%(example)s, and upload the file."
-            )
-            % {
-                "file": station.station_file,
-                "example": PurePosixPath(station.station_file.replace("\\", "/")).name,
-            },
-            station.line,
-        )
-        return False
-    if not re.match(STATION_NAME, station.name):
-        station.add(
-            _(
-                "The station name “%(name)s” (the file name without its extension) cannot "
-                "be used: use letters, digits, spaces and . ( ) - _ only, not starting with "
-                "a dot. Rename the file and the line in the metadata file."
-            )
-            % {"name": station.name},
-            station.line,
-        )
-        return False
-    return True
-
-
 def similar_file(name: str, files: dict[str, bytes]) -> str | None:
     """An uploaded file the user may have meant: the same name in other capitals, or the
     same name with another extension."""
@@ -471,64 +392,12 @@ def similar_file(name: str, files: dict[str, bytes]) -> str | None:
 
 
 def short_summary(summary: dict) -> dict:
-    """What the check page shows of a station's data (and the base period check needs)."""
+    """What Add stations' review keeps of a station file's summary (its period and missing
+    values, for the base period check)."""
     keys = ("first_date", "last_date", "first_year", "last_year", "days")
     out = {k: summary[k] for k in keys}
     out["missing"] = {v["key"]: v["percent_missing"] for v in summary["variables"]}
     return out
-
-
-def check_station(station: StationCheck, files: dict[str, bytes]) -> None:
-    if not check_name(station):
-        station.status = "invalid"
-        return
-    check_parameters(station)
-    raw = files.get(station.station_file)
-    if raw is None:
-        if station.problem_count:
-            station.status = "invalid"
-            return
-        station.status = "missing"
-        similar = similar_file(station.station_file, files)
-        if similar:
-            station.add(
-                _(
-                    "No file named %(file)s was uploaded, but %(similar)s was. Names must "
-                    "match the metadata file exactly, including capitals and the extension."
-                )
-                % {"file": station.station_file, "similar": similar}
-            )
-        else:
-            station.add(_("No file named %(file)s was uploaded.") % {"file": station.station_file})
-        return
-    inspection = inspect_station_bytes(raw)
-    for problem in inspection.problems:
-        station.add(problem.message, problem.line, problem.text)
-    station.problem_count += inspection.hidden_problems
-    station.warnings.extend(inspection.warnings)
-    if inspection.summary:
-        station.summary = short_summary(inspection.summary)
-    station.status = "invalid" if station.problem_count else "ready"
-
-
-def check_batch(metadata: bytes | None, files: dict[str, bytes]) -> BatchCheck:
-    """Check a batch: the metadata file and every station it lists."""
-    result = BatchCheck()
-    if metadata is None:
-        result.add(_("Choose the batch metadata file."))
-        stations = []
-    else:
-        stations = check_metadata(metadata, result)
-    for station in stations:
-        check_station(station, files)
-    result.stations = stations
-    listed = {s.station_file for s in stations}
-    result.extra_files = sorted(name for name in files if name not in listed)
-    return result
-
-
-def ready_stations(check: dict) -> list[dict]:
-    return [s for s in check.get("stations", []) if s["status"] == "ready"]
 
 
 def metadata_text(stations: list[dict]) -> str:

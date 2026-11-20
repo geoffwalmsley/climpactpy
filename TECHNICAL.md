@@ -2540,7 +2540,7 @@ file must be text-identical.
 | The time axis is padded to whole years; padded days count as missing | same |
 | `northern.hemisphere = latitude > 0`, so latitude 0 is treated as Southern Hemisphere | same (`StationMetadata.northern_hemisphere`); matters for gsl and heatwaves |
 | `qualityControlCheck` stops with "Years are not in ascending order" when they are not | the check runs after the merge, which sorts the rows, so it never fires; Python has no such check either |
-| `read_user_file` reads the columns with `read.table(colClasses = rep("real", 6))`, whose default `na.strings = "NA"` makes the field `NA` (exactly; `na`, `N/A`, `+NA` stop R with "scan() expected 'a real'") missing in any column. `NaN` in any case is read as a missing number too, and `Inf`/`infinity` (any case) as infinite numbers. An `NA` in the year, month or day makes the date invalid, so the row is dropped (and in the first row's first field it makes the row a header). Checked with the R image in `reference/r` | same (`io.station.read_station_rows` reads `NA` as NaN, `NA_STRING`; Python's `float` already reads `NaN` and `Inf` as R does and refuses `na`). The web app's step 1 and the batch pre-flight (`stations/station_file.py`, used by `batch/check.py`) accept `NA` as missing too; they still refuse `Inf` and offer "-99.9 (or NA, in capitals)" for `na`, `N/A`, `NULL`, `-` and `.` (#99). The help guides keep -99.9 as the recommended code |
+| `read_user_file` reads the columns with `read.table(colClasses = rep("real", 6))`, whose default `na.strings = "NA"` makes the field `NA` (exactly; `na`, `N/A`, `+NA` stop R with "scan() expected 'a real'") missing in any column. `NaN` in any case is read as a missing number too, and `Inf`/`infinity` (any case) as infinite numbers. An `NA` in the year, month or day makes the date invalid, so the row is dropped (and in the first row's first field it makes the row a header). Checked with the R image in `reference/r` | same (`io.station.read_station_rows` reads `NA` as NaN, `NA_STRING`; Python's `float` already reads `NaN` and `Inf` as R does and refuses `na`). The web app's station file check (`stations/station_file.py`, used by step 1 and Add stations' review) accepts `NA` as missing too; it still refuses `Inf` and offers "-99.9 (or NA, in capitals)" for `na`, `N/A`, `NULL`, `-` and `.` (#99). The help guides keep -99.9 as the recommended code |
 | `scan` reads hexadecimal numbers (`0x10` is 16) and refuses digit separators (`1_0`) | Python's `float` does the opposite: `0x10` is an error and `1_0` is 10. Neither appears in a real station file; not changed |
 | A UTF-8 byte-order mark is kept by `readLines`, so the first row's first field is not an integer and the first data row is skipped as a header | same in the core; the web app stores uploads without the BOM, so it keeps that row |
 
@@ -5050,7 +5050,7 @@ the workspace's (#254). A station of a batch (`source` `batch`, #255) keeps the 
 values of its line in the batch's metadata file as its own (`origin["params"]`), its
 state in the batch's latest run (`origin["run"]`) and, when the batch calculated it,
 `origin["job"]` and `origin["inputs"]`, what the batch's results were made from
-(`workspace.batch_results`; a station that failed or was left out has none).
+(`workspace.batch_results`; a station that failed, or has not finished a run, has none).
 
 **Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
 which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
@@ -6265,7 +6265,8 @@ each station's files are on its Files tab, and the workspace's are Files' (#239)
 
 **Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
-check result as JSON (`report`, `check.BatchCheck.to_json()`); the run options `workers`
+review of Add stations as JSON (`report`, `stations/add_stations.py`, with the `stations`
+`add_many` queues); the run options `workers`
 and `plots` (the base period is the workspace's since #255); `job` (null on delete);
 `filled_job`, the run whose outcome was recorded on the workspace's stations (#255, null
 on delete). Files live in
@@ -6277,9 +6278,14 @@ batch again. Since #231 a batch has a `workspace`, made with it, and is deleted 
 their workspace's retention, and deleting the workspace deletes them (#274; the batch
 page's own "Delete these files now" went with #271).
 
-**The check** (`batch/check.py`). Add stations reads a metadata file with its
-`check_metadata` and zips with `unpack`; `check_batch`, the old check page's whole check,
-is used now only by the tests' batches with stations left out (`tests/made.py`, #271; whether it stays is #311).
+**Reading the files** (`batch/check.py`). Add stations reads a metadata file with its
+`check_metadata`, zips with `unpack` and a metadata line's index values with
+`parameter_problems`, and `metadata_text` writes the job's metadata file. The old check
+page's whole check (`check_batch`: each station *ready*, *file missing* or *has problems*)
+and the "not run" stations it made were removed in #311 (decision of 2026-11-20): Add
+stations adds only rows it can run, so its batches never leave a station out, and the
+batches of the old upload do not outlive their workspace's retention. The tests make their
+batches at model level with every station's file (`tests/made.py`'s `batch`).
 The metadata file is walked with
 `read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
 skipped, the first line the header) and every problem is reported in plain language with
@@ -6290,17 +6296,8 @@ fraction, two lines giving the same station name. A test checks that the core re
 the check accepts to the same stations. Any of these makes the metadata file unusable, as
 `read.table` stops R's whole batch. A first line that looks like a station (12 fields, a
 number second) is a warning: R and the core read it as the header, so that station is
-left out. Then each station:
-
-- *has problems* when its station file name is a path, its station name (the file name
-  without its extension) breaks the station name rules (`jobs.forms.STATION_NAME`; it
-  becomes a folder), its latitude or longitude is out of range, a parameter fails R's
-  `validate_climdexInputParams` rules (the same as `climpact.batch.validate_params`,
-  checked against it by a test), or its file fails step 1's checks
-  (`inspect_station_bytes`: the same messages with file lines);
-- *file missing* when no file of that name was uploaded, with a hint when a file of the
-  same name in other capitals, or with another extension, was;
-- *ready* otherwise, with step 1's warnings (dates R drops, repeated dates, latitude 0).
+left out. `parameter_problems` applies R's `validate_climdexInputParams` rules (the same
+as `climpact.batch.validate_params`, checked against it by a test).
 
 **Options** (`batch/forms.py`'s `OptionsForm`, Add stations' "Change workspace
 settings" since #233). The R screen's base period (here 1971-2000 by default) and, in the
@@ -6313,12 +6310,10 @@ station's coverage of the base period instead.
 **The job** (`views_add.queue_batch`, #271: `add_many` and the tests' batches share it).
 The job takes the workspace's base period and custom index (`custom`, none for a batch's
 workspace unless its settings were changed) and the run's `workers` and `plots`. It
-writes a metadata file in R's format with only the ready stations (`check.metadata_text`, numbers written so they read back the same) and copies
+writes a metadata file in R's format with the stations (`check.metadata_text`, numbers written so they read back the same) and copies
 their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
 `station_zips`, `report` (with the plots), `folder` (the metadata file's name without its extension, as R names the
-batch folder and zip) and `skipped` (the other stations and why). The runner writes each
-skipped station's reason to `<folder>/<station>.errors.txt`, so the zip lists it like a
-failed station; runs `run_batch` (a failing station fails alone, its error in R's error
+batch folder and zip). The runner runs `run_batch` (a failing station fails alone, its error in R's error
 file); zips each finished station to `output/stations/<station>.zip` (as R's
 single-station zip) and the whole batch folder to `output/<folder>.zip`; with `report`,
 `run_batch` writes each station's PDF report to `output/reports/<station>_report.pdf`,
@@ -6333,18 +6328,18 @@ station's error is shown without the exception's class name or the job folder's 
 workspace, not a separate kind of result (#230, decision 5). Every station of its metadata
 file is a `Station` of the batch's workspace, whether it calculated or not: the workspace
 overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its run state
-(Done, Calculating with its percentage, Waiting, Not run, Failed with why).
+(Done, Calculating with its percentage, Waiting, Not run once its batch job was cancelled,
+Failed with why).
 
 - *When the run is queued* (`queue_batch`), `add_stations` adds them all: `source` `batch`,
   name, location, slug and the station file (from the batch's `files/`, when it can be
   read), and `origin = {"batch", "station", "params", "run"}`: the batch, the station's
   name in it, the `IndexParams` fields of its metadata line, and its state in this run
-  (`{"job", "state", "error"}`). A ready station is `waiting`, at step `qc` (its address
-  leads to Quality, its checks not yet run). One the check left out is `not_run`, with
-  the check's reasons as `error` (the text of its error file, `views_add.skip_reason`), at
-  step `upload` and without a file when it has none that can be read, so its address
-  leads to its setup page, where a corrected file is loaded. Add stations adds only rows
-  it can run, so its batches have none; a batch of the old upload, or a test's, may. The job gets `stations_added`.
+  (`{"job", "state", "error"}`). Each station is `waiting`, at step `qc` (its address
+  leads to Quality, its checks not yet run). The job gets `stations_added`.
+- *When the job is cancelled* (Cancel on the run status line), a station still waiting on
+  it is `not_run` with "The run was cancelled." (`run_states` reads it from the job, so
+  nothing is recorded).
 - *When the job has succeeded*, `fill_workspace` records how it went, the first time the
   workspace's overview or its polled fragment is shown, or one of its stations is opened
   (`stations.views.filled`, through `get_analysis`, for a station opened first). A station that calculated gets
@@ -6365,8 +6360,8 @@ run's replace them (with the station's own jobs from before the run). `run_state
 gives each station's `RunState` (state, percent, error, job): its own run when one was
 queued after the batch's (a change to the workspace's settings, #254), else its batch
 run's, live from the runner's `stations.json` while the job runs (`station_status`).
-`run_progress(run)` gives the run as a whole for the run status line: done of total (those
-not run not counted), failed, calculating, waiting, not run, elapsed, remaining, finished.
+`run_progress(run)` gives the run as a whole for the run status line: done of total,
+failed, calculating, waiting, elapsed, remaining, finished.
 A settings change has its own, `workspace.change_state` (#254). The overview's run status
 line sums up the stations' `RunState`s instead, so a batch and a recalculation read the
 same. Each row links to the station's furthest section. A change to the workspace's
@@ -6414,7 +6409,7 @@ the batch steps.
   The batch's zip is no longer offered here (#239): Export ▾ and Files have the
   workspace's files, made from whatever each station shows.
   Red when one failed: it is named with its error, and Workspace settings is offered.
-  Stations the batch check left out (`not_run`) are not counted in the total. A station
+  Stations not run (`not_run`, their batch job cancelled) are not counted in the total. A station
   whose run made no index table (#298) has finished but is not counted as calculated:
   "1 of 2 stations calculated in 16 s. Empty Hill has no indices: every value is
   missing." (the reason when the job's `skipped` lists the indices; "2 stations have no
@@ -6432,7 +6427,7 @@ the batch steps.
   `workspace.made_no_indices`, every index skipped as for a file whose TX, TN and PR are
   all missing, muted as "Not run" is, `Indices.empty` and `data-indices="empty"`, #298)
   with its fix ("Replace the file" for a station with no indices, the File sheet's page,
-  `workspace.sheet_url`; "Fix the file" for a station left out without a usable file,
+  `workspace.sheet_url`; "Fix the file" for one not run without a usable file,
   "Fix quality first" for one not run whose verdict is Fix first, "Change base period"
   when a failure names the base period), and how many of its indices have a significant
   trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'

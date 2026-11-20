@@ -4,6 +4,7 @@ changed."""
 
 import re
 
+import made
 import pytest
 from test_batch import created, media, metadata, run_worker, station  # noqa: F401
 from test_batch_workspace import finished_batch
@@ -117,7 +118,7 @@ def test_a_workspace_with_a_station_of_that_name_is_refused(client):
 
 
 def test_copy_is_offered_on_the_station_and_in_the_stations_table(client):
-    run = finished_batch(client, "a", "b", missing=["d"])
+    run = finished_batch(client, "a", "b")
     a = Station.objects.get(station_name="a")
     html = client.get(a.url("results")).content.decode()
     provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
@@ -129,8 +130,6 @@ def test_copy_is_offered_on_the_station_and_in_the_stations_table(client):
     # Cancel goes back where the copy was asked from.
     page = client.get(f"{a.url('copy')}?next=/w/{run.workspace_id}/").content.decode()
     assert f'href="/w/{run.workspace_id}/"' in page.split("sheet__title")[1]
-    # A station left out without a file has nothing to copy.
-    d = Station.objects.get(station_name="d")
-    d_row = overview.split('data-station="d"')[1].split("</tr>")[0]
-    assert "Copy…" not in d_row
-    assert client.get(d.url("copy"))["Location"] == workspace.home_url(d)
+    # A station not set up yet has nothing to copy.
+    unset = made.station_to_set_up(client, station())
+    assert client.get(unset.url("copy"))["Location"] == workspace.home_url(unset)

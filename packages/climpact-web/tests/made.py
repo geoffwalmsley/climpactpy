@@ -9,10 +9,11 @@ batch upload forms went (#271), so they are made here, as those forms made them:
   on its setup page (``stations:setup``), as the New station page's "Read the file" (or
   ``/station/sample``) left one. The setup page stays, for a new file that needs new
   details and for a batch's station whose file was missing.
-- :func:`checked_batch` and :func:`queue`: a batch checked against its metadata file, with
-  stations that are missing or have problems (which Add stations' review does not let
-  through), queued as Add stations queues one (``views_add.queue_batch``), so that the
-  workspace's stations that were not run are covered too.
+- :func:`batch` and :func:`queue`: a batch of a metadata file and its station files, every
+  station listed with its file as Add stations reports them (``views_add.add_many``),
+  queued as Add stations queues one (``views_add.queue_batch``) with the options a test
+  needs (its base period, workers, plots), which Add stations' review takes from the
+  workspace instead.
 """
 
 from __future__ import annotations
@@ -76,31 +77,37 @@ def station_to_set_up(client, text=None, name="my station.txt", sample=False) ->
     return station
 
 
-def checked_batch(client, meta, metadata_name="stations.txt", **stations) -> BatchRun:
-    """A batch of the metadata file ``meta`` (text, or None) and the station files (text or
-    bytes by name; a zip is unpacked, with any metadata file in it), checked against the
-    metadata file (``batch.check``) and waiting to be queued."""
+def batch(client, meta, metadata_name="stations.txt", workspace=None, **stations) -> BatchRun:
+    """A batch of the metadata file ``meta`` (text, or None for the one in a zip) and the
+    station files (text or bytes by name; a zip is unpacked, with any metadata file in it),
+    waiting to be queued, in a workspace of its own or ``workspace``. Every station the
+    metadata file lists has its file, as on Add stations, which adds only stations it can
+    run (#311)."""
+    from dataclasses import asdict
+
     uploads = [(n, t.encode() if isinstance(t, str) else t) for n, t in stations.items()]
     unpacked = check.unpack(uploads)
     metadata = meta.encode() if isinstance(meta, str) else meta
-    if metadata is None and unpacked.metadata:
+    if metadata is None:
         metadata_name, metadata = unpacked.metadata
-    run = BatchRun(owner=owner(client), metadata_name=metadata_name if metadata else "")
+    result = check.BatchCheck()
+    listed = check.check_metadata(metadata, result)
+    assert result.metadata_ok, result.metadata_problems
+    for station in listed:
+        assert inspect_station_bytes(unpacked.files[station.station_file]).ok, station.name
+    run = BatchRun(owner=owner(client), metadata_name=metadata_name, workspace=workspace)
     run.save()
-    if metadata is not None:
-        run.save_metadata(metadata)
+    run.save_metadata(metadata)
     run.save_files(unpacked.files)
-    result = check.check_batch(metadata, run.station_files())
-    result.upload_problems = list(unpacked.problems)
-    run.report = result.to_json()
+    run.report = {"stations": [asdict(s) for s in listed]}
     run.save()
     return run
 
 
 def queue(client, run: BatchRun, options=None) -> BatchRun:
     """Queue the batch with ``options``, as the batch's options took them (the base period's
-    ``base_start`` and ``base_end``, ``workers``, ``plots``; no plots unless given): its
-    ready stations run, the others are its workspace's stations, not run, with why."""
+    ``base_start`` and ``base_end``, ``workers``, ``plots``; no plots unless given): each
+    station is its workspace's, waiting."""
     from climpact_web.stations.calculation import forget_undo
     from climpact_web.stations.views_add import queue_batch
 

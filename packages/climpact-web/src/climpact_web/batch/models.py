@@ -1,11 +1,11 @@
 """Batch processing of stations (#80): the data model.
 
-A :class:`BatchRun` is one batch going through the batch page: the uploaded metadata file
-and station files (in its own folder), the result of checking them
-(:mod:`climpact_web.batch.check`), the run options chosen before it starts (``workers``
-and ``plots``) and the background job that runs it. It fills a workspace
-(:class:`climpact_web.stations.models.Workspace`, #231), made with it, and is deleted with
-that workspace (:mod:`climpact_web.stations.retention`). The base period and the custom
+A :class:`BatchRun` is one batch of stations on Add stations (#233): the uploaded metadata
+file and station files (in its own folder), what reading them found (``report``, Add
+stations' review, :mod:`climpact_web.stations.add_stations`), the run options chosen
+before it starts (``workers`` and ``plots``) and the background job that runs it. It fills
+a workspace (:class:`climpact_web.stations.models.Workspace`, #231), made with it, and is
+deleted with that workspace (:mod:`climpact_web.stations.retention`). The base period and the custom
 index are the workspace's (#255). Once the job has finished, its stations become stations
 of the workspace (:mod:`climpact_web.batch.fill`). The job copies the files it needs into
 its own ``input/`` folder when it is queued; it is kept as long as the batch.
@@ -52,7 +52,7 @@ class BatchRun(models.Model):
 
     source = models.CharField(max_length=10, choices=Source.choices, default=Source.UPLOAD)
     metadata_name = models.CharField(max_length=255, blank=True)  # as uploaded, display only
-    report = models.JSONField(default=dict, blank=True)  # check.BatchCheck.to_json()
+    report = models.JSONField(default=dict, blank=True)  # Add stations' review (add_stations)
 
     # Run options (the R batch screen's parameters, and the plots). The base period is
     # the workspace's since #255.
@@ -146,13 +146,6 @@ class BatchRun(models.Model):
     @property
     def stations(self) -> list[dict]:
         return self.report.get("stations", [])
-
-    def count(self, status: str) -> int:
-        return sum(1 for s in self.stations if s["status"] == status)
-
-    @property
-    def ready_count(self) -> int:
-        return self.count("ready")
 
     @property
     def folder_name(self) -> str:

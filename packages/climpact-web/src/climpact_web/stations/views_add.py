@@ -521,46 +521,26 @@ def batch_names(rows) -> dict[str, str]:
     return names
 
 
-def skip_reason(station: dict) -> str:
-    """Why a station of a batch was left out, in the station's error file."""
-    lines = [p["message"] for p in station.get("problems", [])]
-    hidden = station.get("problem_count", 0) - len(lines)
-    if hidden > 0:
-        lines.append(_("And %(count)d more problems like these.") % {"count": hidden})
-    head = (
-        _("Not calculated: the station file is missing.")
-        if station["status"] == "missing"
-        else _("Not calculated: the station has problems.")
-    )
-    return "\n".join([head, *lines])
-
-
 def queue_batch(
     request, run: BatchRun, title: str, change: str = "", names: dict | None = None
 ) -> Job:
-    """Queue one ``batch`` job for the ready stations of ``run.report["stations"]``, with
-    the workspace's base period and custom index and the run's workers and plots, and add
-    every station of the report to the workspace (``batch.fill.add_stations``): a ready
-    one waiting, any other not run, with why (:func:`skip_reason`). A station's file is
-    ``station_file`` among the run's files and ``job_file`` (``station_file`` without one)
-    in the job; ``names`` gives the stations' own names by their batch name."""
+    """Queue one ``batch`` job for the stations of ``run.report["stations"]``, with the
+    workspace's base period and custom index and the run's workers and plots, and add
+    each to the workspace, waiting (``batch.fill.add_stations``). Add stations reports
+    only stations it can run (#311). A station's file is ``station_file`` among the run's
+    files and ``job_file`` (``station_file`` without one) in the job; ``names`` gives the
+    stations' own names by their batch name."""
     from climpact_web.stations.workspace import workspace_settings
 
     space = run.workspace
     stations = run.report.get("stations", [])
-    ready = check.ready_stations(run.report)
-    skipped = [
-        {"name": s["name"], "station_file": s["station_file"], "error": skip_reason(s)}
-        for s in stations
-        if s["status"] != "ready"
-    ]
 
     def job_file(station: dict) -> str:
         return station.get("job_file") or station["station_file"]
 
-    metadata = check.metadata_text([{**s, "station_file": job_file(s)} for s in ready])
+    metadata = check.metadata_text([{**s, "station_file": job_file(s)} for s in stations])
     files = {JOB_METADATA: ContentFile(metadata.encode("utf-8"))}
-    for s in ready:
+    for s in stations:
         # Stored as uploaded and read as text once already. Into the job as the station
         # step stores files: UTF-8 without a byte-order mark.
         text = decode((run.files_dir / s["station_file"]).read_bytes())
@@ -577,7 +557,6 @@ def queue_batch(
         "station_zips": True,
         "report": run.plots,  # each station's PDF report, with the plots (#79)
         "folder": run.folder_name,
-        "skipped": skipped,
         ADDED: True,  # the workspace's stations are added now (batch/fill.py)
     }
     if names:
@@ -586,7 +565,7 @@ def queue_batch(
     run.job = job
     run.touch()
     run.save()
-    add_stations(run, job, skipped)
+    add_stations(run, job)
     return job
 
 
@@ -615,9 +594,6 @@ def add_many(request, run: BatchRun, rows) -> str:
                 "longitude": row.values["longitude"],
                 "params": {**shared, **row.params},
                 "own_params": row.params,
-                "status": "ready",
-                "problems": [],
-                "problem_count": 0,
                 "warnings": row.warnings,
                 "summary": summary,
             }

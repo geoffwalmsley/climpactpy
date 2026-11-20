@@ -5,23 +5,25 @@ Every station of its metadata file is a :class:`Station` of the batch's workspac
 it calculated or not, as on the workspace overview (``Calculate.dc.html``, #234): a row of
 the Stations table each, with its run state.
 
-:func:`add_stations` adds them when the run is queued (``run_batch``): the stations that
-will run, waiting, and those the check left out, "not run" with why. The job has the
-parameter ``stations_added``. :func:`fill_workspace` records how the run went once its job
-has succeeded, the first time the batch results are shown after it (the results page and
-its progress fragment, which stand in as the workspace page until #234) or a station is
-opened from them: a station that calculated shows the batch's results for it until a
-change to the workspace's settings recalculates it with ``station`` jobs
-(:mod:`climpact_web.stations.calculation`); one that failed keeps no results, only R's or
-our error in words. It is idempotent: ``BatchRun.filled_job`` records the run filled in,
-and a station the user deletes from the workspace during the run is not added again. A
-job queued before ``stations_added`` (from before this was built) adds its stations there.
+:func:`add_stations` adds them when the run is queued (``views_add.queue_batch``), each
+waiting: Add stations adds only stations it can run, so every station of a batch runs
+(#311). The job has the parameter ``stations_added``. :func:`fill_workspace` records
+how the run went once its job has succeeded, the first time the batch results are shown
+after it (the results page and its progress fragment, which stand in as the workspace page
+until #234) or a station is opened from them: a station that calculated shows the batch's
+results for it until a change to the workspace's settings recalculates it with ``station``
+jobs (:mod:`climpact_web.stations.calculation`); one that failed keeps no results, only R's
+or our error in words. It is idempotent: ``BatchRun.filled_job`` records the run filled
+in, and a station the user deletes from the workspace during the run is not added again.
+A job queued before ``stations_added`` (from before this was built) adds its stations
+there.
 
 A station's ``origin`` (:class:`Station`) holds the batch's results, when it has some
 (``job``, ``outputs``, ``inputs``), and the state of its latest batch run (``run``):
-``{"job", "state", "error"}``, ``state`` being ``waiting``, ``done``, ``failed`` or
-``not_run``. :func:`run_states` reads it, live while the job runs, and
-:func:`run_progress` the run as a whole, for the workspace's overview (#234).
+``{"job", "state", "error"}``, ``state`` being ``waiting``, ``done`` or ``failed``.
+:func:`run_states` reads it, live while the job runs (``not_run`` once the job was
+cancelled), and :func:`run_progress` the run as a whole, for the workspace's overview
+(#234).
 """
 
 from __future__ import annotations
@@ -38,11 +40,12 @@ from climpact_web.batch import check
 from climpact_web.batch.models import BatchRun
 from climpact_web.jobs.models import Job, Status
 
-JOB_METADATA = "batch_metadata.txt"  # the metadata file of the ready stations, in input/
+JOB_METADATA = "batch_metadata.txt"  # the metadata file of the stations, in input/
 JOB_STATIONS = "stations"  # their station files, in input/
 ADDED = "stations_added"  # a batch job's parameter: its stations were added when queued
 
-# A station's state in its run (the Stations table's indices state, #234).
+# A station's state in its run (the Stations table's indices state, #234); not run when
+# its batch job was cancelled.
 WAITING, CALCULATING, DONE, NOT_RUN, FAILED = "waiting", "calculating", "done", "not_run", "failed"
 # The runner's states (``jobs.runners.BatchStatus``) as the station's.
 RUNNER_STATES = {
@@ -50,7 +53,6 @@ RUNNER_STATES = {
     "running": CALCULATING,
     "done": DONE,
     "failed": FAILED,
-    "skipped": NOT_RUN,
 }
 
 
@@ -135,13 +137,12 @@ def _place(run: BatchRun, existing: dict, name: str, station_file: str, entry: d
     # The name the user gave on Add stations (#233), else the batch's (the file's stem).
     station.station_name = (entry.get("station_name") or name)[:100]
     station.latitude, station.longitude = entry["latitude"], entry["longitude"]
-    text, inspection = _read(path) if path is not None else (None, None)
+    text, inspection = _read(path)
     if text is not None:
         station.summary = inspection.summary
         station.warnings = inspection.warnings
         station.save_station_text(text)
-        if entry.get("ready"):
-            station.advance_to(Step.QC)
+        station.advance_to(Step.QC)
     origin = dict(station.origin or {})
     # The station's own index values: its metadata line's (Add stations keeps only those,
     # the job's metadata file has the workspace's for the others).
@@ -160,23 +161,17 @@ def _existing(run: BatchRun) -> dict:
     }
 
 
-def add_stations(run: BatchRun, job: Job, skipped: list[dict]) -> None:
-    """Add every station of the batch's check to its workspace as its job is queued: those
-    that will run, waiting, and those left out (``skipped``, with why), not run. A station
-    of an earlier run of the batch keeps the results it shows until this run's replace them
-    (:func:`fill_workspace`); its file and details are this run's from now on."""
-    reasons = {s["name"]: s["error"] for s in skipped}
+def add_stations(run: BatchRun, job: Job) -> None:
+    """Add every station of the batch to its workspace as its job is queued, waiting. A
+    station of an earlier run of the batch keeps the results it shows until this run's
+    replace them (:func:`fill_workspace`); its file and details are this run's from now
+    on."""
     with transaction.atomic():
         existing = _existing(run)
         for s in run.report.get("stations", []):
-            ready = s["status"] == "ready"
-            path = run.files_dir / s["station_file"] if "/" not in s["station_file"] else None
-            entry = {**s, "ready": ready}
-            station = _place(run, existing, s["name"], s["station_file"], entry, path)
-            state = {"job": str(job.pk), "state": WAITING if ready else NOT_RUN}
-            if not ready:
-                state["error"] = reasons.get(s["name"], "")
-            station.origin["run"] = state
+            path = run.files_dir / s["station_file"]
+            station = _place(run, existing, s["name"], s["station_file"], s, path)
+            station.origin["run"] = {"job": str(job.pk), "state": WAITING}
             station.touch()
             station.save()
 
@@ -215,7 +210,6 @@ def _fill(run: BatchRun, job: Job) -> None:
                 "latitude": entry.latitude,
                 "longitude": entry.longitude,
                 "params": entry.params,
-                "ready": True,
             }
             station = _place(run, existing, name, entry.station_file, details, path)
         origin = dict(station.origin)
@@ -247,16 +241,6 @@ def _fill(run: BatchRun, job: Job) -> None:
         station.origin = origin
         station.touch()
         station.save()
-    if not added:  # the stations the check left out, from before ``stations_added``
-        for item in job.result.get("skipped", []):
-            if item["name"] in existing:
-                continue
-            details = {"latitude": None, "longitude": None, "params": {}, "ready": False}
-            file_name = item.get("station_file", "")
-            station = _place(run, existing, item["name"], file_name, details, None)
-            station.origin["run"] = {"job": str(job.pk), "state": NOT_RUN, "error": item["error"]}
-            station.touch()
-            station.save()
 
 
 def _forget_older_jobs(station, job: Job) -> None:
@@ -281,15 +265,13 @@ def station_status(job: Job) -> list[dict]:
     """Each station's progress in a batch job, from the runner's ``stations.json`` (written
     as it goes) or, once the job has succeeded, from its result: ``{"name", "state",
     "step", "total", "error", ...}``, ``state`` as the runner's (``waiting``, ``running``,
-    ``done``, ``failed``, ``skipped``)."""
+    ``done``, ``failed``)."""
     from climpact_web.jobs.runners import STATIONS_FILE
 
     if job.status == Status.SUCCEEDED and job.result.get("stations") is not None:
         rows = []
         for s in job.result["stations"]:
             rows.append({**s, "state": "done" if s["ok"] else "failed"})
-        for s in job.result.get("skipped", []):
-            rows.append({**s, "state": "skipped", "ok": False})
         return rows
     try:
         data = json.loads((job.output_dir / STATIONS_FILE).read_text())
@@ -315,8 +297,9 @@ def plain_error(text: str | None, job: Job) -> str:
 @dataclass(frozen=True)
 class RunState:
     """A station's state in its latest run: ``state`` (``waiting``, ``calculating``,
-    ``done``, ``not_run`` or ``failed``), how far a calculating one is (``percent``), and
-    why one failed or was not run (``error``, in words). ``job`` is the run's job."""
+    ``done``, ``not_run`` (its batch job was cancelled) or ``failed``), how far a
+    calculating one is (``percent``), and why one failed or was not run (``error``, in
+    words). ``job`` is the run's job."""
 
     state: str
     percent: int | None = None
@@ -370,7 +353,7 @@ def run_states(stations) -> dict:
 
 def _batch_state(name: str, recorded: dict, job: Job, live: dict) -> RunState:
     state = recorded.get("state", WAITING)
-    if state != WAITING:  # recorded when queued (not run) or when filled in
+    if state != WAITING:  # recorded when filled in
         return RunState(state, error=recorded.get("error", ""), job=job)
     if job.status == Status.FAILED:
         return RunState(FAILED, error=plain_error(job.error, job), job=job)
@@ -398,17 +381,15 @@ def run_state(station) -> RunState | None:
 @dataclass(frozen=True)
 class RunProgress:
     """A batch run as a whole, for the run status line (#234): how many of the stations
-    it calculates are ``done`` of ``total`` (those not run are not counted), how many
-    failed, are calculating or waiting, and were not run, how long it has taken
-    (``elapsed``) and is likely to take still (``remaining``), and whether it has
-    ``finished``."""
+    it calculates are ``done`` of ``total``, how many failed, are calculating or waiting,
+    how long it has taken (``elapsed``) and is likely to take still (``remaining``), and
+    whether it has ``finished``."""
 
     total: int
     done: int
     failed: int
     calculating: int
     waiting: int
-    not_run: int
     elapsed: dt.timedelta | None
     remaining: dt.timedelta | None
     finished: bool
@@ -421,21 +402,18 @@ def run_progress(run: BatchRun, now: dt.datetime | None = None) -> RunProgress |
     if job is None:
         return None
     now = now or timezone.now()
-    counts = dict.fromkeys((WAITING, CALCULATING, DONE, FAILED, NOT_RUN), 0)
+    counts = dict.fromkeys((WAITING, CALCULATING, DONE, FAILED), 0)
     rows = station_status(job)
     for row in rows:
         counts[RUNNER_STATES.get(row.get("state"), WAITING)] += 1
     if not rows:  # queued: the runner has not written its list yet
         counts[WAITING] = len(job_stations(job))
-        counts[NOT_RUN] = len((job.params or {}).get("skipped") or [])
-    total = sum(counts.values()) - counts[NOT_RUN]
     return RunProgress(
-        total=total,
+        total=sum(counts.values()),
         done=counts[DONE],
         failed=counts[FAILED],
         calculating=counts[CALCULATING],
         waiting=counts[WAITING],
-        not_run=counts[NOT_RUN],
         elapsed=job.elapsed(now),
         remaining=None if job.is_finished else job.remaining(now),
         finished=job.is_finished,

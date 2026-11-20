@@ -1,13 +1,14 @@
 """A batch fills its workspace (#255, part 3 of #231): every station of the batch is a
 station of its workspace from when the run is queued, with its run state (waiting,
-calculating, done, not run, failed); those that calculated show the batch's results, those
-that failed or were left out none, only why (``Calculate.dc.html``, #234); the base period
+calculating, done, not run once cancelled, failed); those that calculated show the batch's
+results, those that failed none, only why (``Calculate.dc.html``, #234); the base period
 and the custom index are the workspace's; a change to the workspace's settings recalculates
 the batch's stations, as one change for the hosted limits; deleting the batch deletes its
 workspace."""
 
 import re
 
+import made
 import pytest
 from test_batch import created, media, metadata, run_batch, run_worker, station  # noqa: F401
 from test_workspace import edit, page, states
@@ -25,12 +26,10 @@ pytestmark = pytest.mark.django_db
 OPTIONS = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
 
 
-def queued_batch(client, *names, bad=(), missing=()) -> BatchRun:
-    """A batch of ``names`` queued (those in ``bad`` fail in the run, those in ``missing``
-    are listed but not uploaded, so the check leaves them out)."""
+def queued_batch(client, *names, bad=()) -> BatchRun:
+    """A batch of ``names`` queued (those in ``bad`` fail in the run)."""
     files = {f"{n}.txt": station(seed=k) for k, n in enumerate([*names, *bad])}
-    listed = [*files, *(f"{n}.txt" for n in missing)]
-    run = run_batch(client, created(client, metadata(*listed), **files), OPTIONS)
+    run = run_batch(client, created(client, metadata(*files), **files), OPTIONS)
     for n in bad:  # broken after the check, so it fails in the run itself
         (run.job.input_dir / "stations" / f"{n}.txt").write_text(
             "2000 1 1 0 20 10\n1999 1 1 0 20 10\n"
@@ -38,9 +37,9 @@ def queued_batch(client, *names, bad=(), missing=()) -> BatchRun:
     return run
 
 
-def finished_batch(client, *names, bad=(), missing=()) -> BatchRun:
+def finished_batch(client, *names, bad=()) -> BatchRun:
     """A batch of ``names`` (see :func:`queued_batch`), run to the end."""
-    run = queued_batch(client, *names, bad=bad, missing=missing)
+    run = queued_batch(client, *names, bad=bad)
     job = run_worker()
     assert job.status == Status.SUCCEEDED, job.error
     run.refresh_from_db()
@@ -54,11 +53,11 @@ def states_of(run) -> dict[str, tuple]:
 
 
 def test_every_station_is_added_when_the_batch_is_queued(client):
-    run = queued_batch(client, "a", "b", bad=["c"], missing=["d"])
+    run = queued_batch(client, "a", "b", bad=["c"])
     stations = {s.station_name: s for s in run.workspace.stations.all()}
-    # Every station of the metadata file, the one left out by the check too.
-    assert set(stations) == {"a", "b", "c", "d"}
-    a, d = stations["a"], stations["d"]
+    # Every station of the metadata file.
+    assert set(stations) == {"a", "b", "c"}
+    a = stations["a"]
     assert a.source == Source.BATCH and a.step == Step.QC and a.slug == "a"
     assert a.owner == run.owner and (a.latitude, a.longitude) == (-30, 150)
     assert a.origin["batch"] == str(run.pk) and a.origin["params"]["spei_months"] == 24
@@ -68,18 +67,13 @@ def test_every_station_is_added_when_the_batch_is_queued(client):
     }
     # No results yet: none of the batch's, and none empty.
     assert not workspace.batch_results(a) and workspace.shown_run(a) is None
-    # Left out: no file, not run, with why; its page is where a file is loaded.
-    assert not d.station_file.exists() and d.step == Step.UPLOAD
-    assert client.get(d.url())["Location"] == f"{d.url()}setup"
-    assert client.get(f"{d.url()}setup").status_code == 200
     # Waiting: its address leads to Quality, its checks not yet run.
     assert client.get(a.url())["Location"] == f"{a.url()}quality"
     assert client.get(f"{a.url()}quality").status_code == 200
     got = states_of(run)
-    assert got["a"] == got["b"] == got["c"] == ("waiting", None, "")
-    assert got["d"][0] == "not_run" and "No file named d.txt was uploaded." in got["d"][2]
+    assert got == {n: ("waiting", None, "") for n in "abc"}
     progress = run_progress(run)
-    assert (progress.total, progress.done, progress.waiting, progress.not_run) == (3, 0, 3, 1)
+    assert (progress.total, progress.done, progress.waiting) == (3, 0, 3)
     assert not progress.finished and progress.elapsed is None
 
 
@@ -105,24 +99,23 @@ def test_a_station_calculating_shows_how_far_it_is(client):
 
 
 def test_a_finished_batch_fills_its_workspace(client):
-    run = finished_batch(client, "a", "b", bad=["c"], missing=["d"])
+    run = finished_batch(client, "a", "b", bad=["c"])
     space = run.workspace
     # The run's states, as the runner left them, before the results are shown.
     got = states_of(run)
     assert got["a"] == ("done", None, "") and got["c"][0] == "failed" and got["c"][2]
     html = client.get(f"/w/{run.workspace_id}/").content.decode()
     stations = {s.station_name: s for s in space.stations.all()}
-    assert set(stations) == {"a", "b", "c", "d"}
+    assert set(stations) == {"a", "b", "c"}
     a, c = stations["a"], stations["c"]
     assert a.origin["job"] == str(run.job_id) and a.origin["run"]["state"] == "done"
-    assert space.display_name.startswith("4 stations, ")
+    assert space.display_name.startswith("3 stations, ")
     # The failed station stays, with R's or our error in words, and no results.
     got = states_of(run)
     assert got["c"][0] == "failed" and "Error" not in got["c"][2] and got["c"][2]
-    assert got["d"][0] == "not_run"
     assert "job" not in c.origin and workspace.shown_run(c) is None
     progress = run_progress(run)
-    assert (progress.total, progress.done, progress.failed, progress.not_run) == (3, 2, 1, 1)
+    assert (progress.total, progress.done, progress.failed) == (3, 2, 1)
     assert progress.finished and progress.elapsed is not None and progress.remaining is None
     # A failed station opens on its Indices: nothing calculated, the settings to change.
     assert client.get(c.url())["Location"] == f"{c.url()}indices"
@@ -136,7 +129,7 @@ def test_a_finished_batch_fills_its_workspace(client):
     # Showing the overview again, or polling it, adds nothing.
     client.get(f"/w/{run.workspace_id}/")
     client.get(f"/w/{run.workspace_id}/progress")
-    assert Station.objects.count() == 4
+    assert Station.objects.count() == 3
     # The station shows the batch's results, current, with the workspace's base period.
     assert client.get(a.url())["Location"] == f"{a.url()}indices"
     html = page(client, a)
@@ -149,7 +142,7 @@ def test_a_finished_batch_fills_its_workspace(client):
     # An index page names the workspace in its breadcrumb, leading to its overview.
     html = page(client, a, "indices/txx")
     crumbs = re.findall(r'<ol class="context-bar__breadcrumb">(.*?)</ol>', html, re.S)[0]
-    assert f'href="/w/{run.workspace_id}/">4 stations, ' in crumbs
+    assert f'href="/w/{run.workspace_id}/">3 stations, ' in crumbs
     # The old "Open as a single station" forms are gone (#256).
     assert client.post(f"/batch/{run.pk}/open/a").status_code == 405
     # The batch job is kept while the stations show it.
@@ -159,7 +152,7 @@ def test_a_finished_batch_fills_its_workspace(client):
 def test_a_job_from_before_stations_were_added_when_queued(client):
     """A batch job queued before #255 added its stations when queued: they are all added
     when it has finished, as they would have been."""
-    run = queued_batch(client, "a", bad=["c"], missing=["d"])
+    run = queued_batch(client, "a", bad=["c"])
     Station.objects.all().delete()
     run.job.params.pop(fill.ADDED)
     run.job.save()
@@ -168,10 +161,35 @@ def test_a_job_from_before_stations_were_added_when_queued(client):
     fill_workspace(run)
     space = Workspace.objects.get(pk=run.workspace_id)
     stations = {s.station_name: s for s in space.stations.all()}
-    assert set(stations) == {"a", "c", "d"}
+    assert set(stations) == {"a", "c"}
     assert workspace.batch_results(stations["a"]) and not workspace.batch_results(stations["c"])
     got = states_of(run)
-    assert [got[n][0] for n in "acd"] == ["done", "failed", "not_run"]
+    assert [got[n][0] for n in "ac"] == ["done", "failed"]
+
+
+def test_a_cancelled_batchs_stations_are_not_run(client):
+    """Stations added to a workspace and cancelled before their batch ran (Cancel on the
+    run status line) are not run, and say why, on the overview and on Files."""
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    client.get(f"/w/{space.pk}/")  # fills the workspace
+    more = made.batch(client, metadata("c.txt"), workspace=space, **{"c.txt": station(seed=2)})
+    more = made.queue(client, more, OPTIONS)
+    assert states_of(more)["c"] == ("waiting", None, "")
+    client.post(f"/jobs/{more.job_id}/cancel")
+    more.job.refresh_from_db()
+    assert more.job.status == Status.CANCELLED
+    got = states_of(more)
+    assert got["a"][0] == got["b"][0] == "done"
+    assert got["c"] == ("not_run", None, "The run was cancelled.")
+    html = client.get(f"/w/{space.pk}/").content.decode()
+    assert 'data-station="c" data-indices="not_run"' in html
+    row = html.split('data-station="c"')[1].split("</tr>")[0]
+    assert ">Not run<" in row  # why: on the run status line
+    assert "2 stations calculated in" in html and "c was not run: the run was cancelled." in html
+    files = client.get(f"/w/{space.pk}/files/").content.decode()
+    table = files.split('class="table table--data"')[1].split("</table>")[0]
+    assert table.split('data-station="c"')[1].split("</tr>")[0].count(">not run<") == 5
 
 
 def test_a_deleted_station_is_not_added_again(client):

@@ -2784,6 +2784,9 @@ packages/climpact-web/src/climpact_web/
                      the announcer and focus kept across htmx swaps (#83), the progress
                      polls' tab visibility (#137)
       js/drawer.js   the help drawer (#177): opens a section's help beside the content
+      js/site-header.js  keeps --site-header-measured to the sticky site header's height
+                     (#284), which everything that sticks under it and the scroll
+                     padding use
       js/setup.js    a station's setup page (New station, #201): a chosen or dropped file is
                      read at once, Replace on the file card, focus on the card after reading
       js/add-stations.js  Add stations (#233): files sent as soon as they are chosen or
@@ -4265,6 +4268,20 @@ page of its own exists. Help (`#app-help`) keeps its destination (the page's gui
 a quiet underlined link like Index reference, no longer the ringed pill, as on the canvas.
 The landing page's tour points at Workspaces (`data-nav='workspaces'`).
 
+**The header stays in view (#284).** In a window at least 30rem high the header is
+sticky at the top of every page (`.site-header`, `components/header.css`, `z-index` 25:
+above popovers, below toasts and the tour; the skip link is 30, so it shows over it). It
+sets `--site-header-height` on the root: `js/site-header.js` (deferred, every page)
+measures the header's height with a `ResizeObserver` into `--site-header-measured`, and
+the CSS falls back to one row, `3rem + 1px` (49px), or two between 600px and 52rem, where
+the links wrap under the brand (89px), which are the heights without JavaScript (no theme
+toggle then; 51px and 91px with it). In a shorter window it is 0 and nothing sticks. The
+root's `scroll-padding-block-start` is that height plus 1rem, so focus and a `#fragment`
+clear the header on every page. `--frame-height` is the header plus the context bar
+(`--context-bar-height`): what the context bar's pages keep their sticky parts under (see
+[Single-station steps](#single-station-steps)). The help drawer and the guide's table of
+contents stick under the header too.
+
 **Header on phones (#115).** Below 600px (37.5rem) the header's links are hidden and a
 "Menu" `<details class="site-menu">` after the theme toggle holds the same links and,
 since #227, Index reference (`base.html`), and since #203 the theme toggle too (a second `theme_toggle.html` in the
@@ -4969,12 +4986,17 @@ bar), so it stays a child of `.station-page`, and
 so it never covers the help drawer; the page's top padding is 0. `workspace.context`
 also sets `data_page`, so `base.html` gives a station's pages the whole window, with no
 max width (#263; 92rem from #227 until then), instead of the 72rem content column. The bar is sticky (`.context-bar`,
-a direct child of `.station-page`) in a window at least 30rem high; shorter, where it
-would hide most of the page, it scrolls away. The page's `scroll-padding-block-start` is
-its height plus 1rem, so an element that takes focus, or a `#fragment`, is never under it
-(WCAG 2.4.11); `js/context-bar.js` keeps `--context-bar-height` to its real height with a
-`ResizeObserver` (9rem without JavaScript). The skip link, when focused, sits 4px from
-the top so it clears the bar.
+a direct child of `.station-page`) under the site header (#284; at the window's top until
+then) in a window at least 30rem high; shorter, where it would hide most of the page, it
+scrolls away, and so does the header. The page's `scroll-padding-block-start` is
+`--frame-height` (the header's height and the bar's) plus 1rem, so an element that takes
+focus, or a `#fragment`, is never under either (WCAG 2.4.11); `js/context-bar.js` keeps
+`--context-bar-height` to its real height with a `ResizeObserver` (9rem without
+JavaScript). What sticks under the bar (Quality's rail, the Indices' rail and pane
+contents, the Inputs panel) uses `--frame-height` for its offset and its maximum height.
+A table's sticky header row sticks inside its own scrolling frame, so it does not move
+with the page's frame. The skip link, when focused, sits 4px from the top, over the
+header.
 
 **Phones (#203, proposal 7).** Below 40rem (`components/workspace.css`) the context bar
 is the name at `--text-md` and a ⋯ button on one line, and the provenance line only the
@@ -4983,10 +5005,10 @@ actions are in that button's menu: `components/context_bar.html` includes the `a
 template twice, in `context-bar__actions` (hidden on phones) and in a `<details
 class="page-menu">` (shown only on phones), a disclosure rather than an ARIA menu, so it
 works without JavaScript; `js/context-bar.js` closes it on Escape (focus back on the
-summary) and on a click or focus outside it. The bar sticks above the window's top by
+summary) and on a click or focus outside it. The bar sticks above the header's foot by
 the height of what is above the tabs, `--context-bar-above`, which `js/context-bar.js`
-measures: only the tabs and the Inputs bar stay in view, and the scroll padding is their
-height (the bar's height minus that). Until #203 the header was sticky only from 40rem wide. The
+measures: only the header, the tabs and the Inputs bar stay in view (#284), and the scroll
+padding is their height (the header's and the bar's, minus that). Until #203 the header was sticky only from 40rem wide. The
 tabs' padding is smaller, so the three fit on one line at 320px. Sheets are the full
 width. The states (`workspace.section_states`): Quality
 `locked` until the details are confirmed, `stale`, `checking` (running), `attention`
@@ -5306,8 +5328,8 @@ without errors; the user corrects the file outside the app and loads it again.
     "Same TN 6+ days": more than `flatline_days` equal values; the largest first). Each
     check is a row with its variables ("PR", "PR TX TN", "all rows"), twelve small bars
     by calendar month (`Group.bars`) and its count. Beside the rail (20rem, from a 60rem
-    page, sticky under the context bar and scrolling inside itself when taller than the
-    window; after it otherwise, with "Back to the list") the selected check's detail:
+    page, sticky under the header and the context bar and scrolling inside itself when
+    taller than the window; after it otherwise, with "Back to the list") the selected check's detail:
     its kicker ("Worth a look · PR · 67 values"), its title and one sentence
     (`Group.lede`: when its values fall, `Group.mostly`, what the check means with its
     thresholds, then what to look at first), "These values (CSV)" (`quality/flagged.csv
@@ -5606,7 +5628,7 @@ and "Monthly values" (the index page's monthly series) where there is one. Side 
 from a 76rem page (#263): the rail 14rem (12.5rem until the page is 86rem wide, so the
 names keep some room at 1280px), the table, the pane `clamp(22rem, 28%, 32rem)`; the
 contents of the rail and the pane (`filter-rail__body`, `indices__pane-body`) sticky under
-the context bar, the pane's scrolling inside itself. From 48rem the rail beside the table
+the header and the context bar, the pane's scrolling inside itself. From 48rem the rail beside the table
 and the pane under it; narrower, the rail above the table (its themes a wrapping row), the
 detail after it, focus moving to it, with "Back to the list" (hidden beside the table:
 until #263 a later rule showed it there too). On a phone (below 40rem) each row is two
@@ -6800,7 +6822,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78; again since #283, after #237 drew it on the server only) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -7240,11 +7262,16 @@ gridded explorer by keyboard, and the quality worklist (#174): a group opens and
 from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
 corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
 axe passes with every disclosure open, light and dark (axe skips closed ones). The
-phone layout (#203): `test_sticky_context_bar_never_covers_focus` Tabs through
-Results and Quality at 1280 and 320 px (on a phone the tabs and the Inputs bar stay at the
-top, the name gone); `test_no_overlapping_sticky_elements_on_phones` scrolls the station
-pages at 320 and 375 px and checks that nothing stuck to the window covers anything else
-stuck to it, and that the page never scrolls sideways; `test_phone_inputs_bar_opens_the_sheets`
+phone layout (#203) and the sticky header (#284):
+`test_sticky_header_and_context_bar_never_cover_focus` Tabs through Results, Quality, an
+index's page, the landing page and a guide at 1280 and 320 px and fails when focus is
+under the header or the context bar (on a phone the tabs and the Inputs bar stay under the
+header, the name gone; in a 440px-high window neither sticks);
+`test_fragment_targets_clear_of_the_header` follows a `#fragment` far down Results,
+Quality, Files and a guide at 1280 and 375 px; `test_no_overlapping_sticky_elements`
+scrolls the station and workspace pages at 320, 375, 1280 and 1440 px and checks that
+nothing stuck to the window covers anything else stuck to it (what slides under the
+header is hidden by it), and that the page never scrolls sideways; `test_phone_inputs_bar_opens_the_sheets`
 opens the Inputs sheet from the bar and an input's sheet from it by keyboard, with axe at
 375 and 320 px and Escape stepping back; `test_page_menu_by_keyboard` works the ⋯ menu.
 `test_axe_every_page` fails on a serious or critical axe

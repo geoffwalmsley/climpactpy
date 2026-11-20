@@ -1029,63 +1029,119 @@ def test_help_drawer_by_keyboard(chrome, site):
 
 # What of the sticky workspace header is in the window: from its top, or from the top of
 # the window where it sticks above it (on a phone only the tabs and the Inputs bar stay).
-SHOWN_HEADER = (
-    "(function () { var b = document.querySelector('[data-context-bar]')"
-    ".getBoundingClientRect(); return {top: Math.max(b.top, 0), bottom: b.bottom}; })()"
+# What stays in view at the top of the window: the site header (#284) and, on a station's
+# pages, the context bar under it, as far as each shows.
+SHOWN_FRAME = (
+    "(function () { var h = document.querySelector('.site-header').getBoundingClientRect(),"
+    " b = document.querySelector('[data-context-bar]'), r = b && b.getBoundingClientRect(),"
+    " sticky = function (e) { return e && getComputedStyle(e).position === 'sticky'; };"
+    " var bottom = sticky(document.querySelector('.site-header')) ? h.bottom : 0;"
+    " if (r && sticky(b)) bottom = Math.max(bottom, r.bottom);"
+    " return {top: 0, bottom: bottom}; })()"
+)
+
+# The focused element is hidden under the frame (WCAG 2.4.11).
+FOCUS_HIDDEN = (
+    "(function () { var a = document.activeElement;"
+    # The skip link shows over the header (#284).
+    " if (!a || a === document.body"
+    "  || a.closest('.site-header, [data-context-bar], dialog, .skip-link'))"
+    "  return false;"
+    f" var r = a.getBoundingClientRect(), b = {SHOWN_FRAME};"
+    " if (r.height === 0) return false;"
+    # Taller than the window under the frame (the Indices' table, #236): enough that part
+    # of it shows.
+    " if (r.height > innerHeight - b.bottom) return r.bottom <= b.bottom;"
+    " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
 )
 
 
-def test_sticky_context_bar_never_covers_focus(chrome, site):
-    """#197, #227: the context bar (name, tabs, actions) stays at the top as the page
-    scrolls, and Tab never leaves the focused element under it (WCAG 2.4.11): the page's
-    scroll padding is the header's height. On a phone (#203) only the tabs and the Inputs
-    bar stay: the name scrolls away, and the padding is what stays."""
+def test_sticky_header_and_context_bar_never_cover_focus(chrome, site):
+    """#197, #227, #284: the site header stays at the top of every page as it scrolls,
+    and on a station's pages the context bar (name, tabs, actions) under it; Tab never
+    leaves the focused element under either (WCAG 2.4.11): the page's scroll padding is
+    their height. On a phone (#203) only the tabs and the Inputs bar stay under the
+    header: the name scrolls away, and the padding is what stays. In a short window
+    nothing sticks."""
     c = chrome
+    site_header = "document.querySelector('.site-header')"
     header = "document.querySelector('[data-context-bar]')"
     tabs = f"{header}.querySelector('nav')"
     try:
         for width in (1280, 320):
             c.viewport(width, 700)
-            for name in ("station results", "station quality results"):
+            for name in ("station results", "station quality results", "landing",
+                         "help guide", "station index"):  # fmt: skip
                 c.navigate(site[name])
                 c.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
-                assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
+                assert c.evaluate(f"getComputedStyle({site_header}).position") == "sticky", name
+                bar = name.startswith("station") and name != "station index"
+                if bar:
+                    assert c.evaluate(f"getComputedStyle({header}).position") == "sticky", name
                 furthest = 0  # Tab may come back round to the top before the 80th press
                 for _ in range(80):
                     c.press("Tab")
                     time.sleep(0.02)
                     furthest = max(furthest, c.evaluate("window.scrollY"))
-                    hidden = c.evaluate(
-                        f"(function () {{ var h = {header}, a = document.activeElement;"
-                        " if (!a || h.contains(a) || a === document.body) return false;"
-                        " if (a.closest('dialog')) return false;"
-                        f" var r = a.getBoundingClientRect(), b = {SHOWN_HEADER};"
-                        " if (r.height === 0) return false;"
-                        # Taller than the window under the header (the Indices' table,
-                        # #236): enough that part of it shows.
-                        " if (r.height > innerHeight - b.bottom) return r.bottom <= b.bottom;"
-                        " return r.top < b.bottom - 1 && r.bottom > b.top; })()"
-                    )
-                    assert not hidden, (
+                    assert not c.evaluate(FOCUS_HIDDEN), (
                         name,
                         width,
                         c.evaluate("document.activeElement.outerHTML.slice(0, 120)"),
                     )
-                assert furthest > 300, (name, width)  # the page scrolled under it
+                assert furthest > 300, (name, width)  # the page scrolled under them
                 c.evaluate("window.scrollTo(0, 1200)")
                 time.sleep(0.05)
+                assert abs(c.evaluate(f"{site_header}.getBoundingClientRect().top")) <= 1, name
+                below = c.evaluate(f"{site_header}.getBoundingClientRect().bottom")
+                if not bar:
+                    continue
                 if width == 1280:
-                    assert abs(c.evaluate(f"{header}.getBoundingClientRect().top")) <= 1, name
+                    top = c.evaluate(f"{header}.getBoundingClientRect().top")
+                    assert abs(top - below) <= 1, (name, top, below)
                 else:
-                    # The tabs at the top, the Inputs bar under them, the name gone.
-                    assert abs(c.evaluate(f"{tabs}.getBoundingClientRect().top")) <= 1, name
-                    bar = c.evaluate(
+                    # The tabs under the header, the Inputs bar under them, the name gone.
+                    top = c.evaluate(f"{tabs}.getBoundingClientRect().top")
+                    assert abs(top - below) <= 1, (name, top, below)
+                    inputs = c.evaluate(
                         "document.querySelector('[data-inputs-bar]').getBoundingClientRect().top"
                     )
-                    assert 30 < bar < 80, (name, bar)
-        c.viewport(640, 440)  # a short window: it scrolls away with the page
+                    assert 30 < inputs - below < 80, (name, inputs, below)
+        c.viewport(640, 440)  # a short window: both scroll away with the page
+        c.navigate(site["station results"])
         # Not sticky: relative since #239, for the layer behind it that reaches the edges.
         assert c.evaluate(f"getComputedStyle({header}).position") == "relative"
+        assert c.evaluate(f"getComputedStyle({site_header}).position") == "static"
+    finally:
+        c.viewport(1280, 900)
+
+
+def test_fragment_targets_clear_of_the_header(chrome, site):
+    """#284: following a #fragment leaves its target under the site header and the
+    context bar, not behind them (WCAG 2.4.11), on wide and phone screens."""
+    c = chrome
+    # The last element with an id far enough down the page to scroll to.
+    pick = (
+        "(function () { var ids = Array.from(document.querySelectorAll('main [id]'))"
+        ".filter(function (e) { var r = e.getBoundingClientRect();"
+        " return r.height > 0 && r.top + scrollY > 1200 && e.checkVisibility(); });"
+        " return ids.length ? ids[ids.length - 1].id : null; })()"
+    )
+    try:
+        for width in (1280, 375):
+            c.viewport(width, 700)
+            for name in ("station results", "station quality results", "help guide",
+                         "station downloads"):  # fmt: skip
+                c.navigate(site[name])
+                target = c.evaluate(pick)
+                assert target, (name, width)
+                c.evaluate(f"location.hash = {json.dumps('#' + target)}")
+                time.sleep(0.1)
+                assert c.evaluate("window.scrollY") > 0, (name, width, target)
+                top = c.evaluate(
+                    f"document.getElementById({json.dumps(target)}).getBoundingClientRect().top"
+                )
+                frame = c.evaluate(f"{SHOWN_FRAME}.bottom")
+                assert top >= frame - 1, (name, width, target, top, frame)
     finally:
         c.viewport(1280, 900)
 
@@ -1112,17 +1168,26 @@ STUCK = """(function () {
 })()"""
 
 
-def test_no_overlapping_sticky_elements_on_phones(chrome, site):
-    """#203: at 320 and 375 px, as each station page scrolls, no element that stays in
-    view (sticky or fixed) covers another, apart from one inside the other; and the page
-    never scrolls sideways."""
+def test_no_overlapping_sticky_elements(chrome, site):
+    """#203, #284: at 320 and 375 px, and at 1280 and 1440 px, as each station and
+    workspace page scrolls, no element that stays in view (sticky or fixed: the site
+    header, the context bar, rails, panes, the Inputs panel, a table's header row) covers
+    another, apart from one inside the other or what slides under the header; and the
+    page never scrolls sideways."""
     c = chrome
     check = (
         f"(function () {{ var els = {STUCK}, bad = [];"
+        # What slides under the site header is hidden by it, as off the window's top
+        # (#284: the context bar's name on a phone).
+        " var hd = document.querySelector('.site-header'), H = hd.getBoundingClientRect().bottom;"
+        # Only what is stuck: a sticky rail at the end of its box scrolls away with it.
+        " els = els.filter(function (e) { var st = getComputedStyle(e);"
+        "  return st.position === 'fixed' || e === hd"
+        "   || Math.abs(e.getBoundingClientRect().top - parseFloat(st.top)) <= 1; });"
         " els.forEach(function (a, i) { els.slice(i + 1).forEach(function (b) {"
         "  if (a.contains(b) || b.contains(a)) return;"
         "  var r = a.getBoundingClientRect(), s = b.getBoundingClientRect();"
-        "  var top = Math.max(r.top, 0), stop = Math.max(s.top, 0);"
+        "  var top = Math.max(r.top, a === hd ? 0 : H), stop = Math.max(s.top, b === hd ? 0 : H);"
         "  if (r.left < s.right - 1 && s.left < r.right - 1 && top < s.bottom - 1"
         "   && stop < r.bottom - 1)"
         "   bad.push(a.tagName + '.' + a.className + ' / ' + b.tagName + '.' + b.className"
@@ -1130,21 +1195,23 @@ def test_no_overlapping_sticky_elements_on_phones(chrome, site):
         " return bad; })()"
     )
     try:
-        for width in (320, 375):
+        for width in (320, 375, 1280, 1440):
             c.viewport(width, 700)
-            # An index's page has nothing sticky (#237); the reflow test covers it.
+            # An index's page has only the header sticky (#237); the reflow test covers it.
             for name in ("station quality results", "station results",
-                         "station downloads", "station sector results"):  # fmt: skip
+                         "station downloads", "station sector results",
+                         "workspace overview", "workspace compare"):  # fmt: skip
                 c.navigate(site[name])
                 height = c.evaluate("document.documentElement.scrollHeight")
                 for y in range(0, height, 350):
                     c.evaluate(f"window.scrollTo(0, {y})")
                     time.sleep(0.03)
                     assert c.evaluate(check) == [], (name, width, y)
-                # Not vacuous: the workspace header was among them.
-                assert c.evaluate(
-                    f"{STUCK}.some(function (e) {{ return e.matches('[data-context-bar]') }})"
-                ), name
+                # Not vacuous: the site header and the context bar were among them.
+                for sticky in (".site-header", "[data-context-bar]"):
+                    assert c.evaluate(
+                        f"{STUCK}.some(function (e) {{ return e.matches('{sticky}') }})"
+                    ), (name, sticky)
                 assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), (
                     name,
                     width,

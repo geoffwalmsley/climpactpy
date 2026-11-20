@@ -68,6 +68,7 @@ ASSET_BUDGETS = {
     "js/sector.js": 0.75 * KB,  # step 5: the y label from the file name (#90)
     "js/ui.js": 4.5 * KB,  # 4 KB until #137 moved the progress polls' visibility here
     "js/drawer.js": 1 * KB,  # the help drawer, on every page (#177)
+    "js/site-header.js": 0.5 * KB,  # the header's height for what sticks under it (#284)
     # The station workspace's sticky header (#197), the phone's ⋯ menu (#203; 0.5 KB before)
     "js/context-bar.js": 1 * KB,
     "js/setup.js": 0.75 * KB,  # New station: a chosen file is read at once (#201)

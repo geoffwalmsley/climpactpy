@@ -289,7 +289,9 @@ workspace Files' By station table (#239), and the Workspaces table and Get start
   Help and the theme toggle at the end, and on the landing page Get started (from 40rem).
   Below 600px the destinations and Index reference are in the Menu, and so is the theme
   toggle, #203. Workspaces opens the Workspaces page, `/w/` (#242), and is current on
-  workspace and station pages too; Gridded is current on every gridded page) → step
+  workspace and station pages too; Gridded is current on every gridded page). The header
+  stays in view at the top of every page as it scrolls (#284), with the context bar under
+  it where there is one; not in a window under 30rem high, where nothing sticks → step
   indicator for the gridded flow (**Target:** none, #289) → title and one-line lead → content → footer. Stations come in
   on Add stations (#233, the AddStations board; starting a workspace, `/add/`, has Start's
   drop zone with the file format and the settings beside it, the content width): the h1
@@ -307,12 +309,16 @@ workspace Files' By station table (#239), and the Workspaces table and Get start
   context bar has the breadcrumb (station / Indices) with the previous and next index,
   the index as the h1 with its theme, its definition and the provenance line, and its
   files; no tabs and no Inputs panel, and it scrolls away with the page (`flow`), so
-  the chart has the width. The h1 is the station name the user
-  gives (the file name until there is one). The context bar stays in view as the page
-  scrolls (not in a window under 30rem high); the page's scroll padding keeps a focused
-  element out from under it (WCAG 2.4.11). On phones only the tabs and the Inputs bar
-  stay in view, and the name scrolls away (#203). The Inputs panel
-  (16rem) sits at the inline start, in view under the header as the page scrolls, where
+  the chart has the width (the site header stays). The h1 is the station name the user
+  gives (the file name until there is one). The context bar stays in view under the site
+  header as the page scrolls (not in a window under 30rem high), and so does what sticks
+  under it, moved down by the header's height: the Indices' rail and pane, Quality's
+  rail, the Inputs panel (#284). The page's scroll padding keeps a focused element or a
+  `#fragment` out from under both (WCAG 2.4.11; `--site-header-height`, measured by
+  `js/site-header.js`, plus `--context-bar-height`, measured by `js/context-bar.js`,
+  make `--frame-height`). On phones the header stays, with only the tabs and the Inputs
+  bar under it, and the name scrolls away (#203). The Inputs panel
+  (16rem) sits at the inline start, in view under the context bar as the page scrolls, where
   the content has at least 52rem (a container query, so the help drawer counts);
   narrower, the Inputs bar under the tabs takes its place (#203), and without JavaScript
   the panel comes above the content. Quality (#235, #264) is the verdict strip, the
@@ -441,13 +447,14 @@ strips, worklist and detail pane.
   at the inline end that stays in view as the list scrolls (`detail-pane`). Narrower,
   the rail goes above the table and the detail after the list, with "Back to the list".
   Quality (#264): the checks' rail (20rem, framed lists) and the check's detail (one
-  framed object) side by side from a 60rem page, the rail sticky under the context bar
-  and scrolling inside itself when taller than the window; narrower, the rail above and
+  framed object) side by side from a 60rem page, the rail sticky under the header and
+  the context bar and scrolling inside itself when taller than the window; narrower, the
+  rail above and
   the detail after it, its two tables one after the other. The Indices (#236, #263):
   the rail and the pane are full-height columns against the window's edges, not cards:
   the rail on the page's colour, the pane on the surface, each behind a hairline, their
-  contents sticky under the context bar. Side by side from a 76rem page: the rail 14rem
-  (12.5rem below 86rem, so the table's names keep room at 1280px), the table, the pane
+  contents sticky under the header and the context bar. Side by side from a 76rem page:
+  the rail 14rem (12.5rem below 86rem, so the table's names keep room at 1280px), the table, the pane
   `clamp(22rem, 28%, 32rem)`; from 48rem the rail beside the table and the pane under it;
   narrower, the rail above (its themes a wrapping row) and the detail after the table.
   No Inputs panel there, so the three have the width: "Edit inputs" on the provenance
@@ -517,7 +524,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Side sheet | Component | One input's form at the inline end, the screen's full height (`stations/_input_sheets.html`, `js/sheet.js`): a title and close button, the form's fields, what applying will update in a warning tint (`impact`), then one primary button, Apply, and Cancel at its foot. **Modal**, unlike the drawer: the form is being edited and applying starts a run, so it is a native `<dialog>` opened with `showModal()`: a backdrop, the page behind inert, focus on the first field and kept inside, Escape, Cancel, close or a click on the backdrop closes it and discards what was typed, and focus returns to the Edit link. Without JS, Edit links to the same form on its own page; a form with errors returns there. A long form (the index settings) scrolls inside the sheet with Apply kept in view at the foot, rather than widening the sheet; its groups are divided by rules, and their help opens in place, since the drawer would be behind the modal | base period, index settings |
 | `drawer` | Component | A section's help in a side panel, opened by the Help pill of the section's header (`{% section_help %}`). Not modal: no backdrop, no focus trap. Beside the content from 64rem, below it on narrower screens. Escape or close returns focus to the pill. Without JS the pill links to the same help on its own page. Help at the end of the app bar (a quiet link since #227) opens the page's guide | — |
 | `table` (data table) | Component | The framed dense table (#227, `table-wrap--data`, `table--data`): one frame, hairline rows 32px high and one line each, a sticky header on the sunken tint, `num` and `code` cells in mono with tabular figures, the selected row (`aria-current`) in the selected tint with an ink edge, in a keyboard-scrollable region. The plain `.table` (hairline rows, no frame) stays for tables inside a card, a disclosure or a chart until each page moves (Layout) | empty state, selected row |
-| Context bar | Component | Under the header on a station's pages (`components/context_bar.html`, #227): a breadcrumb with the previous and next item (when given; an index named codes first, #237), the title, a lead line (`lead_template`), the mono provenance line, the page's actions, the tabs and the Inputs bar under them; across the window and sticky (`js/context-bar.js` keeps the scroll padding to its height). `title_template` draws a title of its own (an index's name and theme pill); `flow` keeps it in the page's flow, for a page without tabs (an index's); `static` shows it in place on `/patterns/` | breadcrumb, sub-page title (a line, not the h1), own title, flow |
+| Context bar | Component | Under the header on a station's pages (`components/context_bar.html`, #227): a breadcrumb with the previous and next item (when given; an index named codes first, #237), the title, a lead line (`lead_template`), the mono provenance line, the page's actions, the tabs and the Inputs bar under them; across the window and sticky under the site header (`js/context-bar.js` keeps the scroll padding to its height, #284). `title_template` draws a title of its own (an index's name and theme pill); `flow` keeps it in the page's flow, for a page without tabs (an index's); `static` shows it in place on `/patterns/` | breadcrumb, sub-page title (a line, not the h1), own title, flow |
 | `index_name` | Primitive | An index named codes first (#218): the code in mono, without the code background, then the short name, "TXx Hottest day". In a page title the name is a step lighter. The catalogue puts them in two columns, Code then Index | title |
 | `summary_list` | Component | Key–value pairs | — |
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
@@ -740,14 +747,15 @@ scroll inside their focusable region rather than the page. Charts keep their tab
 On a phone (below 40rem, #203, proposal 7 of the mockups) a station's context bar is
 the name (18px) and the ⋯ page menu on one line, the years under it (the base period
 is in the Inputs bar, the file name in the File sheet), then the three tabs on one line
-and the Inputs bar. Only the tabs and the bar stay in view as the page scrolls; the
-scroll padding is their height, so focus never goes under them. Sheets fill the screen.
+and the Inputs bar. Only the site header, the tabs and the bar stay in view as the
+page scrolls (#284); the scroll padding is their height, so focus never goes under them. Sheets fill the screen.
 The Indices' rows are two lines each and their detail comes after the table, Quality's
 check detail comes after its rail, its values table before the selected value, an index page's statistics come under its chart, which
 scrolls inside its region below 32rem,
 and the download tables are short blocks. The accessibility tests run every page at
-320px and fail on horizontal page scroll; the phone tests check the station pages at
-320 and 375px for sticky elements covering each other, the Inputs bar's sheets and the
+320px and fail on horizontal page scroll; the sticky tests check the station and
+workspace pages at 320, 375, 1280 and 1440px for sticky elements covering each other
+(#284), focus and `#fragment` targets under the header and the context bar, the Inputs bar's sheets and the
 ⋯ menu by keyboard.
 
 ## Agent prompt guide

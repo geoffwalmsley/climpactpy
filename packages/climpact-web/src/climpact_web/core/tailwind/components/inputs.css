@@ -45,11 +45,11 @@
       gap: --spacing(8);
     }
 
-    /* In view as the page scrolls, under the sticky workspace header. */
+    /* In view as the page scrolls, under the header and the context bar (#284). */
     .inputs-panel {
       position: sticky;
-      inset-block-start: calc(var(--context-bar-height, 9rem) + --spacing(4));
-      max-block-size: calc(100vh - var(--context-bar-height, 9rem) - --spacing(8));
+      inset-block-start: calc(var(--frame-height) + --spacing(4));
+      max-block-size: calc(100vh - var(--frame-height) - --spacing(8));
       overflow-y: auto;
     }
   }

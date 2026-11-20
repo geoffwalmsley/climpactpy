@@ -4,11 +4,13 @@ summary: Calculating the indices on gridded netCDF data, such as model output or
 ## Where it runs
 
 Gridded data are large and take a long time to process, so gridded calculations run in
-the version of Climpact installed on **your own computer**, as in Climpact for R. Choose
-the files by their path (Browse finds them): they are read where they are on your disk and
-never changed. You can also upload copies, up to the size limit shown on the page. A
-hosted Climpact offers gridded runs only if its operator has switched them on, and then
-by upload only. They are also available from the `climpact` command line.
+the version of Climpact installed on **your own computer**, as in Climpact for R. New
+gridded run lists a folder of your computer: each netCDF file with its daily variables
+and dates, read from its header. Tick the files you want, in as many folders as you need,
+or paste their paths, where `*` and `?` match many files (`/data/agcd/tmax_*.nc`). They
+are read where they are on your disk and never changed. A hosted Climpact offers gridded
+runs only if its operator has switched them on, and then by upload only, up to the size
+limit the page states. They are also available from the `climpact` command line.
 
 The calculation runs in the background: you can close the page and come back to the run
 from [Gridded](url:gridded:start), in the header, which lists your runs: their grid,
@@ -39,8 +41,8 @@ a file's variables, units and calendar. NCO (`ncrename`, `ncatted`) and CDO help
 and units.
 
 Climpact for R's sample grid, `climpact.sampledata.gridded.1991-2010.nc` (24 by 19 cells
-over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on the first page
-(on Gridded and New gridded run) loads a 3 by 4 cut of it in one click.
+over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on Gridded (**Try the sample grid** on New
+gridded run) loads a 3 by 4 cut of it in one click.
 
 After you choose the files, Climpact shows what each holds (variables, units, calendar,
 grid and dates) and guesses which variable is which; check the guess before you go on.

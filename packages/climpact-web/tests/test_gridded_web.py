@@ -1,8 +1,9 @@
-"""The gridded pages (#85, #289, #291): Gridded's list of runs, choosing files by path (local
-mode) or upload, the folder browser, inspecting the files and guessing the variables, the
-set-up form and its checks, the thresholds and indices jobs, a run's context bar and its
-Map, Files and Set-up tabs (the map, cell series, CSVs, zips, the links for wget and the
-run's record), the hosted-mode switch and upload limit, ownership and retention."""
+"""The gridded pages (#85, #289, #291, #292): Gridded's list of runs, choosing files (local
+mode: a folder listing, paths and patterns) or uploading them, inspecting the files and
+guessing the variables, the set-up form and its checks, the thresholds and indices jobs, a
+run's context bar and its Map, Files and Set-up tabs (the map, cell series, CSVs, zips, the
+links for wget and the run's record), the hosted-mode switch and upload limit, ownership
+and retention."""
 
 import datetime as dt
 import io
@@ -245,9 +246,11 @@ def test_split_files_that_do_not_fit(tmp_path):
 
 def test_new_run_page_local(client):
     html = client.get("/gridded/new/").content.decode()
-    assert "Files on this computer" in html and 'id="file-browser"' in html
-    assert "Use the sample grid" in html and 'name="files"' in html
-    assert "each split by year (up to 200 files, joined along time)" in html
+    assert "Files on this computer" in html and 'id="file-listing"' in html
+    assert "Paste paths or a pattern instead" in html and 'name="paths"' in html
+    assert "Try the sample grid" in html and "(3 × 4 cells, 1991–2010, 525.0\xa0KB)" in html
+    assert "Read the files" in html and "No files yet" in html
+    assert "up to 200" in html and 'name="files"' not in html  # no upload locally (#292)
     assert "<h1>New gridded run</h1>" in html and 'aria-label="Breadcrumb"' in html
     assert "steps__" not in html and "Continue where you left off" not in html
 
@@ -283,22 +286,115 @@ def test_choose_files_by_path(client):
     assert '<td class="code">3 × 4</td>' in html and "degrees_C" in html and str(GRIDS) in html
 
 
-def test_browser_lists_folders_and_adds_files(client):
-    response = client.post(
-        "/gridded/new/", {"paths": "", "action": f"browse:{GRIDS}"}, HTTP_HX_REQUEST="true"
-    )
+def test_listing_shows_what_each_file_holds(client):
+    """The folder listing (#292): each netCDF file with its daily variables and dates from
+    its header, folders as links; htmx swaps the listing only, without JavaScript the
+    whole page comes back."""
+    response = client.post("/gridded/new/", {"action": f"browse:{GRIDS}"}, HTTP_HX_REQUEST="true")
     html = response.content.decode()
-    assert 'id="gridded-chooser"' in html and "<html" not in html
-    assert "grid_sample.nc" in html and "Up one folder" in html
+    assert html.lstrip().startswith('<div class="gridded-listing" id="file-listing">')
+    assert "<html" not in html and f'value="{GRIDS}"' in html
+    row = html[html.index('value="' + str(GRIDS / "grid_stations_tas.nc")) :]
+    row = row[: row.index("</tr>")]
+    assert '<td class="code">tasmax, tasmin</td>' in row and "1966–2005" in row
+    assert "disabled" not in row and "checked" not in row
+    assert f'value="browse:{GRIDS.parent}"' in html  # the folder above, in the path bar
+    response = client.post("/gridded/new/", {"action": f"browse:{GRIDS.parent}"})
+    html = response.content.decode()
+    assert "<html" in html and f'value="browse:{GRIDS}"' in html and ">input/</button>" in html
+    # The page opens where the chooser was last.
+    assert f'name="current" value="{GRIDS.parent}"' in client.get("/gridded/new/").content.decode()
+
+
+def test_listing_greys_files_that_cannot_be_chosen(client, tmp_path):
+    shutil.copy(SAMPLE, tmp_path / "grid.nc")
+    with netCDF4.Dataset(tmp_path / "orog.nc", "w") as nc:
+        nc.createDimension("lat", 2)
+        nc.createDimension("lon", 2)
+        nc.createVariable("orog", "f4", ("lat", "lon"))[:] = 1.0
+    with netCDF4.Dataset(tmp_path / "base.thresholds.nc", "w") as nc:
+        nc.base_period = "1971-2000"
+        for dim, n in (("time", 365), ("lat", 2), ("lon", 2)):
+            nc.createDimension(dim, n)
+            nc.createVariable(dim, "f8", (dim,))[:] = np.arange(n)
+        nc.variables["time"].units = "days since 1986-01-01"
+        nc.createVariable("tx90thresh", "f4", ("time", "lat", "lon"))[:] = 1.0
+    (tmp_path / "notes.txt").write_text("not listed")
+    html = client.get("/gridded/new/", {"dir": str(tmp_path)}).content.decode()
+    assert "notes.txt" not in html
+    assert html.count('class="gridded-listing__unusable"') == 2
+    assert "– (no time axis)" in html and "– (thresholds file)" in html
+    assert '<td class="code">1971–2000</td>' in html
+    assert html.count(" disabled>") == 2
+    assert '<td class="code">tmax, tmin, precip</td>' in html
+
+
+def test_ticked_files_are_kept_across_folders(client, tmp_path):
+    (tmp_path / "sub").mkdir()
+    ticked = str(GRIDS / "grid_stations_tas.nc")
+    html = client.post(
+        "/gridded/new/",
+        {"action": f"browse:{tmp_path}", "current": str(GRIDS), "file": [ticked]},
+    ).content.decode()
+    assert f'<input type="hidden" name="file" value="{ticked}">' in html
+    assert ">sub/</button>" in html and "No folders or netCDF files here." not in html
+    assert "1 file chosen · tasmax, tasmin · 658.6\xa0KB" in html
+    html = client.post(
+        "/gridded/new/",
+        {"action": f"browse:{GRIDS}", "current": str(tmp_path), "file": [ticked]},
+    ).content.decode()
+    assert f'value="{ticked}" id="listed-' in html and " checked>" in html
+    # Ticking a file (htmx) puts what is chosen in the line under the listing.
+    html = client.post(
+        "/gridded/new/?tick=1",
+        {
+            "current": str(GRIDS),
+            "file": [ticked],
+            "paths": str(GRIDS / "grid_stations_pr.nc"),
+        },
+        HTTP_HX_REQUEST="true",
+    ).content.decode()
+    assert 'id="chosen-summary"' in html and "<html" not in html
+    assert "2 files chosen · tasmax, tasmin, pr · " in html
+    # Read the files: those ticked and those typed.
     response = client.post(
         "/gridded/new/",
-        {"paths": "", "action": f"add:{GRIDS / 'grid_sample.nc'}"},
-        HTTP_HX_REQUEST="true",
+        {"action": "use", "file": [ticked], "paths": str(GRIDS / "grid_stations_pr.nc")},
     )
-    assert str(GRIDS / "grid_sample.nc") in response.content.decode()
-    # Without JavaScript the whole page comes back.
-    response = client.post("/gridded/new/", {"paths": "", "action": f"browse:{GRIDS}"})
-    assert "<html" in response.content.decode()
+    assert response.status_code == 302
+    assert GriddedRun.objects.get().paths == [ticked, str(GRIDS / "grid_stations_pr.nc")]
+
+
+def test_folder_field(client, tmp_path):
+    html = client.post(
+        "/gridded/new/", {"action": "open", "folder": str(tmp_path), "current": str(GRIDS)}
+    ).content.decode()
+    assert f'name="current" value="{tmp_path.resolve()}"' in html
+    html = client.post(
+        "/gridded/new/",
+        {"action": "open", "folder": str(tmp_path / "nope"), "current": str(GRIDS)},
+        HTTP_HX_REQUEST="true",
+    ).content.decode()
+    assert f"There is no folder {tmp_path / 'nope'}." in html and 'aria-invalid="true"' in html
+    assert f'name="current" value="{GRIDS}"' in html  # still the folder it was showing
+    assert f'value="{tmp_path / "nope"}"' in html  # what was typed, to correct
+
+
+def test_patterns_expand_to_files(client, tmp_path):
+    files = split_by_year(SAMPLE, tmp_path, [(1991, 1991), (1992, 1992), (2000, 2000)])[:2]
+    (tmp_path / "folder_1990.nc").mkdir()  # a folder the pattern matches: left out
+    response = client.post("/gridded/new/", {"action": "use", "paths": str(tmp_path / "*_199?.nc")})
+    assert response.status_code == 302, response.content.decode()
+    assert GriddedRun.objects.get().paths == [str(f) for f in files]
+    html = client.post(
+        "/gridded/new/",
+        {"action": "use", "paths": f"{tmp_path}/*.nc4\nrelative/*.nc"},
+    ).content.decode()
+    assert f"{tmp_path}/*.nc4 matches no files." in html
+    assert "relative/*.nc: give the full path" in html
+    assert "open>" in html and f"{tmp_path}/*.nc4" in html  # the box open, as typed
+    html = client.post("/gridded/new/", {"action": "use"}).content.decode()
+    assert "Tick at least one netCDF file, or enter its path." in html
 
 
 def test_upload(client):
@@ -399,8 +495,11 @@ def test_hosted_off_by_default(client):
 @override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True)
 def test_hosted_when_enabled_offers_uploads_not_paths(client):
     html = client.get("/gridded/new/").content.decode()
-    assert 'name="files"' in html and 'name="paths"' not in html and "file-browser" not in html
-    assert client.get("/gridded/browse").status_code == 404
+    assert 'name="files"' in html and 'name="paths"' not in html and "file-listing" not in html
+    assert "Drop .nc files here" in html and "Up to 200.0\xa0MB in all on this server" in html
+    assert "kept 7 days, then deleted" in html and "cdo sellonlatbox" in html
+    assert client.get("/gridded/new/", {"dir": "/"}).status_code == 200
+    assert "file-listing" not in client.get("/gridded/new/", {"dir": "/"}).content.decode()
     # A path posted anyway is ignored.
     response = client.post("/gridded/new/", {"paths": str(SAMPLE), "action": "use"})
     assert response.status_code == 302 and response["Location"] == "/gridded/new/"

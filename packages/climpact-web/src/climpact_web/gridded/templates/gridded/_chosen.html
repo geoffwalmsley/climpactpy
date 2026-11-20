@@ -1,0 +1,5 @@
+{% load i18n %}{% comment %}
+What is chosen on New gridded run (#292), beside Read the files: "3 files chosen · tasmax,
+tasmin, pr · 561.0 MB", or "No files yet". htmx puts it here again as files are ticked or
+paths typed (?tick=1). Context: chosen (listing.summary).
+{% endcomment %}<span class="font-mono text-sm text-text-muted" id="chosen-summary" aria-live="polite">{% if chosen.count %}{% blocktranslate count counter=chosen.count with variables=chosen.variables|join:", "|default:"–" size=chosen.size|filesizeformat trimmed %}{{ counter }} file chosen · {{ variables }} · {{ size }}{% plural %}{{ counter }} files chosen · {{ variables }} · {{ size }}{% endblocktranslate %}{% else %}{% translate "No files yet" %}{% endif %}</span>

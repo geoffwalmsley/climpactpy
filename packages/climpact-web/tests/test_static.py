@@ -79,7 +79,7 @@ def test_tour_script_stays_small():
 # Class names in the templates that no stylesheet rule needs: hooks for scripts and tests,
 # and words a template puts after a modifier prefix (alert--{{ kind }} and the like).
 HOOK_CLASSES = {
-    "batch-progress", "download-group", "download-link", "empty-filter", "file-browser__folder",
+    "batch-progress", "download-group", "download-link", "empty-filter",
     "gmap__cell--selected", "gmap__svg", "gridded-checks__problems", "gridded-explore__help",
     "gridded-map", "gridded-series", "help-page",
     "job-files", "job-page", "job-progress", "numeric", "param", "qc-charts", "qc-check",

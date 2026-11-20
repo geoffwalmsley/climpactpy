@@ -24,7 +24,7 @@ pasted from a spreadsheet fills the cells under the one pasted into
     <div class="add-stations__main">
       <form method="post" action="{{ action }}" enctype="multipart/form-data" id="add-form" class="add-stations__form" novalidate{% if run %} data-check-url="{% url 'stations:add_check' run.workspace_id run.pk %}"{% endif %}>
         {% csrf_token %}
-        {# Enter in a cell checks the table (the first submit button is the form's default). #}
+        {# Enter in a cell or a settings field checks the table, with the settings applied (the first submit button is the form's default; never adds, #318). #}
         <button type="submit" name="intent" value="check" class="sr-only" tabindex="-1" aria-hidden="true">{% translate "Check the table" %}</button>
 
         <section class="add-drop" aria-labelledby="drop-title" data-add-drop>

@@ -10,8 +10,11 @@ table (:mod:`.add_stations`), then added and checked.
   (``AddStations.dc.html``). One form holds the drop zone, the table and the settings,
   so whatever is sent keeps what was typed: more files (``intent=files``), the sample
   (``sample``), the settings (``settings``), Cancel (``cancel``) and "Add N stations and
-  check them" (``add``). ``add_check`` checks the table as it is typed (JavaScript) and
-  keeps what was typed.
+  check them" (``add``), the only one that adds. Enter sends the form's default button, a
+  hidden "Check the table" (``check``, #318), from a cell without JavaScript or from a
+  settings field: it does what Apply does, so the table is checked again with the
+  settings applied. ``add_check`` checks the table as it is typed (JavaScript) and keeps
+  what was typed.
 
 The files wait in a :class:`~climpact_web.batch.models.BatchRun` of the workspace until
 they are added (:mod:`.add_stations`). One station is added as a station of its own and
@@ -375,7 +378,7 @@ def review_page(request, workspace_id, run_id):
     space = run.workspace
     if request.method != "POST":
         return render(request, "stations/add.html", page_context(request, space, run))
-    intent = request.POST.get("intent", "add")
+    intent = request.POST.get("intent", "")
     if intent == "cancel":
         return cancel(request, run)
     keep_typed(request, run)
@@ -385,7 +388,7 @@ def review_page(request, workspace_id, run_id):
         if form.is_valid():
             if apply_settings(space, run, form):
                 messages.success(request, _("The settings are changed for every station."))
-        elif intent in ("settings", "add"):
+        elif intent not in ("files", "sample"):
             context = page_context(request, space, run, settings_form=form, settings_open=True)
             return render(request, "stations/add.html", context, status=400)
     if intent in ("files", "sample"):
@@ -393,7 +396,10 @@ def review_page(request, workspace_id, run_id):
         if uploads or intent == "sample":
             take(run, uploads, sample=intent == "sample")
         return redirect(review_url(run))
-    if intent == "settings":
+    if intent != "add":
+        # Apply ("settings"), Enter ("check": a settings field, or a cell without
+        # JavaScript) and anything else: back to the table, checked again. Only "Add N
+        # stations and check them" adds (#318).
         return redirect(review_url(run))
     review = review_module.review(run.report, space)
     rows = review.addable

@@ -266,6 +266,40 @@ def test_the_settings_change_before_anything_is_calculated(client):
     assert "a file outside the base period" in html
 
 
+def test_enter_checks_the_table_and_never_adds(client):
+    """Enter in a cell (without JavaScript) or in a settings field sends the form's
+    default button, the hidden "Check the table" (``intent=check``, #318): what was typed
+    is kept, valid settings are applied and the table is checked again, but nothing is
+    added and no job is queued, even when every row is complete."""
+    run = stage(client, a__txt=station())
+    html = client.get(review_url(run)).content.decode()
+    form = re.search(r'<form [^>]*id="add-form".*?</form>', html, re.S)[0]
+    assert re.findall(r'<button type="submit" name="intent" value="(\w+)"', form)[0] == "check"
+    data = {"intent": "check", "file-0": "a.txt", "name-0": "Alpha", "lat-0": "-30"}
+    data |= {"lon-0": "150", "base_start": "2000", "base_end": "2001", "workers": "1"}
+    response = client.post(review_url(run), data)
+    assert response.status_code == 302 and response["Location"] == review_url(run)
+    assert not Station.objects.exists() and not Job.objects.exists()
+    space = Workspace.objects.get()
+    assert (space.base_start, space.base_end) == (2000, 2001)  # Enter applied the settings
+    html = client.get(review_url(run)).content.decode()
+    assert 'value="Alpha"' in row_of(html, "a.txt") and "Add 1 station and check it" in html
+    assert "The settings are changed for every station." in html
+    # Settings that are not valid are shown with why, the panel open; nothing is added.
+    data |= {"base_start": "2001", "base_end": "2000"}
+    response = client.post(review_url(run), data)
+    html = response.content.decode()
+    assert response.status_code == 400 and '<details class="add-settings__change" open>' in html
+    assert "The last year must not be before the first year." in html
+    assert not Station.objects.exists() and not Job.objects.exists()
+    # Only "Add N stations and check them" adds: a form sent with no intent, or one this
+    # page does not know, goes back to the table too.
+    for other in ({}, {"intent": "unknown"}):
+        response = client.post(review_url(run), {**data, "base_end": "2001", **other})
+        assert response["Location"] == review_url(run)
+    assert not Station.objects.exists() and not Job.objects.exists()
+
+
 def test_several_stations_fill_the_workspace_as_a_batch(client):
     meta = HEADER + meta_line("a.txt", "-30", "150", "4\t1\t18\t18\t10\t3\t30\t2\t24")
     meta += meta_line("b.txt", "-31", "151")

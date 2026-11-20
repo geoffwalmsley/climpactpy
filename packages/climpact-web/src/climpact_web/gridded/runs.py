@@ -178,8 +178,9 @@ class RunState:
         return self.key in ("queued", "running")
 
 
-def state(run: GriddedRun) -> RunState:
-    jobs = run.jobs
+def state(run: GriddedRun, jobs: list | None = None) -> RunState:
+    """The run's state, from its jobs (or ``jobs``: those of a new start, #293)."""
+    jobs = run.jobs if jobs is None else jobs
     if not jobs:
         problem = setup_problem(run)
         if problem:
@@ -291,8 +292,12 @@ def entries(owner: str) -> list[dict]:
     """Gridded's table (the GridList board): every run of ``owner``, most recently
     changed first."""
     runs = list(
-        GriddedRun.objects.filter(owner=owner).select_related("thresholds_job", "indices_job")
+        GriddedRun.objects.filter(owner=owner).select_related(
+            "thresholds_job", "indices_job", "next_thresholds_job", "next_indices_job"
+        )
     )
+    for run in runs:
+        run.settle()
     sources = threshold_sources(runs)
     rows = []
     for run in runs:
@@ -306,7 +311,8 @@ def entries(owner: str) -> list[dict]:
                 "period": period_text(summary),
                 "thresholds": thresholds_text(run, sources),
                 "calculates": calculates_text(run),
-                "state": state(run),
+                # A new start under way shows its progress (#293).
+                "state": state(run, run.next_jobs) if run.restarting else state(run),
                 "kept": kept_until(run) or DASH,
             }
         )

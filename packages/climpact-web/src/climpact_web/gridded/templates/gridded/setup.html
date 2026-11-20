@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% comment %}
-A gridded run's set-up (#85; #293 redraws it). The Files section is the GridSetup board's
-table, a row for each variable's files (#291). Before the run starts: "Gridded / New run /
-set-up" over the run's name as the h1, with Rename. Once it has started, the run's Set-up
-tab (#289): the run's context bar, then the same form, which starts the run again.
-Context from views.setup_context.
+A gridded run's set-up (#85; the GridSetup board, #293): one page of sections divided by
+hairlines (Files, Variables, What to calculate, Base period, Indices, Output files, and
+Computing closed) beside the summary panel at the inline end, which is the check and holds
+the one Start button. As the form changes, htmx posts it to gridded:checks and swaps in the
+panel (gridded/_summary.html) with the parts of the form that follow it, out of band;
+without JavaScript the form posts and the page draws the same panel. Before the run
+starts: "Gridded / New run / set-up" over the run's name as the h1, with Rename, and
+"Choose other files". Once it has started, the run's Set-up tab (#289): the run's context
+bar, and the panel describes the results until a setting changes; starting again keeps
+them until the new ones are ready. Context from views.setup_context.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=run_name %}Set-up: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/gridded.js' %}" defer></script>{% endblock %}
@@ -14,164 +19,184 @@ Context from views.setup_context.
   {% if run.jobs %}
   {% include "gridded/_run_bar.html" %}
   {% else %}
-  <header class="stack stack--sm">
-    {% include "gridded/_breadcrumb.html" with crumbs="setup" %}
-    <h1>{{ run_name }} <a class="text-sm font-normal" href="{% url 'gridded:rename' run.pk %}">{% translate "Rename" %}<span class="sr-only"> {% translate "the run" %}</span></a></h1>
-    <p class="lead">{% blocktranslate count counter=files|length trimmed %}Climpact has read the file below. Nothing has been calculated yet.{% plural %}Climpact has read the {{ counter }} files below. Nothing has been calculated yet.{% endblocktranslate %}</p>
-  </header>
+  {% include "components/context_bar.html" with title=run_name heading=True breadcrumb=setup_breadcrumb title_template="gridded/_setup_title.html" lead_template="" provenance="" provenance_end="" actions="gridded/_setup_actions.html" tabs="" below="" step_previous="" step_next="" flow=True %}
   {% endif %}
 
-  {% if job_active %}
-  {% url 'gridded:run' run.pk as results_url %}{% translate "Follow its progress" as follow_label %}
-  {% translate "This run is being calculated." as active_message %}
-  {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
-  {% endif %}
-
-  <section class="stack stack--sm" aria-labelledby="files-title">
-    <h2 id="files-title">{% translate "Files" %}</h2>
-    {% include "gridded/_files_table.html" %}
-    <p class="text-sm text-text-muted">{% translate "Only the files' headers and coordinates are read here; the data are read when the run starts." %}</p>
-  </section>
-
-  {% if preflight_error %}
-  <div class="alert alert--error" role="alert" tabindex="-1" data-error-summary>
-    {% icon "error" %}
-    <div class="alert__body">
-      <h2 class="alert__title">{% translate "The run cannot start" %}</h2>
-      <p>{{ preflight_error }}</p>
-    </div>
-  </div>
-  {% endif %}
-
-  <form method="post" action="{% url 'gridded:setup' run.pk %}" class="form stack gridded-setup" novalidate{% if not local %} enctype="multipart/form-data"{% endif %}
-    hx-post="{% url 'gridded:checks' run.pk %}" hx-trigger="change delay:150ms" hx-target="#gridded-checks" hx-swap="outerHTML">
+  <form method="post" action="{% url 'gridded:setup' run.pk %}" class="form gridded-setup" id="gridded-setup" novalidate{% if not local %} enctype="multipart/form-data"{% endif %}
+    hx-post="{% url 'gridded:checks' run.pk %}" hx-trigger="change delay:150ms" hx-target="#gridded-summary" hx-swap="outerHTML" hx-sync="this:replace">
     {% csrf_token %}
-    {% include "components/form_errors.html" with form=form %}
+    <div class="gridded-setup__layout">
+      <div class="gridded-setup__main">
+        {% include "components/form_errors.html" with form=form %}
 
-    <section class="card stack" aria-labelledby="variables-title">
-      <h2 class="card__title" id="variables-title">{% translate "1. Variables" %}</h2>
-      <p class="field__hint">{% translate "Which variable in the files is which. Climpact guessed from their names and units; check them." %}</p>
-      {% help_topic "gridded.variables" %}
-      <div class="form__row grid-cols-fit-56">
-        {% include "components/field.html" with field=form.tasmax %}
-        {% include "components/field.html" with field=form.tasmin %}
-        {% include "components/field.html" with field=form.pr %}
-      </div>
-      {% include "gridded/_checks.html" %}
-    </section>
+        <section class="gridded-setup__section" aria-labelledby="files-title">
+          <h2 id="files-title" class="gridded-setup__heading">{% translate "Files" %}</h2>
+          {% include "gridded/_files_table.html" with header=True %}
+          <p class="gridded-setup__hint">{% blocktranslate trimmed %}Header opens the file's <span class="font-mono">ncdump -h</span>: dimensions, variables and attributes. Only headers and coordinates are read here; the data are read when the run starts.{% endblocktranslate %}</p>
+        </section>
 
-    <section class="card stack" aria-labelledby="task-title">
-      <div class="section-header"><h2 class="card__title" id="task-title">{% translate "2. What to calculate" %}</h2>{% section_help "gridded.task" %}</div>
-      {% include "components/field.html" with field=form.task %}
-      <ul class="m-0 ps-5 text-sm text-text-muted">
-        <li>{% translate "Indices: one netCDF file per index and frequency (monthly, annual), as Climpact for R writes them." %}</li>
-        <li>{% translate "Thresholds file only: the base-period percentiles of every cell, to calculate indices for other data later, e.g. a future scenario with thresholds from a historical run." %}</li>
-        <li>{% translate "Thresholds file, then indices: both, one after the other." %}</li>
-      </ul>
-      <div class="stack" data-for="source">
-        {% include "components/field.html" with field=form.thresholds_source %}
-        <div data-for="source file" class="stack">
-          {% if local %}{% include "components/field.html" with field=form.thresholds_path %}
-          {% else %}
-          {% blocktranslate asvar thresholds_hint with size=max_upload_mb %}netCDF, up to {{ size }} MB.{% endblocktranslate %}
-          {% include "components/dropzone.html" with field=form.thresholds_upload hint=thresholds_hint %}
-          {% if form.thresholds_uploaded %}<p class="text-sm">{% blocktranslate with name=form.thresholds_uploaded %}Loaded: {{ name }}. Choose another file to replace it.{% endblocktranslate %}</p>{% endif %}
-          {% endif %}
-          <p class="text-sm text-text-muted">{% translate "A thresholds file is only for data with no day in its base period (enter that base period below), as in Climpact for R." %}</p>
-        </div>
-      </div>
-    </section>
+        <section class="gridded-setup__section" aria-labelledby="variables-title">
+          <h2 id="variables-title" class="gridded-setup__heading">{% translate "Variables" %}</h2>
+          <p class="gridded-setup__hint">{% translate "Which variable is which. Climpact guessed from the names, standard names and units; change any that are wrong." %}</p>
+          <div class="table-wrap table-wrap--data" role="region" aria-labelledby="variables-caption" tabindex="0">
+            <table class="table table--data gridded-vars">
+              <caption id="variables-caption" class="sr-only">{% translate "The variables Climpact needs, the variable chosen for each, its units and how Climpact reads them" %}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="gridded-vars__role">{% translate "Climpact needs" %}</th>
+                  <th scope="col" class="gridded-vars__choice">{% translate "Variable in the files" %}</th>
+                  <th scope="col">{% translate "Units in the file" %}</th>
+                  <th scope="col">{% translate "Read as" %}</th>
+                  <th scope="col" class="gridded-vars__check-col">{% translate "Check" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in variable_rows %}
+                <tr>
+                  <th scope="row"><label for="{{ row.field.id_for_label }}">{{ row.label }}</label></th>
+                  <td>{{ row.field }}</td>
+                  {% include "gridded/_variable_cells.html" %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% include "gridded/_units_help.html" %}
+          {% include "gridded/_together.html" %}
+        </section>
 
-    <section class="card stack" aria-labelledby="base-title">
-      <h2 class="card__title" id="base-title">{% translate "3. Base period" %}</h2>
-      <fieldset class="field-set" aria-describedby="base-period-hint">
-        <legend>{% translate "Base period" %} <span class="field__required" aria-hidden="true">&ast;</span></legend>
-        <p class="field__hint" id="base-period-hint">{% translate "The years the percentile thresholds are calculated from. WMO's reference period is 1971 to 2000." %}</p>
-        {% help_topic "gridded.base_period" %}
-        <div class="form__row">
-          {% include "components/field.html" with field=form.base_start narrow=True %}
-          {% include "components/field.html" with field=form.base_end narrow=True %}
-        </div>
-      </fieldset>
-    </section>
-
-    <section class="card stack" aria-labelledby="output-title">
-      <div class="section-header"><h2 class="card__title" id="output-title">{% translate "4. Output" %}</h2>{% section_help "gridded.output" %}</div>
-      <div data-for="indices">{% include "components/field.html" with field=form.template %}</div>
-      <div data-for="thresholds">{% include "components/field.html" with field=form.thresholds_name %}</div>
-      <div class="form__row">
-        {% include "components/field.html" with field=form.institution %}
-        {% include "components/field.html" with field=form.institution_id narrow=True %}
-      </div>
-      {% if form.copy_to %}{% include "components/field.html" with field=form.copy_to %}{% endif %}
-    </section>
-
-    <section class="card stack" aria-labelledby="indices-title" data-for="indices">
-      <h2 class="card__title" id="indices-title">{% translate "5. Indices" %}</h2>
-      <fieldset class="field-set{% if form.indices.errors %} field--error{% endif %}" aria-describedby="indices-hint">
-        <legend>{{ form.indices.label }}</legend>
-        <p class="field__hint" id="indices-hint">{% translate "All are chosen; leave them all to calculate every index, as Climpact for R does when the list is empty. The heatwave, SPI and SPEI indices (marked) take most of the time." %}</p>
-        {% help_topic "gridded.indices" %}
-        {% with field=form.indices %}{% include "components/field_errors.html" %}{% endwith %}
-        <div class="flex flex-wrap items-center gap-3" data-check-tools hidden>
-          <button type="button" class="button button--ghost button--sm" data-check-all="indices">{% translate "Choose all" %}</button>
-          <button type="button" class="button button--ghost button--sm" data-check-none="indices">{% translate "Choose none" %}</button>
-        </div>
-        <div class="grid gap-4 grid-cols-fit-64">
-          {% for group in index_groups %}
-          <fieldset class="field-set content-start gap-1">
-            <legend class="text-sm">{{ group.label }}</legend>
-            {% for item in group.items %}
-            <label class="check"><input type="checkbox" name="indices" value="{{ item.value }}"{% if item.checked %} checked{% endif %}> <span>{{ item.label }}{% if item.slow %} <span class="badge">{% translate "slow" %}</span>{% endif %}</span></label>
+        <section class="gridded-setup__section" aria-labelledby="task-title">
+          <div class="gridded-setup__head"><h2 id="task-title" class="gridded-setup__heading">{% translate "What to calculate" %}</h2>{% section_help "gridded.task" quiet=True %}</div>
+          <fieldset class="gridded-tasks" aria-labelledby="task-title">
+            {% for choice in form.task %}
+            <label class="gridded-task" for="{{ choice.id_for_label }}">
+              {{ choice.tag }}
+              <span class="gridded-task__text">
+                <span class="gridded-task__title">{{ choice.choice_label }}</span>
+                <span class="gridded-task__hint">{% if choice.data.value == "indices" %}{% translate "One netCDF file per index and frequency." %}{% elif choice.data.value == "thresholds" %}{% translate "The base-period percentiles of every cell, to reuse for other data." %}{% else %}{% translate "Both: keep the thresholds for a scenario run later." %}{% endif %}</span>
+              </span>
+            </label>
             {% endfor %}
           </fieldset>
-          {% endfor %}
-        </div>
-      </fieldset>
-      <details class="disclosure">
-        <summary>{% icon "sliders" %}<span>{% translate "Index parameters" %}</span>{% icon "chevron-down" %}</summary>
-        <div class="disclosure__body stack">
-          <div class="section-header"><p class="text-sm text-text-muted">{% translate "The parameters of the indices named after a number. The defaults are those of Climpact for R's gridded calculation." %}</p>{% section_help "gridded.settings" %}</div>
-          <div class="grid gap-x-4 gap-y-3 grid-cols-fill-48">
-            {% include "components/field.html" with field=form.wsdi_days narrow=True %}
-            {% include "components/field.html" with field=form.csdi_days narrow=True %}
-            {% include "components/field.html" with field=form.rx_days narrow=True %}
-            {% include "components/field.html" with field=form.txtn_days narrow=True %}
-            {% include "components/field.html" with field=form.hdd_base narrow=True %}
-            {% include "components/field.html" with field=form.cdd_base narrow=True %}
-            {% include "components/field.html" with field=form.gdd_base narrow=True %}
-            {% include "components/field.html" with field=form.rnnmm narrow=True %}
+          {% with field=form.task %}{% include "components/field_errors.html" %}{% endwith %}
+          <fieldset class="gridded-source" data-for="source">
+            <legend>{{ form.thresholds_source.label }}</legend>
+            {% for choice in form.thresholds_source %}<label class="check" for="{{ choice.id_for_label }}">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>{% endfor %}
+            <div class="gridded-source__file" data-for="source file">
+              {% if local %}
+              <div class="field{% if form.thresholds_path.errors %} field--error{% endif %}">
+                <label class="sr-only" for="{{ form.thresholds_path.id_for_label }}">{{ form.thresholds_path.label }}</label>
+                {% with field=form.thresholds_path %}{% include "components/field_errors.html" %}{% endwith %}
+                {{ form.thresholds_path }}
+              </div>
+              {% else %}
+              {% blocktranslate asvar thresholds_hint with size=max_upload_mb %}netCDF, up to {{ size }} MB.{% endblocktranslate %}
+              {% include "components/dropzone.html" with field=form.thresholds_upload hint=thresholds_hint %}
+              {% if form.thresholds_uploaded %}<p class="text-sm">{% blocktranslate with name=form.thresholds_uploaded %}Loaded: {{ name }}. Choose another file to replace it.{% endblocktranslate %}</p>{% endif %}
+              {% endif %}
+            </div>
+          </fieldset>
+        </section>
+
+        <section class="gridded-setup__section" aria-labelledby="base-title">
+          <h2 id="base-title" class="gridded-setup__heading">{% translate "Base period" %}</h2>
+          <div class="gridded-base">
+            {% include "gridded/_year_field.html" with field=form.base_start %}
+            {% include "gridded/_year_field.html" with field=form.base_end %}
+            {% include "gridded/_timeline.html" %}
           </div>
-          <p class="text-sm text-text-muted">{% translate "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also lists Perkins and Alexander (2013), but its calculation accepts only Nairn and Fawcett." %}</p>
-        </div>
-      </details>
-    </section>
+          {% include "gridded/_coverage.html" %}
+        </section>
 
-    <details class="disclosure">
-      <summary>{% icon "sliders" %}<span>{% translate "Advanced: memory, speed and temporary files" %}</span>{% icon "chevron-down" %}</summary>
-      <div class="disclosure__body stack">
-        <div class="section-header"><p class="text-sm text-text-muted">{% translate "For large grids, or a computer short of memory." %}</p>{% section_help "gridded.computing" %}</div>
-        {% if form.workers %}{% include "components/field.html" with field=form.workers narrow=True %}{% endif %}
-        {% include "components/field.html" with field=form.max_values narrow=True %}
-        {% include "components/field.html" with field=form.rechunk %}
-        {% if form.tmp_dir %}{% include "components/field.html" with field=form.tmp_dir %}{% endif %}
+        <section class="gridded-setup__section" aria-labelledby="indices-title" data-for="indices">
+          <div class="gridded-setup__head">
+            <h2 id="indices-title" class="gridded-setup__heading">{% translate "Indices" %} {% include "gridded/_index_count.html" %}</h2>
+            <div class="gridded-setup__tools" data-check-tools hidden>
+              <button type="button" class="link-button" data-check-all="indices">{% translate "All" %}</button>
+              <button type="button" class="link-button" data-check-none="indices">{% translate "None" %}</button>
+              <button type="button" class="link-button" data-check-fast="indices">{% translate "Without the slow ones" %}</button>
+            </div>
+          </div>
+          {% with field=form.indices %}{% include "components/field_errors.html" %}{% endwith %}
+          <div class="gridded-indices">
+            {% for group in index_groups %}
+            <fieldset class="gridded-indices__group">
+              <legend>{{ group.label }} <span class="gridded-setup__sep font-mono">{{ group.items|length }}</span></legend>
+              {% for item in group.items %}
+              <label class="gridded-indices__item" title="{{ item.code }} {{ item.name }}"><input type="checkbox" name="indices" value="{{ item.value }}"{% if item.checked %} checked{% endif %}{% if item.slow %} data-slow{% endif %}> <span class="gridded-indices__code">{{ item.code }}</span> <span class="gridded-indices__name">{{ item.name }}</span>{% if item.slow %} <span class="gridded-indices__slow">{% translate "slow" %}</span>{% endif %}</label>
+              {% endfor %}
+            </fieldset>
+            {% endfor %}
+          </div>
+          <div class="gridded-params">
+            <div class="gridded-params__head"><p class="gridded-params__title">{% translate "Parameters of the numbered indices" %} <span class="gridded-setup__hint gridded-setup__sep">{% translate "Climpact for R's gridded defaults" %}</span></p>{% section_help "gridded.settings" quiet=True %}</div>
+            {% for param in params %}
+            <div class="gridded-params__field{% if param.field.errors %} field--error{% endif %}">
+              <label for="{{ param.field.id_for_label }}">{{ param.code }}</label>
+              <span class="gridded-params__input">{{ param.field }}<span>{{ param.unit }}</span></span>
+              {% with field=param.field %}{% include "components/field_errors.html" %}{% endwith %}
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="gridded-setup__section" aria-labelledby="output-title">
+          <div class="gridded-setup__head"><h2 id="output-title" class="gridded-setup__heading">{% translate "Output files" %}</h2>{% section_help "gridded.output" quiet=True %}</div>
+          <div class="field gridded-setup__wide{% if form.template.errors %} field--error{% endif %}" data-for="indices">
+            <label class="field__label" for="{{ form.template.id_for_label }}">{{ form.template.label }} <span class="gridded-setup__hint gridded-setup__sep">{% translate "CMIP5 form, var_freq_model_scenario_run_start-end.nc" %}</span></label>
+            {% with field=form.template %}{% include "components/field_errors.html" %}{% endwith %}
+            {{ form.template }}
+            {% include "gridded/_template_example.html" %}
+          </div>
+          <div class="gridded-setup__wide" data-for="thresholds">{% include "components/field.html" with field=form.thresholds_name %}</div>
+          <div class="form__row gridded-setup__institution">
+            {% include "components/field.html" with field=form.institution %}
+            {% include "components/field.html" with field=form.institution_id narrow=True %}
+          </div>
+          <p class="gridded-setup__hint">{% translate "Written into every file's global attributes, with the base period, Climpact's version and these settings." %}</p>
+          {% if form.copy_to %}
+          <div class="field gridded-setup__wide{% if form.copy_to.errors %} field--error{% endif %}">
+            <label class="field__label" for="{{ form.copy_to.id_for_label }}">{{ form.copy_to.label }} <span class="gridded-setup__hint gridded-setup__sep">{% translate "optional, this computer only" %}</span></label>
+            {% with field=form.copy_to %}{% include "components/field_errors.html" %}{% endwith %}
+            {{ form.copy_to }}
+          </div>
+          {% endif %}
+        </section>
+
+        <details class="disclosure gridded-setup__computing">
+          <summary><span class="gridded-setup__heading">{% translate "Computing" %}</span> {% include "gridded/_computing_line.html" %}{% icon "chevron-down" %}</summary>
+          <div class="disclosure__body stack">
+            <div class="section-header"><p class="text-sm text-text-muted">{% translate "For large grids, or a computer short of memory." %}</p>{% section_help "gridded.computing" quiet=True %}</div>
+            {% if form.workers %}{% include "components/field.html" with field=form.workers narrow=True %}{% endif %}
+            {% include "components/field.html" with field=form.max_values narrow=True %}
+            {% include "components/field.html" with field=form.rechunk %}
+            {% if form.tmp_dir %}{% include "components/field.html" with field=form.tmp_dir %}{% endif %}
+          </div>
+        </details>
       </div>
-    </details>
 
-    {% turnstile %}
-    <div class="form__actions">
-      {% translate "Start the calculation" as run_label %}
-      {% include "components/button.html" with label=run_label type="submit" icon="play" size="lg" %}
+      <aside class="gridded-panel" aria-labelledby="summary-title">
+        {% include "gridded/_summary.html" %}
+        {% if panel.button %}
+        {% turnstile %}
+        {% include "components/button.html" with label=panel.button type="submit" full_width=True %}
+        <p class="gridded-panel__foot">{{ panel.foot }}</p>
+        {% else %}
+        <p class="gridded-panel__foot"><a href="{% url 'gridded:run' run.pk %}">{% translate "Follow its progress on Map" %}</a></p>
+        {% endif %}
+      </aside>
     </div>
-    <p class="text-sm text-text-muted">{% translate "Gridded calculations can take from a minute to many hours, depending on the size of the grid and the computer. They run in the background: you can close this page and come back to the run from Gridded." %}</p>
   </form>
 
-  {% include "gridded/_retention.html" %}
-  <form method="post" action="{% url 'gridded:delete' run.pk %}" class="flex flex-wrap items-center gap-3">
-    {% csrf_token %}
-    {% translate "Forget this run" as delete_label %}
-    {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-    <a class="text-sm" href="{% url 'gridded:new' %}">{% translate "Choose other files" %}</a>
-  </form>
+  {% if not run.jobs %}{% include "gridded/_retention.html" %}{% endif %}
+  <dialog class="dialog dialog--wide" id="file-header-dialog" aria-labelledby="file-header-title">
+    <form method="dialog">
+      <div class="dialog__header">
+        <h2 class="dialog__title" id="file-header-title" data-file-header-title>{% translate "Header" %}</h2>
+        <button type="submit" class="button button--ghost button--sm button--icon">{% icon "close" %}<span class="sr-only">{% translate "Close" %}</span></button>
+      </div>
+      <pre class="gridded-header__text" data-file-header-text tabindex="0"></pre>
+    </form>
+  </dialog>
 </div>
 {% endblock %}

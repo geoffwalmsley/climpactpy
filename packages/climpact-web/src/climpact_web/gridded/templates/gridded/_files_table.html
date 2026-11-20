@@ -2,8 +2,10 @@
 The set-up page's Files table (#291, the GridSetup board): a row for the files that hold the
 same variables, joined along time ("60 files, 1961–2020", the files listed one click away)
 or one file; a file that cannot be read has a row of its own saying why. File (its name and,
-locally, its folder; the first and last names otherwise), Daily variables, Grid, Dates, Calendar, Size. Context: file_groups
-(inspection.group_files), local, run.
+locally, its folder; the first and last names otherwise), Daily variables, Grid, Dates, Calendar, Size, and
+Header (#293), which opens the first file's ncdump -h (a page of its own, or a dialog with
+gridded.js). Context: file_groups (inspection.group_files, each with its file's number),
+local, run.
 {% endcomment %}
 <div class="table-wrap table-wrap--data" role="region" aria-labelledby="files-caption" tabindex="0">
   <table class="table table--data">
@@ -16,6 +18,7 @@ locally, its folder; the first and last names otherwise), Daily variables, Grid,
         <th scope="col">{% translate "Dates" %}</th>
         <th scope="col">{% translate "Calendar" %}</th>
         <th scope="col" class="text-end">{% translate "Size" %}</th>
+        <th scope="col"><span class="sr-only">{% translate "Header" %}</span></th>
       </tr>
     </thead>
     <tbody>
@@ -42,11 +45,12 @@ locally, its folder; the first and last names otherwise), Daily variables, Grid,
         <td class="code">{% blocktranslate with first=group.first last=group.last %}{{ first }} → {{ last }}{% endblocktranslate %}</td>
         <td class="code">{{ group.head.calendar }}</td>
         <td class="num">{{ group.size|filesizeformat }}</td>
+        <td class="text-sm"><a href="{% url 'gridded:file_header' run.pk group.number %}" data-file-header="{{ group.head.name }}">{% translate "Header" %}<span class="sr-only"> {% blocktranslate with name=group.head.name %}of {{ name }}{% endblocktranslate %}</span></a></td>
       </tr>
       {% else %}
       <tr class="gridded-inputs__bad">
         <th scope="row" class="gridded-inputs__file"><span title="{{ group.head.name }}">{{ group.head.name }}</span>{% if local and run.source == "path" %}<span class="text-text-muted" title="{{ group.folder }}">{{ group.folder_label }}</span>{% endif %}</th>
-        <td colspan="5"><span class="gridded-inputs__problem flex items-center gap-2 text-sm">{% icon "error" %}<span><strong>{% translate "Cannot be used:" %}</strong> {{ group.head.problem }}</span></span></td>
+        <td colspan="6"><span class="gridded-inputs__problem flex items-center gap-2 text-sm">{% icon "error" %}<span><strong>{% translate "Cannot be used:" %}</strong> {{ group.head.problem }}</span></span></td>
       </tr>
       {% endif %}
       {% endfor %}

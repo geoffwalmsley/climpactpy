@@ -8,11 +8,13 @@ of its own, like a workspace (#289, the Grid boards):
   shows each file's variables and dates, or by path and pattern (local mode, read in
   place; :mod:`climpact_web.gridded.listing`), by upload (size-limited, hosted), or the
   sample grid.
-- ``gridded:setup`` (``<run>/setup/``): what each file holds (variables, units,
-  calendar, grid, dates); which variable is TX, TN and precipitation; what to calculate
-  (indices, a thresholds file, or both) and the parameters, checked as they change and
-  again with the core's own reader before anything runs. Before a run it has a
-  breadcrumb; after, it is the run's Set-up tab.
+- ``gridded:setup`` (``<run>/setup/``, the GridSetup board, #293): one page of sections
+  (the files, each with its header; which variable is TX, TN and precipitation, their
+  units and how they are read; what to calculate; the base period; the indices; the
+  output files; computing) beside a summary panel that is the check, updated as the form
+  changes (``gridded:checks``) and again with the core's own reader before anything runs.
+  Before a run it has a breadcrumb; after, it is the run's Set-up tab, and starting again
+  keeps the results until the new ones are ready.
 - ``gridded:run`` (``<run>/``), the run's Map tab: the thresholds and indices jobs with
   their progress (the rechunking stage included) while they run, then a map of an index
   at one time step and the time series of a chosen cell, each with a table. The old
@@ -54,10 +56,9 @@ from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.gridded import inspection, listing, maps, runs
+from climpact_web.gridded import inspection, listing, maps, runs, setup_page
 from climpact_web.gridded.forms import (
     MAX_FILES,
-    MIN_BASE_DAYS,
     SLOW_INDICES,
     PathsForm,
     RenameForm,
@@ -98,7 +99,9 @@ def gridded_enabled(view):
 
 def get_run(request, run_id) -> GriddedRun:
     owner = request.session.get(OWNER_KEY) or "-"
-    return get_object_or_404(GriddedRun, pk=run_id, owner=owner)
+    run = get_object_or_404(GriddedRun, pk=run_id, owner=owner)
+    run.settle()  # a new start that has finished takes the old results' place (#293)
+    return run
 
 
 # ---- Gridded: the runs ----------------------------------------------------------------------
@@ -411,7 +414,7 @@ def outputs_preview(form: SetupForm, summary: inspection.Summary) -> dict:
     except (TypeError, ValueError):
         return {}
     chosen = set(data.get("indices") or []) if data else set()
-    if chosen:
+    if chosen or form.is_bound:
         specs = [s for s in specs if s.index in chosen]
     template = (data.get("template") if data else "") or default_template(
         summary.first_year, summary.last_year
@@ -421,53 +424,56 @@ def outputs_preview(form: SetupForm, summary: inspection.Summary) -> dict:
     except ValueError:
         examples = []
     slow = sorted({s.index for s in specs if s.index in SLOW_INDICES})
-    return {"count": len(specs), "examples": examples, "slow": slow}
-
-
-def _year_value(form: SetupForm, name: str) -> int | None:
-    """A base-period year as typed (an invalid base period is dropped from
-    ``cleaned_data``, but its coverage is still worth showing)."""
-    try:
-        return int(form[name].value())
-    except (TypeError, ValueError):
-        return None
+    return {"count": len(specs), "examples": examples, "slow": slow, "specs": specs}
 
 
 def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: str = "") -> dict:
+    """The set-up page (the GridSetup board, #293): the Files table, the form's sections
+    and the summary panel (setup_page.build)."""
+    from climpact_web.batch.forms import cpu_count
+
     names = _names_from(form.data) if form.is_bound else run.names
     infos, problems, summary = run_summary(run, names)
-    start, end = _year_value(form, "base_start"), _year_value(form, "base_end")
-    coverage = None
-    if summary.first and start is not None and end is not None and start <= end:
-        coverage = {"days": base_days(summary, start, end), "min": MIN_BASE_DAYS + 1}
-    groups = []
-    chosen = set(form["indices"].value() or [])
-    for label, items in form.fields["indices"].choices:
-        groups.append(
-            {
-                "label": label,
-                "items": [
-                    {"value": v, "label": text, "checked": v in chosen, "slow": v in SLOW_INDICES}
-                    for v, text in items
-                ],
-            }
-        )
+    local = not settings.IS_HOSTED
+    outputs = outputs_preview(form, summary)
+    page = setup_page.build(
+        run,
+        form,
+        infos,
+        problems,
+        summary,
+        outputs,
+        local=local,
+        folder=Path(settings.RUNS_DIR),
+        cores=cpu_count() if local else None,
+        preflight_error=preflight_error,
+    )
+    groups = inspection.group_files(infos)
+    paths = [f.path for f in infos]
+    for group in groups:  # each row's Header opens its first file's
+        group.number = paths.index(group.head.path)
+    breadcrumb = [
+        {"label": _("Gridded"), "url": reverse("gridded:start")},
+        {"label": _("New run"), "url": reverse("gridded:new")},
+        {"label": _("set-up")},
+    ]
     return {
         "run": run,
         "form": form,
         "files": infos,
-        "file_groups": inspection.group_files(infos),
+        "file_groups": groups,
+        "setup_breadcrumb": breadcrumb,
         "names": names,
         "problems": problems,
         "summary": summary,
-        "coverage": coverage,
-        "outputs": outputs_preview(form, summary),
-        "index_groups": groups,
+        "outputs": outputs,
         "preflight_error": preflight_error,
-        "local": not settings.IS_HOSTED,
+        "local": local,
         "job_active": run.job_active,
         "max_upload_mb": settings.GRIDDED_MAX_UPLOAD_MB,
+        **page,
         **(bar_context(run, "setup") if run.jobs else {"run_name": run.display_name}),
+        "data_page": True,  # the sections and the summary panel use the whole window
     }
 
 
@@ -498,9 +504,14 @@ def setup(request, run_id):
         return render(request, "gridded/setup.html", setup_context(request, run, form, message))
     if run.job_active:
         return redirect(run)
-    run.names = names
-    run.options = {**options_json(run, data, checked), **_kept(run.options)}
-    queue_jobs(request, run)
+    options = {**options_json(run, data, checked), **_kept(run.options)}
+    if runs.all_done(run):
+        # Starting a finished run again (#293): the results stay until the new ones are
+        # ready (GriddedRun.settle), so the new jobs and settings wait beside them.
+        queue_jobs(request, run, options, names, pending=True)
+        return redirect("gridded:setup", run.pk)
+    run.names, run.options = names, options
+    queue_jobs(request, run, options, names)
     return redirect(run)
 
 
@@ -540,13 +551,15 @@ def options_json(run: GriddedRun, data: dict, checked: dict) -> dict:
     return out
 
 
-def queue_jobs(request, run: GriddedRun) -> None:
+def queue_jobs(request, run: GriddedRun, options: dict, names: dict, pending: bool = False) -> None:
     """The thresholds job, the indices job, or both (thresholds first: the worker runs
-    the oldest queued job first). Both read the input files in place."""
-    o = run.options
+    the oldest queued job first). Both read the input files in place. ``pending``: a new
+    start of a finished run, whose jobs and settings wait beside the results shown until
+    they have finished (#293)."""
+    o = options
     common = {
         "input_files": run.paths,
-        "names": run.names,
+        "names": names,
         "base_start": o["base_start"],
         "base_end": o["base_end"],
         "institution": o["institution"],
@@ -559,13 +572,13 @@ def queue_jobs(request, run: GriddedRun) -> None:
     }
     label = str(run)
     task = o["task"]
+    thresholds_job = indices_job = None
     with transaction.atomic():
-        run.thresholds_job = run.indices_job = None
         if task in ("thresholds", "both"):
             name = o.get("thresholds_name") or default_thresholds_name(
                 run.files, o["base_start"], o["base_end"]
             )
-            run.thresholds_job = create_job(
+            thresholds_job = create_job(
                 request,
                 "gridded-thresholds",
                 {**common, "out_file": name},
@@ -574,7 +587,7 @@ def queue_jobs(request, run: GriddedRun) -> None:
         if task in ("indices", "both"):
             chosen = o.get("indices") or []
             params = {k: o[k] for k in SetupForm.PARAMS}
-            run.indices_job = create_job(
+            indices_job = create_job(
                 request,
                 "gridded-indices",
                 {
@@ -586,6 +599,16 @@ def queue_jobs(request, run: GriddedRun) -> None:
                 },
                 title=_("Gridded indices: %(files)s") % {"files": label},
             )
+        if pending:
+            for job in run.next_jobs:  # an earlier new start that failed or was cancelled
+                if job.is_finished:
+                    job.delete()
+            run.next_thresholds_job, run.next_indices_job = thresholds_job, indices_job
+            run.next_settings = {"options": options, "names": names}
+        else:
+            run.thresholds_job, run.indices_job = thresholds_job, indices_job
+            run.next_thresholds_job = run.next_indices_job = None
+            run.next_settings = {}
         run.touch()
         run.save()
 
@@ -593,14 +616,45 @@ def queue_jobs(request, run: GriddedRun) -> None:
 @gridded_enabled
 @require_POST
 def checks(request, run_id):
-    """htmx: the checks panel, as the set-up form changes (the variables, the base
-    period's coverage, the files that will be written)."""
+    """htmx: the summary panel as the set-up form changes (#293), with the parts of the
+    form that follow it swapped out of band (the variables' units and checks, the
+    Together line, the base period's timeline and coverage, the indices' count, the file
+    names and the Computing line)."""
     run = get_run(request, run_id)
     if not request.headers.get("HX-Request"):
         return HttpResponseBadRequest()
     form = setup_form(run, request.POST)
     form.is_valid()
-    return render(request, "gridded/_checks.html", setup_context(request, run, form))
+    return render(
+        request, "gridded/_summary.html", {**setup_context(request, run, form), "oob": True}
+    )
+
+
+@never_cache
+@gridded_enabled
+@require_safe
+def file_header(request, run_id, number):
+    """A file's header as ``ncdump -h`` prints it (#293, the Files table's Header): a page
+    of its own, or the text alone (``?format=text``) for the dialog that opens it."""
+    run = get_run(request, run_id)
+    infos = run.file_infos()
+    if not 0 <= number < len(infos) or not infos[number].ok:
+        raise Http404
+    info = infos[number]
+    try:
+        text = setup_page.header_text(info.path)
+    except OSError as exc:
+        raise Http404 from exc
+    if request.GET.get("format") == "text":
+        return HttpResponse(text, content_type="text/plain; charset=utf-8")
+    context = {
+        "run": run,
+        "run_name": run.display_name,
+        "info": info,
+        "header": text,
+        "setup_url": reverse("gridded:setup", args=[run.pk]),
+    }
+    return render(request, "gridded/header.html", context)
 
 
 @gridded_enabled

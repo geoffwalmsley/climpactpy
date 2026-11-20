@@ -1,0 +1,23 @@
+{% load i18n ui %}{% comment %}
+Under the Variables table (#293): what each variable that cannot be used needs. A unit
+Climpact cannot read says what it reads and how to convert, with a CDO command and a Copy
+button (gridded.js) for ERA5's tp in metres and an hourly rate; any other problem in one
+line. Parameters: variable_rows, oob.
+{% endcomment %}<div id="units-help" class="gridded-units-help"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% for row in variable_rows %}{% if not row.ok %}
+  {% if row.help %}
+  <div class="gridded-units-help__box" id="units-help-{{ row.role }}">
+    <p><strong>{{ row.help.lead }}</strong> {{ row.help.text }}</p>
+    {% if row.help.command %}
+    <div class="gridded-units-help__command" data-copy-box>
+      <code data-copy-source>{{ row.help.command }}</code>
+      <button type="button" class="button button--secondary button--sm" data-copy-command data-copied="{% translate 'Command copied' %}" hidden>{% translate "Copy" %}</button>
+    </div>
+    <p class="text-text-muted">{% url 'gridded:new' as new_url %}{% blocktranslate count counter=row.help.files|default:1 with output=row.help.output trimmed %}Then add <span class="font-mono">{{ output }}</span> in place of the file: <a href="{{ new_url }}">Choose other files</a>.{% plural %}Then add <span class="font-mono">{{ output }}</span> in place of the files: <a href="{{ new_url }}">Choose other files</a>.{% endblocktranslate %}</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="field__error">{% icon "error" %}<span>{% blocktranslate with label=row.label problem=row.problem trimmed %}<strong>{{ label }}:</strong> {{ problem }}{% endblocktranslate %}</span></p>
+  {% endif %}
+  {% endif %}{% endfor %}
+</div>

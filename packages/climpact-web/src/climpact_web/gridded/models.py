@@ -59,6 +59,17 @@ class GriddedRun(models.Model):
     indices_job = models.ForeignKey(
         "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    # Starting a finished run again (#293): the new jobs and the settings they were
+    # started with wait here, so the results shown stay until the new ones are ready
+    # (:meth:`settle` then puts them in place of the old).
+    next_thresholds_job = models.ForeignKey(
+        "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    next_indices_job = models.ForeignKey(
+        "jobs.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # {"names": ..., "options": ...} of the next jobs; empty when none wait.
+    next_settings = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]
@@ -114,8 +125,44 @@ class GriddedRun(models.Model):
         return [j for j in (self.thresholds_job, self.indices_job) if j is not None]
 
     @property
+    def next_jobs(self) -> list:
+        """The jobs of a new start that replace the results shown when they finish."""
+        return [j for j in (self.next_thresholds_job, self.next_indices_job) if j is not None]
+
+    @property
     def job_active(self) -> bool:
-        return any(not j.is_finished for j in self.jobs)
+        return any(not j.is_finished for j in self.jobs + self.next_jobs)
+
+    @property
+    def restarting(self) -> bool:
+        """A new start is calculating while the old results are shown."""
+        return any(not j.is_finished for j in self.next_jobs)
+
+    def settle(self) -> bool:
+        """Once every job of a new start has succeeded, put it and its settings in place
+        of the old jobs, whose files are deleted. A new start that failed or was cancelled
+        stays where it is, so the results shown are kept and the set-up can say what
+        happened. Returns whether the run changed."""
+        from climpact_web.jobs.models import Status
+        from climpact_web.jobs.storage import get_storage
+
+        pending = self.next_jobs
+        if not pending or any(j.status != Status.SUCCEEDED for j in pending):
+            return False
+        old = [j for j in self.jobs if j.pk not in {p.pk for p in pending}]
+        settings_ = self.next_settings or {}
+        kept = {k: self.options[k] for k in ("checksums",) if k in self.options}
+        self.options = {**settings_.get("options", {}), **kept}
+        self.names = settings_.get("names", self.names)
+        self.thresholds_job, self.indices_job = self.next_thresholds_job, self.next_indices_job
+        self.next_thresholds_job = self.next_indices_job = None
+        self.next_settings = {}
+        self.save()
+        storage = get_storage()
+        for job in old:
+            storage.delete(job)
+            job.delete()
+        return True
 
     def touch(self) -> None:
         self.updated_at = timezone.now()

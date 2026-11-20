@@ -31,7 +31,13 @@ def test_cloud_init_is_plain_ascii():
 
 CLOUDFLARE = DEPLOY / "cloudflare"
 SAMPLE_UUID = "6f1c0d3e-6a7b-4c8d-9e0f-1a2b3c4d5e6f"
-SAMPLES = {"uuid": SAMPLE_UUID, "str": "su_ANN", "slug": "station-data", "path": "plots/a.png"}
+SAMPLES = {
+    "uuid": SAMPLE_UUID,
+    "int": "0",
+    "str": "su_ANN",
+    "slug": "station-data",
+    "path": "plots/a.png",
+}
 
 # The URLs that start a job or take an upload: the paths the one rate-limiting rule of
 # Cloudflare's free plan counts. That rule can match only the path, not the method, so it

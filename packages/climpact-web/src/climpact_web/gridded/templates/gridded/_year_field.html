@@ -1,0 +1,5 @@
+{# A base-period year (#293): the label over a short mono input, its error under it. Parameter: field. #}<div class="field gridded-base__year{% if field.errors %} field--error{% endif %}">
+  <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% include "components/field_errors.html" %}
+</div>

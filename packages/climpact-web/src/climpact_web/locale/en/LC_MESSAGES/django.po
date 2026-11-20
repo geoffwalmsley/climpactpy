@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 16:23+0000\n"
+"POT-Creation-Date: 2026-11-20 16:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -738,8 +738,8 @@ msgstr ""
 #: core/navigation.py:58 core/templates/core/patterns.html:232
 #: gridded/templates/gridded/_breadcrumb.html:6
 #: gridded/templates/gridded/start.html:12
-#: gridded/templates/gridded/start.html:17 gridded/views.py:460
-#: gridded/views.py:720 help/templates/help/index.html:53
+#: gridded/templates/gridded/start.html:17 gridded/views.py:465
+#: gridded/views.py:804 help/templates/help/index.html:53
 msgid "Gridded"
 msgstr ""
 
@@ -1014,7 +1014,8 @@ msgid "4+"
 msgstr ""
 
 #: core/templates/components/dialog.html:12
-#: gridded/templates/gridded/setup.html:196
+#: gridded/templates/gridded/_listing.html:83
+#: gridded/templates/gridded/setup.html:201
 #: stations/templates/stations/_input_sheets.html:15
 #: stations/templates/stations/_inputs.html:25
 msgid "Close"
@@ -1599,7 +1600,7 @@ msgstr ""
 #: core/views.py:343 gridded/forms.py:154 gridded/setup_page.py:760
 #: gridded/templates/gridded/_map.html:12
 #: gridded/templates/gridded/_progress.html:17
-#: gridded/templates/gridded/setup.html:113 help/topics.py:71
+#: gridded/templates/gridded/setup.html:117 help/topics.py:71
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:465
 msgid "Indices"
@@ -2904,7 +2905,7 @@ msgstr ""
 #: core/views.py:417 core/views.py:681 core/views.py:701
 #: gridded/setup_page.py:587 gridded/setup_page.py:592
 #: gridded/setup_page.py:598 gridded/setup_page.py:614
-#: gridded/setup_page.py:759 gridded/templates/gridded/setup.html:102
+#: gridded/setup_page.py:759 gridded/templates/gridded/setup.html:106
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
 #: stations/views_add.py:107 stations/workspace.py:826
@@ -3212,11 +3213,11 @@ msgid "Minimum temperature (TN)"
 msgstr ""
 
 #: gridded/forms.py:281 gridded/setup_page.py:757
-#: gridded/templates/gridded/setup.html:69 help/sections.py:355
+#: gridded/templates/gridded/setup.html:72 help/sections.py:355
 msgid "What to calculate"
 msgstr ""
 
-#: gridded/forms.py:287
+#: gridded/forms.py:287 gridded/templates/gridded/_listing.html:63
 msgid "Percentile thresholds"
 msgstr ""
 
@@ -3555,33 +3556,37 @@ msgstr ""
 msgid "Its dates differ from %(name)s's; the files must share their time axis."
 msgstr ""
 
-#: gridded/listing.py:77 gridded/runs.py:439
+#: gridded/listing.py:80 gridded/runs.py:439
 msgid "thresholds file"
 msgstr ""
 
-#: gridded/listing.py:85
+#: gridded/listing.py:89
 msgid "cannot be opened"
 msgstr ""
 
-#: gridded/listing.py:87
+#: gridded/listing.py:91
 msgid "no time axis"
 msgstr ""
 
-#: gridded/listing.py:87
+#: gridded/listing.py:91
 msgid "no daily grid"
 msgstr ""
 
-#: gridded/listing.py:89 gridded/setup_page.py:250
+#: gridded/listing.py:93 gridded/setup_page.py:250
 #, python-format
 msgid "%(calendar)s calendar"
 msgstr ""
 
-#: gridded/listing.py:91
+#: gridded/listing.py:95
 msgid "dates cannot be read"
 msgstr ""
 
-#: gridded/listing.py:129
+#: gridded/listing.py:134
 msgid "This folder cannot be read."
+msgstr ""
+
+#: gridded/listing.py:180
+msgid "not a thresholds file"
 msgstr ""
 
 #: gridded/map_page.py:40 gridded/map_page.py:659
@@ -3700,7 +3705,7 @@ msgid "(anomaly %(value)s)"
 msgstr ""
 
 #: gridded/map_page.py:673 gridded/templates/gridded/_map.html:93
-#: gridded/views.py:914 stations/index_page.py:524
+#: gridded/views.py:998 stations/index_page.py:524
 msgid "No value"
 msgstr ""
 
@@ -4029,7 +4034,7 @@ msgstr ""
 #: gridded/setup_page.py:567 gridded/setup_page.py:582
 #: gridded/setup_page.py:754 gridded/setup_page.py:903
 #: gridded/templates/gridded/files.html:42
-#: gridded/templates/gridded/setup.html:39
+#: gridded/templates/gridded/setup.html:42
 msgid "Variables"
 msgstr ""
 
@@ -4135,11 +4140,11 @@ msgstr[1] ""
 msgid "Time"
 msgstr ""
 
-#: gridded/setup_page.py:763 gridded/templates/gridded/setup.html:144
+#: gridded/setup_page.py:763 gridded/templates/gridded/setup.html:148
 msgid "Output files"
 msgstr ""
 
-#: gridded/setup_page.py:765 gridded/templates/gridded/setup.html:167
+#: gridded/setup_page.py:765 gridded/templates/gridded/setup.html:172
 #: help/sections.py:386
 msgid "Computing"
 msgstr ""
@@ -4324,12 +4329,16 @@ msgid "%(years)s, %(days)s days, %(calendar)s calendar."
 msgstr ""
 
 #: gridded/templates/gridded/_breadcrumb.html:7
-#: gridded/templates/gridded/_breadcrumb.html:9 gridded/views.py:461
+#: gridded/templates/gridded/_breadcrumb.html:9 gridded/views.py:466
 msgid "New run"
 msgstr ""
 
-#: gridded/templates/gridded/_breadcrumb.html:8 gridded/views.py:462
+#: gridded/templates/gridded/_breadcrumb.html:8 gridded/views.py:467
 msgid "set-up"
+msgstr ""
+
+#: gridded/templates/gridded/_browse_field.html:11
+msgid "Browse"
 msgstr ""
 
 #: gridded/templates/gridded/_cell_pane.html:13
@@ -4454,12 +4463,12 @@ msgid "The files Climpact has read: a row for each variable's files"
 msgstr ""
 
 #: gridded/templates/gridded/_files_table.html:16
-#: gridded/templates/gridded/_listing.html:34
+#: gridded/templates/gridded/_listing.html:46
 msgid "Daily variables"
 msgstr ""
 
 #: gridded/templates/gridded/_files_table.html:18
-#: gridded/templates/gridded/_listing.html:35
+#: gridded/templates/gridded/_listing.html:47
 msgid "Dates"
 msgstr ""
 
@@ -4468,14 +4477,14 @@ msgid "Calendar"
 msgstr ""
 
 #: gridded/templates/gridded/_files_table.html:20
-#: gridded/templates/gridded/_listing.html:36
+#: gridded/templates/gridded/_listing.html:48
 #: gridded/templates/gridded/files.html:42
 msgid "Size"
 msgstr ""
 
 #: gridded/templates/gridded/_files_table.html:21
 #: gridded/templates/gridded/_files_table.html:48
-#: gridded/templates/gridded/setup.html:195
+#: gridded/templates/gridded/setup.html:200
 msgid "Header"
 msgstr ""
 
@@ -4518,41 +4527,68 @@ msgid_plural "%(chosen)s of %(total)s · %(counter)s files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: gridded/templates/gridded/_listing.html:16
+#: gridded/templates/gridded/_listing.html:26
 msgid "Folders above"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:23
+#: gridded/templates/gridded/_listing.html:33
 msgid "Folder"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:29
+#: gridded/templates/gridded/_listing.html:34
+#: gridded/templates/gridded/new.html:25
+msgid "Open the folder"
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:40
+#, python-format
+msgid "Folders in %(folder)s"
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:40
 #, python-format
 msgid "Folders and netCDF files in %(folder)s"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:32
+#: gridded/templates/gridded/_listing.html:43
 msgid "Chosen"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:33
+#: gridded/templates/gridded/_listing.html:44
 #: stations/templates/stations/_workspaces_table.html:14
 #: stations/templates/stations/add.html:161
 msgid "Name"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:43
+#: gridded/templates/gridded/_listing.html:46
+msgid "Holds"
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:56
 #, python-format
 msgid "%(name)s/"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:50
+#: gridded/templates/gridded/_listing.html:62
+msgid "Choose"
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:63
+#: gridded/templates/gridded/_listing.html:68
 #, python-format
 msgid "– (%(note)s)"
 msgstr ""
 
-#: gridded/templates/gridded/_listing.html:56
+#: gridded/templates/gridded/_listing.html:75
+msgid "No folders here."
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:75
 msgid "No folders or netCDF files here."
+msgstr ""
+
+#: gridded/templates/gridded/_listing.html:82
+msgid "Choose this folder"
 msgstr ""
 
 #: gridded/templates/gridded/_map.html:16
@@ -5083,10 +5119,6 @@ msgid ""
 "calculated until you start."
 msgstr ""
 
-#: gridded/templates/gridded/new.html:25
-msgid "Open the folder"
-msgstr ""
-
 #: gridded/templates/gridded/new.html:31
 msgid "Paste paths or a pattern instead"
 msgstr ""
@@ -5161,124 +5193,132 @@ msgid ""
 "href=\"%(files_url)s\">Files</a>."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:15
+#: gridded/templates/gridded/setup.html:17
 #, python-format
 msgid "Set-up: %(name)s"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:33 gridded/views.py:710
+#: gridded/templates/gridded/setup.html:36 gridded/views.py:794
 #: help/sections.py:229 help/sections.py:290
 #: stations/templates/stations/_settings_fields.html:56
 #: stations/views_workspace.py:114 stations/workspace.py:466
 msgid "Files"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:35
+#: gridded/templates/gridded/setup.html:38
 msgid ""
 "Header opens the file's <span class=\"font-mono\">ncdump -h</span>: "
 "dimensions, variables and attributes. Only headers and coordinates are read "
 "here; the data are read when the run starts."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:40
+#: gridded/templates/gridded/setup.html:43
 msgid ""
 "Which variable is which. Climpact guessed from the names, standard names and "
 "units; change any that are wrong."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:43
+#: gridded/templates/gridded/setup.html:46
 msgid ""
 "The variables Climpact needs, the variable chosen for each, its units and "
 "how Climpact reads them"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:46
+#: gridded/templates/gridded/setup.html:49
 msgid "Climpact needs"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:47
+#: gridded/templates/gridded/setup.html:50
 msgid "Variable in the files"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:48
+#: gridded/templates/gridded/setup.html:51
 msgid "Units in the file"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:49
+#: gridded/templates/gridded/setup.html:52
 msgid "Read as"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:50
+#: gridded/templates/gridded/setup.html:53
 #: stations/templates/stations/downloads.html:92
 msgid "Check"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:76
+#: gridded/templates/gridded/setup.html:79
 msgid "One netCDF file per index and frequency."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:76
+#: gridded/templates/gridded/setup.html:79
 msgid "The base-period percentiles of every cell, to reuse for other data."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:76
+#: gridded/templates/gridded/setup.html:79
 msgid "Both: keep the thresholds for a scenario run later."
 msgstr ""
 
 #: gridded/templates/gridded/setup.html:93
+msgid "for the thresholds file"
+msgstr ""
+
+#: gridded/templates/gridded/setup.html:97
 #, python-format
 msgid "netCDF, up to %(size)s MB."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:95
+#: gridded/templates/gridded/setup.html:99
 #, python-format
 msgid "Loaded: %(name)s. Choose another file to replace it."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:115
+#: gridded/templates/gridded/setup.html:119
 #: stations/templates/stations/_indices.html:30
 msgid "All"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:116
+#: gridded/templates/gridded/setup.html:120
 msgid "None"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:117
+#: gridded/templates/gridded/setup.html:121
 msgid "Without the slow ones"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:126
+#: gridded/templates/gridded/setup.html:130
 msgid "slow"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:132
+#: gridded/templates/gridded/setup.html:136
 msgid "Parameters of the numbered indices"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:132
+#: gridded/templates/gridded/setup.html:136
 msgid "Climpact for R's gridded defaults"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:146
+#: gridded/templates/gridded/setup.html:150
 msgid "CMIP5 form, var_freq_model_scenario_run_start-end.nc"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:156
+#: gridded/templates/gridded/setup.html:160
 msgid ""
 "Written into every file's global attributes, with the base period, "
 "Climpact's version and these settings."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:159
+#: gridded/templates/gridded/setup.html:163
 msgid "optional, this computer only"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:169
+#: gridded/templates/gridded/setup.html:165
+msgid "for the folder to copy the results to"
+msgstr ""
+
+#: gridded/templates/gridded/setup.html:174
 msgid "For large grids, or a computer short of memory."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:185
+#: gridded/templates/gridded/setup.html:190
 msgid "Follow its progress on Map"
 msgstr ""
 
@@ -5372,52 +5412,52 @@ msgstr ""
 msgid "Gridded help"
 msgstr ""
 
-#: gridded/views.py:147
+#: gridded/views.py:148
 #, python-format
 msgid "There is no folder %(path)s."
 msgstr ""
 
-#: gridded/views.py:507
+#: gridded/views.py:591
 #, python-format
 msgid "The files cannot be read together: %(error)s"
 msgstr ""
 
-#: gridded/views.py:589
+#: gridded/views.py:673
 #, python-format
 msgid "Gridded thresholds: %(files)s"
 msgstr ""
 
-#: gridded/views.py:604
+#: gridded/views.py:688
 #, python-format
 msgid "Gridded indices: %(files)s"
 msgstr ""
 
-#: gridded/views.py:676
+#: gridded/views.py:760
 msgid "The gridded run was deleted."
 msgstr ""
 
-#: gridded/views.py:678
+#: gridded/views.py:762
 msgid "The gridded run and its uploaded files were deleted."
 msgstr ""
 
-#: gridded/views.py:695
+#: gridded/views.py:779
 #, python-format
 msgid "The run is now called %(name)s."
 msgstr ""
 
-#: gridded/views.py:709
+#: gridded/views.py:793
 msgid "Map"
 msgstr ""
 
-#: gridded/views.py:711
+#: gridded/views.py:795
 msgid "Set-up"
 msgstr ""
 
-#: gridded/views.py:721
+#: gridded/views.py:805
 msgid "run"
 msgstr ""
 
-#: gridded/views.py:782
+#: gridded/views.py:866
 msgid "This file could not be read."
 msgstr ""
 

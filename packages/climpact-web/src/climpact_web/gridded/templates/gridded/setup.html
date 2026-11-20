@@ -10,7 +10,9 @@ without JavaScript the form posts and the page draws the same panel. Before the 
 starts: "Gridded / New run / set-up" over the run's name as the h1, with Rename, and
 "Choose other files". Once it has started, the run's Set-up tab (#289): the run's context
 bar, and the panel describes the results until a setting changes; starting again keeps
-them until the new ones are ready. Context from views.setup_context.
+them until the new ones are ready. Locally, Browse beside the thresholds file and the copy
+folder opens New run's folder listing under the field (#320, gridded/_browse_field.html).
+Context from views.setup_context (and views.browse_context while browsing).
 {% endcomment %}
 {% block title %}{% blocktranslate with name=run_name %}Set-up: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/gridded.js' %}" defer></script>{% endblock %}
@@ -25,6 +27,7 @@ them until the new ones are ready. Context from views.setup_context.
   <form method="post" action="{% url 'gridded:setup' run.pk %}" class="form gridded-setup" id="gridded-setup" novalidate{% if not local %} enctype="multipart/form-data"{% endif %}
     hx-post="{% url 'gridded:checks' run.pk %}" hx-trigger="change delay:150ms" hx-target="#gridded-summary" hx-swap="outerHTML" hx-sync="this:replace">
     {% csrf_token %}
+    {% if panel.button %}{# The form's default button, first in it (#320): Enter starts, as the Start button does, but opens the folder typed while Browse's listing is open, not a Browse button. #}<button type="submit" name="action" value="default" class="sr-only" tabindex="-1" aria-hidden="true">{{ panel.button }}</button>{% endif %}
     <div class="gridded-setup__layout">
       <div class="gridded-setup__main">
         {% include "components/form_errors.html" with form=form %}
@@ -82,12 +85,13 @@ them until the new ones are ready. Context from views.setup_context.
           <fieldset class="gridded-source" data-for="source">
             <legend>{{ form.thresholds_source.label }}</legend>
             {% for choice in form.thresholds_source %}<label class="check" for="{{ choice.id_for_label }}">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>{% endfor %}
-            <div class="gridded-source__file" data-for="source file">
+            <div class="gridded-source__file{% if local %} gridded-source__file--local{% endif %}" data-for="source file">
               {% if local %}
               <div class="field{% if form.thresholds_path.errors %} field--error{% endif %}">
                 <label class="sr-only" for="{{ form.thresholds_path.id_for_label }}">{{ form.thresholds_path.label }}</label>
                 {% with field=form.thresholds_path %}{% include "components/field_errors.html" %}{% endwith %}
-                {{ form.thresholds_path }}
+                {% translate "for the thresholds file" as browse_for %}
+                {% include "gridded/_browse_field.html" with field=form.thresholds_path %}
               </div>
               {% else %}
               {% blocktranslate asvar thresholds_hint with size=max_upload_mb %}netCDF, up to {{ size }} MB.{% endblocktranslate %}
@@ -155,10 +159,11 @@ them until the new ones are ready. Context from views.setup_context.
           </div>
           <p class="gridded-setup__hint">{% translate "Written into every file's global attributes, with the base period, Climpact's version and these settings." %}</p>
           {% if form.copy_to %}
-          <div class="field gridded-setup__wide{% if form.copy_to.errors %} field--error{% endif %}">
+          <div class="field{% if form.copy_to.errors %} field--error{% endif %}">
             <label class="field__label" for="{{ form.copy_to.id_for_label }}">{{ form.copy_to.label }} <span class="gridded-setup__hint gridded-setup__sep">{% translate "optional, this computer only" %}</span></label>
             {% with field=form.copy_to %}{% include "components/field_errors.html" %}{% endwith %}
-            {{ form.copy_to }}
+            {% translate "for the folder to copy the results to" as browse_for %}
+            {% include "gridded/_browse_field.html" with field=form.copy_to %}
           </div>
           {% endif %}
         </section>

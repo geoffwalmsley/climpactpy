@@ -1760,6 +1760,46 @@ def test_gridded_new_run_ticks_and_folders(chrome, site):
     assert c.evaluate(chosen).startswith("1 file chosen")
 
 
+def test_gridded_setup_browse(chrome, site):
+    """Set-up's Browse (#320): the folder listing opens under its field (htmx), focus in
+    its folder field, with no axe violations; one listing is open at a time; Enter in the
+    folder field opens the folder typed; Choose this folder fills the field, the summary
+    panel checks it again and focus goes back to the field; Close goes back to Browse."""
+    c = chrome
+    idle = " && !document.querySelector('.htmx-request')"
+    listing = "document.querySelector('[data-browse-listing={}]')"
+    c.navigate(site["gridded set-up tab"])
+    c.evaluate("document.querySelector('[name=thresholds_source][value=file]').click()")
+    c.evaluate("document.querySelector('[data-browse=thresholds_path]').click()")
+    wait_for(c, "!!" + listing.format("thresholds_path") + idle, timeout=10,
+             what="the thresholds file's listing")  # fmt: skip
+    assert c.evaluate("document.activeElement.id") == "browse-folder"
+    assert run_axe(c) == []
+    c.evaluate("document.querySelector('[data-browse=copy_to]').click()")
+    wait_for(c, "!!" + listing.format("copy_to") + idle, timeout=10,
+             what="the copy folder's listing")  # fmt: skip
+    assert c.evaluate("!" + listing.format("thresholds_path"))
+    c.evaluate(f"document.getElementById('browse-folder').value = {json.dumps(str(GRIDS))}")
+    c.press("Enter")
+    current = listing.format("copy_to") + ".querySelector('[name=current]').value"
+    wait_for(c, f"{current} === {json.dumps(str(GRIDS))}" + idle, timeout=10,
+             what="the folder typed")  # fmt: skip
+    assert c.evaluate("document.activeElement.id") == "browse-folder"
+    summary = "document.getElementById('gridded-summary').textContent"
+    before = c.evaluate(summary)
+    c.evaluate(listing.format("copy_to") + ".querySelector('[data-browse-pick]').click()")
+    wait_for(c, f"!{listing.format('copy_to')} && {summary} !== {json.dumps(before)}" + idle,
+             timeout=10, what="the folder chosen and checked")  # fmt: skip
+    assert c.evaluate("document.getElementById('id_copy_to').value") == str(GRIDS)
+    assert c.evaluate("document.activeElement.id") == "id_copy_to"
+    c.evaluate("document.querySelector('[data-browse=copy_to]').click()")
+    wait_for(c, "!!" + listing.format("copy_to") + idle, timeout=10)
+    c.evaluate("document.querySelector('[data-browse-close]').click()")
+    assert c.evaluate("!" + listing.format("copy_to"))
+    assert c.evaluate("document.activeElement.getAttribute('data-browse')") == "copy_to"
+    assert c.evaluate("document.getElementById('id_copy_to').value") == str(GRIDS)
+
+
 def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):
     """The Indices' table (#200, #236): filtered as you type by the rail's search, a theme
     and "Significant only", and sorted by its column headers, which are buttons here

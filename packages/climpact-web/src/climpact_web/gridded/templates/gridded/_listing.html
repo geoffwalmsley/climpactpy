@@ -1,61 +1,86 @@
 {% load i18n ui %}{% comment %}
-New gridded run's folder listing (#292, the GridNew board), inside the chooser's form: a
-path bar (the folders above as links, then a field for any folder), then the folder's
-subfolders as links and its netCDF files, each with a checkbox, its daily variables and
-dates read from its header (gridded.listing), and its size. A file that cannot be chosen
-(no daily grid, a thresholds file, an unreadable time axis) is greyed, its checkbox off.
-The links are the form's buttons (action "browse:<folder>"), so they work without
-JavaScript and keep what is ticked; files ticked in other folders ride along as hidden
-fields. htmx swaps only this listing. Context: browse (listing.listing), folder_value,
-folder_error.
+The folder listing (#292, the GridNew board), inside a form: a path bar (the folders above
+as links, then a field for any folder), then the folder's subfolders as links and its
+netCDF files, each with what its header holds (gridded.listing) and its size.
+
+New run's chooser (pick empty): each file has a checkbox, its daily variables and dates;
+a file that cannot be chosen (no daily grid, a thresholds file, an unreadable time axis)
+is greyed, its checkbox off; files ticked in other folders ride along as hidden fields.
+
+The set-up page's Browse (#320; pick "file" or "folder", pick_field the field it fills):
+a thresholds file is chosen by its name, every other netCDF file greyed; a folder by
+"Choose this folder" under the subfolders. Close leaves the field as it was. Without
+JavaScript these post the set-up form (action "pick:<field>:<path>", "close"), which
+fills the field and draws the page again; js/gridded.js fills the field in place.
+
+The links are the form's buttons (action "<browse_action><folder>"), so they work without
+JavaScript and keep the rest of the form; htmx swaps only this listing (listing_target,
+listing_swap). Context: browse (listing.listing or listing.picking), folder_value,
+folder_error, listing_url, browse_action, listing_target, listing_swap, pick, pick_field.
 {% endcomment %}
-<div class="gridded-listing" id="file-listing">
+<div class="gridded-listing"{% if not pick %} id="file-listing"{% else %} data-browse-listing="{{ pick_field }}"{% endif %}>
   <input type="hidden" name="current" value="{{ browse.folder }}">
+  {% if pick %}<input type="hidden" name="browsing" value="{{ pick_field }}">{% endif %}
   {% for path in browse.elsewhere %}<input type="hidden" name="file" value="{{ path }}">{% endfor %}
   <div class="gridded-listing__bar">
     <nav aria-label="{% translate 'Folders above' %}">
       <ol class="gridded-listing__crumbs" role="list">
         {% for crumb in browse.crumbs %}
-        <li>{% if forloop.last %}<span aria-current="location" class="font-medium">{{ crumb.name }}</span>{% else %}<button type="submit" name="action" value="browse:{{ crumb.path }}" class="link-button" hx-post="{% url 'gridded:new' %}" hx-target="#file-listing" hx-swap="outerHTML">{{ crumb.name }}</button>{% endif %}</li>
+        <li>{% if forloop.last %}<span aria-current="location" class="font-medium">{{ crumb.name }}</span>{% else %}<button type="submit" name="action" value="{{ browse_action }}{{ crumb.path }}" class="link-button" hx-post="{{ listing_url }}" hx-target="{{ listing_target }}" hx-swap="{{ listing_swap }}"{% if pick %} hx-sync="{{ listing_target }}:replace"{% endif %}>{{ crumb.name }}</button>{% endif %}</li>
         {% endfor %}
       </ol>
     </nav>
-    <input type="text" name="folder" id="id_folder" value="{{ folder_value }}" class="gridded-listing__folder" aria-label="{% translate 'Folder' %}" spellcheck="false" autocomplete="off"{% if folder_error %} aria-invalid="true" aria-describedby="folder-error"{% endif %}>
+    <input type="text" name="folder" id="{% if pick %}browse-folder{% else %}id_folder{% endif %}" value="{{ folder_value }}" class="gridded-listing__folder" aria-label="{% translate 'Folder' %}" spellcheck="false" autocomplete="off"{% if pick %} data-browse-folder{% endif %}{% if folder_error %} aria-invalid="true" aria-describedby="folder-error"{% endif %}>
+    {% if pick %}{# Enter in the folder field (js/gridded.js; without JavaScript the form's default button does it) #}<button type="submit" name="action" value="open:{{ pick_field }}" class="sr-only" tabindex="-1" aria-hidden="true" data-browse-open hx-post="{{ listing_url }}" hx-target="{{ listing_target }}" hx-swap="{{ listing_swap }}" hx-sync="{{ listing_target }}:replace">{% translate "Open the folder" %}</button>{% endif %}
   </div>
   {% if folder_error %}<p class="field__error gridded-listing__note" id="folder-error" role="alert">{% icon "error" %}<span>{{ folder_error }}</span></p>{% endif %}
   {% if browse.error %}<p class="field__warning gridded-listing__note">{% icon "warning" %}<span>{{ browse.error }}</span></p>{% endif %}
   <div class="table-wrap" role="region" aria-labelledby="listing-caption" tabindex="0">
     <table class="table table--data">
-      <caption id="listing-caption" class="sr-only">{% blocktranslate with folder=browse.folder %}Folders and netCDF files in {{ folder }}{% endblocktranslate %}</caption>
+      <caption id="listing-caption" class="sr-only">{% if pick == "folder" %}{% blocktranslate with folder=browse.folder %}Folders in {{ folder }}{% endblocktranslate %}{% else %}{% blocktranslate with folder=browse.folder %}Folders and netCDF files in {{ folder }}{% endblocktranslate %}{% endif %}</caption>
       <thead>
         <tr>
-          <th scope="col" class="gridded-listing__tick"><span class="sr-only">{% translate "Chosen" %}</span></th>
+          {% if not pick %}<th scope="col" class="gridded-listing__tick"><span class="sr-only">{% translate "Chosen" %}</span></th>{% endif %}
           <th scope="col">{% translate "Name" %}</th>
-          <th scope="col">{% translate "Daily variables" %}</th>
+          {% if pick != "folder" %}
+          <th scope="col">{% if pick %}{% translate "Holds" %}{% else %}{% translate "Daily variables" %}{% endif %}</th>
           <th scope="col">{% translate "Dates" %}</th>
           <th scope="col" class="num">{% translate "Size" %}</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
         {% for folder in browse.folders %}
         <tr>
-          <td></td>
-          <td colspan="4"><button type="submit" name="action" value="browse:{{ folder.path }}" class="link-button code" hx-post="{% url 'gridded:new' %}" hx-target="#file-listing" hx-swap="outerHTML">{% blocktranslate with name=folder.name %}{{ name }}/{% endblocktranslate %}</button></td>
+          {% if not pick %}<td></td>{% endif %}
+          <td{% if pick != "folder" %} colspan="4"{% endif %}><button type="submit" name="action" value="{{ browse_action }}{{ folder.path }}" class="link-button code" hx-post="{{ listing_url }}" hx-target="{{ listing_target }}" hx-swap="{{ listing_swap }}"{% if pick %} hx-sync="{{ listing_target }}:replace"{% endif %}>{% blocktranslate with name=folder.name %}{{ name }}/{% endblocktranslate %}</button></td>
         </tr>
         {% endfor %}
         {% for f in browse.files %}
+        {% if pick %}
+        <tr{% if not f.thresholds %} class="gridded-listing__unusable"{% endif %}>
+          <th scope="row" class="code font-normal">{% if f.thresholds %}<button type="submit" name="action" value="pick:{{ pick_field }}:{{ f.path }}" class="link-button" data-browse-pick="{{ f.path }}"><span class="sr-only">{% translate "Choose" %} </span>{{ f.name }}</button>{% else %}{{ f.name }}{% endif %}</th>
+          <td class="code">{% if f.thresholds %}{% translate "Percentile thresholds" %}{% else %}{% blocktranslate with note=f.note %}– ({{ note }}){% endblocktranslate %}{% endif %}</td>
+        {% else %}
         <tr{% if not f.usable %} class="gridded-listing__unusable"{% endif %}>
           <td class="gridded-listing__tick"><input type="checkbox" name="file" value="{{ f.path }}" id="listed-{{ forloop.counter }}"{% if f.path in browse.chosen and f.usable %} checked{% endif %}{% if not f.usable %} disabled{% endif %}></td>
           <th scope="row" class="code font-normal"><label for="listed-{{ forloop.counter }}">{{ f.name }}</label></th>
           <td class="code">{% if f.usable %}{{ f.variables|join:", " }}{% else %}{% blocktranslate with note=f.note %}– ({{ note }}){% endblocktranslate %}{% endif %}</td>
+        {% endif %}
           <td class="code">{{ f.dates|default:"–" }}</td>
           <td class="num">{{ f.size|filesizeformat }}</td>
         </tr>
         {% endfor %}
         {% if not browse.folders and not browse.files %}
-        <tr><td></td><td colspan="4" class="text-text-muted">{% translate "No folders or netCDF files here." %}</td></tr>
+        <tr>{% if not pick %}<td></td>{% endif %}<td{% if pick != "folder" %} colspan="4"{% endif %} class="text-text-muted">{% if pick == "folder" %}{% translate "No folders here." %}{% else %}{% translate "No folders or netCDF files here." %}{% endif %}</td></tr>
         {% endif %}
       </tbody>
     </table>
   </div>
+  {% if pick %}
+  <div class="gridded-listing__foot">
+    {% if pick == "folder" %}<button type="submit" name="action" value="pick:{{ pick_field }}:{{ browse.folder }}" class="button button--secondary button--sm" data-browse-pick="{{ browse.folder }}">{% translate "Choose this folder" %}</button>{% endif %}
+    <button type="submit" name="action" value="close" class="link-button" data-browse-close="{{ pick_field }}">{% translate "Close" %}</button>
+  </div>
+  {% endif %}
 </div>

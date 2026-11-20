@@ -69,6 +69,52 @@
     color: var(--color-text-muted);
   }
 
+  /* Set-up's Browse (#320): Browse at the end of a path field, as high as the field; New
+     run's listing under it, wider than the field, with Choose this folder and Close under
+     its table. */
+  .gridded-browse__row {
+    display: flex;
+    gap: --spacing(2);
+    align-items: stretch;
+    max-inline-size: 35rem;
+  }
+
+  .gridded-browse__row input {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .gridded-browse__row .button {
+    flex: none;
+    min-block-size: 0;
+  }
+
+  .gridded-browse {
+    max-inline-size: 55rem;
+  }
+
+  .gridded-browse:not(:empty) {
+    margin-block-start: --spacing(2);
+  }
+
+  /* A long folder scrolls inside the listing, so the form stays in view around it. */
+  .gridded-browse .table-wrap {
+    max-block-size: 22rem;
+    overflow-y: auto;
+  }
+
+  .gridded-listing__foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4);
+    align-items: center;
+    padding: --spacing(2) --spacing(2.5);
+    border-block-start: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+  }
+
   .gridded-new__paths > summary {
     margin-block-end: --spacing(2);
     color: var(--color-link);
@@ -438,9 +484,8 @@
     padding-inline-start: --spacing(6);
   }
 
-  .gridded-source__file input[type="text"] {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
+  .gridded-source__file--local {
+    max-inline-size: none;
   }
 
   /* The base period: the years beside the timeline of the data's years. */

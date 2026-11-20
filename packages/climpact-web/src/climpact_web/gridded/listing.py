@@ -5,14 +5,16 @@ chosen so far hold.
 A file's header is read with :func:`climpact_web.gridded.inspection.inspect_file`
 (metadata and coordinates only) and kept while the file's size and modification time
 stay the same, so moving between folders, or ticking a file, reads nothing again.
-Paths on the server's disk are only listed in local mode (the views see to it).
+Paths on the server's disk are only listed in local mode (the views see to it). The
+set-up page's Browse buttons (#320) list folders the same way, to choose a thresholds
+file or a folder to copy the results to (:func:`picking`).
 """
 
 from __future__ import annotations
 
 import os
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from django.utils.translation import gettext as _
@@ -33,6 +35,7 @@ class Listed:
     variables: list[str] = field(default_factory=list)
     dates: str = ""  # "1961–2020", or the base period of a thresholds file
     note: str = ""  # why it cannot be chosen: "no time axis", "thresholds file", ...
+    thresholds: bool = False  # a thresholds file, written by a thresholds run
 
     @property
     def usable(self) -> bool:
@@ -75,6 +78,7 @@ def _describe(path: str) -> Listed:
     names = [v.name for v in info.variables]
     if any(name in THRESHOLD_FILE_VARIABLES for name in names):
         listed.note = _("thresholds file")
+        listed.thresholds = True
         listed.dates = _global_attr(path, "base_period").replace("-", "–")
         return listed
     listed.variables = names
@@ -117,9 +121,10 @@ def crumbs(folder: Path) -> list[dict]:
     return [{"name": p.name or str(p), "path": str(p)} for p in reversed(parts)]
 
 
-def listing(folder: str | Path, chosen: list[str] | None = None) -> dict:
+def listing(folder: str | Path, chosen: list[str] | None = None, with_files: bool = True) -> dict:
     """A folder's subfolders and netCDF files (each described from its header), for the
-    chooser. ``chosen`` are the paths ticked so far, in any folder."""
+    chooser. ``chosen`` are the paths ticked so far, in any folder; ``files=False`` lists
+    the subfolders alone."""
     path = Path(folder).resolve()
     chosen = list(chosen or [])
     folders, files, error = [], [], ""
@@ -133,7 +138,7 @@ def listing(folder: str | Path, chosen: list[str] | None = None) -> dict:
         try:
             if entry.is_dir():
                 folders.append({"name": entry.name, "path": entry.path})
-            elif entry.is_file() and entry.name.lower().endswith(NETCDF_SUFFIXES):
+            elif with_files and entry.is_file() and entry.name.lower().endswith(NETCDF_SUFFIXES):
                 listed = describe(entry.path)
                 if listed is not None:
                     files.append(listed)
@@ -165,3 +170,14 @@ def summary(paths: list[str]) -> dict:
         size += listed.size
         variables += [v for v in listed.variables if v not in variables]
     return {"count": count, "variables": variables, "size": size}
+
+
+def picking(folder: str | Path, pick: str) -> dict:
+    """The set-up page's Browse (#320): a folder's listing for choosing one thresholds file
+    (``pick="file"``: every netCDF file is listed, but only thresholds files can be
+    chosen) or a folder (``pick="folder"``: the subfolders alone)."""
+    out = listing(folder, with_files=pick == "file")
+    other = _("not a thresholds file")
+    # Copies: the descriptions are cached for New run's listing too.
+    out["files"] = [f if f.thresholds or f.note else replace(f, note=other) for f in out["files"]]
+    return out

@@ -1,0 +1,13 @@
+{% load i18n %}{% comment %}
+A path field of the set-up page with Browse beside it (#320, the GridSetup board; local
+mode only), then the place under it for the folder listing (gridded/_listing.html).
+Browse posts the set-up form (action "browse:<field>"), so it works without JavaScript;
+htmx puts the listing alone in its place. Context: field, browse_for (Browse's name for
+screen readers, after "Browse"), browsing (the field whose listing is open) and the
+listing's context (views.browse_context).
+{% endcomment %}
+<div class="gridded-browse__row">
+  {{ field }}
+  <button type="submit" name="action" value="browse:{{ field.name }}" class="button button--secondary button--sm" aria-controls="browse-{{ field.name }}" data-browse="{{ field.name }}" hx-post="{% url 'gridded:setup' run.pk %}" hx-target="#browse-{{ field.name }}" hx-swap="innerHTML" hx-sync="#browse-{{ field.name }}:replace"><span>{% translate "Browse" %}</span><span class="sr-only"> {{ browse_for }}</span></button>
+</div>
+<div class="gridded-browse" id="browse-{{ field.name }}" data-browse-slot="{{ field.name }}">{% if browsing == field.name %}{% include "gridded/_listing.html" %}{% endif %}</div>

@@ -1,7 +1,10 @@
 /* Gridded set-up page (#85, #293): All, None and "Without the slow ones" for the index
-   checkboxes; a file's header (ncdump -h) in a dialog; Copy beside a CDO command. Without
-   JavaScript the index buttons and Copy stay hidden, every index is ticked by default and
-   Header opens the header's own page. */
+   checkboxes; a file's header (ncdump -h) in a dialog; Copy beside a CDO command; Browse's
+   folder listing (#320), which htmx puts under its field: choosing a file or folder fills
+   the field (and the summary panel checks it again), Close shuts it, Enter in its folder
+   field opens that folder, and one listing is open at a time. Without JavaScript the index
+   buttons and Copy stay hidden, every index is ticked by default, Header opens the
+   header's own page and Browse posts the form. */
 (function () {
   "use strict";
   var doc = document;
@@ -28,8 +31,47 @@
   // The CDO command comes and goes as the summary is swapped in out of band.
   doc.body.addEventListener("htmx:afterSettle", function () { showButtons(doc); });
 
+  function closeListing(field, focus) {
+    var slot = doc.querySelector('[data-browse-slot="' + field + '"]');
+    if (slot) slot.replaceChildren();
+    if (focus) focus.focus();
+  }
+
+  // A listing just put in its place: close the other one, and take focus to its folder
+  // field (the button that moved it has gone).
+  doc.body.addEventListener("htmx:afterSwap", function (event) {
+    var slot = event.detail.target;
+    if (!slot.matches || !slot.matches("[data-browse-slot]")) return;
+    doc.querySelectorAll("[data-browse-slot]").forEach(function (other) {
+      if (other !== slot) other.replaceChildren();
+    });
+    var folder = slot.querySelector("[data-browse-folder]");
+    if (folder) folder.focus();
+  });
+
+  doc.addEventListener("keydown", function (event) {
+    var folder = event.target.closest && event.target.closest("[data-browse-folder]");
+    if (!folder || event.key !== "Enter") return;
+    event.preventDefault();
+    var open = folder.closest("[data-browse-listing]").querySelector("[data-browse-open]");
+    if (open) open.click();
+  });
+
   doc.addEventListener("click", function (event) {
     var t = event.target;
+    var pick = t.closest("[data-browse-pick]");
+    var shut = t.closest("[data-browse-close]");
+    if (pick || shut) {
+      event.preventDefault();
+      var field = (pick || shut).closest("[data-browse-listing]").getAttribute("data-browse-listing");
+      var input = doc.getElementsByName(field)[0];
+      if (pick && input) {
+        input.value = pick.getAttribute("data-browse-pick");
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      closeListing(field, pick ? input : doc.querySelector('[data-browse="' + field + '"]'));
+      return;
+    }
     var all = t.closest("[data-check-all]");
     var none = t.closest("[data-check-none]");
     var fast = t.closest("[data-check-fast]");

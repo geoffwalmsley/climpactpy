@@ -47,6 +47,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core import signing
 from django.db import transaction
+from django.forms.utils import ErrorDict
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -196,6 +197,10 @@ def new_context(
         folder_value=typed if folder_error and typed else str(folder),
         folder_error=folder_error,
         chosen=listing.summary(chosen_paths(ticked, text)),
+        listing_url=reverse("gridded:new"),
+        browse_action="browse:",
+        listing_target="#file-listing",
+        listing_swap="outerHTML",
     )
     return context
 
@@ -481,6 +486,79 @@ def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: st
     }
 
 
+# ---- Set-up: Browse for the thresholds file and the copy folder (#320) -------------------
+
+BROWSE_FIELDS = {"thresholds_path": "file", "copy_to": "folder"}  # the field: what it holds
+BROWSE_VERBS = ("browse", "open", "pick", "close")
+
+
+def browse_start(request, run: GriddedRun, typed: str) -> Path:
+    """Where Browse opens: the folder of the path in the field (or the nearest folder
+    above it, for a folder still to be made), else the folder of the run's files, else
+    the folder New run listed last or the home folder."""
+    path = expand(typed.strip()) if typed.strip() else None
+    if path is not None and path.is_absolute():
+        for folder in (path, *path.parents):
+            if folder.is_dir():
+                return folder.resolve()
+    files = str(Path(run.paths[0]).parent) if run.source == Source.PATH and run.paths else None
+    return chooser_folder(request, None, files)[0]
+
+
+def browse_context(run: GriddedRun, field: str, folder: Path, error="", typed=None) -> dict:
+    """The folder listing (gridded/_listing.html) under the field Browse fills."""
+    pick = BROWSE_FIELDS[field]
+    return {
+        "browsing": field,
+        "browse": listing.picking(folder, pick),
+        "pick": pick,
+        "pick_field": field,
+        "folder_value": typed if error and typed else str(folder),
+        "folder_error": error,
+        "listing_url": reverse("gridded:setup", args=[run.pk]),
+        "browse_action": f"browse:{field}:",
+        "listing_target": f"#browse-{field}",
+        "listing_swap": "innerHTML",
+    }
+
+
+def setup_browse(request, run: GriddedRun, action: str):
+    """The set-up form posted by Browse or by its listing (locally): ``browse:<field>``
+    opens the listing under the field, ``browse:<field>:<folder>`` and ``open:<field>``
+    (the folder typed) move it, ``pick:<field>:<path>`` puts a path in the field and
+    ``close`` shuts the listing. htmx gets the listing alone (js/gridded.js fills the
+    field in place); without JavaScript the page is drawn again from the form posted,
+    with the summary panel checking it but no errors under the fields, as with htmx
+    before Start."""
+    verb, _sep, rest = action.partition(":")
+    field, _sep, target = rest.partition(":")
+    if settings.IS_HOSTED or (verb != "close" and field not in BROWSE_FIELDS):
+        return HttpResponseBadRequest()
+    data = request.POST.copy()
+    browse = {}
+    if verb == "pick":
+        data[field] = target
+        if field == "thresholds_path":
+            data["thresholds_source"] = "file"
+    elif verb in ("browse", "open"):
+        typed, error = None, ""
+        if verb == "open":
+            typed = data.get("folder", "").strip()
+            folder, error = chooser_folder(request, typed, data.get("current"))
+        elif target:
+            folder, error = chooser_folder(request, target, data.get("current"))
+        else:
+            folder = browse_start(request, run, data.get(field, ""))
+        browse = browse_context(run, field, folder, error, typed)
+        if request.headers.get("HX-Request"):
+            return render(request, "gridded/_listing.html", browse)
+    form = setup_form(run, data)
+    form.is_valid()
+    context = setup_context(request, run, form)
+    form._errors = ErrorDict()  # the panel has listed them; the fields stay quiet
+    return render(request, "gridded/setup.html", {**context, **browse})
+
+
 @never_cache
 @gridded_enabled
 @require_http_methods(["GET", "HEAD", "POST"])
@@ -489,6 +567,12 @@ def setup(request, run_id):
     run = get_run(request, run_id)
     if request.method != "POST":
         return render(request, "gridded/setup.html", setup_context(request, run, setup_form(run)))
+    action = request.POST.get("action", "start")
+    if action == "default":  # Enter in a field: opens the folder typed while browsing
+        browsing = request.POST.get("browsing")
+        action = f"open:{browsing}" if browsing in BROWSE_FIELDS else "start"
+    if action.partition(":")[0] in BROWSE_VERBS:
+        return setup_browse(request, run, action)
     form = setup_form(run, request.POST, request.FILES)
     valid = form.is_valid()
     names = _names_from(request.POST)

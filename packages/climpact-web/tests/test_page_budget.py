@@ -81,7 +81,7 @@ ASSET_BUDGETS = {
     "js/turnstile.js": 2.5 * KB,  # holds a form until Turnstile's token comes (#163)
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only
-    "js/gridded.js": 1.5 * KB,  # 1 KB before the header dialog and Copy (#293)
+    "js/gridded.js": 2 * KB,  # 1 KB before the header dialog and Copy (#293), Browse (#320)
     # The gridded map (#295): the rail's Find, swapping the map and the pane in place, the
     # cell under the pointer read out, the arrow keys
     "js/gridded-map.js": 4 * KB,

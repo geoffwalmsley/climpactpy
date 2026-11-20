@@ -1,12 +1,13 @@
-"""The gridded pages (#85, #289, #291, #292): Gridded's list of runs, choosing files (local
-mode: a folder listing, paths and patterns) or uploading them, inspecting the files and
-guessing the variables, the set-up form and its checks, the thresholds and indices jobs, a
-run's context bar and its Map, Files and Set-up tabs (the map, cell series, CSVs, zips, the
-links for wget and the run's record), the hosted-mode switch and upload limit, ownership
-and retention."""
+"""The gridded pages (#85, #289, #291, #292, #320): Gridded's list of runs, choosing files
+(local mode: a folder listing, paths and patterns) or uploading them, inspecting the files
+and guessing the variables, the set-up form, its checks and its Browse buttons, the
+thresholds and indices jobs, a run's context bar and its Map, Files and Set-up tabs (the
+map, cell series, CSVs, zips, the links for wget and the run's record), the hosted-mode
+switch and upload limit, ownership and retention."""
 
 import datetime as dt
 import io
+import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -676,6 +677,140 @@ def test_setup_validation(client, tmp_path):
         response = client.post(f"/gridded/{run.pk}/setup/", setup_data(run, **changes))
         assert response.status_code == 200, changes
         assert message in response.content.decode(), (changes, message)
+    assert not Job.objects.exists()
+
+
+def thresholds_file(path: Path) -> Path:
+    """A small file shaped as a thresholds run writes it (a thresholds variable, the base
+    period in the global attributes)."""
+    with netCDF4.Dataset(path, "w") as nc:
+        nc.base_period = "1971-2000"
+        for dim, n in (("time", 365), ("lat", 2), ("lon", 2)):
+            nc.createDimension(dim, n)
+            nc.createVariable(dim, "f8", (dim,))[:] = np.arange(n)
+        nc.variables["time"].units = "days since 1986-01-01"
+        nc.createVariable("tx90thresh", "f4", ("time", "lat", "lon"))[:] = 1.0
+    return path
+
+
+def path_run(client, folder: Path) -> GriddedRun:
+    """A run of a copy of the sample grid in ``folder``."""
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy(SAMPLE, folder / "grid.nc")
+    response = client.post("/gridded/new/", {"paths": str(folder / "grid.nc"), "action": "use"})
+    return GriddedRun.objects.get(pk=response["Location"].split("/")[2])
+
+
+def test_setup_browse_for_a_thresholds_file(client, tmp_path):
+    """Browse beside the thresholds file (#320): New run's folder listing under the field,
+    opened where the run's files are, where only a thresholds file can be chosen. Without
+    JavaScript each step posts the form and the page comes back as it was, with the
+    listing; htmx gets the listing alone. Nothing starts until Start."""
+    root = tmp_path.resolve()
+    data = root / "data"
+    run = path_run(client, data)
+    thresholds = thresholds_file(data / "base.thresholds.nc")
+    (data / "older").mkdir()
+    url = f"/gridded/{run.pk}/setup/"
+    html = client.get(url).content.decode()
+    assert 'value="browse:thresholds_path"' in html and 'value="browse:copy_to"' in html
+    assert "data-browse-listing" not in html
+    # The form's default button comes first, so Enter does not browse.
+    assert html.index('value="default"') < html.index('value="browse:thresholds_path"')
+
+    form = setup_data(run, thresholds_source="file", thresholds_path="", institution="Mine")
+    html = client.post(url, {**form, "action": "browse:thresholds_path"}).content.decode()
+    assert "<html" in html and 'data-browse-listing="thresholds_path"' in html
+    assert f'name="current" value="{data}"' in html
+    assert 'name="browsing" value="thresholds_path"' in html
+    assert f'value="pick:thresholds_path:{thresholds}"' in html
+    row = html[html.index(">grid.nc</th>") :]
+    assert "– (not a thresholds file)" in row[: row.index("</tr>")]
+    assert ">Percentile thresholds</td>" in html and ">1971–2000</td>" in html
+    assert ">older/</button>" in html and 'name="file"' not in html
+    assert 'value="Mine"' in html  # the rest of the form as it was posted
+    # The panel lists what is missing; the fields stay quiet while browsing.
+    assert "Enter the path of the thresholds file." not in html
+    assert 'href="#id_thresholds_path"' in html
+
+    fragment = client.post(
+        url, {**form, "action": "browse:thresholds_path"}, HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert fragment.lstrip().startswith(
+        '<div class="gridded-listing" data-browse-listing="thresholds_path">'
+    )
+    assert "<html" not in fragment and 'hx-target="#browse-thresholds_path"' in fragment
+    # Up a folder, and a folder typed (Enter: the default button while the listing is open).
+    html = client.post(
+        url, {**form, "action": f"browse:thresholds_path:{root}", "current": str(data)}
+    ).content.decode()
+    assert f'name="current" value="{root}"' in html and ">data/</button>" in html
+    html = client.post(
+        url,
+        {**form, "action": "default", "browsing": "thresholds_path", "folder": str(data)},
+        HTTP_HX_REQUEST="true",
+    ).content.decode()
+    assert f'name="current" value="{data}"' in html and "<html" not in html
+    html = client.post(
+        url,
+        {
+            **form,
+            "action": "open:thresholds_path",
+            "folder": str(root / "nope"),
+            "current": str(data),
+        },
+    ).content.decode()
+    assert f"There is no folder {root / 'nope'}." in html
+    assert f'name="current" value="{data}"' in html
+    # Choosing the file fills the field and closes the listing; Close leaves it as it was.
+    html = client.post(
+        url, {**form, "action": f"pick:thresholds_path:{thresholds}"}
+    ).content.decode()
+    assert f'name="thresholds_path" value="{thresholds}"' in html
+    assert "data-browse-listing" not in html
+    assert re.search(r'name="thresholds_source" value="file"[^>]*checked', html)
+    html = client.post(url, {**form, "action": "close"}).content.decode()
+    assert "data-browse-listing" not in html and 'name="thresholds_path" value=' not in html
+    assert not Job.objects.exists()
+    # A field the form does not browse.
+    assert client.post(url, {**form, "action": "browse:tmp_dir"}).status_code == 400
+    # Enter with no listing open starts, as Start does.
+    response = client.post(url, {**setup_data(run), "action": "default"})
+    assert response.status_code == 302 and Job.objects.count() == 1
+
+
+def test_setup_browse_for_the_copy_folder(client, tmp_path):
+    """Browse beside "Also copy the results to" (#320): folders only, opened at the
+    nearest folder above the path typed, and Choose this folder."""
+    root = tmp_path.resolve()
+    run = path_run(client, root / "data")
+    (root / "out" / "era5").mkdir(parents=True)
+    url = f"/gridded/{run.pk}/setup/"
+    form = setup_data(run, copy_to=str(root / "out" / "new" / "sub"))
+    html = client.post(url, {**form, "action": "browse:copy_to"}).content.decode()
+    assert 'data-browse-listing="copy_to"' in html
+    assert f'name="current" value="{root / "out"}"' in html and ">era5/</button>" in html
+    assert f'value="pick:copy_to:{root / "out"}"' in html and "Choose this folder" in html
+    html = client.post(
+        url, {**form, "action": f"browse:copy_to:{root / 'data'}"}, HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert "grid.nc" not in html and "No folders here." in html
+    html = client.post(url, {**form, "action": f"pick:copy_to:{root / 'out'}"}).content.decode()
+    assert f'name="copy_to" value="{root / "out"}"' in html
+    assert "data-browse-listing" not in html and not Job.objects.exists()
+
+
+@override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True)
+def test_setup_has_no_browse_when_hosted(client):
+    """Hosted mode has no folders to browse: the thresholds file is uploaded, there is no
+    copy folder, and a Browse posted anyway is refused."""
+    run = sample_run(client)
+    url = f"/gridded/{run.pk}/setup/"
+    html = client.get(url).content.decode()
+    assert "browse:" not in html and "data-browse-slot" not in html
+    for action in ("browse:thresholds_path", f"pick:thresholds_path:{SAMPLE}", "close"):
+        response = client.post(url, {**setup_data(run), "action": action})
+        assert response.status_code == 400, action
     assert not Job.objects.exists()
 
 

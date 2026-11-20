@@ -2932,7 +2932,9 @@ packages/climpact-web/src/climpact_web/
       js/turnstile.js  holds a form with a Turnstile widget until its token comes (#163),
                      loaded with the widget only
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
-      js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
+      js/gridded.js  the gridded set-up page: All, None and "Without the slow ones" for
+                     the indices, a file's header in a dialog, Copy beside a CDO command,
+                     and Browse's listing (#320) filling its field in place
       js/gridded-map.js  the gridded Map (#295): the rail's Find, the map and pane swapped in
                      place, the cell under the pointer read out, the arrow keys
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
@@ -3116,7 +3118,9 @@ packages/climpact-web/src/climpact_web/
     forms.py         PathsForm, UploadForm (New gridded run), RenameForm, SetupForm
     listing.py       New gridded run's folder listing (#292): each netCDF file's daily
                      variables and dates from its header (cached by path, size and
-                     modification time), and what the files chosen so far hold
+                     modification time), and what the files chosen so far hold; the
+                     set-up's Browse listings (#320, `picking`: a thresholds file, or
+                     folders only)
     setup_page.py    the set-up page (#293): the Variables rows (units, how they are
                      read, a unit Climpact cannot read with a CDO command), the
                      Together line, the base period's timeline and coverage, the
@@ -3135,8 +3139,8 @@ packages/climpact-web/src/climpact_web/
     retention.py     purge_expired_gridded and kept_jobs (#301), registered with the
                      jobs app's purge and keepers
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
-                     upload, sample; a run's Map (<run>/), files/, setup/ and its checks
-                     (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
+                     upload, sample; a run's Map (<run>/), files/, setup/ (with Browse,
+                     `setup_browse`) and its checks (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
                      series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
@@ -3144,7 +3148,8 @@ packages/climpact-web/src/climpact_web/
                      reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
     templates/gridded/  start.html, new.html, setup.html (with _summary.html, the summary
                      panel, and the parts htmx swaps out of band), header.html, run.html,
-                     files.html, _listing.html, _chosen.html, _progress.html, _map.html,
+                     files.html, _listing.html (New run's chooser and set-up's Browse),
+                     _browse_field.html, _chosen.html, _progress.html, _map.html,
                      _cell_pane.html, _run_bar.html, _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
@@ -7138,7 +7143,8 @@ files read in place are never touched (`test_gridded_web.py`:
      others).
    - **What to calculate**: indices, a thresholds file only, or both, as three radio
      cards; for the indices, "Percentile thresholds": from the base period of these
-     files, or read from a thresholds file (a path locally, an upload hosted).
+     files, or read from a thresholds file (a path locally, with Browse; an upload
+     hosted).
    - **Base period**: the first and last year beside a timeline of the data's years with
      the base period marked (an SVG drawn with percentages, so no style attribute), and
      the coverage ("The data cover all 10,958 days of 1971–2000 (at least 360 needed).").
@@ -7150,7 +7156,7 @@ files read in place are never touched (`test_gridded_web.py`:
      needed (none no longer means all).
    - **Output files**: the file name template with an example of the names it gives, the
      thresholds file name (when one is kept), Institution and Institution ID, and "Also
-     copy the results to" (local mode).
+     copy the results to" (local mode, with Browse).
    - **Computing**, closed, its summary giving the current values (cores, values at once,
      cell-first copy).
 
@@ -7172,7 +7178,35 @@ files read in place are never touched (`test_gridded_web.py`:
    variable's units, how it is read and its check, the units help, the Together line, the
    timeline and coverage, the indices' count, the example file name and the Computing
    line). Without JavaScript the form posts and the page draws the same panel, with the
-   form's errors. On "Start", the form is validated, and the files are opened with the
+   form's errors.
+
+   **Browse** (#320, local mode only; `gridded/_browse_field.html`, `views.setup_browse`)
+   sits at the end of the thresholds file's path and the copy folder's. It is a submit
+   button of the set-up form (`action=browse:<field>`), so it works without JavaScript,
+   and opens New run's folder listing (`gridded/_listing.html` with `pick` set,
+   `listing.picking`) under its field: at the folder of the path typed (or the nearest
+   folder above it, for a copy folder still to be made), else the folder of the run's
+   files, else the folder New run listed last or the home folder. For the thresholds file
+   every netCDF file is listed but only thresholds files (a thresholds variable, the
+   base period as their dates) can be chosen, by their name; the copy folder's listing
+   has folders only and "Choose this folder". Its folder links and folder field post
+   `browse:<field>:<folder>` and `open:<field>`; choosing posts `pick:<field>:<path>`
+   (which also sets the thresholds to come from a file) and Close posts `close`. Without
+   JavaScript each of these draws the page again from the form posted: the summary panel
+   checks it, but the fields show no errors, as with htmx before Start. The form's first
+   button is a hidden default one (`action=default`), so Enter in a field starts the run
+   as before but opens the folder typed while a listing is open. With htmx the listing
+   alone is swapped in its place (the other closed), focus goes to its folder field, and
+   `js/gridded.js` fills the field on a choice (its `change` asks for the checks again)
+   and takes focus back to it, or back to Browse on Close. Hosted mode has neither field's
+   Browse, and refuses these actions (400). Tests: `test_gridded_web.py` browses for a
+   thresholds file and for the copy folder without JavaScript and with htmx (where each
+   opens, moving up, a folder typed and one that is not there, choosing, Close, Enter
+   while browsing and with no listing open, nothing started) and finds none in hosted
+   mode; `test_accessibility.py` opens both listings, chooses a folder and closes one by
+   keyboard, with axe on an open listing.
+
+   On "Start", the form is validated, and the files are opened with the
    core's `open_grid` (`inspection.preflight`), so a file the core would refuse fails
    here, its message in the panel, rather than in the job.
 3. Starting opens the run's Map: the jobs (thresholds first, then indices; the worker

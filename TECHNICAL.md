@@ -4102,19 +4102,23 @@ the jobs and the home page) and logs a warning to `climpact_web.limits`: `Refuse
 saves nothing, as the view does not run. A station's setup page refused by a quota saves
 none of the station's details (the base period of a workspace that is the station's own
 is saved first, `set_base_period`), so going back and sending the form again saves them
-and queues the checks. On Add stations the review's table is saved before the station is
-added (`keep_typed`): a quota refusal of several stations comes before anything is made
-(the batch job is created first), and the review stays; a refusal of one station comes
-after it is made (`add_one`), so it stays in the workspace without its checks or run,
-and the files waiting are gone (#351).
+and queues the checks. On Add stations a quota refusal makes nothing, with one station or
+several, and the review stays with its files and what was typed (`keep_typed` saves the
+table first), to be sent again: several stations are refused when their batch job is
+created, before any station is made (`queue_batch`), and one station by
+`check_job_quotas` at the top of `add_one` (#351; until then the station was made first
+and kept without its checks or run, and the files waiting were gone). Should the
+station's checks be refused after all (two requests at once), `add_one` deletes the
+station and keeps the review.
 
 **Job time limit.** See *Time limit* in [Background jobs](#background-jobs).
 
 `test_limits.py` covers each of these: the address in either mode, the widget's markup,
 missing, forged, too long and valid tokens, Cloudflare unreachable, each quota and guard
-(and that local mode has none), retries, the purge of `JobStart`, the soft time limit,
-and the heartbeat's hard stop. `test_deploy_files.py` checks that `.env.example` and
-`compose.yaml` carry every setting, and that `web` is the only app service on `egress`.
+(and that local mode has none), a refused station on Add stations (#351), retries, the
+purge of `JobStart`, the soft time limit, and the heartbeat's hard stop.
+`test_deploy_files.py` checks that `.env.example` and `compose.yaml` carry every setting,
+and that `web` is the only app service on `egress`.
 
 ### Image in CI and on ghcr.io
 

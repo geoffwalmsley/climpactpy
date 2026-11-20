@@ -2937,7 +2937,7 @@ packages/climpact-web/src/climpact_web/
                      the indices, a file's header in a dialog, Copy beside a CDO command,
                      and Browse's listing (#320) filling its field in place
       js/gridded-map.js  the gridded Map (#295): the rail's Find, the map and pane swapped in
-                     place, the cell under the pointer read out, the arrow keys
+                     place, the cell under the pointer read out (by view, #296), the arrow keys
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       Quality: the checks' rail and the check's detail, its values in place (#202, #235, #264), linked to the daily charts (#77, #174)
       js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
@@ -3139,6 +3139,9 @@ packages/climpact-web/src/climpact_web/
                      frame (north up, west left, the cells' aspect, axes, coastline)
     map_page.py      the Map tab (#295): the rail's entries, the state from the query
                      string, the toolbar, the map, the legend and the cell pane
+    map_views.py     the map's Base mean, Anomaly and Trend views and the grid mean
+                     (#296): trends.nc read and kept, each view's field, breaks and
+                     scale, the diverging palettes, the dots on Trend
     stages.py        the Map tab while a run calculates (#294): each job's stages from
                      its stages.json, the stages table, the status line, what to change
                      when it fails, what is being calculated
@@ -4383,7 +4386,8 @@ they always have a legend: 8.6 light, 6.5 dark).
 | `--chart-flag` | QC flags: hollow ring markers in ink, told apart from series by shape |
 | `--chart-grid`, `--chart-axis` | gridlines and axes |
 | `--map-seq-<kind>-1` ... `-8` | the gridded map's eight bins (#295), by the index's kind: `temp` (blue through pale yellow to red), `warm`, `cool`, `wet`, `dry`; they replaced the five-step `--chart-seq-*` |
-| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies; the gridded map's SPI and SPEI classes, reversed (dry red), until #296 |
+| `--map-div-temp-1` ... `-8`, `--map-div-wet-1` ... `-8` | the gridded map's diverging scales (#296): eight bins symmetric about zero, blue to red (`temp`) and brown to teal (`wet`), paler towards zero in light and darker towards it in dark; Anomaly and Trend, and SPI and SPEI's classes; reversed for the indices where more means cooler or drier |
+| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies (until #296 also the gridded map's SPI and SPEI classes) |
 | `--chart-decrease-2`, `-decrease-1`, `-increase-1`, `-increase-2` | the trend scale (#227): a significant decrease (blue) or increase (orange), weak and strong, for the trend grid (#238); the strong step is darker in light, brighter in dark |
 | `--chart-coverage-1` ... `-3` | coverage (#227): a year complete, 1–3 days missing, 4 or more, for Quality's coverage strip (#235) |
 
@@ -4394,7 +4398,12 @@ and deutan simulation (worst: light `cool` 8.1; dark `warm` 15.2), neighbouring 
 the floor of 6, since the legend labels each bin (worst: light `warm` 6.4, dark `wet`
 6.5), and the four count scales moving away from the sunken surface in contrast, bin by
 bin: darker towards more in light, brighter in dark. `temp` runs from blue through pale
-yellow to red in both themes.
+yellow to red in both themes. The diverging scales (#296,
+`test_map_diverging_scales_stand_apart`) are checked the same way, with the neighbours
+across zero: apart from the sunken surface by ΔE 11.5 or more (light `wet`), neighbours
+by 7.7 or more (dark `wet`); each half moves away from the sunken surface from zero out;
+and the Trend view's dot (`--color-text` or `--color-surface`, whichever contrasts more
+with the bin) is at least 4.2:1 on every bin.
 
 The categorical order was checked with a colour-vision-deficiency validator (OKLab
 distance under protan, deutan and tritan simulation) against the light surface
@@ -7322,8 +7331,8 @@ files read in place are never touched (`test_gridded_web.py`:
 3. Starting opens the run's Map: the run's stages (thresholds first, then indices; the
    worker takes the oldest queued job first), polled by htmx (**Stages**, below), the
    cell-first copy while the input is rechunked and "Trends and the map" while
-   `trends.nc` is written after the indices (#290; the map's views that read it are
-   #296). When the last job finishes the map takes the stages' place without a reload.
+   `trends.nc` is written after the indices (#290; the map's Base mean, Anomaly and
+   Trend views and its grid mean read it, #296). When the last job finishes the map takes the stages' place without a reload.
    The files are on the run's Files tab; "Download all (zip)" and each group's zip are
    `ZIP_STORED`, built in a temporary file.
 
@@ -7453,10 +7462,12 @@ column.
   heatwave variable, `hwn_tx90`), `freq` (`ANN`, `MON`, `DAY`), `year` and `month` (`day`
   for `tx95t`), `scale` (SPI and SPEI: 3, 6 or 12 months), `cell` (the file's `y,x`;
   `cell_y` and `cell_x` from the form without JavaScript; `goto`, "lat, lon", the nearest
-  cell, `maps.nearest_cell`, a turn either way for 0–360° grids), `q` (the rail's Find).
-  Defaults: TXx (else the first index), annual, the last year (of December, for a monthly
-  file) with a value (`last_step_with_values`), the 12-month scale, the cell with a value
-  nearest the middle. The old explorer's `file` and `t` still open the same map, and
+  cell, `maps.nearest_cell`, a turn either way for 0–360° grids), `view` (`base`,
+  `anomaly`, `trend`; Year without), `series` (`grid`, the pane's mean over the grid),
+  `q` (the rail's Find). Defaults: TXx (else the first index), annual, the last year (of
+  December, for a monthly file) with a value (`last_step_with_values`), the 12-month
+  scale, the cell with a value nearest the middle, Year. An address asking for a view or
+  the grid mean the layer has none of shows Year and the cell. The old explorer's `file` and `t` still open the same map, and
   `<id>/results` still redirects (301) with its query string.
 - *Rail* (`map_page.entries`): every index the run calculated, a heatwave file's
   variables each an entry (`hwn_tx90` is `TX90-HWN`, named as the station pages name it),
@@ -7464,14 +7475,32 @@ column.
   frequencies it has; the selected one on the selected tint with an ink edge. Find
   filters as you type (a GET form without JavaScript).
 - *Toolbar*: the code and short name (h2), the catalogue's definition and the file's
-  name; the view (`map_page.VIEWS`: Year, and Base mean, Anomaly and Trend shown
-  unavailable until #296 builds them from `trends.nc`); Annual / Monthly (a frequency
-  without a file struck through, not a link); the scale for SPI and SPEI; the stepper
-  (‹ 2019 ›, by month for a monthly file, by day for `tx95t`); one line on what is shown;
-  Download ▾: "Map as PNG" (`gridded:map_png?download=1`: `map_image.figure_png`, the
-  cells, coastline, places, axes, title and legend drawn by matplotlib, light colours),
-  "Map as CSV" (`gridded:map_csv`, every cell's latitude, longitude and value) and the
-  netCDF file (`gridded:file`).
+  name; the view (`map_page.VIEWS`: Year, Base mean, Anomaly, Trend; see *Views*,
+  below); Annual / Monthly (a frequency without a file struck through, not a link); the
+  scale for SPI and SPEI; the stepper (‹ 2019 ›, by month for a monthly file, by day for
+  `tx95t`; Year and Anomaly only); one line on what is shown, and under it, when the
+  three views are unavailable, why; Download ▾: "Map as PNG"
+  (`gridded:map_png?download=1`: `map_image.figure_png`, the cells, coastline, places,
+  axes, title and legend drawn by matplotlib, light colours), "Map as CSV"
+  (`gridded:map_csv`, every cell's latitude, longitude and value: the year's, the base
+  mean, the anomaly, or on Trend the slope per decade and its 95% interval, named
+  `txx_trend_1961-2020.csv` and so on) and the netCDF file (`gridded:file`). The PNG and
+  CSV follow the view.
+- *Views* (#296, `gridded/map_views.py`). Year (the value in one year or month), Base
+  mean (`<index>_base_mean` of `trends.nc`), Anomaly (the year's value minus the base
+  mean) and Trend (`<index>_slope`, Sen's slope per decade over the run's years, with a
+  dot on each cell whose 95% interval, `_lower` to `_upper`, excludes zero; the legend
+  says "Dot: the 95% interval excludes zero (583 of 896 cells)"). `trends.nc` holds the
+  annual series only, so the three views (and the grid mean) are offered for an annual
+  file, and for SPI and SPEI at the 12-month scale in December (choosing one moves the
+  map there; the other scales are then unavailable and Anomaly steps by year); for a
+  monthly file, a day-of-year file, or a run without `trends.nc` (calculated before
+  #290, or with its trends turned off, the job's `trends` false) they are shown
+  unavailable, `aria-disabled`, with the reason in a line under the controls
+  (`map_views.unavailable`). `trends.nc` is read once per index (holding
+  `netcdf.LOCK`, as every netCDF read on a request thread) and kept
+  (`map_views.CACHE_BYTES`, 128 MB); its base period and trend period come from its
+  attributes.
 - *The map.* Every cell, never thinned (the explorer's 2,500-cell cap, `MAX_MAP_CELLS`,
   went with it). `gridded:map_png` (`<id>/map.png`) is the field as an indexed PNG with
   one pixel per cell, north up and west left whatever the order of the file's rows and
@@ -7504,10 +7533,28 @@ column.
   20 years spread over the file (of the month, for a monthly file), from at most 250,000
   cells each, starting at zero for counts and amounts: fixed for the file, so one year's
   map compares with another's; values beyond the ends are in the end bins. SPI and SPEI
-  use their standard classes (−2, −1.5, −1, 1, 1.5, 2; McKee et al. 1993) in the
-  seven-step diverging scale reversed, dry red and wet blue, until #296's diverging map
-  scales. The legend: the bins with their breaks, "Cells with a value: low to high" for
-  the year shown, and "No value".
+  use their standard classes (−2, −1.5, −1, 1, 1.5, 2; McKee et al. 1993), near normal
+  split at zero (#296) so the eight bins are symmetric about it, on the wet diverging
+  scale (dry brown, wet teal). Base mean uses the kind's sequential scale with breaks over
+  the base means (`map_views.sequential_edges`; SPI and SPEI diverging). Anomaly and
+  Trend use a diverging scale (`map_views.scale_of`): `--map-div-temp-*` (blue for
+  cooler, red for warmer) for temperatures and counts, `--map-div-wet-*` (brown for
+  drier, teal for wetter) for Rain, Drought, SPI and SPEI, reversed for the `cool` and
+  `dry` kinds (FD, ID, CSDI, TX10p, TN10p, CDD and the like), so warmer and wetter read
+  the same way on every map; in `chart-palette.json` as `map_diverging`. Their breaks
+  (`map_views.symmetric_edges`) are symmetric about zero, a round step apart, the last at
+  or above the 98th percentile of the values' size: on Anomaly over the anomalies of up
+  to 20 years of the file (`anomaly_edges`), so the years compare. The legend: the bins
+  with their breaks, "Cells with a value: low to high" for the map shown, "No value",
+  and on Trend the dot's key with the count.
+- *Dots on Trend.* The PNG draws each cell `map_views.dot_factor` pixels a side (about
+  1.5 SVG units a pixel for the cell's drawn width; 2 to 64, at most 4 million pixels,
+  so 2 on a large grid) and a disc about 3.5 units across in the middle of each
+  significant cell (`dot_mask`; one pixel where the cells are small, a texture over the
+  area), in `--color-text` or `--color-surface`, whichever stands out more from the
+  cell's bin (`with_dots`). The values the read-out uses (`map.f32`) then hold a second
+  grid, 1 where the interval excludes zero, and the read-out says "significant" or "not
+  significant".
 - *Interaction* (`js/gridded-map.js`). Links and forms in the map swap the map block in
   place (`X-Climpact-Part: map`; the view answers `gridded/_map.html` alone and `Vary`
   says so), push the address (Back and Forward work) and keep focus on the control used.
@@ -7521,7 +7568,11 @@ column.
   text alternative, and a `<noscript>` form chooses the cell by latitude and longitude.
   The PNG, values and map CSV leave the cell out of their address, so they stay cached
   (`Cache-Control: private, max-age=86400`, an `ETag` of the file and the query; 304).
-- *Cell pane*: "Selected cell" ("Mean over the grid" unavailable until #296); the cell's
+- *Cell pane*: "Selected cell" or "Mean over the grid" (#296: `<index>_grid_mean` of
+  `trends.nc`, the cos-latitude weighted mean of the cells with a value, titled "Mean
+  over 1,896 cells" with "Weighted by the cosine of latitude; cells with no value left
+  out.", the same chart, statistics, values table and CSV, `txx_grid_mean.csv`;
+  unavailable without `trends.nc`, as the views; choosing a cell shows the cell); the cell's
   centre in mono as the h2, its place in the grid and its bounds; Go to (a GET form,
   `map_page.parse_goto`: `−33.86, 151.21` or `33.86 S 151.21 E`; outside the grid or
   unreadable it says so). The series: by year, of the chosen month for a monthly file,
@@ -7532,9 +7583,11 @@ column.
   statistics in the station pane's order: Sen's slope per decade, 95% interval,
   significant, the base-period mean, the year shown with its anomaly, the record (highest,
   or lowest for TNn, TXn, SPI and SPEI); then the values by year as a table and "This
-  series as CSV" (`gridded:series_csv`). The trend is `climpact.trends.plot_trend` of the
-  cell's series, computed on request: for an annual series the numbers of `trends.nc`
-  (#290), which uses the same function (the end-to-end test compares them). When a
+  series as CSV" (`gridded:series_csv`). Where `trends.nc` has the series (#296), the
+  slope, its interval and the base mean are its numbers for the cell, the ones the map
+  shows (`map_page.trends_summary`); otherwise the trend is `climpact.trends.plot_trend`
+  of the series, computed on request, the function `trends.nc` uses (the end-to-end test
+  compares them). The chart's line is always computed on request. When a
   station of the browser's workspaces (the same owner token) lies in the cell, a box
   names it (and its workspace) with "Open its TXx", the station's index page
   (`stations:result`; a heatwave entry's key is its code, `TX90-HWN`).
@@ -7638,8 +7691,16 @@ the frame's orientation, cosine aspect and axes (a 0–360° global grid, a rota
 without an outline), the outline's coastline and places, Go to and its errors, the form
 without JavaScript, the station box only for a station of this browser in the cell,
 every cell drawn on 145 x 192 and 700 x 900 grids within a second, and 404 for another
-session. In a browser (`test_accessibility.py`): axe on the Map in both themes, 320px,
-and the map by keyboard.
+session. Since #296 (`test_gridded_map_views.py`): the scale by view and kind (FD and
+CDD reversed, also through the page and the PNG's palette), the symmetric breaks, a
+cell's Trend value in the map's values, CSV and pane against `trends.nc` and
+`climpact.trends.sen_trend`, the dots (their count, the PNG's pixels), Base mean and
+Anomaly against `trends.nc` with the same breaks every year, the grid mean (title, slope,
+CSV against a weighted mean), SPI's views at the 12-month scale in December, a monthly
+file and runs without `trends.nc` or with trends off keeping Year with the reason, and
+the netCDF lock held by every read of the views. In a browser (`test_accessibility.py`):
+axe on the Map in both themes, 320px, and the map by keyboard; since #296 also axe on the
+Trend view with the grid mean, and the views and the grid mean by keyboard.
 
 ### Size budget
 

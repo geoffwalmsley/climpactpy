@@ -195,9 +195,15 @@ are for indices, the variable roles for the station's variables; trend, band, gr
 through pale yellow to red; `--map-seq-warm-*`, `-cool-*`, `-wet-*` and `-dry-*` for
 counts and amounts, moving away from the sunken surface in lightness, darker in light and
 brighter in dark; each bin apart from the sunken surface, a cell with no value, and from
-its neighbours under protanopia and deuteranopia, `test_map_scales_stand_apart`); a
-seven-step diverging scale (anomalies; on the map, SPI and SPEI's standard classes,
-reversed so dry is red, **Target:** `--map-div-*` with #296); the **trend scale** (#227: `--chart-decrease-2`,
+its neighbours under protanopia and deuteranopia, `test_map_scales_stand_apart`); the
+map's **eight-bin diverging scales** (#296: `--map-div-temp-*`, blue for cooler to red
+for warmer, and `--map-div-wet-*`, brown for drier to teal for wetter; symmetric about
+zero, paler towards zero in light and darker towards it in dark; for Anomaly and Trend,
+and SPI and SPEI's standard classes, near normal split at zero; reversed for the indices
+where more means cooler or drier, FD, CSDI, TX10p, CDD and the like, so warmer and
+wetter read the same way on every map; checked as the sequential ones, neighbours across
+zero too, `test_map_diverging_scales_stand_apart`); a seven-step diverging scale for
+charts (`--chart-div-*`, anomalies); the **trend scale** (#227: `--chart-decrease-2`,
 `-decrease-1`, `-increase-1`, `-increase-2`, blue for a significant decrease and orange
 for an increase, the strong step darker in light and brighter in dark; a cell's value is
 written in it, in `--color-surface` on the strong steps and `--color-text` on the weak
@@ -225,6 +231,7 @@ same values; build with the tokens:
 | The trend scale: two steps of increase (orange) and of decrease (blue) | `--chart-increase-1`, `-2` and `--chart-decrease-1`, `-2`; not significant is a dashed `border-strong` edge on the surface, no fill |
 | Coverage: complete, 1–3 days missing, 4 or more | `--chart-coverage-1` to `-3` (the coverage strip, #235) |
 | The gridded map's ramps (GridMap); its "sea" (no value); its coast | `--map-seq-<kind>-1` to `-8`; `surface-sunken`; `text` over a `surface` halo |
+| The map's diverging ramps (Anomaly, Trend, SPI); Trend's dot | `--map-div-temp-*`, `--map-div-wet-*` (reversed for cooler or drier); the dot in `text` or `surface`, whichever stands out more from the cell's bin |
 | Links (blue, underlined) | `link`, `link-hover` |
 | The "Mock-up" banner | Not part of the design |
 
@@ -420,7 +427,7 @@ strips, worklist and detail pane.
   under a mono line ("TXx · °C · annual values") with "CSV, all stations" (small
   secondary) at the row's end, the text summary, the Overlay chart in its frame across the
   window, the stations not shown and why, then the values table (a column a station).
-- **The gridded frame (the Grid boards; built by #289, #290, #291, #293, #294 and #295, Target: #292 and #296 for the rest).**
+- **The gridded frame (the Grid boards; built by #289, #290, #291, #293, #294, #295 and #296, Target: #292 for the rest).**
   A gridded run is a place of its own, like a workspace, not a flow of steps. **Naming:** the header says
   "Gridded" (the data's shape, the field's word: ET-SCI, Climpact for R's "gridded
   indices"); "netCDF" is said where files are chosen (the landing card "Gridded data
@@ -499,23 +506,30 @@ strips, worklist and detail pane.
   - **Map** (#295, the Gridded map pattern below) is a data page in the Indices' three
     columns: the index rail (14rem, by theme, codes first, the frequencies each index
     has), the map, the cell pane (`clamp(22rem, 28%, 32rem)`). Above the map: the code and
-    name, the definition and file name; the view (Year; Base mean, Anomaly and Trend shown
-    unavailable, **Target:** #296), Annual / Monthly, the year stepper (a month for a
-    monthly file, the scale for SPI and SPEI); one line on what is shown; Download ▾ (Map
-    as PNG, Map as CSV, the netCDF file). The map draws every cell (a PNG, one pixel per
+    name, the definition and file name; the view (Year, Base mean, Anomaly, Trend, #296),
+    Annual / Monthly, the year stepper (Year and Anomaly; a month for a monthly file, the
+    scale for SPI and SPEI); one line on what is shown, and under it why Base mean,
+    Anomaly and Trend are unavailable when they are (they read the run's `trends.nc`: not
+    for a monthly or day-of-year file, nor a run without it); Download ▾ (Map as PNG, Map
+    as CSV, the netCDF file), following the view. The map draws every cell (a PNG, one pixel per
     cell, scaled up without smoothing, the cells' aspect from the cosine of the mean
     latitude) under an SVG of the coastline and three to five places from a bundled
     Natural Earth outline: no map tiles, works offline. Eight fixed bins per index and
     view, the same for every year of the file: a sequential scale by the index's kind
-    (temperature, warm counts, cold counts, wet, dry). **Target (#296):** a diverging
-    scale centred on zero for anomalies and trends, reversed where an increase means
+    (temperature, warm counts, cold counts, wet, dry), for Year and Base mean; a diverging
+    scale centred on zero for Anomaly and Trend (#296), reversed where an increase means
     cooler or drier, so warmer and wetter read the same on every map; on Trend a dot marks
-    each cell whose 95% interval excludes zero. Hover reads a cell out; click, Enter,
+    each cell whose 95% interval excludes zero, and the legend counts them ("Dot: the 95%
+    interval excludes zero (1,583 of 1,896 cells)"). SPI and SPEI keep their standard
+    classes on the wet diverging scale; their Base mean, Anomaly, Trend and grid mean are
+    of the 12-month scale in December. Hover reads a cell out; click, Enter,
     arrow keys and "Go to" select one. The cell pane reads like the Indices' detail pane
     (the series chart with base band, 11-year mean, Sen's slope and its interval, the year
     on the map marked; the statistics in the same order); when a station of one of the
-    browser's workspaces is in the cell, it links to that station's index page.
-    **Target (#296):** "Mean over the grid" (cos-latitude weighted).
+    browser's workspaces is in the cell, it links to that station's index page. "Mean
+    over the grid" (#296) shows the cos-latitude weighted mean of the cells with a value
+    the same way, titled "Mean over 1,896 cells", "Weighted by the cosine of latitude;
+    cells with no value left out."; choosing a cell shows the cell again.
   - **Files** (#289, `gridded/files.html`) uses the File group pattern, framed, by theme
     (Heat, Cold, Rain, Drought, Other; or by variable needed, or frequency, a GET form),
     the first open, each with "Download these (zip)" beside its summary: Code, Index,
@@ -663,7 +677,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Gridded summary panel | Pattern | The set-up's check (#293, the GridSetup board; `gridded/_summary.html`, `setup_page.panel_for`): a framed panel at the inline end, sticky, its title ("Ready to start"; "Before you start" with "1 problem to fix before starting:" and each problem linked to its field, in danger; "This run" after a run; "Calculating" or "Calculating again" while jobs run), then a list, each line a mark (✓ success, ✗ danger, i ink, ~ and · muted, drawn by CSS and named for screen readers) and a bold title before its sentence: Grid, Period, Variables, Base period, Writes, Disk, Cell-first copy, Time; after a run Calculated, Wrote, Settings and "Nothing changed yet." or "Changed: Base period."; then the one primary button, full width ("Start the calculation", "Start again with changes") and a muted line. Estimates say "about". htmx swaps it (and, out of band, the parts of the form that follow it) as the form changes; without JavaScript the posted form draws it | ready, a problem, after a run, changed, calculating again, a new start that failed |
 | Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
 | Gridded stages | Pattern | A gridded run's calculation on its Map tab (#294, the GridRun board; `gridded/_stages.html`, `gridded/_stages_table.html`, `gridded.stages`): the Run status line (ink edge and a bar while it runs: "**Calculating indices: 62%.** About 6 min left, 14 min so far. You can close this page." and Cancel; danger edge when it failed: "**The run failed in the indices stage.** The thresholds file is kept." with "Change the settings" (to the setting that fixes it) and "Forget this run"; ink edge, no bar, when it was cancelled, with "Start again on Set-up"), then Stages, a framed data table, at most 48.75rem: the stage (a mark in a column of its own, ✓ › · ✗, hidden from screen readers; the name; one muted line on what it does), State (16.25rem; "62% · block 812 of 1,300" with a small bar on the running one; "Failed in block 233 of 1,300" in danger on a faint danger tint; Waiting, Not run, "Kept from the last start" muted or ink), Time (mono, `m:ss`). The stages: Check the files, Read the thresholds file (indices from a file), Cell-first copy (only when one is made), Thresholds, Indices, Trends and the map. Under it on failure a box edged in danger: the error in words (bold, danger), what to change and what is kept, the primary button to the setting ("Change the computing settings") and The run's log. Beside it (23.75rem, framed, under it when narrow) "What is being calculated": Files, Grid, Base period, Indices, Computing, Started in mono; All settings (Set-up); a muted line on the run going on in the background. Polled by htmx; the line's sentence is announced through #announcer, no more often than the poll | queued, checking, copying, thresholds, indices, trends, failed, cancelled, kept, a new start beside the results |
-| Gridded map | Pattern | A gridded run's Map (#295, the GridMap board; `gridded/_map.html`, `gridded/_cell_pane.html`, `gridded/map_page.py`, `js/gridded-map.js`): the index rail (Find, then the run's indices by theme with the theme's dot and name, each row the code in mono, the short name with an ellipsis and its frequencies, 30px; the selected one on the selected tint with an ink edge; a GET form without JavaScript, filtering as you type with it); the toolbar (the code and name as the h2, the definition and file; segmented controls for the view, the frequency and SPI's scale, a choice not offered `aria-disabled`; the stepper; Download ▾); the map (a PNG of every cell in an SVG with the coastline over a surface halo, places with a halo, axes in degrees and the selected cell outlined in ink over a surface halo; one focusable group with a read-out line, a tooltip and a polite live region; a latitude and longitude form without JavaScript); the legend (the bins with their breaks, the range of the cells with a value, No value); the cell pane (the cell in mono, Go to, the series chart, the statistics, the values by year, the CSV, the station in the cell). Links and forms swap the map in place and keep the address | year, month, scale, no value, a station in the cell |
+| Gridded map | Pattern | A gridded run's Map (#295, the GridMap board; `gridded/_map.html`, `gridded/_cell_pane.html`, `gridded/map_page.py`, `js/gridded-map.js`): the index rail (Find, then the run's indices by theme with the theme's dot and name, each row the code in mono, the short name with an ellipsis and its frequencies, 30px; the selected one on the selected tint with an ink edge; a GET form without JavaScript, filtering as you type with it); the toolbar (the code and name as the h2, the definition and file; segmented controls for the view, the frequency and SPI's scale, a choice not offered `aria-disabled`; the stepper; Download ▾); the map (a PNG of every cell in an SVG with the coastline over a surface halo, places with a halo, axes in degrees and the selected cell outlined in ink over a surface halo; one focusable group with a read-out line, a tooltip and a polite live region; a latitude and longitude form without JavaScript); the legend (the bins with their breaks, the range of the cells with a value, No value, on Trend the dot and its count); the cell pane ("Selected cell" or "Mean over the grid", the cell in mono, Go to, the series chart, the statistics, the values by year, the CSV, the station in the cell). The views Year, Base mean, Anomaly and Trend (#296, `gridded/map_views.py`), unavailable with the reason under the controls when the run has no trends for the file. Links and forms swap the map in place and keep the address | year, month, scale, base mean, anomaly, trend, grid mean, no trends, no value, a station in the cell |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
 `stations/templates/stations/_qc_*.html`, and the Indices):

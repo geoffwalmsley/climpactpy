@@ -16,8 +16,9 @@ of its own, like a workspace (#289, the Grid boards):
   Before a run it has a breadcrumb; after, it is the run's Set-up tab, and starting again
   keeps the results until the new ones are ready.
 - ``gridded:run`` (``<run>/``), the run's Map tab: the thresholds and indices jobs with
-  their progress (the rechunking stage included) while they run, then a map of an index
-  at one time step and the time series of a chosen cell, each with a table. The old
+  their progress (the rechunking stage included) while they run, then the index rail, the
+  map and the cell pane (#295, :mod:`climpact_web.gridded.map_page`); ``gridded:map_png``,
+  ``gridded:map_values`` and the map's and cell's CSVs serve it. The old
   ``<run>/results`` address redirects here.
 - ``gridded:files`` (``<run>/files/``), the Files tab: the index files grouped by theme,
   variable needed or frequency, each group with its zip; Download all, the links for
@@ -39,6 +40,7 @@ import os
 import re
 import tempfile
 import zipfile
+import zlib
 from pathlib import Path
 
 from django.conf import settings
@@ -49,14 +51,16 @@ from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequ
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import patch_vary_headers
 from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from climpact_web.core import numbers
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.gridded import inspection, listing, maps, runs, setup_page
+from climpact_web.gridded import inspection, listing, map_page, maps, runs, setup_page
 from climpact_web.gridded.forms import (
     MAX_FILES,
     SLOW_INDICES,
@@ -766,121 +770,46 @@ def progress_context(request, run: GriddedRun) -> dict:
     }
 
 
-def explore_context(request, run: GriddedRun) -> dict:
-    """The map and the cell's time series, from the query string: ``file`` (an index file
-    of the indices job), ``var``, ``t`` (time step), ``scale`` (SPI/SPEI), ``cell``
-    (``y,x``)."""
+def map_context(request, run: GriddedRun) -> dict:
+    """The Map tab's rail, map and cell pane (gridded.map_page), once the indices job has
+    finished; {} before, or when it wrote no index file."""
     job = run.indices_job
     if job is None or job.status != Status.SUCCEEDED:
         return {}
-    files = [f for f in maps.output_files(job) if f.index]
-    if not files:
-        return {}
-    q = request.GET
-    chosen = next((f for f in files if f.path == q.get("file")), None)
-    if chosen is None:  # default: the first annual file, txx if there is one
-        annual = [f for f in files if f.freq == "ANN"]
-        chosen = next((f for f in annual if f.index == "txx"), annual[0] if annual else files[0])
-    path = job.output_dir / chosen.path
     try:
-        layer = maps.open_layer(path, chosen.path, q.get("var"))
-    except (OSError, ValueError, KeyError):
-        return {"explore_error": _("This file could not be read."), "explore_files": files}
-    scale = _int(q.get("scale"), 0, len(layer.scales) or 1)
-    if q.get("t") is None:  # default: the last time step with a value
-        t = maps.last_step_with_values(path, layer, scale)
-    else:
-        t = _int(q.get("t"), len(layer.times) - 1, len(layer.times))
-    values = maps.grid_values(path, layer, t, scale)
-    ny, nx = values.shape
-    cell = _cell(q.get("cell"), ny, nx)
-    if cell is None and q.get("cell_y") is not None:
-        cell = _cell(f"{q.get('cell_y')},{q.get('cell_x')}", ny, nx)
-    if cell is None:  # default: the cell nearest the middle with a value
-        import numpy as np
-
-        finite = np.argwhere(np.isfinite(values))
-        if finite.size:
-            mid = np.array([ny / 2, nx / 2])
-            y, x = finite[np.argmin(((finite - mid) ** 2).sum(axis=1))]
-            cell = (int(y), int(x))
-        else:
-            cell = (ny // 2, nx // 2)
-    drawing = maps.draw_map(values, layer.lat, layer.lon, cell)
-    series_values = maps.cell_series(path, layer, cell[0], cell[1], scale)
-    series = maps.draw_series(series_values, layer.times)
-    state = {"file": chosen.path, "var": layer.variable, "t": t, "scale": scale}
-    base = reverse("gridded:explore", args=[run.pk])
-    page = reverse("gridded:run", args=[run.pk])
-    for c in drawing.cells:
-        query = urlencode({**state, "cell": f"{c.y},{c.x}"})
-        c.href = f"{page}?{query}#explore"
-        c.hx = f"{base}?{query}"
-    lat = layer.lat[cell[0]] if cell[0] < len(layer.lat) else cell[0]
-    lon = layer.lon[cell[1]] if cell[1] < len(layer.lon) else cell[1]
-    from climpact_web.help.topics import index_topic_for_output
-
-    return {
-        "explore_files": files,
-        "chosen": chosen,
-        "index_topic": index_topic_for_output(f"{chosen.index}_{chosen.freq}"),
-        "layer": layer,
-        "t": t,
-        "time_label": layer.times[t] if layer.times else "",
-        "scale": scale,
-        "scale_label": layer.scales[scale] if layer.scales else "",
-        "map": drawing,
-        "cell": cell,
-        "cell_label": f"{maps.coord_label(lat, 'N')}, {maps.coord_label(lon, 'E')}",
-        "lat_options": [
-            {"value": y, "label": maps.coord_label(v, "N")} for y, v in enumerate(layer.lat)
-        ],
-        "lon_options": [
-            {"value": x, "label": maps.coord_label(v, "E")} for x, v in enumerate(layer.lon)
-        ],
-        "series": series,
-        "map_csv": reverse("gridded:map_csv", args=[run.pk]) + "?" + urlencode(state),
-        "series_csv": reverse("gridded:series_csv", args=[run.pk])
-        + "?"
-        + urlencode({**state, "cell": f"{cell[0]},{cell[1]}"}),
-        "series_json": reverse("gridded:series_json", args=[run.pk])
-        + "?"
-        + urlencode({**state, "cell": f"{cell[0]},{cell[1]}"}),
-    }
+        return map_page.context(request, run, job)
+    except (OSError, ValueError, KeyError, IndexError):
+        return {"map_error": _("This file could not be read.")}
 
 
-def _int(value, default: int, limit: int) -> int:
-    try:
-        n = int(value)
-    except (TypeError, ValueError):
-        return max(default, 0)
-    return n if 0 <= n < limit else max(default, 0)
-
-
-def _cell(value, ny: int, nx: int) -> tuple[int, int] | None:
-    if not value:
-        return None
-    try:
-        y, x = (int(v) for v in str(value).split(","))
-    except ValueError:
-        return None
-    return (y, x) if 0 <= y < ny and 0 <= x < nx else None
+# The parts of the Map tab a script asks for (js/gridded-map.js, X-Climpact-Part): the
+# rail, map and pane, or the pane alone.
+MAP_PARTS = {"map": "gridded/_map.html", "pane": "gridded/_cell_pane.html"}
 
 
 @never_cache
 @gridded_enabled
 @require_safe
 def run_page(request, run_id):
-    """The run's Map tab: the jobs while they run (or why one failed), then the map and a
-    cell's series (the explorer, until the map of #295). A run not started yet opens its
-    set-up."""
+    """The run's Map tab: the jobs while they run (or why one failed), then the index
+    rail, the map and the cell pane (#295). A run not started yet opens its set-up."""
     run = get_run(request, run_id)
     if not run.jobs:
         return redirect("gridded:setup", run_id=run.pk)
-    context = progress_context(request, run)
-    context.update(explore_context(request, run))
-    context.update(bar_context(run, "map"))
-    return render(request, "gridded/run.html", context)
+    part = MAP_PARTS.get(request.headers.get("X-Climpact-Part", ""))
+    if part:
+        context = map_context(request, run)
+        if not context or "map_error" in context:
+            raise Http404
+        context["run"] = run
+        response = render(request, part, context)
+    else:
+        context = progress_context(request, run)
+        context.update(map_context(request, run))
+        context.update(bar_context(run, "map"))
+        response = render(request, "gridded/run.html", context)
+    patch_vary_headers(response, ["X-Climpact-Part"])
+    return response
 
 
 @gridded_enabled
@@ -914,23 +843,6 @@ def progress(request, run_id):
     return render(request, "gridded/_progress.html", context)
 
 
-@never_cache
-@gridded_enabled
-@require_safe
-def explore(request, run_id):
-    """htmx: the map and series for the query string."""
-    run = get_run(request, run_id)
-    context = explore_context(request, run)
-    if not context:
-        raise Http404
-    context["run"] = run
-    response = render(request, "gridded/_explore.html", context)
-    state = {k: request.GET[k] for k in ("file", "var", "t", "scale") if k in request.GET}
-    state["cell"] = f"{context['cell'][0]},{context['cell'][1]}" if "cell" in context else ""
-    response["HX-Push-Url"] = run.get_absolute_url() + "?" + urlencode(state) + "#explore"
-    return response
-
-
 def _csv_response(rows: list[list], filename: str) -> HttpResponse:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -940,83 +852,130 @@ def _csv_response(rows: list[list], filename: str) -> HttpResponse:
     return response
 
 
+def _map_state(request, run: GriddedRun):
+    """The Map tab's state for a download or image, with the file's path; 404 without."""
+    job = run.indices_job
+    if job is None or job.status != Status.SUCCEEDED:
+        raise Http404
+    try:
+        state = map_page.resolve(request, job)
+    except (OSError, ValueError, KeyError, IndexError) as e:
+        raise Http404 from e
+    if state is None:
+        raise Http404
+    return state, job.output_dir / state.file.path
+
+
+def _when_name(state) -> str:
+    layer = state.layer
+    when = layer.times[state.t] if layer.times else ""
+    suffix = f"_{layer.scales[state.scale]}months" if layer.scales else ""
+    return f"{when}{suffix}"
+
+
+def _etag(path: Path, request) -> str:
+    """An image's or data's version: its file's and its query string's."""
+    query = zlib.crc32(request.GET.urlencode().encode())
+    return f'"{path.stat().st_mtime_ns:x}-{query:x}"'
+
+
+def _cached(response: HttpResponse, path: Path, request) -> HttpResponse:
+    """An image or data that changes only with its file: kept by the browser, private."""
+    response["Cache-Control"] = "private, max-age=86400"
+    response["ETag"] = _etag(path, request)
+    return response
+
+
+@gridded_enabled
+@require_safe
+def map_png(request, run_id):
+    """The map's field as a PNG with one pixel per cell, in the ``theme``'s colours (the
+    page shows the one of its theme); with ``download``, the map drawn for a report."""
+    from climpact_web.core import tokens
+    from climpact_web.gridded import map_image
+
+    run = get_run(request, run_id)
+    state, path = _map_state(request, run)
+    layer, entry = state.layer, state.entry
+    theme = "dark" if request.GET.get("theme") == "dark" else "light"
+    kind = maps.kind_of(entry.short, layer.units, entry.theme)
+    edges = maps.edges_for(path, layer, kind, state.scale, state.month)
+    values = maps.grid_values(path, layer, state.t, state.scale)
+    f = maps.frame(layer)
+    bins = maps.classify(maps.display_order(values, f), edges or [0.0, 1.0])
+    colours = maps.palette(kind, theme)
+    if request.GET.get("download"):
+        t = tokens.theme_tokens()["light"]
+        units = numbers.unit_label(maps.units_of(layer.units))
+        when = map_page.time_label(layer, state.t)
+        title = f"{entry.code} {entry.name}, {when}" + (f" ({units})" if units else "")
+        image = map_image.figure_png(
+            bins, colours, maps.legend_ticks(edges) if edges else [], f, title,
+            run.display_name, _("No value"), t["color-surface-sunken"], t["color-text"],
+        )  # fmt: skip
+        response = HttpResponse(image, content_type="image/png")
+        name = SAFE_NAME.sub("_", f"{layer.variable}_{_when_name(state)}.png")
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
+        return response
+    if request.headers.get("If-None-Match") == _etag(path, request):
+        return HttpResponse(status=304)
+    image = map_image.raster_png(bins, colours)
+    return _cached(HttpResponse(image, content_type="image/png"), path, request)
+
+
+@gzip_page
+@gridded_enabled
+@require_safe
+def map_values(request, run_id):
+    """The map's values for the read-out under the pointer (js/gridded-map.js): float32,
+    little-endian, row by row in the map's order (north first, west first), NaN where a
+    cell has no value."""
+    import numpy as np
+
+    run = get_run(request, run_id)
+    state, path = _map_state(request, run)
+    f = maps.frame(state.layer)
+    values = maps.display_order(maps.grid_values(path, state.layer, state.t, state.scale), f)
+    if request.headers.get("If-None-Match") == _etag(path, request):
+        return HttpResponse(status=304)
+    data = np.ascontiguousarray(values, dtype="<f4").tobytes()
+    return _cached(HttpResponse(data, content_type="application/octet-stream"), path, request)
+
+
 @gridded_enabled
 @require_safe
 def map_csv(request, run_id):
+    """The map's values as CSV: latitude, longitude and the value of every cell."""
     run = get_run(request, run_id)
-    context = explore_context(request, run)
-    if not context.get("map"):
-        raise Http404
-    layer, t, scale = context["layer"], context["t"], context["scale"]
-    path = run.indices_job.output_dir / context["chosen"].path
-    values = maps.grid_values(path, layer, t, scale)
+    state, path = _map_state(request, run)
+    layer = state.layer
+    values = maps.grid_values(path, layer, state.t, state.scale)
     rows = [["latitude", "longitude", layer.variable]]
     for y, lat in enumerate(layer.lat):
         for x, lon in enumerate(layer.lon):
             rows.append([lat, lon, maps.format_value(float(values[y, x]), 6)])
-    suffix = f"_{context['scale_label']}months" if layer.scales else ""
-    name = f"{layer.variable}_{context['time_label']}{suffix}.csv"
+    name = f"{layer.variable}_{_when_name(state)}.csv"
     return _csv_response(rows, SAFE_NAME.sub("_", name))
 
 
 @gridded_enabled
 @require_safe
 def series_csv(request, run_id):
+    """The cell pane's series as CSV: by year (of the chosen month for a monthly file)."""
     run = get_run(request, run_id)
-    context = explore_context(request, run)
-    if not context.get("map"):
-        raise Http404
-    layer, cell, scale = context["layer"], context["cell"], context["scale"]
-    path = run.indices_job.output_dir / context["chosen"].path
-    values = maps.cell_series(path, layer, cell[0], cell[1], scale)
-    rows = [["time", layer.variable]]
+    state, path = _map_state(request, run)
+    layer = state.layer
+    values, x, step = map_page._series(path, state)
+    head = "day_of_year" if step == "day" else "year"
+    rows = [[head, layer.variable]]
     rows += [
-        [label, maps.format_value(float(v), 6)]
-        for label, v in zip(layer.times, values, strict=False)
+        [int(v), maps.format_value(float(value), 6)] for v, value in zip(x, values, strict=True)
     ]
-    lat = layer.lat[cell[0]] if cell[0] < len(layer.lat) else cell[0]
-    lon = layer.lon[cell[1]] if cell[1] < len(layer.lon) else cell[1]
-    name = f"{layer.variable}_{lat}_{lon}.csv"
+    y, xi = state.cell
+    month = f"_{state.month:02d}" if state.month else ""
+    scale = f"_{layer.scales[state.scale]}months" if layer.scales else ""
+    name = f"{layer.variable}{month}{scale}_{layer.lat[y]}_{layer.lon[xi]}.csv"
     return _csv_response(rows, SAFE_NAME.sub("_", name))
-
-
-@gzip_page
-@gridded_enabled
-@require_safe
-def series_json(request, run_id):
-    """The chosen cell's series for the interactive chart (#75), in the charts app's
-    ``index`` format, for the query string of :func:`explore` (no trend: R's gridded
-    outputs have none)."""
-    from climpact_web.charts import data
-    from climpact_web.charts.views import json_response
-
-    run = get_run(request, run_id)
-    context = explore_context(request, run)
-    if not context.get("map"):
-        raise Http404
-    layer, cell, scale, chosen = (
-        context["layer"],
-        context["cell"],
-        context["scale"],
-        context["chosen"],
-    )
-    path = run.indices_job.output_dir / chosen.path
-    step = {"MON": "month", "DAY": "day"}.get(chosen.freq, "year")
-
-    def build():
-        values = maps.cell_series(path, layer, cell[0], cell[1], scale)
-        title = _("%(name)s at %(where)s") % {
-            "name": layer.variable,
-            "where": context["cell_label"],
-        }
-        payload = data.series_payload(
-            layer.variable, title, layer.units, step, layer.times, values, bars=bool(layer.scales)
-        )
-        payload["csv"] = context["series_csv"]
-        return payload
-
-    key = ("gridded", str(run.pk), chosen.path, layer.variable, scale, cell)
-    return json_response(request, key, [path], build)
 
 
 def _zip_response(run: GriddedRun, files: list, suffix: str = "") -> FileResponse:

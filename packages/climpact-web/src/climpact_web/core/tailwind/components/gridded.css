@@ -1,6 +1,6 @@
 /* The gridded pages (#85): New gridded run's folder listing (#292), what a file holds,
-   the set-up page (#293), and the map drawn on the server (the colour classes gmap__c1 ...
-   gmap__c5 are chosen in gridded/maps.py, so they stay component classes). */
+   the set-up page (#293), a run's bar and Files (#289), and its Map (#295): the index
+   rail, the map (a PNG of the cells under an SVG) with its legend, and the cell pane. */
 @layer components {
   /* New gridded run (#292, the GridNew board): a narrow page (55rem, centred). */
   .gridded-new {
@@ -772,81 +772,698 @@
     display: none;
   }
 
-  /* Grid items default to min-inline-size: auto, so a wide table inside would widen the
-     column (and the page) instead of scrolling in its own region (the panels and the start
-     page's columns have min-w-0 on their children for the same reason). */
-  .gridded-explore,
-  .gridded-explore .chart > * {
-    min-inline-size: 0;
+  /* == A run's Map (#295, the GridMap board): the index rail, the map and the cell pane,
+     as the station Indices' three columns (results.css): full-height columns against the
+     window's edges, the rail on the page's colour and the pane on the surface, each behind
+     a hairline, their contents sticky under the header and the run's bar. Side by side
+     from a 76rem page; from 48rem the rail beside the map and the pane under them;
+     narrower, one column. == */
+  .gridded-run > .context-bar + .gmap-layout {
+    margin-block-start: 0;
   }
 
-  .gridded-explore .chart {
+  .gmap-layout {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    margin-inline: calc(-1 * --spacing(4));
+    min-block-size: calc(100vh - var(--frame-height));
+  }
+
+  @media (min-width: 40rem) {
+    .gmap-layout {
+      margin-inline: calc(-1 * --spacing(6));
+    }
+  }
+
+  .gmap-layout__rail {
+    min-inline-size: 0;
+    padding: --spacing(4) --spacing(4) --spacing(3);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .gmap-layout__main {
+    display: grid;
+    gap: --spacing(3);
+    align-content: start;
+    min-inline-size: 0;
+    padding: --spacing(3.5) --spacing(4) --spacing(6);
+  }
+
+  .gmap-layout__pane {
+    min-inline-size: 0;
+    padding: --spacing(4) --spacing(4) --spacing(6);
+    border-block-start: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  @container station-page (inline-size >= 48rem) {
+    .gmap-layout {
+      grid-template-columns: 14rem minmax(0, 1fr);
+    }
+
+    .gmap-layout__rail {
+      padding: --spacing(4) --spacing(3) --spacing(4) --spacing(4);
+      border-block-end: 0;
+      border-inline-end: 1px solid var(--color-border);
+    }
+
+    .gmap-layout__main {
+      padding-inline: --spacing(5);
+    }
+
+    .gmap-layout__pane {
+      grid-column: 1 / -1;
+      padding-inline: --spacing(6);
+    }
+
+    .gmap-rail__body {
+      position: sticky;
+      inset-block-start: calc(var(--frame-height) + --spacing(4));
+      max-block-size: calc(100vh - var(--frame-height) - --spacing(8));
+      overflow-y: auto;
+    }
+  }
+
+  @container station-page (inline-size >= 76rem) {
+    .gmap-layout {
+      grid-template-columns: 14rem minmax(0, 1fr) clamp(22rem, 28%, 32rem);
+    }
+
+    .gmap-layout__pane {
+      grid-column: auto;
+      padding-inline: --spacing(5);
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--color-border);
+    }
+
+    .gmap-pane__body {
+      position: sticky;
+      inset-block-start: calc(var(--frame-height) + --spacing(4));
+      max-block-size: calc(100vh - var(--frame-height) - --spacing(8));
+      overflow-y: auto;
+    }
+  }
+
+  /* The rail: Find, then the run's indices by theme, each a row of its code, short name
+     and frequencies; the selected one on the selected tint with an ink edge. */
+  .gmap-rail__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: --spacing(3);
+    align-content: start;
     min-inline-size: 0;
   }
 
-  /* The SVG's width attribute is the map's natural width: never wider, shrunk to fit. */
-  .gmap svg {
-    display: block;
-    max-inline-size: 100%;
-    max-block-size: 70vh;
-    block-size: auto;
+  .gmap-rail__find {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: --spacing(1.5);
   }
 
-  .gmap__cell {
-    stroke: var(--color-surface);
+  .gmap-rail__find input[type="search"] {
+    inline-size: 100%;
+    min-block-size: var(--control-height-sm);
+    padding-block: 0;
+    font-size: var(--text-sm);
+  }
+
+  .gmap-rail__theme {
+    display: flex;
+    gap: --spacing(1.5);
+    align-items: center;
+    margin: 0;
+    padding: --spacing(1) --spacing(2) --spacing(0.5);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gmap-rail__list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .gmap-rail__item {
+    display: flex;
+    gap: --spacing(1.5);
+    align-items: center;
+    min-block-size: 1.875rem;
+    padding: --spacing(1) --spacing(2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+
+  .gmap-rail__item:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+  }
+
+  .gmap-rail__item[aria-current] {
+    background: var(--color-selected);
+    box-shadow: inset 3px 0 0 var(--color-ink);
+    color: var(--color-text);
+  }
+
+  [dir="rtl"] .gmap-rail__item[aria-current] {
+    box-shadow: inset -3px 0 0 var(--color-ink);
+  }
+
+  .gmap-rail__code {
+    flex: none;
+    min-inline-size: 3.875rem;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .gmap-rail__name {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gmap-rail__freq {
+    flex: none;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+  }
+
+  .gmap-rail__note,
+  .gmap-rail__empty {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  .gmap-rail__note {
+    padding: --spacing(1.5) --spacing(2) 0;
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  /* Narrower than 48rem the rail is above the map: its list scrolls in a short box. */
+  @container station-page (inline-size < 48rem) {
+    .gmap-rail__body {
+      max-block-size: 18rem;
+      overflow-y: auto;
+    }
+  }
+
+  /* The map's heading, its controls and the line on what is shown. */
+  .gmap-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2) --spacing(3);
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .gmap-head__text {
+    display: grid;
+    gap: --spacing(0.5);
+    min-inline-size: 0;
+  }
+
+  .gmap-head__title {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  .gmap-head__definition {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+  }
+
+  .gmap-head__file {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .gmap-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2.5) --spacing(4);
+    align-items: center;
+  }
+
+  .gmap-controls__hint {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .gmap-stepper {
+    display: inline-flex;
+    gap: --spacing(1.5);
+    align-items: center;
+  }
+
+  .gmap-stepper__label {
+    min-inline-size: 5rem;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+  }
+
+  /* The map: the PNG of the cells (one pixel each, scaled up without smoothing), on the
+     sunken surface where a cell has no value, under the coastline, places, axes and the
+     selected cell. The PNG in the theme's colours is shown; the other is not loaded. */
+  .gmap {
+    display: grid;
+    gap: --spacing(2);
+    min-inline-size: 0;
+    margin: 0;
+  }
+
+  .gmap__frame {
+    position: relative;
+    max-inline-size: 60rem;
+  }
+
+  .gmap__svg {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+    direction: ltr;
+  }
+
+  .gmap__svg[tabindex] {
+    cursor: crosshair;
+  }
+
+  .gmap__svg:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .gmap__none {
+    fill: var(--color-surface-sunken);
+  }
+
+  .gmap__raster {
+    image-rendering: pixelated;
+  }
+
+  .gmap__raster--dark {
+    display: none;
+  }
+
+  :root {
+    @variant dark {
+      .gmap__raster--light {
+        display: none;
+      }
+
+      .gmap__raster--dark {
+        display: inline;
+      }
+    }
+  }
+
+  .gmap__edge {
+    fill: none;
+    stroke: var(--color-border-strong);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
-    cursor: pointer;
   }
 
-  .gmap a:hover .gmap__cell {
-    stroke: var(--color-text);
-    stroke-width: 2;
-  }
-
-  .gmap__selection {
+  .gmap__coast,
+  .gmap__coast-halo {
     fill: none;
-    stroke: var(--color-text);
-    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
     vector-effect: non-scaling-stroke;
     pointer-events: none;
   }
 
+  .gmap__coast {
+    stroke: var(--color-text);
+    stroke-width: 1.1;
+  }
+
+  /* A light line under the coast keeps it in view over the darkest bins. */
+  .gmap__coast-halo {
+    stroke: var(--color-surface);
+    stroke-opacity: 0.6;
+    stroke-width: 2.6;
+  }
+
+  .gmap__place {
+    fill: var(--color-text);
+    stroke: var(--color-surface);
+    stroke-width: 1;
+  }
+
+  .gmap__place-name {
+    fill: var(--color-text);
+    font-size: 11px;
+    paint-order: stroke;
+    stroke: var(--color-surface);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .gmap__hover,
+  .gmap__selected,
+  .gmap__selected-halo {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+
+  .gmap__hover {
+    stroke: var(--color-text);
+    stroke-width: 1.5;
+  }
+
+  .gmap__selected-halo {
+    stroke: var(--color-surface);
+    stroke-width: 4.5;
+  }
+
+  .gmap__selected {
+    stroke: var(--color-ink);
+    stroke-width: 2.5;
+  }
+
   .gmap__tick {
     fill: var(--color-text-muted);
+    font-family: var(--font-mono);
     font-size: 11px;
   }
 
-  .gmap__c1 { fill: var(--chart-seq-1); background: var(--chart-seq-1); }
-  .gmap__c2 { fill: var(--chart-seq-2); background: var(--chart-seq-2); }
-  .gmap__c3 { fill: var(--chart-seq-3); background: var(--chart-seq-3); }
-  .gmap__c4 { fill: var(--chart-seq-4); background: var(--chart-seq-4); }
-  .gmap__c5 { fill: var(--chart-seq-5); background: var(--chart-seq-5); }
-
-  .gmap__na {
-    fill: var(--color-surface-sunken);
-    background: var(--color-surface-sunken);
-  }
-
-  .gmap__legend {
-    flex-wrap: wrap;
-  }
-
-  .gmap__swatch {
-    display: inline-block;
-    inline-size: 1rem;
-    block-size: 1rem;
-    margin-inline-end: --spacing(1);
-    border: 1px solid var(--color-border-strong);
+  /* The tooltip under the pointer: the cell's coordinates and value. */
+  .gmap__tip {
+    position: absolute;
+    z-index: 2;
+    padding: --spacing(1) --spacing(2);
     border-radius: var(--radius-sm);
-    vertical-align: middle;
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .gmap__readout {
+    min-block-size: 1.5em;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gmap__pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(3);
+    align-items: flex-end;
   }
 
   @media (forced-colors: active) {
-    .gmap__selection {
+    .gmap__selected,
+    .gmap__hover,
+    .gmap__coast {
       stroke: CanvasText;
     }
+  }
+
+  /* The legend: the bins with their breaks, the cells' range and "No value". Each scale
+     sets --ramp-1 ... --ramp-8 from its tokens; SPI and SPEI take the seven-step
+     diverging scale, dry red and wet blue. */
+  .gmap-legend {
+    display: grid;
+    gap: --spacing(1);
+    max-inline-size: 41rem;
+  }
+
+  .gmap-legend__head,
+  .gmap-legend__note {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    justify-content: space-between;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gmap-legend__note {
+    justify-content: flex-start;
+    align-items: center;
+    gap: --spacing(1.5);
+  }
+
+  .gmap-legend__bins {
+    display: flex;
+    block-size: 0.875rem;
+    border: 1px solid var(--color-border);
+  }
+
+  .gmap-legend__bin {
+    flex: 1;
+  }
+
+  .gmap-legend__bin:nth-child(1) { background: var(--ramp-1); }
+  .gmap-legend__bin:nth-child(2) { background: var(--ramp-2); }
+  .gmap-legend__bin:nth-child(3) { background: var(--ramp-3); }
+  .gmap-legend__bin:nth-child(4) { background: var(--ramp-4); }
+  .gmap-legend__bin:nth-child(5) { background: var(--ramp-5); }
+  .gmap-legend__bin:nth-child(6) { background: var(--ramp-6); }
+  .gmap-legend__bin:nth-child(7) { background: var(--ramp-7); }
+  .gmap-legend__bin:nth-child(8) { background: var(--ramp-8); }
+
+  .gmap-legend__ticks {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    padding: 0;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    list-style: none;
+  }
+
+  .gmap-legend__none {
+    display: inline-block;
+    inline-size: 0.875rem;
+    block-size: 0.625rem;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface-sunken);
+  }
+
+  .ramp-temp {
+    --ramp-1: var(--map-seq-temp-1); --ramp-2: var(--map-seq-temp-2);
+    --ramp-3: var(--map-seq-temp-3); --ramp-4: var(--map-seq-temp-4);
+    --ramp-5: var(--map-seq-temp-5); --ramp-6: var(--map-seq-temp-6);
+    --ramp-7: var(--map-seq-temp-7); --ramp-8: var(--map-seq-temp-8);
+  }
+
+  .ramp-warm {
+    --ramp-1: var(--map-seq-warm-1); --ramp-2: var(--map-seq-warm-2);
+    --ramp-3: var(--map-seq-warm-3); --ramp-4: var(--map-seq-warm-4);
+    --ramp-5: var(--map-seq-warm-5); --ramp-6: var(--map-seq-warm-6);
+    --ramp-7: var(--map-seq-warm-7); --ramp-8: var(--map-seq-warm-8);
+  }
+
+  .ramp-cool {
+    --ramp-1: var(--map-seq-cool-1); --ramp-2: var(--map-seq-cool-2);
+    --ramp-3: var(--map-seq-cool-3); --ramp-4: var(--map-seq-cool-4);
+    --ramp-5: var(--map-seq-cool-5); --ramp-6: var(--map-seq-cool-6);
+    --ramp-7: var(--map-seq-cool-7); --ramp-8: var(--map-seq-cool-8);
+  }
+
+  .ramp-wet {
+    --ramp-1: var(--map-seq-wet-1); --ramp-2: var(--map-seq-wet-2);
+    --ramp-3: var(--map-seq-wet-3); --ramp-4: var(--map-seq-wet-4);
+    --ramp-5: var(--map-seq-wet-5); --ramp-6: var(--map-seq-wet-6);
+    --ramp-7: var(--map-seq-wet-7); --ramp-8: var(--map-seq-wet-8);
+  }
+
+  .ramp-dry {
+    --ramp-1: var(--map-seq-dry-1); --ramp-2: var(--map-seq-dry-2);
+    --ramp-3: var(--map-seq-dry-3); --ramp-4: var(--map-seq-dry-4);
+    --ramp-5: var(--map-seq-dry-5); --ramp-6: var(--map-seq-dry-6);
+    --ramp-7: var(--map-seq-dry-7); --ramp-8: var(--map-seq-dry-8);
+  }
+
+  .ramp-spi {
+    --ramp-1: var(--chart-div-7); --ramp-2: var(--chart-div-6);
+    --ramp-3: var(--chart-div-5); --ramp-4: var(--chart-div-4);
+    --ramp-5: var(--chart-div-3); --ramp-6: var(--chart-div-2);
+    --ramp-7: var(--chart-div-1);
+  }
+
+  /* The cell pane: like the Indices' detail pane. */
+  .gmap-pane__body {
+    display: grid;
+    gap: --spacing(3.5);
+    align-content: start;
+    min-inline-size: 0;
+  }
+
+  .gmap-pane__head {
+    display: grid;
+    gap: --spacing(0.5);
+  }
+
+  .gmap-pane__title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gmap-pane__sub,
+  .gmap-pane__empty {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .gmap-pane__goto {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1.5);
+    align-items: center;
+    font-size: var(--text-sm);
+  }
+
+  .gmap-pane__goto label {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gmap-pane__goto input {
+    inline-size: 11rem;
+    min-block-size: var(--control-height-sm);
+    padding-block: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  /* The chart's line in the index's theme colour and its running mean a step towards the
+     text, as the index page draws them (#237); charts.js's legend reads them. */
+  .gmap-pane__chart {
+    --line: var(--hue, var(--color-other));
+    --smooth: color-mix(in oklab, var(--hue, var(--color-other)) 62%, var(--color-text));
+
+    display: grid;
+    gap: --spacing(1.5);
+    min-inline-size: 0;
+    margin: 0;
+  }
+
+  .gmap-pane__caption {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .gmap-pane__unit {
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .gmap-pane__plot {
+    min-block-size: 13rem;
+  }
+
+  /* With JavaScript charts.js draws the chart (#283); the server's shows only in print. */
+  @media screen {
+    .gmap-pane__chart.is-hydrated [data-chart-fallback] {
+      display: none;
+    }
+  }
+
+  @media print {
+    .gmap-pane__chart [data-chart-toolbar],
+    .gmap-pane__chart [data-chart-reveal],
+    .gmap-pane__plot {
+      display: none;
+    }
+  }
+
+  .gmap-pane__ring {
+    display: flex;
+    gap: --spacing(1.5);
+    align-items: center;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gmap-pane__key {
+    inline-size: 0.625rem;
+    block-size: 0.625rem;
+    border: 2px solid var(--color-text);
+    border-radius: var(--radius-full);
+  }
+
+  .gmap-pane__stats {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: --spacing(1.5) --spacing(4);
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .gmap-pane__stats > div {
+    display: contents;
+  }
+
+  .gmap-pane__stats dt {
+    color: var(--color-text-muted);
+  }
+
+  .gmap-pane__stats dd {
+    margin: 0;
+  }
+
+  .gmap-pane__num {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gmap-pane__note {
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+  }
+
+  .gmap-pane__more {
+    display: grid;
+    gap: --spacing(2);
+    padding-block-start: --spacing(3);
+    border-block-start: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+  }
+
+  .gmap-pane__more tr[aria-current] {
+    background: var(--color-selected);
+  }
+
+  .gmap-pane__station {
+    display: grid;
+    gap: --spacing(0.5);
+    padding: --spacing(2) --spacing(2.5);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
   }
 
   /* == A run as a place of its own (#289, the GridList and GridFiles boards); the rest is

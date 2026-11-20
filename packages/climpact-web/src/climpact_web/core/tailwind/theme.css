@@ -69,11 +69,51 @@
   --chart-flag: #16202b;
   --chart-grid: #e3e7eb;
   --chart-axis: #78838f;
-  --chart-seq-1: #cde2fb;
-  --chart-seq-2: #86b6ef;
-  --chart-seq-3: #3987e5;
-  --chart-seq-4: #1c5cab;
-  --chart-seq-5: #0d366b;
+  /* The gridded map's sequential scales (#295): eight bins each, by the index's kind:
+     temperature (values in °C, blue to red), warm counts, cold counts, wet and dry.
+     Each bin stands apart from --color-surface-sunken (a cell with no value) and from
+     its neighbours under protanopia and deuteranopia; the four count scales move away
+     from the sunken surface in lightness, darker here and brighter on dark. */
+  --map-seq-temp-1: #213480;
+  --map-seq-temp-2: #2a61b1;
+  --map-seq-temp-3: #4b9bcf;
+  --map-seq-temp-4: #9ed0e5;
+  --map-seq-temp-5: #f9e596;
+  --map-seq-temp-6: #f5a84b;
+  --map-seq-temp-7: #df5822;
+  --map-seq-temp-8: #9e141e;
+  --map-seq-warm-1: #f6efa0;
+  --map-seq-warm-2: #f5d66e;
+  --map-seq-warm-3: #f7b835;
+  --map-seq-warm-4: #f29003;
+  --map-seq-warm-5: #e26902;
+  --map-seq-warm-6: #ce3f00;
+  --map-seq-warm-7: #921f1b;
+  --map-seq-warm-8: #4f0915;
+  --map-seq-cool-1: #b8daed;
+  --map-seq-cool-2: #95c4e3;
+  --map-seq-cool-3: #74aeda;
+  --map-seq-cool-4: #5696d0;
+  --map-seq-cool-5: #3e7abb;
+  --map-seq-cool-6: #2c5b9a;
+  --map-seq-cool-7: #1b3c7a;
+  --map-seq-cool-8: #0d1f5b;
+  --map-seq-wet-1: #d8eca0;
+  --map-seq-wet-2: #95d79e;
+  --map-seq-wet-3: #4ebea5;
+  --map-seq-wet-4: #069fa7;
+  --map-seq-wet-5: #007e9e;
+  --map-seq-wet-6: #0b5d91;
+  --map-seq-wet-7: #14407a;
+  --map-seq-wet-8: #182361;
+  --map-seq-dry-1: #f7ea9b;
+  --map-seq-dry-2: #f0ce73;
+  --map-seq-dry-3: #eab04b;
+  --map-seq-dry-4: #d78f2f;
+  --map-seq-dry-5: #bc6e1c;
+  --map-seq-dry-6: #9b5010;
+  --map-seq-dry-7: #71380d;
+  --map-seq-dry-8: #492107;
   --chart-div-1: #184f95;
   --chart-div-2: #5598e7;
   --chart-div-3: #b7d3f6;

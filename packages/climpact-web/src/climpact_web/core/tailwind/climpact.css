@@ -14,7 +14,7 @@
  *
  * Class names Tailwind cannot see: the components are plain CSS, emitted whether or not a
  * file names them, so classes built in Python or JavaScript (batch-item--{{ status }},
- * gmap__c3, the SVG plots' classes) must be component classes, or written out in full in a
+ * ramp-{{ kind }}, the SVG plots' classes) must be component classes, or written out in full in a
  * scanned file, or listed with @source inline(). Logical properties only (right-to-left);
  * see TECHNICAL.md, "Design system".
  */

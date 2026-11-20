@@ -39,8 +39,8 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
-    # 22.75 KB before the gridded set-up page (#293),
-    # 21.5 KB before the landing page and Workspaces (#242),
+    # 24.25 KB before the gridded map (#295), 22.75 KB before the gridded set-up page
+    # (#293), 21.5 KB before the landing page and Workspaces (#242),
     # 20.25 KB before the trend grid (#238), 20 KB before the workspace's Files (#239),
     # 19 KB before Add stations (#233),
     # 18.5 KB before Quality's check detail wide (#264),
@@ -50,7 +50,7 @@ ASSET_BUDGETS = {
     # detail (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the
     # section header and the workspace header (#197), 13 KB before #196, 12.5 KB before the
     # help drawer (#177)
-    "css/climpact.css": 24.25 * KB,
+    "css/climpact.css": 26.5 * KB,
     # The quality checks: the rail and the check's detail with its values in place (#264),
     # the list and its detail (#202), the tables linked to the charts (#77, #174), a When
     # dot picked selects its row (#283); 3.5 KB before #283, 3 KB before #264, 2 KB before
@@ -82,6 +82,9 @@ ASSET_BUDGETS = {
     "js/theme.js": 0.5 * KB,  # the chosen theme before first paint, blocking in <head> (#137)
     "js/tour.js": 3 * KB,  # the landing page only
     "js/gridded.js": 1.5 * KB,  # 1 KB before the header dialog and Copy (#293)
+    # The gridded map (#295): the rail's Find, swapping the map and the pane in place, the
+    # cell under the pointer read out, the arrow keys
+    "js/gridded-map.js": 4 * KB,
     "vendor/htmx/htmx.min.js": 18 * KB,  # vendored, as released
     "icons/icons.svg": 2.5 * KB,
     "icons/favicon.svg": 0.5 * KB,
@@ -209,8 +212,9 @@ def gridded_setup(client) -> str:
 
 
 def gridded_results_large_grid(client) -> str:
-    """The Map tab of a finished gridded run on a 100 x 100 grid: the largest map drawn
-    (maps.MAX_MAP_CELLS) and its table, with the values all different."""
+    """The Map tab of a finished gridded run on a 100 x 100 grid, with the values all
+    different: every cell is drawn (#295), as a PNG the page links, so the page's size
+    grows only with the form's latitude and longitude selects."""
     from climpact_web.gridded.models import GriddedRun
     from climpact_web.jobs.models import Job, Status
 

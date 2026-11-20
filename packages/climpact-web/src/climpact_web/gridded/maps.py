@@ -1,36 +1,37 @@
-"""Exploring the gridded results (#85): the output files, a map of one index at one time
-step, and the time series of one cell, drawn on the server as inline SVG.
+"""The gridded results (#85, #295): the output files, one index variable of one file as a
+layer, a map of it at one time step and the series of one cell.
 
-No map tiles or other network services are used (offline and low bandwidth): the map is
-a raster of the grid's cells coloured in the sequential chart tokens, with the cell
-values also given as a table. Grids from Climpact runs are small (tens to a few hundred
-cells a side); above :data:`MAX_MAP_CELLS` the map shows every n-th row and column and
-says so. The time series is a small SVG line chart, the placeholder until the interactive
-charts of #75 (``CHART HOOK`` in ``gridded/_explore.html``).
+The map (#295, the GridMap board) draws every cell, never thinned: the field is a PNG
+with one pixel per cell (:mod:`climpact_web.gridded.map_image`), scaled up in the page
+without smoothing, under an SVG of the coastline and a few places
+(:mod:`climpact_web.gridded.outline`), the axes in degrees and the selected cell's
+outline. No map tiles or other network services are used (offline and low bandwidth).
+
+- :func:`open_layer` reads a variable's metadata: its times (years, months or days of
+  the year), SPI and SPEI's scales and the grid's coordinates; :func:`grid_values` one
+  time step and :func:`cell_series` one cell's series.
+- :func:`kind_of` chooses the colour scale by the index's kind (temperature, warm counts,
+  cold counts, wet, dry; SPI and SPEI their standard classes) and :func:`edges_for` its
+  eight bins' breaks: fixed for the file (round numbers over the values of every year,
+  of the month for a monthly file), so the years compare.
+- :class:`Frame` is the map's geometry: north up and west left whatever the order of the
+  file's rows and columns, the latitude's cosine correcting the cells' aspect.
 """
 
 from __future__ import annotations
 
 import math
 import re
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
-from climpact_web.stations.preview import _nice_ticks, _path, _scale
+from climpact_web.core import numbers
+from climpact_web.gridded import outline
 
-# Each cell is a link with a tooltip and a table cell (about 550 bytes of HTML), so the cap
-# keeps the results page within the size budget (#82, TECHNICAL.md "Size budget"): 2,500
-# cells is about 1.4 MB of HTML, 60 KB gzipped. At the map's width, 50 cells a side are
-# about 13 px each, so a finer map could not be clicked cell by cell anyway.
-MAX_MAP_CELLS = 2_500
-MAP_WIDTH = 640  # SVG units; the height follows the grid's aspect
-MAX_CELL = 56
-LABEL_SPACE = 64  # SVG units a longitude label needs
-SERIES_WIDTH, SERIES_HEIGHT = 720, 220
-PAD_X, PAD_TOP, PAD_BOTTOM = 52, 12, 28
-BINS = 5
 FILE_RE = re.compile(r"^(?P<name>.+?)_(?P<freq>ANN|MON|DAY)_")
 SKIP_VARIABLES = {"time", "time_bnds", "time_bounds", "bnds", "scale", "nb2"}
 
@@ -68,6 +69,9 @@ def output_files(job) -> list[OutputFile]:
     return out
 
 
+# ---- A layer: one index variable of one file ---------------------------------------------------
+
+
 @dataclass
 class Layer:
     """One index variable of one file: what the map and series need to know about it."""
@@ -77,32 +81,55 @@ class Layer:
     variables: list[dict]  # {"name", "long_name", "units"} of every index variable
     long_name: str
     units: str
-    times: list[str]  # a label per time step
-    scales: list[str]  # SPI/SPEI: "3 months", ...; else []
+    times: list[str]  # a label per time step: "2019", "2019-12", the day of the year
+    scales: list[str]  # SPI/SPEI: "3", "6", "12" (months); else []
     lat: list[float]
     lon: list[float]
     y_dim: str = ""
     x_dim: str = ""
+    freq: str = "ANN"
+    years: list[int] = field(default_factory=list)  # per time step (ANN, MON)
+    months: list[int] = field(default_factory=list)  # per time step (MON), 1-12
+
+    @property
+    def geographic(self) -> bool:
+        """Whether the grid's axes are latitude and longitude (not rotated or projected)."""
+        return self.y_dim.lower() in ("lat", "latitude") and self.x_dim.lower() in (
+            "lon",
+            "longitude",
+        )
+
+    def step_of(self, year: int | None, month: int | None = None) -> int | None:
+        """The time step of ``year`` (and ``month``); None when the file has no such step."""
+        if year is None:
+            return None
+        for t, y in enumerate(self.years):
+            if y == year and (not self.months or self.months[t] == (month or 12)):
+                return t
+        return None
 
 
-def _decode_times(nc, freq: str) -> list[str]:
+def _decode_times(nc, freq: str) -> tuple[list[str], list[int], list[int]]:
+    """The labels, years and months of the file's time steps."""
     import cftime
 
     time = nc.variables.get("time")
     if time is None:
-        return []
+        return [], [], []
     values = np.asarray(time[:], dtype=float)
     if freq == "DAY":  # tx95t: day of the year
-        return [str(int(v)) for v in values]
+        return [str(int(v)) for v in values], [], []
     units = getattr(time, "units", "")
     calendar = getattr(time, "calendar", "standard")
     try:
         dates = cftime.num2date(values, units, calendar)
     except (ValueError, TypeError):
-        return [str(i + 1) for i in range(len(values))]
+        return [str(i + 1) for i in range(len(values))], [], []
+    years = [int(d.year) for d in dates]
     if freq == "MON":
-        return [f"{d.year:04d}-{d.month:02d}" for d in dates]
-    return [f"{d.year:04d}" for d in dates]
+        months = [int(d.month) for d in dates]
+        return [f"{y:04d}-{m:02d}" for y, m in zip(years, months, strict=True)], years, months
+    return [f"{y:04d}" for y in years], years, []
 
 
 def _coordinate(nc, var, axis: str) -> tuple[str, list[float]]:
@@ -114,8 +141,8 @@ def _coordinate(nc, var, axis: str) -> tuple[str, list[float]]:
         return dim, [float(v) for v in np.asarray(coord[:], dtype=float)]
     for name in names[axis]:
         if name in nc.variables and nc.variables[name].ndim == 1:
-            return dim, [float(v) for v in np.asarray(nc.variables[name][:], dtype=float)]
-    return dim, list(range(len(nc.dimensions[dim])))
+            return name, [float(v) for v in np.asarray(nc.variables[name][:], dtype=float)]
+    return dim, [float(i) for i in range(len(nc.dimensions[dim]))]
 
 
 def index_variables(nc) -> list[dict]:
@@ -167,33 +194,91 @@ def open_layer(path: Path, rel: str, variable: str | None = None) -> Layer:
             scales = [str(months.get(v, v)) for v in values]
         y_dim, lat = _coordinate(nc, var, "Y")
         x_dim, lon = _coordinate(nc, var, "X")
+        labels, years, month_numbers = _decode_times(nc, freq)
         return Layer(
             file=rel,
             variable=variable,
             variables=variables,
             long_name=meta["long_name"],
             units=meta["units"],
-            times=_decode_times(nc, freq),
+            times=labels,
             scales=scales,
             lat=lat,
             lon=lon,
             y_dim=y_dim,
             x_dim=x_dim,
+            freq=freq,
+            years=years,
+            months=month_numbers,
         )
 
 
 def _masked(values) -> np.ndarray:
-    """Values as float64 with the fill value and non-finite values as NaN (EHF-HWPS can
+    """Values as float32 with the fill value and non-finite values as NaN (EHF-HWPS can
     be -Inf in R's files; it is shown as no value)."""
-    array = np.ma.filled(np.ma.asarray(values, dtype=float), np.nan)
-    array = np.where(np.isfinite(array) & (np.abs(array) < 1e19), array, np.nan)
+    array = np.ma.filled(np.ma.asarray(values, dtype=np.float32), np.nan)
+    array[~(np.isfinite(array) & (np.abs(array) < 1e19))] = np.nan
     return array
 
 
-def grid_values(path: Path, layer: Layer, t: int, scale: int = 0) -> np.ndarray:
-    """The ``(y, x)`` values of the layer at time step ``t`` (and SPI/SPEI scale)."""
+# The index files hold each cell's whole series in one chunk (the core writes them so),
+# so one year's map reads and decompresses the whole file. A variable is therefore read
+# once, whole, and kept in memory for the map's later requests (other years, the PNG, the
+# values, the cell's series, the breaks): the most recently used ones, up to
+# CACHE_BYTES in all. A variable larger than that is read a step or a cell at a time.
+CACHE_BYTES = 256 * 1024 * 1024
+_cache: OrderedDict[tuple, np.ndarray] = OrderedDict()
+_cache_lock = threading.Lock()
+_read_lock = threading.Lock()
+
+
+def _key(path: Path, variable: str, scale: int) -> tuple:
+    return (str(path), path.stat().st_mtime_ns, variable, scale)
+
+
+def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | None:
+    """The layer's values ``(time, y, x)`` as float32 (NaN where a cell has no value),
+    read once and kept (see ``CACHE_BYTES``); None when the variable is too large."""
     import netCDF4
 
+    key = _key(path, layer.variable, scale if layer.scales else 0)
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+    with _read_lock:  # one read at a time: the page's image and values ask together
+        with _cache_lock:
+            if key in _cache:
+                return _cache[key]
+        with netCDF4.Dataset(path) as nc:
+            var = nc.variables[layer.variable]
+            shape = var.shape[1:] if layer.scales else var.shape
+            if int(np.prod(shape)) * 4 > CACHE_BYTES:
+                return None
+            # Unmasked and cleaned in place: a masked array of a large grid costs more
+            # than reading it.
+            var.set_auto_mask(False)
+            values = np.asarray(var[scale] if layer.scales else var[:], dtype=np.float32)
+            for name in ("_FillValue", "missing_value"):
+                if name in var.ncattrs():
+                    values[values == np.float32(var.getncattr(name))] = np.nan
+            values[~(np.abs(values) < 1e19)] = np.nan  # also NaN and infinities
+        values.setflags(write=False)
+        with _cache_lock:
+            _cache[key] = values
+            while sum(v.nbytes for v in _cache.values()) > CACHE_BYTES and len(_cache) > 1:
+                _cache.popitem(last=False)
+    return values
+
+
+def grid_values(path: Path, layer: Layer, t: int, scale: int = 0) -> np.ndarray:
+    """The ``(y, x)`` values of the layer at time step ``t`` (and SPI/SPEI scale), in the
+    file's order."""
+    import netCDF4
+
+    whole = variable_values(path, layer, scale)
+    if whole is not None:
+        return whole[t]
     with netCDF4.Dataset(path) as nc:
         var = nc.variables[layer.variable]
         var.set_auto_mask(True)
@@ -202,30 +287,37 @@ def grid_values(path: Path, layer: Layer, t: int, scale: int = 0) -> np.ndarray:
         return _masked(var[t, :, :])
 
 
-def last_step_with_values(path: Path, layer: Layer, scale: int = 0) -> int:
-    """The last time step where any cell has a value (heatwave seasons that run into the
-    next year leave the last year empty, for example); the last step if none has."""
-    for t in range(len(layer.times) - 1, -1, -1):
+def last_step_with_values(path: Path, layer: Layer, scale: int = 0, month: int | None = None):
+    """The last time step (of ``month``, for a monthly file) where any cell has a value
+    (heatwave seasons that run into the next year leave the last year empty, for example);
+    the last step if none has."""
+    steps = [
+        t for t in range(len(layer.times)) if month is None or not layer.months
+        or layer.months[t] == month
+    ]  # fmt: skip
+    for t in reversed(steps):
         if np.isfinite(grid_values(path, layer, t, scale)).any():
             return t
-    return max(len(layer.times) - 1, 0)
+    return steps[-1] if steps else 0
 
 
 def cell_series(path: Path, layer: Layer, y: int, x: int, scale: int = 0) -> np.ndarray:
+    """The series of the file's cell ``(y, x)``, as float64."""
     import netCDF4
 
+    whole = variable_values(path, layer, scale)
+    if whole is not None:
+        return whole[:, y, x].astype(float)
     with netCDF4.Dataset(path) as nc:
         var = nc.variables[layer.variable]
         var.set_auto_mask(True)
         if layer.scales:
-            return _masked(var[scale, :, y, x])
-        return _masked(var[:, y, x])
-
-
-# ---- Drawing -------------------------------------------------------------------------------
+            return _masked(var[scale, :, y, x]).astype(float)
+        return _masked(var[:, y, x]).astype(float)
 
 
 def format_value(value: float | None, digits: int = 2) -> str:
+    """A value for the CSV files: up to ``digits`` places, no trailing zeros."""
     if value is None or not math.isfinite(value):
         return ""
     if value != 0 and abs(value) < 10**-digits:
@@ -236,219 +328,348 @@ def format_value(value: float | None, digits: int = 2) -> str:
     return "0" if text in ("-0", "") else text
 
 
-@dataclass
-class Bin:
-    lo: float
-    hi: float
-    css: str
-    label: str
+# ---- The colour scale --------------------------------------------------------------------------
+
+BINS = 8
+# SPI and SPEI in their standard classes (McKee et al. 1993): extremely, severely and
+# moderately dry, near normal, moderately, very and extremely wet. The ends are drawn at
+# -3 and 3; values beyond them are in the end classes.
+SPI_EDGES = (-3.0, -2.0, -1.5, -1.0, 1.0, 1.5, 2.0, 3.0)
+# The units of the core's files, as the number rules write them (numbers.unit_label).
+UNITS = {"degC": "degrees_C", "degC^2": "°C^2", "degrees_C": "degrees_C", "calendar day": "days"}
+# Indices of no headline theme (averages, growing season and degree days) by what more of
+# them means: warmer or cooler.
+COOL_OTHERS = ("hddheatn", "tmlt5", "tmlt10")
+# Values sampled to find a file's breaks: at most this many time steps and cells each.
+SAMPLE_STEPS, SAMPLE_CELLS = 20, 250_000
 
 
-def bins_for(values: np.ndarray) -> list[Bin]:
-    """Five equal classes over the finite values, on rounded limits."""
-    finite = values[np.isfinite(values)]
-    if not finite.size:
-        return []
-    lo, hi = float(finite.min()), float(finite.max())
-    if hi == lo:
-        return [Bin(lo, hi, "gmap__c3", format_value(lo))]
-    rough = (hi - lo) / BINS
-    magnitude = 10 ** math.floor(math.log10(rough))
-    for m in (1, 2, 2.5, 5, 10, 20, 25, 50, 100):
-        step = m * magnitude
-        if step < rough:
-            continue
-        start = math.floor(lo / step) * step
-        if start + BINS * step >= hi:
+def units_of(raw: str) -> str:
+    """A file's units as the rest of the app names them (``degC`` is ``degrees_C``)."""
+    return UNITS.get(raw, raw)
+
+
+def kind_of(short: str, units: str, theme: str) -> str:
+    """The colour scale of an index: ``spi`` for SPI and SPEI; ``temp`` for values in
+    °C; else by its theme, ``warm`` (Heat), ``cool`` (Cold), ``wet`` (Rain), ``dry``
+    (Drought); the other indices ``warm``, or ``cool`` where more means cooler."""
+    if short in ("spi", "spei"):
+        return "spi"
+    if units_of(units) == "degrees_C":
+        return "temp"
+    if theme in ("cold",) or short in COOL_OTHERS:
+        return "cool"
+    return {"rain": "wet", "drought": "dry"}.get(theme, "warm")
+
+
+def nice_edges(low: float, high: float, bins: int = BINS) -> list[float]:
+    """``bins + 1`` round breaks a round step apart (1, 2, 2.5 or 5 times a power of ten),
+    the first at or below ``low`` and the last at or above ``high``."""
+    if not (math.isfinite(low) and math.isfinite(high)):
+        return [float(k) for k in range(bins + 1)]
+    if high <= low:
+        spread = abs(low) * 0.1 or 1.0
+        low, high = low - spread, high + spread
+    rough = (high - low) / bins
+    power = 10 ** math.floor(math.log10(rough))
+    for m in (1, 2, 2.5, 5, 10, 20, 25, 50):
+        step = m * power
+        start = math.floor(low / step + 1e-9) * step
+        if start + bins * step >= high - 1e-9 * step:
             break
-    edges = [start + k * step for k in range(BINS + 1)]
-    digits = max(0, 1 - math.floor(math.log10(step)))
-    return [
-        Bin(
-            edges[k],
-            edges[k + 1],
-            f"gmap__c{k + 1}",
-            f"{format_value(edges[k], digits)} – {format_value(edges[k + 1], digits)}",
-        )
-        for k in range(len(edges) - 1)
-    ]
+    return [round(start + k * step, 10) for k in range(bins + 1)]
 
 
-def classify(value: float, bins: list[Bin]) -> str:
-    if not math.isfinite(value):
-        return "gmap__na"
-    for b in bins:
-        if value <= b.hi:
-            return b.css
-    return bins[-1].css if bins else "gmap__na"
+def _sampled_range(path: Path, layer: Layer, scale: int, steps: list[int]):
+    """The 2nd and 98th percentiles of the values of ``steps``, from at most
+    ``SAMPLE_CELLS`` cells each (every n-th row and column of a larger grid)."""
+    ny, nx = len(layer.lat), len(layer.lon)
+    stride = max(1, math.ceil(math.sqrt(ny * nx / SAMPLE_CELLS)))
+    whole = variable_values(path, layer, scale)
+    if whole is not None:
+        sample = whole[steps, ::stride, ::stride]
+    else:
+        sample = np.stack([grid_values(path, layer, t, scale)[::stride, ::stride] for t in steps])
+    found = sample[np.isfinite(sample)]
+    if not found.size:
+        return None
+    low, high = np.percentile(found, [2, 98])
+    return float(low), float(high)
+
+
+_edges: dict[tuple, list[float] | None] = {}
+
+
+def edges_for(path: Path, layer: Layer, kind: str, scale: int = 0, month: int | None = None):
+    """The breaks of the layer's bins: SPI's classes, or round numbers over the values of
+    every year (every year's ``month`` for a monthly file), so the map of one year
+    compares with another's. None when the file has no value. Kept for the file."""
+    if kind == "spi":
+        return list(SPI_EDGES)
+    key = (*_key(path, layer.variable, scale if layer.scales else 0), month)
+    if key in _edges:
+        return _edges[key]
+    steps = [
+        t for t in range(len(layer.times))
+        if month is None or not layer.months or layer.months[t] == month
+    ]  # fmt: skip
+    if len(steps) > SAMPLE_STEPS:
+        steps = sorted({steps[round(i * (len(steps) - 1) / (SAMPLE_STEPS - 1))]
+                        for i in range(SAMPLE_STEPS)})  # fmt: skip
+    found = _sampled_range(path, layer, scale if layer.scales else 0, steps)
+    edges = None
+    if found is not None:
+        edges = nice_edges(*found)
+        if found[0] >= 0 and edges[0] < 0:  # counts and amounts start at zero
+            edges = nice_edges(0.0, found[1])
+    if len(_edges) > 1024:
+        _edges.clear()
+    _edges[key] = edges
+    return edges
+
+
+def classify(values: np.ndarray, edges: list[float]) -> np.ndarray:
+    """The bin of each value (0 to ``len(edges) - 2``, values beyond the ends in the end
+    bins), 255 where there is no value."""
+    inner = np.asarray(edges[1:-1], dtype=float)
+    out = np.searchsorted(inner, np.nan_to_num(values, nan=0.0), side="right").astype(np.uint8)
+    out[~np.isfinite(values)] = 255
+    return out
+
+
+def palette(kind: str, theme: str = "light") -> list[str]:
+    """The bins' colours, from the tokens (chart-palette.json's values): the kind's
+    ``--map-seq-*`` scale, or for SPI the seven-step diverging scale reversed, so dry is
+    red and wet blue."""
+    from climpact_web.core import tokens
+
+    values = tokens.chart_palette()[theme]
+    if kind == "spi":
+        return list(reversed(values["diverging"]))
+    return list(values["map_sequential"][kind])
+
+
+def legend_ticks(edges: list[float]) -> list[str]:
+    """The breaks as the legend writes them: as many places as the step needs."""
+    step = min(b - a for a, b in zip(edges, edges[1:], strict=False))
+    places = 0
+    while places < 4 and abs(round(step, places) - step) > 1e-9 * max(abs(step), 1):
+        places += 1
+    return [numbers.fixed(e, places) for e in edges]
+
+
+# ---- The map's frame ---------------------------------------------------------------------------
+
+PLOT_W = 720.0  # SVG units: about the map's width in pixels at 1280-1440px
+LEFT, RIGHT, TOP, BOTTOM = 56.0, 12.0, 8.0, 26.0
+MAX_ASPECT = 2.5  # a taller grid is drawn this tall and scrolls with the page
+
+
+def _step(values: list[float]) -> float:
+    if len(values) < 2:
+        return 1.0
+    return abs(values[-1] - values[0]) / (len(values) - 1) or 1.0
+
+
+def _ticks(low: float, high: float, least: int = 4, most: int = 7) -> list[float]:
+    """Round values inside ``low`` to ``high`` for an axis: the widest step of 1, 2, 3 or
+    5 times a power of ten (or 15, 30, 45, 60 or 90 degrees) that gives at least ``least``
+    of them (at most ``most``)."""
+    span = high - low
+    if span <= 0:
+        return []
+    power = 10 ** math.floor(math.log10(span))
+    steps = {m * power / 10**k for k in range(0, 3) for m in (5, 3, 2, 1)}
+    if span >= 60:  # whole degrees in steps that divide a turn
+        steps = {10, 15, 20, 30, 45, 60, 90}
+    for step in sorted((s for s in steps if s <= span), reverse=True):
+        first = math.ceil(low / step - 1e-9) * step
+        values = []
+        v = first
+        while v <= high + 1e-9 * step:
+            values.append(round(v, 10))
+            v += step
+        if len(values) >= least:
+            return values if len(values) <= most else values[:: math.ceil(len(values) / most)]
+    return []
+
+
+def degrees(value: float, positive: str, geographic: bool = True) -> str:
+    """An axis label: ``30° S``, ``150° E``, ``170° W`` (a longitude past 180° turned
+    west); a plain number on a grid that is not in degrees."""
+    if not geographic:
+        return numbers.number(value)
+    if positive == "E":
+        value = (value + 180) % 360 - 180
+    hemisphere = numbers._hemisphere(value, positive)
+    return f"{numbers.number(abs(value))}°{numbers.NBSP}{hemisphere}"
 
 
 @dataclass
-class MapCell:
-    y: int
-    x: int
-    px: float
-    py: float
-    css: str
-    value: str
-    lat: float
-    lon: float
-    selected: bool = False
-    href: str = ""  # the results page for this cell (without JavaScript)
-    hx: str = ""  # the explore fragment for this cell (htmx)
+class Frame:
+    """The map's geometry in SVG units: the plot (``left``, ``top``, ``plot_w`` x
+    ``plot_h``) where the PNG goes, the axes' ticks, the coastline, the places and the
+    selected cell. ``rows`` and ``cols`` are the file's row and column of each row and
+    column drawn (north first, west first)."""
 
+    nx: int
+    ny: int
+    rows: list[int]
+    cols: list[int]
+    box: outline.Box
+    geographic: bool
+    plot_w: float
+    plot_h: float
+    left: float = LEFT
+    top: float = TOP
+    x_ticks: list[dict] = field(default_factory=list)
+    y_ticks: list[dict] = field(default_factory=list)
+    coast: str = ""
+    places: list[dict] = field(default_factory=list)
 
-@dataclass
-class MapDrawing:
-    width: float
-    height: float
-    cell_w: float
-    cell_h: float
-    cells: list[MapCell]
-    bins: list[Bin]
-    stride: int
-    has_missing: bool
-    x_labels: list[dict] = field(default_factory=list)
-    y_labels: list[dict] = field(default_factory=list)
-    rows: list[dict] = field(default_factory=list)  # the table: {"lat", "values": [...]}
-    lon_headers: list[str] = field(default_factory=list)
-    lo: str = ""
-    hi: str = ""
+    @property
+    def width(self) -> float:
+        return round(LEFT + self.plot_w + RIGHT, 1)
+
+    @property
+    def height(self) -> float:
+        return round(TOP + self.plot_h + BOTTOM, 1)
 
     @property
     def view_box(self) -> str:
-        """Room for the latitude labels on the left and the longitude labels below."""
-        return f"-64 -6 {self.width + 72:g} {self.height + 30:g}"
+        return f"0 0 {self.width:g} {self.height:g}"
 
     @property
-    def natural_width(self) -> float:
-        """The SVG's width at one unit per pixel: a small grid is not stretched (its
-        labels would grow with it)."""
-        return self.width + 72
+    def cell_w(self) -> float:
+        return self.plot_w / self.nx
+
+    @property
+    def cell_h(self) -> float:
+        return self.plot_h / self.ny
 
     @property
     def label_y(self) -> float:
-        return round(self.height + 16, 1)
+        return round(TOP + self.plot_h + 17, 1)
+
+    @property
+    def tick_x(self) -> float:
+        return LEFT - 6
+
+    def cell_rect(self, y: int, x: int) -> dict:
+        """The rectangle of the file's cell ``(y, x)``."""
+        r, c = self.rows.index(y), self.cols.index(x)
+        return {
+            "x": round(LEFT + c * self.cell_w, 2),
+            "y": round(TOP + r * self.cell_h, 2),
+            "w": round(self.cell_w, 2),
+            "h": round(self.cell_h, 2),
+        }
+
+    def x_of(self, lon: float) -> float:
+        return LEFT + (lon - self.box.west) / (self.box.east - self.box.west) * self.plot_w
+
+    def y_of(self, lat: float) -> float:
+        return TOP + (self.box.north - lat) / (self.box.north - self.box.south) * self.plot_h
 
 
-def draw_map(values: np.ndarray, lat: list[float], lon: list[float], selected=None) -> MapDrawing:
-    """Cells as rectangles, north at the top (rows are flipped when latitude increases
-    with the row index), west at the left."""
-    ny, nx = values.shape
-    stride = max(1, math.ceil(math.sqrt(ny * nx / MAX_MAP_CELLS)))
-    ys = list(range(0, ny, stride))
-    xs = list(range(0, nx, stride))
-    if len(lat) == ny and len(lat) > 1 and lat[0] < lat[-1]:
-        ys = ys[::-1]  # north up
-    if len(lon) == nx and len(lon) > 1 and lon[0] > lon[-1]:
-        xs = xs[::-1]  # west left
-    cell = min(MAX_CELL, MAP_WIDTH / len(xs))
-    width, height = cell * len(xs), cell * len(ys)
-    shown = values[np.ix_(ys, xs)]
-    bins = bins_for(shown)
-    cells = []
-    for row, y in enumerate(ys):
-        for col, x in enumerate(xs):
-            v = float(values[y, x])
-            cells.append(
-                MapCell(
-                    y=y,
-                    x=x,
-                    px=round(col * cell, 2),
-                    py=round(row * cell, 2),
-                    css=classify(v, bins),
-                    value=format_value(v),
-                    lat=lat[y] if y < len(lat) else y,
-                    lon=lon[x] if x < len(lon) else x,
-                    selected=selected == (y, x),
-                )
+def frame(layer: Layer) -> Frame:
+    """The frame of the layer's grid: north up and west left, the cells' aspect corrected
+    by the cosine of the grid's mean latitude, with its axes, coastline and places."""
+    lat, lon = layer.lat, layer.lon
+    ny, nx = len(lat), len(lon)
+    rows = list(range(ny))
+    if ny > 1 and lat[0] < lat[-1]:
+        rows.reverse()  # north up
+    cols = list(range(nx))
+    if nx > 1 and lon[0] > lon[-1]:
+        cols.reverse()  # west left
+    dlat, dlon = _step(lat), _step(lon)
+    box = outline.Box(
+        west=min(lon) - dlon / 2,
+        east=max(lon) + dlon / 2,
+        south=min(lat) - dlat / 2,
+        north=max(lat) + dlat / 2,
+    )
+    geographic = layer.geographic
+    cosine = 1.0
+    if geographic:
+        cosine = max(math.cos(math.radians((box.north + box.south) / 2)), 0.2)
+    aspect = (box.north - box.south) / ((box.east - box.west) * cosine)
+    plot_h = PLOT_W * min(aspect, MAX_ASPECT)
+    out = Frame(nx, ny, rows, cols, box, geographic, PLOT_W, round(plot_h, 2))
+    out.x_ticks = [
+        {"x": round(out.x_of(v), 1), "text": degrees(v, "E", geographic), "value": v}
+        for v in _ticks(box.west, box.east)
+    ]
+    out.y_ticks = [
+        {"y": round(out.y_of(v), 1), "text": degrees(v, "N", geographic), "value": v}
+        for v in _ticks(box.south, box.north, 3 if plot_h < 300 else 4)
+    ]
+    if geographic:
+        per_unit = (box.east - box.west) / PLOT_W
+        parts = []
+        for line in outline.coastline(box, tolerance=1.5 * per_unit):
+            xs = LEFT + (line[:, 0] - box.west) / (box.east - box.west) * PLOT_W
+            ys = TOP + (box.north - line[:, 1]) / (box.north - box.south) * out.plot_h
+            points = " ".join(f"{x:.1f} {y:.1f}" for x, y in zip(xs, ys, strict=True))
+            parts.append(f"M{points}")
+        out.coast = "".join(parts)
+        for p in outline.places(box):
+            x, y = out.x_of(p.lon), out.y_of(p.lat)
+            east = x > LEFT + PLOT_W * 0.7
+            out.places.append(
+                {
+                    "name": p.name,
+                    "x": round(x, 1),
+                    "y": round(y, 1),
+                    "tx": round(x - 6 if east else x + 6, 1),
+                    "ty": round(y + 4, 1),
+                    "anchor": "end" if east else "start",
+                }
             )
-    label_every = max(1, math.ceil(len(xs) / 6), math.ceil(LABEL_SPACE / cell))
-    x_labels = [
-        {"x": round((col + 0.5) * cell, 1), "text": coord_label(lon[x] if x < len(lon) else x, "E")}
-        for col, x in enumerate(xs)
-        if col % label_every == 0
-    ]
-    label_every = max(1, math.ceil(len(ys) / 6))
-    y_labels = [
-        {"y": round((row + 0.5) * cell, 1), "text": coord_label(lat[y] if y < len(lat) else y, "N")}
-        for row, y in enumerate(ys)
-        if row % label_every == 0
-    ]
-    finite = shown[np.isfinite(shown)]
-    return MapDrawing(
-        width=round(width, 2),
-        height=round(height, 2),
-        cell_w=round(cell, 2),
-        cell_h=round(cell, 2),
-        cells=cells,
-        bins=bins,
-        stride=stride,
-        has_missing=bool(np.isnan(shown).any()),
-        x_labels=x_labels,
-        y_labels=y_labels,
-        rows=[
-            {
-                "lat": coord_label(lat[y] if y < len(lat) else y, "N"),
-                "values": [format_value(float(values[y, x])) for x in xs],
-            }
-            for y in ys
-        ],
-        lon_headers=[coord_label(lon[x] if x < len(lon) else x, "E") for x in xs],
-        lo=format_value(float(finite.min())) if finite.size else "",
-        hi=format_value(float(finite.max())) if finite.size else "",
-    )
+    return out
 
 
-def coord_label(value: float, positive: str) -> str:
-    negative = {"N": "S", "E": "W"}[positive]
-    if not isinstance(value, float):
-        return str(value)
-    hemisphere = positive if value >= 0 else negative
-    return f"{format_value(abs(value), 2)}°{hemisphere}"
+def display_order(values: np.ndarray, f: Frame) -> np.ndarray:
+    """The ``(y, x)`` values of the file in the frame's order: north first, west first."""
+    return values[np.ix_(f.rows, f.cols)]
 
 
-@dataclass
-class SeriesDrawing:
-    width: int
-    height: int
-    path: str
-    points: list[dict]
-    y_labels: list[dict]
-    x_labels: list[dict]
-    rows: list[dict]
-    count: int
-
-
-def draw_series(values: np.ndarray, labels: list[str]) -> SeriesDrawing | None:
-    """A line through the values (broken at missing ones), with dots when there are few."""
-    finite = values[np.isfinite(values)]
-    if not finite.size:
+def nearest_cell(layer: Layer, lat: float, lon: float) -> tuple[int, int] | None:
+    """The file's cell nearest ``(lat, lon)``, None when the point is outside the grid
+    (beyond half a cell from its edge). Longitudes are matched a turn either way."""
+    if not layer.lat or not layer.lon:
         return None
-    n = len(values)
-    lo, hi = float(finite.min()), float(finite.max())
-    if lo == hi:
-        lo, hi = lo - 1, hi + 1
-    ticks = _nice_ticks(lo, hi)
-    lo, hi = min(lo, ticks[0]), max(hi, ticks[-1])
-    x = _scale(0, max(n - 1, 1), PAD_X, SERIES_WIDTH - 8)
-    y = _scale(lo, hi, SERIES_HEIGHT - PAD_BOTTOM, PAD_TOP)
-    data = [float(v) if math.isfinite(v) else None for v in values]
-    every = max(1, math.ceil(n / 8))
-    return SeriesDrawing(
-        width=SERIES_WIDTH,
-        height=SERIES_HEIGHT,
-        path=_path(data, x, y),
-        points=[
-            {"x": round(x(i), 1), "y": round(y(v), 1)}
-            for i, v in enumerate(data)
-            if v is not None and n <= 120
-        ],
-        y_labels=[{"y": round(y(t), 1), "text": format_value(t)} for t in ticks],
-        x_labels=[{"x": round(x(i), 1), "text": labels[i]} for i in range(0, n, every)],
-        rows=[
-            {"time": labels[i], "value": format_value(v) if v is not None else ""}
-            for i, v in enumerate(data)
-        ],
-        count=int(finite.size),
-    )
+    lats = np.asarray(layer.lat)
+    lons = np.asarray(layer.lon)
+    dlat, dlon = _step(layer.lat), _step(layer.lon)
+    if not (lats.min() - dlat / 2 <= lat <= lats.max() + dlat / 2):
+        return None
+    for shift in (0.0, 360.0, -360.0):
+        if lons.min() - dlon / 2 <= lon + shift <= lons.max() + dlon / 2:
+            return int(np.argmin(np.abs(lats - lat))), int(np.argmin(np.abs(lons - (lon + shift))))
+    return None
+
+
+def cell_bounds(layer: Layer, y: int, x: int) -> tuple[float, float, float, float]:
+    """``(south, north, west, east)`` of the file's cell ``(y, x)``."""
+    dlat, dlon = _step(layer.lat), _step(layer.lon)
+    lat, lon = layer.lat[y], layer.lon[x]
+    return lat - dlat / 2, lat + dlat / 2, lon - dlon / 2, lon + dlon / 2
+
+
+__all__ = [
+    "Frame",
+    "Layer",
+    "OutputFile",
+    "cell_series",
+    "classify",
+    "edges_for",
+    "frame",
+    "grid_values",
+    "kind_of",
+    "nice_edges",
+    "open_layer",
+    "output_files",
+    "palette",
+]

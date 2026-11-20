@@ -53,7 +53,7 @@
         Links are blue and underlined. The brand blue is only for the logo, focus rings and
         selection. Status colours are only for the verdict and run state, always with an
         icon and a label. The theme hues mark data: Heat, Cold, Rain and Drought, and a
-        neutral for "Also measured". The trend scale colours a significant decrease or
+        neutral for "Also measured". The gridded map's scales have eight bins each, by the index's kind. The trend scale colours a significant decrease or
         increase, and the coverage steps a year's missing days. Every text and background pair meets WCAG AA in both
         themes, and the theme hues and chart colours stay apart for colour-blind readers
         (both checked by tests from the token values). Charts outside the browser read
@@ -65,6 +65,10 @@
         <ul class="swatches">
           {% for token in tokens %}<li><span class="swatch-{{ token|token_name }}"></span><code>{{ token }}</code></li>{% endfor %}
         </ul>
+        {% endfor %}
+        {% for title, kind in map_scales %}
+        <h3>{{ title }}</h3>
+        <div class="gmap-legend ramp-{{ kind }}"><div class="gmap-legend__bins">{% for i in "12345678" %}<span class="gmap-legend__bin"></span>{% endfor %}</div><p class="gmap-legend__note"><code>--map-seq-{{ kind }}-1</code> {{ "…" }} <code>-8</code></p></div>
         {% endfor %}
       </div>
     </section>

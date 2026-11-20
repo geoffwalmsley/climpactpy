@@ -1687,19 +1687,32 @@ def test_help_search_announces_results(chrome, site):
     assert c.evaluate("document.activeElement.id") == "help-q", "typing lost focus"
 
 
-def test_gridded_explorer_keeps_focus(chrome, site):
-    """Changing a select of the gridded explorer swaps the map in place; focus stays on
-    the select, so a keyboard user can go on choosing."""
+def test_gridded_map_by_keyboard(chrome, site):
+    """The gridded map (#295) is one focusable group: the arrow keys move the selected
+    cell, a polite live region reads it out with its value, and the cell pane follows. The
+    year stepper and the rail swap the map in place and keep focus on the control used."""
     c = chrome
     c.navigate(site["gridded results"])
-    focus(c, "#explore-t")
-    c.evaluate(
-        "var s = document.getElementById('explore-t'); s.selectedIndex = 0;"
-        " s.dispatchEvent(new Event('change', {bubbles: true}))"
-    )
-    wait_for(c, "document.getElementById('explore-t').selectedIndex === 0 &&"
-             " !document.querySelector('.htmx-request')", timeout=10)  # fmt: skip
-    assert c.evaluate("document.activeElement.id") == "explore-t"
+    title = "document.getElementById('cell-title').textContent"
+    before = c.evaluate(title)
+    focus(c, "[data-gmap-svg]")
+    assert c.evaluate("document.activeElement.getAttribute('aria-roledescription')") == "map"
+    c.press("ArrowLeft")
+    c.press("ArrowUp")
+    wait_for(c, "/\\u00b7 TXx /.test(document.querySelector('[data-gmap-status]').textContent)",
+             timeout=10, what="the selected cell read out")  # fmt: skip
+    wait_for(c, f"{title} !== {before!r}", timeout=10, what="the cell pane of the new cell")
+    assert "cell=" in c.evaluate("location.search")
+    focus(c, "[data-gmap-step=prev]")
+    label = "document.querySelector('.gmap-stepper__label').textContent"
+    year = c.evaluate(label)
+    c.press("Enter")
+    wait_for(c, f"{label} !== {year!r}", timeout=10, what="the year before")
+    assert c.evaluate("document.activeElement.getAttribute('data-gmap-step')") == "prev"
+    focus(c, ".gmap-rail__item:not([aria-current])")
+    c.press("Enter")
+    wait_for(c, "!document.querySelector('[data-gridded-map][aria-busy]')", timeout=10)
+    assert c.evaluate("document.activeElement.getAttribute('aria-current')") == "true"
 
 
 def test_gridded_new_run_ticks_and_folders(chrome, site):

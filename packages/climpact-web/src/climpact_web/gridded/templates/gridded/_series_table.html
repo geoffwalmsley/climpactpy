@@ -1,8 +1,0 @@
-{% load i18n %}{% comment %}The clicked cell's values: the table view of the series chart (#75). Parameters as _explore.html.{% endcomment %}
-  <div class="table-wrap max-h-96" role="region" aria-labelledby="series-table-caption" tabindex="0">
-    <table class="table">
-      <caption id="series-table-caption">{% blocktranslate with name=layer.variable where=cell_label %}{{ name }} at {{ where }}{% endblocktranslate %}</caption>
-      <thead><tr><th scope="col">{% translate "Time" %}</th><th scope="col" class="num">{{ layer.variable }}</th></tr></thead>
-      <tbody>{% for row in series.rows %}<tr><th scope="row">{{ row.time }}</th><td class="num">{{ row.value|default:"–" }}</td></tr>{% endfor %}</tbody>
-    </table>
-  </div>

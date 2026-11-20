@@ -392,35 +392,51 @@ strips, worklist and detail pane.
   grid `flex: 999 1 40rem`, the plot 20–25rem, under the grid when there is no room).
   The trends wait, with a line saying so, while a station is calculated, and come in
   with the overview's last poll.
-- **The gridded frame (Target: #289–#296, the Grid boards).** A gridded run is a place
-  of its own, like a workspace, not a flow of steps. **Naming:** the header says
+- **The gridded frame (the Grid boards; built by #289, Target: #290–#296 for the rest).**
+  A gridded run is a place of its own, like a workspace, not a flow of steps. **Naming:** the header says
   "Gridded" (the data's shape, the field's word: ET-SCI, Climpact for R's "gridded
   indices"); "netCDF" is said where files are chosen (the landing card "Gridded data
   (netCDF)", New gridded run, the upload) and never names the section, since stations may
   come as netCDF too.
   - **Gridded** (`/gridded/`, #289) lists the browser's runs (the computer's, locally) as
-    a data table: Run, Grid, Period, Thresholds (a scenario run names the run whose
-    thresholds file it read), Calculates, State, Kept until; New gridded run (primary) at
-    the title's end; three boxes under it (stations or a grid, scenarios, the sample).
-    Runs are not listed on Workspaces.
-  - **Before a run,** two pages with a breadcrumb ("Gridded / New run / set-up"), no
-    stepper. New run (#292): a narrow page; locally a folder listing with a checkbox per
+    a data table, most recently changed first: Run (a link; an ellipsis when long),
+    Grid (rows × columns and the spacing), Period, Thresholds (the base period, ", file
+    kept" when the run wrote a thresholds file; a scenario run names the run whose
+    thresholds file it read, "From <run>"), Calculates ("55 indices", "Thresholds file
+    only"), State ("Not started", or "Not started: precipitation units" in danger;
+    "Calculating · 38%" with a small bar; "Finished 18 Nov, 21 min"; "Failed" in
+    danger), Kept until ("–" while it calculates); a line under it on how long runs are
+    kept. New gridded run (primary) at the title's end; with no runs, one line and the
+    sample grid in the table's place; three boxes under it (stations or a grid,
+    scenarios, the sample). Runs are not listed on Workspaces, whose note links here.
+    Runs are kept `JOB_RETENTION_DAYS` after their last change in both modes (**Target:**
+    kept on the computer until forgotten, as the board's note says, #301).
+  - **Before a run,** two pages with a breadcrumb ("Gridded / New run" and "Gridded /
+    New run / set-up", #289), no stepper; the set-up page's h1 is the run's name, with
+    Rename. **Target:** New run (#292): a narrow page; locally a folder listing with a checkbox per
     file and its variables and dates read from the header (paths or a `*` pattern one
-    disclosure away), hosted the drop zone with its limit stated first. Set-up (#293): one
+    disclosure away), hosted the drop zone with its limit stated first (until then the
+    old chooser, at `/gridded/new/`). Set-up (#293): one
     page of sections divided by hairlines (Files, Variables, What to calculate, Base
     period, Indices, Output files, Computing closed), with the summary panel (22.5rem,
     sticky) at the inline end: each check with its mark, then the one Start button. Units
     are never converted silently: each variable shows its units and how they are read
     ("°C (K − 273.15)"); a unit Climpact cannot read says what it reads and how to
     convert it, with a CDO line for the common cases.
-  - **A run** has its own bar (the run's name as the h1, the mono provenance line: grid
-    and cells with data, period and calendar, base period, indices and files, version,
-    kept until; Rename, Forget this run; "Run again with other files" and Download all at
-    the title's end) and the tabs **Map**, **Files** and **Set-up** (the set-up page,
-    whose summary panel then describes the run; starting again keeps the results until
-    the new ones are ready). While it calculates, or after it failed, the Map tab shows
-    the run status line and the stages table (#294); a failure names the setting that
-    fixes it, with a link.
+  - **A run** (#289, `gridded/_run_bar.html` on `components/context_bar.html`) has its
+    own bar, sticky as a station's: "Gridded / run", the run's name as the h1 (named
+    from its files until renamed: "era5 SEA 0.25°, 1961–2020", the sample "Sample
+    grid"), the mono provenance line (grid and cells with data, period and calendar,
+    base period, indices and files or "calculating", version, kept until; then Rename
+    and Forget this run, at every width), "Run again with other files" once no job runs
+    and Download all (zip, size) once all have finished at the title's end; then the
+    tabs **Map** (`/gridded/<run>/`), **Files** (`files/`) and **Set-up** (`setup/`).
+    The old `results` address redirects to Map. Until #295 Map holds the explorer and,
+    while the run calculates or after it failed, the job cards with their progress.
+    **Target:** Set-up's summary panel describes the run, and starting again keeps the
+    results until the new ones are ready (#293); while it calculates, or after it
+    failed, the Map tab shows the run status line and the stages table (#294); a
+    failure names the setting that fixes it, with a link.
   - **Map** (#295, #296) is a data page in the Indices' three columns: the index rail
     (14rem, by theme, codes first, the frequencies each index has), the map, the cell pane
     (`clamp(22rem, 28%, 32rem)`). Above the map: the code and name, the definition and
@@ -437,8 +453,16 @@ strips, worklist and detail pane.
     the same order) and offers "Mean over the grid" (cos-latitude weighted); when a
     station of one of the browser's workspaces is in the cell, it links to that station's
     index page.
-  - **Files** (#289) uses the File group pattern by theme, each group with its zip, plus
-    a list of links for `wget -i` and the run's record (`run.json`, the log, `trends.nc`).
+  - **Files** (#289, `gridded/files.html`) uses the File group pattern, framed, by theme
+    (Heat, Cold, Rain, Drought, Other; or by variable needed, or frequency, a GET form),
+    the first open, each with "Download these (zip)" beside its summary: Code, Index,
+    Freq., File, the netCDF variables in it, Size, the long ones ending in an ellipsis.
+    Beside it (20rem, from 64rem): Everything (Download all; the links as a text file
+    for `wget -i`, which work without the browser's session while the run is kept; the
+    folder the files were copied to), the run's record (`run.json`: the settings,
+    versions and the inputs' checksums; `climpact.log`; the thresholds file when the run
+    kept one; `trends.nc`, each cell's trend and base-period mean, #290) and a note on
+    reading the files.
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
   them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
@@ -539,7 +563,6 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Index detail | Component | The selected index in the detail pane (`stations/_index_detail.html`, #236): code and theme in mono, the short name as a heading, the definition; the series drawn on the server with axes (three values, three years), the base period as a band and Sen's slope dashed (`index_detail.chart`), its caption and text alternative; then two columns of statistics: Slope, 95% interval, "Mean, 1936–2015", Significant in words ("Yes: the interval excludes zero" or "No"), Years used and Method ("Sen's slope (zyp)") (#263), one a line in a narrow pane; then "Open full page", CSV, PNG and "Monthly values". The chart reads out each value by pointer or keyboard (`readout`, #283; its values fetched from the series' chart data when it is first used), and a click or Enter on a year opens the index page at it (`?at=`) | with a trend, without, daily |
 | `download_link` | Primitive | One file to download: a small secondary button with its format and size, the file named for screen readers | — |
 | `spark` | Primitive | Decorative sparkline beside a trend given in words | line, bars |
-| `steps` | Pattern | Where the user is in the gridded flow; done steps link back. Not used by the station, whose sections are `workspace_tabs` (#179), nor by the batch since #234. **Target:** retired by #289 (a breadcrumb before a run, the run's tabs after) | — |
 | Run status line | Pattern | One line above a workspace's Stations table (#234, the Calculate board; `stations/_overview.html`, `stations.overview.status_line`), never a panel: on the surface with a 3px edge at the inline start. Neutral (ink edge) with a small bar while stations calculate: "**Calculating indices: 3 of 5 stations done.** About 25 s left. Finished stations open now." and Cancel (the batch) or "Undo the change" (a change to the workspace's settings, #254), plain forms. Quiet (success edge) when they have finished: "**5 stations calculated in 41 s.**", the stations not run and why (the files are in Export ▾ and on Files since #239). Red (danger edge) only when one failed: "**4 of 5 stations calculated in 38 s. Port Macquarie failed:** its error", with Workspace settings. Its first sentence is announced (`data-announce`, at once when it has finished). It sums up every station's state, so a recalculation shows in it as a batch does | running, done, failed, with undo |
 | Stations table | Pattern | A workspace's stations (#234, `stations/_overview.html`, `stations.overview.rows`), a data table in the order they were added: Station (a link to its furthest section, an ellipsis when long), "Lat, lon", Period, Missing (all values, mono), Quality (the Quality tab's verdict pill with its count, "Usable · 5", or "Checking…", or "–" without checks), Indices (Done; "Calculating · 40%" with a small bar; Waiting; "Not run" with its fix, "Fix the file" or "Fix quality first"; "Failed: " and the error, an ellipsis when long, with "Change base period" when that is why; the row on a faint danger tint) and Significant ("22 of 80", the indices with a significant trend of those calculated), then "Copy…" (Copy to workspace…, #241) at the row's end, its column header for screen readers only. Polled with the run status line while a station is checked or calculated (`stations:workspace_progress`); the note above it says rows update as each station finishes. A station added to a workspace of several is calculated at once, as a batch's are (#277: no "Go to indices" first), so its row, its Indices tab, Files and the trend grid agree | calculating, finished, failed, not run |
 | Workspaces table | Pattern | Every workspace of the browser (#242, the WorkspaceList board; `stations/_workspaces_table.html`, `stations.workspace_list`), a data table, most recently changed first: Name (a link, with a muted hint of its stations under it: one station's years, several stations' first two names "and 4 more"; each line ends in an ellipsis; rows 44px for the two lines), Stations, Status (one station's Quality pill with its count; several stations' counts by verdict, "2 ready", "2 usable", "1 fix first", "1 checking" on the sunken tint, and "1 failed" on the danger tint), Base period, Updated, "Deleted on" where workspaces expire ("20 Nov · in 2 days" in warning colour under three days away) and Delete (a quiet link to a confirmation page). Get started's "Or continue a workspace" is the same table cut to Name, Stations, Updated and Deleted on, three rows | expiring soon, failed, files waiting |
@@ -548,7 +571,8 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Trend grid | Pattern | Stations by indices (#238, `stations/_trends.html`, `stations/trend_grid.py`): a data table in its own frame, scrolling sideways inside it when the user chooses many indices, the station's name sticky at the inline start (an ellipsis from 11rem; "(no results)" after it). By default TXx, TNn, TN90p, TX10p, SU, TR, WSDI, PRCPTOT, Rx1day, R95p and CDD; chosen ones follow the defaults' order. Each header is the code (a link that selects the column, `?index=`; `js/trends.js` shows its plot in place), the short name in its `title` and for screen readers, the slope's units under it (`pp` for a percentage). Each cell is Sen's slope per decade, always written (`numbers.slope`), a link to the station's index page, its interval and significance in words for screen readers: filled on the trend scale when the 95% interval excludes zero (the strong step from half the column's largest significant slope, the weak one below), a dashed `border-strong` edge when it does not, "–" for too few values, hatched for a station without results. The selected column's header is on the selected tint with an ink edge under it. "Grid as CSV" is the workspace's Trends file's rows for the grid's indices | selected column, not significant, too few values, no results, many columns |
 | Interval plot | Pattern | The selected column beside the grid (#238): the code and "units per decade" in mono over the short name; a row a station, its name (a link to its index page) with its slope and interval, then a 360 x 16 line: the zero line, the interval as a thick muted line, the slope as a dot (the strong step of its direction when significant, `border-strong` when not); one axis under them, symmetric about zero, its ends round (`index_page.nice_ticks`). Stations left out say why under it ("Not shown: … no results"), then the key line and "CSV, all stations". Every column's plot is in the page, the others hidden. Its table view is the grid's column, its text summary the count of significant trends | significant, not significant, left out |
 | `empty_state` | Pattern | Nothing to show yet, with the next action. The Indices of a run that wrote no index table (every index skipped, #268): "No index to show" above the list of what could not be calculated, with "Replace the file" (the File sheet), in place of the rail, table and pane | — |
-| File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html` | — |
+| File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html`. A gridded run's Files (#289) frames each group (`gridded-group`), its hue dot before the name, the first open, and puts "Download these (zip)" beside the summary rather than in it (a link in a summary is a control in a control) | open, closed |
+| Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
 `stations/templates/stations/_qc_*.html`, and the Indices):
@@ -566,9 +590,9 @@ theme tiles, `answer-band` and the Catalogue went with the Indices table, #236):
 Inputs panel and Inputs bar (by "Edit inputs" on the
 context bar and workspace settings, #231); `file_button` (unused); the
 Settings line and panel (by workspace settings, #231). The batch results page and the
-batch's `steps` went with #234 (the overview's run status line and Stations table);
-`steps` stays for the gridded flow until #289. The Side sheet stays, for
-workspace settings.
+batch's `steps` went with #234 (the overview's run status line and Stations table), and
+`steps` itself with #289 (a gridded run has a breadcrumb before it starts and its tabs
+after). The Side sheet stays, for workspace settings.
 
 The new patterns of #230 have all landed and are on `/patterns/`; the Workspaces table
 was the last (#242).
@@ -740,8 +764,8 @@ Phones get the same content, stacked and usable, not a matched design; the acces
 rules below still hold at every width.
 
 Narrow screens get the same content in one column, in the same order. Below 600px the
-header links and the theme toggle become a menu; on narrow screens the step indicator
-shows only the current step's label, two-column field groups stack, and wide tables
+header links and the theme toggle become a menu; on narrow screens two-column field
+groups stack, and wide tables
 scroll inside their focusable region rather than the page. Charts keep their table view.
 
 On a phone (below 40rem, #203, proposal 7 of the mockups) a station's context bar is

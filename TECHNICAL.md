@@ -6147,8 +6147,15 @@ page lead to it. `stations/views_add.py`, `stations/add_stations.py`,
   disclosure lists every problem and warning with its line in the file.
 - **One form** holds the drop zone, the table and (through `form="add-form"`) the settings
   panel, so whatever is sent keeps what was typed: more files, the sample, the settings,
-  Cancel or "Add N stations and check them". Without JavaScript the files go with "Add the
-  files" and Enter in a cell checks the table again. With it a chosen or dropped file is
+  Cancel or "Add N stations and check them" (`intent=add`), the only one that adds. Enter
+  sends the form's default button, a hidden "Check the table" (`intent=check`): from a
+  cell without JavaScript, or from a field of "Change workspace settings" (outside the
+  form, with `form="add-form"`), with or without it. `review_page` treats it as Apply
+  (#318): what was typed is kept, valid settings are applied ("The settings are changed
+  for every station."), settings that are not valid come back with why and the panel
+  open, and the review page opens again, checked. A form sent with no intent, or one the
+  page does not know, also goes back to the review page. Without JavaScript the files go
+  with "Add the files". With it a chosen or dropped file is
   sent at once, the table is checked as it is typed (`add_check`, JSON: each row's state,
   the line under the table and the button's label; what was typed is kept), a column
   pasted from a spreadsheet fills the cells under the one pasted into (two columns,

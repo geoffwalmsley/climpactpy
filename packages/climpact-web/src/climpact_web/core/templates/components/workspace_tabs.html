@@ -3,7 +3,8 @@ Workspace tabs (#179): a station's sections, Quality, Indices (#236) and Files (
 under its name. Each tab is its own page, so this is navigation (a list of links, the
 current one aria-current="page"), not an ARIA tablist: the keyboard moves between them
 with Tab, and each opens its page. It reuses the tabs component's look. Each tab has a
-status: done, needs attention, out of date, running, not started or not available yet.
+status: done, needs attention, out of date, running, not started or not available yet;
+Indices' says "No indices" when the run made no index table (#298).
 Quality's shows the verdict of the checks instead (#222): Ready, Usable or Fix first in
 the verdict's tint, with the count of values that look wrong ("Usable · 21"), and
 "Checking…" while they run; on a phone the verdict is its icon on the tint, so the three

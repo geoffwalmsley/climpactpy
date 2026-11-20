@@ -5,14 +5,17 @@ workspace, and the page of a workspace that is not here. It replaced the batch r
 page and the batch steps."""
 
 import re
+import shutil
 import uuid
 
 import pytest
+from test_add_stations import review_url, stage
 from test_batch import created, metadata, run_worker, station  # noqa: F401
 from test_batch_workspace import finished_batch, queued_batch
-from test_workspace import page
+from test_workspace import page, states
 
 from climpact_web.jobs.models import Job, Status
+from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations import overview
 from climpact_web.stations.models import Station, Workspace
 
@@ -207,3 +210,105 @@ def test_a_workspace_that_is_not_here_says_why(client):
     assert "There is no page at this address." not in html
     other = client.get("/no-such-page/").content.decode()
     assert "There is no page at this address." in other
+
+
+# ---- a station whose run made no index (#298) ---------------------------------------------
+
+
+def empty_file(seed=3) -> str:
+    """The test station's file with PR, TX and TN missing on every day."""
+    return "".join(
+        " ".join([*line.split()[:3], "-99.9", "-99.9", "-99.9"]) + "\n"
+        for line in station(seed=seed).splitlines()
+    )
+
+
+def test_a_station_whose_run_made_no_index_is_not_done(client):
+    """#298: a station whose TX, TN and PR are all missing runs to the end with every
+    index skipped. Its row, the run status line and its Indices tab say it has no
+    indices, with the way on (replace the file), instead of Done; only the stations with
+    indices are counted as calculated."""
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    staged = stage(client, url=f"/w/{space.pk}/add/", c__txt=empty_file())
+    data = {"intent": "add", "file-0": "c.txt", "name-0": "Empty Hill", "lat-0": "-30"}
+    assert client.post(review_url(staged), {**data, "lon-0": "150"}).status_code == 302
+    c = Station.objects.get(workspace=space, station_name="Empty Hill")
+    while (job := claim("test-worker")) is not None:
+        run_job(job)
+    c.refresh_from_db()
+    assert c.indices_job.status == Status.SUCCEEDED and c.indices_job.result["skipped"]
+    html = client.get(f"/w/{space.pk}/").content.decode()
+    assert rows(html) == {"a": "done", "b": "done", c.slug: "empty"}
+    row = html.split(f'data-station="{c.slug}"')[1].split("</tr>")[0]
+    assert '<span class="run-state run-state--empty">' in row
+    assert ">No indices</span>" in row and ">Done<" not in row
+    assert f'href="{c.url("edit_input", "file")}">Replace the file' in row
+    assert "no indices calculated" in row
+    line = status_line(html)
+    assert line.startswith("done: 2 of 3 stations calculated in"), line
+    assert line.endswith("Empty Hill has no indices: every value is missing."), line
+    # Its Indices tab: "No indices" with the warning mark, not the green Done.
+    indices = page(client, c, "indices")
+    assert states(indices)["results"] == "empty" and "No index to show" in indices
+    tab = indices.split('data-tab="results"')[1].split("</a>")[0]
+    assert ">No indices</span>" in tab and "#warning" in tab and "#check-circle" not in tab
+    # The other stations' tabs are still Done.
+    a = Station.objects.get(workspace=space, station_name="a")
+    assert states(page(client, a, "indices"))["results"] == "done"
+
+
+def _row(name, state, empty=False, error=""):
+    indices = overview.Indices(state, "", error=error, empty=empty)
+    return overview.Row(None, name, "", "", "", "", overview.Quality("ready", ""), indices)
+
+
+def test_the_status_line_counts_stations_with_no_indices_apart(monkeypatch):
+    """#298: the status line's wording with stations that made no index, beside a failure,
+    while others still calculate, and when several have none."""
+    from climpact_web.stations import workspace as workspace_model
+
+    monkeypatch.setattr(workspace_model, "change_state", lambda space: None)
+    space = Workspace()
+    done, failed = _row("a", overview.DONE), _row("c", overview.FAILED, error="Bad file.")
+    empty = _row("Empty Hill", overview.DONE, True, "every value is missing")
+    other = _row("Dry Creek", overview.DONE, True)
+    line = overview.status_line(space, [done, empty])
+    assert (line.tone, line.head) == ("done", "1 of 2 stations calculated.")
+    assert line.rest == "Empty Hill has no indices: every value is missing."
+    line = overview.status_line(space, [done, empty, other])
+    assert line.head == "1 of 3 stations calculated."
+    assert line.rest == "2 stations have no indices; their rows say how to fix them."
+    line = overview.status_line(space, [done, empty, failed])
+    assert line.tone == "failed" and line.head == "1 of 3 stations calculated. c failed:"
+    assert line.rest == "bad file. Empty Hill has no indices: every value is missing."
+    going = _row("b", overview.CALCULATING)
+    going.indices.percent = 50
+    line = overview.status_line(space, [done, empty, going])
+    assert line.head == "Calculating indices: 2 of 3 stations done."
+    assert "Empty Hill has no indices: every value is missing." in line.rest
+    line = overview.status_line(space, [_row("x", overview.DONE, True)])
+    assert (line.head, line.rest) == ("0 of 1 station calculated.", "x has no indices.")
+
+
+def test_a_batch_station_that_made_no_index_is_not_done(client):
+    """#298, for a station of the batch: its folder of the batch's output has no index
+    table, and the batch's result lists them as skipped."""
+    run = finished_batch(client, "a", "b")
+    job = run.job
+    folder = job.output_dir / job.result.get("folder", "") / "b" / "indices"
+    skipped = [f"indices/{p.stem.removeprefix('b_')}" for p in folder.glob("b_*.csv")]
+    assert skipped
+    shutil.rmtree(folder)
+    folder.mkdir()
+    for entry in job.result["stations"]:
+        if entry["name"] == "b":
+            entry["skipped_outputs"] = skipped
+    job.save()
+    html = client.get(f"/w/{run.workspace_id}/").content.decode()
+    assert rows(html) == {"a": "done", "b": "empty"}
+    line = status_line(html)
+    assert line.startswith("done: 1 of 2 stations calculated in")
+    assert line.endswith("b has no indices: every value is missing.")
+    b = Station.objects.get(workspace=run.workspace, station_name="b")
+    assert states(page(client, b, "indices"))["results"] == "empty"

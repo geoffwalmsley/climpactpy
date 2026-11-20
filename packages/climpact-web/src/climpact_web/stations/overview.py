@@ -10,8 +10,9 @@ steps.
 :func:`rows` gives each station's row of the Stations table: its name and page, its
 coordinates, years and missing values, its Quality verdict with its count, its indices
 state (``batch.fill.run_states``: Done, or Out of date when the results shown are from
-before a change, Calculating with its percentage, Waiting, Not run, Failed, each with its
-fix) and how many of its indices have a significant trend.
+before a change, or No indices when the run made no index table; Calculating with its
+percentage, Waiting, Not run, Failed, each with its fix) and how many of its indices have
+a significant trend.
 :func:`status_line` sums them up in one line above the table.
 """
 
@@ -63,6 +64,13 @@ class Indices:
     fix_label: str = ""
     fix_url: str = ""
     job: object = None
+    empty: bool = False  # done, but the run made no index table (#298)
+
+    @property
+    def mark(self) -> str:
+        """The state the row is styled and marked by: batch.fill's, "empty" for a run
+        that made no index, "none" for no state."""
+        return "empty" if self.empty else (self.state or "none")
 
 
 @dataclass
@@ -119,6 +127,19 @@ def base_period_problem(error: str) -> bool:
     return "base period" in (error or "").lower()
 
 
+def _no_indices_reason(station: Station, job) -> str:
+    """Why a run made no index table, for the run status line: "every value is missing"
+    when it skipped the indices for that (the job's ``skipped``, as its Indices list), else
+    nothing."""
+    if job.kind == "batch":
+        name = (station.origin or {}).get("station")
+        entry = next((s for s in job.result.get("stations", []) if s.get("name") == name), {})
+        skipped = entry.get("skipped_outputs")
+    else:
+        skipped = (job.result or {}).get("skipped")
+    return _("every value is missing") if skipped else ""
+
+
 def _indices(station: Station, state, quality: Quality, space: Workspace) -> Indices:
     """The Indices column: the station's run state in words, with its fix."""
     if state is None:
@@ -133,6 +154,18 @@ def _indices(station: Station, state, quality: Quality, space: Workspace) -> Ind
             # Its replacement was cancelled: the results shown are from before a change, as
             # its Indices, Files and the trend grid say (#279).
             return Indices(DONE, _("Out of date"), job=state.job)
+        if shown is not None and workspace.made_no_indices(station, shown):
+            # Every index skipped, as for a file whose values are all missing: its Indices
+            # say "No index to show" and offer to replace the file (#268, #298).
+            return Indices(
+                DONE,
+                _("No indices"),
+                error=_no_indices_reason(station, shown),
+                fix_label=_("Replace the file"),
+                fix_url=workspace.sheet_url(station, "file"),
+                job=state.job,
+                empty=True,
+            )
         return Indices(DONE, _("Done"), job=state.job)
     if state.state == CALCULATING:
         label = _("Calculating · %(percent)s%%") % {"percent": state.percent or 0}
@@ -159,6 +192,8 @@ def _significant(station: Station, indices: Indices) -> tuple[str, str]:
     words for screen readers; "–" without results."""
     if indices.state != DONE:
         return "–", _("no results")
+    if indices.empty:
+        return "–", _("no indices calculated")
     from climpact_web.stations import results as results_model
 
     job = workspace.shown_run(station)  # the results the station's Indices show (#277)
@@ -287,6 +322,25 @@ def _not_run_sentence(not_run: list[Row]) -> str:
     ) % {"count": len(not_run)}
 
 
+def _no_indices_sentence(empty: list[Row]) -> str:
+    """The stations whose run made no index table (#298), after the count."""
+    if not empty:
+        return ""
+    if len(empty) == 1:
+        row = empty[0]
+        if row.indices.error:
+            return _("%(name)s has no indices: %(reason)s.") % {
+                "name": row.name,
+                "reason": row.indices.error,
+            }
+        return _("%(name)s has no indices.") % {"name": row.name}
+    return ngettext(
+        "%(count)s station has no indices; its row says how to fix it.",
+        "%(count)s stations have no indices; their rows say how to fix them.",
+        len(empty),
+    ) % {"count": len(empty)}
+
+
 def status_line(
     space: Workspace, table: list[Row], batch=None, page: str = ""
 ) -> StatusLine | None:
@@ -299,14 +353,18 @@ def status_line(
         return None
     now = timezone.now()
     total = len(run)
-    done = [r for r in run if r.indices.state == DONE]
+    finished_done = [r for r in run if r.indices.state == DONE]
+    # A run that made no index table finished, but calculated nothing (#298): counted
+    # apart, so the line does not say the station was calculated.
+    empty = [r for r in finished_done if r.indices.empty]
+    done = [r for r in finished_done if not r.indices.empty]
     failed = [r for r in run if r.indices.state == FAILED]
     going = [r for r in run if r.indices.state in RUNNING]
     jobs = list({id(r.indices.job): r.indices.job for r in run if r.indices.job}.values())
     batch_job = batch.job if batch is not None else None
     change = workspace.change_state(space)
     if going:
-        finished = len(done) + len(failed)
+        finished = len(finished_done) + len(failed)
         progress = finished + sum((r.indices.percent or 0) / 100 for r in going)
         head = ngettext(
             "Calculating indices: %(done)s of %(total)s station done.",
@@ -321,6 +379,8 @@ def status_line(
             rest.append(_("About %(time)s left.") % {"time": format_duration(remaining)})
         if finished:
             rest.append(_("Finished stations open now."))
+        if sentence := _no_indices_sentence(empty):
+            rest.append(sentence)
         if sentence := _not_run_sentence(not_run):
             rest.append(sentence)
         links = []
@@ -369,11 +429,30 @@ def status_line(
                 "count": len(failed)
             }
             rest = [_("their rows say why.")]
+        if sentence := _no_indices_sentence(empty):
+            rest.append(sentence)
         if sentence := _not_run_sentence(not_run):
             rest.append(sentence)
         settings_url = reverse("stations:workspace_settings", args=[space.pk])
         links.insert(0, Link(_("Workspace settings"), settings_url))
         return StatusLine("failed", head, " ".join(rest), 100, links)
+    if empty:
+        # "1 of 2 stations calculated in 16 s. Empty Hill has no indices: ..." (#298).
+        head = (
+            ngettext(
+                "%(done)s of %(total)s station calculated in %(time)s.",
+                "%(done)s of %(total)s stations calculated in %(time)s.",
+                total,
+            )
+            if took is not None
+            else ngettext(
+                "%(done)s of %(total)s station calculated.",
+                "%(done)s of %(total)s stations calculated.",
+                total,
+            )
+        ) % values
+        rest = [_no_indices_sentence(empty), _not_run_sentence(not_run)]
+        return StatusLine("done", head, " ".join(r for r in rest if r), 100, links)
     if took is not None:
         head = (
             ngettext(

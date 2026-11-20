@@ -446,6 +446,8 @@ STATES = {
     "done": (gettext_lazy("Done"), "check-circle", False),
     "attention": (gettext_lazy("Needs attention"), "warning", True),
     "stale": (gettext_lazy("Out of date"), "clock", True),
+    # Indices: a finished run that made no index table (#298), as its page says.
+    "empty": (gettext_lazy("No indices"), "warning", True),
     "running": (gettext_lazy("Running"), "refresh", True),
     "checking": (gettext_lazy("Checking…"), "refresh", True),
     "todo": (gettext_lazy("Not started"), "circle", False),
@@ -536,11 +538,24 @@ def _active(job: Job | None) -> bool:
     return job is not None and job.status in (Status.QUEUED, Status.RUNNING)
 
 
+def made_no_indices(analysis: Station, job: Job) -> bool:
+    """Whether the finished run ``job`` made no index table for the station: it skipped
+    every index, as for a file whose TX, TN and PR are all missing. Its Indices say "No
+    index to show" (#268); its tab, its row on the overview and the run status line say
+    it has no indices instead of Done (#298)."""
+    from climpact_web.stations import results
+
+    name = (analysis.origin or {}).get("station") if job.kind == "batch" else None
+    source = results.run_source(job, name)
+    return source is not None and not source.has_tables
+
+
 def section_states(analysis: Station) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
     running, todo (not started) or locked (its input does not exist yet). Quality's is
     instead "checking" while the checks run, and once they have finished the verdict:
-    ready, usable or fix (#222)."""
+    ready, usable or fix (#222). Indices' is "empty" when the run shown made no index
+    table (#298)."""
     states = {}
     qc_job, qc_shown = analysis.qc_job, shown_qc(analysis)
     qc_ready = (
@@ -570,7 +585,7 @@ def section_states(analysis: Station) -> dict[str, str]:
     elif run_shown is None:
         states["results"] = "attention" if run is not None else "todo"
     else:
-        states["results"] = "done"
+        states["results"] = "empty" if made_no_indices(analysis, run_shown) else "done"
 
     if qc_shown is None and run_shown is None:
         states["files"] = "locked"

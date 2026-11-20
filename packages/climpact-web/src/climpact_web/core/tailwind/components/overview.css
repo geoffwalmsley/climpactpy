@@ -139,7 +139,8 @@
   }
 
   .run-state--waiting,
-  .run-state--not_run {
+  .run-state--not_run,
+  .run-state--empty {
     color: var(--color-text-muted);
   }
 

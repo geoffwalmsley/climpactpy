@@ -72,6 +72,12 @@ class RunSource:
     def station_dir(self) -> Path:
         return self.folder / self.station
 
+    @property
+    def has_tables(self) -> bool:
+        """Whether the run wrote an index table: none when it skipped every index, as for
+        a file whose TX, TN and PR are all missing (#268, #298)."""
+        return any(self.index_source.indices_dir.glob(f"{self.station}_*.csv"))
+
     def relative(self, path: Path) -> str:
         """``path`` relative to the job's ``output/``, for ``jobs:file``."""
         return path.relative_to(self.job.output_dir).as_posix()

@@ -49,14 +49,14 @@ a station is calculated and so comes in with the last poll.
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr data-station="{{ row.station.slug }}" data-indices="{{ row.indices.state|default:'none' }}"{% if row.indices.state == "failed" %} class="stations-table__failed"{% endif %}>
+          <tr data-station="{{ row.station.slug }}" data-indices="{{ row.indices.mark }}"{% if row.indices.state == "failed" %} class="stations-table__failed"{% endif %}>
             <th scope="row" class="stations-table__name"><a href="{{ row.url }}" title="{{ row.name }}">{{ row.name }}</a></th>
             <td class="code">{{ row.coordinates }}</td>
             <td class="code">{{ row.period }}</td>
             <td class="num">{{ row.missing }}</td>
             <td>{% if row.quality.verdict %}<span class="status-dot status-dot--{{ row.quality.state }}">{{ row.quality.label }}{% if row.quality.count %}<span aria-hidden="true"> {{ row.quality.count }}</span><span class="sr-only">{{ row.quality.count_label }}</span>{% endif %}</span>{% elif row.quality.state == "checking" %}<span class="status-dot status-dot--checking">{{ row.quality.label }}</span>{% else %}<span class="text-text-muted">{{ row.quality.label }}</span>{% endif %}</td>
             <td class="stations-table__indices">
-              <span class="run-state run-state--{{ row.indices.state|default:'none' }}">
+              <span class="run-state run-state--{{ row.indices.mark }}">
                 <span class="run-state__label">{% if row.indices.state == "failed" and row.indices.error %}{% blocktranslate with error=row.indices.error %}Failed: {{ error }}{% endblocktranslate %}{% else %}{{ row.indices.label }}{% endif %}</span>
                 {% if row.indices.percent is not None %}<progress class="meter run-state__meter" max="100" value="{{ row.indices.percent }}" aria-hidden="true"></progress>{% endif %}
                 {% if row.indices.fix_url %}<a class="run-state__fix" href="{{ row.indices.fix_url }}">{{ row.indices.fix_label }}<span class="sr-only"> {% blocktranslate with name=row.name %}({{ name }}){% endblocktranslate %}</span></a>{% endif %}

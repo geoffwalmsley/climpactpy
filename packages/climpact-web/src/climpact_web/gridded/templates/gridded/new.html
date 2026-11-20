@@ -1,69 +1,81 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% comment %}
-New gridded run (#289 moved it here from /gridded/, which lists the runs; #292 redraws
-it): the files by path with a folder browser (local mode), an upload, or the sample grid.
-Before a run there is a breadcrumb, no stepper. Context from views.start_context.
+New gridded run (#289 moved it here from /gridded/, which lists the runs; #292 redrew it
+to the GridNew board): a narrow page. Locally, the files on this computer: a folder
+listing with a checkbox per netCDF file and what its header holds (gridded/_listing.html),
+paths or patterns one disclosure away, and what is chosen with Read the files. Hosted, the
+upload with its limit stated first. Then the sample grid. Before a run there is a
+breadcrumb, no stepper. Context from views.new_context.
 {% endcomment %}
 {% block title %}{% translate "New gridded run" %}{% endblock %}
 {% block content %}
-<div class="stack stack--lg">
+<div class="gridded-new stack stack--lg">
   <header class="stack stack--sm">
     {% include "gridded/_breadcrumb.html" with crumbs="new" %}
     <h1>{% translate "New gridded run" %}</h1>
-    <p class="lead">{% translate "Choose netCDF files of daily maximum and minimum temperature and precipitation. Climpact shows what they contain before anything is calculated, then calculates every index (or a thresholds file) for each cell of the grid." %}</p>
+    <p class="lead">{% translate "Daily netCDF files of maximum and minimum temperature and precipitation on one grid: one file per variable, one with all three, or a series split by years (joined along time). Climpact reads their headers first; nothing is calculated until you start." %}</p>
   </header>
 
-  {% include "components/form_errors.html" with form=upload_form %}
-
-  <div class="grid items-start gap-5 grid-cols-fit-88 *:min-w-0">
-    {% if local %}
-    {% include "gridded/_chooser.html" %}
-    {% endif %}
-
-    <div class="stack">
-      <form method="post" action="{% url 'gridded:upload' %}" enctype="multipart/form-data" class="card stack" novalidate>
-        {% csrf_token %}
-        <h2 class="card__title">{% if local %}{% translate "Or upload copies" %}{% else %}{% translate "Your netCDF files" %}{% endif %}</h2>
-        {% blocktranslate asvar hint with size=max_upload_mb count=max_files %}netCDF, up to {{ size }} MB in all. One file with all three variables, one for each, or each split by year (up to {{ count }} files, joined along time).{% endblocktranslate %}
-        {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
-        {% if not local %}{% help_topic "gridded.files" %}{% endif %}
-        {% if local %}<p class="text-sm text-text-muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}
-        {% turnstile %}
-        <div>
-          {% translate "Upload and check" as upload_label %}
-          {% include "components/button.html" with label=upload_label type="submit" icon="upload" variant=local|yesno:"secondary,primary" %}
+  {% if local %}
+  {% include "components/form_errors.html" with form=upload_form %}{# an upload posted to gridded:upload anyway #}
+  <form method="post" action="{% url 'gridded:new' %}" class="stack" id="gridded-chooser" novalidate>
+    {% csrf_token %}
+    {# The form's default button, first in it: Enter in the folder field opens that folder, not the first folder link. #}
+    <button type="submit" name="action" value="open" class="sr-only" tabindex="-1" aria-hidden="true" hx-post="{% url 'gridded:new' %}" hx-target="#file-listing" hx-swap="outerHTML">{% translate "Open the folder" %}</button>
+    {% include "components/form_errors.html" with form=paths_form %}
+    <section aria-labelledby="pick-title" class="stack stack--sm" hx-post="{% url 'gridded:new' %}?tick=1" hx-trigger="change" hx-include="closest form" hx-target="#chosen-summary" hx-swap="outerHTML" hx-disinherit="*">
+      <h2 id="pick-title" class="text-base">{% translate "Files on this computer" %}</h2>
+      {% include "gridded/_listing.html" %}
+      <details class="gridded-new__paths"{% if paths_value %} open{% endif %}>
+        <summary>{% translate "Paste paths or a pattern instead" %}</summary>
+        <div class="field">
+          <label class="sr-only" for="id_paths">{{ paths_form.paths.label }}</label>
+          <textarea name="paths" id="id_paths" rows="3" spellcheck="false" autocomplete="off" class="font-mono text-sm" aria-describedby="id_paths_helptext">{{ paths_value }}</textarea>
+          <p class="field__hint" id="id_paths_helptext">{% blocktranslate with count=max_files trimmed %}One path per line; * and ? match many files (up to {{ count }}). Files are read where they are; nothing is copied.{% endblocktranslate %}</p>
         </div>
-      </form>
-
-      <section class="card stack" aria-labelledby="sample-title">
-        <span class="card__icon">{% icon "play" %}</span>
-        <h2 class="card__title" id="sample-title">{% translate "No files to hand?" %}</h2>
-        <p class="card__body">{% translate "Try a small cut of Climpact's sample grid: 3 by 4 cells over south-eastern Australia, daily from 1991 to 2010. It calculates in about a minute." %}</p>
-        <form method="post" action="{% url 'gridded:sample' %}">
-          {% csrf_token %}
-          {% translate "Use the sample grid" as sample_label %}
-          {% include "components/button.html" with label=sample_label type="submit" variant="secondary" icon="play" %}
-        </form>
-        <p class="text-sm"><a href="{% url 'gridded:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
-      </section>
+      </details>
+    </section>
+    <div class="gridded-new__go">
+      {% include "gridded/_chosen.html" %}
+      {% translate "Read the files" as read_label %}
+      {% include "components/button.html" with label=read_label type="submit" name="action" value="use" size="lg" %}
     </div>
-  </div>
-
-  {% include "gridded/_retention.html" %}
-
-  <details class="disclosure">
-    <summary>{% icon "help" %}<span>{% translate "What the files must contain" %}</span>{% icon "chevron-down" %}</summary>
-    <div class="disclosure__body max-w-prose">
-      <p>{% translate "CF netCDF files (netCDF-3 or netCDF-4) with daily values on a grid, as Climpact for R reads them:" %}</p>
-      <ul>
-        <li>{% translate "maximum and minimum temperature in K or degrees_C, and precipitation in kg m-2 d-1, kg m-2 s-1 or mm/day;" %}</li>
-        <li>{% translate "each variable with dimensions time, latitude and longitude (any order), in one file or in separate files that share the same days and grid;" %}</li>
-        <li>{% translate "a time variable with units such as days since 1950-01-01, in the standard, noleap (365_day) or 360_day calendar." %}</li>
-      </ul>
-      <p>{% translate "The variables can have any names: you choose which is which on the next page. All three are needed." %}</p>
+  </form>
+  {% else %}
+  <form method="post" action="{% url 'gridded:upload' %}" enctype="multipart/form-data" class="stack" novalidate>
+    {% csrf_token %}
+    {% include "components/form_errors.html" with form=upload_form %}
+    <section aria-labelledby="upload-title" class="stack stack--sm">
+      <h2 id="upload-title" class="text-base">{% translate "Upload netCDF files" %}</h2>
+      {% with field=upload_form.files %}
+      <div class="field{% if field.errors %} field--error{% endif %}">
+        {% include "components/field_errors.html" %}
+        <label class="dropzone" for="{{ field.id_for_label }}" data-dropzone>
+          {% icon "upload" "" "dropzone__icon" %}
+          <span class="dropzone__title">{% blocktranslate trimmed %}Drop .nc files here, or <span class="dropzone__choose">choose them</span>{% endblocktranslate %}</span>
+          <span class="dropzone__hint" id="{{ field.auto_id }}_helptext">{% blocktranslate count days=job_retention_days with size=max_upload_bytes|filesizeformat trimmed %}Up to {{ size }} in all on this server; kept {{ days }} day, then deleted.{% plural %}Up to {{ size }} in all on this server; kept {{ days }} days, then deleted.{% endblocktranslate %}</span>
+          <span class="dropzone__file" data-dropzone-file hidden>{% icon "file" %}<span></span></span>
+          {{ field }}
+        </label>
+      </div>
+      {% endwith %}
+      <p class="text-sm">{% blocktranslate trimmed %}Bigger grids: run Climpact on your own computer (<code>pip install climpact-web</code>), which reads files in place with no size limit, or cut the grid to your region first (<code>cdo sellonlatbox</code>).{% endblocktranslate %}</p>
+    </section>
+    {% turnstile %}
+    <div class="gridded-new__go">
+      <span class="gridded-new__none font-mono text-sm text-text-muted">{% translate "No files yet" %}</span>
+      {% translate "Read the files" as read_label %}
+      {% include "components/button.html" with label=read_label type="submit" size="lg" %}
     </div>
-  </details>
+  </form>
+  {% endif %}
 
+  <form method="post" action="{% url 'gridded:sample' %}" class="flex flex-wrap items-baseline gap-2 text-sm text-text-muted">
+    {% csrf_token %}
+    <span>{% translate "No files to hand?" %}</span>
+    <button type="submit" class="link-button">{% translate "Try the sample grid" %}</button>
+    <span class="text-xs text-text-muted">{% blocktranslate with size=sample_size|filesizeformat trimmed %}(3 × 4 cells, 1991–2010, {{ size }}){% endblocktranslate %}</span>
+  </form>
 </div>
 {% endblock %}

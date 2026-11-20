@@ -569,14 +569,6 @@ def free_bytes(folder: Path) -> int:
     return stat.f_bavail * stat.f_frsize
 
 
-def human_size(size: float) -> str:
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(size) < 1024 or unit == "TB":
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size} B"  # pragma: no cover
-
-
 def is_finite(value) -> bool:
     try:
         return math.isfinite(float(value))

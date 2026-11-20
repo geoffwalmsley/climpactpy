@@ -10,7 +10,6 @@ urlpatterns = [
     path("upload", views.upload, name="upload"),
     path("sample", views.sample, name="sample"),
     path("sample.nc", views.sample_file, name="sample_file"),
-    path("browse", views.browse, name="browse"),
     path("<uuid:run_id>/", views.run_page, name="run"),
     path("<uuid:run_id>/files/", views.files, name="files"),
     path("<uuid:run_id>/setup/", views.setup, name="setup"),

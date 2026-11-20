@@ -49,6 +49,7 @@ from browser import Chrome, DevToolsError, find_chrome
 pytestmark = pytest.mark.browser
 
 ASSETS = Path(__file__).parent / "assets" / "axe-core"
+GRIDS = Path(__file__).resolve().parents[3] / "reference" / "gridded" / "input"
 AXE = ASSETS / "axe.min.js"
 AXE_VERSION = "4.14.0"
 AXE_SHA256 = "20c09fe157a8a34a30e241aaa1fcdade657734f08ab379ecfbeb7d45cc46e878"
@@ -255,7 +256,7 @@ def site(chrome, server):
         ("add stations", "/add/"),
         ("workspace open", "/w/open/"),  # Open a workspace file (#240)
         ("gridded start", "/gridded/"),
-        ("gridded new run", "/gridded/new/"),  # #289
+        ("gridded new run", f"/gridded/new/?dir={quote(str(GRIDS))}"),  # #289, #292
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),
         ("help indices", "/help/indices/"),
@@ -1698,6 +1699,32 @@ def test_gridded_explorer_keeps_focus(chrome, site):
     wait_for(c, "document.getElementById('explore-t').selectedIndex === 0 &&"
              " !document.querySelector('.htmx-request')", timeout=10)  # fmt: skip
     assert c.evaluate("document.activeElement.id") == "explore-t"
+
+
+def test_gridded_new_run_ticks_and_folders(chrome, site):
+    """New gridded run's folder listing (#292): ticking a file says what is chosen under
+    the listing (htmx); the folder links swap only the listing and keep what is ticked;
+    Enter in the folder field opens that folder."""
+    c = chrome
+    chosen = "document.getElementById('chosen-summary').textContent.trim()"
+    box = "document.querySelector('#file-listing input[value$=\"/grid_stations_tas.nc\"]')"
+    c.navigate(site["gridded new run"])
+    assert c.evaluate(chosen) == "No files yet"
+    c.evaluate(box + ".click()")
+    wait_for(c, chosen + ".startsWith('1 file chosen · tasmax, tasmin · ')", timeout=10,
+             what="the line saying what is chosen")  # fmt: skip
+    c.evaluate("document.querySelector('#file-listing nav li:nth-last-child(2) button').click()")
+    wait_for(c, "!!document.querySelector('#file-listing button[value$=\"/input\"]')",
+             timeout=10, what="the folder above")  # fmt: skip
+    assert c.evaluate("document.querySelectorAll('#file-listing input[type=hidden][name=file]')"
+                      ".length") == 1  # fmt: skip
+    focus(c, "#id_folder")
+    c.evaluate(f"document.getElementById('id_folder').value = {json.dumps(str(GRIDS))}")
+    c.press("Enter")
+    wait_for(c, f"!!{box} && {box}.checked && !document.querySelector('.htmx-request')",
+             timeout=10, what="the folder typed, its file still ticked")  # fmt: skip
+    assert c.evaluate("document.activeElement.id") == "id_folder"
+    assert c.evaluate(chosen).startswith("1 file chosen")
 
 
 def test_results_catalogue_filters_and_sorts_by_keyboard(chrome, site):

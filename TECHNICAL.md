@@ -3111,18 +3111,21 @@ packages/climpact-web/src/climpact_web/
                      guesses the variables, checks them as the core reader does, and
                      `preflight` (the core's `open_grid`) before a run
     forms.py         PathsForm, UploadForm (New gridded run), RenameForm, SetupForm
+    listing.py       New gridded run's folder listing (#292): each netCDF file's daily
+                     variables and dates from its header (cached by path, size and
+                     modification time), and what the files chosen so far hold
     maps.py          output files, the map of one index at one time step and a cell's
                      time series, drawn as inline SVG (the series: the chart's fallback)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
-    views.py, urls.py  /gridded/: the runs (start), new/ (paths and folder browser),
+    views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ and its checks
                      (htmx), rename/, progress, explore (htmx), map and series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
     sample_data/     climpact.sampledata.gridded.3x4.1991-2010.nc (525 KB), the
                      reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
-    templates/gridded/  start.html, setup.html, results.html, _chooser.html,
-                     _browser.html, _checks.html, _progress.html, _explore.html,
+    templates/gridded/  start.html, new.html, setup.html, results.html, _listing.html,
+                     _chosen.html, _checks.html, _progress.html, _explore.html,
                      _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
@@ -6896,7 +6899,7 @@ and storage cost; to be revisited only with a bigger Droplet, #12), with uploads
 `CLIMPACT_WEB_GRIDDED_MAX_UPLOAD_MB` (200 by default). `settings.GRIDDED_ENABLED` holds the
 result: with it off every `/gridded/` URL is 404 and the landing page and header leave
 Gridded out. Paths on the server's disk are only ever accepted in local mode: in hosted
-mode the path field, the folder browser, the thresholds path, the number of cores, the
+mode the folder listing, the paths box, the thresholds path, the number of cores, the
 temporary folder and "copy the results to a folder" are not offered, and a posted path is
 ignored.
 
@@ -6959,15 +6962,39 @@ succeeded; then the tabs:
 
 **New run and set-up:**
 
-1. `/gridded/new/` (`gridded:new`): in local mode, netCDF files by path (one per line, read in place, never
-   copied) with a folder browser. The browser's buttons post the same form
-   (`action=browse:<folder>` or `add:<file>`), so it works without JavaScript; htmx swaps
-   only the chooser. Each path must be absolute, exist, be readable and start with a
-   netCDF-3 or HDF5 signature. Up to 200 files (`forms.MAX_FILES`, #291, for a variable
-   split by year; `DATA_UPLOAD_MAX_NUMBER_FILES` is 1000 so that an upload of more than
-   Django's default of 100 files reaches the form's own message). Or upload copies (both modes; kept in
-   `<MEDIA_ROOT>/gridded/<id>/input/`). Or "Use the sample grid": `grid_sample`, a 3 x 4
-   cut of R's sample grid, bundled and read in place from the package.
+1. `/gridded/new/` (`gridded:new`, #292, the GridNew board): a narrow page (55rem). In
+   local mode, "Files on this computer": a folder listing (`gridded/_listing.html`,
+   `listing.listing`) with a path bar (the folders above as links, and a field for any
+   folder; `?dir=` opens one, otherwise the folder listed last in the session, else the
+   home folder), then the folder's subfolders as links and its netCDF files (`.nc`,
+   `.nc4`, `.netcdf`), each with a checkbox, its daily variables, its years ("1961–2020")
+   and its size. These come from the file's header (`inspection.inspect_file`), kept in
+   memory by path, size and modification time (`listing.describe`, up to 4,096 files), so
+   moving between folders reads nothing again. A file that cannot be chosen is greyed with
+   its checkbox off and says why in the variables column: "no time axis", "no daily grid",
+   "thresholds file" (it holds `THRESHOLD_FILE_VARIABLES`; its dates are its
+   `base_period`), its calendar when unsupported, "dates cannot be read" or "cannot be
+   opened". "Paste paths or a pattern instead" (a native `<details>`, open when it holds
+   text) is the paths box: a path or a pattern a line, `*` and `?` expanded with `glob`,
+   sorted, folders left out (`forms.expand_pattern`); a pattern that matches nothing says
+   so. The files ticked and those typed are read together, each once (`PathsForm`):
+   each path must be absolute, exist, be readable and start with a netCDF-3 or HDF5
+   signature. Under the listing, what is chosen ("3 files chosen · tasmax, tasmin, pr ·
+   561.0 MB", `listing.summary`) and Read the files. The listing's links and the folder
+   field post the same form (`action=browse:<folder>`, `action=open`, the form's first,
+   hidden, default button, so Enter in the field opens that folder), so it works without
+   JavaScript; files ticked in other folders ride along as hidden fields. With htmx only
+   the listing is swapped, and a change to a checkbox or the paths box asks for the line
+   saying what is chosen (`?tick=1`). In hosted mode, "Upload netCDF files": the drop zone
+   states the limit (`GRIDDED_MAX_UPLOAD_MB`) and how long files are kept
+   (`JOB_RETENTION_DAYS`) before anything is uploaded, then one line on the ways round it
+   (Climpact on your own computer, or `cdo sellonlatbox`); kept in
+   `<MEDIA_ROOT>/gridded/<id>/input/`. `gridded:upload` still takes a post in local mode,
+   but the page no longer offers it there. Up to 200 files (`forms.MAX_FILES`, #291, for
+   a variable split by year; `DATA_UPLOAD_MAX_NUMBER_FILES` is 1000 so that an upload of
+   more than Django's default of 100 files reaches the form's own message). Then "Try
+   the sample grid": `grid_sample`, a 3 x 4 cut of R's sample grid, bundled and read in
+   place from the package.
 2. `/gridded/<id>/setup/`: what each file holds, read from its metadata and coordinates only
    (`inspection.inspect_file`: netCDF4 and cftime, no data): the grid, dates, calendar,
    latitude and longitude ranges, format and size, and every variable with time, Y and X
@@ -7000,7 +7027,7 @@ succeeded; then the tabs:
 
 | R gridded screens | Python |
 | --- | --- |
-| Input files: upload only (`fileInput`, so the files are copied into Shiny's temporary folder) | local mode: paths read in place, with a folder browser; uploads in both modes |
+| Input files: upload only (`fileInput`, so the files are copied into Shiny's temporary folder) | local mode: files ticked in a folder listing that shows each one's variables and dates, or paths and `*` patterns, read in place; hosted: uploads |
 | Variable names typed in, defaults `precip`, `tmax`, `tmin` | chosen from the files' daily grid variables; guessed from R's defaults, then CMIP and other common names, then units and standard names; checked at once |
 | Two screens: indices, or thresholds | "What to calculate": indices, thresholds file only, or thresholds file then indices (two jobs on the same files; the indices compute their own thresholds, as R's indices screen does) |
 | Thresholds file for the indices (`thresholdFiles`, several allowed) | "Read them from a thresholds file": one file, by path (local) or upload (hosted); refused when the data have a day in its base period, as `check_thresholds_file` (and R) require |

@@ -4,8 +4,10 @@ of its own, like a workspace (#289, the Grid boards):
 
 - ``gridded:start`` (``/gridded/``): Gridded, the browser's runs in a table
   (:func:`climpact_web.gridded.runs.entries`), New gridded run, and the sample grid.
-- ``gridded:new``: choose the netCDF files: by path on this computer (local mode, read
-  in place, with a folder browser), by upload (size-limited), or the sample grid.
+- ``gridded:new``: choose the netCDF files: on this computer from a folder listing that
+  shows each file's variables and dates, or by path and pattern (local mode, read in
+  place; :mod:`climpact_web.gridded.listing`), by upload (size-limited, hosted), or the
+  sample grid.
 - ``gridded:setup`` (``<run>/setup/``): what each file holds (variables, units,
   calendar, grid, dates); which variable is TX, TN and precipitation; what to calculate
   (indices, a thresholds file, or both) and the parameters, checked as they change and
@@ -52,7 +54,7 @@ from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.gridded import inspection, maps, runs
+from climpact_web.gridded import inspection, listing, maps, runs
 from climpact_web.gridded.forms import (
     MAX_FILES,
     MIN_BASE_DAYS,
@@ -66,6 +68,8 @@ from climpact_web.gridded.forms import (
     default_template,
     default_thresholds_name,
     expand,
+    expand_pattern,
+    has_pattern,
     path_lines,
 )
 from climpact_web.gridded.models import GriddedRun, Source
@@ -86,18 +90,6 @@ def gridded_enabled(view):
     @functools.wraps(view)
     def wrapper(request, *args, **kwargs):
         if not settings.GRIDDED_ENABLED:
-            raise Http404
-        return view(request, *args, **kwargs)
-
-    return wrapper
-
-
-def local_only(view):
-    """404 in hosted mode: paths on the server's disk are never offered there."""
-
-    @functools.wraps(view)
-    def wrapper(request, *args, **kwargs):
-        if settings.IS_HOSTED:
             raise Http404
         return view(request, *args, **kwargs)
 
@@ -133,102 +125,119 @@ def start(request):
 # ---- New run: the files ----------------------------------------------------------------------
 
 
-def browse_listing(folder: str | None) -> dict:
-    """A folder's subfolders and netCDF files, for the local file browser."""
-    path = expand(folder) if folder else Path.home()
-    if not path.is_absolute() or not path.is_dir():
-        path = Path.home()
-    path = path.resolve()
-    folders, files, error = [], [], ""
-    try:
-        entries = sorted(os.scandir(path), key=lambda e: e.name.lower())
-    except OSError:
-        entries, error = [], _("This folder cannot be read.")
-    for entry in entries:
-        if entry.name.startswith("."):
-            continue
-        try:
-            if entry.is_dir():
-                folders.append({"name": entry.name, "path": entry.path})
-            elif entry.is_file() and entry.name.lower().endswith((".nc", ".nc4", ".netcdf")):
-                files.append(
-                    {
-                        "name": entry.name,
-                        "path": entry.path,
-                        "size": inspection.human_size(entry.stat().st_size),
-                    }
-                )
-        except OSError:
-            continue
-    parent = str(path.parent) if path.parent != path else ""
-    return {
-        "folder": str(path),
-        "parent": parent,
-        "folders": folders,
-        "files": files,
-        "error": error,
-    }
+FOLDER_KEY = "gridded_folder"  # the session's last folder listed by the chooser (#292)
 
 
-def start_context(request, paths_form=None, upload_form=None, browse=None) -> dict:
+def chooser_folder(request, wanted: str | None, fallback: str | None = None) -> tuple[Path, str]:
+    """The folder the chooser lists: ``wanted`` when it is one, else ``fallback``, the
+    folder listed last in this session or the home folder; with an error when ``wanted``
+    is not a folder."""
+    error = ""
+    if wanted:
+        path = expand(wanted)
+        if path.is_absolute() and path.is_dir():
+            return path.resolve(), ""
+        error = _("There is no folder %(path)s.") % {"path": wanted}
+    for candidate in (fallback, request.session.get(FOLDER_KEY)):
+        if candidate and Path(candidate).is_absolute() and Path(candidate).is_dir():
+            return Path(candidate).resolve(), error
+    return Path.home().resolve(), error
+
+
+def chosen_paths(ticked: list[str], text: str) -> list[str]:
+    """The files chosen so far, for the line under the chooser: those ticked, then those
+    typed (patterns expanded), each once; paths that are not files left out quietly (the
+    form says why when the files are read)."""
+    out: list[str] = []
+    for line in [*ticked, *path_lines(text)]:
+        found = expand_pattern(line) if has_pattern(line) else [str(expand(line))]
+        for path in found:
+            if len(out) > MAX_FILES:
+                return out
+            if os.path.isabs(path) and os.path.isfile(path) and path not in out:
+                out.append(path)
+    return out
+
+
+def new_context(
+    request, data=None, paths_form=None, upload_form=None, folder=None, folder_error="", typed=None
+) -> dict:
+    """New gridded run (#292, the GridNew board). Locally: the folder listing (``folder``),
+    the files ticked so far (``data``, the form posted, kept across folders), the paths box
+    and what is chosen; ``paths_form`` with its errors once the files have been read."""
     local = not settings.IS_HOSTED
-    if paths_form is None and local:
-        paths_form = PathsForm()
-    if browse is None and local:
-        lines = path_lines(paths_form.data.get("paths", "")) if paths_form.is_bound else []
-        start_dir = str(expand(lines[-1]).parent) if lines else None
-        browse = browse_listing(start_dir)
-    return {
-        "paths_form": paths_form,
+    context = {
         "upload_form": upload_form or UploadForm(),
-        "browse": browse,
         "max_upload_mb": settings.GRIDDED_MAX_UPLOAD_MB,
+        "max_upload_bytes": settings.GRIDDED_MAX_UPLOAD_MB * 1024 * 1024,
         "max_files": MAX_FILES,
         "sample_name": SAMPLE_FILE,
+        "sample_size": (SAMPLE_DIR / SAMPLE_FILE).stat().st_size,
         "local": local,
     }
+    if not local:
+        return context
+    ticked = [p for p in data.getlist("file") if p] if data else []
+    text = data.get("paths", "") if data else ""
+    if folder is None:
+        folder, folder_error = chooser_folder(request, None)
+    request.session[FOLDER_KEY] = str(folder)
+    context.update(
+        paths_form=paths_form or PathsForm(),
+        paths_value=text,
+        browse=listing.listing(folder, ticked),
+        folder_value=typed if folder_error and typed else str(folder),
+        folder_error=folder_error,
+        chosen=listing.summary(chosen_paths(ticked, text)),
+    )
+    return context
 
 
 @gridded_enabled
 @require_http_methods(["GET", "HEAD", "POST"])
 def new(request):
-    """New gridded run: choose the files. Local mode: paths on this computer, with a
-    folder browser whose buttons post the same form (so it works without JavaScript; htmx
-    swaps only the chooser)."""
+    """New gridded run: choose the files. Hosted: an upload (posted to ``gridded:upload``).
+    Locally: a folder listing, each netCDF file with a checkbox and what its header says,
+    and a box for paths and patterns. The listing's folder links post the same form
+    (``action=browse:<folder>``; the folder field, ``action=open``), so it works without
+    JavaScript and keeps what is ticked; htmx swaps only the listing, and puts what is
+    chosen in the line under it as files are ticked (``?tick=1``)."""
     if request.method != "POST" or settings.IS_HOSTED:
         if request.method == "POST":
             return redirect("gridded:new")
-        return render(request, "gridded/new.html", start_context(request))
-    action = request.POST.get("action", "use")
-    data = request.POST.copy()
-    if action.startswith("add:"):
-        lines = path_lines(data.get("paths", ""))
-        new = action[4:]
-        if new not in lines:
-            lines.append(new)
-        data["paths"] = "\n".join(lines)
-        form = PathsForm(data)
-        context = start_context(request, form, browse=browse_listing(str(Path(new).parent)))
-        context["paths_form"] = PathsForm(initial={"paths": data["paths"]})
-        context["paths_value"] = data["paths"]
-        return render_chooser(request, context)
-    if action.startswith("browse:"):
-        form = PathsForm(initial={"paths": data.get("paths", "")})
-        context = start_context(request, form, browse=browse_listing(action[7:]))
-        context["paths_value"] = data.get("paths", "")
-        return render_chooser(request, context)
-    form = PathsForm(data)
-    if not form.is_valid():
-        context = start_context(request, form)
-        context["paths_value"] = data.get("paths", "")
+        folder = folder_error = None
+        if not settings.IS_HOSTED and request.GET.get("dir"):
+            folder, folder_error = chooser_folder(request, request.GET["dir"])
+        context = new_context(request, folder=folder, folder_error=folder_error or "")
         return render(request, "gridded/new.html", context)
-    run = create_run(request, Source.PATH, form.cleaned_data["paths"])
-    return redirect("gridded:setup", run_id=run.pk)
-
-
-def render_chooser(request, context):
-    template = "gridded/_chooser.html" if request.headers.get("HX-Request") else "gridded/new.html"
-    return render(request, template, context)
+    # htmx asks for what is chosen with ?tick=1 (an hx-vals would reach the listing's
+    # buttons too: htmx merges them from every ancestor).
+    action = "tick" if request.GET.get("tick") else request.POST.get("action", "use")
+    current = request.POST.get("current")
+    typed = None
+    if action.startswith("browse:"):
+        folder, error = chooser_folder(request, action[7:], current)
+    elif action == "open":
+        typed = request.POST.get("folder", "").strip()
+        folder, error = chooser_folder(request, typed, current)
+    else:
+        folder, error = chooser_folder(request, None, current)
+    htmx = request.headers.get("HX-Request")
+    form = None
+    if action == "use":
+        form = PathsForm(request.POST)
+        if form.is_valid():
+            run = create_run(request, Source.PATH, form.cleaned_data["paths"])
+            return redirect("gridded:setup", run_id=run.pk)
+        htmx = False  # the errors are shown with the whole page
+    context = new_context(
+        request, request.POST, form, folder=folder, folder_error=error, typed=typed
+    )
+    if htmx and action == "tick":
+        return render(request, "gridded/_chosen.html", context)
+    if htmx:
+        return render(request, "gridded/_listing.html", context)
+    return render(request, "gridded/new.html", context)
 
 
 def create_run(request, source: str, paths: list[str]) -> GriddedRun:
@@ -247,7 +256,7 @@ def upload(request):
     """Uploaded netCDF files, kept in the run's own folder."""
     form = UploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        return render(request, "gridded/new.html", start_context(request, upload_form=form))
+        return render(request, "gridded/new.html", new_context(request, upload_form=form))
     with transaction.atomic():
         run = GriddedRun(owner=owner_token(request), source=Source.UPLOAD)
         run.save()
@@ -292,15 +301,6 @@ def sample(request):
 def sample_file(request):
     path = SAMPLE_DIR / SAMPLE_FILE
     return FileResponse(path.open("rb"), as_attachment=True, filename=SAMPLE_FILE)
-
-
-@gridded_enabled
-@local_only
-@require_safe
-def browse(request):
-    """htmx: the folder browser on its own (New gridded run's chooser)."""
-    context = start_context(request, browse=browse_listing(request.GET.get("dir")))
-    return render(request, "gridded/_browser.html", context)
 
 
 # ---- Set-up ----------------------------------------------------------------------------------

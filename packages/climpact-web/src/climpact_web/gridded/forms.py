@@ -9,6 +9,7 @@ a folder to copy the results to."""
 
 from __future__ import annotations
 
+import glob
 import os
 import re
 from pathlib import Path
@@ -34,27 +35,53 @@ def path_lines(text: str) -> list[str]:
     return [line.strip() for line in (text or "").splitlines() if line.strip()]
 
 
-class PathsForm(forms.Form):
-    """Local mode: netCDF files on this computer, by path, read in place."""
+def has_pattern(line: str) -> bool:
+    return "*" in line or "?" in line
 
+
+def expand_pattern(line: str) -> list[str]:
+    """The files a ``*`` or ``?`` pattern matches, sorted (folders left out)."""
+    return sorted(p for p in glob.glob(str(expand(line))) if os.path.isfile(p))
+
+
+class PathsForm(forms.Form):
+    """Local mode: netCDF files on this computer, read in place: ticked in the folder
+    listing (``file``, #292), or typed, a path or a ``*`` and ``?`` pattern a line
+    (``paths``). Both together, in that order, each file once."""
+
+    file = forms.Field(required=False, widget=forms.MultipleHiddenInput)
     paths = forms.CharField(
-        label=_("netCDF files on this computer"),
-        help_text=_(
-            "One full path per line, e.g. /data/tasmax_day_1991-2010.nc. Use Browse to find "
-            "them. The files are read where they are; nothing is copied."
-        ),
+        label=_("Paths or patterns"),
+        required=False,
         widget=forms.Textarea(attrs={"rows": 3, "spellcheck": "false", "autocomplete": "off"}),
-        error_messages={"required": _("Enter the path of at least one netCDF file.")},
     )
 
-    def clean_paths(self) -> list[str]:
-        lines = path_lines(self.cleaned_data["paths"])
-        if not lines:
-            raise forms.ValidationError(_("Enter the path of at least one netCDF file."))
-        if len(lines) > MAX_FILES:
-            raise forms.ValidationError(_("Choose at most %(count)d files.") % {"count": MAX_FILES})
-        problems, out = [], []
+    def clean_file(self) -> list[str]:
+        return [p for p in (self.cleaned_data.get("file") or []) if p and p.strip()]
+
+    def clean(self):
+        cleaned = super().clean()
+        ticked = cleaned.get("file") or []
+        lines = path_lines(cleaned.get("paths", ""))
+        if not ticked and not lines:
+            raise forms.ValidationError(_("Tick at least one netCDF file, or enter its path."))
+        problems, candidates = [], list(ticked)
         for line in lines:
+            if not has_pattern(line):
+                candidates.append(line)
+            elif not expand(line).is_absolute():
+                problems.append(
+                    _("%(path)s: give the full path, starting at the top folder.") % {"path": line}
+                )
+            elif matches := expand_pattern(line):
+                candidates += matches
+            else:
+                problems.append(_("%(pattern)s matches no files.") % {"pattern": line})
+        candidates = list(dict.fromkeys(candidates))
+        if len(candidates) > MAX_FILES:
+            raise forms.ValidationError(_("Choose at most %(count)d files.") % {"count": MAX_FILES})
+        out = []
+        for line in candidates:
             path = expand(line)
             if not path.is_absolute():
                 problems.append(
@@ -64,7 +91,11 @@ class PathsForm(forms.Form):
                 problems.append(_("%(path)s: no such file.") % {"path": line})
             elif path.is_dir():
                 problems.append(
-                    _("%(path)s is a folder: choose the files in it with Browse.") % {"path": line}
+                    _(
+                        "%(path)s is a folder: open it in the list and tick its files, or "
+                        "give a pattern such as %(pattern)s."
+                    )
+                    % {"path": line, "pattern": os.path.join(line, "*.nc")}
                 )
             elif not os.access(path, os.R_OK):
                 problems.append(_("%(path)s cannot be read (permissions).") % {"path": line})
@@ -72,13 +103,12 @@ class PathsForm(forms.Form):
                 problems.append(_("%(path)s is not a netCDF file.") % {"path": line})
             else:
                 resolved = str(path.resolve())
-                if resolved in out:
-                    problems.append(_("%(path)s is listed twice.") % {"path": line})
-                else:
+                if resolved not in out:
                     out.append(resolved)
         if problems:
             raise forms.ValidationError(problems)
-        return out
+        cleaned["paths"] = out
+        return cleaned
 
 
 class UploadForm(forms.Form):

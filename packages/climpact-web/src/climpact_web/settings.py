@@ -269,6 +269,10 @@ GRIDDED_MAX_UPLOAD_MB = int(env("GRIDDED_MAX_UPLOAD_MB", "200"))
 GRIDDED_MAX_UPLOAD_BYTES = GRIDDED_MAX_UPLOAD_MB * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440  # Django's default: larger uploads go to a temp file
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440  # non-file form data
+# More files in one request than any form takes (a gridded run up to 200, #291; a batch up
+# to 500), so that the form says "Choose at most ..." instead of Django refusing the
+# request (its default is 100). The size of a request stays capped as above.
+DATA_UPLOAD_MAX_NUMBER_FILES = 1000
 
 # Security headers for both modes; HTTPS-only settings for hosted mode, which sits behind a
 # TLS-terminating proxy that sets X-Forwarded-Proto.

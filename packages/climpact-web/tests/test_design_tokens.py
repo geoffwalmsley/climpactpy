@@ -328,12 +328,12 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Inputs panel and its sheets, #198; 74,000 before the section header, one surface level
 # and the workspace header, #197; 71,000 before the colour roles and theme hues, #196)
 CSS_BUDGET = 142_000
-# gzipped: 22 KB before #242, 20.25 KB before #238, 19.25 KB before #233, 18.3 KB before
-# #264, 18 KB before
+# gzipped: 23.25 KB before #291 (the set-up page's Files table), 22 KB before #242,
+# 20.25 KB before #238, 19.25 KB before #233, 18.3 KB before #264, 18 KB before
 # #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before #227, 15.5 KB before #203, 15 KB
 # before #202, 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197, 13 KB before
 # #196
-CSS_GZIP_BUDGET = 23_250
+CSS_GZIP_BUDGET = 23_500
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

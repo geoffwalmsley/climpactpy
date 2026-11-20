@@ -454,6 +454,7 @@ def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: st
         "run": run,
         "form": form,
         "files": infos,
+        "file_groups": inspection.group_files(infos),
         "names": names,
         "problems": problems,
         "summary": summary,

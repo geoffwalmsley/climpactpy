@@ -505,7 +505,13 @@
   /* Phones (#203, #236): each row a block of two lines, the code, short name and
      sparkline, then the slope with its unit, its interval and significance; the header
      is a line of the column names that sort. The rows stay a table's rows to screen
-     readers. */
+     readers.
+
+     Each row is a wrapping line of its cells (#286), not a grid of fixed columns, so no
+     cell runs into another: the code, the name (ending in an ellipsis) and the
+     sparkline, a break, then the slope at a fixed width (the intervals line up), its
+     interval and the significance at the line's end. What does not fit wraps whole to a
+     third line: at 320px, the significance after a long slope and interval. */
   @media (max-width: 40rem) {
     .indices-table,
     .indices-table thead,
@@ -533,23 +539,29 @@
     }
 
     .indices-table tbody tr:not([hidden]) {
-      display: grid;
-      grid-template-areas:
-        "code name name spark"
-        "slope slope interval sig";
-      grid-template-columns: 5.25rem 4.5rem minmax(0, 1fr) 4.25rem;
-      gap: --spacing(0.5) --spacing(2);
-      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: --spacing(0.5) --spacing(1.5);
+      align-items: baseline;
       padding: --spacing(2) --spacing(2.5);
       border-block-end: 1px solid var(--color-border);
     }
 
+    /* The break between the two lines: a line of its own, of no height. */
+    .indices-table tbody tr:not([hidden])::after {
+      flex-basis: 100%;
+      order: 4;
+      content: "";
+    }
+
     .indices-table tbody :is(th, td, .num),
     .indices-table tbody :is(th, td):first-child {
+      flex: none;
       block-size: auto;
       padding: 0;
       border: 0;
       text-align: start;
+      white-space: nowrap;
     }
 
     .indices-table tbody tr.is-selected {
@@ -564,12 +576,43 @@
       box-shadow: none;
     }
 
-    .indices-table tbody th { grid-area: code; }
-    .indices-table tbody td:nth-of-type(1) { grid-area: name; max-inline-size: none; }
-    .indices-table tbody td:nth-of-type(2) { grid-area: slope; }
-    .indices-table tbody td:nth-of-type(3) { grid-area: interval; }
-    .indices-table tbody td:nth-of-type(4) { grid-area: sig; }
-    .indices-table tbody td:nth-of-type(5) { grid-area: spark; }
+    .indices-table tbody th {
+      order: 1;
+      min-inline-size: 5.5rem;
+    }
+
+    .indices-table tbody .indices-table__name {
+      flex: 1 1 0;
+      order: 2;
+      min-inline-size: 0;
+      max-inline-size: none;
+    }
+
+    .indices-table tbody .indices-table__spark {
+      align-self: center;
+      order: 3;
+    }
+
+    .indices-table tbody .indices-table__slope {
+      order: 5;
+      min-inline-size: 7.75rem;
+    }
+
+    .indices-table tbody .indices-table__muted { order: 6; }
+
+    .indices-table tbody .indices-table__sig {
+      order: 7;
+      margin-inline-start: auto;
+    }
+
+    /* "yes" on the line's baseline, not the dot's edge. */
+    .indices-table tbody .indices-table__yes {
+      align-items: baseline;
+    }
+
+    .indices-table tbody .indices-table__yes .hue-dot {
+      align-self: center;
+    }
 
     .indices-table tbody .indices-table__spark,
     .indices-table tbody .indices-table__spark .spark {

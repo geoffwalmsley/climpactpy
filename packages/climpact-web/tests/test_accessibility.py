@@ -1850,6 +1850,86 @@ def test_indices_table_and_detail_by_keyboard(chrome, site):
     set_mode(c)
 
 
+# What overlaps in the Indices' rows (#286): each cell's content box (its visible text,
+# sparkline and dots, so text that runs out of its cell counts; not the screen-reader
+# text) against the others' and the row's. The name ends in an ellipsis by design, so its
+# cell's box counts instead.
+ROW_OVERLAPS = """
+(function () {
+  var bad = [];
+  function box(el) {
+    if (el.classList.contains('indices-table__name')) return el.getBoundingClientRect();
+    var rects = [], walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), n;
+    while ((n = walk.nextNode())) {
+      if (!n.textContent.trim() || n.parentElement.closest('.sr-only')) continue;
+      var r = document.createRange(); r.selectNodeContents(n);
+      rects.push(r.getBoundingClientRect());
+    }
+    el.querySelectorAll('svg, .hue-dot').forEach(function (s) {
+      rects.push(s.getBoundingClientRect());
+    });
+    if (!rects.length) return {width: 0, height: 0};
+    return {left: Math.min(...rects.map(function (r) { return r.left; })),
+            right: Math.max(...rects.map(function (r) { return r.right; })),
+            top: Math.min(...rects.map(function (r) { return r.top; })),
+            bottom: Math.max(...rects.map(function (r) { return r.bottom; })),
+            width: 1, height: 1};
+  }
+  var rows = document.querySelectorAll('[data-results-table] tbody tr:not([hidden])');
+  rows.forEach(function (tr) {
+    var row = tr.getBoundingClientRect();
+    var cells = [...tr.children].map(function (el) { return [el, box(el)]; })
+      .filter(function (c) { return c[1].width > 0 && c[1].height > 0; });
+    cells.forEach(function (a, i) {
+      var r = a[1], what = tr.dataset.code + ' ' + a[0].className;
+      if (r.left < row.left - 0.5 || r.right > row.right + 0.5) bad.push(what + ': out of the row');
+      var name = a[0].classList.contains('indices-table__name');
+      if (!name && a[0].scrollWidth > a[0].clientWidth + 1) bad.push(what + ': clipped');
+      cells.slice(i + 1).forEach(function (b) {
+        var s = b[1];
+        if (r.left < s.right - 0.5 && s.left < r.right - 0.5 && r.top < s.bottom - 0.5
+            && s.top < r.bottom - 0.5)
+          bad.push(what + ' / ' + b[0].className);
+      });
+    });
+  });
+  return bad;
+})()
+"""
+
+# The longest a row's numbers get (#286): a slope of six characters in degree-days, an
+# interval of two negative values with one place each.
+LONGEST = """
+(function () {
+  var tr = document.querySelector('[data-results-table] tbody tr:not([hidden])');
+  var slope = tr.querySelector('.indices-table__slope');
+  slope.firstChild.textContent = '\\u2212152.6\\u00a0';
+  slope.querySelector('.indices-table__unit').textContent = 'degree-days';
+  tr.querySelector('.indices-table__muted').textContent = '\\u2212152.6 to \\u221285.0';
+})()
+"""
+
+
+def test_indices_phone_rows_keep_their_cells_apart(chrome, site):
+    """#286: at 320 and 375 px, in light and dark, no cell of an Indices row overlaps
+    another, runs out of the row or is clipped (the name ends in an ellipsis): the
+    sparkline keeps out of the interval and the significance, also with the longest
+    numbers (a slope in degree-days, an interval of two negative values)."""
+    c = chrome
+    try:
+        for width in (320, 375):
+            for scheme in ("light", "dark"):
+                set_mode(c, width, scheme)
+                c.navigate(site["station results"])
+                rows = "[data-results-table] tbody tr:not([hidden])"
+                assert c.evaluate(f"document.querySelectorAll('{rows}').length") == 80
+                assert c.evaluate(ROW_OVERLAPS) == [], (width, scheme)
+                c.evaluate(LONGEST)
+                assert c.evaluate(ROW_OVERLAPS) == [], (width, scheme, "longest")
+    finally:
+        set_mode(c)
+
+
 def test_quality_list_and_detail_by_keyboard(chrome, site):
     """#202, #264: the rail's checks are links, Tab moves between them and Enter shows
     the check's detail in place, marks it, puts ?show= in the address and announces the

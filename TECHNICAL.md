@@ -4368,7 +4368,7 @@ a comment listing its parameters. Labels are passed in already translated
 | `table` | the data table (#227, `table-wrap--data`, `table--data`): one frame (`border`, `--radius-sm`) on the surface, rows 32px high and one line each, a sticky header on the sunken tint over a `border-strong` rule; caption, `numeric` columns at the end and `code` columns, both mono with tabular figures; `selected` marks a row `aria-current="true"` (selected tint, ink edge on its first cell); a focusable scrolling region for wide tables, empty text. Page tables still use the plain `.table` until their tickets move them |
 | `context_bar` | the context bar (#227) under the header on a station's pages, drawn by `stations/_workspace.html` (see [Single-station steps](#single-station-steps)): an optional breadcrumb with the previous and next item (`breadcrumb`, `step_previous`, `step_next`: an index's page passes the station / Indices and the previous and next index, `{code, name}` named codes first, #237; a station's pages in a workspace of several stations the workspace / "Station 2 of 6" and the previous and next station, `workspace.station_nav`, #234; the workspace's own pages draw it through `stations/_space_bar.html`), the title (`heading` makes it the h1; `title_template` a title of its own, an index's h1 and theme pill), `lead_template` (a line under it, an index's definition), the provenance line (`provenance`: `{text, phone}` parts, mono with tabular figures), the page's `actions` and the phone's ⋯ menu, the tabs (`workspace_tabs`), and `below` (the Inputs bar). `flow` keeps it across the window but in the page's flow, not sticky (an index's page, which has no tabs); `static` shows it in place, not sticky, for `/patterns/` |
 | `tabs` | links to panels without JS (all panels show); `ui.js` makes an ARIA tablist (arrow keys mirrored for right-to-left, Home, End) |
-| `workspace_tabs` | a station's sections, Quality, Indices and Files (#179; Data until #198, Results until #236), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
+| `workspace_tabs` | a station's sections, Quality, Indices and Files (#179; Data until #198, Results until #236), from `stations.workspace.sections`: links in a `nav` named "Station sections", the current one `aria-current="page"` (not an ARIA tablist: each tab is its own page, and Tab moves between them), with the `tabs` component's look (`.tabs__list`, `.tabs__tab`). Each has a status mark (`status-dot--<state>`): an icon of its own shape (`check-circle`, `warning`, `clock`, `refresh`, `circle`, `lock`) and a word, shown for "Needs attention", "Out of date", "Running" and "Checking…", screen-reader only for the others. Indices' tab says "No indices" (`warning`, in the warning colour, the word shown; state `empty`) instead of the green Done when the run shown made no index table (`workspace.made_no_indices`, #298). Quality's tab shows the checks' verdict instead of "Done" (#222): "Ready" (`check-circle`), "Usable" (`warning`) or "Fix first" (`error`), the verdict band's icons, as a small pill in the verdict's status colour on its soft tint, followed by the count of values that look wrong ("Usable · 21"; `Section.count`, grouped by `numbers.grouped`, none when nothing looks wrong). The count is `aria-hidden` and read as ", 21 values look wrong" (`Section.count_label`). Under 40rem the pill is its icon alone (`max-sm:sr-only` on the word, `max-sm:hidden` on the count), so the three tabs stay on one line at 320px. A section not available yet is a `span`, not a link. The section pages' h1 is the station's name (`stations/_workspace.html`), their `<title>` the section's |
 | `stale_banner` | results kept on the page after an input changed (#179): an `alert` (info with the new run's progress inside while it is on the way, warning with one action otherwise) saying what changed; the results below sit in `.stale-content` (a dashed warning edge, sparklines greyed, text at full contrast so the contrast checks still hold) |
 | `progress`, `stages` | native `<progress>` (indeterminate when no value), a politely announced note, and the list of job stages (done, current, pending, failed) for #73 |
 | `skeleton`, `empty_state`, `disclosure` | loading placeholder (`aria-busy`), empty state with an action (a link, or an Inputs sheet with `action_sheet`; its title an h3, or `level`), a `<details>` that opens in place (the help topics of #81 build on it; see [Help](#help)) |
@@ -5852,7 +5852,9 @@ likely reason: a variable the file has none of, a base period with too little da
 the percentiles, or else the missing-data rules. A run that wrote no index table at all
 (a station whose TX, TN and PR are all missing, #268) has no rail, table or pane: above
 that list the page shows the `empty_state` "No index to show", whose "Replace the file"
-opens the File sheet, and `dashboard_context` selects no row. The context bar carries the page's
+opens the File sheet, and `dashboard_context` selects no row. Its Indices tab, its row of
+the workspace overview and the run status line say "No indices" instead of Done (#298,
+`workspace.made_no_indices`: the run's `RunSource.has_tables` is false). The context bar carries the page's
 two actions (#200, the Results mockup): "Compare with sector data" (secondary) and
 "Download all (zip, *size*)" (primary); without a zip, "All files and the report" (the
 Files page) takes the primary's place. The Files tab beside Indices replaces #173's
@@ -6352,7 +6354,11 @@ the batch steps.
   The batch's zip is no longer offered here (#239): Export ▾ and Files have the
   workspace's files, made from whatever each station shows.
   Red when one failed: it is named with its error, and Workspace settings is offered.
-  Stations the batch check left out (`not_run`) are not counted in the total.
+  Stations the batch check left out (`not_run`) are not counted in the total. A station
+  whose run made no index table (#298) has finished but is not counted as calculated:
+  "1 of 2 stations calculated in 16 s. Empty Hill has no indices: every value is
+  missing." (the reason when the job's `skipped` lists the indices; "2 stations have no
+  indices; their rows say how to fix them." for several), still quiet unless one failed.
 - **The Stations table** (`overview.rows`), in the order the stations were added
   (`overview.ordered`: `created_at`, then name): the name (a link to the station's
   furthest section, `workspace.home_url`), coordinates, years, the share of all values
@@ -6362,7 +6368,11 @@ the batch steps.
   tab's state; a station's own run that is not in use yet, before "Go to indices", is not
   shown, as its Indices are locked: "–", #277; "Out of date" instead of Done when the
   results shown are from before a change, `workspace.run_changes`, its replacement
-  cancelled, #279) with its fix ("Fix the file" for a station left out without a usable file,
+  cancelled, #279; "No indices" when the run shown made no index table,
+  `workspace.made_no_indices`, every index skipped as for a file whose TX, TN and PR are
+  all missing, muted as "Not run" is, `Indices.empty` and `data-indices="empty"`, #298)
+  with its fix ("Replace the file" for a station with no indices, the File sheet's page,
+  `workspace.sheet_url`; "Fix the file" for a station left out without a usable file,
   "Fix quality first" for one not run whose verdict is Fix first, "Change base period"
   when a failure names the base period), and how many of its indices have a significant
   trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'

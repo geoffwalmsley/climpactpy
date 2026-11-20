@@ -1,0 +1,12 @@
+{% load i18n %}{% comment %}
+A finished gridded run's Map tab (#295): the index rail, the map and the cell pane; why
+the file could not be read; or, for a thresholds-only run, where its file is. Included by
+gridded/run.html and, when the run finishes, by gridded/_run_finished.html.
+Context: run, map_state (and the rest of gridded.map_page.context), map_error, run_done.
+{% endcomment %}{% if map_state %}
+{% include "gridded/_map.html" %}
+{% elif map_error %}
+{% include "components/alert.html" with kind="error" message=map_error title="" %}
+{% elif run_done %}
+<p class="m-0 text-sm text-text-muted" id="gridded-thresholds-only">{% url 'gridded:files' run.pk as files_url %}{% blocktranslate trimmed %}This run made a thresholds file only, so there is no map. The file is on <a href="{{ files_url }}">Files</a>.{% endblocktranslate %}</p>
+{% endif %}

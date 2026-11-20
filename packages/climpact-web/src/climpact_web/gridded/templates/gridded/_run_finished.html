@@ -1,0 +1,14 @@
+{% load i18n %}{% comment %}
+The answer to the stages' poll (gridded:progress, #294) once the run has finished: the
+run's bar brought up to date out of band (gridded/_run_bar_update.html), then, in the
+stages' place, with no reload: an empty map that js/gridded-map.js fills at once with the
+map part (X-Climpact-Part: map; htmx drops the map's data <script>, so the map does not
+come in this answer), or the thresholds file's note. A new start's results replace the map
+or note shown (``replace_map``, "map" or "note": deleted out of band first, which htmx
+does before the main swap). Its last line says so through #announcer.
+Context: run, run_done, has_map, bar_update, replace_map and the bar's context.
+{% endcomment %}{% if bar_update %}{% include "gridded/_run_bar_update.html" %}{% endif %}
+{% if replace_map == "map" %}<div hx-swap-oob="delete:#gridded-map"></div>{% elif replace_map == "note" %}<div hx-swap-oob="delete:#gridded-thresholds-only"></div>{% endif %}
+{% if has_map %}<div class="gmap-layout" id="gridded-map" data-gridded-map data-gmap-load aria-busy="true"></div>
+{% else %}{% include "gridded/_run_result.html" %}{% endif %}
+<p class="sr-only" data-announce="now">{% if has_map %}{% translate "The run has finished: its map is shown." %}{% else %}{% translate "The run has finished." %}{% endif %}</p>

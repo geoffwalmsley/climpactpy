@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% load i18n static ui charts %}{% comment %}
 A gridded run's Map tab (#289; the address of the run itself): the run's context bar, then
-the jobs while they run, or why one failed (gridded/_progress.html, until the stages of
-#294), and once they have finished the index rail, the map and the cell pane
-(gridded/_map.html, #295). A thresholds-only run has no map: it says where its file is.
-Context from views.run_page.
+while the run calculates, or after it failed or was cancelled, its status line and stages
+(gridded/_stages.html, #294), which the map takes the place of when it finishes; once the
+run has finished, the index rail, the map and the cell pane (gridded/_map.html, #295),
+under the stages of a new start that will replace them (#293). A thresholds-only run has
+no map: it says where its file is. Context from views.run_page.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=run_name %}Map: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}{% chart_scripts %}<script src="{% static 'climpact_web/js/gridded-map.js' %}" defer></script>{% endblock %}
@@ -12,14 +13,8 @@ Context from views.run_page.
 <div class="stack stack--lg station-page gridded-run">
   {% include "gridded/_run_bar.html" %}
 
-  {% if not all_done %}{% include "gridded/_progress.html" %}{% endif %}
+  {% if progress %}{% include "gridded/_stages.html" %}{% endif %}
 
-  {% if map_state %}
-  {% include "gridded/_map.html" %}
-  {% elif map_error %}
-  {% include "components/alert.html" with kind="error" message=map_error title="" %}
-  {% elif all_done %}
-  <p class="m-0 text-sm text-text-muted">{% url 'gridded:files' run.pk as files_url %}{% blocktranslate trimmed %}This run made a thresholds file only, so there is no map. The file is on <a href="{{ files_url }}">Files</a>.{% endblocktranslate %}</p>
-  {% endif %}
+  {% if not progress or progress.again %}{% include "gridded/_run_result.html" %}{% endif %}
 </div>
 {% endblock %}

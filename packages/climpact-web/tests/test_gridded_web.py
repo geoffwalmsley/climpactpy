@@ -1060,7 +1060,7 @@ def test_sample_run_end_to_end(client, tmp_path):
     )  # a small grid: the smallest default
 
     html = client.get(f"/gridded/{run.pk}/").content.decode()
-    assert "Waiting to start" in html and "hx-get" in html
+    assert "Waiting to start." in html and "hx-get" in html and 'id="gridded-stages"' in html
     assert ">calculating</span>" in html and "Run again with other files" not in html
     html = client.get(f"/gridded/{run.pk}/files/").content.decode()
     assert "The files are listed here once the run has finished." in html
@@ -1079,11 +1079,15 @@ def test_sample_run_end_to_end(client, tmp_path):
         names + run.thresholds_job.result["files"]
     )
 
-    # The progress fragment asks for a reload once everything has finished.
+    # Once everything has finished, the stages' poll puts the map in their place, with
+    # the run's bar brought up to date out of band (#294): no reload.
     response = client.get(f"/gridded/{run.pk}/progress?was_active=1", HTTP_HX_REQUEST="true")
-    assert response["HX-Refresh"] == "true"
-    html = client.get(f"/gridded/{run.pk}/progress").content.decode()
-    assert "hx-get" not in html and f'on <a href="/gridded/{run.pk}/files/">Files</a>' in html
+    assert "HX-Refresh" not in response
+    html = response.content.decode()
+    assert 'id="gridded-map"' in html and "gridded-stages" not in html and "hx-get" not in html
+    assert 'hx-swap-oob="innerHTML:[data-context-bar] .context-bar__actions"' in html
+    assert "Download all (zip, " in html and ">5 indices, 9 files<" in html
+    assert 'data-announce="now">The run has finished: its map is shown.' in html
 
     # The run's context bar and its Map tab.
     html = client.get(f"/gridded/{run.pk}/").content.decode()
@@ -1098,7 +1102,7 @@ def test_sample_run_end_to_end(client, tmp_path):
         assert f">{part}" in html, part
     assert "kept until" not in html  # a local run stays until forgotten (#301)
     assert "Forget this run" in html and "Run again with other files" in html
-    assert "Download all (zip, " in html and "gridded-progress" not in html
+    assert "Download all (zip, " in html and "gridded-stages" not in html
     assert f'href="/gridded/{run.pk}/" data-tab="map" aria-current="page"' in html
     assert f'href="/gridded/{run.pk}/files/" data-tab="files">' in html
     assert f'href="/gridded/{run.pk}/setup/" data-tab="setup">' in html
@@ -1323,7 +1327,8 @@ def test_job_failure_is_shown(client):
     (job,) = run_jobs()
     assert job.status == Status.FAILED
     html = client.get(f"/gridded/{run.pk}/").content.decode()
-    assert "The calculation failed." in html and "/no/such/file.nc" in html and "Try again" in html
+    assert "The run failed in the check stage." in html and "/no/such/file.nc" in html
+    assert f'href="/gridded/{run.pk}/setup/#files-title"' in html  # what to change (#294)
     assert "Run again with other files" in html and "Download all" not in html
     html = client.get(f"/gridded/{run.pk}/files/").content.decode()
     assert "The run did not finish, so it has no files." in html

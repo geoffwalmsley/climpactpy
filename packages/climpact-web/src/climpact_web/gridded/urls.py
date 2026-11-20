@@ -18,6 +18,7 @@ urlpatterns = [
     path("<uuid:run_id>/setup/header/<int:number>/", views.file_header, name="file_header"),
     path("<uuid:run_id>/results", views.results, name="results"),
     path("<uuid:run_id>/progress", views.progress, name="progress"),
+    path("<uuid:run_id>/cancel", views.cancel, name="cancel"),
     path("<uuid:run_id>/map.png", views.map_png, name="map_png"),
     path("<uuid:run_id>/map.f32", views.map_values, name="map_values"),
     path("<uuid:run_id>/map.csv", views.map_csv, name="map_csv"),

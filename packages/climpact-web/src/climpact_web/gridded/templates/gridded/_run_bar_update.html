@@ -1,0 +1,8 @@
+{% comment %}
+The run's bar brought up to date once its calculation stops (#294; gridded:progress): the
+provenance line (as components/context_bar.html draws it, with Rename and Forget this
+run) and the actions, in the bar and in its ⋯ menu, swapped out of band by selector, so
+the bar and its script stay. Context: views.bar_context.
+{% endcomment %}<div hx-swap-oob="innerHTML:[data-context-bar] .context-bar__provenance">{% for part in run_provenance %}<span{% if not part.phone %} class="context-bar__wide"{% endif %}>{{ part.text }}</span>{% endfor %}{% include "gridded/_run_links.html" %}</div>
+<div hx-swap-oob="innerHTML:[data-context-bar] .context-bar__actions">{% include "gridded/_run_actions.html" %}</div>
+<div hx-swap-oob="innerHTML:[data-context-bar] .page-menu__panel">{% include "gridded/_run_actions.html" %}</div>

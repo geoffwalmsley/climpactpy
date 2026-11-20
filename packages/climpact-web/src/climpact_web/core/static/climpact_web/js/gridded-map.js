@@ -13,6 +13,8 @@
  *   pane follows after a pause (Enter at once). The pane alone is swapped
  *   (X-Climpact-Part: pane), and the address, links and forms take the new cell.
  * - Download ▾ closes on Escape and on a click elsewhere.
+ * - When the run finishes, the stages' poll (#294) puts an empty map in their place
+ *   (data-gmap-load), which is filled at once with the map part, as a link would.
  */
 (function () {
   "use strict";
@@ -345,6 +347,13 @@
 
   window.addEventListener("popstate", function () {
     if (root()) navigate(location.href, { back: true });
+  });
+
+  doc.addEventListener("htmx:load", function (event) {
+    var el = event.target;
+    if (el.id !== "gridded-map") return;
+    if (el.hasAttribute("data-gmap-load")) navigate(location.href, { back: true });
+    else init(el);
   });
 
   init(root());

@@ -1,0 +1,33 @@
+{% load i18n %}{% comment %}
+The stages of a gridded run (#294, gridded/_stages.html): a framed data table, one row a
+stage (its mark, its name and one line on what it does, State with a bar on the running
+one, Time so far), then on failure what to change. The mark repeats the State column's
+words, so it is hidden from screen readers. Its scroll region is "Stages table", a name
+of its own beside the section's (axe's landmark-unique). Parameters: run, progress.
+{% endcomment %}<div class="table-wrap table-wrap--data" role="region" aria-label="{% translate 'Stages table' %}" tabindex="0">
+  <table class="table table--data">
+    <thead>
+      <tr>
+        <th scope="col" class="gridded-stages__stage-head">{% translate "Stage" %}</th>
+        <th scope="col" class="gridded-stages__state">{% translate "State" %}</th>
+        <th scope="col" class="num">{% translate "Time" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in progress.rows %}
+      <tr data-stage="{{ row.key }}" data-state="{{ row.state }}">
+        <th scope="row" class="gridded-stages__stage"><span class="gridded-stages__what"><span class="gridded-stages__mark" aria-hidden="true">{{ row.mark }}</span><span>{{ row.title }}</span><span class="gridded-stages__hint">{{ row.text }}</span></span></th>
+        <td class="gridded-stages__state"><span class="gridded-stages__state-text">{{ row.label }}</span>{% if row.state == "running" and row.percent is not None %}<progress class="meter gridded-stages__meter" max="100" value="{{ row.percent }}" aria-hidden="true"></progress>{% endif %}</td>
+        <td class="num code">{{ row.time|default:"–" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if progress.failure %}{% with f=progress.failure %}
+<div class="gridded-stages__failure">
+  <p class="m-0"><strong class="gridded-stages__error">{{ f.error }}</strong>{% if f.detail %} {{ f.detail }}{% endif %}</p>
+  <p class="m-0">{{ f.fix }}{% if f.kept %} {{ f.kept }}{% endif %}</p>
+  <p class="m-0 flex flex-wrap gap-2.5">{% if f.href %}{% include "components/button.html" with label=f.button href=f.href size="sm" %}{% endif %}{% translate "The run’s log" as log_label %}{% include "components/button.html" with label=log_label href=f.log variant="secondary" size="sm" %}</p>
+</div>
+{% endwith %}{% endif %}

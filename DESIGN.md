@@ -417,12 +417,15 @@ strips, worklist and detail pane.
     thresholds file it read, "From <run>"), Calculates ("55 indices", "Thresholds file
     only"), State ("Not started", or "Not started: precipitation units" in danger;
     "Calculating · 38%" with a small bar; "Finished 18 Nov, 21 min"; "Failed" in
-    danger), Kept until ("–" while it calculates); a line under it on how long runs are
-    kept. New gridded run (primary) at the title's end; with no runs, one line and the
-    sample grid in the table's place; three boxes under it (stations or a grid,
-    scenarios, the sample). Runs are not listed on Workspaces, whose note links here.
-    Runs are kept `JOB_RETENTION_DAYS` after their last change in both modes (**Target:**
-    kept on the computer until forgotten, as the board's note says, #301).
+    danger), Kept until ("–" while it calculates) where runs expire; a line under it on
+    how long runs are kept. New gridded run (primary) at the title's end; with no runs,
+    one line and the sample grid in the table's place; three boxes under it (stations or
+    a grid, scenarios, the sample). Runs are not listed on Workspaces, whose note links
+    here. Runs are kept as workspaces are (#301): hosted, `JOB_RETENTION_DAYS` after their
+    last change ("Runs are kept in this browser for 7 days after their last change.
+    Download what you want to keep."); locally, on the computer until forgotten, so Kept
+    until is left out, as Workspaces' "Deleted on", and the line says "Runs stay on this
+    computer until you forget them; files read in place are never touched."
   - **Before a run,** two pages with a breadcrumb ("Gridded / New run" and "Gridded /
     New run / set-up", #289), no stepper; the set-up page's h1 is the run's name, with
     Rename. New run (#292, `/gridded/new/`) is a narrow page (55rem, centred): the
@@ -457,7 +460,8 @@ strips, worklist and detail pane.
     own bar, sticky as a station's: "Gridded / run", the run's name as the h1 (named
     from its files until renamed: "era5 SEA 0.25°, 1961–2020", the sample "Sample
     grid"), the mono provenance line (grid and cells with data, period and calendar,
-    base period, indices and files or "calculating", version, kept until; then Rename
+    base period, indices and files or "calculating", version, kept until (where runs
+    expire); then Rename
     and Forget this run, at every width), "Run again with other files" once no job runs
     and Download all (zip, size) once all have finished at the title's end; then the
     tabs **Map** (`/gridded/<run>/`), **Files** (`files/`) and **Set-up** (`setup/`).

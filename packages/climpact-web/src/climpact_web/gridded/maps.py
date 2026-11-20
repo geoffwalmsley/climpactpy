@@ -30,7 +30,7 @@ from pathlib import Path
 import numpy as np
 
 from climpact_web.core import numbers
-from climpact_web.gridded import outline
+from climpact_web.gridded import netcdf, outline
 
 FILE_RE = re.compile(r"^(?P<name>.+?)_(?P<freq>ANN|MON|DAY)_")
 SKIP_VARIABLES = {"time", "time_bnds", "time_bounds", "bnds", "scale", "nb2"}
@@ -174,11 +174,10 @@ def data_variables(nc) -> list[str]:
 
 def open_layer(path: Path, rel: str, variable: str | None = None) -> Layer:
     """The layer of ``variable`` (default: the file's first index variable) in ``path``."""
-    import netCDF4
 
     m = FILE_RE.match(path.name)
     freq = m["freq"] if m else "ANN"
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         variables = index_variables(nc)
         if not variables:
             raise ValueError("no index variable")
@@ -239,7 +238,6 @@ def _key(path: Path, variable: str, scale: int) -> tuple:
 def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | None:
     """The layer's values ``(time, y, x)`` as float32 (NaN where a cell has no value),
     read once and kept (see ``CACHE_BYTES``); None when the variable is too large."""
-    import netCDF4
 
     key = _key(path, layer.variable, scale if layer.scales else 0)
     with _cache_lock:
@@ -250,7 +248,7 @@ def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | No
         with _cache_lock:
             if key in _cache:
                 return _cache[key]
-        with netCDF4.Dataset(path) as nc:
+        with netcdf.dataset(path) as nc:
             var = nc.variables[layer.variable]
             shape = var.shape[1:] if layer.scales else var.shape
             if int(np.prod(shape)) * 4 > CACHE_BYTES:
@@ -274,12 +272,11 @@ def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | No
 def grid_values(path: Path, layer: Layer, t: int, scale: int = 0) -> np.ndarray:
     """The ``(y, x)`` values of the layer at time step ``t`` (and SPI/SPEI scale), in the
     file's order."""
-    import netCDF4
 
     whole = variable_values(path, layer, scale)
     if whole is not None:
         return whole[t]
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         var = nc.variables[layer.variable]
         var.set_auto_mask(True)
         if layer.scales:
@@ -303,12 +300,11 @@ def last_step_with_values(path: Path, layer: Layer, scale: int = 0, month: int |
 
 def cell_series(path: Path, layer: Layer, y: int, x: int, scale: int = 0) -> np.ndarray:
     """The series of the file's cell ``(y, x)``, as float64."""
-    import netCDF4
 
     whole = variable_values(path, layer, scale)
     if whole is not None:
         return whole[:, y, x].astype(float)
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         var = nc.variables[layer.variable]
         var.set_auto_mask(True)
         if layer.scales:

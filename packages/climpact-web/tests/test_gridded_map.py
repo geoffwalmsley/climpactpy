@@ -319,3 +319,70 @@ def test_a_day_of_year_file_and_a_year_with_no_value(client):
     assert '<span class="gmap-stepper__label" aria-live="polite">2002</span>' in html
     html = client.get(f"/gridded/{run.pk}/", {"index": "su", "year": 2003}).content.decode()
     assert "No cell has a value in 2003." in html and "ramp-warm" in html
+
+
+# ---- Several threads at once (#295's CI failure) ------------------------------------------------
+
+
+def test_every_netcdf_read_of_the_map_holds_the_lock(client, monkeypatch):
+    """HDF5 in the netCDF4 wheels is not thread-safe, and the server answers on several
+    threads: every file the Map's requests open is opened holding the one lock."""
+    from climpact_web.gridded import netcdf
+
+    run = finished_run(client, {
+        "txx_ANN_m_e_r_2001-2003.nc": write_index,
+        "su_ANN_m_e_r_2001-2003.nc": lambda p: write_index(p, "su", units="days"),
+    })  # fmt: skip
+    maps._cache.clear()
+    opened = []
+    real = netCDF4.Dataset
+
+    def watched(*args, **kwargs):
+        opened.append(netcdf.LOCK._is_owned())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(netCDF4, "Dataset", watched)
+    for url in ("", "?index=su", "map.png?index=su", "map.f32", "map.csv", "series.csv",
+                "map.png?download=1", "files/"):  # fmt: skip
+        assert client.get(f"/gridded/{run.pk}/{url}").status_code == 200, url
+    assert len(opened) >= 8 and all(opened)
+
+
+def test_map_reads_in_parallel(tmp_path):
+    """What the Map's requests read (a layer, a year's values, a cell's series, the
+    breaks, the run's cell count, a file's description), from eight threads at once with
+    cold caches, as the server's threads ask for the page, its PNGs, values and CSVs
+    together: every read succeeds and gives the file's values. (Without the lock this
+    failed about one run in eight with "NetCDF: Not a valid ID".)"""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from climpact_web.gridded import inspection, runs
+
+    paths = []
+    for name in ("txx", "tnn", "txm"):
+        path = tmp_path / f"{name}_ANN_m_e_r_2001-2003.nc"
+        write_index(path, name, ny=40, nx=50)
+        paths.append(path)
+    expected = np.arange(3 * 40 * 50, dtype=np.float32).reshape(3, 40, 50)
+
+    def read(i: int) -> bool:
+        path = paths[i % 3]
+        layer = maps.open_layer(path, path.name)
+        values = maps.grid_values(path, layer, i % 3)
+        series = maps.cell_series(path, layer, i % 40, i % 50)
+        edges = maps.edges_for(path, layer, "temp")
+        cells = runs.count_cells(path)
+        info = inspection.inspect_file(path)
+        variables = map_page._variables(path)
+        return (
+            np.array_equal(values, expected[i % 3])
+            and np.array_equal(series, expected[:, i % 40, i % 50])
+            and edges is not None and cells == 2000 and info.ny == 40
+            and variables[0][0] == layer.variable
+        )  # fmt: skip
+
+    for _ in range(5):
+        maps._cache.clear()
+        maps._edges.clear()
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            assert all(pool.map(read, range(48)))

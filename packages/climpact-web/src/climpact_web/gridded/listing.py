@@ -17,7 +17,7 @@ from pathlib import Path
 
 from django.utils.translation import gettext as _
 
-from climpact_web.gridded import inspection
+from climpact_web.gridded import inspection, netcdf
 
 NETCDF_SUFFIXES = (".nc", ".nc4", ".netcdf")
 CACHE_SIZE = 4096  # headers kept, by path, size and modification time
@@ -50,20 +50,18 @@ def _years(first: str, last: str) -> str:
 
 
 def _global_attr(path: str, name: str) -> str:
-    import netCDF4
 
     try:
-        with netCDF4.Dataset(path) as nc:
+        with netcdf.dataset(path) as nc:
             return str(getattr(nc, name, "")).strip()
     except (OSError, ValueError):
         return ""
 
 
 def _has_time_axis(path: str) -> bool:
-    import netCDF4
 
     try:
-        with netCDF4.Dataset(path) as nc:
+        with netcdf.dataset(path) as nc:
             return any(inspection._axis(nc, dim) == "T" for dim in nc.dimensions)
     except (OSError, ValueError):
         return False

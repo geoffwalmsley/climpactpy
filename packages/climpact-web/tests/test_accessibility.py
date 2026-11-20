@@ -1725,9 +1725,13 @@ def test_gridded_map_by_keyboard(chrome, site):
     wait_for(c, f"{label} !== {year!r}", timeout=10, what="the year before")
     assert c.evaluate("document.activeElement.getAttribute('data-gmap-step')") == "prev"
     focus(c, ".gmap-rail__item:not([aria-current])")
+    code = c.evaluate("document.activeElement.querySelector('.gmap-rail__code').textContent")
     c.press("Enter")
-    wait_for(c, "!document.querySelector('[data-gridded-map][aria-busy]')", timeout=10)
-    assert c.evaluate("document.activeElement.getAttribute('aria-current')") == "true"
+    # The map is swapped in place and focus lands on the index chosen, now the current row.
+    wait_for(c, "document.activeElement.getAttribute('aria-current') === 'true' &&"
+             f" document.activeElement.textContent.indexOf({code!r}) === 0", timeout=10,
+             what="focus on the index chosen")  # fmt: skip
+    assert "index=" in c.evaluate("location.search")
 
 
 def test_gridded_new_run_ticks_and_folders(chrome, site):

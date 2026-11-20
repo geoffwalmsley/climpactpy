@@ -24,7 +24,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
 from climpact_web.core import numbers
-from climpact_web.gridded import inspection, maps
+from climpact_web.gridded import inspection, maps, netcdf
 from climpact_web.gridded.models import GriddedRun, Source
 from climpact_web.jobs.models import Status
 
@@ -371,10 +371,9 @@ def count_cells(path: Path) -> int:
     """The cells with a value at any time in the file's first index variable. Read in
     stripes of rows, all times at once: the core's files hold each cell's series in one
     chunk, so reading a time step at a time would decompress the file once a step (#295)."""
-    import netCDF4
     import numpy as np
 
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         variables = maps.index_variables(nc)
         if not variables:
             return 0
@@ -497,9 +496,8 @@ class FileGroup:
 
 @lru_cache(maxsize=1024)
 def _file_variables(path: str, mtime: float) -> tuple[str, ...]:
-    import netCDF4
 
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         return tuple(maps.data_variables(nc))
 
 

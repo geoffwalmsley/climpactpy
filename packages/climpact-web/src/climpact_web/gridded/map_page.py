@@ -32,7 +32,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, pgettext
 
 from climpact_web.core import numbers
-from climpact_web.gridded import maps
+from climpact_web.gridded import maps, netcdf
 from climpact_web.gridded.maps import OutputFile
 
 VIEWS = (
@@ -82,9 +82,8 @@ class Entry:
 
 
 def _variables(path) -> list[tuple[str, str]]:
-    import netCDF4
 
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         return [(v["name"], v["long_name"]) for v in maps.index_variables(nc)]
 
 

@@ -22,7 +22,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
 from climpact_web.core import numbers
-from climpact_web.gridded import inspection
+from climpact_web.gridded import inspection, netcdf
 from climpact_web.gridded.runs import short_duration, spacing
 
 MINUS = "−"
@@ -464,16 +464,17 @@ def size_text(size: float) -> str:
 def _reading(paths: tuple, names: tuple, stamps: tuple) -> tuple[float, int] | None:
     from climpact.gridded import open_grid
 
-    try:
-        inp = open_grid(list(paths), names=dict(names))
-    except (ValueError, NotImplementedError, OSError, KeyError):
-        return None
-    try:
-        return float(inp.read_amplification()), int(inp.rechunk_bytes())
-    except (ValueError, NotImplementedError, OSError, KeyError):
-        return None
-    finally:
-        inp.data.close()
+    with netcdf.LOCK:  # the core's reader opens the files on this request's thread
+        try:
+            inp = open_grid(list(paths), names=dict(names))
+        except (ValueError, NotImplementedError, OSError, KeyError):
+            return None
+        try:
+            return float(inp.read_amplification()), int(inp.rechunk_bytes())
+        except (ValueError, NotImplementedError, OSError, KeyError):
+            return None
+        finally:
+            inp.data.close()
 
 
 def reading(paths: list[str], names: dict) -> tuple[float, int] | None:
@@ -721,11 +722,9 @@ def _cdl_value(value) -> str:
 def header_text(path: str | Path) -> str:
     """The file's header as ``ncdump -h`` prints it: dimensions, variables and their
     attributes, the global attributes."""
-    import netCDF4
-
     path = Path(path)
     lines = [f"netcdf {path.stem} {{", "dimensions:"]
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         for name, dim in nc.dimensions.items():
             if dim.isunlimited():
                 lines.append(f"\t{name} = UNLIMITED ; // ({len(dim)} currently)")

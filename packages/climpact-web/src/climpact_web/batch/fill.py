@@ -75,19 +75,21 @@ def job_stations(job: Job) -> dict[str, check.StationCheck]:
     return {s.name: s for s in check.check_metadata(raw, check.BatchCheck())}
 
 
-def batch_inputs(station, job: Job, entry: check.StationCheck, file_hash: str) -> dict:
+def batch_inputs(station, job: Job, entry: check.StationCheck, file_hash: str, summary) -> dict:
     """The inputs the batch's results for ``station`` were produced from (#179): the file
-    and details the job was given, the run's base period and custom index, its metadata
+    (its hash, and its name and ``summary`` for the provenance lines, #269) and details
+    the job was given, the run's base period and custom index, its metadata
     line's index values and R's default thresholds (a batch takes no others). The output
     options are the workspace's, as ``plots`` is an option of the run, not an input of its
     results. When the station's or the workspace's differ, the station shows its results
     as out of date."""
     from climpact_web.stations.forms import QCParamsForm
-    from climpact_web.stations.workspace import current_inputs, workspace_settings
+    from climpact_web.stations.workspace import current_inputs, file_record, workspace_settings
 
     params = job.params or {}
     inputs = current_inputs(station)
     inputs["file"] = file_hash
+    inputs["data"] = file_record(entry.station_file[:255], summary)
     # Add stations (#233) names a batch's stations: the job ran each under its name in the
     # batch (the file's stem, as R names them), the station has the name the user gave.
     names = params.get("names") or {}
@@ -218,14 +220,14 @@ def _fill(run: BatchRun, job: Job) -> None:
             station = _place(run, existing, name, entry.station_file, details, path)
         origin = dict(station.origin)
         if result.get("ok"):
-            text, _inspection = _read(path)
+            text, inspection = _read(path)
             if text is None:
                 continue
             _forget_older_jobs(station, job)
             origin.update(
                 job=str(job.pk),
                 outputs=result.get("folder"),
-                inputs=batch_inputs(station, job, entry, file_digest(text)),
+                inputs=batch_inputs(station, job, entry, file_digest(text), inspection.summary),
                 run={"job": str(job.pk), "state": DONE},
             )
         else:

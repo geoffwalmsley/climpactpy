@@ -145,6 +145,9 @@ def test_a_finished_batch_fills_its_workspace(client):
     assert states(html)["results"] == "done"
     assert not workspace.run_changes(a, workspace.shown_run(a))
     assert "These results are from the batch run." in html
+    # The results record the file the batch read, for their provenance line (#269).
+    data = a.origin["inputs"]["data"]
+    assert data == workspace.file_record("a.txt", a.summary) and data["first_year"]
     # An index page names the workspace in its breadcrumb, leading to its overview.
     html = page(client, a, "indices/txx")
     crumbs = re.findall(r'<ol class="context-bar__breadcrumb">(.*?)</ol>', html, re.S)[0]

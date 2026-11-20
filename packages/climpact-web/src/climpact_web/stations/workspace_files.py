@@ -230,20 +230,11 @@ def provenance(space: Workspace, items: list[Entry], created: dt.datetime) -> di
     version = workspace.core_version()
     stations = []
     for entry in items:
-        station = entry.station
-        summary = station.summary or {}
-        record = {
-            "name": entry.name,
-            "file": station.file_name,
-            "sha256": station.file_hash,
-            "lat": station.latitude,
-            "lon": station.longitude,
-            "years": [summary.get("first_year"), summary.get("last_year")],
-        }
+        record = {"name": entry.name, **_made_from(entry)}
         if entry.source is not None:
             record["folder"] = entry.folder
             if entry.out_of_date:
-                record["results"] = "out of date: made before the last change to the settings"
+                record["results"] = _out_of_date(entry)
         else:
             record["results"] = f"none ({entry.why})"
         stations.append(record)
@@ -261,6 +252,55 @@ def provenance(space: Workspace, items: list[Entry], created: dt.datetime) -> di
         "trend": TREND_METHOD,
         "stations": stations,
     }
+
+
+# What changed since out-of-date results were made (``workspace.run_changes``), in the
+# provenance file's words.
+_CHANGES = {
+    "file": "the file",
+    "name": "the station's name",
+    "location": "the coordinates",
+    "base_period": "the base period",
+    "qc": "the quality thresholds",
+    "settings": "the index settings",
+}
+
+
+def _made_from(entry: Entry) -> dict:
+    """A station's file (name, SHA-256 and years) and coordinates in the provenance file:
+    the station's current ones, or, while its results are out of date, those the shown run
+    read (#307, ``workspace.recorded_inputs``), so after "Replace file" or new coordinates
+    the old results in the zip are not described by the new file. What the run did not
+    record is the current one: the file of a job from before #269, which has no ``data``,
+    and the coordinates of one from before #179."""
+    station = entry.station
+    summary = station.summary or {}
+    made = {
+        "file": station.file_name,
+        "sha256": station.file_hash,
+        "lat": station.latitude,
+        "lon": station.longitude,
+        "years": [summary.get("first_year"), summary.get("last_year")],
+    }
+    if not entry.out_of_date:
+        return made
+    recorded = workspace.recorded_inputs(station, entry.job)
+    if data := recorded.get("data"):  # the name, hash and years of one file, never mixed
+        made["file"] = data.get("name") or made["file"]
+        made["sha256"] = recorded.get("file") or made["sha256"]
+        made["years"] = [data.get("first_year"), data.get("last_year")]
+    if meta := recorded.get("metadata"):
+        made["lat"], made["lon"] = meta.get("latitude"), meta.get("longitude")
+    return made
+
+
+def _out_of_date(entry: Entry) -> str:
+    """Why a station's results are out of date: "out of date: made before a change to the
+    file and the coordinates"."""
+    names = workspace.run_changes(entry.station, entry.job)
+    words = [_CHANGES[n] for n in names if n in _CHANGES] or ["its inputs"]
+    changed = words[0] if len(words) == 1 else f"{', '.join(words[:-1])} and {words[-1]}"
+    return f"out of date: made before a change to {changed}"
 
 
 def provenance_text(record: dict) -> str:

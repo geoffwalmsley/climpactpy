@@ -10,7 +10,8 @@ one hatched "· failed" instead when trend_grid.SHOW_FAILED_OUT_OF_DATE is off; 
 run made no index table (#298, #315) hatched "· no indices". Each
 column's code is a link that selects it (?index=); js/trends.js
 shows its plot in place instead. "Choose indices" (?cols=, remembered for the workspace)
-and the grid's CSV above it. Context: views_workspace.trends_context (trends: a
+and the grid's CSV above it. Each plot ends with "Overlay the series" (#276: the index's
+series at every station, a page of its own, stations/overlay.py) and its CSV. Context: views_workspace.trends_context (trends: a
 trend_grid.Grid, trends_page, trends_csv, trends_waiting).
 {% endcomment %}<section id="trends" class="stack stack--sm page-section" aria-labelledby="trends-title" data-trends>
   <div class="trends__head">
@@ -114,7 +115,7 @@ trend_grid.Grid, trends_page, trends_csv, trends_waiting).
         {% endif %}
         {% if plot.left_out %}<p class="m-0 text-xs text-text-muted">{% translate "Not shown:" %} {{ plot.left_out|join:"; " }}</p>{% endif %}
         <p class="m-0 text-xs text-text-muted">{% translate "Dot: slope. Line: 95% interval. Centre line: zero. Grey dot: not significant." %}</p>
-        <div class="flex flex-wrap gap-4 text-sm"><a href="{{ plot.csv_url }}" download>{% translate "CSV, all stations" %}</a></div>
+        <div class="flex flex-wrap gap-4 text-sm"><a href="{{ plot.overlay_url }}">{% translate "Overlay the series" %}</a><a href="{{ plot.csv_url }}" download>{% translate "CSV, all stations" %}</a></div>
       </div>
       {% endfor %}
     </aside>

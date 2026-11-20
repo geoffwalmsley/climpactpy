@@ -426,6 +426,7 @@ def site(chrome, server):
     pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
     pages["workspace delete"] = pages["workspace overview"] + "delete?from=files"  # #274
     pages["workspace compare"] = pages["workspace overview"] + "compare/"  # #238
+    pages["workspace overlay"] = pages["workspace overview"] + "compare/TXx/overlay"  # #276
     # Copy to workspace… (#241), from the first row of the Stations table.
     pages["station copy"] = c.evaluate("document.querySelector('.stations-table__actions a').href")
 
@@ -1613,6 +1614,40 @@ def test_index_chart_reads_out_by_keyboard(chrome, site):
         set_mode(c, scheme=scheme)
         c.transitions_done()
         assert run_axe(c) == [], scheme
+    set_mode(c)
+
+
+def test_overlay_chart_reads_out_each_station_by_keyboard(chrome, site):
+    """#276: Overlay the series is drawn by charts.js from the page's data (the server's
+    chart then hidden): its plot is a Tab stop and the arrow keys read out each year with
+    every station's value, a line each in its categorical slot. No axe violation, both
+    themes and on a phone."""
+    c = chrome
+    c.navigate(site["workspace overlay"])
+    plot = "#overlay-chart-plot"
+    wait_for(c, f"!!document.querySelector('{plot} canvas')", timeout=30, what="the chart")
+    assert c.evaluate("document.getElementById('overlay-chart').classList.contains('is-hydrated')")
+    names = c.evaluate(
+        "Array.from(document.querySelectorAll('.overlay-legend .overlay-legend__name'))"
+        ".map(function (n) { return n.textContent; })"
+    )
+    assert len(names) == 2, names
+    status = "document.querySelector('#overlay-chart [data-chart-status]').textContent"
+    focus(c, plot)
+    c.press("Home")
+    text = wait_text(c, status, "^1936", "the first year read out")
+    for name in names:
+        assert re.search(re.escape(name) + r" \d[\d.]*\s°C", text), text
+    c.press("ArrowRight")
+    wait_text(c, status, "^1937", "the next year read out")
+    for scheme in ("light", "dark"):
+        set_mode(c, scheme=scheme)
+        c.transitions_done()
+        assert run_axe(c) == [], scheme
+    set_mode(c, width=375)
+    c.transitions_done()
+    assert run_axe(c) == []
+    assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     set_mode(c)
 
 

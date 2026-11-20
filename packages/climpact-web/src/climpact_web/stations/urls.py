@@ -120,6 +120,17 @@ urlpatterns = [
         views_workspace.compare_csv,
         name="workspace_compare_csv",
     ),
+    # Overlay the series (#276): an index's series at every station, and its CSV.
+    path(
+        "w/<uuid:workspace_id>/compare/<str:code>/overlay",
+        views_workspace.overlay_page,
+        name="workspace_overlay",
+    ),
+    path(
+        "w/<uuid:workspace_id>/compare/<str:code>/indices.csv",
+        views_workspace.overlay_csv,
+        name="workspace_overlay_csv",
+    ),
     # The workspace's Files (#239): stations/views_files.py.
     path("w/<uuid:workspace_id>/files/", views_files.files_page, name="workspace_files"),
     path(

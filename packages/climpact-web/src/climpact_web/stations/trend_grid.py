@@ -116,6 +116,7 @@ class IntervalPlot:
     ticks: list[dict]  # {"x": "6.0", "text": "−0.5", "anchor": "start"}
     summary: str
     csv_url: str = ""
+    overlay_url: str = ""  # Overlay the series (#276)
     selected: bool = False
 
 
@@ -145,6 +146,7 @@ class _Station:
     out_of_date: bool = False  # the trends shown are from before a change (#279)
     failed: bool = False  # out of date and failed, hidden (``SHOW_FAILED_OUT_OF_DATE``)
     no_indices: bool = False  # its run made no index table (#298): nothing to show
+    plots: dict = field(default_factory=dict)  # series name -> IndexPlot (the overlay, #276)
 
     @property
     def has_results(self) -> bool:
@@ -154,7 +156,7 @@ class _Station:
 def _stations(items: list[workspace_files.Entry]) -> list[_Station]:
     out = []
     for entry in items:
-        cards = {}
+        cards, plots = {}, {}
         # A run that skipped every index (#298) has no trend to show, out of date or not.
         no_indices = entry.source is not None and not entry.source.has_tables
         out_of_date = entry.source is not None and entry.out_of_date and not no_indices
@@ -163,7 +165,8 @@ def _stations(items: list[workspace_files.Entry]) -> list[_Station]:
             run = workspace_files._results(entry)
             ordered = [c for theme in run.themes() for c in theme.cards]
             cards = {c.code: c for c in ordered if c.trend is not None}
-        out.append(_Station(entry, cards, out_of_date and not failed, failed, no_indices))
+            plots = run.plots
+        out.append(_Station(entry, cards, out_of_date and not failed, failed, no_indices, plots))
     return out
 
 

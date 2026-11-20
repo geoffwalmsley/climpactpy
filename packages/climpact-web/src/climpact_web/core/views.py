@@ -263,7 +263,47 @@ def trends_demo() -> dict:
     found = trend_grid.grid_of(stations, [i[0] for i in indices], None)
     for plot in found.plots:
         plot.csv_url = "#trend-grid"
+        plot.overlay_url = "#overlay-chart-demo"
     return {"trends_demo": found}
+
+
+def overlay_demo() -> dict:
+    """Overlay the series (#276): TXx at nine made-up stations, so the chart draws eight
+    and offers the choice, one of them out of date and one with no indices."""
+    import math
+    from types import SimpleNamespace
+
+    from climpact_web.stations import overlay, trend_grid
+
+    names = [
+        _("Harbour Point"), _("North Head"), _("Cape Mira"), _("Ridge Valley"), _("Lake Orra"),
+        _("Port Elm"), _("Bay Hill"), _("Sandy Flat"), _("Glen Rowe"),
+    ]  # fmt: skip
+    place = SimpleNamespace(url=lambda *args: "#overlay-chart-demo")
+    stations = []
+    for k, name in enumerate(names):
+        first = 1960 + 3 * k
+        years = list(range(first, 2016))
+        values = [
+            round(38 + k * 0.6 + 2.2 * math.sin(y * 0.9 + k) + 0.03 * (y - 1960), 1)
+            if (y + k) % 17
+            else float("nan")
+            for y in years
+        ]
+        trend = {"valid": True, "significant": k % 3 == 0}
+        card = SimpleNamespace(key="txx", main="txx_ANN", units="°C", trend=trend)
+        entry = SimpleNamespace(
+            name=name, source=True, station=SimpleNamespace(slug=f"s{k}", url=place.url)
+        )
+        plot = SimpleNamespace(x=years, values=values, step="year")
+        stations.append(
+            trend_grid._Station(entry, {"TXx": card}, out_of_date=k == 2, plots={"txx_ANN": plot})
+        )
+    empty = SimpleNamespace(name=_("Empty Hill"), source=True, station=place)
+    stations.append(trend_grid._Station(empty, {}, no_indices=True))
+    choice = trend_grid.Choice("TXx", "txx", _("Hottest day"), "°C", "", "heat", "", "heat")
+    found = overlay.overlay(stations, choice, None)
+    return {"overlay_demo": found, "overlay_demo_data": overlay.payload(found)}
 
 
 def pattern_context(form):
@@ -315,6 +355,7 @@ def pattern_context(form):
         # The workspace overview (#234): the run status line and the Stations table.
         **overview_demo(),
         **trends_demo(),  # Trends across stations (#238)
+        **overlay_demo(),  # Overlay the series (#276)
         **workspaces_demo(),  # the Workspaces table (#242)
         "context_breadcrumb": [
             {"label": _("NSW coast"), "url": "#context-bar"},

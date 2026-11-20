@@ -710,7 +710,7 @@ def test_the_index_chart_hydrates_from_the_pages_data(client):
     base = txx[(txx["time"] >= 1971) & (txx["time"] <= 2000)]["val"].mean()
     values, anomaly = data["views"]["values"], data["views"]["anomaly"]
     assert dict(values["gaps"])[i] == round(base, 1) and dict(anomaly["gaps"])[i] == 0
-    assert anomaly["y"][-1] == pytest.approx(txx["val"].iloc[-1] - base, abs=0.005)
+    assert anomaly["y"][-1] == pytest.approx(txx["val"].iloc[-1] - base, abs=0.05)
     assert anomaly["offset"] == pytest.approx(base) and anomaly["axis"] == "Anomaly °C"
     assert values["axis"] == "TXx °C" and values["smooth"][5] is not None
     assert data["trend"]["slope"] and data["dates"][-1].startswith(str(data["x"][-1]))

@@ -194,8 +194,8 @@ def workspace_page(request, workspace_id):
     calculated or failed (which say why), the New station page when the batch had no file
     for it. A workspace of two or more opens its overview (#234), after recording how a
     finished batch went (``batch.fill``). Without stations: files waiting on Add stations
-    (#233) open their review; a batch of the old batch page, its check page."""
-    from climpact_web.batch import views as batch_views
+    (#233) open their review; a batch the old batch page checked and never ran (its page
+    went with #271), Add stations."""
     from climpact_web.batch.fill import fill_workspace
     from climpact_web.batch.models import BatchRun
 
@@ -215,7 +215,7 @@ def workspace_page(request, workspace_id):
         raise Http404
     if waiting.report.get("files") is not None:  # files waiting on Add stations
         return redirect("stations:add_review", space.pk, waiting.pk)
-    return batch_views.check_page(request, workspace_id)
+    return redirect("stations:add")
 
 
 @never_cache

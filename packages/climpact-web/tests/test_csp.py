@@ -66,7 +66,7 @@ def assert_strict(policy: dict[str, list[str]]) -> None:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("path", ["/", "/station/new", "/help/", "/no-such-page/"])
+@pytest.mark.parametrize("path", ["/", "/add/", "/help/", "/no-such-page/"])
 def test_every_response_has_an_enforced_policy(client, path):
     response = client.get(path)
     assert "Content-Security-Policy-Report-Only" not in response
@@ -87,7 +87,7 @@ def test_turnstile_pages_allow_cloudflare(client):
     policy is otherwise as strict."""
     policy = content_security_policy(turnstile=True)
     with override_settings(SECURE_CSP=policy):
-        header = directives(client.get("/station/new")["Content-Security-Policy"])
+        header = directives(client.get("/add/")["Content-Security-Policy"])
     assert_strict(header)
     assert header["script-src"] == ["'self'", nonce_of(header), TURNSTILE_ORIGIN]
     assert header["frame-src"] == [TURNSTILE_ORIGIN]
@@ -101,7 +101,7 @@ def test_every_page_gets_a_fresh_nonce(client):
     one only when something does), so Cloudflare always has one to copy to the scripts its
     edge injects (#164). No page is cached, so no page is served with an old nonce."""
     seen = set()
-    for path in ["/", "/", "/station/new", "/help/", "/no-such-page/"]:
+    for path in ["/", "/", "/add/", "/help/", "/no-such-page/"]:
         response = client.get(path)
         assert response["Content-Type"].startswith("text/html")
         seen.add(nonce_of(directives(response["Content-Security-Policy"])))

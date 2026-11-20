@@ -12,6 +12,7 @@ import shutil
 import uuid
 from pathlib import Path
 
+import made
 import pytest
 from django.test import Client
 
@@ -38,7 +39,7 @@ def media(settings, tmp_path):
 
 
 def ready_analysis(client) -> Station:
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     data = {"station_name": STATION, "latitude": "-33.86", "longitude": "151.21",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
@@ -394,10 +395,8 @@ def test_a_batch_station_opened_as_a_single_station(client, tmp_path):
     import datetime as dt
 
     import numpy as np
-    from django.core.files.uploadedfile import SimpleUploadedFile
 
     from climpact_web.batch import check
-    from climpact_web.batch.models import BatchRun
 
     rng = np.random.default_rng(0)
     lines = []
@@ -408,17 +407,8 @@ def test_a_batch_station_opened_as_a_single_station(client, tmp_path):
         lines.append(f"{day.year} {day.month} {day.day} {rain:.1f} {tx:.1f} {tx - 9:.1f}")
         day += dt.timedelta(days=1)
     meta = "\t".join(check.COLUMNS) + "\n" + "a.txt\t-30\t150\t3\t3\t18\t18\t10\t3\t30\t2\t24\n"
-    data = {
-        "metadata_file": SimpleUploadedFile("stations.txt", meta.encode()),
-        "station_files": [SimpleUploadedFile("a.txt", ("\n".join(lines) + "\n").encode())],
-    }
-    response = client.post("/batch/", data)
-    run = BatchRun.objects.get()
-    assert response.status_code == 302, response.content[:500]
-    client.post(
-        f"/w/{run.workspace_id}/batch/run",
-        {"base_start": "1981", "base_end": "1990", "workers": "1"},
-    )
+    run = made.checked_batch(client, meta, **{"a.txt": "\n".join(lines) + "\n"})
+    made.queue(client, run, {"base_start": "1981", "base_end": "1990", "workers": "1"})
     batch = run_next()
     assert batch.status == Status.SUCCEEDED, batch.log
     client.get(f"/w/{run.workspace_id}/")  # the workspace of one station opens it

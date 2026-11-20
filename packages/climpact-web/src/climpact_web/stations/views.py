@@ -1,5 +1,6 @@
-"""The single-station workspace (#179, #198): a New station page (#201) takes the station
-file, or the sample, and the station's details, then checks and calculates at once;
+"""The single-station workspace (#179, #198): a station's setup page (the New station page
+of #201, whose first visit Add stations replaced with #233 and #271) takes a new file and
+the station details it needs, then checks and calculates at once;
 Quality (#77), the quality checks, run as a ``qc`` job, their results (:mod:`.qc_review`,
 :mod:`.qc_plots`) and what is in the file ("Your data", Data's summary before #198).
 Indices and Files (#78, #79, #90, #176) add their pages to the same station
@@ -37,10 +38,10 @@ from django.utils.translation import ngettext
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
-from climpact_web.core.limits import disk_required, human_required
+from climpact_web.core.limits import human_required
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Status
-from climpact_web.jobs.views import OWNER_KEY, owner_token
+from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.stations import calculation, preview, workspace
 from climpact_web.stations.calculation import queue_qc
 from climpact_web.stations.forms import (
@@ -61,13 +62,6 @@ from climpact_web.stations.station_file import (
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_NAME = "sydney_observatory_hill_1936-2015.txt"
-# Sydney Observatory Hill (ASN00066062), as in reference/stations.csv.
-SAMPLE_METADATA = {
-    "station_name": "sydney_observatory_hill_1936-2015",
-    "latitude": -33.86,
-    "longitude": 151.21,
-}
-RECENT_ANALYSES = 5
 # A year with more days missing than this, in any variable, has no annual index values
 # (climdex.pcic's max.missing.days; climpact.missing.MAX_MISSING_DAYS["annual"], checked by
 # a test: the web server does not import the core). The New station page's strip marks it.
@@ -149,11 +143,6 @@ def read_upload(uploaded) -> bytes:
 DETAIL_FIELDS = ("station_name", "latitude", "longitude", "base_start", "base_end")
 
 
-def recent_analyses(request):
-    owner = request.session.get(OWNER_KEY) or "-"
-    return Station.objects.filter(owner=owner)[:RECENT_ANALYSES]
-
-
 def year_strip(summary: dict) -> dict:
     """The New station page's days-with-data strip: one bar a year, as tall as its
     emptiest variable's share of the year's days, amber when that variable misses more
@@ -194,25 +183,18 @@ def year_strip(summary: dict) -> dict:
 
 
 def setup_context(request, analysis, form, **extra) -> dict:
-    """The New station page: ``analysis`` is None until a file is read. Before, the name
-    may be left empty: it is then the file's (:func:`default_name`)."""
-    if analysis is None:
-        name = form.fields["station_name"]
-        name.required = False
-        name.help_text = _("Leave it empty to use the file name.")
-    summary = analysis.summary if analysis is not None else {}
+    """The station's setup page (the New station page, #201)."""
+    summary = analysis.summary or {}
     context = {
         "analysis": analysis,
         "form": form,
         "upload_form": UploadForm(),
         "inspection": None,
         "file_name": "",
-        "recent": [] if analysis is not None or "recent" in extra else recent_analyses(request),
-        "sample_name": SAMPLE_NAME,
         "max_upload_mb": settings.MAX_UPLOAD_MB,
         "strip": year_strip(summary) if summary else None,
         # Back on this page after the file of a station in use stopped fitting its details.
-        "returning": analysis is not None and analysis.reached(Step.QC),
+        "returning": analysis.reached(Step.QC),
         "focus_file": False,
     }
     context.update(extra)
@@ -252,32 +234,24 @@ def set_base_period(analysis: Station, start: int, end: int) -> None:
         space.save()
 
 
-def read_file(request, analysis: Station | None):
-    """Read the file sent with the New station form, into ``analysis`` or a new one.
-    Returns (analysis, upload form, inspection); the analysis is None when nothing was
-    read and the page has none yet."""
+def read_file(request, analysis: Station):
+    """Read the file sent with the setup form into ``analysis``. Returns (upload form,
+    inspection); the inspection is None when no file was sent."""
     upload_form = UploadForm(request.POST, request.FILES)
     if not upload_form.is_valid():
-        return analysis, upload_form, None
+        return upload_form, None
     uploaded = upload_form.cleaned_data["station_file"]
     inspection = inspect_station_bytes(read_upload(uploaded))
     if not inspection.ok:
-        return analysis, upload_form, inspection
+        return upload_form, inspection
     with transaction.atomic():
-        if analysis is None:
-            analysis = Station(
-                owner=owner_token(request),
-                source=Source.UPLOAD,
-                station_name=default_name(uploaded.name),
-            )
-        else:
-            # Replace: a name that is still the old file's follows the new file.
-            old_default = default_name(analysis.file_name)
-            if not analysis.station_name or analysis.station_name == old_default:
-                analysis.station_name = default_name(uploaded.name)
-            analysis.source = Source.UPLOAD
+        # Replace: a name that is still the old file's follows the new file.
+        old_default = default_name(analysis.file_name)
+        if not analysis.station_name or analysis.station_name == old_default:
+            analysis.station_name = default_name(uploaded.name)
+        analysis.source = Source.UPLOAD
         apply_inspection(analysis, inspection, uploaded.name)
-    return analysis, upload_form, inspection
+    return upload_form, inspection
 
 
 def check_and_calculate(request, analysis: Station, form: MetadataForm):
@@ -306,48 +280,44 @@ def check_and_calculate(request, analysis: Station, form: MetadataForm):
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 @human_required
-def new_station(request, workspace_id=None, slug=None):
-    """New station (#201): the file, then the station details, on one page, and one
-    button, "Check and calculate", that runs the checks and the indices with the default
-    thresholds and settings and opens Quality.
+def new_station(request, workspace_id, slug):
+    """A station's setup page, ``/w/<id>/<station>/setup`` (the New station page, #201):
+    its file, then the station details, and one button, "Check and calculate", that runs
+    the checks and the indices and opens Quality. A station comes here while its details
+    are not done (#198): a new file that needs new details, or a station of a batch whose
+    file was missing. Add stations (#233) starts every station; ``/station/new`` leads
+    there.
 
-    ``/station/new`` has no analysis yet; reading a file makes one, and the page is then
-    ``/w/<id>/<station>/setup``, the file read and shown, with the same form. With JavaScript
-    a chosen or dropped file is sent at once (``intent=read``, a redirect back here) and
-    the details typed beside it are kept; without, the file and the details can go
-    together, or the file first with "Read the file". The details are checked against
-    the file. A station already set up has no setup page: its address leads to Quality's
-    "Your data", and later changes are made in the Inputs panel (#198)."""
-    analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
-    if analysis is None and request.method != "POST":
-        return redirect("stations:add")  # New station is Add stations since #233
-    if analysis is not None and request.method != "POST" and workspace.set_up(analysis):
+    With JavaScript a chosen or dropped file is sent at once (``intent=read``, a redirect
+    back here) and the details typed beside it are kept; without, the file and the details
+    can go together, or the file first with "Read the file". The details are checked
+    against the file. A station already set up has no setup page: its address leads to
+    Quality's "Your data", and later changes are made in the Inputs panel (#198)."""
+    analysis = get_analysis(request, workspace_id, slug)
+    if request.method != "POST" and workspace.set_up(analysis):
         return redirect(analysis.url("qc") + "#your-data")
     if request.method != "POST":
-        if analysis is None:
-            form = MetadataForm(initial={"base_start": 1971, "base_end": 2000})
-        elif analysis.metadata_complete and analysis.reached(Step.QC):
+        if analysis.metadata_complete and analysis.reached(Step.QC):
             # Back after a new file: bound, to show why the details no longer fit.
             form = MetadataForm(initial_metadata(analysis), summary=analysis.summary)
             form.is_valid()
         else:
             form = MetadataForm(initial=initial_metadata(analysis), summary=analysis.summary)
-        focus = analysis is not None and request.session.pop("setup_read", None) == str(analysis.pk)
+        focus = request.session.pop("setup_read", None) == str(analysis.pk)
         context = setup_context(request, analysis, form, focus_file=focus)
         return render(request, "stations/new.html", context)
 
     intent = request.POST.get("intent", "go")
     inspection, upload_form = None, None
-    if "station_file" in request.FILES or analysis is None:
-        analysis, upload_form, inspection = read_file(request, analysis)
-        read = inspection is not None and inspection.ok
-        if not read:
+    if "station_file" in request.FILES:
+        upload_form, inspection = read_file(request, analysis)
+        if inspection is None or not inspection.ok:
             # The file's problems, in its step; the details stay as typed.
             data = request.POST
             form = MetadataForm(
                 initial={k: data.get(k) for k in DETAIL_FIELDS if data.get(k)}
-                or (initial_metadata(analysis) if analysis else None),
-                summary=analysis.summary if analysis else None,
+                or initial_metadata(analysis),
+                summary=analysis.summary,
             )
             context = setup_context(
                 request,
@@ -355,9 +325,7 @@ def new_station(request, workspace_id=None, slug=None):
                 form,
                 upload_form=upload_form,
                 inspection=inspection,
-                file_name=request.FILES["station_file"].name
-                if "station_file" in request.FILES
-                else "",
+                file_name=request.FILES["station_file"].name,
             )
             return render(request, "stations/new.html", context)
         if intent == "read":
@@ -390,7 +358,9 @@ def new_station(request, workspace_id=None, slug=None):
 
 @require_http_methods(["GET", "HEAD", "POST"])
 def upload(request):
-    """The upload page's old address (before #201): to Add stations (#233)."""
+    """The old addresses of the upload page (``/station/``, before #201), New station
+    (``/station/new``, #201) and its sample (``/station/sample``): to Add stations (#233),
+    which replaced them; their forms went with #271."""
     return redirect("stations:add")
 
 
@@ -401,24 +371,6 @@ def load(request, workspace_id, slug):
     analysis = get_analysis(request, workspace_id, slug)
     if workspace.set_up(analysis):
         return redirect(analysis.url("qc") + "#your-data")
-    return redirect(analysis.url("setup"))
-
-
-@require_http_methods(["GET", "HEAD", "POST"])
-@disk_required
-def sample(request):
-    """One click: an analysis of the Sydney sample with its metadata filled in, on its
-    setup page, to check and calculate."""
-    if request.method != "POST":
-        return redirect("stations:add")
-    inspection = inspect_station_bytes(sample_bytes())
-    with transaction.atomic():
-        analysis = Station(owner=owner_token(request), source=Source.SAMPLE)
-        apply_inspection(analysis, inspection, SAMPLE_NAME)
-        for name, value in SAMPLE_METADATA.items():
-            setattr(analysis, name, value)
-        analysis.save()
-    request.session["setup_read"] = str(analysis.pk)
     return redirect(analysis.url("setup"))
 
 
@@ -482,7 +434,8 @@ def summary_context(analysis: Station) -> dict:
 @require_POST
 def validate(request, workspace_id=None, slug=None):
     """htmx: one group of fields checked as it changes, returned on its own; against the
-    file once one is read."""
+    station's file on its setup page, without one (``/station/validate``) on the
+    workspace's base period sheet."""
     analysis = get_analysis(request, workspace_id, slug) if workspace_id else None
     unit = request.POST.get("group", "")
     if unit not in MetadataForm.UNITS:

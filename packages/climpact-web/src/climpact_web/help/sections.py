@@ -349,12 +349,7 @@ SECTIONS = (
         ],
     ),
     S("sector.scatter", _("Your data against the station's temperatures"), ["sector.regression"]),
-    # ---- Batch and gridded (fields that had their own help link before #177) --------
-    S(
-        "batch.options",
-        _("Settings"),
-        ["batch.base_period", "batch.workers", "batch.plots"],
-    ),
+    # ---- Gridded (fields that had their own help link before #177) --------------------
     S(
         "gridded.task",
         _("What to calculate"),

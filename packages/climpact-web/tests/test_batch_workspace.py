@@ -9,7 +9,7 @@ workspace."""
 import re
 
 import pytest
-from test_batch import created, media, metadata, run_worker, station  # noqa: F401
+from test_batch import created, media, metadata, run_batch, run_worker, station  # noqa: F401
 from test_workspace import edit, page, states
 
 from climpact_web.batch import fill
@@ -30,9 +30,7 @@ def queued_batch(client, *names, bad=(), missing=()) -> BatchRun:
     are listed but not uploaded, so the check leaves them out)."""
     files = {f"{n}.txt": station(seed=k) for k, n in enumerate([*names, *bad])}
     listed = [*files, *(f"{n}.txt" for n in missing)]
-    run = created(client, metadata(*listed), **files)
-    client.post(f"/w/{run.workspace_id}/batch/run", OPTIONS)
-    run.refresh_from_db()
+    run = run_batch(client, created(client, metadata(*listed), **files), OPTIONS)
     for n in bad:  # broken after the check, so it fails in the run itself
         (run.job.input_dir / "stations" / f"{n}.txt").write_text(
             "2000 1 1 0 20 10\n1999 1 1 0 20 10\n"
@@ -199,9 +197,6 @@ def test_the_base_period_and_custom_index_are_the_workspaces(client):
     fill_workspace(run)
     a = space.stations.get()
     assert workspace.station_settings(a)["params"]["custom"] is None
-    # The check page starts from the workspace's base period.
-    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
-    assert re.search(r'name="base_start"[^>]*value="2000"', html)
 
 
 def test_a_workspace_change_recalculates_the_batch_stations(client, settings):
@@ -264,7 +259,7 @@ def test_running_the_batch_again_updates_its_stations(client):
     client.get(f"/w/{run.workspace_id}/")
     a = run.workspace.stations.get()
     first_job, first_job_id = run.job_id, str(run.job_id)
-    client.post(f"/w/{run.workspace_id}/batch/run", {**OPTIONS, "base_start": "2001"})
+    run_batch(client, run, {**OPTIONS, "base_start": "2001"})
     assert states_of(run)["a"][0] == "waiting"
     assert workspace.batch_results(Station.objects.get(pk=a.pk))
     assert run_worker().status == Status.SUCCEEDED
@@ -282,13 +277,13 @@ def test_running_the_batch_again_updates_its_stations(client):
     assert workspace.section_states(a)["results"] == "done"
 
 
-def test_deleting_the_batch_deletes_its_workspace(client):
-    run = finished_batch(client, "a")
+def test_deleting_the_workspace_deletes_its_batch(client):
+    run = finished_batch(client, "a", "b")
     client.get(f"/w/{run.workspace_id}/")
-    a = run.workspace.stations.get()
-    response = client.post(f"/w/{run.workspace_id}/batch/delete", follow=True)
-    assert "The batch and its stations were deleted." in response.content.decode()
+    a = run.workspace.stations.first()
+    assert client.post(f"/w/{run.workspace_id}/delete")["Location"] == "/w/"
     assert not Workspace.objects.exists() and not Station.objects.exists()
+    assert not BatchRun.objects.exists()
     assert not a.folder.exists() and not run.folder.exists()
 
 

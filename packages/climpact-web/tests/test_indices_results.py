@@ -15,6 +15,7 @@ import shutil
 from pathlib import Path
 from urllib.parse import quote
 
+import made
 import pytest
 from django.test import Client
 
@@ -43,7 +44,7 @@ def media(settings, tmp_path):
 def ready_analysis(client) -> Station:
     """The Sydney sample through step 1: the checks and a speculative run of the indices
     with the default settings are queued (#178)."""
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     data = {"station_name": STATION, "latitude": "0", "longitude": "0",
             "base_start": "1971", "base_end": "2000"}  # fmt: skip
     assert client.post(load, data).status_code == 302
@@ -197,7 +198,7 @@ def test_the_form_has_every_r_parameter_with_its_default(client):
 
 
 def test_step_3_needs_the_station_details(client):
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     analysis = Station.objects.get()
     assert client.get(f"{analysis.url()}recalculate")["Location"] == load
     assert client.get(f"{analysis.url()}inputs/settings")["Location"] == load

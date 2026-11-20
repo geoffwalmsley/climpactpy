@@ -1,7 +1,8 @@
-"""The batch page's forms. The fields are those of the R app's batch screen
-(``climpact/modules/batchStep1UI.R``): the metadata file, the station files, the base
+"""The batch's options, Add stations' "Applies to every station" (#233): the fields of the
+R app's batch screen (``climpact/modules/batchStep1UI.R``) after its files, the base
 period's first and last years and, in the local install, the number of cores; plus the
-plots, which R always draws."""
+plots, which R always draws. The batch's own upload forms went with #271; the several-file
+field stays for the gridded page."""
 
 from __future__ import annotations
 
@@ -32,74 +33,6 @@ class MultipleFileField(forms.FileField):
         if isinstance(data, list | tuple):
             return [single(d, initial) for d in data]
         return [single(data, initial)] if data else []
-
-
-METADATA_HELP = _(
-    "A text file with a line of column names, then one line per station: station_file, "
-    "latitude, longitude, wsdin, csdin, Tb_HDD, Tb_CDD, Tb_GDD, rxnday, rnnmm, txtn and "
-    "SPEI, separated by spaces or tabs."
-)
-FILES_HELP = _(
-    "Every station file named in the metadata file, in Climpact's six-column format. "
-    "Choose several files at once, or a zip of them (the zip may hold the metadata file "
-    "too)."
-)
-
-
-class UploadForm(forms.Form):
-    metadata_file = forms.FileField(
-        label=_("Batch metadata file"),
-        help_text=METADATA_HELP,
-        required=False,
-        widget=forms.ClearableFileInput(attrs={"accept": ACCEPT_FILES}),
-        error_messages={"empty": _("The metadata file is empty.")},
-    )
-    station_files = MultipleFileField(
-        label=_("Station files"),
-        help_text=FILES_HELP,
-        required=False,
-        error_messages={"empty": _("One of the station files is empty.")},
-    )
-
-    def clean(self):
-        data = super().clean()
-        if self.errors:
-            return data
-        if not data.get("station_files") and not data.get("metadata_file"):
-            # R: "Please specify the name of metadata text file (Step 1)." and "Please
-            # upload files to process (Step 2)."
-            self.add_error("metadata_file", _("Choose the batch metadata file."))
-            self.add_error("station_files", _("Choose the station files, or a zip of them."))
-        elif not data.get("station_files") and not _is_zip(data.get("metadata_file")):
-            self.add_error("station_files", _("Choose the station files, or a zip of them."))
-        return data
-
-
-def _is_zip(uploaded) -> bool:
-    return bool(uploaded) and uploaded.name.lower().endswith(".zip")
-
-
-class AddFilesForm(forms.Form):
-    """On the check page: more station files, or a new metadata file."""
-
-    station_files = MultipleFileField(
-        label=_("Add or replace station files"),
-        help_text=_("Files with the same name as one already loaded replace it. A zip works too."),
-        required=False,
-    )
-    metadata_file = forms.FileField(
-        label=_("Replace the metadata file"),
-        help_text=_("A new metadata file replaces the one loaded; the stations are checked again."),
-        required=False,
-        widget=forms.ClearableFileInput(attrs={"accept": ACCEPT_TEXT}),
-        error_messages={"empty": _("The metadata file is empty.")},
-    )
-
-    def clean(self):
-        data = super().clean()
-        if not self.errors and not data.get("station_files") and not data.get("metadata_file"):
-            self.add_error("station_files", _("Choose the files to add."))
-        return data
 
 
 def cpu_count() -> int:

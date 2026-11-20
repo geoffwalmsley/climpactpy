@@ -1,17 +1,12 @@
-"""The batch page (#80), replacing the R app's batch screen (``batchStep1UI.R``).
+"""The batch's addresses (#80). A batch is a way to fill a workspace (#255): Add stations
+(#233, ``stations.views_add``) makes one of the files dropped on it, and queues it when the
+stations are added; the workspace's overview (#234, ``stations.views_workspace``) at the
+workspace's address ``/w/<id>/`` (#256) shows each station's progress and then its state.
 
-1. ``batch:start``: upload the metadata file and the station files (or a zip), or try
-   the sample batch.
-2. ``batch:check``: every station listed as ready, missing or invalid with the reasons,
-   before anything runs; add or replace files; choose the options; start.
-3. The results, at the workspace's address ``/w/<id>/`` (#256): one job runs the ready
-   stations, and the workspace's overview (#234, ``stations.views_workspace``) shows each
-   station's progress and then its state, with one zip of everything.
-
-The batch fills its workspace (#255): the base period (and the custom index, none unless
-the workspace's settings were changed) are the workspace's, and once the run has finished
-its stations are the workspace's stations (:mod:`.fill`), the rows of its overview. The
-batch results page and the batch steps went with #234.
+The batch's own pages went with #271: ``/batch/`` and ``/batch/sample`` lead to Add
+stations, and ``/w/<id>/batch/`` to the files waiting there, or to the workspace once they
+are added. What is left here: R's sample batch (Add stations' "Use the sample batch") and
+its metadata file to download, and the batch's old addresses.
 
 A batch is visible only to the browser session that created it, like a job: any other
 session gets 404.
@@ -19,44 +14,18 @@ session gets 404.
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
-from django.conf import settings
-from django.contrib import messages
-from django.core.files.base import ContentFile
-from django.db import transaction
-from django.http import Http404, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.translation import gettext as _
-from django.utils.translation import ngettext
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_http_methods, require_POST, require_safe
+from django.views.decorators.http import require_http_methods, require_safe
 
-from climpact_web.batch import check
-from climpact_web.batch.fill import (
-    ADDED,
-    JOB_METADATA,
-    JOB_STATIONS,
-    add_stations,
-)
-from climpact_web.batch.forms import AddFilesForm, OptionsForm, UploadForm, cpu_count
-from climpact_web.batch.models import BatchRun, Source
-from climpact_web.core.limits import disk_required, human_required
-from climpact_web.jobs.views import (
-    OWNER_KEY,
-    create_job,
-    owner_token,
-)
-from climpact_web.stations.forms import MIN_BASE_DAYS
-from climpact_web.stations.station_file import base_period_days, decode
-from climpact_web.stations.workspace import workspace_settings
+from climpact_web.batch.models import BatchRun
+from climpact_web.jobs.views import OWNER_KEY
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_METADATA = "climpact.sample.batch.metadata.txt"
-RECENT_BATCHES = 5
-# A rough guide for the time estimate, measured on a laptop: seconds per station.
-SECONDS_PER_STATION = {True: 13, False: 4}  # with plots and the PDF report (#79), without
 
 
 def sample_files() -> dict[str, bytes]:
@@ -99,104 +68,17 @@ def old_batch_url(request, run_id, rest=""):
     return redirect(f"{target}?{query}" if query else target)
 
 
-def read(uploaded) -> bytes:
-    return b"".join(uploaded.chunks())
-
-
-def recheck(run: BatchRun, upload_problems: list[str] | None = None) -> None:
-    """Check the batch's files again (after any change) and save the result."""
-    metadata = run.metadata_path.read_bytes() if run.metadata_path.is_file() else None
-    result = check.check_batch(metadata, run.station_files())
-    result.upload_problems = list(upload_problems or [])
-    run.report = result.to_json()
-    run.touch()
-    run.save()
-
-
-# ---- Step 1: the files -------------------------------------------------------------------
-
-
-def start_context(request, form) -> dict:
-    owner = request.session.get(OWNER_KEY) or "-"
-    return {
-        "form": form,
-        "recent": BatchRun.objects.filter(owner=owner)[:RECENT_BATCHES],
-        "max_upload_mb": settings.MAX_UPLOAD_MB,
-        "sample_metadata": SAMPLE_METADATA,
-        "columns": column_rows(),
-    }
-
-
-def column_rows() -> list[dict]:
-    """The metadata columns for the format help: name and meaning."""
-    return [{"name": c, "label": check.column_label(c)} for c in check.COLUMNS]
-
-
-def default_workers(stations: int) -> int:
-    """Stations at a time: R's default is 1 core; here up to 4, leaving a core free for
-    the rest of the computer, and never more than there are stations. Always 1 when
-    hosted, where the option is not offered (as in R)."""
-    if settings.IS_HOSTED:
-        return 1
-    return max(1, min(4, cpu_count() - 1, stations))
-
-
 @require_http_methods(["GET", "HEAD", "POST"])
-@human_required
 def start(request):
-    """Upload the metadata file and the station files. Its page is Add stations since
-    #233: a visit goes there; a form sent from before still works."""
-    if request.method != "POST":
-        return redirect("stations:add")
-    form = UploadForm(request.POST, request.FILES)
-    if form.is_valid():
-        run = create_run(
-            request,
-            metadata=form.cleaned_data["metadata_file"],
-            station_files=form.cleaned_data["station_files"],
-        )
-        return redirect(run.url("check"))
-    return render(request, "batch/start.html", start_context(request, form))
-
-
-def create_run(request, metadata, station_files) -> BatchRun:
-    uploads = [(f.name, read(f)) for f in station_files]
-    metadata_name, metadata_bytes = "", None
-    if metadata is not None:
-        if metadata.name.lower().endswith(".zip"):
-            uploads.insert(0, (metadata.name, read(metadata)))
-        else:
-            metadata_name, metadata_bytes = metadata.name, read(metadata)
-    unpacked = check.unpack(uploads)
-    if metadata_bytes is None and unpacked.metadata:
-        metadata_name, metadata_bytes = unpacked.metadata
-    with transaction.atomic():
-        run = BatchRun(owner=owner_token(request), metadata_name=(metadata_name or "")[:255])
-        run.save()
-        if metadata_bytes is not None:
-            run.save_metadata(metadata_bytes)
-        run.save_files(unpacked.files)
-        run.workers = default_workers(len(unpacked.files))
-        recheck(run, unpacked.problems)
-    return run
+    """The batch's first page's old address (before #233): to Add stations."""
+    return redirect("stations:add")
 
 
 @require_http_methods(["GET", "HEAD", "POST"])
-@disk_required
 def sample(request):
-    """One click: R's sample batch (two Sydney stations), checked and ready to start."""
-    if request.method != "POST":
-        return redirect("batch:start")
-    with transaction.atomic():
-        run = BatchRun(
-            owner=owner_token(request), source=Source.SAMPLE, metadata_name=SAMPLE_METADATA
-        )
-        run.save()
-        run.save_metadata(sample_metadata())
-        run.save_files(sample_files())
-        run.workers = default_workers(2)
-        recheck(run)
-    return redirect(run.url("check"))
+    """The sample batch's old address: to Add stations, whose "Use the sample batch" makes
+    it (``stations:add_sample_batch``)."""
+    return redirect("stations:add")
 
 
 @require_safe
@@ -207,238 +89,17 @@ def sample_metadata_file(request):
     return response
 
 
-# ---- Step 2: the check ---------------------------------------------------------------------
-
-
-def initial_options(run: BatchRun) -> dict:
-    return {
-        "base_start": run.workspace.base_start,
-        "base_end": run.workspace.base_end,
-        "workers": run.workers,
-        "plots": run.plots,
-    }
-
-
-def coverage_notes(run: BatchRun, start: int | None, end: int | None) -> list[dict]:
-    """Ready stations whose data barely cover the base period: their percentile indices
-    (TX90p, WSDI, R95p and others) cannot be calculated, as in R."""
-    if start is None or end is None or start > end:
-        return []
-    notes = []
-    for station in check.ready_stations(run.report):
-        summary = station.get("summary")
-        if not summary:
-            continue
-        if base_period_days(summary, start, end) <= MIN_BASE_DAYS:
-            notes.append(
-                {
-                    "name": station["name"],
-                    "first": summary["first_year"],
-                    "last": summary["last_year"],
-                }
-            )
-    return notes
-
-
-def estimate(run: BatchRun, form: OptionsForm) -> str:
-    data = form.cleaned_data if form.is_bound and form.is_valid() else initial_options(run)
-    count = run.ready_count
-    if not count:
-        return ""
-    workers = data.get("workers") or 1
-    seconds = SECONDS_PER_STATION[bool(data.get("plots"))] * math.ceil(count / workers)
-    minutes = max(1, round(seconds / 60))
-    return ngettext("about %(n)d minute", "about %(n)d minutes", minutes) % {"n": minutes}
-
-
-def options_context(run: BatchRun, form: OptionsForm) -> dict:
-    if form.is_bound and form.is_valid():
-        start, end = form.cleaned_data["base_start"], form.cleaned_data["base_end"]
-    elif form.is_bound:
-        start = end = None
-    else:
-        start, end = run.workspace.base_start, run.workspace.base_end
-    return {
-        "run": run,
-        "options": form,
-        "coverage": coverage_notes(run, start, end),
-        "estimate": estimate(run, form),
-    }
-
-
-def check_context(request, run: BatchRun, options=None, add_form=None) -> dict:
-    report = run.report
-    stations = report.get("stations", [])
-    return {
-        "run": run,
-        "report": report,
-        "stations": stations,
-        "counts": {
-            "listed": len(stations),
-            "ready": run.count("ready"),
-            "missing": run.count("missing"),
-            "invalid": run.count("invalid"),
-        },
-        "not_ready": len(stations) - run.ready_count,
-        "add_form": add_form or AddFilesForm(),
-        "max_upload_mb": settings.MAX_UPLOAD_MB,
-        "job_active": bool(run.job and not run.job.is_finished),
-        **options_context(run, options or OptionsForm(initial=initial_options(run))),
-    }
-
-
 @never_cache
 @require_safe
 def check_page(request, workspace_id):
+    """``/w/<id>/batch/``, the batch's check page before #271: the files waiting on Add
+    stations (#233), or the workspace once they are added. A batch checked by the old batch
+    upload and never run has no review: Add stations."""
     run = get_run(request, workspace_id)
-    if run.report.get("files") is not None:
-        # Files of Add stations (#233): their review while they wait, then the workspace.
-        if run.job_id:
-            return redirect(run.results_url)
-        return redirect("stations:add_review", run.workspace_id, run.pk)
-    return render(request, "batch/check.html", check_context(request, run))
-
-
-@require_POST
-@human_required
-def add_files(request, workspace_id):
-    """Add or replace station files, or replace the metadata file, then check again."""
-    run = get_run(request, workspace_id)
-    form = AddFilesForm(request.POST, request.FILES)
-    if not form.is_valid():
-        return render(request, "batch/check.html", check_context(request, run, add_form=form))
-    uploads = [(f.name, read(f)) for f in form.cleaned_data["station_files"]]
-    unpacked = check.unpack(uploads)
-    metadata = form.cleaned_data["metadata_file"]
-    if metadata is not None:
-        run.metadata_name = metadata.name[:255]
-        run.save_metadata(read(metadata))
-    elif unpacked.metadata:
-        run.metadata_name, data = unpacked.metadata
-        run.save_metadata(data)
-    run.save_files(unpacked.files)
-    recheck(run, unpacked.problems)
-    count = len(unpacked.files) + (1 if metadata or unpacked.metadata else 0)
-    messages.success(
-        request,
-        ngettext(
-            "%(count)d file loaded. The stations were checked again.",
-            "%(count)d files loaded. The stations were checked again.",
-            count,
-        )
-        % {"count": count},
-    )
-    return redirect(run.url("check"))
-
-
-@require_POST
-def options(request, workspace_id):
-    """htmx: the options checked as they change (base period coverage, the estimate),
-    returned on their own."""
-    run = get_run(request, workspace_id)
-    if not request.headers.get("HX-Request"):
-        return HttpResponseBadRequest()
-    form = OptionsForm(request.POST)
-    form.is_valid()
-    return render(request, "batch/_options.html", options_context(run, form))
-
-
-@require_POST
-@human_required
-def run_batch(request, workspace_id):
-    """Queue the batch: one job for the ready stations."""
-    run = get_run(request, workspace_id)
-    form = OptionsForm(request.POST)
-    if not form.is_valid() or not run.ready_count:
-        return render(request, "batch/check.html", check_context(request, run, options=form))
-    if run.job and not run.job.is_finished:
+    if run.job_id:
         return redirect(run.results_url)
-    data = form.cleaned_data
-    set_base_period(run, data["base_start"], data["base_end"])
-    run.workers = data.get("workers") or 1
-    run.plots = data["plots"]
-
-    ready = check.ready_stations(run.report)
-    skipped = [
-        {"name": s["name"], "station_file": s["station_file"], "error": skip_reason(s)}
-        for s in run.report.get("stations", [])
-        if s["status"] != "ready"
-    ]
-    files = {JOB_METADATA: ContentFile(check.metadata_text(ready).encode("utf-8"))}
-    for station in ready:
-        path = run.files_dir / station["station_file"]
-        # Stored as uploaded; the check accepted it, so it is text. Into the job as the
-        # station step stores files: UTF-8 without a byte-order mark.
-        text = decode(path.read_bytes())
-        files[f"{JOB_STATIONS}/{station['station_file']}"] = ContentFile(text.encode("utf-8"))
-    params = {
-        "metadata_file": JOB_METADATA,
-        "data_dir": JOB_STATIONS,
-        "base_start": run.workspace.base_start,
-        "base_end": run.workspace.base_end,
-        "custom": workspace_settings(run.workspace)["params"]["custom"],
-        "workers": run.workers,
-        "plots": run.plots,
-        "zip": True,
-        "station_zips": True,
-        "report": run.plots,  # each station's PDF report, with the plots (#79)
-        "folder": run.folder_name,
-        "skipped": skipped,
-        ADDED: True,  # the workspace's stations are added now (batch/fill.py)
-    }
-    title = ngettext(
-        "Batch: %(name)s (%(count)d station)", "Batch: %(name)s (%(count)d stations)", len(ready)
-    ) % {"name": run.metadata_name or _("stations"), "count": len(ready)}
-    job = create_job(request, "batch", params, files, title=title)
-    run.job = job
-    run.touch()
-    run.save()
-    add_stations(run, job, skipped)
-    return redirect(run.results_url)
-
-
-def set_base_period(run: BatchRun, start: int, end: int) -> None:
-    """The base period chosen for a run is its workspace's (#255). The run recalculates the
-    batch's stations, which show its results when it has finished, so this is not a
-    change to undo (``stations.calculation.change_settings``): an earlier one is
-    forgotten."""
-    from climpact_web.stations.calculation import forget_undo
-
-    space = run.workspace
-    if (space.base_start, space.base_end) != (start, end):
-        forget_undo(space)
-        space.base_start, space.base_end = start, end
-        space.touch()
-        space.save()
-
-
-def skip_reason(station: dict) -> str:
-    """Why a station was left out, in the station's error file."""
-    lines = [p["message"] for p in station.get("problems", [])]
-    hidden = station.get("problem_count", 0) - len(lines)
-    if hidden > 0:
-        lines.append(_("And %(count)d more problems like these.") % {"count": hidden})
-    head = (
-        _("Not calculated: the station file is missing.")
-        if station["status"] == "missing"
-        else _("Not calculated: the station has problems.")
-    )
-    return "\n".join([head, *lines])
-
-
-@require_POST
-def delete(request, workspace_id):
-    """Delete the batch now, with its workspace: the batch page stands in as the workspace
-    page (#255), so its stations go too."""
-    run = get_run(request, workspace_id)
-    space = run.workspace
-    filled = space.stations.exists()
-    space.delete_files()
-    space.delete()
-    if filled:
-        messages.success(request, _("The batch and its stations were deleted."))
-    else:
-        messages.success(request, _("The batch files were deleted."))
+    if run.report.get("files") is not None:
+        return redirect("stations:add_review", run.workspace_id, run.pk)
     return redirect("stations:add")
 
 

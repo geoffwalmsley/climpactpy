@@ -36,18 +36,12 @@ SAMPLES = {"uuid": SAMPLE_UUID, "str": "su_ANN", "slug": "station-data", "path":
 # The URLs that start a job or take an upload: the paths the one rate-limiting rule of
 # Cloudflare's free plan counts. That rule can match only the path, not the method, so it
 # must leave out the htmx polls (`.../progress`) and the htmx POSTs sent as a form is
-# filled in (`.../validate`, `w/<id>/batch/options`, `gridded/<id>/checks`).
+# filled in (`.../validate`, `gridded/<id>/checks`).
 RATE_LIMITED = {
-    "stations:new",
-    "stations:sample",
     "stations:setup",
     "stations:qc_continue",
     "stations:recalculate",
     "stations:sector",
-    "batch:start",
-    "batch:sample",
-    "batch:add_files",
-    "batch:run",
     "jobs:retry",
     "gridded:upload",
     "gridded:sample",

@@ -7,16 +7,18 @@ import io
 import re
 
 import pytest
+from test_add_stations import review_url, stage
 from test_batch import created, media, metadata, run_worker, station  # noqa: F401
-from test_batch_workspace import queued_batch
+from test_batch_workspace import finished_batch, queued_batch
 from test_indices_results import finished_analysis
 from test_workspace import edit
 from test_workspace_files import long_batch
+from test_workspace_overview import empty_file
 
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations import trend_grid
-from climpact_web.stations.models import RESERVED_SLUGS
+from climpact_web.stations.models import RESERVED_SLUGS, Station
 
 pytestmark = pytest.mark.django_db
 
@@ -243,6 +245,36 @@ def test_a_cancelled_recalculation_reads_out_of_date_on_the_overview(client):
     assert "trend-grid__stale" in rows_of(html)["a"]
 
 
+def test_a_station_with_no_indices_is_hatched_and_tagged(client):
+    """#315: a station whose run made no index table (its TX, TN and PR all missing; #298)
+    is hatched as a station without results and tagged "· no indices", as its row on the
+    overview says, not drawn as a row of "–"; its plot says so; its CSV has no rows."""
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    staged = stage(client, url=f"/w/{space.pk}/add/", c__txt=empty_file())
+    data = {"intent": "add", "file-0": "c.txt", "name-0": "Empty Hill", "lat-0": "-30"}
+    assert client.post(review_url(staged), {**data, "lon-0": "150"}).status_code == 302
+    finish_all()
+    assert Station.objects.get(workspace=space, station_name="Empty Hill").indices_job.result[
+        "skipped"
+    ]
+    for url in (f"/w/{space.pk}/", f"/w/{space.pk}/compare/"):
+        html = client.get(url).content.decode()
+        rows = rows_of(html)
+        empty = rows["Empty"]
+        assert "trend-grid__empty" in empty and "no indices</span>" in empty
+        assert "(no results)" not in empty and "–" not in empty
+        assert set(re.findall(r"trend-cell--([a-z12-]+)", empty)) == {"none"}
+        assert "TXx: no indices" in empty
+        assert "trend-grid__empty" not in rows["a"] and "no indices" not in rows["a"]
+        plot = section(html).split('data-trend-plot="TXx"')[1].split("data-trend-plot")[0]
+        assert re.search(r"Not shown: [^<]*Empty Hill: no indices", plot)
+        assert ">Empty Hill</a>" not in plot
+    response = client.get(f"/w/{space.pk}/compare/trends.csv?cols=TXx&cols=SU")
+    found = list(csv.DictReader(io.StringIO(response.content.decode())))
+    assert {r["station"] for r in found} == {"a", "b"}
+
+
 def test_compare_in_a_workspace_of_one_station_opens_its_indices(client):
     analysis, _job = finished_analysis(client)
     response = client.get(f"/w/{analysis.workspace_id}/compare/")
@@ -339,3 +371,15 @@ def test_out_of_date_cells_and_dots_say_so():
     assert [b.out_of_date for b in plot.bars] == [True, False]
     assert plot.bars[0].label.startswith("old: ") and plot.bars[0].label.endswith("out of date")
     assert plot.left_out == ["gone: failed"]
+
+
+def test_a_station_with_no_indices_has_no_cells_and_no_dot():
+    stations = [
+        trend_grid._Station(_Entry("full"), {"TXx": _Card(0.4, 0.2, 0.6)}),
+        trend_grid._Station(_Entry("empty"), {}, no_indices=True),
+    ]
+    full, empty = (trend_grid._cell(s, CHOICE, 0.4) for s in stations)
+    assert empty.state == "none" and empty.text == "" and empty.label == "TXx: no indices"
+    assert [s.has_results for s in stations] == [True, False]
+    plot = trend_grid.interval_plot(stations, CHOICE)
+    assert [b.name for b in plot.bars] == ["full"] and plot.left_out == ["empty: no indices"]

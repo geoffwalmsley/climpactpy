@@ -6,7 +6,8 @@ selected column's interval plot (each station's slope as a dot, its interval as 
 about a zero line, on a shared axis). On the overview, under the Stations table, and on
 Compare an index. A station whose results are out of date (#279) is tagged "· out of date"
 after its name, in the grid and in the plot, its row edged as stale-content is; a failed
-one hatched "· failed" instead when trend_grid.SHOW_FAILED_OUT_OF_DATE is off. Each
+one hatched "· failed" instead when trend_grid.SHOW_FAILED_OUT_OF_DATE is off; one whose
+run made no index table (#298, #315) hatched "· no indices". Each
 column's code is a link that selects it (?index=); js/trends.js
 shows its plot in place instead. "Choose indices" (?cols=, remembered for the workspace)
 and the grid's CSV above it. Context: views_workspace.trends_context (trends: a
@@ -73,7 +74,7 @@ trend_grid.Grid, trends_page, trends_csv, trends_waiting).
         <tbody>
           {% for row in trends.rows %}
           <tr{% if not row.has_results %} class="trend-grid__empty"{% elif row.out_of_date %} class="trend-grid__stale"{% endif %}>
-            <th scope="row" class="trend-grid__name"><span class="trend-grid__station" title="{{ row.name }}">{{ row.name }}</span>{% if row.failed %} <span class="trend-grid__tag"><span aria-hidden="true">{{ "·" }} </span>{% translate "failed" %}</span>{% elif not row.has_results %} <span class="trend-grid__tag">{% translate "(no results)" %}</span>{% elif row.out_of_date %} <span class="trend-grid__tag" title="{% translate 'These trends are from before the last change.' %}"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</th>
+            <th scope="row" class="trend-grid__name"><span class="trend-grid__station" title="{{ row.name }}">{{ row.name }}</span>{% if row.failed %} <span class="trend-grid__tag"><span aria-hidden="true">{{ "·" }} </span>{% translate "failed" %}</span>{% elif row.no_indices %} <span class="trend-grid__tag"><span aria-hidden="true">{{ "·" }} </span>{% translate "no indices" %}</span>{% elif not row.has_results %} <span class="trend-grid__tag">{% translate "(no results)" %}</span>{% elif row.out_of_date %} <span class="trend-grid__tag" title="{% translate 'These trends are from before the last change.' %}"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</th>
             {% for cell in row.cells %}
             <td class="num trend-cell trend-cell--{{ cell.state }}">{% if cell.url %}<a href="{{ cell.url }}" title="{{ cell.label }}"><span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span></a>{% elif cell.text %}<span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span>{% else %}<span class="sr-only">{{ cell.label }}</span>{% endif %}</td>
             {% endfor %}

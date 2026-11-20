@@ -73,21 +73,49 @@
     padding: --spacing(2);
   }
 
-  /* What a file holds. */
-  .gridded-facts {
-    display: grid;
-    gap: --spacing(2) --spacing(5);
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
-    margin: 0;
+  /* The set-up page's Files table (#291, the GridSetup board): a row for each variable's
+     files. The File cell has two lines, the name (or "60 files, 1961–2020", opening to the
+     list) over the folder or the first and last names, in mono; long ones end in an
+     ellipsis. */
+  .gridded-inputs__file {
+    max-inline-size: 0;
+    inline-size: 38%;
+    min-inline-size: 14rem;
+    block-size: auto;
+    padding-block: --spacing(1.5);
+    font-weight: var(--font-weight-normal);
   }
 
-  .gridded-facts dt {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
+  .gridded-inputs__file > span,
+  .gridded-inputs__file summary,
+  .gridded-inputs__list {
+    display: block;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-overflow: ellipsis;
   }
 
-  .gridded-facts dd {
-    margin: 0;
+  .gridded-inputs__file summary {
+    color: var(--color-link);
+    cursor: pointer;
+  }
+
+  .gridded-inputs__list {
+    max-block-size: 16rem;
+    margin: --spacing(1) 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+  }
+
+  .gridded-inputs__bad {
+    background: color-mix(in oklab, var(--color-danger-soft) 35%, var(--color-surface));
+  }
+
+  .gridded-inputs__problem {
+    color: var(--color-danger);
+    white-space: normal;
   }
 
   .gridded-checks {

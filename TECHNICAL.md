@@ -909,7 +909,9 @@ climdex.pcic (`tests/data/r_quantiles.txt`, made with the `reference/r` Docker i
 `climpact gridded-thresholds <files> --out <file>` ports Climpact's
 `climpact.ncdf.thresholds.wrapper.r`, which calls `create.thresholds.from.file` in
 Climpact's own modified climdex.pcic.ncdf 0.5-4 (`server/pcic_packages/climdex.pcic.ncdf/R/ncdf.R`).
-Options follow the wrapper's settings: input files (one to three), `--tmax`, `--tmin`,
+Options follow the wrapper's settings: input files (several per variable when it is split
+along time, or patterns such as `'tasmax_day_*.nc'`, expanded in name order by the command
+when the shell has not; see below), `--tmax`, `--tmin`,
 `--prec` (variable names, default `tasmax`, `tasmin`, `pr`), `--base-start`, `--base-end`,
 `--institution`, `--institution-id` (R's `author.data`), `--workers` (R's `cores`),
 `--max-values` (R's `max.vals.millions`, default 5), and `--rechunk` (`auto`, `yes`,
@@ -930,9 +932,9 @@ netCDF files
 
 **Reading** (`gridded/io.py`), as `create.file.metadata` and `get.data`:
 
-- Each variable must be in exactly one file and have time, Y and X dimensions (found
-  from `axis`, `standard_name` or the dimension name); the files must share their time axis
-  (truncated to days). The standard, `noleap` (`365_day`) and `360_day` calendars are
+- Each variable has time, Y and X dimensions (found from `axis`, `standard_name` or the
+  dimension name), in one file or split along time across several (below); the three
+  variables must share their time axis (truncated to days). The standard, `noleap` (`365_day`) and `360_day` calendars are
   supported (see [Non-standard calendars](#non-standard-calendars)); others (`all_leap`,
   `julian`) raise `NotImplementedError`, as PCICt does not know them.
 - Missing values as ncdf4's `ncvar_get`: the `missing_value` attribute, else `_FillValue`,
@@ -948,6 +950,27 @@ netCDF files
 - Files chunked by time step over the whole grid are rechunked to a temporary file first
   (see [Rechunking](#rechunking-inputs-chunked-by-time-step)); `--rechunk` and
   `--tmp-dir` control it.
+- **A variable split along time** (#291). Datasets such as AGCD, ERA5 and CMIP6 come as a
+  file per year or decade. `open_grid` reads every file's header and coordinates once,
+  then joins the files holding each variable in the order of their first day
+  (`_check_parts`), and refuses, with a `ValueError` naming the two files: a different
+  grid (sizes, or Y or X coordinates differing by more than a relative 1e-6), calendar or
+  units (compared after normalising case and spaces), an overlap ("`a.nc` and `b.nc`
+  overlap: both have the days from ... to ..."), or a gap ("a gap between `a.nc`, which
+  ends on ..., and `b.nc`, which starts on ..."). Files are named by name, or by path when
+  two share a name. A file may hold one variable or several; TX may be split by year while
+  precipitation is one file. Each file is decoded with its own attributes (packed files
+  often have a scale factor of their own) and the pieces are joined with `xr.concat`,
+  then chunked again with the whole time series per block. `GriddedInput.parts` (and
+  `parts_of(variable)`) gives each variable's `FilePart`s, the path and the time steps of
+  the joined axis it holds; `files[v]` is the first, so the exemplar file whose time
+  units, coordinates and attributes the outputs copy is the first TX file (the first
+  precipitation file for the index files), and the output times are the same whatever the
+  later files' time units. `tests/test_gridded_split.py` checks that the sample grid split
+  into 20 yearly files (the later ones with other time units), read through the rechunked
+  copy, gives every index file and the thresholds file with the same values as the whole
+  file; that files given in any order are joined by date; per-file packing; and each
+  refusal's message.
 - `GriddedInput.cell_latitude()` gives each cell's latitude, from the Y coordinate or a
   two-dimensional latitude variable, for the hemisphere rules of the gridded indices (see
   [Gridded indices](#gridded-indices)).
@@ -1219,11 +1242,13 @@ such an input to a temporary file laid out by block, and reads the blocks from i
   when the run ends, also on error or interrupt.
 - **How.** One pass over the input in time slabs of the whole grid, each holding at most
   `max_values` values of one variable and a whole number of the files' time chunks
-  (so each chunk is decompressed once). Each slab of each variable is written as one
+  (so each chunk is decompressed once); no slab crosses from one file of a variable split
+  along time to the next. Each slab of each variable is written as one
   tile per block, sequentially; a block is then read back with one read per slab and
-  variable (`_TileFile`). The raw values are decoded and converted exactly as
-  `GriddedInput.load` does (`_to_climpact_units`, the same `decode_ncdf4` and unit
-  conversion), so the values of every block, and every output, are identical.
+  variable (`_TileFile`). The raw values of each slab are decoded and converted with its
+  file's type and attributes exactly as `GriddedInput.load` does (`_to_climpact_units`,
+  the same `decode_ncdf4` and unit conversion), so the values of every block, and every
+  output, are identical.
 - **Progress.** The run's `total` counts the slabs and the blocks; each slab reports
   `rechunk` (see [Progress reporting](#progress-reporting)).
 - **Memory.** A slab holds at most `max_values` values in the file's type (20 MB for the
@@ -2558,6 +2583,7 @@ exercise only those said to be):
 | --- | --- |
 | `create.thresholds.file` copies every attribute of the input time variable onto the output `time`, including `units`; with input units in hours (Climpact's own sample, `hours since 1800-01-01 00:00:00`) or seconds, the output says hours although its values are days | the input's units are kept when they are in days, as R; otherwise `time` keeps `days since <origin>`. The values are identical; `grid_sample` exercises this |
 | `get.quantiles.for.stripe` takes the base-period TAVG, EHF and raw data by position in the full-year date series (`date.series`) but indexes the file's series with it, and `base_time` holds the file's base-period dates: if the file does not start on 1 January or skips days, the positions shift and `txraw` and `base_time` differ in length | Python pads every series to whole years by date first (as `create.filled.series` does for the percentiles), so the positions are right and missing days are missing. Identical for files starting on 1 January with every day, as all reference grids |
+| `create.file.metadata` and `get.data` (climdex.pcic.ncdf) read each variable from one file; R's gridded screens and wrapper scripts take one file per variable | a variable may be split along time across several files, joined in the order of their first day after checking grid, calendar, units, overlaps and gaps (#291, see [Gridded data](#gridded-data)). The results are those of the joined file: the sample grid split into 20 yearly files gives identical index and thresholds files (`tests/test_gridded_split.py`) |
 | `calculate_EHF` on a series that does not start on 1 January has its first 32 values missing; with the padding, the first EHF values of such a file use the padded (missing) days | as above: only files not starting on 1 January differ |
 | Bounds variables of X and Y (`lat_bnds`, ...) are copied (Climpact's README says inputs must not have them) | not copied; `time_bnds` uses a dimension `bnds` |
 | Non-standard calendars: PCICt supports `365_day`/`noleap` and `360_day` (and stops on others) | supported the same way (#66), including R's `%Y-%j` threshold dates in `noleap` leap years, `climdex.hw`'s threshold lookup by month and day of 2001, and `day_of_<index>` numbers read as standard dates (see [Non-standard calendars](#non-standard-calendars)); `all_leap` and `julian` raise `NotImplementedError`. Identical on `grid_filled_noleap`, `grid_filled_360day` and `grid_sample_360day` |
@@ -6916,17 +6942,27 @@ succeeded; then the tabs:
    copied) with a folder browser. The browser's buttons post the same form
    (`action=browse:<folder>` or `add:<file>`), so it works without JavaScript; htmx swaps
    only the chooser. Each path must be absolute, exist, be readable and start with a
-   netCDF-3 or HDF5 signature. Or upload copies (both modes; kept in
+   netCDF-3 or HDF5 signature. Up to 200 files (`forms.MAX_FILES`, #291, for a variable
+   split by year; `DATA_UPLOAD_MAX_NUMBER_FILES` is 1000 so that an upload of more than
+   Django's default of 100 files reaches the form's own message). Or upload copies (both modes; kept in
    `<MEDIA_ROOT>/gridded/<id>/input/`). Or "Use the sample grid": `grid_sample`, a 3 x 4
    cut of R's sample grid, bundled and read in place from the package.
 2. `/gridded/<id>/setup/`: what each file holds, read from its metadata and coordinates only
    (`inspection.inspect_file`: netCDF4 and cftime, no data): the grid, dates, calendar,
    latitude and longitude ranges, format and size, and every variable with time, Y and X
-   dimensions (found as the core reader finds them) with its description, units and
-   dimensions. Unsupported calendars (`all_leap`, `julian`), files with no daily grid and
-   unreadable time axes are reported in plain language. Then the set-up form; an htmx
-   panel (`gridded:checks`) re-checks it as it changes: the variables (each in one file,
-   not chosen twice, units the core converts, the same grid and dates), the grid and
+   dimensions (found as the core reader finds them) with its description and units. The
+   Files table (#291, the GridSetup board's; `gridded/_files_table.html`) has a row for the
+   files that hold the same variables (`inspection.group_files`): one file, or a variable
+   split across many as "20 files, 1991–2010", a native `<details>` listing each file and
+   its dates; then the daily variables, grid, dates, calendar and total size. Locally the
+   files' folder is under the name. Unsupported calendars (`all_leap`, `julian`), files
+   with no daily grid and unreadable time axes have a row of their own saying why, in
+   plain language. Then the set-up form; the variable choices are one per name ("tmax (K)
+   · 20 files"); an htmx panel (`gridded:checks`) re-checks it as it changes: the
+   variables (in one file or split along time across files that join as the core joins
+   them, `inspection.join_problem`: the same grid, calendar and units, no overlap, no gap,
+   each named by its files; not chosen twice; units the core converts; the same grid and
+   dates as the others), the grid and
    period, the base period's coverage and the number and names of the index files. On
    "Start", the form is validated, and the files are opened with the core's `open_grid`
    (`inspection.preflight`), so a file the core would refuse fails here with its message
@@ -7023,7 +7059,11 @@ spacing, the run's bar (breadcrumb, h1, provenance line, actions, tabs), the old
 address's redirect, the Files tab's groups by theme, variable and frequency, a group's
 zip, the links for `wget -i` (a file served to another client with the key, not without),
 `run.json` (the sample's SHA-256) and `climpact.log`, the Forget page, and no stepper on
-any gridded page.
+any gridded page. Since #291: the sample split into 20 yearly files, inspected and
+grouped (one choice per variable, the joined period), a gap, an overlap and units or a
+calendar that differ, each named by its files; up to 200 files by path and upload (150
+uploads reach the form); the Files table's row for the 20 files, and a full run of them;
+a file that cannot be used in a row of its own.
 
 ### Size budget
 
@@ -7640,7 +7680,8 @@ uv run pytest -m browser    # the browser accessibility checks, before a PR touc
 - Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
 
 - Compute gridded thresholds with
-  `uv run climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
+  `uv run climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`;
+  a variable split along time takes its files, or a quoted pattern (`'tasmax_*.nc'`).
 - Compute gridded indices with
   `uv run climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N] [--trends]`
   (`--trends` also writes `trends.nc`, see [Gridded trends](#gridded-trends)).

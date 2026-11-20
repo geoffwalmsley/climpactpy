@@ -1,4 +1,4 @@
-"""The gridded pages (#85, #289): Gridded's list of runs, choosing files by path (local
+"""The gridded pages (#85, #289, #291): Gridded's list of runs, choosing files by path (local
 mode) or upload, the folder browser, inspecting the files and guessing the variables, the
 set-up form and its checks, the thresholds and indices jobs, a run's context bar and its
 Map, Files and Set-up tabs (the map, cell series, CSVs, zips, the links for wget and the
@@ -153,6 +153,93 @@ def test_base_days_and_defaults():
     assert base_days(s360, 1971, 2000) == 30 * 360
 
 
+def split_by_year(src: Path, folder: Path, years=None) -> list[Path]:
+    """``src`` copied to one file per year (raw values, types and attributes), or to the
+    files of ``years``, a list of ``(first, last)``."""
+    folder.mkdir(parents=True, exist_ok=True)
+    out = []
+    with netCDF4.Dataset(src) as nc:
+        t = nc["time"]
+        dates = netCDF4.num2date(t[:], t.units, getattr(t, "calendar", "standard"))
+        year = np.array([d.year for d in dates])
+        for first, last in years or [(y, y) for y in np.unique(year)]:
+            index = np.flatnonzero((year >= first) & (year <= last))
+            path = folder / f"{src.stem}_{first}.nc"
+            with netCDF4.Dataset(path, "w") as dst:
+                for name, dim in nc.dimensions.items():
+                    dst.createDimension(name, None if dim.isunlimited() else len(dim))
+                for name, var in nc.variables.items():
+                    var.set_auto_maskandscale(False)
+                    fill = var.getncattr("_FillValue") if "_FillValue" in var.ncattrs() else None
+                    v = dst.createVariable(name, var.dtype, var.dimensions, fill_value=fill)
+                    v.set_auto_maskandscale(False)
+                    v.setncatts({k: var.getncattr(k) for k in var.ncattrs() if k != "_FillValue"})
+                    v[:] = var[:][index] if "time" in var.dimensions else var[:]
+            out.append(path)
+    return out
+
+
+NAMES = {"tasmax": "tmax", "tasmin": "tmin", "pr": "precip"}
+
+
+def test_a_variable_split_across_files(tmp_path):
+    """The files of a variable are joined in the order of their first day, as the core's
+    reader joins them: one choice per variable, the joined grid and period."""
+    files = split_by_year(SAMPLE, tmp_path)
+    infos = [inspection.inspect_file(f) for f in reversed(files)]
+    assert inspection.guess_names(infos) == NAMES
+    choices = inspection.variable_choices(infos)
+    assert [name for name, _label in choices] == ["tmax", "tmin", "precip"]
+    assert choices[0][1].endswith(" · 20 files")
+    problems, summary = inspection.check_names(infos, NAMES)
+    assert problems == {}
+    assert (summary.first, summary.last, summary.days, summary.cells) == (
+        "1991-01-01",
+        "2010-12-31",
+        7305,
+        12,
+    )
+    assert inspection.find_variable(infos, "tmax")[0].name == files[0].name
+    groups = inspection.group_files(infos)
+    assert len(groups) == 1 and groups[0].count == 20 and groups[0].ok
+    assert [f.name for f in groups[0].files] == [f.name for f in files]
+    assert (groups[0].first_year, groups[0].last_year) == ("1991", "2010")
+    assert groups[0].variables == ["tmax", "tmin", "precip"]
+    assert groups[0].folder == str(tmp_path)
+    assert groups[0].size == sum(f.stat().st_size for f in files)
+
+
+def test_split_files_that_do_not_fit(tmp_path):
+    files = split_by_year(SAMPLE, tmp_path / "s")
+    infos = [inspection.inspect_file(f) for f in files]
+    gap = infos[:3] + infos[4:]
+    problems, _ = inspection.check_names(gap, NAMES)
+    assert problems["tasmax"] == (
+        "There is a gap between climpact.sampledata.gridded.3x4.1991-2010_1993.nc, which "
+        "ends on 1993-12-31, and climpact.sampledata.gridded.3x4.1991-2010_1995.nc, which "
+        "starts on 1995-01-01."
+    )
+    two_years = split_by_year(SAMPLE, tmp_path / "t", years=[(1993, 1994)])
+    problems, _ = inspection.check_names(infos + [inspection.inspect_file(two_years[0])], NAMES)
+    assert "overlap: both have the days from 1993-01-01 to 1993-12-31." in problems["tasmax"]
+    shutil.copy(files[1], tmp_path / "kelvin.nc")
+    with netCDF4.Dataset(tmp_path / "kelvin.nc", "a") as nc:
+        nc["tmax"].units = "degC"
+    mixed = [infos[0], inspection.inspect_file(tmp_path / "kelvin.nc")]
+    problems, _ = inspection.check_names(mixed, NAMES)
+    assert problems["tasmax"].startswith(
+        "climpact.sampledata.gridded.3x4.1991-2010_1991.nc is in K"
+    )
+    assert "same units" in problems["tasmax"] and "tasmin" not in problems
+    with netCDF4.Dataset(tmp_path / "kelvin.nc", "a") as nc:
+        nc["tmax"].units = "K"
+        nc["time"].calendar = "noleap"
+    problems, _ = inspection.check_names(
+        [infos[0], inspection.inspect_file(tmp_path / "kelvin.nc")], NAMES
+    )
+    assert "in the standard calendar and kelvin.nc in the noleap calendar" in problems["pr"]
+
+
 # ---- New gridded run: choosing files ----------------------------------------------------------
 
 
@@ -160,6 +247,7 @@ def test_new_run_page_local(client):
     html = client.get("/gridded/new/").content.decode()
     assert "Files on this computer" in html and 'id="file-browser"' in html
     assert "Use the sample grid" in html and 'name="files"' in html
+    assert "each split by year (up to 200 files, joined along time)" in html
     assert "<h1>New gridded run</h1>" in html and 'aria-label="Breadcrumb"' in html
     assert "steps__" not in html and "Continue where you left off" not in html
 
@@ -192,7 +280,7 @@ def test_choose_files_by_path(client):
     ]
     assert run.names == {"tasmax": "tasmax", "tasmin": "tasmin", "pr": "pr"}
     html = client.get(response["Location"]).content.decode()
-    assert "3 × 4 cells" in html and "degrees_C" in html and str(GRIDS) in html
+    assert '<td class="code">3 × 4</td>' in html and "degrees_C" in html and str(GRIDS) in html
 
 
 def test_browser_lists_folders_and_adds_files(client):
@@ -224,6 +312,59 @@ def test_upload(client):
         "/gridded/upload", {"files": [SimpleUploadedFile("x.nc", b"hello world")]}
     )
     assert "x.nc is not a netCDF file" in response.content.decode()
+
+
+def test_up_to_200_files(client, tmp_path):
+    """A variable split across many files: up to 200 files, by path or uploaded (more
+    than Django's default of 100 files in a request)."""
+    fake = [SimpleUploadedFile(f"x{i}.nc", b"hello") for i in range(150)]
+    html = client.post("/gridded/upload", {"files": fake}).content.decode()
+    assert "x149.nc is not a netCDF file" in html
+    fake = [SimpleUploadedFile(f"x{i}.nc", b"hello") for i in range(201)]
+    assert (
+        "Choose at most 200 files."
+        in client.post("/gridded/upload", {"files": fake}).content.decode()
+    )
+    paths = "\n".join(str(tmp_path / f"y{i}.nc") for i in range(201))
+    html = client.post("/gridded/new/", {"paths": paths, "action": "use"}).content.decode()
+    assert "Choose at most 200 files." in html
+
+
+def test_setup_groups_a_variable_split_across_files(client, tmp_path):
+    files = split_by_year(SAMPLE, tmp_path)
+    response = client.post(
+        "/gridded/new/", {"paths": "\n".join(str(f) for f in files), "action": "use"}
+    )
+    run = GriddedRun.objects.get(pk=response["Location"].split("/")[2])
+    assert run.names == NAMES and len(run.paths) == 20
+    html = client.get(response["Location"]).content.decode()
+    assert html.count('<tr>\n        <th scope="row" class="gridded-inputs__file">') == 1
+    assert "<summary>20 files, 1991–2010</summary>" in html
+    assert "1991-01-01 → 2010-12-31" in html and "1993-01-01 → 1993-12-31" in html
+    assert f"{tmp_path}/</span>" in html  # locally, the files' folder
+    assert '<li title="climpact.sampledata.gridded.3x4.1991-2010_1995.nc">' in html
+    assert '<option value="tmax" selected>' in html
+    assert (
+        "7,305 days of the base period"
+        in client.post(
+            f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
+        ).content.decode()
+    )
+    # The core's reader accepts them: the run starts.
+    response = client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["txx"]))
+    assert response.status_code == 302, response.content.decode()
+    assert Job.objects.get().params["input_files"] == [str(f) for f in files]
+    jobs = run_jobs()
+    assert [j.status for j in jobs] == [Status.SUCCEEDED], [j.error for j in jobs]
+
+
+def test_setup_shows_a_file_that_cannot_be_used(client, tmp_path):
+    bad = tmp_path / "notes.nc"
+    bad.write_bytes(b"\x89HDF\r\n\x1a\nnot really")
+    response = client.post("/gridded/new/", {"paths": f"{SAMPLE}\n{bad}", "action": "use"})
+    html = client.get(response["Location"]).content.decode()
+    assert 'class="gridded-inputs__bad"' in html and "Cannot be used:" in html
+    assert "notes.nc</span>" in html
 
 
 def test_upload_limit(client, settings):
@@ -311,7 +452,9 @@ def test_setup_page_shows_the_files_and_defaults(client):
     assert "New run</a></li>" in html and '<span aria-current="page">set-up</span>' in html
     assert "<h1>Sample grid, 1991–2010 <a" in html and f"/gridded/{run.pk}/rename/" in html
     assert "steps__" not in html and 'aria-label="Run sections"' not in html
-    assert "3 × 4 cells" in html and "1991-01-01 to 2010-12-31" in html
+    assert '<td class="code">3 × 4</td>' in html and "1991-01-01 → 2010-12-31" in html
+    assert "climpact.sampledata.gridded.3x4.1991-2010.nc</span>" in html
+    assert '<td class="code">tmax, tmin, precip</td>' in html
     assert '<option value="tmax" selected>' in html and '<option value="precip" selected>' in html
     assert 'value="1991"' in html and 'value="2010"' in html  # R's gridded default
     assert "var_daily_climpact_historical_NA_1991-2010.nc" in html

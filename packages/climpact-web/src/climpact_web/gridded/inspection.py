@@ -1,6 +1,8 @@
 """Inspecting netCDF files before a gridded run (#85): what each file holds (variables,
 units, calendar, grid, time range), a guess at which variables are TX, TN and
-precipitation, and the checks the run would otherwise fail on, in plain language.
+precipitation, and the checks the run would otherwise fail on, in plain language. A
+variable may be split along time across several files (#291): they are joined in the
+order of their first day, as the core's reader joins them.
 
 Only the files' metadata and coordinates are read (netCDF4 and cftime, no data arrays),
 so inspecting a large file is quick. The final check before a run opens the files with
@@ -236,19 +238,26 @@ def guess_names(files: list[FileInfo]) -> dict[str, str]:
 
 
 def variable_choices(files: list[FileInfo]) -> list[tuple[str, str]]:
-    """``(name, label)`` of every daily-grid variable, with its file and units."""
-    out = []
+    """``(name, label)`` of every daily-grid variable, with its file (or its number of
+    files, when it is split across several) and units; one choice per name."""
+    holders: dict[str, list[tuple[FileInfo, Variable]]] = {}
     for f in files:
         if not f.ok:
             continue
         for v in f.variables:
-            label = v.name
-            details = [x for x in (v.long_name, v.units) if x]
-            if details:
-                label += f" ({', '.join(details)})"
-            if len(files) > 1:
-                label += f" · {f.name}"
-            out.append((v.name, label))
+            holders.setdefault(v.name, []).append((f, v))
+    out = []
+    for name, found in holders.items():
+        f, v = found[0]
+        label = name
+        details = [x for x in (v.long_name, v.units) if x]
+        if details:
+            label += f" ({', '.join(details)})"
+        if len(found) > 1:
+            label += " · " + _("%(count)d files") % {"count": len(found)}
+        elif len(files) > 1:
+            label += f" · {f.name}"
+        out.append((name, label))
     return out
 
 
@@ -273,11 +282,105 @@ def units_problem(role: str, units: str) -> str:
 
 
 def find_variable(files: list[FileInfo], name: str) -> tuple[FileInfo, Variable] | None:
-    for f in files:
-        for v in f.variables:
-            if v.name == name:
-                return f, v
-    return None
+    """The first file (in time) holding the variable ``name``, and the variable."""
+    found = holders(files, name)
+    return found[0] if found else None
+
+
+def holders(files: list[FileInfo], name: str) -> list[tuple[FileInfo, Variable]]:
+    """The readable files holding the variable ``name``, in the order of their first day."""
+    out = [(f, v) for f in files if f.ok for v in f.variables if v.name == name]
+    return sorted(out, key=lambda fv: fv[0].first)
+
+
+def _date(iso: str, calendar: str):
+    import cftime
+
+    year, month, day = (int(x) for x in iso.split("-"))
+    return cftime.datetime(year, month, day, calendar=calendar.lower())
+
+
+def _follows(a: FileInfo, b: FileInfo) -> int:
+    """Days from ``a``'s last day to ``b``'s first: 1 when ``b`` follows on, 0 or less
+    when they overlap."""
+    return (_date(b.first, b.calendar) - _date(a.last, a.calendar)).days
+
+
+def _same_calendar(a: str, b: str) -> bool:
+    standard = {"standard", "gregorian", "proleptic_gregorian"}
+    a, b = a.lower(), b.lower()
+    a = "standard" if a in standard else "noleap" if a == "365_day" else a
+    b = "standard" if b in standard else "noleap" if b == "365_day" else b
+    return a == b
+
+
+def join_problem(found: list[tuple[FileInfo, Variable]]) -> str:
+    """Why the files of one variable, in time order, cannot be joined along time, as the
+    core's reader would refuse them (the same grid, calendar and units, no day in two
+    files and none missing between them), or ''."""
+    for (a, va), (b, vb) in zip(found[:-1], found[1:], strict=True):
+        if (a.ny, a.nx) != (b.ny, b.nx) or a.y_range != b.y_range or a.x_range != b.x_range:
+            return _("%(b)s does not have the grid of %(a)s.") % {"a": a.name, "b": b.name}
+        if not _same_calendar(a.calendar, b.calendar):
+            return _("%(a)s is in the %(ca)s calendar and %(b)s in the %(cb)s calendar.") % {
+                "a": a.name,
+                "b": b.name,
+                "ca": a.calendar,
+                "cb": b.calendar,
+            }
+        if va.units.strip().lower() != vb.units.strip().lower():
+            return _(
+                "%(a)s is in %(ua)s and %(b)s in %(ub)s; the files must have the same units."
+            ) % {
+                "a": a.name,
+                "b": b.name,
+                "ua": va.units or _("no units"),
+                "ub": vb.units or _("no units"),
+            }
+        if not (a.first and a.last and b.first and b.last):
+            continue
+        step = _follows(a, b)
+        if step <= 0:
+            return _("%(a)s and %(b)s overlap: both have the days from %(first)s to %(last)s.") % {
+                "a": a.name,
+                "b": b.name,
+                "first": b.first,
+                "last": min(a.last, b.last),
+            }
+        if step > 1:
+            return _(
+                "There is a gap between %(a)s, which ends on %(last)s, and %(b)s, which "
+                "starts on %(first)s."
+            ) % {"a": a.name, "b": b.name, "last": a.last, "first": b.first}
+    return ""
+
+
+@dataclass
+class Joined:
+    """One variable's files joined along time: what they make together."""
+
+    files: list[FileInfo]
+    variable: Variable
+
+    @property
+    def first(self) -> str:
+        return self.files[0].first
+
+    @property
+    def last(self) -> str:
+        return self.files[-1].last
+
+    @property
+    def days(self) -> int:
+        return sum(f.days for f in self.files)
+
+    @property
+    def grid(self) -> tuple[int, int]:
+        return self.files[0].ny, self.files[0].nx
+
+    @property
+    def calendar(self) -> str:
+        return self.files[0].calendar
 
 
 @dataclass
@@ -309,33 +412,25 @@ class Summary:
 def check_names(files: list[FileInfo], names: dict[str, str]) -> tuple[dict[str, str], Summary]:
     """Problems with the chosen variables, by role (``{role: message}``), and what they
     make together. The rules are the core reader's (``open_grid``): each variable in one
-    file, the same grid and the same time axis, units Climpact reads."""
+    file or split along time across several that follow on, the same grid and the same
+    time axis, units Climpact reads."""
     problems: dict[str, str] = {}
     summary = Summary()
-    chosen = {}
-    counts: dict[str, int] = {}
-    for f in files:
-        for v in f.variables:
-            counts[v.name] = counts.get(v.name, 0) + 1
+    chosen: dict[str, Joined] = {}
     for role in ROLES:
         name = names.get(role, "")
         if not name:
             problems[role] = _("Choose the variable.")
             continue
-        found = find_variable(files, name)
-        if found is None:
+        found = holders(files, name)
+        if not found:
             problems[role] = _("No file has a daily grid variable named %(name)s.") % {"name": name}
             continue
-        if counts.get(name, 0) > 1:
-            problems[role] = _(
-                "%(name)s is in more than one file; each variable must be in one."
-            ) % {"name": name}
-            continue
-        message = units_problem(role, found[1].units)
+        message = units_problem(role, found[0][1].units) or join_problem(found)
         if message:
             problems[role] = message
             continue
-        chosen[role] = found
+        chosen[role] = Joined([f for f, _v in found], found[0][1])
     used = [names.get(r) for r in ROLES if names.get(r)]
     if len(set(used)) < len(used):
         for role in ROLES:
@@ -343,33 +438,110 @@ def check_names(files: list[FileInfo], names: dict[str, str]) -> tuple[dict[str,
                 problems[role] = _("The same variable is chosen twice.")
     if not chosen:
         return problems, summary
-    first_file, first_var = next(iter(chosen.values()))
-    for role, (f, v) in chosen.items():
+    first = next(iter(chosen.values()))
+    for role, joined in chosen.items():
         if role in problems:
             continue
-        if (f.ny, f.nx) != (first_file.ny, first_file.nx) or v.shape != first_var.shape:
+        if joined.grid != first.grid or joined.days != first.days:
             problems[role] = _("Its grid or number of days differs from %(name)s's.") % {
-                "name": first_var.name
+                "name": first.variable.name
             }
-        elif (f.first, f.last, f.calendar.lower()) != (
-            first_file.first,
-            first_file.last,
-            first_file.calendar.lower(),
+        elif (joined.first, joined.last, joined.calendar.lower()) != (
+            first.first,
+            first.last,
+            first.calendar.lower(),
         ):
             problems[role] = _(
                 "Its dates differ from %(name)s's; the files must share their time axis."
-            ) % {"name": first_var.name}
+            ) % {"name": first.variable.name}
+    head = first.files[0]
     summary = Summary(
-        ny=first_file.ny,
-        nx=first_file.nx,
-        first=first_file.first,
-        last=first_file.last,
-        days=first_file.days,
-        calendar=first_file.calendar,
-        y_range=first_file.y_range,
-        x_range=first_file.x_range,
+        ny=head.ny,
+        nx=head.nx,
+        first=first.first,
+        last=first.last,
+        days=first.days,
+        calendar=first.calendar,
+        y_range=head.y_range,
+        x_range=head.x_range,
     )
     return problems, summary
+
+
+@dataclass
+class FileGroup:
+    """A row of the set-up page's Files table (#291): the readable files that hold the
+    same variables, in time order (one file, or a variable split across many), or one
+    file that cannot be read."""
+
+    files: list[FileInfo]
+
+    @property
+    def ok(self) -> bool:
+        return all(f.ok for f in self.files)
+
+    @property
+    def count(self) -> int:
+        return len(self.files)
+
+    @property
+    def head(self) -> FileInfo:
+        return self.files[0]
+
+    @property
+    def tail(self) -> FileInfo:
+        return self.files[-1]
+
+    @property
+    def variables(self) -> list[str]:
+        return [v.name for v in self.head.variables]
+
+    @property
+    def first(self) -> str:
+        return self.head.first
+
+    @property
+    def last(self) -> str:
+        return self.tail.last
+
+    @property
+    def first_year(self) -> str:
+        return self.first[:4]
+
+    @property
+    def last_year(self) -> str:
+        return self.last[:4]
+
+    @property
+    def size(self) -> int:
+        return sum(f.size for f in self.files)
+
+    @property
+    def folder(self) -> str:
+        """The folder of the files (their common folder, when they are in several)."""
+        folders = {str(Path(f.path).parent) for f in self.files}
+        if len(folders) == 1:
+            return folders.pop()
+        return os.path.commonpath(sorted(folders))
+
+    @property
+    def folder_label(self) -> str:
+        """The folder as the table shows it, ending in the separator."""
+        return os.path.join(self.folder, "")
+
+
+def group_files(files: list[FileInfo]) -> list[FileGroup]:
+    """The files as the Files table shows them: those holding the same variables
+    together, in time order, in the order each set of variables first appears; a file
+    that cannot be read on its own."""
+    groups: dict[object, list[FileInfo]] = {}
+    for i, f in enumerate(files):
+        key = tuple(v.name for v in f.variables) if f.ok else i
+        groups.setdefault(key, []).append(f)
+    return [
+        FileGroup(sorted(group, key=lambda f: f.first) if group[0].ok else group)
+        for group in groups.values()
+    ]
 
 
 def preflight(paths: list[str], names: dict[str, str], max_values: int) -> dict:

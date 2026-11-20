@@ -1,0 +1,55 @@
+{% load i18n ui %}{% comment %}
+The set-up page's Files table (#291, the GridSetup board): a row for the files that hold the
+same variables, joined along time ("60 files, 1961–2020", the files listed one click away)
+or one file; a file that cannot be read has a row of its own saying why. File (its name and,
+locally, its folder; the first and last names otherwise), Daily variables, Grid, Dates, Calendar, Size. Context: file_groups
+(inspection.group_files), local, run.
+{% endcomment %}
+<div class="table-wrap table-wrap--data" role="region" aria-labelledby="files-caption" tabindex="0">
+  <table class="table table--data">
+    <caption id="files-caption" class="sr-only">{% translate "The files Climpact has read: a row for each variable's files" %}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{% translate "File" %}</th>
+        <th scope="col">{% translate "Daily variables" %}</th>
+        <th scope="col">{% translate "Grid" %}</th>
+        <th scope="col">{% translate "Dates" %}</th>
+        <th scope="col">{% translate "Calendar" %}</th>
+        <th scope="col" class="text-end">{% translate "Size" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in file_groups %}
+      {% if group.ok %}
+      <tr>
+        <th scope="row" class="gridded-inputs__file">
+          {% if group.count > 1 %}
+          <details>
+            <summary>{% blocktranslate count counter=group.count with first=group.first_year last=group.last_year trimmed %}{{ counter }} file, {{ first }}–{{ last }}{% plural %}{{ counter }} files, {{ first }}–{{ last }}{% endblocktranslate %}</summary>
+            <ol class="gridded-inputs__list" role="list">
+              {% for f in group.files %}<li title="{{ f.name }}">{{ f.name }} <span class="text-text-muted">{% blocktranslate with first=f.first last=f.last %}{{ first }} → {{ last }}{% endblocktranslate %}</span></li>{% endfor %}
+            </ol>
+          </details>
+          {% if local and run.source == "path" %}<span class="text-text-muted" title="{{ group.folder }}">{{ group.folder_label }}</span>
+          {% else %}{% blocktranslate asvar ends with first=group.head.name last=group.tail.name %}{{ first }} … {{ last }}{% endblocktranslate %}<span class="text-text-muted" title="{{ ends }}">{{ ends }}</span>{% endif %}
+          {% else %}
+          <span title="{{ group.head.name }}">{{ group.head.name }}</span>
+          {% if local and run.source == "path" %}<span class="text-text-muted" title="{{ group.folder }}">{{ group.folder_label }}</span>{% endif %}
+          {% endif %}
+        </th>
+        <td class="code">{{ group.variables|join:", " }}</td>
+        <td class="code">{% blocktranslate with ny=group.head.ny nx=group.head.nx %}{{ ny }} × {{ nx }}{% endblocktranslate %}</td>
+        <td class="code">{% blocktranslate with first=group.first last=group.last %}{{ first }} → {{ last }}{% endblocktranslate %}</td>
+        <td class="code">{{ group.head.calendar }}</td>
+        <td class="num">{{ group.size|filesizeformat }}</td>
+      </tr>
+      {% else %}
+      <tr class="gridded-inputs__bad">
+        <th scope="row" class="gridded-inputs__file"><span title="{{ group.head.name }}">{{ group.head.name }}</span>{% if local and run.source == "path" %}<span class="text-text-muted" title="{{ group.folder }}">{{ group.folder_label }}</span>{% endif %}</th>
+        <td colspan="5"><span class="gridded-inputs__problem flex items-center gap-2 text-sm">{% icon "error" %}<span><strong>{% translate "Cannot be used:" %}</strong> {{ group.head.problem }}</span></span></td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

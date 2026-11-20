@@ -419,7 +419,10 @@ strips, worklist and detail pane.
     Rename. **Target:** New run (#292): a narrow page; locally a folder listing with a checkbox per
     file and its variables and dates read from the header (paths or a `*` pattern one
     disclosure away), hosted the drop zone with its limit stated first (until then the
-    old chooser, at `/gridded/new/`). Set-up (#293): one
+    old chooser, at `/gridded/new/`; it takes up to 200 files since #291). Set-up's
+    Files section is the board's Files table since #291 (Gridded files table, below):
+    a row for each variable's files, so a variable split by year is one row ("20 files,
+    1991–2010") that opens to its list; the Header link is #293's. Set-up (#293): one
     page of sections divided by hairlines (Files, Variables, What to calculate, Base
     period, Indices, Output files, Computing closed), with the summary panel (22.5rem,
     sticky) at the inline end: each check with its mark, then the one Start button. Units
@@ -575,6 +578,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Interval plot | Pattern | The selected column beside the grid (#238): the code and "units per decade" in mono over the short name; a row a station, its name (a link to its index page) with its slope and interval, then a 360 x 16 line: the zero line, the interval as a thick muted line, the slope as a dot (the strong step of its direction when significant, `border-strong` when not); one axis under them, symmetric about zero, its ends round (`index_page.nice_ticks`). Stations left out say why under it ("Not shown: … no results"), then the key line and "CSV, all stations". Every column's plot is in the page, the others hidden. Its table view is the grid's column, its text summary the count of significant trends | significant, not significant, left out |
 | `empty_state` | Pattern | Nothing to show yet, with the next action. The Indices of a run that wrote no index table (every index skipped, #268): "No index to show" above the list of what could not be calculated, with "Replace the file" (the File sheet), in place of the rail, table and pane | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html`. A gridded run's Files (#289) frames each group (`gridded-group`), its hue dot before the name, the first open, and puts "Download these (zip)" beside the summary rather than in it (a link in a summary is a control in a control) | open, closed |
+| Gridded files table | Pattern | The set-up page's Files (#291, the GridSetup board's Files table; `gridded/_files_table.html`, `inspection.group_files`): a framed data table, a row for the files holding the same variables, joined along time. File: the name over its folder (locally) in mono, or for a variable split across files "20 files, 1991–2010" as a native `<details>` listing each file and its dates, over the folder (or the first and last names when hosted); Daily variables, Grid, Dates (`first → last`), Calendar in mono; Size at the end. Long names end in an ellipsis, whole in their `title`. A file that cannot be used has its own row, the reason in danger | one file, split files, list open, a file that cannot be used |
 | Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,

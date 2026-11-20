@@ -12,9 +12,11 @@ outputs, as R's download does (see :mod:`climpact.plots`), and ``--report`` to w
 report of each station (see :mod:`climpact.report`).
 ``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
-(see :mod:`climpact.gridded`). ``climpact gridded-indices <netCDF files> --out <dir>``
-computes the indices of every cell, as ``climpact.ncdf.wrapper.r``; with ``--trends``
-it also writes ``trends.nc``, the trends of every cell (:mod:`climpact.gridded.trends`).
+(see :mod:`climpact.gridded`). The gridded commands take the files of a variable split
+along time (one per year, say) as several files or a pattern such as ``'tasmax_*.nc'``.
+``climpact gridded-indices <netCDF files> --out <dir>`` computes the indices of every
+cell, as ``climpact.ncdf.wrapper.r``; with ``--trends`` it also writes ``trends.nc``, the
+trends of every cell (:mod:`climpact.gridded.trends`).
 ``climpact sector-correlation <station file> <sector file> --out <dir>`` correlates annual
 sector data with a station already run, as the app's step 4 (see :mod:`climpact.sector`).
 """
@@ -70,6 +72,32 @@ def _add_grid_input_args(parser: argparse.ArgumentParser) -> None:
         "(default: the system's temporary directory)",
     )
     parser.add_argument("--quiet", action="store_true", help="do not print progress")
+
+
+_INPUT_FILES_HELP = (
+    "CF netCDF files, or patterns such as 'tasmax_day_*.nc' (quoted, or expanded by the "
+    "shell); a variable may be split along time across several files, joined in the "
+    "order of their first day"
+)
+
+
+def _input_files(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
+    """The input files, with any pattern (``*``, ``?``, ``[...]``) that is not itself a
+    file expanded to the files it matches, in name order."""
+    import glob
+
+    out: list[Path] = []
+    for path in args.input_files:
+        if not path.is_file() and glob.has_magic(str(path)):
+            matches = sorted(Path(m) for m in glob.glob(str(path)) if Path(m).is_file())
+            if not matches:
+                parser.error(f"no file matches {path}")
+            out.extend(matches)
+        elif not path.is_file():
+            parser.error(f"input file not found: {path}")
+        else:
+            out.append(path)
+    return list(dict.fromkeys(out))
 
 
 def _open_grid_args(args: argparse.Namespace) -> dict:
@@ -334,7 +362,7 @@ def _parser() -> argparse.ArgumentParser:
         "layout of Climpact's climpact.ncdf.thresholds.wrapper.r. Temperatures may be in "
         "K or degrees_C, precipitation in kg m-2 d-1 or kg m-2 s-1.",
     )
-    grid.add_argument("input_files", type=Path, nargs="+", help="one to three CF netCDF files")
+    grid.add_argument("input_files", type=Path, nargs="+", help=_INPUT_FILES_HELP)
     grid.add_argument("--out", type=Path, required=True, help="thresholds netCDF file to write")
     grid.add_argument("--tmax", default="tasmax", help="TX variable name (" + _DEFAULT + ")")
     grid.add_argument("--tmin", default="tasmin", help="TN variable name (" + _DEFAULT + ")")
@@ -360,7 +388,7 @@ def _parser() -> argparse.ArgumentParser:
         "of Climpact's climpact.ncdf.wrapper.r. Temperatures may be in K or degrees_C, "
         "precipitation in kg m-2 d-1 or kg m-2 s-1. Not yet written: hw, hwEHF, spi, spei.",
     )
-    gi.add_argument("input_files", type=Path, nargs="+", help="one to three CF netCDF files")
+    gi.add_argument("input_files", type=Path, nargs="+", help=_INPUT_FILES_HELP)
     gi.add_argument("--out", type=Path, required=True, help="output directory")
     gi.add_argument(
         "--template",
@@ -608,9 +636,7 @@ def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.Argume
     from climpact.gridded import open_grid, write_grid_thresholds
     from climpact.thresholds import InsufficientBaseData
 
-    for path in args.input_files:
-        if not path.is_file():
-            parser.error(f"input file not found: {path}")
+    input_files = _input_files(args, parser)
     if args.workers < 1:
         parser.error("--workers must be at least 1")
     if args.base_end < args.base_start:
@@ -618,7 +644,7 @@ def gridded_thresholds_command(args: argparse.Namespace, parser: argparse.Argume
     if args.tmp_dir is not None and not args.tmp_dir.is_dir():
         parser.error(f"--tmp-dir is not a directory: {args.tmp_dir}")
     try:
-        inp = open_grid(args.input_files, **_open_grid_args(args))
+        inp = open_grid(input_files, **_open_grid_args(args))
     except (ValueError, NotImplementedError) as exc:
         parser.error(str(exc))
     author = {"institution": args.institution, "institution_id": args.institution_id}
@@ -647,9 +673,7 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     from climpact.gridded.indices import WRAPPER_PARAMS, index_files
     from climpact.thresholds import InsufficientBaseData
 
-    for path in args.input_files:
-        if not path.is_file():
-            parser.error(f"input file not found: {path}")
+    input_files = _input_files(args, parser)
     if args.thresholds is not None and not args.thresholds.is_file():
         parser.error(f"thresholds file not found: {args.thresholds}")
     if args.workers < 1:
@@ -674,7 +698,7 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     if args.tmp_dir is not None and not args.tmp_dir.is_dir():
         parser.error(f"--tmp-dir is not a directory: {args.tmp_dir}")
     try:
-        inp = open_grid(args.input_files, **_open_grid_args(args))
+        inp = open_grid(input_files, **_open_grid_args(args))
     except (ValueError, NotImplementedError) as exc:
         parser.error(str(exc))
     author = {"institution": args.institution, "institution_id": args.institution_id}

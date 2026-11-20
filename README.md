@@ -103,6 +103,8 @@ climpact sector-correlation station.txt wheat_yield.csv --out outputs
 # Gridded netCDF data: base-period thresholds, then every index of every cell
 climpact gridded-thresholds tasmax.nc tasmin.nc pr.nc --out thresholds.nc
 climpact gridded-indices tasmax.nc tasmin.nc pr.nc --out indices/ --workers 4
+# A variable split by year: give its files, or a quoted pattern; they are joined along time
+climpact gridded-indices 'tasmax_day_*.nc' 'tasmin_day_*.nc' 'pr_day_*.nc' --out indices/
 ```
 
 Station files are the standard Climpact / RClimDex text format: one line per day with year,

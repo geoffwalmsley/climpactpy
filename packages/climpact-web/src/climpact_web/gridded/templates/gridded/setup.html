@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% comment %}
-A gridded run's set-up (#85; #293 redraws it). Before the run starts: "Gridded / New run /
+A gridded run's set-up (#85; #293 redraws it). The Files section is the GridSetup board's
+table, a row for each variable's files (#291). Before the run starts: "Gridded / New run /
 set-up" over the run's name as the h1, with Rename. Once it has started, the run's Set-up
 tab (#289): the run's context bar, then the same form, which starts the run again.
 Context from views.setup_context.
@@ -26,42 +27,10 @@ Context from views.setup_context.
   {% include "components/alert.html" with kind="info" title="" message=active_message action_href=results_url action_label=follow_label %}
   {% endif %}
 
-  <section class="stack" aria-labelledby="files-title">
-    <h2 id="files-title">{% translate "The files" %}</h2>
-    <ul class="batch-list" role="list">
-      {% for file in files %}
-      <li class="batch-item batch-item--{% if file.ok %}ready{% else %}invalid{% endif %}">
-        <div class="batch-item__head">
-          <h3 class="batch-item__name">{{ file.name }}</h3>
-          {% if file.ok %}{% translate "Readable" as label %}{% include "components/badge.html" with label=label kind="success" icon="check" %}
-          {% else %}{% translate "Cannot be used" as label %}{% include "components/badge.html" with label=label kind="danger" icon="error" %}{% endif %}
-        </div>
-        {% if local and run.source == "path" %}<p class="batch-item__meta text-sm text-text-muted"><code>{{ file.path }}</code></p>{% endif %}
-        {% if file.problem %}<p class="batch-item__error">{{ file.problem }}</p>{% endif %}
-        {% if file.ok %}
-        <dl class="gridded-facts">
-          <div><dt>{% translate "Grid" %}</dt><dd>{% blocktranslate with ny=file.ny nx=file.nx %}{{ ny }} × {{ nx }} cells{% endblocktranslate %}</dd></div>
-          <div><dt>{% translate "Dates" %}</dt><dd>{% blocktranslate with first=file.first last=file.last days=file.days|count %}{{ first }} to {{ last }} ({{ days }} days){% endblocktranslate %}</dd></div>
-          <div><dt>{% translate "Calendar" %}</dt><dd>{{ file.calendar }}</dd></div>
-          {% if file.y_range %}<div><dt>{% translate "Latitude" %}</dt><dd>{% blocktranslate with lo=file.y_range.0 hi=file.y_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}
-          {% if file.x_range %}<div><dt>{% translate "Longitude" %}</dt><dd>{% blocktranslate with lo=file.x_range.0 hi=file.x_range.1 %}{{ lo }} to {{ hi }}{% endblocktranslate %}</dd></div>{% endif %}
-          <div><dt>{% translate "Format" %}</dt><dd>{% blocktranslate with format=file.format size=file.size|filesizeformat %}{{ format }}, {{ size }}{% endblocktranslate %}</dd></div>
-        </dl>
-        <div class="table-wrap" role="region" aria-labelledby="vars-{{ forloop.counter }}" tabindex="0">
-          <table class="table">
-            <caption id="vars-{{ forloop.counter }}">{% blocktranslate with name=file.name %}Daily grid variables in {{ name }}{% endblocktranslate %}</caption>
-            <thead><tr><th scope="col">{% translate "Variable" %}</th><th scope="col">{% translate "Description" %}</th><th scope="col">{% translate "Units" %}</th><th scope="col">{% translate "Dimensions" %}</th></tr></thead>
-            <tbody>
-              {% for v in file.variables %}
-              <tr><th scope="row"><code>{{ v.name }}</code></th><td>{{ v.long_name|default:v.standard_name }}</td><td>{{ v.units }}</td><td><code>{{ v.dims|join:", " }}</code></td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
+  <section class="stack stack--sm" aria-labelledby="files-title">
+    <h2 id="files-title">{% translate "Files" %}</h2>
+    {% include "gridded/_files_table.html" %}
+    <p class="text-sm text-text-muted">{% translate "Only the files' headers and coordinates are read here; the data are read when the run starts." %}</p>
   </section>
 
   {% if preflight_error %}

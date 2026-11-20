@@ -22,7 +22,7 @@ from climpact_web.batch.forms import MultipleFileField, MultipleFileInput, cpu_c
 from climpact_web.gridded.inspection import ROLES, Summary, is_netcdf
 
 ACCEPT_NETCDF = ".nc,.nc4,.netcdf,application/netcdf,application/x-netcdf"
-MAX_FILES = 10
+MAX_FILES = 200  # a variable may be split across many files, one per year (#291)
 MIN_BASE_DAYS = 359  # the core: with this many base-period days or fewer, R stops
 
 

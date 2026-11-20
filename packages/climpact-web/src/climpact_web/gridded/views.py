@@ -54,6 +54,7 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 from climpact_web.core.limits import disk_required, human_required
 from climpact_web.gridded import inspection, maps, runs
 from climpact_web.gridded.forms import (
+    MAX_FILES,
     MIN_BASE_DAYS,
     SLOW_INDICES,
     PathsForm,
@@ -182,6 +183,7 @@ def start_context(request, paths_form=None, upload_form=None, browse=None) -> di
         "upload_form": upload_form or UploadForm(),
         "browse": browse,
         "max_upload_mb": settings.GRIDDED_MAX_UPLOAD_MB,
+        "max_files": MAX_FILES,
         "sample_name": SAMPLE_FILE,
         "local": local,
     }
@@ -454,6 +456,7 @@ def setup_context(request, run: GriddedRun, form: SetupForm, preflight_error: st
         "run": run,
         "form": form,
         "files": infos,
+        "file_groups": inspection.group_files(infos),
         "names": names,
         "problems": problems,
         "summary": summary,

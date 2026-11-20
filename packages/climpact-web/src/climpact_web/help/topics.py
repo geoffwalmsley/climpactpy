@@ -639,8 +639,9 @@ HAND_WRITTEN = (
         "gridded.files",
         _("Gridded input files"),
         _(
-            "One to three CF netCDF files with daily maximum and minimum temperature and "
-            "precipitation on a shared time axis. Each variable must be in one file."
+            "CF netCDF files with daily maximum and minimum temperature and precipitation "
+            "on a shared time axis. A variable may be in one file or split along time "
+            "across several (one per year, say), which are joined in time order."
         ),
         "gridded",
         "input-files",

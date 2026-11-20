@@ -19,14 +19,18 @@ A small grid takes minutes; a national grid over decades can take hours.
 
 ## Input files {#input-files}
 
-One to three **CF-compliant netCDF** files with daily:
+**CF-compliant netCDF** files (up to 200) with daily:
 
 - maximum temperature, in K, °C (`degC`, `C`, `degrees_C`);
 - minimum temperature, in the same units;
 - precipitation, in kg m⁻² d⁻¹ (the same as mm per day) or kg m⁻² s⁻¹.
 
-Each variable must be in exactly one file, with time, latitude (Y) and longitude (X)
-dimensions, and the files must share their time axis. Give the name of each variable as
+Each variable has time, latitude (Y) and longitude (X) dimensions. It may be in one file,
+or split along time across several, one per year or decade as AGCD, ERA5 and CMIP6 come:
+Climpact joins them in the order of their first day. The files of a variable must have the
+same grid, calendar and units, with no day in two files and none missing between one file
+and the next; set-up names the two files when they do not. One file may hold all three
+variables. The three variables must share their time axis. Give the name of each variable as
 it appears in the files, for example `tasmax`, `tasmin` and `pr`. Missing values follow
 the `missing_value` or `_FillValue` attribute.
 

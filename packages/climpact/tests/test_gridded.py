@@ -133,7 +133,7 @@ def test_open_grid_variables_across_files(tmp_path):
     with pytest.raises(ValueError, match="not found"):
         open_grid([a])
     b = write_grid(tmp_path / "b.nc", names=("tx", "x2", "x3"))
-    with pytest.raises(ValueError, match="more than one input file"):
+    with pytest.raises(ValueError, match="a.nc and b.nc overlap"):
         open_grid([a, b], {"tasmax": "tx", "tasmin": "tn", "pr": "rain"})
     c = write_grid(tmp_path / "c.nc", names=("y1", "y2", "rain2"), end="1979-12-31")
     with pytest.raises(ValueError, match="same time axis"):

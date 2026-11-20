@@ -544,6 +544,8 @@ def delete_workspace(request, workspace_id):
         Workspace.objects.filter(pk=space.pk).delete()
         messages.success(request, _("%(name)s was deleted.") % {"name": name})
         return redirect("stations:workspaces")
+    # Cancel goes back where Delete was chosen: the workspace's Files (#274), or Workspaces.
+    back = "stations:workspace_files" if request.GET.get("from") == "files" else None
     return render(
         request,
         "stations/workspace_delete.html",
@@ -551,5 +553,27 @@ def delete_workspace(request, workspace_id):
             "space": space,
             "space_name": space.display_name,
             "station_names": [str(s) for s in stations],
+            "back_url": reverse(back, args=[space.pk]) if back else reverse("stations:workspaces"),
         },
     )
+
+
+@require_POST
+def keep(request, workspace_id):
+    """ "Keep 7 more days" on the workspace's Files (#274): where workspaces expire, counts
+    the workspace as changed now (``Workspace.touch``), so it is deleted
+    ``JOB_RETENTION_DAYS`` from now; then back to Files, with the new date."""
+    from django.utils import timezone
+    from django.utils.formats import date_format
+
+    space = get_workspace(request, workspace_id)
+    if not space.expires_at:  # a local install: workspaces stay until deleted
+        raise Http404
+    space.touch()
+    space.save(update_fields=["updated_at"])
+    when = date_format(timezone.localtime(space.expires_at), "j M Y")
+    messages.success(
+        request,
+        _("%(name)s is now kept until %(date)s.") % {"name": space.display_name, "date": when},
+    )
+    return redirect("stations:workspace_files", space.pk)

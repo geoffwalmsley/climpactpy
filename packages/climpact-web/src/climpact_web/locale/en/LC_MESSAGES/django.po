@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 10:24+0000\n"
+"POT-Creation-Date: 2026-11-20 10:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -526,7 +526,7 @@ msgstr ""
 #: batch/templates/batch/check.html:89 core/views.py:400 core/views.py:658
 #: stations/templates/stations/_overview.html:40
 #: stations/templates/stations/_trends.html:61
-#: stations/templates/stations/workspace_files.html:63
+#: stations/templates/stations/workspace_files.html:65
 #: stations/workspace.py:775
 msgid "Station"
 msgstr ""
@@ -4474,7 +4474,7 @@ msgstr ""
 
 #: gridded/templates/gridded/files.html:14
 #: stations/templates/stations/downloads.html:10
-#: stations/templates/stations/workspace_files.html:10
+#: stations/templates/stations/workspace_files.html:12
 #, python-format
 msgid "Files: %(name)s"
 msgstr ""
@@ -4542,7 +4542,7 @@ msgstr ""
 
 #: gridded/templates/gridded/files.html:74 stations/downloads.py:78
 #: stations/templates/stations/downloads.html:39
-#: stations/templates/stations/workspace_files.html:23
+#: stations/templates/stations/workspace_files.html:25
 msgid "Everything"
 msgstr ""
 
@@ -8984,7 +8984,7 @@ msgid "Every value in the file is missing."
 msgstr ""
 
 #: stations/sector_file.py:218 stations/templates/stations/downloads.html:141
-#: stations/templates/stations/workspace_files.html:71
+#: stations/templates/stations/workspace_files.html:73
 #: stations/views_indices.py:304
 msgid "none"
 msgstr ""
@@ -10525,9 +10525,9 @@ msgstr ""
 #: stations/templates/stations/downloads.html:92
 #: stations/templates/stations/downloads.html:117
 #: stations/templates/stations/downloads.html:158
-#: stations/templates/stations/workspace_files.html:25
-#: stations/templates/stations/workspace_files.html:30
-#: stations/templates/stations/workspace_files.html:35
+#: stations/templates/stations/workspace_files.html:27
+#: stations/templates/stations/workspace_files.html:32
+#: stations/templates/stations/workspace_files.html:37
 msgid "Download"
 msgstr ""
 
@@ -11082,107 +11082,107 @@ msgstr[1] ""
 msgid "Delete workspace"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:16
+#: stations/templates/stations/workspace_files.html:18
 msgid "The workspace files are made once every station has been calculated."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:16
+#: stations/templates/stations/workspace_files.html:18
 msgid "See how the stations are going"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:17
+#: stations/templates/stations/workspace_files.html:19
 msgid "No station has results yet, so there are no workspace files."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:20
+#: stations/templates/stations/workspace_files.html:22
 msgid "Whole workspace"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:23
+#: stations/templates/stations/workspace_files.html:25
 #, python-format
 msgid "zip · %(size)s"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:24
+#: stations/templates/stations/workspace_files.html:26
 msgid ""
 "Every station's folder in Climpact for R's layout, plus the workspace files "
 "below."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:25
-#: stations/templates/stations/workspace_files.html:30
-#: stations/templates/stations/workspace_files.html:35
+#: stations/templates/stations/workspace_files.html:27
+#: stations/templates/stations/workspace_files.html:32
+#: stations/templates/stations/workspace_files.html:37
 msgid "Download (out of date)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:25
+#: stations/templates/stations/workspace_files.html:27
 msgid "everything (zip)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:28
+#: stations/templates/stations/workspace_files.html:30
 msgid "Trends, all stations"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:28
-#: stations/templates/stations/workspace_files.html:33
+#: stations/templates/stations/workspace_files.html:30
+#: stations/templates/stations/workspace_files.html:35
 #, python-format
 msgid "csv · %(size)s"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:29
+#: stations/templates/stations/workspace_files.html:31
 msgid " (per decade)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:30
+#: stations/templates/stations/workspace_files.html:32
 msgid "trends, all stations (CSV)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:33
+#: stations/templates/stations/workspace_files.html:35
 msgid "Indices, all stations"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:34
+#: stations/templates/stations/workspace_files.html:36
 msgid " (long format)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:35
+#: stations/templates/stations/workspace_files.html:37
 msgid "indices, all stations (CSV)"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:39
+#: stations/templates/stations/workspace_files.html:41
 msgid "What is in the zip"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:41
+#: stations/templates/stations/workspace_files.html:43
 msgid ""
 "Each station's results are in a folder of their own, as Climpact for R "
 "writes them. A station that could not be calculated has a file named after "
 "it ending in .errors.txt, with the reason."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:43
+#: stations/templates/stations/workspace_files.html:45
 msgid ""
 "plots: an image of each index (when plots were drawn), and all of them in "
 "one PDF;"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:44
+#: stations/templates/stations/workspace_files.html:46
 msgid "indices: a CSV file of each index's values;"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:45
+#: stations/templates/stations/workspace_files.html:47
 msgid "trend: the linear trend of each index;"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:46
+#: stations/templates/stations/workspace_files.html:48
 msgid "thres: the percentile thresholds calculated for each variable;"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:47
+#: stations/templates/stations/workspace_files.html:49
 msgid "qc: the quality-control diagnostics."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:49
+#: stations/templates/stations/workspace_files.html:51
 msgid ""
 "Beside the folders: climpact_run.json (how the files were made), and the "
 "trends and indices of all stations as above. The indices file has every "
@@ -11190,70 +11190,81 @@ msgid ""
 "the stations' folders."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:56
+#: stations/templates/stations/workspace_files.html:58
 msgid "By station"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:57
+#: stations/templates/stations/workspace_files.html:59
 msgid ""
 "The same files Climpact for R writes, named <span class=\"font-"
 "mono\">&lt;station&gt;_&lt;file&gt;.csv</span>"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:59
+#: stations/templates/stations/workspace_files.html:61
 msgid "Files of each station"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:71
+#: stations/templates/stations/workspace_files.html:73
 #, python-format
 msgid "%(label)s, %(name)s"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:82
+#: stations/templates/stations/workspace_files.html:84
 msgid "Provenance"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:82
+#: stations/templates/stations/workspace_files.html:84
 msgid ""
 "· written as <span class=\"font-mono\">climpact_run.json</span> into every "
 "zip"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:85
+#: stations/templates/stations/workspace_files.html:87
 msgid "Methods text"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:88
+#: stations/templates/stations/workspace_files.html:90
 msgid "Methods text copied"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:88
+#: stations/templates/stations/workspace_files.html:90
 msgid "Copy methods text"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:91
+#: stations/templates/stations/workspace_files.html:93
 msgid "climpact_run.json"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:92
+#: stations/templates/stations/workspace_files.html:94
 msgid "Written when the workspace files are made."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:95
+#: stations/templates/stations/workspace_files.html:97
 msgid "Keeping the files"
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:96
+#: stations/templates/stations/workspace_files.html:98
 #, python-format
 msgid ""
 "Input files and results are deleted on <b>%(date)s</b>. Download what you "
 "need before then; the provenance file lets you rerun the same calculation."
 msgstr ""
 
-#: stations/templates/stations/workspace_files.html:98
+#: stations/templates/stations/workspace_files.html:100
 msgid ""
 "Input files and results stay on this computer until you delete them. The "
 "provenance file lets you rerun the same calculation."
+msgstr ""
+
+#: stations/templates/stations/workspace_files.html:103
+#, python-format
+msgid "Keep %(days)s more day"
+msgid_plural "Keep %(days)s more days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/templates/stations/workspace_files.html:105
+msgid "Delete workspace now"
 msgstr ""
 
 #: stations/templates/stations/workspace_open.html:10
@@ -11638,6 +11649,11 @@ msgstr ""
 #: stations/views_workspace.py:545
 #, python-format
 msgid "%(name)s was deleted."
+msgstr ""
+
+#: stations/views_workspace.py:577
+#, python-format
+msgid "%(name)s is now kept until %(date)s."
 msgstr ""
 
 #: stations/views_workspace_file.py:41

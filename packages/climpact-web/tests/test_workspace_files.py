@@ -107,6 +107,68 @@ def test_keeping_the_files_says_when_they_are_deleted(client, settings):
     assert f"Input files and results are deleted on <b>{date}</b>." in html
 
 
+def test_keep_7_more_days_moves_the_deletion_date(client, settings):
+    """Keep 7 more days (#274): the workspace counts as changed now, so the panel and the
+    context bar's "kept until" move to JOB_RETENTION_DAYS from now."""
+    import datetime as dt
+
+    from django.utils import timezone
+
+    settings.WORKSPACE_EXPIRY = True
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    url = f"/w/{space.pk}/files/"
+    html = client.get(url).content.decode()
+    keep = f'<form method="post" action="/w/{space.pk}/keep">'
+    assert keep in html and '<button type="submit" class="link-button">Keep 7 more days' in html
+    assert f'href="/w/{space.pk}/delete?from=files">Delete workspace now</a>' in html
+    # Five days on, it is deleted in two; Keep makes it seven again.
+    Workspace.objects.filter(pk=space.pk).update(updated_at=timezone.now() - dt.timedelta(days=5))
+    assert client.get(f"/w/{space.pk}/keep").status_code == 405  # a POST only
+    response = client.post(f"/w/{space.pk}/keep")
+    assert response["Location"] == url
+    space.refresh_from_db()
+    assert abs(space.expires_at - (timezone.now() + dt.timedelta(days=7))) < dt.timedelta(minutes=1)
+    date = timezone.localtime(space.expires_at).strftime("%-d %b %Y")
+    html = client.get(url).content.decode()
+    assert f"{space.display_name} is now kept until {date}." in html
+    assert f"Input files and results are deleted on <b>{date}</b>." in html
+    assert f"kept until {date}" in html.split('aria-label="Workspace sections"')[0]
+
+
+def test_local_installs_have_no_keep_but_delete_stays(client):
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    html = client.get(f"/w/{space.pk}/files/").content.decode()
+    assert "Keep 7 more days" not in html and "/keep" not in html
+    assert f'href="/w/{space.pk}/delete?from=files">Delete workspace now</a>' in html
+    assert client.post(f"/w/{space.pk}/keep").status_code == 404
+
+
+def test_another_sessions_workspace_cannot_be_kept(client, settings):
+    settings.WORKSPACE_EXPIRY = True
+    space = Workspace.objects.create(owner="someone else")
+    before = space.updated_at
+    assert client.post(f"/w/{space.pk}/keep").status_code == 404
+    space.refresh_from_db()
+    assert space.updated_at == before
+
+
+def test_delete_from_files_cancels_back_to_files(client):
+    """Delete workspace now (#274) is the Workspaces list's confirmation; its Cancel goes
+    back to Files, and the POST deletes the workspace and goes to Workspaces."""
+    run = finished_batch(client, "a", "b")
+    space = run.workspace
+    html = client.get(f"/w/{space.pk}/delete?from=files").content.decode()
+    assert f"<h1>Delete {space.display_name}?</h1>" in html
+    assert f'href="/w/{space.pk}/files/"' in html and ">Cancel<" in html
+    html = client.get(f"/w/{space.pk}/delete").content.decode()
+    assert f'href="/w/{space.pk}/files/"' not in html  # from Workspaces: back there
+    response = client.post(f"/w/{space.pk}/delete?from=files")
+    assert response["Location"] == "/w/"
+    assert not Workspace.objects.filter(pk=space.pk).exists()
+
+
 def test_every_zip_holds_the_provenance_file(client):
     run = finished_batch(client, "a", "b", bad=["c"])
     space = run.workspace
@@ -263,4 +325,4 @@ def test_export_is_on_the_overview_and_download_all_moved_to_it(client):
 
 
 def test_files_is_not_a_station_slug():
-    assert "files" in RESERVED_SLUGS
+    assert {"files", "delete", "keep"} <= RESERVED_SLUGS

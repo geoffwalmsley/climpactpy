@@ -6414,8 +6414,19 @@ Flow boards).
   `views_workspace.delete_workspace`, `stations/workspace_delete.html`): a page naming its
   stations and saying they can't be recovered, then a POST that cancels the jobs still
   queued or running for it, deletes its files (`Workspace.delete_files`) and the rows,
-  and returns to Workspaces. Another session's workspace is 404. #274 shares it on the
-  workspace's Files. `delete` is a reserved station slug.
+  and returns to Workspaces. Another session's workspace is 404. The workspace's Files
+  link to it too ("Delete workspace now", #274, with `?from=files`, so Cancel goes back to
+  Files; Cancel goes to Workspaces otherwise). `delete` is a reserved station slug.
+- **Keep a workspace longer** (`/w/<id>/keep`, POST only, `stations:workspace_keep`,
+  `views_workspace.keep`, #274): "Keep 7 more days" on the workspace's Files where
+  workspaces expire (`WORKSPACE_EXPIRY`). It counts the workspace as changed now
+  (`Workspace.touch`, `updated_at`), so `Workspace.expires_at` and the deletion by
+  `stations/retention.py` move to `JOB_RETENTION_DAYS` from now (the label names that
+  number), then returns to Files with a message naming the new date, which the context
+  bar's "kept until" and "Keeping the files" show. Locally (no expiry) there is no Keep and
+  the URL is 404; another session's workspace is 404. Like Rename and Delete it starts no
+  job, so it is not in the Cloudflare rate limit (`deploy/cloudflare/rate-limit.txt`, the
+  job-starting URLs only). `keep` is a reserved station slug.
 - The page-not-found page at a workspace's address leads to Workspaces and to a new
   workspace; the refused page (#125) to Workspaces.
 
@@ -6541,7 +6552,9 @@ A workspace of one station has none: the address leads to its station's Files.
   one sentence made from it, with the version, the base period, the settings and the trend
   method. Without JavaScript it is a disclosure that shows the text (`js/copy.js`).
 - **Keeping the files**: when the workspace's files are deleted (or, local, that they stay
-  until deleted). "Keep 7 more days" and "Delete workspace now" on the board are #274.
+  until deleted), then "Keep 7 more days" (a plain POST form whose button looks like a link,
+  where workspaces expire) and "Delete workspace now" (in danger colour, the Workspaces
+  list's confirmation page), both from #274 (see Workspaces above).
 - **Made once, kept until something changes.** The files are made from the results each
   station shows (`workspace.shown_run`, the batch's or its own run) the first time Files,
   a download or a station's zip asks for them (`workspace_files.build`), in a folder named

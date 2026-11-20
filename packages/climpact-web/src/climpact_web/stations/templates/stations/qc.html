@@ -15,7 +15,7 @@ checks' progress, and the decision waits for the new checks. Context from
 views.qc_context.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=analysis.station_name %}Quality: {{ name }}{% endblocktranslate %}{% endblock %}
-{% block head %}{% chart_scripts %}{% if review %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script>{% endif %}
+{% block head %}{% chart_scripts %}{% if review %}<script src="{% static 'climpact_web/js/qc.js' %}" defer></script><script src="{% static 'climpact_web/js/chart-readout.js' %}" defer></script>{% endif %}
 {% if job and not job.is_finished %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
 {% block content %}
 <div class="stack stack--xl station-page station-page--inputs-bar qc-page">

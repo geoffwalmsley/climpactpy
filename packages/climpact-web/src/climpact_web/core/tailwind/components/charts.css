@@ -138,17 +138,17 @@
   }
 
   /* uPlot: selection, cursor lines and hover points in the chart tokens. */
-  .chart .u-select {
+  :is(.chart, .index-figure) .u-select {
     background: var(--chart-trend-band);
     opacity: 0.5;
   }
 
-  .chart .u-cursor-x,
-  .chart .u-cursor-y {
+  :is(.chart, .index-figure) .u-cursor-x,
+  :is(.chart, .index-figure) .u-cursor-y {
     border-color: var(--chart-axis);
   }
 
-  .chart .u-cursor-pt {
+  :is(.chart, .index-figure) .u-cursor-pt {
     border-color: var(--color-surface);
   }
 
@@ -366,6 +366,42 @@
   @media (scripting: none) {
     [data-chart-src] .skeleton {
       display: none;
+    }
+  }
+
+  /* The read-out of a chart drawn on the server (#283, js/chart-readout.js): the
+     crosshair in the axis colour, the value ringed in the text colour, as uPlot's
+     cursor; the focus ring as every chart's. */
+  svg.is-readout {
+    cursor: crosshair;
+  }
+
+  svg.is-readout:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  svg.is-readout + .chart__readout {
+    margin-block-start: --spacing(1.5);
+  }
+
+  .readout-mark__line {
+    stroke: var(--chart-axis);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+
+  .readout-mark__ring {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 2;
+  }
+
+  @media (forced-colors: active) {
+    .readout-mark__line,
+    .readout-mark__ring {
+      stroke: CanvasText;
     }
   }
 }

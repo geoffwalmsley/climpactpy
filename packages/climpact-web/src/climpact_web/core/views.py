@@ -598,6 +598,9 @@ def indices_demo() -> dict:
                 ),
                 "links": {"page": "#indices-demo", "csv": "#indices-demo", "png": "#indices-demo"},
                 "chart": index_detail.chart(plot, (1971, 2000)),
+                "readout": index_detail.readout(
+                    named, plot, index_detail.chart(plot, (1971, 2000)), "#indices-demo"
+                ),
                 "chart_label": index_detail.summary(named, plot),
                 "caption": index_detail.caption(named, plot),
                 "used_label": index_detail.used_label(plot),

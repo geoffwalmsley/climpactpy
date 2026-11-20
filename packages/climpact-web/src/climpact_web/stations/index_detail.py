@@ -91,6 +91,8 @@ def chart(plot, base: tuple[int, int] | None = None) -> dict:
         "height": PLOT_BOTTOM - PLOT_TOP,
         "tick_x": PLOT_LEFT - 5,
         "label_y": X_LABEL_Y,
+        "low": low,
+        "high": high,
     }
     if plot.bars:
         zero = y(0.0)
@@ -142,6 +144,42 @@ def chart(plot, base: tuple[int, int] | None = None) -> dict:
                 "label_y": PLOT_TOP + 11,
             }
     return out
+
+
+def readout(card, plot, chart: dict, href: str, src: str = "") -> str:
+    """The chart's read-out data (#283, js/chart-readout.js) as JSON: where each value of
+    the series is on the chart (not the columns a long series is drawn as), named as the
+    index page's table names it, and the index page's address, which a value opens at
+    that value (``?at=1944``). The values themselves come from ``src`` (the series' chart
+    data, charts:job_series) when the chart is first used, so the page carries none; with
+    no ``src`` they are in the data. The ring is drawn only where the chart draws each
+    value: a line of up to ``COLUMNS`` values."""
+    n = len(plot.values)
+    xs = [float(v) for v in plot.x]
+    if plot.step == "month":
+        first = chart_data._x_label("month", xs[0])
+    else:
+        first = int(round(xs[0]))
+    data = {
+        "x0": PLOT_LEFT if n > 1 else (PLOT_LEFT + PLOT_RIGHT) / 2,
+        "dx": (PLOT_RIGHT - PLOT_LEFT) / (n - 1) if n > 1 else 0,
+        "low": chart["low"],
+        "high": chart["high"],
+        "top": PLOT_TOP,
+        "bottom": PLOT_BOTTOM,
+        "when": {"step": plot.step, "first": first, "pattern": _("day %(n)s") % {"n": "%s"}},
+        "label": card.code,
+        "unit": numbers.unit_label(card.units),
+        "missing": _("no value"),
+        "ring": not plot.bars and n <= COLUMNS,
+    }
+    if href:
+        data["href"] = f"{href}?at="
+    if src:
+        data["src"] = src
+    else:
+        data["v"] = [chart_data.shown(v) for v in plot.values]
+    return chart_data.attr_json(data)
 
 
 def summary(card, plot) -> str:

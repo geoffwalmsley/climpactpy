@@ -43,6 +43,8 @@ def test_every_component_is_in_the_pattern_library():
     source += (PACKAGE / "core" / "templates" / "base.html").read_text()
     used_by_others = {"field_errors", "messages", "toasts", "theme_toggle", "skeleton", "badge"}
     used_by_others.add("spark")  # in the theme headline
+    used_by_others |= {"chart_toolbar", "chart_readout"}  # parts of chart_frame (#283)
+    used_by_others.add("readout")  # under the Indices demo's detail chart (#283)
     for component in COMPONENTS.glob("*.html"):
         name = component.stem
         assert f'"components/{name}.html"' in source or name in used_by_others, name

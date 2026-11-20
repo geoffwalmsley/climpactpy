@@ -5,14 +5,15 @@ columns the check needs (qc_review.value_columns), 12 rows a page, largest first
 date. Each row's date is a link that selects its value: without JavaScript an address
 (?show=, <table>_page, _sort, _value), with it the fragment in place (qc.js also lets the
 whole row be clicked). The selected value: its date and check, a sentence, a 7-day chart
-(PR bars with the limit dashed, or TX and TN lines with the value ringed), the 7-day
+(PR bars with the limit dashed, or TX and TN lines with the value ringed; each day's
+PR, TX and TN read out by pointer and keyboard, #283), the 7-day
 table (its table view; the day in bold on the warning tint, the check's other values on a
 lighter one), the rows of a repeated date and its lines in the file. data-ring-x/y move
 the When chart's ring to it.
 Parameters: analysis, group, check, page, value (qc_review.Finding), when (the ring),
 selected_date.
 {% endcomment %}{% url 'stations:qc_table' analysis.workspace_id analysis.slug check.key as table_src %}{% with tid=check.table_id %}
-<div class="qc-values" id="qc-values-{{ tid }}" data-qc-table="{{ tid }}" data-qc-check="{{ check.key }}" data-pages="{{ page.pages }}" data-src="{{ table_src }}{% if check.group %}?group={{ check.group }}{% endif %}" data-selected="{{ selected_date }}"{% if when.ring %} data-ring-x="{{ when.ring.x }}" data-ring-y="{{ when.ring.y }}"{% endif %}{% if value %} data-chart="{{ value.row.chart_id }}"{% endif %}>
+<div class="qc-values" id="qc-values-{{ tid }}" data-qc-table="{{ tid }}" data-qc-check="{{ check.key }}" data-pages="{{ page.pages }}" data-sort="{{ page.sort }}" data-src="{{ table_src }}{% if check.group %}?group={{ check.group }}{% endif %}" data-selected="{{ selected_date }}"{% if when.ring %} data-ring-x="{{ when.ring.x }}" data-ring-y="{{ when.ring.y }}"{% endif %}{% if value %} data-chart="{{ value.row.chart_id }}"{% endif %}>
   <div class="qc-values__table">
     <div class="qc-values__head">
       <h3 class="qc-values__title" id="qc-values-{{ tid }}-title">{% translate "Values" %} <span class="qc-values__range">{% blocktranslate with first=page.first last=page.last total=check.count|count trimmed %}{{ first }}–{{ last }} of {{ total }}{% endblocktranslate %}</span></h3>
@@ -56,7 +57,7 @@ selected_date.
     </div>
     {% if value.chart %}{% with chart=value.chart %}
     <figure class="qc-chart">
-      <svg class="qc-chart__plot" viewBox="0 0 420 150" role="img" aria-label="{{ value.chart_label }}" focusable="false">
+      <svg class="qc-chart__plot" viewBox="0 0 420 150" role="img" aria-label="{{ value.chart_label }}" focusable="false" data-readout='{{ chart.readout }}' data-readout-keys="qc-value-{{ tid }}-keys" data-readout-role="{% translate 'chart' %}">
         <rect class="qc-chart__band" x="{{ chart.band.x }}" y="10" width="{{ chart.band.width }}" height="118"/>
         <line class="qc-chart__grid" x1="36" y1="{{ chart.grid_y }}" x2="412" y2="{{ chart.grid_y }}"/>
         <line class="qc-chart__axis" x1="36" y1="10" x2="36" y2="128"/>
@@ -68,6 +69,7 @@ selected_date.
         {% for line in chart.lines %}<path class="qc-chart__line qc-chart__line--{{ line.variable }}" d="{{ line.d }}"/>{% endfor %}
         {% if chart.ring %}<circle class="qc-chart__ring" cx="{{ chart.ring.x }}" cy="{{ chart.ring.y }}" r="5"/>{% endif %}
       </svg>
+      {% include "components/readout.html" with id="qc-value-"|add:tid %}
       <figcaption class="qc-chart__legend">{% if chart.bars %}<span><span class="qc-chart__key qc-chart__key--bar" aria-hidden="true"></span>{{ value.legend.0.label }}</span>{% if chart.limit_text %}<span><span class="qc-chart__key qc-chart__key--limit" aria-hidden="true"></span>{% blocktranslate with limit=chart.limit_text %}limit {{ limit }}{% endblocktranslate %}</span>{% endif %}{% else %}{% for v in value.legend %}<span><span class="qc-chart__key qc-chart__key--{{ v.variable }}" aria-hidden="true"></span>{{ v.label }}</span>{% endfor %}{% if chart.ring %}<span><span class="qc-chart__key qc-chart__key--ring" aria-hidden="true"></span>{{ value.date }}</span>{% endif %}{% endif %}<span>{{ value.month }}</span></figcaption>
     </figure>
     {% endwith %}{% endif %}

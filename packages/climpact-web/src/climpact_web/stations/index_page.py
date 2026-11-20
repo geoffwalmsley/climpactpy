@@ -357,6 +357,112 @@ def _base_band(plot, base, x) -> dict | None:
     }
 
 
+def _rounded(values: list[float | None]) -> list[float | None]:
+    """Values for the page's JSON, as precise as the read-out writes them."""
+    return [chart_data.shown(v) for v in values]
+
+
+def payload(card, plot, base, gone: list[dict], day_plot=None, name: str = "") -> dict:
+    """The interactive chart's data (#283): the ``index`` payload of
+    :mod:`climpact_web.charts.data` (``x``, ``y``, ``trend``, ``dates``, ``summary``) with
+    the layers this page draws (``layers``: the base period, the 11-year running mean,
+    the values left out with their level and why), and the anomaly view (``views``:
+    each view's values, running mean, ``[index, level]`` of the values left out, the y
+    axis's title and how far its trend line is moved). Values are as precise as the
+    read-out writes them; the notes are ``[index, why]``. Built from what :func:`chart`
+    draws, so the interactive chart and the server's SVG show the same marks."""
+    values = _values(plot)
+    step = plot.step
+    means = base_means(plot, base)
+    notes = {g["index"]: g["note"] for g in gone}
+    units = numbers.unit_label(card.units)
+
+    def view(series: list[float | None], anomaly: bool) -> dict:
+        present = [v for v in series if v is not None]
+        smooth: list[float | None] = []
+        if step in ("year", "month") and not plot.bars:
+            window = RUNNING_YEARS * (12 if step == "month" else 1)
+            smooth = running_mean(series, window + (1 - window % 2))
+        gaps: list[list] = []  # [index, level] of each value left out
+        if step in ("year", "month") and not plot.bars and present:
+            for i, v in enumerate(series):
+                if v is None:
+                    level = 0.0 if anomaly else (means[i] if means else None)
+                    level = sum(present) / len(present) if level is None else level
+                    gaps.append([i, chart_data.shown(level)])
+        offset = 0.0
+        if anomaly and means:
+            reference = [m for m in means if m is not None]
+            offset = sum(reference) / len(reference)
+        if anomaly:
+            axis = _("Anomaly %(units)s") % {"units": units} if units else _("Anomaly")
+        else:
+            axis = f"{card.code} {units}".strip()
+        out = {
+            "y": _rounded(series),
+            "smooth": _rounded(smooth) if any(v is not None for v in smooth) else None,
+            "gaps": gaps or None,
+            "axis": axis,
+            "offset": offset,
+        }
+        if anomaly:
+            out["signed_digits"] = 1
+        return out
+
+    trend = plot.trend if plot.trend is not None and plot.trend.valid else None
+    x = [int(v) if float(v).is_integer() else round(float(v), 6) for v in plot.x]
+    views = {"values": view(values, False)}
+    anomaly = anomalies(plot, base) if has_anomalies(plot, base) else None
+    if anomaly is not None:
+        views["anomaly"] = view(anomaly, True)
+    band = None
+    if base and step in ("year", "month") and len(x) > 1:
+        start, end = (base[0] - 0.5, base[1] + 0.5) if step == "year" else (base[0], base[1] + 1)
+        start, end = max(start, x[0]), min(end, x[-1])
+        if end > start:
+            band = {"from": start, "to": end, "label": _("base period")}
+    dates = None
+    if day_plot is not None:
+        dates = [_date(plot, day_plot, i) or None for i in range(len(values))]
+    out = {
+        "kind": "index",
+        "version": chart_data.SCHEMA_VERSION,
+        "name": name or plot.name,
+        "title": card.code,
+        "units": units,
+        "axis": views["values"]["axis"],
+        "step": step,
+        "bars": bool(plot.bars),
+        "x": x,
+        "y": views["values"]["y"],
+        "label": card.code,
+        "trend": None,
+        "summary": chart_label(card, plot, base),
+        "layers": {
+            "base": band,
+            "smooth_label": _("11-year running mean"),
+            "gap_label": _("Month left out: incomplete")
+            if step == "month"
+            else _("Year left out: incomplete"),
+            "notes": [[i, note] for i, note in sorted(notes.items())] or None,
+            "anomaly_label": _("Anomaly"),
+            "interval": trend is not None,
+        },
+        "views": views,
+    }
+    if dates and any(dates):
+        out["dates"] = dates
+    if trend is not None:
+        out["trend"] = {
+            "slope": trend.slope,
+            "lower": trend.lower,
+            "upper": trend.upper,
+            "intercept": trend.intercept,
+            "label": _("Sen's slope, with 95% interval shaded"),
+        }
+    return out
+
+
 def chart_label(card, plot, base, anomaly: bool = False) -> str:
     """The chart's text alternative: the series, its years, its lowest and highest
     values and its trend in words, and what the anomalies are from."""

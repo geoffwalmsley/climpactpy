@@ -8,6 +8,8 @@ The results are R's own reference output for the Sydney sample at latitude 0
 (``reference/output/lat0``), so "every table appears" and "values match the CSV files"
 are checked against the files R writes."""
 
+import html as html_lib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -599,7 +601,8 @@ def test_index_page_values_match_the_csv_and_trend_files(client):
     assert f"<dt>Base-period mean</dt><dd>{numbers.number(base)}\u00a0°C</dd>" in html
     # The table: every year, most recent first, as the CSV.
     rows = re.findall(
-        r'<tr(?: class="index-values__missing")?>\s*<th scope="row" class="code">(\d+)</th>'
+        r'<tr id="value-\d+"(?: class="index-values__missing")?>'
+        r'\s*<th scope="row" class="code">(\d+)</th>'
         r'\s*<td class="num">([^<]+)</td>\s*<td class="num">([^<]+)</td>'
         r'\s*<td class="num">([^<]+)</td>',
         html,
@@ -662,7 +665,8 @@ def test_the_anomaly_view_and_the_years_left_out(client):
     assert "Year left out: incomplete" in html
     year = gone[0]
     row = re.search(
-        rf'<tr class="index-values__missing">\s*<th scope="row" class="code">{year}</th>.*?</tr>',
+        rf'<tr id="value-{year}" class="index-values__missing">'
+        rf'\s*<th scope="row" class="code">{year}</th>.*?</tr>',
         html,
         re.S,
     )
@@ -675,6 +679,64 @@ def test_the_anomaly_view_and_the_years_left_out(client):
     assert "data-index-view-link" not in spi and 'class="index-plot__pos"' in spi
     assert "Anomaly</th>" not in spi
     assert client.get(f"{analysis.url()}indices/tmm_ANN/anomalies.json").status_code == 404
+
+
+def _page_data(html: str) -> dict:
+    found = re.search(r'<script id="index-chart-data" type="application/json">(.*?)</script>', html)
+    return json.loads(found.group(1))
+
+
+def test_the_index_chart_hydrates_from_the_pages_data(client):
+    """#283: the index page carries its chart's data (charts.js draws it with every layer
+    the server's chart has; the server's chart stays as it is, for no JavaScript and
+    print): the values and anomalies, the running means, the base period, the years left
+    out with their level and why, the dates of the extremes and Sen's slope. ?at=<year>
+    selects that year's row and has the chart read it out; an unknown one is ignored.
+    The Indices' detail chart reads out each year and opens this page at it."""
+    analysis, _job = finished_analysis(client)
+    url = f"{analysis.url()}indices/txx"
+    html = client.get(url).content.decode()
+    assert 'data-chart-data="index-chart-data"' in html and 'data-chart-view="values"' in html
+    assert "uPlot.iife.min.js" in html and "js/charts.js" in html
+    assert 'id="index-chart-plot" data-chart-plot hidden' in html  # until charts.js draws
+    data = _page_data(html)
+    txx = read_table("txx_ANN")
+    assert data["x"][0] == int(txx["time"].iloc[0]) and len(data["y"]) == len(txx)
+    assert data["layers"]["base"] == {"from": 1970.5, "to": 2000.5, "label": "base period"}
+    gone = txx[txx["val"].isna()]["time"].astype(int).tolist()
+    i = data["x"].index(gone[0])
+    assert data["y"][i] is None and "days missing" in dict(data["layers"]["notes"])[i]
+    base = txx[(txx["time"] >= 1971) & (txx["time"] <= 2000)]["val"].mean()
+    values, anomaly = data["views"]["values"], data["views"]["anomaly"]
+    assert dict(values["gaps"])[i] == round(base, 1) and dict(anomaly["gaps"])[i] == 0
+    assert anomaly["y"][-1] == pytest.approx(txx["val"].iloc[-1] - base, abs=0.005)
+    assert anomaly["offset"] == pytest.approx(base) and anomaly["axis"] == "Anomaly °C"
+    assert values["axis"] == "TXx °C" and values["smooth"][5] is not None
+    assert data["trend"]["slope"] and data["dates"][-1].startswith(str(data["x"][-1]))
+    # ?at=: the row selected; the chart reads it out.
+    html = client.get(url, {"at": gone[0]}).content.decode()
+    assert f'data-chart-at="{gone[0]}"' in html
+    assert f'<tr id="value-{gone[0]}" class="index-values__missing" aria-current="true">' in html
+    assert (
+        "aria-current" not in client.get(url, {"at": "1800"}).content.decode().split("<tbody>")[1]
+    )
+    # SPI: bars, no anomaly view, no running mean.
+    spi = _page_data(client.get(f"{analysis.url()}indices/3month_spi").content.decode())
+    assert (
+        spi["bars"]
+        and list(spi["views"]) == ["values"]
+        and spi["views"]["values"]["smooth"] is None
+    )
+    # The Indices' detail: each year read out; a year opens this page at it.
+    pane = client.get(f"{analysis.url()}indices", {"show": "txx"}).content.decode()
+    found = re.search(r"id=\"detail-txx\".*?<svg [^>]*data-readout='([^']+)'", pane, re.S)
+    readout = json.loads(html_lib.unescape(found.group(1)))
+    assert readout["href"] == f"{url}?at=" and readout["label"] == "TXx"
+    assert readout["when"]["first"] == data["x"][0] and "v" not in readout
+    # Its values come from the series' chart data when it is first used.
+    series = client.get(readout["src"]).json()
+    assert series["name"] == "txx_ANN" and series["y"] == pytest.approx(data["y"], abs=0.05)
+    assert 'id="detail-txx-keys" hidden>Keyboard: the left and right arrow keys' in pane
 
 
 def test_daily_ehf_and_tables_without_plots(client):

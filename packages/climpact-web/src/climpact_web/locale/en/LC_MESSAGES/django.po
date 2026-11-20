@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 02:56+0000\n"
+"POT-Creation-Date: 2026-11-18 08:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -357,8 +357,8 @@ msgstr ""
 msgid "Sample batch"
 msgstr ""
 
-#: batch/templates/batch/_options.html:9 core/views.py:405 core/views.py:659
-#: core/views.py:679 gridded/templates/gridded/setup.html:109
+#: batch/templates/batch/_options.html:9 core/views.py:405 core/views.py:662
+#: core/views.py:682 gridded/templates/gridded/setup.html:109
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
 #: stations/views_add.py:102 stations/workspace.py:776
@@ -523,7 +523,7 @@ msgstr ""
 msgid "Each station's parameters, as the metadata file gives them"
 msgstr ""
 
-#: batch/templates/batch/check.html:89 core/views.py:403 core/views.py:658
+#: batch/templates/batch/check.html:89 core/views.py:403 core/views.py:661
 #: stations/templates/stations/_overview.html:40
 #: stations/templates/stations/_trends.html:61
 #: stations/templates/stations/workspace_files.html:63
@@ -747,208 +747,208 @@ msgstr ""
 msgid "The batch files were deleted."
 msgstr ""
 
-#: charts/data.py:58 core/forms.py:24 gridded/forms.py:140
+#: charts/data.py:81 core/forms.py:24 gridded/forms.py:140
 #: stations/station_file.py:58
 msgid "Maximum temperature"
 msgstr ""
 
-#: charts/data.py:59 core/views.py:302 stations/qc_review.py:73
-#: stations/qc_review.py:504
+#: charts/data.py:82 core/views.py:302 stations/qc_review.py:74
+#: stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:17
 #: stations/templates/stations/_summary.html:38 stations/workspace.py:754
 msgid "TX"
 msgstr ""
 
-#: charts/data.py:65 core/forms.py:24 gridded/forms.py:141
+#: charts/data.py:88 core/forms.py:24 gridded/forms.py:141
 #: stations/station_file.py:59
 msgid "Minimum temperature"
 msgstr ""
 
-#: charts/data.py:66 core/templates/core/patterns.html:297 core/views.py:303
-#: stations/qc_review.py:73 stations/qc_review.py:504
+#: charts/data.py:89 core/templates/core/patterns.html:297 core/views.py:303
+#: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:18
 #: stations/templates/stations/_summary.html:39 stations/workspace.py:754
 msgid "TN"
 msgstr ""
 
-#: charts/data.py:72 gridded/forms.py:142 gridded/forms.py:229
-#: help/indices.py:188 stations/qc_review.py:65 stations/sector_plots.py:38
+#: charts/data.py:95 gridded/forms.py:142 gridded/forms.py:229
+#: help/indices.py:188 stations/qc_review.py:66 stations/sector_plots.py:38
 #: stations/station_file.py:57
 msgid "Precipitation"
 msgstr ""
 
-#: charts/data.py:73 core/templates/core/patterns.html:296
+#: charts/data.py:96 core/templates/core/patterns.html:296
 #: core/templates/core/patterns.html:302 core/views.py:301
-#: stations/qc_review.py:73 stations/qc_review.py:504
+#: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:16
 #: stations/templates/stations/_summary.html:37 stations/workspace.py:754
 msgid "PR"
 msgstr ""
 
-#: charts/data.py:74 stations/forms.py:108 stations/qc_plots.py:216
+#: charts/data.py:97 stations/forms.py:108 stations/qc_plots.py:216
 #: stations/templates/stations/_indices_unit.html:26
 #: stations/templates/stations/_indices_unit.html:37
-#: stations/views_indices.py:315
+#: stations/views_indices.py:316
 msgid "mm"
 msgstr ""
 
-#: charts/data.py:79
+#: charts/data.py:102
 msgid "Diurnal temperature range"
 msgstr ""
 
-#: charts/data.py:80 stations/qc_review.py:73
+#: charts/data.py:103 stations/qc_review.py:74
 msgid "DTR"
 msgstr ""
 
-#: charts/data.py:91
+#: charts/data.py:114
 msgid "Outlier (monthly box plot)"
 msgstr ""
 
-#: charts/data.py:92
+#: charts/data.py:115
 msgid "Too large"
 msgstr ""
 
-#: charts/data.py:93
+#: charts/data.py:116
 msgid "TN at or above TX"
 msgstr ""
 
-#: charts/data.py:94 charts/data.py:95 stations/qc_review.py:1621
+#: charts/data.py:117 charts/data.py:118 stations/qc_review.py:1687
 msgid "Large day-to-day change"
 msgstr ""
 
-#: charts/data.py:96 charts/data.py:97
+#: charts/data.py:119 charts/data.py:120
 msgid "Repeated values"
 msgstr ""
 
-#: charts/data.py:98 stations/qc_review.py:43
+#: charts/data.py:121 stations/qc_review.py:44
 msgid "Repeated date"
 msgstr ""
 
-#: charts/data.py:194 stations/templates/stations/_series_preview.html:13
+#: charts/data.py:217 stations/templates/stations/_series_preview.html:13
 msgid "Temperature (°C)"
 msgstr ""
 
-#: charts/data.py:195
+#: charts/data.py:218
 msgid "Precipitation (mm)"
 msgstr ""
 
-#: charts/data.py:196
+#: charts/data.py:219
 msgid "Diurnal temperature range (°C)"
 msgstr ""
 
-#: charts/data.py:201 help/topics.py:297
+#: charts/data.py:224 help/topics.py:297
 #: stations/templates/stations/_summary.html:56
 #: stations/templates/stations/_summary.html:65
 msgid "Daily series"
 msgstr ""
 
-#: charts/data.py:208
+#: charts/data.py:231
 msgid "Flagged by the quality checks"
 msgstr ""
 
-#: charts/data.py:226
+#: charts/data.py:249
 #, python-format
 msgid "%(first)s to %(last)s, %(days)s days."
 msgstr ""
 
-#: charts/data.py:236
+#: charts/data.py:259
 #, python-format
 msgid "%(n)s day missing"
 msgid_plural "%(n)s days missing"
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:240
+#: charts/data.py:263
 #, python-format
 msgid "%(label)s: no data."
 msgstr ""
 
-#: charts/data.py:252
+#: charts/data.py:275
 #, python-format
 msgid "%(label)s: wettest day %(high)s on %(high_date)s; %(missing)s."
 msgstr ""
 
-#: charts/data.py:255
+#: charts/data.py:278
 #, python-format
 msgid ""
 "%(label)s: from %(low)s on %(low_date)s to %(high)s on %(high_date)s; "
 "%(missing)s."
 msgstr ""
 
-#: charts/data.py:262
+#: charts/data.py:285
 #, python-format
 msgid "%(n)s value flagged by the quality checks."
 msgid_plural "%(n)s values flagged by the quality checks."
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:269
+#: charts/data.py:292
 msgid "No values flagged by the quality checks."
 msgstr ""
 
-#: charts/data.py:367
+#: charts/data.py:390
 msgid "Calendar day"
 msgstr ""
 
-#: charts/data.py:379 stations/views_indices.py:727
+#: charts/data.py:402 stations/views_indices.py:740
 msgid "Day"
 msgstr ""
 
-#: charts/data.py:395
+#: charts/data.py:418
 msgid "Sen's slope trend"
 msgstr ""
 
-#: charts/data.py:451
+#: charts/data.py:474 stations/index_detail.py:170
 #, python-format
 msgid "day %(n)s"
 msgstr ""
 
-#: charts/data.py:459
+#: charts/data.py:482
 #, python-format
 msgid "%(first)s to %(last)s."
 msgstr ""
 
-#: charts/data.py:470
+#: charts/data.py:493
 #, python-format
 msgid "Highest %(high)s in %(high_at)s, lowest %(low)s in %(low_at)s."
 msgstr ""
 
-#: charts/data.py:482
+#: charts/data.py:505
 #, python-format
 msgid "%(n)s of %(total)s values missing."
 msgid_plural "%(n)s of %(total)s values missing."
 msgstr[0] ""
 msgstr[1] ""
 
-#: charts/data.py:498
+#: charts/data.py:521
 #, python-format
 msgid "Trend: rising by %(slope)s per decade"
 msgstr ""
 
-#: charts/data.py:500
+#: charts/data.py:523
 #, python-format
 msgid "Trend: falling by %(slope)s per decade"
 msgstr ""
 
-#: charts/data.py:502
+#: charts/data.py:525
 #, python-format
 msgid "Trend: no change (%(zero)s per decade)"
 msgstr ""
 
-#: charts/data.py:504
+#: charts/data.py:527
 #, python-format
 msgid "(95%% confidence interval %(interval)s)."
 msgstr ""
 
-#: charts/data.py:506
+#: charts/data.py:529
 msgid "The interval excludes zero: significant at the 5% level."
 msgstr ""
 
-#: charts/data.py:508
+#: charts/data.py:531
 msgid "The interval includes zero: not significant at the 5% level."
 msgstr ""
 
-#: charts/data.py:516
+#: charts/data.py:539
 msgid ""
 "No trend: it needs at least 10 values and 70% of the series to be present."
 msgstr ""
@@ -980,9 +980,9 @@ msgstr ""
 
 #: charts/templatetags/charts.py:47 core/templates/core/patterns.html:308
 #: core/templates/core/patterns.html:321
-#: stations/templates/stations/_qc_values.html:21
-#: stations/templates/stations/_qc_values.html:28
-#: stations/templates/stations/_qc_values.html:77
+#: stations/templates/stations/_qc_values.html:22
+#: stations/templates/stations/_qc_values.html:29
+#: stations/templates/stations/_qc_values.html:79
 #: stations/templates/stations/result.html:32
 msgid "Date"
 msgstr ""
@@ -992,12 +992,12 @@ msgstr ""
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
 #: stations/templates/stations/_summary.html:36
-#: stations/templates/stations/_summary.html:78 stations/views_indices.py:727
+#: stations/templates/stations/_summary.html:78 stations/views_indices.py:740
 msgid "Year"
 msgstr ""
 
 #: charts/templatetags/charts.py:49 gridded/templates/gridded/_explore.html:37
-#: stations/views_indices.py:727
+#: stations/views_indices.py:740
 msgid "Month"
 msgstr ""
 
@@ -1010,17 +1010,17 @@ msgstr ""
 msgid "Date of the event"
 msgstr ""
 
-#: charts/templatetags/charts.py:52 stations/qc_review.py:638
+#: charts/templatetags/charts.py:52 stations/qc_review.py:639
 msgid "Flagged"
 msgstr ""
 
 #: charts/templatetags/charts.py:53 core/templates/core/patterns.html:241
-#: stations/templates/stations/result.html:67
+#: stations/templates/stations/result.html:73
 msgid "Trend"
 msgstr ""
 
-#: charts/templatetags/charts.py:54 stations/qc_review.py:243
-#: stations/qc_review.py:502 stations/qc_review.py:1238
+#: charts/templatetags/charts.py:54 stations/qc_review.py:244
+#: stations/qc_review.py:503 stations/qc_review.py:1241
 msgid "missing"
 msgstr ""
 
@@ -1077,7 +1077,7 @@ msgid "Least squares"
 msgstr ""
 
 #: core/forms.py:28 help/topics.py:487
-#: stations/templates/stations/result.html:69
+#: stations/templates/stations/result.html:75
 msgid "Sen's slope"
 msgstr ""
 
@@ -1358,66 +1358,32 @@ msgstr ""
 #: gridded/templates/gridded/_explore.html:73
 #: gridded/templates/gridded/_explore.html:124
 #: stations/templates/stations/_index_actions.html:6
-#: stations/templates/stations/_index_detail.html:44
+#: stations/templates/stations/_index_detail.html:47
 msgid "CSV"
 msgstr ""
 
 #: core/templates/components/chart_frame.html:27
-msgid "Chart controls"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:29
-msgid "Zoom in"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:30
-msgid "Zoom out"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:31
-msgid "Earlier"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:32
-msgid "Later"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:33
-msgid "Show all"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:36
-#: stations/templates/stations/_index_detail.html:45
-msgid "PNG"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:37
-msgid "SVG"
-msgstr ""
-
-#: core/templates/components/chart_frame.html:41
+#: stations/templates/stations/_index_chart_tools.html:7
+#: stations/templates/stations/_index_detail.html:23
+#: stations/templates/stations/_qc_detail.html:32
+#: stations/templates/stations/_qc_detail.html:45
+#: stations/templates/stations/_qc_values.html:60
 #: stations/templates/stations/_sector_results.html:42
 msgid "chart"
 msgstr ""
 
-#: core/templates/components/chart_frame.html:42
+#: core/templates/components/chart_frame.html:28
 msgid "Loading chart"
 msgstr ""
 
-#: core/templates/components/chart_frame.html:43
+#: core/templates/components/chart_frame.html:29
 msgid ""
 "The interactive chart needs JavaScript. The summary, the table and the CSV "
 "download have the same data."
 msgstr ""
 
-#: core/templates/components/chart_frame.html:48
-msgid ""
-"Keyboard: plus and minus zoom, the arrow keys move earlier and later, 0 "
-"shows the whole series."
-msgstr ""
-
-#: core/templates/components/chart_frame.html:54
-#: core/templates/components/chart_frame.html:59
+#: core/templates/components/chart_frame.html:34
+#: core/templates/components/chart_frame.html:39
 #: gridded/templates/gridded/_explore.html:90
 #: stations/templates/stations/_qc_box_plot.html:8
 #: stations/templates/stations/_qc_distributions.html:37
@@ -1425,6 +1391,46 @@ msgstr ""
 #: stations/templates/stations/_sector_results.html:47
 #: stations/templates/stations/_sector_results.html:76
 msgid "View as table"
+msgstr ""
+
+#: core/templates/components/chart_readout.html:7
+msgid ""
+"Keyboard: the left and right arrow keys read out each value, Home and End "
+"the first and last in view; Shift with an arrow key moves earlier and later, "
+"plus and minus zoom, 0 shows the whole series."
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:5
+msgid "Chart controls"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:7
+msgid "Zoom in"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:8
+msgid "Zoom out"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:9
+msgid "Earlier"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:10
+msgid "Later"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:11
+msgid "Show all"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:14
+#: stations/templates/stations/_index_detail.html:48
+msgid "PNG"
+msgstr ""
+
+#: core/templates/components/chart_toolbar.html:15
+msgid "SVG"
 msgstr ""
 
 #: core/templates/components/context_bar.html:34
@@ -1526,6 +1532,24 @@ msgstr[1] ""
 #: core/templates/components/form_errors.html:12
 #, python-format
 msgid "%(label)s: %(errors)s"
+msgstr ""
+
+#: core/templates/components/readout.html:8
+msgid ""
+"Keyboard: the left and right arrow keys read out each value, Home and End "
+"the first and last; Enter opens the index page at that value."
+msgstr ""
+
+#: core/templates/components/readout.html:8
+msgid ""
+"Keyboard: the left and right arrow keys read out each value, Home and End "
+"the first and last; Enter selects that value in the table."
+msgstr ""
+
+#: core/templates/components/readout.html:8
+msgid ""
+"Keyboard: the left and right arrow keys read out each value, Home and End "
+"the first and last."
 msgstr ""
 
 #: core/templates/components/skeleton.html:7
@@ -1669,9 +1693,9 @@ msgstr ""
 msgid "not significant"
 msgstr ""
 
-#: core/templates/core/home.html:56
+#: core/templates/core/home.html:56 stations/index_page.py:423
 #: stations/templates/stations/_index_chart.html:10
-#: stations/templates/stations/_index_detail.html:22
+#: stations/templates/stations/_index_detail.html:24
 msgid "base period"
 msgstr ""
 
@@ -1686,36 +1710,36 @@ msgid ""
 "interval"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:615
-#: stations/views_indices.py:396
+#: core/templates/core/home.html:69 core/views.py:618
+#: stations/views_indices.py:397
 msgid "Code"
 msgstr ""
 
 #: core/templates/core/home.html:69 core/templates/core/patterns.html:360
-#: core/views.py:616 gridded/templates/gridded/_explore.html:23
+#: core/views.py:619 gridded/templates/gridded/_explore.html:23
 #: gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_sector_results.html:51
-#: stations/templates/stations/downloads.html:135 stations/views_indices.py:397
+#: stations/templates/stations/downloads.html:135 stations/views_indices.py:398
 msgid "Index"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:617
-#: stations/views_indices.py:398
+#: core/templates/core/home.html:69 core/views.py:620
+#: stations/views_indices.py:399
 msgid "Slope per decade"
 msgstr ""
 
 #: core/templates/core/home.html:69
-#: stations/templates/stations/_index_detail.html:36
+#: stations/templates/stations/_index_detail.html:39
 #: stations/templates/stations/_indices.html:63
-#: stations/templates/stations/result.html:70
+#: stations/templates/stations/result.html:76
 #, python-format
 msgid "95%% interval"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:618
-#: stations/templates/stations/_index_detail.html:38
+#: core/templates/core/home.html:69 core/views.py:621
+#: stations/templates/stations/_index_detail.html:41
 #: stations/templates/stations/_overview.html:46
-#: stations/templates/stations/result.html:71 stations/views_indices.py:399
+#: stations/templates/stations/result.html:77 stations/views_indices.py:400
 msgid "Significant"
 msgstr ""
 
@@ -1964,8 +1988,8 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-#: core/templates/core/language_switcher.html:11 stations/qc_review.py:675
-#: stations/qc_review.py:1621
+#: core/templates/core/language_switcher.html:11 stations/qc_review.py:676
+#: stations/qc_review.py:1687
 msgid "Change"
 msgstr ""
 
@@ -2039,7 +2063,7 @@ msgstr ""
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:258
 #: core/views.py:336 gridded/forms.py:113
 #: gridded/templates/gridded/_progress.html:15 help/topics.py:71
-#: stations/templates/stations/_overview.html:45 stations/views_indices.py:670
+#: stations/templates/stations/_overview.html:45 stations/views_indices.py:683
 #: stations/workspace.py:444
 msgid "Indices"
 msgstr ""
@@ -2463,11 +2487,11 @@ msgstr ""
 
 #: core/templates/core/patterns.html:274
 #: stations/templates/stations/_qc_box_plot.html:14
-#: stations/templates/stations/_qc_values.html:18 stations/views_indices.py:703
+#: stations/templates/stations/_qc_values.html:19 stations/views_indices.py:716
 msgid "Values"
 msgstr ""
 
-#: core/templates/core/patterns.html:274 stations/views_indices.py:706
+#: core/templates/core/patterns.html:274 stations/views_indices.py:719
 #, python-format
 msgid "Anomaly from %(start)s–%(end)s"
 msgstr ""
@@ -2480,12 +2504,12 @@ msgid "Period"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:261
-#: stations/views_indices.py:714
+#: stations/views_indices.py:727
 msgid "Annual"
 msgstr ""
 
 #: core/templates/core/patterns.html:275 core/views.py:262
-#: stations/results.py:235 stations/views_indices.py:714
+#: stations/results.py:235 stations/views_indices.py:727
 msgid "Monthly"
 msgstr ""
 
@@ -2500,7 +2524,7 @@ msgid ""
 "rail on narrow screens, with Back to the list."
 msgstr ""
 
-#: core/templates/core/patterns.html:283 stations/qc_review.py:924
+#: core/templates/core/patterns.html:283 stations/qc_review.py:925
 msgid "Usable."
 msgstr ""
 
@@ -2508,16 +2532,16 @@ msgstr ""
 msgid "21 values look wrong; the indices can run with them as they are."
 msgstr ""
 
-#: core/templates/core/patterns.html:285 stations/qc_review.py:934
+#: core/templates/core/patterns.html:285 stations/qc_review.py:935
 msgid "Ready to use."
 msgstr ""
 
 #: core/templates/core/patterns.html:285 help/sections.py:97
-#: stations/qc_review.py:935
+#: stations/qc_review.py:936
 msgid "Nothing looks wrong."
 msgstr ""
 
-#: core/templates/core/patterns.html:287 stations/qc_review.py:903
+#: core/templates/core/patterns.html:287 stations/qc_review.py:904
 msgid "Fix the file first."
 msgstr ""
 
@@ -2543,7 +2567,7 @@ msgstr ""
 
 #: core/templates/core/patterns.html:294 core/templates/core/patterns.html:302
 #: core/templates/core/patterns.html:523 help/sections.py:114
-#: stations/templates/stations/_qc_detail.html:17
+#: stations/templates/stations/_qc_detail.html:19
 #: stations/templates/stations/_qc_review.html:18
 msgid "Look wrong"
 msgstr ""
@@ -2555,11 +2579,11 @@ msgstr ""
 
 #: core/templates/core/patterns.html:296 core/templates/core/patterns.html:303
 #: core/templates/core/patterns.html:316 stations/downloads.py:110
-#: stations/qc_review.py:42
+#: stations/qc_review.py:43
 msgid "Out of range"
 msgstr ""
 
-#: core/templates/core/patterns.html:297 stations/qc_review.py:41
+#: core/templates/core/patterns.html:297 stations/qc_review.py:42
 msgid "TN ≥ TX"
 msgstr ""
 
@@ -2572,17 +2596,17 @@ msgid "Out of range: values 1 to 2 of 2, largest first"
 msgstr ""
 
 #: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
-#: stations/templates/stations/_qc_values.html:77
+#: stations/templates/stations/_qc_values.html:79
 msgid "PR mm"
 msgstr ""
 
 #: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
-#: stations/templates/stations/_qc_values.html:77
+#: stations/templates/stations/_qc_values.html:79
 msgid "TX °C"
 msgstr ""
 
 #: core/templates/core/patterns.html:308 core/templates/core/patterns.html:321
-#: stations/templates/stations/_qc_values.html:77
+#: stations/templates/stations/_qc_values.html:79
 msgid "TN °C"
 msgstr ""
 
@@ -2645,7 +2669,7 @@ msgid "2 indices, 21 KB"
 msgstr ""
 
 #: core/templates/core/patterns.html:360 core/views.py:263
-#: stations/templates/stations/_qc_detail.html:41
+#: stations/templates/stations/_qc_detail.html:44
 #: stations/templates/stations/downloads.html:135
 msgid "Table"
 msgstr ""
@@ -2699,7 +2723,7 @@ msgid ""
 "Without JavaScript Edit is a page with the same form."
 msgstr ""
 
-#: core/templates/core/patterns.html:395 core/views.py:669
+#: core/templates/core/patterns.html:395 core/views.py:672
 #: stations/templates/stations/results.html:39 stations/workspace.py:977
 msgid "Recalculating"
 msgstr ""
@@ -3398,11 +3422,11 @@ msgstr ""
 msgid "Summer days"
 msgstr ""
 
-#: core/views.py:547 core/views.py:626 stations/themes.py:39
+#: core/views.py:547 core/views.py:629 stations/themes.py:39
 msgid "Heat"
 msgstr ""
 
-#: core/views.py:548 core/views.py:628 stations/themes.py:53
+#: core/views.py:548 core/views.py:631 stations/themes.py:53
 msgid "Rain"
 msgstr ""
 
@@ -3410,24 +3434,24 @@ msgstr ""
 msgid "Cold nights"
 msgstr ""
 
-#: core/views.py:550 core/views.py:627 stations/themes.py:46
+#: core/views.py:550 core/views.py:630 stations/themes.py:46
 msgid "Cold"
 msgstr ""
 
-#: core/views.py:629 help/indices.py:193 stations/themes.py:58
+#: core/views.py:632 help/indices.py:193 stations/themes.py:58
 msgid "Drought"
 msgstr ""
 
-#: core/views.py:630 stations/views_indices.py:505
+#: core/views.py:633 stations/views_indices.py:518
 msgid "Also measured"
 msgstr ""
 
-#: core/views.py:639 stations/templates/stations/_indices.html:57
-#: stations/views_indices.py:405
+#: core/views.py:642 stations/templates/stations/_indices.html:57
+#: stations/views_indices.py:406
 msgid "Sorted by the size of the trend, largest first."
 msgstr ""
 
-#: core/views.py:657 gridded/templates/gridded/_progress.html:75
+#: core/views.py:660 gridded/templates/gridded/_progress.html:75
 #: stations/templates/stations/_add_table.html:14
 #: stations/templates/stations/downloads.html:74
 #: stations/templates/stations/downloads.html:92
@@ -3436,36 +3460,36 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: core/views.py:657
+#: core/views.py:660
 msgid "29,220 days · 3 variables"
 msgstr ""
 
-#: core/views.py:657 stations/templates/stations/_file_card.html:14
+#: core/views.py:660 stations/templates/stations/_file_card.html:14
 #: stations/workspace.py:969
 msgid "Replace"
 msgstr ""
 
-#: core/views.py:658 core/views.py:659 core/views.py:660 core/views.py:661
+#: core/views.py:661 core/views.py:662 core/views.py:663 core/views.py:664
 #: stations/templates/stations/_inputs_bar.html:13
 #: stations/views_workspace.py:379 stations/workspace.py:969
 msgid "Edit"
 msgstr ""
 
-#: core/views.py:660 stations/views_add.py:106 stations/workspace.py:777
+#: core/views.py:663 stations/views_add.py:106 stations/workspace.py:777
 msgid "Quality thresholds"
 msgstr ""
 
-#: core/views.py:661 core/views.py:686 help/topics.py:70
+#: core/views.py:664 core/views.py:689 help/topics.py:70
 #: stations/templates/stations/_add_table.html:20 stations/views_add.py:107
 #: stations/workspace.py:778
 msgid "Index settings"
 msgstr ""
 
-#: core/views.py:680
+#: core/views.py:683
 msgid "The years the percentile indices are compared with."
 msgstr ""
 
-#: core/views.py:687
+#: core/views.py:690
 msgid "The choices some indices depend on, and the files a run writes."
 msgstr ""
 
@@ -3595,7 +3619,7 @@ msgstr ""
 msgid "Enter %(max)s or less."
 msgstr ""
 
-#: gridded/forms.py:221 stations/qc_plots.py:217 stations/qc_review.py:66
+#: gridded/forms.py:221 stations/qc_plots.py:217 stations/qc_review.py:67
 msgid "Maximum temperature (TX)"
 msgstr ""
 
@@ -3604,7 +3628,7 @@ msgstr ""
 msgid "Choose the variable."
 msgstr ""
 
-#: gridded/forms.py:225 stations/qc_plots.py:218 stations/qc_review.py:67
+#: gridded/forms.py:225 stations/qc_plots.py:218 stations/qc_review.py:68
 msgid "Minimum temperature (TN)"
 msgstr ""
 
@@ -4084,7 +4108,7 @@ msgstr ""
 msgid "Colour key"
 msgstr ""
 
-#: gridded/templates/gridded/_explore.html:85 stations/index_page.py:418
+#: gridded/templates/gridded/_explore.html:85 stations/index_page.py:524
 msgid "No value"
 msgstr ""
 
@@ -4133,7 +4157,7 @@ msgstr ""
 #: gridded/templates/gridded/_progress.html:23
 #: gridded/templates/gridded/_progress.html:25
 #: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
-#: stations/qc_review.py:809 stations/qc_review.py:814
+#: stations/qc_review.py:810 stations/qc_review.py:815
 #: stations/templates/stations/_qc_distributions.html:42
 #: stations/templates/stations/_qc_progress.html:13
 #: stations/templates/stations/_qc_progress.html:15
@@ -5453,7 +5477,7 @@ msgstr ""
 msgid "Years not in the table have no missing days."
 msgstr ""
 
-#: help/sections.py:132 stations/templates/stations/_index_detail.html:35
+#: help/sections.py:132 stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_indices.html:72
 #: stations/templates/stations/result.html:25
 msgid "Daily values"
@@ -5668,7 +5692,7 @@ msgid ""
 msgstr ""
 
 #: help/sections.py:303 help/topics.py:68
-#: stations/templates/stations/downloads.html:84 stations/views_indices.py:131
+#: stations/templates/stations/downloads.html:84 stations/views_indices.py:132
 msgid "Quality checks"
 msgstr ""
 
@@ -6081,7 +6105,7 @@ msgid ""
 "tables and trend file are written either way."
 msgstr ""
 
-#: help/topics.py:183 stations/downloads.py:112 stations/qc_review.py:44
+#: help/topics.py:183 stations/downloads.py:112 stations/qc_review.py:45
 msgid "Outliers"
 msgstr ""
 
@@ -6138,7 +6162,7 @@ msgstr ""
 msgid "Which of the repeated rows is used?"
 msgstr ""
 
-#: help/topics.py:228 stations/qc_review.py:45
+#: help/topics.py:228 stations/qc_review.py:46
 msgid "Jumps in maximum temperature"
 msgstr ""
 
@@ -6152,7 +6176,7 @@ msgstr ""
 msgid "What counts as a jump?"
 msgstr ""
 
-#: help/topics.py:236 stations/qc_review.py:46
+#: help/topics.py:236 stations/qc_review.py:47
 msgid "Jumps in minimum temperature"
 msgstr ""
 
@@ -6162,7 +6186,7 @@ msgid ""
 "before."
 msgstr ""
 
-#: help/topics.py:244 stations/qc_review.py:47
+#: help/topics.py:244 stations/qc_review.py:48
 msgid "Repeated maximum temperatures"
 msgstr ""
 
@@ -6176,7 +6200,7 @@ msgstr ""
 msgid "How many repeats are flagged?"
 msgstr ""
 
-#: help/topics.py:255 stations/qc_review.py:48
+#: help/topics.py:255 stations/qc_review.py:49
 msgid "Repeated minimum temperatures"
 msgstr ""
 
@@ -6227,7 +6251,7 @@ msgstr ""
 msgid "What should I look for in the daily series?"
 msgstr ""
 
-#: help/topics.py:308 stations/views_indices.py:132
+#: help/topics.py:308 stations/views_indices.py:133
 msgid "Homogeneity"
 msgstr ""
 
@@ -6309,7 +6333,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:385 stations/forms_indices.py:122
-#: stations/views_indices.py:308
+#: stations/views_indices.py:309
 msgid "Days for WSDId"
 msgstr ""
 
@@ -6321,7 +6345,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:395 stations/forms_indices.py:129
-#: stations/views_indices.py:309
+#: stations/views_indices.py:310
 msgid "Days for CSDId"
 msgstr ""
 
@@ -6333,7 +6357,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:405 stations/forms_indices.py:136
-#: stations/views_indices.py:310
+#: stations/views_indices.py:311
 msgid "Days for Rxdday"
 msgstr ""
 
@@ -6344,7 +6368,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:415 stations/forms_indices.py:142
-#: stations/views_indices.py:311
+#: stations/views_indices.py:312
 msgid "Days for TXdTNd and TXbdTNbd"
 msgstr ""
 
@@ -6396,7 +6420,7 @@ msgid ""
 msgstr ""
 
 #: help/topics.py:465 stations/forms_indices.py:163
-#: stations/views_indices.py:316
+#: stations/views_indices.py:317
 msgid "Extra SPI and SPEI time scale"
 msgstr ""
 
@@ -6946,7 +6970,7 @@ msgid_plural "%(count)d stations are ready to add."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/add_stations.py:465 stations/qc_review.py:1446
+#: stations/add_stations.py:465 stations/qc_review.py:1512
 #, python-format
 msgid "%(first)s and %(last)s"
 msgstr ""
@@ -7357,7 +7381,7 @@ msgstr ""
 msgid "Enter the number of days for TXdTNd and TXbdTNbd."
 msgstr ""
 
-#: stations/forms_indices.py:147 stations/views_indices.py:312
+#: stations/forms_indices.py:147 stations/views_indices.py:313
 msgid "Base temperature for HDDheat"
 msgstr ""
 
@@ -7365,11 +7389,11 @@ msgstr ""
 msgid "Default 18 °C."
 msgstr ""
 
-#: stations/forms_indices.py:148 stations/views_indices.py:313
+#: stations/forms_indices.py:148 stations/views_indices.py:314
 msgid "Base temperature for CDDcold"
 msgstr ""
 
-#: stations/forms_indices.py:149 stations/views_indices.py:314
+#: stations/forms_indices.py:149 stations/views_indices.py:315
 msgid "Base temperature for GDDgrow"
 msgstr ""
 
@@ -7377,7 +7401,7 @@ msgstr ""
 msgid "Default 10 °C."
 msgstr ""
 
-#: stations/forms_indices.py:151 stations/views_indices.py:315
+#: stations/forms_indices.py:151 stations/views_indices.py:316
 msgid "Precipitation amount for Rnnmm"
 msgstr ""
 
@@ -7429,7 +7453,7 @@ msgstr ""
 msgid "Enter the threshold as a number, e.g. 40."
 msgstr ""
 
-#: stations/forms_indices.py:191 stations/views_indices.py:135
+#: stations/forms_indices.py:191 stations/views_indices.py:136
 msgid "Draw the plots"
 msgstr ""
 
@@ -7477,82 +7501,103 @@ msgid ""
 "is added."
 msgstr ""
 
-#: stations/index_detail.py:156
+#: stations/index_detail.py:173
+msgid "no value"
+msgstr ""
+
+#: stations/index_detail.py:194
 #, python-format
 msgid ""
 "%(series)s from %(first)s to %(last)s. Lowest %(low)s in %(low_when)s, "
 "highest %(high)s in %(high_when)s."
 msgstr ""
 
-#: stations/index_detail.py:168
+#: stations/index_detail.py:206
 #, python-format
 msgid "Sen's slope %(slope)s, 95%% interval %(interval)s."
 msgstr ""
 
-#: stations/index_detail.py:178
+#: stations/index_detail.py:216
 #, python-format
 msgid "Annual %(code)s"
 msgstr ""
 
-#: stations/index_detail.py:180
+#: stations/index_detail.py:218
 #, python-format
 msgid "Monthly %(code)s"
 msgstr ""
 
-#: stations/index_detail.py:188
+#: stations/index_detail.py:226
 #, python-format
 msgid "%(series)s (%(units)s)"
 msgstr ""
 
-#: stations/index_detail.py:190
+#: stations/index_detail.py:228
 #, python-format
 msgid "%(series)s, with Sen's slope dashed."
 msgstr ""
 
-#: stations/index_detail.py:191
+#: stations/index_detail.py:229
 #, python-format
 msgid "%(series)s."
 msgstr ""
 
-#: stations/index_detail.py:198
+#: stations/index_detail.py:236
 #, python-format
 msgid "%(present)s of %(total)s"
 msgstr ""
 
-#: stations/index_detail.py:204
+#: stations/index_detail.py:242
 msgid "Years used"
 msgstr ""
 
-#: stations/index_detail.py:206
+#: stations/index_detail.py:244
 msgid "Months used"
 msgstr ""
 
-#: stations/index_detail.py:207
+#: stations/index_detail.py:245
 msgid "Values used"
 msgstr ""
 
-#: stations/index_page.py:238
+#: stations/index_page.py:238 stations/index_page.py:398
 #, python-format
 msgid "Anomaly %(units)s"
 msgstr ""
 
-#: stations/index_page.py:238 stations/templates/stations/result.html:92
+#: stations/index_page.py:238 stations/index_page.py:398
+#: stations/index_page.py:448 stations/templates/stations/result.html:98
 msgid "Anomaly"
 msgstr ""
 
-#: stations/index_page.py:367
+#: stations/index_page.py:443 stations/templates/stations/result.html:61
+msgid "11-year running mean"
+msgstr ""
+
+#: stations/index_page.py:444 stations/templates/stations/result.html:63
+msgid "Month left out: incomplete"
+msgstr ""
+
+#: stations/index_page.py:446 stations/templates/stations/result.html:63
+msgid "Year left out: incomplete"
+msgstr ""
+
+#: stations/index_page.py:461
+msgid "Sen's slope, with 95% interval shaded"
+msgstr ""
+
+#: stations/index_page.py:473
 #, python-format
 msgid "Shown as anomalies from the %(start)s–%(end)s mean."
 msgstr ""
 
-#: stations/index_page.py:404
+#: stations/index_page.py:510
 #, python-format
 msgid "Left out: %(days)s day missing"
 msgid_plural "Left out: %(days)s days missing"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/index_page.py:407
+#: stations/index_page.py:513
 #, python-format
 msgid ""
 "%(when)s left out: %(days)s day missing, so the year fails the completeness "
@@ -7563,44 +7608,44 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/index_page.py:413
+#: stations/index_page.py:519
 msgid "Left out: incomplete"
 msgstr ""
 
-#: stations/index_page.py:414
+#: stations/index_page.py:520
 #, python-format
 msgid "%(when)s left out: the month fails the completeness rule."
 msgstr ""
 
-#: stations/index_page.py:419
+#: stations/index_page.py:525
 #, python-format
 msgid "%(when)s has no value."
 msgstr ""
 
-#: stations/index_page.py:433
+#: stations/index_page.py:539
 #, python-format
 msgid "%(count)s month has no value. The table says why."
 msgid_plural "%(count)s months have no value. The table says why."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/index_page.py:439
+#: stations/index_page.py:545
 #, python-format
 msgid "%(count)s year has no value. The table says why."
 msgid_plural "%(count)s years have no value. The table says why."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/index_page.py:497 stations/templates/stations/result.html:74
+#: stations/index_page.py:603 stations/templates/stations/result.html:80
 msgid "Record"
 msgstr ""
 
-#: stations/index_page.py:512
+#: stations/index_page.py:618
 #, python-format
 msgid "%(value)s, %(when)s"
 msgstr ""
 
-#: stations/index_page.py:536
+#: stations/index_page.py:642
 #, python-format
 msgid ""
 "%(station)s, %(code)s (%(name)s), %(first)s–%(last)s, base period %(start)s–"
@@ -7608,7 +7653,7 @@ msgid ""
 "trend by Sen's slope. Accessed %(date)s."
 msgstr ""
 
-#: stations/index_page.py:542
+#: stations/index_page.py:648
 #, python-format
 msgid ""
 "%(station)s, %(code)s (%(name)s), %(first)s–%(last)s. Calculated with "
@@ -7616,7 +7661,7 @@ msgid ""
 "Accessed %(date)s."
 msgstr ""
 
-#: stations/index_page.py:548
+#: stations/index_page.py:654
 #, python-format
 msgid ""
 "%(station)s, %(code)s (%(name)s). Calculated with Climpact (climpact "
@@ -7802,7 +7847,7 @@ msgstr[1] ""
 msgid "Precipitation, days with rain"
 msgstr ""
 
-#: stations/qc_plots.py:219 stations/qc_review.py:68
+#: stations/qc_plots.py:219 stations/qc_review.py:69
 msgid "Diurnal temperature range (DTR)"
 msgstr ""
 
@@ -7877,7 +7922,7 @@ msgstr ""
 msgid "Days by amount of precipitation (1 mm or more)"
 msgstr ""
 
-#: stations/qc_plots.py:336 stations/qc_review.py:395 stations/qc_review.py:415
+#: stations/qc_plots.py:336 stations/qc_review.py:396 stations/qc_review.py:416
 #, python-format
 msgid "%(low)s to %(high)s"
 msgstr ""
@@ -7886,46 +7931,46 @@ msgstr ""
 msgid "over 40"
 msgstr ""
 
-#: stations/qc_review.py:386
+#: stations/qc_review.py:387
 #, python-format
 msgid "%(variable)s, high"
 msgstr ""
 
-#: stations/qc_review.py:386
+#: stations/qc_review.py:387
 #, python-format
 msgid "%(variable)s, low"
 msgstr ""
 
-#: stations/qc_review.py:393
+#: stations/qc_review.py:394
 #, python-format
 msgid "up to %(high)s"
 msgstr ""
 
-#: stations/qc_review.py:569 stations/sector_file.py:216
+#: stations/qc_review.py:570 stations/sector_file.py:216
 #: stations/templates/stations/_summary.html:13
 #, python-format
 msgid "%(first)s to %(last)s"
 msgstr ""
 
-#: stations/qc_review.py:585
+#: stations/qc_review.py:586
 msgid ""
 "Days where the minimum temperature is equal to or higher than the maximum."
 msgstr ""
 
-#: stations/qc_review.py:587
+#: stations/qc_review.py:588
 #, python-format
 msgid ""
 "Precipitation above %(prec)s or below %(zero)s, and temperatures above "
 "%(high)s or below %(low)s."
 msgstr ""
 
-#: stations/qc_review.py:597
+#: stations/qc_review.py:598
 msgid ""
 "Dates given on more than one row of the file. The indices use the last row "
 "of each date."
 msgstr ""
 
-#: stations/qc_review.py:601
+#: stations/qc_review.py:602
 #, python-format
 msgid ""
 "Values outside the usual range for their calendar month: more than %(temp)s "
@@ -7933,182 +7978,182 @@ msgid ""
 "more than %(prec)s for precipitation (days with rain only)."
 msgstr ""
 
-#: stations/qc_review.py:607
+#: stations/qc_review.py:608
 #, python-format
 msgid ""
 "Days where the maximum temperature changes by %(jump)s or more to the next "
 "day. The date is the first of the two days."
 msgstr ""
 
-#: stations/qc_review.py:612
+#: stations/qc_review.py:613
 #, python-format
 msgid ""
 "Days where the minimum temperature changes by %(jump)s or more to the next "
 "day. The date is the first of the two days."
 msgstr ""
 
-#: stations/qc_review.py:617
+#: stations/qc_review.py:618
 #, python-format
 msgid ""
 "The same maximum temperature on more than %(days)s days in a row. The date "
 "is the second-last day of the run."
 msgstr ""
 
-#: stations/qc_review.py:622
+#: stations/qc_review.py:623
 #, python-format
 msgid ""
 "The same minimum temperature on more than %(days)s days in a row. The date "
 "is the second-last day of the run."
 msgstr ""
 
-#: stations/qc_review.py:632
+#: stations/qc_review.py:633
 msgid "PR (mm)"
 msgstr ""
 
-#: stations/qc_review.py:632 stations/qc_review.py:649
+#: stations/qc_review.py:633 stations/qc_review.py:650
 msgid "TX (°C)"
 msgstr ""
 
-#: stations/qc_review.py:632 stations/qc_review.py:650
+#: stations/qc_review.py:633 stations/qc_review.py:651
 msgid "TN (°C)"
 msgstr ""
 
-#: stations/qc_review.py:634
+#: stations/qc_review.py:635
 msgid "TX − TN (°C)"
 msgstr ""
 
-#: stations/qc_review.py:636 stations/qc_review.py:672
-#: stations/qc_review.py:1572
+#: stations/qc_review.py:637 stations/qc_review.py:673
+#: stations/qc_review.py:1638
 msgid "Rows"
 msgstr ""
 
-#: stations/qc_review.py:636
+#: stations/qc_review.py:637
 msgid "Values on each row, in file order"
 msgstr ""
 
-#: stations/qc_review.py:638
+#: stations/qc_review.py:639
 msgid "DTR (°C)"
 msgstr ""
 
-#: stations/qc_review.py:638
+#: stations/qc_review.py:639
 msgid "Usual range for the month"
 msgstr ""
 
-#: stations/qc_review.py:642
+#: stations/qc_review.py:643
 msgid "TX that day"
 msgstr ""
 
-#: stations/qc_review.py:642
+#: stations/qc_review.py:643
 msgid "TX next day"
 msgstr ""
 
-#: stations/qc_review.py:642 stations/qc_review.py:646
-#: stations/qc_review.py:675
+#: stations/qc_review.py:643 stations/qc_review.py:647
+#: stations/qc_review.py:676
 msgid "Next day"
 msgstr ""
 
-#: stations/qc_review.py:642 stations/qc_review.py:646
+#: stations/qc_review.py:643 stations/qc_review.py:647
 msgid "Change (°C)"
 msgstr ""
 
-#: stations/qc_review.py:646
+#: stations/qc_review.py:647
 msgid "TN that day"
 msgstr ""
 
-#: stations/qc_review.py:646
+#: stations/qc_review.py:647
 msgid "TN next day"
 msgstr ""
 
-#: stations/qc_review.py:649 stations/qc_review.py:650
+#: stations/qc_review.py:650 stations/qc_review.py:651
 msgid "Equal values"
 msgstr ""
 
-#: stations/qc_review.py:649 stations/qc_review.py:650
+#: stations/qc_review.py:650 stations/qc_review.py:651
 #: stations/templates/stations/_add_table.html:19
 #: stations/templates/stations/_qc_distributions.html:41
 #: stations/templates/stations/_qc_distributions.html:63
 msgid "Days"
 msgstr ""
 
-#: stations/qc_review.py:668 stations/qc_review.py:1561
+#: stations/qc_review.py:669 stations/qc_review.py:1627
 msgid "TN − TX"
 msgstr ""
 
-#: stations/qc_review.py:672
+#: stations/qc_review.py:673
 msgid "Lines in the file"
 msgstr ""
 
-#: stations/qc_review.py:678 stations/qc_review.py:1628
+#: stations/qc_review.py:679 stations/qc_review.py:1694
 msgid "Days in a row"
 msgstr ""
 
-#: stations/qc_review.py:678
+#: stations/qc_review.py:679
 msgid "From"
 msgstr ""
 
-#: stations/qc_review.py:681
+#: stations/qc_review.py:682
 msgid "Over by"
 msgstr ""
 
-#: stations/qc_review.py:681
+#: stations/qc_review.py:682
 msgid "Under by"
 msgstr ""
 
-#: stations/qc_review.py:682
+#: stations/qc_review.py:683
 msgid "Month's limit"
 msgstr ""
 
-#: stations/qc_review.py:685
+#: stations/qc_review.py:686
 msgid "Usual range"
 msgstr ""
 
-#: stations/qc_review.py:686
+#: stations/qc_review.py:687
 msgid "Beyond by"
 msgstr ""
 
-#: stations/qc_review.py:812
+#: stations/qc_review.py:813
 msgid "under 0.01%"
 msgstr ""
 
-#: stations/qc_review.py:884
+#: stations/qc_review.py:885
 #, python-format
 msgid "%(n)s value checked"
 msgid_plural "%(n)s values checked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:886
+#: stations/qc_review.py:887
 #, python-format
 msgid "%(n)s looks wrong (%(percent)s)"
 msgid_plural "%(n)s look wrong (%(percent)s)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:888
+#: stations/qc_review.py:889
 #, python-format
 msgid "%(n)s worth a look"
 msgstr ""
 
-#: stations/qc_review.py:889
+#: stations/qc_review.py:890
 #, python-format
 msgid "%(n)s missing (%(percent)s)"
 msgstr ""
 
-#: stations/qc_review.py:895
+#: stations/qc_review.py:896
 #, python-format
 msgid "%(n)s of %(total)s years too incomplete for annual values"
 msgid_plural "%(n)s of %(total)s years too incomplete for annual values"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:908
+#: stations/qc_review.py:909
 #, python-format
 msgid "%(n)s value looks wrong, %(percent)s of the values checked."
 msgid_plural "%(n)s values look wrong, %(percent)s of the values checked."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:917
+#: stations/qc_review.py:918
 #, python-format
 msgid "%(n)s of %(total)s years has too much missing data for annual values."
 msgid_plural ""
@@ -8116,7 +8161,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:927
+#: stations/qc_review.py:928
 #, python-format
 msgid "%(n)s value looks wrong; the indices can run with it as it is."
 msgid_plural ""
@@ -8124,175 +8169,194 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:997
+#: stations/qc_review.py:998
 #, python-format
 msgid "%(variables)s, daily, %(first)s to %(last)s"
 msgstr ""
 
-#: stations/qc_review.py:1003
+#: stations/qc_review.py:1004
 #, python-format
 msgid ", with the limit of %(limit)s"
 msgstr ""
 
-#: stations/qc_review.py:1011
+#: stations/qc_review.py:1012
 #, python-format
 msgid "%(month)s, daily"
 msgstr ""
 
-#: stations/qc_review.py:1019
+#: stations/qc_review.py:1020
 #, python-format
 msgid "Line %(lines)s in the file"
 msgid_plural "Lines %(lines)s in the file"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:1155
+#: stations/qc_review.py:1158
 #, python-format
 msgid "%(variable)s %(value)s, below %(limit)s"
 msgstr ""
 
-#: stations/qc_review.py:1157 stations/qc_review.py:1162
+#: stations/qc_review.py:1160 stations/qc_review.py:1165
 #, python-format
 msgid "%(variable)s %(value)s, over the %(limit)s limit"
 msgstr ""
 
-#: stations/qc_review.py:1164
+#: stations/qc_review.py:1167
 #, python-format
 msgid "%(variable)s %(value)s, under the %(limit)s limit"
 msgstr ""
 
-#: stations/qc_review.py:1189
+#: stations/qc_review.py:1192
 #, python-format
 msgid "TN %(tn)s equals TX %(tx)s"
 msgstr ""
 
-#: stations/qc_review.py:1190
+#: stations/qc_review.py:1193
 #, python-format
 msgid "TN %(tn)s is above TX %(tx)s"
 msgstr ""
 
-#: stations/qc_review.py:1196
+#: stations/qc_review.py:1199
 #, python-format
 msgid "Given on %(n)s row of the file. The indices use the last."
 msgid_plural "Given on %(n)s rows of the file. The indices use the last."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/qc_review.py:1211
+#: stations/qc_review.py:1214
 #, python-format
 msgid "%(variable)s %(value)s, %(by)s over the limit for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1212
+#: stations/qc_review.py:1215
 #, python-format
 msgid "%(variable)s %(value)s, %(by)s under the limit for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1214
+#: stations/qc_review.py:1217
 #, python-format
 msgid "%(variable)s %(value)s, %(by)s above the usual range for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1215
+#: stations/qc_review.py:1218
 #, python-format
 msgid "%(variable)s %(value)s, %(by)s below the usual range for %(month)s"
 msgstr ""
 
-#: stations/qc_review.py:1218
+#: stations/qc_review.py:1221
 #, python-format
 msgid ""
 "%(variable)s %(value)s, then %(next)s the next day: a change of %(change)s"
 msgstr ""
 
-#: stations/qc_review.py:1231
+#: stations/qc_review.py:1234
 #, python-format
 msgid "%(variable)s %(value)s on %(n)s days in a row"
 msgstr ""
 
-#: stations/qc_review.py:1232
+#: stations/qc_review.py:1235
 #, python-format
 msgid "%(variable)s %(value)s on %(n)s days in a row, from %(first)s"
 msgstr ""
 
-#: stations/qc_review.py:1271
+#: stations/qc_review.py:1290
 #, python-format
 msgid "Line %(line)s: %(values)s"
 msgstr ""
 
-#: stations/qc_review.py:1379
+#: stations/qc_review.py:1391
+#, python-format
+msgid "%(label)s:"
+msgstr ""
+
+#: stations/qc_review.py:1405 stations/templates/stations/_qc_detail.html:19
+#, python-format
+msgid "%(n)s row"
+msgid_plural "%(n)s rows"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:1407 stations/templates/stations/_qc_detail.html:19
+#, python-format
+msgid "%(n)s value"
+msgid_plural "%(n)s values"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/qc_review.py:1445
 msgid "Heavy rain days"
 msgstr ""
 
-#: stations/qc_review.py:1380
+#: stations/qc_review.py:1446
 msgid "Light rain days"
 msgstr ""
 
-#: stations/qc_review.py:1381
+#: stations/qc_review.py:1447
 msgid "High maximum"
 msgstr ""
 
-#: stations/qc_review.py:1382
+#: stations/qc_review.py:1448
 msgid "Low maximum"
 msgstr ""
 
-#: stations/qc_review.py:1383
+#: stations/qc_review.py:1449
 msgid "High minimum"
 msgstr ""
 
-#: stations/qc_review.py:1384
+#: stations/qc_review.py:1450
 msgid "Low minimum"
 msgstr ""
 
-#: stations/qc_review.py:1385
+#: stations/qc_review.py:1451
 msgid "Wide daily range"
 msgstr ""
 
-#: stations/qc_review.py:1386
+#: stations/qc_review.py:1452
 msgid "Narrow daily range"
 msgstr ""
 
-#: stations/qc_review.py:1467
+#: stations/qc_review.py:1533
 msgid "All year"
 msgstr ""
 
-#: stations/qc_review.py:1470
+#: stations/qc_review.py:1536
 #, python-format
 msgid "All in %(months)s"
 msgstr ""
 
-#: stations/qc_review.py:1471
+#: stations/qc_review.py:1537
 #, python-format
 msgid "Mostly %(months)s"
 msgstr ""
 
-#: stations/qc_review.py:1479
+#: stations/qc_review.py:1545
 msgid ""
 "The minimum is at or above the maximum of the same day. This is almost "
 "always swapped columns or a typing error; a run of days suggests columns "
 "swapped for a stretch."
 msgstr ""
 
-#: stations/qc_review.py:1484
+#: stations/qc_review.py:1550
 msgid "These are almost always typing errors or missing-value codes."
 msgstr ""
 
-#: stations/qc_review.py:1488
+#: stations/qc_review.py:1554
 msgid ""
 "Dates given on more than one row of the file; the indices use the last row "
 "of each. Keep the right row and remove the others."
 msgstr ""
 
-#: stations/qc_review.py:1493
+#: stations/qc_review.py:1559
 msgid ""
 "Look first at the largest: a day out of line with both its neighbours is "
 "usually a typing error."
 msgstr ""
 
-#: stations/qc_review.py:1498
+#: stations/qc_review.py:1564
 msgid "Long runs of one value are often missing data filled in."
 msgstr ""
 
-#: stations/qc_review.py:1505
+#: stations/qc_review.py:1571
 #, python-format
 msgid ""
 "More than %(iqr)s interquartile ranges above the usual box for the calendar "
@@ -8300,51 +8364,51 @@ msgid ""
 "largest, and at any with no rain on the days either side."
 msgstr ""
 
-#: stations/qc_review.py:1514
+#: stations/qc_review.py:1580
 #, python-format
 msgid ""
 "More than %(iqr)s interquartile ranges below the usual box for the calendar "
 "month (days with rain only). Look for values in the wrong unit."
 msgstr ""
 
-#: stations/qc_review.py:1522
+#: stations/qc_review.py:1588
 #, python-format
 msgid ""
 "More than %(iqr)s interquartile ranges above the usual box for the calendar "
 "month. Look first at the largest, and at any far from the days either side."
 msgstr ""
 
-#: stations/qc_review.py:1529
+#: stations/qc_review.py:1595
 #, python-format
 msgid ""
 "More than %(iqr)s interquartile ranges below the usual box for the calendar "
 "month. Look first at the largest, and at any far from the days either side."
 msgstr ""
 
-#: stations/qc_review.py:1570
+#: stations/qc_review.py:1636
 msgid "Beyond the limit"
 msgstr ""
 
-#: stations/qc_review.py:1572
+#: stations/qc_review.py:1638
 msgid "all rows"
 msgstr ""
 
-#: stations/qc_review.py:1620
+#: stations/qc_review.py:1686
 #, python-format
 msgid "Large day-to-day change ≥ %(jump)s"
 msgstr ""
 
-#: stations/qc_review.py:1624
+#: stations/qc_review.py:1690
 #, python-format
 msgid "Same %(variable)s %(days)s+ days"
 msgstr ""
 
-#: stations/qc_review.py:1742
+#: stations/qc_review.py:1811
 #, python-format
 msgid "%(years)s and %(n)s more"
 msgstr ""
 
-#: stations/qc_review.py:1769 stations/views_indices.py:293
+#: stations/qc_review.py:1838 stations/views_indices.py:294
 #: stations/workspace.py:760
 #, python-format
 msgid "%(n)s day"
@@ -8569,7 +8633,7 @@ msgstr ""
 
 #: stations/sector_file.py:218 stations/templates/stations/downloads.html:141
 #: stations/templates/stations/workspace_files.html:71
-#: stations/views_indices.py:303
+#: stations/views_indices.py:304
 msgid "none"
 msgstr ""
 
@@ -8870,58 +8934,58 @@ msgstr ""
 msgid "Copy citation"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:35
+#: stations/templates/stations/_index_detail.html:38
 msgid "Slope"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:35
+#: stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_indices.html:72
-#: stations/templates/stations/result.html:69
+#: stations/templates/stations/result.html:75
 msgid "Too few values"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:35
+#: stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_indices.html:72
-#: stations/templates/stations/result.html:69
+#: stations/templates/stations/result.html:75
 msgid "No trend line"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:37
+#: stations/templates/stations/_index_detail.html:40
 #, python-format
 msgid "Mean, %(years)s"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:37
+#: stations/templates/stations/_index_detail.html:40
 msgid "Mean"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:38
+#: stations/templates/stations/_index_detail.html:41
 msgid "Yes: the interval excludes zero"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:38
+#: stations/templates/stations/_index_detail.html:41
 msgid "No"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:40
+#: stations/templates/stations/_index_detail.html:43
 msgid "Method"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:40
+#: stations/templates/stations/_index_detail.html:43
 msgid "Sen's slope (zyp)"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:43
+#: stations/templates/stations/_index_detail.html:46
 msgid "Open full page"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:46
-#: stations/views_indices.py:744
+#: stations/templates/stations/_index_detail.html:49
+#: stations/views_indices.py:771
 msgid "Monthly values"
 msgstr ""
 
-#: stations/templates/stations/_index_detail.html:48
-#: stations/templates/stations/_qc_detail.html:57
+#: stations/templates/stations/_index_detail.html:51
+#: stations/templates/stations/_qc_detail.html:61
 msgid "Back to the list"
 msgstr ""
 
@@ -9045,7 +9109,7 @@ msgid "months"
 msgstr ""
 
 #: stations/templates/stations/_indices_unit.html:31
-#: stations/views_indices.py:317
+#: stations/views_indices.py:318
 msgid "Custom threshold index"
 msgstr ""
 
@@ -9195,60 +9259,46 @@ msgid_plural "%(counter)s years too incomplete for annual values: %(years)s"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/templates/stations/_qc_detail.html:17
-#, python-format
-msgid "%(n)s row"
-msgid_plural "%(n)s rows"
-msgstr[0] ""
-msgstr[1] ""
-
-#: stations/templates/stations/_qc_detail.html:17
+#: stations/templates/stations/_qc_detail.html:19
 #: stations/templates/stations/_qc_review.html:27
 msgid "Worth a look"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:17
-#, python-format
-msgid "%(n)s value"
-msgid_plural "%(n)s values"
-msgstr[0] ""
-msgstr[1] ""
-
-#: stations/templates/stations/_qc_detail.html:19
+#: stations/templates/stations/_qc_detail.html:21
 #, python-format
 msgid "%(mostly)s. %(lede)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:22
+#: stations/templates/stations/_qc_detail.html:24
 msgid "These values (CSV)"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:23
+#: stations/templates/stations/_qc_detail.html:25
 msgid "Show on the daily chart"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:29
+#: stations/templates/stations/_qc_detail.html:31
 msgid "When"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:29
+#: stations/templates/stations/_qc_detail.html:31
 #, python-format
 msgid "%(label)s, each value"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:30
+#: stations/templates/stations/_qc_detail.html:32
 #, python-format
 msgid ""
 "%(title)s: each value by date, %(first)s to %(last)s. The values table lists "
 "them."
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:41
+#: stations/templates/stations/_qc_detail.html:44
 msgid "By calendar month"
 msgstr ""
 
-#: stations/templates/stations/_qc_detail.html:42
-#: stations/templates/stations/_qc_detail.html:49
+#: stations/templates/stations/_qc_detail.html:45
+#: stations/templates/stations/_qc_detail.html:53
 #, python-format
 msgid "%(title)s by calendar month"
 msgstr ""
@@ -9405,53 +9455,53 @@ msgstr ""
 msgid "Run the checks"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:18
+#: stations/templates/stations/_qc_values.html:19
 #, python-format
 msgid "%(first)s–%(last)s of %(total)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:19
+#: stations/templates/stations/_qc_values.html:20
 msgid "Sort:"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:20
+#: stations/templates/stations/_qc_values.html:21
 msgid "Largest first"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:26
+#: stations/templates/stations/_qc_values.html:27
 #, python-format
 msgid "%(title)s: values %(first)s to %(last)s of %(total)s, by date"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:26
+#: stations/templates/stations/_qc_values.html:27
 #, python-format
 msgid "%(title)s: values %(first)s to %(last)s of %(total)s, largest first"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:42
+#: stations/templates/stations/_qc_values.html:43
 #, python-format
 msgid "Pages of %(title)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:43
+#: stations/templates/stations/_qc_values.html:44
 #, python-format
 msgid "Page %(number)s of %(pages)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:45
+#: stations/templates/stations/_qc_values.html:46
 msgid "← Previous"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:46
+#: stations/templates/stations/_qc_values.html:47
 msgid "Next →"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:71
+#: stations/templates/stations/_qc_values.html:73
 #, python-format
 msgid "limit %(limit)s"
 msgstr ""
 
-#: stations/templates/stations/_qc_values.html:76
+#: stations/templates/stations/_qc_values.html:78
 #, python-format
 msgid "%(title)s: days around %(date)s"
 msgstr ""
@@ -10236,7 +10286,7 @@ msgid "Every file of this calculation, as a list"
 msgstr ""
 
 #: stations/templates/stations/downloads.html:168
-#: stations/templates/stations/sector.html:31 stations/views_indices.py:133
+#: stations/templates/stations/sector.html:31 stations/views_indices.py:134
 msgid "Calculate the indices"
 msgstr ""
 
@@ -10417,62 +10467,50 @@ msgstr ""
 msgid "%(column)s (°C²)"
 msgstr ""
 
-#: stations/templates/stations/result.html:51
+#: stations/templates/stations/result.html:55
 #, python-format
 msgid "Chart of %(series)s"
 msgstr ""
 
-#: stations/templates/stations/result.html:56
-msgid "11-year running mean"
-msgstr ""
-
-#: stations/templates/stations/result.html:57
+#: stations/templates/stations/result.html:62
 #, python-format
 msgid "Sen's slope, with 95%% interval shaded"
 msgstr ""
 
-#: stations/templates/stations/result.html:58
-msgid "Month left out: incomplete"
-msgstr ""
-
-#: stations/templates/stations/result.html:58
-msgid "Year left out: incomplete"
-msgstr ""
-
-#: stations/templates/stations/result.html:62
+#: stations/templates/stations/result.html:68
 msgid "Every value of this series is missing, so there is nothing to draw."
 msgstr ""
 
-#: stations/templates/stations/result.html:71
+#: stations/templates/stations/result.html:77
 msgid "Yes, interval excludes 0"
 msgstr ""
 
-#: stations/templates/stations/result.html:71
+#: stations/templates/stations/result.html:77
 msgid "No, interval includes 0"
 msgstr ""
 
-#: stations/templates/stations/result.html:73
+#: stations/templates/stations/result.html:79
 msgid "Base-period mean"
 msgstr ""
 
-#: stations/templates/stations/result.html:76
+#: stations/templates/stations/result.html:82
 #, python-format
 msgid "A trend needs at least 10 values and 70%% of the series."
 msgstr ""
 
-#: stations/templates/stations/result.html:78
+#: stations/templates/stations/result.html:84
 msgid "Method: Sen's slope (zyp), as Climpact for R."
 msgstr ""
 
-#: stations/templates/stations/result.html:86
+#: stations/templates/stations/result.html:92
 msgid "Most recent first"
 msgstr ""
 
-#: stations/templates/stations/result.html:93
+#: stations/templates/stations/result.html:99
 msgid "Rank"
 msgstr ""
 
-#: stations/templates/stations/result.html:95
+#: stations/templates/stations/result.html:101
 msgid "Note"
 msgstr ""
 
@@ -11076,21 +11114,21 @@ msgstr ""
 msgid "The station data were deleted."
 msgstr ""
 
-#: stations/views.py:940
+#: stations/views.py:942
 msgid ""
 "The new file is loaded, but the station details need a change before the "
 "checks can run."
 msgstr ""
 
-#: stations/views.py:946
+#: stations/views.py:948
 msgid "The new file is loaded. The checks and results are updated."
 msgstr ""
 
-#: stations/views.py:1014 stations/views_workspace.py:473
+#: stations/views.py:1016 stations/views_workspace.py:473
 msgid "The change was undone. The earlier settings and results are back."
 msgstr ""
 
-#: stations/views.py:1020 stations/views_workspace.py:479
+#: stations/views.py:1022 stations/views_workspace.py:479
 msgid ""
 "The recalculation has finished, so the change can no longer be undone. "
 "Change the settings back instead."
@@ -11167,61 +11205,61 @@ msgstr ""
 msgid "Quality flags"
 msgstr ""
 
-#: stations/views_indices.py:130
+#: stations/views_indices.py:131
 msgid "Read the data"
 msgstr ""
 
-#: stations/views_indices.py:134
+#: stations/views_indices.py:135
 msgid "Write the result files"
 msgstr ""
 
-#: stations/views_indices.py:136
+#: stations/views_indices.py:137
 msgid "Write the PDF report"
 msgstr ""
 
-#: stations/views_indices.py:137 stations/views_sector.py:63
+#: stations/views_indices.py:138 stations/views_sector.py:63
 msgid "Make the zip file"
 msgstr ""
 
-#: stations/views_indices.py:296
+#: stations/views_indices.py:297
 #, python-format
 msgid "%(n)s month"
 msgid_plural "%(n)s months"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/views_indices.py:334
+#: stations/views_indices.py:335
 msgid "Climpact's default settings."
 msgstr ""
 
-#: stations/views_indices.py:335
+#: stations/views_indices.py:336
 #, python-format
 msgid "Settings changed: %(settings)s."
 msgstr ""
 
-#: stations/views_indices.py:411
+#: stations/views_indices.py:412
 #, python-format
 msgid "Sorted by %(column)s, descending."
 msgstr ""
 
-#: stations/views_indices.py:412
+#: stations/views_indices.py:413
 #, python-format
 msgid "Sorted by %(column)s, ascending."
 msgstr ""
 
-#: stations/views_indices.py:744
+#: stations/views_indices.py:771
 msgid "Annual values"
 msgstr ""
 
-#: stations/views_indices.py:745
+#: stations/views_indices.py:772
 msgid "Values by day of the year"
 msgstr ""
 
-#: stations/views_indices.py:751
+#: stations/views_indices.py:778
 msgid "Date of minimum"
 msgstr ""
 
-#: stations/views_indices.py:751
+#: stations/views_indices.py:778
 msgid "Date of maximum"
 msgstr ""
 

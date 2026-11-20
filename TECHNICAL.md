@@ -2871,10 +2871,12 @@ packages/climpact-web/src/climpact_web/
     results.py       the Indices' model: one card per index table,
                      sparklines, trends, tables not written and why; cached
     index_detail.py  the Indices' detail pane (#236): each index's chart drawn on the server
-                     (axes, base period, Sen's slope), its text alternative and statistics
+                     (axes, base period, Sen's slope), its read-out data (#283), its text
+                     alternative and statistics
     index_page.py    one index's page (#237): its chart drawn on the server (values or
-                     anomalies, running mean, Sen's slope and interval, values left out),
-                     the statistics, why values were left out, the table and the citation
+                     anomalies, running mean, Sen's slope and interval, values left out)
+                     and the same as data for charts.js (payload, #283), the statistics,
+                     why values were left out, the table and the citation
     themes.py        the Indices' themes (#175): the index-to-theme mapping (Heat, Cold,
                      Rain, Drought, "Also measured") the rail filters by, and their hues
     add_stations.py  Add stations (#233): each file read once (read_files), the review
@@ -5314,7 +5316,9 @@ without errors; the user corrects the file outside the app and loads it again.
     date across the record, `Row.plot`, the selected one ringed; three value ticks, from
     zero for amounts, `_nice`; up to seven years) and *By calendar month* (`months_chart`:
     twelve bars with count ticks; "Table" shows its table in the chart's place, both show
-    without JavaScript); then the values table and the selected value side by side. The
+    without JavaScript), each read out by pointer and keyboard (#283, `when_readout`,
+    `months_readout`; a When value picked selects its row; see [Charts](#charts)); then
+    the values table and the selected value side by side. The
     values table has only the columns the check needs (`value_columns`, `Row.values`):
     heavy and light rain Date, PR, the month's limit (the box plot's whisker), Over or
     Under by; TN ≥ TX Date, TN, TX, TN − TX; out of range Date, PR, TX, TN; repeated date
@@ -5586,7 +5590,9 @@ hue (or SPI and SPEI as bars from zero; longer series averaged into 129 columns)
 slope dashed across it (the core's intercept and slope, as the sparkline), the base period
 of the run shown (`views_indices.run_base`, from the job's recorded metadata) as a band
 labelled "base period", and axes: three values (the whole numbers around the data and the
-middle) and three times (the first, the middle and the last). Its text alternative
+middle) and three times (the first, the middle and the last). Since #283 it reads out each
+value by pointer and keyboard and a year opens the index page at it (`?at=`;
+`index_detail.readout`, see [Charts](#charts)). Its text alternative
 (`index_detail.summary`) names the series, its years, the lowest and highest values and
 when, and the slope and interval; the caption says "Annual SU (days), with Sen's slope
 dashed.". Then six statistics in two columns (#263; one column when the pane's content is
@@ -5693,7 +5699,12 @@ calendar month, so the anomaly is not the season); both charts are in the page a
 which are standardised already, nor without a base period inside the series. Its text
 alternative gives the years, the lowest and highest values and the trend
 (`index_detail.summary`); the table is its table view and the CSV is in the context bar.
-Below 32rem the chart scrolls inside its region.
+Below 32rem the chart scrolls inside its region. With JavaScript (#283) `charts.js` draws
+the same marks from the page's data (`index_page.payload`) in its place, with the
+read-out, zoom and move, Show all and PNG and SVG of the view, fitting the width at every
+size; the server's chart is then the printed one (see [Charts](#charts)). `?at=<year>`
+(`YYYY-MM` monthly) selects that row (`aria-current`, scrolled into view inside the
+table's region) and reads the value out on the chart.
 
 Beside the chart, "Trend": Sen's slope per decade and its 95% interval (#226 rules:
 "+0.03 °C/decade", "−0.22 to 0.31", "pp" for a percentage), significant ("Yes, interval
@@ -6788,7 +6799,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
-| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78) and the gridded results |
+| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78; again since #283, after #237 drew it on the server only) and the gridded results |
 | Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
@@ -6808,6 +6819,13 @@ denser; `qc.js` 3.0 of 3 KB. #264 made it a rail of checks and the selected chec
 detail: 531.7 KB of HTML (71.3 KB gzipped), each check's two charts and one selected value
 with the 3 days either side in place of every finding's chart; `qc.js` 3.2 of 3.5 KB,
 `climpact.css` 18.7 of 19 KB (the raw stylesheet's limit 114,000 bytes, 110,000 before).
+#283 made the charts read out their values: the index page loads the chart code again and
+carries its chart's data (TXx: 93.1 KB of HTML, 15.9 KB gzipped, 101.0 KB with everything
+it links; monthly: 416.7 KB, 57.8 KB gzipped, 143.0 KB); the Indices' detail charts carry
+only where each value is drawn, their values fetched when first used (610.1 KB of HTML,
+89.5 KB gzipped; about 1 KB gzipped more than before); Quality's check charts carry their
+values (550.2 KB, 75.9 KB gzipped, 168.2 KB in total). `charts.js` 15.4 of 16 KB,
+`chart-readout.js` 3.6 of 4 KB, `qc.js` 3.5 of 3.75 KB, `index-page.js` 1.3 of 1.5 KB.
 #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
@@ -6941,8 +6959,24 @@ frame with a data URL:
 
 {% url "charts:job_series" job.pk "txx_ANN" as txx_url %}
 {% include "components/chart_frame.html" with id="txx" title=title data_url=txx_url|add:"?station="|add:station image_src=png_url only %}
-{# an example: since #237 the index page draws its chart on the server #}
+{# an example: the index page draws its chart on the server (#237) and from the page's own data (#283) #}
 ```
+
+**The page's own data** (#283). A frame with `data-chart-data="<id>"` instead of a data
+URL reads its payload from the page's JSON script of that id: the index page
+(`stations/result.html`) writes `index_page.payload` with `json_script` as
+`#index-chart-data`, so its chart needs no request and draws exactly what the server
+computed (the base-period means, the running means, the anomalies and why each value was
+left out, none of which the `charts:job_series` payload has). Its frame is
+`.index-figure`, not `chart_frame`: the server's chart (`_index_chart.html`) stays inside
+it, unchanged, and shows without JavaScript; `_index_chart_tools.html` adds
+`chart_toolbar.html`, the plot (`hidden` until drawn) and `chart_readout.html` (the parts
+`chart_frame` includes too). Once drawn the figure gets `is-hydrated`, which hides the
+server's chart on screen and shows it in print instead of the plot. If the data cannot be
+drawn, the server's chart stays. `data-chart-view` names the view drawn first
+(`index-page.js` changes it with the Values / Anomaly links,
+`ClimpactCharts.setView(frame, key)`), `data-chart-at` a value to mark and read out
+(`?at=1944`, which also selects that row of the values table).
 
 Include it with `only`: otherwise a page variable named like a parameter (`summary`,
 `legend`, `height` ...) leaks into the frame; step 1 and the gridded results both have a
@@ -7003,6 +7037,17 @@ the gridded results do.
   reads only the one table asked for: the trend is the trend file's Sen's slope and bounds
   (checked against the sample run's trend file) with `zyp.sen`'s intercept, drawn from the
   first to the last position, so the chart and the PNG show the same line.
+- `index` with `layers` and `views` (#283, `stations.index_page.payload`, the index page
+  only): `layers` has `base` (`from`, `to` in x units, `label`: the base period's band,
+  whole years), `notes` (`[index, why]` of each value left out, as the table's Note),
+  `smooth_label`, `gap_label`, `anomaly_label`, and `interval` (draw Sen's slope's 95%
+  interval as a bow tie: the lines of `trend.lower` and `trend.upper` through the
+  slope's middle, as `index_page.chart`). `views` has `values` and, where the page has
+  the anomaly view, `anomaly`: each with `y`, `smooth` (the 11-year running mean of that
+  view), `gaps` (`[index, level]`: the open point of each value left out, at the
+  base-period mean or zero), `axis` (the y axis's title), `offset` (subtracted from the
+  trend line: the base-period mean for anomalies) and, for anomalies, `signed_digits`.
+  Values are rounded as the read-out writes them (`charts.data.shown`).
 
 Each payload has `summary`, a plain-language description written on the server and
 translated: the period, extremes with their dates, missing values, flagged values, and the
@@ -7031,14 +7076,27 @@ ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
   exports; while hidden, a click picks the day under the pointer. Missing days as gaps. *Index*: a line (with hollow markers for annual series),
   in its theme's hue (`--hue` from the frame's `hue-*` class, #196; `--chart-1` without
   one), the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and
-  dry (`--chart-2`), as in the static plots.
+  dry (`--chart-2`), as in the static plots. *Index with layers* (#283): drawn as the
+  server's chart is: the line without markers (1.4px) in `var(--hue, var(--color-other))`
+  and the running mean (2.2px) in its `color-mix` towards the text colour, both resolved
+  by the browser from the frame's CSS; the base period's band and label (the label only
+  where the part in view is wide enough) and the bow tie in the text colour at 5% and 9%,
+  under the series (uPlot's `drawAxes` hook); the zero line of the anomalies in
+  `--chart-axis`; Sen's slope dashed; the values left out as open points (8px). The y
+  range takes in the bow tie's ends.
 - *Zoom and move*: drag across the plot to zoom, double-click to show all; the toolbar
   (zoom in, zoom out, earlier, later, show all) and, on the focused plot, the keyboard
-  (`+`/`-`, arrow keys, `0` or Home). The visible range is announced politely
+  (`+`/`-`, Shift with an arrow key, `0`). The visible range is announced politely
   ("Showing 1972-03-31 to 1977-04-01") to screen readers after keyboard or button use.
   Zoom stops at 7 days (daily) or 4 steps.
 - *Read-out*: the hovered date with each value, the event date and the QC checks that
-  flagged it, in a line under the plot (hidden from screen readers, which have the table).
+  flagged it, in a line under the plot (hidden from screen readers). Since #283 the
+  keyboard reaches it: on the focused plot the left and right arrow keys move a cursor
+  (uPlot's, with its crosshair and points) from value to value, Home and End to the first
+  and last in view, the view following a cursor that leaves it; each value is announced
+  in the status line. An index chart with layers reads out the year (or `YYYY-MM`, as the
+  table) with the date of the extreme, the value with its unit, the anomaly, the running
+  mean, or why the value was left out.
 - *Table view*: "View as table" lists the values in view (date, each series, trend, event
   date, flags), up to 1,000 rows; with more in view it asks to zoom in or use the CSV.
   It follows the zoom while open.
@@ -7073,7 +7131,9 @@ move redraws in 18-37 ms. Pages and charts were checked in light and dark themes
 390px; screenshots are in the review folder of the PR.
 
 **Size.** `charts.js` is about 35 KB (10.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
-together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. They are held by #82's
+together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. #283 (the index page's layers and views, the keyboard read-out) made
+`charts.js` 54.8 KB (15.8 KB gzipped; 12.1 KB before), and added `chart-readout.js`
+(10.2 KB, 3.7 KB gzipped) for the charts drawn on the server. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
 [Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
 quality-check results (109.4 KB, #77), a station index's page (68.6 KB, #78) and the
@@ -7091,6 +7151,13 @@ changes, gzip, 404 for another session, an unfinished job, an unknown series or 
 batch stations; the pattern library examples; the frame's markup, and that a page's own
 `summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
 against the netCDF values, its 304, SPI bars and the chart on the results page.
+`test_index_page.py` and `test_indices_results.py` (#283) check the index page's payload
+(layers, views, gaps at the base-period mean, notes, the trend's offset) against the
+tables, `?at=`, and the Indices' read-out data against `charts:job_series`;
+`test_qc_review.py` the read-outs of When (by date, at the ring's place), By calendar
+month and the 7-day chart; `test_accessibility.py` reads out the index chart (annual,
+anomalies, SPI by month), the Indices' detail chart (Enter opens the index page at that
+year) and Quality's three charts (Enter on When selects the row) by keyboard.
 `test_qc_review.py` (#77) checks that every flag of the `qc_stress` station's QC files is
 on the chart of its variable and in its table (every page), the per-variable payloads, the
 thresholds against `QCParams` and R's limits, the job's files against R's, the verdict
@@ -7105,6 +7172,25 @@ window narrows. #77's linking (a table row to the chart, a ring to its
 table rows on another page, the pager's focus) and the QC page at 390px and in both themes
 were checked in headless Chrome over the DevTools protocol; screenshots are in the PR's
 review folder.
+
+**Read-outs of the server's charts** (#283, `js/chart-readout.js`, on the Indices and
+Quality pages and the pattern library). The Indices' detail chart and Quality's When, By
+calendar month and 7-day charts stay SVG drawn on the server; an `svg[data-readout]`
+becomes focusable (`role="group"`, `aria-roledescription="chart"`, described by the
+`components/readout.html` keyboard hint) with a crosshair (`--chart-axis`, dashed) and a
+ring (the text colour) on the nearest value, written in the read-out line under it; the
+arrow keys, Home and End move between values, each announced in the status line, and
+Enter (or a click) acts: `href` opens it with the value's key (the Indices: the index page
+at `?at=1944`), `pick` dispatches `climpact:readoutpick` (When: `qc.js` asks
+`stations:qc_table` for that date in the table's order, which answers its page, and
+selects it). `data-readout` is single-quoted compact JSON (`charts.data.attr_json`): either
+`points` (`[x, y or null, key, text]`: By calendar month, the 7-day chart) or a series
+(`v`, or `src`, the series' `charts:job_series` URL, fetched when the chart is first used,
+so the Indices page carries no values: about 1 KB gzipped for 80 detail charts instead of
+45 KB; x from `x0` and `dx`, or day offsets `d`; y from `low`, `high`, `top`, `bottom`;
+keys from `when`; the text from `label`, `unit` and the number rules). Built by
+`index_detail.readout`, `qc_review.when_readout`, `months_readout` and `days_readout`.
+Without JavaScript the SVG is unchanged.
 
 **Pattern library.** "Interactive charts" shows the four kinds (daily with flags, annual
 with trend, monthly, SPI bars) from the Sydney sample, through the same views. The design

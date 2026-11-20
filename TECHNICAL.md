@@ -2910,6 +2910,7 @@ packages/climpact-web/src/climpact_web/
       js/site-header.js  keeps --site-header-measured to the sticky site header's height
                      (#284), which everything that sticks under it and the scroll
                      padding use
+      js/help-toc.js  the help frame's On this page (#325): marks the section in view
       js/setup.js    a station's setup page (New station, #201): Replace on the file card
                      reads the chosen file at once, focus on the card after reading
       js/add-stations.js  Add stations (#233): files sent as soon as they are chosen or
@@ -3167,13 +3168,18 @@ packages/climpact-web/src/climpact_web/
     index_messages.py  generated: the index names and definitions for makemessages
     guides.py        guide pages from Markdown (language folders, English fallback), the
                      generated index catalogue, link resolution, search
+    contents.py      the help frame's contents (#325: the groups, the current page, the
+                     Reference pages of #319 by URL name) and the help home's lists
     tour.py          the landing page's tour steps
     views.py, urls.py  /help/: index, search, topics (A to Z), /help/sections/<id>/,
                      /help/<guide>/
-    templatetags/help.py  `{% section_help "id" %}`, `{% help_topic "id" %}`
+    templatetags/help.py  `{% help_contents as contents %}`, `{% section_help "id" %}`,
+                     `{% help_topic "id" %}`
     guides/en/*.md   the guides, in English (accessibility.md: the accessibility
                      statement, #83, linked from every page's footer)
-    templates/help/  index.html, guide.html, topics.html, search.html, section.html,
+    templates/help/  frame.html (the help frame every help page extends, #325),
+                     _contents.html, _toc.html, _action.html, index.html, guide.html,
+                     topics.html, search.html, section.html,
                      _results.html, _search_form.html, _section_help.html,
                      _section_body.html, _topic.html, _tour.html, sections/ (help that
                      needs markup: the station file format)
@@ -4452,8 +4458,11 @@ on Add stations and every `/w/` page (`Destination.sections`, URL names or
 paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
 definitions in the guide to the indices (`/help/indices/#the-indices`) until a reference
-page of its own exists. Help (`#app-help`) keeps its destination (the page's guide) but is
+page of its own exists (`help:index_reference`, #319). Help (`#app-help`) keeps its destination (the page's guide) but is
 a quiet underlined link like Index reference, no longer the ringed pill, as on the canvas.
+Help is `aria-current="page"` on the help's pages, except on `/help/indices/` and the
+pages under it, where Index reference is current instead (`"page"` there, `"true"` under
+it; `navigation.index_reference_current`, #325).
 The landing page's tour points at Workspaces (`data-nav='workspaces'`).
 
 **The header stays in view (#284).** In a window at least 30rem high the header is
@@ -6786,7 +6795,43 @@ hover tooltips (`bsTooltip` in `modules/singleStationStep2UI.R`, `singleStationS
 It has five parts, all in the `help` app: **contextual help topics**, **section help** that
 opens them in a drawer beside the page (#177), **guide pages** written in Markdown, a **search** and an A-Z
 **list of topics**, and a short optional **first-run tour** of the landing page. The
+help's own pages share one frame (#325). The
 standalone user guide and handover documents are #12.
+
+**The help frame** (#325, the Help boards; `help/templates/help/frame.html`, which every
+help page extends: the home, the guides, the topics A to Z, search and a section's help
+page). Three columns within the content width (72rem): the **help contents** (14rem) at
+the inline start, the page (up to the prose width, 42rem), and **On this page** (12.5rem)
+at the inline end, with an optional box under it for the page's one call to action (the
+`help_action` context: title, text, link label and URL; #319's pages use it). The
+contents (`help/contents.py`, `{% help_contents %}`, `help/_contents.html`) are a "Search
+help" field (a GET form to `help:search`), "Help home", then three groups under
+`group-label`s, which are not headings: Guides (`GUIDE_ORDER` without `faq` and
+`accessibility`), Reference (Index reference, Command line, File formats with the four
+format pages under it) and More (questions and troubleshooting, help topics A to Z, the
+accessibility statement). They are plain links; the current page's has
+`aria-current="page"` and the filter rail's selected style (the `selected` tint, an ink
+edge at the inline start). Each Reference link names the URL its page will have
+(`help:index_reference`, `help:command_line`, `help:formats`, `help:format`); until #319
+adds those URLs the links resolve to `None` and are left out, and so is the empty group.
+On this page (`help/_toc.html`) lists the page's `toc` (a guide's `##` and `###`
+headings; the topics' groups); `js/help-toc.js` marks the section in view
+(`aria-current="true"`, the last heading above the top third of the window). Responsive,
+by a container query on `.help-frame`, so the help drawer counts: the contents beside the
+page from a 49rem frame (a 52rem window), a "Help contents" `<details>` under the
+breadcrumb below it; On this page and the action beside the page from 61rem (a 64rem
+window), On this page a `<details>` between the page's header and its text below it. Each
+part is in the page twice, as a column and as a disclosure, and the stylesheet shows one,
+so the frame needs no JavaScript. In a window at least 30rem high the two columns stay
+in view under the site header and scroll inside themselves when taller than the window.
+
+**The help home** (`help/index.html`, the Help board): the h1 and lead, a large search
+form (live results as before), "Reference" (a card each for Index reference and File
+formats, which until #319 lead to `indices#the-indices` and `gridded#input-files`; the
+Command line card has no page or section to lead to yet, so it is left out;
+`contents.reference_cards`), "Guides" (a numbered list of each guide's title and summary,
+in `GUIDE_ORDER`), "Common questions" (five questions of the `faq` guide, named by their
+headings, and "All questions"), "Sample data" and "Take the tour of the start page".
 
 **Contextual help topics** (`help/topics.py`). A topic is an id, a title, one or two
 plain sentences and the guide section that says more (`Topic.url`, a guide and an
@@ -6887,8 +6932,8 @@ TX.", `topics.r_name_sentence`).
 `summary:` lines (Markdown `meta` extension), rendered with Python-Markdown (`markdown`, a
 pure-Python dependency added for #81) with `toc`, `tables`, `fenced_code`, `attr_list`,
 `def_list` and `sane_lists`. Headings get ids from their text or an explicit `{#id}`;
-the page shows a table of contents of the `##` and `###` headings, sticky beside the text
-from 64rem and above it on narrow screens, and links to the previous and next guide.
+the page shows them in the help frame's On this page (above), and links to the previous
+and next guide.
 Rendered guides are cached per file version, file language and interface language. The
 Markdown is the app's own text, so it is rendered as trusted HTML. Links use two schemes
 resolved at render time, so guides do not depend on where the app is mounted:
@@ -6921,16 +6966,19 @@ guide relies on.
 **Search and topic list.** `/help/search/?q=` finds the guide sections (`##` and `###`,
 catalogue entries included) and topics containing every word of the query, title matches
 first, with an excerpt. It is a plain GET form; with htmx the results replace
-`#help-results` as you type (300 ms after the last key), on the help index, the search
-page and the topic list. `/help/topics/` lists every topic by family, A to Z, each with
-its text and a link to its section (anchors `topic-<id>`).
+`#help-results` as you type (300 ms after the last key), on the help home and the search
+page. The help contents' "Search help" field submits to the same address, without live
+results. `/help/topics/` lists every topic by family, A to Z, each with
+its text and a link to its section (anchors `topic-<id>`); its families are its On this
+page.
 
-**Sample data.** The help index has a card per flow: the single-station sample and the
-sample batch (the same one-click POST forms and downloads as #76 and #80), and in local
-mode the gridded sample (R's `climpact.sampledata.gridded.1991-2010.nc`), linked to the
-gridded screen once `gridded:start` exists. R's sector sample
-(`wheat_yield_nsw_1922-1999.csv`) is named in the sector guide and offered by the sector
-step (#90).
+**Sample data.** The help home lists the samples (#325, a short list in place of #81's
+cards): the station (its file, and "Open it in a workspace", the one-click POST form of
+Add stations), the batch (its metadata file, and the same form for the sample batch),
+the grid where gridded runs are offered (`GRIDDED_ENABLED`: "Open it on Gridded", the
+gridded sample's POST form, a 3 × 4 cut of R's sample grid) and the sector data (R's
+`wheat_yield_nsw_1922-1999.csv`, `stations:sector_sample`, also offered by the sector
+step, #90).
 
 **First-run tour** (`help/tour.py`, `js/tour.js`, `help/_tour.html`). Four steps on the
 landing page (Get started and See an example, "How it works", the header's Help link and
@@ -6972,7 +7020,15 @@ Quality with the context bar stuck at the top and never over the focused element
 catalogue covers every short name of `climate.indices.csv` exactly once, with a group,
 display name, units and an entry in the indices guide; output-name mapping;
 `index_messages.py` is current; search (full page and htmx fragment); the English fallback
-and a translated guide; the tour's data, targets and labels.
+and a translated guide; the tour's data, targets and labels. The help frame (#325):
+every help page has the contents (the three groups' links in order, the column and the
+disclosure, one h1), the current page marked, Reference links that join the contents and
+the home's cards by their URL name alone, On this page and the call to action in both
+places, the home's lists, and Index reference current on `/help/indices/`; in the
+browser, the columns and disclosures at 1280, 900 and 375px, no sideways scroll, the
+columns stuck under the header and the section in view marked
+(`test_help_frame_at_each_width`), and the help home and a guide in the sticky-overlap
+check.
 
 ### Gridded pages
 
@@ -7546,7 +7602,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78; again since #283, after #237 drew it on the server only) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.6 of 0.75 KB (a station's setup page only, #201; 0.7 KB until #271 removed the first visit's drop zone), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `help-toc.js` 0.6 of 0.75 KB (help pages with On this page, #325), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.6 of 0.75 KB (a station's setup page only, #201; 0.7 KB until #271 removed the first visit's drop zone), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`

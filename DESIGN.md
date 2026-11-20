@@ -84,6 +84,9 @@ theme switched.
 | `GridRun.dc.html` | A gridded run's stages while it calculates, and a failure (two states) | #294 |
 | `GridMap.dc.html` | A gridded run's Map: index rail, map, cell pane; Year, Base mean, Anomaly, Trend | #295, #296, #290 |
 | `GridFiles.dc.html` | A gridded run's Files and its record | #289 |
+| `HelpFlow.dc.html` | Help as documentation: addresses, titles and what is indexed | #319 |
+| `Help.dc.html` | The help home, in the help frame | #325 |
+| `HelpIndices.dc.html`, `HelpIndex.dc.html`, `HelpCli.dc.html`, `HelpFormat.dc.html` | The index reference, one index, the command line and a file format: the help frame in use | #319, #325 |
 
 **What a board is, and is not.** A board fixes a screen's layout, content, order, density
 and wording. It is not the spec for:
@@ -510,6 +513,28 @@ strips, worklist and detail pane.
     versions and the inputs' checksums; `climpact.log`; the thresholds file when the run
     kept one; `trends.nc`, each cell's trend and base-period mean, #290) and a note on
     reading the files.
+- **The help frame (#325, the Help boards; `help/frame.html`).** Every help page (the
+  home, the guides, the topics A to Z, search, a section's help page) is a reading page
+  within the content width (72rem) in three columns: the help contents (14rem, sticky
+  under the header) at the inline start, the page (up to the prose width, 42rem), and On
+  this page (12.5rem, sticky) at the inline end, with the page's one call to action in a
+  small box under it (#319's "Calculate it", "Check a file"). The help home has no On
+  this page, so its page takes the rest of the width. The contents are "Search help",
+  "Help home", then Guides, Reference and More under group labels (not headings); the
+  current page's link on the `selected` tint with an ink edge, as the filter rail's
+  current theme, and `aria-current="page"`. Reference links come with their pages (#319);
+  until then the group is left out. On this page is a list beside a hairline, the section
+  in view with an ink edge (`js/help-toc.js`; nothing marked without JavaScript). Below
+  a 64rem window On this page is a disclosure between the page's header and its text, the
+  action box under it; below 52rem the contents are a "Help contents" disclosure under the
+  breadcrumb (a container query, so the drawer counts). The header marks Help on help
+  pages, and Index reference instead on `/help/indices/` and the pages under it. The help
+  home (the Help board): the h1 and lead, a large search (Search primary, live results),
+  Reference (cards: the area's name in the link colour, a sentence and a mono line of
+  examples), then Guides (a numbered list of title and summary, a hairline between rows)
+  beside Common questions (five questions and "All questions"), Sample data (one row a
+  sample, its actions as links; "Open it in a workspace" a POST form's button styled as a
+  link) and "Take the tour of the start page".
 - **Data pages use the width.** Desktop first: a station's pages fill the whole window
   (#263), with no max width; the 72rem content width stays for reading pages. Nothing on
   them scrolls sideways at 1280px or wider (Quality's since #264; on a phone a table's
@@ -635,6 +660,7 @@ Patterns built in a page's own templates, not yet in `/patterns/` (the Quality p
 | Finding chart | The 7 days around a check's selected value on Quality (#235, #264), drawn on the server (`qc_review._chart`, `_bar_chart`): for rain a bar a day (the day in `--chart-prcp`, the others muted) with the limit it is checked against dashed; otherwise a line per variable in its role colour, gaps where values are missing, the value ringed in `--chart-flag` as on the full charts; the day as a band in the selected tint, three value ticks and three date ticks. Its text alternative names the variables, the dates and the limit; the 7-day table under it is its table view, and "Show on the daily chart" leads to the full chart and its CSV. Each day's PR, TX and TN is read out by pointer or keyboard (`readout`, #283). | `chart_frame` for the full chart, `readout` |
 | Check charts | A check's two charts on Quality (#264), drawn on the server: When (`qc_review.when_chart`: each value against its date across the record as a muted dot, the selected one ringed in `--chart-flag`, three value ticks from zero for amounts, up to seven years) and By calendar month (`months_chart`: twelve muted bars, three count ticks, the months under them). Text alternatives give the check, the years and the counts by month; When's table view is the values table, By calendar month's a table that "Table" (`aria-pressed`) shows in the chart's place, under the chart without JS. Both read out their values by pointer or keyboard (`readout`, #283): When each value's date and value (the nearest dot), a click or Enter selecting it in the values table, on its page; By calendar month each month's count. | `chart_frame` for the full chart, `readout` |
 | Settings line and panel | The settings in one muted line (at the foot of the Indices' filter rail since #236): the defaults, or what was changed, and a link that opens them in place. The form is one closed `disclosure` near the foot of the page, its groups divided by rules, not cards; one button at the end. `stations/_settings_form.html` | `disclosure`, `field`, `button` |
+| Help frame | The help's pages (#325, the Help boards; `help/frame.html`, `help/_contents.html`, `help/_toc.html`, `help/_action.html`, `help/contents.py`): the contents, the page and On this page, as Layout describes. Each column is also a disclosure for narrow screens, and the stylesheet shows one, so it needs no JavaScript. | `group-label`, `disclosure`, the filter rail's selected row, `card` (the home's Reference cards) |
 | Recalculation | A run that replaces results already shown, of the same inputs: its progress in a card with an ink edge above the results, which stay until it finishes. A failure says so in the same card, with "Try again". When the inputs changed (#179) the `stale_banner` takes its place, with the same progress inside. | `card`, `progress`, `stages` |
 
 **Target: replaced by #230.** These stay until the ticket named lands, then go (the

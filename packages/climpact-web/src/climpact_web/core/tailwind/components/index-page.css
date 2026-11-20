@@ -71,6 +71,22 @@
     color: var(--color-ink-contrast);
   }
 
+  /* A choice not offered: not built yet (the gridded map's views until #296), or one the
+     index has not (struck through: a frequency without a file). */
+  .segmented__item[aria-disabled="true"] {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+
+  .segmented__item[aria-disabled="true"]:hover {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+  }
+
+  .segmented__item--off {
+    text-decoration: line-through;
+  }
+
   /* == The chart and the statistics, side by side where there is room == */
   .index-page__body {
     display: flex;

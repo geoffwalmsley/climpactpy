@@ -2933,6 +2933,8 @@ packages/climpact-web/src/climpact_web/
                      loaded with the widget only
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
+      js/gridded-map.js  the gridded Map (#295): the rail's Find, the map and pane swapped in
+                     place, the cell under the pointer read out, the arrow keys
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       Quality: the checks' rail and the check's detail, its values in place (#202, #235, #264), linked to the daily charts (#77, #174)
       js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
@@ -3120,20 +3122,29 @@ packages/climpact-web/src/climpact_web/
                      Together line, the base period's timeline and coverage, the
                      indices by variable, the estimates, the summary panel, a file's
                      header as ncdump -h prints it
-    maps.py          output files, the map of one index at one time step and a cell's
-                     time series, drawn as inline SVG (the series: the chart's fallback)
+    maps.py          output files; a layer (one index variable of one file), its values
+                     (read whole and kept, `variable_values`), a cell's series; the
+                     colour scale by the index's kind and its fixed breaks; the map's
+                     frame (north up, west left, the cells' aspect, axes, coastline)
+    map_page.py      the Map tab (#295): the rail's entries, the state from the query
+                     string, the toolbar, the map, the legend and the cell pane
+    map_image.py     the map's PNG, one pixel per cell (zlib); the report figure (matplotlib)
+    outline.py       the coastline and places for a box of the grid, from data/outline.npz
+    data/outline.npz Natural Earth 1:50m coastline and populated places (public domain,
+                     scripts/build-map-outline.py)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ and its checks
-                     (htmx), a file's header (setup/header/<n>/), rename/, progress, explore (htmx), map and series CSV,
+                     (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
+                     series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
     sample_data/     climpact.sampledata.gridded.3x4.1991-2010.nc (525 KB), the
                      reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
     templates/gridded/  start.html, new.html, setup.html (with _summary.html, the summary
                      panel, and the parts htmx swaps out of band), header.html, run.html,
-                     _listing.html, _chosen.html, _progress.html, _explore.html,
-                     _retention.html
+                     files.html, _listing.html, _chosen.html, _progress.html, _map.html,
+                     _cell_pane.html, _run_bar.html, _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
     sections.py      section help (#177): the topics and notes behind each section's Help
@@ -3308,7 +3319,7 @@ the nonce (the `csp` context processor is not used):
 | the chart frame's `<noscript><style>` hiding the skeleton | `@media (scripting: none) { [data-chart-src] .skeleton { display: none } }` in `charts.css` (browsers without the media feature, from before 2023, show the skeleton above the no-JS fallback) |
 | `style="--swatch: var(--chart-…)"` on legend, summary, sector and pattern-library swatches | a class per `--chart-*` token, `swatch-chart-…` (`charts.css`), written with the `token_name` filter (`swatch-{{ token\|token_name }}`); `charts.js` still sets `--swatch` from script, which CSP allows (the CSSOM is not restricted) |
 | `style="--chart-height: …"` and `--skeleton-height` | a class per height the templates use, `chart-height-14rem` etc. (`charts.css`) |
-| the gridded map's `style="--gmap-width: …"` | the SVG's `width` attribute (the natural width) with `max-inline-size: 100%` |
+| the gridded map's `style="--gmap-width: …"` | the SVG's `viewBox` sets the map's aspect (#295); the tooltip is placed from script (`element.style`, the CSSOM) |
 | the sparkline bars' `style="stroke-width: …"` | the SVG `stroke-width` attribute |
 | the server-drawn SVG plots' `style="--plot-colour: …"` (`stations/qc_plots.py`) and `style="fill: …"` (`stations/sector_plots.py`) | the same `swatch-chart-…` classes; `.qc-plot` and `.sector-plot__bar` read `--swatch` |
 | `hx-trigger="… visibilitychange[!document.hidden] …"` and `hx-vals='js:{hidden: document.hidden}'` on the progress polls (both eval'd by htmx) | `hx-trigger="… climpact:visible from:document"` and `data-poll-hidden`: `ui.js` fires `climpact:visible` when the tab is shown and adds `hidden` to the poll's parameters in `htmx:configRequest` |
@@ -4346,10 +4357,19 @@ they always have a legend: 8.6 light, 6.5 dark).
 | `--chart-trend`, `--chart-trend-band` | trend line (ink, dashed) and its confidence band |
 | `--chart-flag` | QC flags: hollow ring markers in ink, told apart from series by shape |
 | `--chart-grid`, `--chart-axis` | gridlines and axes |
-| `--chart-seq-1` ... `-5` | sequential (one hue, blue), e.g. maps (#85) |
-| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies |
+| `--map-seq-<kind>-1` ... `-8` | the gridded map's eight bins (#295), by the index's kind: `temp` (blue through pale yellow to red), `warm`, `cool`, `wet`, `dry`; they replaced the five-step `--chart-seq-*` |
+| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies; the gridded map's SPI and SPEI classes, reversed (dry red), until #296 |
 | `--chart-decrease-2`, `-decrease-1`, `-increase-1`, `-increase-2` | the trend scale (#227): a significant decrease (blue) or increase (orange), weak and strong, for the trend grid (#238); the strong step is darker in light, brighter in dark |
 | `--chart-coverage-1` ... `-3` | coverage (#227): a year complete, 1–3 days missing, 4 or more, for Quality's coverage strip (#235) |
+
+The gridded map's scales (#295) were designed in OKLCH and are checked as the variable
+roles are (`test_design_tokens.py::test_map_scales_stand_apart`): every bin apart from
+`--color-surface-sunken`, the colour of a cell with no value, by ΔE 8 or more under protan
+and deutan simulation (worst: light `cool` 8.1; dark `warm` 15.2), neighbouring bins by
+the floor of 6, since the legend labels each bin (worst: light `warm` 6.4, dark `wet`
+6.5), and the four count scales moving away from the sunken surface in contrast, bin by
+bin: darker towards more in light, brighter in dark. `temp` runs from blue through pale
+yellow to red in both themes.
 
 The categorical order was checked with a colour-vision-deficiency validator (OKLab
 distance under protan, deutan and tritan simulation) against the light surface
@@ -4564,7 +4584,7 @@ items-center gap-3`, `grid gap-5 grid-cols-fill-64`, `text-sm text-text-muted`, 
 `grid-cols-fit-N`, make wrapping grids with columns of at least N spacing steps
 (`repeat(auto-fill | auto-fit, minmax(min(100%, N * 0.25rem), 1fr))`). Components are
 plain CSS, emitted whether or not a scanned file names them, so classes built at run time
-(`batch-item--{{ status }}`, `gmap__c3`) must be component classes, written out in full in a
+(`batch-item--{{ status }}`, `ramp-{{ kind }}`) must be component classes, written out in full in a
 template or script, or listed with `@source inline()`. Words in the templates that would
 make unwanted utilities (`table`, `container`, `ring` ...) are excluded with `@source not
 inline()`. `test_static.py::test_every_template_class_is_styled` fails when a template
@@ -6968,8 +6988,9 @@ period ("era5 SEA 0.25°, 1961–2020"); the sample is "Sample grid, 1991–2010
 **A run's pages** (#289, the GridFiles board). `gridded/_run_bar.html` draws
 `components/context_bar.html`, sticky as a station's: "Gridded / run", the name as the
 h1, the provenance line (`runs.provenance`: rows × columns and the cells with data,
-counted once from the first annual index file, a time step at a time, and kept in the
-run's options; the period and calendar; the base period; the indices and files, or
+counted once from the first annual index file, in stripes of rows with all their years at
+once (#295: a time step at a time decompressed the whole file once a step, 19 s on a
+700 x 900 grid), and kept in the run's options; the period and calendar; the base period; the indices and files, or
 "calculating"; the climpact version; kept until), Rename and Forget this run (a
 confirmation page, then POST), "Run again with other files" (to New gridded run) once
 no job is queued or running, and "Download all (zip, size)" once every job has
@@ -6977,9 +6998,9 @@ succeeded; then the tabs:
 
 - **Map**, `/gridded/<id>/` (`gridded:run`): until every job has finished, the job cards
   (`_progress.html`, polled by htmx; a finished job's card links to Files), then the
-  explorer (below). A thresholds-only run says it has no map. A run not started yet
-  redirects to its set-up. The old `<id>/results` redirects here (301, with its query
-  string), and the explorer's `HX-Push-Url` is this address.
+  index rail, the map and the cell pane (**Map**, below). A thresholds-only run says it
+  has no map. A run not started yet redirects to its set-up. The old `<id>/results`
+  redirects here (301, with its query string).
 - **Files**, `/gridded/<id>/files/` (`gridded:files`): the index files of the indices job
   (`runs.file_rows`: the code and short name, as the station pages write them, the
   frequency, the file, the netCDF variables in it from `maps.data_variables`, cached by
@@ -7152,738 +7173,123 @@ succeeded; then the tabs:
 | A modal warns that the run takes hours; the browser must stay open until "Done" appears | a background job with progress; the page can be closed and the run opened again from Gridded |
 | Errors in a modal with R's message | the job's error on the page, with "Try again" |
 
-**Explorer.** No map tiles or network services (offline and low bandwidth). The map is an
-inline SVG raster of the grid's cells, north up and west left, in five equal classes over
-the shown values with rounded limits, coloured with the sequential chart tokens
-(`--chart-seq-1` ... `-5`, both themes), missing values in the sunken surface colour;
-the selected cell is outlined. Above 2,500 cells (`MAX_MAP_CELLS`) every n-th row and
-column is drawn and the page says so (lowered from 40,000 by #82: each cell is about 550
-bytes of HTML with its link, tooltip and table cell, so a 200 x 200 map was about 20 MB of
-HTML; see [Size budget](#size-budget)). R's sample grid (19 x 24) is drawn whole. Controls (GET form, htmx swaps `gridded:explore` and
-`HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
-which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
-cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
-are the keyboard path) swaps in its time series as an interactive chart (#75, see
-[Charts](#charts)): data from `gridded:series_json` (`<run>/series.json`, the same query
-string as `series.csv`), drawn as a line, or bars for SPI and SPEI, without a trend (R's
-gridded outputs have none); charts.js hydrates it on `htmx:load` after each swap. The
-server-drawn SVG line, broken at missing values, is the `<noscript>` fallback. Each has a table (latitudes by longitudes; time and value) and a
-CSV. Values are read straight from the output netCDF (fill values and non-finite values,
-such as R's `-Inf` EHF-HWPS, shown as no value).
+**Map** (#295, the GridMap board; `gridded/map_page.py`, `gridded/_map.html`,
+`gridded/_cell_pane.html`, `js/gridded-map.js`). No map tiles or network services
+(offline and low bandwidth). A data page in the station Indices' three columns: the index
+rail (14rem), the map, the cell pane (`clamp(22rem, 28%, 32rem)`), side by side from a
+76rem page; from 48rem the rail beside the map and the pane under them; narrower, one
+column.
 
-**Help** (see [Help](#help)). `gridded.files` is on New run (step 1). On the set-up
-page the help is on request (#293): a quiet link in What to calculate
-(`gridded.thresholds_file`, `gridded.base_period`), the index parameters (`param.<field>`,
-and the note that the EHF definition is Nairn and Fawcett's only), Output files
-(`gridded.output`, `gridded.institution`) and Computing (`gridded.workers`,
-`gridded.max_values`); `gridded.variables` and `gridded.indices` are in the help index and
-the guide. The
-explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_ANN` to
-`index.rxdday`). The gridded guide (`help/guides/en/gridded.md`) describes the screens.
-
-**Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
-`name` (given on Rename, #289; blank: `runs.default_name`, through `display_name`);
-`source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
-(the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and
-the pre-flight result, plus what is worked out once: `checksums`, kept when the run is
-started again, and `cells_with_data`, by indices job); `thresholds_job`, `indices_job`;
-`next_thresholds_job`, `next_indices_job` and `next_settings` (`{"options", "names"}`),
-a new start of a finished run waiting beside its results (#293, migration
-`0003_gridded_run_next`). Retention as for workspaces when
-they expire, whatever `WORKSPACE_EXPIRY` says (`gridded/retention.py`):
-`JOB_RETENTION_DAYS` after the last change unless a job (or a new start's) is
-queued or running; only the run's own folder (uploads) is deleted, never a file read in
-place. Gridded's note and the run's "kept until" say so in both modes; keeping local runs
-until they are forgotten, as the GridList board's note has it, is #301.
-
-**Checked in a browser** (headless Chrome over the DevTools protocol, local mode;
-screenshots in the review folder of #85): Climpact's full sample grid
-(`climpact.sampledata.gridded.1991-2010.nc`, 19 x 24 cells, 38 MB, netCDF-3) chosen by path
-with the folder browser, thresholds then all 88 indices with 4 cores and rechunking forced
-(the "Preparing the input files" stage shows): the thresholds took 4 s and the indices
-2 min 16 s on a laptop; the bundled 3 x 4 sample; an upload of `grid_filled_360day` (two
-files); `grid_stations` thresholds, then `grid_future` indices with that file (and its
-refusal when the base period overlaps the data). The map, cell clicks, the variable,
-time and scale selects, the tables, light and dark themes, and 375px wide pages (no
-horizontal scrolling) were checked.
-
-**Tests** (`test_gridded_web.py`): inspection of the sample, the 360-day reference grid in
-two files, and broken files; the path checks, browser and upload (and the 413 above the
-gridded limit); hosted mode off by default and, when on, uploads without paths; the
-set-up checks and every validation message; the pre-flight; a full run of the sample
-(thresholds, then five indices with `rx_days` 3, copied to a folder) with the map,
-series, CSVs and zip, the CSV values checked against the netCDF; indices of `grid_future`
-with the thresholds file of `grid_stations`, as R's reference run (Gridded's "From
-<run>" and "file kept"); a failed job; the map drawing; ownership and retention. Since
-#289: Gridded with no runs and with runs in each state, rename, the default names and
-spacing, the run's bar (breadcrumb, h1, provenance line, actions, tabs), the old results
-address's redirect, the Files tab's groups by theme, variable and frequency, a group's
-zip, the links for `wget -i` (a file served to another client with the key, not without),
-`run.json` (the sample's SHA-256) and `climpact.log`, the Forget page, and no stepper on
-any gridded page. Since #291: the sample split into 20 yearly files, inspected and
-grouped (one choice per variable, the joined period), a gap, an overlap and units or a
-calendar that differ, each named by its files; up to 200 files by path and upload (150
-uploads reach the form); the Files table's row for the 20 files, and a full run of them;
-a file that cannot be used in a row of its own. Since #293: the set-up page's sections
-in the board's order and its one Start button; the Variables table's units and how they
-are read; the Together line, timeline, coverage, the indices by code and the summary
-panel's checks; the htmx answer with its out-of-band parts as the form changes (a base
-period without enough days, a variable chosen twice, fewer indices, no index, a
-thresholds file only, a cell-first copy); how each unit is read and converted
-(`read_as`, `units_help`: metres, hourly rates, split files, units with no command);
-the estimates (files, size, time, the base period's days in each calendar); ERA5-like
-files with `tp` in metres (the problem, its CDO command, no job) and once converted; a
-file's header (the page, the text, another session); a finished run's Set-up tab,
-"Changed:", starting again with the results kept until the new run has finished, then
-replaced (the old job and its folder deleted), and a new start that fails leaving them.
-
-### Size budget
-
-The app must work on slow connections (#11). #82 set the budgets, which CI enforces in its
-own step (`tests/test_page_budget.py`, also part of the full `pytest` run), and made pages
-and static files smaller on the wire. The user was away when the budgets were set; they
-follow the examples in the issue and are recorded on #82.
-
-**Budgets.** A page's cost is everything the browser fetches before it can render: the
-HTML and every stylesheet, script, icon sprite and favicon it links. Content htmx loads
-afterwards (progress fragments, the set-up checks) and chart data are not counted.
-
-| Budget | Limit | Measured |
-| --- | --- | --- |
-| First page (landing, `/`) | 100 KB gzipped in total | 34.9 KB |
-| Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
-| Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
-| Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78; again since #283, after #237 drew it on the server only) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.6 of 0.75 KB (a station's setup page only, #201; 0.7 KB until #271 removed the first visit's drop zone), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
-
-Every stylesheet, script, SVG and JSON file in the package must have an entry in
-`ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
-10.6 of 14 KB (with #77's additions), uPlot's CSS 0.7 of 1 KB (vendored as released; since #118 it is built into `climpact.css` and no page links it), gzipped. To add a page, add a
-function returning its URL to `PAGES`. #77 added `qc.css` and `qc.js` (1.5 KB each) and the
-quality-check results page (the Sydney sample checked: every section, the four chart
-frames and the distribution plots, 371.8 KB of HTML, mostly the inline SVG box plots by
-year). #174 made it a worklist: 472.3 KB of HTML (51.2 KB gzipped), the extra being each
-group's first table page and the days around each finding, all in closed `<details>`;
-`qc.js` 1.8 of 2 KB. #202 made it a list and detail: 564.6 KB of HTML (72.2 KB
-gzipped, 147.7 KB with everything it links), the extra being every item's detail in the
-page, hidden but the selected one, each finding's chart of the 30 days either side, and
-"Your data"; `qc.js` 2.7 of 3 KB. #235 made it a compact worklist: 567.2 KB of HTML
-(72.1 KB gzipped), each finding's chart now of the 7 days either side, the tables' rows
-denser; `qc.js` 3.0 of 3 KB. #264 made it a rail of checks and the selected check's
-detail: 531.7 KB of HTML (71.3 KB gzipped), each check's two charts and one selected value
-with the 3 days either side in place of every finding's chart; `qc.js` 3.2 of 3.5 KB,
-`climpact.css` 18.7 of 19 KB (the raw stylesheet's limit 114,000 bytes, 110,000 before).
-#283 made the charts read out their values: the index page loads the chart code again and
-carries its chart's data (TXx: 93.1 KB of HTML, 15.9 KB gzipped, 101.0 KB with everything
-it links; monthly: 416.7 KB, 57.8 KB gzipped, 143.0 KB); the Indices' detail charts carry
-only where each value is drawn, their values fetched when first used (610.1 KB of HTML,
-89.5 KB gzipped; about 1 KB gzipped more than before); Quality's check charts carry their
-values (550.2 KB, 75.9 KB gzipped, 168.2 KB in total). `charts.js` 15.4 of 16 KB,
-`chart-readout.js` 3.6 of 4 KB, `qc.js` 3.5 of 3.75 KB, `index-page.js` 1.3 of 1.5 KB.
-#78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
-`sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
-run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
-downloads page (Files since #176, which grouped its files in closed disclosures and added
-the quality checks' files: 119.1 KB of HTML, 7.3 KB gzipped) (the same run as the dashboard: every table and file with its size) and
-its rules to `results.css`. #118 replaced every stylesheet with the one built by Tailwind
-(`climpact.css`, 12.5 KB budget): pages that loaded few page stylesheets grew by 2 to 5 KB
-gzipped (the landing page from 34.9 to 39.8 KB), since the one file carries every page's
-components, and it is fetched once and cached for every page after.
-
-**How it is measured.** The test runs `collectstatic` with the deployment storage into a
-temporary folder, renders each page type with the real views (creating the session's
-analysis, batch, job or gridded run first), asks for it with `Accept-Encoding: gzip, br`,
-and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the file itself
-if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
-supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
-with the sample loaded, step 2 with the checks queued and with their results, Results
-while the first run goes on (#178), the
-dashboard of a finished run with every index (R's `lat0`
-reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); Add stations and its review of the sample batch, and the workspace overview of that batch queued (the batch's check page went with #271); the job list
-and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
-largest map drawn, values all different); the help index, a guide, the indices guide, the
-topic list and a search; and the 404 page. The pattern library is left out (development
-only). The sizes print at the end of the test run, largest first; on this branch (KB):
-
-| Page | HTML | HTML gzip | Total gzip | Total Brotli |
-| --- | ---: | ---: | ---: | ---: |
-| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
-| station quality results (#77; #198: with "Your data") | 553.3 | 70.3 | 144.2 | 135.8 |
-| station step 1, sample loaded (#114: with the top continue button) | 86.1 | 21.4 | 92.4 | 84.5 |
-| station results, 80 indices (#200: one table, the tiles; with the Index settings sheet) | 245.7 | 48.6 | 90.0 | 84.9 |
-| station index (TXx, with chart code; #199: with the Index settings sheet) | 62.4 | 10.7 | 82.8 | 74.7 |
-| station sector results (#90) | 153.7 | 20.8 | 60.6 | 55.8 |
-| station Files, 114 tables (#79, #176) | 162.8 | 13.7 | 53.1 | 48.4 |
-| gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
-| help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station calculating (#178: progress; #199: with the Index settings sheet) | 54.0 | 8.7 | 48.2 | 43.4 |
-| help indices | 26.0 | 6.7 | 35.3 | 32.3 |
-| landing | 13.4 | 4.1 | 34.9 | 31.5 |
-| station step 1, empty | 11.2 | 3.3 | 41.1 | 36.7 |
-| job list | 5.3 | 1.8 | 30.4 | 27.3 |
-
-The station rows were measured again for #199. Since then every station page in use
-carries the Inputs panel's five sheets, the Index settings among them (about 4 KB gzipped
-each on the index, sector and Files pages, which had no settings form before; Results
-and the progress page already had one).
-
-About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
-`climpact.css` (11.5 KB), `ui.js` (4.2 KB), `theme.js` (0.3 KB) and the icon sprite.
-
-**Compression and caching.**
-
-- *Static files* (`core/storage.py`): `StaticFilesStorage` is WhiteNoise's
-  `CompressedManifestStaticFilesStorage`, so `collectstatic` writes each file under a name
-  with a hash of its contents (`main.f3fea2c28438.css`) and gzip and Brotli copies (the
-  `brotli` package is a dependency). WhiteNoise sends the Brotli or gzip copy the browser
-  accepts, and hashed names with `Cache-Control: max-age=315360000, public, immutable`, so
-  a returning visitor fetches only the HTML. Hosted mode collects at deployment; local mode
-  collects into `<data dir>/static` when `climpact-web` starts (about 0.25 s once the files
-  are there), with `LocalStaticFilesStorage`, which falls back to the plain name for a file
-  not collected (served from the package by WhiteNoise's finders, with a 60 s cache), so a
-  page never fails for want of `collectstatic` (`climpact-web manage ...` commands, tests).
-  `StaticFilesMiddleware` is WhiteNoise without its warning when that folder does not exist
-  yet. `design_snapshots` renders plain names, as it copies the source folder.
-- *Minified CSS*: the storage strips comments and whitespace from stylesheets as it saves
-  them (`minify_css`): strings are kept, and spaces are removed only next to `{ } ; ,`, so
-  selectors such as `.a :focus` keep their meaning; a test checks that every stylesheet
-  keeps the same sequence of selectors and declarations. Since #118 the stylesheet arrives
-  minified by Tailwind, and this pass changes little. Scripts are not minified: htmx comes minified, and minifying `ui.js` would
-  need a JavaScript minifier for about 1 KB gzipped; the sources stay readable.
-- *Pages*: `CompressionMiddleware` is Django's `GZipMiddleware` limited to text answers
-  (HTML, htmx fragments, JSON, CSV, SVG); streamed files (zips, netCDF, PNG) are left
-  alone. Django pads each compressed answer with random bytes against BREACH and masks the
-  CSRF token afresh on every response. Pages compress to between a quarter and a third of their size.
-- *Gridded map*: the inline SVG map is capped at 2,500 cells (`MAX_MAP_CELLS`, was 40,000),
-  which keeps the worst gridded map page at 87 KB gzipped (120 KB with the chart code of
-#75) and 1.4 MB of HTML; before,
-  a 100 x 100 grid gave 5.5 MB of HTML (249 KB gzipped) and the full cap about 20 MB.
-
-**Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
-(`Network.emulateNetworkConditions` with DevTools' Slow 3G values: 2,000 ms latency,
-50,000 bytes/s down and up), local mode started with `climpact-web` on a fresh data
-folder, cache disabled for the first visits. Times are from the start of navigation; bytes
-are the transferred sizes of every request.
-
-| Visit | First contentful paint | Loaded | Transferred | `main` before #82 |
-| --- | ---: | ---: | ---: | --- |
-| Landing, first visit | 5.1 s | 7.5 s | 34.9 KB, 8 requests | 5.7 s, 8.7 s, 129.6 KB |
-| Station step 1 (upload), first visit | 4.3 s | 6.7 s | 33.3 KB, 9 requests | 5.1 s, 7.9 s, 124.5 KB |
-| Landing, cache warm | 2.1 s | 2.1 s | 4.6 KB | 2.1 s, 2.3 s, 13.5 KB |
-| Step 1 from the landing page | 2.1 s | 2.1 s | 3.8 KB | 2.1 s, 2.3 s, 11.7 KB |
-| "Try with sample data" (POST and redirect) | 4.1 s | 4.4 s | 20.1 KB | 4.1 s, 5.6 s, 77.1 KB |
-| "Continue" to step 2 (POST and redirect) | 4.1 s | 4.1 s | 3.2 KB | 4.1 s, 4.2 s, 9.4 KB |
-
-The station flow is usable on Slow 3G: each step shows in about two round trips once the
-shared files are cached, and the first visit is dominated by latency (connection, HTML,
-then the stylesheets and scripts in parallel), not by bytes. Before #82 the landing page
-was 129.6 KB in local mode, over its budget: neither the HTML nor the static files were
-compressed there. In hosted mode the static files were already compressed, but not the
-pages. The scripts are `defer`red, so the first paint waits only for the stylesheets.
-
-### Charts
-
-The interactive charts (#75) for the QC review (#77), results dashboard (#78), gridded
-clicked-cell series (#85). The sector screen (#90) draws its bar chart and scatter
-plots as inline SVG instead (see [Single-station steps](#single-station-steps)). The R app draws static PNGs (and
-`plotly` only for the QC histograms); here the static PNGs and PDF are still written by the
-core (`climpact.plots`, see [Plots and zip archive](#plots-and-zip-archive)), and the
-screens show the same series as interactive charts.
-
-**Pieces.** uPlot 1.6.32, vendored in `vendor/uplot/` (MIT; version, source URLs and
-SHA-256s in its README, checked by `test_charts.py`); `js/charts.js`, a plain script
-with no build step that hydrates the design system's `chart_frame`; the chart styles
-(`core/tailwind/components/charts.css`, in the one stylesheet); the
-`charts` app, whose JSON views give each chart its data. ECharts was not added: every chart
-the screens need (lines, bars, markers, a trend overlay, two synchronised panels) is a time
-series uPlot draws, and a trimmed ECharts build is several times uPlot's size against the
-budget of #82.
-
-**Template API.** A page with charts loads the assets in its `head` block and includes the
-frame with a data URL:
-
-```django
-{% load charts %}
-{% block head %}{% chart_scripts %}{% endblock %}
-
-{% url "charts:station_daily" analysis.pk as daily_url %}
-{% include "components/chart_frame.html" with id="daily-chart" title=title data_url=daily_url csv_href=csv_url height="24rem" only %}
-
-{% url "charts:job_series" job.pk "txx_ANN" as txx_url %}
-{% include "components/chart_frame.html" with id="txx" title=title data_url=txx_url|add:"?station="|add:station image_src=png_url only %}
-{# an example: the index page draws its chart on the server (#237) and from the page's own data (#283) #}
-```
-
-**The page's own data** (#283). A frame with `data-chart-data="<id>"` instead of a data
-URL reads its payload from the page's JSON script of that id: the index page
-(`stations/result.html`) writes `index_page.payload` with `json_script` as
-`#index-chart-data`, so its chart needs no request and draws exactly what the server
-computed (the base-period means, the running means, the anomalies and why each value was
-left out, none of which the `charts:job_series` payload has). Its frame is
-`.index-figure`, not `chart_frame`: the server's chart (`_index_chart.html`) stays inside
-it, unchanged, and shows without JavaScript; `_index_chart_tools.html` adds
-`chart_toolbar.html`, the plot (`hidden` until drawn) and `chart_readout.html` (the parts
-`chart_frame` includes too). Once drawn the figure gets `is-hydrated`, which hides the
-server's chart on screen and shows it in print instead of the plot. If the data cannot be
-drawn, the server's chart stays. `data-chart-view` names the view drawn first
-(`index-page.js` changes it with the Values / Anomaly links,
-`ClimpactCharts.setView(frame, key)`), `data-chart-at` a value to mark and read out
-(`?at=1944`, which also selects that row of the values table).
-
-Include it with `only`: otherwise a page variable named like a parameter (`summary`,
-`legend`, `height` ...) leaks into the frame; step 1 and the gridded results both have a
-`summary` of their own.
-
-`chart_frame` parameters: `id`, `title`, `summary`, `legend`, `height` (CSS length of the
-plot area, default 16rem; the daily chart splits it 60/40 between its panels), `csv_href`,
-`table_template`, and for an interactive chart `data_url` and `image_src` (a static image,
-such as the run's PNG, shown instead without JavaScript). A summary, legend or CSV link
-left out is filled in from the data; without `table_template` the table view is built from
-the data. `{% chart_scripts %}` writes uPlot and
-`charts.js` (deferred) and `#climpact-chart-text`, the script's strings in the interface
-language. Only pages that include it load chart code: the landing page and Add stations
-do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
-`ClimpactCharts.hydrate(element)` does it by hand.
-
-**Data URLs** (`charts/urls.py`). All are GET-only and private to the session, like the
-pages (another session's analysis or job is 404):
-
-| URL name | Path | Payload |
-| --- | --- | --- |
-| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=&flags=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77); `flags=0` leaves the flags and the summary's sentence about them out, for step 1 (#173) |
-| `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
-| `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
-| `gridded:series_json` | `/gridded/<run>/series.json?file=&var=&scale=&cell=y,x` | `index`: a gridded run's clicked-cell series (`data.series_payload`, no trend) |
-| `charts:sample_daily`, `charts:sample_series` | `/charts/sample/...` | the pattern library's examples (with `PATTERN_LIBRARY` only) |
-
-A job must have succeeded. `station` may be left out for a `station` job; for a `batch`
-job it names a station that finished, and its `IndexParams` are read from the job's
-metadata file (the output names of parameterised indices depend on them). Other apps
-serve the same payload kinds from their own views with `charts.views.json_response` (the
-caching) and `charts.data.series_payload` (an `index` payload from labels and values), as
-the gridded results do.
-
-**Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
-
-- `daily`: `start` (first date) and `days`; `series`, one per variable (`tmax`, `tmin`,
-  `prcp`, or the one asked for; `dtr` is TX - TN, token `--chart-7`) with `label`, `short`, `unit`, `panel`, `token` (the `--chart-*` colour) and
-  `values`, one per day, `null` where missing; `flags.points`, `[day, variable, check]`.
-  The x values are implicit (day *i* is `start` + *i*), so only values travel. The days are
-  the core's `merged_rows` (every date from the first row to the last; a repeated date takes
-  its last row, as the indices and the CSV download do; a test checks the payload against
-  the CSV). The flags come from the core's QC checks (`climpact.qc`: `outliers`,
-  `too_large`, `tmax_le_tmin`, `jumps`, `flatline`, `duplicate_dates`) run on the same rows
-  with the thresholds of the analysis's latest quality check, else those entered in step 2
-  (`views.analysis_qc_params`), each placed on the value the check reports: the outlier's
-  variable (a DTR outlier on both temperatures and on DTR), each value over the `toolarge`
-  limits, both temperatures and DTR for `tmaxmin`, the date a jump or flatline is reported
-  on, and every variable of a repeated date (`duplicates`; no ring where the day's last row
-  is missing, but the read-out and table view list it). `panels` names the panels of the
-  series present (temperature, DTR, precipitation).
-- `index`: `x` (decimal years, mid-month for monthly series, day of the year for
-  `tx95t`), `y`, `dates` (the event dates of `txx`, `rx1day` ...), `title`, `units`,
-  `axis`, `step`, `bars` (SPI and SPEI; optional `bar_labels` names the bars above and
-  below zero instead of "wet" and "dry"), and `trend` (`slope`, `lower`, `upper`,
-  `intercept`, `p_value`) with the core's `trend_text`. Everything comes from
-  `climpact.plots.index_plots`, the function the static plots use, given a mapping that
-  reads only the one table asked for: the trend is the trend file's Sen's slope and bounds
-  (checked against the sample run's trend file) with `zyp.sen`'s intercept, drawn from the
-  first to the last position, so the chart and the PNG show the same line.
-- `index` with `layers` and `views` (#283, `stations.index_page.payload`, the index page
-  only): `layers` has `base` (`from`, `to` in x units, `label`: the base period's band,
-  whole years), `notes` (`[index, why]` of each value left out, as the table's Note),
-  `smooth_label`, `gap_label`, `anomaly_label`, and `interval` (draw Sen's slope's 95%
-  interval as a bow tie: the lines of `trend.lower` and `trend.upper` through the
-  slope's middle, as `index_page.chart`). `views` has `values` and, where the page has
-  the anomaly view, `anomaly`: each with `y`, `smooth` (the 11-year running mean of that
-  view), `gaps` (`[index, level]`: the open point of each value left out, at the
-  base-period mean or zero), `axis` (the y axis's title), `offset` (subtracted from the
-  trend line: the base-period mean for anomalies) and, for anomalies, `signed_digits`.
-  Values are rounded as the read-out writes them (`charts.data.shown`).
-
-Each payload has `summary`, a plain-language description written on the server and
-translated: the period, extremes with their dates, missing values, flagged values, and the
-trend per decade with its 95% interval and whether the interval excludes zero
-(significance as in the trends guide; the trend file has no p-value). The daily payload of
-an 80-year station is about 420 KB, 100 KB gzipped; an annual series 2-3 KB, a monthly one
-about 30 KB.
-
-**Caching.** Each response has an `ETag` (a hash of the source files' paths, modification
-times and sizes, the parameters, the language, the schema version and the app version) and
-`Last-Modified` (the newest source file), with `Cache-Control: private, no-cache`: the
-browser keeps the data and revalidates, and an unchanged file answers 304 without being
-read. Built payloads are also kept in a small in-process cache (24 entries) keyed by the
-ETag. Responses are gzipped when the browser accepts it (`gzip_page`).
-
-**Behaviour** (`js/charts.js`):
-
-- *Lazy loading*: a frame's data is fetched when it comes within 200px of the viewport
-  (`IntersectionObserver`; at once where there is none). Until then the frame's skeleton
-  shows; a failed fetch replaces it with a message pointing to the CSV.
-- *Daily*: a panel per kind of variable present, sharing the x axis, cursor and zoom:
-  temperature (TX and TN lines), DTR, precipitation (bars); flagged values as hollow rings in `--chart-flag`, told apart by
-  shape, small (7px) and at 75% opacity so the series shows through (#115: the Sydney
-  sample has 423); the legend's "Flagged by the quality checks" entry is a toggle button
-  (`aria-pressed`) that hides and shows them on every panel, and in the PNG and SVG
-  exports; while hidden, a click picks the day under the pointer. Missing days as gaps. *Index*: a line (with hollow markers for annual series),
-  in its theme's hue (`--hue` from the frame's `hue-*` class, #196; `--chart-1` without
-  one), the trend dashed in `--chart-trend`; SPI and SPEI as bars, wet (`--chart-1`) and
-  dry (`--chart-2`), as in the static plots. *Index with layers* (#283): drawn as the
-  server's chart is: the line without markers (1.4px) in `var(--hue, var(--color-other))`
-  and the running mean (2.2px) in its `color-mix` towards the text colour, both resolved
-  by the browser from the frame's CSS; the base period's band and label (the label only
-  where the part in view is wide enough) and the bow tie in the text colour at 5% and 9%,
-  under the series (uPlot's `drawAxes` hook); the zero line of the anomalies in
-  `--chart-axis`; Sen's slope dashed; the values left out as open points (8px). The y
-  range takes in the bow tie's ends.
-- *Zoom and move*: drag across the plot to zoom, double-click to show all; the toolbar
-  (zoom in, zoom out, earlier, later, show all) and, on the focused plot, the keyboard
-  (`+`/`-`, Shift with an arrow key, `0`). The visible range is announced politely
-  ("Showing 1972-03-31 to 1977-04-01") to screen readers after keyboard or button use.
-  Zoom stops at 7 days (daily) or 4 steps.
-- *Read-out*: the hovered date with each value, the event date and the QC checks that
-  flagged it, in a line under the plot (hidden from screen readers). Since #283 the
-  keyboard reaches it: on the focused plot the left and right arrow keys move a cursor
-  (uPlot's, with its crosshair and points) from value to value, Home and End to the first
-  and last in view, the view following a cursor that leaves it; each value is announced
-  in the status line. An index chart with layers reads out the year (or `YYYY-MM`, as the
-  table) with the date of the extreme, the value with its unit, the anomaly, the running
-  mean, or why the value was left out.
-- *Table view*: "View as table" lists the values in view (date, each series, trend, event
-  date, flags), up to 1,000 rows; with more in view it asks to zoom in or use the CSV.
-  It follows the zoom while open.
-- *Export*: PNG (the canvases at the screen's pixel ratio, with title, visible range and
-  legend) and SVG (redrawn from the data of the current view, each pixel column of a long
-  series reduced to its lowest and highest value; uPlot's own axis ticks, read from its
-  undocumented `_splits` and `_values`, with a fallback).
-- *Themes*: colours come from `Climpact.chartPalette()`; on `climpact:themechange` the
-  charts are redrawn at the same zoom. Width follows the container (`ResizeObserver`).
-- *Picking and focusing a date* (#77, daily charts): `ClimpactCharts.focusDate(frame or
-  id, "YYYY-MM-DD", {span: days})` shows `span` days (default 61) around the date, marks it
-  with a dashed vertical line (`--chart-flag`), shows its read-out and announces the range;
-  it loads the chart first if it has not been drawn (returns a Promise).
-  `ClimpactCharts.get(frame or id)` returns the chart. A click on a daily chart that is not
-  a drag dispatches `climpact:chartpick` on the figure (bubbling) with `{date, index,
-  checks, flagged}`: the nearest flagged day within 8px (`checks` the QC check keys that
-  flagged it), else the day under the pointer; the day is marked. The QC screen's `qc.js`
-  uses both.
-- Numbers and month names use the page language (`Intl`); days are ISO dates (#115); dates are UTC. The plot area is
-  `dir="ltr"`: time runs left to right in right-to-left languages too, as in printed charts.
-
-**Accessibility.** The figure is labelled by the title and described by the summary; the
-plot area is focusable (`role="group"`, `aria-roledescription="chart"`, described by the
-summary and the keyboard hint), so a screen reader announces the summary on focus; the
-table view and the CSV carry the data. Without JavaScript the toolbar and table stay hidden,
-the frame shows `image_src` or a note, and the station step shows the static monthly
-overview.
-
-**Performance.** With the Sydney sample (29,220 days, three variables and 423 flags) in
-headless Chrome at 390px wide with the CPU throttled 4x (a mid-range phone), each zoom or
-move redraws in 18-37 ms. Pages and charts were checked in light and dark themes and at
-390px; screenshots are in the review folder of the PR.
-
-**Size.** `charts.js` is about 35 KB (10.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
-together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. #283 (the index page's layers and views, the keyboard read-out) made
-`charts.js` 54.8 KB (15.8 KB gzipped; 12.1 KB before), and added `chart-readout.js`
-(10.2 KB, 3.7 KB gzipped) for the charts drawn on the server. They are held by #82's
-`ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
-[Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
-quality-check results (109.4 KB, #77), a station index's page (68.6 KB, #78) and the
-gridded results (121.6 KB at worst), all under the 300 KB page budget. The results
-dashboard (#78) has no chart code: its sparklines are inline SVG.
-
-**Tests** (`tests/test_charts.py`): the vendored files' hashes; `charts.js` makes one
-request (the data URL) and has no other dependencies; chart assets only on
-chart pages; the daily payload (days, gaps, extremes, summary) and that it matches the CSV
-download; the QC flags against the core checks (the sample's TN >= TX day, TX jumps and
-`toolarge` days, every outlier row, stricter thresholds flagging more); index payloads
-against the trend file and `index_plots`; SPI bars, `day_of_` without trend; the views'
-JSON, 304 on `If-None-Match` and `If-Modified-Since`, new validators after a file
-changes, gzip, 404 for another session, an unfinished job, an unknown series or station;
-batch stations; the pattern library examples; the frame's markup, and that a page's own
-`summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
-against the netCDF values, its 304, SPI bars and the chart on the run's Map tab.
-`test_index_page.py` and `test_indices_results.py` (#283) check the index page's payload
-(layers, views, gaps at the base-period mean, notes, the trend's offset) against the
-tables, `?at=`, and the Indices' read-out data against `charts:job_series`;
-`test_qc_review.py` the read-outs of When (by date, at the ring's place), By calendar
-month and the 7-day chart; `test_accessibility.py` reads out the index chart (annual,
-anomalies, SPI by month), the Indices' detail chart (Enter opens the index page at that
-year) and Quality's three charts (Enter on When selects the row) by keyboard.
-`test_qc_review.py` (#77) checks that every flag of the `qc_stress` station's QC files is
-on the chart of its variable and in its table (every page), the per-variable payloads, the
-thresholds against `QCParams` and R's limits, the job's files against R's, the verdict
-(green, amber and red, both red triggers at and just over their limits, and the limits
-changed in one place), the findings and groups of the stress station, the missing-data
-rules, the table pages of the checks and groups and the page of a date, re-uploading a corrected
-file (the details and thresholds kept), "See results" opening the results of the
-speculative run (#178) and 404 for another session.
-The drawing itself was checked by hand as above; `test_accessibility.py` (#83) checks the
-charts' keyboard use, announcements, table view and that they redraw to fit when the
-window narrows. #77's linking (a table row to the chart, a ring to its
-table rows on another page, the pager's focus) and the QC page at 390px and in both themes
-were checked in headless Chrome over the DevTools protocol; screenshots are in the PR's
-review folder.
-
-**Read-outs of the server's charts** (#283, `js/chart-readout.js`, on the Indices and
-Quality pages and the pattern library). The Indices' detail chart and Quality's When, By
-calendar month and 7-day charts stay SVG drawn on the server; an `svg[data-readout]`
-becomes focusable (`role="group"`, `aria-roledescription="chart"`, described by the
-`components/readout.html` keyboard hint) with a crosshair (`--chart-axis`, dashed) and a
-ring (the text colour) on the nearest value, written in the read-out line under it; the
-arrow keys, Home and End move between values, each announced in the status line, and
-Enter (or a click) acts: `href` opens it with the value's key (the Indices: the index page
-at `?at=1944`), `pick` dispatches `climpact:readoutpick` (When: `qc.js` asks
-`stations:qc_table` for that date in the table's order, which answers its page, and
-selects it). `data-readout` is single-quoted compact JSON (`charts.data.attr_json`): either
-`points` (`[x, y or null, key, text]`: By calendar month, the 7-day chart) or a series
-(`v`, or `src`, the series' `charts:job_series` URL, fetched when the chart is first used,
-so the Indices page carries no values: about 1 KB gzipped for 80 detail charts instead of
-45 KB; x from `x0` and `dx`, or day offsets `d`; y from `low`, `high`, `top`, `bottom`;
-keys from `when`; the text from `label`, `unit` and the number rules). Built by
-`index_detail.readout`, `qc_review.when_readout`, `months_readout` and `days_readout`.
-Without JavaScript the SVG is unchanged.
-
-**Pattern library.** "Interactive charts" shows the four kinds (daily with flags, annual
-with trend, monthly, SPI bars) from the Sydney sample, through the same views. The design
-snapshots (`design_snapshots`) open from disk without a server, so their charts show the
-"could not be loaded" message.
-
-### Accessibility
-
-The audit of the finished app against WCAG 2.1 AA (#83). The full record (what was
-checked, each finding and its fix, the screen reader checklist) is
-`packages/climpact-web/docs/accessibility-audit.md`; the statement for users is the help
-guide `accessibility` (`/help/accessibility/`), linked from every page's footer: target
-WCAG 2.1 AA, status "partially conforms" until the screen reader checks are done by
-hand, what was tested and how, the known limitations and how to report a problem.
-
-**How the pages are checked.** `tests/test_accessibility.py` starts `climpact-web` on a
-free port with its worker, in a fresh data folder, and drives the Chrome already on the
-machine (`tests/browser.py`: headless, a temporary profile, the DevTools protocol over a
-WebSocket with `websocket-client`; nothing is downloaded or installed). Chrome is found
-from `CHROME`, then the usual install paths and `PATH`; without it the tests skip with a
-message, unless `CLIMPACT_A11Y_REQUIRE_CHROME` is set (CI). The `site` fixture goes
-through the Sydney sample station (every section, a recalculation, the sector comparison
-with the sample sector file), a second sample station whose base period is changed and its
-new run cancelled (Results out of date under "Recalculate", #179), the sample
-batch and the 3 x 4 sample grid (thresholds, then `txx`, `fd` and `spi`) in the browser, so
-the worker runs real jobs (about a minute), and collects 38 pages and states, including
-forms answered with errors (Add stations without a file and with a file it cannot read,
-#233, and a station's setup page with wrong details, #201; the setup page is reached by a
-new file from the File sheet that the base period does not fit, #271), the 413 page (a real over-limit upload) and the 500 page
-(rendered from its template). The `audit` fixture opens each page once and reads:
-
-| Check | How |
-| --- | --- |
-| axe-core | every rule tagged `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` or `best-practice`, in the light theme and at 320 px; `color-contrast` and `link-in-text-block` again in the dark theme (`prefers-color-scheme` emulated, after the colour transitions end) |
-| reflow | `scrollWidth` against the viewport at 320 CSS px and at 200% zoom (640 px at device scale 2), after the page has drawn, as when a user zooms; content inside a scrolling region is allowed to be wider |
-| keyboard | Tab from a marker at the top of the body until focus leaves the page: every stop visible (or, for a visually hidden input, the control drawn for it) with an outline or box shadow on it or a near ancestor; no stop twice before the cycle ends (a trap); the skip link first, and Enter on it focuses `main`; no positive `tabindex` |
-| forced colours | the same traversal under `forced-colors: active`, where only outlines count |
-| reduced motion | under `prefers-reduced-motion: reduce`, no animation or transition over 0.1 s on any element or pseudo-element, and no smooth scrolling |
-| structure | `lang`, a title, one `main`, one `h1`, the skip link's target, names on regions, focusable groups, toolbars, navigation and tab lists |
-
-While the jobs run the fixture also runs axe on each progress page, records what the
-announcer says, and checks that focus on the batch's Cancel button survives the polls.
-Widget tests work the tabs, the workspace tabs (#179: one Tab stop each in order, named
-with their status in words, `aria-current="page"` on the current one, Enter opens a
-section, a section not yet available is no Tab stop), dialog, drop zone (Space opens the file chooser, caught with
-`Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
-gridded explorer by keyboard, and the quality worklist (#174): a group opens and closes
-from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
-corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
-axe passes with every disclosure open, light and dark (axe skips closed ones). The
-phone layout (#203) and the sticky header (#284):
-`test_sticky_header_and_context_bar_never_cover_focus` Tabs through Results, Quality, an
-index's page, the landing page and a guide at 1280 and 320 px and fails when focus is
-under the header or the context bar (on a phone the tabs and the Inputs bar stay under the
-header, the name gone; in a 440px-high window neither sticks);
-`test_fragment_targets_clear_of_the_header` follows a `#fragment` far down Results,
-Quality, Files and a guide at 1280 and 375 px; `test_no_overlapping_sticky_elements`
-scrolls the station and workspace pages at 320, 375, 1280 and 1440 px and checks that
-nothing stuck to the window covers anything else stuck to it (what slides under the
-header is hidden by it), and that the page never scrolls sideways; `test_phone_inputs_bar_opens_the_sheets`
-opens the Inputs sheet from the bar and an input's sheet from it by keyboard, with axe at
-375 and 320 px and Escape stepping back; `test_page_menu_by_keyboard` works the ⋯ menu;
-`test_indices_phone_rows_keep_their_cells_apart` (#286) checks at 320 and 375 px, light
-and dark, that no visible content of an Indices row's cell overlaps another's, runs out of
-the row or is clipped (the name's ellipsis aside), also with the longest numbers written
-into the first row.
-`test_axe_every_page` fails on a serious or critical axe
-violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
-about two and a half minutes locally (160 s on 2026-11-16; three of them in CI), so it is
-marked `browser` (`pytestmark`; the marker is registered in `pytest.ini` and in
-`packages/climpact-web/pyproject.toml`) and the default `addopts` deselect it with
-`-m "not browser"` (#180): a plain `uv run pytest` starts neither Chrome nor the server.
-Run it with `uv run pytest -m browser` (or `uv run pytest -m browser
-packages/climpact-web/tests/test_accessibility.py`, or from `packages/climpact-web`), before a pull
-request that touches templates, CSS or JavaScript. The last `-m` on the command line wins,
-so `-m browser` replaces the default; naming the file without it deselects every test in
-it, the axe hash check included. `CLIMPACT_A11Y_REPORT=<folder>` writes `report.json` and screenshots
-of every page (light, dark, forced colours, 320 px). axe-core (4.14.0, MPL-2.0) is a test
-asset in `tests/assets/axe-core/`, injected with `Runtime.evaluate`; its README records the
-source URL and SHA-256, which `test_vendored_axe_is_the_pinned_release` checks. It is
-never served or packaged.
-
-**Where the time goes, and the waits (#182).** Before each check `Chrome.settle()`
-(`browser.py`) waits until the page has loaded, no htmx request is in flight and no
-chart is loading (`BUSY`). `charts.js` loads a chart only when it comes within 200 px of
-the viewport, so a chart further down the page or in a hidden tab panel keeps its
-skeleton until it is scrolled to: `BUSY` counts only charts that have asked for their
-data, or are in view and about to. It used to count every skeleton, and on the pattern
-library and the quality results each of the audit's four waits per page ran to its 10 s
-timeout (86 s of the audit, and 10 s on each test that opened the pattern library), with
-the same page in the end. After the dark theme is switched on, `transitions_done()` waits
-for the running transitions to end rather than a fixed 0.6 s; the batch's focus check
-waits for the progress to replace itself, and the chart test for each announcement,
-rather than sleeping. What is left is mostly the jobs themselves (the `site` fixture,
-about a minute: quality checks, the station run, the sector comparison, the batch and the
-grid) and axe (about 1.3 s a page with all its modes). The jobs are not overlapped: the
-local worker runs one job at a time, and the fixture watches each progress page while its
-job runs (axe, the announcements, the batch's focus), so the jobs could not run unseen
-side by side.
-
-**Announcements and focus across htmx swaps.** Progress fragments replace themselves at
-every poll (`hx-swap="outerHTML"`), so a live region inside one is new each time and
-screen readers do not read it. The page shell has one persistent live region,
-`#announcer` (`role="status"`, in `components/toasts.html`); a fragment marks its news
-with `data-announce` (the stage of the checks, a station run, a sector comparison, a
-batch, a gridded job and the job page) and `ui.js` copies the text there after a swap when
-it has changed, at most every 10 s unless the element says `data-announce="now"` (the end
-of a batch or a job, the help search's result count, the batch estimate, the gridded
-set-up checks). `ui.js` also notes the focused control before an htmx swap and focuses
-the same control after it (same id, or the same kind of control in a form with the same
-action), so a keyboard user on Cancel is not dropped to the top of the page at each poll.
-
-**Fixed by the audit.** Progress not announced and focus lost at each poll (above);
-charts holding the page wide after a zoom or a narrower window, the gridded set-up form
-and a calculation's long title wider than 320 px (see Responsive and right-to-left under
-[Design system](#design-system)); the tour returning focus to its hidden invitation (now
-to `main`); the 500 page given a `main`, a way back and theme-following system colours;
-help guide tables, download tables and the index page's trend table given their own
-names; the index chart's heading level; the pattern library's duplicate step indicator
-names and second `h1`.
-
-**Known limitations.** The PDF report and plots PDF are not tagged PDF/UA (matplotlib
-cannot write a structure tree; PR #109); follow-up #110. The PNG plots have no text inside
-the files (their data are in the CSVs). The gridded map's cells are mouse targets only;
-the latitude and longitude selects are the keyboard route, and the map has a table.
-Screen readers (VoiceOver, NVDA) cannot be driven here: the checklist in the audit file is
-done by hand.
-
-## Development
-
-```sh
-uv sync
-uv run ruff check . && uv run ruff format --check .
-uv run pytest               # in parallel (pytest-xdist, -n auto); -n 0 for one process
-uv run pytest -m browser    # the browser accessibility checks, before a PR touching templates, CSS or JS
-```
-
-- The repository is a [uv](https://docs.astral.sh/uv/) workspace (#116; it replaced the
-  two editable pip installs of #68). The root `pyproject.toml` is not a package: it lists
-  the members `packages/climpact` (distribution `climpact`) and `packages/climpact-web`,
-  and has a `dev` dependency group with both members and every development tool.
-  `uv sync` makes `.venv` from `uv.lock` with both packages editable and that group;
-  commands run through `uv run`. Each member also has its own `dev` group (PEP 735,
-  replacing the old `[dev]` extras; plain pip 25.1+ can install it with `pip install
-  --group`): the core's is what the `core` CI job installs. Groups are not transitive, so
-  a tool added to a member's group must be added to the root's too. `.python-version`
-  pins Python 3.12 for development, which is also the minimum (`requires-python >=3.12`
-  in both packages, ruff `target-version = "py312"`; #117, needed by Django 6.0). `uv.lock` is committed and resolved for every supported Python; after
-  changing a dependency, run `uv lock`. New T3 worktrees get the environment from the
-  project's setup script, which should run `uv sync`.
-- The `climpact-example-plugin` test package is installed by writing its metadata into a
-  temporary folder (`tests/test_modules.py`), so its test needs no pip in the venv (uv
-  venvs have none). To install it by hand: `uv pip install
-  packages/climpact/tests/plugins/climpact_example_plugin`.
-- CI installs uv with `astral-sh/setup-uv` (pinned to a commit SHA, uv 0.13.8, with its
-  cache), sets the job's Python with its `python-version` input, and installs with
-  `uv sync --locked` (fails if `uv.lock` does not match the `pyproject.toml` files).
-- Every action in `.github/workflows/` is pinned to a full commit SHA, with the release
-  tag in a comment (`actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.2,
-  `actions/download-artifact` v8.0.2, `actions/cache` v6.1.0 (its `restore` and `save`
-  sub-actions), `astral-sh/setup-uv` v10.3.3, all running on Node 24), so a moved or compromised tag
-  cannot change what CI runs.
-  The repository's Actions settings are meant to enforce this ("require actions to be
-  pinned to a full-length commit SHA", allowing only GitHub-owned actions and
-  `astral-sh/setup-uv`), so an unpinned or unlisted action fails the run. To upgrade
-  one, change the SHA and the tag comment together, using the commit the release tag
-  points to (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`).
-- CI has seven jobs. `secrets` (#138) runs gitleaks over the whole git history
-  (`gitleaks git --log-opts="--all" --redact`, checkout with `fetch-depth: 0`) with the
-  default rules and the allowlist in `.gitleaks.toml`. It downloads the pinned gitleaks
-  release binary and installs it only if its SHA-256 matches the hash in `ci.yml` (no
-  third-party action, read-only token, checkout pinned to a commit SHA); upgrade the
-  version and hash together. `.gitleaks.toml` allowlists only exact placeholder values
-  (`regexTarget = "secret"`, anchored), never paths: in gitleaks 8.30 a global allowlist's
-  `paths` skip the whole file even with `condition = "AND"`, so they would hide a real
-  secret added to that file. Run the same scan locally with `gitleaks git
-  --log-opts="--all" --redact .`. `core` and `web` run on Python 3.12, 3.13 and 3.14: `core` checks
-  `uv lock --check`, installs only the core with its dev group (`uv sync --locked
-  --package climpact`), runs ruff, checks that `climpact_web` is neither installed nor
-  imported in `packages/climpact`, and runs `pytest packages/climpact` (the full core
-  suite, parity included; like every test step, in parallel with the default `-n auto`,
-  one worker per vCPU, see [Running the tests in parallel](#running-the-tests-in-parallel)); `web` installs both packages (`uv sync --locked`), fetches the
-  pinned Tailwind CLI (`scripts/fetch-tailwind.sh`), rebuilds the stylesheet and fails if
-  the committed `css/climpact.css` differs (#118), installs GNU gettext from apt and runs
-  `pytest packages/climpact-web` with `CLIMPACT_REQUIRE_GETTEXT=1`, so the message
-  catalogue check fails rather than skips without `xgettext` (#205; see
-  [Translations](#translations)) (without the size budget, which it `--ignore`s, and the
-  accessibility tests, which the default `-m "not browser"` deselects), the size budget as its own step
-  (`pytest packages/climpact-web/tests/test_page_budget.py`, see
-  [Size budget](#size-budget)), `climpact-web manage check` and `makemigrations --check`. `web-postgres` installs the web package with the `postgres` extra and no dev group (`uv sync --locked --package climpact-web --extra postgres --no-default-groups`) and runs hosted mode against a Postgres 16 service
-  container, including a station job through the worker (see [Tests](#tests)); a last
-  step adds the dev group (`uv sync --locked --package climpact-web --extra postgres`)
-  and runs `test_queue_postgres.py`, several workers competing for claims.
-  `web-accessibility` (Python 3.12) runs `test_accessibility.py -m browser` in the runner's
-  preinstalled Google Chrome (`CHROME=$(which google-chrome)`,
-  `CLIMPACT_A11Y_REQUIRE_CHROME=1`, so a missing Chrome fails rather than skips) and keeps
-  the report and screenshots as the `accessibility-report` artifact (see
-  [Accessibility](#accessibility)). `image` calls the reusable `image.yml`, which builds
-  the production image, smoke-tests it against Postgres and scans it, pushing nothing;
-  `dist` builds both packages' sdists and wheels as a release does and checks them
-  (`scripts/check_dists.py`, `twine check`, `scripts/smoke_dists.sh`; see
-  [Releases and PyPI](#releases-and-pypi)). `release.yml` runs on a published GitHub
-  Release and is the only workflow that uploads, pushes or deploys (see
-  [Image in CI and on ghcr.io](#image-in-ci-and-on-ghcrio) and
-  [Deploy on release](#deploy-on-release)).
-- Start the web app with `uv run climpact-web` (see [Running the web app](#running-the-web-app)).
-
-- Compute gridded thresholds with
-  `uv run climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`;
-  a variable split along time takes its files, or a quoted pattern (`'tasmax_*.nc'`).
-- Compute gridded indices with
-  `uv run climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N] [--trends]`
-  (`--trends` also writes `trends.nc`, see [Gridded trends](#gridded-trends)).
-- Correlate sector data with a station already run with
-  `uv run climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
-- Run a station from the command line with
-  `uv run climpact run <station file> --out <dir> [--lat ... --lon ...] [--plots] [--zip] [--report]`
-  (`climpact run --help` lists the options), or a batch with
-  `uv run climpact batch <metadata file> <data dir> --out <dir> [--workers N]`.
-- Python 3.12+, xclim 1.0.x, netCDF4 and dask (gridded data); matplotlib 3.8+ for the
-  plots (the optional `plots` extra, also in the `dev` groups). The web package uses
-  Django 6.0.x (`django>=6.0,<6.1`; #117 moved it from 5.2 LTS). Python 3.14 is in the CI
-  matrix because every compiled dependency has wheels for it: numpy, scipy, pandas,
-  matplotlib, brotli and psycopg-binary ship cp314 wheels, and netCDF4 and cftime ship
-  `cp311-abi3` wheels, which cover it (xarray, xclim and Django are pure Python).
-  CI runs on Python 3.12, 3.13 and 3.14 on **Ubuntu 24.04**
-  (x86_64, glibc 2.39), pinned rather than `ubuntu-latest`. Its glibc is the C maths library
-  the R reference was made with, so CI checks the SPI and SPEI files for text identity; on
-  macOS they are checked to 1e-10 relative (`tests/libm.py`). Newer glibc releases differ:
-  Ubuntu 26.04's `lgamma` differs from glibc 2.39 in the last bit on some inputs, so
-  `test_libm_lgamma_matches_glibc_2_39` checks against fixed values printed in the R image.
-- Always work inside `.venv`, through `uv run`.
-- To regenerate the R reference outputs, station, sector correlation or gridded, see `reference/README.md`. Re-running changes the
-  `Date_of_calculation` line in every CSV, so only commit a re-run when the numbers are
-  meant to change.
-- Work is tracked as GitHub issues on the
-  [climpactpy Kanban](https://github.com/users/geoffwalmsley/projects/2), grouped under
-  epics (#8 station parity, #9 QC, #10 gridded, #11 web, #12 deployment). Branches are
-  named `<issue>-<slug>` and PRs say `Closes #N`. Each ticket names the reference files it
-  should make pass. The full workflow is in `.claude/skills/ticket/SKILL.md`. A web ticket
-  that changes what users see also names its design canvas boards (a "Design" section) and
-  is built and checked against them with `.claude/skills/build-to-design/SKILL.md`; its
-  pull request carries a "Design check".
+- *State.* Everything is in the query string, so every view is an address and works
+  without JavaScript: `index` (a rail entry: the file's index, `txx`, `rx3day`, or a
+  heatwave variable, `hwn_tx90`), `freq` (`ANN`, `MON`, `DAY`), `year` and `month` (`day`
+  for `tx95t`), `scale` (SPI and SPEI: 3, 6 or 12 months), `cell` (the file's `y,x`;
+  `cell_y` and `cell_x` from the form without JavaScript; `goto`, "lat, lon", the nearest
+  cell, `maps.nearest_cell`, a turn either way for 0–360° grids), `q` (the rail's Find).
+  Defaults: TXx (else the first index), annual, the last year (of December, for a monthly
+  file) with a value (`last_step_with_values`), the 12-month scale, the cell with a value
+  nearest the middle. The old explorer's `file` and `t` still open the same map, and
+  `<id>/results` still redirects (301) with its query string.
+- *Rail* (`map_page.entries`): every index the run calculated, a heatwave file's
+  variables each an entry (`hwn_tx90` is `TX90-HWN`, named as the station pages name it),
+  by theme (`themes.chip_of`, the Files tab's groups), codes first, the short name and the
+  frequencies it has; the selected one on the selected tint with an ink edge. Find
+  filters as you type (a GET form without JavaScript).
+- *Toolbar*: the code and short name (h2), the catalogue's definition and the file's
+  name; the view (`map_page.VIEWS`: Year, and Base mean, Anomaly and Trend shown
+  unavailable until #296 builds them from `trends.nc`); Annual / Monthly (a frequency
+  without a file struck through, not a link); the scale for SPI and SPEI; the stepper
+  (‹ 2019 ›, by month for a monthly file, by day for `tx95t`); one line on what is shown;
+  Download ▾: "Map as PNG" (`gridded:map_png?download=1`: `map_image.figure_png`, the
+  cells, coastline, places, axes, title and legend drawn by matplotlib, light colours),
+  "Map as CSV" (`gridded:map_csv`, every cell's latitude, longitude and value) and the
+  netCDF file (`gridded:file`).
+- *The map.* Every cell, never thinned (the explorer's 2,500-cell cap, `MAX_MAP_CELLS`,
+  went with it). `gridded:map_png` (`<id>/map.png`) is the field as an indexed PNG with
+  one pixel per cell, north up and west left whatever the order of the file's rows and
+  columns (`maps.frame`, `display_order`), each pixel its bin's colour and a cell with no
+  value transparent (`map_image.raster_png`, written with zlib; no imaging library). The
+  page draws it in an SVG `<image>` scaled without smoothing (`image-rendering:
+  pixelated`) on the sunken surface, the plot's height from the grid's extent and the
+  cosine of its mean latitude (at most 2.5 times its width), so the cells keep their
+  aspect; over it the coastline (with a light halo, so it shows on the darkest bins),
+  three to five places with a halo, the axes in degrees (`maps._ticks`: 1, 2, 3 or 5
+  times a power of ten, or 10–90° steps for a wide grid) and the selected cell's outline,
+  clipped to the plot. Both themes' PNGs are in the SVG and the stylesheet shows the one
+  of the page's theme (`gmap__raster--light`, `--dark`). A grid whose axes are not
+  latitude and longitude (`rlat`, `x`) has no coastline or places and plain axes.
+- *Outline* (`gridded/outline.py`): `gridded/data/outline.npz` (233 KB) holds Natural
+  Earth's 1:50m coastline and populated places (v5.1.2, public domain), built by
+  `scripts/build-map-outline.py`, which names the source files. `coastline(box,
+  tolerance)` gives the runs of each line inside the grid's box with a point either side
+  (the SVG clips them), thinned to about 1.5 SVG units and without specks smaller than
+  that, the outline shifted a turn for 0–360° grids; a global 145 x 192 grid's coastline
+  is about 150 KB of path. `places(box)` picks up to five, most prominent first (scale
+  rank, then population), none near the edge or another.
+- *Colour.* Eight fixed bins per index and view, from a sequential scale by the index's
+  kind (`maps.kind_of`): `temp` (values in °C, blue through pale yellow to red), `warm`
+  (Heat counts, and the other indices where more is warmer), `cool` (Cold counts,
+  `hddheatn`, `tmlt5`, `tmlt10`), `wet` (Rain), `dry` (Drought); tokens `--map-seq-<kind>-1`
+  ... `-8` in both themes, in `chart-palette.json` as `map_sequential` (see
+  [Design system](#design-system)). The breaks (`maps.edges_for`) are round numbers a
+  round step apart (`nice_edges`) over the 2nd to 98th percentiles of the values of up to
+  20 years spread over the file (of the month, for a monthly file), from at most 250,000
+  cells each, starting at zero for counts and amounts: fixed for the file, so one year's
+  map compares with another's; values beyond the ends are in the end bins. SPI and SPEI
+  use their standard classes (−2, −1.5, −1, 1, 1.5, 2; McKee et al. 1993) in the
+  seven-step diverging scale reversed, dry red and wet blue, until #296's diverging map
+  scales. The legend: the bins with their breaks, "Cells with a value: low to high" for
+  the year shown, and "No value".
+- *Interaction* (`js/gridded-map.js`). Links and forms in the map swap the map block in
+  place (`X-Climpact-Part: map`; the view answers `gridded/_map.html` alone and `Vary`
+  says so), push the address (Back and Forward work) and keep focus on the control used.
+  The cell under the pointer is read out in a line under the map and a tooltip, from
+  `gridded:map_values` (`<id>/map.f32`: float32, the map's order, NaN for no value,
+  fetched when first needed, gzipped); a click selects it. The map is one focusable group
+  (`aria-roledescription` "map"): the arrow keys move the selected cell (Shift: ten), a
+  polite live region reads it out with its value, and the pane follows after 0.6 s
+  (Enter at once): the pane alone is swapped (`X-Climpact-Part: pane`) and the address,
+  links and forms take the new cell. Without JavaScript the map is an image with its
+  text alternative, and a `<noscript>` form chooses the cell by latitude and longitude.
+  The PNG, values and map CSV leave the cell out of their address, so they stay cached
+  (`Cache-Control: private, max-age=86400`, an `ETag` of the file and the query; 304).
+- *Cell pane*: "Selected cell" ("Mean over the grid" unavailable until #296); the cell's
+  centre in mono as the h2, its place in the grid and its bounds; Go to (a GET form,
+  `map_page.parse_goto`: `−33.86, 151.21` or `33.86 S 151.21 E`; outside the grid or
+  unreadable it says so). The series: by year, of the chosen month for a monthly file,
+  by day of the year for `tx95t` (`map_page._series`), as the index page's interactive
+  chart (#283: `index_page.payload` with the base period, the 11-year running mean,
+  Sen's slope and its 95% interval; `data-chart-at` marks the year on the map), with
+  `index_detail.chart` as the server's drawing without JavaScript and in print. Then the
+  statistics in the station pane's order: Sen's slope per decade, 95% interval,
+  significant, the base-period mean, the year shown with its anomaly, the record (highest,
+  or lowest for TNn, TXn, SPI and SPEI); then the values by year as a table and "This
+  series as CSV" (`gridded:series_csv`). The trend is `climpact.trends.plot_trend` of the
+  cell's series, computed on request: for an annual series the numbers of `trends.nc`
+  (#290), which uses the same function (the end-to-end test compares them). When a
+  station of the browser's workspaces (the same owner token) lies in the cell, a box
+  names it (and its workspace) with "Open its TXx", the station's index page
+  (`stations:result`; a heatwave entry's key is its code, `TX90-HWN`).
+- *Reading.* The core's index files hold each cell's whole series in one chunk, so one
+  year's map reads and decompresses the whole file. `maps.variable_values` therefore
+  reads a variable once, whole, as float32 with fill values and non-finite values (R's
+  `-Inf` EHF-HWPS) as NaN, and keeps the most recently used ones in memory up to
+  `maps.CACHE_BYTES` (256 MB; a larger variable is read a step or a cell at a time); the
+  breaks are kept per file. Measured on synthetic files chunked as the core writes them
+  (60 years of random values, zlib level 4, Apple M-series laptop): a 700 x 900 grid's
+  page takes 0.92 s on its first visit (the whole read and the run bar's count of cells
+  with data included) and 0.08 s after, its PNG (263 KB) 0.1 s; a global 145 x 192
+  grid 0.18 s and 0.05 s. `test_gridded_map.py` holds both under a second.
+- *Threads.* The HDF5 library in the netCDF4 wheels is not built thread-safe, and the
+  server answers requests on several threads (waitress): a Map page and its PNG, values
+  and CSVs open the same files at once, which failed on CI with "NetCDF: Can't open HDF5
+  attribute" and could crash the server. Every netCDF file the web app reads on a request
+  thread is opened, read and closed holding one reentrant lock (`gridded/netcdf.py`:
+  `dataset(path)` for the map's reads, the rail's heatwave variables, the run bar's cell
+  count, New run's listing and the set-up page's file header; `LOCK` around the set-up
+  page's inspection, the core reader's pre-flight and its estimate of how the files will
+  be read); the jobs run in the worker's own process. `test_gridded_map.py` checks that
+  every open on the Map's requests holds the lock, and runs the Map's reads (a layer, a
+  year's values, a cell's series, the breaks, the cell count, a file's description) from
+  eight threads at once with cold caches: without the lock that test failed about one run
+  in six to eight ("NetCDF: Not a valid ID", "NetCDF: HDF error").

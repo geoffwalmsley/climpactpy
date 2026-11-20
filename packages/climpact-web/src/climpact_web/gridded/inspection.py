@@ -133,7 +133,15 @@ def _range(nc, dim: str) -> list[float]:
 
 
 def inspect_file(path: str | Path) -> FileInfo:
-    """What ``path`` holds, read from its metadata and coordinates only."""
+    """What ``path`` holds, read from its metadata and coordinates only (holding the
+    netCDF lock, :mod:`climpact_web.gridded.netcdf`)."""
+    from climpact_web.gridded import netcdf
+
+    with netcdf.LOCK:
+        return _inspect_file(path)
+
+
+def _inspect_file(path: str | Path) -> FileInfo:
     import cftime
     import netCDF4
 
@@ -550,14 +558,16 @@ def preflight(paths: list[str], names: dict[str, str], max_values: int) -> dict:
     run needs to know: the number of blocks, whether the input will be rechunked to a
     temporary file and that file's size."""
     from climpact.gridded import open_grid
+    from climpact_web.gridded import netcdf
 
-    inp = open_grid(paths, names=names, max_values=max_values)
-    try:
-        blocks = len(list(inp.blocks()))
-        rechunk = inp.will_rechunk()
-        size = inp.rechunk_bytes() if rechunk else 0
-    finally:
-        inp.data.close()
+    with netcdf.LOCK:  # the core's reader opens the files on this request's thread
+        inp = open_grid(paths, names=names, max_values=max_values)
+        try:
+            blocks = len(list(inp.blocks()))
+            rechunk = inp.will_rechunk()
+            size = inp.rechunk_bytes() if rechunk else 0
+        finally:
+            inp.data.close()
     return {"blocks": blocks, "rechunk": bool(rechunk), "rechunk_bytes": int(size)}
 
 

@@ -80,8 +80,7 @@ def test_tour_script_stays_small():
 # and words a template puts after a modifier prefix (alert--{{ kind }} and the like).
 HOOK_CLASSES = {
     "batch-progress", "download-group", "download-link", "empty-filter",
-    "gmap__cell--selected", "gmap__svg", "gridded-checks__problems", "gridded-explore__help",
-    "gridded-map", "gridded-series", "help-page",
+    "gridded-checks__problems", "help-page",
     "job-files", "job-page", "job-progress", "numeric", "param", "qc-charts", "qc-check",
     "qc-page", "results-actions",
     "sector-settings__summary", "tabs", "tabs__panel-heading", "trend-summary",

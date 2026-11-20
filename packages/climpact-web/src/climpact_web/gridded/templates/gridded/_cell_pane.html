@@ -1,0 +1,80 @@
+{% load i18n ui %}{% comment %}
+The cell pane of a gridded run's Map (#295, the GridMap board), read like a station's
+detail pane: "Selected cell" (and "Mean over the grid", #296), the cell's centre as the
+heading with its place in the grid and its bounds, "Go to" a latitude and longitude; the
+series as the interactive chart of #283 (charts.js, from the page's data: base period,
+values, 11-year mean, Sen's slope and its 95% interval, the chosen year ringed), the
+server's chart without JavaScript; the statistics in the station pane's order; the values
+by year and the CSV; the stations of the browser's workspaces in the cell.
+Context: pane (gridded.map_page.pane), map_state, rail_action, form_hidden.
+{% endcomment %}
+<aside class="gmap-layout__pane" id="cell-pane" aria-labelledby="cell-title" data-gmap-pane>
+  <div class="gmap-pane__body">
+    <div class="segmented" role="group" aria-label="{% translate 'Series for' %}">
+      <span class="segmented__item" aria-current="true">{% translate "Selected cell" %}</span>
+      <span class="segmented__item" aria-disabled="true" title="{% translate 'Not available yet' %}">{% translate "Mean over the grid" %}</span>
+    </div>
+    <div class="gmap-pane__head">
+      <h2 class="gmap-pane__title" id="cell-title" tabindex="-1">{{ pane.title }}</h2>
+      <p class="gmap-pane__sub">{{ pane.sub }}</p>
+    </div>
+    <form class="gmap-pane__goto" method="get" action="{{ rail_action }}" data-gmap-goto>
+      {% for key, value in form_hidden.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <label for="gmap-goto">{% translate "Go to" %}</label>
+      <input type="text" id="gmap-goto" name="goto" value="{{ pane.goto }}" placeholder="{% translate '−33.86, 151.21' %}" inputmode="text" autocomplete="off"{% if pane.goto_error %} aria-invalid="true" aria-describedby="gmap-goto-error"{% endif %}>
+      {% translate "Go" as go_label %}{% include "components/button.html" with label=go_label type="submit" variant="secondary" size="sm" %}
+    </form>
+    {% if pane.goto_error %}<p class="field__error" id="gmap-goto-error">{% icon "error" %}<span>{{ pane.goto_error }}</span></p>{% endif %}
+
+    {% if pane.has_values %}
+    <figure class="gmap-pane__chart hue-{{ pane.hue }}" id="cell-chart" aria-labelledby="cell-chart-title" data-chart-data="cell-chart-data"{% if pane.chart_at %} data-chart-at="{{ pane.chart_at }}"{% endif %}>
+      <figcaption class="gmap-pane__caption" id="cell-chart-title"><span class="font-mono">{{ entry.code }}</span>{{ pane.caption_tail }}{% if pane.unit_label %} <span class="gmap-pane__unit">{% blocktranslate with units=pane.unit_label %}({{ units }}){% endblocktranslate %}</span>{% endif %}</figcaption>
+      {% if pane.chart %}<svg class="index-chart__plot" viewBox="{{ pane.chart.box }}" role="img" aria-label="{{ pane.chart_label }}" focusable="false" data-chart-fallback>
+        {% if pane.chart.band %}<rect class="index-chart__band" x="{{ pane.chart.band.x }}" y="{{ pane.chart.top }}" width="{{ pane.chart.band.width }}" height="{{ pane.chart.height }}"/><text class="index-chart__band-label" x="{{ pane.chart.band.label_x }}" y="{{ pane.chart.band.label_y }}" text-anchor="middle">{% translate "base period" %}</text>{% endif %}
+        <line class="index-chart__grid" x1="{{ pane.chart.left }}" y1="{{ pane.chart.grid_y }}" x2="{{ pane.chart.right }}" y2="{{ pane.chart.grid_y }}"/>
+        <line class="index-chart__axis" x1="{{ pane.chart.left }}" y1="{{ pane.chart.top }}" x2="{{ pane.chart.left }}" y2="{{ pane.chart.bottom }}"/>
+        <line class="index-chart__axis" x1="{{ pane.chart.left }}" y1="{{ pane.chart.bottom }}" x2="{{ pane.chart.right }}" y2="{{ pane.chart.bottom }}"/>
+        {% for tick in pane.chart.y_ticks %}<text class="index-chart__tick" x="{{ pane.chart.tick_x }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+        {% for tick in pane.chart.x_ticks %}<text class="index-chart__tick" x="{{ tick.x }}" y="{{ pane.chart.label_y }}" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+        {% if pane.chart.line %}<path class="index-chart__line" d="{{ pane.chart.line }}"/>{% else %}<line class="index-chart__zero" x1="{{ pane.chart.left }}" y1="{{ pane.chart.zero }}" x2="{{ pane.chart.right }}" y2="{{ pane.chart.zero }}"/><path class="index-chart__pos" stroke-width="{{ pane.chart.bar_width }}" d="{{ pane.chart.pos }}"/><path class="index-chart__neg" stroke-width="{{ pane.chart.bar_width }}" d="{{ pane.chart.neg }}"/>{% endif %}
+        {% if pane.chart.trend %}<line class="index-chart__trend" x1="{{ pane.chart.left }}" y1="{{ pane.chart.trend.y1 }}" x2="{{ pane.chart.right }}" y2="{{ pane.chart.trend.y2 }}"/>{% endif %}
+      </svg>{% endif %}
+      <div class="chart__plot gmap-pane__plot" id="cell-chart-plot" data-chart-plot hidden tabindex="0" role="group" aria-roledescription="{% translate 'chart' %}" aria-labelledby="cell-chart-title" aria-describedby="cell-chart-summary cell-chart-keys"></div>
+      <p class="sr-only" id="cell-chart-summary">{{ pane.chart_label }}</p>
+      <div hidden data-chart-reveal>{% include "components/chart_readout.html" with id="cell-chart" %}</div>
+      <ul class="chart__legend" data-chart-legend hidden></ul>
+      {% if pane.chart_at %}<p class="gmap-pane__ring"><span class="gmap-pane__key" aria-hidden="true"></span>{% blocktranslate with when=pane.when %}{{ when }}, the year on the map{% endblocktranslate %}</p>{% endif %}
+    </figure>
+    {{ pane.chart_data|json_script:"cell-chart-data" }}
+
+    {% if pane.stats %}<dl class="gmap-pane__stats">
+      {% for st in pane.stats %}<div><dt>{{ st.label }}</dt><dd{% if st.mono %} class="gmap-pane__num"{% endif %}>{{ st.value }}{% if st.note %} <span class="gmap-pane__note">{{ st.note }}</span>{% endif %}</dd></div>{% endfor %}
+    </dl>{% endif %}
+
+    <div class="gmap-pane__more">
+      <details class="disclosure">
+        <summary>{% icon "table" %}<span>{% translate "Values by year (table)" %}</span>{% icon "chevron-down" %}</summary>
+        <div class="disclosure__body">
+          <div class="table-wrap max-h-96" role="region" aria-labelledby="cell-table-caption" tabindex="0">
+            <table class="table">
+              <caption id="cell-table-caption">{% blocktranslate with series=pane.caption where=pane.title %}{{ series }}, {{ where }}{% endblocktranslate %}</caption>
+              <thead><tr><th scope="col">{% if pane.trend_word %}{% translate "Year" %}{% else %}{% translate "Day" %}{% endif %}</th><th scope="col" class="num">{% if pane.unit_label %}{% blocktranslate with code=entry.code units=pane.unit_label %}{{ code }} ({{ units }}){% endblocktranslate %}{% else %}{{ entry.code }}{% endif %}</th>{% if pane.has_anomaly %}<th scope="col" class="num">{% translate "Anomaly" %}</th>{% endif %}</tr></thead>
+              <tbody>{% for row in pane.rows %}<tr{% if row.current %} aria-current="true"{% endif %}><th scope="row">{{ row.when }}</th><td class="num">{{ row.value }}</td>{% if pane.has_anomaly %}<td class="num">{{ row.anomaly }}</td>{% endif %}</tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+      <p class="m-0"><a href="{{ pane.csv }}" download>{% translate "This series as CSV" %}</a></p>
+    {% else %}
+      <p class="gmap-pane__empty">{% translate "This cell has no values. Choose another cell." %}</p>
+    <div class="gmap-pane__more">
+    {% endif %}
+      {% for st in pane.stations %}
+      <div class="gmap-pane__station">
+        <p class="m-0">{% if st.workspace %}{% blocktranslate with name=st.name workspace=st.workspace trimmed %}A station in your workspaces is in this cell: <strong>{{ name }}</strong> ({{ workspace }}).{% endblocktranslate %}{% else %}{% blocktranslate with name=st.name trimmed %}A station in your workspaces is in this cell: <strong>{{ name }}</strong>.{% endblocktranslate %}{% endif %}</p>
+        <p class="m-0"><a href="{{ st.url }}">{% blocktranslate with code=st.code trimmed %}Open its <span class="font-mono">{{ code }}</span>{% endblocktranslate %}</a></p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</aside>

@@ -421,50 +421,6 @@ def index_payload(source: IndexSource, name: str) -> dict | None:
     return payload
 
 
-def series_payload(
-    name: str,
-    title: str,
-    units: str,
-    step: str,
-    labels: list[str],
-    values,
-    bars: bool = False,
-    signed_digits: int | None = None,
-) -> dict:
-    """An ``index`` payload for a series that is not a station run's index table (the
-    gridded clicked-cell series, #85): ``labels`` are ``YYYY`` (``step`` "year"),
-    ``YYYY-MM`` ("month") or the day of the year ("day"). No trend is drawn or described:
-    R's gridded outputs have none. ``signed_digits`` shows every value signed with that
-    many places (anomalies: one, ``+0.4``, #226)."""
-
-    def position(label: str) -> float:
-        if step == "month":
-            year, month = label.split("-")[:2]
-            return round(int(year) + (int(month) - 0.5) / 12, 6)
-        return int(label)
-
-    units = numbers.unit_label(units)
-    payload = {
-        "kind": "index",
-        "version": SCHEMA_VERSION,
-        "name": name,
-        "title": title,
-        "units": units,
-        "axis": units,
-        "step": step,
-        "bars": bars,
-        "x": [position(label) for label in labels],
-        "y": _finite(values),
-        "label": name,
-        "trend": None,
-        "trend_note": False,
-    }
-    if signed_digits is not None:
-        payload["signed_digits"] = signed_digits
-    payload["summary"] = index_summary(payload)
-    return payload
-
-
 def _x_label(step: str, x: float) -> str:
     if step == "month":
         year = math.floor(x)

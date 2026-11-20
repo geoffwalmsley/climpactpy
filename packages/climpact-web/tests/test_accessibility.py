@@ -38,6 +38,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -118,6 +119,20 @@ def running_app(data: Path, **env: str):
     if not url:
         proc.kill()
         pytest.fail("climpact-web did not start:\n" + "".join(output))
+    # Keep reading what the app prints: an unread pipe would block it once full, and if it
+    # stops, its last lines say why (saved with the report, or in the data folder).
+    log = (Path(REPORT) if REPORT else data) / f"server-{data.name}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+
+    def drain() -> None:
+        with log.open("w", encoding="utf-8") as f:
+            f.writelines(output)
+            for line in proc.stdout:
+                f.write(line)
+                f.flush()
+            f.write(f"[climpact-web exited with code {proc.wait()}]\n")
+
+    threading.Thread(target=drain, daemon=True).start()
     try:
         yield url
     finally:
@@ -1687,19 +1702,36 @@ def test_help_search_announces_results(chrome, site):
     assert c.evaluate("document.activeElement.id") == "help-q", "typing lost focus"
 
 
-def test_gridded_explorer_keeps_focus(chrome, site):
-    """Changing a select of the gridded explorer swaps the map in place; focus stays on
-    the select, so a keyboard user can go on choosing."""
+def test_gridded_map_by_keyboard(chrome, site):
+    """The gridded map (#295) is one focusable group: the arrow keys move the selected
+    cell, a polite live region reads it out with its value, and the cell pane follows. The
+    year stepper and the rail swap the map in place and keep focus on the control used."""
     c = chrome
     c.navigate(site["gridded results"])
-    focus(c, "#explore-t")
-    c.evaluate(
-        "var s = document.getElementById('explore-t'); s.selectedIndex = 0;"
-        " s.dispatchEvent(new Event('change', {bubbles: true}))"
-    )
-    wait_for(c, "document.getElementById('explore-t').selectedIndex === 0 &&"
-             " !document.querySelector('.htmx-request')", timeout=10)  # fmt: skip
-    assert c.evaluate("document.activeElement.id") == "explore-t"
+    title = "document.getElementById('cell-title').textContent"
+    before = c.evaluate(title)
+    focus(c, "[data-gmap-svg]")
+    assert c.evaluate("document.activeElement.getAttribute('aria-roledescription')") == "map"
+    c.press("ArrowLeft")
+    c.press("ArrowUp")
+    wait_for(c, "/\\u00b7 TXx /.test(document.querySelector('[data-gmap-status]').textContent)",
+             timeout=10, what="the selected cell read out")  # fmt: skip
+    wait_for(c, f"{title} !== {before!r}", timeout=10, what="the cell pane of the new cell")
+    assert "cell=" in c.evaluate("location.search")
+    focus(c, "[data-gmap-step=prev]")
+    label = "document.querySelector('.gmap-stepper__label').textContent"
+    year = c.evaluate(label)
+    c.press("Enter")
+    wait_for(c, f"{label} !== {year!r}", timeout=10, what="the year before")
+    assert c.evaluate("document.activeElement.getAttribute('data-gmap-step')") == "prev"
+    focus(c, ".gmap-rail__item:not([aria-current])")
+    code = c.evaluate("document.activeElement.querySelector('.gmap-rail__code').textContent")
+    c.press("Enter")
+    # The map is swapped in place and focus lands on the index chosen, now the current row.
+    wait_for(c, "document.activeElement.getAttribute('aria-current') === 'true' &&"
+             f" document.activeElement.textContent.indexOf({code!r}) === 0", timeout=10,
+             what="focus on the index chosen")  # fmt: skip
+    assert "index=" in c.evaluate("location.search")
 
 
 def test_gridded_new_run_ticks_and_folders(chrome, site):

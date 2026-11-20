@@ -414,6 +414,14 @@ def pattern_context(form):
             {"label": _("Annual value"), "token": "--chart-1"},
             {"label": _("Linear trend"), "token": "--chart-trend"},
         ],
+        # The gridded map's eight-bin scales (#295), drawn as its legend draws them.
+        "map_scales": [
+            (_("Map: temperature (values in °C)"), "temp"),
+            (_("Map: warm counts"), "warm"),
+            (_("Map: cold counts"), "cool"),
+            (_("Map: wet"), "wet"),
+            (_("Map: dry"), "dry"),
+        ],
         "palette_groups": [
             (_("Categorical, in order"), [f"--chart-{i}" for i in range(1, 9)]),
             (
@@ -421,7 +429,6 @@ def pattern_context(form):
                 ["--chart-tmax", "--chart-tmin", "--chart-prcp"]
                 + ["--chart-trend", "--chart-trend-band", "--chart-flag"],
             ),
-            (_("Sequential"), [f"--chart-seq-{i}" for i in range(1, 6)]),
             (_("Diverging"), [f"--chart-div-{i}" for i in range(1, 8)]),
             (
                 _("Trend scale: a significant decrease or increase, weak and strong"),

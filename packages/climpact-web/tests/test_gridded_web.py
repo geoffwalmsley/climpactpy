@@ -66,6 +66,12 @@ def setup_data(run: GriddedRun, **changes) -> dict:
     return out
 
 
+def png_size(data: bytes) -> tuple[int, int]:
+    """A PNG's width and height, from its header."""
+    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
 def sample_run(client) -> GriddedRun:
     response = client.post("/gridded/sample")
     assert response.status_code == 302
@@ -841,7 +847,7 @@ def test_start_again_keeps_the_results_until_the_new_ones_are_ready(client):
     html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
     assert ">Calculating again</h2>" in html and "Follow its progress on Map" in html
     html = client.get(f"/gridded/{run.pk}/").content.decode()
-    assert "Explore the indices" in html and "base 1991–2010" in html  # the old results
+    assert 'id="gridded-map"' in html and "base 1991–2010" in html  # the old results
     assert "Waiting to start" in client.get("/gridded/").content.decode()
     # A second start waits for this one.
     client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["fd"]))
@@ -869,7 +875,7 @@ def test_start_again_keeps_the_results_until_the_new_ones_are_ready(client):
     assert "The last start did not finish." in html and "/no/such/file.nc" in html
     assert (
         ">This run</h2>" in html
-        and "Explore the indices" in client.get(f"/gridded/{run.pk}/").content.decode()
+        and 'id="gridded-map"' in client.get(f"/gridded/{run.pk}/").content.decode()
     )
 
 
@@ -962,65 +968,80 @@ def test_sample_run_end_to_end(client, tmp_path):
     assert f'href="/gridded/{run.pk}/files/" data-tab="files">' in html
     assert f'href="/gridded/{run.pk}/setup/" data-tab="setup">' in html
     assert "steps__" not in html
-    assert "Explore the indices" in html and "txx, 2010" in html  # txx annual, last year
-    assert 'class="gmap__svg"' in html and html.count('class="gmap__cell') == 12
-    assert "View as table" in html and "Choose a cell" in html
-    assert "rx3day_ANN_climpact_historical_NA_1991-2010.nc" in html
-
-    # A chosen cell, time step and file, as htmx asks for them.
-    spi = "spi_MON_climpact_historical_NA_1991-2010.nc"
-    response = client.get(
-        f"/gridded/{run.pk}/explore",
-        {"file": spi, "t": 5, "scale": 2, "cell": "0,1"},
-        HTTP_HX_REQUEST="true",
+    # The Map (#295): the rail, the map of TXx in its last year, the cell pane.
+    assert 'id="gridded-map"' in html and 'class="gmap__svg"' in html
+    rail = html[html.index('class="gmap-layout__rail') : html.index('class="gmap-layout__main')]
+    for code in ("TXx", "FD", "Rx1day", "Rx3day", "SPI"):
+        assert f'<span class="gmap-rail__code">{code}</span>' in rail, code
+    assert rail.count('aria-current="true"') == 1 and ">ANN MON<" in rail and ">MON<" in rail
+    assert '<span class="gmap-stepper__label" aria-live="polite">2010</span>' in html
+    assert "The value in 2010." in html and "txx_ANN_climpact_historical_NA_1991-2010.nc" in html
+    assert (
+        f'href="/gridded/{run.pk}/map.png?index=txx&amp;freq=ANN&amp;year=2010&amp;theme=dark"'
+        in html
     )
-    html = response.content.decode()
-    assert response.status_code == 200 and "<html" not in html
-    assert "1991-06" in html and "(12-month scale)" in html
-    assert "gmap__cell--selected" in html
-    assert "cell=0%2C1" in response["HX-Push-Url"]
-    assert response["HX-Push-Url"].startswith(f"/gridded/{run.pk}/?")
-    # The results page's old address keeps working.
+    assert 'class="segmented__item" aria-disabled="true"' in html  # Base mean ... (#296)
+    assert "Selected cell" in html and "Sen&#x27;s slope" in html and "Record" in html
+    assert 'name="cell_y"' in html and "<noscript>" in html  # the cell without JavaScript
+    assert "uPlot.iife.min.js" in html and 'data-chart-data="cell-chart-data"' in html
+    assert 'data-chart-at="2010"' in html and 'id="cell-chart-data"' in html
+
+    # SPI: monthly, a month's map at a scale; the old explorer's addresses still work.
+    spi = "spi_MON_climpact_historical_NA_1991-2010.nc"
+    html = client.get(
+        f"/gridded/{run.pk}/", {"index": "spi", "freq": "MON", "year": 1991, "month": 6,
+                                "scale": 12, "cell": "0,1"}
+    ).content.decode()  # fmt: skip
+    assert '<span class="gmap-stepper__label" aria-live="polite">Jun 1991</span>' in html
+    assert "The 12-month index in Jun 1991." in html and "ramp-spi" in html
+    assert 'aria-current="true" data-gmap-nav>12 months</a>' in html
+    assert "</span>, June, 1991–2010" in html  # the pane: June of every year
     response = client.get(f"/gridded/{run.pk}/results", {"file": spi, "t": 5})
     assert response.status_code == 301
     assert response["Location"] == f"/gridded/{run.pk}/?file={spi}&t=5"
+    html = client.get(response["Location"]).content.decode()
+    assert '<span class="gmap-stepper__label" aria-live="polite">Jun 1991</span>' in html
 
-    # The values shown are the file's.
+    # A script asks for the pane, or the whole block, alone (js/gridded-map.js).
+    response = client.get(f"/gridded/{run.pk}/", {"cell": "2,3"}, HTTP_X_CLIMPACT_PART="pane")
+    pane = response.content.decode()
+    assert response.status_code == 200 and pane.lstrip().startswith("<aside")
+    assert "X-Climpact-Part" in response["Vary"]
+    part = client.get(f"/gridded/{run.pk}/", HTTP_X_CLIMPACT_PART="map").content.decode()
+    assert part.lstrip().startswith('<div class="gmap-layout"') and "<html" not in part
+
+    # The values shown are the file's, and the pane's trend is trends.nc's (#290).
     path = run.indices_job.output_dir / "txx_ANN_climpact_historical_NA_1991-2010.nc"
     with netCDF4.Dataset(path) as nc:
         expected = np.ma.filled(nc["txx"][:, 2, 3].astype(float), np.nan)
-    response = client.get(f"/gridded/{run.pk}/series.csv", {"file": path.name, "cell": "2,3"})
+    response = client.get(f"/gridded/{run.pk}/series.csv", {"index": "txx", "cell": "2,3"})
     rows = response.content.decode().splitlines()
-    assert rows[0] == "time,txx" and rows[1].startswith("1991,") and len(rows) == 21
+    assert rows[0] == "year,txx" and rows[1].startswith("1991,") and len(rows) == 21
     assert float(rows[-1].split(",")[1]) == pytest.approx(expected[-1], abs=1e-4)
-    # The interactive chart's data (#75): the same values, in the charts app's format.
-    response = client.get(f"/gridded/{run.pk}/series.json", {"file": path.name, "cell": "2,3"})
-    payload = response.json()
-    assert payload["kind"] == "index" and payload["step"] == "year" and payload["trend"] is None
-    assert payload["x"][0] == 1991 and len(payload["y"]) == 20
-    assert payload["y"][-1] == pytest.approx(expected[-1], abs=1e-4)
-    assert payload["csv"].startswith(f"/gridded/{run.pk}/series.csv?")
-    assert "No trend" not in payload["summary"] and "1991 to 2010" in payload["summary"]
-    assert (
-        client.get(
-            f"/gridded/{run.pk}/series.json",
-            {"file": path.name, "cell": "2,3"},
-            HTTP_IF_NONE_MATCH=response["ETag"],
-        ).status_code
-        == 304
-    )
-    monthly = client.get(
-        f"/gridded/{run.pk}/series.json", {"file": spi, "scale": 2, "cell": "0,1"}
-    ).json()
-    assert monthly["step"] == "month" and monthly["bars"] and len(monthly["x"]) == 240
-    html = client.get(f"/gridded/{run.pk}/").content.decode()
-    assert f'data-chart-src="/gridded/{run.pk}/series.json?' in html
-    assert "uPlot.iife.min.js" in html and "<noscript>" in html and "series-preview" in html
-    assert 'id="series-chart-summary" data-chart-summary></p>' in html  # filled from the data
-    assert 'id="series-table-caption"' in html  # the table view
-    response = client.get(f"/gridded/{run.pk}/map.csv", {"file": path.name, "t": 0})
+    with netCDF4.Dataset(run.indices_job.output_dir / "trends.nc") as nc:
+        slope = float(nc["txx_slope"][2, 3])
+    from climpact_web.core import numbers
+
+    assert numbers.per_decade(slope, "degrees_C") in pane
+    response = client.get(f"/gridded/{run.pk}/map.csv", {"index": "txx", "year": 1991})
     rows = response.content.decode().splitlines()
     assert rows[0] == "latitude,longitude,txx" and len(rows) == 13
+    response = client.get(f"/gridded/{run.pk}/map.f32", {"index": "txx", "year": 2010})
+    with netCDF4.Dataset(path) as nc:
+        field = np.ma.filled(nc["txx"][-1].astype(np.float32), np.nan)
+    shown = np.frombuffer(response.content, "<f4").reshape(3, 4)
+    np.testing.assert_array_equal(shown, field)  # rows already north first, as the file's
+    response = client.get(f"/gridded/{run.pk}/map.png", {"index": "txx", "year": 2010})
+    assert response["Content-Type"] == "image/png" and png_size(response.content) == (4, 3)
+    again = client.get(
+        f"/gridded/{run.pk}/map.png", {"index": "txx", "year": 2010},
+        HTTP_IF_NONE_MATCH=response["ETag"],
+    )  # fmt: skip
+    assert again.status_code == 304
+    response = client.get(f"/gridded/{run.pk}/map.png", {"index": "txx", "download": "1"})
+    assert (
+        response.content.startswith(b"\x89PNG") and "attachment" in response["Content-Disposition"]
+    )
 
     # Everything in one zip.
     response = client.get(f"/gridded/{run.pk}/download.zip")
@@ -1205,18 +1226,6 @@ def test_runner_passes_reading_options(tmp_path, monkeypatch):
 # ---- Maps -------------------------------------------------------------------------------------
 
 
-def test_draw_map_orientation_and_classes():
-    values = np.array([[1.0, 2.0], [np.nan, 4.0]])
-    drawing = maps.draw_map(values, lat=[-40.0, -30.0], lon=[140.0, 150.0], selected=(1, 1))
-    # Latitude increases with the row: the last row is drawn at the top.
-    top = [c for c in drawing.cells if c.py == 0]
-    assert {c.y for c in top} == {1}
-    assert [c.css for c in drawing.cells if c.y == 1 and c.x == 0] == ["gmap__na"]
-    assert drawing.has_missing and drawing.lo == "1" and drawing.hi == "4"
-    assert next(c for c in drawing.cells if c.selected).value == "4"
-    assert drawing.rows[0]["lat"] == "30°S" and drawing.lon_headers == ["140°E", "150°E"]
-
-
 def test_map_defaults_to_the_last_step_with_values(tmp_path):
     path = tmp_path / "hw_ANN_m_e_r_2001-2003.nc"
     with netCDF4.Dataset(path, "w") as nc:
@@ -1234,18 +1243,6 @@ def test_map_defaults_to_the_last_step_with_values(tmp_path):
     layer = maps.open_layer(path, path.name)
     assert layer.times == ["2001", "2002", "2003"]
     assert maps.last_step_with_values(path, layer) == 1
-
-
-def test_draw_map_thins_a_large_grid(monkeypatch):
-    monkeypatch.setattr(maps, "MAX_MAP_CELLS", 100)
-    drawing = maps.draw_map(np.ones((40, 40)), lat=list(range(40)), lon=list(range(40)))
-    assert drawing.stride == 4 and len(drawing.cells) == 100
-
-
-def test_series_breaks_at_missing_values():
-    s = maps.draw_series(np.array([1.0, np.nan, 3.0]), ["2001", "2002", "2003"])
-    assert s.path.count("M") == 2 and s.count == 2 and s.rows[1]["value"] == ""
-    assert maps.draw_series(np.array([np.nan]), ["2001"]) is None
 
 
 # ---- Ownership and retention -------------------------------------------------------------------

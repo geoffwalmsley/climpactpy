@@ -28,6 +28,8 @@ CHART_PALETTE_JSON = STATIC / "chart-palette.json"
 CHART_ROLES = ("tmax", "tmin", "prcp", "trend", "trend-band", "flag", "grid", "axis")
 # The trend scale (#227), from the strong decrease to the strong increase.
 TREND_SCALE = ("decrease-2", "decrease-1", "increase-1", "increase-2")
+# The gridded map's sequential scales (#295), by the index's kind: --map-seq-<kind>-1 ... -8.
+MAP_KINDS = ("temp", "warm", "cool", "wet", "dry")
 
 
 def read_tokens(path: Path) -> dict[str, str]:
@@ -70,7 +72,7 @@ def chart_palette() -> dict:
         palette[theme] = {
             "categorical": _numbered(tokens, "chart"),
             "roles": {role: tokens[f"chart-{role}"] for role in CHART_ROLES},
-            "sequential": _numbered(tokens, "chart-seq"),
+            "map_sequential": {k: _numbered(tokens, f"map-seq-{k}") for k in MAP_KINDS},
             "diverging": _numbered(tokens, "chart-div"),
             "trend_scale": [tokens[f"chart-{step}"] for step in TREND_SCALE],
             "coverage": _numbered(tokens, "chart-coverage"),

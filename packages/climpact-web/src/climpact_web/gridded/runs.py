@@ -24,7 +24,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
 from climpact_web.core import numbers
-from climpact_web.gridded import inspection, maps
+from climpact_web.gridded import inspection, maps, netcdf
 from climpact_web.gridded.models import GriddedRun, Source
 from climpact_web.jobs.models import Status
 
@@ -344,6 +344,9 @@ def total_size(run: GriddedRun) -> int:
     return sum(f.size for _job, f in output_files(run))
 
 
+COUNT_VALUES = 20_000_000  # values read at once by count_cells: 80 MB as float32
+
+
 def cells_with_data(run: GriddedRun) -> int | None:
     """How many of the grid's cells have a value in the run's index files: those with a
     value at any time in its first annual file (read once, a time step at a time, and
@@ -367,24 +370,27 @@ def cells_with_data(run: GriddedRun) -> int | None:
 
 
 def count_cells(path: Path) -> int:
-    import netCDF4
+    """The cells with a value at any time in the file's first index variable. Read in
+    stripes of rows, all times at once: the core's files hold each cell's series in one
+    chunk, so reading a time step at a time would decompress the file once a step (#295)."""
     import numpy as np
 
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         variables = maps.index_variables(nc)
         if not variables:
             return 0
         var = nc.variables[variables[0]["name"]]
         var.set_auto_mask(True)
-        mask = None
-        steps = var.shape[0]
-        for t in range(steps):
-            values = np.ma.filled(np.ma.asarray(var[t], dtype=float), np.nan)
-            finite = np.isfinite(values)
-            if finite.ndim > 2:  # SPI and SPEI: a scale dimension before the grid's
-                finite = finite.any(axis=tuple(range(finite.ndim - 2)))
-            mask = finite if mask is None else (mask | finite)
-        return int(mask.sum()) if mask is not None else 0
+        ny, nx = var.shape[-2:]
+        rows = max(1, COUNT_VALUES // max(1, int(np.prod(var.shape)) // ny))
+        count = 0
+        for y in range(0, ny, rows):
+            values = np.ma.filled(
+                np.ma.asarray(var[..., y : y + rows, :], dtype=np.float32), np.nan
+            )
+            finite = np.isfinite(values) & (np.abs(values) < 1e19)
+            count += int(finite.any(axis=tuple(range(finite.ndim - 2))).sum())
+        return count
 
 
 def provenance(run: GriddedRun) -> list[dict]:
@@ -492,9 +498,8 @@ class FileGroup:
 
 @lru_cache(maxsize=1024)
 def _file_variables(path: str, mtime: float) -> tuple[str, ...]:
-    import netCDF4
 
-    with netCDF4.Dataset(path) as nc:
+    with netcdf.dataset(path) as nc:
         return tuple(maps.data_variables(nc))
 
 

@@ -283,26 +283,6 @@
     --swatch: var(--chart-axis);
   }
 
-  .swatch-chart-seq-1 {
-    --swatch: var(--chart-seq-1);
-  }
-
-  .swatch-chart-seq-2 {
-    --swatch: var(--chart-seq-2);
-  }
-
-  .swatch-chart-seq-3 {
-    --swatch: var(--chart-seq-3);
-  }
-
-  .swatch-chart-seq-4 {
-    --swatch: var(--chart-seq-4);
-  }
-
-  .swatch-chart-seq-5 {
-    --swatch: var(--chart-seq-5);
-  }
-
   .swatch-chart-div-1 {
     --swatch: var(--chart-div-1);
   }

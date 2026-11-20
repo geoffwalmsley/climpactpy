@@ -4017,8 +4017,9 @@ button, with a `<noscript>` note that the check needs JavaScript, and adds `js/t
 load neither. **Waiting for the token (#163).** The widget takes a second or two to get
 its token, out of sight when the form's widget is below the fold, and a form sent before
 then was refused (`turnstile-missing`): on the live site, the sample's top button on
-step 1 ("Details look right", outside the details form with `form="station-details"`;
-#173 removed it, and the form's own button is now the only one).
+the old step 1 page ("Details look right", outside the details form with
+`form="station-details"`; #173 removed it, and a station's setup page has since taken the
+page's place, #198, #201).
 `turnstile.js` catches every submit in the capture phase (the form's own buttons, a button
 outside it, Enter) of a form holding a `.cf-turnstile`; with no token in that form's
 widget (or `turnstile.isExpired`), it stops the submit, marks the form's submit buttons
@@ -4030,9 +4031,14 @@ the line asks the user to answer the check, if it asks something, and scrolls th
 into view; on a widget error or after 60 s it says the form was not sent, with a "Try
 again" button (`turnstile.reset`). A token that comes later still sends the form. Its
 texts come translated in the widget's `data-wait`, `data-slow`, `data-failed` and
-`data-retry`. Each form reads only its own widget's field, so step 1's two widgets keep
-their tokens apart. Widgets that arrive in an htmx swap are rendered with
-`turnstile.render` on `htmx:load` (implicit rendering only scans the page when `api.js`
+`data-retry`. Each form reads only its own widget's field, so the widgets of one page keep
+their tokens apart: a station page carries one in each of the Inputs panel's sheets
+(`stations/_input_form.html`) and one in a form of its own where it has one (the sector
+form; Results' "Recalculate" when out of date, `stations/_recalculate_form.html`),
+while Add stations (`stations/add.html`, a widget in its drop form or in its review
+form, never both) and a station's setup page (`stations/new.html`) have one each.
+Widgets that arrive in an htmx swap are rendered with `turnstile.render` on `htmx:load`
+(implicit rendering only scans the page when `api.js`
 loads), never twice; since htmx runs script tags off, that needs a page that already
 loaded the scripts with a widget of its own. None of today's swaps carries one. The
 views whose POST uploads a file or starts a job are wrapped in `human_required`: the New
@@ -4092,8 +4098,15 @@ the jobs and the home page) and logs a warning to `climpact_web.limits`: `Refuse
 /w/<id>/<station>/setup from 203.0.113.7: active-quota:2`. The reasons are
 `turnstile-missing`, `turnstile-failed:<codes>`, `turnstile-unavailable`,
 `active-quota:<n>`, `daily-quota:<n>`, `queue-full:<n>` and `disk-low:<MB>`, and
-`deploy/README.md` says how to use them to tune the Cloudflare rules. A refused step 1
-leaves the station details saved, so sending the form again queues the checks.
+`deploy/README.md` says how to use them to tune the Cloudflare rules. A refused token
+saves nothing, as the view does not run. A station's setup page refused by a quota saves
+none of the station's details (the base period of a workspace that is the station's own
+is saved first, `set_base_period`), so going back and sending the form again saves them
+and queues the checks. On Add stations the review's table is saved before the station is
+added (`keep_typed`): a quota refusal of several stations comes before anything is made
+(the batch job is created first), and the review stays; a refusal of one station comes
+after it is made (`add_one`), so it stays in the workspace without its checks or run,
+and the files waiting are gone (#351).
 
 **Job time limit.** See *Time limit* in [Background jobs](#background-jobs).
 
@@ -5529,10 +5542,13 @@ without errors; the user corrects the file outside the app and loads it again.
   thresholds or uploading a corrected file queues another, cancelling one still waiting.
   The page polls `.../quality/progress` (progress bar, stage, time) and reloads when the
   job has finished (`HX-Refresh`; a `<noscript>` refresh without JavaScript). While the job
-  is queued or running the page says "Running the quality checks…" and the thresholds
-  form is closed behind "Change the thresholds" (its button then reads "Restart the
-  checks with these thresholds"), so nothing suggests the checks must be started by hand
-  (#114). A failed or cancelled check says so and offers the form again.
+  is queued or running the page says "Running the quality checks…" and has no thresholds
+  form of its own (the thresholds are edited in the Inputs panel's sheet since #199), so
+  nothing suggests the checks must be started by hand (#114). Once there are results,
+  "Change the thresholds" on the line under them opens the thresholds sheet
+  (`stations/_qc_details.html`). A failed, stopped or never-run check says so and offers
+  "Run the checks" (`stations/_qc_run_again.html`), which opens the same sheet; its Apply
+  runs them with the thresholds shown.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
   user downloads, so every row of every file is reachable on the screen, with the
   station's rows from the copy of the file the checks read (`qc_review.checked_file`,
@@ -7057,9 +7073,10 @@ the landing page, Add stations, its review and a station's setup page that goes 
 answers 200 and the anchor exists on the target page (over 300 links); every topic's guide
 and anchor exist; every id used in a template (`help_topic`) exists; every section used in a
 template (`section_help`) exists and its topics too, and no field is given a help topic;
-every form field of step 1 and the batch page has a hint (the base period's two years
-share the fieldset's hint, and the station name's help is its section's); the Help button's link,
-button and template; every section's help page, and `?topics=`; one hidden drawer on every
+the field component shows a field's hint and no help link of its own (the latitude's, in
+`test_field_component_has_no_help_link_of_its_own`; no test checks that every field has a
+hint); the Help button's link, button and template; every section's help page, and
+`?topics=`; one hidden drawer on every
 page; the verdict's help states `VERDICT_LIMITS`; Add stations, its review and a station's setup
 page show their topics. `test_qc_review.py`, `test_indices_results.py` and `test_sector_web.py` check that
 each station page has its sections' Help buttons in order and no help link under a field;
@@ -7771,41 +7788,55 @@ temporary folder, renders each page type with the real views (creating the sessi
 analysis, batch, job or gridded run first), asks for it with `Accept-Encoding: gzip, br`,
 and adds the gzipped HTML to the size of the `.gz` copy of each linked file (the file itself
 if WhiteNoise kept no compressed copy). Gzip is the budget because every browser and proxy
-supports it; Brotli is printed as well. The pages measured: landing; station step 1 empty,
-with the sample loaded, step 2 with the checks queued and with their results, Results
-while the first run goes on (#178), the
-dashboard of a finished run with every index (R's `lat0`
-reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); Add stations and its review of the sample batch, and the workspace overview of that batch queued (the batch's check page went with #271); the job list
-and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
-largest map drawn, values all different); the help index, a guide, the indices guide, the
-topic list and a search; and the 404 page. The pattern library is left out (development
-only). The sizes print at the end of the test run, largest first; on this branch (KB):
+supports it; Brotli is printed as well. The pages measured (`PAGES` in the test, by the
+names it prints): the landing page; Add stations, starting a workspace, and its review of
+the sample batch; a station's setup page with the sample loaded (`station sample loaded`);
+Quality with the checks queued (`station quality`) and with their results, Results while
+the first run goes on (`station calculating`, #178), the dashboard of a finished run with
+every index (R's `lat0` reference output for the Sydney sample), one index's page (TXx,
+with the chart code) and a monthly one, the sector results (#90) and the Files page
+(`station downloads`, #79, #176); the workspace overview of the sample batch queued; the
+job list and a job; gridded start, new run, set-up, results of a finished run on a
+100 x 100 grid (values all different) and its files; the help index, a guide, the indices
+guide, the topic list and a search; and the 404 page. The pattern library is left out
+(development only). The sizes print at the end of the test run, largest first. Measured
+again for #346 on 2026-11-21 (KB); the table before it, last measured for #199, named
+pages that have since gone (step 1 and step 2, replaced by Add stations and a station's
+setup page, #201, #233):
 
 | Page | HTML | HTML gzip | Total gzip | Total Brotli |
 | --- | ---: | ---: | ---: | ---: |
-| gridded results, 100 x 100 grid | 1412.9 | 57.4 | 121.6 | 114.6 |
-| station quality results (#77; #198: with "Your data") | 553.3 | 70.3 | 144.2 | 135.8 |
-| station step 1, sample loaded (#114: with the top continue button) | 86.1 | 21.4 | 92.4 | 84.5 |
-| station results, 80 indices (#200: one table, the tiles; with the Index settings sheet) | 245.7 | 48.6 | 90.0 | 84.9 |
-| station index (TXx, with chart code; #199: with the Index settings sheet) | 62.4 | 10.7 | 82.8 | 74.7 |
-| station sector results (#90) | 153.7 | 20.8 | 60.6 | 55.8 |
-| station Files, 114 tables (#79, #176) | 162.8 | 13.7 | 53.1 | 48.4 |
-| gridded set-up | 44.2 | 8.2 | 39.6 | 36.0 |
-| help topics | 47.5 | 9.4 | 38.1 | 35.0 |
-| station calculating (#178: progress; #199: with the Index settings sheet) | 54.0 | 8.7 | 48.2 | 43.4 |
-| help indices | 26.0 | 6.7 | 35.3 | 32.3 |
-| landing | 13.4 | 4.1 | 34.9 | 31.5 |
-| station step 1, empty | 11.2 | 3.3 | 41.1 | 36.7 |
-| job list | 5.3 | 1.8 | 30.4 | 27.3 |
+| station quality results | 550.3 | 75.9 | 175.2 | 162.2 |
+| station results, 80 indices | 610.2 | 89.5 | 150.5 | 141.5 |
+| station index, monthly | 416.8 | 57.9 | 150.0 | 137.9 |
+| station quality | 103.3 | 23.4 | 115.6 | 103.5 |
+| gridded results, 100x100 grid | 78.2 | 17.9 | 112.8 | 100.4 |
+| station index | 93.2 | 15.9 | 108.0 | 95.9 |
+| station sector results | 165.9 | 22.0 | 76.8 | 68.7 |
+| station downloads | 180.7 | 14.8 | 69.2 | 61.2 |
+| gridded set-up | 54.6 | 9.7 | 64.4 | 56.3 |
+| station calculating | 60.4 | 9.0 | 63.4 | 55.4 |
+| help topics | 53.7 | 10.2 | 62.8 | 55.0 |
+| help indices | 37.2 | 8.1 | 60.8 | 53.0 |
+| landing | 22.3 | 6.1 | 60.5 | 52.5 |
+| add stations, review | 16.6 | 4.1 | 58.4 | 50.4 |
+| help guide | 21.0 | 5.3 | 58.0 | 50.1 |
+| station sample loaded | 25.5 | 5.2 | 57.8 | 50.0 |
+| workspace overview | 15.9 | 3.7 | 57.4 | 49.5 |
+| help search | 22.8 | 5.2 | 57.2 | 49.6 |
+| add stations | 10.5 | 2.9 | 57.2 | 49.2 |
+| gridded files | 14.9 | 3.8 | 56.8 | 49.0 |
+| help | 19.1 | 4.2 | 56.3 | 48.6 |
+| gridded new run | 20.0 | 3.6 | 55.6 | 48.0 |
+| gridded start | 9.7 | 2.6 | 54.7 | 47.1 |
+| job | 9.5 | 2.5 | 54.6 | 46.9 |
+| jobs | 7.8 | 2.1 | 54.2 | 46.5 |
+| not found | 7.1 | 1.9 | 53.9 | 46.3 |
 
-The station rows were measured again for #199. Since then every station page in use
-carries the Inputs panel's five sheets, the Index settings among them (about 4 KB gzipped
-each on the index, sector and Files pages, which had no settings form before; Results
-and the progress page already had one).
-
-About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
-`climpact.css` (11.5 KB), `ui.js` (4.2 KB), `theme.js` (0.3 KB) and the icon sprite.
+About 52 KB of every page is shared and cached after the first (the 404 page links only
+these): `climpact.css` (27.9 KB), htmx (16.5 KB), `ui.js` (4.4 KB), the icon sprite
+(1.5 KB), `drawer.js` (1.0 KB), `site-header.js` (0.4 KB), `theme.js` and the favicon
+(0.2 KB each), all gzipped.
 
 **Compression and caching.**
 
@@ -7837,11 +7868,15 @@ About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
   700 x 900 grid's page is 253 KB of HTML. Until then an inline SVG of at most 2,500 cells
   (`MAX_MAP_CELLS`, 40,000 before #82, when a 100 x 100 grid gave 5.5 MB of HTML).
 
-**Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
-(`Network.emulateNetworkConditions` with DevTools' Slow 3G values: 2,000 ms latency,
-50,000 bytes/s down and up), local mode started with `climpact-web` on a fresh data
-folder, cache disabled for the first visits. Times are from the start of navigation; bytes
-are the transferred sizes of every request.
+**Slow 3G.** Measured once, for #82 on 2026-11-14, with headless Chrome over the
+DevTools protocol (`Network.emulateNetworkConditions` with DevTools' Slow 3G values:
+2,000 ms latency, 50,000 bytes/s down and up), local mode started with `climpact-web` on
+a fresh data folder, cache disabled for the first visits. Times are from the start of
+navigation; bytes
+are the transferred sizes of every request. These are historical: the station pages
+timed, step 1 and its "Continue" to step 2, have since been replaced by Add stations and
+a station's setup page (#201, #233), which have not been timed this way (their sizes are
+in the table above).
 
 | Visit | First contentful paint | Loaded | Transferred | `main` before #82 |
 | --- | ---: | ---: | ---: | --- |
@@ -7852,8 +7887,9 @@ are the transferred sizes of every request.
 | "Try with sample data" (POST and redirect) | 4.1 s | 4.4 s | 20.1 KB | 4.1 s, 5.6 s, 77.1 KB |
 | "Continue" to step 2 (POST and redirect) | 4.1 s | 4.1 s | 3.2 KB | 4.1 s, 4.2 s, 9.4 KB |
 
-The station flow is usable on Slow 3G: each step shows in about two round trips once the
-shared files are cached, and the first visit is dominated by latency (connection, HTML,
+The station flow of that time was usable on Slow 3G: each step showed in about two round
+trips once the shared files were cached, and the first visit was dominated by latency
+(connection, HTML,
 then the stylesheets and scripts in parallel), not by bytes. Before #82 the landing page
 was 129.6 KB in local mode, over its budget: neither the HTML nor the static files were
 compressed there. In hosted mode the static files were already compressed, but not the
@@ -7909,8 +7945,8 @@ drawn, the server's chart stays. `data-chart-view` names the view drawn first
 (`?at=1944`, which also selects that row of the values table).
 
 Include it with `only`: otherwise a page variable named like a parameter (`summary`,
-`legend`, `height` ...) leaks into the frame; step 1 and the gridded results both have a
-`summary` of their own.
+`legend`, `height` ...) leaks into the frame; Quality (the station file's summary,
+`summary_context`) and the gridded set-up page both have a `summary` of their own.
 
 `chart_frame` parameters: `id`, `title`, `summary`, `legend`, `height` (CSS length of the
 plot area, default 16rem; the daily chart splits it 60/40 between its panels), `csv_href`,
@@ -7928,7 +7964,7 @@ pages (another session's analysis or job is 404):
 
 | URL name | Path | Payload |
 | --- | --- | --- |
-| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=&flags=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77); `flags=0` leaves the flags and the summary's sentence about them out, for step 1 (#173) |
+| `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=&flags=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77); `flags=0` leaves the flags and the summary's sentence about them out, for the station file's summary that Quality shows before the checks have results (`stations/_summary.html`, #173) |
 | `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
 | `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
 | `charts:sample_daily`, `charts:sample_series` | `/charts/sample/...` | the pattern library's examples (with `PATTERN_LIBRARY` only) |
@@ -8078,9 +8114,11 @@ together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. #283 (the index page's lay
 Overlay the series, #276), and added `chart-readout.js`
 (10.2 KB, 3.7 KB gzipped) for the charts drawn on the server. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
-[Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the
-quality-check results (109.4 KB, #77), a station index's page (68.6 KB, #78) and the
-gridded results (121.6 KB at worst), all under the 300 KB page budget. The results
+[Size budget](#size-budget)): a station's setup page with the sample loaded (57.8 KB
+gzipped in total, measured for #346; it shows no chart today), Quality with the checks
+queued (115.6 KB) and with their results (175.2 KB, #77), a station index's page
+(108.0 KB, 150.0 KB for a monthly index; #78, #283) and the gridded results (112.8 KB on a
+100 x 100 grid), all under the 300 KB page budget. The results
 dashboard (#78) has no chart code: its sparklines are inline SVG.
 
 **Tests** (`tests/test_charts.py`): the vendored files' hashes; `charts.js` makes one

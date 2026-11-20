@@ -427,7 +427,7 @@ strips, worklist and detail pane.
   under a mono line ("TXx · °C · annual values") with "CSV, all stations" (small
   secondary) at the row's end, the text summary, the Overlay chart in its frame across the
   window, the stations not shown and why, then the values table (a column a station).
-- **The gridded frame (the Grid boards; built by #289, #290, #291, #293, #294, #295 and #296, Target: #292 for the rest).**
+- **The gridded frame (the Grid boards; built by #289, #290, #291, #293, #294, #295, #296 and #348, Target: #292 for the rest).**
   A gridded run is a place of its own, like a workspace, not a flow of steps. **Naming:** the header says
   "Gridded" (the data's shape, the field's word: ET-SCI, Climpact for R's "gridded
   indices"); "netCDF" is said where files are chosen (the landing card "Gridded data
@@ -510,7 +510,10 @@ strips, worklist and detail pane.
     Annual / Monthly, the year stepper (Year and Anomaly; a month for a monthly file, the
     scale for SPI and SPEI); one line on what is shown, and under it why Base mean,
     Anomaly and Trend are unavailable when they are (they read the run's `trends.nc`: not
-    for a monthly or day-of-year file, nor a run without it); Download ▾ (Map as PNG, Map
+    for a day-of-year file, nor a run without it). A monthly file has Base mean, Anomaly
+    and the grid mean of the chosen month (#348; the hint names it, "Mean of May in
+    1971–2000.") but no Trend yet ("Trend is of the annual series: choose Annual.");
+    Download ▾ (Map as PNG, Map
     as CSV, the netCDF file), following the view. The map draws every cell (a PNG, one pixel per
     cell, scaled up without smoothing, the cells' aspect from the cosine of the mean
     latitude) under an SVG of the coastline and three to five places from a bundled
@@ -529,7 +532,8 @@ strips, worklist and detail pane.
     browser's workspaces is in the cell, it links to that station's index page. "Mean
     over the grid" (#296) shows the cos-latitude weighted mean of the cells with a value
     the same way, titled "Mean over 1,896 cells", "Weighted by the cosine of latitude;
-    cells with no value left out."; choosing a cell shows the cell again.
+    cells with no value left out." (of the chosen month for a monthly file, #348);
+    choosing a cell shows the cell again.
   - **Files** (#289, `gridded/files.html`) uses the File group pattern, framed, by theme
     (Heat, Cold, Rain, Drought, Other; or by variable needed, or frequency, a GET form),
     the first open, each with "Download these (zip)" beside its summary: Code, Index,

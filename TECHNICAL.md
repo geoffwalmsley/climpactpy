@@ -3134,13 +3134,15 @@ packages/climpact-web/src/climpact_web/
                      indices by variable, the estimates, the summary panel, a file's
                      header as ncdump -h prints it
     maps.py          output files; a layer (one index variable of one file), its values
-                     (read whole and kept, `variable_values`), a cell's series; the
+                     (read whole and kept, `variable_values`; a monthly file's month,
+                     `month_values`), a cell's series; the
                      colour scale by the index's kind and its fixed breaks; the map's
                      frame (north up, west left, the cells' aspect, axes, coastline)
     map_page.py      the Map tab (#295): the rail's entries, the state from the query
                      string, the toolbar, the map, the legend and the cell pane
     map_views.py     the map's Base mean, Anomaly and Trend views and the grid mean
-                     (#296): trends.nc read and kept, each view's field, breaks and
+                     (#296): trends.nc read and kept, a monthly file's month computed
+                     (#348, `month_trends`), each view's field, breaks and
                      scale, the diverging palettes, the dots on Trend
     stages.py        the Map tab while a run calculates (#294): each job's stages from
                      its stages.json, the stages table, the status line, what to change
@@ -7496,13 +7498,31 @@ column.
   annual series only, so the three views (and the grid mean) are offered for an annual
   file, and for SPI and SPEI at the 12-month scale in December (choosing one moves the
   map there; the other scales are then unavailable and Anomaly steps by year); for a
-  monthly file, a day-of-year file, or a run without `trends.nc` (calculated before
-  #290, or with its trends turned off, the job's `trends` false) they are shown
-  unavailable, `aria-disabled`, with the reason in a line under the controls
+  day-of-year file, or a run without `trends.nc` (calculated before #290, or with its
+  trends turned off, the job's `trends` false) they are shown unavailable,
+  `aria-disabled`, with the reason in a line under the controls
   (`map_views.unavailable`). `trends.nc` is read once per index (holding
   `netcdf.LOCK`, as every netCDF read on a request thread) and kept
   (`map_views.CACHE_BYTES`, 128 MB); its base period and trend period come from its
   attributes.
+- *A monthly file's views* (#348). Base mean, Anomaly and the grid mean are of the chosen
+  month, with or without `trends.nc`, computed in the web app from the month's values in
+  every year (`map_views.month_trends`, kept with `trends.nc`'s fields):
+  `climpact.gridded.trends.base_means` over the base period (the job's `base_start` and
+  `base_end`, else the run's), and the cos-latitude weighted mean of each year
+  (`climpact.gridded.trends`' weighted sums, in stripes of rows as `write_grid_trends`
+  reads them), so the numbers are what the core would write for that month's series
+  (`test_a_months_base_mean_and_grid_mean_are_the_cores`). The weights are the Y
+  coordinate's cosine when it is latitude (its standard name or units say so, or its
+  name, `Layer.y_latitude`); the index files hold no other latitude (a projected grid's
+  two-dimensional latitude is in the input), so a month of such a grid has no grid mean,
+  and the note says so. The hint names the month ("Mean of May in 1971–2000."), and the
+  downloads too (`txx_05_base_mean_1971-2000.csv`, `txx_05_grid_mean.csv`). Trend is not
+  offered for a monthly file ("Trend is of the annual series: choose Annual."): a
+  month's Sen's slope on request was measured too slow on a large grid (on a synthetic
+  700 x 900 grid of 60 years, chunked as the core writes it: reading one month 7.5 s,
+  `sen_trends` of its 630,000 cells 4.5 s with 4 threads, 2.7 s with 11, 16.4 s with
+  one), and writing monthly trends into `trends.nc` is left for a decision (#348).
 - *The map.* Every cell, never thinned (the explorer's 2,500-cell cap, `MAX_MAP_CELLS`,
   went with it). `gridded:map_png` (`<id>/map.png`) is the field as an indexed PNG with
   one pixel per cell, north up and west left whatever the order of the file's rows and
@@ -7574,7 +7594,8 @@ column.
   `trends.nc`, the cos-latitude weighted mean of the cells with a value, titled "Mean
   over 1,896 cells" with "Weighted by the cosine of latitude; cells with no value left
   out.", the same chart, statistics, values table and CSV, `txx_grid_mean.csv`;
-  unavailable without `trends.nc`, as the views; choosing a cell shows the cell); the cell's
+  unavailable without `trends.nc`, as the views; for a monthly file the month's, #348;
+  choosing a cell shows the cell); the cell's
   centre in mono as the h2, its place in the grid and its bounds; Go to (a GET form,
   `map_page.parse_goto`: `−33.86, 151.21` or `33.86 S 151.21 E`; outside the grid or
   unreadable it says so). The series: by year, of the chosen month for a monthly file,
@@ -7587,7 +7608,8 @@ column.
   or lowest for TNn, TXn, SPI and SPEI); then the values by year as a table and "This
   series as CSV" (`gridded:series_csv`). Where `trends.nc` has the series (#296), the
   slope, its interval and the base mean are its numbers for the cell, the ones the map
-  shows (`map_page.trends_summary`); otherwise the trend is `climpact.trends.plot_trend`
+  shows (`map_page.trends_summary`; for a monthly file the base mean is the month's,
+  #348); otherwise the trend is `climpact.trends.plot_trend`
   of the series, computed on request, the function `trends.nc` uses (the end-to-end test
   compares them). The chart's line is always computed on request. When a
   station of the browser's workspaces (the same owner token) lies in the cell, a box
@@ -7597,8 +7619,16 @@ column.
   year's map reads and decompresses the whole file. `maps.variable_values` therefore
   reads a variable once, whole, as float32 with fill values and non-finite values (R's
   `-Inf` EHF-HWPS) as NaN, and keeps the most recently used ones in memory up to
-  `maps.CACHE_BYTES` (256 MB; a larger variable is read a step or a cell at a time); the
-  breaks are kept per file. Measured on synthetic files chunked as the core writes them
+  `maps.CACHE_BYTES` (256 MB; a larger variable is read a step or a cell at a time, and
+  remembered as too large, so its header is not opened again to find out); the
+  breaks are kept per file. A monthly variable too large to keep is read a month at a
+  time (#348, `maps.month_values`: the month's step in every year in one strided read,
+  which decompresses the file once) and the month kept with the variables when it fits,
+  so the month's other years, its Base mean and Anomaly need no further read: on the
+  synthetic 700 x 900 monthly grid of 60 years (1.8 GB as float32, 706 MB on disk), the
+  first map of a month takes 8 to 11 s (the read; a machine under load), the month's
+  other years 0.04 s and its Anomaly 0.13 s, where every year's map read the file again
+  (6.4 s) before. Measured on synthetic files chunked as the core writes them
   (60 years of random values, zlib level 4, Apple M-series laptop): a 700 x 900 grid's
   page takes 0.92 s on its first visit (the whole read and the run bar's count of cells
   with data included) and 0.08 s after, its PNG (263 KB) 0.1 s; a global 145 x 192

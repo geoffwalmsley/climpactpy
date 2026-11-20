@@ -1457,6 +1457,44 @@ def test_hosted_runs_and_their_jobs_go_after_the_retention_period(client, settin
     assert not job.output_dir.exists()
 
 
+def test_hosted_run_renamed_after_its_jobs_finished_keeps_them_until_it_expires(client, settings):
+    """#330: a run's jobs (and those of a new start) go with the run, not by their own age:
+    renamed after its jobs finished, a run keeps its results until its own Kept until date,
+    then the run, its jobs and their folders go in the same purge."""
+    settings.WORKSPACE_EXPIRY = True
+    run = sample_run(client)
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, task="thresholds"))
+    run_jobs()
+    run.refresh_from_db()
+    job = run.thresholds_job
+    assert job.status == Status.SUCCEEDED and job.output_dir.is_dir()
+    waiting = Job.objects.create(kind=job.kind, owner=job.owner, status=Status.FAILED)
+    GriddedRun.objects.filter(pk=run.pk).update(next_thresholds_job=waiting)
+    age(run, 8)
+    Job.objects.filter(pk=waiting.pk).update(created_at=timezone.now() - dt.timedelta(days=8))
+
+    response = client.post(f"/gridded/{run.pk}/rename/", {"name": "Renamed grid"})
+    assert response.status_code == 302
+    run.refresh_from_db()
+    assert run.expires_at > timezone.now() + dt.timedelta(days=6)
+    purge_expired()
+    run.refresh_from_db()
+    assert run.thresholds_job_id == job.pk and run.next_thresholds_job_id == waiting.pk
+    assert job.output_dir.is_dir()
+    html = client.get(f"/gridded/{run.pk}/files/").content.decode()
+    assert "listed here once the run has finished" not in html and "Download all" in html
+
+    # The run expires: it and its jobs go together, though the jobs are newer than the period.
+    GriddedRun.objects.filter(pk=run.pk).update(updated_at=timezone.now() - dt.timedelta(days=8))
+    Job.objects.filter(pk__in=[job.pk, waiting.pk]).update(
+        created_at=timezone.now(), finished_at=timezone.now()
+    )
+    purge_expired()
+    assert not GriddedRun.objects.exists()
+    assert not Job.objects.filter(pk__in=[job.pk, waiting.pk]).exists()
+    assert not job.output_dir.exists()
+
+
 def test_local_runs_and_their_jobs_stay_until_forgotten(client, settings):
     """#301: where runs don't expire (WORKSPACE_EXPIRY off, local) the purge keeps a run,
     the jobs it shows (and those of a new start) and their folders, whatever their age;

@@ -5,7 +5,9 @@ current, then the three workspace files (Everything, Trends and Indices of all s
 each with its size), "What is in the zip", the By station table of R's files (a link with
 its size, or why the file is missing), then the provenance file with "Copy methods text"
 beside how long the files are kept. While a station is still being calculated
-the workspace files wait for it. Context from views_files.files_page.
+the workspace files wait for it. "Keeping the files" ends with Keep 7 more days (a plain
+POST, where workspaces expire) and Delete workspace now (the Workspaces list's confirmation
+page, #274). Context from views_files.files_page.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=space_name %}Files: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/copy.js' %}" defer></script>{% endblock %}
@@ -96,6 +98,12 @@ the workspace files wait for it. Context from views_files.files_page.
         <p class="m-0 text-sm">{% if space.expires_at %}{% blocktranslate with date=space.expires_at|date:"j M Y" trimmed %}
           Input files and results are deleted on <b>{{ date }}</b>. Download what you need before then; the provenance file lets you rerun the same calculation.
         {% endblocktranslate %}{% else %}{% translate "Input files and results stay on this computer until you delete them. The provenance file lets you rerun the same calculation." %}{% endif %}</p>
+        <div class="space-files__keep text-sm">
+          {% if space.expires_at %}<form method="post" action="{% url 'stations:workspace_keep' space.pk %}">
+            {% csrf_token %}<button type="submit" class="link-button">{% blocktranslate count days=job_retention_days trimmed %}Keep {{ days }} more day{% plural %}Keep {{ days }} more days{% endblocktranslate %}</button>
+          </form>{% endif %}
+          <a class="space-files__delete" href="{% url 'stations:workspace_delete' space.pk %}?from=files">{% translate "Delete workspace now" %}</a>
+        </div>
       </section>
     </div>
   </div>

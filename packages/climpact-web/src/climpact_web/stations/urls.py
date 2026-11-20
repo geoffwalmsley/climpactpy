@@ -91,6 +91,8 @@ urlpatterns = [
     ),
     path("w/<uuid:workspace_id>/", views_workspace.workspace_page, name="workspace"),
     path("w/<uuid:workspace_id>/delete", views_workspace.delete_workspace, name="workspace_delete"),
+    # "Keep 7 more days" on the workspace's Files (#274; hosted, where workspaces expire).
+    path("w/<uuid:workspace_id>/keep", views_workspace.keep, name="workspace_keep"),
     path(
         "w/<uuid:workspace_id>/progress",
         views_workspace.workspace_progress,

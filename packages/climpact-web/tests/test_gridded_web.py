@@ -1378,6 +1378,28 @@ def test_default_names_and_spacing():
     assert runs.grid_text(runs.grid_summary(unreadable)) == "–"
 
 
+def test_default_name_of_era5_files():
+    """ERA5's daily temperatures are mx2t and mn2t, and the run's chosen variable names are
+    dropped from its name too (#321)."""
+    from climpact_web.gridded import runs
+
+    files = [
+        _info(f"era5_{v}_day_SEA_1991-2010.nc", 47, 55, [-44.0, -32.5], [140.0, 153.5])
+        for v in ("mx2t", "mn2t", "tp")
+    ]
+    era5 = GriddedRun(files=files)
+    assert runs.default_name(era5) == "era5 SEA 0.25°, 1961–2020"
+    era5.names = {"tasmax": "mx2t", "tasmin": "mn2t", "pr": "tp"}
+    assert runs.default_name(era5) == "era5 SEA 0.25°, 1961–2020"
+    era5.files = [_info("era5_t2m_day_SEA.nc", 47, 55, [-44.0, -32.5], [140.0, 153.5])]
+    assert runs.default_name(era5) == "era5 SEA 0.25°, 1961–2020"
+    chosen = GriddedRun(
+        files=[_info("agcd_v1_TXmax_r005_1991.nc", 47, 55, [-44.0, -32.5], [140.0, 153.5])],
+        names={"tasmax": "TXmax", "tasmin": "", "pr": ""},
+    )
+    assert runs.default_name(chosen) == "agcd v1 r005 0.25°, 1961–2020"
+
+
 def test_short_durations():
     from climpact_web.gridded.runs import short_duration
 

@@ -6937,8 +6937,9 @@ and next guide.
 Rendered guides are cached per file version, file language and interface language. The
 Markdown is the app's own text, so it is rendered as trusted HTML. Links use two schemes
 resolved at render time, so guides do not depend on where the app is mounted:
-`guide:<slug>#<anchor>` and `url:<url name>` (a page that does not exist yet, such as
-`gridded:start`, keeps the link text without a link). Tables are wrapped in the table
+`guide:<slug>#<anchor>` and `url:<url name>#<anchor>` (the anchor optional; a page that
+does not exist yet, such as `gridded:start`, keeps the link text without a link). Tables
+are wrapped in the table
 component's scrolling region, named by the heading above the table (#83).
 
 The guides, in order (`GUIDE_ORDER`): preparing a station file (`station-file`), choosing a

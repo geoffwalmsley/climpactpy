@@ -1119,7 +1119,8 @@ def test_sample_run_end_to_end(client, tmp_path):
         f'href="/gridded/{run.pk}/map.png?index=txx&amp;freq=ANN&amp;year=2010&amp;theme=dark"'
         in html
     )
-    assert 'class="segmented__item" aria-disabled="true"' in html  # Base mean ... (#296)
+    # Base mean, Anomaly and Trend from the run's trends.nc (#296).
+    assert "view=trend" in html and 'aria-describedby="gmap-views-note"' not in html
     assert "Selected cell" in html and "Sen&#x27;s slope" in html and "Record" in html
     assert 'name="cell_y"' in html and "<noscript>" in html  # the cell without JavaScript
     assert "uPlot.iife.min.js" in html and 'data-chart-data="cell-chart-data"' in html
@@ -1132,7 +1133,7 @@ def test_sample_run_end_to_end(client, tmp_path):
                                 "scale": 12, "cell": "0,1"}
     ).content.decode()  # fmt: skip
     assert '<span class="gmap-stepper__label" aria-live="polite">Jun 1991</span>' in html
-    assert "The 12-month index in Jun 1991." in html and "ramp-spi" in html
+    assert "The 12-month index in Jun 1991." in html and "ramp-div-wet" in html
     assert 'aria-current="true" data-gmap-nav>12 months</a>' in html
     assert "</span>, June, 1991–2010" in html  # the pane: June of every year
     response = client.get(f"/gridded/{run.pk}/results", {"file": spi, "t": 5})

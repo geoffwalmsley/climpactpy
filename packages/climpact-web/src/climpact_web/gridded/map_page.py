@@ -6,16 +6,22 @@ without JavaScript: ``index`` (a rail entry's key: ``txx``, ``rx3day``, ``hwn_tx
 ``freq`` (``ANN``, ``MON``, ``DAY``), ``year`` and ``month`` (``day`` for a day-of-year
 file), ``scale`` (SPI and SPEI: 3, 6 or 12 months), ``cell`` (the file's ``y,x``; or
 ``cell_y`` and ``cell_x`` from the form without JavaScript, or ``goto``, "lat, lon"),
-``view`` and ``q`` (the rail's Find). Defaults: TXx (else the first index), annual, the
-last year with a value, the 12-month scale, the cell with a value nearest the middle.
+``view`` (``base``, ``anomaly``, ``trend``; Year without), ``series`` (``grid``: the
+pane's "Mean over the grid"; the selected cell without) and ``q`` (the rail's Find).
+Defaults: TXx (else the first index), annual, the last year with a value, the 12-month
+scale, the cell with a value nearest the middle, Year.
 
-The views: :data:`VIEWS` lists Year, Base mean, Anomaly and Trend; only Year is built
-(#295), the others are shown unavailable until #296 builds them from ``trends.nc``. The
-pane's "Mean over the grid" waits for #296 too.
+The views (:data:`VIEWS`, #296, :mod:`climpact_web.gridded.map_views`): Year, Base mean,
+Anomaly and Trend. The last three, and the grid mean, read the run's ``trends.nc``
+(#290): offered for an annual file and for SPI and SPEI (whose views and grid mean are
+of the 12-month scale in December, so choosing one moves the map there); otherwise shown
+unavailable, with the reason under the controls, and an address asking for one shows
+Year.
 
-The cell's statistics are computed here for its series on request, with the station's
-trend (:func:`climpact.trends.plot_trend`): for an annual series the same numbers as the
-run's ``trends.nc`` (#290), which computes each cell's trend with the same function.
+The cell's statistics: from ``trends.nc`` where it has the series (the slope, its
+interval and the base mean the map shows), else computed here for the series on request
+with the station's trend (:func:`climpact.trends.plot_trend`, the function ``trends.nc``
+is computed with, so the numbers are the same). The chart's line is always computed here.
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -32,14 +39,14 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, pgettext
 
 from climpact_web.core import numbers
-from climpact_web.gridded import maps, netcdf
+from climpact_web.gridded import map_views, maps, netcdf
 from climpact_web.gridded.maps import OutputFile
 
 VIEWS = (
-    ("year", gettext_lazy("Year"), True),
-    ("base", gettext_lazy("Base mean"), False),  # #296
-    ("anomaly", gettext_lazy("Anomaly"), False),  # #296
-    ("trend", gettext_lazy("Trend"), False),  # #296
+    ("year", gettext_lazy("Year")),
+    ("base", gettext_lazy("Base mean")),
+    ("anomaly", gettext_lazy("Anomaly")),
+    ("trend", gettext_lazy("Trend")),
 )
 FREQUENCIES = (("ANN", gettext_lazy("Annual")), ("MON", gettext_lazy("Monthly")))
 FREQ_CODES = {"ANN": "ANN", "MON": "MON", "DAY": "DAY"}
@@ -180,6 +187,19 @@ class State:
     q: str = ""
     goto_error: str = ""
     goto: str = ""
+    view: str = "year"
+    series: str = "cell"  # or "grid": the pane's mean over the grid
+    trends: map_views.Trends | None = None  # the layer's in trends.nc
+    unavailable: str = ""  # why there are no trends for the layer
+    trends_path: Path | None = None
+
+    @property
+    def spi_fixed(self) -> bool:
+        """SPI or SPEI at the 12-month scale in December, as trends.nc holds them: for
+        Base mean, Anomaly, Trend and the grid mean."""
+        return bool(self.layer.scales) and (
+            self.view in map_views.TREND_VIEWS or self.series == "grid"
+        )
 
     @property
     def month(self) -> int | None:
@@ -201,6 +221,10 @@ class State:
         if self.layer.scales:
             out["scale"] = self.layer.scales[self.scale]
         out["cell"] = f"{self.cell[0]},{self.cell[1]}"
+        if self.view != "year":
+            out["view"] = self.view
+        if self.series == "grid":
+            out["series"] = "grid"
         if self.q:
             out["q"] = self.q
         out.update(changes)
@@ -270,21 +294,35 @@ def resolve(request, job) -> State | None:
     chosen = entry.files[freq]
     path = job.output_dir / chosen.path
     layer = maps.open_layer(path, chosen.path, entry.variable)
+    # The views and the grid mean (#296): only where trends.nc has the layer's series.
+    unavailable = map_views.unavailable(job, layer, entry.short, "ANN" in entry.files)
+    trends_path = map_views.trends_path(job)
+    trends = None if unavailable else map_views.read_trends(trends_path, layer.variable)
+    if layer.scales and map_views.SPI_SCALE not in layer.scales:
+        trends, unavailable = None, unavailable or _("This file has no 12-month scale.")
+    view = q.get("view") if q.get("view") in map_views.VIEWS and trends is not None else "year"
+    series = "grid" if q.get("series") == "grid" and trends is not None else "cell"
+    spi_fixed = bool(layer.scales) and (view in map_views.TREND_VIEWS or series == "grid")
     scale = 0
     if layer.scales:
         wanted = q.get("scale") or ("12" if "12" in layer.scales else layer.scales[0])
+        if spi_fixed:
+            wanted = map_views.SPI_SCALE
         scale = layer.scales.index(wanted) if wanted in layer.scales else 0
+    month_wanted = map_views.SPI_MONTH if spi_fixed else _int(q.get("month"))
     t = None
     if layer.freq == "DAY":
         day = q.get("day")
         t = layer.times.index(day) if day in layer.times else None
     else:
-        t = layer.step_of(_int(q.get("year")), _int(q.get("month")))
+        t = layer.step_of(_int(q.get("year")), month_wanted)
     if t is None and q.get("t") is not None:  # the old explorer's time step
         n = _int(q.get("t"))
         t = n if n is not None and 0 <= n < len(layer.times) else None
+    if t is not None and spi_fixed and layer.months[t] != map_views.SPI_MONTH:
+        t = None  # the old explorer's time step, in a month trends.nc does not hold
     if t is None:
-        month = (_int(q.get("month")) or 12) if layer.months else None
+        month = (month_wanted or 12) if layer.months else None
         t = maps.last_step_with_values(path, layer, scale, month)
     ny, nx = len(layer.lat), len(layer.lon)
     goto, goto_error = q.get("goto", "").strip(), ""
@@ -310,7 +348,8 @@ def resolve(request, job) -> State | None:
         else:
             cell = (ny // 2, nx // 2)
     return State(entry, freq, chosen, layer, t, scale, cell, q.get("q", "")[:100],
-                 goto_error, goto if goto_error else "")  # fmt: skip
+                 goto_error, goto if goto_error else "", view, series, trends, unavailable,
+                 trends_path)  # fmt: skip
 
 
 # ---- The page ----------------------------------------------------------------------------------
@@ -360,10 +399,10 @@ def context(request, run, job) -> dict:
     def endpoint(name: str, **changes) -> str:
         return f"{reverse(name, args=[run.pk])}?{urlencode(s.query(**changes))}"
 
-    values = maps.grid_values(path, layer, s.t, s.scale)
     units = _units(layer)
-    kind = maps.kind_of(entry.short, layer.units, entry.theme)
-    edges = maps.edges_for(path, layer, kind, s.scale, s.month)
+    shown_field = view_field(s, path)
+    values = shown_field.values
+    edges = shown_field.edges
     f = maps.frame(layer)
     finite = values[np.isfinite(values)]
 
@@ -374,8 +413,13 @@ def context(request, run, job) -> dict:
         return page(**keep)
 
     # Time: the stepper's previous and next steps (of the same month for a monthly file:
-    # months step by month), the label.
+    # months step by month; SPI's Anomaly by year, in December), the label. Base mean and
+    # Trend have no stepper.
     def step_link(t: int) -> str | None:
+        if s.spi_fixed:
+            t = layer.step_of(s.year + (1 if t > s.t else -1), map_views.SPI_MONTH)
+            if t is None:
+                return None
         if not 0 <= t < len(layer.times):
             return None
         if layer.freq == "DAY":
@@ -396,54 +440,85 @@ def context(request, run, job) -> dict:
                 "url": page(freq=code, month=12 if code == "MON" else None) if available else "",
             }
         )
+    # SPI and SPEI's views and grid mean are of the 12-month scale in December.
+    to_annual = {"scale": map_views.SPI_SCALE, "month": map_views.SPI_MONTH} if layer.scales else {}
     views = [
         {
             "key": key,
             "label": str(name),
-            "current": key == "year",
-            "available": available,
-            "url": page() if available else "",
+            "current": key == s.view,
+            "available": key == "year" or s.trends is not None,
+            "url": page(view=None) if key == "year" else page(view=key, **to_annual)
+            if s.trends is not None else "",
         }
-        for key, name, available in VIEWS
-    ]
+        for key, name in VIEWS
+    ]  # fmt: skip
     scales = [
         {"label": _("%(months)s months") % {"months": m}, "current": i == s.scale,
-         "url": page(scale=m)}
+         "url": page(scale=m) if not s.spi_fixed or m == map_views.SPI_SCALE else ""}
         for i, m in enumerate(layer.scales)
     ]  # fmt: skip
-    if layer.freq == "DAY":
+    base = (s.trends.base if s.trends else None) or base_period(run)
+    period = s.trends.period if s.trends else None
+    base_years = f"{base[0]}–{base[1]}" if base else ""
+    trend_years = f"{period[0]}–{period[1]}" if period else ""
+    if s.view == "base":
+        hint = _("Mean of %(years)s.") % {"years": base_years}
+        what = _("base mean %(years)s") % {"years": base_years}
+    elif s.view == "anomaly":
+        hint = _("%(when)s minus the %(years)s mean.") % {"when": label, "years": base_years}
+        what = _("anomaly %(when)s") % {"when": label}
+    elif s.view == "trend":
+        hint = _("Sen's slope per decade, %(years)s.") % {"years": trend_years}
+        what = _("trend %(years)s") % {"years": trend_years}
+    elif layer.freq == "DAY":
         hint = _("The threshold on %(when)s.") % {"when": label}
+        what = label
     elif layer.scales:
         hint = _("The %(months)s-month index in %(when)s.") % {
             "months": layer.scales[s.scale],
             "when": label,
         }
+        what = label
     else:
         hint = _("The value in %(when)s.") % {"when": label}
+        what = label
 
-    unit_label = numbers.unit_label(units)
-    legend_title = f"{entry.code}, {label}" + (f" ({unit_label})" if unit_label else "")
+    unit_label = per_decade_units(units) if s.view == "trend" else numbers.unit_label(units)
+    legend_title = f"{entry.code}, {what}" + (f" ({unit_label})" if unit_label else "")
     shown = (
         _("Cells with a value: %(low)s to %(high)s")
         % {"low": numbers.number(float(finite.min())), "high": numbers.number(float(finite.max()))}
         if finite.size
         else _("No cell has a value in %(when)s.") % {"when": label}
-    )
+        if s.view in ("year", "anomaly")
+        else _("No cell has a value.")
+    )  # fmt: skip
+    dots = None
+    if shown_field.significant is not None:
+        with_trend = int(np.isfinite(values).sum())
+        dots = _("Dot: the 95%% interval excludes zero (%(count)s of %(total)s cells)") % {
+            "count": numbers.grouped(int((shown_field.significant & np.isfinite(values)).sum())),
+            "total": numbers.grouped(with_trend),
+        }
     legend = {
-        "kind": kind,
+        "kind": shown_field.scale,
         "title": legend_title,
         "range": shown,
         "bins": list(range(len(edges) - 1)) if edges else [],
         "ticks": maps.legend_ticks(edges) if edges else [],
         "has_missing": bool(np.isnan(values).any()),
+        "dots": dots,
     }
     map_label = _("Map of %(code)s, %(when)s: %(count)s cells.") % {
         "code": entry.code,
-        "when": label,
+        "when": what,
         "count": numbers.grouped(values.size),
     }
     if finite.size:
         map_label += " " + shown + (f" {unit_label}." if unit_label else ".")
+    if dots:
+        map_label += " " + dots + "."
     rect = f.cell_rect(*s.cell)
     grid = {
         "nx": f.nx,
@@ -457,13 +532,23 @@ def context(request, run, job) -> dict:
         "lat": [cell_title_part(v, "N", layer.geographic) for v in layer.lat],
         "lon": [cell_title_part(v, "E", layer.geographic) for v in layer.lon],
         "cell": list(s.cell),
-        "values": endpoint("gridded:map_values", cell=None, q=None),
+        "values": endpoint("gridded:map_values", cell=None, q=None, series=None),
         "page": page(cell=None),
         "code": entry.code,
+        "what": {"base": _("base mean"), "anomaly": _("anomaly"), "trend": _("trend")}.get(
+            s.view, ""
+        ),
+        "signed": s.view in ("anomaly", "trend"),
         "units": unit_label,
         "noValue": _("no value"),
+        "significant": _("significant") if s.view == "trend" else "",
+        "notSignificant": _("not significant") if s.view == "trend" else "",
         "roledescription": _("map"),
         "selected": _("Selected: %(where)s"),
+    }
+    series_links = {
+        "cell": page(series=None),
+        "grid": page(series="grid", **to_annual) if s.trends is not None else "",
     }
     return {
         "map_state": s,
@@ -478,19 +563,25 @@ def context(request, run, job) -> dict:
         "layer": layer,
         "file": s.file,
         "views": views,
+        "unavailable": s.unavailable,
         "freq_links": freq_links,
         "scales": scales,
-        "time": {"label": label, "prev": step_link(s.t - 1), "next": step_link(s.t + 1)},
+        "time": {
+            "label": label,
+            "prev": step_link(s.t - 1),
+            "next": step_link(s.t + 1),
+            "shown": s.view in ("year", "anomaly"),
+        },
         "hint": hint,
         "downloads": {
-            "png": endpoint("gridded:map_png", download="1", cell=None, q=None),
-            "csv": endpoint("gridded:map_csv", cell=None, q=None),
+            "png": endpoint("gridded:map_png", download="1", cell=None, q=None, series=None),
+            "csv": endpoint("gridded:map_csv", cell=None, q=None, series=None),
             "nc": reverse("gridded:file", args=[run.pk, s.file.path]),
         },
         "frame": f,
         "raster": {
-            "light": endpoint("gridded:map_png", theme="light", cell=None, q=None),
-            "dark": endpoint("gridded:map_png", theme="dark", cell=None, q=None),
+            "light": endpoint("gridded:map_png", theme="light", cell=None, q=None, series=None),
+            "dark": endpoint("gridded:map_png", theme="dark", cell=None, q=None, series=None),
         },
         "selected_rect": rect,
         "legend": legend,
@@ -504,9 +595,23 @@ def context(request, run, job) -> dict:
             {"value": x, "label": cell_title_part(v, "E", layer.geographic)}
             for x, v in enumerate(layer.lon)
         ],
-        "form_hidden": s.query(cell=None, q=None),
+        # Choosing a cell (Go to, the form without JavaScript) shows the cell's series.
+        "form_hidden": s.query(cell=None, q=None, series=None),
+        "series_links": series_links,
         "pane": pane(request, run, s, path, units, page, endpoint),
     }
+
+
+def view_field(s: State, path) -> map_views.Field:
+    """What the map draws for the state: its view's values, bins and scale."""
+    kind = maps.kind_of(s.entry.short, s.layer.units, s.entry.theme)
+    return map_views.field(path, s.layer, kind, s.view, s.t, s.scale, s.month, s.trends)
+
+
+def per_decade_units(units: str) -> str:
+    """A slope's units: ``°C/decade``, ``pp/decade`` (a percentage), ``per decade``."""
+    change = numbers.trend_units(units)
+    return _("%(units)s/decade") % {"units": change} if change else _("per decade")
 
 
 def cell_title_part(value: float, positive: str, geographic: bool) -> str:
@@ -541,10 +646,45 @@ def base_period(run) -> tuple[int, int] | None:
         return None
 
 
+def cells_with_values(path, s: State) -> int:
+    """How many cells have a value in any year of the pane's series."""
+    layer = s.layer
+    whole = maps.variable_values(path, layer, s.scale)
+    if whole is None and s.trends is not None:
+        return int((np.isfinite(s.trends.base_mean) | np.isfinite(s.trends.slope)).sum())
+    found = np.zeros((len(layer.lat), len(layer.lon)), bool)
+    for t in range(len(layer.times)):
+        if not layer.months or layer.months[t] == s.month:
+            step = whole[t] if whole is not None else maps.grid_values(path, layer, t, s.scale)
+            found |= np.isfinite(step)
+    return int(found.sum())
+
+
+def trends_summary(trends: map_views.Trends, cell: tuple[int, int], units: str) -> dict:
+    """A cell's trend from trends.nc, as :func:`stations.results.trend_summary` gives a
+    series': per decade, the 95% bounds and whether the interval excludes zero."""
+    y, x = cell
+    slope, lower, upper = (float(a[y, x]) for a in (trends.slope, trends.lower, trends.upper))
+    if not math.isfinite(slope):
+        return {"valid": False}
+    units = numbers.unit_label(units)
+    return {
+        "valid": True,
+        "slope": slope,
+        "lower": lower,
+        "upper": upper,
+        "slope_text": numbers.slope(slope, units),
+        "per_decade_text": numbers.per_decade(slope, units),
+        "interval_text": numbers.interval(lower, upper, units),
+        "significant": lower > 0 or upper < 0,
+        "direction": "up" if slope > 0 else "down" if slope < 0 else "flat",
+    }
+
+
 def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
     """The cell pane: the cell's centre, index and bounds, its series as a chart, the
     statistics in the station pane's order, the values by year and the stations of the
-    browser's workspaces in the cell."""
+    browser's workspaces in the cell; or the same for the mean over the grid (#296)."""
     from climpact.plots import IndexPlot
     from climpact.trends import plot_trend
     from climpact_web.stations import index_page
@@ -552,7 +692,12 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
     from climpact_web.stations.themes import hue_of
 
     layer, entry = s.layer, s.entry
-    values, x, step = _series(path, s)
+    grid_mean = s.series == "grid" and s.trends is not None
+    if grid_mean:
+        values = np.asarray(s.trends.grid_mean, dtype=float)
+        x, step = np.array([float(y) for y in s.trends.years]), "year"
+    else:
+        values, x, step = _series(path, s)
     bars = layer.freq == "MON" and bool(layer.scales)
     has_values = bool(np.isfinite(values).any())
     trend = plot_trend(values) if step == "year" and has_values else None
@@ -567,7 +712,10 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
         trend=trend,
     )
     summary = trend_summary(plot) if trend is not None else None
-    base = base_period(run) if step == "year" else None
+    from_file = s.trends is not None and not grid_mean and step == "year"
+    if from_file:  # the numbers the map shows
+        summary = trends_summary(s.trends, s.cell, units)
+    base = ((s.trends.base if s.trends else None) or base_period(run)) if step == "year" else None
     card = SimpleNamespace(code=entry.code, units=units, key=entry.short, trend=summary)
     when = time_label(layer, s.t)
     series_word = (
@@ -577,6 +725,7 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
     y, xi = s.cell
     south, north, west, east = maps.cell_bounds(layer, y, xi)
     out: dict = {
+        "series": "grid" if grid_mean else "cell",
         "title": cell_title(layer, s.cell),
         "sub": _(
             "Cell %(row)s, %(col)s of %(rows)s × %(cols)s · %(south)s to %(north)s lat, "
@@ -611,15 +760,23 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
         "csv": endpoint("gridded:series_csv", q=None),
         "goto_error": s.goto_error,
         "goto": s.goto,
-        "stations": stations_in_cell(request, layer, s, entry),
+        "stations": [] if grid_mean else stations_in_cell(request, layer, s, entry),
         "trend_word": step == "year",
         "hue": hue_of(entry.theme),
     }
+    if grid_mean:
+        out["title"] = _("Mean over %(count)s cells") % {
+            "count": numbers.grouped(cells_with_values(path, s))
+        }
+        out["sub"] = _("Weighted by the cosine of latitude; cells with no value left out.")
     if not has_values:
         return out
     present = [(float(v), i) for i, v in enumerate(values) if math.isfinite(v)]
     mean = None
-    if base:
+    if from_file:
+        cell_mean = float(s.trends.base_mean[y, xi])
+        mean = cell_mean if math.isfinite(cell_mean) else None
+    elif base:
         chosen = [v for v, i in present if base[0] <= x[i] <= base[1]]
         mean = sum(chosen) / len(chosen) if chosen else None
     at = None

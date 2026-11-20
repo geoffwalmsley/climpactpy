@@ -1069,6 +1069,15 @@
     font-size: var(--text-sm);
   }
 
+  /* Why Base mean, Anomaly, Trend and the grid mean are unavailable (#296): a line of its
+     own under the controls. */
+  .gmap-controls__note {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
   .gmap-stepper {
     display: inline-flex;
     gap: --spacing(1.5);
@@ -1249,8 +1258,9 @@
   }
 
   /* The legend: the bins with their breaks, the cells' range and "No value". Each scale
-     sets --ramp-1 ... --ramp-8 from its tokens; SPI and SPEI take the seven-step
-     diverging scale, dry red and wet blue. */
+     sets --ramp-1 ... --ramp-8 from its tokens: the sequential scales by the index's
+     kind; the diverging ones (#296) for Anomaly, Trend, and SPI and SPEI, -r reversed
+     for the indices where more means cooler or drier. */
   .gmap-legend {
     display: grid;
     gap: --spacing(1);
@@ -1305,12 +1315,25 @@
     list-style: none;
   }
 
-  .gmap-legend__none {
+  .gmap-legend__key {
+    display: inline-flex;
+    gap: --spacing(1.5);
+    align-items: center;
+  }
+
+  .gmap-legend__none,
+  .gmap-legend__dot {
     display: inline-block;
     inline-size: 0.875rem;
     block-size: 0.625rem;
     border: 1px solid var(--color-border-strong);
     background: var(--color-surface-sunken);
+  }
+
+  /* On Trend (#296): a cell of the scale's strong increase with its dot. */
+  .gmap-legend__dot {
+    border-color: var(--color-border);
+    background: radial-gradient(circle, var(--color-text) 1.5px, transparent 2px), var(--ramp-6);
   }
 
   .ramp-temp {
@@ -1348,11 +1371,32 @@
     --ramp-7: var(--map-seq-dry-7); --ramp-8: var(--map-seq-dry-8);
   }
 
-  .ramp-spi {
-    --ramp-1: var(--chart-div-7); --ramp-2: var(--chart-div-6);
-    --ramp-3: var(--chart-div-5); --ramp-4: var(--chart-div-4);
-    --ramp-5: var(--chart-div-3); --ramp-6: var(--chart-div-2);
-    --ramp-7: var(--chart-div-1);
+  .ramp-div-temp {
+    --ramp-1: var(--map-div-temp-1); --ramp-2: var(--map-div-temp-2);
+    --ramp-3: var(--map-div-temp-3); --ramp-4: var(--map-div-temp-4);
+    --ramp-5: var(--map-div-temp-5); --ramp-6: var(--map-div-temp-6);
+    --ramp-7: var(--map-div-temp-7); --ramp-8: var(--map-div-temp-8);
+  }
+
+  .ramp-div-temp-r {
+    --ramp-1: var(--map-div-temp-8); --ramp-2: var(--map-div-temp-7);
+    --ramp-3: var(--map-div-temp-6); --ramp-4: var(--map-div-temp-5);
+    --ramp-5: var(--map-div-temp-4); --ramp-6: var(--map-div-temp-3);
+    --ramp-7: var(--map-div-temp-2); --ramp-8: var(--map-div-temp-1);
+  }
+
+  .ramp-div-wet {
+    --ramp-1: var(--map-div-wet-1); --ramp-2: var(--map-div-wet-2);
+    --ramp-3: var(--map-div-wet-3); --ramp-4: var(--map-div-wet-4);
+    --ramp-5: var(--map-div-wet-5); --ramp-6: var(--map-div-wet-6);
+    --ramp-7: var(--map-div-wet-7); --ramp-8: var(--map-div-wet-8);
+  }
+
+  .ramp-div-wet-r {
+    --ramp-1: var(--map-div-wet-8); --ramp-2: var(--map-div-wet-7);
+    --ramp-3: var(--map-div-wet-6); --ramp-4: var(--map-div-wet-5);
+    --ramp-5: var(--map-div-wet-4); --ramp-6: var(--map-div-wet-3);
+    --ramp-7: var(--map-div-wet-2); --ramp-8: var(--map-div-wet-1);
   }
 
   /* The cell pane: like the Indices' detail pane. */

@@ -114,6 +114,28 @@
   --map-seq-dry-6: #9b5010;
   --map-seq-dry-7: #71380d;
   --map-seq-dry-8: #492107;
+  /* The gridded map's diverging scales (#296): eight bins symmetric about zero, for the
+     Anomaly and Trend views and SPI and SPEI: temperature (blue for cooler, red for
+     warmer) and wet (brown for drier, teal for wetter), reversed for the indices where
+     more means cooler or drier. Paler towards zero here, darker towards it on dark;
+     each bin apart from --color-surface-sunken and from its neighbours under protanopia
+     and deuteranopia (test_map_scales_stand_apart). */
+  --map-div-temp-1: #1d4f91;
+  --map-div-temp-2: #3b7cc4;
+  --map-div-temp-3: #7fb0de;
+  --map-div-temp-4: #accdee;
+  --map-div-temp-5: #f3b897;
+  --map-div-temp-6: #e98c62;
+  --map-div-temp-7: #c84b2f;
+  --map-div-temp-8: #8c1d1f;
+  --map-div-wet-1: #6e4210;
+  --map-div-wet-2: #a86c22;
+  --map-div-wet-3: #d5a75e;
+  --map-div-wet-4: #e8c582;
+  --map-div-wet-5: #94d4c7;
+  --map-div-wet-6: #5fb9ab;
+  --map-div-wet-7: #1f8a7e;
+  --map-div-wet-8: #0b544d;
   --chart-div-1: #184f95;
   --chart-div-2: #5598e7;
   --chart-div-3: #b7d3f6;

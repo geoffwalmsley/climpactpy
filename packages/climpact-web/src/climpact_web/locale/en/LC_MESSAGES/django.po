@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 19:22+0000\n"
+"POT-Creation-Date: 2026-11-20 19:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -400,7 +400,7 @@ msgstr ""
 msgid "Calendar day"
 msgstr ""
 
-#: charts/data.py:402 gridded/templates/gridded/_cell_pane.html:61
+#: charts/data.py:402 gridded/templates/gridded/_cell_pane.html:64
 #: stations/views_indices.py:743
 msgid "Day"
 msgstr ""
@@ -409,7 +409,7 @@ msgstr ""
 msgid "Sen's slope trend"
 msgstr ""
 
-#: charts/data.py:430 gridded/map_page.py:322 gridded/map_page.py:708
+#: charts/data.py:430 gridded/map_page.py:361 gridded/map_page.py:865
 #: stations/index_detail.py:170
 #, python-format
 msgid "day %(n)s"
@@ -499,9 +499,9 @@ msgstr ""
 msgid "Date"
 msgstr ""
 
-#: charts/templatetags/charts.py:48 core/views.py:318 gridded/map_page.py:39
-#: gridded/templates/gridded/_cell_pane.html:61
-#: gridded/templates/gridded/_map.html:58
+#: charts/templatetags/charts.py:48 core/views.py:318 gridded/map_page.py:46
+#: gridded/templates/gridded/_cell_pane.html:64
+#: gridded/templates/gridded/_map.html:61
 #: stations/templates/stations/_overlay_chart.html:66
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
@@ -510,13 +510,13 @@ msgstr ""
 msgid "Year"
 msgstr ""
 
-#: charts/templatetags/charts.py:49 gridded/templates/gridded/_map.html:58
+#: charts/templatetags/charts.py:49 gridded/templates/gridded/_map.html:61
 #: stations/templates/stations/_overlay_chart.html:66
 #: stations/views_indices.py:743
 msgid "Month"
 msgstr ""
 
-#: charts/templatetags/charts.py:50 gridded/templates/gridded/_map.html:58
+#: charts/templatetags/charts.py:50 gridded/templates/gridded/_map.html:61
 #: stations/results.py:243
 msgid "Day of the year"
 msgstr ""
@@ -530,7 +530,7 @@ msgid "Flagged"
 msgstr ""
 
 #: charts/templatetags/charts.py:53 core/templates/core/patterns.html:244
-#: gridded/map_page.py:42 stations/templates/stations/result.html:73
+#: gridded/map_page.py:49 stations/templates/stations/result.html:73
 msgid "Trend"
 msgstr ""
 
@@ -590,7 +590,7 @@ msgstr ""
 msgid "Least squares"
 msgstr ""
 
-#: core/forms.py:28 gridded/map_page.py:645 help/topics.py:435
+#: core/forms.py:28 gridded/map_page.py:802 help/topics.py:435
 #: stations/templates/stations/result.html:75
 msgid "Sen's slope"
 msgstr ""
@@ -864,7 +864,7 @@ msgid "CSV"
 msgstr ""
 
 #: core/templates/components/chart_frame.html:27
-#: gridded/templates/gridded/_cell_pane.html:42
+#: gridded/templates/gridded/_cell_pane.html:45
 #: stations/templates/stations/_index_chart_tools.html:7
 #: stations/templates/stations/_index_detail.html:23
 #: stations/templates/stations/_overlay_chart.html:49
@@ -1179,12 +1179,12 @@ msgstr ""
 msgid "(%(interval)s)"
 msgstr ""
 
-#: core/templates/core/home.html:52
+#: core/templates/core/home.html:52 gridded/map_page.py:545
 msgid "not significant"
 msgstr ""
 
 #: core/templates/core/home.html:56
-#: gridded/templates/gridded/_cell_pane.html:33 stations/index_page.py:423
+#: gridded/templates/gridded/_cell_pane.html:36 stations/index_page.py:423
 #: stations/templates/stations/_index_chart.html:10
 #: stations/templates/stations/_index_detail.html:24
 msgid "base period"
@@ -1226,7 +1226,7 @@ msgstr ""
 msgid "95%% interval"
 msgstr ""
 
-#: core/templates/core/home.html:69 core/views.py:681 gridded/map_page.py:654
+#: core/templates/core/home.html:69 core/views.py:681 gridded/map_page.py:811
 #: stations/templates/stations/_index_detail.html:41
 #: stations/templates/stations/_overview.html:46
 #: stations/templates/stations/result.html:77 stations/views_indices.py:400
@@ -1552,7 +1552,7 @@ msgstr ""
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:261
 #: core/views.py:384 gridded/forms.py:154 gridded/setup_page.py:760
 #: gridded/stages.py:353 gridded/stages.py:740 gridded/stages.py:747
-#: gridded/templates/gridded/_map.html:12
+#: gridded/templates/gridded/_map.html:15
 #: gridded/templates/gridded/setup.html:117 help/topics.py:71
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:465
@@ -1994,12 +1994,12 @@ msgid "Period"
 msgstr ""
 
 #: core/templates/core/patterns.html:278 core/views.py:311
-#: gridded/map_page.py:44 gridded/runs.py:470 stations/views_indices.py:730
+#: gridded/map_page.py:51 gridded/runs.py:470 stations/views_indices.py:730
 msgid "Annual"
 msgstr ""
 
 #: core/templates/core/patterns.html:278 core/views.py:312
-#: gridded/map_page.py:44 gridded/runs.py:471 stations/results.py:241
+#: gridded/map_page.py:51 gridded/runs.py:471 stations/results.py:241
 #: stations/views_indices.py:730
 msgid "Monthly"
 msgstr ""
@@ -3592,151 +3592,257 @@ msgstr ""
 msgid "not a thresholds file"
 msgstr ""
 
-#: gridded/map_page.py:40 gridded/map_page.py:659
+#: gridded/map_page.py:47 gridded/map_page.py:816
 msgid "Base mean"
 msgstr ""
 
-#: gridded/map_page.py:41 gridded/templates/gridded/_cell_pane.html:61
+#: gridded/map_page.py:48 gridded/templates/gridded/_cell_pane.html:64
 #: stations/index_page.py:238 stations/index_page.py:398
 #: stations/index_page.py:448 stations/templates/stations/result.html:98
 msgid "Anomaly"
 msgstr ""
 
-#: gridded/map_page.py:296
+#: gridded/map_page.py:302
+msgid "This file has no 12-month scale."
+msgstr ""
+
+#: gridded/map_page.py:334
 msgid "Write a latitude and a longitude, such as −33.86, 151.21."
 msgstr ""
 
-#: gridded/map_page.py:298
+#: gridded/map_page.py:336
 msgid "That point is outside the grid."
 msgstr ""
 
-#: gridded/map_page.py:410
+#: gridded/map_page.py:457
 #, python-format
 msgid "%(months)s months"
 msgstr ""
 
-#: gridded/map_page.py:415
+#: gridded/map_page.py:466
+#, python-format
+msgid "Mean of %(years)s."
+msgstr ""
+
+#: gridded/map_page.py:467
+#, python-format
+msgid "base mean %(years)s"
+msgstr ""
+
+#: gridded/map_page.py:469
+#, python-format
+msgid "%(when)s minus the %(years)s mean."
+msgstr ""
+
+#: gridded/map_page.py:470
+#, python-format
+msgid "anomaly %(when)s"
+msgstr ""
+
+#: gridded/map_page.py:472
+#, python-format
+msgid "Sen's slope per decade, %(years)s."
+msgstr ""
+
+#: gridded/map_page.py:473
+#, python-format
+msgid "trend %(years)s"
+msgstr ""
+
+#: gridded/map_page.py:475
 #, python-format
 msgid "The threshold on %(when)s."
 msgstr ""
 
-#: gridded/map_page.py:417
+#: gridded/map_page.py:478
 #, python-format
 msgid "The %(months)s-month index in %(when)s."
 msgstr ""
 
-#: gridded/map_page.py:422
+#: gridded/map_page.py:484
 #, python-format
 msgid "The value in %(when)s."
 msgstr ""
 
-#: gridded/map_page.py:427
+#: gridded/map_page.py:490
 #, python-format
 msgid "Cells with a value: %(low)s to %(high)s"
 msgstr ""
 
-#: gridded/map_page.py:430
+#: gridded/map_page.py:493
 #, python-format
 msgid "No cell has a value in %(when)s."
 msgstr ""
 
-#: gridded/map_page.py:440
+#: gridded/map_page.py:495
+msgid "No cell has a value."
+msgstr ""
+
+#: gridded/map_page.py:500
+#, python-format
+msgid "Dot: the 95%% interval excludes zero (%(count)s of %(total)s cells)"
+msgstr ""
+
+#: gridded/map_page.py:513
 #, python-format
 msgid "Map of %(code)s, %(when)s: %(count)s cells."
 msgstr ""
 
-#: gridded/map_page.py:464 stations/index_detail.py:173
+#: gridded/map_page.py:538 gridded/views.py:1038
+msgid "base mean"
+msgstr ""
+
+#: gridded/map_page.py:538 gridded/views.py:1038
+msgid "anomaly"
+msgstr ""
+
+#: gridded/map_page.py:538 gridded/views.py:1038
+msgid "trend"
+msgstr ""
+
+#: gridded/map_page.py:543 stations/index_detail.py:173
 msgid "no value"
 msgstr ""
 
-#: gridded/map_page.py:465
+#: gridded/map_page.py:544
+msgid "significant"
+msgstr ""
+
+#: gridded/map_page.py:546
 msgid "map"
 msgstr ""
 
-#: gridded/map_page.py:466
+#: gridded/map_page.py:547
 #, python-format
 msgid "Selected: %(where)s"
 msgstr ""
 
-#: gridded/map_page.py:574
+#: gridded/map_page.py:614
+#, python-format
+msgid "%(units)s/decade"
+msgstr ""
+
+#: gridded/map_page.py:614
+msgid "per decade"
+msgstr ""
+
+#: gridded/map_page.py:722
 msgctxt "series"
 msgid "annual"
 msgstr ""
 
-#: gridded/map_page.py:575
+#: gridded/map_page.py:723
 msgid "by day of the year"
 msgstr ""
 
-#: gridded/map_page.py:582
+#: gridded/map_page.py:731
 #, python-format
 msgid ""
 "Cell %(row)s, %(col)s of %(rows)s × %(cols)s · %(south)s to %(north)s lat, "
 "%(west)s to %(east)s lon"
 msgstr ""
 
-#: gridded/map_page.py:595
+#: gridded/map_page.py:744
 #, python-format
 msgid "%(code)s, %(series)s, %(first)s–%(last)s"
 msgstr ""
 
-#: gridded/map_page.py:602
+#: gridded/map_page.py:751
 #, python-format
 msgid ", %(series)s, %(first)s–%(last)s"
 msgstr ""
 
-#: gridded/map_page.py:641 stations/templates/stations/_index_detail.html:41
+#: gridded/map_page.py:768
+#, python-format
+msgid "Mean over %(count)s cells"
+msgstr ""
+
+#: gridded/map_page.py:771
+msgid "Weighted by the cosine of latitude; cells with no value left out."
+msgstr ""
+
+#: gridded/map_page.py:798 stations/templates/stations/_index_detail.html:41
 msgid "Yes: the interval excludes zero"
 msgstr ""
 
-#: gridded/map_page.py:641 stations/templates/stations/_index_detail.html:41
+#: gridded/map_page.py:798 stations/templates/stations/_index_detail.html:41
 msgid "No"
 msgstr ""
 
-#: gridded/map_page.py:646 stations/templates/stations/_index_detail.html:38
+#: gridded/map_page.py:803 stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_indices.html:72
 #: stations/templates/stations/result.html:75
 msgid "Too few values"
 msgstr ""
 
-#: gridded/map_page.py:650
+#: gridded/map_page.py:807
 msgid "95% interval"
 msgstr ""
 
-#: gridded/map_page.py:668
+#: gridded/map_page.py:825
 #, python-format
 msgid "(anomaly %(value)s)"
 msgstr ""
 
-#: gridded/map_page.py:673 gridded/templates/gridded/_map.html:93
-#: gridded/views.py:1017 stations/index_page.py:524
+#: gridded/map_page.py:830 gridded/templates/gridded/_map.html:97
+#: gridded/views.py:1052 stations/index_page.py:524
 msgid "No value"
 msgstr ""
 
-#: gridded/map_page.py:678
+#: gridded/map_page.py:835
 #, python-format
 msgid "%(value)s in %(year)s (lowest)"
 msgstr ""
 
-#: gridded/map_page.py:678
+#: gridded/map_page.py:835
 #, python-format
 msgid "%(value)s in %(year)s (highest)"
 msgstr ""
 
-#: gridded/map_page.py:682 stations/index_page.py:603
+#: gridded/map_page.py:839 stations/index_page.py:603
 #: stations/templates/stations/result.html:80
 msgid "Record"
 msgstr ""
 
-#: gridded/map_page.py:719
+#: gridded/map_page.py:876
 #, python-format
 msgid ""
 "%(code)s, %(series)s, at %(where)s from %(first)s to %(last)s. Lowest "
 "%(low)s in %(low_when)s, highest %(high)s in %(high_when)s."
 msgstr ""
 
-#: gridded/map_page.py:733 stations/index_detail.py:206
+#: gridded/map_page.py:890 stations/index_detail.py:206
 #, python-format
 msgid "Sen's slope %(slope)s, 95%% interval %(interval)s."
+msgstr ""
+
+#: gridded/map_views.py:157
+msgid "Base mean, Anomaly and Trend are of an index's years, not of its days."
+msgstr ""
+
+#: gridded/map_views.py:162
+msgid ""
+"This run was calculated without its trends, so it has no base mean, anomaly "
+"or trend."
+msgstr ""
+
+#: gridded/map_views.py:166
+msgid ""
+"This run has no trends file (trends.nc): it was calculated before Climpact "
+"wrote one. Start it again on Set-up to add one."
+msgstr ""
+
+#: gridded/map_views.py:171
+msgid "Base mean, Anomaly and Trend are of the annual series: choose Annual."
+msgstr ""
+
+#: gridded/map_views.py:172
+msgid ""
+"Base mean, Anomaly and Trend are of the annual series; this index has none."
+msgstr ""
+
+#: gridded/map_views.py:174
+msgid "The run's trends file has no trend of this index."
 msgstr ""
 
 #: gridded/models.py:36 gridded/templates/gridded/new.html:28
@@ -3879,7 +3985,7 @@ msgstr ""
 msgid "Variable needed"
 msgstr ""
 
-#: gridded/runs.py:454 gridded/templates/gridded/_map.html:52
+#: gridded/runs.py:454 gridded/templates/gridded/_map.html:55
 msgid "Frequency"
 msgstr ""
 
@@ -4756,82 +4862,76 @@ msgstr ""
 msgid "Browse"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:13
+#: gridded/templates/gridded/_cell_pane.html:16
 msgid "Series for"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:14
+#: gridded/templates/gridded/_cell_pane.html:17
 msgid "Selected cell"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:15
-#: gridded/templates/gridded/_map.html:50
-#: stations/templates/stations/_space_tabs.html:8 stations/workspace.py:454
-msgid "Not available yet"
-msgstr ""
-
-#: gridded/templates/gridded/_cell_pane.html:15
+#: gridded/templates/gridded/_cell_pane.html:18
 msgid "Mean over the grid"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:23
+#: gridded/templates/gridded/_cell_pane.html:26
 msgid "Go to"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:24
+#: gridded/templates/gridded/_cell_pane.html:27
 msgid "−33.86, 151.21"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:25
+#: gridded/templates/gridded/_cell_pane.html:28
 msgid "Go"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:31
+#: gridded/templates/gridded/_cell_pane.html:34
 #, python-format
 msgid "(%(units)s)"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:46
+#: gridded/templates/gridded/_cell_pane.html:49
 #, python-format
 msgid "%(when)s, the year on the map"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:56
+#: gridded/templates/gridded/_cell_pane.html:59
 msgid "Values by year (table)"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:60
+#: gridded/templates/gridded/_cell_pane.html:63
 #, python-format
 msgid "%(series)s, %(where)s"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:61
+#: gridded/templates/gridded/_cell_pane.html:64
 #, python-format
 msgid "%(code)s (%(units)s)"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:67
+#: gridded/templates/gridded/_cell_pane.html:70
 msgid "This series as CSV"
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:69
+#: gridded/templates/gridded/_cell_pane.html:72
 msgid "This cell has no values. Choose another cell."
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:74
+#: gridded/templates/gridded/_cell_pane.html:77
 #, python-format
 msgid ""
 "A station in your workspaces is in this cell: <strong>%(name)s</strong> "
 "(%(workspace)s)."
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:74
+#: gridded/templates/gridded/_cell_pane.html:77
 #, python-format
 msgid ""
 "A station in your workspaces is in this cell: <strong>%(name)s</strong>."
 msgstr ""
 
-#: gridded/templates/gridded/_cell_pane.html:75
+#: gridded/templates/gridded/_cell_pane.html:78
 #, python-format
 msgid "Open its <span class=\"font-mono\">%(code)s</span>"
 msgstr ""
@@ -5006,25 +5106,25 @@ msgstr ""
 msgid "Choose this folder"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:16
+#: gridded/templates/gridded/_map.html:19
 #: stations/templates/stations/_indices.html:25
 msgid "Find"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:17
+#: gridded/templates/gridded/_map.html:20
 msgid "Code or name"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:27
+#: gridded/templates/gridded/_map.html:30
 msgid "No index matches."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:28
+#: gridded/templates/gridded/_map.html:31
 msgid ""
 "ANN annual, MON monthly. Indices the run did not calculate are not listed."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:39 help/templates/help/index.html:66
+#: gridded/templates/gridded/_map.html:42 help/templates/help/index.html:66
 #: help/templates/help/index.html:76
 #: stations/templates/stations/downloads.html:74
 #: stations/templates/stations/downloads.html:92
@@ -5036,85 +5136,89 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:41
+#: gridded/templates/gridded/_map.html:44
 msgid "Map as PNG"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:42
+#: gridded/templates/gridded/_map.html:45
 msgid "Map as CSV"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:43
+#: gridded/templates/gridded/_map.html:46
 #, python-format
 msgid "The netCDF file (%(name)s)"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:49
+#: gridded/templates/gridded/_map.html:52
 msgid "View"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:53
+#: gridded/templates/gridded/_map.html:56
 msgid "This index has no such file"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:55
+#: gridded/templates/gridded/_map.html:58
 msgid "Time scale"
 msgstr ""
 
 #: gridded/templates/gridded/_map.html:59
+msgid "Base mean, Anomaly, Trend and the grid mean are of the 12-month scale."
+msgstr ""
+
+#: gridded/templates/gridded/_map.html:62
 msgid "Previous month"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:59
+#: gridded/templates/gridded/_map.html:62
 msgid "Previous day"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:59
+#: gridded/templates/gridded/_map.html:62
 msgid "Previous year"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:61
+#: gridded/templates/gridded/_map.html:64
 msgid "Next month"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:61 stations/qc_review.py:643
+#: gridded/templates/gridded/_map.html:64 stations/qc_review.py:643
 #: stations/qc_review.py:647 stations/qc_review.py:676
 msgid "Next day"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:61
+#: gridded/templates/gridded/_map.html:64
 msgid "Next year"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:86
+#: gridded/templates/gridded/_map.html:90
 msgid ""
 "Hover a cell for its value; choose one for its series. Arrow keys move the "
 "selection."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:87
+#: gridded/templates/gridded/_map.html:91
 msgid ""
 "Arrow keys move the selected cell; its value is read out and its series "
 "shown."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:92
+#: gridded/templates/gridded/_map.html:96
 msgid "Bin breaks"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:93
+#: gridded/templates/gridded/_map.html:97
 msgid "Choose a cell with the form under the map."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:98
+#: gridded/templates/gridded/_map.html:102
 msgid "Cell latitude"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:100
+#: gridded/templates/gridded/_map.html:104
 msgid "Cell longitude"
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:102
+#: gridded/templates/gridded/_map.html:106
 msgid "Show"
 msgstr ""
 
@@ -5817,6 +5921,10 @@ msgstr ""
 msgid "This file could not be read."
 msgstr ""
 
+#: gridded/views.py:1049
+msgid "Dot: the 95% interval excludes zero"
+msgstr ""
+
 #: help/contents.py:59
 msgid "Command line"
 msgstr ""
@@ -5876,37 +5984,37 @@ msgid ""
 "sector data file, with examples."
 msgstr ""
 
-#: help/guides.py:220
+#: help/guides.py:221
 #, python-format
 msgid "Units: %(units)s"
 msgstr ""
 
-#: help/guides.py:222
+#: help/guides.py:223
 msgid "yearly and monthly values"
 msgstr ""
 
-#: help/guides.py:224
+#: help/guides.py:225
 msgid "monthly values"
 msgstr ""
 
-#: help/guides.py:226
+#: help/guides.py:227
 msgid "yearly values"
 msgstr ""
 
-#: help/guides.py:228
+#: help/guides.py:229
 msgid "uses the base period"
 msgstr ""
 
-#: help/guides.py:235
+#: help/guides.py:236
 msgid "an extra time scale"
 msgstr ""
 
-#: help/guides.py:236
+#: help/guides.py:237
 #, python-format
 msgid "You choose %(what)s in the index settings, in Your inputs."
 msgstr ""
 
-#: help/guides.py:282
+#: help/guides.py:283
 msgid "Help topic"
 msgstr ""
 
@@ -10977,6 +11085,10 @@ msgstr ""
 
 #: stations/templates/stations/_space_tabs.html:5
 msgid "Workspace sections"
+msgstr ""
+
+#: stations/templates/stations/_space_tabs.html:8 stations/workspace.py:454
+msgid "Not available yet"
 msgstr ""
 
 #: stations/templates/stations/_space_title.html:1

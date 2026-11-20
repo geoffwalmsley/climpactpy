@@ -236,6 +236,26 @@ def test_map_scales_stand_apart(theme, kind):
         assert away == sorted(away), away
 
 
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("family", tokens.MAP_DIVERGING)
+def test_map_diverging_scales_stand_apart(theme, family):
+    """The map's diverging scales (#296), as the sequential ones: every bin apart from the
+    sunken surface and from its neighbours (across zero too) under protanopia and
+    deuteranopia; each half moves away from the sunken surface in lightness from zero
+    out, so the size of a change does not hang on hue; and the Trend view's dot (the text
+    colour or the surface's, whichever stands out more) is a mark on every bin (3:1)."""
+    t = THEMES[theme]
+    scale = [t[f"map-div-{family}-{i}"] for i in range(1, 9)]
+    sunken = t["color-surface-sunken"]
+    assert worst_cvd([sunken, *scale], [(0, i) for i in range(1, 9)]) >= CVD_TARGET
+    assert worst_cvd(scale, [(i, i + 1) for i in range(7)]) >= CVD_FLOOR
+    away = [contrast(c, sunken) for c in scale]
+    assert away[:4] == sorted(away[:4], reverse=True) and away[4:] == sorted(away[4:]), away
+    for c in scale:
+        dot = max(contrast(c, t["color-text"]), contrast(c, t["color-surface"]))
+        assert dot >= NON_TEXT, (c, dot)
+
+
 def test_dark_theme_only_overrides_known_tokens():
     light = tokens.read_tokens(tokens.LIGHT_CSS)
     dark = tokens.read_tokens(tokens.DARK_CSS)
@@ -254,6 +274,8 @@ def test_chart_palette_json_matches_the_css():
         assert len(on_disk[theme]["categorical"]) == 8
         assert sorted(on_disk[theme]["map_sequential"]) == sorted(tokens.MAP_KINDS)
         assert all(len(s) == 8 for s in on_disk[theme]["map_sequential"].values())
+        assert sorted(on_disk[theme]["map_diverging"]) == sorted(tokens.MAP_DIVERGING)
+        assert all(len(s) == 8 for s in on_disk[theme]["map_diverging"].values())
         assert len(on_disk[theme]["diverging"]) == 7
         assert len(on_disk[theme]["trend_scale"]) == 4
         assert len(on_disk[theme]["coverage"]) == 3
@@ -348,16 +370,18 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Inputs panel and its sheets, #198; 74,000 before the section header, one surface level
 # and the workspace header, #197; 71,000 before the colour roles and theme hues, #196;
 # 154,000 before the gridded map and its eight-bin scales, #295; 142,000 before the
-# gridded set-up page and its summary panel, #293; 170,000 before the help frame, #325)
-CSS_BUDGET = 176_000
-# gzipped: 27,500 before #325 (the help frame), 27,250 before #294 (a gridded run's
-# stages), 25 KB before #295 (the gridded map), 23.5 KB before #293 (the gridded set-up
+# gridded set-up page and its summary panel, #293; 170,000 before the help frame, #325;
+# 176,000 before the gridded map's diverging scales, #296)
+CSS_BUDGET = 180_000
+# gzipped: 28,500 before #296 (the map's diverging scales), 27,500 before #325 (the help
+# frame), 27,250 before #294 (a gridded run's stages), 25 KB before #295 (the gridded
+# map), 23.5 KB before #293 (the gridded set-up
 # page), 23.25 KB before #291 (the set-up page's Files table), 22 KB before #242,
 # 20.25 KB before #238, 19.25 KB before #233, 18.3 KB before #264, 18 KB before
 # #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before #227, 15.5 KB before #203, 15 KB
 # before #202, 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197, 13 KB before
 # #196
-CSS_GZIP_BUDGET = 28_500
+CSS_GZIP_BUDGET = 29_500
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

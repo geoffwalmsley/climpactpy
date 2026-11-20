@@ -39,6 +39,7 @@ ASSET_BUDGETS = {
     # One stylesheet on every page (#118): the tokens, base styles, every component and
     # the utilities the templates use, built by Tailwind (it replaced main.css, the
     # dark theme and eight page stylesheets; uPlot's small stylesheet is inside it).
+    # 27.75 KB before the gridded map's diverging scales (#296),
     # 26.75 KB before the help frame (#325), 26.5 KB before a gridded run's stages (#294),
     # 24.25 KB before the gridded map (#295), 22.75 KB before the gridded set-up page
     # (#293), 21.5 KB before the landing page and Workspaces (#242),
@@ -51,7 +52,7 @@ ASSET_BUDGETS = {
     # detail (#202), 14 KB before the Inputs panel and its sheets (#198), 13.5 KB before the
     # section header and the workspace header (#197), 13 KB before #196, 12.5 KB before the
     # help drawer (#177)
-    "css/climpact.css": 27.75 * KB,
+    "css/climpact.css": 28.25 * KB,
     # The quality checks: the rail and the check's detail with its values in place (#264),
     # the list and its detail (#202), the tables linked to the charts (#77, #174), a When
     # dot picked selects its row (#283); 3.5 KB before #283, 3 KB before #264, 2 KB before
@@ -85,8 +86,8 @@ ASSET_BUDGETS = {
     "js/tour.js": 3 * KB,  # the landing page only
     "js/gridded.js": 2 * KB,  # 1 KB before the header dialog and Copy (#293), Browse (#320)
     # The gridded map (#295): the rail's Find, swapping the map and the pane in place, the
-    # cell under the pointer read out, the arrow keys
-    "js/gridded-map.js": 4 * KB,
+    # cell under the pointer read out (by view, #296), the arrow keys; 4 KB before #296
+    "js/gridded-map.js": 4.5 * KB,
     "vendor/htmx/htmx.min.js": 18 * KB,  # vendored, as released
     "icons/icons.svg": 2.5 * KB,
     "icons/favicon.svg": 0.5 * KB,

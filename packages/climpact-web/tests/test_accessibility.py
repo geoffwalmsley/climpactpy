@@ -443,6 +443,8 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('.gmap')", what="the gridded run", heard=heard)
     pages["gridded results"] = here(c)
     run_url = pages["gridded results"].split("?")[0]  # the run's Map tab (#289)
+    # The Trend view of a reversed scale (FD), with the mean over the grid (#296).
+    pages["gridded trend"] = run_url + "?index=fd&view=trend&series=grid"
     pages["gridded files"] = run_url + "files/"
     pages["gridded set-up tab"] = run_url + "setup/"  # after the run (#293)
     pages["gridded rename"] = run_url + "rename/"
@@ -1818,6 +1820,35 @@ def test_gridded_map_by_keyboard(chrome, site):
              f" document.activeElement.textContent.indexOf({code!r}) === 0", timeout=10,
              what="focus on the index chosen")  # fmt: skip
     assert "index=" in c.evaluate("location.search")
+
+
+def test_gridded_map_views_by_keyboard(chrome, site):
+    """The map's views (#296): Trend from the view's segmented control by keyboard swaps
+    the map in place with focus on it; the read-out gives the cell's trend and whether it
+    is significant; "Mean over the grid" shows the grid mean in the pane, and a cell
+    chosen then shows the cell again."""
+    c = chrome
+    c.navigate(site["gridded results"])
+    focus(c, ".gmap-controls .segmented__item[href*='view=trend']")
+    c.press("Enter")
+    wait_for(c, "/view=trend/.test(location.search) && document.activeElement"
+             ".getAttribute('aria-current') === 'true'", timeout=10,
+             what="the Trend view, focus on it")  # fmt: skip
+    assert c.evaluate("document.activeElement.textContent") == "Trend"
+    focus(c, "[data-gmap-svg]")
+    c.press("ArrowRight")
+    wait_for(c, "/ trend [^·]*significant/.test(document.querySelector('[data-gmap-status]')"
+             ".textContent)", timeout=10, what="the cell's trend read out")  # fmt: skip
+    focus(c, "[data-gmap-series][href*='series=grid']")
+    c.press("Enter")
+    title = "document.getElementById('cell-title').textContent"
+    wait_for(c, f"/^Mean over /.test({title})", timeout=10, what="the mean over the grid")
+    assert c.evaluate("document.activeElement.textContent") == "Mean over the grid"
+    focus(c, "[data-gmap-svg]")
+    c.press("ArrowLeft")
+    c.press("Enter")
+    wait_for(c, f"!/^Mean over /.test({title})", timeout=10, what="the cell's series again")
+    assert "series=" not in c.evaluate("location.search")
 
 
 def test_gridded_new_run_ticks_and_folders(chrome, site):

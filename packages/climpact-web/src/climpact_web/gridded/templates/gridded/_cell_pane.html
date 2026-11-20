@@ -1,18 +1,21 @@
 {% load i18n ui %}{% comment %}
 The cell pane of a gridded run's Map (#295, the GridMap board), read like a station's
-detail pane: "Selected cell" (and "Mean over the grid", #296), the cell's centre as the
-heading with its place in the grid and its bounds, "Go to" a latitude and longitude; the
+detail pane: "Selected cell" or "Mean over the grid" (#296: the cos-latitude weighted mean
+from trends.nc, titled "Mean over N cells"; unavailable without it, the reason under the
+map's controls), the cell's centre as the heading with its place in the grid and its
+bounds, "Go to" a latitude and longitude; the
 series as the interactive chart of #283 (charts.js, from the page's data: base period,
 values, 11-year mean, Sen's slope and its 95% interval, the chosen year ringed), the
 server's chart without JavaScript; the statistics in the station pane's order; the values
 by year and the CSV; the stations of the browser's workspaces in the cell.
-Context: pane (gridded.map_page.pane), map_state, rail_action, form_hidden.
+Context: pane (gridded.map_page.pane), map_state, rail_action, form_hidden, series_links,
+unavailable.
 {% endcomment %}
 <aside class="gmap-layout__pane" id="cell-pane" aria-labelledby="cell-title" data-gmap-pane>
   <div class="gmap-pane__body">
     <div class="segmented" role="group" aria-label="{% translate 'Series for' %}">
-      <span class="segmented__item" aria-current="true">{% translate "Selected cell" %}</span>
-      <span class="segmented__item" aria-disabled="true" title="{% translate 'Not available yet' %}">{% translate "Mean over the grid" %}</span>
+      <a class="segmented__item" href="{{ series_links.cell }}"{% if pane.series == "cell" %} aria-current="true"{% endif %} data-gmap-nav data-gmap-series>{% translate "Selected cell" %}</a>
+      {% if series_links.grid %}<a class="segmented__item" href="{{ series_links.grid }}"{% if pane.series == "grid" %} aria-current="true"{% endif %} data-gmap-nav data-gmap-series>{% translate "Mean over the grid" %}</a>{% else %}<span class="segmented__item" aria-disabled="true" title="{{ unavailable }}" aria-describedby="gmap-views-note">{% translate "Mean over the grid" %}</span>{% endif %}
     </div>
     <div class="gmap-pane__head">
       <h2 class="gmap-pane__title" id="cell-title" tabindex="-1">{{ pane.title }}</h2>

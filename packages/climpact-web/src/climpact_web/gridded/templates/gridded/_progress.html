@@ -1,9 +1,11 @@
-{% load i18n ui help %}{% comment %}
-The gridded run's jobs (thresholds, then indices): progress while they run, polled by
-htmx (outerHTML swap) as the job page's fragment is; then each job's files to download.
-When the last job finishes the server asks htmx to reload the page, so the map appears.
+{% load i18n ui %}{% comment %}
+The gridded run's jobs (thresholds, then indices) on its Map tab until they have all
+finished (#289; the stages of #294 replace it): progress while they run, polled by htmx
+(outerHTML swap) as the job page's fragment is, or why one failed. A finished job says
+how long it took; its files are on the run's Files tab. When the last job finishes the
+server asks htmx to reload the page, so the map appears.
 Parameters: run, rows (kind, job, stage_label, elapsed, remaining, worker_missing,
-files), active, delay, all_done.
+files: the number written), active, delay, all_done.
 {% endcomment %}
 <div id="gridded-progress" class="stack"
   {% if active %}hx-get="{% url 'gridded:progress' run.pk %}?was_active=1"
@@ -64,30 +66,10 @@ files), active, delay, all_done.
     {% endif %}
 
     {% if job.status == "succeeded" %}
-    <p class="text-sm text-text-muted">{% blocktranslate count counter=row.files|length with elapsed=row.elapsed trimmed %}Finished in {{ elapsed }}: {{ counter }} file.{% plural %}Finished in {{ elapsed }}: {{ counter }} files.{% endblocktranslate %}{% if job.result.copied_to %} {% blocktranslate with folder=job.result.copied_to %}Also copied to {{ folder }}.{% endblocktranslate %}{% endif %}</p>
-    {% if row.kind == "indices" %}{% help_topic "gridded.output" %}{% endif %}
-    <details class="disclosure"{% if row.kind == "thresholds" %} open{% endif %}>
-      <summary>{% icon "file" %}<span>{% blocktranslate count counter=row.files|length trimmed %}The file to download{% plural %}The {{ counter }} files to download{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
-      <div class="disclosure__body">
-        <div class="table-wrap max-h-112" role="region" aria-labelledby="files-{{ row.kind }}" tabindex="0">
-          <table class="table">
-            <caption id="files-{{ row.kind }}">{% if row.kind == "thresholds" %}{% translate "Thresholds file" %}{% else %}{% translate "Index files" %}{% endif %}</caption>
-            <thead><tr><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Frequency" %}</th><th scope="col" class="num">{% translate "Size" %}</th></tr></thead>
-            <tbody>
-              {% for f in row.files %}
-              <tr><th scope="row"><a href="{% url 'jobs:file' job.pk f.path %}" download>{{ f.name }}</a></th><td>{{ f.index }}</td><td>{% if f.freq == "ANN" %}{% translate "annual" %}{% elif f.freq == "MON" %}{% translate "monthly" %}{% elif f.freq == "DAY" %}{% translate "daily" %}{% endif %}</td><td class="num">{{ f.size|filesizeformat }}</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </details>
+    {% url 'gridded:files' run.pk as files_url %}
+    <p class="m-0 text-sm text-text-muted">{% blocktranslate count counter=row.files with elapsed=row.elapsed trimmed %}Finished in {{ elapsed }}: {{ counter }} file, on <a href="{{ files_url }}">Files</a>.{% plural %}Finished in {{ elapsed }}: {{ counter }} files, on <a href="{{ files_url }}">Files</a>.{% endblocktranslate %}</p>
     {% endif %}
   </section>
   {% endwith %}{% endfor %}
 
-  {% if all_done %}
-  <p>{% translate "Download all (zip)" as zip_label %}{% url 'gridded:download_all' run.pk as zip_url %}{% include "components/button.html" with label=zip_label href=zip_url icon="download" size="lg" %}</p>
-  {% for row in rows|slice:":1" %}<p class="text-sm text-text-muted flex flex-wrap items-center gap-3">{% icon "clock" %}<span>{% blocktranslate with date=row.job.expires_at|date:"j F Y, H:i e" %}The results are deleted on {{ date }}.{% endblocktranslate %}</span></p>{% endfor %}
-  {% endif %}
 </div>

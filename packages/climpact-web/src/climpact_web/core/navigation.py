@@ -1,7 +1,7 @@
-"""Where the app's main destinations live, for the header, the landing page and the step
-indicator of the gridded flow (#71). The single station has no steps since #179: its
-sections are tabs (``stations.workspace``); the batch has none since #234: its stations
-are the workspace's, on its overview.
+"""Where the app's main destinations live, for the header and the landing page (#71).
+No page has a step indicator any more: the single station's sections are tabs since #179
+(``stations.workspace``), the batch's stations are the workspace's since #234, and a
+gridded run is a place with tabs since #289 (a breadcrumb before it starts).
 
 The screens arrive in later tickets (#76-#81, #85). Each destination names the URL its
 ticket will add; until that URL exists the destination resolves to ``None``, so the
@@ -137,68 +137,3 @@ def page_help(request) -> dict | None:
         return None
     current = match is not None and match.namespace == "help"
     return {"url": url, "title": None, "current": current}
-
-
-# ---- Step indicator --------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Step:
-    key: str
-    label: Promise
-    url_name: str
-    optional: bool = False
-
-
-@dataclass
-class StepState:
-    key: str
-    label: Promise
-    state: str  # "complete", "current" or "upcoming"
-    url: str | None = None
-    optional: bool = False
-    number: int = 0
-
-
-# The gridded steps (#85): choose the netCDF files, check them and set the parameters, then
-# follow the run and explore the results.
-GRIDDED_STEPS = (
-    Step("files", _("Choose files"), "gridded:start"),
-    Step("setup", _("Check and set up"), "gridded:setup"),
-    Step("results", _("Calculate and explore"), "gridded:results"),
-)
-
-
-def gridded_steps(current: str, urls: dict[str, str] | None = None) -> list[StepState]:
-    """The gridded steps with ``current`` marked. Steps before it are complete and link
-    back when ``urls`` gives their address (a run's own URLs)."""
-    return flow_steps(GRIDDED_STEPS, current, urls)
-
-
-def flow_steps(
-    definition: tuple[Step, ...], current: str, urls: dict[str, str] | None = None
-) -> list[StepState]:
-    keys = [s.key for s in definition]
-    if current not in keys:
-        raise ValueError(f"unknown step {current!r}; expected one of {keys}")
-    position = keys.index(current)
-    urls = urls or {}
-    steps = []
-    for number, step in enumerate(definition, start=1):
-        if number - 1 < position:
-            state = "complete"
-        elif number - 1 == position:
-            state = "current"
-        else:
-            state = "upcoming"
-        steps.append(
-            StepState(
-                key=step.key,
-                label=step.label,
-                state=state,
-                url=urls.get(step.key) if state == "complete" else None,
-                optional=step.optional,
-                number=number,
-            )
-        )
-    return steps

@@ -1,7 +1,8 @@
-"""The gridded pages (#85): choosing files by path (local mode) or upload, the folder
-browser, inspecting the files and guessing the variables, the set-up form and its checks,
-the thresholds and indices jobs, the results (files, map, cell series, CSVs, zip), the
-hosted-mode switch and upload limit, ownership and retention."""
+"""The gridded pages (#85, #289): Gridded's list of runs, choosing files by path (local
+mode) or upload, the folder browser, inspecting the files and guessing the variables, the
+set-up form and its checks, the thresholds and indices jobs, a run's context bar and its
+Map, Files and Set-up tabs (the map, cell series, CSVs, zips, the links for wget and the
+run's record), the hosted-mode switch and upload limit, ownership and retention."""
 
 import datetime as dt
 import io
@@ -152,19 +153,21 @@ def test_base_days_and_defaults():
     assert base_days(s360, 1971, 2000) == 30 * 360
 
 
-# ---- Step 1: choosing files ----------------------------------------------------------------
+# ---- New gridded run: choosing files ----------------------------------------------------------
 
 
-def test_start_page_local(client):
-    html = client.get("/gridded/").content.decode()
+def test_new_run_page_local(client):
+    html = client.get("/gridded/new/").content.decode()
     assert "Files on this computer" in html and 'id="file-browser"' in html
     assert "Use the sample grid" in html and 'name="files"' in html
+    assert "<h1>New gridded run</h1>" in html and 'aria-label="Breadcrumb"' in html
+    assert "steps__" not in html and "Continue where you left off" not in html
 
 
 def test_paths_are_checked(client, tmp_path):
     (tmp_path / "a.txt").write_text("x")
     response = client.post(
-        "/gridded/",
+        "/gridded/new/",
         {
             "paths": f"relative.nc\n{tmp_path}\n{tmp_path / 'a.txt'}\n{tmp_path / 'no.nc'}",
             "action": "use",
@@ -180,7 +183,7 @@ def test_paths_are_checked(client, tmp_path):
 
 def test_choose_files_by_path(client):
     paths = f"{GRIDS / 'grid_stations_tas.nc'}\n{GRIDS / 'grid_stations_pr.nc'}"
-    response = client.post("/gridded/", {"paths": paths, "action": "use"})
+    response = client.post("/gridded/new/", {"paths": paths, "action": "use"})
     assert response.status_code == 302
     run = GriddedRun.objects.get()
     assert run.source == "path" and run.paths == [
@@ -194,19 +197,19 @@ def test_choose_files_by_path(client):
 
 def test_browser_lists_folders_and_adds_files(client):
     response = client.post(
-        "/gridded/", {"paths": "", "action": f"browse:{GRIDS}"}, HTTP_HX_REQUEST="true"
+        "/gridded/new/", {"paths": "", "action": f"browse:{GRIDS}"}, HTTP_HX_REQUEST="true"
     )
     html = response.content.decode()
     assert 'id="gridded-chooser"' in html and "<html" not in html
     assert "grid_sample.nc" in html and "Up one folder" in html
     response = client.post(
-        "/gridded/",
+        "/gridded/new/",
         {"paths": "", "action": f"add:{GRIDS / 'grid_sample.nc'}"},
         HTTP_HX_REQUEST="true",
     )
     assert str(GRIDS / "grid_sample.nc") in response.content.decode()
     # Without JavaScript the whole page comes back.
-    response = client.post("/gridded/", {"paths": "", "action": f"browse:{GRIDS}"})
+    response = client.post("/gridded/new/", {"paths": "", "action": f"browse:{GRIDS}"})
     assert "<html" in response.content.decode()
 
 
@@ -254,15 +257,15 @@ def test_hosted_off_by_default(client):
 
 @override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True)
 def test_hosted_when_enabled_offers_uploads_not_paths(client):
-    html = client.get("/gridded/").content.decode()
+    html = client.get("/gridded/new/").content.decode()
     assert 'name="files"' in html and 'name="paths"' not in html and "file-browser" not in html
     assert client.get("/gridded/browse").status_code == 404
     # A path posted anyway is ignored.
-    response = client.post("/gridded/", {"paths": str(SAMPLE), "action": "use"})
-    assert response.status_code == 302 and response["Location"] == "/gridded/"
+    response = client.post("/gridded/new/", {"paths": str(SAMPLE), "action": "use"})
+    assert response.status_code == 302 and response["Location"] == "/gridded/new/"
     assert not GriddedRun.objects.exists()
     run = sample_run(client)
-    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
     assert (
         'name="copy_to"' not in html
         and 'name="workers"' not in html
@@ -296,12 +299,18 @@ def test_settings_switch(monkeypatch):
         importlib.reload(module)
 
 
-# ---- Step 2: set-up -------------------------------------------------------------------------
+# ---- Set-up --------------------------------------------------------------------------------
 
 
 def test_setup_page_shows_the_files_and_defaults(client):
     run = sample_run(client)
-    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    # A run not started yet opens its set-up, with a breadcrumb and no stepper.
+    response = client.get(f"/gridded/{run.pk}/")
+    assert response.status_code == 302 and response["Location"] == f"/gridded/{run.pk}/setup/"
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert "New run</a></li>" in html and '<span aria-current="page">set-up</span>' in html
+    assert "<h1>Sample grid, 1991–2010 <a" in html and f"/gridded/{run.pk}/rename/" in html
+    assert "steps__" not in html and 'aria-label="Run sections"' not in html
     assert "3 × 4 cells" in html and "1991-01-01 to 2010-12-31" in html
     assert '<option value="tmax" selected>' in html and '<option value="precip" selected>' in html
     assert 'value="1991"' in html and 'value="2010"' in html  # R's gridded default
@@ -346,7 +355,7 @@ def test_setup_validation(client, tmp_path):
         ({"workers": 100000}, "cannot use more than"),
     ]
     for changes, message in cases:
-        response = client.post(f"/gridded/{run.pk}/", setup_data(run, **changes))
+        response = client.post(f"/gridded/{run.pk}/setup/", setup_data(run, **changes))
         assert response.status_code == 200, changes
         assert message in response.content.decode(), (changes, message)
     assert not Job.objects.exists()
@@ -358,16 +367,18 @@ def test_preflight_uses_the_core_reader(client, tmp_path):
     with netCDF4.Dataset(other, "a") as nc:
         nc["time"][:] = nc["time"][:] + 1  # every date a day later
     response = client.post(
-        "/gridded/", {"paths": f"{GRIDS / 'grid_stations_tas.nc'}\n{other}", "action": "use"}
+        "/gridded/new/", {"paths": f"{GRIDS / 'grid_stations_tas.nc'}\n{other}", "action": "use"}
     )
     run = GriddedRun.objects.get(pk=response["Location"].split("/")[2])
-    response = client.post(f"/gridded/{run.pk}/", setup_data(run, base_start=1971, base_end=2000))
+    response = client.post(
+        f"/gridded/{run.pk}/setup/", setup_data(run, base_start=1971, base_end=2000)
+    )
     html = response.content.decode()
     assert "dates differ" in html or "cannot be read together" in html
     assert not Job.objects.exists()
 
 
-# ---- Step 3: jobs and results ---------------------------------------------------------------
+# ---- A run: jobs, Map and Files ---------------------------------------------------------------
 
 
 def test_sample_run_end_to_end(client, tmp_path):
@@ -380,8 +391,8 @@ def test_sample_run_end_to_end(client, tmp_path):
         copy_to=str(copy_to),
         rx_days=3,
     )
-    response = client.post(f"/gridded/{run.pk}/", data)
-    assert response.status_code == 302 and response["Location"].endswith("/results")
+    response = client.post(f"/gridded/{run.pk}/setup/", data)
+    assert response.status_code == 302 and response["Location"] == f"/gridded/{run.pk}/"
     run.refresh_from_db()
     assert (
         run.thresholds_job.kind == "gridded-thresholds"
@@ -395,8 +406,11 @@ def test_sample_run_end_to_end(client, tmp_path):
         p["institution_id"] == "TI" and p["max_values"] == 100_000
     )  # a small grid: the smallest default
 
-    html = client.get(f"/gridded/{run.pk}/results").content.decode()
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
     assert "Waiting to start" in html and "hx-get" in html
+    assert ">calculating</span>" in html and "Run again with other files" not in html
+    html = client.get(f"/gridded/{run.pk}/files/").content.decode()
+    assert "The files are listed here once the run has finished." in html
     jobs = run_jobs()
     assert [j.status for j in jobs] == [Status.SUCCEEDED, Status.SUCCEEDED], [j.error for j in jobs]
     run.refresh_from_db()
@@ -416,9 +430,26 @@ def test_sample_run_end_to_end(client, tmp_path):
     response = client.get(f"/gridded/{run.pk}/progress?was_active=1", HTTP_HX_REQUEST="true")
     assert response["HX-Refresh"] == "true"
     html = client.get(f"/gridded/{run.pk}/progress").content.decode()
-    assert "hx-get" not in html and "Download all" in html
+    assert "hx-get" not in html and f'on <a href="/gridded/{run.pk}/files/">Files</a>' in html
 
-    html = client.get(f"/gridded/{run.pk}/results").content.decode()
+    # The run's context bar and its Map tab.
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    assert '<h1 class="context-bar__name">Sample grid, 1991–2010</h1>' in html
+    assert '<a href="/gridded/">Gridded</a></li><li><span aria-current="page">run</span>' in html
+    for part in (
+        "3 × 4 cells, 12 with data",
+        "1991–2010, standard",
+        "base 1991–2010",
+        "5 indices, 9 files",
+        "kept until ",
+    ):
+        assert f">{part}" in html, part
+    assert "Forget this run" in html and "Run again with other files" in html
+    assert "Download all (zip, " in html and "gridded-progress" not in html
+    assert f'href="/gridded/{run.pk}/" data-tab="map" aria-current="page"' in html
+    assert f'href="/gridded/{run.pk}/files/" data-tab="files">' in html
+    assert f'href="/gridded/{run.pk}/setup/" data-tab="setup">' in html
+    assert "steps__" not in html
     assert "Explore the indices" in html and "txx, 2010" in html  # txx annual, last year
     assert 'class="gmap__svg"' in html and html.count('class="gmap__cell') == 12
     assert "View as table" in html and "Choose a cell" in html
@@ -435,7 +466,12 @@ def test_sample_run_end_to_end(client, tmp_path):
     assert response.status_code == 200 and "<html" not in html
     assert "1991-06" in html and "(12-month scale)" in html
     assert "gmap__cell--selected" in html
-    assert "cell=0%2C1" in response["HX-Push-Url"] and "/results?" in response["HX-Push-Url"]
+    assert "cell=0%2C1" in response["HX-Push-Url"]
+    assert response["HX-Push-Url"].startswith(f"/gridded/{run.pk}/?")
+    # The results page's old address keeps working.
+    response = client.get(f"/gridded/{run.pk}/results", {"file": spi, "t": 5})
+    assert response.status_code == 301
+    assert response["Location"] == f"/gridded/{run.pk}/?file={spi}&t=5"
 
     # The values shown are the file's.
     path = run.indices_job.output_dir / "txx_ANN_climpact_historical_NA_1991-2010.nc"
@@ -465,7 +501,7 @@ def test_sample_run_end_to_end(client, tmp_path):
         f"/gridded/{run.pk}/series.json", {"file": spi, "scale": 2, "cell": "0,1"}
     ).json()
     assert monthly["step"] == "month" and monthly["bars"] and len(monthly["x"]) == 240
-    html = client.get(f"/gridded/{run.pk}/results").content.decode()
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
     assert f'data-chart-src="/gridded/{run.pk}/series.json?' in html
     assert "uPlot.iife.min.js" in html and "<noscript>" in html and "series-preview" in html
     assert 'id="series-chart-summary" data-chart-summary></p>' in html  # filled from the data
@@ -480,11 +516,82 @@ def test_sample_run_end_to_end(client, tmp_path):
     assert len(archive.namelist()) == 11  # 9 index files, trends.nc and the thresholds
     assert all(n.startswith("climpact_gridded/") for n in archive.namelist())
 
+    # The Files tab: the index files by theme, Heat first and open, each group's zip.
+    html = client.get(f"/gridded/{run.pk}/files/").content.decode()
+    assert '<span class="font-semibold">Heat</span>' in html
+    heat = html.index('<span class="font-semibold">Heat</span>')
+    assert html.count('class="gridded-group__details" open') == 1
+    assert 'class="gridded-group__details" open' in html[html.rfind("<details", 0, heat) : heat]
+    labels = [
+        label
+        for label in ("Heat", "Cold", "Rain", "Drought", "Other")
+        if f'<span class="font-semibold">{label}</span>' in html
+    ]
+    assert labels == ["Heat", "Cold", "Rain", "Drought"]
+    assert '<th scope="row" class="code font-medium">Rx3day</th>' in html
+    assert ">Wettest 3\xa0days<" in html and ">txx, day_of_txx<" in html
+    assert "9 files · " in html and f"/gridded/{run.pk}/zip/theme/heat.zip" in html
+    assert "The 11 links as a text file, for <code>wget -i</code>" in html
+    assert "Copied to <span" in html and str(copy_to) in html
+    assert "climpact.sampledata.gridded.3x4.1991-2010.thresholds.1991-2010.nc" in html
+    assert "Thresholds, base 1991–2010" in html and "Reading the files" in html
+    assert f'href="/gridded/{run.pk}/file/' in html and ">trends.nc</a>" in html  # #290
+    response = client.get(f"/gridded/{run.pk}/zip/theme/rain.zip")
+    archive = zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content)))
+    assert sorted(Path(n).name.split("_")[0] for n in archive.namelist()) == [
+        "rx1day",
+        "rx1day",
+        "rx3day",
+        "rx3day",
+    ]
+    assert client.get(f"/gridded/{run.pk}/zip/theme/nope.zip").status_code == 404
+    assert client.get(f"/gridded/{run.pk}/zip/colour/heat.zip").status_code == 404
+    html = client.get(f"/gridded/{run.pk}/files/", {"by": "frequency"}).content.decode()
+    assert '<span class="font-semibold">Annual</span>' in html and "hue-dot" not in html
+    html = client.get(f"/gridded/{run.pk}/files/", {"by": "variable"}).content.decode()
+    assert '<span class="font-semibold">Precipitation</span>' in html
+    assert '<option value="variable" selected>' in html
+
+    # The links for wget work without the session, with the run's key only.
+    response = client.get(f"/gridded/{run.pk}/links.txt")
+    links = response.content.decode().splitlines()
+    assert len(links) == 11 and all(link.startswith("http://testserver/gridded/") for link in links)
+    stranger = Client()
+    link = next(link for link in links if "txx_ANN" in link)
+    response = stranger.get(link.removeprefix("http://testserver"))
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content).startswith(inspection.NETCDF_SIGNATURES)
+    assert stranger.get(link.removeprefix("http://testserver").split("?")[0]).status_code == 404
+    assert stranger.get(link.removeprefix("http://testserver") + "x").status_code == 404
+
+    # The run's record.
+    record = client.get(f"/gridded/{run.pk}/run.json").json()
+    assert record["run"] == "Sample grid, 1991–2010" and record["inputs"][0]["file"] == SAMPLE_FILE
+    import hashlib
+
+    assert record["inputs"][0]["sha256"] == hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
+    assert record["settings"]["indices"] == ["txx", "fd", "rx1day", "spi", "rxdday"]
+    assert "checked" not in record["settings"] and record["grid"]["cells"] == [3, 4]
+    assert [j["kind"] for j in record["jobs"]] == ["thresholds", "indices"]
+    assert "climpact" in record["versions"] and record["software"].startswith("climpact ")
+    log = client.get(f"/gridded/{run.pk}/climpact.log").content.decode()
+    assert "# thresholds:" in log and "# indices:" in log and "attempt 1 started" in log
+
+    # Gridded lists it.
+    html = client.get("/gridded/").content.decode()
+    assert f'<a href="/gridded/{run.pk}/" title="Sample grid, 1991–2010">' in html
+    assert (
+        ">3 × 4, 1.905° × 1.875°<" in html
+        and "1991–2010, file kept" in html
+        and ">5 indices<" in html
+    )
+    assert "Finished " in html and "gridded-state--done" in html
+
 
 def test_indices_with_a_thresholds_file(client):
     """grid_future (2001-2020) with the thresholds of grid_stations, as R's reference run."""
     response = client.post(
-        "/gridded/",
+        "/gridded/new/",
         {
             "paths": f"{GRIDS / 'grid_stations_tas.nc'}\n{GRIDS / 'grid_stations_pr.nc'}",
             "action": "use",
@@ -492,14 +599,15 @@ def test_indices_with_a_thresholds_file(client):
     )
     hist = GriddedRun.objects.get(pk=response["Location"].split("/")[2])
     client.post(
-        f"/gridded/{hist.pk}/", setup_data(hist, task="thresholds", base_start=1971, base_end=2000)
+        f"/gridded/{hist.pk}/setup/",
+        setup_data(hist, task="thresholds", base_start=1971, base_end=2000),
     )
     (thresholds_job,) = run_jobs()
     assert thresholds_job.status == Status.SUCCEEDED, thresholds_job.error
     thresholds = thresholds_job.output_dir / thresholds_job.result["files"][0]
 
     response = client.post(
-        "/gridded/",
+        "/gridded/new/",
         {
             "paths": f"{GRIDS / 'grid_future_tas.nc'}\n{GRIDS / 'grid_future_pr.nc'}",
             "action": "use",
@@ -514,7 +622,7 @@ def test_indices_with_a_thresholds_file(client):
         thresholds_path=str(thresholds),
         indices=["tx90p", "r95p"],
     )
-    response = client.post(f"/gridded/{future.pk}/", data)
+    response = client.post(f"/gridded/{future.pk}/setup/", data)
     assert response.status_code == 302, response.content.decode()[:2000]
     future.refresh_from_db()
     assert future.thresholds_job is None and future.indices_job.params["thresholds_file"] == str(
@@ -528,18 +636,31 @@ def test_indices_with_a_thresholds_file(client):
         "tx90p_ANN_climpact_historical_NA_2001-2020.nc",
         "tx90p_MON_climpact_historical_NA_2001-2020.nc",
     ]
+    # Gridded names the run whose thresholds file the scenario read.
+    html = client.get("/gridded/").content.decode()
+    hist.refresh_from_db()
+    assert f"From {hist.display_name}" in html and "1971–2000, file kept" in html
+    html = client.get(f"/gridded/{hist.pk}/").content.decode()
+    assert "This run made a thresholds file only, so there is no map." in html
+    html = client.get(f"/gridded/{hist.pk}/files/").content.decode()
+    assert "This run made no index files" in html and "Download all (zip," in html
 
 
 def test_job_failure_is_shown(client):
     run = sample_run(client)
-    client.post(f"/gridded/{run.pk}/", setup_data(run, indices=["fd"]))
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["fd"]))
     run.refresh_from_db()
     params = dict(run.indices_job.params, input_files=["/no/such/file.nc"])
     Job.objects.filter(pk=run.indices_job.pk).update(params=params)
     (job,) = run_jobs()
     assert job.status == Status.FAILED
-    html = client.get(f"/gridded/{run.pk}/results").content.decode()
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
     assert "The calculation failed." in html and "/no/such/file.nc" in html and "Try again" in html
+    assert "Run again with other files" in html and "Download all" not in html
+    html = client.get(f"/gridded/{run.pk}/files/").content.decode()
+    assert "The run did not finish, so it has no files." in html
+    html = client.get("/gridded/").content.decode()
+    assert "gridded-state--failed" in html and ">Failed<" in html
 
 
 def test_runner_passes_reading_options(tmp_path, monkeypatch):
@@ -623,10 +744,17 @@ def test_other_sessions_get_404(client):
     other = Client()
     for url in (
         f"/gridded/{run.pk}/",
+        f"/gridded/{run.pk}/setup/",
+        f"/gridded/{run.pk}/files/",
+        f"/gridded/{run.pk}/rename/",
         f"/gridded/{run.pk}/results",
         f"/gridded/{run.pk}/download.zip",
+        f"/gridded/{run.pk}/run.json",
+        f"/gridded/{run.pk}/links.txt",
+        f"/gridded/{run.pk}/delete",
     ):
-        assert other.get(url).status_code == 404
+        assert other.get(url).status_code == 404, url
+    assert f"/gridded/{run.pk}/" not in other.get("/gridded/").content.decode()
 
 
 def test_delete_and_retention(client):
@@ -645,6 +773,102 @@ def test_delete_and_retention(client):
     assert not GriddedRun.objects.exists() and not run.folder.exists() and not stray.exists()
 
     run = sample_run(client)
+    html = client.get(f"/gridded/{run.pk}/delete").content.decode()
+    assert "Forget Sample grid, 1991–2010?" in html and "can’t be recovered" in html
+    assert GriddedRun.objects.exists()
     response = client.post(f"/gridded/{run.pk}/delete")
     assert response.status_code == 302 and not GriddedRun.objects.exists()
     assert SAMPLE.is_file()  # a file read in place is never deleted
+
+
+# ---- Gridded: the list, names and states (#289) -------------------------------------------------
+
+
+def test_gridded_list_with_no_runs(client):
+    html = client.get("/gridded/").content.decode()
+    assert "<h1>Gridded</h1>" in html and 'href="/gridded/new/"' in html
+    assert "New gridded run" in html and "No runs yet." in html
+    assert 'action="/gridded/sample"' in html and "gridded-runs" not in html
+    for box in ("Stations or a grid?", "Scenarios", "Try it", "Gridded help"):
+        assert box in html, box
+    assert "steps__" not in html and "Continue where you left off" not in html
+
+
+def test_gridded_list_and_states(client):
+    run = sample_run(client)
+    html = client.get("/gridded/").content.decode()
+    assert "Your gridded runs, most recently changed first" in html
+    assert f'<a href="/gridded/{run.pk}/" title="Sample grid, 1991–2010">' in html
+    assert ">Not started<" in html and "gridded-state--new" in html
+    assert "Runs are kept on this computer for 7 days" in html
+    # A variable in units Climpact cannot read: the state says which.
+    files = [dict(run.files[0])]
+    files[0]["variables"] = [dict(v) for v in files[0]["variables"]]
+    files[0]["variables"][2]["units"] = "furlongs"
+    GriddedRun.objects.filter(pk=run.pk).update(files=files)
+    html = client.get("/gridded/").content.decode()
+    assert ">Not started: precipitation units<" in html and "gridded-state--problem" in html
+    with override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True):
+        html = client.get("/gridded/").content.decode()
+    assert "Runs are kept in this browser for 7 days" in html
+
+
+def test_rename_a_run(client):
+    run = sample_run(client)
+    html = client.get(f"/gridded/{run.pk}/rename/").content.decode()
+    assert 'value="Sample grid, 1991–2010"' in html and "Rename the run" in html
+    response = client.post(f"/gridded/{run.pk}/rename/", {"name": "  SE Australia  "})
+    assert response.status_code == 302 and response["Location"] == f"/gridded/{run.pk}/"
+    run.refresh_from_db()
+    assert run.name == "SE Australia" and run.display_name == "SE Australia"
+    client.post(f"/gridded/{run.pk}/rename/", {"name": ""})
+    run.refresh_from_db()
+    assert run.name == "" and run.display_name == "Sample grid, 1991–2010"
+
+
+def _info(name: str, ny: int, nx: int, y_range, x_range, first="1961-01-01", last="2020-12-31"):
+    return inspection.FileInfo(
+        path=f"/data/{name}",
+        name=name,
+        ny=ny,
+        nx=nx,
+        y_range=y_range,
+        x_range=x_range,
+        first=first,
+        last=last,
+        calendar="standard",
+    ).to_json()
+
+
+def test_default_names_and_spacing():
+    from climpact_web.gridded import runs
+
+    cmip = GriddedRun(
+        files=[
+            _info(
+                "tasmax_day_ACCESS-CM2_ssp370_r1i1p1f1_gn_20150101-21001231.nc",
+                145,
+                192,
+                [-90.0, 90.0],
+                [0.0, 358.125],
+                "2015-01-01",
+                "2100-12-31",
+            )
+        ]
+    )
+    assert runs.default_name(cmip) == "ACCESS-CM2 ssp370 r1i1p1f1 gn 1.25° × 1.875°, 2015–2100"
+    era5 = GriddedRun(files=[_info("era5_SEA_pr.nc", 47, 55, [-44.0, -32.5], [140.0, 153.5])])
+    assert runs.default_name(era5) == "era5 SEA 0.25°, 1961–2020"
+    assert runs.grid_text(runs.grid_summary(era5)) == "47 × 55, 0.25°"
+    assert runs.period_text(runs.grid_summary(era5)) == "1961–2020"
+    unreadable = GriddedRun(files=[inspection.FileInfo(path="/x.nc", name="x.nc").to_json()])
+    assert runs.default_name(unreadable) == "x"
+    assert runs.grid_text(runs.grid_summary(unreadable)) == "–"
+
+
+def test_short_durations():
+    from climpact_web.gridded.runs import short_duration
+
+    assert short_duration(dt.timedelta(seconds=45)) == "45 s"
+    assert short_duration(dt.timedelta(minutes=21, seconds=30)) == "21 min"
+    assert short_duration(dt.timedelta(hours=2, minutes=5)) == "2 h 5 min"

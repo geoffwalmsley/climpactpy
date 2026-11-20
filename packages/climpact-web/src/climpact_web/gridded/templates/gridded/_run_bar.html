@@ -1,0 +1,11 @@
+{% load i18n %}{% comment %}
+A gridded run's context bar (#289, the GridFiles board; components/context_bar.html, as a
+workspace's): "Gridded / run", the run's name (the h1 on the Map, Files and Set-up tabs;
+a line above the page's own h1 on Rename), the mono provenance line (the grid and its
+cells with data, the period and calendar, the base period, the indices and files or
+"calculating", the climpact version and the date it is deleted) with Rename and Forget
+this run at its end, the actions at the end of the title's row ("Run again with other
+files" once no job runs, "Download all (zip, size)" once every job has finished), then
+the tabs Map, Files and Set-up. It stays in view as the page scrolls.
+Context: views.bar_context.
+{% endcomment %}{% include "components/context_bar.html" with title=run_name heading=run_heading breadcrumb=run_breadcrumb provenance=run_provenance provenance_end="gridded/_run_links.html" actions="gridded/_run_actions.html" tabs="" below="gridded/_run_tabs.html" step_previous="" step_next="" title_template="" lead_template="" %}

@@ -1,11 +1,12 @@
 """Gridded runs (#85): the data model.
 
-A :class:`GriddedRun` is one set of netCDF files going through the gridded steps: the
-files (paths on this computer in local mode, read in place; or uploaded copies in the
-run's own folder), what inspecting them found, the variable names, the parameters, and
-the background jobs that calculate the thresholds and the indices. Like a batch it
-belongs to the browser session that created it, and is deleted ``JOB_RETENTION_DAYS``
-after it was last changed (:mod:`.retention`); files read in place are never deleted.
+A :class:`GriddedRun` is one set of netCDF files and what was made from them, a place of
+its own like a workspace (#289): its name, the files (paths on this computer in local
+mode, read in place; or uploaded copies in the run's own folder), what inspecting them
+found, the variable names, the parameters, and the background jobs that calculate the
+thresholds and the indices. Like a batch it belongs to the browser session that created
+it, and is deleted ``JOB_RETENTION_DAYS`` after it was last changed (:mod:`.retention`);
+files read in place are never deleted.
 """
 
 from __future__ import annotations
@@ -42,6 +43,8 @@ class GriddedRun(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now, db_index=True)
 
+    # The name the user gave it (Rename, #289); blank: named from its files (runs.default_name).
+    name = models.CharField(max_length=200, blank=True)
     source = models.CharField(max_length=10, choices=Source.choices, default=Source.PATH)
     # inspect.FileInfo.to_json() of each input file, in the order chosen.
     files = models.JSONField(default=list, blank=True)
@@ -61,8 +64,21 @@ class GriddedRun(models.Model):
         ordering = ["-updated_at"]
 
     def __str__(self) -> str:
-        names = [f["name"] for f in self.files]
-        return ", ".join(names) if names else str(self.id)
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        """The run's title (#289): the name given, else one made from its files."""
+        if self.name:
+            return self.name
+        from climpact_web.gridded.runs import default_name
+
+        return default_name(self)
+
+    def get_absolute_url(self) -> str:
+        from django.urls import reverse
+
+        return reverse("gridded:run", args=[self.pk])
 
     # Files --------------------------------------------------------------------------
 

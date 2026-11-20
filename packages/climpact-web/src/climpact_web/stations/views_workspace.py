@@ -505,15 +505,15 @@ def workspaces_page(request):
 
 
 def _gridded_runs(owner: str) -> bool:
-    """Whether the session has gridded calculations, which "Your calculations" lists
-    (gridded runs are not workspaces)."""
+    """Whether the session has gridded runs, which Gridded lists (#289; gridded runs are
+    not workspaces)."""
     from django.conf import settings
 
     if not settings.GRIDDED_ENABLED:
         return False
-    from climpact_web.jobs.models import Job
+    from climpact_web.gridded.models import GriddedRun
 
-    return Job.objects.filter(owner=owner, kind__startswith="gridded").exists()
+    return GriddedRun.objects.filter(owner=owner).exists()
 
 
 @never_cache

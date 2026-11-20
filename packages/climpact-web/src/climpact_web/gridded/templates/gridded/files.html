@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n ui help %}{% comment %}
+A gridded run's Files tab (#289, the GridFiles board), which replaced the job cards' file
+tables: the run's context bar, then the index files in the File group pattern (one closed
+disclosure per group, the first open, each with "Download these (zip)" beside its
+summary; Code, Index, Freq., File, the netCDF variables in it, Size), grouped by theme,
+variable needed or frequency (a GET form, so it works without JavaScript; htmx swaps
+only the groups). Beside them:
+Everything (Download all, the links for wget -i, the folder the files were copied to),
+the run's record (run.json, the log, trends.nc, and the thresholds file when the run kept one) and
+a note on reading the files. Until every job has finished the groups wait for them.
+Context from views.files (bar_context, files_context).
+{% endcomment %}
+{% block title %}{% blocktranslate with name=run_name %}Files: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "gridded/_run_bar.html" %}
+
+  <div class="gridded-files">
+    <section class="stack stack--sm min-w-0" aria-labelledby="index-files-title">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
+        <h2 id="index-files-title" class="text-base">{% translate "Index files" %}{% if index_count %} <span class="font-mono text-xs font-normal text-text-muted">{% blocktranslate count counter=index_count with size=index_size|filesizeformat trimmed %}{{ counter }} file · {{ size }}{% plural %}{{ counter }} files · {{ size }}{% endblocktranslate %}</span>{% endif %}</h2>
+        {% if groups %}
+        <form method="get" class="gridded-files__by flex items-center gap-2" hx-get="{% url 'gridded:files' run.pk %}" hx-trigger="change" hx-select="#file-groups" hx-target="#file-groups" hx-swap="outerHTML" hx-push-url="true">
+          <label for="group-by" class="text-xs text-text-muted whitespace-nowrap">{% translate "Group by" %}</label>
+          <select id="group-by" name="by">
+            {% for key, label in groupings %}<option value="{{ key }}"{% if key == by %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <noscript>{% translate "Group" as group_label %}{% include "components/button.html" with label=group_label type="submit" variant="secondary" size="sm" %}</noscript>
+        </form>
+        {% endif %}
+      </div>
+
+      {% if groups %}
+      <div id="file-groups" class="stack stack--sm">
+      {% for group in groups %}
+      <div class="gridded-group">
+        <details class="gridded-group__details"{% if forloop.first %} open{% endif %}>
+          <summary>{% icon "chevron-down" %}{% if group.hue %}<span class="hue-dot hue-{{ group.hue }}" aria-hidden="true"></span>{% endif %}<span class="font-semibold">{{ group.label }}</span> <span class="font-mono text-xs text-text-muted">{% blocktranslate count counter=group.rows|length with size=group.size|filesizeformat trimmed %}{{ counter }} file · {{ size }}{% plural %}{{ counter }} files · {{ size }}{% endblocktranslate %}</span></summary>
+          <div class="table-wrap" role="region" aria-label="{{ group.label }}" tabindex="0">
+            <table class="table table--data">
+              <thead><tr><th scope="col">{% translate "Code" %}</th><th scope="col">{% translate "Index" %}</th><th scope="col">{% translate "Freq." %}</th><th scope="col">{% translate "File" %}</th><th scope="col">{% translate "Variables" %}</th><th scope="col" class="text-end">{% translate "Size" %}</th></tr></thead>
+              <tbody>
+                {% for row in group.rows %}
+                <tr>
+                  <th scope="row" class="code font-medium">{{ row.code }}</th>
+                  <td class="gridded-group__name" title="{{ row.name }}">{{ row.name }}</td>
+                  <td class="code">{{ row.file.freq }}</td>
+                  <td class="code gridded-group__file"><a href="{% url 'gridded:file' run.pk row.file.path %}" title="{{ row.file.name }}" download>{{ row.file.name }}</a></td>
+                  <td class="code text-text-muted gridded-group__vars" title="{{ row.variables }}">{{ row.variables }}</td>
+                  <td class="num">{{ row.file.size|filesizeformat }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+        <a class="gridded-group__zip" href="{% url 'gridded:zip' run.pk by group.key %}" download>{% translate "Download these (zip)" %}<span class="sr-only"> {{ group.label }}</span></a>
+      </div>
+      {% endfor %}
+      </div>
+      {% elif run_state.active %}
+      <p class="m-0 text-sm text-text-muted" role="status">{% url 'gridded:run' run.pk as map_url %}{% blocktranslate trimmed %}The files are listed here once the run has finished. <a href="{{ map_url }}">See how it is going</a>{% endblocktranslate %}</p>
+      {% elif run_done %}
+      <p class="m-0 text-sm text-text-muted">{% translate "This run made no index files: it calculated a thresholds file only, listed with the run's record." %}</p>
+      {% else %}
+      <p class="m-0 text-sm text-text-muted">{% url 'gridded:run' run.pk as map_url %}{% blocktranslate trimmed %}The run did not finish, so it has no files. <a href="{{ map_url }}">What happened</a>{% endblocktranslate %}</p>
+      {% endif %}
+    </section>
+
+    <aside class="grid gap-4 min-w-0" aria-label="{% translate 'Downloads and the record' %}">
+      {% if run_done %}
+      <section class="border border-border rounded-sm bg-surface p-4 stack stack--sm text-sm text-text-muted min-w-0" aria-labelledby="everything-title">
+        <h2 id="everything-title" class="m-0 text-base text-text">{% translate "Everything" %}</h2>
+        {% url 'gridded:download_all' run.pk as zip_url %}{% blocktranslate asvar zip_label with size=run_size|filesizeformat %}Download all (zip, {{ size }}){% endblocktranslate %}
+        {% include "components/button.html" with label=zip_label href=zip_url full_width=True %}
+        <p class="m-0"><a href="{% url 'gridded:links' run.pk %}" download>{% blocktranslate count counter=file_count trimmed %}The {{ counter }} link as a text file, for <code>wget -i</code>{% plural %}The {{ counter }} links as a text file, for <code>wget -i</code>{% endblocktranslate %}</a></p>
+        {% if copied_to %}<p class="m-0 text-xs text-text-muted">{% blocktranslate with folder=copied_to trimmed %}Copied to <span class="font-mono wrap-anywhere">{{ folder }}</span> when the run finished (this computer).{% endblocktranslate %}</p>{% endif %}
+      </section>
+      {% endif %}
+
+      <section class="border border-border rounded-sm bg-surface p-4 stack stack--sm text-sm text-text-muted min-w-0" aria-labelledby="record-title">
+        <h2 id="record-title" class="m-0 text-base text-text">{% translate "The run's record" %}</h2>
+        <ul class="mb-0 grid list-none gap-2.5 p-0" role="list">
+          <li class="grid"><a class="font-mono text-sm" href="{% url 'gridded:record' run.pk %}" download>{{ "run.json" }}</a><span class="text-xs">{% translate "Settings, versions, inputs' checksums" %}</span></li>
+          <li class="grid"><a class="font-mono text-sm" href="{% url 'gridded:log' run.pk %}" download>{{ "climpact.log" }}</a><span class="text-xs">{% translate "When each job ran, and any errors" %}</span></li>
+          {% if thresholds_path %}<li class="grid"><a class="font-mono text-sm wrap-anywhere" href="{% url 'gridded:file' run.pk run.thresholds_job.result.files.0 %}" download>{{ thresholds_path.name }}</a><span class="text-xs">{% blocktranslate with start=run.options.base_start end=run.options.base_end size=thresholds_size|filesizeformat trimmed %}Thresholds, base {{ start }}–{{ end }} · {{ size }}{% endblocktranslate %}</span></li>{% endif %}
+          {% if trends_file %}<li class="grid"><a class="font-mono text-sm" href="{% url 'gridded:file' run.pk trends_file.path %}" download>{{ trends_file.name }}</a><span class="text-xs">{% blocktranslate with size=trends_file.size|filesizeformat trimmed %}Each cell's trend and base-period mean, and the grid mean · {{ size }}{% endblocktranslate %}</span></li>{% endif %}
+        </ul>
+        {% if run.options.task == "indices" %}
+        {% if run.options.thresholds_source == "file" %}<p class="m-0 text-xs text-text-muted">{% blocktranslate with name=thresholds_read trimmed %}This run read its thresholds from a file: <span class="font-mono wrap-anywhere">{{ name }}</span>.{% endblocktranslate %}</p>
+        {% else %}<p class="m-0 text-xs text-text-muted">{% translate "No thresholds file: this run calculated its thresholds and did not keep them. Choose “Thresholds file, then indices” in Set-up to keep them for a scenario run." %}</p>{% endif %}
+        {% endif %}
+      </section>
+
+      <section class="rounded-sm bg-surface-sunken p-4 stack stack--sm text-sm text-text-muted" aria-labelledby="reading-title">
+        <h2 id="reading-title" class="m-0 text-base text-text">{% translate "Reading the files" %}</h2>
+        <p class="m-0">{% blocktranslate trimmed %}One variable per file, named after the index, on the input grid; <code>hw_ANN</code> holds 10 variables and <code>spi_MON</code> a <code>scale</code> dimension. The same layout as Climpact for R.{% endblocktranslate %}</p>
+        {% help_topic "gridded.output" %}
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

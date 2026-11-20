@@ -135,6 +135,16 @@ def index_variables(nc) -> list[dict]:
     return out
 
 
+def data_variables(nc) -> list[str]:
+    """The names of a file's gridded variables, as the run's Files tab lists them (#289):
+    the index variables and the days they happened on (``txx``, ``day_of_txx``)."""
+    return [
+        name
+        for name, var in nc.variables.items()
+        if name not in SKIP_VARIABLES and name not in nc.dimensions and var.ndim >= 3
+    ]
+
+
 def open_layer(path: Path, rel: str, variable: str | None = None) -> Layer:
     """The layer of ``variable`` (default: the file's first index variable) in ``path``."""
     import netCDF4

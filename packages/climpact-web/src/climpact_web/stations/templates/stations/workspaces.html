@@ -32,8 +32,8 @@ entries (stations.workspace_list.entries), gridded_runs.
   {% include "components/empty_state.html" with icon="layers" title=empty_title text=empty_text %}
   {% endif %}
 
-  {% if gridded_runs %}{% url 'jobs:list' as jobs_url %}
-  <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Gridded calculations are not workspaces: they are listed in <a href="{{ jobs_url }}">Your calculations</a>.{% endblocktranslate %}</p>
+  {% if gridded_runs %}{% url 'gridded:start' as gridded_url %}
+  <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Gridded runs are not workspaces: they are listed on <a href="{{ gridded_url }}">Gridded</a>.{% endblocktranslate %}</p>
   {% endif %}
 
   <div class="workspaces__notes">

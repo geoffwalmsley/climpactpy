@@ -4,7 +4,7 @@ buttons post the same form with action "browse:<folder>" or "add:<file>", so it 
 without JavaScript (the page is sent again); with htmx only this chooser is swapped.
 Parameters: paths_form, paths_value (the paths typed so far), browse (browse_listing).
 {% endcomment %}
-<form method="post" action="{% url 'gridded:start' %}" class="card stack" id="gridded-chooser" novalidate>
+<form method="post" action="{% url 'gridded:new' %}" class="card stack" id="gridded-chooser" novalidate>
   {% csrf_token %}
   <h2 class="card__title">{% translate "Files on this computer" %}</h2>
   {% include "components/form_errors.html" with form=paths_form %}

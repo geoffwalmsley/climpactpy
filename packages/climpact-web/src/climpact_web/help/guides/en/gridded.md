@@ -10,8 +10,10 @@ never changed. You can also upload copies, up to the size limit shown on the pag
 hosted Climpact offers gridded runs only if its operator has switched them on, and then
 by upload only. They are also available from the `climpact` command line.
 
-The calculation runs in the background: you can close the page and come back to it from
-[Your calculations](url:jobs:list), which Workspaces links to.
+The calculation runs in the background: you can close the page and come back to the run
+from [Gridded](url:gridded:start), in the header, which lists your runs: their grid,
+period, thresholds, what they calculate, how far they have got and how long they are
+kept.
 
 A small grid takes minutes; a national grid over decades can take hours.
 
@@ -34,7 +36,7 @@ and units.
 
 Climpact for R's sample grid, `climpact.sampledata.gridded.1991-2010.nc` (24 by 19 cells
 over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on the first page
-loads a 3 by 4 cut of it in one click.
+(on Gridded and New gridded run) loads a 3 by 4 cut of it in one click.
 
 After you choose the files, Climpact shows what each holds (variables, units, calendar,
 grid and dates) and guesses which variable is which; check the guess before you go on.
@@ -71,10 +73,24 @@ One netCDF file per index and time scale, named in the CMIP5 style:
 `r20mm_ANN_climpact_historical_NA_1991-2010.nc`. Your institution's name and id, if
 given, are written into the files' attributes.
 
-The results page lists every file to download, with a zip of them all. It also maps an
-index: choose the index, the year (or month) and, for SPI and SPEI, the time scale. Choose
-a cell on the map, or its latitude and longitude, to see its values over time. The map and
-the series each have a table and a CSV file.
+Each run has its own page, with its name (Rename changes it), what it was made from, and
+three tabs:
+
+- **Map** maps an index: choose the index, the year (or month) and, for SPI and SPEI, the
+  time scale. Choose a cell on the map, or its latitude and longitude, to see its values
+  over time. The map and the series each have a table and a CSV file. While the run is
+  calculating, Map shows how far it has got.
+- **Files** lists every file, grouped by theme (or by the variable an index needs, or its
+  frequency), with a zip of each group and of them all. For a big run, "the links as a
+  text file" lists every file's address for a download tool, such as `wget -i`; the
+  links work without this browser for as long as the run is kept. `run.json` records the
+  settings, the software versions and a checksum of each input file; `climpact.log` when
+  each part ran and any errors.
+- **Set-up** shows the settings; changing them and starting again calculates the run
+  again.
+
+**Forget this run** deletes the run and its results (files read from your computer are
+never touched).
 
 View the files with Panoply or Ncview, or read them with Python, R or any netCDF tool.
 

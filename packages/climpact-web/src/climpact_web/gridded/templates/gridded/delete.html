@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+Forget a gridded run (#289; on the run's provenance line): what goes (the run, its
+results and any uploaded copies) and what stays (files read in place), then one danger
+button. A plain form: no JavaScript needed. Context from views.delete.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=run_name %}Forget {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<form method="post" class="stack max-w-prose" novalidate>
+  {% csrf_token %}
+  <h1>{% blocktranslate with name=run_name %}Forget {{ name }}?{% endblocktranslate %}</h1>
+  <p>{% if run.source == "path" %}{% translate "This deletes the run and its results. They can’t be recovered. The netCDF files it read are where they were, unchanged." %}{% elif run.source == "sample" %}{% translate "This deletes the run and its results. They can’t be recovered." %}{% else %}{% translate "This deletes the run, its results and the uploaded files. They can’t be recovered." %}{% endif %}</p>
+  <div class="flex flex-wrap items-center gap-3">
+    {% translate "Forget this run" as delete_label %}{% include "components/button.html" with label=delete_label type="submit" variant="danger" %}
+    {% translate "Cancel" as cancel_label %}{% include "components/button.html" with label=cancel_label href=run.get_absolute_url variant="ghost" %}
+  </div>
+</form>
+{% endblock %}

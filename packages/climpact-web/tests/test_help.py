@@ -52,6 +52,21 @@ def test_unknown_guide_is_404(client):
     assert client.get("/help/no-such-guide/").status_code == 404
 
 
+def test_batch_guide_describes_add_stations_and_the_overview(client):
+    """The batch guide follows a batch through Add stations' review and the workspace's
+    overview (#337), not the batch check and results pages that went with #271 and #311."""
+    html = client.get("/help/batch/").content.decode()
+    for anchor in ("the-metadata-file", "the-review-table", "options", "cancel", "files"):
+        assert f'id="{anchor}"' in html, anchor
+    assert 'href="/help/#samples-title"' in html and 'href="/add/"' in html
+    text = re.sub(r"\s+", " ", html)
+    assert "The run was cancelled." in text and "Not run" in text
+    for stale in ("left out", "the results say why", "each station's zip", "Open as a single"):
+        assert stale not in text, stale
+    base = re.sub(r"\s+", " ", client.get("/help/base-period/").content.decode())
+    assert "the batch page" not in base and "under a year in the base period" in base
+
+
 def test_guides_have_previous_and_next_links(client):
     html = client.get("/help/base-period/").content.decode()
     assert 'href="/help/station-file/" rel="prev"' in html
@@ -212,11 +227,13 @@ def test_header_help_button_opens_the_pages_guide(client):
 def test_links_to_pages_that_do_not_exist_keep_their_text(settings):
     body = guides.resolve_links(
         '<p><a href="url:stations:indices">the indices step</a> and '
-        '<a href="guide:trends#sens-slope">trends</a> and <a href="guide:#x">here</a></p>',
+        '<a href="guide:trends#sens-slope">trends</a> and <a href="guide:#x">here</a> and '
+        '<a href="url:help:index#samples-title">samples</a></p>',
         "faq",
     )
     assert "<p>the indices step and " in body  # #78 adds that URL
     assert 'href="/help/trends/#sens-slope"' in body and 'href="/help/faq/#x"' in body
+    assert 'href="/help/#samples-title"' in body  # a page of the app, at an anchor (#337)
 
 
 # ---- No broken links ---------------------------------------------------------------------

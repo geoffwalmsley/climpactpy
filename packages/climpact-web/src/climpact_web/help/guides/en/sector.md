@@ -12,7 +12,10 @@ gives:
   temperature and the number of days above 30 °C, each with a fitted straight line, its
   equation and R².
 
-It is the last, optional step of a single station, and uses the indices just calculated.
+Open it with **Compare with sector data** at the top of a station's Indices, once its
+indices are calculated. It works the same for a station added in a batch. It uses the
+indices the Indices show. If they are out of date, it uses them as they are, so compare
+again once they are up to date.
 
 ## The sector file {#the-sector-file}
 
@@ -29,19 +32,25 @@ Year,Wheat yield (t/ha)
 
 Your data and the station must have **at least 10 years in common**. Climpact for R's
 sample is yearly wheat yields for New South Wales, 1922 to 1999
-(`wheat_yield_nsw_1922-1999.csv`), which goes with the Sydney sample station.
+(`wheat_yield_nsw_1922-1999.csv`), which goes with the Sydney sample station. "Use the
+sample data" on the page uses it, and the help home's [Sample data](url:help:index#samples-title) has
+it to download.
 
 ## Settings {#settings}
 
-Plot title
+Under "Plot attributes":
+
+Title
 :   Printed on each plot. The station name if you leave it empty.
 
-Label for the y axis
+Label for y axis
 :   The name and units of your data, for example *Wheat yield (t/ha)*. Taken from the file
     name if you leave it empty.
 
-Detrend the data
+Detrend data
 :   On by default. See below.
+
+Then choose "Calculate correlations". The page shows the progress, then the results.
 
 ## Detrending {#detrending}
 
@@ -71,7 +80,8 @@ distort the correlation of an index with missing years. Treat those with caution
 
 ## The files
 
-The results are in the `corr` folder: the correlation table
+The results are shown on the same page, and their files are on the station's Files, under
+"Sector comparison". They are those of the `corr` folder: the correlation table
 (`<station>_index-sector_correlation_<name>.csv`), the yearly temperature summaries used
 for the scatter plots (`<station>_corr_tmax_<name>.csv` and so on), and the plots.
 `<name>` is taken from your data's column name, with `detrended.` in front when detrended.

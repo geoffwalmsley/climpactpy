@@ -56,15 +56,14 @@ are only visible in your browser session; you can delete them at any time.
 
 ## The calculation is slow or seems stuck {#slow}
 
-A station takes about 10 seconds with plots. The progress page updates as it goes; you can
-leave it and come back from [Workspaces](url:stations:workspaces). If a calculation stops
+A station takes about 10 seconds with plots. The station's page shows the progress as it
+goes. You can leave it and come back from [Workspaces](url:stations:workspaces). If a calculation stops
 unexpectedly, the page says so and offers to try again.
 
 ## Can I add my own indices? {#own-indices}
 
-One custom index, counting days above or below a value you choose, is in "Adjust and
-recalculate" on the results:
-see [Your own index](guide:indices#your-own-index). New indices for the ET-SCI set are
+One custom index, counting days above or below a value you choose, is in the Index
+settings, under a station's Your inputs: see [Your own index](guide:indices#your-own-index). New indices for the ET-SCI set are
 agreed by the expert team.
 
 ## Where can I use the results? {#use-results}

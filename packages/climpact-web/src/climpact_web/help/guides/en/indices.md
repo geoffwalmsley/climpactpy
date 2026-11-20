@@ -77,7 +77,7 @@ mean of all years, divided by their standard deviation, so that indices with dif
 units can be compared. Indices that come with a date (such as TXx) give the date of the
 extreme too.
 
-Besides the zip, the **Files** page (the link from the results) offers a **PDF report**, which
+Besides the zip, a station's **Files** tab offers a **PDF report**, which
 Climpact for R does not make: the station and the settings used, what the quality checks
 found, and a page per index with its plot and trends, with a table of contents and
 bookmarks. It is a separate file, so the zip keeps the layout above. Files also lists

@@ -359,10 +359,11 @@ strips, worklist and detail pane.
   mono line of provenance (coordinates, years and their count, base period, "ET-SCI
   defaults" or how many settings are not the default, the climpact version;
   `stations.workspace.provenance`; the shown run's while its results are out of date,
-  #223), the page's actions at the end, then the tabs.
+  #223, its file's years too, #269), the page's actions at the end, then the tabs.
   Quality's line describes the data the checks read instead (#235, as its board draws
   it): the coordinates, the years, the days and variables in the file ("21,915 days ·
-  PR TX TN") and the file's name.
+  PR TX TN") and the file's name; after a new file, those of the file the shown checks
+  read until the new checks have finished (#269).
   An index's page (#237) uses the breadcrumb (station / Indices) and the previous and
   next index, named codes first. In a workspace of several stations every station page
   starts the breadcrumb with the workspace, which leads to its overview, then "Station 2
@@ -743,9 +744,9 @@ colour and the focus ring in `--color-focus`, in both themes. Which charts hydra
   so the user can compare. Mark only what depends on the change: the base period changes
   Results and Files, not Quality. Nothing in the header claims the new inputs for the old
   results (#223): while they are out of date, the provenance line of the Indices, an
-  index page and Files describes the run on the page (its base period, coordinates and
-  settings; the Inputs panel and bar have the new values, "· changed"), and "Download
-  all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
+  index page and Files describes the run on the page (its file's years, base period,
+  coordinates and settings; the Inputs panel and bar have the new values, "· changed"),
+  Quality's the file its checks read (#269), and "Download all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
   Files, until the new results are ready.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
   where it matters, as a quiet line at the foot of the page: small muted text

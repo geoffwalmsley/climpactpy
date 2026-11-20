@@ -74,11 +74,11 @@ def test_a_station_name_starts_from_the_tidied_file_name():
 
 
 def test_new_station_and_the_batch_page_lead_here(client):
+    # Their forms went with #271: a form sent from before leads here too.
     for old in ("/station/new", "/station/", "/batch/", "/station/sample", "/batch/sample"):
-        response = client.get(old)
-        assert response.status_code == 302 and response["Location"] in ("/add/", "/batch/")
-    assert client.get("/batch/")["Location"] == "/add/"
-    assert client.get("/station/new")["Location"] == "/add/"
+        for response in (client.get(old), client.post(old)):
+            assert response.status_code == 302 and response["Location"] == "/add/", old
+    assert not Workspace.objects.exists()
 
 
 def test_starting_a_workspace_works_without_javascript(client):

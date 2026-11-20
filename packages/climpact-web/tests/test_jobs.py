@@ -7,10 +7,10 @@ import threading
 import uuid
 from pathlib import Path
 
+import made
 import numpy as np
 import pandas as pd
 import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
@@ -122,15 +122,7 @@ def test_station_run_from_the_browser_shows_each_stage(client, monkeypatch):
     # Step 1 (#76) loads the file and metadata, which queues the quality checks (#77) and a
     # speculative run with the default settings (#178); "Use this data" opens the results,
     # and the Index settings sheet there (#199) queues the run this test follows.
-    response = client.post(
-        "/station/new",
-        {
-            "station_file": SimpleUploadedFile("my_station.txt", station_text().encode()),
-            "intent": "read",
-        },
-    )
-    assert response.status_code == 302
-    load_url = response["Location"]
+    load_url = made.station_to_set_up(client, station_text(), "my_station.txt").url("setup")
     metadata = {"station_name": "Testville", "latitude": "-33.9", "longitude": "151.2"}
     response = client.post(load_url, {**metadata, "base_start": "2000", "base_end": "2001"})
     assert response.status_code == 302

@@ -2910,8 +2910,8 @@ packages/climpact-web/src/climpact_web/
       js/site-header.js  keeps --site-header-measured to the sticky site header's height
                      (#284), which everything that sticks under it and the scroll
                      padding use
-      js/setup.js    a station's setup page (New station, #201): a chosen or dropped file is
-                     read at once, Replace on the file card, focus on the card after reading
+      js/setup.js    a station's setup page (New station, #201): Replace on the file card
+                     reads the chosen file at once, focus on the card after reading
       js/add-stations.js  Add stations (#233): files sent as soon as they are chosen or
                      dropped, the table checked as it is typed, a pasted column filled
                      down, Enter moving down a row
@@ -3009,10 +3009,12 @@ packages/climpact-web/src/climpact_web/
                      table with every problem in one pass (review), tidy_name
     views_add.py     /add/, /w/<id>/add/ and the files waiting at /w/<id>/add/<files>/
                      (#233): staging, the review form, its live check, the sample and the
-                     sample batch, adding one station (add_one) or several (add_many)
-    views.py, urls.py  /station/new and /w/<id>/<station>/ (#256): the New station page
-                     (new_station: the file and the details, #201), the sample, field
-                     validation, the old upload and Load addresses' redirects, daily CSV,
+                     sample batch, adding one station (add_one) or several (add_many, which
+                     queues them with queue_batch, #271)
+    views.py, urls.py  /w/<id>/<station>/ (#256): a station's setup page (new_station: a new
+                     file and the details, the New station page of #201), field
+                     validation, the old /station/, /station/new, /station/sample (upload,
+                     #271) and Load addresses' redirects, daily CSV,
                      delete; Quality: the checks, progress, table pages, continue; the
                      Inputs panel's sheets (edit_input: file, station, base period,
                      thresholds, index settings) and their runs' progress; the old
@@ -3090,13 +3092,14 @@ packages/climpact-web/src/climpact_web/
     check.py         the pre-flight check: metadata file, each station, zip unpacking
     fill.py          add_stations, fill_workspace, run_states, run_progress: every station of
                      a batch is the workspace's, with its run state (#255)
-    forms.py         UploadForm, AddFilesForm, OptionsForm
+    forms.py         OptionsForm (Add stations' settings), MultipleFileField (gridded)
     retention.py     purge_stray_batch_folders, registered with the jobs app's purge
-    views.py, urls.py  /batch/: start and sample; /w/<id>/batch/ (#256): check, add files,
-                     options (htmx), run, delete; `results` leads to the workspace's
-                     overview at /w/<id>/ (#234); the old /batch/<id>/ redirects
+    views.py, urls.py  the sample batch's files, R's sample metadata file to download, and
+                     the old addresses (#271): /batch/ and /batch/sample lead to /add/,
+                     /w/<id>/batch/ to the files waiting on Add stations or the workspace,
+                     `results` to the workspace's overview at /w/<id>/ (#234); the old
+                     /batch/<id>/ redirects
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
-    templates/batch/  start.html, check.html, _options.html, _retention.html
   gridded/           gridded runs (label `gridded`, see [Gridded pages](#gridded-pages))
     models.py        GriddedRun: one set of netCDF files, its name (#289), their
                      inspection, the variable names, the parameters and the thresholds
@@ -3156,6 +3159,9 @@ packages/climpact-web/tests/
   web_test_settings.py  test settings: local mode, data folder in a temporary folder
   turnstile_test_settings.py  the browser test's app with Turnstile on (test keys, #137)
   browser.py         headless Chrome over the DevTools protocol (#83)
+  made.py            stations and batches made at model level (#271): a station on its
+                     setup page with its details not done, a batch checked against its
+                     metadata file (missing and unreadable stations too) and queued
   assets/axe-core/   axe-core 4.14.0, vendored for the accessibility tests (README: source,
                      SHA-256, MPL-2.0 licence)
   conftest.py        prints the page sizes measured by test_page_budget.py (from the
@@ -3164,7 +3170,7 @@ packages/climpact-web/tests/
                      (test_catalogue.py, #205), static files, the command, jobs
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
-                     the New station page (test_stations.py, #201), Add stations
+                     a station's setup page (test_stations.py, #201), Add stations
                      (test_add_stations.py, #233), Quality (test_qc_review.py; out of date,
                      test_stale_quality.py, #308), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
@@ -3373,10 +3379,12 @@ jobs and the error pages must leave none (`test_no_content_security_policy_viola
 `test_turnstile_widget_within_the_policy` starts a second app with
 `turnstile_test_settings.py` (Turnstile on with Cloudflare's published test keys, which
 always pass on any host, and the Turnstile policy) and waits for the widget's token on
-the New station page with no violation; `test_turnstile_holds_a_form_until_its_token`
-presses "Check and calculate" on the sample's setup page as soon as the page is parsed,
-before the token, and expects the quality checks, not "Not accepted" (#163). Both skip when Cloudflare
-cannot be reached.
+Add stations with no violation; `test_turnstile_holds_a_form_until_its_token`
+presses "Check and calculate" on a station's setup page as soon as the page is parsed,
+before the token, and expects the quality checks, not "Not accepted" (#163). The setup page
+is reached as a user reaches it since #271: Add stations' sample, then a new file from the
+File sheet that the base period does not fit (`setup_page`), so the sheet needs a token
+too. Both skip when Cloudflare cannot be reached.
 
 **Upload limit.** Django limits only in-memory form data, not file uploads, so
 `UploadSizeLimitMiddleware` answers 413 (with `413.html`) when `Content-Length` exceeds
@@ -3711,14 +3719,16 @@ HEAD) is matched by its own skip rule and the cache bypass, by no block, challen
 rate-limit or static-cache rule, and its skip rule by nothing else. The Inputs panel's
 sheets start jobs when applied, so the rule counts `/w/*/inputs/<key>` for each of
 the five keys, but not `/w/*/inputs/progress` (#199; `quality/run` left the rule
-with its form). Since #201 it counts the New station page, `/station/new` and
-`/w/*/setup`, instead of the upload page, the old Load page and its "Use a different
-file" (`/station/`, `.../load`, `.../file`), which now only redirect or are
-gone. Since #256 the station and batch paths are under `/w/` (`*` matches any number of
-path segments, so `/w/*/setup` is `/w/<id>/<station>/setup`), "Recalculate" is
-`/w/*/recalculate` and the batch's are `/w/*/batch/files` and `/w/*/batch/run`; the old
+with its form). Since #201 it counts `/w/*/setup` (a station's setup page), instead of
+the upload page, the old Load page and its "Use a different file" (`/station/`,
+`.../load`, `.../file`), which now only redirect or are gone. Since #256 the station paths
+are under `/w/` (`*` matches any number of path segments, so `/w/*/setup` is
+`/w/<id>/<station>/setup`) and "Recalculate" is `/w/*/recalculate`; the old
 `/station/<id>/…` and `/batch/<id>/…` addresses only redirect a GET, so they are not
-counted. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+counted. The old New station and batch forms (`/station/new`, `/station/sample`,
+`/batch/`, `/batch/sample`, `/w/*/batch/files`, `/w/*/batch/run`) left the rule with #271:
+their addresses only redirect to Add stations. Add stations' own paths (`/add/…`,
+`/w/*/add/…`) are not counted yet (#310). A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this. Bot Fight Mode is off (see the table). The same test checks
@@ -4375,8 +4385,9 @@ a comment listing its parameters. Labels are passed in already translated
 
 **Navigation before the screens exist.** `core/navigation.py` lists the destinations
 (workspaces, single station, sample data, batch, gridded and help) with the URL name each
-later ticket adds (`stations:new` since #201, `stations:upload` before;
-`stations:sample` (#76), `batch:start` (#80), `gridded:start` (#85), `help:index` (#81) and `jobs:list` all exist now). Until a URL exists, the landing page shows that action disabled or
+later ticket adds (`stations:add` since #233, `stations:new` and `stations:upload`
+before; `stations:add_sample`, `gridded:start` (#85), `help:index` (#81) and `jobs:list`
+all exist now). Until a URL exists, the landing page shows that action disabled or
 "Available soon" and the header leaves it out. Gridded is offered when `GRIDDED_ENABLED` is
 set: always in local mode, as in R, and in hosted mode only with
 `CLIMPACT_WEB_GRIDDED_HOSTED`. The batch and gridded step URLs are named in `BATCH_STEPS`
@@ -4389,7 +4400,7 @@ links, then Index reference, Help and the theme toggle at the end. The header li
 only Workspaces and Gridded (`in_nav`); Single station, Batch and Your calculations went,
 and the landing page leads to Get started (Add stations). Workspaces opens the Workspaces
 page (`stations:workspaces`, `/w/`, #242); it is `aria-current="page"` there and `aria-current="true"`
-on every `/station/`, `/batch/` and `/w/` page (`Destination.sections`, URL names or
+on Add stations and every `/w/` page (`Destination.sections`, URL names or
 paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
 definitions in the guide to the indices (`/help/indices/#the-indices`) until a reference
@@ -4443,7 +4454,7 @@ mm and degree-days (`numbers.slope_decimals`), rounded half up from the value as
 did); intervals as "−0.22 to 0.31" (`numbers.interval`); anomalies to one place with a
 sign (`numbers.anomaly`; the standardised anomalies chart's payload has
 `signed_digits: 1`, which `charts.js` and the summary follow); coordinates as "33.86° S
-151.21° E" (`numbers.coordinates`, the Inputs panel and the batch check page); counts grouped,
+151.21° E" (`numbers.coordinates`, the Inputs panel); counts grouped,
 "65,720" (`numbers.grouped`, the Quality tab's count, #222); a no-break
 space between a value and its unit. The Quality tables keep the file's own precision
 (`numbers.file_value`) with U+2212, except the days around a value, which have one
@@ -4553,10 +4564,9 @@ in the pull request (see its notes for the differences found).
 
 **Review snapshots.** `climpact-web manage design_snapshots <folder>` saves the landing
 page, pattern library, 404 page, the job pages (a running, a finished and a failed
-job and the job list), the New station page (#201: empty, with file problems, the
-sample's file read, details errors), step 2 before the checks have run, the
-indices being calculated (#178), and the batch pages
-(start, a check with every station status, a running batch, finished results) and the help
+job and the job list), a station's setup page (#201: the sample's file read, with a new
+file's problems, details errors; the empty New station page and the batch pages went with
+#271), step 2 before the checks have run, the indices being calculated (#178), and the help
 pages (index, a guide, the indices guide, the topic list, a search), rendered from
 unsaved example jobs and analyses, so no database is needed, each in light and dark copies, with the static files beside them
 and the icon sprite inlined, so they open from disk without a server.
@@ -4862,7 +4872,8 @@ and Files (#79, #176), beside the Inputs panel, where everything the user gave i
 ("Inputs panel" below). Since #233 a first visit is Add stations ([Add stations](#add-stations)):
 one file added there is checked and calculated as the New station page (#201, "New station
 page" below) did, and opens Quality; that page stays as a station's setup page, for a new
-file that needs new details. There are no steps and no step indicator. R's step 3, the index settings, is
+file that needs new details (its first-visit form, the sample and `/station/validate`'s
+twin for it went with #271). There are no steps and no step indicator. R's step 3, the index settings, is
 the Inputs panel's Index settings sheet since #199 ("Adjust and recalculate" on Results
 from #178): the indices are calculated with the defaults while the user looks at the
 quality checks ("Speculative calculation" below). The output pages hold no forms but the
@@ -4885,8 +4896,8 @@ changes them, #254); and `undo`, the last change to the settings while it can be
 (below). Since #254 every station of the workspace reads its base period, thresholds and
 index settings from it, and the sheets write them there ("Settings belong to the
 workspace" below). A new station, uploaded or the sample, makes a workspace of one with
-the defaults (the New station page then sets its base period, `views.set_base_period`,
-or, in a workspace of several stations, changes it for all with
+the defaults (Add stations; a station's setup page then sets its base period,
+`views.set_base_period`, or, in a workspace of several stations, changes it for all with
 `calculation.change_settings`). A new batch makes a workspace of its own, with no custom
 index (`batch.fill.batch_index_settings`), and every station of its run is the
 workspace's from when the run is queued (#255, [Batch page](#batch-page)). Deleting a workspace's
@@ -4926,19 +4937,21 @@ workspace doesn't have, or a station under another workspace gives 404.
   `batch.fill.run_states`), the New station page for one the batch had no file for. A
   workspace of two or more opens its overview (#234, [Workspace overview](#workspace-overview)),
   after `batch.fill.fill_workspace` has recorded how a finished batch went. Without
-  stations, files waiting on Add stations open their review, and a batch of the old
-  upload its check page. Every link to a batch's results goes here
-  (`BatchRun.results_url`): the redirect after Calculate, "Follow its progress" on the
-  check page, the breadcrumb and the recent batches. `progress`, `rename`, `settings` and
+  stations, files waiting on Add stations open their review, and a batch the old upload
+  checked and never ran leads to Add stations (its check page went with #271). Every link
+  to a batch's results goes here (`BatchRun.results_url`): the redirect after Add
+  stations adds several stations, and the breadcrumb. `progress`, `rename`, `settings` and
   `undo` are the overview's own addresses, so they are not station slugs either.
 - **Pages with no workspace yet** keep their addresses: `/add/` (Add stations, #233),
   `/add/sample` and `/add/sample-batch`, the station's sample files and the sample
-  metadata file. `/station/new`, `/station/`, `/batch/` and a GET of `/station/sample` or
-  `/batch/sample` lead to `/add/`; their POSTs (the old New station form, the old batch
-  upload and the old samples) still work but no page sends them. A workspace is made when
-  files are dropped on Add stations, and the redirect after it goes to the new address.
-  Files waiting on Add stations are a batch with no job: `/w/<id>/` and `/w/<id>/batch/`
-  lead to their review, and a batch that ran comes before them (`batch.views.get_run`).
+  metadata file. `/station/new`, `/station/`, `/station/sample`, `/batch/` and
+  `/batch/sample` lead to `/add/`, a GET or a POST: the old New station form, the old batch
+  upload and the old samples went with #271 (`views.upload`, `batch.views.start` and
+  `sample`). `/station/validate` checks the workspace's base period sheet as it is typed. A
+  workspace is made when files are dropped on Add stations, and the redirect after it goes
+  to the new address. Files waiting on Add stations are a batch with no job: `/w/<id>/` and
+  `/w/<id>/batch/` lead to their review, and a batch that ran comes before them
+  (`batch.views.get_run`); `/w/<id>/batch/` of a batch that ran leads to `/w/<id>/`.
 - **Old addresses** (`views.old_station_url`, `batch.views.old_batch_url`): a GET or HEAD of
   `/station/<id>/<path>` or `/batch/<id>/<path>` redirects, with its query string, to the
   station's or batch's address under its workspace while it is kept, and gives 404 after
@@ -5020,8 +5033,8 @@ finished, else the checks it replaces; `shown_run` is `indices_job` if it has fi
 else the run it replaces, else the batch's results (`origin`). The replaced job is named in
 the new job's `params["replaces"]` (#178's recalculation, now for the checks too,
 `workspace.replaces_for` carrying it from a job still waiting). After a change,
-`calculation.bring_up_to_date` (called by the New station page and the Inputs
-panel's sheets) runs `workspace.settle`, which cancels what is still queued or running for the
+`calculation.bring_up_to_date` (called by a station's setup page, Add stations and the
+Inputs panel's sheets) runs `workspace.settle`, which cancels what is still queued or running for the
 old inputs and, when an input was changed back, links the finished job of those inputs again
 instead of calculating it twice; then it queues the checks and the run that are not of the
 current inputs. A replacement run is speculative before "See results" and an ordinary job
@@ -5262,9 +5275,9 @@ section of Quality, "Your data" (`id="your-data"`), so the Quality page loads th
 code. Since #235 it shows only while the checks run (or failed); once they have run the
 coverage strip takes its place and its anchor (`id="your-data"` on the strip's wrapper). Once the station is set up, `stations:load` (Data's address) and `stations:setup`
 redirect to `.../quality#your-data`; before that, and when a new file no longer fits the
-details, they lead to the New station page. The station's own address,
-`/w/<id>/<station>/` (`stations:station`), opens Indices after "See results", Quality once
-set up, else the New station page; the New station page's recent analyses link to it.
+details, they lead to the station's setup page (the New station page). The station's own
+address, `/w/<id>/<station>/` (`stations:station`), opens Indices after "See results",
+Quality once set up, else the setup page.
 
 **Migrations (#179).** `jobs/0003_workspace_inputs` adds `Job.inputs`,
 `stations/0004_workspace_inputs` adds `StationAnalysis.file_hash`, and
@@ -5272,17 +5285,18 @@ set up, else the New station page; the New station page's recent analyses link t
 migration (above) has since dropped those analyses.
 
 **URLs.** A station's pages are under its workspace since #256, `/w/<id>/<station>/`
-(the station's slug), written `...` below; the pages without a station yet keep
-`/station/`. `/station/new` the New station page (`stations:new`, #201), and
-`.../setup` the same page once its file is read (`stations:setup`); `/station/`
-(`stations:upload`, the upload page until #201) and `.../load`
-(`stations:load`, Data until #198, the details until #201) redirect to them, or once the
-station is set up to Quality's "Your data", GET or POST; `/station/validate` and
-`.../setup/validate` (htmx, POST: a group of the details checked as it changes, against
-the file once one is read); `/station/sample` (POST) loads the sample;
-`/station/sample.txt` downloads it (R links to the sample file too); `.../`
+(the station's slug), written `...` below. `.../setup` is a station's setup page
+(`stations:setup`, the New station page of #201); `/station/` (`stations:upload`, the
+upload page until #201), `/station/new` (`stations:new`, the New station page with no
+station yet, #201) and `/station/sample` (`stations:sample`, the sample on its setup page)
+lead to Add stations, GET or POST, since their forms went (#233, #271); `.../load`
+(`stations:load`, Data until #198, the details until #201) redirects to the setup page, or
+once the station is set up to Quality's "Your data", GET or POST; `.../setup/validate`
+(htmx, POST: a group of the details checked as it changes, against the file) and
+`/station/validate` (the same without a file, for the workspace's base period sheet);
+`/station/sample.txt` downloads the sample file (R links to it too); `.../`
 (`stations:station`, #179) the furthest section reached (Indices after "See results", else
-Quality once the details are confirmed, else the New station page); `.../file` (POST, the
+Quality once the details are confirmed, else the setup page); `.../file` (POST, the
 old Load page's "Use a different file") is gone since #201; `.../series.csv` the daily
 series; `.../delete` (POST); `.../undo` (POST, #254); `.../inputs/<key>`
 (`stations:edit_input`, #198, #199) a sheet of the Inputs panel as a page, POST applies
@@ -5309,13 +5323,17 @@ sector file (`stations:sector_sample`); `.../downloads` the Files page
 (`stations:downloads`, #79, #176). No index key is `progress`, which comes before
 `indices/<key>` in `stations/urls.py`.
 
-**New station page (#201).** Proposal 4 of #171's second review ("One setup screen, then
-the workspace"): a first visit asks only for what must be given, on one page
-(`stations/new.html`, `views.new_station`), in two numbered steps, then one button.
+**New station page (#201), a station's setup page since #233.** Proposal 4 of #171's
+second review ("One setup screen, then the workspace"): a first visit asked only for what
+must be given, on one page (`stations/new.html`, `views.new_station`), in two numbered
+steps, then one button. Add stations (#233) is the first visit now, and #271 removed the
+page's first-visit form (`/station/new` with no station: the drop zone, "Use the sample
+data", the sample's download link, the session's recent analyses and the empty name that
+took the file's). What stays is the page of a station whose details are not done: a new
+file (from the File sheet or Replace here) that needs new details, or a batch's station
+whose file was missing (`stations:setup`).
 
-1. **Your file.** A drop zone around a real file input, with "No file to hand? Use the
-   sample data" (its own form, `#sample-form`, sent by a button in the step) and a link
-   to download the sample. Once the file is read, a file card (`_file_card.html`: the
+1. **Your file.** A file card (`_file_card.html`: the
    file name, "✓ Read: 1936–2015, 29,220 days", Replace) and a strip of days with data per
    year (`views.year_strip`: an SVG bar a year, as tall as its emptiest variable's share
    of the year, amber when a variable misses more than 15 days, climdex.pcic's
@@ -5324,34 +5342,30 @@ the workspace"): a first visit asks only for what must be given, on one page
    names those years; an SVG, as the Content Security Policy allows no inline styles).
    The Sydney sample, which misses at most a few days in a year, has none. Warnings about the file show under it.
 2. **Station details.** Name, latitude, longitude and base period (`MetadataForm`,
-   "Station details" below), with short hints only. Before a file is read the name may
-   be left empty: it is then the file's name, as R does. The base period starts at R's
-   1971–2000.
+   "Station details" below), with short hints only. A name left empty is the station's
+   (the file's name until it is changed), as R does. The base period is the workspace's.
 
 Then one primary button, **Check and calculate**, with a note beside it that the quality
 thresholds and index settings use the defaults and can be changed later in Inputs. It
 saves the details, moves `step` to `qc` and calls `calculation.bring_up_to_date`, which
 queues the checks and the speculative run together (#178), and opens Quality (Results,
 when only they are affected: a station in use whose new file needed new details). The
-retention notice is one quiet line at the foot (#173), and on the empty page the
-session's recent analyses follow.
+retention notice is one quiet line at the foot (#173), beside Delete and "Start again
+with another station" (Add stations).
 
-It is one multipart form (`#new-station`), so it works without JavaScript: the file and
+It is one multipart form (`#new-station`), so it works without JavaScript: a new file and
 the details can be sent together with "Check and calculate", or the file first with
-"Read the file" (`intent=read`), then the details. `/station/new` has no analysis; a file
-read makes one, and the page is then `/w/<id>/<station>/setup` (a redirect after the read),
-where the form is sent next. With JavaScript (`js/setup.js`) "Read the file" is hidden
-and a chosen or dropped file is sent at once (the drop zone's hint says so, WCAG 3.2.2);
-the details typed beside it go with it and those valid on their own are kept
+"Read the file" (`intent=read`, a redirect back to the page), then the details. With
+JavaScript (`js/setup.js`) a file chosen with Replace is sent at once (WCAG 3.2.2); the
+details typed beside it go with it and those valid on their own are kept
 (`views.keep_typed_details`). Back on the page, focus moves to the file card
 (`data-focus-on-load`, set once by the session after a read), unless an error summary
 takes it. Replace is a file button inside the form (the file button of #174, sent with
 its own hidden "Read the file"). Errors are shown inline, each with its summary, which
-takes focus: no file ("Choose a station file", in the file's step, the details kept as
-typed), a file that cannot be read (its problems, the details kept), and wrong details
-(the error summary over the details; a good file sent with them is kept, and the form
-then goes to its setup page). The Turnstile widget is in the form, before "Check and
-calculate"; the view is `human_required`, the sample `disk_required`. A station already
+takes focus: a file that cannot be read (its problems, the details kept as typed, the
+station's file unchanged), and wrong details (the error summary over the details; a good
+file sent with them is kept). The Turnstile widget is in the form, before "Check and
+calculate"; the view is `human_required`. A station already
 set up has no setup page: later changes are made in the Inputs panel. The days-per-year
 table, missing values and daily series are Quality's "Your data" (#198), not on this
 page.
@@ -5400,11 +5414,11 @@ digits, spaces and `.()-_` (it becomes folder and file names). Rules and message
 | Station name | required ("Please enter a station name") | required; the characters above, not starting with a dot |
 | Latitude, longitude | default 0, 0; must lie in -90..90 and -180..180 | start empty and are required (a forgotten 0 would put the station in the Southern Hemisphere); same ranges; latitude 0 gets a warning that it counts as Southern Hemisphere |
 | Base period | default 1971-2000; years >= 0; the help says it "must be within the limits of the dates in the station data", but nothing checks it before the run | same defaults; the last year must not be before the first; a base period with no year inside the data is an error; partial coverage is a warning naming the years covered; 359 days or fewer of the base period inside the data (`MIN_BASE_DAYS`, the core's rule) is a warning that the percentile indices cannot be calculated, as the run would go ahead in R too |
-| Sample | a link to the file; the user uploads it and types the metadata | one click: the analysis is created with the name, latitude -33.86 and longitude 151.21 (as in `reference/stations.csv`) filled in, on its New station page, so "Check and calculate" is the only other press (#201) |
+| Sample | a link to the file; the user uploads it and types the metadata | one click on Add stations (#233): the station "Sydney Observatory Hill" (#219) with latitude -33.86 and longitude 151.21 (as in `reference/stations.csv`), checked and calculated at once; its Quality opens |
 
 **htmx.** The form is split into groups (`MetadataForm.UNITS`: name, latitude, longitude,
 base period). Each group is a `<div>` with `hx-post` to `.../setup/validate` (or
-`/station/validate` before a file is read),
+`/station/validate` on the workspace's base period sheet, which has no file),
 `hx-trigger="change"`, `hx-include="closest form"` and `hx-vals` naming the group; the
 server validates the whole form and returns only that group, re-rendered with its
 errors and warnings, which replaces the old one (`outerHTML`). Without JavaScript the
@@ -6160,37 +6174,29 @@ page lead to it. `stations/views_add.py`, `stations/add_stations.py`,
 
 ### Batch page
 
-The batch page (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R`
-and `batchStep1.R`): many stations from R's batch metadata file, run as one job. Since
-#233 its first page and check page are [Add stations](#add-stations)'s: `/batch/` leads to
-`/add/`, and stations added there run as a batch; the pages below stay for a batch
-uploaded from before (their POST handlers until #271). Its results are the workspace's
-overview since #234 ([Workspace overview](#workspace-overview)).
+The batch (#80) replaces the R app's batch screen (`climpact/modules/batchStep1UI.R` and
+`batchStep1.R`): many stations from R's batch metadata file, run as one job. Since #233
+its first page and check page are [Add stations](#add-stations)'s, and stations added
+there run as a batch; #271 removed the batch's own pages (the upload page `/batch/`, the
+check page `/w/<id>/batch/` with its add files, options and run forms, and the sample and
+delete forms; `batch/start.html`, `check.html`, `_options.html`, `_retention.html`,
+`UploadForm`, `AddFilesForm`). Its results are the workspace's overview since #234
+([Workspace overview](#workspace-overview)).
 
-**Flow** (`batch:start`, `batch:check`, `stations:workspace`; no step indicator since
-#234):
-
-1. `/batch/`: two drop zones, the metadata file and the station files (several at once,
-   or a zip; a zip may also hold the metadata file, found by its first line, 12 column
-   names starting `station_file`, and may sit in the metadata box). "Use the sample batch"
-   loads R's sample in one click: R's `climpact.sample.batch.metadata.txt` (bundled
-   unchanged in `batch/sample_data/`) with two copies of the Sydney file under the two
-   names it lists; R ships the same file twice, the package keeps the one gzipped copy of
-   step 1. The sample metadata file downloads as a template (R links to it). The format,
-   each column's meaning and the retention note are on the page.
-2. `/w/<id>/batch/` (the batch's workspace, #256; `/batch/<id>/` before, which
-   redirects): every station listed as **ready**, **file missing** or **has problems**,
-   with the reasons, before anything runs; counts; files uploaded but not listed; each
-   station's index parameters in a table; a form to add or replace station files or the
-   metadata file (checked again at once); the options; and "Calculate *N* stations". A
-   batch with some stations not ready can start: those are left out and reported.
-3. `/w/<id>/`, the workspace's address (#256; `/batch/<id>/results` before, and
-   `/w/<id>/batch/results` while #256 was in review, both redirect): one `batch` job for
-   the ready stations, shown by the workspace's overview (#234): the run status line and a
-   Stations-table row a station, polled while it runs. The batch results page, its
-   progress fragment (`batch:progress`), per-station downloads and "What is in the zip"
-   went with #234; each station's files are on its Files tab, and the workspace's are
-   Files' (#239).
+**Addresses** (`batch/urls.py`): `/batch/` and `/batch/sample` lead to `/add/`, GET or
+POST; `/batch/sample-metadata.txt` downloads R's `climpact.sample.batch.metadata.txt`
+(bundled unchanged in `batch/sample_data/`; R links to it) as a template, and Add
+stations' "Use the sample batch" (`/add/sample-batch`) puts it with two copies of the
+Sydney file, under the two names it lists, on Add stations' review (R ships the same file
+twice; the package keeps the one gzipped copy of the single-station sample).
+`/w/<id>/batch/` (`batch:check`, the check page until #271; `/batch/<id>/` before #256,
+which redirects) leads to the files waiting on Add stations, to `/w/<id>/` once they were
+added, or to Add stations for a batch the old upload checked and never ran.
+`/w/<id>/batch/results` (and `/batch/<id>/results`) lead to `/w/<id>/`, where the
+workspace's overview (#234) shows the `batch` job of the stations added: the run status
+line and a Stations-table row a station, polled while it runs. The batch results page,
+its progress fragment, per-station downloads and "What is in the zip" went with #234;
+each station's files are on its Files tab, and the workspace's are Files' (#239).
 
 **Data model.** A `BatchRun` (`batch/models.py`): UUID; `owner` (the job owner token: any
 other session gets 404); `source` (`upload`, `sample`); `metadata_name` (as uploaded); the
@@ -6203,11 +6209,13 @@ its own name without folders (hidden names are ignored). Every change checks the
 batch again. Since #231 a batch has a `workspace`, made with it, and is deleted with it
 (see the retention of workspaces in [Single-station steps](#single-station-steps));
 `batch/retention.py` deletes only stray batch folders. The batch and its stations share
-their workspace's retention. "Delete these files now" deletes the workspace at once, with
-the batch, its stations and their files, as the batch page stands in as the workspace page
-(#255).
+their workspace's retention, and deleting the workspace deletes them (#274; the batch
+page's own "Delete these files now" went with #271).
 
-**The check** (`batch/check.py`). The metadata file is walked with
+**The check** (`batch/check.py`). Add stations reads a metadata file with its
+`check_metadata` and zips with `unpack`; `check_batch`, the old check page's whole check,
+is used now only by the tests' batches with stations left out (`tests/made.py`, #271; whether it stays is #311).
+The metadata file is walked with
 `read_batch_metadata`'s rules (whitespace-separated fields, `#` comments and blank lines
 skipped, the first line the header) and every problem is reported in plain language with
 its line and the line's text, as step 1 does for station files: empty or not text, no
@@ -6229,21 +6237,18 @@ left out. Then each station:
   same name in other capitals, or with another extension, was;
 - *ready* otherwise, with step 1's warnings (dates R drops, repeated dates, latitude 0).
 
-**Options.** The R screen's base period (here 1971-2000 by default) and, in the local
-install only, the number of cores ("Stations to calculate at the same time", 1 to the
-number of cores, R's messages for both limits), plus a "Draw the plots of every index and
-write each station's PDF report" checkbox (on).
-An htmx fragment (`batch:options`) re-checks them as they change: the base period's order,
-ready stations whose data cover 359 days or fewer of it (`MIN_BASE_DAYS`: their
-percentile indices cannot be calculated) and a rough time estimate (13 s a station with
-plots and report, 4 s without, divided by the stations at a time; R's modal says about a minute a
-station per core).
+**Options** (`batch/forms.py`'s `OptionsForm`, Add stations' "Change workspace
+settings" since #233). The R screen's base period (here 1971-2000 by default) and, in the
+local install only, the number of cores ("Stations to calculate at the same time", 1 to
+the number of cores, R's messages for both limits), plus a "Draw the plots of every index
+and write each station's PDF report" checkbox. The old check page's live check of them
+(base period coverage, a time estimate) went with #271; Add stations' review checks each
+station's coverage of the base period instead.
 
-**The job.** The base period chosen is set on the workspace (`views.set_base_period`; an
-undo of an earlier settings change is forgotten, as the run recalculates the batch's
-stations), and the job takes the workspace's custom index (`custom`, none unless the
-workspace's settings were changed). `batch:run` writes a metadata file in R's format with only the ready
-stations (`check.metadata_text`, numbers written so they read back the same) and copies
+**The job** (`views_add.queue_batch`, #271: `add_many` and the tests' batches share it).
+The job takes the workspace's base period and custom index (`custom`, none for a batch's
+workspace unless its settings were changed) and the run's `workers` and `plots`. It
+writes a metadata file in R's format with only the ready stations (`check.metadata_text`, numbers written so they read back the same) and copies
 their files as UTF-8 to `input/stations/`, then queues a `batch` job with `zip`,
 `station_zips`, `report` (with the plots), `folder` (the metadata file's name without its extension, as R names the
 batch folder and zip) and `skipped` (the other stations and why). The runner writes each
@@ -6265,15 +6270,16 @@ file is a `Station` of the batch's workspace, whether it calculated or not: the 
 overview (`Calculate.dc.html`, #234) has a Stations-table row for each, with its run state
 (Done, Calculating with its percentage, Waiting, Not run, Failed with why).
 
-- *When the run is queued* (`batch:run`), `add_stations` adds them all: `source` `batch`,
+- *When the run is queued* (`queue_batch`), `add_stations` adds them all: `source` `batch`,
   name, location, slug and the station file (from the batch's `files/`, when it can be
   read), and `origin = {"batch", "station", "params", "run"}`: the batch, the station's
   name in it, the `IndexParams` fields of its metadata line, and its state in this run
   (`{"job", "state", "error"}`). A ready station is `waiting`, at step `qc` (its address
   leads to Quality, its checks not yet run). One the check left out is `not_run`, with
-  the check's reasons as `error` (the text of its error file), at step `upload` and
-  without a file when it has none that can be read, so its address leads to the New
-  station page, where a corrected file is loaded. The job gets `stations_added`.
+  the check's reasons as `error` (the text of its error file, `views_add.skip_reason`), at
+  step `upload` and without a file when it has none that can be read, so its address
+  leads to its setup page, where a corrected file is loaded. Add stations adds only rows
+  it can run, so its batches have none; a batch of the old upload, or a test's, may. The job gets `stations_added`.
 - *When the job has succeeded*, `fill_workspace` records how it went, the first time the
   workspace's overview or its polled fragment is shown, or one of its stations is opened
   (`stations.views.filled`, through `get_analysis`, for a station opened first). A station that calculated gets
@@ -6311,9 +6317,9 @@ R behaviour not copied, and why:
 | --- | --- |
 | Base period defaults to 1970-2010 | 1971-2000, as R's single-station screen, the command line and WMO's reference period |
 | Number of cores defaults to 1 | up to 4, one core left free and no more than the stations; 1 when hosted (where the option is hidden, as in R) |
-| A station listed but not uploaded is skipped silently; problems appear only after the run, in error files | the check lists every station's status and reasons before the run; stations not ready are left out with an error file saying why |
-| A bad parameter or malformed metadata line stops the whole batch | a malformed metadata file is reported line by line before the run; a bad parameter leaves out only its station |
-| Plots are always drawn | a checkbox, on by default (plots and reports are about two thirds of the run time) |
+| A station listed but not uploaded is skipped silently; problems appear only after the run, in error files | Add stations' review lists every file's problems before anything runs, and adds only the rows that can run |
+| A bad parameter or malformed metadata line stops the whole batch | a malformed metadata file is reported line by line before anything runs; a bad parameter blocks only its station's row |
+| Plots are always drawn | a setting of the workspace (plots and reports are about two thirds of the run time) |
 | One zip of the batch folder | the same zip, each station's own zip and its PDF report |
 | Station files only as separate uploads | separate files or zips, with the metadata file in the zip if wanted |
 
@@ -6693,11 +6699,11 @@ standalone user guide and handover documents are #12.
 
 **Contextual help topics** (`help/topics.py`). A topic is an id, a title, one or two
 plain sentences and the guide section that says more (`Topic.url`, a guide and an
-anchor). The station pages show topics through their sections' help (below). The batch and gridded
+anchor). The station pages show topics through their sections' help (below). The gridded
 pages still show some in place with
 
 ```django
-{% load help %}{% help_topic "batch.metadata_file" %}
+{% load help %}{% help_topic "gridded.files" %}
 ```
 
 which renders a `<details>` (no JavaScript): the title as a quiet link-style summary
@@ -6747,12 +6753,12 @@ holds. An unknown section or topic fails as `help_topic` does. The station pages
 
 | Page | Sections |
 | --- | --- |
-| New station (#201) | `upload.file` (Your file), `load.details` (Station details) |
+| A station's setup page (New station, #201) | `upload.file` (Your file), `load.details` (Station details) |
 | Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, and `load.data` for "Your data" (#198) |
 | Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
 | Indices, an index, Files | `results.catalogue`; `result.index` (a quiet "About this index" link, #237); `files.page` |
 | Sector | `sector.data`, `sector.plot`, `sector.correlation`, `sector.scatter` |
-| Batch and gridded (fields that had a help link) | `batch.options`, `gridded.task`, `gridded.output`, `gridded.settings`, `gridded.computing` |
+| Gridded (fields that had a help link) | `gridded.task`, `gridded.output`, `gridded.settings`, `gridded.computing` |
 
 **Topic ids for the screens.** All exist and point at written guide sections; the
 sections above and the remaining `{% help_topic %}`s use them.
@@ -6760,7 +6766,6 @@ sections above and the remaining `{% help_topic %}`s use them.
 | Family | Ids |
 | --- | --- |
 | Step 1 (#76, applied) | `station.file`, `station.name`, `station.latitude`, `station.longitude`, `station.base_period` |
-| Batch (#80, applied) | `batch.metadata_file`, `batch.station_files`, `batch.base_period`, `batch.workers`, `batch.plots` |
 | QC checks and plots (#77, applied): `qc.<file>` as in `QC_REPORTS` | `qc.outliers`, `qc.tmaxmin`, `qc.toolarge`, `qc.duplicates`, `qc.tx_jumps`, `qc.tn_jumps`, `qc.tx_flatline`, `qc.tn_flatline`, `qc.nastatistics`, `qc.rounding` (decimal histograms), `qc.precip_histogram`, `qc.daily_series`, `qc.homogeneity` |
 | QC thresholds (#77, applied): `QCParams` fields | `qcparam.iqr_temp`, `qcparam.iqr_prec`, `qcparam.prec_max`, `qcparam.temp_max`, `qcparam.flatline_days`, `qcparam.jump` |
 | Index settings (#78, applied) | `param.plot_title`, `param.wsdi_days`, `param.csdi_days`, `param.rx_days`, `param.txtn_days`, `param.hdd_base`, `param.cdd_base`, `param.gdd_base`, `param.rnnmm`, `param.spei_months`, `param.custom` (variable, operator and threshold) |
@@ -7098,7 +7103,7 @@ afterwards (progress fragments, the set-up checks) and chart data are not counte
 | Any other page, chart code included | 300 KB gzipped in total | 147.7 KB at most (the quality-check results, #77, #174, #202); 124.8 KB for the gridded results, worst-case map, with the chart code |
 | Any page's HTML, uncompressed (parsing and memory on slow devices) | 2 MB | 1.4 MB at most (the gridded results, worst-case map) |
 | Chart code (uPlot, `charts.js`, #75) | only on pages marked `charts=True` | Quality (its "Your data" series since #198, and the checks' charts), a station index's page (#78; again since #283, after #237 drew it on the server only) and the gridded results |
-| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.7 of 0.75 KB (the New station page only, #201), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
+| Each static file, gzipped as served | `ASSET_BUDGETS` in the test | e.g. `climpact.css` 16.7 of 16.75 KB (16.5 KB before #235 added Quality's worklist and its strips; 15.6 KB before #227 added the tokens, app shell, context bar and data table; 14.8 KB before #203 added the phone layout; 14.4 KB before #202 added Quality's list and detail; 14.1 KB before #201 added the New station page; 14.2 KB before #200 removed the index cards and accordions; 14 KB before #198, 13.5 KB before #197, 13 KB before #196), `drawer.js` 1.0 of 1 KB, `site-header.js` 0.4 of 0.5 KB (every page, #284), `context-bar.js` 0.9 of 1 KB (station pages only; `workspace.js` until #227, #197; 0.4 KB until #203 added the phone's ⋯ menu and sticky offset), `setup.js` 0.6 of 0.75 KB (a station's setup page only, #201; 0.7 KB until #271 removed the first visit's drop zone), `sheet.js` 1.3 of 1.5 KB (station pages only, #198; 1 KB until #199 opened a sheet from an old address), htmx 16.9 of 18 KB, `ui.js` 4.4 of 4.5 KB, `theme.js` 0.3 of 0.5 KB, `turnstile.js` 2.0 of 2.5 KB (Turnstile pages only) |
 
 Every stylesheet, script, SVG and JSON file in the package must have an entry in
 `ASSET_BUDGETS` (a test fails otherwise); #75's files: uPlot 21.5 of 24 KB, `charts.js`
@@ -7144,7 +7149,7 @@ with the sample loaded, step 2 with the checks queued and with their results, Re
 while the first run goes on (#178), the
 dashboard of a finished run with every index (R's `lat0`
 reference output for the Sydney sample: 114 tables, 80 cards with sparklines) and one
-index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); batch start, check and results (queued); the job list
+index's page (TXx, with the chart code), step 5's results (#90), the Files page of the dashboard's run (#79, #176); Add stations and its review of the sample batch, and the workspace overview of that batch queued (the batch's check page went with #271); the job list
 and a job; gridded start, set-up, and results of a finished run on a 100 x 100 grid (the
 largest map drawn, values all different); the help index, a guide, the indices guide, the
 topic list and a search; and the 404 page. The pattern library is left out (development
@@ -7164,7 +7169,6 @@ only). The sizes print at the end of the test run, largest first; on this branch
 | station calculating (#178: progress; #199: with the Index settings sheet) | 54.0 | 8.7 | 48.2 | 43.4 |
 | help indices | 26.0 | 6.7 | 35.3 | 32.3 |
 | landing | 13.4 | 4.1 | 34.9 | 31.5 |
-| batch check | 18.6 | 4.4 | 34.1 | 30.8 |
 | station step 1, empty | 11.2 | 3.3 | 41.1 | 36.7 |
 | job list | 5.3 | 1.8 | 30.4 | 27.3 |
 
@@ -7287,8 +7291,8 @@ such as the run's PNG, shown instead without JavaScript). A summary, legend or C
 left out is filled in from the data; without `table_template` the table view is built from
 the data. `{% chart_scripts %}` writes uPlot and
 `charts.js` (deferred) and `#climpact-chart-text`, the script's strings in the interface
-language. Only pages that include it load chart code: the landing page and the New station
-page do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
+language. Only pages that include it load chart code: the landing page and Add stations
+do not (tested). Frames swapped in by htmx are hydrated on `htmx:load`;
 `ClimpactCharts.hydrate(element)` does it by hand.
 
 **Data URLs** (`charts/urls.py`). All are GET-only and private to the session, like the
@@ -7515,8 +7519,9 @@ with the sample sector file), a second sample station whose base period is chang
 new run cancelled (Results out of date under "Recalculate", #179), the sample
 batch and the 3 x 4 sample grid (thresholds, then `txx`, `fd` and `spi`) in the browser, so
 the worker runs real jobs (about a minute), and collects 38 pages and states, including
-forms answered with errors (the New station page without a file, with a file it cannot
-read, and with wrong details, #201), the 413 page (a real over-limit upload) and the 500 page
+forms answered with errors (Add stations without a file and with a file it cannot read,
+#233, and a station's setup page with wrong details, #201; the setup page is reached by a
+new file from the File sheet that the base period does not fit, #271), the 413 page (a real over-limit upload) and the 500 page
 (rendered from its template). The `audit` fixture opens each page once and reads:
 
 | Check | How |

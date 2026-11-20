@@ -49,7 +49,7 @@ DESTINATIONS = (
         "stations:workspaces",
         _("Workspaces"),
         "layers",
-        sections=("stations:add", "stations:upload", "batch:start", "/w/"),
+        sections=("stations:add", "/w/"),
     ),
     # Add stations (#233) is the one way in, for one station or many.
     Destination("station", "stations:add", _("Single station"), "station", in_nav=False),
@@ -104,7 +104,6 @@ def index_reference_url() -> str | None:
 # The guide each page's Help button opens, by URL namespace and name; a namespace alone
 # covers its other pages. Pages without one open the help's index.
 PAGE_GUIDES = {
-    "stations:new": "station-file",
     "stations:add": "station-file",
     "stations:add_to": "station-file",
     "stations:add_review": "station-file",

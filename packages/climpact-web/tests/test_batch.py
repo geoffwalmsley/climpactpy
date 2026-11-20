@@ -1,7 +1,9 @@
-"""The batch page (#80): uploads and zips, the pre-flight check and its messages, the
-options, one job for the ready stations with per-station progress, the results (errors,
-downloads, a station failing alone), ownership and retention. Its stations in its
-workspace (#255) are ``test_batch_workspace.py``'s."""
+"""The batch (#80): zips, the pre-flight check and its messages, the options, one job for
+the ready stations with per-station progress, the results (errors, downloads, a station
+failing alone), ownership and retention. Add stations (#233, ``test_add_stations.py``)
+makes and queues a batch since the batch's own pages went (#271); the batches here are
+made at model level (``made.py``), with stations the check leaves out. Its stations in
+its workspace (#255) are ``test_batch_workspace.py``'s."""
 
 import datetime as dt
 import io
@@ -11,6 +13,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
+import made
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
@@ -18,13 +21,15 @@ from django.utils import timezone
 
 from climpact_web.batch import check
 from climpact_web.batch.fill import plain_error
+from climpact_web.batch.forms import OptionsForm
 from climpact_web.batch.models import BatchRun, batches_dir
-from climpact_web.batch.views import default_workers, sample_files
+from climpact_web.batch.views import sample_files
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations.models import Workspace
+from climpact_web.stations.views_add import default_workers
 
 REPO = Path(__file__).resolve().parents[3]
 R_SAMPLE = REPO / "packages" / "climpact" / "tests" / "data" / "climpact.sample.batch.metadata.txt"
@@ -64,17 +69,15 @@ def files(**named) -> list:
     ]
 
 
-def post_batch(client, meta=None, meta_name="stations.txt", **stations):
-    data = {"station_files": files(**stations)}
-    if meta is not None:
-        data["metadata_file"] = SimpleUploadedFile(meta_name, meta.encode())
-    return client.post("/batch/", data)
-
-
 def created(client, meta, **stations) -> BatchRun:
-    response = post_batch(client, meta, **stations)
-    assert response.status_code == 302, response.content.decode()[:3000]
-    return BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
+    """A batch of ``meta`` and the station files, checked and waiting to run, in a
+    workspace of its own (``made.checked_batch``)."""
+    return made.checked_batch(client, meta, **stations)
+
+
+def run_batch(client, run: BatchRun, options) -> BatchRun:
+    """Queue the batch with ``options`` (``made.queue``), as "Calculate" did."""
+    return made.queue(client, run, options)
 
 
 def zipped(**named) -> bytes:
@@ -307,9 +310,9 @@ def test_unpack_reports_bad_zips_and_repeats():
 
 
 def test_default_workers(monkeypatch):
-    monkeypatch.setattr("climpact_web.batch.views.cpu_count", lambda: 8)
+    monkeypatch.setattr("climpact_web.stations.views_add.cpu_count", lambda: 8)
     assert [default_workers(n) for n in (1, 2, 13)] == [1, 2, 4]
-    monkeypatch.setattr("climpact_web.batch.views.cpu_count", lambda: 1)
+    monkeypatch.setattr("climpact_web.stations.views_add.cpu_count", lambda: 1)
     assert default_workers(13) == 1
 
 
@@ -333,25 +336,21 @@ def test_plain_error_hides_paths_and_class_names():
 
 @pytest.mark.django_db
 def test_start_page_is_add_stations(client):
-    # The batch's first page is Add stations since #233; a form sent from before works.
-    assert client.get("/batch/")["Location"] == "/add/"
+    # The batch's first page and its sample are Add stations since #233; their forms went
+    # with #271, so a form sent from before leads there too.
+    for url in ("/batch/", "/batch/sample"):
+        assert client.get(url)["Location"] == "/add/"
+        assert (
+            client.post(url, {"station_files": files(**{"a.txt": station()})})["Location"]
+            == "/add/"
+        )
+    assert not BatchRun.objects.exists()
     response = client.get("/batch/sample-metadata.txt")
     assert response.content == R_SAMPLE.read_bytes()
 
 
 @pytest.mark.django_db
-def test_nothing_chosen_gives_r_s_messages(client):
-    html = client.post("/batch/", {}).content.decode()
-    assert "Choose the batch metadata file." in html
-    assert "Choose the station files, or a zip of them." in html
-    assert "data-error-summary" in html
-    html = post_batch(client, metadata("a.txt")).content.decode()
-    assert "Choose the station files, or a zip of them." in html
-    assert not BatchRun.objects.exists()
-
-
-@pytest.mark.django_db
-def test_upload_and_check_page(client):
+def test_a_checked_batch_keeps_its_files_and_each_stations_status(client):
     run = created(
         client,
         metadata("a.txt", "b.txt", "missing.txt", "bad.txt"),
@@ -360,114 +359,54 @@ def test_upload_and_check_page(client):
     assert statuses(run) == {"a": "ready", "b": "ready", "missing": "missing", "bad": "invalid"}
     assert run.metadata_name == "stations.txt" and run.folder_name == "stations"
     assert (run.files_dir / "a.txt").is_file() and run.metadata_path.is_file()
-    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
-    assert "Calculate 2 stations" in html
-    assert "No file named missing.txt was uploaded." in html
-    assert "2 stations with missing files or problems will be left out" in html
-    assert html.count("badge--success") == 2 and "File missing" in html and "Has problems" in html
-    # No batch steps since #234: the run's results are the workspace's overview.
-    assert 'aria-current="step"' not in html and "steps__" not in html
-    assert "Index parameters from the metadata file" in html
-    # The add-files panel opens when something is missing.
-    assert re.search(
-        r'<details class="disclosure" open>\s*<summary>.*?Add or replace files', html, re.S
-    )
+    # Its check page went with #271: a batch checked before and never run leads to Add
+    # stations, whose review cannot read its check.
+    for url in (f"/w/{run.workspace_id}/batch/", f"/w/{run.workspace_id}/"):
+        assert client.get(url)["Location"] == "/add/"
 
 
 @pytest.mark.django_db
-def test_zip_upload_with_metadata_inside(client):
+def test_zip_with_metadata_inside(client):
     data = zipped(**{"meta.txt": metadata("a.txt"), "a.txt": station()})
-    response = client.post("/batch/", {"station_files": files(**{"all.zip": data})})
-    run = BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
+    run = created(client, None, **{"all.zip": data})
     assert run.metadata_name == "meta.txt" and statuses(run) == {"a": "ready"}
-    # A zip in the metadata box works too.
-    response = client.post("/batch/", {"metadata_file": SimpleUploadedFile("all.zip", data)})
-    assert response.status_code == 302
 
 
-@pytest.mark.django_db
-def test_metadata_problems_on_the_check_page(client):
-    run = created(client, HEADER + "a.txt -30\n", **{"a.txt": station()})
-    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
-    assert "The metadata file cannot be used: it has 1 problem" in html
-    assert "Line 2 has 2 values" in html and "No station is ready" in html
-    assert re.search(r"<button[^>]*disabled[^>]*>.*?No station is ready", html, re.S)
-
-
-@pytest.mark.django_db
-def test_adding_files_checks_again(client):
-    run = created(client, metadata("a.txt", "b.txt"), **{"a.txt": station()})
-    assert statuses(run) == {"a": "ready", "b": "missing"}
-    response = client.post(
-        f"/w/{run.workspace_id}/batch/files", {"station_files": files(**{"b.txt": station(seed=2)})}
-    )
-    assert response.status_code == 302
-    assert statuses(run) == {"a": "ready", "b": "ready"}
-    response = client.post(
-        f"/w/{run.workspace_id}/batch/files",
-        {"metadata_file": SimpleUploadedFile("new.txt", metadata("a.txt").encode())},
-    )
-    assert statuses(run) == {"a": "ready"} and run.metadata_name == "new.txt"
-    html = client.post(f"/w/{run.workspace_id}/batch/files", {}).content.decode()
-    assert "Choose the files to add." in html
-
-
-@pytest.mark.django_db
-def test_sample_batch_in_one_click(client):
-    response = client.post("/batch/sample")
-    run = BatchRun.objects.get(workspace=response["Location"].split("/")[2])  # /w/<id>/batch/
-    assert run.source == "sample" and statuses(run) == {
-        "sydney_observatory_hill_1936-2015": "ready",
-        "sydney_observatory_hill_batch_file_2": "ready",
-    }
-    assert client.get("/batch/sample").status_code == 302
-
-
-@pytest.mark.django_db
-def test_options_are_checked_as_they_change(client, settings):
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    url = f"/w/{run.workspace_id}/batch/options"
-    assert client.post(url, {}).status_code == 400  # htmx only
+def test_options_errors_in_plain_words(settings):
+    """The batch's options, Add stations' "Applies to every station" since #233."""
+    settings.IS_HOSTED = False
     data = {"base_start": "1971", "base_end": "2000", "workers": "1", "plots": "on"}
-    html = client.post(url, {**data, "base_end": "1999"}, HTTP_HX_REQUEST="true").content.decode()
-    assert 'id="batch-options"' in html and "<html" not in html
-    assert (
-        "Less than a year of the base period is covered" in html and "a (data 2000 to 2002)" in html
-    )
-    assert "about 1 minute" in html
-    html = client.post(
-        url, {**data, "base_start": "2000", "base_end": "2001"}, HTTP_HX_REQUEST="true"
-    ).content.decode()
-    assert "Less than a year" not in html
-    html = client.post(url, {**data, "base_end": "1960"}, HTTP_HX_REQUEST="true").content.decode()
-    assert "The last year must not be before the first year." in html
-    html = client.post(url, {**data, "workers": "100000"}, HTTP_HX_REQUEST="true").content.decode()
-    assert "You cannot use more than" in html
-    html = client.post(url, {**data, "workers": "0"}, HTTP_HX_REQUEST="true").content.decode()
-    assert "You need at least 1." in html
-    html = client.post(url, {**data, "base_start": ""}, HTTP_HX_REQUEST="true").content.decode()
-    assert "Enter the first year of the base period." in html  # R: "Please specify start year"
+
+    def errors(**changes):
+        form = OptionsForm({**data, **changes})
+        form.is_valid()
+        return [e for field in form.errors.values() for e in field]
+
+    assert errors() == []
+    assert errors(base_end="1960") == ["The last year must not be before the first year."]
+    assert errors(workers="100000")[0].startswith("You cannot use more than")
+    assert errors(workers="0") == ["You need at least 1."]
+    # R: "Please specify start year"
+    assert errors(base_start="") == ["Enter the first year of the base period."]
 
 
 @pytest.mark.django_db
 def test_hosted_mode_has_no_workers_field(client, settings):
     settings.IS_HOSTED = True
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
+    settings.MIN_FREE_DISK_GB = 0
+    response = client.post("/add/", {"files": files(**{"a.txt": station()})})
+    html = client.get(response["Location"]).content.decode()  # Add stations' review
     assert 'name="workers"' not in html and 'name="base_start"' in html
 
 
 @pytest.mark.django_db
-def test_run_needs_valid_options_and_a_ready_station(client):
-    run = created(client, metadata("missing.txt"), **{"other.txt": station()})
-    data = {"base_start": "2000", "base_end": "2001", "workers": "1"}
-    html = client.post(f"/w/{run.workspace_id}/batch/run", data).content.decode()
-    assert "No station is ready" in html and not Job.objects.exists()
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    html = client.post(
-        f"/w/{run.workspace_id}/batch/run", {**data, "base_end": "1990"}
-    ).content.decode()
-    assert "There is 1 problem with the form" in html and not Job.objects.exists()
+def test_adding_needs_valid_options(client):
+    response = client.post("/add/", {"files": files(**{"a.txt": station()})})
+    data = {"intent": "add", "file-0": "a.txt", "name-0": "A", "lat-0": "-30", "lon-0": "150"}
+    data |= {"base_start": "2000", "base_end": "1990", "workers": "1"}
+    response = client.post(response["Location"], data)
+    assert response.status_code == 400 and not Job.objects.exists()
+    assert "The last year must not be before the first year." in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -481,9 +420,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
         **{"a.txt": station(), "b.txt": station(seed=1), "c.txt": station(seed=2)},
     )
     data = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
-    response = client.post(f"/w/{run.workspace_id}/batch/run", data)
-    run.refresh_from_db()
-    assert response["Location"] == f"/w/{run.workspace_id}/"
+    run = run_batch(client, run, data)
     job = run.job
     assert job.kind == "batch" and job.status == Status.QUEUED
     assert job.params["folder"] == "stations" and job.params["zip"] and not job.params["plots"]
@@ -539,10 +476,8 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     assert str(job.input_dir) not in html
     assert client.get(f"/jobs/{job.pk}/files/stations.zip").status_code == 200
 
-    # Running again while it runs is not possible; after it, the check page offers it.
-    check_html = client.get(f"/w/{run.workspace_id}/batch/").content.decode()
-    assert "This batch is being calculated." not in check_html
-    assert 'batch/run"' in check_html
+    # The batch's address is its workspace's.
+    assert client.get(f"/w/{run.workspace_id}/batch/")["Location"] == f"/w/{run.workspace_id}/"
 
 
 @pytest.mark.django_db
@@ -550,11 +485,7 @@ def test_progress_fragment_shows_each_station(client):
     run = created(
         client, metadata("a.txt", "b.txt"), **{"a.txt": station(), "b.txt": station(seed=1)}
     )
-    client.post(
-        f"/w/{run.workspace_id}/batch/run",
-        {"base_start": "2000", "base_end": "2001", "workers": "1"},
-    )
-    run.refresh_from_db()
+    run = run_batch(client, run, {"base_start": "2000", "base_end": "2001", "workers": "1"})
     job = run.job
     now = timezone.now()
     Job.objects.filter(pk=job.pk).update(
@@ -595,30 +526,16 @@ def test_other_sessions_get_404(client):
     other.cookies["sessionid"] = session.session_key
     for url in (
         f"/w/{run.workspace_id}/batch/",
+        f"/w/{run.workspace_id}/batch/results",
         f"/w/{run.workspace_id}/",
         f"/w/{run.workspace_id}/progress",
+        f"/batch/{run.pk}/",
     ):
         assert other.get(url).status_code == 404
-    for url in (
-        f"/w/{run.workspace_id}/batch/run",
-        f"/w/{run.workspace_id}/batch/delete",
-        f"/w/{run.workspace_id}/batch/files",
-    ):
-        assert other.post(url).status_code == 404
     assert client.get(f"/batch/{uuid.uuid4()}/").status_code == 404
-    # Not started yet: the workspace's address is the check page; the results' old one
-    # leads there.
+    # The results' old address leads to the workspace's.
     space = f"/w/{run.workspace_id}/"
-    assert 'batch/run"' in client.get(space).content.decode()
     assert client.get(f"{space}batch/results")["Location"] == space
-
-
-@pytest.mark.django_db
-def test_delete_now(client):
-    run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    response = client.post(f"/w/{run.workspace_id}/batch/delete")
-    assert response["Location"] == "/add/"
-    assert not BatchRun.objects.exists() and not run.folder.exists()
 
 
 @pytest.mark.django_db
@@ -644,10 +561,7 @@ def test_retention(client, settings):
 def test_running_batch_is_not_purged(client, settings):
     settings.WORKSPACE_EXPIRY = True
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
-    client.post(
-        f"/w/{run.workspace_id}/batch/run",
-        {"base_start": "2000", "base_end": "2001", "workers": "1"},
-    )
+    run_batch(client, run, {"base_start": "2000", "base_end": "2001", "workers": "1"})
     Job.objects.update(status=Status.RUNNING, heartbeat_at=timezone.now())
     Workspace.objects.update(updated_at=timezone.now() - dt.timedelta(days=30))
     purge_expired()

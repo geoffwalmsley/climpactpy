@@ -177,18 +177,31 @@ GOOD_FILE = "".join(
 )
 
 
-def setup_sample(c: Chrome, open_url) -> None:
-    """The Sydney sample on its station's setup page (``/station/sample``, the old New
-    station's sample, which Add stations replaced, #233): the page a station's new file
-    that needs new details comes back to."""
+# A station file of two years after the default base period (1971-2000): a station given
+# it as its new file needs new details.
+LATER_FILE = "".join(
+    f"{d.year} {d.month} {d.day} 0 20 10\n"
+    for d in (dt.date(2001, 1, 1) + dt.timedelta(days=k) for k in range(730))
+)
+
+
+def setup_page(c: Chrome, open_url) -> None:
+    """A station's setup page, reached as a user reaches it since the New station form
+    went (#271): Add stations' sample (which opens its Quality), then a new file from the
+    Inputs panel's File sheet (its page) that the base period does not fit."""
     c.navigate(open_url("/add/"))
+    submit(c, "#sample-form")
+    c.navigate(here(c).split("?")[0].rsplit("/quality", 1)[0] + "/inputs/file")
+    c.events.clear()
     c.evaluate(
-        "var f = document.createElement('form'); f.method = 'post';"
-        " f.action = '/station/sample'; f.id = 'old-sample';"
-        " f.appendChild(document.querySelector('[name=csrfmiddlewaretoken]').cloneNode());"
-        " document.body.appendChild(f)"
+        "(function () { var t = new DataTransfer();"
+        f" t.items.add(new File([{json.dumps(LATER_FILE)}], 'later.txt'));"
+        " var i = document.querySelector('[name=station_file]'); i.files = t.files;"
+        " i.form.requestSubmit(); })()"
     )
-    submit(c, "#old-sample")
+    c.wait_event("Page.loadEventFired", timeout=120)
+    c.settle()
+    assert here(c).endswith("/setup"), here(c)
 
 
 def choose_file(c: Chrome, input: str, name: str, text: str) -> None:
@@ -269,9 +282,9 @@ def site(chrome, server):
     pages["add stations, errors"] = upload_errors
     pages["add stations, file errors"] = file_errors
 
-    # Station steps 1-5 with the Sydney sample, from a station's own setup page (a new
-    # file that needs new details; Add stations' sample opens Quality at once).
-    setup_sample(c, open_url)
+    # Station steps 1-5 with the Sydney sample, and a station's own setup page (a new file
+    # that needs new details; Add stations' sample opens Quality at once).
+    setup_page(c, open_url)
     load = pages["station sample loaded"] = here(c)
 
     def metadata_errors(c):
@@ -422,17 +435,17 @@ def site(chrome, server):
     def too_large(c):
         """The 413 page, as the server answers an upload over the limit."""
         html = c.evaluate(
-            "fetch('/station/new', {method: 'POST', body: new Uint8Array(51 * 1024 * 1024)})"
+            "fetch('/add/', {method: 'POST', body: new Uint8Array(51 * 1024 * 1024)})"
             ".then(function (r) { return r.text() })",
             await_promise=True,
         )
-        c.navigate(open_url("/station/new"))
+        c.navigate(open_url("/add/"))
         c.set_content(html)
 
     def server_error(c):
         from django.template.loader import render_to_string
 
-        c.navigate(open_url("/station/new"))
+        c.navigate(open_url("/add/"))
         c.set_content(render_to_string("500.html"))
 
     pages["upload too large"] = too_large
@@ -2340,19 +2353,24 @@ def skip_unless_cloudflare_reachable() -> None:
 
 
 def test_turnstile_holds_a_form_until_its_token(chrome, turnstile_server):
-    """A form sent before its widget has a token waits for it, then goes (#163): the
-    sample's "Check and calculate", pressed as soon as its setup page is parsed, reaches
-    the quality checks, not
-    the "Not accepted" page, with the button marked busy meanwhile and no policy
-    violation. Skipped when Cloudflare cannot be reached, as above."""
+    """A form sent before its widget has a token waits for it, then goes (#163): a
+    station's "Check and calculate", pressed as soon as its setup page is parsed, reaches
+    the quality checks, not the "Not accepted" page, with the button marked busy meanwhile
+    and no policy violation. Skipped when Cloudflare cannot be reached, as above (the File
+    sheet that leads to the setup page needs a token too)."""
+    skip_unless_cloudflare_reachable()
     c = chrome
     c.csp_violations.clear()
-    setup_sample(c, lambda path: urljoin(turnstile_server, path))
+    setup_page(c, lambda path: urljoin(turnstile_server, path))
     load = here(c)
-    assert load.endswith("/setup")
     c.events.clear()
     c.send("Page.navigate", url=load)
     c.wait_event("Page.domContentEventFired")
+    # A base period the new file covers.
+    c.evaluate(
+        "document.querySelector('#new-station [name=base_start]').value = '2001';"
+        "document.querySelector('#new-station [name=base_end]').value = '2002'"
+    )
     top = "document.querySelector('#new-station button[value=go]')"
     form_token = "(document.querySelector('#new-station [name=cf-turnstile-response]') || {}).value"
     early = bool(c.evaluate(form_token))

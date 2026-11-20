@@ -123,7 +123,7 @@ mit=$(printf '%s\n' "$h" | header cf-mitigated)
   fail "/admin/ gave $(printf '%s\n' "$h" | head -n 1) ${mit:+cf-mitigated: $mit} (want a managed challenge)"
 
 # --- Normal pages and htmx polls are not challenged -------------------------------------
-for path in /station/ /batch/ /help/ /jobs/; do
+for path in /add/ /w/ /help/ /jobs/; do
   h=$(fetch_headers "$SITE$path")
   code=$(printf '%s\n' "$h" | awk 'NR==1{print $2}')
   mit=$(printf '%s\n' "$h" | header cf-mitigated)

@@ -5,6 +5,7 @@ station or batch is kept; and no session reaching another's workspace."""
 
 import re
 
+import made
 import pytest
 from django.test import Client
 from test_batch import created, media, metadata, run_worker, station  # noqa: F401
@@ -48,7 +49,7 @@ def test_a_stations_pages_are_under_its_workspace(client):
 
 
 def test_a_workspace_of_one_station_opens_it_straight_away(client):
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     analysis = Station.objects.get()
     assert load == analysis.url("setup")
     # Not set up yet: the New station page.
@@ -62,9 +63,9 @@ def test_a_workspace_of_one_station_opens_it_straight_away(client):
 def test_a_batch_workspace_opens_its_overview(client):
     run = created(client, metadata("a", "b"), **{"a.txt": station(), "b.txt": station(seed=1)})
     space = f"/w/{run.workspace_id}/"
-    # Not run yet: the check page, at the workspace's address.
-    response = client.get(space)
-    assert response.status_code == 200 and 'action="' + space + 'batch/run"' in response.text
+    # Checked by the old batch page and never run: its page went with #271, so Add
+    # stations.
+    assert client.get(space)["Location"] == "/add/"
     # Run: the workspace's overview (#234), with the batch's stations (added when it was
     # queued).
     run = finished_batch(client, "c", "d")
@@ -120,7 +121,7 @@ def test_old_batch_addresses_redirect_while_the_batch_is_kept(client):
     ]:
         response = client.get(old + path)
         assert response.status_code == 302 and response["Location"] == target, path
-    assert client.get(new).status_code == 200
+    assert client.get(new)["Location"] == "/add/"  # its check page went with #271
     # The results' interim address under the workspace leads there too.
     assert client.get(new + "results")["Location"] == space
     assert other_session().get(new + "results").status_code == 404
@@ -146,7 +147,6 @@ def test_no_session_reaches_another_sessions_workspace(client):
     ):
         assert other.get(url).status_code == 404, url
     assert other.post(analysis.url("undo")).status_code == 404
-    assert other.post(f"/w/{run.workspace_id}/batch/delete").status_code == 404
     # A wrong slug, or a station under a workspace it is not in, is not found either.
     assert client.get(f"/w/{analysis.workspace_id}/nope/quality").status_code == 404
     assert client.get(f"/w/{run.workspace_id}/{analysis.slug}/quality").status_code == 404

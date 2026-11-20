@@ -1,9 +1,8 @@
 /*
- * The New station page (#201). A chosen or dropped file is read at once: the form is sent
- * with its "Read the file" button (hidden here; without JavaScript the user presses it),
- * the details typed so far with it. Replace, on the file card, is a button that opens the
- * file picker and does the same (the file button of #174, inside the page's one form).
- * Back from reading, focus goes to the file card, unless an error summary took it.
+ * A station's setup page (the New station page of #201). Replace, on the file card, is a
+ * button that opens the file picker; a chosen file is read at once, the form sent with the
+ * button and the details typed so far (the file button of #174, inside the page's one
+ * form). Back from reading, focus goes to the file card, unless an error summary took it.
  */
 (function () {
   "use strict";
@@ -13,12 +12,6 @@
     input.addEventListener("change", function () {
       if (input.files && input.files.length) button.form.requestSubmit(button);
     });
-  }
-
-  var read = document.getElementById("read-file");
-  if (read) {
-    read.hidden = true;
-    sendOnChoice(read.form.querySelector("[data-dropzone] input[type=file]"), read);
   }
 
   var replace = document.querySelector("[data-setup-replace]");

@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import made
 import netCDF4
 import numpy as np
 import pytest
@@ -108,7 +109,7 @@ class Page:
 
 
 def station_sample(client) -> str:
-    return client.post("/station/sample")["Location"]
+    return made.station_to_set_up(client, sample=True).url("setup")
 
 
 def station_qc(client) -> str:
@@ -189,21 +190,17 @@ def add_review(client) -> str:
     return client.post("/add/sample-batch")["Location"]
 
 
-def batch_check(client) -> str:
-    return client.post("/batch/sample")["Location"]
-
-
 def batch_results(client) -> str:
-    check = batch_check(client)
-    data = {"base_start": "1971", "base_end": "2000", "workers": "1"}
-    return client.post(f"{check}run", data)["Location"]
+    """The sample batch's two stations added from Add stations' review: one batch job."""
+    review = add_review(client)
+    return client.post(review, {"intent": "add", "workers": "1"})["Location"]
 
 
 def job_detail(client) -> str:
     from climpact_web.jobs.models import Job
 
     batch_results(client)
-    return f"/jobs/{Job.objects.get().pk}/"
+    return f"/jobs/{Job.objects.get(kind='batch').pk}/"
 
 
 def gridded_setup(client) -> str:
@@ -260,7 +257,6 @@ PAGES = {
     "station index, monthly": Page(station_index_monthly, charts=True),
     "station sector results": Page(station_sector),  # inline SVG charts, no chart code (#90)
     "station downloads": Page(station_downloads),  # every file with its size (#79)
-    "batch check": Page(batch_check),
     "workspace overview": Page(batch_results),  # a batch's results, since #234
     "jobs": Page(lambda client: "/jobs/"),
     "job": Page(job_detail),

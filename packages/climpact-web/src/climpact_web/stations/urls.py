@@ -16,13 +16,14 @@ app_name = "stations"
 
 # A station's pages (#256): ``/w/<workspace>/<station slug>/…``. Its sections are Quality
 # ``quality``, Indices ``indices`` (``indices/<key>`` an index's page) and Files
-# ``downloads``; ``setup`` is the New station page once its file is read, and ``load`` the
-# first visit's details' old address. ``inputs/<key>`` is a sheet of the Inputs panel as a
-# page: the file, the station, the base period, the thresholds and the index settings
-# (#198, #199); ``copy`` is Copy to workspace… (#241). The station's own address opens
-# the furthest section reached; ``recalculate`` is "Recalculate" on out-of-date results
-# (and on GET the Index settings sheet over Indices). The URL names keep the names they
-# had under ``/station/<id>/``: ``results`` is Indices and ``result`` an index's page.
+# ``downloads``; ``setup`` is the station's setup page (the New station page of #201), for
+# a new file that needs new details, and ``load`` the first visit's details' old address.
+# ``inputs/<key>`` is a sheet of the Inputs panel as a page: the file, the station, the
+# base period, the thresholds and the index settings (#198, #199); ``copy`` is Copy to
+# workspace… (#241). The station's own address opens the furthest section reached;
+# ``recalculate`` is "Recalculate" on out-of-date results (and on GET the Index settings
+# sheet over Indices). The URL names keep the names they had under ``/station/<id>/``:
+# ``results`` is Indices and ``result`` an index's page.
 station_patterns = [
     path("", views.station_home, name="station"),
     path("setup", views.new_station, name="setup"),
@@ -55,8 +56,10 @@ station_patterns = [
     path("zip", views_files.station_zip, name="station_zip"),
 ]
 
-# The pages without a station yet keep their ``/station/`` addresses: the New station page
-# (#201) and the sample. ``/station/`` is the upload page's old address. Any other
+# ``/station/`` (the upload page before #201), ``/station/new`` (New station, #201) and
+# ``/station/sample`` lead to Add stations (#233), which replaced them; their forms went
+# with #271. The sample files keep their ``/station/`` addresses, and ``validate_new``
+# checks the workspace's base period sheet as it is typed. Any other
 # ``/station/<id>/…`` address, from before #256, redirects to the station's new one while
 # the station is kept (``views.old_station_url``).
 urlpatterns = [
@@ -69,9 +72,9 @@ urlpatterns = [
     path("w/<uuid:workspace_id>/add/<uuid:run_id>/", views_add.review_page, name="add_review"),
     path("w/<uuid:workspace_id>/add/<uuid:run_id>/check", views_add.add_check, name="add_check"),
     path("station/", views.upload, name="upload"),
-    path("station/new", views.new_station, name="new"),
+    path("station/new", views.upload, name="new"),
     path("station/validate", views.validate, name="validate_new"),
-    path("station/sample", views.sample, name="sample"),
+    path("station/sample", views.upload, name="sample"),
     path("station/sample.txt", views.sample_file, name="sample_file"),
     path("station/sample-sector.csv", views_sector.sector_sample, name="sector_sample"),
     path("station/<uuid:station_id>/", views.old_station_url),

@@ -10,7 +10,7 @@ import math
 import zipfile
 
 import pytest
-from test_batch import created, media, metadata, run_worker, station  # noqa: F401
+from test_batch import created, media, metadata, run_batch, run_worker, station  # noqa: F401
 from test_batch_workspace import OPTIONS, finished_batch, queued_batch
 from test_downloads import complete
 from test_indices_results import STATION, finished_analysis
@@ -25,9 +25,7 @@ pytestmark = pytest.mark.django_db
 def long_batch(client, *names, bad=()):
     """A batch of 12-year stations, long enough for annual trends (10 values or more)."""
     files = {f"{n}.txt": station(days=4400, seed=k) for k, n in enumerate([*names, *bad])}
-    run = created(client, metadata(*files), **files)
-    client.post(f"/w/{run.workspace_id}/batch/run", OPTIONS)
-    run.refresh_from_db()
+    run = run_batch(client, created(client, metadata(*files), **files), OPTIONS)
     for n in bad:
         (run.job.input_dir / "stations" / f"{n}.txt").write_text(
             "2000 1 1 0 20 10\n1999 1 1 0 20 10\n"

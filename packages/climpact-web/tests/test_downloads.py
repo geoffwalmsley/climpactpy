@@ -205,12 +205,11 @@ def test_the_settings_ask_for_the_report_and_the_job_writes_it(client):
 def test_batch_with_plots_writes_each_station_report(client):
     """A batch with plots also writes each station's report, outside the batch folder, and
     the station's Files offer it."""
-    from test_batch import created, metadata, run_worker, station
+    from test_batch import created, metadata, run_batch, run_worker, station
 
     run = created(client, metadata("a.txt"), **{"a.txt": station()})
     data = {"base_start": "2000", "base_end": "2001", "workers": "1", "plots": "on"}
-    client.post(f"/w/{run.workspace_id}/batch/run", data)
-    run.refresh_from_db()
+    run = run_batch(client, run, data)
     assert run.job.params["report"] is True
     job = run_worker()
     assert job.status == Status.SUCCEEDED, job.log

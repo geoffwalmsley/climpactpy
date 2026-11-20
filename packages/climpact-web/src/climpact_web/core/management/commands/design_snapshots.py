@@ -4,11 +4,10 @@
 
 Writes ``index.html`` (landing page), ``patterns.html`` (pattern library), ``404.html``,
 the job pages with example jobs (``job-running.html``, ``job-finished.html``,
-``job-failed.html``, ``jobs.html``), the single-station step 1 pages with the sample data
-(the New station page, #201: ``station-new.html``, ``station-new-problems.html``,
-``station-setup.html``, ``station-setup-errors.html``; ``station-qc.html``, and
-``station-calculating.html``: the indices' progress, #178), the batch pages (``batch-start.html``,
-``batch-check.html``), the help pages
+``job-failed.html``, ``jobs.html``), the single-station pages with the sample data (a
+station's setup page, #201: ``station-setup.html``, ``station-setup-problems.html``,
+``station-setup-errors.html``; ``station-qc.html``, and ``station-calculating.html``: the
+indices' progress, #178), the help pages
 (``help.html``, ``help-guide.html``, ``help-indices.html``, ``help-topics.html``,
 ``help-search.html``, #81) and a dark-theme copy of each
 (``*-dark.html``), with the static files copied alongside, so the pages open straight from
@@ -103,7 +102,7 @@ def station_pages() -> dict[str, str]:
     data, rendered without a database. The results of the checks and of the indices need a
     finished job's files; their screenshots are in the PRs (#77, #78)."""
     from climpact_web.jobs.models import Job, Status
-    from climpact_web.stations import views, views_indices, workspace
+    from climpact_web.stations import add_stations, views, views_indices, workspace
     from climpact_web.stations.forms import MetadataForm
     from climpact_web.stations.models import Source, Station, Step, Workspace
     from climpact_web.stations.station_file import inspect_station_bytes
@@ -111,9 +110,11 @@ def station_pages() -> dict[str, str]:
     request = RequestFactory().get("/station/")
     space = Workspace()  # the stations' settings (#254), not saved
     inspection = inspect_station_bytes(views.sample_bytes())
+    lat, lon = add_stations.SAMPLE_COORDINATES
     sample = Station(workspace=space, slug="sydney", source=Source.SAMPLE,
                      file_name=views.SAMPLE_NAME, summary=inspection.summary,
-                     updated_at=timezone.now(), **views.SAMPLE_METADATA)  # fmt: skip
+                     updated_at=timezone.now(), station_name=add_stations.SAMPLE_NAME,
+                     latitude=lat, longitude=lon)  # fmt: skip
     bad = inspect_station_bytes(
         b"year month day prcp tmax tmin\n1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
         b"1961 1 3 na 29.8 17.1\n1961 1 4 1,2 28.0 16.5\n"
@@ -132,72 +133,23 @@ def station_pages() -> dict[str, str]:
                                 "longitude": "", "base_start": "1900", "base_end": "1920"},
                           summary=uploaded.summary)  # fmt: skip
     errors.is_valid()
-    new = views.setup_context(request, None, MetadataForm(), recent=[])
-    setup = views.setup_context(request, sample, form, recent=[])  # before the checks
+    setup = views.setup_context(request, sample, form)  # before the checks
     sample.step = Step.QC
     running = Job(kind="station", title=sample.station_name, status=Status.RUNNING,
                   stage="indices:climpact:txx", step=9, total=14, started_at=timezone.now(),
                   params={"plots": True, "zip": True, "report": True})  # fmt: skip
     pages = {
-        "station-new": ("stations/new.html", new),
-        "station-new-problems": ("stations/new.html",
-                                 {**new, "inspection": bad, "file_name": "perth_airport.txt"}),
         "station-setup": ("stations/new.html", setup),
+        "station-setup-problems": ("stations/new.html",
+                                   {**setup, "inspection": bad, "file_name": "perth_airport.txt"}),
         "station-setup-errors": ("stations/new.html",
-                                 views.setup_context(request, uploaded, errors, recent=[])),
+                                 views.setup_context(request, uploaded, errors)),
         "station-qc": ("stations/qc.html", views.qc_context(request, sample)),
         "station-calculating": ("stations/results_progress.html", {
             "analysis": sample, "job": running, "phases": views_indices.phases(running),
             **workspace.context(sample, "results"), "stage_label": "Calculating the indices",
             "elapsed": "4 s", "remaining": "", "delay": 1, "worker_missing": False}),
     }  # fmt: skip
-    return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
-
-
-def batch_pages() -> dict[str, str]:
-    """The batch page (#80): the start page and a check with every status, rendered
-    without a database. Its results are the workspace overview since #234."""
-    from climpact_web.batch import check, views
-    from climpact_web.batch.forms import UploadForm
-    from climpact_web.batch.models import BatchRun
-
-    request = RequestFactory().get("/batch/")
-    now = timezone.now()
-    start = {"form": UploadForm(), "recent": [],
-             "max_upload_mb": settings.MAX_UPLOAD_MB, "sample_metadata": views.SAMPLE_METADATA,
-             "columns": views.column_rows()}  # fmt: skip
-
-    sydney = views.sample_files()["sydney_observatory_hill_1936-2015.txt"]
-    header = "\t".join(check.COLUMNS) + "\n"
-    meta = header + "".join(
-        f"{name}\t{lat}\t{lon}\t3\t3\t18\t18\t10\t3\t30\t2\t24\n"
-        for name, lat, lon in [
-            ("alice_springs_1961-2020.txt", -23.8, 133.89),
-            ("darwin_1961-2020.txt", -12.42, 130.89),
-            ("perth_airport_1961-2020.txt", -31.93, 115.98),
-            ("Sydney.txt", -33.86, 151.21),
-            ("madrid_retiro_1961-2020.txt", 40.41, -3.68),
-        ]
-    )
-    files = {
-        "alice_springs_1961-2020.txt": sydney,
-        "darwin_1961-2020.txt": sydney,
-        "perth_airport_1961-2020.txt": b"1961 1 1 0 31.2 18.0\n1961 1 2 0.4 30.1\n"
-        + b"1961 1 3 na 29.8 17.1\n",
-        "sydney.txt": sydney,
-        "notes.txt": b"x",
-    }
-    from climpact_web.stations.models import Workspace
-
-    space = Workspace(created_at=now, updated_at=now)
-    run = BatchRun(metadata_name="australia.txt", report=check.check_batch(
-        meta.encode(), files).to_json(), updated_at=now, workers=4, workspace=space)  # fmt: skip
-    checked = views.check_context(request, run)
-
-    pages = {
-        "batch-start": ("batch/start.html", start),
-        "batch-check": ("batch/check.html", checked),
-    }
     return {name: render(request, t, c).content.decode() for name, (t, c) in pages.items()}
 
 
@@ -238,7 +190,6 @@ class Command(BaseCommand):
                 pages[name] = response.content.decode()
             pages.update(job_pages())
             pages.update(station_pages())
-            pages.update(batch_pages())
         for name, html in pages.items():
             html = to_static_files(html)
             (folder / f"{name}.html").write_text(html)

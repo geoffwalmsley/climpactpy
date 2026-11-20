@@ -17,8 +17,9 @@ The files wait in a :class:`~climpact_web.batch.models.BatchRun` of the workspac
 they are added (:mod:`.add_stations`). One station is added as a station of its own and
 opens on its Quality, checked and calculated with ``station`` jobs; several become the
 batch's stations (:mod:`climpact_web.batch.fill`) and the workspace's address shows them,
-each with its quality checks queued beside the batch. New station (``/station/new``) and
-the batch's first page (``/batch/``) lead here.
+each with its quality checks queued beside the batch (:func:`queue_batch`). New station
+(``/station/new``) and the batch's first page (``/batch/``), whose forms went with #271,
+lead here.
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ from climpact_web.batch.forms import OptionsForm, cpu_count
 from climpact_web.batch.models import BatchRun
 from climpact_web.core.limits import Refused, disk_required, human_required
 from climpact_web.jobs.forms import safe_station_name
+from climpact_web.jobs.models import Job
 from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
 from climpact_web.stations import add_stations as review_module
 from climpact_web.stations import calculation, workspace
@@ -513,12 +515,80 @@ def batch_names(rows) -> dict[str, str]:
     return names
 
 
+def skip_reason(station: dict) -> str:
+    """Why a station of a batch was left out, in the station's error file."""
+    lines = [p["message"] for p in station.get("problems", [])]
+    hidden = station.get("problem_count", 0) - len(lines)
+    if hidden > 0:
+        lines.append(_("And %(count)d more problems like these.") % {"count": hidden})
+    head = (
+        _("Not calculated: the station file is missing.")
+        if station["status"] == "missing"
+        else _("Not calculated: the station has problems.")
+    )
+    return "\n".join([head, *lines])
+
+
+def queue_batch(
+    request, run: BatchRun, title: str, change: str = "", names: dict | None = None
+) -> Job:
+    """Queue one ``batch`` job for the ready stations of ``run.report["stations"]``, with
+    the workspace's base period and custom index and the run's workers and plots, and add
+    every station of the report to the workspace (``batch.fill.add_stations``): a ready
+    one waiting, any other not run, with why (:func:`skip_reason`). A station's file is
+    ``station_file`` among the run's files and ``job_file`` (``station_file`` without one)
+    in the job; ``names`` gives the stations' own names by their batch name."""
+    from climpact_web.stations.workspace import workspace_settings
+
+    space = run.workspace
+    stations = run.report.get("stations", [])
+    ready = check.ready_stations(run.report)
+    skipped = [
+        {"name": s["name"], "station_file": s["station_file"], "error": skip_reason(s)}
+        for s in stations
+        if s["status"] != "ready"
+    ]
+
+    def job_file(station: dict) -> str:
+        return station.get("job_file") or station["station_file"]
+
+    metadata = check.metadata_text([{**s, "station_file": job_file(s)} for s in ready])
+    files = {JOB_METADATA: ContentFile(metadata.encode("utf-8"))}
+    for s in ready:
+        # Stored as uploaded and read as text once already. Into the job as the station
+        # step stores files: UTF-8 without a byte-order mark.
+        text = decode((run.files_dir / s["station_file"]).read_bytes())
+        files[f"{JOB_STATIONS}/{job_file(s)}"] = ContentFile(text.encode("utf-8"))
+    params = {
+        "metadata_file": JOB_METADATA,
+        "data_dir": JOB_STATIONS,
+        "base_start": space.base_start,
+        "base_end": space.base_end,
+        "custom": workspace_settings(space)["params"]["custom"],
+        "workers": run.workers,
+        "plots": run.plots,
+        "zip": True,
+        "station_zips": True,
+        "report": run.plots,  # each station's PDF report, with the plots (#79)
+        "folder": run.folder_name,
+        "skipped": skipped,
+        ADDED: True,  # the workspace's stations are added now (batch/fill.py)
+    }
+    if names:
+        params["names"] = names
+    job = create_job(request, "batch", params, files, title=title, change=change)
+    run.job = job
+    run.touch()
+    run.save()
+    add_stations(run, job, skipped)
+    return job
+
+
 def add_many(request, run: BatchRun, rows) -> str:
     """Several stations: one batch job runs them (the workspace's base period, custom index
     and plots), each a station of the workspace from now on (``batch.fill``), and each
     station's quality checks are queued beside it, as one change for the hosted limits.
     Returns the change's id (opening a workspace file adds to it, ``workspace_file``)."""
-    from climpact_web.batch.views import set_base_period
     from climpact_web.stations.workspace import workspace_settings
 
     space = run.workspace
@@ -550,39 +620,13 @@ def add_many(request, run: BatchRun, rows) -> str:
     report["stations"] = stations
     run.report = report
     run.plots = bool(chosen["plots"])
-    set_base_period(run, space.base_start, space.base_end)
-    metadata = check.metadata_text([{**s, "station_file": s["job_file"]} for s in stations])
-    files = {JOB_METADATA: ContentFile(metadata.encode("utf-8"))}
-    for s in stations:
-        text = decode((run.files_dir / s["station_file"]).read_bytes())
-        files[f"{JOB_STATIONS}/{s['job_file']}"] = ContentFile(text.encode("utf-8"))
     change = calculation.new_change()
-    params = {
-        "metadata_file": JOB_METADATA,
-        "data_dir": JOB_STATIONS,
-        "base_start": space.base_start,
-        "base_end": space.base_end,
-        "custom": chosen["params"]["custom"],
-        "workers": run.workers,
-        "plots": run.plots,
-        "zip": True,
-        "station_zips": True,
-        "report": run.plots,
-        "folder": run.folder_name,
-        "skipped": [],
-        "names": {s["name"]: s["station_name"] for s in stations},
-        ADDED: True,
-    }
     title = ngettext(
         "Add stations: %(name)s (%(count)d station)",
         "Add stations: %(name)s (%(count)d stations)",
         len(stations),
     ) % {"name": space.display_name, "count": len(stations)}
-    job = create_job(request, "batch", params, files, title=title, change=change)
-    run.job = job
-    run.touch()
-    run.save()
-    add_stations(run, job, [])
+    queue_batch(request, run, title, change, names={s["name"]: s["station_name"] for s in stations})
     for station in Station.objects.filter(workspace=space, origin__batch=str(run.pk)):
         if workspace.set_up(station):
             calculation.queue_qc(request, station, change)

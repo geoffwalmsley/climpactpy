@@ -314,7 +314,7 @@ def test_design_snapshots(tmp_path):
     out = tmp_path / "review"
     call_command("design_snapshots", str(out))
     jobs = ("job-running", "job-finished", "jobs")
-    stations = ("new", "new-problems", "setup", "setup-errors", "qc")
+    stations = ("setup", "setup-problems", "setup-errors", "qc")
     names = ("index", "patterns", "404", *jobs, *(f"station-{n}" for n in stations))
     for name in names:
         for suffix in ("", "-dark"):
@@ -325,7 +325,7 @@ def test_design_snapshots(tmp_path):
     assert 'data-theme="dark"' in (out / "index-dark.html").read_text()
     assert "Step 9 of 14" in (out / "job-running.html").read_text()
     assert "Download all results (zip, 7.1\xa0MB)" in (out / "job-finished.html").read_text()
-    assert "Line 3 has 5 values" in (out / "station-new-problems.html").read_text()
+    assert "Line 3 has 5 values" in (out / "station-setup-problems.html").read_text()
     assert "Read: 1936–2015, 29,220 days" in (out / "station-setup.html").read_text()
     assert "has no data: the file covers" in (out / "station-setup-errors.html").read_text()
     assert (out / "static" / "climpact_web" / "css" / "climpact.css").is_file()

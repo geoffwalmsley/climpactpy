@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load i18n static ui help %}
 {% comment %}
-New station (#201): the file, then the station details, then one button that checks the
-data and calculates every index with the default thresholds and settings. One form, so
-without JavaScript the file and the details can go together; with it a chosen file is
-read at once ("Read the file", hidden) and the page comes back with the file card.
-Context from views.setup_context.
+A station's setup page (the New station page of #201; Add stations starts a station since
+#233, and the first visit's form went with #271): the file, then the station details,
+then one button that checks the data and calculates every index. One form, so without
+JavaScript a new file and the details can go together; with it a chosen file is read at
+once and the page comes back with the file card. Context from views.setup_context.
 {% endcomment %}
 {% block title %}{% if returning %}{% blocktranslate with name=analysis.station_name %}Station details: {{ name }}{% endblocktranslate %}{% else %}{% translate "New station" %}{% endif %}{% endblock %}
 {% block head %}<script src="{% static 'climpact_web/js/setup.js' %}" defer></script>{% endblock %}
@@ -16,17 +16,16 @@ Context from views.setup_context.
     <p class="lead">{% if returning %}{% translate "The new file needs a change to the station details before the checks and the indices can run." %}{% else %}{% translate "Two things, then Climpact checks your data and calculates every index." %}{% endif %}</p>
   </header>
 
-  <form method="post" action="{% if analysis %}{% url 'stations:setup' analysis.workspace_id analysis.slug %}{% else %}{% url 'stations:new' %}{% endif %}" enctype="multipart/form-data" class="setup__form" id="new-station" novalidate>
+  <form method="post" action="{% url 'stations:setup' analysis.workspace_id analysis.slug %}" enctype="multipart/form-data" class="setup__form" id="new-station" novalidate>
     {% csrf_token %}
 
     <section class="setup__step" aria-labelledby="file-title">
-      <span class="setup__n{% if analysis %} setup__n--done{% endif %}" aria-hidden="true">{% if analysis %}{% icon "check" %}{% endif %}</span>
+      <span class="setup__n setup__n--done" aria-hidden="true">{% icon "check" %}</span>
       <div class="setup__body">
         <div class="section-header"><h2 id="file-title">{% translate "Your file" %}</h2>{% section_help "upload.file" %}</div>
         {% if inspection and not inspection.ok %}{% include "stations/_problems.html" %}
         {% elif upload_form.errors %}{% include "components/form_errors.html" with form=upload_form %}{% endif %}
 
-        {% if analysis %}
         {% include "stations/_file_card.html" with file_name=analysis.file_name summary=analysis.summary field=upload_form.station_file %}
         {% if analysis.warnings %}
         <div class="alert alert--warning">
@@ -36,17 +35,6 @@ Context from views.setup_context.
             <ul>{% for warning in analysis.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
             <p>{% translate "You can still go on. The quality checks look at the data next." %}</p>
           </div>
-        </div>
-        {% endif %}
-        {% else %}
-        {% blocktranslate asvar hint with size=max_upload_mb %}Text or CSV, up to {{ size }} MB. It is read as soon as you choose it.{% endblocktranslate %}
-        {% include "components/dropzone.html" with field=upload_form.station_file hint=hint %}
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <button type="submit" name="intent" value="read" id="read-file" class="button button--secondary" data-dropzone-read>{% icon "upload" %}<span>{% translate "Read the file" %}</span></button>
-          <span class="text-sm text-text-muted">{% translate "No file to hand?" %}</span>
-          {% translate "Use the sample data" as sample_label %}
-          {% include "components/button.html" with label=sample_label type="submit" form_id="sample-form" variant="ghost" size="sm" icon="play" describedby="sample-note" %}
-          <span class="sr-only" id="sample-note">{% translate "Sydney Observatory Hill, 1936 to 2015, with its details filled in." %}</span>
         </div>
         {% endif %}
       </div>
@@ -75,31 +63,16 @@ Context from views.setup_context.
       <p id="setup-defaults">{% translate "Quality thresholds and index settings use the defaults. You can change them later in Inputs." %}</p>
     </div>
   </form>
-  {% if not analysis %}<form method="post" action="{% url 'stations:sample' %}" id="sample-form" hidden>{% csrf_token %}</form>{% endif %}
 
   <div class="setup__foot stack stack--sm">
-    {% if analysis %}{% include "stations/_retention.html" with quiet=True %}{% else %}{% include "stations/_retention.html" with quiet=True analysis=None %}{% endif %}
-    {% if analysis %}
+    {% include "stations/_retention.html" with quiet=True %}
     <form method="post" action="{% url 'stations:delete' analysis.workspace_id analysis.slug %}" class="flex flex-wrap items-center gap-3">
       {% csrf_token %}
       {% translate "Delete this data now" as delete_label %}
       {% include "components/button.html" with label=delete_label type="submit" variant="ghost" size="sm" icon="close" %}
-      <a class="text-sm" href="{% url 'stations:new' %}">{% translate "Start again with another station" %}</a>
+      <a class="text-sm" href="{% url 'stations:add' %}">{% translate "Start again with another station" %}</a>
     </form>
-    {% else %}
-    <p class="text-sm"><a href="{% url 'stations:sample_file' %}" download>{% icon "download" %} {% blocktranslate %}Download the sample file ({{ sample_name }}){% endblocktranslate %}</a></p>
-    {% endif %}
   </div>
 
-  {% if recent %}
-  <section class="stack stack--sm" aria-labelledby="recent-title">
-    <h2 id="recent-title">{% translate "Continue where you left off" %}</h2>
-    <ul class="grid gap-2 ps-5 wrap-anywhere">
-      {% for item in recent %}
-      <li><a href="{% url 'stations:station' item.workspace_id item.slug %}">{{ item }}</a> <span class="text-sm text-text-muted">{% blocktranslate with name=item.file_name when=item.updated_at|timesince %}{{ name }}, changed {{ when }} ago{% endblocktranslate %}</span></li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
 </div>
 {% endblock %}

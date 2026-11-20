@@ -6,6 +6,7 @@ import logging
 import re
 import time
 
+import made
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory
@@ -18,7 +19,7 @@ from climpact_web.jobs.registry import register
 from climpact_web.jobs.retention import purge_expired
 from climpact_web.jobs.views import OWNER_KEY
 from climpact_web.jobs.worker import claim, run_job
-from climpact_web.stations.models import Station
+from climpact_web.stations.models import Station, Workspace
 
 IP = "203.0.113.7"
 OTHER_IP = "198.51.100.9"
@@ -98,10 +99,16 @@ def visitor(ip=IP, owner="owner-a") -> Client:
 
 
 def upload(client, **extra):
+    """Drop a station file on Add stations (#233): it waits for review."""
     return client.post(
-        "/station/new",
-        {"station_file": SimpleUploadedFile("stn.txt", rows().encode()), "intent": "read", **extra},
+        "/add/",
+        {"files": SimpleUploadedFile("stn.txt", rows().encode()), "intent": "files", **extra},
     )
+
+
+# The review table's one row, complete: "Add 1 station and check it" adds it.
+ADD = {"intent": "add", "file-0": "stn.txt", "name-0": "Testville", "lat-0": "-33.9"}
+ADD |= {"lon-0": "151.2"}
 
 
 def make_job(owner="owner-a", client="", **fields) -> Job:
@@ -177,12 +184,12 @@ def test_a_form_without_a_valid_token_is_refused(turnstile, caplog):
         response = upload(client)
     assert response.status_code == 400
     assert "could not confirm that you are a person" in response.content.decode()
-    assert not Station.objects.exists() and turnstile == []
+    assert not Workspace.objects.exists() and turnstile == []
     assert f"from {IP}: turnstile-missing" in caplog.text
 
     with caplog.at_level(logging.WARNING, logger="climpact_web.limits"):
         response = upload(client, **{TOKEN_FIELD: "forged"})
-    assert response.status_code == 400 and not Station.objects.exists()
+    assert response.status_code == 400 and not Workspace.objects.exists()
     assert turnstile == [("forged", IP)]
     assert "turnstile-failed:invalid-input-response" in caplog.text
 
@@ -194,12 +201,11 @@ def test_a_valid_token_lets_the_form_through(turnstile):
     client = visitor()
     response = upload(client, **{TOKEN_FIELD: "ok-1"})
     assert response.status_code == 302
-    analysis = Station.objects.get()
-    # The next step, which queues the quality checks, needs a token of its own.
-    url = f"{analysis.url()}setup"
-    assert client.post(url, metadata()).status_code == 400
-    assert not Job.objects.exists()
-    assert client.post(url, metadata(**{TOKEN_FIELD: "ok-2"})).status_code == 302
+    # The next step, which adds the station and queues its checks, needs a token of its own.
+    url = response["Location"]  # Add stations' review
+    assert client.post(url, ADD).status_code == 400
+    assert not Job.objects.exists() and not Station.objects.exists()
+    assert client.post(url, {**ADD, TOKEN_FIELD: "ok-2"}).status_code == 302
     job = Job.objects.get(kind="qc")
     assert job.client == IP
     run = Job.objects.get(kind="station")  # the speculative run (#178), same client
@@ -214,7 +220,7 @@ def test_cloudflare_unreachable_refuses_with_busy(turnstile, monkeypatch):
     monkeypatch.setattr(limits, "siteverify", down)
     response = upload(visitor(), **{TOKEN_FIELD: "ok"})
     assert response.status_code == 503 and response["Retry-After"] == "60"
-    assert not Station.objects.exists()
+    assert not Workspace.objects.exists()
 
 
 @pytest.mark.django_db
@@ -222,7 +228,7 @@ def test_get_requests_and_the_sample_need_no_token(turnstile):
     client = visitor()
     assert client.get("/add/").status_code == 200
     assert client.post("/add/sample").status_code == 302
-    assert client.post("/station/sample").status_code == 302
+    assert client.post("/add/sample-batch").status_code == 302
     assert turnstile == []
 
 
@@ -233,7 +239,7 @@ def test_forms_wait_for_their_token(turnstile):
     names turnstile.js's callbacks and carries the texts it shows while the form waits;
     turnstile.js comes once, before Cloudflare's script."""
     client = visitor()
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     html = client.get(load).content.decode()
     assert 'form="station-details"' not in html  # the shortcut that raced the token is gone
     widgets = re.findall(r'<div class="cf-turnstile"[^>]*>', html)
@@ -253,7 +259,7 @@ def test_forms_wait_for_their_token(turnstile):
 @pytest.mark.django_db
 def test_no_turnstile_script_without_turnstile(hosted):
     client = visitor()
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     html = client.get(load).content.decode()
     assert "cf-turnstile" not in html and "turnstile.js" not in html
 
@@ -262,10 +268,10 @@ def test_no_turnstile_script_without_turnstile(hosted):
 
 
 def start_qc(client):
-    """Upload, then the station details: the request that queues a job."""
+    """Drop a file on Add stations, then add it: the request that queues its jobs."""
     response = upload(client)
     assert response.status_code == 302, response.content.decode()[:500]
-    return client.post(response["Location"], metadata())  # /w/<id>/<station>/setup
+    return client.post(response["Location"], ADD)  # /w/<id>/add/<files>/
 
 
 @pytest.mark.django_db
@@ -327,8 +333,9 @@ def test_low_disk_refuses_uploads_and_jobs(hosted, monkeypatch, caplog):
         response = upload(client)
     assert response.status_code == 503 and "busy just now" in response.content.decode()
     assert "disk-low:1024MB" in caplog.text
-    assert client.post("/station/sample").status_code == 503
-    assert not Station.objects.exists()
+    assert client.post("/add/sample").status_code == 503
+    assert client.post("/add/sample-batch").status_code == 503
+    assert not Workspace.objects.exists()
 
 
 def test_free_disk_of_a_folder_not_made_yet(tmp_path):

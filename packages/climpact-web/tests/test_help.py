@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import made
 import pytest
 from django.template import Context, Template
 from django.test import override_settings
@@ -126,7 +127,7 @@ def pages_with_help(client):
     urls = ["/", "/help/", "/help/topics/", "/help/search/?q=base"]
     urls += [f"/help/{slug}/" for slug in GUIDE_ORDER]
     urls += ["/add/"]
-    load = client.post("/station/sample")["Location"]  # a station's own setup page
+    load = made.station_to_set_up(client, sample=True).url("setup")  # a station's own setup page
     review = client.post("/add/sample-batch")["Location"]  # Add stations' review (#233)
     return [*urls, load, review]
 
@@ -344,7 +345,7 @@ def test_add_stations_and_the_setup_page_show_their_help(client):
     review = client.get(client.post("/add/sample-batch")["Location"]).content.decode()
     assert 'href="/help/batch/#the-metadata-file"' in review
     # A station's own setup page (a new file that needs new details) keeps its help.
-    load = client.get(client.post("/station/sample")["Location"]).content.decode()
+    load = client.get(made.station_to_set_up(client, sample=True).url("setup")).content.decode()
     assert re.findall(r'href="/help/sections/([^/]+)/"', load) == ["upload.file", "load.details"]
     for topic_id in ("station.name", "station.latitude", "station.longitude"):
         assert f'data-help-topic="{topic_id}"' in load

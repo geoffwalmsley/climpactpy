@@ -8,6 +8,7 @@ import datetime as dt
 import re
 from urllib.parse import quote
 
+import made
 import pytest
 from django.test import Client
 from django.utils import timezone
@@ -492,7 +493,7 @@ def test_the_edit_pages_work_without_javascript(client):
 
 
 def test_tabs_follow_the_workspace_from_the_first_visit(client):
-    load = client.post("/station/sample")["Location"]
+    load = made.station_to_set_up(client, sample=True).url("setup")
     analysis = Station.objects.get()
     html = client.get(load).content.decode()
     # The New station page (#201): no tabs and no Inputs panel before the station is set up.

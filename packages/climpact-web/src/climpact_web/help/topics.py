@@ -125,58 +125,6 @@ HAND_WRITTEN = (
         ),
         "base-period",
     ),
-    # ---- Batch ------------------------------------------------------------------------
-    T(
-        "batch.metadata_file",
-        _("The batch metadata file"),
-        _(
-            "One line per station with its file name, latitude, longitude and index "
-            "settings, in 12 columns. Start from the sample metadata file."
-        ),
-        "batch",
-        "the-metadata-file",
-    ),
-    T(
-        "batch.station_files",
-        _("Station files for a batch"),
-        _(
-            "Each file named in the metadata file, in the six-column station format. "
-            "Names must match exactly, including capitals and the extension."
-        ),
-        "batch",
-        "station-files",
-    ),
-    T(
-        "batch.base_period",
-        _("One base period for every station"),
-        _(
-            "All stations in a batch use the same base period, so choose years that every "
-            "station has data for. A station with less than a year of data in it gets no "
-            "percentile indices."
-        ),
-        "base-period",
-        "batches",
-    ),
-    T(
-        "batch.workers",
-        _("Stations at the same time"),
-        _(
-            "How many stations are calculated in parallel, one per processor core. Leave "
-            "a core free if you want to keep using the computer."
-        ),
-        "batch",
-        "options",
-    ),
-    T(
-        "batch.plots",
-        _("Plots in a batch"),
-        _(
-            "Drawing a plot for every index takes about two thirds of the time. The index "
-            "tables and trend file are written either way."
-        ),
-        "batch",
-        "options",
-    ),
     # ---- Quality checks ---------------------------------------------------------------
     T(
         "qc.outliers",

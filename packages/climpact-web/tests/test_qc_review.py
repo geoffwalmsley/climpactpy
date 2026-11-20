@@ -11,6 +11,7 @@ from dataclasses import asdict, fields
 from pathlib import Path
 from urllib.parse import quote
 
+import made
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
@@ -44,11 +45,7 @@ def run_next() -> Job:
 
 def start(client, path=STRESS, name="qc_stress_1961-2020") -> Station:
     """Step 1 with the file, then "Continue": the checks are queued at once."""
-    response = client.post(
-        "/station/new",
-        {"station_file": SimpleUploadedFile(path.name, path.read_bytes()), "intent": "read"},
-    )
-    load = response["Location"]
+    load = made.station_to_set_up(client, path.read_bytes(), path.name).url("setup")
     response = client.post(load, {"station_name": name, **META})
     analysis = Station.objects.get()
     assert response["Location"] == f"{analysis.url()}quality"

@@ -91,6 +91,7 @@ class Layer:
     freq: str = "ANN"
     years: list[int] = field(default_factory=list)  # per time step (ANN, MON)
     months: list[int] = field(default_factory=list)  # per time step (MON), 1-12
+    y_latitude: bool = False  # whether the Y coordinate is latitude (the cells' weights)
 
     @property
     def geographic(self) -> bool:
@@ -144,6 +145,17 @@ def _coordinate(nc, var, axis: str) -> tuple[str, list[float]]:
         if name in nc.variables and nc.variables[name].ndim == 1:
             return name, [float(v) for v in np.asarray(nc.variables[name][:], dtype=float)]
     return dim, [float(i) for i in range(len(nc.dimensions[dim]))]
+
+
+def _is_latitude(nc, name: str, dim: str) -> bool:
+    """Whether the Y coordinate ``name`` is latitude, as the core decides it when it
+    weights the cells (:meth:`climpact.gridded.io.GriddedInput.cell_latitude`): its
+    standard name or units say so, or its name does."""
+    coord = nc.variables.get(name)
+    standard = str(getattr(coord, "standard_name", "")) if coord is not None else ""
+    units = str(getattr(coord, "units", "")) if coord is not None else ""
+    named = name.lower() in ("lat", "latitude") or dim.lower() in ("lat", "latitude")
+    return standard == "latitude" or (units.startswith("degree") and "north" in units) or named
 
 
 def index_variables(nc) -> list[dict]:
@@ -210,6 +222,7 @@ def open_layer(path: Path, rel: str, variable: str | None = None) -> Layer:
             freq=freq,
             years=years,
             months=month_numbers,
+            y_latitude=_is_latitude(nc, y_dim, var.dimensions[-2]),
         )
 
 
@@ -230,6 +243,7 @@ CACHE_BYTES = 256 * 1024 * 1024
 _cache: OrderedDict[tuple, np.ndarray] = OrderedDict()
 _cache_lock = threading.Lock()
 _read_lock = threading.Lock()
+_too_large: set[tuple] = set()  # the variables found too large to keep
 
 
 def _key(path: Path, variable: str, scale: int) -> tuple:
@@ -245,6 +259,8 @@ def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | No
         if key in _cache:
             _cache.move_to_end(key)
             return _cache[key]
+        if key in _too_large:
+            return None
     with _read_lock:  # one read at a time: the page's image and values ask together
         with _cache_lock:
             if key in _cache:
@@ -253,20 +269,76 @@ def variable_values(path: Path, layer: Layer, scale: int = 0) -> np.ndarray | No
             var = nc.variables[layer.variable]
             shape = var.shape[1:] if layer.scales else var.shape
             if int(np.prod(shape)) * 4 > CACHE_BYTES:
+                with _cache_lock:
+                    if len(_too_large) > 1024:
+                        _too_large.clear()
+                    _too_large.add(key)
                 return None
             # Unmasked and cleaned in place: a masked array of a large grid costs more
             # than reading it.
             var.set_auto_mask(False)
-            values = np.asarray(var[scale] if layer.scales else var[:], dtype=np.float32)
-            for name in ("_FillValue", "missing_value"):
-                if name in var.ncattrs():
-                    values[values == np.float32(var.getncattr(name))] = np.nan
-            values[~(np.abs(values) < 1e19)] = np.nan  # also NaN and infinities
-        values.setflags(write=False)
+            values = _cleaned(var, var[scale] if layer.scales else var[:])
+        _keep(key, values)
+    return values
+
+
+def _cleaned(var, raw) -> np.ndarray:
+    """``raw``, read from ``var`` unmasked, as float32 with its fill values, NaN and
+    infinities as NaN."""
+    values = np.asarray(raw, dtype=np.float32)
+    for name in ("_FillValue", "missing_value"):
+        if name in var.ncattrs():
+            values[values == np.float32(var.getncattr(name))] = np.nan
+    values[~(np.abs(values) < 1e19)] = np.nan  # also NaN and infinities
+    return values
+
+
+def _keep(key: tuple, values: np.ndarray) -> None:
+    values.setflags(write=False)
+    with _cache_lock:
+        _cache[key] = values
+        while sum(v.nbytes for v in _cache.values()) > CACHE_BYTES and len(_cache) > 1:
+            _cache.popitem(last=False)
+
+
+def month_steps(layer: Layer, month: int | None) -> list[int]:
+    """The time steps of ``month`` in a monthly layer, in order."""
+    return [t for t, m in enumerate(layer.months) if m == month]
+
+
+def _month_fits(layer: Layer, month: int | None) -> bool:
+    return len(month_steps(layer, month)) * len(layer.lat) * len(layer.lon) * 4 <= CACHE_BYTES
+
+
+def month_values(path: Path, layer: Layer, month: int, scale: int = 0) -> np.ndarray:
+    """A monthly layer's values of ``month`` in every year, ``(years, y, x)`` as float32
+    (NaN where a cell has no value): from the whole variable when it is kept, else read
+    once (every cell's series is one chunk, so this reads the file once, not once a year)
+    and kept with the variables (see ``CACHE_BYTES``) when it fits."""
+    scale = scale if layer.scales else 0
+    steps = month_steps(layer, month)
+    whole = variable_values(path, layer, scale)
+    if whole is not None:
+        return whole[steps]
+    if not steps:
+        return np.empty((0, len(layer.lat), len(layer.lon)), np.float32)
+    key = (*_key(path, layer.variable, scale), "month", month)
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+    with _read_lock:
         with _cache_lock:
-            _cache[key] = values
-            while sum(v.nbytes for v in _cache.values()) > CACHE_BYTES and len(_cache) > 1:
-                _cache.popitem(last=False)
+            if key in _cache:
+                return _cache[key]
+        regular = steps == list(range(steps[0], steps[-1] + 1, 12))
+        index = slice(steps[0], steps[-1] + 1, 12) if regular else steps
+        with netcdf.dataset(path) as nc:
+            var = nc.variables[layer.variable]
+            var.set_auto_mask(False)
+            values = _cleaned(var, var[scale, index] if layer.scales else var[index])
+        if values.nbytes <= CACHE_BYTES:
+            _keep(key, values)
     return values
 
 
@@ -277,6 +349,10 @@ def grid_values(path: Path, layer: Layer, t: int, scale: int = 0) -> np.ndarray:
     whole = variable_values(path, layer, scale)
     if whole is not None:
         return whole[t]
+    if layer.months and _month_fits(layer, layer.months[t]):
+        # A month of every year: one read of the file serves all the month's maps.
+        month = layer.months[t]
+        return month_values(path, layer, month, scale)[month_steps(layer, month).index(t)]
     with netcdf.dataset(path) as nc:
         var = nc.variables[layer.variable]
         var.set_auto_mask(True)
@@ -666,6 +742,7 @@ __all__ = [
     "frame",
     "grid_values",
     "kind_of",
+    "month_values",
     "nice_edges",
     "open_layer",
     "output_files",

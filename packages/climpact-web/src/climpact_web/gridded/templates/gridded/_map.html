@@ -8,7 +8,8 @@ the arrow keys. The map is a PNG with one pixel per cell (gridded:map_png, in th
 colours; on Trend each cell several pixels a side, with a dot where the 95% interval
 excludes zero) under an SVG of the coastline, places, axes and the selected cell. The view
 (Year, Base mean, Anomaly, Trend, #296) needs the run's trends.nc: without it, or for a
-monthly or day-of-year file, the three are shown unavailable and the reason is said.
+day-of-year file, the three are shown unavailable and the reason is said. A monthly file
+has Base mean and Anomaly of the chosen month, computed from its values, and no Trend (#348).
 Context from gridded.map_page.context.
 {% endcomment %}
 <div class="gmap-layout" id="gridded-map" data-gridded-map>

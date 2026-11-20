@@ -961,7 +961,7 @@ def _map_state(request, run: GriddedRun):
     if job is None or job.status != Status.SUCCEEDED:
         raise Http404
     try:
-        state = map_page.resolve(request, job)
+        state = map_page.resolve(request, job, map_page.base_period(run))
     except (OSError, ValueError, KeyError, IndexError) as e:
         raise Http404 from e
     if state is None:
@@ -977,6 +977,8 @@ def _when_name(state) -> str:
     trends = state.trends
     if state.view == "base" and trends is not None and trends.base:
         when = f"base_mean_{trends.base[0]}-{trends.base[1]}"
+        if trends.month is not None:  # a monthly file's month, as the series' names
+            when = f"{trends.month:02d}_{when}"
     elif state.view == "anomaly":
         when = f"anomaly_{when}"
     elif state.view == "trend" and trends is not None and trends.period:
@@ -1040,6 +1042,8 @@ def map_png(request, run_id):
         when = map_page.time_label(layer, state.t)
         if state.view == "base" and state.trends.base:
             when = "{}–{}".format(*state.trends.base)
+            if state.trends.month is not None:
+                when = f"{map_page.month_name(state.trends.month)} {when}"
         elif state.view == "trend" and state.trends.period:
             when = "{}–{}".format(*state.trends.period)
         title = f"{entry.code} {entry.name}, " + " ".join(filter(None, [what, when])) + (
@@ -1127,7 +1131,9 @@ def series_csv(request, run_id):
         rows += [[int(v), maps.format_value(float(value), 6)] for v, value in zip(x, values,
                  strict=True)]  # fmt: skip
         scale = f"_{layer.scales[state.scale]}months" if layer.scales else ""
-        return _csv_response(rows, SAFE_NAME.sub("_", f"{layer.variable}{scale}_grid_mean.csv"))
+        month = f"_{state.trends.month:02d}" if state.trends.month is not None else ""
+        name = f"{layer.variable}{month}{scale}_grid_mean.csv"
+        return _csv_response(rows, SAFE_NAME.sub("_", name))
     values, x, step = map_page._series(path, state)
     head = "day_of_year" if step == "day" else "year"
     rows = [[head, layer.variable]]

@@ -14,9 +14,11 @@ scale, the cell with a value nearest the middle, Year.
 The views (:data:`VIEWS`, #296, :mod:`climpact_web.gridded.map_views`): Year, Base mean,
 Anomaly and Trend. The last three, and the grid mean, read the run's ``trends.nc``
 (#290): offered for an annual file and for SPI and SPEI (whose views and grid mean are
-of the 12-month scale in December, so choosing one moves the map there); otherwise shown
-unavailable, with the reason under the controls, and an address asking for one shows
-Year.
+of the 12-month scale in December, so choosing one moves the map there). A monthly file
+(#348) has Base mean, Anomaly and the grid mean of the chosen month, computed from its
+values (:func:`map_views.month_trends`), and no Trend. A view that is not offered is
+shown unavailable, with the reason under the controls, and an address asking for one
+shows Year.
 
 The cell's statistics: from ``trends.nc`` where it has the series (the slope, its
 interval and the base mean the map shows), else computed here for the series on request
@@ -274,9 +276,10 @@ def parse_goto(text: str) -> tuple[float, float] | None:
     return lat, lon
 
 
-def resolve(request, job) -> State | None:
+def resolve(request, job, base: tuple[int, int] | None = None) -> State | None:
     """The page's state from the query string (see the module's docstring); None when
-    the run wrote no index file."""
+    the run wrote no index file. ``base`` is the run's base period, for a monthly file's
+    views when the job does not name one."""
     items = entries(job)
     if not items:
         return None
@@ -300,8 +303,15 @@ def resolve(request, job) -> State | None:
     trends = None if unavailable else map_views.read_trends(trends_path, layer.variable)
     if layer.scales and map_views.SPI_SCALE not in layer.scales:
         trends, unavailable = None, unavailable or _("This file has no 12-month scale.")
-    view = q.get("view") if q.get("view") in map_views.VIEWS and trends is not None else "year"
-    series = "grid" if q.get("series") == "grid" and trends is not None else "cell"
+    # A monthly file: Base mean, Anomaly and the grid mean of the month, no Trend (#348).
+    base = map_views.job_base(job) or base
+    monthly = map_views.is_monthly(layer, entry.short) and base is not None
+    offered = ("year", *map_views.TREND_VIEWS) if trends is not None else ("year",)
+    if monthly:
+        offered = ("year", "base", "anomaly")
+    view = q.get("view") if q.get("view") in offered else "year"
+    has_grid = trends is not None or (monthly and layer.y_latitude)
+    series = "grid" if q.get("series") == "grid" and has_grid else "cell"
     spi_fixed = bool(layer.scales) and (view in map_views.TREND_VIEWS or series == "grid")
     scale = 0
     if layer.scales:
@@ -324,6 +334,8 @@ def resolve(request, job) -> State | None:
     if t is None:
         month = (month_wanted or 12) if layer.months else None
         t = maps.last_step_with_values(path, layer, scale, month)
+    if monthly:
+        trends = map_views.month_trends(path, layer, layer.months[t], base)
     ny, nx = len(layer.lat), len(layer.lon)
     goto, goto_error = q.get("goto", "").strip(), ""
     cell = _cell(q.get("cell"), ny, nx)
@@ -386,7 +398,7 @@ def cell_title(layer: maps.Layer, cell: tuple[int, int]) -> str:
 
 def context(request, run, job) -> dict:
     """Everything the Map tab draws (gridded/_map.html), or {} without index files."""
-    s = resolve(request, job)
+    s = resolve(request, job, base_period(run))
     if s is None:
         return {}
     layer, entry = s.layer, s.entry
@@ -442,14 +454,20 @@ def context(request, run, job) -> dict:
         )
     # SPI and SPEI's views and grid mean are of the 12-month scale in December.
     to_annual = {"scale": map_views.SPI_SCALE, "month": map_views.SPI_MONTH} if layer.scales else {}
+
+    def offered(key: str) -> bool:
+        if key == "year":
+            return True
+        return s.trends is not None and (key != "trend" or s.trends.slope is not None)
+
     views = [
         {
             "key": key,
             "label": str(name),
             "current": key == s.view,
-            "available": key == "year" or s.trends is not None,
+            "available": offered(key),
             "url": page(view=None) if key == "year" else page(view=key, **to_annual)
-            if s.trends is not None else "",
+            if offered(key) else "",
         }
         for key, name in VIEWS
     ]  # fmt: skip
@@ -462,7 +480,14 @@ def context(request, run, job) -> dict:
     period = s.trends.period if s.trends else None
     base_years = f"{base[0]}–{base[1]}" if base else ""
     trend_years = f"{period[0]}–{period[1]}" if period else ""
-    if s.view == "base":
+    if s.view == "base" and layer.months:  # a monthly file: the month's base mean
+        hint = _("Mean of %(month)s in %(years)s.") % {
+            "month": month_name(s.month), "years": base_years,
+        }  # fmt: skip
+        what = _("base mean %(month)s %(years)s") % {
+            "month": month_name(s.month), "years": base_years,
+        }  # fmt: skip
+    elif s.view == "base":
         hint = _("Mean of %(years)s.") % {"years": base_years}
         what = _("base mean %(years)s") % {"years": base_years}
     elif s.view == "anomaly":
@@ -548,8 +573,9 @@ def context(request, run, job) -> dict:
     }
     series_links = {
         "cell": page(series=None),
-        "grid": page(series="grid", **to_annual) if s.trends is not None else "",
-    }
+        "grid": page(series="grid", **to_annual)
+        if s.trends is not None and s.trends.grid_mean is not None else "",
+    }  # fmt: skip
     return {
         "map_state": s,
         "rail": rail_groups(
@@ -649,6 +675,9 @@ def base_period(run) -> tuple[int, int] | None:
 def cells_with_values(path, s: State) -> int:
     """How many cells have a value in any year of the pane's series."""
     layer = s.layer
+    if s.trends is not None and s.trends.month is not None:  # a monthly file's month
+        values = maps.month_values(path, layer, s.trends.month, s.scale)
+        return int(np.isfinite(values).any(axis=0).sum())
     whole = maps.variable_values(path, layer, s.scale)
     if whole is None and s.trends is not None:
         return int((np.isfinite(s.trends.base_mean) | np.isfinite(s.trends.slope)).sum())
@@ -692,7 +721,7 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
     from climpact_web.stations.themes import hue_of
 
     layer, entry = s.layer, s.entry
-    grid_mean = s.series == "grid" and s.trends is not None
+    grid_mean = s.series == "grid" and s.trends is not None and s.trends.grid_mean is not None
     if grid_mean:
         values = np.asarray(s.trends.grid_mean, dtype=float)
         x, step = np.array([float(y) for y in s.trends.years]), "year"
@@ -712,8 +741,10 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
         trend=trend,
     )
     summary = trend_summary(plot) if trend is not None else None
+    # The numbers the map shows: trends.nc's slope and base mean, or a monthly file's
+    # base mean of the month (its trend is computed above, as the map has none).
     from_file = s.trends is not None and not grid_mean and step == "year"
-    if from_file:  # the numbers the map shows
+    if from_file and s.trends.slope is not None:
         summary = trends_summary(s.trends, s.cell, units)
     base = ((s.trends.base if s.trends else None) or base_period(run)) if step == "year" else None
     card = SimpleNamespace(code=entry.code, units=units, key=entry.short, trend=summary)

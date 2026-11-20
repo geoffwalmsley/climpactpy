@@ -7,6 +7,8 @@ to an input no longer resets the later sections. Each job records the inputs it 
 produced from when it is queued (``Job.inputs``):
 
 ``file``      the SHA-256 of the station file (``Station.file_hash``)
+``data``      what the provenance lines say about that file (#269, :func:`file_record`):
+              its name, first and last year, days and the variables with values
 ``metadata``  the station details: name, latitude, longitude and base period
 ``qc``        the quality-control thresholds, with R's defaults filled in
 ``settings``  a station run's index settings and output options (:func:`settings_of`)
@@ -124,11 +126,28 @@ def settings_of(params: dict) -> dict:
     }
 
 
+def file_record(file_name: str, summary: dict | None) -> dict:
+    """What the provenance lines say about a station file (#269), from its name and its
+    summary (:func:`.station_file.summarise`): recorded with each job beside the file's
+    hash (``inputs["data"]``), so out-of-date checks and results are described by the file
+    they read, not by the one that replaced it."""
+    summary = summary or {}
+    return {
+        "name": file_name or "",
+        "first_year": summary.get("first_year"),
+        "last_year": summary.get("last_year"),
+        "days": summary.get("days"),
+        "variables": [v["key"] for v in summary.get("variables", []) if v.get("present", 0) > 0],
+    }
+
+
 def current_inputs(analysis: Station) -> dict:
-    """The analysis's inputs now: its file and station details, and its workspace's base
-    period, thresholds and index settings (with the station's own values, #254)."""
+    """The analysis's inputs now: its file (its hash, and what the provenance lines say
+    about it) and station details, and its workspace's base period, thresholds and index
+    settings (with the station's own values, #254)."""
     return {
         "file": analysis.file_hash,
+        "data": file_record(analysis.file_name, analysis.summary),
         "metadata": analysis.metadata,
         "qc": qc_values(analysis),
         "settings": station_settings(analysis),
@@ -686,14 +705,15 @@ def provenance(analysis: Station, current: str = "") -> list[dict]:
     version. Quality's line describes the data the checks read instead (#235, the Quality
     board): the coordinates, the years, the days and variables in the file
     ("21,915 days · PR TX TN") and the file's name. Each part is ``{"text", "phone"}``;
-    on a phone only the years show."""
+    on a phone only the years show. Each line describes the file its section's shown
+    job read (#269), which, while that job is out of date, may not be the current one."""
     if current == "quality":
         return quality_provenance(analysis)
     inputs = provenance_inputs(analysis, current)
     meta = inputs["metadata"]
     parts = []
-    summary = analysis.summary or {}
-    first, last = summary.get("first_year"), summary.get("last_year")
+    data = inputs["data"]
+    first, last = data.get("first_year"), data.get("last_year")
     complete = analysis.metadata_complete
     if complete:
         parts.append(
@@ -726,43 +746,58 @@ def provenance_inputs(analysis: Station, current: str = "") -> dict:
     the results on the page. On the Indices, an index's page and Files (``results``,
     ``files``) they are the shown run's while it is out of date (#223): after a change
     the page still shows the old results, so the line must not claim the new inputs
-    for them (the Inputs panel and bar show the new values, "· changed"). An input the
-    run did not record (a batch's results without settings) is the current one."""
+    for them (the Inputs panel and bar show the new values, "· changed"), nor the new
+    file's years (#269). An input the run did not record (a batch's results without
+    settings, a job from before #269 without ``data``) is the current one."""
     inputs = current_inputs(analysis)
     if current in ("results", "files"):
         shown = shown_run(analysis)
         if shown is not None and run_changes(analysis, shown):
-            recorded = recorded_inputs(analysis, shown)
-            for key in ("metadata", "qc", "settings"):
-                if recorded.get(key):
-                    inputs[key] = recorded[key]
+            _use_recorded(
+                inputs, recorded_inputs(analysis, shown), ("data", "metadata", "qc", "settings")
+            )
     return inputs
+
+
+def _use_recorded(inputs: dict, recorded: dict, keys) -> None:
+    """Put the inputs ``keys`` a job recorded in place of the current ones in ``inputs``."""
+    for key in keys:
+        if recorded.get(key):
+            inputs[key] = recorded[key]
+
+
+def quality_data(analysis: Station) -> dict:
+    """The file Quality's checks read (:func:`file_record` form): the shown checks' record
+    while they are out of date (#269), so after "Replace file" the old checks, kept under
+    the out-of-date banner until the new ones have finished, are not described by the new
+    file. The current file's when the checks recorded none (a job from before #269)."""
+    inputs = current_inputs(analysis)
+    shown = shown_qc(analysis)
+    if shown is not None and qc_changes(analysis, shown):
+        _use_recorded(inputs, recorded_inputs(analysis, shown), ("data",))
+    return inputs["data"]
 
 
 def quality_provenance(analysis: Station) -> list[dict]:
     """Quality's provenance line (#235): what the checks read."""
     parts = []
-    summary = analysis.summary or {}
+    data = quality_data(analysis)
     if analysis.metadata_complete:
         parts.append(
             {"text": numbers.coordinates(analysis.latitude, analysis.longitude), "phone": False}
         )
-    first, last = summary.get("first_year"), summary.get("last_year")
+    first, last = data.get("first_year"), data.get("last_year")
     if first and last:
         parts.append({"text": years_text(first, last), "phone": True})
-    if days := summary.get("days"):
+    if days := data.get("days"):
         codes = {"prcp": _("PR"), "tmax": _("TX"), "tmin": _("TN")}
-        present = [
-            str(codes[v["key"]])
-            for v in summary.get("variables", [])
-            if v.get("key") in codes and v.get("present", 0) > 0
-        ]
+        present = [str(codes[key]) for key in data.get("variables", []) if key in codes]
         text = ngettext("%(n)s day", "%(n)s days", days) % {"n": numbers.grouped(days)}
         if present:
             text = _("%(days)s · %(variables)s") % {"days": text, "variables": " ".join(present)}
         parts.append({"text": text, "phone": False})
-    if analysis.file_name:
-        parts.append({"text": analysis.file_name, "phone": False})
+    if data.get("name"):
+        parts.append({"text": data["name"], "phone": False})
     return parts
 
 

@@ -4959,10 +4959,15 @@ state in the batch's latest run (`origin["run"]`) and, when the batch calculated
 
 **Workspace and staleness (#179, `stations/workspace.py`).** `create_job` takes `inputs`,
 which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inputs`):
-`file` (the hash), `metadata` (name, latitude, longitude, base period), `qc` (the
-thresholds with R's defaults filled in, `workspace.qc_values`) and, for a `station` run,
-`settings` (`workspace.settings_of`: the `IndexParams` fields, plot title, plots, zip and
-report). `workspace.differences` names what differs between a job's inputs and the
+`file` (the hash), `data` (what the provenance lines say about that file, #269,
+`workspace.file_record`: its name as uploaded, first and last year, days, and the
+variables with values, from `Station.file_name` and `Station.summary`), `metadata` (name,
+latitude, longitude, base period), `qc` (the thresholds with R's defaults filled in,
+`workspace.qc_values`) and, for a `station` run, `settings` (`workspace.settings_of`: the
+`IndexParams` fields, plot title, plots, zip and report). A batch's `origin["inputs"]`
+has `data` too, from the file the batch read (`batch.fill.batch_inputs`). `data` is never
+compared (`file` is): it only describes the file. Jobs queued before #269 have no `data`,
+and their lines describe the current file, as before. `workspace.differences` names what differs between a job's inputs and the
 analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`. The checks depend
 on the file, the thresholds and the name (their files are named after the station); a run
 on all of them. The current `settings` are the station's (`workspace.station_settings`,
@@ -5015,8 +5020,9 @@ the Recalculation card is left for a run of unchanged inputs ("Recalculate", "Tr
 or Apply with the same settings). The header says nothing of the new inputs for the old
 results (#223): while the results shown are out of date, the provenance line of the
 Indices, an index page and Files describes the run on the page
-(`workspace.provenance_inputs`: its recorded coordinates, base period, thresholds and
-settings, in place of the current ones, which the Inputs panel and bar show as
+(`workspace.provenance_inputs`: its recorded file data, coordinates, base period,
+thresholds and settings, in place of the current ones; so after a new file the years are
+the old file's, #269, which the Inputs panel and bar show as
 "· changed"), and "Download all" is the old run's zip, so it reads "Download all (out of
 date)" in the context bar and its ⋯ menu, "Download all (zip, 8.0 MB, out of date)" on
 Files, and is secondary in both until the new results are ready, cancelled or not. Quality keeps the verdict's level and its count of values
@@ -5080,7 +5086,10 @@ while its results are out of date, #223), the page's actions
 `stations/_results_actions.html`) and `components/workspace_tabs.html`. Quality's
 provenance line describes the data the checks read instead (#235, `workspace.quality_provenance`,
 as the Quality board draws it): the coordinates, the years, the days and the variables
-with data ("21,915 days · PR TX TN") and the file's name. The other pages' lines leave the
+with data ("21,915 days · PR TX TN") and the file's name; while the checks shown are out
+of date (a new file whose checks are on the way, failed or were cancelled), those of the
+file they read, from their `inputs["data"]` (`workspace.quality_data`, #269), not of the
+file that replaced it. The other pages' lines leave the
 file name out; the Inputs panel's File row has the file. The title is the station
 name given, the file name only when there is none. The bar sits on the surface over a
 hairline across the window: a layer behind it (`.context-bar::before`, 100vmax past

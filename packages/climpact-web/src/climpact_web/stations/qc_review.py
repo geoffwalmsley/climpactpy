@@ -1864,12 +1864,22 @@ class Review:
         return Path(self.nastatistics_file).name if self.nastatistics_file else ""
 
 
-def review(job, station_file: Path) -> Review:
-    """The review of a succeeded ``qc`` job (``job.result`` lists its files)."""
+def checked_file(job) -> Path:
+    """The station file a ``qc`` job read: the copy saved in its ``input/`` folder when it
+    was queued (``params["station_file"]``). Out-of-date checks are reviewed against it, not
+    against the file that replaced it (#308)."""
+    return job.input_dir / job.params["station_file"]
+
+
+def review(job, station_file: Path | None = None) -> Review:
+    """The review of a succeeded ``qc`` job (``job.result`` lists its files), with the
+    station's rows from the file it read (:func:`checked_file`, unless ``station_file`` is
+    given): the checks, the year table and the counts all describe that file, also once
+    another has replaced it. :class:`FileNotFoundError` if the file is missing."""
     from climpact_web.jobs.runners import qc_params
 
     params = qc_params(job.params.get("qc"))
-    station = StationRows.read(station_file)
+    station = StationRows.read(station_file or checked_file(job))
     reports = job.result.get("reports", {})
     output = Path(job.output_dir)
 

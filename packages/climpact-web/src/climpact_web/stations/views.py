@@ -599,7 +599,7 @@ def qc_context(request, analysis: Station, **extra) -> dict:
     review = None
     if shown is not None:
         try:
-            review = qc_review.review(shown, analysis.station_file)
+            review = qc_review.review(shown)
         except FileNotFoundError:
             pass
         if review is not None:
@@ -708,7 +708,10 @@ def qc_table(request, workspace_id, slug, check):
     job = workspace.shown_qc(analysis)
     if check not in qc_review.CHECK_KEYS or job is None:
         raise Http404
-    review = qc_review.review(job, analysis.station_file)
+    try:
+        review = qc_review.review(job)
+    except FileNotFoundError as exc:
+        raise Http404 from exc
     table = review.table(check, request.GET.get("group", ""))
     if table is None:
         raise Http404
@@ -737,7 +740,7 @@ def qc_flagged(request, workspace_id, slug):
     if job is None:
         raise Http404
     try:
-        review = qc_review.review(job, analysis.station_file)
+        review = qc_review.review(job)
     except FileNotFoundError as exc:
         raise Http404 from exc
     response = HttpResponse(content_type="text/csv; charset=utf-8")

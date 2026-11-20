@@ -525,7 +525,7 @@ def qc_verdict(analysis: Station, job: Job) -> tuple[str, int] | None:
     from climpact_web.stations import qc_review
 
     try:
-        verdict = qc_review.review(job, analysis.station_file).verdict
+        verdict = qc_review.review(job).verdict
     except FileNotFoundError:
         return None
     remember_verdict(job, verdict.level, verdict.wrong)

@@ -772,7 +772,7 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
         check.rows, check.count = [], 0
     review.wrong, review.groups = [], []
     review.verdict = qc_review.verdict(review.checks, [], review.verdict.values)
-    monkeypatch.setattr(qc_review, "review", lambda job, path: review)
+    monkeypatch.setattr(qc_review, "review", lambda job, path=None: review)
     page = client.get(f"{checked.url()}quality").content.decode()
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
     assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
@@ -792,7 +792,7 @@ def test_red_verdict_swaps_the_buttons(client, checked, monkeypatch):
     strict = qc_review.VerdictLimits(wrong_share=0.0)
     review.verdict = qc_review.verdict(review.checks, review.years, review.verdict.values, strict)
     assert review.verdict.level == "fix"
-    monkeypatch.setattr(qc_review, "review", lambda job, path: review)
+    monkeypatch.setattr(qc_review, "review", lambda job, path=None: review)
     page = client.get(f"{checked.url()}quality").content.decode()
     verdict = verdict_of(page)
     assert "<b>Fix the file first.</b>" in verdict and "verdict-strip--fix" in verdict

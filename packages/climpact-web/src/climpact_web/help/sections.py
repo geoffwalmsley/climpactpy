@@ -373,6 +373,13 @@ SECTIONS = (
             "param.gdd_base",
             "param.rnnmm",
         ],
+        [
+            _(
+                "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also "
+                "lists Perkins and Alexander (2013), but its calculation accepts only Nairn "
+                "and Fawcett."
+            )
+        ],
     ),
     S(
         "gridded.computing",

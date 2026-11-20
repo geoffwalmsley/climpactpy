@@ -1,0 +1,15 @@
+{% comment %}
+The base period on the data's years (#293, the GridSetup board): a bar for the years with
+the base period marked, the first and last years at its ends and the base period's under
+its ends. An SVG drawn with percentages (no style attribute, CSP); decorative, the
+coverage line under it says the same. Parameters: timeline, oob.
+{% endcomment %}<div id="base-timeline" class="gridded-timeline" aria-hidden="true"{% if oob %} hx-swap-oob="true"{% endif %}>{% if timeline %}
+  <svg class="gridded-timeline__svg" width="100%" height="36" focusable="false">
+    <rect class="gridded-timeline__track" x="0" y="0" width="100%" height="18" rx="3"></rect>
+    {% if timeline.inside %}<rect class="gridded-timeline__base" x="{{ timeline.x }}%" y="0" width="{{ timeline.width }}%" height="18" rx="3"></rect>{% endif %}
+    <text class="gridded-timeline__year" x="0" y="32">{{ timeline.first }}</text>
+    <text class="gridded-timeline__year" x="100%" y="32" text-anchor="end">{{ timeline.last }}</text>
+    {% if timeline.inside %}{% if timeline.start > timeline.first %}<text class="gridded-timeline__year gridded-timeline__year--base" x="{{ timeline.start_mid }}%" y="32" text-anchor="middle">{{ timeline.start }}</text>{% endif %}
+    {% if timeline.end != timeline.start and timeline.end < timeline.last %}<text class="gridded-timeline__year gridded-timeline__year--base" x="{{ timeline.end_mid }}%" y="32" text-anchor="middle">{{ timeline.end }}</text>{% endif %}{% endif %}
+  </svg>{% endif %}
+</div>

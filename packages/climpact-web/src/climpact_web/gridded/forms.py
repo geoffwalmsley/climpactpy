@@ -157,7 +157,13 @@ TASKS = (
 )
 THRESHOLD_SOURCES = (
     ("compute", _("Calculate them from the base period of these files")),
-    ("file", _("Read them from a thresholds file")),
+    (
+        "file",
+        _(
+            "Read them from a thresholds file, for data with no day in its base period "
+            "(a future scenario, say)"
+        ),
+    ),
 )
 RECHUNK = (
     ("auto", _("Automatic: when the files are chunked by time step")),
@@ -278,7 +284,7 @@ class SetupForm(forms.Form):
         initial="indices",
     )
     thresholds_source = forms.ChoiceField(
-        label=_("Percentile thresholds for the indices"),
+        label=_("Percentile thresholds"),
         choices=THRESHOLD_SOURCES,
         widget=forms.RadioSelect,
         initial="compute",
@@ -300,11 +306,7 @@ class SetupForm(forms.Form):
     base_end = _year(_("Last year"), 2000)
 
     template = forms.CharField(
-        label=_("Output file name format"),
-        help_text=_(
-            "In the CMIP5 form var_daily_model_scenario_run_start-end.nc, as in Climpact for "
-            "R. Each index file takes its name from this, with var replaced by the index."
-        ),
+        label=_("File name template"),
         required=False,
         max_length=200,
         widget=forms.TextInput(attrs={"spellcheck": "false", "autocomplete": "off"}),
@@ -316,14 +318,12 @@ class SetupForm(forms.Form):
         widget=forms.TextInput(attrs={"spellcheck": "false", "autocomplete": "off"}),
     )
     institution = forms.CharField(
-        label=_("Institution name"),
-        help_text=_("Written into every output file's metadata."),
+        label=_("Institution"),
         max_length=200,
         error_messages={"required": _("Enter your institution's name.")},
     )
     institution_id = forms.CharField(
         label=_("Institution ID"),
-        help_text=_("Usually an abbreviation, e.g. BoM."),
         max_length=60,
         error_messages={"required": _("Enter your institution's ID (usually an abbreviation).")},
     )
@@ -376,11 +376,7 @@ class SetupForm(forms.Form):
         widget=forms.TextInput(attrs={"spellcheck": "false", "autocomplete": "off"}),
     )
     copy_to = forms.CharField(
-        label=_("Also copy the results to this folder"),
-        help_text=_(
-            "A folder on this computer, created if needed. The results can be downloaded "
-            "from the results page either way."
-        ),
+        label=_("Also copy the results to"),
         required=False,
         widget=forms.TextInput(attrs={"spellcheck": "false", "autocomplete": "off"}),
     )
@@ -499,6 +495,8 @@ class SetupForm(forms.Form):
                         self.add_error("thresholds_path", _("This is not a netCDF file."))
                     else:
                         data["thresholds_path"] = str(path.resolve())
+        if task in ("indices", "both") and "indices" in data and not data["indices"]:
+            self.add_error("indices", _("Choose at least one index."))
         if task in ("thresholds", "both") and not data.get("thresholds_name") and start:
             data["thresholds_name"] = ""
         if start is not None and end is not None and self.summary.first:

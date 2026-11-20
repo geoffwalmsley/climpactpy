@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, override_settings
 from django.utils import timezone
 
+from climpact_web.batch.forms import cpu_count
 from climpact_web.gridded import inspection, maps
 from climpact_web.gridded.forms import default_base
 from climpact_web.gridded.models import GriddedRun, gridded_dir
@@ -440,11 +441,15 @@ def test_setup_groups_a_variable_split_across_files(client, tmp_path):
     assert f"{tmp_path}/</span>" in html  # locally, the files' folder
     assert '<li title="climpact.sampledata.gridded.3x4.1991-2010_1995.nc">' in html
     assert '<option value="tmax" selected>' in html
+    html = client.post(
+        f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
+    ).content.decode()
+    assert "Ready to start" in html and "the same in all 20 files." in html
+    assert "all 7,305 days of 1991–2010" in html
+    # A variable split across files: its Header opens the first file's.
     assert (
-        "7,305 days of the base period"
-        in client.post(
-            f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
-        ).content.decode()
+        f'href="/gridded/{run.pk}/setup/header/'
+        in client.get(f"/gridded/{run.pk}/setup/").content.decode()
     )
     # The core's reader accepts them: the run starts.
     response = client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["txx"]))
@@ -549,7 +554,9 @@ def test_setup_page_shows_the_files_and_defaults(client):
     assert response.status_code == 302 and response["Location"] == f"/gridded/{run.pk}/setup/"
     html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
     assert "New run</a></li>" in html and '<span aria-current="page">set-up</span>' in html
-    assert "<h1>Sample grid, 1991–2010 <a" in html and f"/gridded/{run.pk}/rename/" in html
+    assert '<h1 class="context-bar__name">Sample grid, 1991–2010 <a' in html
+    assert f"/gridded/{run.pk}/rename/" in html and "Choose other files" in html
+    assert "Climpact has read the header of 1 file. Nothing has been calculated yet." in html
     assert "steps__" not in html and 'aria-label="Run sections"' not in html
     assert '<td class="code">3 × 4</td>' in html and "1991-01-01 → 2010-12-31" in html
     assert "climpact.sampledata.gridded.3x4.1991-2010.nc</span>" in html
@@ -558,22 +565,84 @@ def test_setup_page_shows_the_files_and_defaults(client):
     assert 'value="1991"' in html and 'value="2010"' in html  # R's gridded default
     assert "var_daily_climpact_historical_NA_1991-2010.nc" in html
     assert "climpact.sampledata.gridded.3x4.1991-2010.thresholds.1991-2010.nc" in html
-    assert "Nairn and Fawcett" in html
     assert 'name="indices" value="txx" checked' in html
+    # The sections in the board's order, then the summary panel with the one Start button.
+    order = [
+        'id="files-title"',
+        'id="variables-title"',
+        'id="task-title"',
+        'id="base-title"',
+        'id="indices-title"',
+        'id="output-title"',
+        ">Computing</span>",
+        'id="summary-title"',
+    ]
+    assert [html.index(part) for part in order] == sorted(html.index(part) for part in order)
+    assert html.count('type="submit" class="button button--block') == 1
+    assert ">Start the calculation<" in html and ">Ready to start</h2>" in html
+    # The Variables table: each variable's units and how Climpact reads them.
+    assert '<span id="var-units-tasmax">K</span>' in html
+    assert (
+        "°C (K − 273.15)" in html
+        and '<span id="var-read-pr" class="gridded-vars__read">mm/day<' in html
+    )
+    assert "Together: 3 × 4 cells, 33.33°\u00a0S to 29.52°\u00a0S" in html
+    assert "same grid and time axis in every file ✓" in html
+    # The base period's timeline and coverage, the indices by code, the panel's checks.
+    assert 'class="gridded-timeline__base" x="0.0%"' in html
+    assert "The data cover all 7,305 days of 1991–2010 (at least 360 needed)." in html
+    assert "55 of 55 · 88 files" in html
+    assert '<span class="gridded-indices__code">TXx</span>' in html
+    assert html.count('class="gridded-indices__slow"') == 4
+    for title in ("Grid", "Period", "Variables", "Base period", "Writes", "Disk", "Time"):
+        assert f"<strong>{title}</strong>" in html, title
+    assert "88 files for 55 indices and trends.nc, up to about" in html
+    assert "Under a minute on " in html
+    cores = cpu_count()
+    workers = max(1, min(4, cores - 1))  # the default, from the machine's cores
+    assert f"{workers} of {cores} cores · 0.1 M values at once · cell-first copy: automatic" in html
 
 
 def test_setup_checks_fragment(client):
+    """The summary panel as the form changes, with the parts of the form that follow it
+    swapped out of band."""
     run = sample_run(client)
-    data = setup_data(run, base_start=1971, base_end=1980)
-    html = client.post(f"/gridded/{run.pk}/checks", data, HTTP_HX_REQUEST="true").content.decode()
-    assert 'id="gridded-checks"' in html and "cover 0 days of the base period" in html
-    data = setup_data(run, tasmax="precip")
-    html = client.post(f"/gridded/{run.pk}/checks", data, HTTP_HX_REQUEST="true").content.decode()
-    assert "chosen twice" in html
-    html = client.post(
-        f"/gridded/{run.pk}/checks", setup_data(run), HTTP_HX_REQUEST="true"
-    ).content.decode()
-    assert "7,305 days of the base period" in html and "index files will be written" in html
+
+    def checks(**changes):
+        data = setup_data(run, **changes)
+        return client.post(
+            f"/gridded/{run.pk}/checks", data, HTTP_HX_REQUEST="true"
+        ).content.decode()
+
+    html = checks(base_start=1971, base_end=1980)
+    assert html.startswith('<div id="gridded-summary"') and ">Before you start</h2>" in html
+    assert '1 problem to fix before starting: <a href="#id_base_start">Base period</a>.' in html
+    assert "1971–1980: 0 days in the data; at least 360 are needed." in html
+    assert (
+        '<p id="base-coverage" class="gridded-coverage gridded-coverage--bad" hx-swap-oob="true">'
+        in html
+    )
+    assert (
+        '<div id="base-timeline" class="gridded-timeline" aria-hidden="true" hx-swap-oob="true">'
+        in html
+    )
+    html = checks(tasmax="precip")
+    assert "chosen twice" in html and "Not usable" in html
+    assert '<span id="var-units-tasmax" hx-swap-oob="true">kg m-2 d-1</span>' in html
+    html = checks(base_start=1995, indices=["txx", "spi"])
+    assert ">Ready to start</h2>" in html and "2 of 55 · 3 files" in html
+    assert "1995–2010: all 5,844 days in the data." in html
+    assert "The data cover all 5,844 days of 1995–2010" in html
+    assert 'x="20.0%"' in html  # the base period starts a fifth of the way along
+    assert (
+        'Gives <span class="font-mono">txx_MON_climpact_historical_NA_1991-2010.nc</span>' in html
+    )
+    html = checks(indices=[])
+    assert "0 of 55 · 0 files" in html and "No index is chosen." in html
+    html = checks(task="thresholds")
+    assert "1 thresholds file, up to about" in html
+    html = checks(rechunk="yes", workers=2)
+    assert "<strong>Cell-first copy</strong>" in html and "2 of " in html
     assert client.post(f"/gridded/{run.pk}/checks", setup_data(run)).status_code == 400
 
 
@@ -594,6 +663,7 @@ def test_setup_validation(client, tmp_path):
         ({"copy_to": "relative/folder"}, "full path of a folder"),
         ({"tmp_dir": str(tmp_path / "missing")}, "existing folder"),
         ({"pr": "tmin"}, "chosen twice"),
+        ({"indices": []}, "Choose at least one index."),
         ({"workers": 100000}, "cannot use more than"),
     ]
     for changes, message in cases:
@@ -601,6 +671,206 @@ def test_setup_validation(client, tmp_path):
         assert response.status_code == 200, changes
         assert message in response.content.decode(), (changes, message)
     assert not Job.objects.exists()
+
+
+def era5_files(folder: Path, pr_units: str = "m") -> list[Path]:
+    """The sample grid as three ERA5-like files (#293): mx2t and mn2t in K, and tp, the
+    day's total in metres of water (or ``pr_units``)."""
+    spec = [
+        ("mx2t", "tmax", "K", "Maximum temperature at 2 metres", 1.0),
+        ("mn2t", "tmin", "K", "Minimum temperature at 2 metres", 1.0),
+        ("tp", "precip", pr_units, "Total precipitation", 0.001),
+    ]
+    out = []
+    for name, var, units, long_name, scale in spec:
+        path = folder / f"era5_{name}_day_SEA_1991-2010.nc"
+        with netCDF4.Dataset(SAMPLE) as src, netCDF4.Dataset(path, "w") as dst:
+            for dim, d in src.dimensions.items():
+                dst.createDimension(dim, None if d.isunlimited() else len(d))
+            for coord in ("time", "lat", "lon"):
+                v = dst.createVariable(coord, src[coord].dtype, src[coord].dimensions)
+                v.setncatts({a: src[coord].getncattr(a) for a in src[coord].ncattrs()})
+                v[:] = src[coord][:]
+            v = dst.createVariable(name, "f4", src[var].dimensions)
+            v.units, v.long_name = units, long_name
+            v[:] = np.asarray(src[var][:], dtype=float) * scale
+        out.append(path)
+    return out
+
+
+def test_units_read_as_and_how_to_convert():
+    from climpact_web.gridded import setup_page
+
+    assert setup_page.read_as("tasmax", "K") == "°C (K − 273.15)"
+    assert setup_page.read_as("tasmin", "degrees_C") == "°C"
+    assert setup_page.read_as("pr", "kg m-2 s-1") == "mm/day (× 86400)"
+    assert setup_page.read_as("pr", "mm/day") == "mm/day"
+    assert setup_page.read_as("pr", "m") == "" and setup_page.read_as("tasmax", "") == ""
+    one = [inspection.FileInfo(path="/d/era5_tp.nc", name="era5_tp.nc")]
+    help_ = setup_page.units_help("pr", "tp", "m", one)
+    assert help_.lead == "Precipitation: Climpact cannot read the units m."
+    assert "ERA5's tp" in help_.text and "multiply by 1000" in help_.text
+    assert help_.command == "cdo -setattribute,tp@units=mm/day -mulc,1000 era5_tp.nc pr_mm.nc"
+    for units in ("mm/h", "kg m-2 h-1", "mm hr-1"):
+        help_ = setup_page.units_help("pr", "pr", units, one)
+        assert "-mulc,24 era5_tp.nc pr_mm.nc" in help_.command, units
+    split = [inspection.FileInfo(path=f"/d/tp_{y}.nc", name=f"tp_{y}.nc") for y in (1991, 1992)]
+    help_ = setup_page.units_help("pr", "tp", "m", split)
+    assert help_.command.endswith("-mulc,1000 -mergetime 'tp_199*.nc' pr_mm.nc")
+    assert help_.files == 2
+    help_ = setup_page.units_help("pr", "pr", "furlongs", one)
+    assert not help_.command and "It reads a daily rate" in help_.text
+    help_ = setup_page.units_help("tasmax", "tx", "degF", one)
+    assert "cannot read the units degF" in help_.lead and "It reads K or degrees_C" in help_.text
+    help_ = setup_page.units_help("pr", "pr", "", one)
+    assert help_.lead == "Precipitation: the variable pr has no units attribute."
+
+
+def test_estimates():
+    from climpact.gridded.indices import index_files
+    from climpact_web.gridded import setup_page
+
+    summary = inspection.Summary(
+        ny=47, nx=55, first="1961-01-01", last="2020-12-31", days=21915, calendar="standard"
+    )
+    specs = index_files()
+    est = setup_page.estimate({"task": "indices"}, summary, specs, 6)
+    assert est.index_files == len(specs) and est.indices == 55
+    assert 0.5e9 < est.index_bytes < 2e9  # float32 values, before compression
+    assert 5 * 60 < est.seconds < 10 * 60  # 0.015 s a cell-year, 2,585 cells, 60 years, 6 cores
+    fast = [s for s in specs if s.index not in ("hw", "hwEHF", "spi", "spei")]
+    assert setup_page.estimate({"task": "indices"}, summary, fast, 6).seconds < est.seconds
+    both = setup_page.estimate(
+        {"task": "both", "base_start": 1971, "base_end": 2000}, summary, specs, 6
+    )
+    assert both.thresholds_bytes > 3 * 10958 * 2585 * 8 and both.seconds > est.seconds
+    assert setup_page.size_text(1.3e9) == "1.3 GB"
+    assert setup_page.size_text(40e6) == "40 MB"
+    assert setup_page.period_days("standard", 1971, 2000) == 10958
+    assert setup_page.period_days("360_day", 1971, 2000) == 10800
+    assert setup_page.period_days("noleap", 1971, 2000) == 10950
+
+
+def test_setup_era5_precipitation_in_metres(client, tmp_path):
+    """The GridSetup board's problem: ERA5's tp, in metres, which Climpact cannot read;
+    the page says what it reads and how to convert, with a CDO command, and the run does
+    not start."""
+    files = era5_files(tmp_path)
+    response = client.post(
+        "/gridded/new/", {"paths": "\n".join(str(f) for f in files), "action": "use"}
+    )
+    run = GriddedRun.objects.get(pk=response["Location"].split("/")[2])
+    assert run.names == {"tasmax": "mx2t", "tasmin": "mn2t", "pr": "tp"}
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert "Climpact has read the headers of 3 files." in html
+    assert ">Before you start</h2>" in html
+    assert '1 problem to fix before starting: <a href="#id_pr">Precipitation units</a>.' in html
+    assert '<span id="var-units-pr">m</span>' in html
+    assert '<span id="var-check-pr" class="gridded-vars__check gridded-vars__check--bad">' in html
+    assert "<strong>Precipitation: Climpact cannot read the units m.</strong>" in html
+    assert (
+        "<code data-copy-source>cdo -setattribute,tp@units=mm/day -mulc,1000 "
+        "era5_tp_day_SEA_1991-2010.nc pr_mm.nc</code>"
+    ) in html
+    assert "Precipitation’s units, m, cannot be read." in html
+    assert "<strong>Grid</strong>" in html  # the grid and period are still described
+    assert "same grid and time axis in every file" not in html
+    assert ">Start checks again and stops at the problem.<" in html
+    response = client.post(f"/gridded/{run.pk}/setup/", setup_data(run))
+    assert response.status_code == 200 and not Job.objects.exists()
+    # Converted as the command says, the files are read.
+    with netCDF4.Dataset(files[2], "a") as nc:
+        nc["tp"][:] = nc["tp"][:] * 1000
+        nc["tp"].units = "mm/day"
+    run = GriddedRun.objects.get(
+        pk=client.post(
+            "/gridded/new/", {"paths": "\n".join(str(f) for f in files), "action": "use"}
+        )["Location"].split("/")[2]
+    )
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert ">Ready to start</h2>" in html and "units-help-pr" not in html
+
+
+def test_file_header(client):
+    run = sample_run(client)
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    url = f"/gridded/{run.pk}/setup/header/0/"
+    assert f'href="{url}" data-file-header="{SAMPLE_FILE}">Header' in html
+    html = client.get(url).content.decode()
+    assert f'<h1 class="font-mono text-xl">{SAMPLE_FILE}</h1>' in html
+    response = client.get(url, {"format": "text"})
+    assert response["Content-Type"] == "text/plain; charset=utf-8"
+    text = response.content.decode()
+    assert text.startswith("netcdf climpact.sampledata.gridded.3x4.1991-2010 {\ndimensions:\n")
+    assert "\ttime = UNLIMITED ; // (7305 currently)" in text or "\ttime = 7305 ;" in text
+    assert "\tfloat tmax(time, lat, lon) ;" in text or "\tdouble tmax(time, lat, lon) ;" in text
+    assert '\t\ttmax:units = "K" ;' in text and text.endswith("}\n")
+    assert client.get(f"/gridded/{run.pk}/setup/header/1/").status_code == 404
+    assert Client().get(url).status_code == 404
+
+
+def test_start_again_keeps_the_results_until_the_new_ones_are_ready(client):
+    """After a run, Set-up describes it; starting again with changes keeps the results on
+    Map and Files until the new run has finished, then replaces them (#293)."""
+    run = sample_run(client)
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["fd", "txx"]))
+    run_jobs()
+    run.refresh_from_db()
+    old = run.indices_job
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert f'href="/gridded/{run.pk}/setup/" data-tab="setup" aria-current="page"' in html
+    assert ">This run</h2>" in html and "<strong>Calculated</strong>" in html
+    assert "<strong>Wrote</strong> 4 files for 2 indices," in html
+    assert "<strong>Nothing changed yet.</strong>" in html and ">Start again with changes<" in html
+    assert "The results on Map and Files stay until the new run finishes" in html
+    html = client.post(
+        f"/gridded/{run.pk}/checks",
+        setup_data(run, base_start=1995, indices=["fd", "txx"]),
+        HTTP_HX_REQUEST="true",
+    ).content.decode()
+    assert "<strong>Changed:</strong> Base period." in html
+
+    response = client.post(
+        f"/gridded/{run.pk}/setup/", setup_data(run, base_start=1995, indices=["fd", "txx"])
+    )
+    assert response.status_code == 302 and response["Location"] == f"/gridded/{run.pk}/setup/"
+    run.refresh_from_db()
+    assert run.indices_job == old and run.options["base_start"] == 1991
+    assert run.next_indices_job is not None and run.job_active
+    assert run.next_settings["options"]["base_start"] == 1995
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert ">Calculating again</h2>" in html and "Follow its progress on Map" in html
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    assert "Explore the indices" in html and "base 1991–2010" in html  # the old results
+    assert "Waiting to start" in client.get("/gridded/").content.decode()
+    # A second start waits for this one.
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, indices=["fd"]))
+    assert Job.objects.filter(kind="gridded-indices").count() == 2
+
+    (job,) = run_jobs()
+    assert job.status == Status.SUCCEEDED
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    run.refresh_from_db()
+    assert run.indices_job == job and run.next_indices_job is None and not run.next_settings
+    assert run.options["base_start"] == 1995 and "base 1995–2010" in html
+    assert not Job.objects.filter(pk=old.pk).exists() and not old.output_dir.exists()
+
+    # A new start that fails keeps the results, and Set-up says so.
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, base_start=1991, indices=["fd"]))
+    run.refresh_from_db()
+    pending = run.next_indices_job
+    params = dict(pending.params, input_files=["/no/such/file.nc"])
+    Job.objects.filter(pk=pending.pk).update(params=params)
+    (failed,) = run_jobs()
+    assert failed.status == Status.FAILED
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    run.refresh_from_db()
+    assert run.indices_job == job and run.next_indices_job == failed
+    assert "The last start did not finish." in html and "/no/such/file.nc" in html
+    assert (
+        ">This run</h2>" in html
+        and "Explore the indices" in client.get(f"/gridded/{run.pk}/").content.decode()
+    )
 
 
 def test_preflight_uses_the_core_reader(client, tmp_path):

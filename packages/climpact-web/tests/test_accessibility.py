@@ -428,6 +428,7 @@ def site(chrome, server):
     pages["gridded results"] = here(c)
     run_url = pages["gridded results"].split("?")[0]  # the run's Map tab (#289)
     pages["gridded files"] = run_url + "files/"
+    pages["gridded set-up tab"] = run_url + "setup/"  # after the run (#293)
     pages["gridded rename"] = run_url + "rename/"
     pages["gridded forget"] = run_url + "delete"
     pages["gridded runs"] = open_url("/gridded/")

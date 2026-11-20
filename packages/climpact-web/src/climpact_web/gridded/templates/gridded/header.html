@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}{% comment %}
+A file's header as ncdump -h prints it (#293, the Files table's Header on the set-up
+page): its own page, for a browser without JavaScript or a link opened in a new tab; with
+JavaScript it opens in a dialog on the set-up page. Context from views.file_header.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=info.name %}Header: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack">
+  <p class="text-sm"><a href="{{ setup_url }}">{% blocktranslate with name=run_name %}Back to the set-up of {{ name }}{% endblocktranslate %}</a></p>
+  <h1 class="font-mono text-xl">{{ info.name }}</h1>
+  <p class="text-sm text-text-muted">{% translate "The file's header, as ncdump -h prints it: dimensions, variables and attributes." %}</p>
+  <pre class="gridded-header__text" tabindex="0">{{ header }}</pre>
+</div>
+{% endblock %}

@@ -1,8 +1,8 @@
 """Deleting gridded runs (and their uploaded files) past the retention period, as
 :mod:`climpact_web.stations.retention` does for workspaces when they expire:
-``JOB_RETENTION_DAYS`` after the last change, unless one of the run's jobs is queued or
-running. Files read in place from this computer are never touched. Registered with the
-jobs app's purge in :class:`.apps.GriddedConfig`."""
+``JOB_RETENTION_DAYS`` after the last change, unless one of the run's jobs (or those of
+a new start, #293) is queued or running. Files read in place from this computer are never
+touched. Registered with the jobs app's purge in :class:`.apps.GriddedConfig`."""
 
 from __future__ import annotations
 
@@ -24,7 +24,10 @@ def purge_expired_gridded(now: dt.datetime, days: int) -> int:
     cutoff = now - dt.timedelta(days=days)
     active = (Status.QUEUED, Status.RUNNING)
     expired = GriddedRun.objects.filter(updated_at__lt=cutoff).exclude(
-        Q(thresholds_job__status__in=active) | Q(indices_job__status__in=active)
+        Q(thresholds_job__status__in=active)
+        | Q(indices_job__status__in=active)
+        | Q(next_thresholds_job__status__in=active)
+        | Q(next_indices_job__status__in=active)
     )
     count = 0
     for run in expired:

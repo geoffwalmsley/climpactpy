@@ -1,0 +1,2 @@
+{% load i18n %}{# The set-up page's actions before the run starts (#293): Choose other files (New run), and Forget this run. #}<a class="text-sm" href="{% url 'gridded:new' %}">{% translate "Choose other files" %}</a>
+<a class="text-sm" href="{% url 'gridded:delete' run.pk %}">{% translate "Forget this run" %}</a>

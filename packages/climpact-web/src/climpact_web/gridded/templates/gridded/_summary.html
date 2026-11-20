@@ -1,0 +1,29 @@
+{% load i18n %}{% comment %}
+The set-up's summary panel (#293, the GridSetup board), which is the check: its title
+("Ready to start", "Before you start" with the problems linked to their fields, "This run"
+after a run, or the state while one calculates), then each check with its mark (Grid,
+Period, Variables, Base period, Writes, Disk, Cell-first copy, Time) or what the results
+are. htmx swaps it in as the form changes (gridded:checks); then (oob) it brings the parts
+of the form that follow the form, out of band. The Start button and the line under it are
+in the page (setup.html). Parameters: panel (setup_page.Panel), oob, and with oob the
+contexts of those parts.
+{% endcomment %}<div id="gridded-summary" class="gridded-summary">
+  <h2 id="summary-title" class="gridded-summary__title">{{ panel.title }}</h2>
+  {% if panel.problems %}<p class="gridded-summary__problems" data-announce>{% blocktranslate count counter=panel.problems|length with links=panel.problem_links trimmed %}1 problem to fix before starting: {{ links }}.{% plural %}{{ counter }} problems to fix before starting: {{ links }}.{% endblocktranslate %}</p>{% endif %}
+  {% if panel.error %}<p class="gridded-summary__error" role="alert">{{ panel.error }}</p>{% endif %}
+  <ul class="gridded-summary__list" role="list">
+    {% for item in panel.items %}
+    <li class="gridded-summary__item gridded-summary__item--{{ item.mark }}"><span class="gridded-summary__mark gridded-mark gridded-mark--{{ item.mark }}" aria-hidden="true"></span><span><span class="sr-only">{% if item.mark == "ok" %}{% translate "Passed:" %}{% elif item.mark == "bad" %}{% translate "Problem:" %}{% elif item.mark == "about" %}{% translate "Estimate:" %}{% else %}{% translate "Note:" %}{% endif %} </span><strong>{{ item.title }}</strong> {{ item.text }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% if oob %}
+{% for row in variable_rows %}{% include "gridded/_variable_part.html" with part="units" %}{% include "gridded/_variable_part.html" with part="read" %}{% include "gridded/_variable_part.html" with part="check" %}{% endfor %}
+{% include "gridded/_units_help.html" %}
+{% include "gridded/_together.html" %}
+{% include "gridded/_timeline.html" %}
+{% include "gridded/_coverage.html" %}
+{% include "gridded/_index_count.html" %}
+{% include "gridded/_template_example.html" %}
+{% include "gridded/_computing_line.html" %}
+{% endif %}

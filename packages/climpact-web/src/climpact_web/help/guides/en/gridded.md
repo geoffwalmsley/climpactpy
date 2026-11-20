@@ -44,10 +44,19 @@ Climpact for R's sample grid, `climpact.sampledata.gridded.1991-2010.nc` (24 by 
 over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on Gridded (**Try the sample grid** on New
 gridded run) loads a 3 by 4 cut of it in one click.
 
-After you choose the files, Climpact shows what each holds (variables, units, calendar,
-grid and dates) and guesses which variable is which; check the guess before you go on.
-Problems, such as units it cannot read or files with different dates, are shown there,
-before anything is calculated.
+After you choose the files, the set-up page shows what each holds (variables, grid,
+dates, calendar and size; **Header** shows a file's whole header, as `ncdump -h` prints
+it) and guesses which variable is which; check the guess before you go on. Each variable
+shows its units and how Climpact reads them, for example kelvin as °C (K − 273.15) or
+kg m-2 s-1 as mm/day (× 86400), so no unit is converted without your seeing it. Units
+it cannot read, such as ERA5's precipitation in metres, are explained there with a CDO
+command that converts the file.
+
+The panel beside the settings is the check: the grid, the period, the variables, the
+base period, the files the run will write and their size, the disk space it needs, and
+about how long it will take. Each problem is listed there with a link to it. The
+estimates are rough: the size is that of the values before compression, and the time
+depends on your computer.
 
 ## Running a grid {#running-a-grid}
 
@@ -92,8 +101,9 @@ three tabs:
   links work without this browser for as long as the run is kept. `run.json` records the
   settings, the software versions and a checksum of each input file; `climpact.log` when
   each part ran and any errors.
-- **Set-up** shows the settings; changing them and starting again calculates the run
-  again.
+- **Set-up** shows the settings and what the run made. Change a setting and **Start
+  again with changes**: the results on Map and Files stay until the new run has
+  finished, then are replaced. If the new run fails, the old results stay.
 
 **Forget this run** deletes the run and its results (files read from your computer are
 never touched).

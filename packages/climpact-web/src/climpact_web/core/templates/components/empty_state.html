@@ -1,7 +1,7 @@
-{% load ui %}{# Empty state. Parameters: icon, title, text, action_label and action_href (optional). #}
+{% load ui %}{# Empty state. Parameters: icon, title, text, action_label and action_href (optional), action_sheet (with action_href: the Inputs panel's side sheet the link opens, as components/button.html's sheet), level (the title's heading level, 3 by default). #}
 <div class="empty-state">
   {% icon icon|default:"folder" "" "empty-state__icon" %}
-  <h3 class="empty-state__title">{{ title }}</h3>
+  <h{{ level|default:3 }} class="empty-state__title">{{ title }}</h{{ level|default:3 }}>
   {% if text %}<p class="empty-state__text">{{ text }}</p>{% endif %}
-  {% if action_href %}{% include "components/button.html" with label=action_label href=action_href variant="secondary" icon="" icon_end="" %}{% endif %}
+  {% if action_href %}{% include "components/button.html" with label=action_label href=action_href sheet=action_sheet variant="secondary" icon="" icon_end="" %}{% endif %}
 </div>

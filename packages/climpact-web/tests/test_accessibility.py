@@ -38,6 +38,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -118,6 +119,20 @@ def running_app(data: Path, **env: str):
     if not url:
         proc.kill()
         pytest.fail("climpact-web did not start:\n" + "".join(output))
+    # Keep reading what the app prints: an unread pipe would block it once full, and if it
+    # stops, its last lines say why (saved with the report, or in the data folder).
+    log = (Path(REPORT) if REPORT else data) / f"server-{data.name}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+
+    def drain() -> None:
+        with log.open("w", encoding="utf-8") as f:
+            f.writelines(output)
+            for line in proc.stdout:
+                f.write(line)
+                f.flush()
+            f.write(f"[climpact-web exited with code {proc.wait()}]\n")
+
+    threading.Thread(target=drain, daemon=True).start()
     try:
         yield url
     finally:

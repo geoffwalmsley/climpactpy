@@ -4,7 +4,7 @@ from django.apps import AppConfig
 class StationsConfig(AppConfig):
     name = "climpact_web.stations"
     label = "stations"
-    verbose_name = "Single-station steps"
+    verbose_name = "Stations and workspaces"
 
     def ready(self) -> None:
         from climpact_web.jobs.retention import register_keeper, register_purger

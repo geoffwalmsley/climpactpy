@@ -73,6 +73,36 @@ def test_guides_have_previous_and_next_links(client):
     assert 'href="/help/quality-control/" rel="next"' in html
 
 
+def test_station_guides_describe_add_stations_and_the_workspace(client):
+    """The station file and sector guides follow a station through Add stations, its tabs
+    and Your inputs (#342), not the single-station steps that went with #179, #198 and
+    #233; the anchors help topics and other guides link to are kept."""
+    html = client.get("/help/station-file/").content.decode()
+    for anchor in (
+        "missing-values",
+        "common-problems",
+        "station-details",
+        "adding-a-station",
+        "the-stations-pages",
+        "changing-the-file-or-the-details",
+    ):
+        assert f'id="{anchor}"' in html, anchor
+    assert 'href="/add/"' in html and 'href="/help/#samples-title"' in html
+    assert 'href="/help/batch/#following-the-calculation"' in html
+    text = re.sub(r"\s+", " ", html)
+    for words in ("Add 1 station and check it", "Use the sample station", "Your inputs"):
+        assert words in text, words
+    sector = client.get("/help/sector/").content.decode()
+    for anchor in ("the-sector-file", "settings", "detrending", "reading-the-results"):
+        assert f'id="{anchor}"' in sector, anchor
+    sector_text = re.sub(r"\s+", " ", sector)
+    assert "Compare with sector data" in sector_text and "Calculate correlations" in sector_text
+    for slug in ("station-file", "sector", "faq", "indices"):
+        guide = re.sub(r"\s+", " ", get_guide(slug).html)
+        for stale in ("step", "Adjust and recalculate", "the link from the results"):
+            assert stale not in guide, (slug, stale)
+
+
 def test_help_index_lists_guides_and_sample_data(client):
     """#325, the Help board: the search, the Reference cards, the guides as a numbered
     list in their order, common questions and the sample data as a short list."""

@@ -3165,7 +3165,8 @@ packages/climpact-web/tests/
                      (test_jobs.py), the worker as a real process (test_worker_process.py),
                      several workers on Postgres (test_queue_postgres.py, #119),
                      the New station page (test_stations.py, #201), Add stations
-                     (test_add_stations.py, #233), Quality (test_qc_review.py), the
+                     (test_add_stations.py, #233), Quality (test_qc_review.py; out of date,
+                     test_stale_quality.py, #308), the
                      workspace, staleness and the Inputs panel's edits (test_workspace.py,
                      #179, #198), the workspace overview (test_workspace_overview.py,
                      #234), the workspace's Files (test_workspace_files.py, #239), the landing page,
@@ -5057,7 +5058,20 @@ that look wrong in the checks' `result["verdict"]` and `result["verdict_wrong"]`
 the first page after the checks shows their verdict), for the Quality tab (#222).
 `workspace.qc_verdict` reads them, and works the verdict out from the checks once
 (`qc_review.review`) when it was not kept: checks not yet shown, or a verdict kept before
-#222 with its level alone.
+#222 with its level alone. The review of checks reads the station's rows from the copy of
+the file those checks read, in their job's `input/` (`qc_review.checked_file`:
+`input_dir / params["station_file"]`, saved by `create_job` when the checks were queued),
+not from the station's current file (#308). So while out-of-date checks are shown after a
+new file, Quality's verdict, counts, year table, check values, charts and flagged values
+CSV all describe the file they read, and the verdict kept with them is theirs: before
+#308 the old checks were read against the new file (the Sydney sample replaced by its
+1990–2015 years read "Fix the file first. 55 of 80 years too incomplete"), and that verdict
+was kept with the old checks. A job whose copy is missing has no review (the page shows no
+verdict, `qc_table` and `qc_flagged` answer 404) rather than one of another file; every
+`qc` job has its copy, which goes only with the job's whole folder. The review is
+built from the copy rather than from the job's outputs alone because the check rows,
+the selected value's days around it, the line numbers and the charts all show the file's
+values, which `nastatistics.csv` and the QC files do not hold.
 
 **Settings belong to the workspace (#254, `calculation.change_settings`).** The Base period,
 Quality thresholds and Index settings sheets change the workspace's settings, from any of
@@ -5423,7 +5437,9 @@ without errors; the user corrects the file outside the app and loads it again.
   checks with these thresholds"), so nothing suggests the checks must be started by hand
   (#114). A failed or cancelled check says so and offers the form again.
 - *Results* (`qc_review.review`): read back from the job's `qc/` files, the files the
-  user downloads, so every row of every file is reachable on the screen. Since #174 the
+  user downloads, so every row of every file is reachable on the screen, with the
+  station's rows from the copy of the file the checks read (`qc_review.checked_file`,
+  #308). Since #174 the
   page is a short worklist (the Sydney sample's went from about 8,250 px to about 2,100 px
   at 1280 px wide), since #202 a list and detail (3,125 px to 2,414 px at 1280 px wide,
   with "Your data" now on the page in full), and since #235 a compact worklist to the

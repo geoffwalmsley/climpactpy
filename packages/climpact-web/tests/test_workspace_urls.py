@@ -61,10 +61,10 @@ def test_a_workspace_of_one_station_opens_it_straight_away(client):
 
 
 def test_a_batch_workspace_opens_its_overview(client):
-    run = created(client, metadata("a", "b"), **{"a.txt": station(), "b.txt": station(seed=1)})
+    files = {"a.txt": station(), "b.txt": station(seed=1)}
+    run = created(client, metadata(*files), **files)
     space = f"/w/{run.workspace_id}/"
-    # Checked by the old batch page and never run: its page went with #271, so Add
-    # stations.
+    # Never run: the batch's page went with #271, so Add stations.
     assert client.get(space)["Location"] == "/add/"
     # Run: the workspace's overview (#234), with the batch's stations (added when it was
     # queued).
@@ -108,7 +108,7 @@ def test_old_station_addresses_redirect_while_the_station_is_kept(client):
 
 
 def test_old_batch_addresses_redirect_while_the_batch_is_kept(client):
-    run = created(client, metadata("a"), **{"a.txt": station()})
+    run = created(client, metadata("a.txt"), **{"a.txt": station()})
     space = f"/w/{run.workspace_id}/"
     old, new = f"/batch/{run.pk}/", space + "batch/"
     for path, target in [
@@ -133,7 +133,7 @@ def test_old_batch_addresses_redirect_while_the_batch_is_kept(client):
 
 def test_no_session_reaches_another_sessions_workspace(client):
     analysis = ready_analysis(client)
-    run = created(client, metadata("a"), **{"a.txt": station()})
+    run = created(client, metadata("a.txt"), **{"a.txt": station()})
     other = other_session()
     for url in (
         f"/w/{analysis.workspace_id}/",
@@ -174,18 +174,15 @@ def test_an_edit_returns_only_to_its_own_stations_pages(client):
         assert response["Location"] == target, back
 
 
-def test_a_batchs_waiting_failed_and_left_out_stations_open(client):
-    """Every station of a batch is in its workspace (#255), those that wait, failed or
-    were left out too: each address opens a page, never an error."""
-    run = queued_batch(client, "a", bad=["c"], missing=["d"])
-    a, c, d = (Station.objects.get(station_name=n) for n in "acd")
-    # Queued: the waiting stations lead to Quality, the one without a file to the New
-    # station page, where a file is loaded.
+def test_a_batchs_waiting_and_failed_stations_open(client):
+    """Every station of a batch is in its workspace (#255), those that wait or failed too:
+    each address opens a page, never an error."""
+    run = queued_batch(client, "a", bad=["c"])
+    a, c = (Station.objects.get(station_name=n) for n in "ac")
+    # Queued: the waiting stations lead to Quality.
     assert client.get(a.url())["Location"] == a.url("qc")
     assert client.get(c.url())["Location"] == c.url("qc")
-    assert client.get(d.url())["Location"] == d.url("setup")
-    assert client.get(d.url("qc"))["Location"] == d.url("setup")
-    for station_ in (a, c, d):
+    for station_ in (a, c):
         for name in ("qc", "results", "downloads", "recalculate", "station"):
             response = client.get(station_.url(name), follow=True)
             assert response.status_code == 200, (station_.station_name, name)

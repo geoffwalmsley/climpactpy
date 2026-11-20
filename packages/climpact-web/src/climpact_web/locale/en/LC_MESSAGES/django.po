@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 18:14+0000\n"
+"POT-Creation-Date: 2026-11-20 18:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,98 +18,98 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: batch/check.py:75
+#: batch/check.py:65
 msgid "station file"
 msgstr ""
 
-#: batch/check.py:76
+#: batch/check.py:66
 msgid "latitude"
 msgstr ""
 
-#: batch/check.py:77
+#: batch/check.py:67
 msgid "longitude"
 msgstr ""
 
-#: batch/check.py:78
+#: batch/check.py:68
 msgid "wsdin (days for WSDI)"
 msgstr ""
 
-#: batch/check.py:79
+#: batch/check.py:69
 msgid "csdin (days for CSDI)"
 msgstr ""
 
-#: batch/check.py:80
+#: batch/check.py:70
 msgid "Tb_HDD (base temperature for heating degree days)"
 msgstr ""
 
-#: batch/check.py:81
+#: batch/check.py:71
 msgid "Tb_CDD (base temperature for cooling degree days)"
 msgstr ""
 
-#: batch/check.py:82
+#: batch/check.py:72
 msgid "Tb_GDD (base temperature for growing degree days)"
 msgstr ""
 
-#: batch/check.py:83
+#: batch/check.py:73
 msgid "rxnday (days for Rxnday)"
 msgstr ""
 
-#: batch/check.py:84
+#: batch/check.py:74
 msgid "rnnmm (millimetres for Rnnmm)"
 msgstr ""
 
-#: batch/check.py:85
+#: batch/check.py:75
 msgid "txtn (days for TXdTNd and TXbdTNbd)"
 msgstr ""
 
-#: batch/check.py:86
+#: batch/check.py:76
 msgid "SPEI (months for the custom SPEI and SPI)"
 msgstr ""
 
-#: batch/check.py:194
+#: batch/check.py:168
 #, python-format
 msgid "Two files are named %(name)s; the last one is used."
 msgstr ""
 
-#: batch/check.py:199
+#: batch/check.py:173
 #, python-format
 msgid "Only the first %(count)d files are used."
 msgstr ""
 
-#: batch/check.py:211
+#: batch/check.py:185
 #, python-format
 msgid "%(name)s is not a zip file that can be opened."
 msgstr ""
 
-#: batch/check.py:222
+#: batch/check.py:196
 #, python-format
 msgid ""
 "%(name)s holds more data than a batch can use; the rest of it is left out."
 msgstr ""
 
-#: batch/check.py:232
+#: batch/check.py:206
 #, python-format
 msgid "%(file)s in %(name)s could not be read (damaged or encrypted)."
 msgstr ""
 
-#: batch/check.py:248
+#: batch/check.py:222
 #, python-format
 msgid ""
 "The zip holds more than one metadata file (%(names)s). Choose the one to use "
 "in the metadata box."
 msgstr ""
 
-#: batch/check.py:271 batch/check.py:288
+#: batch/check.py:245 batch/check.py:262
 msgid "The metadata file is empty."
 msgstr ""
 
-#: batch/check.py:277
+#: batch/check.py:251
 msgid ""
 "The metadata file is not a text file. If it is a spreadsheet, save it as "
 "text (tab-delimited) with the 12 columns of the template."
 msgstr ""
 
-#: batch/check.py:294
+#: batch/check.py:268
 #, python-format
 msgid ""
 "Line %(line)d looks like a station, not the line of column names. The first "
@@ -117,11 +117,11 @@ msgid ""
 "Climpact for R. Add the column names as the first line to include it."
 msgstr ""
 
-#: batch/check.py:301 batch/check.py:376
+#: batch/check.py:275 batch/check.py:350
 msgid "The metadata file has the line of column names but no stations."
 msgstr ""
 
-#: batch/check.py:308
+#: batch/check.py:282
 #, python-format
 msgid ""
 "Line %(line)d has %(count)d value; each line needs 12: the station file, "
@@ -134,21 +134,21 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: batch/check.py:317
+#: batch/check.py:291
 msgid "Separate the values with spaces or tabs, not commas."
 msgstr ""
 
-#: batch/check.py:325 stations/station_file.py:208
+#: batch/check.py:299 stations/station_file.py:208
 #, python-format
 msgid "Line %(line)d: “%(value)s” in the %(column)s column is not a number."
 msgstr ""
 
-#: batch/check.py:333
+#: batch/check.py:307
 #, python-format
 msgid "Line %(line)d: %(column)s must be a whole number, not %(value)s."
 msgstr ""
 
-#: batch/check.py:360
+#: batch/check.py:334
 #, python-format
 msgid ""
 "Lines %(first)d and %(line)d both give the station name “%(name)s” "
@@ -156,78 +156,31 @@ msgid ""
 "it, so each needs its own name."
 msgstr ""
 
-#: batch/check.py:389
-#, python-format
-msgid "Latitude %(value)s is outside -90 to 90."
-msgstr ""
-
-#: batch/check.py:394
-#, python-format
-msgid "Longitude %(value)s is outside -180 to 180."
-msgstr ""
-
-#: batch/check.py:402 stations/forms.py:228
-msgid ""
-"Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
-"which decides the season used for the growing season length and heatwaves."
-msgstr ""
-
-#: batch/check.py:412 batch/check.py:413
+#: batch/check.py:361 batch/check.py:362
 #, python-format
 msgid "%(column)s must be between 1 and 10."
 msgstr ""
 
-#: batch/check.py:414 batch/check.py:415 batch/check.py:417
+#: batch/check.py:363 batch/check.py:364 batch/check.py:366
 #, python-format
 msgid "%(column)s must be 1 or more."
 msgstr ""
 
-#: batch/check.py:416
+#: batch/check.py:365
 #, python-format
 msgid "%(column)s must be 0 or more."
 msgstr ""
 
-#: batch/check.py:426
+#: batch/check.py:375
 #, python-format
 msgid "It is %(value)s."
 msgstr ""
 
-#: batch/check.py:435
-#, python-format
-msgid ""
-"“%(file)s” is a folder path. Give only the file's name, e.g. %(example)s, "
-"and upload the file."
-msgstr ""
-
-#: batch/check.py:448
-#, python-format
-msgid ""
-"The station name “%(name)s” (the file name without its extension) cannot be "
-"used: use letters, digits, spaces and . ( ) - _ only, not starting with a "
-"dot. Rename the file and the line in the metadata file."
-msgstr ""
-
-#: batch/check.py:496
-#, python-format
-msgid ""
-"No file named %(file)s was uploaded, but %(similar)s was. Names must match "
-"the metadata file exactly, including capitals and the extension."
-msgstr ""
-
-#: batch/check.py:502
-#, python-format
-msgid "No file named %(file)s was uploaded."
-msgstr ""
-
-#: batch/check.py:518
-msgid "Choose the batch metadata file."
-msgstr ""
-
-#: batch/fill.py:311
+#: batch/fill.py:293
 msgid "The station file was not found."
 msgstr ""
 
-#: batch/fill.py:378
+#: batch/fill.py:361
 msgid "The run was cancelled."
 msgstr ""
 
@@ -1025,7 +978,7 @@ msgstr ""
 #: core/templates/core/patterns.html:148 core/views.py:157
 #: gridded/stages.py:633 gridded/templates/gridded/delete.html:15
 #: gridded/templates/gridded/rename.html:18
-#: jobs/templates/jobs/_progress.html:31 stations/overview.py:394
+#: jobs/templates/jobs/_progress.html:31 stations/overview.py:390
 #: stations/templates/stations/_input_form.html:46
 #: stations/templates/stations/_results_progress.html:36
 #: stations/templates/stations/_sector_progress.html:34
@@ -2612,7 +2565,7 @@ msgid ", 5 values look wrong"
 msgstr ""
 
 #: core/views.py:137 gridded/stages.py:225 help/templates/help/_tour.html:15
-#: stations/overview.py:169 stations/workspace.py:446
+#: stations/overview.py:165 stations/workspace.py:446
 msgid "Done"
 msgstr ""
 
@@ -2640,11 +2593,11 @@ msgstr ""
 msgid "Moruya Heads"
 msgstr ""
 
-#: core/views.py:143 gridded/stages.py:230 stations/overview.py:176
+#: core/views.py:143 gridded/stages.py:230 stations/overview.py:172
 msgid "Not run"
 msgstr ""
 
-#: core/views.py:144 stations/overview.py:180
+#: core/views.py:144 stations/overview.py:176
 msgid "Fix the file"
 msgstr ""
 
@@ -2656,7 +2609,7 @@ msgstr ""
 msgid "Checking…"
 msgstr ""
 
-#: core/views.py:146 gridded/stages.py:227 stations/overview.py:174
+#: core/views.py:146 gridded/stages.py:227 stations/overview.py:170
 msgid "Waiting"
 msgstr ""
 
@@ -2665,7 +2618,7 @@ msgid "Late Start"
 msgstr ""
 
 #: core/views.py:149 gridded/runs.py:200 gridded/stages.py:228
-#: jobs/models.py:21 jobs/stages.py:23 stations/overview.py:183
+#: jobs/models.py:21 jobs/stages.py:23 stations/overview.py:179
 msgid "Failed"
 msgstr ""
 
@@ -2673,7 +2626,7 @@ msgstr ""
 msgid "No data in the base period."
 msgstr ""
 
-#: core/views.py:150 stations/overview.py:185
+#: core/views.py:150 stations/overview.py:181
 msgid "Change base period"
 msgstr ""
 
@@ -3788,12 +3741,12 @@ msgstr ""
 msgid "Not started"
 msgstr ""
 
-#: gridded/runs.py:194 stations/overview.py:171
+#: gridded/runs.py:194 stations/overview.py:167
 #, python-format
 msgid "Calculating · %(percent)s%%"
 msgstr ""
 
-#: gridded/runs.py:196 gridded/setup_page.py:947 stations/overview.py:149
+#: gridded/runs.py:196 gridded/setup_page.py:947 stations/overview.py:145
 msgid "Calculating"
 msgstr ""
 
@@ -8334,6 +8287,12 @@ msgstr ""
 msgid "Longitude must be between -180 and 180."
 msgstr ""
 
+#: stations/forms.py:228
+msgid ""
+"Latitude 0 is treated as the Southern Hemisphere (as in Climpact for R), "
+"which decides the season used for the growing season length and heatwaves."
+msgstr ""
+
 #: stations/forms.py:246
 #, python-format
 msgid ""
@@ -8758,83 +8717,79 @@ msgid_plural ", %(n)s values look wrong"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:119
-msgid "Not calculated:"
-msgstr ""
-
-#: stations/overview.py:140
+#: stations/overview.py:136
 msgid "every value is missing"
 msgstr ""
 
-#: stations/overview.py:156 stations/workspace.py:448
+#: stations/overview.py:152 stations/workspace.py:448
 msgid "Out of date"
 msgstr ""
 
-#: stations/overview.py:162 stations/workspace.py:450
+#: stations/overview.py:158 stations/workspace.py:450
 msgid "No indices"
 msgstr ""
 
-#: stations/overview.py:164 stations/templates/stations/results.html:55
+#: stations/overview.py:160 stations/templates/stations/results.html:55
 msgid "Replace the file"
 msgstr ""
 
-#: stations/overview.py:178 stations/overview.py:309
+#: stations/overview.py:174 stations/overview.py:305
 msgid "Fix quality first"
 msgstr ""
 
-#: stations/overview.py:194 stations/overview.py:201 stations/overview.py:205
+#: stations/overview.py:190 stations/overview.py:197 stations/overview.py:201
 msgid "no results"
 msgstr ""
 
-#: stations/overview.py:196 stations/overview.py:210
+#: stations/overview.py:192 stations/overview.py:206
 msgid "no indices calculated"
 msgstr ""
 
-#: stations/overview.py:213
+#: stations/overview.py:209
 #, python-format
 msgid "%(count)s of %(total)s"
 msgstr ""
 
-#: stations/overview.py:216
+#: stations/overview.py:212
 #, python-format
 msgid "%(count)s of %(total)s index with a significant trend"
 msgid_plural "%(count)s of %(total)s indices with a significant trend"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:310
+#: stations/overview.py:306
 #, python-format
 msgid "%(name)s was not run: fix its quality first."
 msgstr ""
 
-#: stations/overview.py:313
+#: stations/overview.py:309
 #, python-format
 msgid "%(name)s was not run: %(reason)s"
 msgstr ""
 
-#: stations/overview.py:317
+#: stations/overview.py:313
 #, python-format
 msgid "%(name)s was not run."
 msgstr ""
 
-#: stations/overview.py:319
+#: stations/overview.py:315
 #, python-format
 msgid "%(count)s station was not run; its row says how to fix it."
 msgid_plural "%(count)s stations were not run; their rows say how to fix them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:332
+#: stations/overview.py:328
 #, python-format
 msgid "%(name)s has no indices: %(reason)s."
 msgstr ""
 
-#: stations/overview.py:336
+#: stations/overview.py:332
 #, python-format
 msgid "%(name)s has no indices."
 msgstr ""
 
-#: stations/overview.py:338
+#: stations/overview.py:334
 #, python-format
 msgid "%(count)s station has no indices; its row says how to fix it."
 msgid_plural ""
@@ -8842,77 +8797,77 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:370
+#: stations/overview.py:366
 #, python-format
 msgid "Calculating indices: %(done)s of %(total)s station done."
 msgid_plural "Calculating indices: %(done)s of %(total)s stations done."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:379
+#: stations/overview.py:375
 #, python-format
 msgid "About %(time)s left."
 msgstr ""
 
-#: stations/overview.py:381
+#: stations/overview.py:377
 msgid "Finished stations open now."
 msgstr ""
 
-#: stations/overview.py:390 stations/templates/stations/_undo_form.html:10
+#: stations/overview.py:386 stations/templates/stations/_undo_form.html:10
 msgid "Undo the change"
 msgstr ""
 
-#: stations/overview.py:404 stations/overview.py:443
+#: stations/overview.py:400 stations/overview.py:439
 #, python-format
 msgid "%(done)s of %(total)s station calculated in %(time)s."
 msgid_plural "%(done)s of %(total)s stations calculated in %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:413 stations/overview.py:449
+#: stations/overview.py:409 stations/overview.py:445
 #, python-format
 msgid "%(done)s of %(total)s station calculated."
 msgid_plural "%(done)s of %(total)s stations calculated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:420
+#: stations/overview.py:416
 #, python-format
 msgid "%(name)s failed:"
 msgstr ""
 
-#: stations/overview.py:421 stations/workspace_files.py:427
+#: stations/overview.py:417 stations/workspace_files.py:427
 msgid "The station could not be calculated."
 msgstr ""
 
-#: stations/overview.py:425
+#: stations/overview.py:421
 msgid "Change the base period in Workspace settings, or remove the station."
 msgstr ""
 
-#: stations/overview.py:428
+#: stations/overview.py:424
 #, python-format
 msgid "%(count)s failed:"
 msgid_plural "%(count)s failed:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:431
+#: stations/overview.py:427
 msgid "their rows say why."
 msgstr ""
 
-#: stations/overview.py:437 stations/templates/stations/_space_links.html:1
+#: stations/overview.py:433 stations/templates/stations/_space_links.html:1
 #: stations/templates/stations/workspace_settings.html:12
 msgid "Workspace settings"
 msgstr ""
 
-#: stations/overview.py:459
+#: stations/overview.py:455
 #, python-format
 msgid "%(done)s station calculated in %(time)s."
 msgid_plural "%(done)s stations calculated in %(time)s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/overview.py:467
+#: stations/overview.py:463
 #, python-format
 msgid "%(done)s station calculated."
 msgid_plural "%(done)s stations calculated."
@@ -12193,20 +12148,7 @@ msgstr ""
 msgid "%(name)s was added and is being checked."
 msgstr ""
 
-#: stations/views_add.py:529
-#, python-format
-msgid "And %(count)d more problems like these."
-msgstr ""
-
-#: stations/views_add.py:531
-msgid "Not calculated: the station file is missing."
-msgstr ""
-
-#: stations/views_add.py:533
-msgid "Not calculated: the station has problems."
-msgstr ""
-
-#: stations/views_add.py:631
+#: stations/views_add.py:607
 #, python-format
 msgid "Add stations: %(name)s (%(count)d station)"
 msgid_plural "Add stations: %(name)s (%(count)d stations)"

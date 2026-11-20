@@ -1,9 +1,9 @@
-"""The batch (#80): zips, the pre-flight check and its messages, the options, one job for
-the ready stations with per-station progress, the results (errors, downloads, a station
+"""The batch (#80): zips, reading the metadata file and its messages, the options, one job
+for the stations with per-station progress, the results (errors, downloads, a station
 failing alone), ownership and retention. Add stations (#233, ``test_add_stations.py``)
 makes and queues a batch since the batch's own pages went (#271); the batches here are
-made at model level (``made.py``), with stations the check leaves out. Its stations in
-its workspace (#255) are ``test_batch_workspace.py``'s."""
+made at model level (``made.py``), with the options a test needs. Its stations in its
+workspace (#255) are ``test_batch_workspace.py``'s."""
 
 import datetime as dt
 import io
@@ -70,9 +70,9 @@ def files(**named) -> list:
 
 
 def created(client, meta, **stations) -> BatchRun:
-    """A batch of ``meta`` and the station files, checked and waiting to run, in a
-    workspace of its own (``made.checked_batch``)."""
-    return made.checked_batch(client, meta, **stations)
+    """A batch of ``meta`` and the station files, waiting to run, in a workspace of its
+    own (``made.batch``)."""
+    return made.batch(client, meta, **stations)
 
 
 def run_batch(client, run: BatchRun, options) -> BatchRun:
@@ -94,12 +94,18 @@ def run_worker() -> Job:
     return run_job(job)
 
 
-def statuses(run: BatchRun) -> dict[str, str]:
+def names(run: BatchRun) -> list[str]:
     run.refresh_from_db()
-    return {s["name"]: s["status"] for s in run.stations}
+    return [s["name"] for s in run.stations]
 
 
-# ---- The check --------------------------------------------------------------------------
+def read(text) -> tuple[check.BatchCheck, list[check.StationCheck]]:
+    """A metadata file read as Add stations reads it (``check.check_metadata``)."""
+    result = check.BatchCheck()
+    return result, check.check_metadata(text.encode() if isinstance(text, str) else text, result)
+
+
+# ---- The metadata file -------------------------------------------------------------------
 
 
 def test_r_sample_metadata_is_bundled_unchanged():
@@ -109,16 +115,20 @@ def test_r_sample_metadata_is_bundled_unchanged():
 
 
 def test_sample_batch_is_ready():
-    result = check.check_batch(R_SAMPLE.read_bytes(), sample_files())
-    assert result.metadata_ok
-    assert [s.status for s in result.stations] == ["ready", "ready"]
-    first = result.stations[0]
+    from climpact_web.stations.station_file import inspect_station_bytes
+
+    result, stations = read(R_SAMPLE.read_bytes())
+    assert result.metadata_ok and len(stations) == 2
+    first = stations[0]
     assert (first.name, first.latitude, first.params["spei_months"]) == (
         "sydney_observatory_hill_1936-2015",
         -10,
         24,
     )
-    assert first.summary["first_year"] == 1936
+    files = sample_files()
+    inspection = inspect_station_bytes(files[first.station_file])
+    assert inspection.ok and inspection.summary["first_year"] == 1936
+    assert all(inspect_station_bytes(files[s.station_file]).ok for s in stations)
 
 
 @pytest.mark.parametrize(
@@ -139,22 +149,15 @@ def test_sample_batch_is_ready():
     ],
 )
 def test_metadata_problems_name_the_line(text, message, line):
-    result = check.check_batch(text.encode(), {})
-    assert not result.metadata_ok and result.stations == []
+    result, stations = read(text)
+    assert not result.metadata_ok and stations == []
     found = result.metadata_problems[0]
     assert message in found["message"], found
     assert found["line"] == line
 
 
-def test_metadata_not_text_and_missing():
-    assert (
-        "not a text file"
-        in check.check_batch(b"PK\x03\x04junk", {}).metadata_problems[0]["message"]
-    )
-    assert (
-        check.check_batch(None, {}).metadata_problems[0]["message"]
-        == "Choose the batch metadata file."
-    )
+def test_metadata_not_text():
+    assert "not a text file" in read(b"PK\x03\x04junk")[0].metadata_problems[0]["message"]
 
 
 def test_core_reads_what_the_check_accepts(tmp_path):
@@ -169,15 +172,17 @@ def test_core_reads_what_the_check_accepts(tmp_path):
         + row("b.dat").rstrip()
         + "  # x\n"
     )
-    result = check.check_batch(text.encode(), {})
+    from dataclasses import asdict
+
+    result, stations = read(text)
     assert result.metadata_ok
     path = tmp_path / "m.txt"
     path.write_text(text)
     core = read_batch_metadata(path)
-    assert [s.station_file for s in core] == [s.station_file for s in result.stations]
-    assert [s.latitude for s in core] == [s.latitude for s in result.stations]
+    assert [s.station_file for s in core] == [s.station_file for s in stations]
+    assert [s.latitude for s in core] == [s.latitude for s in stations]
     # The metadata file written for the job reads back the same.
-    path.write_text(check.metadata_text(result.to_json()["stations"]))
+    path.write_text(check.metadata_text([asdict(s) for s in stations]))
     again = read_batch_metadata(path)
     assert [(s.station_file, s.latitude, s.params) for s in again] == [
         (s.station_file, s.latitude, s.params) for s in core
@@ -185,70 +190,20 @@ def test_core_reads_what_the_check_accepts(tmp_path):
 
 
 def test_first_line_that_looks_like_a_station_is_a_warning():
-    result = check.check_batch(
-        (row("a.txt") + row("b.txt")).encode(), {"b.txt": station().encode()}
-    )
+    result, stations = read(row("a.txt") + row("b.txt"))
     assert "looks like a station" in result.metadata_warnings[0]
-    assert [s.name for s in result.stations] == ["b"]
-
-
-def test_station_statuses_and_reasons():
-    text = (
-        HEADER
-        + row("good.txt", lat="0")
-        + row("missing.txt")
-        + row("Capital.txt")
-        + row("bad.txt")
-        + row("far.txt", lat="95", params="12\t3\t18\t18\t10\t0\t-1\t2\t24")
-        + row("../escape.txt")
-        + row(".hidden.txt")
-    )
-    uploads = {
-        "good.txt": station().encode(),
-        "capital.txt": station().encode(),
-        "bad.txt": b"2000 1 1 0 20\n2000 1 2 x 20 10\n",
-        "far.txt": station().encode(),
-        "unused.txt": station().encode(),
-    }
-    result = check.check_batch(text.encode(), uploads)
-    by_name = {s.name: s for s in result.stations}
-    assert {n: s.status for n, s in by_name.items()} == {
-        "good": "ready",
-        "missing": "missing",
-        "Capital": "missing",
-        "bad": "invalid",
-        "far": "invalid",
-        "../escape": "invalid",
-        ".hidden": "invalid",
-    }
-    assert "Latitude 0 is treated as the Southern Hemisphere" in by_name["good"].warnings[0]
-    assert by_name["missing"].problems[0]["message"] == "No file named missing.txt was uploaded."
-    assert "but capital.txt was" in by_name["Capital"].problems[0]["message"]
-    bad = [p["message"] for p in by_name["bad"].problems]
-    assert bad[0].startswith("Line 1 has 5 values") and "“x” in the precipitation column" in bad[1]
-    assert by_name["bad"].problems[1]["text"] == "2000 1 2 x 20 10"
-    far = " ".join(p["message"] for p in by_name["far"].problems)
-    for expected in (
-        "Latitude 95 is outside -90 to 90.",
-        "wsdin (days for WSDI) must be between 1 and 10. It is 12.",
-        "rxnday (days for Rxnday) must be 1 or more. It is 0.",
-        "rnnmm (millimetres for Rnnmm) must be 0 or more. It is -1.",
-    ):
-        assert expected in far
-    assert "is a folder path" in by_name["../escape"].problems[0]["message"]
-    assert "cannot be used" in by_name[".hidden"].problems[0]["message"]
-    assert result.extra_files == ["capital.txt", "unused.txt"]
+    assert [s.name for s in stations] == ["b"]
 
 
 def test_station_files_with_na_are_ready(tmp_path):
     """NA is a missing value, as R's read.table reads it, in the check and in the core."""
     from climpact.io.station import read_station_file
+    from climpact_web.stations.station_file import inspect_station_bytes
 
     lines = station().splitlines()
     lines[3] = "2000 1 4 NA 20 NA"
     text = "\n".join(lines) + "\n"
-    result = check.check_batch((HEADER + row("na.txt")).encode(), {"na.txt": text.encode()})
-    assert [s.status for s in result.stations] == ["ready"]
+    assert inspect_station_bytes(text.encode()).ok
     path = tmp_path / "na.txt"
     path.write_text(text)
     df = read_station_file(path)
@@ -256,7 +211,8 @@ def test_station_files_with_na_are_ready(tmp_path):
 
 
 def test_parameter_rules_match_the_core():
-    """The check refuses exactly what climpact.batch.validate_params refuses."""
+    """The check refuses exactly what climpact.batch.validate_params refuses, and says
+    why."""
     from dataclasses import replace
 
     from climpact.batch import validate_params
@@ -280,9 +236,13 @@ def test_parameter_rules_match_the_core():
             from dataclasses import asdict
 
             fields = {k: v for k, v in asdict(params).items() if k in check.PARAM_FIELDS.values()}
-            s = check.StationCheck("a", "a.txt", 2, 0.0, 0.0, fields)
-            check.check_parameters(s)
-            assert (s.problem_count == 0) == core_ok, (field, value)
+            assert (check.parameter_problems(fields) == []) == core_ok, (field, value)
+    fields = {"wsdi_days": 12, "rx_days": 0, "rnnmm": -1}
+    assert check.parameter_problems(fields) == [
+        "wsdin (days for WSDI) must be between 1 and 10. It is 12.",
+        "rxnday (days for Rxnday) must be 1 or more. It is 0.",
+        "rnnmm (millimetres for Rnnmm) must be 0 or more. It is -1.",
+    ]
 
 
 def test_unpack_zip_with_folders_and_metadata():
@@ -350,17 +310,14 @@ def test_start_page_is_add_stations(client):
 
 
 @pytest.mark.django_db
-def test_a_checked_batch_keeps_its_files_and_each_stations_status(client):
+def test_a_batch_keeps_its_files_and_stations(client):
     run = created(
-        client,
-        metadata("a.txt", "b.txt", "missing.txt", "bad.txt"),
-        **{"a.txt": station(), "b.txt": station(seed=1), "bad.txt": "nonsense\n1 2\n"},
+        client, metadata("a.txt", "b.txt"), **{"a.txt": station(), "b.txt": station(seed=1)}
     )
-    assert statuses(run) == {"a": "ready", "b": "ready", "missing": "missing", "bad": "invalid"}
+    assert names(run) == ["a", "b"]
     assert run.metadata_name == "stations.txt" and run.folder_name == "stations"
     assert (run.files_dir / "a.txt").is_file() and run.metadata_path.is_file()
-    # Its check page went with #271: a batch checked before and never run leads to Add
-    # stations, whose review cannot read its check.
+    # Its check page went with #271: a batch never run leads to Add stations.
     for url in (f"/w/{run.workspace_id}/batch/", f"/w/{run.workspace_id}/"):
         assert client.get(url)["Location"] == "/add/"
 
@@ -369,7 +326,7 @@ def test_a_checked_batch_keeps_its_files_and_each_stations_status(client):
 def test_zip_with_metadata_inside(client):
     data = zipped(**{"meta.txt": metadata("a.txt"), "a.txt": station()})
     run = created(client, None, **{"all.zip": data})
-    assert run.metadata_name == "meta.txt" and statuses(run) == {"a": "ready"}
+    assert run.metadata_name == "meta.txt" and names(run) == ["a"]
 
 
 def test_options_errors_in_plain_words(settings):
@@ -411,12 +368,11 @@ def test_adding_needs_valid_options(client):
 
 @pytest.mark.django_db
 def test_batch_runs_and_a_bad_station_fails_alone(client):
-    """The ready stations run as one job; a station failing at run time fails alone, a
-    station left out before the run is reported with its reason, and everything is in
-    the zip."""
+    """The stations run as one job; a station failing at run time fails alone, and
+    everything is in the zip."""
     run = created(
         client,
-        metadata("a.txt", "b.txt", "c.txt", "missing.txt"),
+        metadata("a.txt", "b.txt", "c.txt"),
         **{"a.txt": station(), "b.txt": station(seed=1), "c.txt": station(seed=2)},
     )
     data = {"base_start": "2000", "base_end": "2001", "workers": "1"}  # no plots: faster
@@ -424,8 +380,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     job = run.job
     assert job.kind == "batch" and job.status == Status.QUEUED
     assert job.params["folder"] == "stations" and job.params["zip"] and not job.params["plots"]
-    assert [s["name"] for s in job.params["skipped"]] == ["missing"]
-    assert "missing.txt" not in (job.input_dir / "batch_metadata.txt").read_text()
+    assert "skipped" not in job.params
     assert sorted(p.name for p in (job.input_dir / "stations").iterdir()) == [
         "a.txt",
         "b.txt",
@@ -436,7 +391,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     html = client.get(f"/w/{run.workspace_id}/").content.decode()
     assert "Calculating indices: 0 of 3 stations done." in html
     assert f'hx-get="/w/{run.workspace_id}/progress"' in html
-    assert html.count('data-indices="waiting"') == 3 and 'data-indices="not_run"' in html
+    assert html.count('data-indices="waiting"') == 3 and 'data-indices="not_run"' not in html
 
     # Break b's file after the check, so it fails in the run itself.
     (job.input_dir / "stations" / "b.txt").write_text("2000 1 1 0 20 10\n1999 1 1 0 20 10\n")
@@ -446,17 +401,12 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     assert by_name["a"]["ok"] and by_name["c"]["ok"] and not by_name["b"]["ok"]
     assert by_name["b"]["error_file"] == "stations/b.errors.txt"
     assert by_name["a"]["zip"] == "stations/a.zip" and by_name["a"]["folder"] == "stations/a"
-    assert job.result["zip"] == "stations.zip"
+    assert job.result["zip"] == "stations.zip" and "skipped" not in job.result
     progress = json.loads((job.output_dir / "stations.json").read_text())["stations"]
-    assert {s["name"]: s["state"] for s in progress} == {
-        "a": "done",
-        "b": "failed",
-        "c": "done",
-        "missing": "skipped",
-    }
+    assert {s["name"]: s["state"] for s in progress} == {"a": "done", "b": "failed", "c": "done"}
     with zipfile.ZipFile(job.output_dir / "stations.zip") as archive:
         names = archive.namelist()
-    assert "b.errors.txt" in names and "missing.errors.txt" in names
+    assert [n for n in names if n.endswith(".errors.txt")] == ["b.errors.txt"]
     assert any(n.startswith("a/indices/") for n in names) and not any(
         n.startswith("b/") for n in names
     )
@@ -466,7 +416,7 @@ def test_batch_runs_and_a_bad_station_fails_alone(client):
     html = client.get(f"/w/{run.workspace_id}/").content.decode()
     assert "hx-get" not in html and "run-status--failed" in html
     assert "2 of 3 stations calculated in" in html and "b failed:" in html
-    assert "missing was not run: the station file is missing." in html
+    assert "was not run" not in html
     # The workspace files are in Export ▾ and on Files, not on the status line (#239).
     assert f"/w/{run.workspace_id}/files/everything.zip" in html
     assert "Download all (zip, " not in html
@@ -578,19 +528,3 @@ def test_landing_page_and_header_link_to_batch(client):
     batch = client.get("/add/").content.decode()
     nav = re.findall(r'<nav class="site-nav".*?</nav>', batch, re.S)[0]
     assert '<a href="/w/" data-nav="workspaces" aria-current="true">' in nav
-
-
-def test_skipped_names_are_safe_and_never_collide():
-    from climpact_web.jobs.runners import _skipped_stations
-
-    items = _skipped_stations(
-        [
-            {"name": ".a", "station_file": ".a.txt", "error": "bad"},
-            {"name": "../a", "station_file": "../a.txt", "error": "bad"},
-            {"station_file": "b c.txt", "error": "x"},
-        ],
-        {"a"},
-    )
-    assert items[0]["name"] == "a_2" and items[2]["name"] == "b c"
-    assert len({i["name"] for i in items} | {"a"}) == 4
-    assert all("/" not in i["name"] and not i["name"].startswith(".") for i in items)

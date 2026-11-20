@@ -47,7 +47,7 @@ def rows(text: str) -> list[dict]:
 
 
 def test_the_files_tab_shows_the_workspace_files_and_each_stations(client):
-    run = finished_batch(client, "a", "b", bad=["c"], missing=["d"])
+    run = finished_batch(client, "a", "b", bad=["c"])
     space = run.workspace
     url = f"/w/{space.pk}/files/"
     # The tab is a link now, on the overview too.
@@ -87,9 +87,7 @@ def test_the_files_tab_shows_the_workspace_files_and_each_stations(client):
     # No report nor plots in this run (OPTIONS): "–", said as "none".
     assert '<span class="text-text-muted">–</span><span class="sr-only">none</span>' in a
     c = table.split('data-station="c"')[1].split("</tr>")[0]
-    assert c.count(">failed<") == 5
-    d = table.split('data-station="d"')[1].split("</tr>")[0]
-    assert d.count(">not run<") == 5
+    assert c.count(">failed<") == 5  # not run: test_batch_workspace.py
     # The provenance file, the methods text and how long the files are kept.
     assert "climpact_run.json</span> into every zip" in html
     assert "&quot;base_period&quot;: [\n    2000,\n    2001\n  ]" in html

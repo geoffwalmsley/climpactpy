@@ -36,7 +36,7 @@ def rows(html: str) -> dict[str, str]:
 
 
 def test_a_workspace_of_several_stations_opens_its_overview(client):
-    run = finished_batch(client, "a", "b", missing=["d"])
+    run = finished_batch(client, "a", "b")
     space = run.workspace
     url = f"/w/{space.pk}/"
     html = client.get(url).content.decode()
@@ -46,7 +46,7 @@ def test_a_workspace_of_several_stations_opens_its_overview(client):
     assert f'<h1 class="context-bar__name">{space.display_name}</h1>' in html
     provenance = html.split('class="context-bar__provenance"')[1].split("</p>")[0]
     # A batch's workspace calculates no custom index, as R's batch: one setting changed.
-    for part in ("3 stations", "base 2000–2001", "1 setting not the default", "climpact "):
+    for part in ("2 stations", "base 2000–2001", "1 setting not the default", "climpact "):
         assert part in provenance, part
     assert f'href="{url}settings/"' in provenance and f'href="{url}rename"' in provenance
     assert f'href="{url}add/"' in html and ">Add stations<" in html
@@ -59,17 +59,14 @@ def test_a_workspace_of_several_stations_opens_its_overview(client):
     assert "Start a new batch" not in html and "Change the files or options" not in html
     # The run status line, quiet once finished, and a row a station in the order added.
     assert status_line(html).startswith("done: 2 stations calculated in")
-    assert "d was not run: the station file is missing." in status_line(html)
     assert "Download all (zip, " not in html and "hx-get" not in html  # Export ▾ (#239)
-    assert rows(html) == {"a": "done", "b": "done", "d": "not_run"}
-    assert list(rows(html)) == ["a", "b", "d"]
+    assert rows(html) == {"a": "done", "b": "done"}
+    assert list(rows(html)) == ["a", "b"]
     # Each row: its page, coordinates, years, missing values, verdict and significance.
     a = Station.objects.get(station_name="a")
     row = html.split('data-station="a"')[1].split("</tr>")[0]
     assert f'href="{a.url()}indices"' in row and "2000–2002" in row and "0.0%" in row
     assert re.search(r"\d+ of \d+</span>", row) and "with a significant trend" in row
-    d_row = html.split('data-station="d"')[1].split("</tr>")[0]
-    assert ">Not run<" in d_row and "Fix the file" in d_row and "–" in d_row
 
 
 def test_the_overview_is_live_while_the_stations_calculate(client):
@@ -103,9 +100,7 @@ def test_a_failed_station_is_named_in_red(client):
 def test_the_failed_rows_fix_is_the_base_period_when_that_is_why():
     assert overview.base_period_problem("No data in the base period 1971-2000.")
     assert not overview.base_period_problem("The rows are not in date order.")
-    assert overview.not_run_reason("Not calculated: the station file is missing.\nmore") == (
-        "the station file is missing."
-    )
+    assert overview.not_run_reason("The run was cancelled.\nmore") == "The run was cancelled."
 
 
 def test_old_batch_results_addresses_lead_to_the_overview(client):

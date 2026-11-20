@@ -407,7 +407,7 @@ def test_a_batch_station_opened_as_a_single_station(client, tmp_path):
         lines.append(f"{day.year} {day.month} {day.day} {rain:.1f} {tx:.1f} {tx - 9:.1f}")
         day += dt.timedelta(days=1)
     meta = "\t".join(check.COLUMNS) + "\n" + "a.txt\t-30\t150\t3\t3\t18\t18\t10\t3\t30\t2\t24\n"
-    run = made.checked_batch(client, meta, **{"a.txt": "\n".join(lines) + "\n"})
+    run = made.batch(client, meta, **{"a.txt": "\n".join(lines) + "\n"})
     made.queue(client, run, {"base_start": "1981", "base_end": "1990", "workers": "1"})
     batch = run_next()
     assert batch.status == Status.SUCCEEDED, batch.log

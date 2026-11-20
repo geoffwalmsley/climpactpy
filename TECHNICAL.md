@@ -41,7 +41,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, gridded trends (`trends.nc`, not in R; see [Gridded trends](#gridded-trends)), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -3102,8 +3102,9 @@ packages/climpact-web/src/climpact_web/
     sample_data/     climpact.sample.batch.metadata.txt, R's sample metadata file
   gridded/           gridded runs (label `gridded`, see [Gridded pages](#gridded-pages))
     models.py        GriddedRun: one set of netCDF files, its name (#289), their
-                     inspection, the variable names, the parameters and the thresholds
-                     and indices jobs
+                     inspection, the variable names, the parameters, the thresholds
+                     and indices jobs, and those of a new start waiting beside them
+                     (#293, settle)
     runs.py          a run as a place of its own (#289): its default name, its row on
                      Gridded, its provenance line, its Files tab's groups and its record
                      (run.json, climpact.log)
@@ -3114,18 +3115,24 @@ packages/climpact-web/src/climpact_web/
     listing.py       New gridded run's folder listing (#292): each netCDF file's daily
                      variables and dates from its header (cached by path, size and
                      modification time), and what the files chosen so far hold
+    setup_page.py    the set-up page (#293): the Variables rows (units, how they are
+                     read, a unit Climpact cannot read with a CDO command), the
+                     Together line, the base period's timeline and coverage, the
+                     indices by variable, the estimates, the summary panel, a file's
+                     header as ncdump -h prints it
     maps.py          output files, the map of one index at one time step and a cell's
                      time series, drawn as inline SVG (the series: the chart's fallback)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ and its checks
-                     (htmx), rename/, progress, explore (htmx), map and series CSV,
+                     (htmx), a file's header (setup/header/<n>/), rename/, progress, explore (htmx), map and series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
     sample_data/     climpact.sampledata.gridded.3x4.1991-2010.nc (525 KB), the
                      reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
-    templates/gridded/  start.html, new.html, setup.html, results.html, _listing.html,
-                     _chosen.html, _checks.html, _progress.html, _explore.html,
+    templates/gridded/  start.html, new.html, setup.html (with _summary.html, the summary
+                     panel, and the parts htmx swaps out of band), header.html, run.html,
+                     _listing.html, _chosen.html, _progress.html, _explore.html,
                      _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
@@ -6972,8 +6979,21 @@ succeeded; then the tabs:
   files. The inputs' checksums are worked out the first time `run.json` is asked for and
   kept in the run's options while each file's size and modification time stay the same.
 - **Set-up**, `/gridded/<id>/setup/` (`gridded:setup`): the set-up page under the bar.
-  Before the run has started it has no bar: "Gridded / New run / set-up" over the run's
-  name as its h1, with Rename.
+  Before the run has started it has a context bar of its own, in the page's flow:
+  "Gridded / New run / set-up" over the run's name as its h1, with Rename, the line
+  "Climpact has read the headers of N files. Nothing has been calculated yet.", and
+  "Choose other files" and "Forget this run" at its end. After a run the summary panel
+  says what the results are (when they were calculated, in how long on how many cores,
+  what was written) and, as the form changes, which sections differ from the settings
+  that made them ("Changed: Base period."). **Start again with changes** keeps the
+  results (#293): the new jobs and their settings wait in `next_thresholds_job`,
+  `next_indices_job` and `next_settings`, so Map, Files, the provenance line and
+  `run.json` describe the results shown; `GriddedRun.settle` (on every request for the
+  run, and on Gridded) puts them in place once every new job has succeeded, deletes the
+  old jobs and their folders, and takes the new settings (keeping the inputs'
+  checksums). A new start that fails or is cancelled leaves the results as they were,
+  and Set-up says so; while it calculates, Set-up says "Calculating again" and Gridded's
+  State shows its progress. A run that never finished is started again in place.
 
 **New run and set-up:**
 
@@ -7010,26 +7030,77 @@ succeeded; then the tabs:
    more than Django's default of 100 files reaches the form's own message). Then "Try
    the sample grid": `grid_sample`, a 3 x 4 cut of R's sample grid, bundled and read in
    place from the package.
-2. `/gridded/<id>/setup/`: what each file holds, read from its metadata and coordinates only
+2. `/gridded/<id>/setup/` (#293, the GridSetup board): one page of sections divided by
+   hairlines beside a summary panel (22.5rem, sticky; under the form below 64rem).
+   What each file holds is read from its metadata and coordinates only
    (`inspection.inspect_file`: netCDF4 and cftime, no data): the grid, dates, calendar,
    latitude and longitude ranges, format and size, and every variable with time, Y and X
-   dimensions (found as the core reader finds them) with its description and units. The
-   Files table (#291, the GridSetup board's; `gridded/_files_table.html`) has a row for the
-   files that hold the same variables (`inspection.group_files`): one file, or a variable
-   split across many as "20 files, 1991–2010", a native `<details>` listing each file and
-   its dates; then the daily variables, grid, dates, calendar and total size. Locally the
-   files' folder is under the name. Unsupported calendars (`all_leap`, `julian`), files
-   with no daily grid and unreadable time axes have a row of their own saying why, in
-   plain language. Then the set-up form; the variable choices are one per name ("tmax (K)
-   · 20 files"); an htmx panel (`gridded:checks`) re-checks it as it changes: the
-   variables (in one file or split along time across files that join as the core joins
-   them, `inspection.join_problem`: the same grid, calendar and units, no overlap, no gap,
-   each named by its files; not chosen twice; units the core converts; the same grid and
-   dates as the others), the grid and
-   period, the base period's coverage and the number and names of the index files. On
-   "Start", the form is validated, and the files are opened with the core's `open_grid`
-   (`inspection.preflight`), so a file the core would refuse fails here with its message
-   rather than in the job.
+   dimensions (found as the core reader finds them) with its description and units.
+   - **Files** (#291; `gridded/_files_table.html`): a row for the files that hold the
+     same variables (`inspection.group_files`): one file, or a variable split across many
+     as "20 files, 1991–2010", a native `<details>` listing each file and its dates; then
+     the daily variables, grid, dates, calendar and total size, and **Header**, which
+     shows the row's first file's header as `ncdump -h` prints it
+     (`setup_page.header_text`; `gridded:file_header`, `<run>/setup/header/<n>/`: a page
+     of its own, or the text alone with `?format=text`, which `js/gridded.js` shows in a
+     dialog). Locally the files' folder is under the name. Unsupported calendars
+     (`all_leap`, `julian`), files with no daily grid and unreadable time axes have a row
+     of their own saying why, in plain language.
+   - **Variables**: a table of TX, TN and precipitation, the variable chosen for each
+     (one choice per name, "tmax (K) · 20 files"), its units in the file, how it is read
+     (`setup_page.read_as`, from the core's `unit_conversion`: "°C (K − 273.15)",
+     "mm/day (× 86400)", or "°C" and "mm/day" as they are) and a Check ("Readable",
+     "Units", "Not chosen", "Not usable"). A variable that cannot be used has a faint
+     danger tint and its message under the table: for units Climpact cannot read, what it
+     reads and how to convert (`setup_page.units_help`), with a CDO command and a Copy
+     button for precipitation in metres (ERA5's `tp`: `-mulc,1000`) and an hourly rate
+     (`mm/h`, `kg m-2 h-1`: `-mulc,24`), each setting the units to `mm/day`, through
+     `-mergetime` and a pattern for a variable split across files. Then one mono line:
+     the grid with its bounds, the period and days, the calendar, and "same grid and time
+     axis in every file ✓" when nothing is wrong. The checks are the core reader's
+     (`inspection.check_names`: one file, or files that join along time as the core joins
+     them, `inspection.join_problem`: the same grid, calendar and units, no overlap, no
+     gap; not chosen twice; units the core converts; the same grid and dates as the
+     others).
+   - **What to calculate**: indices, a thresholds file only, or both, as three radio
+     cards; for the indices, "Percentile thresholds": from the base period of these
+     files, or read from a thresholds file (a path locally, an upload hosted).
+   - **Base period**: the first and last year beside a timeline of the data's years with
+     the base period marked (an SVG drawn with percentages, so no style attribute), and
+     the coverage ("The data cover all 10,958 days of 1971–2000 (at least 360 needed).").
+   - **Indices**: "55 of 55 · 88 files", All, None and "Without the slow ones"
+     (JavaScript); four columns by the variable needed (the core's `_BY_VARIABLE`), each
+     index a checkbox with its code and short name, "slow" on HW, HWEHF, SPI and SPEI; then
+     the numbered indices' parameters in one row, named by code (WSDId, CSDId, Rxdday,
+     TXdTNd, Rnnmm, HDDheatn, CDDcoldn, GDDgrown) with their units. At least one index is
+     needed (none no longer means all).
+   - **Output files**: the file name template with an example of the names it gives, the
+     thresholds file name (when one is kept), Institution and Institution ID, and "Also
+     copy the results to" (local mode).
+   - **Computing**, closed, its summary giving the current values (cores, values at once,
+     cell-first copy).
+
+   The **summary panel** (`gridded/_summary.html`, `setup_page.build` and `panel_for`) is
+   the check: "Ready to start", or "Before you start" with each problem linked to its
+   field; then each check with its mark: Grid, Period, Variables, Base period, Writes
+   (index files, or the thresholds file, and their size), Disk (local mode: what the run
+   needs with the temporary copy, against the free space where the jobs write), Cell-first
+   copy (when it will be made: the core's `read_amplification` and `rechunk_bytes`, read
+   once for the files as they are, `setup_page.reading`) and Time; then the one Start
+   button and a line on what happens next. The estimates are labelled "about": the size
+   is that of the values before compression (float32, a day-of-extreme variable where the
+   index has one, three scales for SPI and SPEI, `trends.nc`, and float64 for the
+   thresholds file); the time is 0.015 s per cell and year of data for every index on
+   one core (15% less without the heatwaves, SPI and SPEI) and 0.0005 s for a thresholds
+   file, divided by the cores, measured on the sample grid tiled to 12 x 16 cells
+   (`setup_page.INDICES_SECONDS`). As the form changes, htmx posts it to `gridded:checks`,
+   which answers the panel and, out of band, the parts of the form that follow it (each
+   variable's units, how it is read and its check, the units help, the Together line, the
+   timeline and coverage, the indices' count, the example file name and the Computing
+   line). Without JavaScript the form posts and the page draws the same panel, with the
+   form's errors. On "Start", the form is validated, and the files are opened with the
+   core's `open_grid` (`inspection.preflight`), so a file the core would refuse fails
+   here, its message in the panel, rather than in the job.
 3. Starting opens the run's Map: the jobs (thresholds first, then indices; the worker
    takes the oldest queued job first) with htmx-polled progress, including "Preparing
    the input files" while the input is rechunked and "Trends and the map" while
@@ -7052,10 +7123,10 @@ succeeded; then the tabs:
 | Institute name and ID, required | the same |
 | Base period, default 1991-2010 | 1971-2000 when the data cover it, else 1991-2010, else the data's first 30 years; fewer than 360 days of it in the data is an error (R stops in the run); with a thresholds file, any overlap with the data is an error |
 | Number of cores, default 1 | default up to 4, one left free; 1 to the number of cores (local mode only) |
-| Indices to calculate, a comma-separated list, empty for all | checkboxes grouped by variable, all ticked; the heatwave, SPI and SPEI indices marked as slow |
-| EHF definition: Perkins and Alexander (PA13) or Nairn and Fawcett (NF13) | NF13 only, stated on the page: `climdex.hwEHF` accepts only NF13 (see [Gridded indices](#gridded-indices)) |
+| Indices to calculate, a comma-separated list, empty for all | checkboxes in four columns by variable, codes first, all ticked; the heatwave, SPI and SPEI indices marked as slow; at least one needed |
+| EHF definition: Perkins and Alexander (PA13) or Nairn and Fawcett (NF13) | NF13 only, stated in the index parameters' help: `climdex.hwEHF` accepts only NF13 (see [Gridded indices](#gridded-indices)) |
 | Number of data values to process at once (millions), default 10 | the same field; default the core's 5, or less for a small grid, so that it is read in about 20 blocks (`default_max_values`): progress is reported after each block, and a grid of one or two blocks would show none for most of the run |
-| The wrapper script's index parameters (wsdi, csdi, rx, txtn days, base temperatures, rnnmm) are fixed in the screen | editable in a disclosure, defaults `WRAPPER_PARAMS`; ranges as `validate_params` |
+| The wrapper script's index parameters (wsdi, csdi, rx, txtn days, base temperatures, rnnmm) are fixed in the screen | editable in one row under the indices, defaults `WRAPPER_PARAMS`; ranges as `validate_params` |
 | No rechunking | the core's `--rechunk` (automatic, always, never) and, in local mode, its `--tmp-dir` |
 | A modal warns that the run takes hours; the browser must stay open until "Done" appears | a background job with progress; the page can be closed and the run opened again from Gridded |
 | Errors in a modal with R's message | the job's error on the page, with "Try again" |
@@ -7079,10 +7150,13 @@ server-drawn SVG line, broken at missing values, is the `<noscript>` fallback. E
 CSV. Values are read straight from the output netCDF (fill values and non-finite values,
 such as R's `-Inf` EHF-HWPS, shown as no value).
 
-**Help** (see [Help](#help)). The gridded topics are on their fields: `gridded.files`
-(step 1), `gridded.variables`, `gridded.thresholds_file`, `gridded.base_period`,
-`gridded.output` (also on the results), `gridded.institution`, `gridded.indices`,
-`gridded.workers`, `gridded.max_values`, and `param.<field>` on the index parameters. The
+**Help** (see [Help](#help)). `gridded.files` is on New run (step 1). On the set-up
+page the help is on request (#293): a quiet link in What to calculate
+(`gridded.thresholds_file`, `gridded.base_period`), the index parameters (`param.<field>`,
+and the note that the EHF definition is Nairn and Fawcett's only), Output files
+(`gridded.output`, `gridded.institution`) and Computing (`gridded.workers`,
+`gridded.max_values`); `gridded.variables` and `gridded.indices` are in the help index and
+the guide. The
 explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_ANN` to
 `index.rxdday`). The gridded guide (`help/guides/en/gridded.md`) describes the screens.
 
@@ -7091,9 +7165,12 @@ explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_
 `source` (`path`, `upload`, `sample`); `files` (each file's inspection as JSON); `names`
 (the netCDF variable of `tasmax`, `tasmin`, `pr`); `options` (the set-up form's values and
 the pre-flight result, plus what is worked out once: `checksums`, kept when the run is
-started again, and `cells_with_data`, by indices job); `thresholds_job`, `indices_job`. Retention as for workspaces when
+started again, and `cells_with_data`, by indices job); `thresholds_job`, `indices_job`;
+`next_thresholds_job`, `next_indices_job` and `next_settings` (`{"options", "names"}`),
+a new start of a finished run waiting beside its results (#293, migration
+`0003_gridded_run_next`). Retention as for workspaces when
 they expire, whatever `WORKSPACE_EXPIRY` says (`gridded/retention.py`):
-`JOB_RETENTION_DAYS` after the last change unless a job is
+`JOB_RETENTION_DAYS` after the last change unless a job (or a new start's) is
 queued or running; only the run's own folder (uploads) is deleted, never a file read in
 place. Gridded's note and the run's "kept until" say so in both modes; keeping local runs
 until they are forgotten, as the GridList board's note has it, is #301.
@@ -7126,7 +7203,18 @@ any gridded page. Since #291: the sample split into 20 yearly files, inspected a
 grouped (one choice per variable, the joined period), a gap, an overlap and units or a
 calendar that differ, each named by its files; up to 200 files by path and upload (150
 uploads reach the form); the Files table's row for the 20 files, and a full run of them;
-a file that cannot be used in a row of its own.
+a file that cannot be used in a row of its own. Since #293: the set-up page's sections
+in the board's order and its one Start button; the Variables table's units and how they
+are read; the Together line, timeline, coverage, the indices by code and the summary
+panel's checks; the htmx answer with its out-of-band parts as the form changes (a base
+period without enough days, a variable chosen twice, fewer indices, no index, a
+thresholds file only, a cell-first copy); how each unit is read and converted
+(`read_as`, `units_help`: metres, hourly rates, split files, units with no command);
+the estimates (files, size, time, the base period's days in each calendar); ERA5-like
+files with `tp` in metres (the problem, its CDO command, no job) and once converted; a
+file's header (the page, the text, another session); a finished run's Set-up tab,
+"Changed:", starting again with the results kept until the new run has finished, then
+replaced (the old job and its folder deleted), and a new start that fails leaving them.
 
 ### Size budget
 

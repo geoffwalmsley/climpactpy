@@ -274,7 +274,8 @@ cells so, in `--text-xs`; other cells are `--text-sm`. Quality's tables are data
 (#235), and so is the Indices' (#236), whose headers are sans and whose Index cells are
 `--text-sm`, the workspace overview's Stations table (#234, sans headers too) and the
 workspace Files' By station table (#239), and the Workspaces table and Get started's
-"Or continue a workspace" (#242). The jobs list keeps the plain table; the gridded pages take the data table with #289 and #293.
+"Or continue a workspace" (#242), and the gridded pages' tables (#289, #291, #293). The
+jobs list keeps the plain table.
 
 ## Layout
 
@@ -396,7 +397,7 @@ strips, worklist and detail pane.
   with the overview's last poll. A station whose recalculation then failed, or was not
   run or cancelled, keeps its earlier trends, tagged "· out of date" (#279), as its
   Indices, Files and its row of the Stations table say.
-- **The gridded frame (the Grid boards; built by #289, Target: #290–#296 for the rest).**
+- **The gridded frame (the Grid boards; built by #289, #291 and #293, Target: #290, #292, #294–#296 for the rest).**
   A gridded run is a place of its own, like a workspace, not a flow of steps. **Naming:** the header says
   "Gridded" (the data's shape, the field's word: ET-SCI, Climpact for R's "gridded
   indices"); "netCDF" is said where files are chosen (the landing card "Gridded data
@@ -425,16 +426,26 @@ strips, worklist and detail pane.
     anything is uploaded, and one line on the ways round the limit. Under either, on a
     hairline, what is chosen in mono ("3 files chosen · tasmax, tasmin, pr · 561.0 MB", or
     "No files yet") and Read the files (primary, large) at the end; then "No files to
-    hand? Try the sample grid" with its size. Set-up's
-    Files section is the board's Files table since #291 (Gridded files table, below):
-    a row for each variable's files, so a variable split by year is one row ("20 files,
-    1991–2010") that opens to its list; the Header link is #293's. Set-up (#293): one
-    page of sections divided by hairlines (Files, Variables, What to calculate, Base
-    period, Indices, Output files, Computing closed), with the summary panel (22.5rem,
-    sticky) at the inline end: each check with its mark, then the one Start button. Units
-    are never converted silently: each variable shows its units and how they are read
-    ("°C (K − 273.15)"); a unit Climpact cannot read says what it reads and how to
-    convert it, with a CDO line for the common cases.
+    hand? Try the sample grid" with its size. **Set-up**
+    (#293, the GridSetup board; `gridded/setup.html`, `gridded/setup_page.py`): a context
+    bar in the page's flow (the breadcrumb, the run's name as the h1 with Rename, "Climpact
+    has read the headers of 3 files. Nothing has been calculated yet.", and "Choose other
+    files" and "Forget this run" at its end), then one page of sections divided by
+    hairlines, without cards or numbers: Files (the Gridded files table, below: a row for
+    each variable's files, so a variable split by year is one row, "20 files, 1991–2010",
+    that opens to its list; Header opens a file's `ncdump -h` in a dialog), Variables (a
+    data table: Climpact needs, Variable in the files, Units in the file, Read as, Check;
+    then one mono line, "Together: …"), What to calculate (three radio cards; Percentile
+    thresholds under them), Base period (the years beside a timeline of the data's years,
+    then the coverage line), Indices (four columns by the variable needed, codes first;
+    the numbered indices' parameters in one row), Output files and Computing (closed, its
+    values in its summary). Beside them the summary panel (Gridded summary panel, below;
+    22.5rem, sticky; under the form below 64rem). Units are never converted silently: each
+    variable shows its units and how they are read ("°C (K − 273.15)", "mm/day (× 86400)");
+    a unit Climpact cannot read has a danger-tinted row and, under the table, what
+    Climpact reads and how to convert it, with a CDO command and Copy for ERA5's
+    precipitation in metres and hourly rates. Help is on request: a quiet link on What to
+    calculate, the parameters, Output files and Computing.
   - **A run** (#289, `gridded/_run_bar.html` on `components/context_bar.html`) has its
     own bar, sticky as a station's: "Gridded / run", the run's name as the h1 (named
     from its files until renamed: "era5 SEA 0.25°, 1961–2020", the sample "Sample
@@ -445,9 +456,10 @@ strips, worklist and detail pane.
     tabs **Map** (`/gridded/<run>/`), **Files** (`files/`) and **Set-up** (`setup/`).
     The old `results` address redirects to Map. Until #295 Map holds the explorer and,
     while the run calculates or after it failed, the job cards with their progress.
-    **Target:** Set-up's summary panel describes the run, and starting again keeps the
-    results until the new ones are ready (#293); while it calculates, or after it
-    failed, the Map tab shows the run status line and the stages table (#294); a
+    Set-up's summary panel describes the run ("This run": when, how long, what it wrote,
+    and what has changed since), and "Start again with changes" keeps the results on Map
+    and Files until the new ones are ready (#293). **Target:** while it calculates, or
+    after it failed, the Map tab shows the run status line and the stages table (#294); a
     failure names the setting that fixes it, with a link.
   - **Map** (#295, #296) is a data page in the Indices' three columns: the index rail
     (14rem, by theme, codes first, the frequencies each index has), the map, the cell pane
@@ -584,8 +596,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Interval plot | Pattern | The selected column beside the grid (#238): the code and "units per decade" in mono over the short name; a row a station, its name (a link to its index page) with its slope and interval, then a 360 x 16 line: the zero line, the interval as a thick muted line, the slope as a dot (the strong step of its direction when significant, `border-strong` when not); one axis under them, symmetric about zero, its ends round (`index_page.nice_ticks`). Stations left out say why under it ("Not shown: … no results"), then the key line and "CSV, all stations". Every column's plot is in the page, the others hidden. Its table view is the grid's column, its text summary the count of significant trends | significant, not significant, left out |
 | `empty_state` | Pattern | Nothing to show yet, with the next action. The Indices of a run that wrote no index table (every index skipped, #268): "No index to show" above the list of what could not be calculated, with "Replace the file" (the File sheet), in place of the rail, table and pane; its Indices tab, its Stations-table row and the run status line say "No indices" (#298) | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html`. A gridded run's Files (#289) frames each group (`gridded-group`), its hue dot before the name, the first open, and puts "Download these (zip)" beside the summary rather than in it (a link in a summary is a control in a control) | open, closed |
-| Gridded files table | Pattern | The set-up page's Files (#291, the GridSetup board's Files table; `gridded/_files_table.html`, `inspection.group_files`): a framed data table, a row for the files holding the same variables, joined along time. File: the name over its folder (locally) in mono, or for a variable split across files "20 files, 1991–2010" as a native `<details>` listing each file and its dates, over the folder (or the first and last names when hosted); Daily variables, Grid, Dates (`first → last`), Calendar in mono; Size at the end. Long names end in an ellipsis, whole in their `title`. A file that cannot be used has its own row, the reason in danger | one file, split files, list open, a file that cannot be used |
+| Gridded files table | Pattern | The set-up page's Files (#291, the GridSetup board's Files table; `gridded/_files_table.html`, `inspection.group_files`): a framed data table, a row for the files holding the same variables, joined along time. File: the name over its folder (locally) in mono, or for a variable split across files "20 files, 1991–2010" as a native `<details>` listing each file and its dates, over the folder (or the first and last names when hosted); Daily variables, Grid, Dates (`first → last`), Calendar in mono; Size; then Header (#293), a link to the row's first file's header as `ncdump -h` prints it, which `js/gridded.js` opens in a wide dialog (its own page without JavaScript). Long names end in an ellipsis, whole in their `title`. A file that cannot be used has its own row, the reason in danger | one file, split files, list open, a file that cannot be used |
 | Folder listing | Pattern | New gridded run's chooser (#292, the GridNew board; `gridded/_listing.html`, `gridded.listing`): one frame holding a path bar (the folders above as links in mono, separated by ›, the current one in medium weight; a 30px folder field in mono at the end) and a data table of the folder: a checkbox, Name, Daily variables, Dates (years), Size. Subfolders first, as links ("raw/"); a ticked file's row in the `selected` tint (no ink edge: several can be ticked); a file that cannot be chosen greyed, its checkbox off, the reason in the variables column ("– (no time axis)", "– (thresholds file)"). The links are the form's buttons, so it works without JavaScript and keeps what is ticked across folders; htmx swaps only the listing | a ticked file, a file that cannot be chosen, an empty folder, a folder that is not there |
+| Gridded summary panel | Pattern | The set-up's check (#293, the GridSetup board; `gridded/_summary.html`, `setup_page.panel_for`): a framed panel at the inline end, sticky, its title ("Ready to start"; "Before you start" with "1 problem to fix before starting:" and each problem linked to its field, in danger; "This run" after a run; "Calculating" or "Calculating again" while jobs run), then a list, each line a mark (✓ success, ✗ danger, i ink, ~ and · muted, drawn by CSS and named for screen readers) and a bold title before its sentence: Grid, Period, Variables, Base period, Writes, Disk, Cell-first copy, Time; after a run Calculated, Wrote, Settings and "Nothing changed yet." or "Changed: Base period."; then the one primary button, full width ("Start the calculation", "Start again with changes") and a muted line. Estimates say "about". htmx swaps it (and, out of band, the parts of the form that follow it) as the form changes; without JavaScript the posted form draws it | ready, a problem, after a run, changed, calculating again, a new start that failed |
 | Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,

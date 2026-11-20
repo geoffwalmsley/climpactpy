@@ -14,9 +14,16 @@ from:
 - **Units** (udunits2 ``ud.convert``): temperatures to ``degrees_C`` (from kelvin,
   ``value - 273.15``), precipitation to ``kg m-2 d-1`` (from ``kg m-2 s-1``,
   ``value * 86400``). Both are exactly what udunits computes.
-- **Time** is truncated to whole days; all files must have the same time axis. The
-  ``noleap`` (``365_day``) and ``360_day`` calendars are read as a
+- **Time** is truncated to whole days; the three variables must have the same time axis.
+  The ``noleap`` (``365_day``) and ``360_day`` calendars are read as a
   :class:`~climpact.calendars.CalendarDays` axis, as PCICt reads them in R.
+
+A variable may be split along time across several files (datasets such as AGCD, ERA5
+and CMIP6 come as a file per year or decade; #291). Its files are joined in the order of
+their first day, and must have the same grid, calendar and units, with no day in two
+files and none missing between one file and the next. Each file is decoded with its own
+attributes (packed files often have a scale factor of their own) before the join. R's
+Climpact reads each variable from one file.
 
 Each variable is converted to float64 before any arithmetic, as R reads every value as
 a double. The data are opened lazily with dask, chunked in blocks of cells with the
@@ -42,13 +49,14 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import netCDF4
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climpact.calendars import CalendarDays, DayAxis, canonical_calendar
+from climpact.calendars import CalendarDays, DayAxis, calendar_of, canonical_calendar
 from climpact.progress import Progress, Steps
 
 VARIABLES = ("tasmax", "tasmin", "pr")
@@ -177,6 +185,16 @@ def _axis(ds: xr.Dataset, dim: str) -> str | None:
 
 
 @dataclass(frozen=True)
+class FilePart:
+    """One file of a variable: its path and the time steps of the joined time axis it
+    holds, ``start`` to ``stop`` (excluded)."""
+
+    path: Path
+    start: int
+    stop: int
+
+
+@dataclass(frozen=True)
 class GriddedInput:
     """Daily TX, TN and precipitation on a grid, read lazily.
 
@@ -184,7 +202,8 @@ class GriddedInput:
     dask arrays with dimensions ``(time, y_dim, x_dim)``, chunked in blocks of cells
     with the whole time series in each chunk. ``files`` and ``names`` give the file and
     netCDF variable name of each; the file of ``tasmax`` is R's exemplar file, whose
-    coordinates and attributes outputs copy.
+    coordinates and attributes outputs copy. ``parts`` gives every file of each variable,
+    in time order, with the time steps it holds; ``files`` is the first of them.
 
     ``max_values``, ``rechunk`` and ``tmp_dir`` are :func:`open_grid`'s options of the
     same names, used by :meth:`block_reader`. ``calendar_days`` holds the time axis of
@@ -202,10 +221,17 @@ class GriddedInput:
     rechunk: bool | None = None
     tmp_dir: Path | None = None
     calendar_days: CalendarDays | None = None
+    parts: Mapping[str, tuple[FilePart, ...]] | None = None
 
     @property
     def exemplar(self) -> Path:
         return self.files["tasmax"]
+
+    def parts_of(self, variable: str) -> tuple[FilePart, ...]:
+        """The files of ``variable`` in time order (one, unless it is split along time)."""
+        if self.parts is not None and self.parts.get(variable):
+            return tuple(self.parts[variable])
+        return (FilePart(self.files[variable], 0, self.data.sizes[self.time_dim]),)
 
     @property
     def time(self) -> DayAxis:
@@ -243,37 +269,40 @@ class GriddedInput:
         their data: the largest, over the three variables, of the area of the files'
         chunks the blocks touch divided by the area of the grid. 1 for files chunked by
         cell or by block, about the number of blocks for files chunked by time step over
-        the whole grid. Contiguous (and netCDF-3) variables count as 1.
+        the whole grid. Contiguous (and netCDF-3) variables count as 1. For a variable
+        split across files, the worst of its files.
         """
         ny, nx = self.shape
         blocks = list(self.blocks())
         worst = 1.0
         for v in VARIABLES:
-            with netCDF4.Dataset(self.files[v]) as nc:
-                var = nc.variables[self.names[v]]
-                chunking = var.chunking()
-                dims = var.dimensions
-            if not isinstance(chunking, list):
-                continue
-            size = dict(zip(dims, chunking, strict=True))
-            cy, cx = size[self.y_dim], size[self.x_dim]
-            area = 0
-            for ys, xs in blocks:
-                rows = (ys.stop - 1) // cy - ys.start // cy + 1
-                cols = (xs.stop - 1) // cx - xs.start // cx + 1
-                area += min(rows * cy, ny) * min(cols * cx, nx)
-            worst = max(worst, area / (ny * nx))
+            for part in self.parts_of(v):
+                with netCDF4.Dataset(part.path) as nc:
+                    var = nc.variables[self.names[v]]
+                    chunking = var.chunking()
+                    dims = var.dimensions
+                if not isinstance(chunking, list):
+                    continue
+                size = dict(zip(dims, chunking, strict=True))
+                cy, cx = size[self.y_dim], size[self.x_dim]
+                area = 0
+                for ys, xs in blocks:
+                    rows = (ys.stop - 1) // cy - ys.start // cy + 1
+                    cols = (xs.stop - 1) // cx - xs.start // cx + 1
+                    area += min(rows * cy, ny) * min(cols * cx, nx)
+                worst = max(worst, area / (ny * nx))
         return worst
 
     def rechunk_bytes(self) -> int:
         """Size of the temporary file a rechunk writes: the raw values of the three
         variables, in their file types."""
-        nt = self.data.sizes[self.time_dim]
         ny, nx = self.shape
         total = 0
         for v in VARIABLES:
-            with netCDF4.Dataset(self.files[v]) as nc:
-                total += nt * ny * nx * nc.variables[self.names[v]].dtype.itemsize
+            for part in self.parts_of(v):
+                with netCDF4.Dataset(part.path) as nc:
+                    itemsize = nc.variables[self.names[v]].dtype.itemsize
+                total += (part.stop - part.start) * ny * nx * itemsize
         return total
 
     def will_rechunk(self) -> bool:
@@ -391,20 +420,30 @@ def _free_bytes(directory: Path | None) -> int:
 def _time_slabs(inp: GriddedInput) -> list[tuple[int, int]]:
     """Slabs of time steps of the whole grid holding at most ``max_values`` values of one
     variable (at least one time step), a multiple of the files' time chunks if they fit,
-    so that each chunk is decompressed once."""
+    so that each chunk is decompressed once. No slab crosses from one file of a variable
+    to the next."""
     nt = inp.data.sizes[inp.time_dim]
     ny, nx = inp.shape
     length = max(1, inp.max_values // (ny * nx))
     chunk = 1
+    edges = {0, nt}
     for v in VARIABLES:
-        with netCDF4.Dataset(inp.files[v]) as nc:
-            var = nc.variables[inp.names[v]]
-            chunking = var.chunking()
-            if isinstance(chunking, list):
-                chunk = max(chunk, dict(zip(var.dimensions, chunking, strict=True))[inp.time_dim])
+        for part in inp.parts_of(v):
+            edges.add(part.start)
+            with netCDF4.Dataset(part.path) as nc:
+                var = nc.variables[inp.names[v]]
+                chunking = var.chunking()
+                if isinstance(chunking, list):
+                    size = dict(zip(var.dimensions, chunking, strict=True))[inp.time_dim]
+                    chunk = max(chunk, size)
     if chunk <= length:
         length -= length % chunk
-    return [(t0, min(t0 + length, nt)) for t0 in range(0, nt, length)]
+    bounds = sorted(edges)
+    return [
+        (t0, min(t0 + length, stop))
+        for start, stop in zip(bounds[:-1], bounds[1:], strict=True)
+        for t0 in range(start, stop, length)
+    ]
 
 
 def _block_key(block: tuple[slice, slice]) -> tuple[int, int, int, int]:
@@ -416,48 +455,60 @@ class _TileFile:
     """The raw values of the three variables in a temporary file of tiles: for each time
     slab, each variable and each block, the block's values for the slab's days, in the
     file's own type, ``(time, y, x)``. Written in one sequential pass over the input;
-    a block is read back with one read per slab and variable."""
+    a block is read back with one read per slab and variable. A slab lies within one
+    file of each variable and is decoded with that file's type and attributes."""
 
-    def __init__(self, inp, f, slabs, blocks, offsets, dtypes, attrs):
+    def __init__(self, inp, f, slabs, blocks, offsets, decoding):
         self.inp = inp
         self.f = f
         self.slabs = slabs
         self.blocks = blocks
         self.offsets = offsets
-        self.dtypes = dtypes
-        self.attrs = attrs
+        self.decoding = decoding  # [slab][variable]: (dtype, attrs) of its file
 
     @classmethod
     def write(cls, inp: GriddedInput, f, slabs, steps: Steps) -> _TileFile:
         dims = (inp.time_dim, inp.y_dim, inp.x_dim)
         blocks = {_block_key(b): i for i, b in enumerate(inp.blocks())}
         offsets = np.zeros((len(slabs), len(VARIABLES), len(blocks)), dtype=np.int64)
-        dtypes, attrs = {}, {}
-        for v in VARIABLES:
-            # The raw variable as open_grid sees it (its type and attributes decide the
-            # decoding).
-            with xr.open_dataset(inp.files[v], mask_and_scale=False, decode_times=True) as ds:
-                dtypes[v] = ds[inp.names[v]].dtype
-                attrs[v] = dict(ds[inp.names[v]].attrs)
+        decoding: list[list[tuple[np.dtype, dict[str, Any]]]] = []
+        meta: dict[tuple[Path, str], tuple[np.dtype, dict[str, Any]]] = {}
+        # Only the files of the slab being copied are open: a variable may be split
+        # across hundreds.
         opened: dict[Path, netCDF4.Dataset] = {}
         try:
-            variables = {}
-            for v in VARIABLES:
-                path = inp.files[v]
-                if path not in opened:
-                    opened[path] = netCDF4.Dataset(path)
-                var = opened[path].variables[inp.names[v]]
-                var.set_auto_maskandscale(False)
-                variables[v] = var
             position = 0
             for k, (t0, t1) in enumerate(slabs):
+                parts = {
+                    v: next(p for p in inp.parts_of(v) if p.start <= t0 < p.stop) for v in VARIABLES
+                }
+                needed = {p.path for p in parts.values()}
+                for path in [path for path in opened if path not in needed]:
+                    opened.pop(path).close()
+                decoding.append([])
                 for j, v in enumerate(VARIABLES):
-                    var = variables[v]
+                    part = parts[v]
+                    if (part.path, v) not in meta:
+                        # The raw variable as open_grid sees it (its type and attributes
+                        # decide the decoding).
+                        with xr.open_dataset(
+                            part.path, mask_and_scale=False, decode_times=True
+                        ) as ds:
+                            raw = ds[inp.names[v]]
+                            meta[part.path, v] = (raw.dtype, dict(raw.attrs))
+                    decoding[k].append(meta[part.path, v])
+                    if part.path not in opened:
+                        opened[part.path] = netCDF4.Dataset(part.path)
+                    var = opened[part.path].variables[inp.names[v]]
+                    var.set_auto_maskandscale(False)
                     index = tuple(
-                        slice(t0, t1) if d == inp.time_dim else slice(None) for d in var.dimensions
+                        slice(t0 - part.start, t1 - part.start)
+                        if d == inp.time_dim
+                        else slice(None)
+                        for d in var.dimensions
                     )
                     order = [var.dimensions.index(d) for d in dims]
-                    slab = np.asarray(var[index], dtype=dtypes[v]).transpose(order)
+                    slab = np.asarray(var[index], dtype=meta[part.path, v][0]).transpose(order)
                     for ys, xs in inp.blocks():
                         i = blocks[_block_key((ys, xs))]
                         tile = np.ascontiguousarray(slab[:, ys, xs])
@@ -469,18 +520,21 @@ class _TileFile:
         finally:
             for nc in opened.values():
                 nc.close()
-        return cls(inp, f, slabs, blocks, offsets, dtypes, attrs)
+        return cls(inp, f, slabs, blocks, offsets, decoding)
 
     def load(self, block: tuple[slice, slice]) -> dict[str, np.ndarray]:
         inp = self.inp
         i = self.blocks[_block_key(block)]
         ys, xs = block
+        dims = (inp.time_dim, inp.y_dim, inp.x_dim)
         shape = (inp.data.sizes[inp.time_dim], ys.stop - ys.start, xs.stop - xs.start)
         out = {}
         for j, v in enumerate(VARIABLES):
-            values = np.empty(shape, dtype=self.dtypes[v])
+            decoded = np.empty(shape, dtype=np.float64)
             for k, (t0, t1) in enumerate(self.slabs):
-                view = memoryview(values[t0:t1]).cast("B")
+                dtype, attrs = self.decoding[k][j]
+                values = np.empty((t1 - t0, *shape[1:]), dtype=dtype)
+                view = memoryview(values).cast("B")
                 self.f.seek(int(self.offsets[k, j, i]))
                 done = 0
                 while done < len(view):
@@ -488,21 +542,10 @@ class _TileFile:
                     if not n:
                         raise OSError("rechunked file is truncated")
                     done += n
-            raw = xr.DataArray(
-                values, dims=(inp.time_dim, inp.y_dim, inp.x_dim), attrs=self.attrs[v]
-            )
-            x = _to_climpact_units(raw, v)
-            out[v] = x.transpose(inp.y_dim, inp.x_dim, inp.time_dim).values
+                raw = xr.DataArray(values, dims=dims, attrs=attrs)
+                decoded[t0:t1] = _to_climpact_units(raw, v).values
+            out[v] = decoded.transpose(1, 2, 0)
         return out
-
-
-def _find(datasets: dict[Path, xr.Dataset], name: str) -> Path:
-    found = [path for path, ds in datasets.items() if name in ds.data_vars]
-    if not found:
-        raise ValueError(f"variable {name!r} not found in {[str(p) for p in datasets]}")
-    if len(found) > 1:
-        raise ValueError(f"variable {name!r} is present in more than one input file")
-    return found[0]
 
 
 def _days(coord: xr.DataArray, name: str) -> DayAxis:
@@ -528,6 +571,116 @@ def _block_shape(ny: int, nx: int, cells: int) -> tuple[int, int]:
     return 1, max(cells, 1)
 
 
+@dataclass(frozen=True)
+class _Found:
+    """A variable in one file, as read from its header and coordinates."""
+
+    path: Path
+    axes: Mapping[str, str]  # T, Y and X: the dimension's name
+    dims: tuple[str, ...]
+    sizes: Mapping[str, int]
+    days: DayAxis
+    units: str | None
+    coords: Mapping[str, np.ndarray]  # the coordinate values of each dimension but time
+
+
+def _found(ds: xr.Dataset, path: Path, name: str) -> _Found:
+    raw = ds[name]
+    axes: dict[str, str] = {}
+    for dim in raw.dims:
+        axis = _axis(ds, dim)
+        if axis is None or axis in axes:
+            raise ValueError(f"{name}: cannot tell the axis of dimension {dim!r}")
+        axes[axis] = dim
+    if set(axes) != {"T", "Y", "X"}:
+        raise ValueError(f"{name}: expected dimensions time, Y and X, got {raw.dims}")
+    return _Found(
+        path=path,
+        axes=axes,
+        dims=tuple(raw.dims),
+        sizes=dict(raw.sizes),
+        days=_days(raw[axes["T"]], name),
+        units=raw.attrs.get("units"),
+        coords={
+            d: np.asarray(ds[d].values) for d in raw.dims if d != axes["T"] and d in ds.variables
+        },
+    )
+
+
+def _ordinals(days: DayAxis) -> np.ndarray:
+    """Each day as a count of days, to tell whether two days follow on."""
+    if isinstance(days, CalendarDays):
+        return days.ordinal
+    return days.values.astype("datetime64[D]").astype(np.int64)
+
+
+def _join_days(axes: Sequence[DayAxis]) -> DayAxis:
+    if len(axes) == 1:
+        return axes[0]
+    if isinstance(axes[0], CalendarDays):
+        return CalendarDays(
+            axes[0].calendar,
+            np.concatenate([a.year.to_numpy() for a in axes]),
+            np.concatenate([a.month.to_numpy() for a in axes]),
+            np.concatenate([a.day.to_numpy() for a in axes]),
+        )
+    return axes[0].append(list(axes[1:]))
+
+
+def _calendar_name(days: DayAxis) -> str:
+    return calendar_of(days) or "standard"
+
+
+def _labels(paths: Sequence[Path]) -> dict[Path, str]:
+    """How messages name each file: its name, or its whole path when two share a name."""
+    names = [p.name for p in paths]
+    return {p: (p.name if names.count(p.name) == 1 else str(p)) for p in paths}
+
+
+def _check_parts(name: str, found: Sequence[_Found], time_dim: str, labels) -> None:
+    """Raise ``ValueError`` naming the files when the files of one variable, in time
+    order, do not have the same grid, calendar and units, or overlap or leave a gap."""
+    for a, b in zip(found[:-1], found[1:], strict=True):
+        fa, fb = labels[a.path], labels[b.path]
+        if not len(a.days) or not len(b.days):
+            empty = fa if not len(a.days) else fb
+            raise ValueError(f"{name}: {empty} has no time steps")
+        same_grid = set(a.dims) == set(b.dims) and all(
+            a.sizes[d] == b.sizes[d]
+            and (a.coords.get(d) is None) == (b.coords.get(d) is None)
+            and (
+                a.coords.get(d) is None
+                or np.allclose(a.coords[d], b.coords[d], rtol=1e-6, atol=1e-9, equal_nan=True)
+            )
+            for d in a.dims
+            if d != time_dim
+        )
+        if not same_grid:
+            raise ValueError(f"{name}: {fb} does not have the grid of {fa}")
+        if calendar_of(a.days) != calendar_of(b.days):
+            raise ValueError(
+                f"{name}: {fa} is in the {_calendar_name(a.days)} calendar and {fb} in the "
+                f"{_calendar_name(b.days)} calendar"
+            )
+        ua = None if a.units is None else _normalise_units(a.units)
+        ub = None if b.units is None else _normalise_units(b.units)
+        if ua != ub:
+            raise ValueError(f"{name}: {fa} is in {a.units!r} and {fb} in {b.units!r}")
+        last, first = _ordinals(a.days)[-1], _ordinals(b.days)[0]
+        if first <= last:
+            end = a.days[-1] if _ordinals(a.days)[-1] <= _ordinals(b.days)[-1] else b.days[-1]
+            raise ValueError(
+                f"{name}: {fa} and {fb} overlap: both have the days from "
+                f"{b.days[0]:%Y-%m-%d} to {end:%Y-%m-%d}"
+            )
+        if first != last + 1:
+            raise ValueError(
+                f"{name}: a gap between {fa}, which ends on {a.days[-1]:%Y-%m-%d}, and {fb}, "
+                f"which starts on {b.days[0]:%Y-%m-%d}; the files of a variable must follow "
+                "on with no day missing"
+            )
+
+
 def open_grid(
     files: Sequence[str | Path],
     names: Mapping[str, str] | None = None,
@@ -538,9 +691,13 @@ def open_grid(
     """Open TX, TN and precipitation from one or more CF netCDF files.
 
     ``names`` maps ``tasmax``, ``tasmin`` and ``pr`` to the netCDF variable names
-    (default: the same names). Each variable must be in exactly one file, with
-    dimensions time, Y and X, and the files must share the time axis. Times may use the
-    standard (Gregorian), ``noleap`` (``365_day``) or ``360_day`` calendar.
+    (default: the same names). Each variable has dimensions time, Y and X, and is in one
+    file or split along time across several (one file per year, say): its files are
+    joined in the order of their first day, and must have the same grid, calendar and
+    units, with no day in two files and none missing between them (``ValueError``
+    naming the files otherwise). A file may hold more than one of the variables. The
+    three variables must end up with the same time axis. Times may use the standard
+    (Gregorian), ``noleap`` (``365_day``) or ``360_day`` calendar.
 
     The data are chunked in blocks of whole Y rows (or parts of a row) holding at most
     ``max_values`` values of the three variables, like climdex.pcic.ncdf's stripes
@@ -553,56 +710,82 @@ def open_grid(
     the copy is written (default: the system's temporary directory).
     """
     names = {**DEFAULT_NAMES, **(names or {})}
-    paths = [Path(f) for f in files]
+    paths = list(dict.fromkeys(Path(f) for f in files))
     if not paths:
         raise ValueError("at least one input file is needed")
-    datasets = {p: xr.open_dataset(p, mask_and_scale=False, decode_times=True) for p in paths}
-    where = {v: _find(datasets, names[v]) for v in VARIABLES}
+    labels = _labels(paths)
 
-    first = datasets[where["tasmax"]][names["tasmax"]]
-    axes = {}
-    for dim in first.dims:
-        axis = _axis(datasets[where["tasmax"]], dim)
-        if axis is None or axis in axes:
-            raise ValueError(f"{names['tasmax']}: cannot tell the axis of dimension {dim!r}")
-        axes[axis] = dim
-    if set(axes) != {"T", "Y", "X"}:
-        raise ValueError(f"{names['tasmax']}: expected dimensions time, Y and X, got {first.dims}")
+    # The header and coordinates of every file, read once.
+    found: dict[str, list[_Found]] = {v: [] for v in VARIABLES}
+    for path in paths:
+        with xr.open_dataset(path, mask_and_scale=False, decode_times=True) as ds:
+            for v in VARIABLES:
+                if names[v] in ds.data_vars:
+                    found[v].append(_found(ds, path, names[v]))
+    for v in VARIABLES:
+        if not found[v]:
+            raise ValueError(f"variable {names[v]!r} not found in {[str(p) for p in paths]}")
+    for v in VARIABLES:
+        found[v].sort(key=lambda f: _ordinals(f.days)[0] if len(f.days) else -1)
+    first = found["tasmax"][0]
+    axes = first.axes
     time_dim, y_dim, x_dim = axes["T"], axes["Y"], axes["X"]
 
-    cells = max_values // (len(VARIABLES) * first.sizes[time_dim])
+    parts: dict[str, tuple[FilePart, ...]] = {}
+    time = None
+    for v in VARIABLES:
+        ordered = found[v]
+        if any(f.axes != axes or set(f.dims) != set(first.dims) for f in ordered):
+            raise ValueError(f"{names[v]} does not have the dimensions of {names['tasmax']}")
+        _check_parts(names[v], ordered, time_dim, labels)
+        if any(ordered[0].sizes[d] != first.sizes[d] for d in (y_dim, x_dim)):
+            raise ValueError(f"{names[v]} does not have the grid of {names['tasmax']}")
+        t = _join_days([f.days for f in ordered])
+        if time is None:
+            time = t
+        elif not time.equals(t):
+            raise ValueError("the input files do not have the same time axis")
+        stops = np.cumsum([len(f.days) for f in ordered])
+        parts[v] = tuple(
+            FilePart(f.path, int(stop) - len(f.days), int(stop))
+            for f, stop in zip(ordered, stops, strict=True)
+        )
+    if not time.is_unique:
+        raise ValueError("the time axis has a day more than once")
+
+    cells = max_values // (len(VARIABLES) * len(time))
     by, bx = _block_shape(first.sizes[y_dim], first.sizes[x_dim], cells)
-    chunks = {time_dim: -1, y_dim: by, x_dim: bx}
     # Opened again with the blocks as dask chunks, so that reading a block reads only its
     # cells (rechunking from the file's own chunks would read whole time slices).
-    for path in set(where.values()):
+    chunks = {time_dim: -1, y_dim: by, x_dim: bx}
+    datasets: dict[Path, xr.Dataset] = {}
+    for path in dict.fromkeys(part.path for v in VARIABLES for part in parts[v]):
         with warnings.catch_warnings():
             # Blocks that split the files' own chunks are intended.
             warnings.filterwarnings("ignore", "The specified chunks separate", UserWarning)
             datasets[path] = xr.open_dataset(
                 path, mask_and_scale=False, decode_times=True, chunks=chunks
             )
-    time = None
     variables = {}
     for v in VARIABLES:
-        raw = datasets[where[v]][names[v]]
-        if set(raw.dims) != set(first.dims):
-            raise ValueError(f"{names[v]} does not have the dimensions of {names['tasmax']}")
-        t = _days(raw[time_dim], names[v])
-        if time is None:
-            time = t
-        elif not time.equals(t):
-            raise ValueError("the input files do not have the same time axis")
-        if raw.sizes != first.sizes:
-            raise ValueError(f"{names[v]} does not have the grid of {names['tasmax']}")
-        x = _to_climpact_units(raw.transpose(time_dim, y_dim, x_dim), v).drop_vars(time_dim)
+        # Each file decoded with its own attributes (missing value, packing), then joined.
+        pieces = [
+            _to_climpact_units(
+                datasets[part.path][names[v]].transpose(time_dim, y_dim, x_dim), v
+            ).drop_vars(time_dim)
+            for part in parts[v]
+        ]
+        if len(pieces) > 1:
+            x = xr.concat(
+                pieces, dim=time_dim, coords="minimal", compat="override", join="override"
+            ).chunk({time_dim: -1})
+        else:
+            x = pieces[0]
         variables[v] = x if isinstance(time, CalendarDays) else x.assign_coords({time_dim: time})
-    if not time.is_unique:
-        raise ValueError("the time axis has a day more than once")
     data = xr.Dataset(variables)
     return GriddedInput(
         data=data,
-        files=where,
+        files={v: parts[v][0].path for v in VARIABLES},
         names={v: names[v] for v in VARIABLES},
         time_dim=time_dim,
         y_dim=y_dim,
@@ -611,6 +794,7 @@ def open_grid(
         rechunk=rechunk,
         tmp_dir=None if tmp_dir is None else Path(tmp_dir),
         calendar_days=time if isinstance(time, CalendarDays) else None,
+        parts=parts,
     )
 
 
@@ -618,6 +802,7 @@ __all__ = [
     "DEFAULT_MAX_VALUES",
     "RECHUNK_AMPLIFICATION",
     "BlockReader",
+    "FilePart",
     "GriddedInput",
     "VARIABLES",
     "decode_ncdf4",

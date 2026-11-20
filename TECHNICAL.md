@@ -4869,8 +4869,8 @@ connection (the next poll carries on).
 job that never ran, that long after it was created. Running jobs are never deleted, nor
 are the jobs another app still shows: apps register them with `register_keeper(func)`,
 `func()` giving their ids (the stations app keeps every job a station or batch shows,
-`stations.retention.kept_jobs`, #231; the gridded app, where runs don't expire, every
-job a run shows, `gridded.retention.kept_jobs`, #301). Folders
+`stations.retention.kept_jobs`, #231; the gridded app every job a run shows,
+`gridded.retention.kept_jobs`, #301, #330). Folders
 under `RUNS_DIR` named like a job id but belonging to none (an interrupted upload) are
 deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
@@ -7057,21 +7057,27 @@ succeeded; then the tabs:
   and Set-up says so; while it calculates, Set-up says "Calculating again" and Gridded's
   State shows its progress. A run that never finished is started again in place.
 
-**Retention** (`gridded/retention.py`, #301). Gridded runs follow `WORKSPACE_EXPIRY`, as
-workspaces do. When it is on (hosted), `purge_expired_gridded` deletes a run and its own
-folder (uploads) `JOB_RETENTION_DAYS` after its last change (`GriddedRun.updated_at`:
-created, started, renamed), unless one of its four jobs (`thresholds_job`, `indices_job`
-and a new start's `next_thresholds_job`, `next_indices_job`) is queued or running; the
-jobs themselves keep the jobs app's rule. When it is off (local), a run stays until
-Forget this run deletes it: no run is purged, and `kept_jobs` (a keeper) keeps the jobs
-of every run, with their folders under `RUNS_DIR`, whatever their age; once the run is
-forgotten they fall back to the jobs app's rule. `GriddedRun.expires_at` is None then, so
+**Retention** (`gridded/retention.py`, #301, #330). Gridded runs follow
+`WORKSPACE_EXPIRY`, as workspaces do, and in both modes `kept_jobs` (a keeper) keeps the
+four jobs each run shows (`thresholds_job`, `indices_job` and a new start's
+`next_thresholds_job`, `next_indices_job`), with their folders under `RUNS_DIR`, whatever
+their age, as `stations.retention.kept_jobs` does for workspaces. When it is on (hosted),
+`purge_expired_gridded` deletes a run and its own folder (uploads) `JOB_RETENTION_DAYS`
+after its last change (`GriddedRun.updated_at`: created, started, renamed), unless one of
+its four jobs is queued or running, and deletes those jobs and their folders with it
+(`delete_jobs`), rather than leaving them to the next purge. So a run renamed after its
+jobs finished keeps its results until its own Kept until date (before #330 the jobs went
+`JOB_RETENTION_DAYS` after they finished, and the run was listed with its results gone).
+When it is off (local), a run stays until Forget this run deletes it: no run is purged;
+once the run is forgotten its jobs fall back to the jobs app's rule. Locally
+`GriddedRun.expires_at` is None, so
 `runs.kept_until` is empty: Gridded leaves out its Kept until column, the provenance line
 its "kept until", and the note under the list, the set-up's retention line and its "Ready
 to start" panel say runs stay on this computer until forgotten. Either way, folders under
 `<MEDIA_ROOT>/gridded/` that belong to no run are deleted once older than the period, and
 files read in place are never touched (`test_gridded_web.py`:
 `test_hosted_runs_and_their_jobs_go_after_the_retention_period`,
+`test_hosted_run_renamed_after_its_jobs_finished_keeps_them_until_it_expires`,
 `test_local_runs_and_their_jobs_stay_until_forgotten`, `test_delete_and_retention`).
 
 **New run and set-up:**

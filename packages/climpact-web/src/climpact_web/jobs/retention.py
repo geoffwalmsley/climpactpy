@@ -8,7 +8,8 @@ every ``JOB_CLEANUP_INTERVAL`` seconds; ``climpact-web manage purgejobs`` does i
 (or from cron, for a deployment without a worker running all the time).
 
 A job another app still shows is kept whatever its age: the stations app registers the
-jobs its workspaces show (:func:`register_keeper`), and they go with the workspace (#231).
+jobs its workspaces show (:func:`register_keeper`), and they go with the workspace (#231);
+the gridded app those its runs show, and they go with the run (#301, #330).
 """
 
 from __future__ import annotations

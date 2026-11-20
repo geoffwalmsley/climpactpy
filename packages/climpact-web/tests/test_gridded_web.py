@@ -406,7 +406,8 @@ def test_sample_run_end_to_end(client, tmp_path):
     names = sorted(run.indices_job.result["files"])
     assert "rx3day_ANN_climpact_historical_NA_1991-2010.nc" in names
     assert "spi_MON_climpact_historical_NA_1991-2010.nc" in names
-    assert len(names) == 9  # txx, fd, rx1day, rx3day: MON and ANN; spi: MON
+    assert "trends.nc" in names  # trends are on by default (#290)
+    assert len(names) == 10  # txx, fd, rx1day, rx3day: MON and ANN; spi: MON; trends.nc
     assert sorted(p.name for p in copy_to.iterdir()) == sorted(
         names + run.thresholds_job.result["files"]
     )
@@ -476,7 +477,7 @@ def test_sample_run_end_to_end(client, tmp_path):
     # Everything in one zip.
     response = client.get(f"/gridded/{run.pk}/download.zip")
     archive = zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content)))
-    assert len(archive.namelist()) == 10
+    assert len(archive.namelist()) == 11  # 9 index files, trends.nc and the thresholds
     assert all(n.startswith("climpact_gridded/") for n in archive.namelist())
 
 
@@ -523,6 +524,7 @@ def test_indices_with_a_thresholds_file(client):
     assert job.status == Status.SUCCEEDED, job.error
     assert sorted(job.result["files"]) == [
         "r95p_ANN_climpact_historical_NA_2001-2020.nc",
+        "trends.nc",
         "tx90p_ANN_climpact_historical_NA_2001-2020.nc",
         "tx90p_MON_climpact_historical_NA_2001-2020.nc",
     ]

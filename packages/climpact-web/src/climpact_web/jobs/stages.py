@@ -18,6 +18,7 @@ _LABELS = {
     "report": lambda: _("Writing the PDF report"),
     "rechunk": lambda: _("Preparing the input files"),
     "thresholds": lambda: _("Calculating the thresholds"),
+    "trends": lambda: _("Trends and the map"),
     "correlate": lambda: _("Calculating the correlations"),
     "failed": lambda: _("Failed"),
 }

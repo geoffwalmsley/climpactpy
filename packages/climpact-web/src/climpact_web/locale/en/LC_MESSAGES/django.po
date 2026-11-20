@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 09:55+0000\n"
+"POT-Creation-Date: 2026-11-20 10:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3139,7 +3139,7 @@ msgstr ""
 msgid "Late Start"
 msgstr ""
 
-#: core/views.py:149 jobs/models.py:21 jobs/stages.py:22
+#: core/views.py:149 jobs/models.py:21 jobs/stages.py:23
 #: stations/overview.py:144
 msgid "Failed"
 msgstr ""
@@ -6760,6 +6760,10 @@ msgid "Calculating the thresholds"
 msgstr ""
 
 #: jobs/stages.py:21
+msgid "Trends and the map"
+msgstr ""
+
+#: jobs/stages.py:22
 msgid "Calculating the correlations"
 msgstr ""
 

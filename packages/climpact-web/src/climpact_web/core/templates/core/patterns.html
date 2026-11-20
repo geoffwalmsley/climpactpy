@@ -377,6 +377,8 @@
         {% include "components/workspace_tabs.html" with tabs=workspace_demo label=workspace_label %}
         {% translate "Example: the first visit" as workspace_first_label %}
         {% include "components/workspace_tabs.html" with tabs=workspace_first label=workspace_first_label %}
+        {% translate "Example: a run that made no index" as workspace_no_indices_label %}
+        {% include "components/workspace_tabs.html" with tabs=workspace_no_indices label=workspace_no_indices_label %}
         <p>{% translate "Quality's tab shows the verdict of the checks: Checking… while they run, then Ready, Usable or Fix first in the verdict's colour, with the number of values that look wrong." %}</p>
         {% for label, tabs in workspace_verdicts %}
         {% include "components/workspace_tabs.html" with tabs=tabs label=label %}

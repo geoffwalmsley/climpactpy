@@ -364,6 +364,11 @@ def pattern_context(form):
             [("quality", "todo"), ("results", "locked"), ("files", "locked")],
             "quality",
         ),
+        # A run that made no index table, every value missing (#298).
+        "workspace_no_indices": workspace_demo(
+            [("quality", "fix", 87600), ("results", "empty"), ("files", "done")],
+            "results",
+        ),
         # Quality's tab shows the checks' verdict (#222): checking, then each level.
         "workspace_verdicts": [
             (

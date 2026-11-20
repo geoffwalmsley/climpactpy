@@ -63,7 +63,8 @@
   }
 
   .status-dot--attention,
-  .status-dot--stale {
+  .status-dot--stale,
+  .status-dot--empty {
     color: var(--color-warning);
   }
 

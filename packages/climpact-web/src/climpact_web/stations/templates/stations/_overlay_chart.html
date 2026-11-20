@@ -1,0 +1,77 @@
+{% load i18n ui %}{% comment %}
+The Overlay chart (#276, Overlay the series; stations/overlay.py): the text summary, the
+chart in its frame (the legend of the drawn stations, each a categorical slot, --chart-1 to
+--chart-8, with "Choose the stations drawn" when there are more than eight; the chart
+drawn on the server, which charts.js replaces from #overlay-chart-data), the stations not
+shown and why, then the values table, the chart's table view. On its page
+(workspace_overlay.html) and in the pattern library. Context: overlay (an
+overlay.Overlay), chart_data (its payload), overlay_url (the page, for the form), code.
+{% endcomment %}<p class="text-sm overlay-page__summary" id="overlay-chart-summary">{{ overlay.summary }}</p>
+
+{% if overlay.chart %}
+<figure class="index-figure overlay-figure" id="overlay-chart" data-chart-data="overlay-chart-data" aria-labelledby="overlay-title">
+  <div class="overlay-figure__key">
+    <ul class="chart__legend overlay-legend" aria-label="{% translate 'Stations drawn' %}">
+      {% for line in overlay.drawn %}<li><span class="chart__swatch swatch-chart-{{ line.slot }}" aria-hidden="true"></span><span class="overlay-legend__name" title="{{ line.name }}">{{ line.name }}</span>{% if line.out_of_date %} <span class="text-text-muted" title="{% translate 'These values are from before the last change.' %}"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</li>{% endfor %}
+    </ul>
+    {% if overlay.too_many %}
+    <details class="trend-choose"{% if overlay.chosen_too_many %} open{% endif %}>
+      <summary><span>{% translate "Choose the stations drawn" %}</span> <span class="font-mono text-xs text-text-muted">{% blocktranslate with drawn=overlay.drawn|length total=overlay.lines|length %}{{ drawn }} of {{ total }}{% endblocktranslate %}</span>{% icon "chevron-down" %}</summary>
+      <form class="trend-choose__form" method="get" action="{{ overlay_url }}">
+        <p class="m-0 text-sm text-text-muted">{% blocktranslate with total=overlay.lines|length trimmed %}The chart has eight colours, one for each station, and never repeats them, so it draws eight stations at most. Choose which; the table and the CSV have all {{ total }}.{% endblocktranslate %}</p>
+        {% if overlay.chosen_too_many %}<p class="m-0 text-sm" role="status">{% translate "More than eight were chosen: the first eight are drawn." %}</p>{% endif %}
+        <fieldset class="trend-choose__group overlay-choose__stations">
+          <legend class="sr-only">{% translate "Stations" %}</legend>
+          {% for line in overlay.lines %}
+          <label class="trend-choose__item"><input type="checkbox" name="stations" value="{{ line.slug }}"{% if line.drawn %} checked{% endif %}> <span class="overlay-legend__name" title="{{ line.name }}">{{ line.name }}</span></label>
+          {% endfor %}
+        </fieldset>
+        <div class="trend-choose__actions">
+          <button type="submit" class="button button--sm">{% translate "Draw these stations" %}</button>
+          <a href="{{ overlay_url }}">{% translate "Back to the first eight" %}</a>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% blocktranslate with code=code asvar chart_region %}Chart of {{ code }} at each station{% endblocktranslate %}<div class="index-figure__scroll" role="region" aria-label="{{ chart_region }}" tabindex="0">
+    {% with chart=overlay.chart %}<svg class="index-plot" viewBox="{{ chart.box }}" role="img" aria-label="{{ overlay.summary }}" focusable="false">
+      {% for tick in chart.y_ticks %}<line class="index-plot__grid" x1="{{ chart.left }}" y1="{{ tick.y }}" x2="{{ chart.right }}" y2="{{ tick.y }}"/><text class="index-plot__tick" x="{{ chart.tick_x }}" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+      <line class="index-plot__axis" x1="{{ chart.left }}" y1="{{ chart.top }}" x2="{{ chart.left }}" y2="{{ chart.bottom }}"/>
+      <line class="index-plot__axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+      {% if chart.zero is not None %}<line class="index-plot__zero" x1="{{ chart.left }}" y1="{{ chart.zero }}" x2="{{ chart.right }}" y2="{{ chart.zero }}"/>{% endif %}
+      <text class="index-plot__title" x="{{ chart.title_x }}" y="{{ chart.title_y }}" text-anchor="middle" transform="rotate(-90 {{ chart.title_x }} {{ chart.title_y }})">{{ chart.y_title }}</text>
+      {% for tick in chart.x_ticks %}<text class="index-plot__tick" x="{{ tick.x }}" y="{{ chart.label_y }}" text-anchor="{{ tick.anchor }}">{{ tick.text }}</text>{% endfor %}
+      {% for line in overlay.drawn %}<g class="overlay-plot__station--{{ line.slot }}">{% if line.path %}<path class="overlay-plot__line" d="{{ line.path }}"/>{% endif %}{% for dot in line.dots %}<circle class="overlay-plot__dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="2.5"/>{% endfor %}</g>{% endfor %}
+    </svg>{% endwith %}
+  </div>
+  {% include "components/chart_toolbar.html" with id="overlay-chart" %}
+  <div class="chart__plot index-figure__plot" id="overlay-chart-plot" data-chart-plot hidden tabindex="0" role="group" aria-roledescription="{% translate 'chart' %}" aria-labelledby="overlay-title" aria-describedby="overlay-chart-summary overlay-chart-keys"></div>
+  <div hidden data-chart-reveal>{% include "components/chart_readout.html" with id="overlay-chart" %}</div>
+</figure>
+{{ chart_data|json_script:"overlay-chart-data" }}
+{% else %}
+<p class="text-sm text-text-muted">{% translate "No station has values of this index, so there is nothing to draw." %}</p>
+{% endif %}
+{% if overlay.left_out %}<p class="text-xs text-text-muted">{% translate "Not shown:" %} {{ overlay.left_out|join:"; " }}</p>{% endif %}
+
+{% if overlay.rows %}
+{% comment %}A div: the table's scrolling region is the landmark, named by the heading.{% endcomment %}
+<div class="index-values overlay-values">
+  <div class="index-values__head"><h2 id="overlay-values-title">{% if overlay.units %}{% blocktranslate with code=code units=overlay.units %}{{ code }} at each station ({{ units }}){% endblocktranslate %}{% else %}{% blocktranslate with code=code %}{{ code }} at each station{% endblocktranslate %}{% endif %}</h2><span class="text-sm text-text-muted">{% translate "Most recent first" %}</span></div>
+  <div class="table-wrap table-wrap--data" role="region" aria-labelledby="overlay-values-title" tabindex="0">
+    <table class="table table--data overlay-table">
+      <thead><tr>
+        <th scope="col">{% if overlay.step == "month" %}{% translate "Month" %}{% else %}{% translate "Year" %}{% endif %}</th>
+        {% for line in overlay.lines %}<th scope="col" class="num"><span class="overlay-table__station">{% if line.drawn %}<span class="chart__swatch swatch-chart-{{ line.slot }}" aria-hidden="true"></span>{% endif %}<span class="overlay-legend__name" title="{{ line.name }}">{{ line.name }}</span></span>{% if line.out_of_date %}<span class="overlay-table__tag"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</th>{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for row in overlay.rows %}<tr>
+          <th scope="row" class="code">{{ row.when }}</th>
+          {% for value in row.values %}<td class="num">{% if value %}{{ value }}{% else %}<span class="text-text-muted" aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% translate "missing" %}</span>{% endif %}</td>{% endfor %}
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}

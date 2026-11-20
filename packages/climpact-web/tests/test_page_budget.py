@@ -92,8 +92,9 @@ ASSET_BUDGETS = {
     "icons/favicon.svg": 0.5 * KB,
     "chart-palette.json": 1.5 * KB,  # not linked by pages; for code that cannot read CSS
     # The interactive charts (#75), on chart pages only.
-    # 14 KB before the index page's layers, views and keyboard read-out (#283)
-    "js/charts.js": 16 * KB,
+    # 14 KB before the index page's layers, views and keyboard read-out (#283), 16 KB before
+    # Overlay the series (#276: a line a station, and the exports' legends that wrap)
+    "js/charts.js": 17 * KB,
     "vendor/uplot/uPlot.iife.min.js": 24 * KB,
     "vendor/uplot/uPlot.min.css": 1 * KB,
 }

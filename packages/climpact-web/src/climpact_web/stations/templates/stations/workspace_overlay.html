@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load charts i18n static ui %}{% comment %}
+Overlay the series (#276): one index's series at every station of the workspace, on a page
+of its own under Compare an index (the maintainer's decision on #276; no board draws it, so
+it follows DESIGN.md's chart rules). The workspace's context bar with Compare an index
+current; a link back to it; the index, codes first, with the CSV; the text summary; the
+chart in its frame (each drawn station a categorical slot, --chart-1 to --chart-8, in the
+overview's order, named in the legend; eight at most, chosen with "Choose the stations
+drawn" when there are more); the stations not shown and why; then the values as a table,
+every station's, most recent first (the chart's table view).
+
+The chart drawn on the server is the chart without JavaScript and in print; with it,
+charts.js draws the same lines from #overlay-chart-data (the read-out, zoom, move, Show all
+and PNG and SVG of the view), as the index page does (#283). Context from
+views_workspace.overlay_page (overlay: an overlay.Overlay, chart_data, overlay_url,
+csv_url, compare_url, waiting).
+{% endcomment %}
+{% block title %}{% blocktranslate with code=code name=space_name %}{{ code }} at each station: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block head %}{% if chart_data %}{% chart_scripts %}{% endif %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+
+  <section class="stack page-section" aria-labelledby="overlay-title">
+    <p class="m-0 text-sm"><a class="overlay-page__back" href="{{ compare_url }}">{% icon "arrow-left" %}<span>{% translate "Compare an index" %}</span></a></p>
+    {% if waiting %}
+    <h2 id="overlay-title"><code class="index-code">{{ code }}</code> {% translate "at each station" %}</h2>
+    <p class="text-sm text-text-muted">{% translate "The series appear once every station has been calculated." %}</p>
+    {% else %}
+    <div class="overlay-page__head">
+      <div class="overlay-page__title">
+        <p class="m-0 font-mono text-xs text-text-muted">{% if overlay.step == "month" %}{% if overlay.units %}{% blocktranslate with code=code units=overlay.units %}{{ code }} · {{ units }} · monthly values{% endblocktranslate %}{% else %}{% blocktranslate with code=code %}{{ code }} · monthly values{% endblocktranslate %}{% endif %}{% elif overlay.units %}{% blocktranslate with code=code units=overlay.units %}{{ code }} · {{ units }} · annual values{% endblocktranslate %}{% else %}{% blocktranslate with code=code %}{{ code }} · annual values{% endblocktranslate %}{% endif %}</p>
+        <h2 id="overlay-title" class="m-0">{% include "components/index_name.html" with code=overlay.choice.code name=overlay.choice.title title=True %} <span class="overlay-page__where">{% translate "at each station" %}</span></h2>
+      </div>
+      <a class="button button--secondary button--sm" href="{{ csv_url }}" download>{% icon "download" %}<span>{% translate "CSV, all stations" %}</span></a>
+    </div>
+    {% include "stations/_overlay_chart.html" %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

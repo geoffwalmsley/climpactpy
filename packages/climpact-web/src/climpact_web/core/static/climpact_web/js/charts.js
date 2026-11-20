@@ -12,7 +12,10 @@
  * "views" (the index page, #283: stations/index_page.py payload) also draws the base
  * period as a band, Sen's slope's 95% interval as a bow tie, the 11-year running mean and
  * the values left out as open points, as the page's server chart does, and switches
- * between its values and anomalies (setView).
+ * between its values and anomalies (setView). "overlay" (#276, stations/overlay.py
+ * payload): one index's series at several stations on shared axes, a line each in its
+ * categorical slot (--chart-1 to --chart-8, never cycled); the read-out names each station
+ * with a value.
  *
  * The data comes from data-chart-src (a URL) or data-chart-data (the id of a JSON script
  * in the page). data-chart-view names the first view; data-chart-at a value ("1944",
@@ -279,12 +282,40 @@
         return whenKey(p.step, v);
       },
       label: function (v) {
-        if (p.step === "month") {
-          var year = Math.floor(v);
-          return monthFormat.format(new Date(Date.UTC(year, Math.round((v - year) * 12 - 0.5))));
-        }
-        if (p.step === "day") return t("day") + " " + Math.round(v);
-        return String(Math.round(v));
+        return whenLabel(p.step, v);
+      }
+    };
+  }
+
+  // A value's x as the read-out writes it: "1996", "Mar 1996", "day 200".
+  function whenLabel(step, v) {
+    if (step === "month") {
+      var year = Math.floor(v);
+      return monthFormat.format(new Date(Date.UTC(year, Math.round((v - year) * 12 - 0.5))));
+    }
+    if (step === "day") return t("day") + " " + Math.round(v);
+    return String(Math.round(v));
+  }
+
+  /* Overlay the series (#276): a line a station, each in its own categorical slot. */
+  function overlayModel(p) {
+    var series = p.series.map(function (s) {
+      return { label: s.label, short: s.short, unit: p.units, token: s.token, values: s.values, overlay: true, thin: p.step === "month" };
+    });
+    return {
+      kind: "overlay",
+      time: false,
+      step: p.step,
+      x: p.x,
+      minSpan: (p.step === "month" ? 1 / 12 : 1) * 4,
+      panels: [{ key: "overlay", label: p.axis || p.units, series: series }],
+      weights: [1],
+      legend: series,
+      key: function (v) {
+        return whenKey(p.step, v);
+      },
+      label: function (v) {
+        return whenLabel(p.step, v);
       }
     };
   }
@@ -313,6 +344,11 @@
     }
     if (s.markers) out.points = { show: true, size: 6, width: 1.5, fill: pal.surface, stroke: c };
     if (s.line) out.width = 1.4;
+    if (s.overlay) {
+      // A value with no neighbour would draw nothing: a small dot (#276).
+      out.width = s.thin ? 1 : 1.6;
+      out.points = { show: true, size: 5, width: 0, fill: c, stroke: c, filter: lonely(s.values) };
+    }
     if (s.smooth) out.width = 2.2;
     if (s.gap) {
       // A value left out: an open point at the base-period mean (#237, #283).
@@ -329,6 +365,17 @@
       out.show = !flagsHidden;
     }
     return out;
+  }
+
+  /* The indices of a series' values with no value either side, for uPlot's points.filter. */
+  function lonely(values) {
+    var out = [];
+    for (var i = 0; i < values.length; i++) {
+      if (values[i] != null && (i === 0 || values[i - 1] == null) && (i === values.length - 1 || values[i + 1] == null)) out.push(i);
+    }
+    return function () {
+      return out;
+    };
   }
 
   function monthNames() {
@@ -550,7 +597,7 @@
         if (!window.uPlot) throw new Error("uPlot");
         self.payload = payload;
         self.view = self.el.getAttribute("data-chart-view") || "values";
-        self.model = payload.kind === "daily" ? dailyModel(payload) : indexModel(payload, self.view);
+        self.model = payload.kind === "daily" ? dailyModel(payload) : payload.kind === "overlay" ? overlayModel(payload) : indexModel(payload, self.view);
         self.fill();
         self.draw();
         self.wire();
@@ -749,6 +796,7 @@
         if (s.flag || s.gap) return;
         var v = s.values[idx];
         if (s.bars && v == null && model.kind === "index") return;
+        if (v == null && model.kind === "overlay") return; // a station without that year
         parts.push(s.short + " " + (v == null ? t("missing") : withUnit(value(model, v), s.unit)));
       });
     });
@@ -1006,8 +1054,17 @@
       return u.ctx.canvas;
     });
     var ratio = canvases[0].width / this.plots[0].width || 1;
-    var pad = 16 * ratio, head = 64 * ratio, foot = 28 * ratio;
+    var pad = 16 * ratio, head = 64 * ratio;
     var width = canvases[0].width + 2 * pad;
+    var family = fontFamily();
+    // The legend's items, wrapped onto as many rows as the chart's width needs (#276).
+    var measure = doc.createElement("canvas").getContext("2d");
+    measure.font = 12 * ratio + "px " + family;
+    var items = this.legendItems(function (label) {
+      return measure.measureText(label).width + 40 * ratio;
+    });
+    var rows = legendRows(items, width - 2 * pad);
+    var foot = 28 * ratio * Math.max(1, rows.length);
     var height = canvases.reduce(function (h, c) {
       return h + c.height;
     }, 0) + head + foot;
@@ -1015,7 +1072,7 @@
     out.width = width;
     out.height = height;
     var ctx = out.getContext("2d");
-    var family = fontFamily(), lines = this.heading();
+    var lines = this.heading();
     ctx.fillStyle = pal.surface;
     ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = pal.text;
@@ -1029,11 +1086,11 @@
       ctx.drawImage(c, pad, y);
       y += c.height;
     });
-    var x = pad;
     ctx.font = 12 * ratio + "px " + family;
-    var flagsHidden = this.flagsHidden;
-    this.model.legend.forEach(function (item) {
-      if (item.ring && !item.fixed && flagsHidden) return;
+    var top = y;
+    items.forEach(function (entry) {
+      var item = entry.item, x = pad + entry.x;
+      y = top + entry.row * 28 * ratio;
       var c = colour(pal, item.token);
       ctx.fillStyle = c;
       ctx.strokeStyle = c;
@@ -1050,13 +1107,39 @@
       }
       ctx.fillStyle = pal.text_muted;
       ctx.fillText(item.label, x + 20 * ratio, y + 16 * ratio);
-      x += ctx.measureText(item.label).width + 40 * ratio;
     });
     var name = this.fileName("png");
     out.toBlob(function (blob) {
       save(blob, name);
     });
   };
+
+  /* The exports' legend items, {item, width}, without hidden QC rings. */
+  Chart.prototype.legendItems = function (widthOf) {
+    var hidden = this.flagsHidden;
+    return this.model.legend.filter(function (item) {
+      return !(item.ring && !item.fixed && hidden);
+    }).map(function (item) {
+      return { item: item, width: widthOf(item.label) };
+    });
+  };
+
+  /* Place legend items on rows no wider than `width` (each gets x and row); returns the
+     rows. A long legend (the overlay's stations, #276) wraps. */
+  function legendRows(items, width) {
+    var rows = [], x = 0, row = 0;
+    items.forEach(function (entry) {
+      if (x > 0 && x + entry.width > width) {
+        x = 0;
+        row += 1;
+      }
+      entry.x = x;
+      entry.row = row;
+      rows[row] = true;
+      x += entry.width;
+    });
+    return rows;
+  }
 
   function niceTicks(min, max, count) {
     var step = Math.pow(10, Math.floor(Math.log10((max - min) / count || 1)));
@@ -1120,15 +1203,20 @@
       parts.push(g.join(""));
       y0 += u.height;
     });
-    var x = pad, legend = [];
-    model.legend.forEach(function (item) {
-      if (item.ring && !item.fixed && self.flagsHidden) return;
+    var legend = [];
+    var items = this.legendItems(function (label) {
+      return label.length * 6.5 + 40;
+    });
+    var rows = legendRows(items, width);
+    var top = y0;
+    items.forEach(function (entry) {
+      var item = entry.item, x = pad + entry.x;
+      y0 = top + entry.row * 28;
       var c = colour(pal, item.token);
       legend.push(item.ring ? "<circle " + attr({ cx: x + 7, cy: y0 + 12, r: 4.5, fill: "none", stroke: c, "stroke-width": 1.5 }) + "/>" : item.dash ? "<line " + attr({ x1: x, x2: x + 14, y1: y0 + 11.5, y2: y0 + 11.5, stroke: c, "stroke-width": 3, "stroke-dasharray": "6 3" }) + "/>" : "<rect " + attr({ x: x, y: y0 + 10, width: 14, height: item.box ? 10 : item.thick ? 4 : 3, fill: c }) + "/>");
       legend.push("<text " + attr({ x: x + 20, y: y0 + 16, fill: pal.text_muted }) + ">" + esc(item.label) + "</text>");
-      x += item.label.length * 6.5 + 40;
     });
-    var total = y0 + 28;
+    var total = top + 28 * Math.max(1, rows.length);
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" ' + attr({ width: width + 2 * pad, height: total, viewBox: "0 0 " + (width + 2 * pad) + " " + total, "font-family": family, "font-size": 12, fill: pal.text_muted }) + ">" +
       "<title>" + esc(lines[0]) + "</title><desc>" + esc(self.payload.summary || "") + "</desc>" +
       "<rect " + attr({ width: "100%", height: "100%", fill: pal.surface }) + "/>" +
@@ -1164,6 +1252,12 @@
      highest value of each pixel column (the look of the canvas at that width). */
   function svgSeries(s, x, vis, px, py, c, pal, bb) {
     var i, v, cols = {}, out = [];
+    if (s.overlay) {
+      // A value with no neighbour: a dot, as on the screen (#276).
+      lonely(s.values)().forEach(function (k) {
+        if (k >= vis[0] && k <= vis[1]) out.push("<circle " + attr({ cx: px(x[k]), cy: py(s.values[k]), r: 2.5, fill: c }) + "/>");
+      });
+    }
     if (s.flag || s.markers || s.gap) {
       for (i = vis[0]; i <= vis[1]; i++) {
         v = s.values[i];

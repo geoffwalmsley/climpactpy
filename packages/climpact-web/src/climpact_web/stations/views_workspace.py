@@ -1,5 +1,6 @@
 """The workspace's own pages (#234): its overview at ``/w/<id>/``, the overview's
-progress fragment, Compare an index (#238), Rename, Workspace settings and Undo.
+progress fragment, Compare an index (#238) and its overlay of an index's series (#276),
+Rename, Workspace settings and Undo.
 
 A workspace of one station opens that station straight away (the Flow board: no
 overview); one of two or more opens its overview (:mod:`.overview`), which replaced the
@@ -16,6 +17,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ngettext
@@ -24,7 +26,14 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 
 from climpact_web.core.limits import human_required
 from climpact_web.jobs.views import OWNER_KEY, poll_delay
-from climpact_web.stations import calculation, overview, trend_grid, workspace, workspace_files
+from climpact_web.stations import (
+    calculation,
+    overlay,
+    overview,
+    trend_grid,
+    workspace,
+    workspace_files,
+)
 from climpact_web.stations.forms import BasePeriodForm, QCParamsForm
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
 from climpact_web.stations.models import Workspace
@@ -150,6 +159,7 @@ def trends_context(request, space: Workspace, table: list, page: str) -> dict:
     query = "&".join(f"cols={c.code}" for c in found.columns)
     for plot in found.plots:
         plot.csv_url = f"{csv_url}?cols={plot.choice.code}"
+        plot.overlay_url = reverse("stations:workspace_overlay", args=[space.pk, plot.choice.code])
     return {
         "trends": found,
         "trends_page": page,
@@ -291,6 +301,67 @@ def compare_csv(request, workspace_id):
     code = workspace_files._UNSAFE.sub("_", codes[0])
     name = f"{base}_{code}_trend.csv" if len(codes) == 1 else f"{base}_trend_grid.csv"
     response["Content-Disposition"] = f'attachment; filename="{name}"'
+    return response
+
+
+# ---- Overlay the series (#276) -------------------------------------------------------------
+
+
+@never_cache
+@require_safe
+def overlay_page(request, workspace_id, code):
+    """Overlay the series (#276): the index ``code``'s series at every station with
+    values, on shared axes, from the interval plot's "Overlay the series"; its legend, text
+    summary, table view and CSV. ``?stations=`` chooses which eight are drawn when there
+    are more (the chart's categorical slots). It waits, as the trends do, while a station
+    is calculated."""
+    from climpact_web.stations.views_files import items_of
+
+    space = get_workspace(request, workspace_id)
+    items = items_of(request, space)
+    if len(items) == 1:
+        return redirect(items[0].station.url("results"))
+    if not items:
+        raise Http404
+    compare = reverse("stations:workspace_compare", args=[space.pk])
+    context = {
+        **bar_context(request, space, "compare"),
+        "space": space,
+        "space_export": not workspace_files.busy(items)
+        and any(e.source is not None for e in items),
+        "code": code,
+        "compare_url": f"{compare}?{urlencode({'index': code})}#trends",
+        "waiting": workspace_files.busy(items),
+    }
+    if not context["waiting"]:
+        wanted = [s for s in request.GET.getlist("stations") if s][:200]
+        found = overlay.for_index(items, code, wanted)
+        if found is None:
+            raise Http404
+        context.update(
+            overlay=found,
+            chart_data=overlay.payload(found) if found.chart else None,
+            overlay_url=reverse("stations:workspace_overlay", args=[space.pk, code]),
+            csv_url=reverse("stations:workspace_overlay_csv", args=[space.pk, code]),
+        )
+    return render(request, "stations/workspace_overlay.html", context)
+
+
+@never_cache
+@require_safe
+def overlay_csv(request, workspace_id, code):
+    """The overlay's CSV: the workspace's Indices file (station, index, year, month, value)
+    cut to the index ``code``'s rows, every station's."""
+    from climpact_web.stations.views_files import items_of
+
+    space = get_workspace(request, workspace_id)
+    items = items_of(request, space)
+    if workspace_files.busy(items):
+        raise Http404
+    response = HttpResponse(overlay.index_csv(items, code), content_type="text/csv; charset=utf-8")
+    base = workspace_files.download_name(space, "indices").removesuffix("_indices.csv")
+    safe = workspace_files._UNSAFE.sub("_", code)
+    response["Content-Disposition"] = f'attachment; filename="{base}_{safe}_indices.csv"'
     return response
 
 

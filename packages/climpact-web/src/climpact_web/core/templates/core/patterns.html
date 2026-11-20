@@ -446,6 +446,14 @@
       </div>
     </section>
 
+    <section class="pattern" id="overlay-chart-demo" aria-labelledby="overlay-title">
+      <h2 id="overlay-title">{% translate "Overlay chart" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Overlay the series: one index's series at every station, a line each in its categorical colour, in a fixed order and never repeated, so eight stations at most; with more, the user chooses which eight. Stations out of date are tagged, stations left out are named, and the table under it has every station." %}</p>
+      <div class="pattern__demo stack">
+        {% include "stations/_overlay_chart.html" with overlay=overlay_demo chart_data=overlay_demo_data overlay_url="#overlay-chart-demo" code="TXx" %}
+      </div>
+    </section>
+
     <section class="pattern" id="phone-header" aria-labelledby="phone-header-title">
       <h2 id="phone-header-title">{% translate "Phone header: ⋯ menu and Inputs bar" %}</h2>
       <p>{% translate "On a phone the station's name and a ⋯ menu share one line, and the page's actions are in the menu: a disclosure, so Enter opens it, Tab goes through its actions and Escape closes it. Under the tabs, the Inputs bar is the Inputs panel in one line: the base period, whether the settings are the defaults, and anything changed or running. Edit opens the inputs in a sheet that fills the screen, and each input's sheet opens over it. Only the tabs and the bar stay in view as the page scrolls." %}</p>

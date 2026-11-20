@@ -413,4 +413,139 @@
     font-size: 13px;
     font-variant-numeric: tabular-nums;
   }
+
+  /* == Overlay the series (#276; stations/workspace_overlay.html): one index's series at
+     every station, a page of its own under Compare an index. The chart's frame, its
+     legend of stations and the values table as the index page draws them (#237); each
+     drawn station a categorical slot, --chart-1 to --chart-8, never cycled. == */
+  .overlay-page__back {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1.5);
+  }
+
+  .overlay-page__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: --spacing(2) --spacing(4);
+  }
+
+  .overlay-page__title {
+    display: grid;
+    gap: --spacing(1);
+  }
+
+  .overlay-page__where {
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .overlay-page__summary {
+    max-inline-size: var(--container-prose);
+  }
+
+  /* As wide as its frame, never wider: the drawn chart's canvas must not hold the grid's
+     track (and the page) wide when the window narrows or the page is zoomed (#83). */
+  .overlay-figure {
+    grid-template-columns: minmax(0, 1fr);
+    min-inline-size: 0;
+    padding: --spacing(3.5) --spacing(4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .overlay-figure__key {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: --spacing(2) --spacing(5);
+  }
+
+  .overlay-legend {
+    flex: 1 1 24rem;
+    min-inline-size: 0;
+  }
+
+  /* A line's swatch, thicker than a series' default so eight hues tell apart. */
+  .overlay-legend .chart__swatch,
+  .overlay-table .chart__swatch {
+    flex: none;
+    inline-size: 1.25rem;
+    block-size: 4px;
+  }
+
+  .overlay-legend__name {
+    display: inline-block;
+    max-inline-size: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  .overlay-choose__stations {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+    gap: --spacing(1) --spacing(5);
+  }
+
+  .overlay-plot__line {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+  }
+
+  .overlay-plot__dot {
+    fill: var(--line);
+  }
+
+  .overlay-plot__station--1 { --line: var(--chart-1); }
+  .overlay-plot__station--2 { --line: var(--chart-2); }
+  .overlay-plot__station--3 { --line: var(--chart-3); }
+  .overlay-plot__station--4 { --line: var(--chart-4); }
+  .overlay-plot__station--5 { --line: var(--chart-5); }
+  .overlay-plot__station--6 { --line: var(--chart-6); }
+  .overlay-plot__station--7 { --line: var(--chart-7); }
+  .overlay-plot__station--8 { --line: var(--chart-8); }
+
+  /* The values table: a column a station, scrolling inside its frame both ways. */
+  .overlay-values .table-wrap--data {
+    max-block-size: 24rem;
+  }
+
+  .overlay-table thead th,
+  .overlay-table thead th.num {
+    font-family: var(--font-sans);
+    vertical-align: bottom;
+  }
+
+  .overlay-table__station {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1.5);
+  }
+
+  .overlay-table__tag {
+    display: block;
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .overlay-table .overlay-legend__name {
+    max-inline-size: 9rem;
+  }
+
+  @media (forced-colors: active) {
+    .overlay-plot__line {
+      stroke: CanvasText;
+    }
+
+    .overlay-plot__dot {
+      fill: CanvasText;
+    }
+  }
 }

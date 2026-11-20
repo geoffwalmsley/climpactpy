@@ -49,8 +49,9 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``max_values`` (values read at once), ``rechunk`` (``auto``, ``yes``, ``no``),
     ``tmp_dir`` (for the rechunked copy; default the job's own folder), ``copy_to`` (a
     folder the written files are also copied to, local mode); for thresholds also
-    ``out_file``; for indices also ``template``, ``indices``, ``thresholds_file`` and
-    ``params`` (IndexParams fields).
+    ``out_file``; for indices also ``template``, ``indices``, ``thresholds_file``,
+    ``params`` (IndexParams fields) and ``trends`` (default true: also write
+    ``trends.nc``, the stage "trends" after "indices", :mod:`climpact.gridded.trends`).
 
 The batch page (#80) creates batch jobs, the gridded pages (#85) the gridded ones and step
 5 of a station (#90) the sector ones.
@@ -583,5 +584,19 @@ def run_gridded_indices_job(ctx: JobContext) -> dict:
         progress=ctx.progress,
         indices=p.get("indices") or None,
     )
+    if p.get("trends", True):
+        from climpact.gridded.trends import TRENDS_FILE, write_grid_trends
+
+        trends = write_grid_trends(
+            paths,
+            ctx.output_dir / TRENDS_FILE,
+            int(p.get("base_start", 1971)),
+            int(p.get("base_end", 2000)),
+            latitude=inp.cell_latitude().values,
+            workers=int(p.get("workers", 1)),
+            progress=ctx.progress,
+        )
+        if trends is not None:
+            paths = [*paths, trends]
     copied = _copy_results(ctx, paths)
     return {"files": _relative(paths, ctx.output_dir), "copied_to": copied}

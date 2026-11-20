@@ -19,7 +19,11 @@ variable of R's thresholds netCDF bit for bit on the six gridded reference grids
 have one, and the gridded indices (`climpact gridded-indices`, #30, #87) reproduce every
 variable of all 88 index files R writes per grid, including the heatwave, EHF, SPI and
 SPEI files, bit for bit on all eight reference grids, three of them in the `noleap` and
-`360_day` calendars (#66; see [Gridded data](#gridded-data)).
+`360_day` calendars (#66; see [Gridded data](#gridded-data)). With `--trends` (and always
+in the web app) a gridded run also writes `trends.nc`, each cell's Sen's slope per decade,
+its 95% interval and base-period mean, and the grid mean, of every annual index (#290).
+R's gridded code has no counterpart; each cell's trend equals the station trend file's
+calculation on that cell's values (see [Gridded trends](#gridded-trends)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
 
@@ -35,7 +39,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Heatwaves | Tx90/Tn90 (HWM, HWA, HWN, HWD, HWF each), EHF (HWN, HWF, HWD, HWMD, HWPI, HWLI, HWPS, HWLS), daily EHF and ECF | |
 | Drought | SPI, SPEI (3, 6, 12 months and the custom scale `spei_months`) | |
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
-| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
+| Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, gridded trends (`trends.nc`, not in R; see [Gridded trends](#gridded-trends)), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
 | Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs; in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
@@ -107,7 +111,7 @@ Paths in the rest of this document (`src/climpact/...`, `tests/...`) are relativ
 src/climpact/
   cli.py             command line: `climpact run` (one station), `climpact batch` (many),
                      `climpact gridded-thresholds` and `climpact gridded-indices` (a netCDF
-                     grid), `climpact modules` (list the modules available
+                     grid; `--trends` also writes trends.nc), `climpact modules` (list the modules available
                      and their options),
                      `climpact sector-correlation` (sector data against a station already run)
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
@@ -140,6 +144,8 @@ src/climpact/
     drought.py       SPI and SPEI of every cell (spi_values, spei_values): climdex.spi,
                      climdex.spei and the SPEI package's spei() (spei_package), with
                      TLMoments' PWMs and lmom's pelglo, pelgam, cdfglo, cdfgam
+    trends.py        trends.nc (#290, not in R): sen_trends() (climpact.trends.sen_trend
+                     vectorised over cells), base_means(), grid_means(), write_grid_trends()
   qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
                      outliers with R's fivenum and boxplot.stats)
   data/
@@ -572,7 +578,9 @@ as it finishes. The pipeline passes it only when a callback was given.
 `[step/total] stage` (prefixed by the station name in a batch) to standard error, so
 standard output and the files written are unchanged, as does `climpact sector-correlation
 --progress`. `climpact gridded-thresholds` and `climpact gridded-indices` print
-`[done/total] time slabs rechunked` and `[done/total] blocks done`, unless `--quiet`.
+`[done/total] time slabs rechunked` and `[done/total] blocks done`, and `climpact
+gridded-indices --trends` then `[done/total] trends` (one step per annual series), unless
+`--quiet`.
 
 `tests/test_progress.py` checks that every stage arrives once, in order, numbered 1 to
 `total`, for the pipeline (built-in and plugin modules), a single station, a batch in one
@@ -1035,7 +1043,8 @@ cwd, `MON` only for SPI and SPEI, and `DAY` for tx95t. Parameterised indices are
 with their values (`rx7day`, `r30mm`, `wsdi5`, `csdi5`, `tx3tn3`, `txb3tnb3`, `hddheat18`,
 `cddcold18`, `gddgrow10`) and their `definition` attribute is rewritten as R does. All 88
 are ported. Station outputs the gridded code does not have: the custom index, Rx3day (the
-wrapper's `rxnday_n` is 7), the thresholds and trend files, the daily EHF/ECF series, the
+wrapper's `rxnday_n` is 7), the thresholds and trend files (`trends.nc`, written on
+request, is not in R; see [Gridded trends](#gridded-trends)), the daily EHF/ECF series, the
 SPI/SPEI custom scale, the QC files and plots.
 
 **Per cell, as R:**
@@ -1113,6 +1122,78 @@ accumulation, and uses `climpact.rdist`'s `qnorm` and `pgamma`; every SPI and SP
 of the five reference grids is identical to R's after rounding to float32. Not reachable
 with precipitation sums, and not reproduced: when `PELGAM` fails (`L1 <= L2`) R falls back
 to lmomco's `pargam`, gets `NULL` and stops; Python leaves the month missing.
+
+### Gridded trends
+
+R's gridded code writes no trends: `climpact.ncdf.wrapper.r` writes the index files only.
+The gridded map's Base mean, Anomaly and Trend views and its grid mean (#296) need them, so
+`gridded/trends.py` (#290) applies the station trend (`climpact.trends`, see
+[Trend file](#trend-file)) to every cell of the annual index files a run writes.
+`climpact gridded-indices --trends` writes `<out>/trends.nc` after the index files; the
+web app's `gridded-indices` job does so by default (its stage `trends`, "Trends and the
+map", see [Background jobs](#background-jobs)).
+
+```
+index files of one run
+  -> gridded.trends.write_grid_trends
+       annual_series        the annual series of the files
+       per series, per stripe of rows (max_cells, default 100,000 cells):
+                  sen_trends -> slope, lower, upper   batches of 512 cells on worker threads
+                  base_means, and the weighted sums of the grid mean
+       trends.nc            written under a temporary name, renamed when complete
+```
+
+**Which series.** Every index variable of each annual (`ANN`) file: one per file, ten in
+`hw_ANN` (`hwm_tx90` ... `hwf_tn90`) and eight in `hwEHF_ANN` (`EHF-HWMD` ...), each with
+its own variables; the `day_of_<index>` variables are dates and have none. Monthly files
+of indices that also have an annual file give no series of their own (the annual file is
+their annual series, as the station trend file's `annual` row uses the annual values).
+SPI and SPEI have only monthly files: their series is the 12-month scale's December value
+(the calendar year), which the station trend file also has as its `spi12`/`spei12` `DEC`
+row. `tx95t` (a day-of-year climatology) has none. All series must share the grid and the
+years (`ValueError` otherwise); with no annual series nothing is written (`None`).
+
+**Per cell**, for each series `<name>`:
+
+| Variable | Dimensions | What |
+| --- | --- | --- |
+| `<name>_slope` | Y, X | Sen's slope per decade: `sen_trend`'s slope (per year, `x` counting years) times 10 |
+| `<name>_lower`, `<name>_upper` | Y, X | its 95% interval (`confint.zyp`), per decade |
+| `<name>_base_mean` | Y, X | the mean of the base-period years that have a value, as the station index page's base-period mean (`index_page.base_mean`); missing when none has |
+| `<name>_grid_mean` | time | the mean over the cells with a value, weighted by the cosine of the cell's latitude (`cell_weights`; the input's `cell_latitude()`, or the files' Y coordinate) |
+
+The trend rules are the station's: missing unless at least 10 values and 70% of the years
+have one (`min_trend_data`). Missing cells (the fill value in the index file) stay missing.
+An infinite value (EHF-HWPS `-Inf`, see [Gridded indices](#gridded-indices)) counts as a
+value for the trend, as in the station code, but not for the means.
+
+**Equal to the station trend.** `sen_trends` computes `sen_trend` for a batch of series
+with the same arithmetic. The pairwise slopes of the valid values are the same numbers in
+another order (a pair with a missing value is NaN and sorts last). `x` is whole years, so
+it has no ties, and Kendall's float32 `Var(S)` reduces to `(n (n - 1) (2n + 5) -
+sum t (t - 1) (2t + 5)) / 18` over the float32 tie groups of `y`; its integer sums are
+exact in float32, whatever the order TAUK2 adds them in, for up to 200 values
+(`MAX_VECTOR_YEARS`). The bound positions are rounded half to even (`np.rint`, as Python's
+`round`), and only the four order statistics needed are found, with `np.partition` on the
+rows that need the same positions. R's median of an even count is R's extended-precision
+mean of the two middle values; for two doubles whose sum is exact in 64 bits (exponents at
+most 10 apart, or a zero) that is `(a + b) / 2` in double precision, and any other pair goes
+to `r_mean` (`_mean_of_two`). A series with an infinite value, more than 200 values, or
+bound positions outside the slopes (`confint.zyp`'s edge cases) goes to `sen_trend` itself.
+`tests/test_gridded_trends.py` checks that each cell's slope and bounds equal `sen_trend`
+bit for bit (series with ties, ties only in float32, heavy ties, constant series, missing
+values, too few values, infinite values, values of very different sizes; with and without
+threads), that `_mean_of_two` is `r_mean`, and that the file holds, per cell, the station
+trend of the values in the index file, with missing cells missing.
+
+**Writing.** Dimensions `time` (the years of the annual files, with their `time` values,
+attributes and bounds; the December values' for SPI and SPEI alone), Y and X (the index
+files' coordinates and attributes), `bnds`. Variables are float64 with fill value 1e20,
+compressed; each has `units` (the index's, `<units> per decade` for the slope and its
+bounds), `long_name`, `index_file`, and `cell_methods` for the means. Global attributes:
+`title`, `base_period`, `trend_period`, `trend_method`, `source`,
+`climpact_python_version`, `file_created`. See [Performance](#gridded-trends-1) for
+timings.
 
 ### Rechunking inputs chunked by time step
 
@@ -2491,6 +2572,7 @@ exercise only those said to be):
 | Gridded indices: bounds variables of X and Y, a `grid_mapping` variable and two-dimensional coordinate variables named in `coordinates` are copied to every index file | not copied, as for the thresholds; X and Y are float64 |
 | Gridded indices: `create.climdex.cmip5.filenames` names monthly files with years only (it looks for `_mon` in lower case) and needs a six-part template; `rxnday_n = 5` writes `rx5day` twice | the same names; a template with fewer parts is refused; `rx5day` is written once |
 | Gridded indices: `create.ncdf.output.files` gives tx95t's `time` a `calendar` of `365_day`, replaced by the input time's calendar when it has one; its `bounds` attribute names a variable that does not exist | the same |
+| R's gridded code (`climpact.ncdf.wrapper.r`) writes no trends, base-period means or grid means | **Not in R** (#290): `trends.nc` (`gridded/trends.py`, `climpact gridded-indices --trends`, on by default in the web app): each cell's Sen's slope per decade and 95% interval, computed as the station trend file does and equal to `climpact.trends.sen_trend` on the cell's values bit for bit; the base-period mean; the cos-latitude weighted grid mean. The index files are unchanged. No R reference; see [Gridded trends](#gridded-trends) |
 
 ### Quality control
 
@@ -2723,6 +2805,21 @@ So the four add about 0.1 s per cell (hw and hwEHF about 0.01 s each, SPI and SP
 0.06 s each, mostly the per-value `qnorm`, `pgamma` and exact sums in pure Python), and
 threads do not help them (they hold the GIL). All 20 variables of R's four files were
 identical to Python's with 1 and 4 threads (644,232 values).
+
+### Gridded trends
+
+`write_grid_trends` (#290) on synthetic annual index files, 55 indices of 60 years
+(1961-2020; half integer day counts, heavily tied, half to one decimal), every cell with
+values, Apple M-series laptop with other work running:
+
+| Grid | 1 thread | 4 threads | `trends.nc` |
+| --- | --- | --- | --- |
+| 38 x 50 (1,900 cells) | 3.8 s | 1.4 s | 3 MB |
+| 145 x 192 (27,840 cells, the ACCESS grid) | 47 s | 16 s | 33 MB |
+
+`sen_trend` called cell by cell takes about 0.17 ms per series, about 260 s for the ACCESS
+grid's 1.5 million series. Most of the time left is `np.partition` (the four order
+statistics of 1,770 slopes per series); reading and writing take under 10%.
 
 ## Web front end
 
@@ -4578,7 +4675,10 @@ holds what step 5 shows: each scatter plot's file and regression, read back from
 with the core's `regression`, and the correlation table's file), `gridded-thresholds` and `gridded-indices`
 (`write_grid_thresholds`, `write_grid_indices`; input files are read in place from the
 paths given; `max_values`, `rechunk`, `tmp_dir` (default the job's folder) and
-`copy_to`, a folder the written files are also copied to). The parameters of each are in
+`copy_to`, a folder the written files are also copied to; `gridded-indices` then writes
+`trends.nc` with `write_grid_trends` unless `trends` is false, as its last stage,
+`trends`, shown as "Trends and the map", and lists it last in the result's `files`; see
+[Gridded trends](#gridded-trends)). The parameters of each are in
 the module docstring. The batch page (#80) creates batch jobs, the gridded pages (#85)
 the gridded ones and step 5 of a station (#90) the sector ones. The `station` runner also takes `plot_title` (the settings' "Plot title", passed to
 `run_station`). The core is imported inside each runner, so the web server never imports
@@ -6726,7 +6826,9 @@ ignored.
    rather than in the job.
 3. `/gridded/<id>/results`: the jobs (thresholds first, then indices; the worker takes
    the oldest queued job first) with htmx-polled progress, including "Preparing the input
-   files" while the input is rechunked. When the last job finishes the fragment answers
+   files" while the input is rechunked and "Trends and the map" while `trends.nc` is
+   written after the indices (#290; the map's views that read it are #296, and its row
+   in the files table has no index or frequency). When the last job finishes the fragment answers
    `HX-Refresh` so the map appears. Then each job's files to download (a table with the
    index, frequency and size), "Download all (zip)" (`ZIP_STORED`, built in a
    temporary file), and the explorer.
@@ -7421,7 +7523,8 @@ uv run pytest -m browser    # the browser accessibility checks, before a PR touc
 - Compute gridded thresholds with
   `uv run climpact gridded-thresholds <netCDF files> --out <file> [--tmax ... --base-start ...]`.
 - Compute gridded indices with
-  `uv run climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N]`.
+  `uv run climpact gridded-indices <netCDF files> --out <dir> [--thresholds <file> --indices ... --workers N] [--trends]`
+  (`--trends` also writes `trends.nc`, see [Gridded trends](#gridded-trends)).
 - Correlate sector data with a station already run with
   `uv run climpact sector-correlation <station file> <sector CSV> --out <dir> [--no-detrend] [--plots] [--zip]`.
 - Run a station from the command line with

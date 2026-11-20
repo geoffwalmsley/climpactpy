@@ -253,6 +253,7 @@ def test_waiting_without_a_worker_says_so():
         ("plots:fd_ANN", "Drawing the plots"),
         ("write:tmin", "Writing the results"),
         ("thresholds", "Calculating the thresholds"),
+        ("trends", "Trends and the map"),
         ("stn_a: indices:climpact:fd", "stn_a: Calculating the indices"),
         ("something-new", "something-new"),
         ("", ""),
@@ -566,6 +567,12 @@ def test_gridded_runners(tmp_path):
     job = run_next()
     assert job.status == Status.SUCCEEDED, job.log
     assert job.result["files"] and all(f.endswith(".nc") for f in job.result["files"])
+    # Trends are on by default (#290): the last stage, after the indices.
+    assert job.result["files"][-1] == "trends.nc" and job.stage == "trends"
+    make_job(kind="gridded-indices", params={**common, "indices": ["fd"], "trends": False})
+    job = run_next()
+    assert job.status == Status.SUCCEEDED, job.log
+    assert "trends.nc" not in job.result["files"]
     make_job(kind="gridded-indices", params={"input_files": [str(tmp_path / "no.nc")]})
     assert run_next().error == f"Input file not found: {tmp_path / 'no.nc'}."
 

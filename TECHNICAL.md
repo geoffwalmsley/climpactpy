@@ -7602,7 +7602,11 @@ column.
   (60 years of random values, zlib level 4, Apple M-series laptop): a 700 x 900 grid's
   page takes 0.92 s on its first visit (the whole read and the run bar's count of cells
   with data included) and 0.08 s after, its PNG (263 KB) 0.1 s; a global 145 x 192
-  grid 0.18 s and 0.05 s. `test_gridded_map.py` holds both under a second.
+  grid 0.18 s and 0.05 s. `test_gridded_map.py` counts, rather than times, the chunks
+  each request decompresses (a wall-clock limit of a second failed on a GitHub runner,
+  #354): on both grids the first visit decompresses the file twice (read whole and
+  kept, and the run bar's count), the PNG and the values not at all; their time is only
+  held under 5 s.
 - *Threads.* The HDF5 library in the netCDF4 wheels is not built thread-safe, and the
   server answers requests on several threads (waitress): a Map page and its PNG, values
   and CSVs open the same files at once, which failed on CI with "NetCDF: Can't open HDF5
@@ -7692,7 +7696,8 @@ the report figure, the bins, breaks and scales by kind, the palettes against the
 the frame's orientation, cosine aspect and axes (a 0–360° global grid, a rotated grid
 without an outline), the outline's coastline and places, Go to and its errors, the form
 without JavaScript, the station box only for a station of this browser in the cell,
-every cell drawn on 145 x 192 and 700 x 900 grids within a second, and 404 for another
+every cell drawn on 145 x 192 and 700 x 900 grids from one read of the file (#354:
+chunks decompressed counted), and 404 for another
 session. Since #296 (`test_gridded_map_views.py`): the scale by view and kind (FD and
 CDD reversed, also through the page and the PNG's palette), the symmetric breaks, a
 cell's Trend value in the map's values, CSV and pane against `trends.nc` and

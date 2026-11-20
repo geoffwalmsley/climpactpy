@@ -1,6 +1,6 @@
 """A gridded run's Map (#295, the GridMap board): the bins and colour scales, the PNG with
 one pixel per cell, the map's frame (north up, west left, the cells' aspect), the bundled
-outline (coastline and places), every cell drawn on large grids within a second, the cell
+outline (coastline and places), every cell drawn on large grids reading the file once, the cell
 pane (Go to, the form without JavaScript, the stations of the browser's workspaces in the
 cell)."""
 
@@ -264,10 +264,98 @@ def test_monthly_and_heatwave_entries(client):
     assert 'segmented__item--off" aria-disabled="true"' in html  # no monthly file
 
 
+class ChunkReads:
+    """Counts, per variable, the chunks that the reads of every netCDF file opened from now
+    on make HDF5 decompress (a read decompresses every chunk it touches, whole): what a
+    large grid's Map costs, the same on any machine, where its time is not (#354)."""
+
+    def __init__(self, monkeypatch):
+        self.chunks: dict[str, int] = {}
+        real, counter = netCDF4.Dataset, self
+
+        class Variable:
+            def __init__(self, var):
+                self._var = var
+
+            def __getattr__(self, name):
+                return getattr(self._var, name)
+
+            def __len__(self):
+                return len(self._var)
+
+            def __getitem__(self, key):
+                name = self._var.name
+                counter.chunks[name] = counter.chunks.get(name, 0) + chunks_touched(self._var, key)
+                return self._var[key]
+
+        class Dataset:
+            def __init__(self, *args, **kwargs):
+                self._nc = real(*args, **kwargs)
+
+            def __getattr__(self, name):
+                return getattr(self._nc, name)
+
+            @property
+            def variables(self):
+                return {name: Variable(v) for name, v in self._nc.variables.items()}
+
+            def __getitem__(self, name):
+                return Variable(self._nc[name])
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                self._nc.close()
+
+        monkeypatch.setattr(netCDF4, "Dataset", Dataset)
+
+
+def chunks_touched(var, key) -> int:
+    """How many of ``var``'s chunks ``var[key]`` touches (none for a contiguous variable,
+    which is not compressed)."""
+    chunking = var.chunking()
+    if chunking == "contiguous":
+        return 0
+    key = key if isinstance(key, tuple) else (key,)
+    if Ellipsis in key:
+        at = key.index(Ellipsis)
+        key = key[:at] + (slice(None),) * (var.ndim - len(key) + 1) + key[at + 1 :]
+    key = key + (slice(None),) * (var.ndim - len(key))
+    touched = 1
+    for k, size, chunk in zip(key, var.shape, chunking, strict=True):
+        if isinstance(k, (int, np.integer)):
+            start = int(k) % size
+            stop = start + 1
+        else:
+            assert isinstance(k, slice), f"chunks_touched does not know a key {k!r}"
+            start, stop, _step = k.indices(size)
+        touched *= (stop - 1) // chunk - start // chunk + 1 if stop > start else 0
+    return touched
+
+
+def test_chunks_touched(tmp_path):
+    path = tmp_path / "txx_ANN_m_e_r_2001-2003.nc"
+    write_index(path, ny=250, nx=120)  # chunks (3, 100, 100): 3 x 2 of them
+    with netCDF4.Dataset(path) as nc:
+        var = nc.variables["txx"]
+        assert chunks_touched(var, slice(None)) == 6
+        assert chunks_touched(var, (1, slice(None), slice(None))) == 6  # a step: all of them
+        assert chunks_touched(var, (slice(None), 150, -1)) == 1  # a cell's series: one
+        assert chunks_touched(var, (Ellipsis, slice(0, 100), slice(None))) == 2
+        assert chunks_touched(var, (Ellipsis, slice(99, 101), slice(None))) == 4
+        assert chunks_touched(nc.variables["lat"], slice(None)) == 0
+
+
 @pytest.mark.parametrize("ny, nx", [(145, 192), (700, 900)])
-def test_every_cell_drawn_within_a_second(client, ny, nx):
+def test_every_cell_drawn_reading_the_file_once(client, monkeypatch, ny, nx):
     """A global 145 x 192 grid and a 700 x 900 one: the page, its PNG (one pixel a cell,
-    every cell) and the values each within a second, the first visit included."""
+    every cell) and the values. The core's files hold each cell's series in one chunk, so
+    a time step's read decompresses the whole file (#295: 19 s for the run's cell count
+    on a 700 x 900 grid, a step at a time). Counted, not timed (#354: a 1 s limit failed at
+    1.08 s on a GitHub runner): the first visit decompresses the file twice (read whole
+    and kept, and counted for the run bar), the PNG and the values not at all. The time
+    is only held under 5 s, catching what is slower by far (0.92 s on a laptop)."""
     rng = np.random.default_rng(0)
     values = (20 + 20 * rng.random((5, ny, nx))).astype(np.float32)
     values[:, 0, 0] = np.nan
@@ -277,11 +365,17 @@ def test_every_cell_drawn_within_a_second(client, ny, nx):
                     values=values)  # fmt: skip
 
     run = finished_run(client, {f"txx_ANN_m_e_r_{ny}_2001-2005.nc": write})
-    for url in ("", "map.png?index=txx", "map.f32?index=txx"):
+    whole = math.ceil(ny / 100) * math.ceil(nx / 100)  # the file's chunks (5, 100, 100)
+    maps._cache.clear()
+    maps._edges.clear()
+    reads = ChunkReads(monkeypatch)
+    for url, times in (("", 2), ("map.png?index=txx", 0), ("map.f32?index=txx", 0)):
+        reads.chunks.clear()
         start = time.perf_counter()
         response = client.get(f"/gridded/{run.pk}/{url}")
         assert response.status_code == 200
-        assert time.perf_counter() - start < 1.0, url
+        assert time.perf_counter() - start < 5.0, url
+        assert reads.chunks.get("txx", 0) <= times * whole, (url, reads.chunks, whole)
         if url.startswith("map.png"):
             pixels, _plte, _alpha = read_png(response.content)
             assert pixels.shape == (ny, nx)

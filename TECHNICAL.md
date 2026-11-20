@@ -7368,6 +7368,22 @@ once with the map part (`X-Climpact-Part: map`), as a link in the map does: htmx
 `<script>` elements from what it swaps (`allowScriptTags: false`), so the map's data
 could not come in the poll's answer. A thresholds-only run gets its note instead.
 
+**A thresholds-then-indices run works out its thresholds in both jobs** (#333, decided
+2026-11-20: kept as it is). The indices job of a `task: both` run is queued with no
+thresholds file and computes its own, as R's indices screen does, rather than reading the
+file the thresholds job writes. The input of such a run always covers the base period,
+and the percentile indices then need climdex's in-base bootstrapped thresholds in the base
+years (`compute_block_thresholds`, `bootstrap_quantiles`), which a thresholds file does
+not hold: `check_thresholds_file` refuses one for data with a base-period day, as R does
+(see [Gridded indices](#gridded-indices)). What the file could replace, the out-of-base
+percentiles, is a small part of the indices job: on the sample grid (3 × 4 cells,
+1991-2010, base 1991-2000, one core) the indices job took 4.6 s, its thresholds 1.9 s, of
+which the bootstrap 1.87 s and the out-of-base percentiles 0.01 s. The two jobs stay
+independent (several workers run them side by side), and each opens and checks the files
+and, for files chunked by time, makes its own cell-first copy (a temporary file that
+lasts one job, `GriddedInput.block_reader`), which the stages table shows in the Indices
+row.
+
 **Starting again keeps the finished stages.** `views.queue_jobs` keeps a finished job of
 the last start (or of the results shown, for a new start of a finished run) whose
 parameters are those of the new start but for the computing ones (`workers`,

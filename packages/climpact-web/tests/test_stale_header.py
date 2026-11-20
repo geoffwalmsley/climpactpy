@@ -5,9 +5,13 @@ settings), not the new inputs, and "Download all" says it is out of date and is 
 the primary action, in the context bar, in its ⋯ menu for phones and on Files. Checked for
 a workspace of one station and for a station in a workspace of several, whose settings are
 the workspace's (#254). After a new file, Quality's line and the results' describe the
-file their checks and run read (#269), recorded with each job."""
+file their checks and run read (#269), recorded with each job, and so does each station's
+entry in the workspace's provenance file, ``climpact_run.json`` (#307)."""
 
+import io
+import json
 import re
+import zipfile
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -17,7 +21,7 @@ from test_workspace import edit, in_use, page
 from test_workspace_settings import shared_workspace
 
 from climpact_web.jobs.models import Status
-from climpact_web.stations import workspace
+from climpact_web.stations import workspace, workspace_files
 from climpact_web.stations.forms import QCParamsForm
 from climpact_web.stations.views import sample_bytes
 
@@ -244,3 +248,97 @@ def test_jobs_from_before_the_record_describe_the_current_file(client):
     assert workspace.shown_qc(analysis) == qc and workspace.shown_run(analysis) == run
     assert describes(provenance(page(client, analysis, "quality")), NEW_FILE)
     assert describes(provenance(page(client, analysis, "indices")), NEW_FILE)
+
+
+# ---- the provenance file of out-of-date results (#307) -------------------------------------
+
+
+def files_record(client, space) -> dict:
+    """``climpact_run.json`` of the workspace's Everything zip, as Files serves it."""
+    response = client.get(f"/w/{space.pk}/files/everything.zip")
+    assert response.status_code == 200, response.get("Location")
+    data = b"".join(response.streaming_content)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        return json.loads(archive.read(workspace_files.PROVENANCE_FILE))
+
+
+def saved_record(client, space) -> dict:
+    """``climpact_run.json`` of the workspace file (Save file), made at any time."""
+    response = client.get(f"/w/{space.pk}/workspace.zip")
+    data = b"".join(response.streaming_content)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        return json.loads(archive.read(workspace_files.PROVENANCE_FILE))
+
+
+def made_from(entry) -> tuple:
+    return entry["file"], entry["sha256"], entry["years"], entry["lat"], entry["lon"]
+
+
+def test_the_provenance_file_describes_what_out_of_date_results_were_made_from(client):
+    """After a new file and new coordinates, a station's entry in ``climpact_run.json``
+    describes the file and coordinates its results in the zip were made from, until its
+    new results are ready."""
+    (first, _qc, run), (second, _qc2, run2) = shared_workspace(client, 2)
+    space = first.workspace
+    old = (SYDNEY, run.inputs["file"], [1936, 2015], first.latitude, first.longitude)
+    record = files_record(client, space)
+    methods = workspace_files.methods_text(record)
+    by_name = {s["name"]: s for s in record["stations"]}
+    assert made_from(by_name[first.station_name]) == old
+    assert "results" not in by_name[first.station_name]
+    edit(client, first, "file", {"station_file": shorter_file()}, back="quality")
+    edit(
+        client,
+        first,
+        "station",
+        {"station_name": first.station_name, "latitude": "-33.5", "longitude": "151"},
+    )
+    first.refresh_from_db()
+    new = (NEW_FILE[2], first.file_hash, [1990, 2015], -33.5, 151.0)
+    new_qc, new_run = first.qc_job, first.indices_job
+    assert new_run.status == Status.QUEUED and new[1] != old[1]
+    # While its run is on the way the station has no results: Files waits, and the
+    # workspace file's record describes the file it holds, the new one.
+    assert client.get(f"/w/{space.pk}/files/everything.zip")["Location"].endswith("/files/")
+    entry, other = saved_record(client, space)["stations"]
+    assert made_from(entry) == new and entry["results"] == "none (waiting)"
+    assert made_from(other)[1] == run2.inputs["file"] and "results" not in other
+    # Cancelled: the old results are in the zip again, described by what made them.
+    for job in (new_qc, new_run):
+        job.status = Status.CANCELLED
+        job.save()
+    record = files_record(client, space)
+    entry, other = record["stations"]
+    assert made_from(entry) == old
+    changes = "the file and the coordinates"
+    assert entry["results"] == f"out of date: made before a change to {changes}"
+    assert "results" not in other
+    # "Copy methods text" counts the station's results as before: it names no file.
+    assert workspace_files.methods_text(record) == methods
+    # Checked and calculated again: the entry describes the new file and coordinates.
+    thresholds = QCParamsForm.initial_for(space.qc_params)
+    edit(client, first, "thresholds", thresholds, back="quality")
+    client.post(f"/w/{space.pk}/{first.slug}/recalculate", {"recalculate": "1"})
+    first.refresh_from_db()
+    assert run_next() == first.qc_job
+    finish(first.indices_job)
+    entry, _other = files_record(client, space)["stations"]
+    assert made_from(entry) == new and "results" not in entry
+
+
+def test_the_provenance_file_falls_back_to_the_current_file_for_older_jobs(client):
+    """A run queued before #269 recorded the file's hash but not its name and years: its
+    entry names the current file, hash and years (never a mix of the two files), and the
+    coordinates the run recorded."""
+    (first, _qc, run), _second = shared_workspace(client, 2)
+    run.inputs = {k: v for k, v in run.inputs.items() if k != "data"}
+    run.save()
+    edit(client, first, "file", {"station_file": shorter_file()}, back="quality")
+    first.refresh_from_db()
+    for job in (first.qc_job, first.indices_job):
+        job.status = Status.CANCELLED
+        job.save()
+    entry = files_record(client, first.workspace)["stations"][0]
+    current = (NEW_FILE[2], first.file_hash, [1990, 2015], first.latitude, first.longitude)
+    assert made_from(entry) == current
+    assert entry["results"] == "out of date: made before a change to the file"

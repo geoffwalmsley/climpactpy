@@ -1,0 +1,66 @@
+{% load i18n %}{% comment %}
+A gridded run's calculation on its Map tab (#294, the GridRun board; gridded.stages.view):
+the run status line (the workspace's pattern: one line, a bar, Cancel; where it failed or
+was cancelled, with "Change the settings" and "Forget this run"), then the stages table
+(each stage, its state with a bar on the one running, and its time), on failure what to
+change with a link to it on Set-up and the run's log, and beside them what is being
+calculated. A new start of a finished run (#293, ``progress.again``) shows the line above
+the results it will replace, with its stages in a disclosure.
+
+Polled by htmx (outerHTML) while the run calculates (gridded:progress): the status line's
+sentence is announced through #announcer (data-announce), no more often than the poll and
+every 10 s at most, at once when the run stops. When the run finishes the poll's answer
+puts the map in this block's place (gridded/_run_finished.html).
+Context: run, progress (gridded.stages.RunProgress); bar_update (the poll's answer once the
+run stops: the bar too, gridded/_run_bar_update.html).
+{% endcomment %}{% if bar_update %}{% include "gridded/_run_bar_update.html" %}{% endif %}{% with p=progress status=progress.status %}
+<div id="gridded-stages" class="gridded-stages" data-status="{% if p.active %}running{% else %}{{ status.tone }}{% endif %}"
+  {% if p.active %}hx-get="{% url 'gridded:progress' run.pk %}?was_active=1{% if p.again %}&amp;again={% if run.indices_job %}map{% else %}note{% endif %}{% endif %}"
+  hx-trigger="load delay:{{ p.delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  <div class="run-status run-status--{{ status.tone }} gridded-stages__status" role="status">
+    <div class="run-status__text">
+      <p class="run-status__line m-0 text-sm" data-announce{% if not p.active %}="now"{% endif %}><strong>{{ status.head }}</strong>{% if status.rest %} <span>{{ status.rest }}</span>{% endif %}</p>
+      {% if p.active %}<progress class="meter gridded-stages__bar" max="100"{% if status.percent is not None %} value="{{ status.percent }}"{% endif %} aria-hidden="true"></progress>{% endif %}
+    </div>
+    {% if status.links %}
+    <div class="run-status__links">
+      {% for link in status.links %}
+      {% if link.post %}<form method="post" action="{{ link.url }}">{% csrf_token %}<button type="submit" class="link-button">{{ link.label }}</button></form>
+      {% else %}<a href="{{ link.url }}">{{ link.label }}</a>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if p.worker_missing %}
+  {% translate "No calculation worker is running, so this cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
+  {% include "components/alert.html" with kind="warning" message=worker_message title="" %}
+  {% endif %}
+
+  {% if p.again %}
+  <details class="disclosure gridded-stages__again"{% if p.failure %} open{% endif %}>
+    <summary>{% translate "Stages of the new start" %}</summary>
+    <div class="disclosure__body stack stack--sm">
+      {% include "gridded/_stages_table.html" %}
+    </div>
+  </details>
+  {% else %}
+  <div class="gridded-stages__body">
+    <section class="gridded-stages__main stack stack--sm" aria-labelledby="stages-title">
+      <h2 id="stages-title" class="gridded-stages__title">{% translate "Stages" %}</h2>
+      {% include "gridded/_stages_table.html" %}
+    </section>
+
+    <aside class="gridded-stages__about" aria-labelledby="about-title">
+      <h2 id="about-title">{{ p.about_title }}</h2>
+      <dl class="gridded-stages__facts">
+        {% for label, value in p.facts %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+      </dl>
+      <a class="text-sm" href="{% url 'gridded:setup' run.pk %}">{% translate "All settings (Set-up)" %}</a>
+      {% if p.about_note %}<p class="gridded-stages__note">{{ p.about_note }}</p>{% endif %}
+    </aside>
+  </div>
+  {% endif %}
+</div>
+{% endwith %}

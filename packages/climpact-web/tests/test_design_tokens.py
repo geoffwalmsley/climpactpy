@@ -330,7 +330,8 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # Size budget (#71 aims for a small stylesheet; the page budgets are #82's). One compiled
 # stylesheet for every page since #118, replacing main.css, theme-dark.css and the page
 # stylesheets.
-# bytes, minified (142,000 before the gridded map and its eight-bin scales, #295;
+# bytes, minified (168,000 before a gridded run's stages, #294;
+# 142,000 before the gridded map and its eight-bin scales, #295;
 # 140,000 before a gridded run's pages, #289; 131,000 before the landing
 # page and Workspaces, #242; 124,000 before
 # the trend grid, #238; 123,000 before the workspace
@@ -348,14 +349,15 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # and the workspace header, #197; 71,000 before the colour roles and theme hues, #196;
 # 154,000 before the gridded map and its eight-bin scales, #295; 142,000 before the
 # gridded set-up page and its summary panel, #293)
-CSS_BUDGET = 168_000
-# gzipped: 25 KB before #295 (the gridded map), 23.5 KB before #293 (the gridded set-up
+CSS_BUDGET = 170_000
+# gzipped: 27,250 before #294 (a gridded run's stages), 25 KB before #295 (the gridded
+# map), 23.5 KB before #293 (the gridded set-up
 # page), 23.25 KB before #291 (the set-up page's Files table), 22 KB before #242,
 # 20.25 KB before #238, 19.25 KB before #233, 18.3 KB before #264, 18 KB before
 # #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before #227, 15.5 KB before #203, 15 KB
 # before #202, 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197, 13 KB before
 # #196
-CSS_GZIP_BUDGET = 27_250
+CSS_GZIP_BUDGET = 27_500
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

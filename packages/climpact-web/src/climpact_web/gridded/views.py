@@ -15,11 +15,13 @@ of its own, like a workspace (#289, the Grid boards):
   changes (``gridded:checks``) and again with the core's own reader before anything runs.
   Before a run it has a breadcrumb; after, it is the run's Set-up tab, and starting again
   keeps the results until the new ones are ready.
-- ``gridded:run`` (``<run>/``), the run's Map tab: the thresholds and indices jobs with
-  their progress (the rechunking stage included) while they run, then the index rail, the
-  map and the cell pane (#295, :mod:`climpact_web.gridded.map_page`); ``gridded:map_png``,
-  ``gridded:map_values`` and the map's and cell's CSVs serve it. The old
-  ``<run>/results`` address redirects here.
+- ``gridded:run`` (``<run>/``), the run's Map tab: while the run calculates, or after it
+  failed or was cancelled, one status line and the run's stages, and on failure what to
+  change (#294, :mod:`climpact_web.gridded.stages`; ``gridded:progress`` polls them and
+  swaps the map in when the run finishes, ``gridded:cancel`` cancels it); then the index
+  rail, the map and the cell pane (#295, :mod:`climpact_web.gridded.map_page`);
+  ``gridded:map_png``, ``gridded:map_values`` and the map's and cell's CSVs serve it. The
+  old ``<run>/results`` address redirects here.
 - ``gridded:files`` (``<run>/files/``), the Files tab: the index files grouped by theme,
   variable needed or frequency, each group with its zip; Download all, the links for
   ``wget -i`` and the run's record (``run.json``, the log).
@@ -51,7 +53,6 @@ from django.forms.utils import ErrorDict
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.cache import patch_vary_headers
 from django.utils.http import urlencode
 from django.utils.translation import gettext as _
@@ -61,7 +62,7 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 
 from climpact_web.core import numbers
 from climpact_web.core.limits import disk_required, human_required
-from climpact_web.gridded import inspection, listing, map_page, maps, runs, setup_page
+from climpact_web.gridded import inspection, listing, map_page, maps, runs, setup_page, stages
 from climpact_web.gridded.forms import (
     MAX_FILES,
     SLOW_INDICES,
@@ -80,9 +81,7 @@ from climpact_web.gridded.forms import (
 )
 from climpact_web.gridded.models import GriddedRun, Source
 from climpact_web.jobs.models import Status
-from climpact_web.jobs.stages import stage_label
-from climpact_web.jobs.views import OWNER_KEY, create_job, format_duration, owner_token, poll_delay
-from climpact_web.jobs.worker import worker_running
+from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 SAMPLE_FILE = "climpact.sampledata.gridded.3x4.1991-2010.nc"
@@ -639,11 +638,33 @@ def options_json(run: GriddedRun, data: dict, checked: dict) -> dict:
     return out
 
 
+# Job parameters that change how a job computes, not what it writes: a finished job whose
+# other parameters are those of a new start is kept rather than run again (#294).
+COMPUTING_PARAMS = {"workers", "max_values", "rechunk", "tmp_dir"}
+
+
+def _same_job(job, kind: str, params: dict) -> bool:
+    if job is None or job.kind != kind or job.status != Status.SUCCEEDED:
+        return False
+
+    def what(values: dict) -> dict:
+        return {k: v for k, v in (values or {}).items() if k not in COMPUTING_PARAMS}
+
+    return what(job.params) == what(params)
+
+
+def _kept_job(candidates, kind: str, params: dict):
+    """A finished job of ``kind`` among ``candidates`` with the same parameters."""
+    return next((j for j in candidates if _same_job(j, kind, params)), None)
+
+
 def queue_jobs(request, run: GriddedRun, options: dict, names: dict, pending: bool = False) -> None:
     """The thresholds job, the indices job, or both (thresholds first: the worker runs
     the oldest queued job first). Both read the input files in place. ``pending``: a new
     start of a finished run, whose jobs and settings wait beside the results shown until
-    they have finished (#293)."""
+    they have finished (#293). A job of the last start that finished, with the same
+    parameters but for the computing ones, is kept instead of queued again, so starting
+    again after a failure resumes at the stage that failed (#294)."""
     o = options
     common = {
         "input_files": run.paths,
@@ -661,35 +682,39 @@ def queue_jobs(request, run: GriddedRun, options: dict, names: dict, pending: bo
     label = str(run)
     task = o["task"]
     thresholds_job = indices_job = None
+    candidates = run.next_jobs + run.jobs if pending else run.jobs
     with transaction.atomic():
         if task in ("thresholds", "both"):
             name = o.get("thresholds_name") or default_thresholds_name(
                 run.files, o["base_start"], o["base_end"]
             )
-            thresholds_job = create_job(
+            params = {**common, "out_file": name}
+            thresholds_job = _kept_job(candidates, "gridded-thresholds", params) or create_job(
                 request,
                 "gridded-thresholds",
-                {**common, "out_file": name},
+                params,
                 title=_("Gridded thresholds: %(files)s") % {"files": label},
             )
         if task in ("indices", "both"):
             chosen = o.get("indices") or []
-            params = {k: o[k] for k in SetupForm.PARAMS}
-            indices_job = create_job(
+            params = {
+                **common,
+                "template": o.get("template") or "",
+                "indices": None if set(chosen) >= set(all_indices()) else chosen,
+                "thresholds_file": o.get("thresholds_file") or None,
+                "params": {k: o[k] for k in SetupForm.PARAMS},
+            }
+            indices_job = _kept_job(candidates, "gridded-indices", params) or create_job(
                 request,
                 "gridded-indices",
-                {
-                    **common,
-                    "template": o.get("template") or "",
-                    "indices": None if set(chosen) >= set(all_indices()) else chosen,
-                    "thresholds_file": o.get("thresholds_file") or None,
-                    "params": params,
-                },
+                params,
                 title=_("Gridded indices: %(files)s") % {"files": label},
             )
         if pending:
+            kept = {j.pk for j in (thresholds_job, indices_job) if j is not None}
+            current = {j.pk for j in run.jobs}
             for job in run.next_jobs:  # an earlier new start that failed or was cancelled
-                if job.is_finished:
+                if job.is_finished and job.pk not in kept | current:
                     job.delete()
             run.next_thresholds_job, run.next_indices_job = thresholds_job, indices_job
             run.next_settings = {"options": options, "names": names}
@@ -816,42 +841,7 @@ def bar_context(run: GriddedRun, current: str, heading: bool = True) -> dict:
     }
 
 
-# ---- Map: the jobs and the results ------------------------------------------------------------
-
-
-def job_rows(request, run: GriddedRun) -> list[dict]:
-    now = timezone.now()
-    rows = []
-    for kind, job in (("thresholds", run.thresholds_job), ("indices", run.indices_job)):
-        if job is None:
-            continue
-        remaining = job.remaining(now)
-        rows.append(
-            {
-                "kind": kind,
-                "job": job,
-                "stage_label": stage_label(job.stage),
-                "elapsed": format_duration(job.elapsed(now)),
-                "remaining": format_duration(remaining) if remaining is not None else "",
-                "worker_missing": job.status == Status.QUEUED and not worker_running(now),
-                "files": len(maps.output_files(job)) if job.status == Status.SUCCEEDED else 0,
-            }
-        )
-    return rows
-
-
-def progress_context(request, run: GriddedRun) -> dict:
-    rows = job_rows(request, run)
-    active = [r["job"] for r in rows if not r["job"].is_finished]
-    hidden = request.GET.get("hidden") == "true"
-    delay = min((poll_delay(j, hidden) for j in active), default=0)
-    return {
-        "run": run,
-        "rows": rows,
-        "active": bool(active),
-        "delay": delay,
-        "all_done": bool(rows) and all(r["job"].status == Status.SUCCEEDED for r in rows),
-    }
+# ---- Map: the stages, then the results ---------------------------------------------------
 
 
 def map_context(request, run: GriddedRun) -> dict:
@@ -871,12 +861,20 @@ def map_context(request, run: GriddedRun) -> dict:
 MAP_PARTS = {"map": "gridded/_map.html", "pane": "gridded/_cell_pane.html"}
 
 
+def stages_context(request, run: GriddedRun) -> dict:
+    """The status line and the stages (gridded/_stages.html, #294), or {} when the run has
+    finished and no new start waits."""
+    progress = stages.view(run, hidden=request.GET.get("hidden") == "true")
+    return {"progress": progress} if progress is not None else {}
+
+
 @never_cache
 @gridded_enabled
 @require_safe
 def run_page(request, run_id):
-    """The run's Map tab: the jobs while they run (or why one failed), then the index
-    rail, the map and the cell pane (#295). A run not started yet opens its set-up."""
+    """The run's Map tab: the status line and the stages while it calculates, or after it
+    failed or was cancelled (#294), then the index rail, the map and the cell pane (#295),
+    below the stages of a new start (#293). A run not started yet opens its set-up."""
     run = get_run(request, run_id)
     if not run.jobs:
         return redirect("gridded:setup", run_id=run.pk)
@@ -888,7 +886,7 @@ def run_page(request, run_id):
         context["run"] = run
         response = render(request, part, context)
     else:
-        context = progress_context(request, run)
+        context = stages_context(request, run)
         context.update(map_context(request, run))
         context.update(bar_context(run, "map"))
         response = render(request, "gridded/run.html", context)
@@ -909,22 +907,43 @@ def results(request, run_id):
 @gridded_enabled
 @require_safe
 def progress(request, run_id):
-    """The jobs' progress and files, polled by htmx while a job runs."""
+    """htmx: the status line and the stages, polled while the run calculates (#294). Once
+    it stops, the run's bar is updated out of band (its provenance line and actions); once
+    it has finished, the map (an empty one the map's script fills) or the thresholds file's
+    note takes the stages' place, with no reload, and a new start's map replaces the one
+    shown."""
     run = get_run(request, run_id)
     if not run.jobs:
         raise Http404
-    if any(j.status == Status.RUNNING for j in run.jobs):
+    if any(j.status == Status.RUNNING for j in run.jobs + run.next_jobs):
         from climpact_web.jobs.worker import reap_stale
 
         if reap_stale():
-            run.refresh_from_db()
-    context = progress_context(request, run)
-    if context["all_done"] and request.GET.get("was_active") == "1":
-        # The run has just finished: reload the page so the map appears.
-        response = HttpResponse()
-        response["HX-Refresh"] = "true"
-        return response
-    return render(request, "gridded/_progress.html", context)
+            run = get_run(request, run_id)
+    context = {"run": run, **stages_context(request, run)}
+    progress_ = context.get("progress")
+    if progress_ is None or not progress_.active:
+        context.update(bar_context(run, "map"))
+        context["bar_update"] = request.GET.get("was_active") == "1"
+    if progress_ is None:
+        job = run.indices_job
+        context["has_map"] = job is not None and job.status == Status.SUCCEEDED
+        context["replace_map"] = request.GET.get("again", "")
+        return render(request, "gridded/_run_finished.html", context)
+    return render(request, "gridded/_stages.html", context)
+
+
+@gridded_enabled
+@require_POST
+def cancel(request, run_id):
+    """Cancel the run's calculation (#294): every job of it still queued or running, or
+    of the new start that is (#293). A queued job is cancelled at once, a running one at
+    its next step."""
+    run = get_run(request, run_id)
+    for job in run.next_jobs if run.restarting else run.jobs:
+        if job.can_cancel:
+            job.request_cancel()
+    return redirect(run)
 
 
 def _csv_response(rows: list[list], filename: str) -> HttpResponse:

@@ -52,6 +52,8 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``out_file``; for indices also ``template``, ``indices``, ``thresholds_file``,
     ``params`` (IndexParams fields) and ``trends`` (default true: also write
     ``trends.nc``, the stage "trends" after "indices", :mod:`climpact.gridded.trends`).
+    When each stage began is written to ``stages.json`` in the job's folder
+    (:class:`StageTimes`), for the run's stages on its Map tab (#294).
 
 The batch page (#80) creates batch jobs, the gridded pages (#85) the gridded ones and step
 5 of a station (#90) the sector ones.
@@ -495,7 +497,102 @@ def _sector_outputs(written: dict, root: Path) -> dict:
     }
 
 
-def _open_grid(ctx: JobContext):
+STAGES_FILE = "stages.json"  # a gridded job's stages, in the job's folder beside output/
+
+
+class StageTimes:
+    """When each stage of a gridded job began, for the run's stages on its Map tab
+    (#294): ``check`` (opening and checking the files) when the job starts, then each
+    stage the core reports (``rechunk``, ``thresholds``, ``indices``, ``trends``) as its
+    first step is reported, dated when the stage before it ended (its last step, or the
+    files opened). Written to ``<job>/stages.json`` as ``{"stages": [{"stage", "at",
+    "step"}], "opened", "blocks", "copy", "copy_bytes"}``: ``step`` is the count when the
+    stage began; ``opened`` when the files were open and checked; ``blocks`` the grid's
+    blocks, which tell the copy's steps from the blocks' when the core counts them
+    together (:meth:`climpact.gridded.GriddedInput.block_reader`); ``copy`` whether the
+    blocks are read from a cell-first copy, and its size. Written atomically, only when
+    a stage begins: a handful of writes a job.
+
+    Wraps the job's progress callback: ``times(stage, step, total)`` passes each step on.
+    """
+
+    def __init__(self, path: Path, progress):
+        self.path = path
+        self.progress = progress
+        self.ended = self._now()
+        self.stages = [{"stage": "check", "at": self.ended, "step": 0}]
+        self.extra: dict = {}
+        self.write()
+
+    @staticmethod
+    def _now() -> str:
+        from django.utils import timezone
+
+        return timezone.now().isoformat()
+
+    def opened(self, inp) -> None:
+        """The files are open and checked: the next stage begins now."""
+        import warnings
+
+        copy, size = False, 0
+        try:
+            with warnings.catch_warnings():  # block_reader warns, when it decides
+                warnings.simplefilter("ignore")
+                copy = bool(inp.will_rechunk())
+                size = int(inp.rechunk_bytes()) if copy else 0
+        except (OSError, ValueError, AttributeError):
+            pass
+        self.ended = self._now()
+        self.extra = {
+            "opened": self.ended,
+            "blocks": sum(1 for _ in inp.blocks()),
+            "copy": copy,
+            "copy_bytes": size,
+        }
+        self.write()
+
+    def __call__(self, stage: str, step: int, total: int) -> None:
+        head = stage.split(":")[0]
+        if head != self.stages[-1]["stage"]:
+            self.stages.append({"stage": head, "at": self.ended, "step": max(step - 1, 0)})
+            self.write()
+        self.ended = self._now()
+        self.progress(stage, step, total)
+
+    def write(self) -> None:
+        import json
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"stages": self.stages, **self.extra}))
+        tmp.replace(self.path)
+
+
+def read_stage_times(folder: Path) -> dict:
+    """A gridded job's ``stages.json`` (:class:`StageTimes`); {} when it has none (a job
+    run before #294, or one not started)."""
+    import json
+
+    try:
+        data = json.loads((folder / STAGES_FILE).read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+# The core's OSError when the cell-first copy does not fit (GriddedInput.block_reader):
+# shown to the user, as a JobError, rather than as an unexpected failure.
+NO_ROOM_FOR_COPY = "rechunking the input needs"
+
+
+def _no_room(exc: OSError) -> JobError | None:
+    message = str(exc)
+    if not message.startswith(NO_ROOM_FOR_COPY):
+        return None
+    return JobError(f"Not enough disk space for the cell-first copy: {message}.")
+
+
+def _open_grid(ctx: JobContext, times: StageTimes | None = None):
     from climpact.gridded import open_grid
     from climpact.gridded.io import DEFAULT_MAX_VALUES
 
@@ -508,7 +605,7 @@ def _open_grid(ctx: JobContext):
     tmp_dir = Path(p["tmp_dir"]) if p.get("tmp_dir") else ctx.output_dir.parent / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     try:
-        return open_grid(
+        inp = open_grid(
             files,
             names=names,
             max_values=int(p.get("max_values") or DEFAULT_MAX_VALUES),
@@ -517,6 +614,16 @@ def _open_grid(ctx: JobContext):
         )
     except NotImplementedError as exc:
         raise JobError(str(exc)) from None
+    if times is not None:
+        times.opened(inp)
+    return inp
+
+
+def _stage_times(ctx: JobContext) -> StageTimes:
+    """The job's :class:`StageTimes`, wrapping its progress callback."""
+    times = StageTimes(ctx.output_dir.parent / STAGES_FILE, ctx.progress)
+    ctx.progress = times
+    return times
 
 
 def _copy_results(ctx: JobContext, paths) -> str | None:
@@ -546,16 +653,19 @@ def run_gridded_thresholds_job(ctx: JobContext) -> dict:
 
     p = ctx.params
     ctx.output_dir.mkdir(parents=True, exist_ok=True)
-    inp = _open_grid(ctx)
-    path = write_grid_thresholds(
-        inp,
-        ctx.output_dir / p.get("out_file", "thresholds.nc"),
-        int(p.get("base_start", 1971)),
-        int(p.get("base_end", 2000)),
-        _author(p),
-        int(p.get("workers", 1)),
-        ctx.progress,
-    )
+    inp = _open_grid(ctx, _stage_times(ctx))
+    try:
+        path = write_grid_thresholds(
+            inp,
+            ctx.output_dir / p.get("out_file", "thresholds.nc"),
+            int(p.get("base_start", 1971)),
+            int(p.get("base_end", 2000)),
+            _author(p),
+            int(p.get("workers", 1)),
+            ctx.progress,
+        )
+    except OSError as exc:
+        raise _no_room(exc) or exc from None
     copied = _copy_results(ctx, [path])
     return {"files": _relative([path], ctx.output_dir), "copied_to": copied}
 
@@ -567,23 +677,26 @@ def run_gridded_indices_job(ctx: JobContext) -> dict:
 
     p = ctx.params
     ctx.output_dir.mkdir(parents=True, exist_ok=True)
-    inp = _open_grid(ctx)
+    inp = _open_grid(ctx, _stage_times(ctx))
     thresholds = p.get("thresholds_file")
     if thresholds and not Path(thresholds).is_file():
         raise JobError(f"Thresholds file not found: {thresholds}.")
-    paths = write_grid_indices(
-        inp,
-        ctx.output_dir,
-        int(p.get("base_start", 1971)),
-        int(p.get("base_end", 2000)),
-        template=p.get("template") or None,
-        params=index_params(p.get("params"), base=WRAPPER_PARAMS),
-        thresholds_file=thresholds or None,
-        author=_author(p),
-        workers=int(p.get("workers", 1)),
-        progress=ctx.progress,
-        indices=p.get("indices") or None,
-    )
+    try:
+        paths = write_grid_indices(
+            inp,
+            ctx.output_dir,
+            int(p.get("base_start", 1971)),
+            int(p.get("base_end", 2000)),
+            template=p.get("template") or None,
+            params=index_params(p.get("params"), base=WRAPPER_PARAMS),
+            thresholds_file=thresholds or None,
+            author=_author(p),
+            workers=int(p.get("workers", 1)),
+            progress=ctx.progress,
+            indices=p.get("indices") or None,
+        )
+    except OSError as exc:
+        raise _no_room(exc) or exc from None
     if p.get("trends", True):
         from climpact.gridded.trends import TRENDS_FILE, write_grid_trends
 

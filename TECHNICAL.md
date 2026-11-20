@@ -41,7 +41,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, gridded trends (`trends.nc`, not in R; see [Gridded trends](#gridded-trends)), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready; #294: while a run calculates, or after it failed, its Map tab shows its stages and what to change, and starting again keeps the finished stages, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -3132,6 +3132,9 @@ packages/climpact-web/src/climpact_web/
                      frame (north up, west left, the cells' aspect, axes, coastline)
     map_page.py      the Map tab (#295): the rail's entries, the state from the query
                      string, the toolbar, the map, the legend and the cell pane
+    stages.py        the Map tab while a run calculates (#294): each job's stages from
+                     its stages.json, the stages table, the status line, what to change
+                     when it fails, what is being calculated
     map_image.py     the map's PNG, one pixel per cell (zlib); the report figure (matplotlib)
     outline.py       the coastline and places for a box of the grid, from data/outline.npz
     data/outline.npz Natural Earth 1:50m coastline and populated places (public domain,
@@ -3140,7 +3143,8 @@ packages/climpact-web/src/climpact_web/
                      jobs app's purge and keepers
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ (with Browse,
-                     `setup_browse`) and its checks (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
+                     `setup_browse`) and its checks (htmx), a file's header (setup/header/<n>/), rename/, progress (the
+                     stages, polled), cancel, map.png, map.f32 (the values), map and
                      series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
@@ -3149,8 +3153,11 @@ packages/climpact-web/src/climpact_web/
     templates/gridded/  start.html, new.html, setup.html (with _summary.html, the summary
                      panel, and the parts htmx swaps out of band), header.html, run.html,
                      files.html, _listing.html (New run's chooser and set-up's Browse),
-                     _browse_field.html, _chosen.html, _progress.html, _map.html,
-                     _cell_pane.html, _run_bar.html, _retention.html
+                     _browse_field.html, _chosen.html, _stages.html and
+                     _stages_table.html (the stages, #294), _run_finished.html and
+                     _run_bar_update.html (the poll's answer once the run finishes),
+                     _run_result.html, _map.html, _cell_pane.html, _run_bar.html,
+                     _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
     sections.py      section help (#177): the topics and notes behind each section's Help
@@ -4761,7 +4768,13 @@ paths given; `max_values`, `rechunk`, `tmp_dir` (default the job's folder) and
 `copy_to`, a folder the written files are also copied to; `gridded-indices` then writes
 `trends.nc` with `write_grid_trends` unless `trends` is false, as its last stage,
 `trends`, shown as "Trends and the map", and lists it last in the result's `files`; see
-[Gridded trends](#gridded-trends)). The parameters of each are in
+[Gridded trends](#gridded-trends); both write when each stage began to `stages.json` in
+the job's folder (`StageTimes`, #294: `check` when the job starts, then each stage the
+core reports as its first step comes, dated when the one before ended; the grid's
+blocks, whether a cell-first copy is made and its size), for the run's stages on its Map
+tab, and report the core's "rechunking the input needs … GB" (an `OSError`) as a
+`JobError`, "Not enough disk space for the cell-first copy", so it is shown, not logged
+as unexpected). The parameters of each are in
 the module docstring. The batch page (#80) creates batch jobs, the gridded pages (#85)
 the gridded ones and step 5 of a station (#90) the sector ones. The `station` runner also takes `plot_title` (the settings' "Plot title", passed to
 `run_station`). The core is imported inside each runner, so the web server never imports
@@ -7016,11 +7029,11 @@ confirmation page, then POST), "Run again with other files" (to New gridded run)
 no job is queued or running, and "Download all (zip, size)" once every job has
 succeeded; then the tabs:
 
-- **Map**, `/gridded/<id>/` (`gridded:run`): until every job has finished, the job cards
-  (`_progress.html`, polled by htmx; a finished job's card links to Files), then the
-  index rail, the map and the cell pane (**Map**, below). A thresholds-only run says it
-  has no map. A run not started yet redirects to its set-up. The old `<id>/results`
-  redirects here (301, with its query string).
+- **Map**, `/gridded/<id>/` (`gridded:run`): while the run is queued or calculates, or
+  after it failed or was cancelled, its stages (**Stages**, below); once every job has
+  finished, the index rail, the map and the cell pane (**Map**, below). A thresholds-only
+  run says it has no map. A run not started yet redirects to its set-up. The old
+  `<id>/results` redirects here (301, with its query string).
 - **Files**, `/gridded/<id>/files/` (`gridded:files`): the index files of the indices job
   (`runs.file_rows`: the code and short name, as the station pages write them, the
   frequency, the file, the netCDF variables in it from `maps.data_variables`, cached by
@@ -7215,13 +7228,13 @@ files read in place are never touched (`test_gridded_web.py`:
    On "Start", the form is validated, and the files are opened with the
    core's `open_grid` (`inspection.preflight`), so a file the core would refuse fails
    here, its message in the panel, rather than in the job.
-3. Starting opens the run's Map: the jobs (thresholds first, then indices; the worker
-   takes the oldest queued job first) with htmx-polled progress, including "Preparing
-   the input files" while the input is rechunked and "Trends and the map" while
+3. Starting opens the run's Map: the run's stages (thresholds first, then indices; the
+   worker takes the oldest queued job first), polled by htmx (**Stages**, below), the
+   cell-first copy while the input is rechunked and "Trends and the map" while
    `trends.nc` is written after the indices (#290; the map's views that read it are
-   #296). When the last job finishes the fragment answers `HX-Refresh` so the map
-   appears. The files are on the run's Files tab; "Download all (zip)" and each group's
-   zip are `ZIP_STORED`, built in a temporary file.
+   #296). When the last job finishes the map takes the stages' place without a reload.
+   The files are on the run's Files tab; "Download all (zip)" and each group's zip are
+   `ZIP_STORED`, built in a temporary file.
 
 **Options, against R's screens:**
 
@@ -7243,7 +7256,83 @@ files read in place are never touched (`test_gridded_web.py`:
 | The wrapper script's index parameters (wsdi, csdi, rx, txtn days, base temperatures, rnnmm) are fixed in the screen | editable in one row under the indices, defaults `WRAPPER_PARAMS`; ranges as `validate_params` |
 | No rechunking | the core's `--rechunk` (automatic, always, never) and, in local mode, its `--tmp-dir` |
 | A modal warns that the run takes hours; the browser must stay open until "Done" appears | a background job with progress; the page can be closed and the run opened again from Gridded |
-| Errors in a modal with R's message | the job's error on the page, with "Try again" |
+| Errors in a modal with R's message | the error on the Map tab in words, with the setting that fixes it linked on Set-up (values read at once and cores for memory, the files for a gap, Variables for units) and the run's log; starting again keeps the finished stages (#294) |
+
+**Stages** (#294, the GridRun board; `gridded/stages.py`, `gridded/_stages.html`,
+`gridded/_stages_table.html`). While a run is queued or calculates, or after it failed or
+was cancelled, its Map tab shows, in the map's place:
+
+- **The run status line** (the workspace overview's pattern, `run-status`): "Calculating
+  indices: 62%." (or "Checking the files.", "Making the cell-first copy: 40%.",
+  "Calculating thresholds", "Calculating trends", "Waiting to start.", "Cancelling…"),
+  the time left (`stages._time_left`: linear, once the last main stage, the indices or a
+  thresholds-only run's thresholds, has done two blocks in two seconds; never while a
+  main stage waits after the current one), the time so far since the first job started,
+  "You can close this page.", a bar, and Cancel (`gridded:cancel`, POST: every queued or
+  running job of the run, or of its new start; `Job.request_cancel`). Stopped: "The run
+  failed in the indices stage." (danger edge) or "The run was cancelled in the indices
+  stage.", what is kept, "Change the settings" (to the fix) or "Start again on Set-up",
+  and Forget this run. Its first sentence is announced through `#announcer`
+  (`data-announce`, at most every 10 s, at once when the run stops), so no more often
+  than the poll (`jobs.views.poll_delay`).
+- **The stages table** (`stages.stage_rows`): one table for the run's jobs, not a card a
+  job: Check the files, Read the thresholds file (indices from a thresholds file: no
+  stage of the core's, so done with the check, or failed when the check failed on the
+  file), Cell-first copy (only when the first job made one), Thresholds (the thresholds
+  job), Indices, Trends and the map. An indices job after a thresholds job opens and
+  copies the files again (the two jobs are independent: the indices compute their own
+  thresholds), which its Indices row counts in its time and states ("Checking the files",
+  "Copying the files by cell · 40%"). Each row's state comes from its job's status and
+  `stages.json` (`stages.job_stages`): done, running ("62% · block 812 of 1,300": the
+  core counts the copy's slabs and the blocks together, so the block is the step less
+  the copy's steps, `total - blocks`), waiting, failed ("Failed in block 233 of 1,300"),
+  cancelled, not run, or "Kept from the last start" (a job that finished before this
+  start's newest job was queued). A job that failed before its stage's first step is
+  put in that stage: after the files were opened (`opened`), in the copy or the main
+  stage; after the copy's last slab, in the main stage; after the last block, in the
+  trends. Time is each stage's own, `m:ss`. A job run before `stages.json` existed shows
+  its whole time on its main stage.
+- **On failure** (`stages.failure_for`), under the table: the error in words (out of
+  memory: "The run ran out of memory in block 233 of 1,300.", with the block's values
+  and their memory, 8 bytes a value, per core and on all cores), what to change, with a
+  button to the field on Set-up (out of memory: "Values read at once", suggesting half,
+  and the cores, `#id_max_values`; no room for the cell-first copy: `#id_rechunk`; a gap,
+  overlap, grid, calendar or units differing between a variable's files: Files; units
+  Climpact cannot read: Variables; a variable not found: Variables; a thresholds file
+  that does not fit: What to calculate; the base period; the hosted time limit: Indices;
+  otherwise Set-up), what is kept, and The run's log (`climpact.log`). The match is on
+  the core's and the worker's messages.
+- **Beside it**, "What is being calculated": the files (the variables chosen and their
+  size), the grid and period, the base period, the indices and the files they make
+  (`index_files` of the core), cores and values read at once, when it started; All
+  settings (Set-up); that it runs in the background and is on Gridded until a date, or,
+  where runs do not expire (local, #301), until it is forgotten.
+
+`gridded:progress` answers the poll with the same block. Once the run stops it also
+brings the run's bar up to date out of band (`_run_bar_update.html`: the provenance line
+and the actions, in the bar and its ⋯ menu, swapped by selector, so the bar's script
+keeps its elements). Once every job has finished (`stages.view` is None) it answers with
+an empty map (`data-gmap-load`) in the stages' place, which `js/gridded-map.js` fills at
+once with the map part (`X-Climpact-Part: map`), as a link in the map does: htmx drops
+`<script>` elements from what it swaps (`allowScriptTags: false`), so the map's data
+could not come in the poll's answer. A thresholds-only run gets its note instead.
+
+**Starting again keeps the finished stages.** `views.queue_jobs` keeps a finished job of
+the last start (or of the results shown, for a new start of a finished run) whose
+parameters are those of the new start but for the computing ones (`workers`,
+`max_values`, `rechunk`, `tmp_dir`), rather than queueing it again. So a
+thresholds-then-indices run whose indices failed after its thresholds file was written
+begins again at the indices; a change to the files or base period runs both. A failed
+job's own finished stages (its copy, a part of its blocks) are not kept: it runs again
+from its start.
+
+**A new start beside the results** (#293). While a new start of a finished run
+calculates, Map shows its status line above the map it will replace ("Map and Files show
+the run of … until this one has finished, then its results."), its stages in a
+disclosure ("Stages of the new start", open when it failed); a new start that failed or
+was cancelled says so ("The last start failed in the indices stage. Map and Files still
+show the run of …"). When it finishes, the poll deletes the old map out of band and puts
+the new one in place.
 
 **Map** (#295, the GridMap board; `gridded/map_page.py`, `gridded/_map.html`,
 `gridded/_cell_pane.html`, `js/gridded-map.js`). No map tiles or network services

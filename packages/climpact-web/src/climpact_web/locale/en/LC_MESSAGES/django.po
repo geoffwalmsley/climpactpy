@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 16:52+0000\n"
+"POT-Creation-Date: 2026-11-20 18:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -738,8 +738,8 @@ msgstr ""
 #: core/navigation.py:58 core/templates/core/patterns.html:232
 #: gridded/templates/gridded/_breadcrumb.html:6
 #: gridded/templates/gridded/start.html:12
-#: gridded/templates/gridded/start.html:17 gridded/views.py:465
-#: gridded/views.py:804 help/templates/help/index.html:53
+#: gridded/templates/gridded/start.html:17 gridded/views.py:464
+#: gridded/views.py:829 help/templates/help/index.html:53
 msgid "Gridded"
 msgstr ""
 
@@ -1023,8 +1023,7 @@ msgstr ""
 
 #: core/templates/components/dialog.html:16
 #: core/templates/core/patterns.html:148 core/views.py:157
-#: gridded/templates/gridded/_progress.html:42
-#: gridded/templates/gridded/delete.html:15
+#: gridded/stages.py:633 gridded/templates/gridded/delete.html:15
 #: gridded/templates/gridded/rename.html:18
 #: jobs/templates/jobs/_progress.html:31 stations/overview.py:394
 #: stations/templates/stations/_input_form.html:46
@@ -1598,8 +1597,8 @@ msgstr ""
 
 #: core/templates/core/patterns.html:31 core/templates/core/patterns.html:261
 #: core/views.py:343 gridded/forms.py:154 gridded/setup_page.py:760
+#: gridded/stages.py:353 gridded/stages.py:740 gridded/stages.py:747
 #: gridded/templates/gridded/_map.html:12
-#: gridded/templates/gridded/_progress.html:17
 #: gridded/templates/gridded/setup.html:117 help/topics.py:71
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:465
@@ -1740,7 +1739,7 @@ msgstr ""
 msgid "Working"
 msgstr ""
 
-#: core/templates/core/patterns.html:104
+#: core/templates/core/patterns.html:104 gridded/stages.py:755
 msgid "Not yet"
 msgstr ""
 
@@ -2585,8 +2584,7 @@ msgid ""
 "again, or reload the page."
 msgstr ""
 
-#: core/templatetags/ui.py:129 gridded/templates/gridded/_progress.html:63
-#: jobs/templates/jobs/_progress.html:75
+#: core/templatetags/ui.py:129 jobs/templates/jobs/_progress.html:75
 #: stations/templates/stations/_results_progress.html:61
 msgid "Try again"
 msgstr ""
@@ -2613,8 +2611,8 @@ msgstr ""
 msgid ", 5 values look wrong"
 msgstr ""
 
-#: core/views.py:137 help/templates/help/_tour.html:15 stations/overview.py:169
-#: stations/workspace.py:446
+#: core/views.py:137 gridded/stages.py:225 help/templates/help/_tour.html:15
+#: stations/overview.py:169 stations/workspace.py:446
 msgid "Done"
 msgstr ""
 
@@ -2642,7 +2640,7 @@ msgstr ""
 msgid "Moruya Heads"
 msgstr ""
 
-#: core/views.py:143 stations/overview.py:176
+#: core/views.py:143 gridded/stages.py:230 stations/overview.py:176
 msgid "Not run"
 msgstr ""
 
@@ -2658,7 +2656,7 @@ msgstr ""
 msgid "Checking…"
 msgstr ""
 
-#: core/views.py:146 stations/overview.py:174
+#: core/views.py:146 gridded/stages.py:227 stations/overview.py:174
 msgid "Waiting"
 msgstr ""
 
@@ -2666,8 +2664,8 @@ msgstr ""
 msgid "Late Start"
 msgstr ""
 
-#: core/views.py:149 gridded/runs.py:200 jobs/models.py:21 jobs/stages.py:23
-#: stations/overview.py:183
+#: core/views.py:149 gridded/runs.py:200 gridded/stages.py:228
+#: jobs/models.py:21 jobs/stages.py:23 stations/overview.py:183
 msgid "Failed"
 msgstr ""
 
@@ -2859,8 +2857,9 @@ msgstr ""
 msgid "Quality control"
 msgstr ""
 
-#: core/views.py:342 gridded/templates/gridded/_runs_table.html:18
-#: help/sections.py:166 stations/downloads.py:104 stations/views_files.py:45
+#: core/views.py:342 gridded/stages.py:341
+#: gridded/templates/gridded/_runs_table.html:18 help/sections.py:166
+#: stations/downloads.py:104 stations/views_files.py:45
 msgid "Thresholds"
 msgstr ""
 
@@ -2905,7 +2904,8 @@ msgstr ""
 #: core/views.py:417 core/views.py:681 core/views.py:701
 #: gridded/setup_page.py:587 gridded/setup_page.py:592
 #: gridded/setup_page.py:598 gridded/setup_page.py:614
-#: gridded/setup_page.py:759 gridded/templates/gridded/setup.html:106
+#: gridded/setup_page.py:759 gridded/stages.py:737
+#: gridded/templates/gridded/setup.html:106
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
 #: stations/views_add.py:107 stations/workspace.py:826
@@ -3135,7 +3135,7 @@ msgstr ""
 msgid "Leave it empty for a name made from the files."
 msgstr ""
 
-#: gridded/forms.py:155 gridded/runs.py:244
+#: gridded/forms.py:155 gridded/runs.py:244 gridded/stages.py:740
 msgid "Thresholds file only"
 msgstr ""
 
@@ -3229,8 +3229,7 @@ msgstr ""
 msgid "The full path of a file written by a thresholds run of Climpact."
 msgstr ""
 
-#: gridded/forms.py:300 gridded/templates/gridded/_progress.html:17
-#: help/topics.py:619
+#: gridded/forms.py:300 help/topics.py:619
 msgid "Thresholds file"
 msgstr ""
 
@@ -3556,7 +3555,7 @@ msgstr ""
 msgid "Its dates differ from %(name)s's; the files must share their time axis."
 msgstr ""
 
-#: gridded/listing.py:80 gridded/runs.py:439
+#: gridded/listing.py:80 gridded/runs.py:439 gridded/stages.py:45
 msgid "thresholds file"
 msgstr ""
 
@@ -3705,7 +3704,7 @@ msgid "(anomaly %(value)s)"
 msgstr ""
 
 #: gridded/map_page.py:673 gridded/templates/gridded/_map.html:93
-#: gridded/views.py:998 stations/index_page.py:524
+#: gridded/views.py:1017 stations/index_page.py:524
 msgid "No value"
 msgstr ""
 
@@ -3798,12 +3797,12 @@ msgstr ""
 msgid "Calculating"
 msgstr ""
 
-#: gridded/runs.py:198 gridded/templates/gridded/_progress.html:24
-#: jobs/models.py:18 stations/templates/stations/_input_runs.html:13
+#: gridded/runs.py:198 jobs/models.py:18
+#: stations/templates/stations/_input_runs.html:13
 msgid "Waiting to start"
 msgstr ""
 
-#: gridded/runs.py:202 jobs/models.py:22
+#: gridded/runs.py:202 gridded/stages.py:229 jobs/models.py:22
 msgid "Cancelled"
 msgstr ""
 
@@ -3856,7 +3855,7 @@ msgid "calculating"
 msgstr ""
 
 #: gridded/runs.py:435 gridded/setup_page.py:620 gridded/setup_page.py:861
-#: stations/workspace_files.py:598
+#: gridded/stages.py:746 stations/workspace_files.py:598
 #, python-format
 msgid "%(count)s file"
 msgid_plural "%(count)s files"
@@ -4014,7 +4013,8 @@ msgid_plural "%(ny)s × %(nx)s cells, the same in all %(count)s files."
 msgstr[0] ""
 msgstr[1] ""
 
-#: gridded/setup_page.py:551 gridded/templates/gridded/_files_table.html:17
+#: gridded/setup_page.py:551 gridded/stages.py:729
+#: gridded/templates/gridded/_files_table.html:17
 #: gridded/templates/gridded/_runs_table.html:16
 msgid "Grid"
 msgstr ""
@@ -4111,7 +4111,7 @@ msgstr ""
 msgid "Disk"
 msgstr ""
 
-#: gridded/setup_page.py:660
+#: gridded/setup_page.py:660 gridded/stages.py:330
 msgid "Cell-first copy"
 msgstr ""
 
@@ -4136,7 +4136,7 @@ msgid_plural "About %(time)s on %(count)s cores."
 msgstr[0] ""
 msgstr[1] ""
 
-#: gridded/setup_page.py:678
+#: gridded/setup_page.py:678 gridded/templates/gridded/_stages_table.html:13
 msgid "Time"
 msgstr ""
 
@@ -4144,8 +4144,8 @@ msgstr ""
 msgid "Output files"
 msgstr ""
 
-#: gridded/setup_page.py:765 gridded/templates/gridded/setup.html:172
-#: help/sections.py:386
+#: gridded/setup_page.py:765 gridded/stages.py:753
+#: gridded/templates/gridded/setup.html:172 help/sections.py:386
 msgid "Computing"
 msgstr ""
 
@@ -4176,7 +4176,7 @@ msgstr ""
 msgid "cell-first copy: %(choice)s"
 msgstr ""
 
-#: gridded/setup_page.py:849
+#: gridded/setup_page.py:849 gridded/stages.py:750
 #, python-format
 msgid "%(count)s core"
 msgid_plural "%(count)s cores"
@@ -4238,6 +4238,7 @@ msgstr ""
 
 #: gridded/setup_page.py:933 gridded/setup_page.py:947
 #: gridded/templates/gridded/_runs_table.html:20
+#: gridded/templates/gridded/_stages_table.html:12
 msgid "State"
 msgstr ""
 
@@ -4245,7 +4246,7 @@ msgstr ""
 msgid "Results"
 msgstr ""
 
-#: gridded/setup_page.py:938
+#: gridded/setup_page.py:938 gridded/stages.py:626
 #, python-format
 msgid ""
 "Map and Files show the run of %(when)s until this one has finished, then its "
@@ -4328,12 +4329,421 @@ msgstr ""
 msgid "%(years)s, %(days)s days, %(calendar)s calendar."
 msgstr ""
 
+#: gridded/stages.py:44
+msgid "check"
+msgstr ""
+
+#: gridded/stages.py:46
+msgid "cell-first copy"
+msgstr ""
+
+#: gridded/stages.py:47
+msgid "thresholds"
+msgstr ""
+
+#: gridded/stages.py:48
+msgid "indices"
+msgstr ""
+
+#: gridded/stages.py:49
+msgid "trends"
+msgstr ""
+
+#: gridded/stages.py:226
+msgid "Kept from the last start"
+msgstr ""
+
+#: gridded/stages.py:252
+#, python-format
+msgid "%(percent)s%% · block %(done)s of %(of)s"
+msgstr ""
+
+#: gridded/stages.py:261 gridded/stages.py:270
+#: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
+#: stations/qc_review.py:810 stations/qc_review.py:815
+#: stations/templates/stations/_qc_distributions.html:42
+#: stations/templates/stations/_qc_progress.html:13
+#: stations/templates/stations/_qc_progress.html:15
+#: stations/templates/stations/_results_progress.html:18
+#: stations/templates/stations/_results_progress.html:20
+#: stations/templates/stations/_sector_progress.html:16
+#: stations/templates/stations/_sector_progress.html:18
+#, python-format
+msgid "%(percent)s%%"
+msgstr ""
+
+#: gridded/stages.py:263 gridded/stages.py:272 gridded/stages.py:276
+msgid "Under way"
+msgstr ""
+
+#: gridded/stages.py:267
+#, python-format
+msgid "Copying the files by cell · %(percent)s%%"
+msgstr ""
+
+#: gridded/stages.py:276
+msgid "Checking the files"
+msgstr ""
+
+#: gridded/stages.py:279
+#, python-format
+msgid "Failed in block %(block)s of %(blocks)s"
+msgstr ""
+
+#: gridded/stages.py:311 gridded/stages.py:540
+msgid "Check the files"
+msgstr ""
+
+#: gridded/stages.py:323
+#, python-format
+msgid "The files are chunked by time; a %(size)s copy laid out by cell."
+msgstr ""
+
+#: gridded/stages.py:327
+msgid "The files are chunked by time; a copy laid out by cell."
+msgstr ""
+
+#: gridded/stages.py:336
+#, python-format
+msgid "Percentiles of %(base)s for every cell, written to the thresholds file."
+msgstr ""
+
+#: gridded/stages.py:361
+msgid "Sen’s slope for every cell and index, for the Trend view."
+msgstr ""
+
+#: gridded/stages.py:364 jobs/stages.py:21
+msgid "Trends and the map"
+msgstr ""
+
+#: gridded/stages.py:383
+#, python-format
+msgid "Climpact opens the file and checks its grid, calendar and units."
+msgid_plural ""
+"Climpact opens the %(count)s files and checks their grid, calendar and units."
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/stages.py:394
+#, python-format
+msgid "%(count)s index in blocks of cells, %(workers)s at a time."
+msgid_plural "%(count)s indices in blocks of cells, %(workers)s at a time."
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/stages.py:411
+msgid "Read the thresholds file"
+msgstr ""
+
+#: gridded/stages.py:471
+msgid "The run failed."
+msgstr ""
+
+#: gridded/stages.py:480
+#, python-format
+msgid "The run ran out of memory in block %(block)s of %(blocks)s."
+msgstr ""
+
+#: gridded/stages.py:485
+msgid "The run ran out of memory."
+msgstr ""
+
+#: gridded/stages.py:489
+#, python-format
+msgid ""
+"Each block holds %(values)s million values (about %(per_core)s per core, "
+"%(total)s on %(cores)s core)."
+msgid_plural ""
+"Each block holds %(values)s million values (about %(per_core)s per core, "
+"%(total)s on %(cores)s cores)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: gridded/stages.py:501
+#, python-format
+msgid ""
+"Lower Values read at once to %(lower)s million, or use fewer cores, under "
+"Set-up › Computing, then start again."
+msgstr ""
+
+#: gridded/stages.py:506
+msgid ""
+"Lower Values read at once, or use fewer cores, under Set-up › Computing, "
+"then start again."
+msgstr ""
+
+#: gridded/stages.py:509 gridded/stages.py:515
+msgid "Change the computing settings"
+msgstr ""
+
+#: gridded/stages.py:512
+msgid ""
+"Choose a folder with more room for the copy, or turn the copy off, under Set-"
+"up › Computing, then start again."
+msgstr ""
+
+#: gridded/stages.py:517
+msgid ""
+"Choose another folder to copy the results to under Set-up › Output files."
+msgstr ""
+
+#: gridded/stages.py:518
+msgid "Change the output files"
+msgstr ""
+
+#: gridded/stages.py:521
+msgid ""
+"Choose fewer indices under Set-up › Indices, or install Climpact on your own "
+"computer, which has no time limit."
+msgstr ""
+
+#: gridded/stages.py:524
+msgid "Change the indices"
+msgstr ""
+
+#: gridded/stages.py:527
+msgid ""
+"Choose another thresholds file, or calculate the thresholds with the "
+"indices, under Set-up › What to calculate."
+msgstr ""
+
+#: gridded/stages.py:530
+msgid "Change what to calculate"
+msgstr ""
+
+#: gridded/stages.py:532
+msgid ""
+"Choose a base period inside the files’ years under Set-up › Base period."
+msgstr ""
+
+#: gridded/stages.py:533
+msgid "Change the base period"
+msgstr ""
+
+#: gridded/stages.py:536
+msgid ""
+"The files of each variable must follow on day after day, with one grid, "
+"calendar and units. Add the missing file or choose other files, then start "
+"again."
+msgstr ""
+
+#: gridded/stages.py:543
+msgid ""
+"Climpact reads temperatures in K or °C and precipitation in kg m-2 d-1 (mm/"
+"day) or kg m-2 s-1. Check how each variable is read under Set-up › "
+"Variables, or convert the file first."
+msgstr ""
+
+#: gridded/stages.py:547 gridded/stages.py:552
+msgid "Check the variables"
+msgstr ""
+
+#: gridded/stages.py:550
+msgid ""
+"Choose the variable for each of TX, TN and precipitation under Set-up › "
+"Variables."
+msgstr ""
+
+#: gridded/stages.py:554
+msgid "Start again on Set-up."
+msgstr ""
+
+#: gridded/stages.py:555
+msgid "Open Set-up"
+msgstr ""
+
+#: gridded/stages.py:558
+msgid ""
+"Check the settings on Set-up, then start again. The run’s log has the "
+"details."
+msgstr ""
+
+#: gridded/stages.py:560 gridded/stages.py:674
+#: stations/templates/stations/_indices.html:46
+#: stations/templates/stations/_results_progress.html:65
+msgid "Change the settings"
+msgstr ""
+
+#: gridded/stages.py:573
+msgid ""
+"The thresholds file is kept: starting again with the same files and base "
+"period begins at the indices."
+msgstr ""
+
+#: gridded/stages.py:578
+msgid ""
+"The indices are kept: starting again with the same settings writes the "
+"thresholds file only."
+msgstr ""
+
+#: gridded/stages.py:604 gridded/stages.py:605
+msgid "Checking the files."
+msgstr ""
+
+#: gridded/stages.py:606
+#, python-format
+msgid "Making the cell-first copy: %(percent)s%%."
+msgstr ""
+
+#: gridded/stages.py:607
+#, python-format
+msgid "Calculating thresholds: %(percent)s%%."
+msgstr ""
+
+#: gridded/stages.py:608
+#, python-format
+msgid "Calculating indices: %(percent)s%%."
+msgstr ""
+
+#: gridded/stages.py:609
+#, python-format
+msgid "Calculating trends: %(percent)s%%."
+msgstr ""
+
+#: gridded/stages.py:624 gridded/templates/gridded/_run_links.html:1
+#: gridded/templates/gridded/_setup_actions.html:2
+#: gridded/templates/gridded/delete.html:14
+msgid "Forget this run"
+msgstr ""
+
+#: gridded/stages.py:635 jobs/templates/jobs/_progress.html:24
+#: stations/templates/stations/_results_progress.html:33
+#: stations/templates/stations/_sector_progress.html:31
+msgid "Cancelling…"
+msgstr ""
+
+#: gridded/stages.py:639
+msgid "It starts when the calculations before it have finished."
+msgstr ""
+
+#: gridded/stages.py:641 gridded/stages.py:659
+msgid "You can close this page."
+msgstr ""
+
+#: gridded/stages.py:643
+msgid "Waiting to start."
+msgstr ""
+
+#: gridded/stages.py:655
+#, python-format
+msgid "About %(left)s left, %(so_far)s so far."
+msgstr ""
+
+#: gridded/stages.py:658
+#, python-format
+msgid "%(so_far)s so far."
+msgstr ""
+
+#: gridded/stages.py:664
+msgid "Finishing…"
+msgstr ""
+
+#: gridded/stages.py:669
+#, python-format
+msgid "The last start failed in the %(stage)s stage."
+msgstr ""
+
+#: gridded/stages.py:671
+#, python-format
+msgid "The run failed in the %(stage)s stage."
+msgstr ""
+
+#: gridded/stages.py:673 gridded/stages.py:683
+msgid "Nothing was written."
+msgstr ""
+
+#: gridded/stages.py:679
+#, python-format
+msgid "The last start was cancelled in the %(stage)s stage."
+msgstr ""
+
+#: gridded/stages.py:681
+#, python-format
+msgid "The run was cancelled in the %(stage)s stage."
+msgstr ""
+
+#: gridded/stages.py:684
+msgid "Start again on Set-up"
+msgstr ""
+
+#: gridded/stages.py:688
+#, python-format
+msgid "Map and Files still show the run of %(when)s."
+msgstr ""
+
+#: gridded/stages.py:700
+msgid "The thresholds file is kept."
+msgstr ""
+
+#: gridded/stages.py:702
+msgid "The indices are kept."
+msgstr ""
+
+#: gridded/stages.py:726 gridded/templates/gridded/setup.html:36
+#: gridded/views.py:819 help/sections.py:229 help/sections.py:290
+#: stations/templates/stations/_settings_fields.html:56
+#: stations/views_workspace.py:114 stations/workspace.py:466
+msgid "Files"
+msgstr ""
+
+#: gridded/stages.py:736
+#, python-format
+msgid "%(base)s, from %(file)s"
+msgstr ""
+
+#: gridded/stages.py:752
+#, python-format
+msgid "%(values)s M values"
+msgstr ""
+
+#: gridded/stages.py:755 jobs/templates/jobs/job_list.html:18
+msgid "Started"
+msgstr ""
+
+#: gridded/stages.py:824
+msgid "What is being calculated"
+msgstr ""
+
+#: gridded/stages.py:827
+msgid "What the run calculates"
+msgstr ""
+
+#: gridded/stages.py:830
+#, python-format
+msgid "The run is on Gridded until %(date)s."
+msgstr ""
+
+#: gridded/stages.py:832
+msgid "The run stays on Gridded until you forget it."
+msgstr ""
+
+#: gridded/stages.py:856
+#, python-format
+msgid "the run is on Gridded until %(date)s."
+msgstr ""
+
+#: gridded/stages.py:858
+msgid "the run stays on Gridded until you forget it."
+msgstr ""
+
+#: gridded/stages.py:861
+msgid ""
+"It runs in the background: close this page if you like. Its file is on Files "
+"when it finishes;"
+msgstr ""
+
+#: gridded/stages.py:866
+msgid ""
+"It runs in the background: close this page if you like. The map opens here "
+"when it finishes;"
+msgstr ""
+
 #: gridded/templates/gridded/_breadcrumb.html:7
-#: gridded/templates/gridded/_breadcrumb.html:9 gridded/views.py:466
+#: gridded/templates/gridded/_breadcrumb.html:9 gridded/views.py:465
 msgid "New run"
 msgstr ""
 
-#: gridded/templates/gridded/_breadcrumb.html:8 gridded/views.py:467
+#: gridded/templates/gridded/_breadcrumb.html:8 gridded/views.py:466
 msgid "set-up"
 msgstr ""
 
@@ -4702,91 +5112,6 @@ msgstr ""
 msgid "Show"
 msgstr ""
 
-#: gridded/templates/gridded/_progress.html:24
-#: stations/templates/stations/_input_runs.html:13
-msgid "Starting"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:25
-#: gridded/templates/gridded/_progress.html:27
-#: jobs/templates/jobs/_progress.html:15 jobs/templates/jobs/_progress.html:17
-#: stations/qc_review.py:810 stations/qc_review.py:815
-#: stations/templates/stations/_qc_distributions.html:42
-#: stations/templates/stations/_qc_progress.html:13
-#: stations/templates/stations/_qc_progress.html:15
-#: stations/templates/stations/_results_progress.html:18
-#: stations/templates/stations/_results_progress.html:20
-#: stations/templates/stations/_sector_progress.html:16
-#: stations/templates/stations/_sector_progress.html:18
-#, python-format
-msgid "%(percent)s%%"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:29
-#: stations/templates/stations/_results_progress.html:22
-#: stations/templates/stations/_sector_progress.html:20
-#, python-format
-msgid "Step %(step)s of %(total)s."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:30
-#: jobs/templates/jobs/_progress.html:20
-#: stations/templates/stations/_qc_progress.html:18
-#: stations/templates/stations/_results_progress.html:23
-#: stations/templates/stations/_sector_progress.html:21
-#, python-format
-msgid "Time so far: %(elapsed)s."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:31
-#: jobs/templates/jobs/_progress.html:21
-#: stations/templates/stations/_results_progress.html:24
-#: stations/templates/stations/_sector_progress.html:22
-#, python-format
-msgid "About %(remaining)s left."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:32
-msgid "The indices start when the thresholds file is finished."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:35
-#: jobs/templates/jobs/_progress.html:24
-#: stations/templates/stations/_results_progress.html:33
-#: stations/templates/stations/_sector_progress.html:31
-msgid "Cancelling…"
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:37
-msgid ""
-"No calculation worker is running, so this cannot start yet. If you run "
-"Climpact yourself, restart it with the climpact-web command."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:52
-#: jobs/templates/jobs/_progress.html:64
-#: stations/templates/stations/_results_progress.html:48
-msgid "The calculation failed."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:58
-#: jobs/templates/jobs/_progress.html:70
-#: stations/templates/stations/_results_progress.html:54
-#: stations/templates/stations/sector.html:57
-msgid "The calculation was cancelled."
-msgstr ""
-
-#: gridded/templates/gridded/_progress.html:70
-#, python-format
-msgid ""
-"Finished in %(elapsed)s: %(counter)s file, on <a "
-"href=\"%(files_url)s\">Files</a>."
-msgid_plural ""
-"Finished in %(elapsed)s: %(counter)s files, on <a "
-"href=\"%(files_url)s\">Files</a>."
-msgstr[0] ""
-msgstr[1] ""
-
 #: gridded/templates/gridded/_retention.html:1
 msgid ""
 "Everything stays on this computer until you forget the run. Files chosen by "
@@ -4829,6 +5154,14 @@ msgstr ""
 msgid "Download all (zip, %(size)s)"
 msgstr ""
 
+#: gridded/templates/gridded/_run_finished.html:14
+msgid "The run has finished: its map is shown."
+msgstr ""
+
+#: gridded/templates/gridded/_run_finished.html:14
+msgid "The run has finished."
+msgstr ""
+
 #: gridded/templates/gridded/_run_links.html:1
 #: gridded/templates/gridded/_setup_title.html:1
 #: gridded/templates/gridded/rename.html:17
@@ -4842,10 +5175,11 @@ msgstr ""
 msgid "the run"
 msgstr ""
 
-#: gridded/templates/gridded/_run_links.html:1
-#: gridded/templates/gridded/_setup_actions.html:2
-#: gridded/templates/gridded/delete.html:14
-msgid "Forget this run"
+#: gridded/templates/gridded/_run_result.html:11
+#, python-format
+msgid ""
+"This run made a thresholds file only, so there is no map. The file is on <a "
+"href=\"%(files_url)s\">Files</a>."
 msgstr ""
 
 #: gridded/templates/gridded/_run_tabs.html:4
@@ -4881,6 +5215,36 @@ msgid_plural ""
 "calculated yet."
 msgstr[0] ""
 msgstr[1] ""
+
+#: gridded/templates/gridded/_stages.html:37
+msgid ""
+"No calculation worker is running, so this cannot start yet. If you run "
+"Climpact yourself, restart it with the climpact-web command."
+msgstr ""
+
+#: gridded/templates/gridded/_stages.html:43
+msgid "Stages of the new start"
+msgstr ""
+
+#: gridded/templates/gridded/_stages.html:51
+msgid "Stages"
+msgstr ""
+
+#: gridded/templates/gridded/_stages.html:60
+msgid "All settings (Set-up)"
+msgstr ""
+
+#: gridded/templates/gridded/_stages_table.html:7
+msgid "Stages table"
+msgstr ""
+
+#: gridded/templates/gridded/_stages_table.html:11
+msgid "Stage"
+msgstr ""
+
+#: gridded/templates/gridded/_stages_table.html:31
+msgid "The run’s log"
+msgstr ""
 
 #: gridded/templates/gridded/_summary.html:12
 #, python-format
@@ -5181,28 +5545,14 @@ msgstr ""
 msgid "Rename the run"
 msgstr ""
 
-#: gridded/templates/gridded/run.html:9
+#: gridded/templates/gridded/run.html:10
 #, python-format
 msgid "Map: %(name)s"
-msgstr ""
-
-#: gridded/templates/gridded/run.html:22
-#, python-format
-msgid ""
-"This run made a thresholds file only, so there is no map. The file is on <a "
-"href=\"%(files_url)s\">Files</a>."
 msgstr ""
 
 #: gridded/templates/gridded/setup.html:17
 #, python-format
 msgid "Set-up: %(name)s"
-msgstr ""
-
-#: gridded/templates/gridded/setup.html:36 gridded/views.py:794
-#: help/sections.py:229 help/sections.py:290
-#: stations/templates/stations/_settings_fields.html:56
-#: stations/views_workspace.py:114 stations/workspace.py:466
-msgid "Files"
 msgstr ""
 
 #: gridded/templates/gridded/setup.html:38
@@ -5412,52 +5762,52 @@ msgstr ""
 msgid "Gridded help"
 msgstr ""
 
-#: gridded/views.py:148
+#: gridded/views.py:147
 #, python-format
 msgid "There is no folder %(path)s."
 msgstr ""
 
-#: gridded/views.py:591
+#: gridded/views.py:590
 #, python-format
 msgid "The files cannot be read together: %(error)s"
 msgstr ""
 
-#: gridded/views.py:673
+#: gridded/views.py:696
 #, python-format
 msgid "Gridded thresholds: %(files)s"
 msgstr ""
 
-#: gridded/views.py:688
+#: gridded/views.py:711
 #, python-format
 msgid "Gridded indices: %(files)s"
 msgstr ""
 
-#: gridded/views.py:760
+#: gridded/views.py:785
 msgid "The gridded run was deleted."
 msgstr ""
 
-#: gridded/views.py:762
+#: gridded/views.py:787
 msgid "The gridded run and its uploaded files were deleted."
 msgstr ""
 
-#: gridded/views.py:779
+#: gridded/views.py:804
 #, python-format
 msgid "The run is now called %(name)s."
 msgstr ""
 
-#: gridded/views.py:793
+#: gridded/views.py:818
 msgid "Map"
 msgstr ""
 
-#: gridded/views.py:795
+#: gridded/views.py:820
 msgid "Set-up"
 msgstr ""
 
-#: gridded/views.py:805
+#: gridded/views.py:830
 msgid "run"
 msgstr ""
 
-#: gridded/views.py:866
+#: gridded/views.py:856
 msgid "This file could not be read."
 msgstr ""
 
@@ -7467,10 +7817,6 @@ msgstr ""
 msgid "Calculating the thresholds"
 msgstr ""
 
-#: jobs/stages.py:21
-msgid "Trends and the map"
-msgstr ""
-
 #: jobs/stages.py:22
 msgid "Calculating the correlations"
 msgstr ""
@@ -7478,6 +7824,21 @@ msgstr ""
 #: jobs/templates/jobs/_progress.html:19
 #, python-format
 msgid "Step %(step)s of %(total)s (%(percent)s%%)"
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:20
+#: stations/templates/stations/_qc_progress.html:18
+#: stations/templates/stations/_results_progress.html:23
+#: stations/templates/stations/_sector_progress.html:21
+#, python-format
+msgid "Time so far: %(elapsed)s."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:21
+#: stations/templates/stations/_results_progress.html:24
+#: stations/templates/stations/_sector_progress.html:22
+#, python-format
+msgid "About %(remaining)s left."
 msgstr ""
 
 #: jobs/templates/jobs/_progress.html:26
@@ -7509,6 +7870,17 @@ msgid "%(counter)s file"
 msgid_plural "%(counter)s files"
 msgstr[0] ""
 msgstr[1] ""
+
+#: jobs/templates/jobs/_progress.html:64
+#: stations/templates/stations/_results_progress.html:48
+msgid "The calculation failed."
+msgstr ""
+
+#: jobs/templates/jobs/_progress.html:70
+#: stations/templates/stations/_results_progress.html:54
+#: stations/templates/stations/sector.html:57
+msgid "The calculation was cancelled."
+msgstr ""
 
 #: jobs/templates/jobs/_progress.html:81
 #, python-format
@@ -7547,10 +7919,6 @@ msgstr[1] ""
 
 #: jobs/templates/jobs/job_list.html:11
 msgid "Calculate indices for a station"
-msgstr ""
-
-#: jobs/templates/jobs/job_list.html:18
-msgid "Started"
 msgstr ""
 
 #: jobs/templates/jobs/job_list.html:18
@@ -9692,11 +10060,6 @@ msgstr ""
 msgid "Show these"
 msgstr ""
 
-#: stations/templates/stations/_indices.html:46
-#: stations/templates/stations/_results_progress.html:65
-msgid "Change the settings"
-msgstr ""
-
 #: stations/templates/stations/_indices.html:51
 #, python-format
 msgid "All %(counter)s index"
@@ -9775,6 +10138,10 @@ msgstr ""
 #: stations/templates/stations/_input_form.html:44
 #: stations/templates/stations/add.html:108
 msgid "Apply"
+msgstr ""
+
+#: stations/templates/stations/_input_runs.html:13
+msgid "Starting"
 msgstr ""
 
 #: stations/templates/stations/_inputs_bar.html:11
@@ -10172,6 +10539,12 @@ msgstr ""
 
 #: stations/templates/stations/_results_actions.html:15
 msgid "All files and the report"
+msgstr ""
+
+#: stations/templates/stations/_results_progress.html:22
+#: stations/templates/stations/_sector_progress.html:20
+#, python-format
+msgid "Step %(step)s of %(total)s."
 msgstr ""
 
 #: stations/templates/stations/_results_progress.html:27

@@ -41,7 +41,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Quality control | qc/nastatistics, qc/tmaxmin, qc/toolarge, qc/duplicates, qc/tx_jumps, qc/tn_jumps, qc/tx_flatline, qc/tn_flatline, qc/outliers (see [Quality control](#quality-control)) | QC plots are not written as files (#9); the web QC screen draws the same plots (#77, see [Single-station steps](#single-station-steps)) |
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, gridded trends (`trends.nc`, not in R; see [Gridded trends](#gridded-trends)), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
-| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready; #294: while a run calculates, or after it failed, its Map tab shows its stages and what to change, and starting again keeps the finished stages, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
+| Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Results and Files as tabs beside an Inputs panel whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Results) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index; #276: Overlay the series, an index's series at every station on a page of its own, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready; #294: while a run calculates, or after it failed, its Map tab shows its stages and what to change, and starting again keeps the finished stages, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [Single-station steps](#single-station-steps), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
 | Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
@@ -3047,12 +3047,18 @@ packages/climpact-web/src/climpact_web/
     trend_grid.py    trends across stations (#238): the trend grid of the stations'
                      results (`grid`: columns, cells on the trend scale, every column's
                      interval plot, `interval_plot`) and its CSV (`grid_csv`)
+    overlay.py       Overlay the series (#276): an index's series at every station on
+                     shared axes (`overlay`, `for_index`), drawn on the server (`chart`)
+                     and for charts.js (`payload`, kind `overlay`), its summary, table
+                     and CSV (`index_csv`)
     views_files.py   /w/<id>/files/ (#239): the Files page, its three downloads and a
                      station's zip with its provenance file (`station_zip`)
     views_workspace.py  /w/<id>/ (#234): the workspace's address (`workspace_page`: one
                      station opens it, several the overview), the overview's polled
                      fragment (`workspace_progress`), Compare an index (`compare_page`,
-                     /w/<id>/compare/, and the grid's CSV, `compare_csv`, #238), Rename,
+                     /w/<id>/compare/, and the grid's CSV, `compare_csv`, #238), Overlay
+                     the series (`overlay_page`, /w/<id>/compare/<code>/overlay, and its
+                     CSV, `overlay_csv`, #276), Rename,
                      Workspace settings (a page and one page a setting) and Undo
     views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
@@ -3217,7 +3223,7 @@ packages/climpact-web/tests/
                      #179, #198), the workspace overview (test_workspace_overview.py,
                      #234), the workspace's Files (test_workspace_files.py, #239), the landing page,
                      Get started and Workspaces (test_workspaces_list.py, #242), trends across stations
-                     (test_trend_grid.py, #238), the batch page (test_batch.py), the
+                     (test_trend_grid.py, #238; Overlay the series, test_overlay.py, #276), the batch page (test_batch.py), the
                      gridded pages (test_gridded_web.py), the help (test_help.py),
                      the size budget (test_page_budget.py), the charts (test_charts.py),
                      steps 3 and 4 (test_indices_results.py), step 5 (test_sector_web.py),
@@ -4987,7 +4993,8 @@ reverses `stations:<name>` with the workspace and the slug; templates use
 names it; `batch.views.get_run` takes the workspace's). `batch` is therefore not a station
 slug, nor are `add` (Add stations' `/w/<id>/add/`, #233) and the overview's `settings`,
 `progress`, `rename` and `undo` (#234), and `files` (the workspace's Files,
-`/w/<id>/files/`, #239) and `compare` (Compare an index, `/w/<id>/compare/`, #238)
+`/w/<id>/files/`, #239) and `compare` (Compare an index, `/w/<id>/compare/`, #238,
+and its overlays, `/w/<id>/compare/<code>/overlay`, #276)
 (`models.RESERVED_SLUGS`: a station named Batch is `batch-2`), and the batch's routes
 are included before the stations' (`climpact_web/urls.py`). Every lookup is by the
 session's owner token on both the station or batch and its workspace
@@ -6786,6 +6793,38 @@ Stations table and alone on Compare an index, `/w/<id>/compare/`
   (`workspace_files.trends_csv`, same columns, `out_of_date` included) for the grid's indices, a column of the grid
   a block of rows, the stations in the overview's order; one index for the plot's "CSV,
   all stations". `test_trend_grid.py` checks it against R's per-station trend files.
+- **Overlay the series** (#276; `stations/overlay.py`, `stations/workspace_overlay.html`
+  with `stations/_overlay_chart.html`, also on `/patterns/`,
+  `views_workspace.overlay_page`). The interval plot's "Overlay the series" opens
+  `/w/<id>/compare/<code>/overlay`, a page of its own under Compare an index (the
+  maintainer's decision on #276; no board draws it, so it is built to `DESIGN.md`'s
+  chart rules): the index's series at every station with values, on shared axes, the
+  series whose trend the grid shows (`results.Card.main`: annual where the index has it,
+  monthly for SPI and SPEI). The years are every year from the first value to the last,
+  a station's missing ones gaps (a value with no neighbour a dot). Each drawn station is
+  a categorical slot, `--chart-1` to `--chart-8` in the overview's order, never cycled,
+  so **eight stations at most** are drawn: with more, the first eight, and "Choose the
+  stations drawn" (a GET form, `?stations=<slug>` repeated; more than eight chosen draws
+  the first eight and says so); the summary says how many are drawn, and the values table
+  and the CSV have every station. Stations are read as the grid reads them
+  (`trend_grid._stations`, which keeps each station's plots): an out-of-date station is
+  drawn and tagged "· out of date" in the legend and the table, and the summary names it;
+  one without results, failed (when `SHOW_FAILED_OUT_OF_DATE` is off), with no indices,
+  without the index or with every value missing is listed under "Not shown", as the
+  interval plot lists it. The chart is drawn on the server (`overlay.chart`, the
+  index page's axes and margins in a 1000 x 340 box, the chart without JavaScript and in
+  print) and, with JavaScript, by `charts.js` from the page's own data
+  (`overlay.payload`, `#overlay-chart-data`, kind `overlay`: the years, each drawn
+  station's values, label and slot token), with the read-out (the year, then each
+  station with a value), zoom, move, Show all, and PNG and SVG of the view, whose
+  legend wraps onto as many rows as it needs. Under it the text summary (the series and
+  its years, the stations, the highest and lowest values with their station and year,
+  how many stations have a significant trend), and the values as a data table, a row a
+  year, most recent first, a column a station. The CSV (`views_workspace.overlay_csv`,
+  `/w/<id>/compare/<code>/indices.csv`, `overlay.index_csv`) is the workspace's Indices
+  file (`workspace_files.indices_csv`) cut to the index's rows. Like the trends, the
+  page waits while a station is calculated (the CSV is a 404 meanwhile), a workspace of
+  one station leads to its Indices, and an index no station has a trend of is a 404.
 
 ### Help
 
@@ -7650,6 +7689,9 @@ coastline's path and the form's latitude and longitude selects), the PNG 12 KB a
 (random values; real fields compress better), linked, not inline; `gridded-map.js` 3.7 of
 4 KB; `climpact.css` 24.7 of 25 KB (raw limit 156,000 bytes, 142,000 before): the 80 map
 tokens in two themes, the rail, map, legend and pane.
+#276 (Overlay the series) took `climpact.css` to 26.8 of 27 KB (26.75 KB before; raw
+limit 172,000 bytes, 170,000 before): the overlay page, its chart's slots and the values
+table.
 #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
@@ -7871,6 +7913,13 @@ caching); the gridded map's cell pane (#295) puts the index page's payload
   base-period mean or zero), `axis` (the y axis's title), `offset` (subtracted from the
   trend line: the base-period mean for anomalies) and, for anomalies, `signed_digits`.
   Values are rounded as the read-out writes them (`charts.data.shown`).
+- `overlay` (#276, `stations.overlay.payload`, Overlay the series only): `x` (the years,
+  or mid-month decimal years), `title`, `units`, `axis`, `step`, and `series`, one per
+  drawn station, with `label` (its name, "· out of date" after it when it is), `short`
+  (its name, for the read-out), `token` (its categorical slot, `--chart-1` to
+  `--chart-8`) and `values` (`null` where missing, rounded as `charts.data.shown`).
+  `charts.js` draws a line each (a dot for a value with no neighbour) and its read-out
+  names only the stations with a value at the year.
 
 Each payload has `summary`, a plain-language description written on the server and
 translated: the period, extremes with their dates, missing values, flagged values, and the
@@ -7952,10 +8001,14 @@ overview.
 headless Chrome at 390px wide with the CPU throttled 4x (a mid-range phone), each zoom or
 move redraws in 18-37 ms. Pages and charts were checked in light and dark themes and at
 390px; screenshots are in the review folder of the PR.
+#276 (Overlay the series) took `charts.js` to 16.3 KB gzipped and its budget to 17 KB: the
+overlay's model, a dot for a value with no neighbour, and the PNG and SVG exports'
+legends wrapping onto rows.
 
 **Size.** `charts.js` is about 35 KB (10.4 KB gzipped); uPlot 51.1 KB (22.0 KB gzipped);
 together 32.4 KB gzipped, plus 1.3 KB of CSS gzipped. #283 (the index page's layers and views, the keyboard read-out) made
-`charts.js` 54.8 KB (15.8 KB gzipped; 12.1 KB before), and added `chart-readout.js`
+`charts.js` 54.8 KB (15.8 KB gzipped; 12.1 KB before; 56.9 KB and 16.3 KB gzipped with
+Overlay the series, #276), and added `chart-readout.js`
 (10.2 KB, 3.7 KB gzipped) for the charts drawn on the server. They are held by #82's
 `ASSET_BUDGETS` and may load only on pages marked `charts=True` (see
 [Size budget](#size-budget)): step 1 with data (83.2 KB gzipped in total), the

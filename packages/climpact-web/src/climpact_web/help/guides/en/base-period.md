@@ -51,10 +51,12 @@ and TXgt50p). The other indices that use the base period do not need it.
 
 ## Batches {#batches}
 
-In a batch, every station uses the **same base period**. Choose years that every station
-has data for. A station with less than a year of data in the base period is still
-calculated, but without its percentile indices; the batch page lists those stations before
-you start.
+Every station of a workspace uses the **same base period**, so in a batch choose years
+that every station has data for. Add stations checks each file against it before anything
+is calculated. A station with less than a year of data in the base period says "Read ·
+under a year in the base period": it can be added, and is calculated without its
+percentile indices. A file with no data in the base period is a problem, and is not added
+until the base period or the file changes.
 
 ## The threshold file {#the-threshold-file}
 

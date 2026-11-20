@@ -10,8 +10,9 @@ Links between pages are written with two schemes the renderer resolves, so that 
 not depend on where the app is mounted:
 
 - ``guide:<slug>#<anchor>`` for another guide (``guide:#<anchor>`` for the same one);
-- ``url:<url name>`` for a page of the app, e.g. ``url:stations:new``; a page that does
-  not exist yet (gridded, #85) leaves the link text without a link.
+- ``url:<url name>#<anchor>`` for a page of the app, e.g. ``url:stations:new`` or
+  ``url:help:index#samples-title``; a page that does not exist yet (gridded, #85) leaves
+  the link text without a link.
 
 The indices guide has a generated catalogue: the line ``[[index-catalogue]]`` is replaced
 with Markdown built from the core's ``climate.indices.csv`` before rendering, so the
@@ -155,12 +156,12 @@ _LINK = re.compile(r'href="(guide|url):([^"]*)"')
 def resolve_links(body: str, slug: str) -> str:
     def replace(match: re.Match) -> str:
         scheme, target = match.group(1), html.unescape(match.group(2))
+        target, _, anchor = target.partition("#")
+        fragment = "#" + anchor if anchor else ""
         if scheme == "guide":
-            name, _, anchor = target.partition("#")
-            url = reverse("help:guide", args=[name or slug])
-            return f'href="{url}{"#" + anchor if anchor else ""}"'
+            return f'href="{reverse("help:guide", args=[target or slug])}{fragment}"'
         try:
-            return f'href="{reverse(target)}"'
+            return f'href="{reverse(target)}{fragment}"'
         except NoReverseMatch:
             return 'data-unavailable="true"'
 

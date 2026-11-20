@@ -762,7 +762,7 @@ colour and the focus ring in `--color-focus`, in both themes. Which charts hydra
   results (#223): while they are out of date, the provenance line of the Indices, an
   index page and Files describes the run on the page (its file's years, base period,
   coordinates and settings; the Inputs panel and bar have the new values, "· changed"),
-  Quality's the file its checks read (#269), as do Quality's verdict, counts, year table and values (#308), and "Download all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
+  Quality's the file its checks read (#269), as do Quality's verdict, counts, year table and values (#308), the station's entry in `climpact_run.json` the file and coordinates its results were made from, with what changed since (#307), and "Download all" says "(out of date)" and is secondary, in the context bar, its ⋯ menu and on
   Files, until the new results are ready.
 - **Don't repeat a standing notice on every page** (retention, privacy). Show it once,
   where it matters, as a quiet line at the foot of the page: small muted text

@@ -5010,7 +5010,8 @@ latitude, longitude, base period), `qc` (the thresholds with R's defaults filled
 `IndexParams` fields, plot title, plots, zip and report). A batch's `origin["inputs"]`
 has `data` too, from the file the batch read (`batch.fill.batch_inputs`). `data` is never
 compared (`file` is): it only describes the file. Jobs queued before #269 have no `data`,
-and their lines describe the current file, as before. `workspace.differences` names what differs between a job's inputs and the
+and their lines describe the current file, as before. The workspace's provenance file
+uses the record too (#307, `workspace_files.provenance`, below). `workspace.differences` names what differs between a job's inputs and the
 analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`. The checks depend
 on the file, the thresholds and the name (their files are named after the station); a run
 on all of them. The current `settings` are the station's (`workspace.station_settings`,
@@ -6627,8 +6628,20 @@ A workspace of one station has none: the address leads to its station's Files.
   provenance line's "ET-SCI defaults" or how many settings are not the default),
   `settings` (the quality thresholds and the index settings in full), `trend` and per
   station its name, file name, SHA-256 (`Station.file_hash`, the file as kept), latitude,
-  longitude, years and its folder, or why it has no results; a station whose results are
-  out of date says so. A station's zip holds its own station only. The page shows the
+  longitude, years and its folder, or why it has no results. A station whose results are
+  out of date says so and what changed since (`results`: "out of date: made before a
+  change to the file and the coordinates"; the file, the station's name, the coordinates,
+  the base period, the quality thresholds or the index settings, from
+  `workspace.run_changes`), and its file name, SHA-256, years and coordinates are those
+  the shown run read (#307, `workspace_files._made_from`, from
+  `workspace.recorded_inputs`), so after "Replace file" or new coordinates the old results
+  in the zip are not described by the new file. A run from before #269 recorded no `data`:
+  its entry names the current file (name, hash and years together, never a mix of two
+  files). While its new run is on the way a station has no results in the files, which
+  are not made; the workspace file's record (#240) then describes its current file, the
+  one the workspace file holds. The record's `base_period` and `settings` stay the
+  workspace's current ones; an out-of-date station's `results` names those its results
+  were made before. A station's zip holds its own station only. The page shows the
   file (scrolling in its frame), and "Copy methods text" (`workspace_files.methods_text`):
   one sentence made from it, with the version, the base period, the settings and the trend
   method. Without JavaScript it is a disclosure that shows the text (`js/copy.js`).

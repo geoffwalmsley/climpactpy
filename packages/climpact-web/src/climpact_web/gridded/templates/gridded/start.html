@@ -3,7 +3,8 @@
 Gridded (#289, the GridList board), which replaced the gridded start page and its
 "Recent runs": the title and lead with New gridded run (primary) at the title's end, then
 "Your runs", a data table with a row a run (Run, Grid, Period, Thresholds, Calculates,
-State with a bar while calculating, Kept until) and how long runs are kept; with no runs,
+State with a bar while calculating, Kept until where runs expire) and how long runs are
+kept (locally, until forgotten: #301); with no runs,
 one line and the sample grid in its place. Then three boxes: stations or a grid,
 scenarios, and the sample. Context from views.start: entries (runs.entries), local,
 sample_name.
@@ -26,7 +27,7 @@ sample_name.
     <h2 id="runs-title" class="m-0 text-base">{% translate "Your runs" %}</h2>
     {% if entries %}
     {% include "gridded/_runs_table.html" %}
-    <p class="m-0 text-sm text-text-muted">{% if is_hosted %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept in this browser for {{ days }} day after their last change. Download what you want to keep.{% plural %}Runs are kept in this browser for {{ days }} days after their last change. Download what you want to keep.{% endblocktranslate %}{% else %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept on this computer for {{ days }} day after their last change; files read in place are never touched. Download what you want to keep.{% plural %}Runs are kept on this computer for {{ days }} days after their last change; files read in place are never touched. Download what you want to keep.{% endblocktranslate %}{% endif %}</p>
+    <p class="m-0 text-sm text-text-muted">{% if not workspace_expiry %}{% translate "Runs stay on this computer until you forget them; files read in place are never touched." %}{% elif is_hosted %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept in this browser for {{ days }} day after their last change. Download what you want to keep.{% plural %}Runs are kept in this browser for {{ days }} days after their last change. Download what you want to keep.{% endblocktranslate %}{% else %}{% blocktranslate count days=job_retention_days trimmed %}Runs are kept on this computer for {{ days }} day after their last change; files read in place are never touched. Download what you want to keep.{% plural %}Runs are kept on this computer for {{ days }} days after their last change; files read in place are never touched. Download what you want to keep.{% endblocktranslate %}{% endif %}</p>
     {% else %}
     <form method="post" action="{% url 'gridded:sample' %}" class="flex flex-wrap items-center gap-3 p-4 border border-border rounded-sm bg-surface text-sm">
       {% csrf_token %}

@@ -959,9 +959,9 @@ def test_sample_run_end_to_end(client, tmp_path):
         "1991–2010, standard",
         "base 1991–2010",
         "5 indices, 9 files",
-        "kept until ",
     ):
         assert f">{part}" in html, part
+    assert "kept until" not in html  # a local run stays until forgotten (#301)
     assert "Forget this run" in html and "Run again with other files" in html
     assert "Download all (zip, " in html and "gridded-progress" not in html
     assert f'href="/gridded/{run.pk}/" data-tab="map" aria-current="page"' in html
@@ -1266,7 +1266,8 @@ def test_other_sessions_get_404(client):
     assert f"/gridded/{run.pk}/" not in other.get("/gridded/").content.decode()
 
 
-def test_delete_and_retention(client):
+def test_delete_and_retention(client, settings):
+    settings.WORKSPACE_EXPIRY = True  # hosted: runs expire
     data = SAMPLE.read_bytes()
     client.post("/gridded/upload", {"files": [SimpleUploadedFile("g.nc", data)]})
     run = GriddedRun.objects.get()
@@ -1290,6 +1291,85 @@ def test_delete_and_retention(client):
     assert SAMPLE.is_file()  # a file read in place is never deleted
 
 
+def age(run: GriddedRun, days: int) -> None:
+    """Make the run and its jobs ``days`` old, as the purge sees them."""
+    then = timezone.now() - dt.timedelta(days=days)
+    GriddedRun.objects.filter(pk=run.pk).update(updated_at=then)
+    Job.objects.filter(pk__in=[j.pk for j in run.jobs]).update(
+        created_at=then, started_at=then, finished_at=then
+    )
+
+
+def test_hosted_runs_and_their_jobs_go_after_the_retention_period(client, settings):
+    settings.WORKSPACE_EXPIRY = True
+    run = sample_run(client)
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, task="thresholds"))
+    run_jobs()
+    run.refresh_from_db()
+    job = run.thresholds_job
+    assert job.status == Status.SUCCEEDED and job.output_dir.is_dir()
+    assert run.expires_at == run.updated_at + dt.timedelta(days=7)
+    kept = timezone.localtime(run.expires_at).strftime("%-d %b %Y")
+    html = client.get("/gridded/").content.decode()
+    assert ">Kept until<" in html and f">{kept}<" in html
+    assert "Runs are kept on this computer for 7 days" in html
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    assert f">kept until {kept}<" in html
+
+    age(run, 8)
+    purge_expired()
+    assert not GriddedRun.objects.exists() and not Job.objects.filter(pk=job.pk).exists()
+    assert not job.output_dir.exists()
+
+
+def test_local_runs_and_their_jobs_stay_until_forgotten(client, settings):
+    """#301: where runs don't expire (WORKSPACE_EXPIRY off, local) the purge keeps a run,
+    the jobs it shows (and those of a new start) and their folders, whatever their age;
+    the list, its note, the provenance line and the set-up say so. Stray folders still go,
+    and Forget this run deletes it."""
+    settings.WORKSPACE_EXPIRY = False
+    run = sample_run(client)
+    html = client.get(f"/gridded/{run.pk}/setup/").content.decode()
+    assert "Everything stays on this computer until you forget the run." in html
+    assert "The run stays on Gridded until you forget it." in html
+    assert "listed on Gridded until" not in html
+    client.post(f"/gridded/{run.pk}/setup/", setup_data(run, task="thresholds"))
+    run_jobs()
+    run.refresh_from_db()
+    job = run.thresholds_job
+    assert job.status == Status.SUCCEEDED and job.output_dir.is_dir()
+    assert run.expires_at is None
+    # A new start waiting beside the results is kept too (#293).
+    waiting = Job.objects.create(kind=job.kind, owner=job.owner, status=Status.FAILED)
+    GriddedRun.objects.filter(pk=run.pk).update(next_thresholds_job=waiting)
+    run.refresh_from_db()
+
+    html = client.get("/gridded/").content.decode()
+    assert "Kept until" not in html
+    assert "Runs stay on this computer until you forget them" in html
+    assert "after their last change" not in html
+    html = client.get(f"/gridded/{run.pk}/").content.decode()
+    assert "kept until" not in html and "Forget this run" in html
+
+    stray = gridded_dir() / "0b3c2f5e-8a6d-4f1e-9a3b-6d7c8e9f0a1b"
+    stray.mkdir(parents=True)
+    old = (timezone.now() - dt.timedelta(days=30)).timestamp()
+    import os
+
+    os.utime(stray, (old, old))
+    age(run, 30)
+    Job.objects.filter(pk=waiting.pk).update(created_at=timezone.now() - dt.timedelta(days=30))
+    purge_expired()
+    assert GriddedRun.objects.filter(pk=run.pk).exists()
+    assert Job.objects.filter(pk__in=[job.pk, waiting.pk]).count() == 2
+    assert job.output_dir.is_dir() and not stray.exists()
+
+    client.post(f"/gridded/{run.pk}/delete")
+    assert not GriddedRun.objects.exists()
+    purge_expired()  # forgotten, its jobs keep the jobs app's rule again
+    assert not Job.objects.filter(pk__in=[job.pk, waiting.pk]).exists()
+
+
 # ---- Gridded: the list, names and states (#289) -------------------------------------------------
 
 
@@ -1309,7 +1389,7 @@ def test_gridded_list_and_states(client):
     assert "Your gridded runs, most recently changed first" in html
     assert f'<a href="/gridded/{run.pk}/" title="Sample grid, 1991–2010">' in html
     assert ">Not started<" in html and "gridded-state--new" in html
-    assert "Runs are kept on this computer for 7 days" in html
+    assert "Runs stay on this computer until you forget them" in html
     # A variable in units Climpact cannot read: the state says which.
     files = [dict(run.files[0])]
     files[0]["variables"] = [dict(v) for v in files[0]["variables"]]
@@ -1317,9 +1397,9 @@ def test_gridded_list_and_states(client):
     GriddedRun.objects.filter(pk=run.pk).update(files=files)
     html = client.get("/gridded/").content.decode()
     assert ">Not started: precipitation units<" in html and "gridded-state--problem" in html
-    with override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True):
+    with override_settings(IS_HOSTED=True, GRIDDED_ENABLED=True, WORKSPACE_EXPIRY=True):
         html = client.get("/gridded/").content.decode()
-    assert "Runs are kept in this browser for 7 days" in html
+    assert "Runs are kept in this browser for 7 days" in html and ">Kept until<" in html
 
 
 def test_rename_a_run(client):

@@ -18,6 +18,7 @@ import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy, ngettext
 
@@ -877,7 +878,6 @@ def done_items(run) -> list[Item]:
 
 
 def _kept_date() -> str:
-    from django.conf import settings
     from django.utils import dateformat, timezone
 
     later = timezone.now() + dt.timedelta(days=settings.JOB_RETENTION_DAYS)
@@ -976,11 +976,16 @@ def panel_for(run, form, items: list[Item], links: list[dict]) -> Panel:
         error = _("The last run did not finish. %(error)s") % {"error": error}
     if links:
         foot = _("Start checks again and stops at the problem.")
-    else:
+    elif settings.WORKSPACE_EXPIRY:
         foot = _(
             "It runs in the background: you can close this page. The run is listed on "
             "Gridded until %(date)s."
         ) % {"date": _kept_date()}
+    else:  # runs stay until forgotten (#301)
+        foot = _(
+            "It runs in the background: you can close this page. The run stays on Gridded "
+            "until you forget it."
+        )
     return Panel(
         _("Before you start") if links else _("Ready to start"),
         items=items,

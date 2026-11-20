@@ -3,8 +3,9 @@ Gridded's table of runs (#289, the GridList board): a data table, a row a run, m
 recently changed first. Run (a link to the run), Grid (rows × columns and the spacing),
 Period, Thresholds (the base period, ", file kept" when the run wrote a thresholds file,
 "From <run>" when it read another run's), Calculates, State (in danger when a run failed
-or cannot start, with a bar while calculating) and Kept until ("–" while it calculates:
-a run is never deleted then). Context: entries (runs.entries).
+or cannot start, with a bar while calculating) and, where runs expire (workspace_expiry,
+as Workspaces' "Deleted on"), Kept until ("–" while it calculates: a run is never deleted
+then); locally runs stay until forgotten (#301). Context: entries (runs.entries).
 {% endcomment %}
 <div class="table-wrap table-wrap--data" role="region" aria-labelledby="runs-caption" tabindex="0">
   <table class="table table--data">
@@ -17,7 +18,7 @@ a run is never deleted then). Context: entries (runs.entries).
         <th scope="col">{% translate "Thresholds" %}</th>
         <th scope="col">{% translate "Calculates" %}</th>
         <th scope="col">{% translate "State" %}</th>
-        <th scope="col">{% translate "Kept until" %}</th>
+        {% if workspace_expiry %}<th scope="col">{% translate "Kept until" %}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -29,7 +30,7 @@ a run is never deleted then). Context: entries (runs.entries).
         <td class="gridded-runs__muted gridded-runs__thresholds" title="{{ e.thresholds }}">{{ e.thresholds }}</td>
         <td class="gridded-runs__muted">{{ e.calculates }}</td>
         <td><span class="gridded-runs__state-cell gridded-state--{{ e.state.key }}"><span>{{ e.state.text }}</span>{% if e.state.key == "running" %}<progress class="meter gridded-runs__meter" max="100"{% if e.state.percent is not None %} value="{{ e.state.percent }}"{% endif %} aria-hidden="true"></progress>{% endif %}</span></td>
-        <td class="code text-text-muted">{{ e.kept }}</td>
+        {% if workspace_expiry %}<td class="code text-text-muted">{{ e.kept }}</td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>

@@ -5,8 +5,9 @@ its own like a workspace (#289): its name, the files (paths on this computer in 
 mode, read in place; or uploaded copies in the run's own folder), what inspecting them
 found, the variable names, the parameters, and the background jobs that calculate the
 thresholds and the indices. Like a batch it belongs to the browser session that created
-it, and is deleted ``JOB_RETENTION_DAYS`` after it was last changed (:mod:`.retention`);
-files read in place are never deleted.
+it. Like a workspace it is deleted ``JOB_RETENTION_DAYS`` after it was last changed where
+``WORKSPACE_EXPIRY`` is on (hosted), and stays until forgotten where it is off (local,
+#301; :mod:`.retention`); files read in place are never deleted.
 """
 
 from __future__ import annotations
@@ -168,5 +169,9 @@ class GriddedRun(models.Model):
         self.updated_at = timezone.now()
 
     @property
-    def expires_at(self) -> dt.datetime:
+    def expires_at(self) -> dt.datetime | None:
+        """When the run is deleted: ``JOB_RETENTION_DAYS`` after its last change where runs
+        expire (``WORKSPACE_EXPIRY``, hosted); None where they stay until forgotten."""
+        if not settings.WORKSPACE_EXPIRY:
+            return None
         return self.updated_at + dt.timedelta(days=settings.JOB_RETENTION_DAYS)

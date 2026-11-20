@@ -3132,7 +3132,8 @@ packages/climpact-web/src/climpact_web/
     outline.py       the coastline and places for a box of the grid, from data/outline.npz
     data/outline.npz Natural Earth 1:50m coastline and populated places (public domain,
                      scripts/build-map-outline.py)
-    retention.py     purge_expired_gridded, registered with the jobs app's purge
+    retention.py     purge_expired_gridded and kept_jobs (#301), registered with the
+                     jobs app's purge and keepers
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ and its checks
                      (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
@@ -3254,7 +3255,7 @@ the variable.
 | `CLIMPACT_WEB_STATIC_ROOT` | `<data dir>/static` (local) | `collectstatic` target; required in hosted mode |
 | `CLIMPACT_WEB_MEDIA_ROOT` | `<data dir>/media` | uploads and job folders (`RUNS_DIR` is `media/runs`) |
 | `CLIMPACT_WEB_RETENTION_DAYS` | `7` | days a finished job and its files are kept (`JOB_RETENTION_DAYS`) |
-| `CLIMPACT_WEB_WORKSPACE_EXPIRY` | on when hosted, off locally | whether workspaces expire `JOB_RETENTION_DAYS` after their last change (`WORKSPACE_EXPIRY`, #231); off, a workspace and the jobs it shows stay until deleted |
+| `CLIMPACT_WEB_WORKSPACE_EXPIRY` | on when hosted, off locally | whether workspaces and gridded runs expire `JOB_RETENTION_DAYS` after their last change (`WORKSPACE_EXPIRY`, #231, #301); off, a workspace or gridded run and the jobs it shows stay until deleted |
 | `CLIMPACT_WEB_JOB_HEARTBEAT_SECONDS` | `10` | seconds between worker heartbeats |
 | `CLIMPACT_WEB_JOB_STALE_SECONDS` | `60` | seconds without a heartbeat before a running job counts as dead |
 | `CLIMPACT_WEB_JOB_POLL_SECONDS` | `1` | seconds between a worker's checks for queued jobs |
@@ -4863,7 +4864,8 @@ connection (the next poll carries on).
 job that never ran, that long after it was created. Running jobs are never deleted, nor
 are the jobs another app still shows: apps register them with `register_keeper(func)`,
 `func()` giving their ids (the stations app keeps every job a station or batch shows,
-`stations.retention.kept_jobs`, #231). Folders
+`stations.retention.kept_jobs`, #231; the gridded app, where runs don't expire, every
+job a run shows, `gridded.retention.kept_jobs`, #301). Folders
 under `RUNS_DIR` named like a job id but belonging to none (an interrupted upload) are
 deleted once older than the period. The worker purges at start and every hour
 (`JOB_CLEANUP_INTERVAL`); `climpact-web manage purgejobs` does it on demand (and fails
@@ -6125,8 +6127,8 @@ purge's stray-folder sweep leaves a living workspace's folder alone. Either way 
 replacement in progress, failed or cancelled replaces on the page (`params["replaces"]`),
 a batch station's batch job (`origin["job"]`), and each batch's job. So results never
 disappear under a page; a replaced job is purged on its own schedule once its replacement
-has succeeded. Other jobs (gridded runs, replaced runs no longer shown) keep the jobs
-app's rule. Folders under `stations/` and `batches/` that belong to no station or batch
+has succeeded. Other jobs (replaced runs no longer shown; gridded runs' where they
+expire, see [Gridded pages](#gridded-pages)) keep the jobs app's rule. Folders under `stations/` and `batches/` that belong to no station or batch
 are deleted once older than the period. With expiry on, the pages state the period and
 the date the workspace will be deleted; with it off, that the data stay on this computer
 until deleted. "Delete this data now" deletes the station at once, and its workspace if
@@ -6986,8 +6988,10 @@ Thresholds (the base period; ", file kept" when the run wrote a thresholds file;
 resolved path, or "From <file name>"), Calculates, State (`runs.state`: "Not started",
 "Not started: precipitation units" and the like from the variable checks, "Waiting to
 start", "Calculating · 38%" with a bar, "Failed", "Cancelled", "Finished 18 Nov, 21 min")
-and Kept until (`expires_at`; "–" while a job is queued or running). With no runs, one
-line and the sample grid. Then three boxes: stations or a grid, scenarios, the sample.
+and, where runs expire, Kept until (`expires_at`; "–" while a job is queued or running;
+left out locally, as Workspaces' "Deleted on"), then a line on how long runs are kept
+("Runs stay on this computer until you forget them" locally). With no runs, one line and
+the sample grid. Then three boxes: stations or a grid, scenarios, the sample.
 Workspaces' note links here when the session has gridded runs.
 
 A run is named from its files until it is renamed (`runs.default_name`): the first file's
@@ -7002,7 +7006,7 @@ h1, the provenance line (`runs.provenance`: rows × columns and the cells with d
 counted once from the first annual index file, in stripes of rows with all their years at
 once (#295: a time step at a time decompressed the whole file once a step, 19 s on a
 700 x 900 grid), and kept in the run's options; the period and calendar; the base period; the indices and files, or
-"calculating"; the climpact version; kept until), Rename and Forget this run (a
+"calculating"; the climpact version; kept until, where runs expire), Rename and Forget this run (a
 confirmation page, then POST), "Run again with other files" (to New gridded run) once
 no job is queued or running, and "Download all (zip, size)" once every job has
 succeeded; then the tabs:
@@ -7047,6 +7051,23 @@ succeeded; then the tabs:
   checksums). A new start that fails or is cancelled leaves the results as they were,
   and Set-up says so; while it calculates, Set-up says "Calculating again" and Gridded's
   State shows its progress. A run that never finished is started again in place.
+
+**Retention** (`gridded/retention.py`, #301). Gridded runs follow `WORKSPACE_EXPIRY`, as
+workspaces do. When it is on (hosted), `purge_expired_gridded` deletes a run and its own
+folder (uploads) `JOB_RETENTION_DAYS` after its last change (`GriddedRun.updated_at`:
+created, started, renamed), unless one of its four jobs (`thresholds_job`, `indices_job`
+and a new start's `next_thresholds_job`, `next_indices_job`) is queued or running; the
+jobs themselves keep the jobs app's rule. When it is off (local), a run stays until
+Forget this run deletes it: no run is purged, and `kept_jobs` (a keeper) keeps the jobs
+of every run, with their folders under `RUNS_DIR`, whatever their age; once the run is
+forgotten they fall back to the jobs app's rule. `GriddedRun.expires_at` is None then, so
+`runs.kept_until` is empty: Gridded leaves out its Kept until column, the provenance line
+its "kept until", and the note under the list, the set-up's retention line and its "Ready
+to start" panel say runs stay on this computer until forgotten. Either way, folders under
+`<MEDIA_ROOT>/gridded/` that belong to no run are deleted once older than the period, and
+files read in place are never touched (`test_gridded_web.py`:
+`test_hosted_runs_and_their_jobs_go_after_the_retention_period`,
+`test_local_runs_and_their_jobs_stay_until_forgotten`, `test_delete_and_retention`).
 
 **New run and set-up:**
 

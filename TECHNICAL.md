@@ -5738,7 +5738,14 @@ and the pane under it; narrower, the rail above the table (its themes a wrapping
 detail after it, focus moving to it, with "Back to the list" (hidden beside the table:
 until #263 a later rule showed it there too). On a phone (below 40rem) each row is two
 lines (code, name and sparkline; then the slope with its unit, interval and
-significance) and the header a line of the sort buttons, by CSS only.
+significance) and the header a line of the sort buttons, by CSS only. Since #286 the row
+is a wrapping flex line, not a grid of fixed columns: the cells take the width of what
+they hold (the code at least 5.5rem, the slope 7.75rem, so the intervals line up; the
+name takes what is left and ends in an ellipsis), `order` puts the sparkline on the first
+line and an empty `::after` of full width breaks the line, and the significance sits at
+the second line's end. What does not fit wraps whole to a third line (at 320px, "yes"
+after a long slope and interval) instead of running into its neighbour, as the interval
+did into "yes" in the old grid's 1fr column.
 
 On the Indices the Inputs panel does not sit beside the section (#236), nor on Quality
 since #264 (`station-page--inputs-bar`, the `_workspace.html` include's `edit_inputs`),
@@ -7477,7 +7484,11 @@ scrolls the station and workspace pages at 320, 375, 1280 and 1440 px and checks
 nothing stuck to the window covers anything else stuck to it (what slides under the
 header is hidden by it), and that the page never scrolls sideways; `test_phone_inputs_bar_opens_the_sheets`
 opens the Inputs sheet from the bar and an input's sheet from it by keyboard, with axe at
-375 and 320 px and Escape stepping back; `test_page_menu_by_keyboard` works the ⋯ menu.
+375 and 320 px and Escape stepping back; `test_page_menu_by_keyboard` works the ⋯ menu;
+`test_indices_phone_rows_keep_their_cells_apart` (#286) checks at 320 and 375 px, light
+and dark, that no visible content of an Indices row's cell overlaps another's, runs out of
+the row or is clipped (the name's ellipsis aside), also with the longest numbers written
+into the first row.
 `test_axe_every_page` fails on a serious or critical axe
 violation and `test_no_axe_violations_at_all` on any; all pass. The whole module takes
 about two and a half minutes locally (160 s on 2026-11-16; three of them in CI), so it is

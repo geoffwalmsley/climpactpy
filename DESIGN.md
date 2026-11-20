@@ -181,8 +181,14 @@ tokens only: a test fails on a hex colour outside the two token blocks.
 **Charts** have their own tokens (`--chart-*`): eight categorical slots in a fixed order,
 never cycled; variable roles (`tmax` red, `tmin` blue, `prcp` green, checked as a set
 for colour-vision deficiency), which the daily and quality charts keep: the theme hues
-are for indices, the variable roles for the station's variables; trend, band, grid and axis; a five-step sequential and a
-seven-step diverging scale for maps (**Target:** eight-bin scales by the index's kind, `--map-seq-*` with #295 and `--map-div-*` with #296, replace them; see the gridded frame); the **trend scale** (#227: `--chart-decrease-2`,
+are for indices, the variable roles for the station's variables; trend, band, grid and axis; the gridded map's
+**eight-bin scales** by the index's kind (#295: `--map-seq-temp-*`, values in °C, blue
+through pale yellow to red; `--map-seq-warm-*`, `-cool-*`, `-wet-*` and `-dry-*` for
+counts and amounts, moving away from the sunken surface in lightness, darker in light and
+brighter in dark; each bin apart from the sunken surface, a cell with no value, and from
+its neighbours under protanopia and deuteranopia, `test_map_scales_stand_apart`); a
+seven-step diverging scale (anomalies; on the map, SPI and SPEI's standard classes,
+reversed so dry is red, **Target:** `--map-div-*` with #296); the **trend scale** (#227: `--chart-decrease-2`,
 `-decrease-1`, `-increase-1`, `-increase-2`, blue for a significant decrease and orange
 for an increase, the strong step darker in light and brighter in dark; a cell's value is
 written in it, in `--color-surface` on the strong steps and `--color-text` on the weak
@@ -209,6 +215,7 @@ same values; build with the tokens:
 | Heat, Cold, Rain, Drought, Also measured | `heat`, `cold`, `rain`, `drought`, `other` |
 | The trend scale: two steps of increase (orange) and of decrease (blue) | `--chart-increase-1`, `-2` and `--chart-decrease-1`, `-2`; not significant is a dashed `border-strong` edge on the surface, no fill |
 | Coverage: complete, 1–3 days missing, 4 or more | `--chart-coverage-1` to `-3` (the coverage strip, #235) |
+| The gridded map's ramps (GridMap); its "sea" (no value); its coast | `--map-seq-<kind>-1` to `-8`; `surface-sunken`; `text` over a `surface` halo |
 | Links (blue, underlined) | `link`, `link-hover` |
 | The "Mock-up" banner | Not part of the design |
 
@@ -397,7 +404,7 @@ strips, worklist and detail pane.
   with the overview's last poll. A station whose recalculation then failed, or was not
   run or cancelled, keeps its earlier trends, tagged "· out of date" (#279), as its
   Indices, Files and its row of the Stations table say.
-- **The gridded frame (the Grid boards; built by #289, #291 and #293, Target: #290, #292, #294–#296 for the rest).**
+- **The gridded frame (the Grid boards; built by #289, #290, #291, #293 and #295, Target: #292, #294 and #296 for the rest).**
   A gridded run is a place of its own, like a workspace, not a flow of steps. **Naming:** the header says
   "Gridded" (the data's shape, the field's word: ET-SCI, Climpact for R's "gridded
   indices"); "netCDF" is said where files are chosen (the landing card "Gridded data
@@ -454,29 +461,33 @@ strips, worklist and detail pane.
     and Forget this run, at every width), "Run again with other files" once no job runs
     and Download all (zip, size) once all have finished at the title's end; then the
     tabs **Map** (`/gridded/<run>/`), **Files** (`files/`) and **Set-up** (`setup/`).
-    The old `results` address redirects to Map. Until #295 Map holds the explorer and,
-    while the run calculates or after it failed, the job cards with their progress.
+    The old `results` address redirects to Map. While the run calculates or after it
+    failed, Map holds the job cards with their progress.
     Set-up's summary panel describes the run ("This run": when, how long, what it wrote,
     and what has changed since), and "Start again with changes" keeps the results on Map
     and Files until the new ones are ready (#293). **Target:** while it calculates, or
     after it failed, the Map tab shows the run status line and the stages table (#294); a
     failure names the setting that fixes it, with a link.
-  - **Map** (#295, #296) is a data page in the Indices' three columns: the index rail
-    (14rem, by theme, codes first, the frequencies each index has), the map, the cell pane
-    (`clamp(22rem, 28%, 32rem)`). Above the map: the code and name, the definition and
-    file name; the view (Year, Base mean, Anomaly, Trend), Annual / Monthly, the year
-    stepper; Download ▾. The map draws every cell (a PNG, one pixel per cell) under an SVG
-    of the coastline and a few places from a bundled Natural Earth outline: no map tiles,
-    works offline. Eight fixed bins per index and view: a sequential scale by the index's
-    kind (temperature, warm counts, cold counts, wet, dry) for values, a diverging one
-    centred on zero for anomalies and trends, reversed where an increase means cooler or
-    drier, so warmer and wetter read the same on every map; on Trend a dot marks each cell
-    whose 95% interval excludes zero. Hover reads a cell out; click, Enter, arrow keys and
-    "Go to" select one. The cell pane reads like the Indices' detail pane (the series
-    chart with base band, 11-year mean, Sen's slope and its interval; the statistics in
-    the same order) and offers "Mean over the grid" (cos-latitude weighted); when a
-    station of one of the browser's workspaces is in the cell, it links to that station's
-    index page.
+  - **Map** (#295, the Gridded map pattern below) is a data page in the Indices' three
+    columns: the index rail (14rem, by theme, codes first, the frequencies each index
+    has), the map, the cell pane (`clamp(22rem, 28%, 32rem)`). Above the map: the code and
+    name, the definition and file name; the view (Year; Base mean, Anomaly and Trend shown
+    unavailable, **Target:** #296), Annual / Monthly, the year stepper (a month for a
+    monthly file, the scale for SPI and SPEI); one line on what is shown; Download ▾ (Map
+    as PNG, Map as CSV, the netCDF file). The map draws every cell (a PNG, one pixel per
+    cell, scaled up without smoothing, the cells' aspect from the cosine of the mean
+    latitude) under an SVG of the coastline and three to five places from a bundled
+    Natural Earth outline: no map tiles, works offline. Eight fixed bins per index and
+    view, the same for every year of the file: a sequential scale by the index's kind
+    (temperature, warm counts, cold counts, wet, dry). **Target (#296):** a diverging
+    scale centred on zero for anomalies and trends, reversed where an increase means
+    cooler or drier, so warmer and wetter read the same on every map; on Trend a dot marks
+    each cell whose 95% interval excludes zero. Hover reads a cell out; click, Enter,
+    arrow keys and "Go to" select one. The cell pane reads like the Indices' detail pane
+    (the series chart with base band, 11-year mean, Sen's slope and its interval, the year
+    on the map marked; the statistics in the same order); when a station of one of the
+    browser's workspaces is in the cell, it links to that station's index page.
+    **Target (#296):** "Mean over the grid" (cos-latitude weighted).
   - **Files** (#289, `gridded/files.html`) uses the File group pattern, framed, by theme
     (Heat, Cold, Rain, Drought, Other; or by variable needed, or frequency, a GET form),
     the first open, each with "Download these (zip)" beside its summary: Code, Index,
@@ -578,9 +589,9 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `tabs` | Component | ARIA tablist; all panels show without JS | — |
 | `workspace_tabs` | Component | A station's sections as tabs under its name, in the sticky context bar (`stations/_workspace.html`). Each is a page of its own, so they are links in a named `nav` with `aria-current="page"`, not a tablist; Tab moves between them. Each has a status: an icon of its own shape and a word (done `check-circle`, needs attention `warning`, out of date `clock`, running `refresh`, not started `circle`, not available yet `lock`; Indices' "No indices" `warning`, in the warning colour, when the run made no index table, #298). The word shows for the states that need the user and is read by screen readers for all. Quality's tab reads like its verdict (#222): "Checking…" (`refresh`) while the checks run, then the verdict strip's level and an icon, Ready `check-circle`, Usable `warning` or Fix first `error`, as a small pill in the status colour on its soft tint, with the count of values that look wrong after a middle dot ("Usable · 21", read as "Usable, 21 values look wrong"); a failed check stays "Needs attention". On a phone (under 40rem) the verdict is its icon on the tint, so the three tabs stay on one line at 320px; the word and count are still read. A section not available yet is not a link. Looks like `tabs` | — |
 | `progress`, `stages`, `skeleton` | Component | Running jobs and loading content. The label is the stage in words, then the percentage ("Calculating the indices", 7%): `jobs/stages.py` maps each stage to its words and never shows its ids (module, index or file, #226) | determinate, indeterminate |
-| `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV (Quality's daily charts, the gridded series; the index page draws its own frame since #237 and shares its controls, `chart_toolbar` and `chart_readout`, since #283) | — |
+| `chart_frame` | Pattern | Chart with title, text summary, legend, zoom, PNG/SVG, table view, CSV (Quality's daily charts; the index page draws its own frame since #237, and the gridded cell pane its own since #295 and shares its controls, `chart_toolbar` and `chart_readout`, since #283) | — |
 | `readout` | Component | The read-out under a chart drawn on the server (#283, `js/chart-readout.js`): the line that writes the values under the pointer or the keyboard's cursor ("1996 · TXx 41.2 °C"), how the keyboard works (named by the chart's `data-readout-keys`) and the status line that announces each keyboard move. The chart's `data-readout` holds where each value is; "open" or "select" says what Enter does | open (a value opens the index page at it), select (a value selects its row), none |
-| Segmented control | Primitive | One choice of two or three side by side (`segmented`, #237): links in one strip of `border-strong` edges, the current one ink (`aria-current`), so each works without JavaScript. The index page's Values / Anomaly and Annual / Monthly | — |
+| Segmented control | Primitive | One choice of two to four side by side (`segmented`, #237): links in one strip of `border-strong` edges, the current one ink (`aria-current`), so each works without JavaScript. A choice not offered is a span with `aria-disabled` in muted text, struck through when the item has no such thing (`segmented__item--off`, a frequency without a file, #295). The index page's Values / Anomaly and Annual / Monthly; the gridded map's view, frequency and scale | not offered, off |
 | Index page | Pattern | One index (#237, the Index board; `stations/result.html`, `stations/index_page.py`): the context bar (breadcrumb station / Indices with the previous and next index; the index as the h1 with its theme pill; its definition, unit and R's name, with "About this index" as a quiet help link; the provenance line; CSV, "PNG (R style)" and "Copy citation", a disclosure without JavaScript); then the chart in a frame beside the Trend statistics (Sen's slope, 95% interval, Significant, Years used, Base-period mean, Record; why any year was left out; the method); then the values as a framed data table, scrolling inside its frame (Year, the value with its unit, Anomaly, Rank, the date of the maximum or minimum where the core gives it, Note: Record or why the value was left out), most recent first. The chart is drawn on the server: the base period as a band, round values and years on the axes, the y axis titled with the code and units, Sen's slope's 95% interval as a shaded bow tie through the slope's middle, the values (bars for SPI and SPEI) with gaps, the 11-year running mean, Sen's slope dashed, each value left out an open point at the base-period mean; the segmented controls switch Values / Anomaly in place (`js/index-page.js`) and Annual / Monthly by link. Below 32rem the server's chart scrolls inside its region. With JavaScript (#283) `charts.js` draws the same marks from the page's data (`index_page.payload`, `#index-chart-data`) in the server chart's place, which stays for print: the read-out under it by pointer or keyboard (the year, or month, with the date of the extreme; the value with its unit; its anomaly; the running mean; or why the value was left out), the controls above it (zoom in and out, earlier and later, Show all, PNG and SVG of the view; "PNG (R style)" stays R's file), and Values / Anomaly switching it in place; it fits the width at every size. `?at=1944` (a year picked on the Indices) marks that year, reads it out and selects its row | annual, monthly, anomaly, bars (SPI), day of the year (TX95t: no rank or record), daily (EHF, ECF: the ten highest days) |
 | Filter rail | Component | The Indices' filters at the inline start (`filter-rail` in `stations/_indices.html`, #236): "Find", a search that matches the code, the short name and R's names; "Theme", a list of plain rows (All and each theme with its dot and a mono count; the current one on the `selected` tint with an ink edge, as a selected table row, #263); "Significant only"; one muted line defining significant ("the 95% interval of Sen's slope excludes zero"); the help as a quiet link; at its foot, under a hairline, the settings line. A GET form without JavaScript, filtering as you type with it (`js/results.js`). Above the table on narrow pages, the themes in a wrapping row | — |
 | Indices table | Component | Every index in one data table (`stations/_indices.html`, #200, #236): Code (the theme's dot and the code, a link to `?show=`), Index (the short name; an ellipsis when long, whole in its `title`), Slope per decade with its unit beside it in muted text ("+5.15 days", "+1.31 pp" for a percentage), 95% interval, Significant ("yes" with the dot, a dash read "no"), the series as a sparkline headed by its years (144px where the page is 86rem wide, 96px narrower) (#263). A line that answers above it and the live line ("Showing 80 of 80 indices. Sorted by the size of the trend, largest first."). It opens sorted by the size of the trend, the slope per decade without its sign, largest first (#263). Code, Index, Slope and Significant sort it: links without JavaScript, buttons with it, `aria-sort` on the sorted column. Every row is in the page, the filtered ones hidden. On a phone each row is two lines, its cells wrapping rather than overlapping: a third line at 320px when a long slope, interval and "yes" don't fit (#286) | filtered, sorted, selected row, no match |
@@ -600,6 +611,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | Folder listing | Pattern | New gridded run's chooser (#292, the GridNew board; `gridded/_listing.html`, `gridded.listing`): one frame holding a path bar (the folders above as links in mono, separated by ›, the current one in medium weight; a 30px folder field in mono at the end) and a data table of the folder: a checkbox, Name, Daily variables, Dates (years), Size. Subfolders first, as links ("raw/"); a ticked file's row in the `selected` tint (no ink edge: several can be ticked); a file that cannot be chosen greyed, its checkbox off, the reason in the variables column ("– (no time axis)", "– (thresholds file)"). The links are the form's buttons, so it works without JavaScript and keeps what is ticked across folders; htmx swaps only the listing | a ticked file, a file that cannot be chosen, an empty folder, a folder that is not there |
 | Gridded summary panel | Pattern | The set-up's check (#293, the GridSetup board; `gridded/_summary.html`, `setup_page.panel_for`): a framed panel at the inline end, sticky, its title ("Ready to start"; "Before you start" with "1 problem to fix before starting:" and each problem linked to its field, in danger; "This run" after a run; "Calculating" or "Calculating again" while jobs run), then a list, each line a mark (✓ success, ✗ danger, i ink, ~ and · muted, drawn by CSS and named for screen readers) and a bold title before its sentence: Grid, Period, Variables, Base period, Writes, Disk, Cell-first copy, Time; after a run Calculated, Wrote, Settings and "Nothing changed yet." or "Changed: Base period."; then the one primary button, full width ("Start the calculation", "Start again with changes") and a muted line. Estimates say "about". htmx swaps it (and, out of band, the parts of the form that follow it) as the form changes; without JavaScript the posted form draws it | ready, a problem, after a run, changed, calculating again, a new start that failed |
 | Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
+| Gridded map | Pattern | A gridded run's Map (#295, the GridMap board; `gridded/_map.html`, `gridded/_cell_pane.html`, `gridded/map_page.py`, `js/gridded-map.js`): the index rail (Find, then the run's indices by theme with the theme's dot and name, each row the code in mono, the short name with an ellipsis and its frequencies, 30px; the selected one on the selected tint with an ink edge; a GET form without JavaScript, filtering as you type with it); the toolbar (the code and name as the h2, the definition and file; segmented controls for the view, the frequency and SPI's scale, a choice not offered `aria-disabled`; the stepper; Download ▾); the map (a PNG of every cell in an SVG with the coastline over a surface halo, places with a halo, axes in degrees and the selected cell outlined in ink over a surface halo; one focusable group with a read-out line, a tooltip and a polite live region; a latitude and longitude form without JavaScript); the legend (the bins with their breaks, the range of the cells with a value, No value); the cell pane (the cell in mono, Go to, the series chart, the statistics, the values by year, the CSV, the station in the cell). Links and forms swap the map in place and keep the address | year, month, scale, no value, a station in the cell |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,
 `stations/templates/stations/_qc_*.html`, and the Indices):
@@ -632,9 +644,10 @@ years; sparklines are only for scanning, beside a number given in text.
 pointer and by keyboard, the crosshair in `--chart-axis`, the value ringed in the text
 colour and the focus ring in `--color-focus`, in both themes. Which charts hydrate:
 
-- **Drawn by `charts.js` (uPlot)**: Quality's daily charts, the gridded series and, since
-  #283, the index page's chart (from the page's own data, the server's chart its
-  fallback). The read-out, zoom and move, Show all, and PNG and SVG of the view. The
+- **Drawn by `charts.js` (uPlot)**: Quality's daily charts, since #283 the index page's
+  chart, and since #295 the gridded cell pane's series (each from the page's own data,
+  the index page's payload, the server's chart its fallback; the pane's without the
+  zoom toolbar, as the GridMap board draws it). The read-out, zoom and move, Show all, and PNG and SVG of the view. The
   keyboard: the left and right arrow keys read out each value (announced), Home and End
   the first and last in view, Shift with an arrow key moves the view, + and − zoom, 0
   shows the whole series.

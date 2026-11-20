@@ -2933,6 +2933,8 @@ packages/climpact-web/src/climpact_web/
                      loaded with the widget only
       js/tour.js     the first-run tour of the landing page (#81), loaded there only
       js/gridded.js  "Choose all" and "Choose none" for the gridded index checkboxes
+      js/gridded-map.js  the gridded Map (#295): the rail's Find, the map and pane swapped in
+                     place, the cell under the pointer read out, the arrow keys
       js/charts.js   the interactive charts (#75): hydrates chart frames with uPlot
       js/qc.js       Quality: the checks' rail and the check's detail, its values in place (#202, #235, #264), linked to the daily charts (#77, #174)
       js/results.js  the Indices: the rail's filters (#78), column sorting (#200) and the detail pane (#236), that page only
@@ -3120,20 +3122,29 @@ packages/climpact-web/src/climpact_web/
                      Together line, the base period's timeline and coverage, the
                      indices by variable, the estimates, the summary panel, a file's
                      header as ncdump -h prints it
-    maps.py          output files, the map of one index at one time step and a cell's
-                     time series, drawn as inline SVG (the series: the chart's fallback)
+    maps.py          output files; a layer (one index variable of one file), its values
+                     (read whole and kept, `variable_values`), a cell's series; the
+                     colour scale by the index's kind and its fixed breaks; the map's
+                     frame (north up, west left, the cells' aspect, axes, coastline)
+    map_page.py      the Map tab (#295): the rail's entries, the state from the query
+                     string, the toolbar, the map, the legend and the cell pane
+    map_image.py     the map's PNG, one pixel per cell (zlib); the report figure (matplotlib)
+    outline.py       the coastline and places for a box of the grid, from data/outline.npz
+    data/outline.npz Natural Earth 1:50m coastline and populated places (public domain,
+                     scripts/build-map-outline.py)
     retention.py     purge_expired_gridded, registered with the jobs app's purge
     views.py, urls.py  /gridded/: the runs (start), new/ (folder listing, paths, patterns),
                      upload, sample; a run's Map (<run>/), files/, setup/ and its checks
-                     (htmx), a file's header (setup/header/<n>/), rename/, progress, explore (htmx), map and series CSV,
+                     (htmx), a file's header (setup/header/<n>/), rename/, progress, map.png, map.f32 (the values), map and
+                     series CSV,
                      zips (every output, a group), a file (session or key), links.txt,
                      run.json, climpact.log, delete (Forget); results redirects to Map
     sample_data/     climpact.sampledata.gridded.3x4.1991-2010.nc (525 KB), the
                      reference grid `grid_sample`: a 3 x 4 cut of R's sample grid
     templates/gridded/  start.html, new.html, setup.html (with _summary.html, the summary
                      panel, and the parts htmx swaps out of band), header.html, run.html,
-                     _listing.html, _chosen.html, _progress.html, _explore.html,
-                     _retention.html
+                     files.html, _listing.html, _chosen.html, _progress.html, _map.html,
+                     _cell_pane.html, _run_bar.html, _retention.html
   help/              in-app help (label `help`, see [Help](#help))
     topics.py        the contextual help topics, keyed by id; get_topic, index_topic_for_output
     sections.py      section help (#177): the topics and notes behind each section's Help
@@ -3308,7 +3319,7 @@ the nonce (the `csp` context processor is not used):
 | the chart frame's `<noscript><style>` hiding the skeleton | `@media (scripting: none) { [data-chart-src] .skeleton { display: none } }` in `charts.css` (browsers without the media feature, from before 2023, show the skeleton above the no-JS fallback) |
 | `style="--swatch: var(--chart-…)"` on legend, summary, sector and pattern-library swatches | a class per `--chart-*` token, `swatch-chart-…` (`charts.css`), written with the `token_name` filter (`swatch-{{ token\|token_name }}`); `charts.js` still sets `--swatch` from script, which CSP allows (the CSSOM is not restricted) |
 | `style="--chart-height: …"` and `--skeleton-height` | a class per height the templates use, `chart-height-14rem` etc. (`charts.css`) |
-| the gridded map's `style="--gmap-width: …"` | the SVG's `width` attribute (the natural width) with `max-inline-size: 100%` |
+| the gridded map's `style="--gmap-width: …"` | the SVG's `viewBox` sets the map's aspect (#295); the tooltip is placed from script (`element.style`, the CSSOM) |
 | the sparkline bars' `style="stroke-width: …"` | the SVG `stroke-width` attribute |
 | the server-drawn SVG plots' `style="--plot-colour: …"` (`stations/qc_plots.py`) and `style="fill: …"` (`stations/sector_plots.py`) | the same `swatch-chart-…` classes; `.qc-plot` and `.sector-plot__bar` read `--swatch` |
 | `hx-trigger="… visibilitychange[!document.hidden] …"` and `hx-vals='js:{hidden: document.hidden}'` on the progress polls (both eval'd by htmx) | `hx-trigger="… climpact:visible from:document"` and `data-poll-hidden`: `ui.js` fires `climpact:visible` when the tab is shown and adds `hidden` to the poll's parameters in `htmx:configRequest` |
@@ -4346,10 +4357,19 @@ they always have a legend: 8.6 light, 6.5 dark).
 | `--chart-trend`, `--chart-trend-band` | trend line (ink, dashed) and its confidence band |
 | `--chart-flag` | QC flags: hollow ring markers in ink, told apart from series by shape |
 | `--chart-grid`, `--chart-axis` | gridlines and axes |
-| `--chart-seq-1` ... `-5` | sequential (one hue, blue), e.g. maps (#85) |
-| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies |
+| `--map-seq-<kind>-1` ... `-8` | the gridded map's eight bins (#295), by the index's kind: `temp` (blue through pale yellow to red), `warm`, `cool`, `wet`, `dry`; they replaced the five-step `--chart-seq-*` |
+| `--chart-div-1` ... `-7` | diverging, blue to red through grey, e.g. anomalies; the gridded map's SPI and SPEI classes, reversed (dry red), until #296 |
 | `--chart-decrease-2`, `-decrease-1`, `-increase-1`, `-increase-2` | the trend scale (#227): a significant decrease (blue) or increase (orange), weak and strong, for the trend grid (#238); the strong step is darker in light, brighter in dark |
 | `--chart-coverage-1` ... `-3` | coverage (#227): a year complete, 1–3 days missing, 4 or more, for Quality's coverage strip (#235) |
+
+The gridded map's scales (#295) were designed in OKLCH and are checked as the variable
+roles are (`test_design_tokens.py::test_map_scales_stand_apart`): every bin apart from
+`--color-surface-sunken`, the colour of a cell with no value, by ΔE 8 or more under protan
+and deutan simulation (worst: light `cool` 8.1; dark `warm` 15.2), neighbouring bins by
+the floor of 6, since the legend labels each bin (worst: light `warm` 6.4, dark `wet`
+6.5), and the four count scales moving away from the sunken surface in contrast, bin by
+bin: darker towards more in light, brighter in dark. `temp` runs from blue through pale
+yellow to red in both themes.
 
 The categorical order was checked with a colour-vision-deficiency validator (OKLab
 distance under protan, deutan and tritan simulation) against the light surface
@@ -4564,7 +4584,7 @@ items-center gap-3`, `grid gap-5 grid-cols-fill-64`, `text-sm text-text-muted`, 
 `grid-cols-fit-N`, make wrapping grids with columns of at least N spacing steps
 (`repeat(auto-fill | auto-fit, minmax(min(100%, N * 0.25rem), 1fr))`). Components are
 plain CSS, emitted whether or not a scanned file names them, so classes built at run time
-(`batch-item--{{ status }}`, `gmap__c3`) must be component classes, written out in full in a
+(`batch-item--{{ status }}`, `ramp-{{ kind }}`) must be component classes, written out in full in a
 template or script, or listed with `@source inline()`. Words in the templates that would
 make unwanted utilities (`table`, `container`, `ring` ...) are excluded with `@source not
 inline()`. `test_static.py::test_every_template_class_is_styled` fails when a template
@@ -6967,8 +6987,9 @@ the period ("era5 SEA 0.25°, 1961–2020"); the sample is "Sample grid, 1991–
 **A run's pages** (#289, the GridFiles board). `gridded/_run_bar.html` draws
 `components/context_bar.html`, sticky as a station's: "Gridded / run", the name as the
 h1, the provenance line (`runs.provenance`: rows × columns and the cells with data,
-counted once from the first annual index file, a time step at a time, and kept in the
-run's options; the period and calendar; the base period; the indices and files, or
+counted once from the first annual index file, in stripes of rows with all their years at
+once (#295: a time step at a time decompressed the whole file once a step, 19 s on a
+700 x 900 grid), and kept in the run's options; the period and calendar; the base period; the indices and files, or
 "calculating"; the climpact version; kept until), Rename and Forget this run (a
 confirmation page, then POST), "Run again with other files" (to New gridded run) once
 no job is queued or running, and "Download all (zip, size)" once every job has
@@ -6976,9 +6997,9 @@ succeeded; then the tabs:
 
 - **Map**, `/gridded/<id>/` (`gridded:run`): until every job has finished, the job cards
   (`_progress.html`, polled by htmx; a finished job's card links to Files), then the
-  explorer (below). A thresholds-only run says it has no map. A run not started yet
-  redirects to its set-up. The old `<id>/results` redirects here (301, with its query
-  string), and the explorer's `HX-Push-Url` is this address.
+  index rail, the map and the cell pane (**Map**, below). A thresholds-only run says it
+  has no map. A run not started yet redirects to its set-up. The old `<id>/results`
+  redirects here (301, with its query string).
 - **Files**, `/gridded/<id>/files/` (`gridded:files`): the index files of the indices job
   (`runs.file_rows`: the code and short name, as the station pages write them, the
   frequency, the file, the netCDF variables in it from `maps.data_variables`, cached by
@@ -7151,24 +7172,113 @@ succeeded; then the tabs:
 | A modal warns that the run takes hours; the browser must stay open until "Done" appears | a background job with progress; the page can be closed and the run opened again from Gridded |
 | Errors in a modal with R's message | the job's error on the page, with "Try again" |
 
-**Explorer.** No map tiles or network services (offline and low bandwidth). The map is an
-inline SVG raster of the grid's cells, north up and west left, in five equal classes over
-the shown values with rounded limits, coloured with the sequential chart tokens
-(`--chart-seq-1` ... `-5`, both themes), missing values in the sunken surface colour;
-the selected cell is outlined. Above 2,500 cells (`MAX_MAP_CELLS`) every n-th row and
-column is drawn and the page says so (lowered from 40,000 by #82: each cell is about 550
-bytes of HTML with its link, tooltip and table cell, so a 200 x 200 map was about 20 MB of
-HTML; see [Size budget](#size-budget)). R's sample grid (19 x 24) is drawn whole. Controls (GET form, htmx swaps `gridded:explore` and
-`HX-Push-Url` keeps the address): the index file, the variable (for `hw` and `hwEHF`,
-which hold several), the year, month or day of the year, the SPI/SPEI time scale, and the
-cell by latitude and longitude. The first map shows the last time step where any cell has a value (`last_step_with_values`: the Southern Hemisphere's Tx90 heatwave season runs into the next year, so `hw` has none in the last year); a time with no values says so. Clicking a cell (an SVG link, `tabindex=-1`; the selects
-are the keyboard path) swaps in its time series as an interactive chart (#75, see
-[Charts](#charts)): data from `gridded:series_json` (`<run>/series.json`, the same query
-string as `series.csv`), drawn as a line, or bars for SPI and SPEI, without a trend (R's
-gridded outputs have none); charts.js hydrates it on `htmx:load` after each swap. The
-server-drawn SVG line, broken at missing values, is the `<noscript>` fallback. Each has a table (latitudes by longitudes; time and value) and a
-CSV. Values are read straight from the output netCDF (fill values and non-finite values,
-such as R's `-Inf` EHF-HWPS, shown as no value).
+**Map** (#295, the GridMap board; `gridded/map_page.py`, `gridded/_map.html`,
+`gridded/_cell_pane.html`, `js/gridded-map.js`). No map tiles or network services
+(offline and low bandwidth). A data page in the station Indices' three columns: the index
+rail (14rem), the map, the cell pane (`clamp(22rem, 28%, 32rem)`), side by side from a
+76rem page; from 48rem the rail beside the map and the pane under them; narrower, one
+column.
+
+- *State.* Everything is in the query string, so every view is an address and works
+  without JavaScript: `index` (a rail entry: the file's index, `txx`, `rx3day`, or a
+  heatwave variable, `hwn_tx90`), `freq` (`ANN`, `MON`, `DAY`), `year` and `month` (`day`
+  for `tx95t`), `scale` (SPI and SPEI: 3, 6 or 12 months), `cell` (the file's `y,x`;
+  `cell_y` and `cell_x` from the form without JavaScript; `goto`, "lat, lon", the nearest
+  cell, `maps.nearest_cell`, a turn either way for 0–360° grids), `q` (the rail's Find).
+  Defaults: TXx (else the first index), annual, the last year (of December, for a monthly
+  file) with a value (`last_step_with_values`), the 12-month scale, the cell with a value
+  nearest the middle. The old explorer's `file` and `t` still open the same map, and
+  `<id>/results` still redirects (301) with its query string.
+- *Rail* (`map_page.entries`): every index the run calculated, a heatwave file's
+  variables each an entry (`hwn_tx90` is `TX90-HWN`, named as the station pages name it),
+  by theme (`themes.chip_of`, the Files tab's groups), codes first, the short name and the
+  frequencies it has; the selected one on the selected tint with an ink edge. Find
+  filters as you type (a GET form without JavaScript).
+- *Toolbar*: the code and short name (h2), the catalogue's definition and the file's
+  name; the view (`map_page.VIEWS`: Year, and Base mean, Anomaly and Trend shown
+  unavailable until #296 builds them from `trends.nc`); Annual / Monthly (a frequency
+  without a file struck through, not a link); the scale for SPI and SPEI; the stepper
+  (‹ 2019 ›, by month for a monthly file, by day for `tx95t`); one line on what is shown;
+  Download ▾: "Map as PNG" (`gridded:map_png?download=1`: `map_image.figure_png`, the
+  cells, coastline, places, axes, title and legend drawn by matplotlib, light colours),
+  "Map as CSV" (`gridded:map_csv`, every cell's latitude, longitude and value) and the
+  netCDF file (`gridded:file`).
+- *The map.* Every cell, never thinned (the explorer's 2,500-cell cap, `MAX_MAP_CELLS`,
+  went with it). `gridded:map_png` (`<id>/map.png`) is the field as an indexed PNG with
+  one pixel per cell, north up and west left whatever the order of the file's rows and
+  columns (`maps.frame`, `display_order`), each pixel its bin's colour and a cell with no
+  value transparent (`map_image.raster_png`, written with zlib; no imaging library). The
+  page draws it in an SVG `<image>` scaled without smoothing (`image-rendering:
+  pixelated`) on the sunken surface, the plot's height from the grid's extent and the
+  cosine of its mean latitude (at most 2.5 times its width), so the cells keep their
+  aspect; over it the coastline (with a light halo, so it shows on the darkest bins),
+  three to five places with a halo, the axes in degrees (`maps._ticks`: 1, 2, 3 or 5
+  times a power of ten, or 10–90° steps for a wide grid) and the selected cell's outline,
+  clipped to the plot. Both themes' PNGs are in the SVG and the stylesheet shows the one
+  of the page's theme (`gmap__raster--light`, `--dark`). A grid whose axes are not
+  latitude and longitude (`rlat`, `x`) has no coastline or places and plain axes.
+- *Outline* (`gridded/outline.py`): `gridded/data/outline.npz` (233 KB) holds Natural
+  Earth's 1:50m coastline and populated places (v5.1.2, public domain), built by
+  `scripts/build-map-outline.py`, which names the source files. `coastline(box,
+  tolerance)` gives the runs of each line inside the grid's box with a point either side
+  (the SVG clips them), thinned to about 1.5 SVG units and without specks smaller than
+  that, the outline shifted a turn for 0–360° grids; a global 145 x 192 grid's coastline
+  is about 150 KB of path. `places(box)` picks up to five, most prominent first (scale
+  rank, then population), none near the edge or another.
+- *Colour.* Eight fixed bins per index and view, from a sequential scale by the index's
+  kind (`maps.kind_of`): `temp` (values in °C, blue through pale yellow to red), `warm`
+  (Heat counts, and the other indices where more is warmer), `cool` (Cold counts,
+  `hddheatn`, `tmlt5`, `tmlt10`), `wet` (Rain), `dry` (Drought); tokens `--map-seq-<kind>-1`
+  ... `-8` in both themes, in `chart-palette.json` as `map_sequential` (see
+  [Design system](#design-system)). The breaks (`maps.edges_for`) are round numbers a
+  round step apart (`nice_edges`) over the 2nd to 98th percentiles of the values of up to
+  20 years spread over the file (of the month, for a monthly file), from at most 250,000
+  cells each, starting at zero for counts and amounts: fixed for the file, so one year's
+  map compares with another's; values beyond the ends are in the end bins. SPI and SPEI
+  use their standard classes (−2, −1.5, −1, 1, 1.5, 2; McKee et al. 1993) in the
+  seven-step diverging scale reversed, dry red and wet blue, until #296's diverging map
+  scales. The legend: the bins with their breaks, "Cells with a value: low to high" for
+  the year shown, and "No value".
+- *Interaction* (`js/gridded-map.js`). Links and forms in the map swap the map block in
+  place (`X-Climpact-Part: map`; the view answers `gridded/_map.html` alone and `Vary`
+  says so), push the address (Back and Forward work) and keep focus on the control used.
+  The cell under the pointer is read out in a line under the map and a tooltip, from
+  `gridded:map_values` (`<id>/map.f32`: float32, the map's order, NaN for no value,
+  fetched when first needed, gzipped); a click selects it. The map is one focusable group
+  (`aria-roledescription` "map"): the arrow keys move the selected cell (Shift: ten), a
+  polite live region reads it out with its value, and the pane follows after 0.6 s
+  (Enter at once): the pane alone is swapped (`X-Climpact-Part: pane`) and the address,
+  links and forms take the new cell. Without JavaScript the map is an image with its
+  text alternative, and a `<noscript>` form chooses the cell by latitude and longitude.
+  The PNG, values and map CSV leave the cell out of their address, so they stay cached
+  (`Cache-Control: private, max-age=86400`, an `ETag` of the file and the query; 304).
+- *Cell pane*: "Selected cell" ("Mean over the grid" unavailable until #296); the cell's
+  centre in mono as the h2, its place in the grid and its bounds; Go to (a GET form,
+  `map_page.parse_goto`: `−33.86, 151.21` or `33.86 S 151.21 E`; outside the grid or
+  unreadable it says so). The series: by year, of the chosen month for a monthly file,
+  by day of the year for `tx95t` (`map_page._series`), as the index page's interactive
+  chart (#283: `index_page.payload` with the base period, the 11-year running mean,
+  Sen's slope and its 95% interval; `data-chart-at` marks the year on the map), with
+  `index_detail.chart` as the server's drawing without JavaScript and in print. Then the
+  statistics in the station pane's order: Sen's slope per decade, 95% interval,
+  significant, the base-period mean, the year shown with its anomaly, the record (highest,
+  or lowest for TNn, TXn, SPI and SPEI); then the values by year as a table and "This
+  series as CSV" (`gridded:series_csv`). The trend is `climpact.trends.plot_trend` of the
+  cell's series, computed on request: for an annual series the numbers of `trends.nc`
+  (#290), which uses the same function (the end-to-end test compares them). When a
+  station of the browser's workspaces (the same owner token) lies in the cell, a box
+  names it (and its workspace) with "Open its TXx", the station's index page
+  (`stations:result`; a heatwave entry's key is its code, `TX90-HWN`).
+- *Reading.* The core's index files hold each cell's whole series in one chunk, so one
+  year's map reads and decompresses the whole file. `maps.variable_values` therefore
+  reads a variable once, whole, as float32 with fill values and non-finite values (R's
+  `-Inf` EHF-HWPS) as NaN, and keeps the most recently used ones in memory up to
+  `maps.CACHE_BYTES` (256 MB; a larger variable is read a step or a cell at a time); the
+  breaks are kept per file. Measured on synthetic files chunked as the core writes them
+  (60 years of random values, zlib level 4, Apple M-series laptop): a 700 x 900 grid's
+  page takes 0.92 s on its first visit (the whole read and the run bar's count of cells
+  with data included) and 0.08 s after, its PNG (263 KB) 0.1 s; a global 145 x 192
+  grid 0.18 s and 0.05 s. `test_gridded_map.py` holds both under a second.
 
 **Help** (see [Help](#help)). `gridded.files` is on New run (step 1). On the set-up
 page the help is on request (#293): a quiet link in What to calculate
@@ -7176,9 +7286,7 @@ page the help is on request (#293): a quiet link in What to calculate
 and the note that the EHF definition is Nairn and Fawcett's only), Output files
 (`gridded.output`, `gridded.institution`) and Computing (`gridded.workers`,
 `gridded.max_values`); `gridded.variables` and `gridded.indices` are in the help index and
-the guide. The
-explorer shows the chosen index's topic (`index_topic_for_output`, e.g. `rx7day_ANN` to
-`index.rxdday`). The gridded guide (`help/guides/en/gridded.md`) describes the screens.
+the guide. The gridded guide (`help/guides/en/gridded.md`) describes the screens.
 
 **Data model.** `GriddedRun` (`gridded/models.py`): UUID; `owner` (the job owner token);
 `name` (given on Rename, #289; blank: `runs.default_name`, through `display_name`);
@@ -7204,7 +7312,11 @@ with the folder browser, thresholds then all 88 indices with 4 cores and rechunk
 files); `grid_stations` thresholds, then `grid_future` indices with that file (and its
 refusal when the base period overlaps the data). The map, cell clicks, the variable,
 time and scale selects, the tables, light and dark themes, and 375px wide pages (no
-horizontal scrolling) were checked.
+horizontal scrolling) were checked. The Map of #295 was checked on synthetic index files of a
+47 x 55 grid of south-eastern Australia at 0.25° (1961–2020) with a station of the
+browser in Sydney's cell: the rail, the map with its coastline and places, the legend, the
+pane and its chart, light and dark at 1280px; the read-out under the pointer, the arrow
+keys and the live region, the pane following, the rail, stepper, Back and Go to.
 
 **Tests** (`test_gridded_web.py`): inspection of the sample, the 360-day reference grid in
 two files, and broken files; the path checks, browser and upload (and the 413 above the
@@ -7234,7 +7346,18 @@ the estimates (files, size, time, the base period's days in each calendar); ERA5
 files with `tp` in metres (the problem, its CDO command, no job) and once converted; a
 file's header (the page, the text, another session); a finished run's Set-up tab,
 "Changed:", starting again with the results kept until the new run has finished, then
-replaced (the old job and its folder deleted), and a new start that fails leaving them.
+replaced (the old job and its folder deleted), and a new start that fails leaving them. Since #295 (`test_gridded_map.py` and the end-to-end test): the rail
+(heatwave variables as entries, frequencies), the map of the last year, the SPI map of a
+month at a scale, the old explorer's addresses, the pane and map parts and `Vary`, the
+series CSV and the values against the netCDF, the pane's slope against `trends.nc`, the
+PNG's size, 304 and orientation (one pixel per cell, transparent where there is no value),
+the report figure, the bins, breaks and scales by kind, the palettes against the tokens,
+the frame's orientation, cosine aspect and axes (a 0–360° global grid, a rotated grid
+without an outline), the outline's coastline and places, Go to and its errors, the form
+without JavaScript, the station box only for a station of this browser in the cell,
+every cell drawn on 145 x 192 and 700 x 900 grids within a second, and 404 for another
+session. In a browser (`test_accessibility.py`): axe on the Map in both themes, 320px,
+and the map by keyboard.
 
 ### Size budget
 
@@ -7279,6 +7402,12 @@ only where each value is drawn, their values fetched when first used (610.1 KB o
 89.5 KB gzipped; about 1 KB gzipped more than before); Quality's check charts carry their
 values (550.2 KB, 75.9 KB gzipped, 168.2 KB in total). `charts.js` 15.4 of 16 KB,
 `chart-readout.js` 3.6 of 4 KB, `qc.js` 3.5 of 3.75 KB, `index-page.js` 1.3 of 1.5 KB.
+#295 drew the gridded map as a PNG with every cell, under an SVG of the coastline: a
+global 145 x 192 grid's Map is 170 KB of HTML and a 700 x 900 one 253 KB (mostly the
+coastline's path and the form's latitude and longitude selects), the PNG 12 KB and 263 KB
+(random values; real fields compress better), linked, not inline; `gridded-map.js` 3.7 of
+4 KB; `climpact.css` 24.7 of 25 KB (raw limit 156,000 bytes, 142,000 before): the 80 map
+tokens in two themes, the rail, map, legend and pane.
 #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and step 5's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station
@@ -7354,10 +7483,11 @@ About 35 KB of every page is shared and cached after the first: htmx (16.9 KB),
   (HTML, htmx fragments, JSON, CSV, SVG); streamed files (zips, netCDF, PNG) are left
   alone. Django pads each compressed answer with random bytes against BREACH and masks the
   CSRF token afresh on every response. Pages compress to between a quarter and a third of their size.
-- *Gridded map*: the inline SVG map is capped at 2,500 cells (`MAX_MAP_CELLS`, was 40,000),
-  which keeps the worst gridded map page at 87 KB gzipped (120 KB with the chart code of
-#75) and 1.4 MB of HTML; before,
-  a 100 x 100 grid gave 5.5 MB of HTML (249 KB gzipped) and the full cap about 20 MB.
+- *Gridded map*: since #295 the map is a PNG with one pixel per cell, linked from the
+  page, so every cell is drawn and the page grows only with the coastline (about 150 KB of
+  path for a global grid, before gzip) and the form's latitude and longitude selects; a
+  700 x 900 grid's page is 253 KB of HTML. Until then an inline SVG of at most 2,500 cells
+  (`MAX_MAP_CELLS`, 40,000 before #82, when a 100 x 100 grid gave 5.5 MB of HTML).
 
 **Slow 3G.** Measured on 2026-11-14 with headless Chrome over the DevTools protocol
 (`Network.emulateNetworkConditions` with DevTools' Slow 3G values: 2,000 ms latency,
@@ -7453,15 +7583,14 @@ pages (another session's analysis or job is 404):
 | `charts:station_daily` | `/charts/station/<analysis>/daily.json?variable=&flags=` | `daily`: the analysis's station file, with QC flags; `variable` (`tmax`, `tmin`, `dtr`, `prcp`) gives one variable alone, as the QC screen shows them (#77); `flags=0` leaves the flags and the summary's sentence about them out, for step 1 (#173) |
 | `charts:job_series_list` | `/charts/jobs/<job>/series.json?station=` | `series-list`: each plotted series of a station, in R's order, with `name`, `title`, `step`, `bars`, `url` (its data) and `csv` (its index file, `jobs:file`) |
 | `charts:job_series` | `/charts/jobs/<job>/series/<name>.json?station=` | `index`: one series (`txx_ANN`, `txx_MON`, `3month_spi_MON`, `TX90-HWN_ANN`, `day_of_txx_ANN`, `tx95t_DAY` ...) |
-| `gridded:series_json` | `/gridded/<run>/series.json?file=&var=&scale=&cell=y,x` | `index`: a gridded run's clicked-cell series (`data.series_payload`, no trend) |
 | `charts:sample_daily`, `charts:sample_series` | `/charts/sample/...` | the pattern library's examples (with `PATTERN_LIBRARY` only) |
 
 A job must have succeeded. `station` may be left out for a `station` job; for a `batch`
 job it names a station that finished, and its `IndexParams` are read from the job's
 metadata file (the output names of parameterised indices depend on them). Other apps
 serve the same payload kinds from their own views with `charts.views.json_response` (the
-caching) and `charts.data.series_payload` (an `index` payload from labels and values), as
-the gridded results do.
+caching); the gridded map's cell pane (#295) puts the index page's payload
+(`index_page.payload`) in its page instead.
 
 **Payloads** (`charts/data.py`, compact JSON, columnar, `version` 1):
 
@@ -7601,8 +7730,8 @@ against the trend file and `index_plots`; SPI bars, `day_of_` without trend; the
 JSON, 304 on `If-None-Match` and `If-Modified-Since`, new validators after a file
 changes, gzip, 404 for another session, an unfinished job, an unknown series or station;
 batch stations; the pattern library examples; the frame's markup, and that a page's own
-`summary` does not leak into it. `test_gridded_web.py` checks `gridded:series_json`
-against the netCDF values, its 304, SPI bars and the chart on the run's Map tab.
+`summary` does not leak into it. The gridded cell pane's chart (#295) is the index
+page's payload in the page (`data-chart-data`), checked in `test_gridded_web.py`.
 `test_index_page.py` and `test_indices_results.py` (#283) check the index page's payload
 (layers, views, gaps at the base-period mean, notes, the trend's offset) against the
 tables, `?at=`, and the Indices' read-out data against `charts:job_series`;
@@ -7689,7 +7818,8 @@ Widget tests work the tabs, the workspace tabs (#179: one Tab stop each in order
 with their status in words, `aria-current="page"` on the current one, Enter opens a
 section, a section not yet available is no Tab stop), dialog, drop zone (Space opens the file chooser, caught with
 `Page.setInterceptFileChooserDialog`), an index chart, the tour, the help search and the
-gridded explorer by keyboard, and the quality worklist (#174): a group opens and closes
+gridded map by keyboard (#295: the arrow keys move the cell and the pane follows; the
+stepper and the rail keep focus), and the quality worklist (#174): a group opens and closes
 from its summary, "Show on chart" opens Details and focuses the chart, the "Upload a
 corrected file" button is a Tab stop that shows its focus and opens the file chooser, and
 axe passes with every disclosure open, light and dark (axe skips closed ones). The

@@ -1,19 +1,14 @@
-{% extends "base.html" %}
-{% load i18n static ui %}
+{% extends "help/frame.html" %}
+{% load i18n %}
 {% block title %}{% translate "Help topics" %}{% endblock %}
-{% block content %}
-<div class="stack stack--lg help-page">
-  <nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb text-sm"><a href="{% url 'help:index' %}">{% translate "Help" %}</a></nav>
-  <header class="stack stack--sm">
-    <h1>{% translate "Help topics, A to Z" %}</h1>
-    <p class="lead">{% translate "Every short explanation shown next to the fields and results, with a link to the guide that says more." %}</p>
-  </header>
-  {% include "help/_search_form.html" with live=True %}
-  <div id="help-results"></div>
-  <nav aria-labelledby="groups-title" class="help-groups">
-    <h2 class="sr-only" id="groups-title">{% translate "Groups" %}</h2>
-    <ul class="flex flex-wrap items-center gap-3">{% for group in groups %}<li><a href="#group-{{ group.key }}">{{ group.label }}</a></li>{% endfor %}</ul>
-  </nav>
+{% block page_header %}
+<header class="stack stack--sm">
+  <h1>{% translate "Help topics, A to Z" %}</h1>
+  <p class="lead">{% translate "Every short explanation shown next to the fields and results, with a link to the guide that says more." %}</p>
+</header>
+{% endblock %}
+{% block page_body %}
+<div class="stack stack--lg">
   {% for group in groups %}
   <section class="stack" aria-labelledby="group-{{ group.key }}">
     <h2 id="group-{{ group.key }}">{{ group.label }}</h2>

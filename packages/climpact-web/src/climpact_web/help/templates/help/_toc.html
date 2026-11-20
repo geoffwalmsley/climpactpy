@@ -1,0 +1,20 @@
+{% load i18n ui %}{% comment %}
+On this page (#325): the page's ## and ### headings. variant "rail": the column at the
+inline end; variant "disclosure": a <details> above the text, on narrow screens.
+js/help-toc.js marks the section in view (aria-current="true"). Context: toc.
+{% endcomment %}{% with suffix=variant|default:"rail" %}
+{% if variant == "disclosure" %}<details class="disclosure help-toc-disclosure">
+  <summary><span id="help-toc-title-{{ suffix }}">{% translate "On this page" %}</span>{% icon "chevron-down" %}</summary>
+{% endif %}
+<nav class="help-toc help-toc--{{ suffix }}" aria-labelledby="help-toc-title-{{ suffix }}" data-help-toc>
+  {% if variant != "disclosure" %}<p class="group-label help-toc__title" id="help-toc-title-{{ suffix }}">{% translate "On this page" %}</p>{% endif %}
+  <ul>
+    {% for item in toc %}
+    <li><a href="#{{ item.id }}">{{ item.name }}</a>{% if item.children %}
+      <ul>{% for child in item.children %}<li><a href="#{{ child.id }}">{{ child.name }}</a></li>{% endfor %}</ul>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% if variant == "disclosure" %}</details>{% endif %}
+{% endwith %}

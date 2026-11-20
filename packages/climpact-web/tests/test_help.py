@@ -5,16 +5,18 @@ first-run tour."""
 import re
 from html.parser import HTMLParser
 from pathlib import Path
+from unittest import mock
 from urllib.parse import urlsplit
 
 import made
 import pytest
 from django.template import Context, Template
-from django.test import override_settings
+from django.template.loader import render_to_string
+from django.test import RequestFactory, override_settings
 from django.utils.html import escape
 
 import climpact_web
-from climpact_web.help import guides, sections, topics
+from climpact_web.help import contents, guides, sections, topics
 from climpact_web.help.guides import GUIDE_ORDER, get_guide
 from climpact_web.help.topics import UnknownTopic, get_topic
 from climpact_web.stations import forms as station_forms
@@ -42,7 +44,7 @@ def test_every_guide_renders_with_a_table_of_contents(client):
         guide = get_guide(slug)
         assert guide.title and guide.summary, slug
         assert f"<h1>{guide.title}</h1>" in html
-        assert 'class="help-toc"' in html and guide.toc, slug
+        assert 'class="help-toc help-toc--rail"' in html and guide.toc, slug
         assert "guide:" not in guide.html and "url:" not in guide.html  # links resolved
 
 
@@ -57,18 +59,131 @@ def test_guides_have_previous_and_next_links(client):
 
 
 def test_help_index_lists_guides_and_sample_data(client):
+    """#325, the Help board: the search, the Reference cards, the guides as a numbered
+    list in their order, common questions and the sample data as a short list."""
     html = client.get("/help/").content.decode()
-    for slug in GUIDE_ORDER:
-        assert f'href="/help/{slug}/"' in html
-    assert 'action="/add/sample"' in html and 'action="/add/sample-batch"' in html  # #233
-    assert "/station/sample.txt" in html and "/batch/sample-metadata.txt" in html
-    assert "climpact.sampledata.gridded.1991-2010.nc" in html  # local mode
-    assert 'href="/?tour=1"' in html and 'href="/help/topics/"' in html
+    main = html[html.index('<div class="help-home">') :]
+    guides = re.findall(r'<span><a href="/help/([^/]+)/">', main)
+    assert guides == [s for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
+    assert 'class="help-guide-list__number" aria-hidden="true">1</span>' in main
+    # Until #319 adds their pages, the Reference cards lead to the guide sections.
+    cards = re.findall(r'<h3 class="card__title help-card__title"><a href="([^"]+)">([^<]+)', main)
+    assert cards == [
+        ("/help/indices/#the-indices", "Index reference"),
+        ("/help/gridded/#input-files", "File formats"),
+    ]
+    assert "All 55 ET-SCI indices" in main
+    for anchor in ("file-refused", "years-missing", "percentile-missing", "same-as-r", "data-kept"):
+        assert f'href="/help/faq/#{anchor}"' in main
+    assert ">All questions</a>" in main
+    assert 'action="/add/sample"' in main and 'action="/add/sample-batch"' in main  # #233
+    assert "/station/sample.txt" in main and "/batch/sample-metadata.txt" in main
+    assert "/station/sample-sector.csv" in main
+    assert 'action="/gridded/sample"' in main  # local mode
+    assert 'href="/?tour=1"' in main
+    # The search keeps its live results.
+    assert 'hx-get="/help/search/"' in main and 'id="help-results"' in main
+    assert 'class="help-search--large"' in main
 
 
-@override_settings(IS_HOSTED=True)
+@override_settings(IS_HOSTED=True, GRIDDED_ENABLED=False)
 def test_hosted_help_index_has_no_gridded_sample(client):
-    assert "climpact.sampledata.gridded" not in client.get("/help/").content.decode()
+    assert "/gridded/sample" not in client.get("/help/").content.decode()
+
+
+def _contents(html):
+    """The help contents' column (the rail; the disclosure repeats it)."""
+    return re.search(r'<nav class="help-contents help-contents--rail".*?</nav>', html, re.S)[0]
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["/help/", "/help/trends/", "/help/topics/", "/help/search/?q=base", "/help/faq/",
+     "/help/sections/load.details/"],
+)  # fmt: skip
+def test_every_help_page_has_the_help_contents(client, url):
+    """#325: every help page has the help's contents, as a column and as a disclosure for
+    narrow screens, plain links in three groups, without JavaScript."""
+    html = client.get(url).content.decode()
+    nav = _contents(html)
+    assert 'aria-label="Help contents"' in nav
+    assert 'action="/help/search/"' in nav and 'name="q"' in nav and "Search help" in nav
+    assert '<a class="help-contents__link" href="/help/"' in nav
+    labels = re.findall(r'<p class="group-label help-contents__label"[^>]*>([^<]+)</p>', nav)
+    # Reference has no page yet (#319): its links are left out, and so is the group.
+    assert labels == ["Guides", "More"]
+    links = re.findall(r'href="(/help/[^"]*)"', nav)
+    guides = [f"/help/{s}/" for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
+    assert links == ["/help/", *guides, "/help/faq/", "/help/topics/", "/help/accessibility/"]
+    assert '<details class="disclosure help-contents-disclosure">' in html
+    assert "<summary><span>Help contents</span>" in html
+    # The page's text and its h1 are in the frame; headings don't skip levels.
+    assert html.count("<h1") == 1
+
+
+@pytest.mark.parametrize(
+    ("url", "current"),
+    [("/help/", "/help/"), ("/help/trends/", "/help/trends/"),
+     ("/help/topics/", "/help/topics/"), ("/help/accessibility/", "/help/accessibility/"),
+     ("/help/search/?q=base", None)],
+)  # fmt: skip
+def test_the_current_help_page_is_marked_in_the_contents(client, url, current):
+    nav = _contents(client.get(url).content.decode())
+    marked = re.findall(r'href="([^"]+)" aria-current="page"', nav)
+    assert marked == ([current] if current else [])
+
+
+def test_reference_pages_join_the_contents_once_they_exist():
+    """#319 adds the Reference pages: each joins the contents and the home's cards by its
+    URL name alone, the index reference current on the pages under it too."""
+    urls = {
+        ("help:index_reference",): "/help/indices/",
+        ("help:command_line",): "/help/command-line/",
+        ("help:formats",): "/help/formats/",
+        ("help:format", "station-file"): "/help/formats/station-file/",
+    }
+    with mock.patch.object(contents, "url_or_none", lambda name, *a: urls.get((name, *a))):
+        found = contents.contents("/help/indices/tx90p/")
+        reference = next(g for g in found["groups"] if g["key"] == "reference")
+        assert [link["url"] for link in reference["links"]] == [
+            "/help/indices/",
+            "/help/command-line/",
+            "/help/formats/",
+        ]
+        assert reference["links"][0]["current"]
+        assert [c["url"] for c in reference["links"][2]["children"]] == [
+            "/help/formats/station-file/"
+        ]
+        cards = contents.reference_cards()
+        assert [c["url"] for c in cards] == [
+            "/help/indices/",
+            "/help/command-line/",
+            "/help/formats/",
+        ]
+
+
+def test_on_this_page_and_the_call_to_action(client):
+    """#325: On this page beside the text (a column) and above it on narrow screens (a
+    disclosure), with js/help-toc.js; a page's call to action under it (#319's pages)."""
+    html = client.get("/help/quality-control/").content.decode()
+    assert '<nav class="help-toc help-toc--rail" aria-labelledby="help-toc-title-rail"' in html
+    assert 'id="help-toc-title-rail">On this page</p>' in html  # a label, not a heading
+    assert '<details class="disclosure help-toc-disclosure">' in html
+    assert 'href="#outliers"' in html and "js/help-toc" in html
+    page = html.index('class="help-frame__page"')
+    assert page < html.index("help-toc-disclosure") < html.index('class="help-article"')
+    assert html.index('class="help-article"') < html.index('class="help-frame__aside"')
+    # The topics A to Z list their groups there; search has nothing to list.
+    topics = client.get("/help/topics/").content.decode()
+    assert 'href="#group-' in topics and "help-toc--rail" in topics
+    search = client.get("/help/search/?q=base").content.decode()
+    assert "help-toc" not in search and "js/help-toc" not in search
+    request = RequestFactory().get("/help/trends/")
+    action = {"title": "Calculate it", "text": "For your stations.", "label": "Get started",
+              "url": "/add/"}  # fmt: skip
+    framed = render_to_string("help/frame.html", {"help_action": action}, request=request)
+    assert framed.count('<div class="help-action">') == 2  # beside, and above on narrow
+    assert '<a href="/add/">Get started</a>' in framed
 
 
 def test_header_help_button_opens_the_pages_guide(client):
@@ -85,6 +200,10 @@ def test_header_help_button_opens_the_pages_guide(client):
     assert reference.group(1) == "/help/indices/#the-indices"
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
+    # On /help/indices/ Index reference is current instead (#325).
+    html = client.get("/help/indices/").content.decode()
+    assert re.search(r'href="/help/indices/#the-indices" aria-current="page">Index reference', html)
+    assert not re.search(r'id="app-help"[^>]*aria-current', html)
     for url, guide in [("/add/", "station-file"), ("/jobs/", "batch")][:1]:
         html = client.get(url).content.decode()
         assert re.search(rf'id="app-help" href="/help/{guide}/" aria-label="Help: [^"]+"', html)

@@ -1,15 +1,17 @@
 {% load i18n ui %}{% comment %}
 The help search: a GET form (works without JavaScript); htmx shows results as you type in
-#help-results when the page has it. Parameters: query, live (search as you type).
+#help-results when the page has it. Parameters: query, live (search as you type), large
+(the help home's, #325: its label for screen readers only, the field taller and Search
+primary). The help contents' "Search help" field submits to the same address.
 {% endcomment %}
-<form method="get" action="{% url 'help:search' %}" role="search">
-  <label class="field__label" for="help-q">{% translate "Search the help" %}</label>
+<form method="get" action="{% url 'help:search' %}" role="search" aria-label="{% translate 'Search the help' %}"{% if large %} class="help-search--large"{% endif %}>
+  <label class="{% if large %}sr-only{% else %}field__label{% endif %}" for="help-q">{% translate "Search the help" %}</label>
   <div class="flex flex-wrap items-stretch gap-3">
     <div class="search flex-[1_1_16rem]">
       {% icon "search" %}
-      <input type="search" id="help-q" name="q" value="{{ query }}" placeholder="{% translate 'For example: base period, outliers, TX90p' %}" autocomplete="off"{% if live %} hx-get="{% url 'help:search' %}" hx-trigger="input changed delay:300ms, search" hx-target="#help-results"{% endif %}>
+      <input type="search" id="help-q" name="q" value="{{ query }}" placeholder="{% if large %}{% translate 'Search the help, for example TX90p, base period or -99.9' %}{% else %}{% translate 'For example: base period, outliers, TX90p' %}{% endif %}" autocomplete="off"{% if live %} hx-get="{% url 'help:search' %}" hx-trigger="input changed delay:300ms, search" hx-target="#help-results"{% endif %}>
     </div>
     {% translate "Search" as search_label %}
-    {% include "components/button.html" with label=search_label type="submit" variant="secondary" %}
+    {% if large %}{% include "components/button.html" with label=search_label type="submit" %}{% else %}{% include "components/button.html" with label=search_label type="submit" variant="secondary" %}{% endif %}
   </div>
 </form>

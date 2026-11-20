@@ -1,67 +1,84 @@
-{% extends "base.html" %}
-{% load i18n static ui %}
+{% extends "help/frame.html" %}
+{% load i18n %}{% comment %}
+The help home (#325, the Help board), in the help frame: the search, the Reference cards,
+the guides in order, common questions, sample data and the tour.
+{% endcomment %}
 {% block title %}{% translate "Help" %}{% endblock %}
-{% block content %}
-<div class="stack stack--lg help-page">
-  <header class="stack stack--sm">
-    <h1>{% translate "Help" %}</h1>
-    <p class="lead">{% translate "Guides to preparing your data, choosing the settings and reading the results. Next to most fields there is also a short explanation that opens in place." %}</p>
-  </header>
-
+{% block breadcrumb %}{% endblock %}
+{% block page_header %}
+<header class="stack stack--sm">
+  <h1>{% translate "Help" %}</h1>
+  <p class="lead max-w-prose">{% translate "Preparing data, choosing the settings and reading the results, and the definition of every index. The same pages open beside your work from each section's Help button." %}</p>
+</header>
+{% endblock %}
+{% block page_body %}
+<div class="help-home">
   <div class="stack stack--sm">
-    {% include "help/_search_form.html" with live=True %}
+    {% include "help/_search_form.html" with live=True large=True %}
     <div id="help-results"></div>
   </div>
 
-  <section class="stack" aria-labelledby="guides-title">
-    <h2 id="guides-title">{% translate "Guides" %}</h2>
-    <ol class="grid list-none gap-5 p-0 grid-cols-fill-64">
-      {% for guide in guides %}
-      <li class="card card--link">
-        <h3 class="card__title"><a href="{{ guide.url }}">{{ guide.title }}</a></h3>
-        <p class="card__body">{{ guide.summary }}</p>
+  {% if reference_cards %}
+  <section class="stack" aria-labelledby="reference-title">
+    <h2 id="reference-title">{% translate "Reference" %}</h2>
+    <ul class="help-cards">
+      {% for card in reference_cards %}
+      <li class="card card--link help-card">
+        <h3 class="card__title help-card__title"><a href="{{ card.url }}">{{ card.label }}</a></h3>
+        <p class="card__body help-card__text">{{ card.text }}</p>
+        <p class="help-card__hint">{{ card.hint }}</p>
       </li>
       {% endfor %}
-    </ol>
+    </ul>
   </section>
+  {% endif %}
 
-  <section class="stack" aria-labelledby="samples-title">
-    <h2 id="samples-title">{% translate "Sample data" %}</h2>
-    <p class="max-w-prose">{% translate "Each way of running Climpact has a sample, so you can see the whole process before preparing your own files." %}</p>
-    <div class="grid gap-5 grid-cols-fill-64">
-      <section class="card stack" aria-labelledby="sample-station-title">
-        <span class="card__icon">{% icon "station" %}</span>
-        <h3 class="card__title" id="sample-station-title">{% translate "Single station" %}</h3>
-        <p class="card__body">{% translate "Daily data for Sydney Observatory Hill, Australia, 1936 to 2015, with the station details filled in." %}</p>
-        {% if station_sample %}
-        <form method="post" action="{{ station_sample }}">{% csrf_token %}{% translate "Use the sample station" as l %}{% include "components/button.html" with label=l type="submit" variant="secondary" icon="play" %}</form>
-        {% endif %}
-        {% if station_file %}<p class="text-sm"><a href="{{ station_file }}" download>{% icon "download" %} {% translate "Download the sample station file" %}</a></p>{% endif %}
+  <div class="help-home__columns">
+    <section class="help-home__guides" aria-labelledby="guides-title">
+      <h2 id="guides-title">{% translate "Guides" %}</h2>
+      <p class="help-home__note">{% translate "In the order you meet them, from your file to the results." %}</p>
+      <ol class="help-guide-list">
+        {% for guide in guides %}
+        <li>
+          <span class="help-guide-list__number" aria-hidden="true">{{ forloop.counter }}</span>
+          <span><a href="{{ guide.url }}">{{ guide.title }}</a><span class="help-guide-list__summary">{{ guide.summary }}</span></span>
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+    <div class="help-home__side">
+      <section aria-labelledby="questions-title">
+        <h2 id="questions-title">{% translate "Common questions" %}</h2>
+        <ul class="help-rows">
+          {% for question in questions %}<li><a href="{{ question.url }}">{{ question.label }}</a></li>{% endfor %}
+        </ul>
+        <p class="help-home__more"><a href="{{ faq.url }}">{% translate "All questions" %}</a></p>
       </section>
-      <section class="card stack" aria-labelledby="sample-batch-title">
-        <span class="card__icon">{% icon "layers" %}</span>
-        <h3 class="card__title" id="sample-batch-title">{% translate "Batch" %}</h3>
-        <p class="card__body">{% translate "Two stations made from the Sydney data, with their batch metadata file." %}</p>
-        {% if batch_sample %}
-        <form method="post" action="{{ batch_sample }}">{% csrf_token %}{% translate "Use the sample batch" as l %}{% include "components/button.html" with label=l type="submit" variant="secondary" icon="play" %}</form>
-        {% endif %}
-        {% if batch_metadata %}<p class="text-sm"><a href="{{ batch_metadata }}" download>{% icon "download" %} {% translate "Download the sample metadata file" %}</a></p>{% endif %}
+      <section aria-labelledby="samples-title">
+        <h2 id="samples-title">{% translate "Sample data" %}</h2>
+        <ul class="help-rows help-samples">
+          <li>
+            <b>{% translate "Station" %}</b> {{ "·" }} {% translate "Sydney Observatory Hill, 1936–2015" %}
+            <span class="help-samples__actions">{% if station_file %}<a href="{{ station_file }}" download>{% translate "Download the file" %}</a>{% endif %}{% if station_file and station_sample %} {{ "·" }} {% endif %}{% if station_sample %}<form method="post" action="{{ station_sample }}">{% csrf_token %}<button class="link-button" type="submit">{% translate "Open it in a workspace" %}<span class="sr-only"> {% translate "(the sample station)" %}</span></button></form>{% endif %}</span>
+          </li>
+          <li>
+            <b>{% translate "Batch" %}</b> {{ "·" }} {% translate "two stations and their metadata file" %}
+            <span class="help-samples__actions">{% if batch_metadata %}<a href="{{ batch_metadata }}" download>{% translate "Download" %}<span class="sr-only"> {% translate "the sample metadata file" %}</span></a>{% endif %}{% if batch_metadata and batch_sample %} {{ "·" }} {% endif %}{% if batch_sample %}<form method="post" action="{{ batch_sample }}">{% csrf_token %}<button class="link-button" type="submit">{% translate "Open it in a workspace" %}<span class="sr-only"> {% translate "(the sample batch)" %}</span></button></form>{% endif %}</span>
+          </li>
+          {% if gridded_sample %}
+          <li>
+            <b>{% translate "Grid" %}</b> {{ "·" }} {% translate "3 × 4 cells of Climpact for R's sample grid, south-eastern Australia, 1991–2010" %}
+            <span class="help-samples__actions"><form method="post" action="{{ gridded_sample }}">{% csrf_token %}<button class="link-button" type="submit">{% translate "Open it on Gridded" %}</button></form></span>
+          </li>
+          {% endif %}
+          <li>
+            <b>{% translate "Sector" %}</b> {{ "·" }} {% translate "wheat yields, New South Wales, 1922–1999" %}
+            <span class="help-samples__actions">{% if sector_file %}<a href="{{ sector_file }}" download>{% translate "Download" %}<span class="sr-only"> {% translate "the sample sector file" %}</span></a>{% endif %}</span>
+          </li>
+        </ul>
       </section>
-      {% if show_gridded %}
-      <section class="card stack" aria-labelledby="sample-gridded-title">
-        <span class="card__icon">{% icon "grid" %}</span>
-        <h3 class="card__title" id="sample-gridded-title">{% translate "Gridded" %}</h3>
-        <p class="card__body">{% translate "Climpact for R's sample grid, climpact.sampledata.gridded.1991-2010.nc: 24 by 19 cells over Australia, 1991 to 2010." %}</p>
-        {% if gridded_url %}<p class="text-sm"><a href="{{ gridded_url }}">{% translate "Open the gridded screen" %}</a></p>{% else %}<p class="text-sm text-text-muted">{% translate "The gridded screen is not available yet. Until then, use the climpact command line." %}</p>{% endif %}
-      </section>
-      {% endif %}
+      <p class="help-home__more"><a href="{% url 'core:home' %}?tour=1">{% translate "Take the tour of the start page" %}</a></p>
     </div>
-    <p class="text-sm text-text-muted">{% blocktranslate trimmed %}Sector data: Climpact for R's sample is yearly wheat yields for New South Wales, 1922 to 1999 (wheat_yield_nsw_1922-1999.csv).{% endblocktranslate %} <a href="{% url 'help:guide' 'sector' %}">{% translate "About sector data" %}</a></p>
-  </section>
-
-  <section class="flex flex-wrap items-center gap-3" aria-label="{% translate 'More help' %}">
-    <a class="button button--secondary" href="{% url 'help:topics' %}">{% icon "book" %}<span>{% translate "All help topics, A to Z" %}</span></a>
-    <a class="button button--ghost" href="{% url 'core:home' %}?tour=1">{% icon "play" %}<span>{% translate "Take the tour of the start page" %}</span></a>
-  </section>
+  </div>
 </div>
 {% endblock %}

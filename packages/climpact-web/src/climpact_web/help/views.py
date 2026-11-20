@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_safe
 
 from climpact_web.core.navigation import url_or_none
+from climpact_web.help.contents import MORE_GUIDES, common_questions, reference_cards
 from climpact_web.help.guides import GUIDE_ORDER, all_guides, get_guide, search
 from climpact_web.help.sections import (
     UnknownSection,
@@ -22,15 +23,22 @@ def sample_data() -> dict:
         "station_file": url_or_none("stations:sample_file"),
         "batch_sample": url_or_none("stations:add_sample_batch"),
         "batch_metadata": url_or_none("batch:sample_metadata"),
-        "gridded_url": None if settings.IS_HOSTED else url_or_none("gridded:start"),
-        "show_gridded": not settings.IS_HOSTED,
+        "gridded_sample": url_or_none("gridded:sample") if settings.GRIDDED_ENABLED else None,
+        "sector_file": url_or_none("stations:sector_sample"),
     }
 
 
 @require_safe
 def index(request):
-    """The help home: search, the guides, sample data, the list of topics and the tour."""
-    context = {"guides": all_guides(), **sample_data()}
+    """The help home (#325, the Help board): search, the Reference cards, the guides in
+    order, common questions, sample data and the tour."""
+    context = {
+        "guides": [g for g in all_guides() if g.slug not in MORE_GUIDES],
+        "reference_cards": reference_cards(),
+        "questions": common_questions(),
+        "faq": get_guide("faq"),
+        **sample_data(),
+    }
     return render(request, "help/index.html", context)
 
 
@@ -42,7 +50,7 @@ def guide(request, slug):
     position = GUIDE_ORDER.index(slug)
     previous = get_guide(GUIDE_ORDER[position - 1]) if position > 0 else None
     following = get_guide(GUIDE_ORDER[position + 1]) if position + 1 < len(GUIDE_ORDER) else None
-    context = {"guide": page, "previous": previous, "next": following, "guides": all_guides()}
+    context = {"guide": page, "previous": previous, "next": following, "toc": page.toc}
     return render(request, "help/guide.html", context)
 
 
@@ -57,7 +65,8 @@ def topic_list(request):
         for kind, label in KINDS.items()
         if groups.get(kind)
     ]
-    return render(request, "help/topics.html", {"groups": ordered})
+    toc = [{"id": f"group-{g['key']}", "name": g["label"]} for g in ordered]
+    return render(request, "help/topics.html", {"groups": ordered, "toc": toc})
 
 
 def _sort_key(topic):

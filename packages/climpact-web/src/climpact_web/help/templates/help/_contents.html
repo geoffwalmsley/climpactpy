@@ -1,0 +1,29 @@
+{% load i18n ui %}{% comment %}
+The help's contents (#325): "Search help", "Help home", then the groups (help.contents),
+the current page's link marked. variant "rail": the column at the inline start; variant
+"disclosure": the same in a <details> under the breadcrumb, on narrow screens. Context:
+contents ({% help_contents %}), query (the search's, on its page).
+{% endcomment %}{% with suffix=variant|default:"rail" %}
+{% if variant == "disclosure" %}<details class="disclosure help-contents-disclosure">
+  <summary><span>{% translate "Help contents" %}</span>{% icon "chevron-down" %}</summary>
+{% endif %}
+<nav class="help-contents help-contents--{{ suffix }}" aria-label="{% translate 'Help contents' %}">
+  <form class="help-contents__search" method="get" action="{% url 'help:search' %}" role="search" aria-label="{% translate 'Search help' %}">
+    <label class="sr-only" for="help-contents-q-{{ suffix }}">{% translate "Search help" %}</label>
+    <input type="search" id="help-contents-q-{{ suffix }}" name="q" value="{{ query }}" placeholder="{% translate 'Search help' %}" autocomplete="off">
+  </form>
+  <ul class="help-contents__list">
+    <li><a class="help-contents__link" href="{{ contents.home.url }}"{% if contents.home.current %} aria-current="page"{% endif %}>{{ contents.home.label }}</a></li>
+  </ul>
+  {% for group in contents.groups %}
+  <p class="group-label help-contents__label" id="help-contents-{{ group.key }}-{{ suffix }}">{{ group.label }}</p>
+  <ul class="help-contents__list" aria-labelledby="help-contents-{{ group.key }}-{{ suffix }}">
+    {% for link in group.links %}
+    <li><a class="help-contents__link" href="{{ link.url }}"{% if link.current %} aria-current="page"{% endif %}>{{ link.label }}</a>{% if link.children %}
+      <ul class="help-contents__list">{% for child in link.children %}<li><a class="help-contents__link help-contents__link--child" href="{{ child.url }}"{% if child.current %} aria-current="page"{% endif %}>{{ child.label }}</a></li>{% endfor %}</ul>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</nav>
+{% if variant == "disclosure" %}</details>{% endif %}
+{% endwith %}

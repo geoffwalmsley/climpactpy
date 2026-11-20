@@ -1,4 +1,5 @@
-"""``{% section_help "id" %}``: a section's Help button and its help for the drawer (#177,
+"""``{% help_contents as contents %}``: the help frame's contents (#325);
+``{% section_help "id" %}``: a section's Help button and its help for the drawer (#177,
 #197); ``{% help_topic "id" %}``: a help topic shown in place (#81).
 
 ``section_help`` renders the labelled Help pill at the end of a section header
@@ -28,6 +29,7 @@ from urllib.parse import urlencode
 from django import template
 from django.conf import settings
 
+from climpact_web.help.contents import contents
 from climpact_web.help.guides import get_guide
 from climpact_web.help.sections import (
     UnknownSection,
@@ -39,6 +41,14 @@ from climpact_web.help.topics import UnknownTopic, get_topic
 
 register = template.Library()
 logger = logging.getLogger(__name__)
+
+
+@register.simple_tag(takes_context=True)
+def help_contents(context):
+    """``{% help_contents as contents %}``: the help's contents for the page shown, with
+    its link marked current (``help.contents``, the help frame of #325)."""
+    request = context.get("request")
+    return contents(request.path if request is not None else "")
 
 
 def _strict() -> bool:

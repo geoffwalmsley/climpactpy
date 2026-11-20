@@ -41,11 +41,6 @@
     color: var(--color-text-muted);
   }
 
-  .help-groups ul {
-    padding: 0;
-    list-style: none;
-  }
-
   .help-topic-list > div {
     padding-block: --spacing(3);
     border-block-end: 1px solid var(--color-border);
@@ -66,60 +61,358 @@
     max-inline-size: var(--container-prose);
   }
 
-  /* Guide: contents beside the text on wide screens, above it on narrow ones. */
-  .help-guide {
-    display: grid;
-    gap: --spacing(6);
-    grid-template-columns: minmax(0, 1fr);
+  /* == The help frame (#325, the Help boards; help/frame.html): the help's contents at
+     the inline start (14rem), the page, and On this page at the inline end (12.5rem)
+     with the page's call to action under it, within the content width. A container
+     query, so the drawer counts: the contents go beside the page from a 49rem frame (a
+     52rem window), On this page from 61rem (a 64rem window). Each is drawn twice, a
+     column and a disclosure, and one shows; so it needs no JavaScript. == */
+  .help-frame {
+    container: help-frame / inline-size;
   }
 
-  @media (min-width: 64rem) {
-    .help-guide {
-      grid-template-columns: 15rem minmax(0, 1fr);
-      column-gap: --spacing(10);
+  .help-frame__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: --spacing(10);
+    align-items: start;
+  }
+
+  .help-frame__page {
+    display: grid;
+    gap: --spacing(6);
+    min-inline-size: 0;
+  }
+
+  .help-frame__page > * {
+    min-inline-size: 0;
+  }
+
+  .help-contents--rail,
+  .help-frame__aside {
+    display: none;
+  }
+
+  .help-frame__inline-aside {
+    display: grid;
+    gap: --spacing(4);
+  }
+
+  @container help-frame (inline-size >= 49rem) {
+    .help-frame__grid {
+      grid-template-columns: 14rem minmax(0, 1fr);
     }
 
-    .help-guide > .breadcrumb,
-    .help-guide__header,
-    .help-pager {
-      grid-column: 1 / -1;
+    .help-contents--rail {
+      display: block;
     }
 
-    .help-toc {
+    .help-contents-disclosure {
+      display: none;
+    }
+  }
+
+  @container help-frame (inline-size >= 61rem) {
+    .help-frame__grid--aside {
+      grid-template-columns: 14rem minmax(0, 1fr) 12.5rem;
+    }
+
+    .help-frame__grid--aside .help-frame__page {
+      max-inline-size: var(--container-prose);
+    }
+
+    .help-frame__aside {
+      display: grid;
+      gap: --spacing(5);
+    }
+
+    .help-frame__inline-aside {
+      display: none;
+    }
+  }
+
+  /* The columns stay in view under the header as the page scrolls, and scroll inside
+     themselves when taller than the window; not in a short window, where nothing sticks. */
+  @media (min-height: 30rem) {
+    .help-contents--rail,
+    .help-frame__aside {
       position: sticky;
       inset-block-start: calc(var(--site-header-height) + --spacing(4));
-      align-self: start;
       max-block-size: calc(100vh - var(--site-header-height) - --spacing(8));
       overflow-y: auto;
     }
   }
 
-  .help-toc {
-    padding: --spacing(4);
+  /* Room for the links' focus rings inside the scrolling columns. */
+  .help-contents--rail,
+  .help-frame__aside {
+    padding: --spacing(1);
+    margin: calc(--spacing(1) * -1);
+  }
+
+  /* == The help's contents: plain rows, as the filter rail's; the current page on the
+     selected tint with an ink edge. == */
+  .help-contents__search input {
+    inline-size: 100%;
+    min-block-size: var(--control-height-sm);
+    padding-block: 0;
+    font-size: var(--text-sm);
+  }
+
+  .help-contents__search {
+    margin-block-end: --spacing(1);
+  }
+
+  .help-contents__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-contents .help-contents__label {
+    margin-block: --spacing(4.5) --spacing(1.5);
+    padding-inline-start: --spacing(2.5);
+  }
+
+  .help-contents__link {
+    display: block;
+    padding: --spacing(1) --spacing(2.5);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    text-decoration: none;
+  }
+
+  .help-contents__link:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+  }
+
+  .help-contents__link--child {
+    padding-inline-start: --spacing(5.5);
+    font-size: var(--text-xs);
+  }
+
+  .help-contents__link[aria-current="page"] {
+    background: var(--color-selected);
+    box-shadow: inset 3px 0 0 var(--color-ink);
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  [dir="rtl"] .help-contents__link[aria-current="page"] {
+    box-shadow: inset -3px 0 0 var(--color-ink);
+  }
+
+  /* On narrow screens: the contents and On this page as rows between hairlines. */
+  .help-contents-disclosure,
+  .help-toc-disclosure {
+    border-block: 1px solid var(--color-border);
+  }
+
+  .help-contents-disclosure > .help-contents,
+  .help-toc-disclosure > .help-toc {
+    padding-block-end: --spacing(4);
+  }
+
+  /* == On this page: the headings beside a rule; the section in view (js/help-toc.js)
+     with an ink edge. == */
+  .help-toc .help-toc__title {
+    margin-block-end: --spacing(2);
+  }
+
+  .help-toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-toc a {
+    display: block;
+    padding-block: --spacing(0.75);
+    padding-inline-start: --spacing(2.5);
+    border-inline-start: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    text-decoration: none;
+  }
+
+  .help-toc ul ul a {
+    padding-inline-start: --spacing(5);
+  }
+
+  .help-toc a:hover {
+    color: var(--color-text);
+  }
+
+  .help-toc a[aria-current="true"] {
+    padding-inline-start: calc(--spacing(2.5) - 1px);
+    border-inline-start: 2px solid var(--color-ink);
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-toc ul ul a[aria-current="true"] {
+    padding-inline-start: calc(--spacing(5) - 1px);
+  }
+
+  /* A help page's one call to action, under On this page (#319: "Calculate it"). */
+  .help-action {
+    display: grid;
+    gap: --spacing(1.5);
+    padding: --spacing(3) --spacing(3.5);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
-    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
   }
 
-  .help-toc__title {
-    margin-block: 0 --spacing(2);
-    font-size: var(--text-sm);
-  }
-
-  .help-toc ol {
+  .help-action p {
     margin: 0;
-    padding-inline-start: --spacing(4);
   }
 
-  .help-toc li + li,
-  .help-toc ol ol {
-    margin-block-start: --spacing(1);
+  .help-action__title {
+    color: var(--color-text);
+    font-weight: var(--font-weight-semibold);
   }
 
-  .help-toc ol ol {
+  /* == The help home (#325, the Help board) == */
+  .help-home {
+    display: grid;
+    gap: --spacing(7);
+  }
+
+  .help-search--large {
+    max-inline-size: var(--container-prose);
+  }
+
+  .help-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: --spacing(4);
+    margin: 0;
+    padding: 0;
     list-style: none;
-    padding-inline-start: --spacing(3);
+  }
+
+  .card.help-card {
+    gap: --spacing(1.5);
+    padding: --spacing(4);
+  }
+
+  .card .help-card__title {
+    font-size: var(--text-md);
+  }
+
+  .card--link .help-card__title a {
+    color: var(--color-link);
+  }
+
+  .help-card__text {
+    font-size: var(--text-sm);
+  }
+
+  .card .help-card__hint {
+    margin-block-start: auto;
+    padding-block-start: --spacing(1.5);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .help-home__columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(7) --spacing(10);
+  }
+
+  .help-home__guides {
+    flex: 1.6 1 22rem;
+    min-inline-size: 0;
+  }
+
+  .help-home__side {
+    display: grid;
+    flex: 1 1 15rem;
+    gap: --spacing(7);
+    align-content: start;
+    min-inline-size: 0;
+  }
+
+  .help-home h2 {
+    margin-block: 0 --spacing(2);
+  }
+
+  .help-home__note {
+    margin-block: calc(--spacing(1) * -1) --spacing(2);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .help-home__more {
+    margin: --spacing(2) 0 0;
+    font-size: var(--text-sm);
+  }
+
+  .help-guide-list,
+  .help-rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-guide-list li {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    padding-block: --spacing(3);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .help-guide-list a {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-guide-list__number {
+    padding-block-start: 0.125rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .help-guide-list__summary {
+    display: block;
+    margin-block-start: 0.125rem;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  .help-rows li {
+    padding-block: --spacing(1.5);
+    border-block-start: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+  }
+
+  .help-samples li {
+    padding-block: --spacing(2);
+    line-height: 1.5;
+  }
+
+  .help-samples b {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-samples__actions {
+    display: block;
+  }
+
+  .help-samples__actions form {
+    display: inline;
   }
 
   .help-article :is(h2, h3, h4) {

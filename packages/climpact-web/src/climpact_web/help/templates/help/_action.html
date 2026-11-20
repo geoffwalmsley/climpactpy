@@ -1,0 +1,8 @@
+{% comment %}
+A help page's one call to action, under On this page (#325): "Calculate it", "Check a
+file" (#319). Context: help_action {"title", "text", "label", "url"}.
+{% endcomment %}<div class="help-action">
+  <p class="help-action__title">{{ help_action.title }}</p>
+  <p>{{ help_action.text }}</p>
+  <a href="{{ help_action.url }}">{{ help_action.label }}</a>
+</div>

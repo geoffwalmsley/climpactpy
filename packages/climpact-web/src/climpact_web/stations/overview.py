@@ -9,8 +9,9 @@ steps.
 
 :func:`rows` gives each station's row of the Stations table: its name and page, its
 coordinates, years and missing values, its Quality verdict with its count, its indices
-state (``batch.fill.run_states``: Done, Calculating with its percentage, Waiting, Not run,
-Failed, each with its fix) and how many of its indices have a significant trend.
+state (``batch.fill.run_states``: Done, or Out of date when the results shown are from
+before a change, Calculating with its percentage, Waiting, Not run, Failed, each with its
+fix) and how many of its indices have a significant trend.
 :func:`status_line` sums them up in one line above the table.
 """
 
@@ -127,6 +128,11 @@ def _indices(station: Station, state, quality: Quality, space: Workspace) -> Ind
             return Indices(CALCULATING, _("Calculating"))
         return Indices("", "–")
     if state.state == DONE:
+        shown = workspace.shown_run(station)
+        if shown is not None and workspace.run_changes(station, shown):
+            # Its replacement was cancelled: the results shown are from before a change, as
+            # its Indices, Files and the trend grid say (#279).
+            return Indices(DONE, _("Out of date"), job=state.job)
         return Indices(DONE, _("Done"), job=state.job)
     if state.state == CALCULATING:
         label = _("Calculating · %(percent)s%%") % {"percent": state.percent or 0}

@@ -10,8 +10,11 @@ import pytest
 from test_batch import created, media, metadata, run_worker, station  # noqa: F401
 from test_batch_workspace import queued_batch
 from test_indices_results import finished_analysis
+from test_workspace import edit
 from test_workspace_files import long_batch
 
+from climpact_web.jobs.models import Job, Status
+from climpact_web.jobs.worker import claim, run_job
 from climpact_web.stations import trend_grid
 from climpact_web.stations.models import RESERVED_SLUGS
 
@@ -145,6 +148,101 @@ def test_the_trends_wait_for_the_stations(client):
     assert "trend-grid" not in section(html)
 
 
+def rows_of(html: str) -> dict[str, str]:
+    """The grid's rows by station name."""
+    body = section(html).split("<tbody>")[1].split("</tbody>")[0]
+    return {re.search(r'title="([^"( ]+)', r).group(1): r for r in body.split("<tr")[1:]}
+
+
+def recalculating(client):
+    """Stations a and b, then a new base period: both recalculate, a's run fails."""
+    run = long_batch(client, "a", "b")
+    space = run.workspace
+    client.get(f"/w/{space.pk}/")  # the overview makes the stations of the batch
+    a, b = space.stations.order_by("station_name")
+    edit(client, a, "base-period", {"base_start": "2002", "base_end": "2003"})
+    a.refresh_from_db()
+    b.refresh_from_db()
+    assert a.indices_job.status == b.indices_job.status == Status.QUEUED
+    return space, a, b
+
+
+def finish_all():
+    while (job := claim("test-worker")) is not None:
+        run_job(job)
+
+
+def test_out_of_date_trends_say_so_while_recalculating_and_after_a_failure(client):
+    """#279: a station whose recalculation failed keeps its earlier results, out of date.
+    The trend grid, its plot and its CSV say so, as the overview, its Indices and Files do."""
+    space, a, b = recalculating(client)
+    url = f"/w/{space.pk}/"
+    # Still running: the trends wait, so no old trend is shown as if it were current.
+    assert "The trends appear once every station has been calculated." in section(
+        client.get(url).content.decode()
+    )
+    response = client.get(f"/w/{space.pk}/compare/trends.csv?cols=TXx")
+    found = list(csv.DictReader(io.StringIO(response.content.decode())))
+    assert all(r["out_of_date"] == "yes" for r in found)
+
+    # a's recalculation fails; b's finishes with the new base period.
+    Job.objects.filter(pk=a.indices_job.pk).update(status=Status.FAILED, error="Out of memory.")
+    finish_all()
+    html = client.get(url).content.decode()
+    # The overview says Failed, the grid keeps a's earlier trends, tagged out of date.
+    stations_table = html.split('aria-label="Stations table"')[1].split("</table>")[0]
+    assert "Failed: Out of memory." in stations_table
+    rows = rows_of(html)
+    assert "trend-grid__stale" in rows["a"] and "out of date</span>" in rows["a"]
+    assert "These trends are from before the last change." in rows["a"]
+    assert "trend-cell--none" not in rows["a"]
+    assert re.search(r"TXx [^<]+, significant, out of date|TXx [^<]+, out of date", rows["a"])
+    assert "out of date" not in rows["b"] and "trend-grid__stale" not in rows["b"]
+    # The interval plot tags a too.
+    plot = section(html).split('data-trend-plot="TXx"')[1].split("data-trend-plot")[0]
+    who = re.findall(r'class="interval-plot__line">(.*?)class="interval-plot__value"', plot)
+    assert "out of date" in next(w for w in who if ">a</a>" in w)
+    assert "out of date" not in next(w for w in who if ">b</a>" in w)
+    # Its CSV: a column says which rows are out of date.
+    response = client.get(f"/w/{space.pk}/compare/trends.csv?cols=TXx&cols=SU")
+    found = list(csv.DictReader(io.StringIO(response.content.decode())))
+    assert {r["station"]: r["out_of_date"] for r in found} == {"a": "yes", "b": "no"}
+    # Its Indices and Files say the same.
+    indices = client.get(a.url("results")).content.decode()
+    assert "The recalculation failed" in indices
+    assert "Download (out of date)" in client.get(f"/w/{space.pk}/files/").content.decode()
+
+
+def test_a_failed_stations_out_of_date_trends_can_be_hatched_instead(client, monkeypatch):
+    """The maintainer's choice (#279): with SHOW_FAILED_OUT_OF_DATE off, a failed station's
+    out-of-date trends are hidden, its row hatched "· failed" as the Calculate board draws
+    a failed row."""
+    monkeypatch.setattr(trend_grid, "SHOW_FAILED_OUT_OF_DATE", False)
+    space, a, _b = recalculating(client)
+    Job.objects.filter(pk=a.indices_job.pk).update(status=Status.FAILED, error="Out of memory.")
+    finish_all()
+    html = client.get(f"/w/{space.pk}/").content.decode()
+    rows = rows_of(html)
+    assert "trend-grid__empty" in rows["a"] and "failed</span>" in rows["a"]
+    assert "(no results)" not in rows["a"] and "out of date" not in rows["a"]
+    assert set(re.findall(r"trend-cell--([a-z12-]+)", rows["a"])) == {"none"}
+    plot = section(html).split('data-trend-plot="TXx"')[1].split("data-trend-plot")[0]
+    assert "Not shown: a: failed" in plot
+
+
+def test_a_cancelled_recalculation_reads_out_of_date_on_the_overview(client):
+    """When a station's replacement is cancelled, the results it shows stay out of date: its
+    row says so instead of Done, as its grid row does."""
+    space, a, _b = recalculating(client)
+    client.post(f"/jobs/{a.indices_job.pk}/cancel")
+    finish_all()
+    a.refresh_from_db()
+    html = client.get(f"/w/{space.pk}/").content.decode()
+    row = html.split(f'data-station="{a.slug}"')[1].split("</tr>")[0]
+    assert ">Out of date</span>" in row
+    assert "trend-grid__stale" in rows_of(html)["a"]
+
+
 def test_compare_in_a_workspace_of_one_station_opens_its_indices(client):
     analysis, _job = finished_analysis(client)
     response = client.get(f"/w/{analysis.workspace_id}/compare/")
@@ -161,6 +259,7 @@ def test_compare_is_not_a_station_slug():
 class _Entry:
     def __init__(self, name, source=True):
         self.name, self.source, self.why = name, object() if source else None, ""
+        self.out_of_date = self.failed = False
 
         class _S:
             def url(self, *args):
@@ -223,3 +322,20 @@ def test_two_steps_scaled_per_index_and_the_other_states():
     assert [t["text"] for t in plot.ticks] == ["−2", "0", "+2"]
     assert plot.bars[0].x == f"{180 + 0.4 / 2 * 172:.1f}"
     assert "3 of 4 stations" in plot.summary
+
+
+def test_out_of_date_cells_and_dots_say_so():
+    stations = [
+        trend_grid._Station(_Entry("old"), {"TXx": _Card(0.4, 0.2, 0.6)}, out_of_date=True),
+        trend_grid._Station(_Entry("new"), {"TXx": _Card(0.1, 0.05, 0.15)}),
+        trend_grid._Station(_Entry("gone"), {}, failed=True),
+    ]
+    old, new, gone = (trend_grid._cell(s, CHOICE, 0.4) for s in stations)
+    assert old.state == "increase-2" and old.label.endswith(", significant, out of date")
+    assert new.state == "increase-1" and not new.label.endswith("out of date")
+    assert gone.state == "none" and gone.label == "TXx: failed"
+    assert [s.has_results for s in stations] == [True, True, False]
+    plot = trend_grid.interval_plot(stations, CHOICE)
+    assert [b.out_of_date for b in plot.bars] == [True, False]
+    assert plot.bars[0].label.startswith("old: ") and plot.bars[0].label.endswith("out of date")
+    assert plot.left_out == ["gone: failed"]

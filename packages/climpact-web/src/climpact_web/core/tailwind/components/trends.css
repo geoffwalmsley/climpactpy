@@ -176,8 +176,8 @@
     background: var(--table-head-bg, var(--color-surface-sunken));
   }
 
-  /* A table cell takes no max width: its content does. The name and "(no results)"
-     on one line, the name shorter beside it. */
+  /* A table cell takes no max width: its content does. The name and its tag ("(no
+     results)", "· out of date") on one line, the name shorter beside it. */
   .trend-grid__station {
     display: inline-block;
     max-inline-size: 11rem;
@@ -186,13 +186,20 @@
     vertical-align: bottom;
   }
 
-  .trend-grid__empty .trend-grid__station {
+  .trend-grid__empty .trend-grid__station,
+  .trend-grid__stale .trend-grid__station {
     max-inline-size: 6rem;
   }
 
-  .trend-grid__none {
+  .trend-grid__tag {
     color: var(--color-text-muted);
     font-weight: var(--font-weight-normal);
+  }
+
+  /* Out-of-date trends (#279): the row's start edged as a stale-content block is, the
+     values at full contrast; the tag says it in words. */
+  .trend-grid .trend-grid__stale .trend-grid__name {
+    border-inline-start: 3px dashed var(--color-warning);
   }
 
   @media (width < 40rem) {
@@ -200,7 +207,8 @@
       max-inline-size: 8rem;
     }
 
-    .trend-grid__empty .trend-grid__station {
+    .trend-grid__empty .trend-grid__station,
+    .trend-grid__stale .trend-grid__station {
       max-inline-size: 4rem;
     }
   }

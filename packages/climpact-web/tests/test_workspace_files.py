@@ -68,7 +68,8 @@ def test_the_files_tab_shows_the_workspace_files_and_each_stations(client):
         assert f'<h3 class="m-0 text-base">{title}</h3>' in html
         assert f'href="{url}{link}" download>Download<' in html
     assert "zip · " in html and "csv · " in html
-    assert "station, index, slope, lower, upper, significant, years_used, units" in html
+    columns = "station, index, slope, lower, upper, significant, years_used, units, out_of_date"
+    assert columns in html
     assert "station, index, year, month, value (long format)" in html
     assert "What is in the zip" in html
     # By station: a row a station in the overview's order, R's files or why they are not.
@@ -182,7 +183,9 @@ def test_every_zip_holds_the_provenance_file(client):
     assert "a/qc/a_nastatistics.csv" in names and "c.errors.txt" in names
     assert not any(n.startswith("c/") for n in names)
     assert {model.TRENDS_FILE, model.INDICES_FILE} <= set(names)
-    assert trends.startswith("station,index,slope,lower,upper,significant,years_used,units\n")
+    assert trends.startswith(
+        "station,index,slope,lower,upper,significant,years_used,units,out_of_date\n"
+    )
     # The provenance: software, created, base period, settings, trend method, stations.
     assert record["software"].startswith("climpact ") and "Climpact 3.4.3" in record["software"]
     assert record["created"].endswith("Z") and record["base_period"] == [2000, 2001]
@@ -236,6 +239,8 @@ def test_the_all_station_csvs_agree_with_the_station_files(client):
         # Trends: R's trend file's annual slope and bounds, per decade.
         mine = {r["index"]: r for r in trends if r["station"] == name}
         assert mine["TXx"]["units"] == "°C/decade" and mine["TXx"]["years_used"] == "12"
+        assert mine["TXx"]["out_of_date"] == "no"
+        assert mine["TXx"]["out_of_date"] == "no"
         lines = (folder / name / "trend" / f"{name}_trend.csv").read_text().splitlines()
         header = lines.index("Index,Frequency,StartYear,EndYear,Lower bound,Slope,Upper bound")
         checked = 0

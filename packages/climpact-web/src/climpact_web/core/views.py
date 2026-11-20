@@ -197,8 +197,9 @@ def workspaces_demo() -> dict:
 
 
 def trends_demo() -> dict:
-    """Trends across stations (#238): four stations by four indices, one without results,
-    with each state of a cell, and the first column's interval plot."""
+    """Trends across stations (#238): four stations by four indices, one without results
+    and one whose results are out of date (#279), with each state of a cell, and the first
+    column's interval plot."""
     from types import SimpleNamespace
 
     from climpact_web.stations import trend_grid
@@ -237,10 +238,12 @@ def trends_demo() -> dict:
         )  # fmt: skip
 
     place = SimpleNamespace(url=lambda *args: "#trend-grid")
+    stale = _("Nowra RAN Air Station")
     stations = [
         trend_grid._Station(
             SimpleNamespace(name=name, source=True, why="", station=place),
             {i[0]: card(*i, *v) for i, v in zip(indices, rows, strict=True)},
+            out_of_date=name == stale,
         )
         for name, rows in values.items()
     ]

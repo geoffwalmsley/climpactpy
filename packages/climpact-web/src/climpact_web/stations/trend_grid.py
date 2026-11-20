@@ -6,7 +6,10 @@ TN90p, TX10p, SU, TR, WSDI, PRCPTOT, Rx1day, R95p and CDD; the user chooses othe
 cell is the station's Sen's slope per decade, always written, so colour is never the only
 cue: filled on the trend scale when the 95% interval excludes zero (orange for an increase,
 blue for a decrease, the strong step for a slope at least half the largest in its column),
-a dashed edge when it does not, hatched for a station without results.
+a dashed edge when it does not, hatched for a station without results. A station whose
+results are out of date (``workspace_files.Entry.out_of_date``: its recalculation failed, or
+was not run or cancelled) is tagged "· out of date" after its name, in the grid and in the
+plot, as Files and its Indices say (#279).
 
 The **interval plot** is the selected column: each station's slope as a dot and its 95%
 interval as a line about a zero line, on an axis shared by the stations (symmetric about
@@ -45,6 +48,12 @@ DEFAULT_CODES = (
 )
 SESSION_KEY = "trend_grid:{}"  # the columns a user chose for a workspace
 
+# A failed station's out-of-date trends (#279): shown and tagged "· out of date" (True), as
+# its Indices keep them under "The recalculation failed"; or hidden, its row hatched and
+# tagged "· failed" as the Calculate board draws a failed row (False). The maintainer's
+# decision (#279).
+SHOW_FAILED_OUT_OF_DATE = True
+
 # The interval plot's box (the board's): 360 x 16, zero in the middle, 6 at either end.
 PLOT_WIDTH, PLOT_MIDDLE, PLOT_REACH = 360, 180, 172
 
@@ -78,6 +87,8 @@ class GridRow:
     cells: list[Cell]
     has_results: bool
     why: str = ""  # without results: "not run", "failed"...
+    out_of_date: bool = False  # its results are from before a change (#279)
+    failed: bool = False  # hatched though it has results: they are out of date and it failed
 
 
 @dataclass
@@ -91,6 +102,7 @@ class Bar:
     low: str
     high: str
     label: str
+    out_of_date: bool = False
 
 
 @dataclass
@@ -127,17 +139,25 @@ class Grid:
 class _Station:
     entry: workspace_files.Entry  # or anything with name, source, why and station.url
     cards: dict  # code -> results.Card with a trend
+    out_of_date: bool = False  # the trends shown are from before a change (#279)
+    failed: bool = False  # out of date and failed, hidden (``SHOW_FAILED_OUT_OF_DATE``)
+
+    @property
+    def has_results(self) -> bool:
+        return self.entry.source is not None and not self.failed
 
 
 def _stations(items: list[workspace_files.Entry]) -> list[_Station]:
     out = []
     for entry in items:
         cards = {}
-        if entry.source is not None:
+        out_of_date = entry.source is not None and entry.out_of_date
+        failed = out_of_date and entry.failed and not SHOW_FAILED_OUT_OF_DATE
+        if entry.source is not None and not failed:
             run = workspace_files._results(entry)
             ordered = [c for theme in run.themes() for c in theme.cards]
             cards = {c.code: c for c in ordered if c.trend is not None}
-        out.append(_Station(entry, cards))
+        out.append(_Station(entry, cards, out_of_date and not failed, failed))
     return out
 
 
@@ -209,8 +229,17 @@ def _label(choice: Choice, trend: dict) -> str:
     return _("%(code)s %(slope)s, 95%% interval %(interval)s, not significant") % values
 
 
+def _out_of_date(station: _Station, label: str) -> str:
+    """A cell's or a dot's words, with "out of date" when its station's trends are."""
+    if station.out_of_date:
+        return _("%(label)s, out of date") % {"label": label}
+    return label
+
+
 def _cell(station: _Station, choice: Choice, scale: float) -> Cell:
     entry = station.entry
+    if station.failed:
+        return Cell("none", label=_("%(code)s: failed") % {"code": choice.code})
     if entry.source is None:
         return Cell("none", label=_("%(code)s: no results") % {"code": choice.code})
     card = station.cards.get(choice.code)
@@ -220,8 +249,8 @@ def _cell(station: _Station, choice: Choice, scale: float) -> Cell:
     trend = card.trend
     if not trend.get("valid"):
         label = _("%(code)s: too few values for a trend") % {"code": choice.code}
-        return Cell("invalid", "–", label, url)
-    text, label = trend["slope_text"], _label(choice, trend)
+        return Cell("invalid", "–", _out_of_date(station, label), url)
+    text, label = trend["slope_text"], _out_of_date(station, _label(choice, trend))
     if not trend["significant"]:
         return Cell("not-significant", text, label, url)
     strong = scale > 0 and abs(trend["slope"]) >= scale / 2
@@ -265,6 +294,9 @@ def interval_plot(stations: list[_Station], choice: Choice) -> IntervalPlot:
     for s in stations:
         entry = s.entry
         card = s.cards.get(choice.code)
+        if s.failed:
+            left_out.append(_("%(name)s: failed") % {"name": entry.name})
+            continue
         if entry.source is None:
             left_out.append(_("%(name)s: no results") % {"name": entry.name})
             continue
@@ -289,7 +321,8 @@ def interval_plot(stations: list[_Station], choice: Choice) -> IntervalPlot:
                 x=_x(trend["slope"], end),
                 low=_x(trend["lower"], end),
                 high=_x(trend["upper"], end),
-                label=f"{entry.name}: {_label(choice, trend)}",
+                label=f"{entry.name}: {_out_of_date(s, _label(choice, trend))}",
+                out_of_date=s.out_of_date,
             )
         )
     ticks = [
@@ -326,8 +359,10 @@ def grid_of(stations: list[_Station], wanted: list[str] | None, selected: str | 
     rows = []
     for s in stations:
         cells = [_cell(s, c, scales[c.code]) for c in columns]
-        has = s.entry.source is not None
-        rows.append(GridRow(s.entry.name, s.entry.station.url("results"), cells, has, s.entry.why))
+        url = s.entry.station.url("results")
+        rows.append(
+            GridRow(s.entry.name, url, cells, s.has_results, s.entry.why, s.out_of_date, s.failed)
+        )
     codes = [c.code for c in columns]
     by_code = {c.code: c for c in choices}
     if selected not in by_code:
@@ -350,14 +385,15 @@ def grid_of(stations: list[_Station], wanted: list[str] | None, selected: str | 
         choices=list(groups.values()),
         chosen=set(codes),
         choice_count=len(choices),
-        has_results=any(s.entry.source is not None for s in stations),
+        has_results=any(s.has_results for s in stations),
     )
 
 
 def grid_csv(items: list[workspace_files.Entry], codes: list[str]) -> str:
     """The grid's indices of every station as the workspace's Trends file has them
-    (``workspace_files.trends_csv``: per decade, the interval, significant, the years used
-    and the units), in the grid's order: a column of the grid is a block of rows."""
+    (``workspace_files.trends_csv``: per decade, the interval, significant, the years used,
+    the units and whether they are out of date), in the grid's order: a column of the grid
+    is a block of rows."""
     text = workspace_files.trends_csv(items)
     reader = csv.reader(io.StringIO(text))
     header = next(reader)

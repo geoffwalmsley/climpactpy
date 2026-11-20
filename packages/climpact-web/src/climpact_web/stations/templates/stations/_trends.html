@@ -4,7 +4,10 @@ each cell Sen's slope per decade, written in it: filled on the trend scale when 
 interval excludes zero, a dashed edge when not, hatched without results) beside the
 selected column's interval plot (each station's slope as a dot, its interval as a line,
 about a zero line, on a shared axis). On the overview, under the Stations table, and on
-Compare an index. Each column's code is a link that selects it (?index=); js/trends.js
+Compare an index. A station whose results are out of date (#279) is tagged "· out of date"
+after its name, in the grid and in the plot, its row edged as stale-content is; a failed
+one hatched "· failed" instead when trend_grid.SHOW_FAILED_OUT_OF_DATE is off. Each
+column's code is a link that selects it (?index=); js/trends.js
 shows its plot in place instead. "Choose indices" (?cols=, remembered for the workspace)
 and the grid's CSV above it. Context: views_workspace.trends_context (trends: a
 trend_grid.Grid, trends_page, trends_csv, trends_waiting).
@@ -69,8 +72,8 @@ trend_grid.Grid, trends_page, trends_csv, trends_waiting).
         </thead>
         <tbody>
           {% for row in trends.rows %}
-          <tr{% if not row.has_results %} class="trend-grid__empty"{% endif %}>
-            <th scope="row" class="trend-grid__name"><span class="trend-grid__station" title="{{ row.name }}">{{ row.name }}</span>{% if not row.has_results %} <span class="trend-grid__none">{% translate "(no results)" %}</span>{% endif %}</th>
+          <tr{% if not row.has_results %} class="trend-grid__empty"{% elif row.out_of_date %} class="trend-grid__stale"{% endif %}>
+            <th scope="row" class="trend-grid__name"><span class="trend-grid__station" title="{{ row.name }}">{{ row.name }}</span>{% if row.failed %} <span class="trend-grid__tag"><span aria-hidden="true">{{ "·" }} </span>{% translate "failed" %}</span>{% elif not row.has_results %} <span class="trend-grid__tag">{% translate "(no results)" %}</span>{% elif row.out_of_date %} <span class="trend-grid__tag" title="{% translate 'These trends are from before the last change.' %}"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</th>
             {% for cell in row.cells %}
             <td class="num trend-cell trend-cell--{{ cell.state }}">{% if cell.url %}<a href="{{ cell.url }}" title="{{ cell.label }}"><span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span></a>{% elif cell.text %}<span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.label }}</span>{% else %}<span class="sr-only">{{ cell.label }}</span>{% endif %}</td>
             {% endfor %}
@@ -92,7 +95,7 @@ trend_grid.Grid, trends_page, trends_csv, trends_waiting).
         <ul class="interval-plot__rows" role="list">
           {% for bar in plot.bars %}
           <li class="interval-plot__row">
-            <div class="interval-plot__line"><a class="interval-plot__name" href="{{ bar.url }}" title="{{ bar.name }}">{{ bar.name }}</a><span class="interval-plot__value"><span class="font-medium">{{ bar.slope }}</span> <span class="text-text-muted">{{ bar.interval }}</span></span></div>
+            <div class="interval-plot__line"><span class="flex gap-1 min-w-0 whitespace-nowrap"><a class="interval-plot__name" href="{{ bar.url }}" title="{{ bar.name }}">{{ bar.name }}</a>{% if bar.out_of_date %}<span class="text-text-muted"><span aria-hidden="true">{{ "·" }} </span>{% translate "out of date" %}</span>{% endif %}</span><span class="interval-plot__value"><span class="font-medium">{{ bar.slope }}</span> <span class="text-text-muted">{{ bar.interval }}</span></span></div>
             <svg class="interval-plot__svg" viewBox="0 0 360 16" width="100%" height="16" role="img" aria-label="{{ bar.label }}">
               <line class="interval-plot__zero" x1="180" y1="0" x2="180" y2="16"></line>
               <line class="interval-plot__interval" x1="{{ bar.low }}" y1="8" x2="{{ bar.high }}" y2="8"></line>

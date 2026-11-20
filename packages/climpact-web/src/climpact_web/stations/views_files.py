@@ -67,7 +67,9 @@ def files_page(request, workspace_id):
         "out_of_date": any(e.out_of_date for e in items),
         "columns": [names[k] for k in model.COLUMNS],
         "rows": model.table(items, built, names),
-        "trends_columns": ", ".join((*model.TRENDS_COLUMNS, model.TRENDS_UNITS)),
+        "trends_columns": ", ".join(
+            (*model.TRENDS_COLUMNS, model.TRENDS_UNITS, model.TRENDS_OUT_OF_DATE)
+        ),
         "indices_columns": ", ".join(model.INDICES_COLUMNS),
     }
     if built is not None:

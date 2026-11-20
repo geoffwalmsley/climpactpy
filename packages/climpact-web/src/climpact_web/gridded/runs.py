@@ -220,8 +220,9 @@ def all_done(run: GriddedRun) -> bool:
 
 def kept_until(run: GriddedRun) -> str:
     """The date the run is deleted, ``25 Nov 2026``; "" while a job is queued or running
-    (retention never deletes those)."""
-    if run.job_active:
+    (retention never deletes those), and where runs don't expire (local, #301: they stay
+    until forgotten)."""
+    if run.expires_at is None or run.job_active:
         return ""
     return dateformat.format(timezone.localtime(run.expires_at), "j M Y")
 
@@ -396,8 +397,8 @@ def count_cells(path: Path) -> int:
 def provenance(run: GriddedRun) -> list[dict]:
     """The run's provenance line (the GridFiles board): the grid and its cells with data,
     the period and calendar, the base period, the indices and files (or "calculating"),
-    the climpact version and the date it is deleted. Each part is ``{"text", "phone"}``,
-    as the context bar takes it; on a phone the period shows."""
+    the climpact version and the date it is deleted (where runs expire). Each part is
+    ``{"text", "phone"}``, as the context bar takes it; on a phone the period shows."""
     from climpact_web.stations.workspace import core_version
 
     summary = grid_summary(run)

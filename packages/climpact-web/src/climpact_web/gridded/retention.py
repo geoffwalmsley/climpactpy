@@ -1,47 +1,59 @@
 """Deleting gridded runs (and their uploaded files) past the retention period, as
-:mod:`climpact_web.stations.retention` does for workspaces when they expire:
-``JOB_RETENTION_DAYS`` after the last change, unless one of the run's jobs (or those of
-a new start, #293) is queued or running. Files read in place from this computer are never
-touched. Registered with the jobs app's purge in :class:`.apps.GriddedConfig`."""
+:mod:`climpact_web.stations.retention` does for workspaces.
+
+When ``WORKSPACE_EXPIRY`` is on (hosted), a run is deleted ``JOB_RETENTION_DAYS`` after
+its last change, unless one of its jobs (or those of a new start, #293) is queued or
+running. Locally it is off, and a run stays until the user forgets it (#301): the run is
+never purged, and :func:`kept_jobs` keeps the jobs it shows, with their folders. Either
+way, folders under ``gridded/`` that belong to no run are deleted once older than the
+period, and files read in place from this computer are never touched. Registered with the
+jobs app's purge and keepers in :class:`.apps.GriddedConfig`."""
 
 from __future__ import annotations
 
 import datetime as dt
 import logging
-import shutil
 
+from django.conf import settings
 from django.db.models import Q
 
 from climpact_web.jobs.models import Status
-from climpact_web.stations.retention import _is_uuid
+from climpact_web.stations.retention import delete_stray_folders
 
 logger = logging.getLogger("climpact_web.gridded")
+
+JOB_FIELDS = ("thresholds_job", "indices_job", "next_thresholds_job", "next_indices_job")
+
+
+def kept_jobs() -> set[str]:
+    """The ids of the jobs the runs show, when runs don't expire (local); none otherwise,
+    so hosted they keep the jobs app's rule."""
+    from climpact_web.gridded.models import GriddedRun
+
+    if settings.WORKSPACE_EXPIRY:
+        return set()
+    kept: set[str] = set()
+    for ids in GriddedRun.objects.values_list(*JOB_FIELDS):
+        kept.update(str(pk) for pk in ids if pk)
+    return kept
 
 
 def purge_expired_gridded(now: dt.datetime, days: int) -> int:
     from climpact_web.gridded.models import GriddedRun, gridded_dir
 
     cutoff = now - dt.timedelta(days=days)
-    active = (Status.QUEUED, Status.RUNNING)
-    expired = GriddedRun.objects.filter(updated_at__lt=cutoff).exclude(
-        Q(thresholds_job__status__in=active)
-        | Q(indices_job__status__in=active)
-        | Q(next_thresholds_job__status__in=active)
-        | Q(next_indices_job__status__in=active)
-    )
     count = 0
-    for run in expired:
-        run.delete_files()
-        count += GriddedRun.objects.filter(pk=run.pk).delete()[0]
+    if settings.WORKSPACE_EXPIRY:
+        active = (Status.QUEUED, Status.RUNNING)
+        busy = Q()
+        for field in JOB_FIELDS:
+            busy |= Q(**{f"{field}__status__in": active})
+        for run in GriddedRun.objects.filter(updated_at__lt=cutoff).exclude(busy):
+            run.delete_files()
+            count += GriddedRun.objects.filter(pk=run.pk).delete()[0]
 
-    root = gridded_dir()
-    if root.is_dir():
-        known = {str(pk) for pk in GriddedRun.objects.values_list("pk", flat=True)}
-        for folder in root.iterdir():
-            if folder.name in known or not _is_uuid(folder.name):
-                continue
-            if folder.stat().st_mtime < cutoff.timestamp():
-                shutil.rmtree(folder, ignore_errors=True)
+    known = {str(pk) for pk in GriddedRun.objects.values_list("pk", flat=True)}
+    delete_stray_folders(gridded_dir(), known, cutoff)
     if count:
         logger.info("Deleted %d expired gridded run(s)", count)
     return count

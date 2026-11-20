@@ -6293,7 +6293,9 @@ the batch steps.
   "Checking…" while the checks run; "–" without checks), the indices state
   (`batch.fill.run_states`; a station of no batch with no run of its own uses its Indices
   tab's state; a station's own run that is not in use yet, before "Go to indices", is not
-  shown, as its Indices are locked: "–", #277) with its fix ("Fix the file" for a station left out without a usable file,
+  shown, as its Indices are locked: "–", #277; "Out of date" instead of Done when the
+  results shown are from before a change, `workspace.run_changes`, its replacement
+  cancelled, #279) with its fix ("Fix the file" for a station left out without a usable file,
   "Fix quality first" for one not run whose verdict is Fix first, "Change base period"
   when a failure names the base period), and how many of its indices have a significant
   trend, "22 of 80" (`results.results_for`, cached, the same count as the Indices'
@@ -6515,14 +6517,16 @@ A workspace of one station has none: the address leads to its station's Files.
   `<workspace name>_trends.csv` and `<workspace name>_indices.csv`. "What is in the zip"
   (from the batch results page until #234) is under them.
 - **Trends, all stations** (`workspace_files.trends_csv`): `station, index, slope, lower,
-  upper, significant, years_used, units`, one row per station and index: the trend the
+  upper, significant, years_used, units, out_of_date`, one row per station and index: the trend the
   Indices show (`results.Card.trend` of the index's main series, the annual one where
   there is one), Sen's slope and its 95% bounds **per decade** (R's trend file's annual
   values times 10, monthly times 120), `significant` yes or no (the interval excludes
   zero), the years with a value, and the slope's unit ("°C/decade"). An index without a
   trend (too few values, R's `min_trend_data`) has empty slope and bounds; TX95t's day of
   the year and the daily EHF and ECF tables have no row. `units` is a column the board does
-  not draw, so the slope's unit is in the file.
+  not draw, so the slope's unit is in the file. `out_of_date` (#279) is yes for every row
+  of a station whose results are from before a change (`workspace_files.Entry.out_of_date`:
+  its recalculation failed, was not run or was cancelled), no otherwise.
 - **Indices, all stations** (`workspace_files.indices_csv`): `station, index, year, month,
   value`, long format: every yearly value (month empty) and monthly value of each
   station's index tables, from the values the charts read (`results.RunResults.plots`),
@@ -6584,6 +6588,18 @@ Stations table and alone on Compare an index, `/w/<id>/compare/`
   waiting, or not yet opened with "Go to indices") is a row of hatched cells. While any
   station waits or calculates the section says the trends come once every station has
   been calculated, and comes in with the overview's last poll.
+- **Out-of-date trends** (#279). A station whose results are out of date
+  (`workspace_files.Entry.out_of_date`: the run shown differs from its inputs because its
+  recalculation failed, was not run or was cancelled) keeps its trends, as its Indices
+  do: its row is `trend-grid__stale` (a dashed warning edge at the start of its name
+  cell, the `stale-content` edge), "· out of date" follows its name (the dot
+  `aria-hidden`, "These trends are from before the last change." in its `title`), and
+  each cell's and dot's words end ", out of date" (`trend_grid._out_of_date`); its name
+  in the interval plot is tagged the same (`Bar.out_of_date`). `trend_grid.SHOW_FAILED_OUT_OF_DATE`
+  (on) is the maintainer's choice for a failed station: off, its out-of-date trends
+  are hidden and its row hatched "· failed" as the Calculate board draws a failed row
+  (`_Station.failed`, `GridRow.failed`; the plot lists it "failed"). Its rows stay in the
+  CSV either way, marked `out_of_date` yes.
 - **Columns** (`trend_grid.columns_for`): TXx, TNn, TN90p, TX10p, SU, TR, WSDI,
   PRCPTOT, Rx1day, R95p and CDD, those some station has; "Choose indices" offers every
   index with a trend at some station, by theme (`trend_grid.available`). A choice is
@@ -6603,7 +6619,7 @@ Stations table and alone on Compare an index, `/w/<id>/compare/`
   trend are listed under it.
 - **CSV** (`views_workspace.compare_csv`, `/w/<id>/compare/trends.csv?cols=…`,
   `trend_grid.grid_csv`): the rows of the workspace's Trends file
-  (`workspace_files.trends_csv`, same columns) for the grid's indices, a column of the grid
+  (`workspace_files.trends_csv`, same columns, `out_of_date` included) for the grid's indices, a column of the grid
   a block of rows, the stations in the overview's order; one index for the plot's "CSV,
   all stations". `test_trend_grid.py` checks it against R's per-station trend files.
 

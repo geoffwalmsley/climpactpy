@@ -6,7 +6,8 @@ the record of how they were made.
   station that failed as R's ``<station>.errors.txt``, and the workspace files below.
 - **Trends, all stations** (CSV): one row per station and index, the trend the Indices
   show (Sen's slope per decade of the index's main series, its 95% interval, whether the
-  interval excludes zero, and the years with a value).
+  interval excludes zero, the years with a value, its units and whether the station's
+  results are out of date).
 - **Indices, all stations** (CSV, long format): every yearly and monthly value of every
   station's index tables (the daily tables, EHF and ECF, and TX95t's day of the year are
   left out: they have no year and month).
@@ -52,6 +53,7 @@ EVERYTHING_FILE = "everything.zip"
 TREND_METHOD = "Sen's slope per decade, 95% interval (zyp); significant when it excludes zero"
 TRENDS_COLUMNS = ("station", "index", "slope", "lower", "upper", "significant", "years_used")
 TRENDS_UNITS = "units"  # after the board's columns: what the slope is in, "°C/decade"
+TRENDS_OUT_OF_DATE = "out_of_date"  # yes: the station's results are from before a change
 INDICES_COLUMNS = ("station", "index", "year", "month", "value")
 # The station's R files, the columns of the by-station table, in the board's order.
 COLUMNS = ("folder", "report", "all_plots", "trends", "thresholds", "missing", "quality")
@@ -76,6 +78,11 @@ class Entry:
     @property
     def name(self) -> str:
         return self.row.name
+
+    @property
+    def failed(self) -> bool:
+        """Whether the station's last run failed (its results, if any, are an earlier run's)."""
+        return self.row.indices.state == overview.FAILED
 
     @property
     def why(self) -> str:
@@ -161,11 +168,12 @@ def trends_csv(items: list[Entry]) -> str:
     """The trend of every station's every index, as the Indices show it: per decade."""
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
-    writer.writerow((*TRENDS_COLUMNS, TRENDS_UNITS))
+    writer.writerow((*TRENDS_COLUMNS, TRENDS_UNITS, TRENDS_OUT_OF_DATE))
     for entry in items:
         if entry.source is None:
             continue
         run = _results(entry)
+        out_of_date = "yes" if entry.out_of_date else "no"
         for card in run.cards:
             trend, plot = card.trend, run.plots.get(card.main)
             if trend is None or plot is None:
@@ -180,7 +188,8 @@ def trends_csv(items: list[Entry]) -> str:
             else:  # too few values for a trend (R's min_trend_data)
                 values = ("", "", "", "")
             units = f"{card.trend_units}/decade" if card.trend_units else "per decade"
-            writer.writerow((entry.name, card.code, *values, _years_used(plot), units))
+            row = (entry.name, card.code, *values, _years_used(plot), units, out_of_date)
+            writer.writerow(row)
     return out.getvalue()
 
 

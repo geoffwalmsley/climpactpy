@@ -89,6 +89,13 @@ def _rounded(value: float, decimals: int) -> Decimal:
     return abs(rounded) if rounded == 0 else rounded
 
 
+def rounded(value: float, decimals: int) -> float:
+    """``value`` rounded as these rules write it (half up from the number as written),
+    as a number: the value a chart's read-out formats again without rounding it twice
+    (#349)."""
+    return float(_rounded(value, decimals))
+
+
 def grouped(n: int) -> str:
     """A count, localised and grouped: ``21``, ``65,720``."""
     return minus(number_format(n, force_grouping=True))

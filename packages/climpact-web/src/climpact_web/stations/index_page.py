@@ -31,6 +31,9 @@ LEFT, RIGHT, TOP, BOTTOM = 64, 848, 16, 300
 X_LABEL_Y = 320
 # The running mean's window: 11 years, of years or of months.
 RUNNING_YEARS = 11
+# An anomaly's places (numbers.anomaly): the payload's anomaly view is rounded to them
+# once, so the chart's read-out and the statistics give the same number (#349).
+ANOMALY_DIGITS = 1
 # Where the record is the lowest value: the coldest indices, and drought (SPI, SPEI).
 LOW_RECORDS = frozenset({"tnn", "txn"})
 # How many left-out years the statistics name; the table has them all.
@@ -357,9 +360,10 @@ def _base_band(plot, base, x) -> dict | None:
     }
 
 
-def _rounded(values: list[float | None]) -> list[float | None]:
-    """Values for the page's JSON, as precise as the read-out writes them."""
-    return [chart_data.shown(v) for v in values]
+def _rounded(values: list[float | None], digits: int | None = None) -> list[float | None]:
+    """Values for the page's JSON, as precise as the read-out writes them (``digits``: an
+    anomaly's places)."""
+    return [chart_data.shown(v, digits) for v in values]
 
 
 def payload(card, plot, base, gone: list[dict], day_plot=None, name: str = "") -> dict:
@@ -369,7 +373,9 @@ def payload(card, plot, base, gone: list[dict], day_plot=None, name: str = "") -
     the values left out with their level and why), and the anomaly view (``views``:
     each view's values, running mean, ``[index, level]`` of the values left out, the y
     axis's title and how far its trend line is moved). Values are as precise as the
-    read-out writes them; the notes are ``[index, why]``. Built from what :func:`chart`
+    read-out writes them, anomalies rounded once to their one place (as
+    ``numbers.anomaly``, so the read-out shows the statistics' number, #349); the notes
+    are ``[index, why]``. Built from what :func:`chart`
     draws, so the interactive chart and the server's SVG show the same marks."""
     values = _values(plot)
     step = plot.step
@@ -398,15 +404,16 @@ def payload(card, plot, base, gone: list[dict], day_plot=None, name: str = "") -
             axis = _("Anomaly %(units)s") % {"units": units} if units else _("Anomaly")
         else:
             axis = f"{card.code} {units}".strip()
+        digits = ANOMALY_DIGITS if anomaly else None
         out = {
-            "y": _rounded(series),
-            "smooth": _rounded(smooth) if any(v is not None for v in smooth) else None,
+            "y": _rounded(series, digits),
+            "smooth": _rounded(smooth, digits) if any(v is not None for v in smooth) else None,
             "gaps": gaps or None,
             "axis": axis,
             "offset": offset,
         }
         if anomaly:
-            out["signed_digits"] = 1
+            out["signed_digits"] = ANOMALY_DIGITS
         return out
 
     trend = plot.trend if plot.trend is not None and plot.trend.valid else None

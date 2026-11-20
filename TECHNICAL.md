@@ -7976,7 +7976,10 @@ caching); the gridded map's cell pane (#295) puts the index page's payload
   view), `gaps` (`[index, level]`: the open point of each value left out, at the
   base-period mean or zero), `axis` (the y axis's title), `offset` (subtracted from the
   trend line: the base-period mean for anomalies) and, for anomalies, `signed_digits`.
-  Values are rounded as the read-out writes them (`charts.data.shown`).
+  Values are rounded as the read-out writes them (`charts.data.shown`); the anomaly
+  view's `y` and `smooth` once, to `signed_digits` places, half up as
+  `numbers.anomaly` (`numbers.rounded`), so the read-out, which formats them again,
+  gives the statistics' number, not a two-place value rounded twice (#349).
 - `overlay` (#276, `stations.overlay.payload`, Overlay the series only): `x` (the years,
   or mid-month decimal years), `title`, `units`, `axis`, `step`, and `series`, one per
   drawn station, with `label` (its name, "· out of date" after it when it is), `short`

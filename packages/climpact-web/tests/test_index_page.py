@@ -190,7 +190,9 @@ def test_the_interactive_charts_data():
     values_view, anomaly = data["views"]["values"], data["views"]["anomaly"]
     assert values_view["gaps"] == [[10, round(mean, 1)]] and anomaly["gaps"] == [[10, 0]]
     assert anomaly["offset"] == pytest.approx(mean) and values_view["offset"] == 0
-    assert anomaly["y"][0] == round(38.0 - mean, 2) and anomaly["signed_digits"] == 1
+    assert anomaly["y"][0] == numbers.rounded(38.0 - mean, 1) and anomaly["signed_digits"] == 1
+    assert anomaly["smooth"] == index_page._rounded(index_page.running_mean(
+        index_page.anomalies(plot, base), 11), 1)  # fmt: skip
     assert values_view["smooth"] == index_page._rounded(index_page.running_mean(
         index_page._values(plot), 11))  # fmt: skip
     # Without a base period: one view, the values left out at the series' mean.
@@ -198,3 +200,24 @@ def test_the_interactive_charts_data():
     assert list(plain["views"]) == ["values"] and plain["layers"]["base"] is None
     present = [v for v in values if v == v]
     assert plain["views"]["values"]["gaps"] == [[10, round(sum(present) / len(present), 1)]]
+
+
+def test_the_read_out_and_the_statistics_round_an_anomaly_once():
+    """#349: the payload's anomalies are rounded once, as ``numbers.anomaly`` rounds them,
+    so the chart's read-out (``charts.js``, ``signedFixed(v, 1)``, which formats the
+    payload's value again) and the table give the same number. An anomaly of −0.2473 is
+    −0.25 to two places, which a second rounding to one place would make −0.3."""
+    plot = annual([10.0, 11.0, 10.5 - 0.2473])  # base mean 10.5
+    base = (1961, 1962)
+    exact = index_page.anomalies(plot, base)[2]
+    assert exact == pytest.approx(-0.2473) and round(exact, 2) == -0.25
+    assert numbers.anomaly(round(exact, 2)) == f"{numbers.MINUS}0.3"  # rounded twice
+    data = index_page.payload(card(), plot, base, [])
+    shown = data["views"]["anomaly"]["y"][2]
+    row = index_page.table(card(), plot, None, base, [])[0]  # most recent first: 1963
+    assert row["anomaly"] == numbers.anomaly(exact) == f"{numbers.MINUS}0.2"
+    # The read-out's value is already at its one place: formatting it again keeps it.
+    assert shown == -0.2 and float(f"{shown:.1f}") == shown
+    assert numbers.anomaly(shown) == row["anomaly"]
+    # A half rounds up from the number as written, as the statistics do: −0.25 -> −0.3.
+    assert index_page._rounded([-0.25, 0.05, -0.04], 1) == [-0.3, 0.1, 0.0]

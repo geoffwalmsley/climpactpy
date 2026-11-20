@@ -1590,9 +1590,13 @@ def test_index_chart_reads_out_by_keyboard(chrome, site):
     focus(c, plot)
     c.press("ArrowRight")
     text = wait_text(c, status, "^1997", "1997 read out")
-    assert re.search(
-        r"TXx \d[\d.]*\s°C · Anomaly [+−]?\d[\d.]*\s°C · 11-year running mean", text
-    ), text
+    found = re.search(
+        r"TXx \d[\d.]*\s°C · Anomaly ([+−]?\d[\d.]*)\s°C · 11-year running mean", text
+    )
+    assert found, text
+    # The read-out's anomaly is the table's: rounded once (#349).
+    cell = "document.querySelector('#value-1997 td:nth-of-type(2)').textContent.trim()"
+    assert found[1] == c.evaluate(cell), (text, c.evaluate(cell))
     c.press("Home")
     wait_text(c, status, "^1936", "the first year read out")
     c.press("End")

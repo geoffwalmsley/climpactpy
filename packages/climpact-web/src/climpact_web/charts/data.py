@@ -59,12 +59,16 @@ def attr_json(data: dict) -> str:
     return mark_safe(text)
 
 
-def shown(value: float | None) -> float | None:
+def shown(value: float | None, digits: int | None = None) -> float | None:
     """A value rounded as a read-out writes it (``core.numbers.number``: two places below
-    10, one from 10), so a read-out's data carries no more figures than it shows."""
+    10, one from 10), so a read-out's data carries no more figures than it shows. With
+    ``digits`` (an anomaly's one place), rounded as ``core.numbers.anomaly`` rounds it, so
+    the read-out, which formats it again, shows the statistics' number (#349)."""
     if value is None or value != value:
         return None
     value = float(value)
+    if digits is not None:
+        return numbers.rounded(value, digits)
     return round(value, 2 if abs(value) < 10 else 1)
 
 

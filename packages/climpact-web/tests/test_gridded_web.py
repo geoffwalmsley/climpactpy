@@ -247,6 +247,7 @@ def test_new_run_page_local(client):
     html = client.get("/gridded/new/").content.decode()
     assert "Files on this computer" in html and 'id="file-browser"' in html
     assert "Use the sample grid" in html and 'name="files"' in html
+    assert "each split by year (up to 200 files, joined along time)" in html
     assert "<h1>New gridded run</h1>" in html and 'aria-label="Breadcrumb"' in html
     assert "steps__" not in html and "Continue where you left off" not in html
 

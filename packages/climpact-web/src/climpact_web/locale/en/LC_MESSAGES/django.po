@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 11:20+0000\n"
+"POT-Creation-Date: 2026-11-20 11:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1179,7 +1179,7 @@ msgstr ""
 #: core/navigation.py:58 core/templates/core/patterns.html:228
 #: gridded/templates/gridded/_breadcrumb.html:6
 #: gridded/templates/gridded/start.html:11
-#: gridded/templates/gridded/start.html:16 gridded/views.py:660
+#: gridded/templates/gridded/start.html:16 gridded/views.py:662
 #: help/templates/help/index.html:53
 msgid "Gridded"
 msgstr ""
@@ -4293,7 +4293,7 @@ msgid "%(name)s, %(when)s, by latitude (rows) and longitude (columns)"
 msgstr ""
 
 #: gridded/templates/gridded/_explore.html:104
-#: gridded/templates/gridded/_series_table.html:5 gridded/views.py:952
+#: gridded/templates/gridded/_series_table.html:5 gridded/views.py:954
 #, python-format
 msgid "%(name)s at %(where)s"
 msgstr ""
@@ -4709,8 +4709,8 @@ msgstr ""
 #: gridded/templates/gridded/new.html:28
 #, python-format
 msgid ""
-"netCDF, up to %(size)s MB in all. One file with all three variables, or one "
-"file for each."
+"netCDF, up to %(size)s MB in all. One file with all three variables, one for "
+"each, or each split by year (up to %(count)s files, joined along time)."
 msgstr ""
 
 #: gridded/templates/gridded/new.html:31
@@ -4822,7 +4822,7 @@ msgstr[1] ""
 msgid "This run is being calculated."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:31 gridded/views.py:650
+#: gridded/templates/gridded/setup.html:31 gridded/views.py:652
 #: help/sections.py:229 help/sections.py:290
 #: stations/templates/stations/_settings_fields.html:56
 #: stations/views_workspace.py:114 stations/workspace.py:464
@@ -5043,51 +5043,51 @@ msgstr ""
 msgid "Gridded help"
 msgstr ""
 
-#: gridded/views.py:145
+#: gridded/views.py:146
 msgid "This folder cannot be read."
 msgstr ""
 
-#: gridded/views.py:495
+#: gridded/views.py:497
 #, python-format
 msgid "The files cannot be read together: %(error)s"
 msgstr ""
 
-#: gridded/views.py:570
+#: gridded/views.py:572
 #, python-format
 msgid "Gridded thresholds: %(files)s"
 msgstr ""
 
-#: gridded/views.py:585
+#: gridded/views.py:587
 #, python-format
 msgid "Gridded indices: %(files)s"
 msgstr ""
 
-#: gridded/views.py:616
+#: gridded/views.py:618
 msgid "The gridded run was deleted."
 msgstr ""
 
-#: gridded/views.py:618
+#: gridded/views.py:620
 msgid "The gridded run and its uploaded files were deleted."
 msgstr ""
 
-#: gridded/views.py:635
+#: gridded/views.py:637
 #, python-format
 msgid "The run is now called %(name)s."
 msgstr ""
 
-#: gridded/views.py:649
+#: gridded/views.py:651
 msgid "Map"
 msgstr ""
 
-#: gridded/views.py:651
+#: gridded/views.py:653
 msgid "Set-up"
 msgstr ""
 
-#: gridded/views.py:661
+#: gridded/views.py:663
 msgid "run"
 msgstr ""
 
-#: gridded/views.py:732
+#: gridded/views.py:734
 msgid "This file could not be read."
 msgstr ""
 

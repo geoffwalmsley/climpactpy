@@ -25,7 +25,7 @@ Before a run there is a breadcrumb, no stepper. Context from views.start_context
       <form method="post" action="{% url 'gridded:upload' %}" enctype="multipart/form-data" class="card stack" novalidate>
         {% csrf_token %}
         <h2 class="card__title">{% if local %}{% translate "Or upload copies" %}{% else %}{% translate "Your netCDF files" %}{% endif %}</h2>
-        {% blocktranslate asvar hint with size=max_upload_mb %}netCDF, up to {{ size }} MB in all. One file with all three variables, or one file for each.{% endblocktranslate %}
+        {% blocktranslate asvar hint with size=max_upload_mb count=max_files %}netCDF, up to {{ size }} MB in all. One file with all three variables, one for each, or each split by year (up to {{ count }} files, joined along time).{% endblocktranslate %}
         {% include "components/dropzone.html" with field=upload_form.files hint=hint multiple=True %}
         {% if not local %}{% help_topic "gridded.files" %}{% endif %}
         {% if local %}<p class="text-sm text-text-muted">{% translate "Uploading copies the files into Climpact's data folder. Choosing them by path is quicker for large files." %}</p>{% endif %}

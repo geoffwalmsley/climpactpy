@@ -37,7 +37,8 @@ in line; the text around it describes the code as it is. The rules come from thr
   Stations table, a page of its own); the copy is recalculated with that workspace's
   settings. Workspaces (#242) lists every workspace of the browser in place of Your
   calculations. Add stations (#233) is the one way in, for one station or many: Get
-  started, New station and the batch's first page lead there.
+  started leads there, and so do the old New station and batch addresses, whose forms
+  went with #271.
 - **Coming back.** Workspaces belong to the browser (hosted, deleted after the retention
   period) or the computer (local: kept until deleted, and the retention notice says so).
   A saved workspace file rebuilds one anywhere since #240: Save file on each row of

@@ -36,6 +36,12 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
   kept. The New station and batch start pages keep their addresses. A station that failed
   in a batch says why on its Indices. Hosted: paste
   `deploy/cloudflare/rate-limit.txt` into the rate-limiting rule again, as its paths moved.
+- The old New station and batch upload forms are gone (#271): Add stations (#233) is the
+  only way to start a station or a batch. `/station/new`, `/station/sample`, `/batch/`
+  and `/batch/sample` redirect to `/add/`, a GET or a POST, and `/w/<id>/batch/` to the
+  files waiting there or the workspace. A station's own setup page stays, for a new file
+  that needs new details. Hosted: paste `deploy/cloudflare/rate-limit.txt` into the
+  rate-limiting rule again, as the retired paths left it.
 - Turnstile (#169): the texts of the "checking that you are a person" line moved from
   `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
   reads `data-retry` as its own setting and warned in the console on every form page.

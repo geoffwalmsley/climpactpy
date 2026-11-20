@@ -379,14 +379,12 @@ the app (tested). Don't add a geo or ASN rule unless the analytics show abuse fr
 **path only, not the method**. Its counter would therefore count every GET under a prefix like
 `/w/` (a workspace and its stations, `/w/<id>/<station>/…`). The job pages poll their
 progress with htmx once a second (`.../quality/progress`, `.../indices/progress`,
-`/jobs/<id>/progress`, `/w/<id>/batch/progress`), and form fields are checked with htmx
-POSTs as they change (`.../setup/validate`, `.../settings/validate`,
-`/w/<id>/batch/options`). A prefix rule would
-block an ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only
-the URLs that take an upload or start a job (upload and sample, *load*, *replace file*,
-*run quality checks*, *replace file after QC*, *continue*, *recalculate*, *sector*, batch
-upload, add files and run, job retry, and gridded upload and sample, which are off in
-hosted mode). Their GETs are page loads. A person filling in the forms makes 2–4 of these
+`/jobs/<id>/progress`, `/w/<id>/progress`), and form fields are checked with htmx POSTs as
+they change (`.../setup/validate`, `.../settings/validate`). A prefix rule would block an
+ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only the URLs
+that take an upload or start a job (*load*, *replace file*, *run quality checks*, *replace
+file after QC*, *continue*, *recalculate*, *sector*, job retry, and gridded upload and
+sample, which are off in hosted mode). Their GETs are page loads. A person filling in the forms makes 2–4 of these
 requests in 10 seconds, and a script making a burst makes many more. Tune the number from
 **Security › Analytics** once there is traffic.
 
@@ -534,8 +532,8 @@ PASS  /.git/config blocked (403)
 PASS  /cgi-bin/test blocked (403)
 PASS  /.well-known/ not blocked (404 from the app)
 PASS  /admin/ challenged (cf-mitigated: challenge)
-PASS  GET /station/ 200
-PASS  GET /batch/ 200
+PASS  GET /add/ 200
+PASS  GET /w/ 200
 PASS  GET /help/ 200
 PASS  GET /jobs/ 200
 PASS  htmx-style poll reaches the app (404 for a made-up job)

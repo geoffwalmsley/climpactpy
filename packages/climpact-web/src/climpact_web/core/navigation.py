@@ -95,8 +95,23 @@ def nav_items(request) -> list[dict]:
 def index_reference_url() -> str | None:
     """The header's Index reference (#227): the definition of every index, in the guide
     to the indices, until an index reference page of its own exists."""
+    url = url_or_none("help:index_reference")
+    if url:
+        return url
     url = url_or_none("help:guide", "indices")
     return f"{url}#the-indices" if url else None
+
+
+def index_reference_current(request) -> str:
+    """Index reference is current (#325) on ``/help/indices/`` ("page") and on the pages
+    under it, each index's (#319; "true"); Help is not, there."""
+    url = (index_reference_url() or "").split("#", 1)[0]
+    path = request.path if request is not None else ""
+    if not url:
+        return ""
+    if path == url:
+        return "page"
+    return "true" if path.startswith(url) else ""
 
 
 # ---- The header's Help button (#197) ---------------------------------------------------
@@ -134,5 +149,8 @@ def page_help(request) -> dict | None:
     url = url_or_none("help:index")
     if url is None:
         return None
-    current = match is not None and match.namespace == "help"
+    # Current on the help's pages (#325), but not where Index reference is.
+    current = (
+        match is not None and match.namespace == "help" and not index_reference_current(request)
+    )
     return {"url": url, "title": None, "current": current}

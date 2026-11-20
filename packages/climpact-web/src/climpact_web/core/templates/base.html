@@ -38,7 +38,7 @@
       </nav>
       {% endif %}
       <div class="site-header__tools">
-        {% if index_reference_url %}<a class="site-header__link site-header__reference" href="{{ index_reference_url }}">{% translate "Index reference" %}</a>{% endif %}
+        {% if index_reference_url %}<a class="site-header__link site-header__reference" href="{{ index_reference_url }}"{% if index_reference_current %} aria-current="{{ index_reference_current }}"{% endif %}>{% translate "Index reference" %}</a>{% endif %}
         {% if page_help %}{# The page's guide (#197): the help system's visible home. #}
         {% if page_help.title %}{% blocktranslate with title=page_help.title asvar app_help_name %}Help: {{ title }}{% endblocktranslate %}{% else %}{% translate "Help" as app_help_name %}{% endif %}
         <a class="site-header__link" id="app-help" href="{{ page_help.url }}" aria-label="{{ app_help_name }}"{% if page_help.current %} aria-current="page"{% endif %}>{% translate "Help" %}</a>
@@ -59,7 +59,7 @@
               {% for item in nav_items %}
               <li><a href="{{ item.url }}"{% if item.current %} aria-current="{{ item.current }}"{% endif %}>{{ item.label }}</a></li>
               {% endfor %}
-              {% if index_reference_url %}<li><a href="{{ index_reference_url }}">{% translate "Index reference" %}</a></li>{% endif %}
+              {% if index_reference_url %}<li><a href="{{ index_reference_url }}"{% if index_reference_current %} aria-current="{{ index_reference_current }}"{% endif %}>{% translate "Index reference" %}</a></li>{% endif %}
             </ul>
           </nav>
           <div class="site-menu__theme"><span aria-hidden="true">{% translate "Colour theme" %}</span>{% include "components/theme_toggle.html" %}</div>

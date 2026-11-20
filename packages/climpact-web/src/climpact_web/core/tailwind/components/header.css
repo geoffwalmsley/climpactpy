@@ -111,7 +111,7 @@
   }
 
   .site-header__link:hover,
-  .site-header__link[aria-current="page"] {
+  .site-header__link[aria-current] {
     color: var(--color-text);
   }
 

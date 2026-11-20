@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 18:44+0000\n"
+"POT-Creation-Date: 2026-11-20 19:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -604,7 +604,7 @@ msgstr ""
 msgid "Remove the linear trend before correlating."
 msgstr ""
 
-#: core/forms.py:40 stations/forms.py:29
+#: core/forms.py:40 help/contents.py:65 stations/forms.py:29
 msgid "Station file"
 msgstr ""
 
@@ -675,7 +675,7 @@ msgstr[1] ""
 msgid "Workspaces"
 msgstr ""
 
-#: core/navigation.py:55 help/templates/help/index.html:34
+#: core/navigation.py:55
 msgid "Single station"
 msgstr ""
 
@@ -684,7 +684,7 @@ msgid "Try with sample data"
 msgstr ""
 
 #: core/navigation.py:57 core/templates/core/patterns.html:231
-#: help/templates/help/index.html:43
+#: help/templates/help/index.html:65
 msgid "Batch"
 msgstr ""
 
@@ -692,16 +692,15 @@ msgstr ""
 #: gridded/templates/gridded/_breadcrumb.html:6
 #: gridded/templates/gridded/start.html:12
 #: gridded/templates/gridded/start.html:17 gridded/views.py:464
-#: gridded/views.py:829 help/templates/help/index.html:53
+#: gridded/views.py:829
 msgid "Gridded"
 msgstr ""
 
 #: core/navigation.py:61 core/templates/base.html:43
 #: core/templates/base.html:44 core/templates/components/drawer.html:11
-#: help/templates/help/_section_help.html:12 help/templates/help/guide.html:6
-#: help/templates/help/index.html:3 help/templates/help/index.html:7
-#: help/templates/help/search.html:6 help/templates/help/section.html:9
-#: help/templates/help/section.html:11 help/templates/help/topics.html:6
+#: help/templates/help/_section_help.html:12 help/templates/help/frame.html:23
+#: help/templates/help/index.html:6 help/templates/help/index.html:10
+#: help/templates/help/section.html:10
 msgid "Help"
 msgstr ""
 
@@ -817,12 +816,12 @@ msgstr ""
 msgid "Main"
 msgstr ""
 
-#: core/templates/base.html:41 core/templates/base.html:62
+#: core/templates/base.html:41 core/templates/base.html:62 help/contents.py:55
 msgid "Index reference"
 msgstr ""
 
 #: core/templates/base.html:43 help/templates/help/_section_help.html:12
-#: help/templates/help/section.html:6
+#: help/templates/help/section.html:7
 #, python-format
 msgid "Help: %(title)s"
 msgstr ""
@@ -934,9 +933,7 @@ msgstr ""
 
 #: core/templates/components/context_bar.html:34
 #: gridded/templates/gridded/_breadcrumb.html:5
-#: help/templates/help/guide.html:6 help/templates/help/search.html:6
-#: help/templates/help/section.html:9 help/templates/help/topics.html:6
-#: stations/templates/stations/add.html:19
+#: help/templates/help/frame.html:23 stations/templates/stations/add.html:19
 #: stations/templates/stations/workspace_open.html:13
 msgid "Breadcrumb"
 msgstr ""
@@ -2842,7 +2839,7 @@ msgstr ""
 msgid "You changed the base period to %(new)s. These results use %(old)s."
 msgstr ""
 
-#: core/views.py:415 core/views.py:680
+#: core/views.py:415 core/views.py:680 help/templates/help/index.html:61
 #: stations/templates/stations/_overview.html:40
 #: stations/templates/stations/_trends.html:65
 #: stations/templates/stations/workspace_files.html:65
@@ -3969,6 +3966,7 @@ msgstr[1] ""
 #: gridded/setup_page.py:551 gridded/stages.py:729
 #: gridded/templates/gridded/_files_table.html:17
 #: gridded/templates/gridded/_runs_table.html:16
+#: help/templates/help/index.html:70
 msgid "Grid"
 msgstr ""
 
@@ -4972,7 +4970,8 @@ msgid ""
 "ANN annual, MON monthly. Indices the run did not calculate are not listed."
 msgstr ""
 
-#: gridded/templates/gridded/_map.html:39
+#: gridded/templates/gridded/_map.html:39 help/templates/help/index.html:66
+#: help/templates/help/index.html:76
 #: stations/templates/stations/downloads.html:74
 #: stations/templates/stations/downloads.html:92
 #: stations/templates/stations/downloads.html:117
@@ -5762,6 +5761,65 @@ msgstr ""
 
 #: gridded/views.py:856
 msgid "This file could not be read."
+msgstr ""
+
+#: help/contents.py:59
+msgid "Command line"
+msgstr ""
+
+#: help/contents.py:63
+msgid "File formats"
+msgstr ""
+
+#: help/contents.py:67
+msgid "Batch metadata file"
+msgstr ""
+
+#: help/contents.py:70 help/topics.py:588
+msgid "Gridded input files"
+msgstr ""
+
+#: help/contents.py:72 stations/sector_file.py:270
+msgid "Sector data file"
+msgstr ""
+
+#: help/contents.py:98 help/templates/help/topics.html:6
+msgid "Help topics, A to Z"
+msgstr ""
+
+#: help/contents.py:104 help/templates/help/index.html:38
+msgid "Guides"
+msgstr ""
+
+#: help/contents.py:107 help/templates/help/index.html:23
+msgid "Reference"
+msgstr ""
+
+#: help/contents.py:108 help/templates/help/topics.html:19
+msgid "More"
+msgstr ""
+
+#: help/contents.py:111
+msgid "Help home"
+msgstr ""
+
+#: help/contents.py:122
+#, python-format
+msgid ""
+"All %(count)s ET-SCI indices: definition, unit, settings, missing-data rule "
+"and file names."
+msgstr ""
+
+#: help/contents.py:129
+msgid ""
+"Install the climpact package and run stations, batches and grids without the "
+"browser. Every option of every command."
+msgstr ""
+
+#: help/contents.py:136
+msgid ""
+"The station file, the batch metadata file, the gridded netCDF inputs and the "
+"sector data file, with examples."
 msgstr ""
 
 #: help/guides.py:220
@@ -6836,6 +6894,15 @@ msgid ""
 "and Fawcett."
 msgstr ""
 
+#: help/templates/help/_contents.html:8 help/templates/help/_contents.html:10
+msgid "Help contents"
+msgstr ""
+
+#: help/templates/help/_contents.html:11 help/templates/help/_contents.html:12
+#: help/templates/help/_contents.html:13
+msgid "Search help"
+msgstr ""
+
 #: help/templates/help/_results.html:6
 #, python-format
 msgid "%(counter)s result for “%(query)s”"
@@ -6849,16 +6916,21 @@ msgid ""
 "topics."
 msgstr ""
 
-#: help/templates/help/_search_form.html:6 help/templates/help/search.html:3
-#: help/templates/help/search.html:7
+#: help/templates/help/_search_form.html:7
+#: help/templates/help/_search_form.html:8 help/templates/help/search.html:3
+#: help/templates/help/search.html:4
 msgid "Search the help"
 msgstr ""
 
-#: help/templates/help/_search_form.html:10
-msgid "For example: base period, outliers, TX90p"
+#: help/templates/help/_search_form.html:12
+msgid "Search the help, for example TX90p, base period or -99.9"
 msgstr ""
 
 #: help/templates/help/_search_form.html:12
+msgid "For example: base period, outliers, TX90p"
+msgstr ""
+
+#: help/templates/help/_search_form.html:14
 msgid "Search"
 msgstr ""
 
@@ -6870,6 +6942,10 @@ msgstr ""
 #: help/templates/help/_section_help.html:12
 #, python-format
 msgid "%(label)s: %(title)s"
+msgstr ""
+
+#: help/templates/help/_toc.html:7 help/templates/help/_toc.html:10
+msgid "On this page"
 msgstr ""
 
 #: help/templates/help/_topic.html:9
@@ -6888,7 +6964,7 @@ msgstr ""
 msgid "No thanks"
 msgstr ""
 
-#: help/templates/help/_tour.html:15 help/templates/help/guide.html:32
+#: help/templates/help/_tour.html:15 help/templates/help/guide.html:20
 msgid "Next"
 msgstr ""
 
@@ -6901,105 +6977,92 @@ msgstr ""
 msgid "Step {step} of {total}"
 msgstr ""
 
-#: help/templates/help/guide.html:11
+#: help/templates/help/guide.html:9
 msgid "This guide is not yet translated, so it is shown in English."
 msgstr ""
 
-#: help/templates/help/guide.html:17
-msgid "On this page"
-msgstr ""
-
-#: help/templates/help/guide.html:30
+#: help/templates/help/guide.html:18
 msgid "Other guides"
 msgstr ""
 
-#: help/templates/help/guide.html:31
+#: help/templates/help/guide.html:19
 msgid "Previous"
 msgstr ""
 
-#: help/templates/help/index.html:8
+#: help/templates/help/index.html:11
 msgid ""
-"Guides to preparing your data, choosing the settings and reading the "
-"results. Next to most fields there is also a short explanation that opens in "
-"place."
-msgstr ""
-
-#: help/templates/help/index.html:17
-msgid "Guides"
-msgstr ""
-
-#: help/templates/help/index.html:29 stations/models.py:53
-msgid "Sample data"
-msgstr ""
-
-#: help/templates/help/index.html:30
-msgid ""
-"Each way of running Climpact has a sample, so you can see the whole process "
-"before preparing your own files."
-msgstr ""
-
-#: help/templates/help/index.html:35
-msgid ""
-"Daily data for Sydney Observatory Hill, Australia, 1936 to 2015, with the "
-"station details filled in."
-msgstr ""
-
-#: help/templates/help/index.html:37 stations/templates/stations/add.html:38
-#: stations/templates/stations/add.html:135
-msgid "Use the sample station"
+"Preparing data, choosing the settings and reading the results, and the "
+"definition of every index. The same pages open beside your work from each "
+"section's Help button."
 msgstr ""
 
 #: help/templates/help/index.html:39
-msgid "Download the sample station file"
+msgid "In the order you meet them, from your file to the results."
 msgstr ""
 
-#: help/templates/help/index.html:44
-msgid "Two stations made from the Sydney data, with their batch metadata file."
-msgstr ""
-
-#: help/templates/help/index.html:46
-msgid "Use the sample batch"
-msgstr ""
-
-#: help/templates/help/index.html:48
-msgid "Download the sample metadata file"
-msgstr ""
-
-#: help/templates/help/index.html:54
-msgid ""
-"Climpact for R's sample grid, climpact.sampledata.gridded.1991-2010.nc: 24 "
-"by 19 cells over Australia, 1991 to 2010."
+#: help/templates/help/index.html:51
+msgid "Common questions"
 msgstr ""
 
 #: help/templates/help/index.html:55
-msgid "Open the gridded screen"
+msgid "All questions"
 msgstr ""
 
-#: help/templates/help/index.html:55
-msgid ""
-"The gridded screen is not available yet. Until then, use the climpact "
-"command line."
+#: help/templates/help/index.html:58 stations/models.py:53
+msgid "Sample data"
 msgstr ""
 
-#: help/templates/help/index.html:59
-msgid ""
-"Sector data: Climpact for R's sample is yearly wheat yields for New South "
-"Wales, 1922 to 1999 (wheat_yield_nsw_1922-1999.csv)."
-msgstr ""
-
-#: help/templates/help/index.html:59
-msgid "About sector data"
+#: help/templates/help/index.html:61
+msgid "Sydney Observatory Hill, 1936–2015"
 msgstr ""
 
 #: help/templates/help/index.html:62
-msgid "More help"
+msgid "Download the file"
 msgstr ""
 
-#: help/templates/help/index.html:63
-msgid "All help topics, A to Z"
+#: help/templates/help/index.html:62 help/templates/help/index.html:66
+msgid "Open it in a workspace"
 msgstr ""
 
-#: help/templates/help/index.html:64
+#: help/templates/help/index.html:62
+msgid "(the sample station)"
+msgstr ""
+
+#: help/templates/help/index.html:65
+msgid "two stations and their metadata file"
+msgstr ""
+
+#: help/templates/help/index.html:66
+msgid "the sample metadata file"
+msgstr ""
+
+#: help/templates/help/index.html:66
+msgid "(the sample batch)"
+msgstr ""
+
+#: help/templates/help/index.html:70
+msgid ""
+"3 × 4 cells of Climpact for R's sample grid, south-eastern Australia, 1991–"
+"2010"
+msgstr ""
+
+#: help/templates/help/index.html:71
+msgid "Open it on Gridded"
+msgstr ""
+
+#: help/templates/help/index.html:75
+msgid "Sector"
+msgstr ""
+
+#: help/templates/help/index.html:75
+msgid "wheat yields, New South Wales, 1922–1999"
+msgstr ""
+
+#: help/templates/help/index.html:76
+msgid "the sample sector file"
+msgstr ""
+
+#: help/templates/help/index.html:80
 msgid "Take the tour of the start page"
 msgstr ""
 
@@ -7039,25 +7102,13 @@ msgstr ""
 msgid "Help topics"
 msgstr ""
 
-#: help/templates/help/topics.html:8
-msgid "Help topics, A to Z"
-msgstr ""
-
-#: help/templates/help/topics.html:9
+#: help/templates/help/topics.html:7
 msgid ""
 "Every short explanation shown next to the fields and results, with a link to "
 "the guide that says more."
 msgstr ""
 
-#: help/templates/help/topics.html:14
-msgid "Groups"
-msgstr ""
-
-#: help/templates/help/topics.html:24
-msgid "More"
-msgstr ""
-
-#: help/templates/help/topics.html:24
+#: help/templates/help/topics.html:19
 #, python-format
 msgid "about %(title)s"
 msgstr ""
@@ -7603,10 +7654,6 @@ msgstr ""
 msgid ""
 "Scatter plots of the sector data against yearly mean maximum, minimum and "
 "mean temperature and days above 30 °C, with a fitted line and R²."
-msgstr ""
-
-#: help/topics.py:588
-msgid "Gridded input files"
 msgstr ""
 
 #: help/topics.py:590
@@ -9669,10 +9716,6 @@ msgid_plural "%(n)s years have no value (-99.9 or empty)."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/sector_file.py:270
-msgid "Sector data file"
-msgstr ""
-
 #: stations/sector_file.py:273
 msgid ""
 "CSV. A first line Year,<name of your data>, then one line per year. Missing "
@@ -10959,6 +11002,11 @@ msgstr ""
 #: stations/templates/stations/add.html:37
 #: stations/templates/stations/add.html:134
 msgid "Add the files"
+msgstr ""
+
+#: stations/templates/stations/add.html:38
+#: stations/templates/stations/add.html:135
+msgid "Use the sample station"
 msgstr ""
 
 #: stations/templates/stations/add.html:47

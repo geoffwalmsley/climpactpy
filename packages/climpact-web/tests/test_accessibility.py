@@ -1235,17 +1235,26 @@ def test_no_overlapping_sticky_elements(chrome, site):
         for width in (320, 375, 1280, 1440):
             c.viewport(width, 700)
             # An index's page has only the header sticky (#237); the reflow test covers it.
+            # The help frame's columns stick under the header (#325).
             for name in ("station quality results", "station results",
                          "station downloads", "station sector results",
-                         "workspace overview", "workspace compare"):  # fmt: skip
+                         "workspace overview", "workspace compare", "help guide",
+                         "help"):  # fmt: skip
                 c.navigate(site[name])
                 height = c.evaluate("document.documentElement.scrollHeight")
                 for y in range(0, height, 350):
                     c.evaluate(f"window.scrollTo(0, {y})")
                     time.sleep(0.03)
                     assert c.evaluate(check) == [], (name, width, y)
-                # Not vacuous: the site header and the context bar were among them.
-                for sticky in (".site-header", "[data-context-bar]"):
+                # Not vacuous: the site header and the context bar (the help's contents
+                # where it is a column) were among them.
+                if name.startswith("help"):
+                    stickies = (".site-header",) + (
+                        (".help-contents--rail",) if width > 1000 else ()
+                    )
+                else:
+                    stickies = (".site-header", "[data-context-bar]")
+                for sticky in stickies:
                     assert c.evaluate(
                         f"{STUCK}.some(function (e) {{ return e.matches('{sticky}') }})"
                     ), (name, sticky)
@@ -1689,6 +1698,48 @@ def test_tour_by_keyboard(chrome, site):
     time.sleep(0.2)
     assert not c.evaluate(in_tour)
     assert c.evaluate("document.activeElement !== document.body"), "focus was dropped"
+
+
+def test_help_frame_at_each_width(chrome, site):
+    """#325: the help's contents beside the page from a 52rem window, a "Help contents"
+    disclosure under the breadcrumb below it; On this page beside the text from 64rem, a
+    disclosure above it below that; nothing scrolls sideways. The columns stay under the
+    header as the page scrolls, and On this page marks the section in view."""
+    c = chrome
+
+    def shown(selector):
+        return c.evaluate(
+            f"(function () {{ var e = document.querySelector({json.dumps(selector)});"
+            " return !!e && e.checkVisibility(); })()"
+        )
+
+    try:
+        for width, rail, aside in ((1280, True, True), (900, True, False), (375, False, False)):
+            c.viewport(width, 800)
+            c.navigate(site["help guide"])
+            assert shown(".help-contents--rail") is rail, width
+            assert shown(".help-contents-disclosure") is not rail, width
+            assert shown(".help-frame__aside") is aside, width
+            assert shown(".help-toc-disclosure") is not aside, width
+            assert c.evaluate("document.documentElement.scrollWidth <= innerWidth"), width
+        # On a phone the contents open in place, the current page marked.
+        c.evaluate("document.querySelector('.help-contents-disclosure > summary').click()")
+        assert shown(".help-contents--disclosure a[aria-current='page']")
+        c.viewport(1280, 800)
+        c.navigate(site["help guide"])
+        c.evaluate("location.hash = '#jumps'")
+        time.sleep(0.3)
+        header = c.evaluate("document.querySelector('.site-header').getBoundingClientRect().bottom")
+        for column in (".help-contents--rail", ".help-frame__aside"):
+            top = c.evaluate(f"document.querySelector('{column}').getBoundingClientRect().top")
+            assert header < top < header + 40, (column, top, header)
+        marked = c.evaluate(
+            "Array.from(document.querySelectorAll('.help-toc--rail a[aria-current=true]'))"
+            ".map(function (a) { return a.hash; })"
+        )
+        assert marked == ["#jumps"], marked
+    finally:
+        c.viewport(1280, 900)
 
 
 def test_help_search_announces_results(chrome, site):

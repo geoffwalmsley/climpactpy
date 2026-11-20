@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n static help %}{% comment %}
+The help frame (#325, the Help boards): every help page extends it. The help's contents
+at the inline start (help/_contents.html), the page, and On this page at the inline end
+(help/_toc.html) with an optional box for the page's one call to action under it.
+
+Narrower than a 64rem window On this page and the action move above the page's text, On
+this page as a disclosure; narrower than 52rem the contents become a "Help contents"
+disclosure under the breadcrumb. Each is drawn twice, once for each layout, and the
+stylesheet shows one (help.css), so the frame needs no JavaScript.
+
+Context: ``toc`` ([{"id", "name", "children"}], On this page; none, no column),
+``help_action`` ({"title", "text", "label", "url"}, the call to action under it).
+Blocks: ``breadcrumb``, ``page_header`` (the h1 and lead), ``page_body`` (the text, after
+On this page on narrow screens).
+{% endcomment %}
+{% block content %}
+{% help_contents as contents %}
+<div class="help-frame">
+  <div class="help-frame__grid{% if toc or help_action %} help-frame__grid--aside{% endif %}">
+    {% include "help/_contents.html" with variant="rail" %}
+    <div class="help-frame__page">
+      {% block breadcrumb %}<nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb text-sm"><a href="{% url 'help:index' %}">{% translate "Help" %}</a></nav>{% endblock %}
+      {% include "help/_contents.html" with variant="disclosure" %}
+      {% block page_header %}{% endblock %}
+      {% if toc or help_action %}
+      <div class="help-frame__inline-aside">
+        {% if toc %}{% include "help/_toc.html" with variant="disclosure" %}{% endif %}
+        {% if help_action %}{% include "help/_action.html" %}{% endif %}
+      </div>
+      {% endif %}
+      {% block page_body %}{% endblock %}
+    </div>
+    {% if toc or help_action %}
+    <div class="help-frame__aside">
+      {% if toc %}{% include "help/_toc.html" with variant="rail" %}{% endif %}
+      {% if help_action %}{% include "help/_action.html" %}{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}{% if toc %}<script src="{% static 'climpact_web/js/help-toc.js' %}" defer></script>{% endif %}{% endblock %}

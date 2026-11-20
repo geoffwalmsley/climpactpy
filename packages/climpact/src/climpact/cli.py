@@ -13,7 +13,8 @@ report of each station (see :mod:`climpact.report`).
 ``climpact gridded-thresholds <netCDF files> --out <file>`` computes the base-period
 thresholds of every cell of a grid, as Climpact's ``climpact.ncdf.thresholds.wrapper.r``
 (see :mod:`climpact.gridded`). ``climpact gridded-indices <netCDF files> --out <dir>``
-computes the indices of every cell, as ``climpact.ncdf.wrapper.r``.
+computes the indices of every cell, as ``climpact.ncdf.wrapper.r``; with ``--trends``
+it also writes ``trends.nc``, the trends of every cell (:mod:`climpact.gridded.trends`).
 ``climpact sector-correlation <station file> <sector file> --out <dir>`` correlates annual
 sector data with a station already run, as the app's step 4 (see :mod:`climpact.sector`).
 """
@@ -410,6 +411,13 @@ def _parser() -> argparse.ArgumentParser:
             flag, dest=attr, type=kind, default=getattr(W, attr), help=f"{text}; {_DEFAULT}"
         )
     gi.add_argument(
+        "--trends",
+        action="store_true",
+        help="also write trends.nc: each cell's Sen's slope per decade with its 95%% interval "
+        "and base-period mean, and the grid mean, of every annual index (R has no "
+        "counterpart)",
+    )
+    gi.add_argument(
         "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
     )
     _add_grid_input_args(gi)
@@ -696,6 +704,23 @@ def gridded_indices_command(args: argparse.Namespace, parser: argparse.ArgumentP
     except (InsufficientBaseData, ValueError) as exc:
         parser.error(str(exc))
     print(f"Wrote {len(paths)} files to {args.out}")
+    if args.trends:
+        from climpact.gridded.trends import TRENDS_FILE, write_grid_trends
+
+        def trend_progress(stage: str, done: int, total: int) -> None:
+            if not args.quiet:
+                print(f"[{done}/{total}] trends", flush=True)
+
+        trends = write_grid_trends(
+            paths,
+            args.out / TRENDS_FILE,
+            args.base_start,
+            args.base_end,
+            latitude=inp.cell_latitude().values,
+            workers=args.workers,
+            progress=trend_progress,
+        )
+        print(f"Wrote {trends}" if trends else "No annual index: trends.nc not written")
     return 0
 
 

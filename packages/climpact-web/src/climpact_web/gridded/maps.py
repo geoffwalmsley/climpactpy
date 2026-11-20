@@ -13,7 +13,8 @@ outline. No map tiles or other network services are used (offline and low bandwi
 - :func:`kind_of` chooses the colour scale by the index's kind (temperature, warm counts,
   cold counts, wet, dry; SPI and SPEI their standard classes) and :func:`edges_for` its
   eight bins' breaks: fixed for the file (round numbers over the values of every year,
-  of the month for a monthly file), so the years compare.
+  of the month for a monthly file), so the years compare. The Base mean, Anomaly and
+  Trend views (#296) are in :mod:`climpact_web.gridded.map_views`.
 - :class:`Frame` is the map's geometry: north up and west left whatever the order of the
   file's rows and columns, the latitude's cosine correcting the cells' aspect.
 """
@@ -328,9 +329,10 @@ def format_value(value: float | None, digits: int = 2) -> str:
 
 BINS = 8
 # SPI and SPEI in their standard classes (McKee et al. 1993): extremely, severely and
-# moderately dry, near normal, moderately, very and extremely wet. The ends are drawn at
-# -3 and 3; values beyond them are in the end classes.
-SPI_EDGES = (-3.0, -2.0, -1.5, -1.0, 1.0, 1.5, 2.0, 3.0)
+# moderately dry, near normal (split at zero, #296, so the eight bins of the diverging
+# scale are symmetric about it), moderately, very and extremely wet. The ends are drawn
+# at -3 and 3; values beyond them are in the end classes.
+SPI_EDGES = (-3.0, -2.0, -1.5, -1.0, 0.0, 1.0, 1.5, 2.0, 3.0)
 # The units of the core's files, as the number rules write them (numbers.unit_label).
 UNITS = {"degC": "degrees_C", "degC^2": "°C^2", "degrees_C": "degrees_C", "calendar day": "days"}
 # Indices of no headline theme (averages, growing season and degree days) by what more of
@@ -434,14 +436,14 @@ def classify(values: np.ndarray, edges: list[float]) -> np.ndarray:
 
 
 def palette(kind: str, theme: str = "light") -> list[str]:
-    """The bins' colours, from the tokens (chart-palette.json's values): the kind's
-    ``--map-seq-*`` scale, or for SPI the seven-step diverging scale reversed, so dry is
-    red and wet blue."""
+    """The Year view's colours, from the tokens (chart-palette.json's values): the kind's
+    ``--map-seq-*`` scale, or for SPI and SPEI the wet diverging scale
+    (``--map-div-wet-*``, #296), dry brown and wet teal."""
     from climpact_web.core import tokens
 
     values = tokens.chart_palette()[theme]
     if kind == "spi":
-        return list(reversed(values["diverging"]))
+        return list(values["map_diverging"]["wet"])
     return list(values["map_sequential"][kind])
 
 

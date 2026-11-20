@@ -6,6 +6,9 @@
   700 x 900 grid takes a few tens of milliseconds and no imaging library.
 - :func:`figure_png`: "Map as PNG" in Download: the same cells drawn with matplotlib,
   with the coastline, the places, the axes, a title and the legend, to put in a report.
+
+On Trend (#296) both take the cells drawn several pixels a side with a dot in each cell
+whose 95% interval excludes zero (:func:`climpact_web.gridded.map_views.with_dots`).
 """
 
 from __future__ import annotations
@@ -65,10 +68,12 @@ def figure_png(
     no_value: str,
     sunken: str,
     text: str,
+    key: list[str] | None = None,
 ) -> bytes:
-    """The map drawn for a report: the cells (``bins`` in the frame's order), the
-    coastline and places, the axes in degrees, ``title`` above and the legend under it:
-    the bins with their breaks (``ticks``) and the colour of no value."""
+    """The map drawn for a report: the cells (``bins`` in the frame's order, in
+    ``colours``), the coastline and places, the axes in degrees, ``title`` above and the
+    legend under it: the bins (``key``, default ``colours``) with their breaks (``ticks``)
+    and the colour of no value."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -106,13 +111,14 @@ def figure_png(
     ax.set_yticks([t["value"] for t in f.y_ticks])
     ax.set_yticklabels([t["text"] for t in f.y_ticks], fontsize=7)
     ax.set_title(title, fontsize=9, loc="left")
-    key = fig.add_axes((0.11, 0.07, 0.6, 0.035))
-    key.imshow(np.arange(len(colours))[None, :], cmap=cmap, aspect="auto",
-               extent=(0, len(colours), 0, 1))  # fmt: skip
-    key.set_yticks([])
-    key.set_xticks(range(len(ticks)))
-    key.set_xticklabels(ticks, fontsize=6)
-    key.set_title(legend_title, fontsize=7, loc="left")
+    key = key or colours
+    bar = fig.add_axes((0.11, 0.07, 0.6, 0.035))
+    bar.imshow(np.arange(len(key))[None, :], cmap=ListedColormap(key), aspect="auto",
+               extent=(0, len(key), 0, 1))  # fmt: skip
+    bar.set_yticks([])
+    bar.set_xticks(range(len(ticks)))
+    bar.set_xticklabels(ticks, fontsize=6)
+    bar.set_title(legend_title, fontsize=7, loc="left")
     none = fig.add_axes((0.76, 0.07, 0.03, 0.035))
     none.set_facecolor(sunken)
     none.set_xticks([])

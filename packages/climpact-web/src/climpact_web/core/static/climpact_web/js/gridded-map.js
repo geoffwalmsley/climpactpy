@@ -1,5 +1,5 @@
 /*
- * A gridded run's Map (#295, gridded/_map.html). Without JavaScript every control is a
+ * A gridded run's Map (#295, #296, gridded/_map.html). Without JavaScript every control is a
  * link or a GET form; here:
  *
  * - The rail's Find filters the indices as you type.
@@ -11,7 +11,11 @@
  *   selects the cell. The map is one focusable group: the arrow keys move the selection
  *   (Shift: ten cells), a polite live region reads out the cell and its value, and the
  *   pane follows after a pause (Enter at once). The pane alone is swapped
- *   (X-Climpact-Part: pane), and the address, links and forms take the new cell.
+ *   (X-Climpact-Part: pane), and the address, links and forms take the new cell; a cell
+ *   chosen while the pane shows the mean over the grid shows the cell's series.
+ * - The read-out follows the view (#296): "anomaly +1.2 °C", "trend +0.25 °C/decade,
+ *   significant" (on Trend the values hold a second grid, 1 where the cell's interval
+ *   excludes zero).
  * - Download ▾ closes on Escape and on a click elsewhere.
  * - When the run finishes, the stages' poll (#294) puts an empty map in their place
  *   (data-gmap-load), which is filled at once with the map part, as a link would.
@@ -26,11 +30,12 @@
   var paneRequest = 0;
 
   // The number rules (core/numbers.py, #226): U+2212 for minus, never "−0".
-  function num(v) {
+  function num(v, signed) {
     var d = Math.abs(v) < 10 ? 2 : 1;
     if (!formats[d]) formats[d] = new Intl.NumberFormat(lang, { maximumFractionDigits: d });
     var text = formats[d].format(v);
-    if (/^-0([.,]0*)?$/.test(text)) return text.slice(1);
+    if (/^-?0([.,]0*)?$/.test(text)) return text.replace(/^-/, "");
+    if (signed && v > 0) return "+" + text;
     return text.replace(/^-/, "−");
   }
 
@@ -117,6 +122,7 @@
     var url = new URL(href, location.href);
     url.searchParams.set("cell", cell[0] + "," + cell[1]);
     url.searchParams.delete("goto");
+    url.searchParams.delete("series");
     return url.href;
   }
 
@@ -195,10 +201,16 @@
 
     function text(r, c) {
       var where = grid.lat[grid.rows[r]] + " " + grid.lon[grid.cols[c]];
+      var n = grid.nx * grid.ny;
       var v = values ? values[r * grid.nx + c] : NaN;
       if (!values) return where;
       if (v !== v) return where + " · " + grid.noValue;
-      return where + " · " + grid.code + " " + num(v) + (grid.units ? (grid.units === "%" ? "%" : " " + grid.units) : "");
+      var words = where + " · " + grid.code + (grid.what ? " " + grid.what : "") + " " + num(v, grid.signed);
+      words += grid.units ? (grid.units === "%" ? "%" : " " + grid.units) : "";
+      if (grid.significant && values.length === 2 * n) {
+        words += ", " + (values[n + r * grid.nx + c] === 1 ? grid.significant : grid.notSignificant);
+      }
+      return words;
     }
 
     function cellAt(event) {
@@ -306,6 +318,7 @@
       var step = link.getAttribute("data-gmap-step");
       var focus = step ? "[data-gmap-step=" + step + "]" : null;
       if (!focus && link.classList.contains("gmap-rail__item")) focus = ".gmap-rail__item[aria-current]";
+      if (!focus && link.hasAttribute("data-gmap-series")) focus = "[data-gmap-series][aria-current]";
       if (!focus && link.classList.contains("segmented__item")) focus = ".gmap-controls .segmented__item[aria-current]";
       navigate(link.href, { focus: focus });
       return;

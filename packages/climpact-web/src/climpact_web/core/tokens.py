@@ -30,6 +30,8 @@ CHART_ROLES = ("tmax", "tmin", "prcp", "trend", "trend-band", "flag", "grid", "a
 TREND_SCALE = ("decrease-2", "decrease-1", "increase-1", "increase-2")
 # The gridded map's sequential scales (#295), by the index's kind: --map-seq-<kind>-1 ... -8.
 MAP_KINDS = ("temp", "warm", "cool", "wet", "dry")
+# Its diverging scales (#296): --map-div-<family>-1 ... -8, temperature and wet.
+MAP_DIVERGING = ("temp", "wet")
 
 
 def read_tokens(path: Path) -> dict[str, str]:
@@ -73,6 +75,7 @@ def chart_palette() -> dict:
             "categorical": _numbered(tokens, "chart"),
             "roles": {role: tokens[f"chart-{role}"] for role in CHART_ROLES},
             "map_sequential": {k: _numbered(tokens, f"map-seq-{k}") for k in MAP_KINDS},
+            "map_diverging": {k: _numbered(tokens, f"map-div-{k}") for k in MAP_DIVERGING},
             "diverging": _numbered(tokens, "chart-div"),
             "trend_scale": [tokens[f"chart-{step}"] for step in TREND_SCALE],
             "coverage": _numbered(tokens, "chart-coverage"),

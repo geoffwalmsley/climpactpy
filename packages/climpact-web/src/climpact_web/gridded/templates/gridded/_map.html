@@ -1,11 +1,14 @@
 {% load i18n ui %}{% comment %}
-A gridded run's Map (#295, the GridMap board): the index rail, the map and the cell pane,
+A gridded run's Map (#295, #296, the GridMap board): the index rail, the map and the cell pane,
 across the whole window as the station Indices. Every control is a link or a GET form on
 the run's address (gridded.map_page), so it works without JavaScript; js/gridded-map.js
 swaps this block in place (X-Climpact-Part: map) and the pane alone when a cell is chosen
 (X-Climpact-Part: pane), reads out the cell under the pointer and moves the selection with
 the arrow keys. The map is a PNG with one pixel per cell (gridded:map_png, in the theme's
-colours) under an SVG of the coastline, places, axes and the selected cell.
+colours; on Trend each cell several pixels a side, with a dot where the 95% interval
+excludes zero) under an SVG of the coastline, places, axes and the selected cell. The view
+(Year, Base mean, Anomaly, Trend, #296) needs the run's trends.nc: without it, or for a
+monthly or day-of-year file, the three are shown unavailable and the reason is said.
 Context from gridded.map_page.context.
 {% endcomment %}
 <div class="gmap-layout" id="gridded-map" data-gridded-map>
@@ -47,20 +50,21 @@ Context from gridded.map_page.context.
 
     <div class="gmap-controls">
       <div class="segmented" role="group" aria-label="{% translate 'View' %}">
-        {% for v in views %}{% if v.available %}<a class="segmented__item" href="{{ v.url }}"{% if v.current %} aria-current="true"{% endif %} data-gmap-nav>{{ v.label }}</a>{% else %}<span class="segmented__item" aria-disabled="true" title="{% translate 'Not available yet' %}">{{ v.label }}</span>{% endif %}{% endfor %}
+        {% for v in views %}{% if v.available %}<a class="segmented__item" href="{{ v.url }}"{% if v.current %} aria-current="true"{% endif %} data-gmap-nav>{{ v.label }}</a>{% else %}<span class="segmented__item" aria-disabled="true" title="{{ unavailable }}" aria-describedby="gmap-views-note">{{ v.label }}</span>{% endif %}{% endfor %}
       </div>
       <div class="segmented" role="group" aria-label="{% translate 'Frequency' %}">
         {% for fq in freq_links %}{% if fq.url %}<a class="segmented__item" href="{{ fq.url }}"{% if fq.current %} aria-current="true"{% endif %} data-gmap-nav>{{ fq.label }}</a>{% else %}<span class="segmented__item segmented__item--off" aria-disabled="true" title="{% translate 'This index has no such file' %}">{{ fq.label }}</span>{% endif %}{% endfor %}
       </div>
       {% if scales %}<div class="segmented" role="group" aria-label="{% translate 'Time scale' %}">
-        {% for sc in scales %}<a class="segmented__item" href="{{ sc.url }}"{% if sc.current %} aria-current="true"{% endif %} data-gmap-nav>{{ sc.label }}</a>{% endfor %}
+        {% for sc in scales %}{% if sc.url %}<a class="segmented__item" href="{{ sc.url }}"{% if sc.current %} aria-current="true"{% endif %} data-gmap-nav>{{ sc.label }}</a>{% else %}<span class="segmented__item" aria-disabled="true" title="{% translate 'Base mean, Anomaly, Trend and the grid mean are of the 12-month scale.' %}">{{ sc.label }}</span>{% endif %}{% endfor %}
       </div>{% endif %}
-      <div class="gmap-stepper" role="group" aria-label="{% if layer.freq == 'MON' %}{% translate 'Month' %}{% elif layer.freq == 'DAY' %}{% translate 'Day of the year' %}{% else %}{% translate 'Year' %}{% endif %}">
+      {% if time.shown %}<div class="gmap-stepper" role="group" aria-label="{% if layer.freq == 'MON' %}{% translate 'Month' %}{% elif layer.freq == 'DAY' %}{% translate 'Day of the year' %}{% else %}{% translate 'Year' %}{% endif %}">
         {% if time.prev %}<a class="button button--secondary button--sm button--icon" href="{{ time.prev }}" data-gmap-nav data-gmap-step="prev">{% else %}<span class="button button--secondary button--sm button--icon" aria-disabled="true">{% endif %}<span aria-hidden="true">{{ "‹" }}</span><span class="sr-only">{% if layer.freq == 'MON' %}{% translate "Previous month" %}{% elif layer.freq == 'DAY' %}{% translate "Previous day" %}{% else %}{% translate "Previous year" %}{% endif %}</span>{% if time.prev %}</a>{% else %}</span>{% endif %}
         <span class="gmap-stepper__label" aria-live="polite">{{ time.label }}</span>
         {% if time.next %}<a class="button button--secondary button--sm button--icon" href="{{ time.next }}" data-gmap-nav data-gmap-step="next">{% else %}<span class="button button--secondary button--sm button--icon" aria-disabled="true">{% endif %}<span aria-hidden="true">{{ "›" }}</span><span class="sr-only">{% if layer.freq == 'MON' %}{% translate "Next month" %}{% elif layer.freq == 'DAY' %}{% translate "Next day" %}{% else %}{% translate "Next year" %}{% endif %}</span>{% if time.next %}</a>{% else %}</span>{% endif %}
-      </div>
+      </div>{% endif %}
       <p class="gmap-controls__hint">{{ hint }}</p>
+      {% if unavailable %}<p class="gmap-controls__note" id="gmap-views-note">{{ unavailable }}</p>{% endif %}
     </div>
 
     <figure class="gmap" aria-labelledby="map-title" data-gmap-figure>
@@ -90,7 +94,7 @@ Context from gridded.map_page.context.
         <div class="gmap-legend__head"><span>{{ legend.title }}</span><span>{{ legend.range }}</span></div>
         {% if legend.bins %}<div class="gmap-legend__bins" aria-hidden="true">{% for b in legend.bins %}<span class="gmap-legend__bin"></span>{% endfor %}</div>
         <ol class="gmap-legend__ticks" role="list" aria-label="{% translate 'Bin breaks' %}">{% for t in legend.ticks %}<li>{{ t }}</li>{% endfor %}</ol>{% endif %}
-        <p class="gmap-legend__note"><span class="gmap-legend__none" aria-hidden="true"></span>{% translate "No value" %}<noscript> {{ "·" }} {% translate "Choose a cell with the form under the map." %}</noscript></p>
+        <p class="gmap-legend__note"><span class="gmap-legend__key"><span class="gmap-legend__none" aria-hidden="true"></span>{% translate "No value" %}</span>{% if legend.dots %}<span class="gmap-legend__key"><span class="gmap-legend__dot" aria-hidden="true"></span>{{ legend.dots }}</span>{% endif %}<noscript> {{ "·" }} {% translate "Choose a cell with the form under the map." %}</noscript></p>
       </div>
       <noscript>
         <form class="gmap__pick" method="get" action="{{ rail_action }}">

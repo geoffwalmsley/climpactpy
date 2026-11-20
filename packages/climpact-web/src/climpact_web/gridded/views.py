@@ -970,16 +970,30 @@ def _map_state(request, run: GriddedRun):
 
 
 def _when_name(state) -> str:
+    """A download's name after its variable: the time step (``2019``, ``2019-12``), or the
+    view's years (``base_mean_1971-2000``, ``anomaly_2019``, ``trend_1961-2020``)."""
     layer = state.layer
     when = layer.times[state.t] if layer.times else ""
+    trends = state.trends
+    if state.view == "base" and trends is not None and trends.base:
+        when = f"base_mean_{trends.base[0]}-{trends.base[1]}"
+    elif state.view == "anomaly":
+        when = f"anomaly_{when}"
+    elif state.view == "trend" and trends is not None and trends.period:
+        when = f"trend_{trends.period[0]}-{trends.period[1]}"
     suffix = f"_{layer.scales[state.scale]}months" if layer.scales else ""
     return f"{when}{suffix}"
 
 
 def _etag(path: Path, request) -> str:
-    """An image's or data's version: its file's and its query string's."""
+    """An image's or data's version: its file's (and the trends file's, #296) and its
+    query string's."""
+    from climpact_web.gridded.map_views import TRENDS_FILE
+
     query = zlib.crc32(request.GET.urlencode().encode())
-    return f'"{path.stat().st_mtime_ns:x}-{query:x}"'
+    trends = path.parent / TRENDS_FILE
+    mtime = path.stat().st_mtime_ns ^ (trends.stat().st_mtime_ns if trends.is_file() else 0)
+    return f'"{mtime:x}-{query:x}"'
 
 
 def _cached(response: HttpResponse, path: Path, request) -> HttpResponse:
@@ -992,29 +1006,50 @@ def _cached(response: HttpResponse, path: Path, request) -> HttpResponse:
 @gridded_enabled
 @require_safe
 def map_png(request, run_id):
-    """The map's field as a PNG with one pixel per cell, in the ``theme``'s colours (the
-    page shows the one of its theme); with ``download``, the map drawn for a report."""
+    """The map's field (of the view, #296) as a PNG with one pixel per cell, in the
+    ``theme``'s colours (the page shows the one of its theme); on Trend each cell several
+    pixels a side, with a dot where its 95% interval excludes zero. With ``download``,
+    the map drawn for a report."""
     from climpact_web.core import tokens
-    from climpact_web.gridded import map_image
+    from climpact_web.gridded import map_image, map_views
 
     run = get_run(request, run_id)
     state, path = _map_state(request, run)
     layer, entry = state.layer, state.entry
     theme = "dark" if request.GET.get("theme") == "dark" else "light"
-    kind = maps.kind_of(entry.short, layer.units, entry.theme)
-    edges = maps.edges_for(path, layer, kind, state.scale, state.month)
-    values = maps.grid_values(path, layer, state.t, state.scale)
-    f = maps.frame(layer)
-    bins = maps.classify(maps.display_order(values, f), edges or [0.0, 1.0])
-    colours = maps.palette(kind, theme)
     if request.GET.get("download"):
-        t = tokens.theme_tokens()["light"]
-        units = numbers.unit_label(maps.units_of(layer.units))
+        theme = "light"
+    shown = map_page.view_field(state, path)
+    edges = shown.edges
+    f = maps.frame(layer)
+    bins = maps.classify(maps.display_order(shown.values, f), edges or [0.0, 1.0])
+    colours = key = shown.colours(theme)
+    t = tokens.theme_tokens()[theme]
+    if shown.significant is not None:
+        bins, colours = map_views.with_dots(
+            bins, maps.display_order(shown.significant, f), colours, t["color-text"],
+            t["color-surface"], f.cell_w,
+        )  # fmt: skip
+    if request.GET.get("download"):
+        units = maps.units_of(layer.units)
+        units = map_page.per_decade_units(units) if state.view == "trend" else (
+            numbers.unit_label(units))  # fmt: skip
+        what = {
+            "base": _("base mean"), "anomaly": _("anomaly"), "trend": _("trend"),
+        }.get(state.view, "")  # fmt: skip
         when = map_page.time_label(layer, state.t)
-        title = f"{entry.code} {entry.name}, {when}" + (f" ({units})" if units else "")
+        if state.view == "base" and state.trends.base:
+            when = "{}–{}".format(*state.trends.base)
+        elif state.view == "trend" and state.trends.period:
+            when = "{}–{}".format(*state.trends.period)
+        title = f"{entry.code} {entry.name}, " + " ".join(filter(None, [what, when])) + (
+            f" ({units})" if units else "")  # fmt: skip
+        legend = run.display_name
+        if shown.significant is not None:
+            legend += " · " + _("Dot: the 95% interval excludes zero")
         image = map_image.figure_png(
-            bins, colours, maps.legend_ticks(edges) if edges else [], f, title,
-            run.display_name, _("No value"), t["color-surface-sunken"], t["color-text"],
+            bins, colours, maps.legend_ticks(edges) if edges else [], f, title, legend,
+            _("No value"), t["color-surface-sunken"], t["color-text"], key=key,
         )  # fmt: skip
         response = HttpResponse(image, content_type="image/png")
         name = SAFE_NAME.sub("_", f"{layer.variable}_{_when_name(state)}.png")
@@ -1030,33 +1065,47 @@ def map_png(request, run_id):
 @gridded_enabled
 @require_safe
 def map_values(request, run_id):
-    """The map's values for the read-out under the pointer (js/gridded-map.js): float32,
-    little-endian, row by row in the map's order (north first, west first), NaN where a
-    cell has no value."""
+    """The map's values (of the view, #296) for the read-out under the pointer
+    (js/gridded-map.js): float32, little-endian, row by row in the map's order (north
+    first, west first), NaN where a cell has no value. On Trend a second grid follows:
+    1 where the cell's 95% interval excludes zero, 0 where it does not."""
     import numpy as np
 
     run = get_run(request, run_id)
     state, path = _map_state(request, run)
     f = maps.frame(state.layer)
-    values = maps.display_order(maps.grid_values(path, state.layer, state.t, state.scale), f)
+    shown = map_page.view_field(state, path)
     if request.headers.get("If-None-Match") == _etag(path, request):
         return HttpResponse(status=304)
-    data = np.ascontiguousarray(values, dtype="<f4").tobytes()
+    grids = [maps.display_order(shown.values, f)]
+    if shown.significant is not None:
+        grids.append(maps.display_order(shown.significant, f))
+    data = b"".join(np.ascontiguousarray(g, dtype="<f4").tobytes() for g in grids)
     return _cached(HttpResponse(data, content_type="application/octet-stream"), path, request)
 
 
 @gridded_enabled
 @require_safe
 def map_csv(request, run_id):
-    """The map's values as CSV: latitude, longitude and the value of every cell."""
+    """The map's values as CSV: latitude, longitude and the value of every cell in the
+    view (#296): the year's value, the base mean, the anomaly, or the slope per decade
+    with its 95% interval."""
     run = get_run(request, run_id)
     state, path = _map_state(request, run)
     layer = state.layer
-    values = maps.grid_values(path, layer, state.t, state.scale)
-    rows = [["latitude", "longitude", layer.variable]]
+    var = layer.variable
+    shown = map_page.view_field(state, path)
+    if state.view == "trend":
+        trends = state.trends
+        columns = [(f"{var}_slope", trends.slope), (f"{var}_lower", trends.lower),
+                   (f"{var}_upper", trends.upper)]  # fmt: skip
+    else:
+        name = {"base": f"{var}_base_mean", "anomaly": f"{var}_anomaly"}.get(state.view, var)
+        columns = [(name, shown.values)]
+    rows = [["latitude", "longitude", *(name for name, _values in columns)]]
     for y, lat in enumerate(layer.lat):
         for x, lon in enumerate(layer.lon):
-            rows.append([lat, lon, maps.format_value(float(values[y, x]), 6)])
+            rows.append([lat, lon, *(maps.format_value(float(v[y, x]), 6) for _name, v in columns)])
     name = f"{layer.variable}_{_when_name(state)}.csv"
     return _csv_response(rows, SAFE_NAME.sub("_", name))
 
@@ -1064,10 +1113,21 @@ def map_csv(request, run_id):
 @gridded_enabled
 @require_safe
 def series_csv(request, run_id):
-    """The cell pane's series as CSV: by year (of the chosen month for a monthly file)."""
+    """The cell pane's series as CSV: by year (of the chosen month for a monthly file); or
+    the mean over the grid (#296)."""
+    import numpy as np
+
     run = get_run(request, run_id)
     state, path = _map_state(request, run)
     layer = state.layer
+    if state.series == "grid":
+        values = np.asarray(state.trends.grid_mean, dtype=float)
+        x = state.trends.years
+        rows = [["year", f"{layer.variable}_grid_mean"]]
+        rows += [[int(v), maps.format_value(float(value), 6)] for v, value in zip(x, values,
+                 strict=True)]  # fmt: skip
+        scale = f"_{layer.scales[state.scale]}months" if layer.scales else ""
+        return _csv_response(rows, SAFE_NAME.sub("_", f"{layer.variable}{scale}_grid_mean.csv"))
     values, x, step = map_page._series(path, state)
     head = "day_of_year" if step == "day" else "year"
     rows = [[head, layer.variable]]

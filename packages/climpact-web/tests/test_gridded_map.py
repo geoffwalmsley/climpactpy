@@ -95,9 +95,9 @@ def test_nice_edges_and_bins():
     assert len(set(np.diff(edges).round(9))) == 1  # one step
     bins = maps.classify(np.array([[-5.0, 0.5], [np.nan, 99.0]]), [0, 1, 2, 3, 4, 5, 6, 7, 8])
     assert bins.tolist() == [[0, 0], [255, 7]]  # beyond the ends: the end bins
-    assert maps.classify(np.array([-2.5, -1.2, 0.0, 1.7, 2.4]), list(maps.SPI_EDGES)).tolist() == [
-        0, 2, 3, 5, 6,
-    ]  # fmt: skip
+    # SPI's classes, near normal split at zero (#296): eight bins symmetric about it.
+    assert maps.classify(np.array([-2.5, -1.2, -0.1, 0.0, 1.7, 2.4]),
+                         list(maps.SPI_EDGES)).tolist() == [0, 2, 3, 4, 6, 7]  # fmt: skip
 
 
 def test_legend_ticks_keep_the_step():
@@ -132,8 +132,8 @@ def test_palettes_are_the_tokens():
     for theme in ("light", "dark"):
         assert maps.palette("warm", theme) == palette[theme]["map_sequential"]["warm"]
         assert len(maps.palette("temp", theme)) == 8
-        # SPI: the diverging scale reversed, dry (low) red and wet blue.
-        assert maps.palette("spi", theme) == palette[theme]["diverging"][::-1]
+        # SPI and SPEI: the wet diverging scale (#296), dry (low) brown and wet teal.
+        assert maps.palette("spi", theme) == palette[theme]["map_diverging"]["wet"]
 
 
 def test_raster_png_has_a_pixel_per_cell():

@@ -417,10 +417,15 @@ strips, worklist and detail pane.
     kept on the computer until forgotten, as the board's note says, #301).
   - **Before a run,** two pages with a breadcrumb ("Gridded / New run" and "Gridded /
     New run / set-up", #289), no stepper; the set-up page's h1 is the run's name, with
-    Rename. **Target:** New run (#292): a narrow page; locally a folder listing with a checkbox per
-    file and its variables and dates read from the header (paths or a `*` pattern one
-    disclosure away), hosted the drop zone with its limit stated first (until then the
-    old chooser, at `/gridded/new/`; it takes up to 200 files since #291). Set-up's
+    Rename. New run (#292, `/gridded/new/`) is a narrow page (55rem, centred): the
+    breadcrumb, the h1 and one lead, then locally "Files on this computer", the Folder
+    listing (below) with "Paste paths or a pattern instead" one disclosure away (a path or
+    a `*` and `?` pattern a line, up to 200 files since #291), and hosted "Upload netCDF
+    files", the drop zone with the limit and how long files are kept stated in it before
+    anything is uploaded, and one line on the ways round the limit. Under either, on a
+    hairline, what is chosen in mono ("3 files chosen · tasmax, tasmin, pr · 561.0 MB", or
+    "No files yet") and Read the files (primary, large) at the end; then "No files to
+    hand? Try the sample grid" with its size. Set-up's
     Files section is the board's Files table since #291 (Gridded files table, below):
     a row for each variable's files, so a variable split by year is one row ("20 files,
     1991–2010") that opens to its list; the Header link is #293's. Set-up (#293): one
@@ -580,6 +585,7 @@ shown on `/patterns/`. Use them rather than composing new markup.
 | `empty_state` | Pattern | Nothing to show yet, with the next action. The Indices of a run that wrote no index table (every index skipped, #268): "No index to show" above the list of what could not be calculated, with "Replace the file" (the File sheet), in place of the rail, table and pane | — |
 | File group | Pattern | A long list of files behind a closed native `<details>` (`disclosure download-group`): the summary gives the group's name, the count and the total size, and opens to a table with a `download_link` per file; on phones each row becomes a short block. Each index section and the quality checks on Files; markup in `stations/downloads.html`. A gridded run's Files (#289) frames each group (`gridded-group`), its hue dot before the name, the first open, and puts "Download these (zip)" beside the summary rather than in it (a link in a summary is a control in a control) | open, closed |
 | Gridded files table | Pattern | The set-up page's Files (#291, the GridSetup board's Files table; `gridded/_files_table.html`, `inspection.group_files`): a framed data table, a row for the files holding the same variables, joined along time. File: the name over its folder (locally) in mono, or for a variable split across files "20 files, 1991–2010" as a native `<details>` listing each file and its dates, over the folder (or the first and last names when hosted); Daily variables, Grid, Dates (`first → last`), Calendar in mono; Size at the end. Long names end in an ellipsis, whole in their `title`. A file that cannot be used has its own row, the reason in danger | one file, split files, list open, a file that cannot be used |
+| Folder listing | Pattern | New gridded run's chooser (#292, the GridNew board; `gridded/_listing.html`, `gridded.listing`): one frame holding a path bar (the folders above as links in mono, separated by ›, the current one in medium weight; a 30px folder field in mono at the end) and a data table of the folder: a checkbox, Name, Daily variables, Dates (years), Size. Subfolders first, as links ("raw/"); a ticked file's row in the `selected` tint (no ink edge: several can be ticked); a file that cannot be chosen greyed, its checkbox off, the reason in the variables column ("– (no time axis)", "– (thresholds file)"). The links are the form's buttons, so it works without JavaScript and keeps what is ticked across folders; htmx swaps only the listing | a ticked file, a file that cannot be chosen, an empty folder, a folder that is not there |
 | Gridded runs table | Pattern | Gridded's runs (#289, the GridList board; `gridded/_runs_table.html`, `gridded.runs.entries`): a data table, most recently changed first, as the gridded frame describes it; State in danger for a run that failed or cannot start, with a small bar (`meter`) while it calculates | not started, a problem, calculating, finished, failed |
 
 Patterns built in a page's own templates, not yet in `/patterns/` (the Quality page,

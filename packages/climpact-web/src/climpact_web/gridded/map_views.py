@@ -9,17 +9,20 @@ run's ``trends.nc`` (#290, :mod:`climpact.gridded.trends`).
   diverging scale; a dot on each cell whose 95% interval (``_lower`` to ``_upper``)
   excludes zero.
 
-``trends.nc`` holds the annual series only: every annual file's variables, and SPI and
-SPEI's 12-month scale in December. So the three views are offered for an annual file
-and for SPI and SPEI (at the 12-month scale, in December); not for a day-of-year file or
+``trends.nc`` holds the annual series (every annual file's variables, and SPI and
+SPEI's 12-month scale in December) and, since #348, each monthly file's series per
+calendar month (``<index>_MON_slope(month, y, x)`` and the like). So the three views are
+offered for an annual file, for SPI and SPEI (at the 12-month scale, in December) and for
+a monthly file's chosen month (:func:`read_month_trends`); not for a day-of-year file or
 a run without ``trends.nc`` (calculated before #290, or with the trends turned off),
 which keep Year and say why (:func:`unavailable`).
 
-A monthly file (#348) has Base mean, Anomaly and the grid mean of the chosen month,
-computed here from the month's values in every year (:func:`month_trends`, with
+A monthly file whose run's ``trends.nc`` has no monthly trends (calculated before #348)
+still has Base mean, Anomaly and the grid mean of the chosen month, computed here from
+the month's values in every year (:func:`month_trends`, with
 :mod:`climpact.gridded.trends`'s functions, so they are what the core would write for
-that series), with or without ``trends.nc``; its Trend is not offered: a month's Sen's
-slope on request takes seconds on a large grid (measured in #348).
+that series); its Trend is not offered: a month's Sen's slope on request takes seconds
+on a large grid (measured in #348).
 
 The diverging scales (:func:`palette`) have eight bins symmetric about zero, with fixed
 breaks for the file (:func:`symmetric_edges`, round numbers over the values of every
@@ -51,6 +54,7 @@ VIEWS = ("year", "base", "anomaly", "trend")
 TREND_VIEWS = ("base", "anomaly", "trend")
 SPI_SCALE = "12"  # trends.nc holds SPI and SPEI's 12-month scale ...
 SPI_MONTH = 12  # ... in December
+MONTHLY = "_MON"  # a monthly file's variables in trends.nc: txx_MON_slope(month, y, x)
 # The cool and dry kinds: more of them means cooler or drier, so their diverging scale
 # is reversed (an increase in frost days is blue, in dry days brown).
 REVERSED_KINDS = ("cool", "dry")
@@ -62,8 +66,9 @@ CACHE_BYTES = 128 * 1024 * 1024
 class Trends:
     """One index of ``trends.nc``: per cell (the index file's ``(y, x)``) its slope per
     decade and 95% interval, and its base-period mean; the grid mean per year. For a
-    monthly file's ``month`` (:func:`month_trends`) there is no slope (None), and no grid
-    mean where the grid's Y is not latitude."""
+    monthly file, those of its ``month`` (:func:`read_month_trends`); computed without
+    trends.nc (:func:`month_trends`) there is no slope (None), and no grid mean where the
+    grid's Y is not latitude."""
 
     slope: np.ndarray | None
     lower: np.ndarray | None
@@ -105,12 +110,23 @@ def _period(text) -> tuple[int, int] | None:
     return first, last
 
 
-def _field(nc, name: str) -> np.ndarray:
+def _field(nc, name: str, month: int | None = None) -> np.ndarray:
     var = nc.variables[name]
     var.set_auto_mask(True)
-    values = np.ma.filled(np.ma.asarray(var[:], dtype=float), np.nan)
+    read = var[:] if month is None else var[month - 1]
+    values = np.ma.filled(np.ma.asarray(read, dtype=float), np.nan)
     values[~(np.abs(values) < 1e19)] = np.nan
     return values
+
+
+def _years(nc) -> list[int]:
+    import cftime
+
+    time = nc.variables["time"] if "time" in nc.variables else None
+    if time is None:
+        return []
+    calendar = getattr(time, "calendar", "standard")
+    return [int(d.year) for d in cftime.num2date(np.asarray(time[:], float), time.units, calendar)]
 
 
 _cache: OrderedDict[tuple, Trends | None] = OrderedDict()
@@ -127,33 +143,68 @@ def read_trends(path: Path | None, variable: str) -> Trends | None:
         if key in _cache:
             _cache.move_to_end(key)
             return _cache[key]
-    import cftime
+    return _keep(key, _read_fields(path, variable))
 
+
+def _read_fields(path: Path, variable: str, month: int | None = None) -> Trends | None:
+    """``variable``'s fields (of ``month``, in its ``_MON_`` variables) in trends.nc,
+    holding the netCDF lock; None when the file has none."""
     with netcdf.dataset(path) as nc:
         if f"{variable}_slope" not in nc.variables:
-            found = None
-        else:
-            time = nc.variables["time"] if "time" in nc.variables else None
-            years: list[int] = []
-            if time is not None:
-                calendar = getattr(time, "calendar", "standard")
-                dates = cftime.num2date(np.asarray(time[:], float), time.units, calendar)
-                years = [int(d.year) for d in dates]
-            found = Trends(
-                slope=_field(nc, f"{variable}_slope"),
-                lower=_field(nc, f"{variable}_lower"),
-                upper=_field(nc, f"{variable}_upper"),
-                base_mean=_field(nc, f"{variable}_base_mean"),
-                grid_mean=_field(nc, f"{variable}_grid_mean"),
-                years=years,
-                base=_period(getattr(nc, "base_period", "")),
-                period=_period(getattr(nc, "trend_period", "")),
-            )
+            return None
+        return Trends(
+            slope=_field(nc, f"{variable}_slope", month),
+            lower=_field(nc, f"{variable}_lower", month),
+            upper=_field(nc, f"{variable}_upper", month),
+            base_mean=_field(nc, f"{variable}_base_mean", month),
+            grid_mean=_field(nc, f"{variable}_grid_mean", month),
+            years=_years(nc),
+            base=_period(getattr(nc, "base_period", "")),
+            period=_period(getattr(nc, "trend_period", "")),
+            month=month,
+        )
+
+
+def _keep(key: tuple, found: Trends | None) -> Trends | None:
     with _cache_lock:
         _cache[key] = found
         while len(_cache) > 1 and sum(t.nbytes for t in _cache.values() if t) > CACHE_BYTES:
             _cache.popitem(last=False)
     return found
+
+
+_names: dict[tuple, frozenset[str]] = {}
+
+
+def has_month_trends(path: Path | None, variable: str) -> bool:
+    """Whether the run's trends.nc has a monthly file's trends of ``variable`` (written
+    since #348). Its variables' names are read once (holding the netCDF lock)."""
+    if path is None:
+        return False
+    key = (str(path), path.stat().st_mtime_ns)
+    names = _names.get(key)
+    if names is None:
+        with netcdf.dataset(path) as nc:
+            names = frozenset(nc.variables)
+        if len(_names) > 64:
+            _names.clear()
+        _names[key] = names
+    return f"{variable}{MONTHLY}_slope" in names
+
+
+def read_month_trends(path: Path | None, variable: str, month: int) -> Trends | None:
+    """A monthly file's ``month`` in trends.nc at ``path`` (``<variable>_MON_slope`` and
+    the like, the month's row of each): the cells' slope per decade, interval and base
+    mean, and the grid mean in each year; None when the file has no monthly trends of
+    ``variable``. Read holding the netCDF lock, a month at a time, and kept."""
+    if not has_month_trends(path, variable):
+        return None
+    key = (str(path), path.stat().st_mtime_ns, variable, "MON", month)
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+    return _keep(key, _read_fields(path, f"{variable}{MONTHLY}", month))
 
 
 def is_spi(short: str) -> bool:
@@ -175,27 +226,36 @@ def job_base(job) -> tuple[int, int] | None:
         return None
 
 
-def unavailable(job, layer: maps.Layer, short: str, has_annual: bool) -> str:
+def unavailable(job, layer: maps.Layer, short: str) -> str:
     """Why Base mean, Anomaly, Trend and the grid mean are not offered for ``layer``; ""
-    when they are (``trends.nc`` has its annual series). For a monthly file, why Trend is
-    not (the others are, :func:`month_trends`)."""
+    when they are (``trends.nc`` has its series). For a monthly file whose trends.nc has
+    no monthly trends, why Trend is not (the others are, :func:`month_trends`)."""
     from climpact_web.gridded.stages import has_trends
 
     if layer.freq == "DAY":
         return _("Base mean, Anomaly and Trend are of an index's years, not of its days.")
+    path = trends_path(job)
     if is_monthly(layer, short):
-        reason = (
-            _("Trend is of the annual series: choose Annual.")
-            if has_annual
-            else _("Trend is of the annual series; this index has none.")
-        )
+        if has_month_trends(path, layer.variable):
+            return ""
+        if path is None and not has_trends(job):
+            reason = _("This run was calculated without its trends, so it has no trend.")
+        elif path is None:
+            reason = _(
+                "This run has no trends file (trends.nc): it was calculated before Climpact "
+                "wrote one. Start it again on Set-up to add one."
+            )
+        else:
+            reason = _(
+                "The run's trends file has no monthly trends: it was calculated before "
+                "Climpact wrote them. Start it again on Set-up to add them."
+            )
         if not layer.y_latitude:
             reason += " " + _(
                 "The index file holds no latitude of the grid's cells, so a month has no "
                 "mean over the grid."
             )
         return reason
-    path = trends_path(job)
     if path is None:
         if not has_trends(job):
             return _(
@@ -456,9 +516,11 @@ __all__ = [
     "Field",
     "Trends",
     "field",
+    "has_month_trends",
     "is_monthly",
     "month_trends",
     "palette",
+    "read_month_trends",
     "read_trends",
     "scale_of",
     "symmetric_edges",

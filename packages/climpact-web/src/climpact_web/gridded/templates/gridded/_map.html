@@ -9,7 +9,8 @@ colours; on Trend each cell several pixels a side, with a dot where the 95% inte
 excludes zero) under an SVG of the coastline, places, axes and the selected cell. The view
 (Year, Base mean, Anomaly, Trend, #296) needs the run's trends.nc: without it, or for a
 day-of-year file, the three are shown unavailable and the reason is said. A monthly file
-has Base mean and Anomaly of the chosen month, computed from its values, and no Trend (#348).
+has the three of the chosen month, from trends.nc's monthly variables (#348); a run whose
+trends.nc has none has Base mean and Anomaly computed from its values, and no Trend.
 Context from gridded.map_page.context.
 {% endcomment %}
 <div class="gmap-layout" id="gridded-map" data-gridded-map>

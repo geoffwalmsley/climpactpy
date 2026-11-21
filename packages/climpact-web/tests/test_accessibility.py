@@ -445,6 +445,8 @@ def site(chrome, server):
     run_url = pages["gridded results"].split("?")[0]  # the run's Map tab (#289)
     # The Trend view of a reversed scale (FD), with the mean over the grid (#296).
     pages["gridded trend"] = run_url + "?index=fd&view=trend&series=grid"
+    # A monthly file's Trend of a month, from trends.nc's monthly variables (#348).
+    pages["gridded monthly trend"] = run_url + "?index=txx&freq=MON&month=5&view=trend"
     pages["gridded files"] = run_url + "files/"
     pages["gridded set-up tab"] = run_url + "setup/"  # after the run (#293)
     pages["gridded rename"] = run_url + "rename/"

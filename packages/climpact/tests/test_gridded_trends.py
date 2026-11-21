@@ -1,7 +1,8 @@
 """Gridded trends (trends.nc, #290): each cell's slope and interval are the station
 trend's (climpact.trends.sen_trend) on that cell's values, missing cells stay missing,
-the base-period and grid means, and the command line. R writes no gridded trends, so
-there is no parity reference."""
+the base-period and grid means, and the command line; a monthly file's, per calendar
+month, in float32 (#348), leaving the annual variables as they were. R writes no gridded
+trends, so there is no parity reference."""
 
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ from climpact.gridded.trends import (
     base_means,
     cell_weights,
     grid_means,
+    monthly_series,
     sen_trends,
     write_grid_trends,
 )
@@ -252,7 +254,7 @@ def test_from_the_indices_and_the_command_line(tmp_path, capsys):
     trends = out / TRENDS_FILE
     with netCDF4.Dataset(trends) as nc:
         names = {v for v in nc.variables if "_" in v and v != "time_bnds"}
-    assert names == {f"{i}_{s}" for i in ("fd", "txx") for s in
+    assert names == {f"{i}_{s}" for i in ("fd", "txx", "fd_MON", "txx_MON") for s in
                      ("slope", "lower", "upper", "base_mean", "grid_mean")}  # fmt: skip
     (fd_ann,) = out.glob("fd_ANN_*.nc")
     values, _ = _read(fd_ann, "fd")
@@ -264,6 +266,12 @@ def test_from_the_indices_and_the_command_line(tmp_path, capsys):
         sorted(out.glob("*_ANN_*.nc")), tmp_path / "again.nc", 1972, 1975,
         latitude=open_grid([grid]).cell_latitude().values,
     )  # fmt: skip
+    (txx_mon,) = out.glob("txx_MON_*.nc")
+    values, _ = _read(txx_mon, "txx")
+    may = values[4::12].reshape(12, -1).T  # May of 1971-1982
+    ref = np.float32(_station(may) * 10)
+    slope, var = _read(trends, "txx_MON_slope")
+    assert _same(slope[4].ravel(), ref[:, 1]) and var.units == "degrees_C per decade"
     a, _ = _read(again, "txx_grid_mean")
     b, _ = _read(trends, "txx_grid_mean")
     assert _same(a, b)
@@ -272,6 +280,135 @@ def test_from_the_indices_and_the_command_line(tmp_path, capsys):
     plain[plain.index("--out") + 1] = str(tmp_path / "o2")
     assert main(plain) == 0
     assert not (tmp_path / "o2" / TRENDS_FILE).exists()
+
+
+# --- monthly files (#348) ------------------------------------------------------------------
+
+
+def _monthly(seed, nt=40, ny=3, nx=4):
+    """``(nt * 12, ny, nx)``: a seasonal cycle, a trend that differs by month and cell,
+    ties, a missing cell and missing values (some months with too few for a trend)."""
+    rng = np.random.default_rng(seed)
+    steps = nt * 12
+    month = np.arange(steps) % 12
+    season = 8 * np.cos(2 * np.pi * month / 12)[:, None, None]
+    slope = (0.02 + 0.01 * month)[:, None, None] * rng.normal(1, 0.5, (1, ny, nx))
+    v = np.round(20 + season + slope * (np.arange(steps) // 12)[:, None, None]
+                 + rng.normal(0, 2, (steps, ny, nx)), 1)  # fmt: skip
+    v[:, 0, 0] = np.nan
+    v[rng.random(v.shape) < 0.1] = np.nan
+    v[3::12, 2, 3][: nt // 2] = np.nan  # April of one cell: too few years
+    return v
+
+
+def _month_cells(values, month, nt=40):
+    """The month's series of every cell, ``(cells, years)``, as read from the file."""
+    return values[month - 1 :: 12].astype(np.float32).astype(float).reshape(nt, -1).T
+
+
+def test_a_monthly_files_trends_per_month_equal_the_station_trend(tmp_path):
+    """Each cell's slope and interval in each calendar month are the station trend
+    (climpact.trends.sen_trend) of that cell's series of the month, per decade, to float32
+    precision; its base mean and the grid mean are base_means and grid_means of it."""
+    txx = _monthly(7)
+    paths = [
+        _index_file(tmp_path / "fd_ANN_x.nc", "fd", _values(1)),
+        _index_file(tmp_path / "txx_MON_x.nc", "txx", txx, freq="mon"),
+    ]
+    assert [(s.name, s.key) for s in monthly_series(paths)] == [("txx", "txx_MON")]
+    out = write_grid_trends(paths, tmp_path / TRENDS_FILE, 1971, 1990, workers=2)
+    years = np.arange(1961, 2001)
+    weights = cell_weights(np.array([-40.0, 0.0, 60.0]))[:, None] * np.ones(4)
+    with netCDF4.Dataset(out) as nc:
+        assert list(nc["month"][:]) == list(range(1, 13))
+        for suffix in ("slope", "lower", "upper", "base_mean"):
+            var = nc[f"txx_MON_{suffix}"]
+            assert var.dimensions == ("month", "lat", "lon") and var.dtype == np.float32
+            assert var.chunking() == [1, 3, 4]  # a month reads alone
+        assert nc["txx_MON_grid_mean"].dimensions == ("month", "time")
+        assert nc["txx_MON_slope"][0, 0, 0] is np.ma.masked
+        assert "<index>_MON_" in nc.trend_method
+    for month in range(1, 13):
+        cells = _month_cells(txx, month)
+        ref = np.float32(_station(cells) * 10)
+        for i, suffix in enumerate(("lower", "slope", "upper")):
+            got, var = _read(out, f"txx_MON_{suffix}")
+            assert _same(got[month - 1].ravel(), ref[:, i]), (month, suffix)
+            assert var.units == "days per decade"
+        base, var = _read(out, "txx_MON_base_mean")
+        assert _same(base[month - 1].ravel(), np.float32(base_means(cells, years, 1971, 1990)))
+        mean, _ = _read(out, "txx_MON_grid_mean")
+        assert _same(mean[month - 1], np.float32(grid_means(cells.T, weights.ravel())))
+    slope, _ = _read(out, "txx_MON_slope")
+    assert np.isnan(slope[3, 2, 3]) and np.isfinite(slope[4, 2, 3])  # April: too few
+    assert np.isfinite(slope[:, 1:, :]).sum() == 12 * 8 - 1  # all but that April
+
+
+def test_monthly_trends_leave_the_annual_variables_as_they_were(tmp_path):
+    """The annual variables of trends.nc are the same, values, attributes and layout,
+    whether or not the run has monthly files."""
+    annual = _index_file(tmp_path / "fd_ANN_x.nc", "fd", _values(1))
+    mon = _index_file(tmp_path / "txx_MON_x.nc", "txx", _monthly(2), freq="mon")
+    alone = write_grid_trends([annual], tmp_path / "alone.nc", 1971, 1990)
+    both = write_grid_trends([annual, mon], tmp_path / "both.nc", 1971, 1990)
+    with netCDF4.Dataset(alone) as a, netCDF4.Dataset(both) as b:
+        assert "month" not in a.dimensions and "month" in b.dimensions
+        assert set(b.variables) - set(a.variables) == {"month"} | {
+            f"txx_MON_{s}" for s in ("slope", "lower", "upper", "base_mean", "grid_mean")
+        }
+        for name, va in a.variables.items():
+            vb = b[name]
+            assert (va.dimensions, va.dtype, va.chunking(), va.filters()) == (
+                vb.dimensions,
+                vb.dtype,
+                vb.chunking(),
+                vb.filters(),
+            ), name
+            assert {k: str(va.getncattr(k)) for k in va.ncattrs()} == {
+                k: str(vb.getncattr(k)) for k in vb.ncattrs()
+            }, name
+            assert _same(np.ma.filled(va[:], np.nan), np.ma.filled(vb[:], np.nan)), name
+        for attr in ("base_period", "trend_period", "title", "source"):
+            assert a.getncattr(attr) == b.getncattr(attr)
+    # An annual-only run's trends.nc has no monthly variables (as before #348).
+    assert monthly_series([annual]) == []
+
+
+def test_monthly_stripes_and_threads_do_not_change_the_file(tmp_path):
+    paths = [
+        _index_file(tmp_path / "fd_ANN_x.nc", "fd", _values(1)),
+        _index_file(tmp_path / "txx_MON_x.nc", "txx", _monthly(3), freq="mon"),
+    ]
+    one = write_grid_trends(paths, tmp_path / "one.nc", 1971, 1990)
+    many = write_grid_trends(
+        paths, tmp_path / "many.nc", 1971, 1990, workers=3, max_cells=4, cells_per_chunk=5
+    )
+    with netCDF4.Dataset(one) as a, netCDF4.Dataset(many) as b:
+        assert b["txx_MON_slope"].chunking() == [1, 1, 4]  # a stripe of one row
+        for suffix in ("slope", "lower", "upper", "base_mean"):
+            name = f"txx_MON_{suffix}"
+            assert _same(np.ma.filled(a[name][:], np.nan), np.ma.filled(b[name][:], np.nan))
+        assert np.allclose(a["txx_MON_grid_mean"][:], b["txx_MON_grid_mean"][:], rtol=1e-6)
+
+
+def test_a_monthly_file_with_missing_months_or_other_years(tmp_path):
+    """A month the file lacks in a year is a missing value of that month's series; a
+    monthly file whose years differ from the annual files' is refused."""
+    annual = _index_file(tmp_path / "fd_ANN_x.nc", "fd", _values(1))
+    values = _monthly(4)
+    part = _index_file(tmp_path / "txx_MON_x.nc", "txx", values[2:], freq="mon")
+    with netCDF4.Dataset(part, "a") as nc:  # starts in March 1961
+        nc["time"][:] = nc["time"][:] + 2 * 365.25 / 12
+    out = write_grid_trends([annual, part], tmp_path / "t.nc", 1971, 1990)
+    for month in (1, 3):
+        cells = _month_cells(values, month)
+        if month == 1:
+            cells[:, 0] = np.nan  # no January 1961
+        slope, _ = _read(out, "txx_MON_slope")
+        assert _same(slope[month - 1].ravel(), np.float32(_station(cells)[:, 1] * 10))
+    longer = _index_file(tmp_path / "tnn_MON_x.nc", "tnn", _monthly(5, nt=41), freq="mon")
+    with pytest.raises(ValueError, match="years differ"):
+        write_grid_trends([annual, longer], tmp_path / "t2.nc", 1971, 1990)
 
 
 def test_indices_alone_write_no_trends(tmp_path):

@@ -390,6 +390,7 @@ THRESHOLDS_SECONDS = 0.0005
 FAST_SHARE = 0.85
 FILE_OVERHEAD = 32 * 1024  # an index file's coordinates, time axis and attributes
 TRENDS_VALUES = 8  # values per cell and annual index in trends.nc
+MONTHLY_TRENDS_VALUES = 48  # per cell and monthly index: 4 float32 fields a month (#348)
 
 
 @dataclass
@@ -432,7 +433,9 @@ def estimate(form_data: dict, summary: inspection.Summary, specs, workers: int) 
             per_value = len(s.variables) * (3 if s.scaled else 1) + (1 if s.dated else 0)
             size += cells * steps * 4 * per_value + FILE_OVERHEAD
         annual = sum(1 for s in specs if s.freq == "ANN")
-        size += cells * annual * TRENDS_VALUES * 4 + FILE_OVERHEAD
+        monthly = sum(1 for s in specs if s.freq == "MON" and not s.scaled)
+        size += cells * (annual * TRENDS_VALUES + monthly * MONTHLY_TRENDS_VALUES) * 4
+        size += FILE_OVERHEAD
         out.index_bytes = size
         share = 1.0 if any(s.index in SLOW_INDICES for s in specs) else FAST_SHARE
         out.seconds += INDICES_SECONDS * cells * years * share

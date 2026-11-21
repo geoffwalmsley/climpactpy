@@ -15,10 +15,12 @@ The views (:data:`VIEWS`, #296, :mod:`climpact_web.gridded.map_views`): Year, Ba
 Anomaly and Trend. The last three, and the grid mean, read the run's ``trends.nc``
 (#290): offered for an annual file and for SPI and SPEI (whose views and grid mean are
 of the 12-month scale in December, so choosing one moves the map there). A monthly file
-(#348) has Base mean, Anomaly and the grid mean of the chosen month, computed from its
-values (:func:`map_views.month_trends`), and no Trend. A view that is not offered is
-shown unavailable, with the reason under the controls, and an address asking for one
-shows Year.
+(#348) has the four views and the grid mean of the chosen month, from ``trends.nc``'s
+monthly variables (:func:`map_views.read_month_trends`); when the run's ``trends.nc``
+has none (calculated before #348, or without trends), Base mean, Anomaly and the grid
+mean computed from its values (:func:`map_views.month_trends`), and no Trend. A view
+that is not offered is shown unavailable, with the reason under the controls, and an
+address asking for one shows Year.
 
 The cell's statistics: from ``trends.nc`` where it has the series (the slope, its
 interval and the base mean the map shows), else computed here for the series on request
@@ -298,19 +300,24 @@ def resolve(request, job, base: tuple[int, int] | None = None) -> State | None:
     path = job.output_dir / chosen.path
     layer = maps.open_layer(path, chosen.path, entry.variable)
     # The views and the grid mean (#296): only where trends.nc has the layer's series.
-    unavailable = map_views.unavailable(job, layer, entry.short, "ANN" in entry.files)
+    unavailable = map_views.unavailable(job, layer, entry.short)
     trends_path = map_views.trends_path(job)
-    trends = None if unavailable else map_views.read_trends(trends_path, layer.variable)
+    monthly = map_views.is_monthly(layer, entry.short)
+    trends = None
+    if not unavailable and not monthly:
+        trends = map_views.read_trends(trends_path, layer.variable)
     if layer.scales and map_views.SPI_SCALE not in layer.scales:
         trends, unavailable = None, unavailable or _("This file has no 12-month scale.")
-    # A monthly file: Base mean, Anomaly and the grid mean of the month, no Trend (#348).
+    # A monthly file (#348): the month's views from trends.nc's monthly variables; without
+    # them, Base mean, Anomaly and the grid mean computed from its values, and no Trend.
+    month_file = monthly and map_views.has_month_trends(trends_path, layer.variable)
     base = map_views.job_base(job) or base
-    monthly = map_views.is_monthly(layer, entry.short) and base is not None
-    offered = ("year", *map_views.TREND_VIEWS) if trends is not None else ("year",)
-    if monthly:
+    computed = monthly and not month_file and base is not None
+    offered = ("year", *map_views.TREND_VIEWS) if trends is not None or month_file else ("year",)
+    if computed:
         offered = ("year", "base", "anomaly")
     view = q.get("view") if q.get("view") in offered else "year"
-    has_grid = trends is not None or (monthly and layer.y_latitude)
+    has_grid = trends is not None or month_file or (computed and layer.y_latitude)
     series = "grid" if q.get("series") == "grid" and has_grid else "cell"
     spi_fixed = bool(layer.scales) and (view in map_views.TREND_VIEWS or series == "grid")
     scale = 0
@@ -334,7 +341,9 @@ def resolve(request, job, base: tuple[int, int] | None = None) -> State | None:
     if t is None:
         month = (month_wanted or 12) if layer.months else None
         t = maps.last_step_with_values(path, layer, scale, month)
-    if monthly:
+    if month_file:
+        trends = map_views.read_month_trends(trends_path, layer.variable, layer.months[t])
+    elif computed:
         trends = map_views.month_trends(path, layer, layer.months[t], base)
     ny, nx = len(layer.lat), len(layer.lon)
     goto, goto_error = q.get("goto", "").strip(), ""
@@ -351,7 +360,14 @@ def resolve(request, job, base: tuple[int, int] | None = None) -> State | None:
     if cell is None and q.get("cell_y") is not None:
         cell = _cell(f"{q.get('cell_y')},{q.get('cell_x')}", ny, nx)
     if cell is None:  # the cell with a value nearest the middle
-        values = maps.grid_values(path, layer, t, scale)
+        # Of the view's field: Base mean and Trend need no read of the index file (a
+        # monthly file's step decompresses the whole variable: seconds on a large grid).
+        if view == "trend" and trends is not None and trends.slope is not None:
+            values = trends.slope
+        elif view == "base" and trends is not None:
+            values = trends.base_mean
+        else:
+            values = maps.grid_values(path, layer, t, scale)
         finite = np.argwhere(np.isfinite(values))
         if finite.size:
             mid = np.array([ny / 2, nx / 2])
@@ -493,6 +509,13 @@ def context(request, run, job) -> dict:
     elif s.view == "anomaly":
         hint = _("%(when)s minus the %(years)s mean.") % {"when": label, "years": base_years}
         what = _("anomaly %(when)s") % {"when": label}
+    elif s.view == "trend" and layer.months:  # a monthly file: the month's trend
+        hint = _("Sen's slope per decade of %(month)s, %(years)s.") % {
+            "month": month_name(s.month), "years": trend_years,
+        }  # fmt: skip
+        what = _("trend %(month)s %(years)s") % {
+            "month": month_name(s.month), "years": trend_years,
+        }  # fmt: skip
     elif s.view == "trend":
         hint = _("Sen's slope per decade, %(years)s.") % {"years": trend_years}
         what = _("trend %(years)s") % {"years": trend_years}
@@ -741,7 +764,8 @@ def pane(request, run, s: State, path, units: str, page, endpoint) -> dict:
         trend=trend,
     )
     summary = trend_summary(plot) if trend is not None else None
-    # The numbers the map shows: trends.nc's slope and base mean, or a monthly file's
+    # The numbers the map shows: trends.nc's slope and base mean (of the month for a
+    # monthly file); or, computed without trends.nc's monthly variables, a monthly file's
     # base mean of the month (its trend is computed above, as the map has none).
     from_file = s.trends is not None and not grid_mean and step == "year"
     if from_file and s.trends.slope is not None:

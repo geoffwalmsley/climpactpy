@@ -971,7 +971,8 @@ def _map_state(request, run: GriddedRun):
 
 def _when_name(state) -> str:
     """A download's name after its variable: the time step (``2019``, ``2019-12``), or the
-    view's years (``base_mean_1971-2000``, ``anomaly_2019``, ``trend_1961-2020``)."""
+    view's years (``base_mean_1971-2000``, ``anomaly_2019``, ``trend_1961-2020``; with the
+    month first for a monthly file's, ``05_trend_1961-2020``)."""
     layer = state.layer
     when = layer.times[state.t] if layer.times else ""
     trends = state.trends
@@ -983,6 +984,8 @@ def _when_name(state) -> str:
         when = f"anomaly_{when}"
     elif state.view == "trend" and trends is not None and trends.period:
         when = f"trend_{trends.period[0]}-{trends.period[1]}"
+        if trends.month is not None:
+            when = f"{trends.month:02d}_{when}"
     suffix = f"_{layer.scales[state.scale]}months" if layer.scales else ""
     return f"{when}{suffix}"
 
@@ -1046,6 +1049,8 @@ def map_png(request, run_id):
                 when = f"{map_page.month_name(state.trends.month)} {when}"
         elif state.view == "trend" and state.trends.period:
             when = "{}–{}".format(*state.trends.period)
+            if state.trends.month is not None:
+                when = f"{map_page.month_name(state.trends.month)} {when}"
         title = f"{entry.code} {entry.name}, " + " ".join(filter(None, [what, when])) + (
             f" ({units})" if units else "")  # fmt: skip
         legend = run.display_name

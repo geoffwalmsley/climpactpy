@@ -3,8 +3,10 @@ GridMap board), from the run's trends.nc (#290): the diverging scales (eight bin
 symmetric about zero, reversed for the cooler-or-drier indices), a cell's trend on the
 map against trends.nc and against climpact.trends, the dots on Trend, the mean over the
 grid in the cell pane, the downloads following the view, and a run without trends.nc;
-a monthly file's Base mean, Anomaly and grid mean of the month (#348), computed from its
-values, against climpact.gridded.trends on the month's series."""
+a monthly file's four views and grid mean of the month from trends.nc's monthly
+variables (#348), against climpact.trends on the month's series; and, for a run whose
+trends.nc has none, Base mean, Anomaly and grid mean computed from its values, against
+climpact.gridded.trends on the month's series."""
 
 import csv
 import io
@@ -33,6 +35,7 @@ def media(settings, tmp_path):
     settings.JOB_RETENTION_DAYS = 7
     map_views._cache.clear()
     map_views._edges.clear()
+    map_views._names.clear()
     maps._cache.clear()
     maps._edges.clear()
     maps._too_large.clear()
@@ -122,8 +125,11 @@ def month_series(path, name: str, month: int) -> tuple[np.ndarray, list[int]]:
     return values.reshape(len(steps), -1), [int(dates[t].year) for t in steps]
 
 
-def run_with_trends(client, files: dict, trends: bool = True, monthly: dict | None = None):
-    """A finished run of ``files`` (annual) and ``monthly`` files, and its trends.nc."""
+def run_with_trends(client, files: dict, trends: bool = True, monthly: dict | None = None,
+                    month_trends: bool = True):  # fmt: skip
+    """A finished run of ``files`` (annual) and ``monthly`` files, and its trends.nc;
+    without ``month_trends``, a trends.nc of the annual files alone, as written before
+    #348 (the annual variables are the same)."""
     names = {**files, **(monthly or {})}
     if trends:
         names["trends.nc"] = lambda path: None
@@ -132,6 +138,8 @@ def run_with_trends(client, files: dict, trends: bool = True, monthly: dict | No
     if trends:
         (job.output_dir / "trends.nc").unlink(missing_ok=True)
         paths = [job.output_dir / n for n in names if n != "trends.nc"]
+        if not month_trends:
+            paths = [job.output_dir / n for n in files]
         write_grid_trends(paths, job.output_dir / "trends.nc", *BASE)
     run.options = {**run.options, "base_start": BASE[0], "base_end": BASE[1]}
     run.save()
@@ -378,7 +386,7 @@ def test_a_months_base_mean_and_grid_mean_are_the_cores(client, monkeypatch, str
     write_grid_trends, when the grid is wider than one."""
     if stripe:
         monkeypatch.setattr(core, "MAX_CELLS", stripe)
-    run = run_with_trends(client, ANNUAL, monthly=MONTHLY)
+    run = run_with_trends(client, ANNUAL, monthly=MONTHLY, month_trends=False)
     path = run.indices_job.output_dir / "txx_MON_m_e_r_2001-2012.nc"
     layer = maps.open_layer(path, path.name)
     for month in (1, 5, 12):
@@ -396,17 +404,96 @@ def test_a_months_base_mean_and_grid_mean_are_the_cores(client, monkeypatch, str
         assert found.slope is None and found.month == month and found.base == BASE
 
 
-def test_a_monthly_files_base_mean_anomaly_and_grid_mean_on_the_page(client):
+def test_a_months_trend_on_the_map_is_trends_nc_and_climpact_trends(client, monkeypatch):
+    """A monthly file's Trend of the chosen month: the map's values, dots, CSV and the
+    pane's slope are trends.nc's month (``txx_MON_slope``), which is
+    climpact.trends.sen_trend of each cell's series of the month per decade, in float32;
+    Base mean and the grid mean are trends.nc's month too."""
     run = run_with_trends(client, ANNUAL, monthly=MONTHLY)
+    out = run.indices_job.output_dir
+    values, years = month_series(out / "txx_MON_m_e_r_2001-2012.nc", "txx", 5)
+    ref = np.array([sen_trend(c) for c in values.T]).reshape(NY, NX, 3) * 10
+    found = map_views.read_month_trends(out / "trends.nc", "txx", 5)
+    assert np.array_equal(found.slope, np.float32(ref[..., 1]).astype(float), equal_nan=True)
+    assert np.array_equal(found.lower, np.float32(ref[..., 0]).astype(float), equal_nan=True)
+    assert found.month == 5 and found.years == years and found.period == (2001, 2012)
+    assert map_views.read_month_trends(out / "trends.nc", "tnn", 5) is None
+
+    query = {"index": "txx", "freq": "MON", "month": 5, "year": 2012}
+    html = page(client, run, **query)
+    views = html.split('aria-label="View">')[1].split("</div>")[0]
+    assert "view=trend" in views and 'aria-disabled="true"' not in views
+    assert "gmap-controls__note" not in html  # nothing unavailable
+    html = page(client, run, **query, view="trend")
+    assert "Sen&#x27;s slope per decade of May, 2001–2012." in html
+    assert "TXx, trend May 2001–2012 (°C/decade)" in html and "ramp-div-temp" in html
+    assert "gmap-stepper" not in html  # one map for the month: no stepper, as Base mean
+    significant = (found.lower > 0) | (found.upper < 0)
+    count, total = int(significant.sum()), int(np.isfinite(found.slope).sum())
+    assert f"Dot: the 95% interval excludes zero ({count} of {total} cells)" in html
+    assert 0 < count < total
+    got = client.get(f"/gridded/{run.pk}/map.f32", {**query, "view": "trend"}).content
+    grids = np.frombuffer(got, "<f4").reshape(2, NY, NX)
+    assert np.array_equal(grids[0][::-1], np.float32(ref[..., 1]), equal_nan=True)
+    assert np.array_equal(grids[1][::-1] == 1, significant)
+    response = client.get(f"/gridded/{run.pk}/map.csv", {**query, "view": "trend"})
+    assert 'filename="txx_05_trend_2001-2012.csv"' in response["Content-Disposition"]
+    rows = list(csv.reader(io.StringIO(response.content.decode())))
+    assert rows[0] == ["latitude", "longitude", "txx_slope", "txx_lower", "txx_upper"]
+    assert float(rows[1 + 2 * NX + 3][2]) == pytest.approx(ref[2, 3, 1], abs=1e-5)
+    download = client.get(f"/gridded/{run.pk}/map.png", {**query, "view": "trend",
+                                                         "download": "1"})  # fmt: skip
+    assert 'filename="txx_05_trend_2001-2012.png"' in download["Content-Disposition"]
+    with monkeypatch.context() as m:  # no step of the index file read without a cell
+        m.setattr(maps, "grid_values", lambda *a, **k: pytest.fail("read a step"))
+        for view in ("trend", "base"):
+            response = client.get(f"/gridded/{run.pk}/map.png", {**query, "view": view})
+            assert response.status_code == 200, view
+
+    # The pane: the cell's slope and interval, and its base mean, from trends.nc's month.
+    html = page(client, run, **query, view="trend", cell="2,3")
+    assert numbers.per_decade(found.slope[2, 3], "°C") in html
+    assert numbers.interval(found.lower[2, 3], found.upper[2, 3], "°C") in html
+    assert numbers.with_unit(numbers.number(found.base_mean[2, 3]), "degrees_C") in html
+    base = base_means(values.T, years, *BASE).reshape(NY, NX)
+    assert np.allclose(found.base_mean, base, rtol=1e-6, equal_nan=True)
+    # The grid mean of May: trends.nc's, which is grid_means of the month's series.
+    response = client.get(f"/gridded/{run.pk}/series.csv", {**query, "series": "grid"})
+    rows = list(csv.reader(io.StringIO(response.content.decode())))
+    weights = cell_weights(np.broadcast_to(np.linspace(-40, -10, NY)[:, None], (NY, NX)))
+    expected = grid_means(values, weights.reshape(-1))
+    assert [float(r[1]) for r in rows[1:]] == pytest.approx(expected, rel=1e-6)
+
+
+def test_a_monthly_file_of_a_run_without_monthly_trends(client):
+    """A run whose trends.nc has no monthly trends (calculated before #348): Trend is
+    unavailable, with the reason; Base mean, Anomaly and the grid mean are computed."""
+    run = run_with_trends(client, ANNUAL, monthly=MONTHLY, month_trends=False)
+    html = page(client, run, index="txx", freq="MON", month=5, year=2012)
+    views = html.split('aria-label="View">')[1].split("</div>")[0]
+    assert "view=base" in views and "view=anomaly" in views and "view=trend" not in views
+    reason = ("The run&#x27;s trends file has no monthly trends: it was calculated before "
+              "Climpact wrote them. Start it again on Set-up to add them.")  # fmt: skip
+    assert f'aria-disabled="true" title="{reason}"' in views
+    assert reason in html.split("gmap-controls__note")[1]
+    assert "data-gmap-series>Mean over the grid</a>" in html
+    html = page(client, run, index="txx", freq="MON", month=5, year=2012, view="trend")
+    assert "The value in May 2012." in html  # an address asking for Trend shows Year
+    job = run.indices_job
+    job.params = {**(job.params or {}), "trends": False}
+    job.result = {**job.result, "files": [f for f in job.result["files"] if f != "trends.nc"]}
+    job.save()
+    html = page(client, run, index="txx", freq="MON", month=5, year=2012)
+    assert "This run was calculated without its trends, so it has no trend." in html
+
+
+def test_a_monthly_files_base_mean_anomaly_and_grid_mean_on_the_page(client):
+    run = run_with_trends(client, ANNUAL, monthly=MONTHLY, month_trends=False)
     path = run.indices_job.output_dir / "txx_MON_m_e_r_2001-2012.nc"
     values, years = month_series(path, "txx", 5)
     base = base_means(values.T, years, *BASE).reshape(NY, NX)
 
     html = page(client, run, index="txx", freq="MON", month=5, year=2012)
-    views = html.split('aria-label="View">')[1].split("</div>")[0]
-    assert "view=base" in views and "view=anomaly" in views and "view=trend" not in views
-    assert 'aria-disabled="true" title="Trend is of the annual series: choose Annual."' in views
-    assert "Trend is of the annual series: choose Annual." in html.split("gmap-controls__note")[1]
     assert "data-gmap-series>Mean over the grid</a>" in html
 
     html = page(client, run, index="txx", freq="MON", month=5, year=2012, view="base")
@@ -460,7 +547,7 @@ def test_a_monthly_file_without_trends_nc_or_latitude(client):
     job.save()
     html = page(client, run, index="txx", freq="MON", month=3, view="base")
     assert "Mean of March in 2003–2008." in html
-    assert "Trend is of the annual series; this index has none." in html  # no annual file
+    assert "This run has no trends file (trends.nc)" in html
 
     projected = {"txx_MON_m_e_r_2001-2012.nc": monthly(lat_name="y")}
     run = run_with_trends(client, {}, trends=False, monthly=projected)
@@ -473,7 +560,7 @@ def test_a_monthly_file_without_trends_nc_or_latitude(client):
 def test_a_large_monthly_variable_is_read_a_month_at_a_time(client, monkeypatch):
     """A variable too large to keep whole: its month is read once (every year's step in
     one read) and kept, and the views are the same."""
-    run = run_with_trends(client, ANNUAL, monthly=MONTHLY)
+    run = run_with_trends(client, ANNUAL, monthly=MONTHLY, month_trends=False)
     query = {"index": "txx", "freq": "MON", "month": 5, "year": 2012}
     small = {v: client.get(f"/gridded/{run.pk}/map.f32", {**query, "view": v}).content
              for v in ("year", "base", "anomaly")}  # fmt: skip
@@ -519,6 +606,9 @@ def test_every_netcdf_read_of_the_views_holds_the_lock(client, monkeypatch):
                 "map.f32?view=anomaly", "map.csv?view=base", "series.csv?series=grid",
                 "map.png?view=trend&download=1", "?index=spi&freq=MON&view=trend",
                 "?index=txx&freq=MON&month=5&view=base",
+                "?index=txx&freq=MON&month=5&view=trend&cell=2,3",
+                "map.png?index=txx&freq=MON&month=5&view=trend",
+                "map.csv?index=txx&freq=MON&month=4&view=trend",
                 "map.f32?index=txx&freq=MON&month=5&view=anomaly",
                 "series.csv?index=txx&freq=MON&month=5&series=grid"):  # fmt: skip
         assert client.get(f"/gridded/{run.pk}/{url}").status_code == 200, url

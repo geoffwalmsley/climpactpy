@@ -3228,16 +3228,25 @@ packages/climpact-web/src/climpact_web/
                      short names, groups, parameters); writes index_messages.py
     index_messages.py  generated: the index names and definitions for makemessages
     guides.py        guide pages from Markdown (language folders, English fallback), the
-                     generated index catalogue, link resolution, search
+                     generated index catalogue, link resolution, search; the Reference
+                     pages written as Markdown (REFERENCE_GUIDES, #319)
+    reference.py     the index reference (#319): the list by theme and each index's page,
+                     generated from the catalogue, the core and index-notes.md
+    command_line.py  the command-line guide's option tables, from climpact.cli's parser
+    seo.py           titles' descriptions, canonical links, /sitemap.xml, /robots.txt (#319)
     contents.py      the help frame's contents (#325: the groups, the current page, the
                      Reference pages of #319 by URL name) and the help home's lists
     tour.py          the landing page's tour steps
     views.py, urls.py  /help/: index, search, topics (A to Z), /help/sections/<id>/,
+                     /help/indices/ and /help/indices/<code>/, /help/command-line/,
+                     /help/formats/ and /help/formats/<slug>/ (#319),
                      /help/<guide>/
     templatetags/help.py  `{% help_contents as contents %}`, `{% section_help "id" %}`,
                      `{% help_topic "id" %}`
     guides/en/*.md   the guides, in English (accessibility.md: the accessibility
-                     statement, #83, linked from every page's footer)
+                     statement, #83, linked from every page's footer); command-line.md and
+                     format-*.md, Reference pages (#319); index-notes.md, the index pages'
+                     hand-written text
     templates/help/  frame.html (the help frame every help page extends, #325),
                      _contents.html, _toc.html, _action.html, index.html, guide.html,
                      topics.html, search.html, section.html,
@@ -3328,6 +3337,7 @@ the variable.
 | `CLIMPACT_WEB_SECRET_KEY` | see Modes | Django `SECRET_KEY` |
 | `CLIMPACT_WEB_ALLOWED_HOSTS` | see Modes | comma-separated host names |
 | `CLIMPACT_WEB_CSRF_TRUSTED_ORIGINS` | none | comma-separated origins, e.g. `https://climpact.example.org` |
+| `CLIMPACT_WEB_PUBLIC_URL` | none (the request's origin) | the public origin, e.g. `https://climpact.example.org`, for the help's canonical links, `/sitemap.xml` and `/robots.txt` (#319) |
 | `DATABASE_URL` | SQLite in the data folder | any URL dj-database-url reads, e.g. `postgres://user:pw@host:5432/db`; required in hosted mode |
 | `CLIMPACT_WEB_DEBUG` | `false` | Django `DEBUG` |
 | `CLIMPACT_WEB_PATTERN_LIBRARY` | same as `DEBUG` | serve the pattern library at `/patterns/` (404 otherwise) |
@@ -4541,8 +4551,7 @@ page (`stations:workspaces`, `/w/`, #242); it is `aria-current="page"` there and
 on Add stations and every `/w/` page (`Destination.sections`, URL names or
 paths, `nav_items`), drawn in ink
 with an underline. Index reference (`navigation.index_reference_url`) leads to the
-definitions in the guide to the indices (`/help/indices/#the-indices`) until a reference
-page of its own exists (`help:index_reference`, #319). Help (`#app-help`) keeps its destination (the page's guide) but is
+index reference (`/help/indices/`, `help:index_reference`, #319). Help (`#app-help`) keeps its destination (the page's guide) but is
 a quiet underlined link like Index reference, no longer the ringed pill, as on the canvas.
 Help is `aria-current="page"` on the help's pages, except on `/help/indices/` and the
 pages under it, where Index reference is current instead (`"page"` there, `"true"` under
@@ -6917,7 +6926,9 @@ hover tooltips (`bsTooltip` in `modules/singleStationStep2UI.R`, `singleStationS
 It has five parts, all in the `help` app: **contextual help topics**, **section help** that
 opens them in a drawer beside the page (#177), **guide pages** written in Markdown, a **search** and an A-Z
 **list of topics**, and a short optional **first-run tour** of the landing page. The
-help's own pages share one frame (#325). The
+help's own pages share one frame (#325), and its **Reference pages** (#319: a page per
+index, the command line and the file formats) are static documentation that search
+engines index on the hosted site. The
 standalone user guide and handover documents are #12.
 
 **The help frame** (#325, the Help boards; `help/templates/help/frame.html`, which every
@@ -6933,9 +6944,9 @@ help" field (a GET form to `help:search`), "Help home", then three groups under
 format pages under it) and More (questions and troubleshooting, help topics A to Z, the
 accessibility statement). They are plain links; the current page's has
 `aria-current="page"` and the filter rail's selected style (the `selected` tint, an ink
-edge at the inline start). Each Reference link names the URL its page will have
-(`help:index_reference`, `help:command_line`, `help:formats`, `help:format`); until #319
-adds those URLs the links resolve to `None` and are left out, and so is the empty group.
+edge at the inline start). Each Reference link is found by its URL name
+(`help:index_reference`, `help:command_line`, `help:formats`, `help:format`); a name with
+no URL would be left out, and so would an empty group.
 On this page (`help/_toc.html`) lists the page's `toc` (a guide's `##` and `###`
 headings; the topics' groups); `js/help-toc.js` marks the section in view
 (`aria-current="true"`, the last heading above the top third of the window). Responsive,
@@ -6948,10 +6959,8 @@ so the frame needs no JavaScript. In a window at least 30rem high the two column
 in view under the site header and scroll inside themselves when taller than the window.
 
 **The help home** (`help/index.html`, the Help board): the h1 and lead, a large search
-form (live results as before), "Reference" (a card each for Index reference and File
-formats, which until #319 lead to `indices#the-indices` and `gridded#input-files`; the
-Command line card has no page or section to lead to yet, so it is left out;
-`contents.reference_cards`), "Guides" (a numbered list of each guide's title and summary,
+form (live results as before), "Reference" (a card each for Index reference, Command
+line and File formats, leading to their pages; `contents.reference_cards`), "Guides" (a numbered list of each guide's title and summary,
 in `GUIDE_ORDER`), "Common questions" (five questions of the `faq` guide, named by their
 headings, and "All questions"), "Sample data" and "Take the tour of the start page".
 
@@ -7057,10 +7066,14 @@ pure-Python dependency added for #81) with `toc`, `tables`, `fenced_code`, `attr
 the page shows them in the help frame's On this page (above), and links to the previous
 and next guide.
 Rendered guides are cached per file version, file language and interface language. The
-Markdown is the app's own text, so it is rendered as trusted HTML. Links use two schemes
+Markdown is the app's own text, so it is rendered as trusted HTML. Links use three schemes
 resolved at render time, so guides do not depend on where the app is mounted:
-`guide:<slug>#<anchor>` and `url:<url name>#<anchor>` (the anchor optional; a page that
-does not exist yet, such as `gridded:start`, keeps the link text without a link). Tables
+`guide:<slug>#<anchor>`, `url:<url name>#<anchor>` (the anchor optional; a page that
+does not exist yet, such as `gridded:start`, keeps the link text without a link) and
+`index:<code>` for an index's page (#319). A guide's address is `/help/<slug>/` except
+where `GUIDE_PATHS` moves it: the guide to the indices is at `/help/about-the-indices/`
+since #319 gave `/help/indices/` to the index reference (`guides.guide_url`,
+`guide_slug`; `Topic.url` and the guides' links follow it). Tables
 are wrapped in the table
 component's scrolling region, named by the heading above the table (#83).
 
@@ -7086,8 +7099,88 @@ background chapter, the netCDF wrapper-script instructions (replaced by the grid
 for the gridded screen and command line) and the reference lists beyond the papers each
 guide relies on.
 
+**The Reference pages** (#319; the HelpIndices, HelpIndex, HelpCli, HelpFormat and
+HelpFlow boards). Each renders in full without JavaScript and with no session.
+
+- **The index reference** (`/help/indices/`, `help:index_reference`,
+  `help/index_reference.html`): the lead, the abbreviations, Find and the theme pills, and a
+  framed table per theme of `stations.themes.THEMES` (Heat, Cold, Rain, Drought, Averages,
+  Growing season and degree days, with their hue dots): Code (a link to the index's page),
+  Name, Definition, Unit, Scales and Base period ("Percentiles"); Scales and Base period
+  are dropped below a 40rem frame. Find (`?q=`, every word in the code, name or definition)
+  and the pills (`?theme=`) are a GET form the server filters: every row is drawn, the
+  ones that do not match `hidden`, so `js/help-indices.js` filters the same rows in place
+  as you type or pick a pill and keeps the address in step (`history.replaceState`).
+  "All definitions as CSV" serves the core's `climate.indices.csv` (`help:index_csv`).
+  The header's Index reference leads here (`navigation.index_reference_url`).
+- **One index** (`/help/indices/<code>/`, `help:index`, `help/index_page.html`, built by
+  `help/reference.py`'s `page()`): the code and short name as the h1 (R's long name for
+  SPI and SPEI, whose short name only repeats the code) with the theme pill, the lead,
+  At a glance, How it is calculated (with a "Read with care" box where there is one), In
+  the result files, On the command line, Related indices, References, Previous / Next in
+  the theme, and "Calculate it" (`help_action`, Get started) under On this page. At a
+  glance is generated: the definition and R's long name from the catalogue, the unit
+  (`UNITS`), the time scales, the variables it uses (the core's gridded variable list,
+  `climpact.gridded.indices._BY_VARIABLE`, with `USES_OVERRIDES` for the indices that need
+  more than one), the base period (by kind of index), the setting (`INDEX_PARAMS`, its
+  default from `IndexParams`, its command-line option and the file name it gives) and the
+  missing-data rule (the core's `MAX_MISSING_DAYS`). The file names come from the core's
+  renaming (`gridded.indices._renamed`, `index_files`): `indices/<station>_rx3day_ANN.csv`,
+  `rx3day_ANN_<model>_…nc`. Only three things are written by hand, in
+  `guides/<language>/index-notes.md` (not a guide; translated as the guides are): each
+  index's lead (one plain sentence, also its meta description), How it is calculated
+  once per kind of index (`reference.KINDS`: fixed counts, percentile counts, spells,
+  extremes, sums, degree days, drought …) with a few per-index paragraphs, and the "Read
+  with care" boxes (CDD, CWD, WSDId and CSDId with d = 1, HW, EHF, SPI, SPEI). Related
+  indices are the index's counterpart (`COUNTERPARTS`, TX90p and TX10p) then its nearest
+  neighbours in the guide's group and in the theme. Each index has one address, its
+  lowercase short name (`/help/indices/tx90p/`, `/help/indices/hwehf/`); any other
+  spelling or an output name (`TX90p`, `wsdi3`, `rx3day`, `24month_spi`) redirects there
+  permanently (`reference.canonical_slug`, through `indices.index_for_output`).
+- **The command line** (`/help/command-line/`, `help:command_line`,
+  `guides/en/command-line.md`): install, the table of commands, then a section per
+  command with its synopsis, its options in a table per argparse group (Arguments, Options,
+  Station, Index settings, Modules, Plots and archive: option, default, what it does) and
+  an example, and Plugins (the three entry points). The prose is hand-written; the
+  markers `[[cli-version]]`, `[[cli-commands]]` and `[[cli-command:<name>]]` are replaced
+  before rendering from the core's parser (`climpact.cli.build_parser`, public since
+  #319; `help/command_line.py`), the default taken from the action or from its help's
+  "(default: …)", and the index settings linked to their index pages. The tables are
+  HTML, so option text such as `wsdi<n>` is shown as written. On this page lists the
+  commands only. #319 also gave the run command's options metavars (`YEAR`, `DAYS`,
+  `DEG_C`, `MM`, `MONTHS`, `N`, `DEGREES`) and the index settings a help text, and
+  dropped gridded-indices' stale "Not yet written: hw, hwEHF, spi, spei".
+- **The file formats** (`/help/formats/`, `help:formats`, a card per format) and a page
+  per format (`/help/formats/<slug>/`, `help:format`: `station-file`, `batch-metadata`,
+  `gridded-inputs`, `sector-data`, from `guides/en/format-<slug>.md`): the format in one
+  sentence (the lead), the example (`pre#example`), the columns, the rules, common
+  problems, and "Other formats" (cards); the station file and batch metadata pages have
+  "Check a file" (Get started) under On this page. The guides keep their how-to text and
+  link to the format page.
+
+The Markdown Reference pages are rendered by the guide renderer (`REFERENCE_GUIDES`:
+slug, URL name and arguments) but are not in `GUIDE_ORDER`: no Previous and Next, and no
+address under `/help/<slug>/`. A breadcrumb leads back (`help/_crumbs.html`).
+
+**Search engines** (#319, `help/seo.py`, the HelpFlow board). Every help page has a unique
+`<title>` ending " · Climpact" ("TX90p Warm days: definition", "Index reference: the 55
+ET-SCI climate indices", "Command line: climpact run, batch and gridded") and a `<meta
+name="description">`, the page's lead (a guide's `summary:`, an index's lead), from the
+view's `page_meta` (`base.html`). In hosted mode the page also has `<link
+rel="canonical">`, built from `CLIMPACT_WEB_PUBLIC_URL` (`settings.PUBLIC_URL`; unset, the
+request's origin). The help's search, a section's help page and a filtered index list are
+`noindex`, the filtered list with a canonical link to `/help/indices/`. `/sitemap.xml`
+lists every indexable help page (`seo.help_urls`: the home, the guides, the Reference
+pages and each index, the topics; 74 addresses) and `/robots.txt` allows `/help/` and
+disallows `/station/`, `/batch/`, `/w/`, `/jobs/`, `/gridded/` and `/help/search/`, naming
+the sitemap. Local mode sends `<meta name="robots" content="noindex">` on every page
+(`robots_noindex`, `core.context_processors.site`), has no sitemap (404) and a
+`robots.txt` that disallows everything.
+
 **Search and topic list.** `/help/search/?q=` finds the guide sections (`##` and `###`,
-catalogue entries included) and topics containing every word of the query, title matches
+catalogue entries included), the Reference pages (the command line's and each format's
+lead and sections, and each index's page: its title, lead, definition, R's name and How
+it is calculated, `reference.search_entries`) and topics containing every word of the query, title matches
 first, with an excerpt. It is a plain GET form; with htmx the results replace
 `#help-results` as you type (300 ms after the last key), on the help home and the search
 page. The help contents' "Search help" field submits to the same address, without live
@@ -7152,7 +7245,18 @@ places, the home's lists, and Index reference current on `/help/indices/`; in th
 browser, the columns and disclosures at 1280, 900 and 375px, no sideways scroll, the
 columns stuck under the header and the section in view marked
 (`test_help_frame_at_each_width`), and the help home and a guide in the sticky-overlap
-check.
+check. The Reference pages (#319, `tests/test_help_reference.py`): every index has its
+page, generated from the catalogue (its definition and R's name word for word), and a lead
+and a kind in `index-notes.md`, which names no index that does not exist; a page's
+setting, files and command line; other spellings redirect, an unknown code is 404; the list
+links every index under the themes in order and filters without JavaScript; the command-line
+guide has a section for every command of the parser and shows every option (it fails when
+the CLI gains or loses one), with option text from the parser; every format page; search
+finds the index and Reference pages; in hosted mode every page of the sitemap has a unique
+title, a description and its canonical link, filtered and search pages are noindex, and
+the sitemap and robots.txt list what they should; local mode is noindex with no sitemap.
+The browser accessibility checks open the list (plain and filtered), an index, the
+command line, the formats and a format page.
 
 ### Gridded pages
 

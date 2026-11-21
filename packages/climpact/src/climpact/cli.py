@@ -442,8 +442,8 @@ def _parser() -> argparse.ArgumentParser:
         "--trends",
         action="store_true",
         help="also write trends.nc: each cell's Sen's slope per decade with its 95%% interval "
-        "and base-period mean, and the grid mean, of every annual index (R has no "
-        "counterpart)",
+        "and base-period mean, and the grid mean, of every annual index and of each "
+        "calendar month of every monthly index (R has no counterpart)",
     )
     gi.add_argument(
         "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"

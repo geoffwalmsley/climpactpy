@@ -26,6 +26,8 @@ TEMPLATES = sorted(PACKAGE.rglob("templates/**/*.html"))
 
 pytestmark = pytest.mark.django_db
 
+REFERENCE_FORMATS = ("station-file", "batch-metadata", "gridded-inputs", "sector-data")
+
 
 @pytest.fixture(autouse=True)
 def media(settings, tmp_path):
@@ -38,7 +40,7 @@ def media(settings, tmp_path):
 
 def test_every_guide_renders_with_a_table_of_contents(client):
     for slug in GUIDE_ORDER:
-        response = client.get(f"/help/{slug}/")
+        response = client.get(get_guide(slug).url)
         assert response.status_code == 200, slug
         html = response.content.decode()
         guide = get_guide(slug)
@@ -108,14 +110,15 @@ def test_help_index_lists_guides_and_sample_data(client):
     list in their order, common questions and the sample data as a short list."""
     html = client.get("/help/").content.decode()
     main = html[html.index('<div class="help-home">') :]
-    guides = re.findall(r'<span><a href="/help/([^/]+)/">', main)
-    assert guides == [s for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
+    guides = re.findall(r'<span><a href="(/help/[^/]+/)">', main)
+    assert guides == [get_guide(s).url for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
     assert 'class="help-guide-list__number" aria-hidden="true">1</span>' in main
-    # Until #319 adds their pages, the Reference cards lead to the guide sections.
+    # The Reference cards lead to the Reference pages (#319).
     cards = re.findall(r'<h3 class="card__title help-card__title"><a href="([^"]+)">([^<]+)', main)
     assert cards == [
-        ("/help/indices/#the-indices", "Index reference"),
-        ("/help/gridded/#input-files", "File formats"),
+        ("/help/indices/", "Index reference"),
+        ("/help/command-line/", "Command line"),
+        ("/help/formats/", "File formats"),
     ]
     assert "All 55 ET-SCI indices" in main
     for anchor in ("file-refused", "years-missing", "percentile-missing", "same-as-r", "data-kept"):
@@ -155,11 +158,19 @@ def test_every_help_page_has_the_help_contents(client, url):
     assert 'action="/help/search/"' in nav and 'name="q"' in nav and "Search help" in nav
     assert '<a class="help-contents__link" href="/help/"' in nav
     labels = re.findall(r'<p class="group-label help-contents__label"[^>]*>([^<]+)</p>', nav)
-    # Reference has no page yet (#319): its links are left out, and so is the group.
-    assert labels == ["Guides", "More"]
+    assert labels == ["Guides", "Reference", "More"]
     links = re.findall(r'href="(/help/[^"]*)"', nav)
-    guides = [f"/help/{s}/" for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
-    assert links == ["/help/", *guides, "/help/faq/", "/help/topics/", "/help/accessibility/"]
+    guides = [get_guide(s).url for s in GUIDE_ORDER if s not in ("faq", "accessibility")]
+    formats = [f"/help/formats/{f}/" for f in REFERENCE_FORMATS]
+    reference = ["/help/indices/", "/help/command-line/", "/help/formats/", *formats]
+    assert links == [
+        "/help/",
+        *guides,
+        *reference,
+        "/help/faq/",
+        "/help/topics/",
+        "/help/accessibility/",
+    ]
     assert '<details class="disclosure help-contents-disclosure">' in html
     assert "<summary><span>Help contents</span>" in html
     # The page's text and its h1 are in the frame; headings don't skip levels.
@@ -242,12 +253,15 @@ def test_header_help_button_opens_the_pages_guide(client):
     assert 'href="/help/" aria-label="Help"' in button.group(0)
     assert ">Help</a>" in button.group(0)
     reference = re.search(r'<a class="site-header__link[^"]*" href="([^"]+)">Index reference', html)
-    assert reference.group(1) == "/help/indices/#the-indices"
+    assert reference.group(1) == "/help/indices/"
     html = client.get("/help/trends/").content.decode()
     assert re.search(r'id="app-help" href="/help/" aria-label="Help" aria-current="page"', html)
-    # On /help/indices/ Index reference is current instead (#325).
+    # On /help/indices/ Index reference is current instead (#325), and on each index's page.
     html = client.get("/help/indices/").content.decode()
-    assert re.search(r'href="/help/indices/#the-indices" aria-current="page">Index reference', html)
+    assert re.search(r'href="/help/indices/" aria-current="page">Index reference', html)
+    assert not re.search(r'id="app-help"[^>]*aria-current', html)
+    html = client.get("/help/indices/tx90p/").content.decode()
+    assert re.search(r'href="/help/indices/" aria-current="true">Index reference', html)
     assert not re.search(r'id="app-help"[^>]*aria-current', html)
     for url, guide in [("/add/", "station-file"), ("/jobs/", "batch")][:1]:
         html = client.get(url).content.decode()
@@ -395,7 +409,7 @@ def test_index_topics_come_from_the_core_definitions():
     assert str(topic.title) == "TXx Hottest day"
     assert str(topic.text) == "Annual warmest daily TX. Units: °C. Name in Climpact for R: Max TX."
     assert str(get_topic("index.fd").text) == "Annual number of days when TN < 0 °C. Units: days."
-    assert topic.url == "/help/indices/#index-txx"
+    assert topic.url == "/help/about-the-indices/#index-txx"
     html = render_topic('{% help_topic "index.tx90p" %}')
     assert "Annual percentage of days when TX &gt; 90th percentile. Units: % of days." in html
 

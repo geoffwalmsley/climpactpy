@@ -1,6 +1,11 @@
 {% extends "help/frame.html" %}
-{% load i18n %}
-{% block title %}{{ guide.title }}{% endblock %}
+{% load i18n %}{% comment %}
+A guide (#81), or a Reference page written as Markdown (#319): the command line and the
+file formats. Context: guide, previous and next (guides only), crumbs, page_title (the
+<title> when it says more than the h1), other_formats (a format page's cards).
+{% endcomment %}
+{% block title %}{% firstof page_title guide.title %}{% endblock %}
+{% block breadcrumb %}{% if crumbs %}{% include "help/_crumbs.html" %}{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block page_header %}
 <header class="stack stack--sm">
   <h1>{{ guide.title }}</h1>
@@ -14,9 +19,19 @@
 {% block page_body %}
 <article class="help-article" lang="{{ guide.language }}">
   {{ guide.html|safe }}
+  {% if other_formats %}
+  <h2 id="other-formats">{% translate "Other formats" %}</h2>
+  <ul class="help-format-cards">
+    {% for card in other_formats %}
+    <li class="card card--link help-card"><a class="help-card__title" href="{{ card.url }}">{{ card.label }}</a><span class="help-card__hint">{{ card.hint }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </article>
+{% if previous or next %}
 <nav class="help-pager" aria-label="{% translate 'Other guides' %}">
   {% if previous %}<a class="help-pager__link" href="{{ previous.url }}" rel="prev"><span class="text-sm text-text-muted">{% translate "Previous" %}</span><span>{{ previous.title }}</span></a>{% endif %}
   {% if next %}<a class="help-pager__link help-pager__link--next" href="{{ next.url }}" rel="next"><span class="text-sm text-text-muted">{% translate "Next" %}</span><span>{{ next.title }}</span></a>{% endif %}
 </nav>
+{% endif %}
 {% endblock %}

@@ -36,8 +36,12 @@
   }
 
   /* == Help pages == */
-  .breadcrumb a::after {
+  .breadcrumb > :not(:last-child)::after {
     content: " /";
+    color: var(--color-text-muted);
+  }
+
+  .breadcrumb > span {
     color: var(--color-text-muted);
   }
 
@@ -484,6 +488,361 @@
   .help-pager__link--next {
     margin-inline-start: auto;
     text-align: end;
+  }
+
+  /* == The Reference pages (#319: the HelpIndices, HelpIndex, HelpCli and HelpFormat
+     boards): the index reference, one index, the command line and the file formats. == */
+  .help-note {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .help-article code,
+  .help-facts code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+
+  .help-article :not(pre) > code {
+    padding-inline: 0.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+  }
+
+  .help-article pre code {
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+
+  /* The command line's option tables: options on one line, defaults as plain mono. */
+  .help-article :not(pre) > code:is(.help-option, .help-default) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .help-option {
+    white-space: nowrap;
+  }
+
+  .help-terminal {
+    line-height: 1.6;
+  }
+
+  /* Commands and examples wrap rather than scroll, so no block needs a scroll region of
+     its own on a phone. */
+  .help-article pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* The prompt is not selectable, so a copy pastes only the command. */
+  .help-terminal__prompt {
+    color: var(--color-text-muted);
+    user-select: none;
+  }
+
+  .help-terminal__comment {
+    color: var(--color-text-muted);
+  }
+
+  /* The abbreviations under the index reference's lead: terms in a row. */
+  .help-abbreviations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(5);
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .help-abbreviations div {
+    display: flex;
+    gap: --spacing(1.5);
+  }
+
+  .help-abbreviations dt {
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-abbreviations dd {
+    margin: 0;
+  }
+
+  /* Find and the theme pills. */
+  .help-indices-filter {
+    display: grid;
+    gap: --spacing(3);
+  }
+
+  .help-indices-filter__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2) --spacing(4);
+  }
+
+  .help-indices-filter__row input {
+    flex: 1 1 14rem;
+    min-inline-size: 0;
+    max-inline-size: 30rem;
+    min-block-size: var(--control-height-sm);
+    padding-block: 0;
+    font-size: var(--text-sm);
+  }
+
+  .help-indices-filter__count {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .help-indices-filter__csv {
+    margin-inline-start: auto;
+    font-size: var(--text-sm);
+  }
+
+  .help-indices-filter__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+  }
+
+  /* A theme as a pill: its dot and name (and a count). Pressed, ink on the page. */
+  .theme-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: --spacing(1.5);
+    min-block-size: 1.875rem;
+    padding-inline: --spacing(3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--text-sm);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .theme-pill:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .theme-pill[aria-pressed="true"] {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-ink-contrast);
+  }
+
+  .theme-pill[aria-pressed="true"] .hue-dot {
+    box-shadow: 0 0 0 1.5px var(--color-ink-contrast);
+  }
+
+  .theme-pill--static {
+    min-block-size: 1.5rem;
+    cursor: default;
+  }
+
+  .theme-pill__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+  }
+
+  @media (forced-colors: active) {
+    .theme-pill[aria-pressed="true"] {
+      border-width: 2px;
+    }
+  }
+
+  /* The index list: a framed table per theme. */
+  .help-indices {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: --spacing(8);
+  }
+
+  .help-indices__theme h2 {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2);
+    margin-block: 0 --spacing(3);
+    font-size: var(--text-md);
+  }
+
+  .help-indices__count {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-normal);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .help-indices__table :is(th, td) {
+    vertical-align: top;
+  }
+
+  .help-indices__table tbody th {
+    font-weight: var(--font-weight-normal);
+    text-align: start;
+  }
+
+  .help-indices__code a,
+  .help-indices__scales,
+  .help-related__code,
+  .help-index-header__code {
+    font-family: var(--font-mono);
+  }
+
+  .help-indices__code {
+    white-space: nowrap;
+  }
+
+  .help-indices__definition {
+    min-inline-size: 16rem;
+    color: var(--color-text-muted);
+  }
+
+  .help-indices__scales {
+    white-space: nowrap;
+  }
+
+  .help-indices__none {
+    color: var(--color-text-muted);
+  }
+
+  /* The list is wide: on a reading page beside the contents it takes the page's width,
+     not the prose width. Below 40rem Scales and Base period are left out. */
+  @container help-frame (inline-size < 40rem) {
+    .help-indices__wide {
+      display: none;
+    }
+  }
+
+  /* One index: the code and name, the theme pill beside them. */
+  .help-index-header__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: --spacing(2) --spacing(3);
+  }
+
+  .help-index-header__title h1 {
+    margin: 0;
+  }
+
+  .help-index-header .lead p {
+    margin: 0;
+  }
+
+  /* At a glance: terms and values in two columns, framed; stacked on a narrow page. */
+  .help-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    margin: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .help-facts :is(dt, dd) {
+    margin: 0;
+    padding: --spacing(2) --spacing(3);
+    border-block-end: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  .help-facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .help-facts dt:nth-last-child(2),
+  .help-facts dd:last-child {
+    border-block-end: 0;
+  }
+
+  @container help-frame (inline-size < 36rem) {
+    .help-facts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .help-facts dt {
+      padding-block-end: 0;
+      border-block-end: 0;
+    }
+  }
+
+  .help-index > h2:first-child + .help-facts + h2 {
+    margin-block-start: --spacing(8);
+  }
+
+  /* Read with care: the warning tint, as an amber note. */
+  .help-caveat {
+    margin-block: --spacing(4);
+    padding: --spacing(3) --spacing(4);
+    border-inline-start: 3px solid var(--color-warning);
+    border-radius: var(--radius-sm);
+    background: var(--color-warning-soft);
+  }
+
+  .help-caveat p {
+    margin: 0;
+  }
+
+  .help-caveat__title {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .help-files th {
+    inline-size: 12rem;
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-muted);
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .help-files code {
+    overflow-wrap: anywhere;
+  }
+
+  .help-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-reference {
+    font-size: var(--text-sm);
+  }
+
+  /* A format page's other formats, and the formats list. */
+  .help-format-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: --spacing(3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .help-format-cards .help-card__title {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .help-format-cards .help-card__hint {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
   }
 
   /* == First-run tour (js/tour.js) == */

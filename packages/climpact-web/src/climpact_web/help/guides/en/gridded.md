@@ -10,7 +10,7 @@ and dates, read from its header. Tick the files you want, in as many folders as 
 or paste their paths, where `*` and `?` match many files (`/data/agcd/tmax_*.nc`). They
 are read where they are on your disk and never changed. A hosted Climpact offers gridded
 runs only if its operator has switched them on, and then by upload only, up to the size
-limit the page states. They are also available from the `climpact` command line.
+limit the page states. They are also available from the [`climpact` command line](guide:command-line#gridded-indices).
 
 The calculation runs in the background: you can close the page and come back to the run
 from [Gridded](url:gridded:start), in the header, which lists your runs: their grid,
@@ -39,6 +39,9 @@ the `missing_value` or `_FillValue` attribute.
 The standard, `noleap` (`365_day`) and `360_day` calendars are supported. `ncdump -h` shows
 a file's variables, units and calendar. NCO (`ncrename`, `ncatted`) and CDO help fix names
 and units.
+
+The [gridded input files](guide:format-gridded-inputs) page has the specification on its
+own.
 
 Climpact for R's sample grid, `climpact.sampledata.gridded.1991-2010.nc` (24 by 19 cells
 over Australia, 1991 to 2010), is a quick test. **Use the sample grid** on Gridded (**Try the sample grid** on New

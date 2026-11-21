@@ -119,7 +119,9 @@ see the WMO *Handbook of drought indicators and indices* (2016) for others.
 
 ## The indices {#the-indices}
 
-Each definition below comes from Climpact's list of indices. TX is the daily maximum
+Each index also has a page of its own in the [Index reference](url:help:index_reference),
+with its settings, missing-data rule, result files and command line. Each definition
+below comes from Climpact's list of indices. TX is the daily maximum
 temperature, TN the minimum, TM the mean of the two, DTR their difference and PR the
 precipitation. A wet day has at least 1 mm.
 

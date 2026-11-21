@@ -1,0 +1,4 @@
+{% load i18n %}{% comment %}
+A help page's breadcrumb: Help, then ``crumbs`` ([{"label", "url"}], the last may have no
+link). The Reference pages (#319).
+{% endcomment %}<nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb text-sm"><a href="{% url 'help:index' %}">{% translate "Help" %}</a>{% for crumb in crumbs %} {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}<span>{{ crumb.label }}</span>{% endif %}{% endfor %}</nav>

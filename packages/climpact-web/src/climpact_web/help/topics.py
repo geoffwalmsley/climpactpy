@@ -49,7 +49,9 @@ class Topic:
     def url(self) -> str:
         """The guide section with more, or the topic's entry in the list of topics."""
         if self.guide:
-            url = reverse("help:guide", args=[self.guide])
+            from climpact_web.help.guides import guide_url
+
+            url = guide_url(self.guide)
             return f"{url}#{self.anchor}" if self.anchor else url
         return f"{reverse('help:topics')}#{self.anchor_id}"
 

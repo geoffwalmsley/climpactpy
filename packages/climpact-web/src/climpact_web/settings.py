@@ -61,6 +61,11 @@ if MODE not in {LOCAL, HOSTED}:
     raise ImproperlyConfigured(f"CLIMPACT_WEB_MODE must be 'local' or 'hosted', not {MODE!r}")
 IS_HOSTED = MODE == HOSTED
 
+# CLIMPACT_WEB_PUBLIC_URL (hosted mode): the site's public origin, such as
+# https://climpact.example.org, for the help's canonical links and /sitemap.xml (#319).
+# Unset, they use the origin of the request.
+PUBLIC_URL = (env("PUBLIC_URL") or "").rstrip("/")
+
 # Where the local install keeps its database, secret key and run files.
 DATA_DIR = Path(env("DATA_DIR") or user_data_dir("climpact-web", appauthor=False))
 

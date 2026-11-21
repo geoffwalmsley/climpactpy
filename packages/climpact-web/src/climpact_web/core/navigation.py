@@ -93,13 +93,9 @@ def nav_items(request) -> list[dict]:
 
 
 def index_reference_url() -> str | None:
-    """The header's Index reference (#227): the definition of every index, in the guide
-    to the indices, until an index reference page of its own exists."""
-    url = url_or_none("help:index_reference")
-    if url:
-        return url
-    url = url_or_none("help:guide", "indices")
-    return f"{url}#the-indices" if url else None
+    """The header's Index reference (#227): the index reference's list of every index
+    (#319, ``/help/indices/``)."""
+    return url_or_none("help:index_reference")
 
 
 def index_reference_current(request) -> str:

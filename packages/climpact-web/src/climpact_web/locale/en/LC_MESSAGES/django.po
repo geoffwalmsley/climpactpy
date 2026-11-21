@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 04:51+0000\n"
+"POT-Creation-Date: 2026-11-21 06:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -346,7 +346,7 @@ msgstr ""
 msgid "Diurnal temperature range (°C)"
 msgstr ""
 
-#: charts/data.py:228 help/topics.py:245
+#: charts/data.py:228 help/topics.py:247
 #: stations/templates/stations/_summary.html:56
 #: stations/templates/stations/_summary.html:65
 msgid "Daily series"
@@ -590,7 +590,7 @@ msgstr ""
 msgid "Least squares"
 msgstr ""
 
-#: core/forms.py:28 gridded/map_page.py:857 help/topics.py:435
+#: core/forms.py:28 gridded/map_page.py:857 help/topics.py:437
 #: stations/templates/stations/result.html:75
 msgid "Sen's slope"
 msgstr ""
@@ -699,11 +699,11 @@ msgstr ""
 msgid "Gridded"
 msgstr ""
 
-#: core/navigation.py:61 core/templates/base.html:43
-#: core/templates/base.html:44 core/templates/components/drawer.html:11
-#: help/templates/help/_section_help.html:12 help/templates/help/frame.html:23
-#: help/templates/help/index.html:6 help/templates/help/index.html:10
-#: help/templates/help/section.html:10
+#: core/navigation.py:61 core/templates/base.html:47
+#: core/templates/base.html:48 core/templates/components/drawer.html:11
+#: help/templates/help/_crumbs.html:4 help/templates/help/_section_help.html:12
+#: help/templates/help/frame.html:23 help/templates/help/index.html:6
+#: help/templates/help/index.html:10 help/templates/help/section.html:10
 msgid "Help"
 msgstr ""
 
@@ -807,48 +807,50 @@ msgstr ""
 msgid "The server could not finish this request. Please try again."
 msgstr ""
 
-#: core/templates/base.html:8 core/templates/base.html:29
+#: core/templates/base.html:8 core/templates/base.html:33
 msgid "Climpact"
 msgstr ""
 
-#: core/templates/base.html:22
+#: core/templates/base.html:26
 msgid "Skip to main content"
 msgstr ""
 
-#: core/templates/base.html:32 core/templates/base.html:57
+#: core/templates/base.html:36 core/templates/base.html:61
 msgid "Main"
 msgstr ""
 
-#: core/templates/base.html:41 core/templates/base.html:62 help/contents.py:55
+#: core/templates/base.html:45 core/templates/base.html:66 help/contents.py:55
+#: help/guides.py:340 help/templates/help/index_reference.html:11
+#: help/views.py:238
 msgid "Index reference"
 msgstr ""
 
-#: core/templates/base.html:43 help/templates/help/_section_help.html:12
+#: core/templates/base.html:47 help/templates/help/_section_help.html:12
 #: help/templates/help/section.html:7
 #, python-format
 msgid "Help: %(title)s"
 msgstr ""
 
-#: core/templates/base.html:55
+#: core/templates/base.html:59
 msgid "Menu"
 msgstr ""
 
-#: core/templates/base.html:65 core/templates/components/theme_toggle.html:2
+#: core/templates/base.html:69 core/templates/components/theme_toggle.html:2
 msgid "Colour theme"
 msgstr ""
 
-#: core/templates/base.html:86
+#: core/templates/base.html:90
 msgid ""
 "Climpact calculates the climate indices defined by the WMO Expert Team on "
 "Sector-specific Climate Indices (ET-SCI)."
 msgstr ""
 
-#: core/templates/base.html:90
+#: core/templates/base.html:94
 #, python-format
 msgid "Climpact web, version %(version)s"
 msgstr ""
 
-#: core/templates/base.html:91
+#: core/templates/base.html:95
 msgid "Accessibility"
 msgstr ""
 
@@ -937,7 +939,8 @@ msgstr ""
 
 #: core/templates/components/context_bar.html:34
 #: gridded/templates/gridded/_breadcrumb.html:5
-#: help/templates/help/frame.html:23 stations/templates/stations/add.html:19
+#: help/templates/help/_crumbs.html:4 help/templates/help/frame.html:23
+#: stations/templates/stations/add.html:19
 #: stations/templates/stations/workspace_open.html:13
 msgid "Breadcrumb"
 msgstr ""
@@ -1117,6 +1120,7 @@ msgid "Climpact: indices of climate extremes"
 msgstr ""
 
 #: core/templates/core/home.html:16 core/templates/core/home.html:19
+#: help/views.py:161 help/views.py:339
 msgid "Get started"
 msgstr ""
 
@@ -1184,8 +1188,8 @@ msgid "not significant"
 msgstr ""
 
 #: core/templates/core/home.html:56
-#: gridded/templates/gridded/_cell_pane.html:36 stations/index_page.py:430
-#: stations/templates/stations/_index_chart.html:10
+#: gridded/templates/gridded/_cell_pane.html:36 help/views.py:146
+#: stations/index_page.py:430 stations/templates/stations/_index_chart.html:10
 #: stations/templates/stations/_index_detail.html:24
 msgid "base period"
 msgstr ""
@@ -1202,7 +1206,8 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/home.html:69 core/views.py:678
-#: gridded/templates/gridded/files.html:42 stations/views_indices.py:397
+#: gridded/templates/gridded/files.html:42
+#: help/templates/help/index_reference.html:39 stations/views_indices.py:397
 msgid "Code"
 msgstr ""
 
@@ -1407,7 +1412,7 @@ msgid ""
 "sector comparison."
 msgstr ""
 
-#: core/templates/core/home.html:155 help/topics.py:75
+#: core/templates/core/home.html:155 help/topics.py:77
 msgid "Gridded data"
 msgstr ""
 
@@ -1553,7 +1558,7 @@ msgstr ""
 #: core/views.py:384 gridded/forms.py:154 gridded/setup_page.py:763
 #: gridded/stages.py:353 gridded/stages.py:740 gridded/stages.py:747
 #: gridded/templates/gridded/_map.html:17
-#: gridded/templates/gridded/setup.html:117 help/topics.py:71
+#: gridded/templates/gridded/setup.html:117 help/topics.py:73
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
 #: stations/workspace.py:465
 msgid "Indices"
@@ -1767,7 +1772,7 @@ msgstr ""
 msgid "Your file"
 msgstr ""
 
-#: core/templates/core/patterns.html:190 help/sections.py:69 help/topics.py:66
+#: core/templates/core/patterns.html:190 help/sections.py:69 help/topics.py:68
 #: stations/templates/stations/new.html:46
 msgid "Station details"
 msgstr ""
@@ -2433,7 +2438,7 @@ msgstr ""
 msgid "Almost always typing errors or swapped columns."
 msgstr ""
 
-#: core/templates/core/patterns.html:526 help/topics.py:214
+#: core/templates/core/patterns.html:526 help/topics.py:216
 msgid "Missing days per year"
 msgstr ""
 
@@ -2441,7 +2446,8 @@ msgstr ""
 msgid "How to read this"
 msgstr ""
 
-#: core/templates/core/patterns.html:527 help/sections.py:120
+#: core/templates/core/patterns.html:527 help/reference.py:419
+#: help/sections.py:120
 msgid "Missing data"
 msgstr ""
 
@@ -2867,7 +2873,7 @@ msgstr ""
 msgid "Thresholds"
 msgstr ""
 
-#: core/views.py:385 help/topics.py:72 stations/downloads.py:103
+#: core/views.py:385 help/topics.py:74 stations/downloads.py:103
 #: stations/views_files.py:44
 msgid "Trends"
 msgstr ""
@@ -2909,7 +2915,8 @@ msgstr ""
 #: gridded/setup_page.py:590 gridded/setup_page.py:595
 #: gridded/setup_page.py:601 gridded/setup_page.py:617
 #: gridded/setup_page.py:762 gridded/stages.py:737
-#: gridded/templates/gridded/setup.html:106
+#: gridded/templates/gridded/setup.html:106 help/reference.py:417
+#: help/templates/help/index_reference.html:39
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
 #: stations/views_add.py:107 stations/workspace.py:826
@@ -3055,7 +3062,7 @@ msgstr ""
 msgid "Quality thresholds"
 msgstr ""
 
-#: core/views.py:724 core/views.py:749 help/topics.py:70
+#: core/views.py:724 core/views.py:749 help/topics.py:72
 #: stations/templates/stations/_add_table.html:20 stations/views_add.py:112
 #: stations/workspace.py:828
 msgid "Index settings"
@@ -3233,7 +3240,7 @@ msgstr ""
 msgid "The full path of a file written by a thresholds run of Climpact."
 msgstr ""
 
-#: gridded/forms.py:300 help/topics.py:619
+#: gridded/forms.py:300 help/topics.py:621
 msgid "Thresholds file"
 msgstr ""
 
@@ -3245,7 +3252,7 @@ msgstr ""
 msgid "Thresholds file name"
 msgstr ""
 
-#: gridded/forms.py:321 help/topics.py:646
+#: gridded/forms.py:321 help/topics.py:648
 msgid "Institution"
 msgstr ""
 
@@ -3261,7 +3268,7 @@ msgstr ""
 msgid "Enter your institution's ID (usually an abbreviation)."
 msgstr ""
 
-#: gridded/forms.py:332 help/topics.py:629
+#: gridded/forms.py:332 help/topics.py:631
 msgid "Indices to calculate"
 msgstr ""
 
@@ -3785,7 +3792,8 @@ msgstr ""
 msgid "Yes: the interval excludes zero"
 msgstr ""
 
-#: gridded/map_page.py:853 stations/templates/stations/_index_detail.html:41
+#: gridded/map_page.py:853 help/reference.py:340
+#: stations/templates/stations/_index_detail.html:41
 msgid "No"
 msgstr ""
 
@@ -4004,7 +4012,8 @@ msgstr[1] ""
 msgid "kept until %(date)s"
 msgstr ""
 
-#: gridded/runs.py:452 stations/templates/stations/_indices.html:29
+#: gridded/runs.py:452 help/templates/help/index_reference.html:27
+#: stations/templates/stations/_indices.html:29
 msgid "Theme"
 msgstr ""
 
@@ -4349,7 +4358,8 @@ msgstr ""
 msgid "Wrote"
 msgstr ""
 
-#: gridded/setup_page.py:876 stations/templates/stations/add.html:148
+#: gridded/setup_page.py:876 help/reference.py:418
+#: stations/templates/stations/add.html:148
 msgid "Settings"
 msgstr ""
 
@@ -5097,6 +5107,7 @@ msgid "Chosen"
 msgstr ""
 
 #: gridded/templates/gridded/_listing.html:44
+#: help/templates/help/index_reference.html:39
 #: stations/templates/stations/_workspaces_table.html:14
 #: stations/templates/stations/add.html:161
 msgid "Name"
@@ -5134,6 +5145,7 @@ msgid "Choose this folder"
 msgstr ""
 
 #: gridded/templates/gridded/_map.html:21
+#: help/templates/help/index_reference.html:23
 #: stations/templates/stations/_indices.html:25
 msgid "Find"
 msgstr ""
@@ -5758,12 +5770,12 @@ msgstr ""
 msgid "Loaded: %(name)s. Choose another file to replace it."
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:119
+#: gridded/templates/gridded/setup.html:119 help/reference.py:650
 #: stations/templates/stations/_indices.html:30
 msgid "All"
 msgstr ""
 
-#: gridded/templates/gridded/setup.html:120
+#: gridded/templates/gridded/setup.html:120 help/reference.py:387
 msgid "None"
 msgstr ""
 
@@ -5952,11 +5964,44 @@ msgstr ""
 msgid "Dot: the 95% interval excludes zero"
 msgstr ""
 
+#: help/command_line.py:102
+msgid "required"
+msgstr ""
+
+#: help/command_line.py:104
+msgid "off"
+msgstr ""
+
+#: help/command_line.py:166
+msgid "Argument"
+msgstr ""
+
+#: help/command_line.py:166
+msgid "What it is"
+msgstr ""
+
+#: help/command_line.py:168
+msgid "Option"
+msgstr ""
+
+#: help/command_line.py:168
+msgid "Default"
+msgstr ""
+
+#: help/command_line.py:168 help/command_line.py:194
+msgid "What it does"
+msgstr ""
+
+#: help/command_line.py:194
+msgid "Command"
+msgstr ""
+
 #: help/contents.py:59
 msgid "Command line"
 msgstr ""
 
-#: help/contents.py:63
+#: help/contents.py:63 help/templates/help/formats.html:6
+#: help/templates/help/formats.html:10 help/views.py:324
 msgid "File formats"
 msgstr ""
 
@@ -5964,7 +6009,7 @@ msgstr ""
 msgid "Batch metadata file"
 msgstr ""
 
-#: help/contents.py:70 help/topics.py:588
+#: help/contents.py:70 help/topics.py:590
 msgid "Gridded input files"
 msgstr ""
 
@@ -5980,7 +6025,8 @@ msgstr ""
 msgid "Guides"
 msgstr ""
 
-#: help/contents.py:107 help/templates/help/index.html:23
+#: help/contents.py:107 help/templates/help/index.html:23 help/views.py:192
+#: help/views.py:260 help/views.py:304
 msgid "Reference"
 msgstr ""
 
@@ -6011,37 +6057,37 @@ msgid ""
 "sector data file, with examples."
 msgstr ""
 
-#: help/guides.py:221
+#: help/guides.py:272
 #, python-format
 msgid "Units: %(units)s"
 msgstr ""
 
-#: help/guides.py:223
+#: help/guides.py:274
 msgid "yearly and monthly values"
 msgstr ""
 
-#: help/guides.py:225
+#: help/guides.py:276
 msgid "monthly values"
 msgstr ""
 
-#: help/guides.py:227
+#: help/guides.py:278
 msgid "yearly values"
 msgstr ""
 
-#: help/guides.py:229
+#: help/guides.py:280
 msgid "uses the base period"
 msgstr ""
 
-#: help/guides.py:236
+#: help/guides.py:287
 msgid "an extra time scale"
 msgstr ""
 
-#: help/guides.py:237
+#: help/guides.py:288
 #, python-format
 msgid "You choose %(what)s in the index settings, in Your inputs."
 msgstr ""
 
-#: help/guides.py:283
+#: help/guides.py:347
 msgid "Help topic"
 msgstr ""
 
@@ -6712,6 +6758,192 @@ msgstr ""
 msgid "several"
 msgstr ""
 
+#: help/reference.py:76
+msgid "median (50th percentile)"
+msgstr ""
+
+#: help/reference.py:77 help/reference.py:78
+msgid "10th percentile"
+msgstr ""
+
+#: help/reference.py:79 help/reference.py:80
+msgid "90th percentile"
+msgstr ""
+
+#: help/reference.py:81 help/reference.py:82
+msgid "95th percentile"
+msgstr ""
+
+#: help/reference.py:83 help/reference.py:84
+msgid "99th percentile"
+msgstr ""
+
+#: help/reference.py:298
+msgid "TM (the mean of TX and TN)"
+msgstr ""
+
+#: help/reference.py:304
+msgid "Daily (DAY): one value for each calendar day"
+msgstr ""
+
+#: help/reference.py:306
+msgid "Monthly (MON) only, over 3, 6 and 12 months and one more you choose"
+msgstr ""
+
+#: help/reference.py:308
+msgid "Yearly (ANN) and monthly (MON)"
+msgstr ""
+
+#: help/reference.py:309
+msgid "Yearly (ANN) only"
+msgstr ""
+
+#: help/reference.py:309
+msgid "Monthly (MON) only"
+msgstr ""
+
+#: help/reference.py:314 help/reference.py:322
+msgid ""
+"Yes: a percentile for each calendar day, from a 5-day window in the base "
+"period (1971–2000 by default)"
+msgstr ""
+
+#: help/reference.py:318
+msgid ""
+"Yes: the percentile for each calendar day, from a 5-day window in the base "
+"period (1971–2000 by default)"
+msgstr ""
+
+#: help/reference.py:326
+msgid ""
+"Yes: the percentiles of TX and TN for each calendar day, from a 5-day window "
+"in the base period (1971–2000 by default)"
+msgstr ""
+
+#: help/reference.py:329
+msgid "Yes: a percentile of the wet days of the base period"
+msgstr ""
+
+#: help/reference.py:330
+msgid "Yes: the distribution is fitted to the base period's months"
+msgstr ""
+
+#: help/reference.py:333
+msgid "Yes: the 90th percentile for each calendar day, from a 15-day window"
+msgstr ""
+
+#: help/reference.py:334
+msgid ""
+"Yes: the 95th percentile of TM, and the 85th of positive EHF, in the base "
+"period"
+msgstr ""
+
+#: help/reference.py:342
+msgid "Yes"
+msgstr ""
+
+#: help/reference.py:349
+#, python-format
+msgid ""
+"no yearly value when more than %(days)s days of the year, or any month, are "
+"missing"
+msgstr ""
+
+#: help/reference.py:351
+#, python-format
+msgid "no monthly value when more than %(days)s days of the month are missing"
+msgstr ""
+
+#: help/reference.py:356
+msgid ""
+"a month needs every month of its time scale; a short base period leaves many "
+"months missing"
+msgstr ""
+
+#: help/reference.py:360
+msgid "calculated from the days of the base period that are not missing"
+msgstr ""
+
+#: help/reference.py:393
+#, python-format
+msgid ""
+"%(label)s: default %(default)s%(unit)s. Set it in the index settings, or "
+"with %(option)s on the command line; the file name carries it: "
+"%(example)s%(unit)s is written %(name)s"
+msgstr ""
+
+#: help/reference.py:412
+msgid "Definition (ET-SCI)"
+msgstr ""
+
+#: help/reference.py:413
+msgid "Name in Climpact for R"
+msgstr ""
+
+#: help/reference.py:414 help/templates/help/index_reference.html:39
+msgid "Unit"
+msgstr ""
+
+#: help/reference.py:415
+msgid "Time scales"
+msgstr ""
+
+#: help/reference.py:416
+msgid "Uses"
+msgstr ""
+
+#: help/reference.py:447 help/reference.py:456 help/reference.py:478
+msgid "Station, yearly"
+msgstr ""
+
+#: help/reference.py:449
+#, python-format
+msgid "also %(parts)s, and the same for TN90"
+msgstr ""
+
+#: help/reference.py:458
+#, python-format
+msgid "also %(parts)s"
+msgstr ""
+
+#: help/reference.py:460
+msgid "Station, daily"
+msgstr ""
+
+#: help/reference.py:465 help/reference.py:482
+msgid "Station, monthly"
+msgstr ""
+
+#: help/reference.py:473
+msgid "Station, daily thresholds"
+msgstr ""
+
+#: help/reference.py:492
+msgid "Gridded, yearly"
+msgstr ""
+
+#: help/reference.py:493
+msgid "Gridded, monthly"
+msgstr ""
+
+#: help/reference.py:494
+msgid "Gridded, daily thresholds"
+msgstr ""
+
+#: help/reference.py:501
+msgid "a scale dimension: 3, 6 and 12 months"
+msgstr ""
+
+#: help/reference.py:503
+#, python-format
+msgid "%(count)s variables"
+msgstr ""
+
+#: help/reference.py:530
+#, python-format
+msgid "writes %(file)s"
+msgstr ""
+
 #: help/sections.py:63
 msgid "Your station file"
 msgstr ""
@@ -6900,7 +7132,7 @@ msgid ""
 "written as r30mm. With 24 months, SPI is written as 24month_spi."
 msgstr ""
 
-#: help/sections.py:214 help/topics.py:423 stations/results.py:49
+#: help/sections.py:214 help/topics.py:425 stations/results.py:49
 #: stations/templates/stations/_settings_fields.html:46 stations/themes.py:71
 msgid "Your own index"
 msgstr ""
@@ -7000,7 +7232,7 @@ msgid ""
 "for R writes the same files in its qc folder."
 msgstr ""
 
-#: help/sections.py:303 help/topics.py:68
+#: help/sections.py:303 help/topics.py:70
 #: stations/templates/stations/downloads.html:84 stations/views_indices.py:132
 msgid "Quality checks"
 msgstr ""
@@ -7027,7 +7259,7 @@ msgstr ""
 msgid "Sector comparison"
 msgstr ""
 
-#: help/sections.py:326 help/topics.py:74 stations/sector_plots.py:339
+#: help/sections.py:326 help/topics.py:76 stations/sector_plots.py:339
 #: stations/templates/stations/sector.html:74
 msgid "Sector data"
 msgstr ""
@@ -7153,7 +7385,7 @@ msgstr ""
 msgid "No thanks"
 msgstr ""
 
-#: help/templates/help/_tour.html:15 help/templates/help/guide.html:20
+#: help/templates/help/_tour.html:15 help/templates/help/guide.html:34
 msgid "Next"
 msgstr ""
 
@@ -7166,15 +7398,19 @@ msgstr ""
 msgid "Step {step} of {total}"
 msgstr ""
 
-#: help/templates/help/guide.html:9
+#: help/templates/help/guide.html:14
 msgid "This guide is not yet translated, so it is shown in English."
 msgstr ""
 
-#: help/templates/help/guide.html:18
+#: help/templates/help/guide.html:23 help/views.py:320
+msgid "Other formats"
+msgstr ""
+
+#: help/templates/help/guide.html:32
 msgid "Other guides"
 msgstr ""
 
-#: help/templates/help/guide.html:19
+#: help/templates/help/guide.html:33
 msgid "Previous"
 msgstr ""
 
@@ -7255,6 +7491,116 @@ msgstr ""
 msgid "Take the tour of the start page"
 msgstr ""
 
+#: help/templates/help/index_page.html:8
+#, python-format
+msgid "%(code)s %(name)s: definition"
+msgstr ""
+
+#: help/templates/help/index_page.html:21 help/views.py:225
+msgid "At a glance"
+msgstr ""
+
+#: help/templates/help/index_page.html:26 help/views.py:226
+msgid "How it is calculated"
+msgstr ""
+
+#: help/templates/help/index_page.html:28
+msgid "Read with care."
+msgstr ""
+
+#: help/templates/help/index_page.html:30 help/views.py:227
+msgid "In the result files"
+msgstr ""
+
+#: help/templates/help/index_page.html:36
+#, python-format
+msgid ""
+"The file layout is described in <a href=\"%(url)s\">The indices: the index "
+"files</a>; values that could not be calculated are written as −99.9."
+msgstr ""
+
+#: help/templates/help/index_page.html:38 help/views.py:228
+msgid "On the command line"
+msgstr ""
+
+#: help/templates/help/index_page.html:42
+#, python-format
+msgid "Every option is in <a href=\"%(url)s\">Command line</a>."
+msgstr ""
+
+#: help/templates/help/index_page.html:44 help/views.py:229
+msgid "Related indices"
+msgstr ""
+
+#: help/templates/help/index_page.html:49 help/views.py:230
+msgid "References"
+msgstr ""
+
+#: help/templates/help/index_page.html:53
+#, python-format
+msgid "Other indices in %(theme)s"
+msgstr ""
+
+#: help/templates/help/index_page.html:54
+#, python-format
+msgid "Previous in %(theme)s"
+msgstr ""
+
+#: help/templates/help/index_page.html:55
+#, python-format
+msgid "Next in %(theme)s"
+msgstr ""
+
+#: help/templates/help/index_reference.html:7
+#, python-format
+msgid "Index reference: the %(count)s ET-SCI climate indices"
+msgstr ""
+
+#: help/templates/help/index_reference.html:19
+#: help/templates/help/index_reference.html:21
+msgid "Find an index"
+msgstr ""
+
+#: help/templates/help/index_reference.html:22
+msgid "Find an index: code, name or word in the definition"
+msgstr ""
+
+#: help/templates/help/index_reference.html:24
+#, python-format
+msgid "Showing all %(count)s"
+msgstr ""
+
+#: help/templates/help/index_reference.html:24
+#, python-format, python-brace-format
+msgid "Showing {shown} of %(count)s"
+msgstr ""
+
+#: help/templates/help/index_reference.html:24
+#, python-format
+msgid "Showing %(shown)s of %(count)s"
+msgstr ""
+
+#: help/templates/help/index_reference.html:25
+msgid "All definitions as CSV (climate.indices.csv)"
+msgstr ""
+
+#: help/templates/help/index_reference.html:39
+msgid "Definition"
+msgstr ""
+
+#: help/templates/help/index_reference.html:39
+msgid "Scales"
+msgstr ""
+
+#: help/templates/help/index_reference.html:48
+msgid "Percentiles"
+msgstr ""
+
+#: help/templates/help/index_reference.html:56
+msgid ""
+"No index matches. Try a code, such as TX90p, or a word of the definition."
+msgstr ""
+
 #: help/templates/help/sections/_station_file_format.html:3
 msgid "What the file must look like"
 msgstr ""
@@ -7302,629 +7648,629 @@ msgstr ""
 msgid "about %(title)s"
 msgstr ""
 
-#: help/topics.py:67
+#: help/topics.py:69
 msgid "Batch processing"
 msgstr ""
 
-#: help/topics.py:69
+#: help/topics.py:71
 msgid "Quality check settings"
 msgstr ""
 
-#: help/topics.py:73
+#: help/topics.py:75
 msgid "Results files"
 msgstr ""
 
-#: help/topics.py:82
+#: help/topics.py:84
 msgid "The station file"
 msgstr ""
 
-#: help/topics.py:84
+#: help/topics.py:86
 msgid ""
 "A text file with one row per day and six columns: year, month, day, "
 "precipitation (mm), maximum and minimum temperature (°C). Write missing "
 "values as -99.9."
 msgstr ""
 
-#: help/topics.py:92
+#: help/topics.py:94
 msgid "What the name is used for"
 msgstr ""
 
-#: help/topics.py:94
+#: help/topics.py:96
 msgid ""
 "Used in the names of the result files and on the plots. Letters, digits, "
 "spaces and . ( ) - _ only."
 msgstr ""
 
-#: help/topics.py:102
+#: help/topics.py:104
 msgid "Why the latitude matters"
 msgstr ""
 
-#: help/topics.py:104
+#: help/topics.py:106
 msgid ""
 "The latitude decides the hemisphere, and so the season used for the growing "
 "season length and the Tx90 and Tn90 heatwaves. Latitude 0 counts as the "
 "Southern Hemisphere, as in Climpact for R."
 msgstr ""
 
-#: help/topics.py:113
+#: help/topics.py:115
 msgid "Does the longitude matter?"
 msgstr ""
 
-#: help/topics.py:114
+#: help/topics.py:116
 msgid ""
 "Recorded with the results. It does not change any index. Negative west of "
 "Greenwich."
 msgstr ""
 
-#: help/topics.py:120
+#: help/topics.py:122
 msgid "What is the base period?"
 msgstr ""
 
-#: help/topics.py:122
+#: help/topics.py:124
 msgid ""
 "The years the percentile thresholds are calculated from, for indices such as "
 "TX90p, WSDI and R95p. Choose 30 years with good data if you can: 1961-1990 "
 "for climate change studies, 1991-2020 for monitoring."
 msgstr ""
 
-#: help/topics.py:131 stations/downloads.py:112 stations/qc_review.py:45
+#: help/topics.py:133 stations/downloads.py:112 stations/qc_review.py:45
 msgid "Outliers"
 msgstr ""
 
-#: help/topics.py:133
+#: help/topics.py:135
 msgid ""
 "Values far from the usual range for their calendar month: more than 3 "
 "interquartile ranges beyond the box for temperatures, and 5 for "
 "precipitation (days with rain only)."
 msgstr ""
 
-#: help/topics.py:139
+#: help/topics.py:141
 msgid "What counts as an outlier?"
 msgstr ""
 
-#: help/topics.py:143
+#: help/topics.py:145
 msgid "Minimum at or above maximum"
 msgstr ""
 
-#: help/topics.py:145
+#: help/topics.py:147
 msgid ""
 "Days where the minimum temperature is equal to or higher than the maximum. "
 "Usually a typing error or swapped columns."
 msgstr ""
 
-#: help/topics.py:150
+#: help/topics.py:152
 msgid "Why would the minimum reach the maximum?"
 msgstr ""
 
-#: help/topics.py:154
+#: help/topics.py:156
 msgid "Values too large"
 msgstr ""
 
-#: help/topics.py:156
+#: help/topics.py:158
 msgid ""
 "Precipitation above 200 mm or below 0, and temperatures above 50 °C or below "
 "-50 °C. They may be real, but check them."
 msgstr ""
 
-#: help/topics.py:161
+#: help/topics.py:163
 msgid "What counts as too large?"
 msgstr ""
 
-#: help/topics.py:165 stations/downloads.py:111
+#: help/topics.py:167 stations/downloads.py:111
 msgid "Repeated dates"
 msgstr ""
 
-#: help/topics.py:167
+#: help/topics.py:169
 msgid ""
 "Dates that appear more than once in the file. The indices use the last row "
 "of a repeated date; remove the others."
 msgstr ""
 
-#: help/topics.py:172
+#: help/topics.py:174
 msgid "Which of the repeated rows is used?"
 msgstr ""
 
-#: help/topics.py:176 stations/qc_review.py:46
+#: help/topics.py:178 stations/qc_review.py:46
 msgid "Jumps in maximum temperature"
 msgstr ""
 
-#: help/topics.py:177
+#: help/topics.py:179
 msgid ""
 "Days where the maximum temperature changed by 20 °C or more from the day "
 "before."
 msgstr ""
 
-#: help/topics.py:180 help/topics.py:188
+#: help/topics.py:182 help/topics.py:190
 msgid "What counts as a jump?"
 msgstr ""
 
-#: help/topics.py:184 stations/qc_review.py:47
+#: help/topics.py:186 stations/qc_review.py:47
 msgid "Jumps in minimum temperature"
 msgstr ""
 
-#: help/topics.py:185
+#: help/topics.py:187
 msgid ""
 "Days where the minimum temperature changed by 20 °C or more from the day "
 "before."
 msgstr ""
 
-#: help/topics.py:192 stations/qc_review.py:48
+#: help/topics.py:194 stations/qc_review.py:48
 msgid "Repeated maximum temperatures"
 msgstr ""
 
-#: help/topics.py:194
+#: help/topics.py:196
 msgid ""
 "The same maximum temperature on many days in a row (more than 5 by default), "
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:199 help/topics.py:210
+#: help/topics.py:201 help/topics.py:212
 msgid "How many repeats are flagged?"
 msgstr ""
 
-#: help/topics.py:203 stations/qc_review.py:49
+#: help/topics.py:205 stations/qc_review.py:49
 msgid "Repeated minimum temperatures"
 msgstr ""
 
-#: help/topics.py:205
+#: help/topics.py:207
 msgid ""
 "The same minimum temperature on many days in a row (more than 5 by default), "
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:216
+#: help/topics.py:218
 msgid ""
 "The number of missing days in each year for each variable. A year with more "
 "than 15 missing days, or a month with more than 3, gets no index value."
 msgstr ""
 
-#: help/topics.py:221
+#: help/topics.py:223
 msgid "When does a year get no index value?"
 msgstr ""
 
-#: help/topics.py:225 stations/templates/stations/_qc_distributions.html:13
+#: help/topics.py:227 stations/templates/stations/_qc_distributions.html:13
 #: stations/templates/stations/_qc_distributions.html:30
 msgid "Decimal values"
 msgstr ""
 
-#: help/topics.py:227
+#: help/topics.py:229
 msgid ""
 "How often each decimal (.0 to .9) occurs. Too many .0 or .5 values point to "
 "rounding by observers, which affects counts of days above a threshold."
 msgstr ""
 
-#: help/topics.py:235
+#: help/topics.py:237
 msgid "Precipitation histogram"
 msgstr ""
 
-#: help/topics.py:237
+#: help/topics.py:239
 msgid ""
 "How often each amount of daily precipitation of 1 mm or more occurs. Gaps or "
 "spikes can show a change of instrument or reporting."
 msgstr ""
 
-#: help/topics.py:247
+#: help/topics.py:249
 msgid ""
 "The daily values of each variable over the whole record, with missing days "
 "marked, to spot gaps and suspect values by eye."
 msgstr ""
 
-#: help/topics.py:252
+#: help/topics.py:254
 msgid "What should I look for in the daily series?"
 msgstr ""
 
-#: help/topics.py:256 stations/views_indices.py:133
+#: help/topics.py:258 stations/views_indices.py:133
 msgid "Homogeneity"
 msgstr ""
 
-#: help/topics.py:258
+#: help/topics.py:260
 msgid ""
 "The checks do not test homogeneity: shifts caused by a station move or a new "
 "instrument. Check and adjust for those with other tools before calculating "
 "indices."
 msgstr ""
 
-#: help/topics.py:268 stations/forms.py:90
+#: help/topics.py:270 stations/forms.py:90
 msgid "Outlier range for temperature"
 msgstr ""
 
-#: help/topics.py:270
+#: help/topics.py:272
 msgid ""
 "How many interquartile ranges beyond the box a temperature must be to count "
 "as an outlier. Default 3; a smaller number flags more values."
 msgstr ""
 
-#: help/topics.py:278 stations/forms.py:97
+#: help/topics.py:280 stations/forms.py:97
 msgid "Outlier range for precipitation"
 msgstr ""
 
-#: help/topics.py:280
+#: help/topics.py:282
 msgid ""
 "How many interquartile ranges beyond the box a day's precipitation must be "
 "to count as an outlier. Default 5."
 msgstr ""
 
-#: help/topics.py:288 stations/forms.py:104
+#: help/topics.py:290 stations/forms.py:104
 msgid "Largest daily precipitation"
 msgstr ""
 
-#: help/topics.py:289
+#: help/topics.py:291
 msgid ""
 "Daily precipitation above this amount (mm) is flagged for checking. Default "
 "200."
 msgstr ""
 
-#: help/topics.py:295 stations/forms.py:111
+#: help/topics.py:297 stations/forms.py:111
 msgid "Largest temperature"
 msgstr ""
 
-#: help/topics.py:297
+#: help/topics.py:299
 msgid ""
 "Temperatures above this value, or below its negative (°C), are flagged for "
 "checking. Default 50."
 msgstr ""
 
-#: help/topics.py:305 stations/forms.py:118
+#: help/topics.py:307 stations/forms.py:118
 msgid "Days without change"
 msgstr ""
 
-#: help/topics.py:307
+#: help/topics.py:309
 msgid ""
 "A temperature that stays exactly the same for more than this many days in a "
 "row is flagged. Default 5."
 msgstr ""
 
-#: help/topics.py:315
+#: help/topics.py:317
 msgid "Temperature change"
 msgstr ""
 
-#: help/topics.py:317
+#: help/topics.py:319
 msgid ""
 "A change from one day to the next of this many degrees (°C) or more is "
 "flagged. Default 20."
 msgstr ""
 
-#: help/topics.py:326 help/topics.py:540 stations/forms_indices.py:116
+#: help/topics.py:328 help/topics.py:542 stations/forms_indices.py:116
 msgid "Plot title"
 msgstr ""
 
-#: help/topics.py:327
+#: help/topics.py:329
 msgid ""
 "Printed at the top of every plot. The station name is used if you leave it "
 "empty."
 msgstr ""
 
-#: help/topics.py:333 stations/forms_indices.py:122
+#: help/topics.py:335 stations/forms_indices.py:122
 #: stations/views_indices.py:309
 msgid "Days for WSDId"
 msgstr ""
 
-#: help/topics.py:335
+#: help/topics.py:337
 msgid ""
 "How many days in a row the maximum temperature must be above its 90th "
 "percentile to count towards WSDId. WSDI itself always uses 6. From 1 to 10; "
 "default 1."
 msgstr ""
 
-#: help/topics.py:343 stations/forms_indices.py:129
+#: help/topics.py:345 stations/forms_indices.py:129
 #: stations/views_indices.py:310
 msgid "Days for CSDId"
 msgstr ""
 
-#: help/topics.py:345
+#: help/topics.py:347
 msgid ""
 "How many days in a row the minimum temperature must be below its 10th "
 "percentile to count towards CSDId. CSDI itself always uses 6. From 1 to 10; "
 "default 1."
 msgstr ""
 
-#: help/topics.py:353 stations/forms_indices.py:136
+#: help/topics.py:355 stations/forms_indices.py:136
 #: stations/views_indices.py:311
 msgid "Days for Rxdday"
 msgstr ""
 
-#: help/topics.py:355
+#: help/topics.py:357
 msgid ""
 "The length of the wettest spell Rxdday reports: the largest total over this "
 "many days in a row. Rx1day and Rx5day are always calculated too. Default 3."
 msgstr ""
 
-#: help/topics.py:363 stations/forms_indices.py:142
+#: help/topics.py:365 stations/forms_indices.py:142
 #: stations/views_indices.py:312
 msgid "Days for TXdTNd and TXbdTNbd"
 msgstr ""
 
-#: help/topics.py:365
+#: help/topics.py:367
 msgid ""
 "How many days in a row both the maximum and minimum temperature must be "
 "above their 95th percentile (TXdTNd) or below their 5th (TXbdTNbd). Default "
 "2."
 msgstr ""
 
-#: help/topics.py:373
+#: help/topics.py:375
 msgid "Base temperature for heating degree days"
 msgstr ""
 
-#: help/topics.py:375
+#: help/topics.py:377
 msgid ""
 "HDDheat adds up how far the daily mean temperature falls below this value "
 "(°C). Default 18."
 msgstr ""
 
-#: help/topics.py:383
+#: help/topics.py:385
 msgid "Base temperature for cooling degree days"
 msgstr ""
 
-#: help/topics.py:385
+#: help/topics.py:387
 msgid ""
 "CDDcold adds up how far the daily mean temperature rises above this value "
 "(°C). Default 18."
 msgstr ""
 
-#: help/topics.py:393
+#: help/topics.py:395
 msgid "Base temperature for growing degree days"
 msgstr ""
 
-#: help/topics.py:395
+#: help/topics.py:397
 msgid ""
 "GDDgrow adds up how far the daily mean temperature rises above this value "
 "(°C), the temperature a crop needs to grow. Default 10."
 msgstr ""
 
-#: help/topics.py:403
+#: help/topics.py:405
 msgid "Rain amount for Rnnmm"
 msgstr ""
 
-#: help/topics.py:405
+#: help/topics.py:407
 msgid ""
 "Rnnmm counts the days with at least this much precipitation (mm). R10mm and "
 "R20mm are always calculated too. Default 30."
 msgstr ""
 
-#: help/topics.py:413 stations/forms_indices.py:163
+#: help/topics.py:415 stations/forms_indices.py:163
 #: stations/views_indices.py:317
 msgid "Extra SPI and SPEI time scale"
 msgstr ""
 
-#: help/topics.py:415
+#: help/topics.py:417
 msgid ""
 "SPI and SPEI are always calculated over 3, 6 and 12 months. This adds one "
 "more time scale, in months. Default 24."
 msgstr ""
 
-#: help/topics.py:425
+#: help/topics.py:427
 msgid ""
 "Counts the days a variable (TX, TN, TM, DTR or precipitation) is above or "
 "below a value you choose, for each year and month. TX ≥ 40 is written as "
 "TXge40."
 msgstr ""
 
-#: help/topics.py:437
+#: help/topics.py:439
 msgid ""
 "The trend is the median of the slopes between every pair of years. Unlike a "
 "least-squares line it is hardly affected by a few extreme years. Units are "
 "the index's units per year."
 msgstr ""
 
-#: help/topics.py:446
+#: help/topics.py:448
 msgid "Lower and upper bounds"
 msgstr ""
 
-#: help/topics.py:448
+#: help/topics.py:450
 msgid ""
 "The 95% confidence interval of the slope. If both bounds have the same sign, "
 "the trend is significant at the 5% level."
 msgstr ""
 
-#: help/topics.py:456
+#: help/topics.py:458
 msgid "Is the trend significant?"
 msgstr ""
 
-#: help/topics.py:458
+#: help/topics.py:460
 msgid ""
 "The trend file has no p-value. Read significance from the bounds: when the "
 "interval from lower to upper bound does not include zero, the trend is "
 "significant at the 5% level."
 msgstr ""
 
-#: help/topics.py:467
+#: help/topics.py:469
 msgid "When there is no trend"
 msgstr ""
 
-#: help/topics.py:469
+#: help/topics.py:471
 msgid ""
 "A trend needs at least 10 values and at least 70% of the series present. "
 "Otherwise the bounds and slope are left empty (NA)."
 msgstr ""
 
-#: help/topics.py:477
+#: help/topics.py:479
 msgid "Seasonal trends"
 msgstr ""
 
-#: help/topics.py:479
+#: help/topics.py:481
 msgid ""
 "For monthly indices the trend file also gives trends for December-February, "
 "March-May, June-August and September-November."
 msgstr ""
 
-#: help/topics.py:488
+#: help/topics.py:490
 msgid "Missing values in the results"
 msgstr ""
 
-#: help/topics.py:490
+#: help/topics.py:492
 msgid ""
 "Years and months without enough data are written as -99.9 in the index "
 "files. Remove them before calculating with the values in a spreadsheet."
 msgstr ""
 
-#: help/topics.py:498
+#: help/topics.py:500
 msgid "Standardised values"
 msgstr ""
 
-#: help/topics.py:500
+#: help/topics.py:502
 msgid ""
 "Each value minus the mean of all years, divided by their standard deviation, "
 "so indices with different units can be compared."
 msgstr ""
 
-#: help/topics.py:508
+#: help/topics.py:510
 msgid "Threshold file"
 msgstr ""
 
-#: help/topics.py:510
+#: help/topics.py:512
 msgid ""
 "The percentile thresholds for each day of the year, calculated from the base "
 "period. For interest; the indices have already used them."
 msgstr ""
 
-#: help/topics.py:518
+#: help/topics.py:520
 msgid "What is in the download"
 msgstr ""
 
-#: help/topics.py:520
+#: help/topics.py:522
 msgid ""
 "Folders for the quality checks (qc), index tables (indices), plots, "
 "thresholds (thres), trends (trend) and sector correlation (corr). The PDF "
 "report is a separate download."
 msgstr ""
 
-#: help/topics.py:530
+#: help/topics.py:532
 msgid "The sector data file"
 msgstr ""
 
-#: help/topics.py:532
+#: help/topics.py:534
 msgid ""
 "A CSV file of yearly values, such as crop yields: a first row of column "
 "names, then a year and a value on each row. Write missing values as -99.9."
 msgstr ""
 
-#: help/topics.py:541
+#: help/topics.py:543
 msgid ""
 "Printed on each correlation plot. The station name is used if you leave it "
 "empty."
 msgstr ""
 
-#: help/topics.py:547
+#: help/topics.py:549
 msgid "Label for the y axis"
 msgstr ""
 
-#: help/topics.py:549
+#: help/topics.py:551
 msgid ""
 "The name and units of your sector data, for example Wheat yield (t/ha). "
 "Taken from the file name if you leave it empty."
 msgstr ""
 
-#: help/topics.py:557
+#: help/topics.py:559
 msgid "Detrend the sector data"
 msgstr ""
 
-#: help/topics.py:559
+#: help/topics.py:561
 msgid ""
 "Removes the long-term trend from the sector data before comparing. Without "
 "it, a steady rise in yields from better farming can look like a link with "
 "warming."
 msgstr ""
 
-#: help/topics.py:567
+#: help/topics.py:569
 msgid "Correlation with the indices"
 msgstr ""
 
-#: help/topics.py:569
+#: help/topics.py:571
 msgid ""
 "The correlation coefficient (from -1 to 1) between the sector data and each "
 "index, over the years both have. It shows association, not cause."
 msgstr ""
 
-#: help/topics.py:577
+#: help/topics.py:579
 msgid "Regression on temperature"
 msgstr ""
 
-#: help/topics.py:579
+#: help/topics.py:581
 msgid ""
 "Scatter plots of the sector data against yearly mean maximum, minimum and "
 "mean temperature and days above 30 °C, with a fitted line and R²."
 msgstr ""
 
-#: help/topics.py:590
+#: help/topics.py:592
 msgid ""
 "CF netCDF files with daily maximum and minimum temperature and precipitation "
 "on a shared time axis. A variable may be in one file or split along time "
 "across several (one per year, say), which are joined in time order."
 msgstr ""
 
-#: help/topics.py:599
+#: help/topics.py:601
 msgid "Variable names"
 msgstr ""
 
-#: help/topics.py:601
+#: help/topics.py:603
 msgid ""
 "The names of the maximum temperature, minimum temperature and precipitation "
 "variables in your files, for example tasmax, tasmin and pr."
 msgstr ""
 
-#: help/topics.py:609
+#: help/topics.py:611
 msgid "Base period for a grid"
 msgstr ""
 
-#: help/topics.py:611
+#: help/topics.py:613
 msgid ""
 "The years the percentile thresholds are calculated from in every cell. It "
 "must lie within the files, unless you give a thresholds file."
 msgstr ""
 
-#: help/topics.py:621
+#: help/topics.py:623
 msgid ""
 "Percentile thresholds calculated earlier from another set of files, for "
 "example a historical run, so that a future run uses the same thresholds."
 msgstr ""
 
-#: help/topics.py:630
+#: help/topics.py:632
 msgid ""
 "Choose fewer indices to finish sooner. Every index is calculated by default."
 msgstr ""
 
-#: help/topics.py:636
+#: help/topics.py:638
 msgid "Output file names"
 msgstr ""
 
-#: help/topics.py:638
+#: help/topics.py:640
 msgid ""
 "One netCDF file per index and time scale, named in the CMIP5 style, for "
 "example r20mm_ANN_climpact_historical_NA_1991-2010.nc."
 msgstr ""
 
-#: help/topics.py:647
+#: help/topics.py:649
 msgid ""
 "Your institution's name and id, written into the output files' attributes."
 msgstr ""
 
-#: help/topics.py:653
+#: help/topics.py:655
 msgid "Processor threads"
 msgstr ""
 
-#: help/topics.py:654
+#: help/topics.py:656
 msgid ""
 "How many processor threads calculate cells at once. More is faster, up to "
 "your cores."
 msgstr ""
 
-#: help/topics.py:660
+#: help/topics.py:662
 msgid "Values read at once"
 msgstr ""
 
-#: help/topics.py:662
+#: help/topics.py:664
 msgid ""
 "How many million values are read into memory at a time. Lower it if the "
 "computer runs out of memory. Default 5, or less for a small grid, so that "
 "progress shows in small steps."
 msgstr ""
 
-#: help/topics.py:701
+#: help/topics.py:703
 #, python-format
 msgid "%(definition)s. Units: %(units)s."
 msgstr ""
 
-#: help/topics.py:721 stations/templates/stations/_index_lead.html:6
+#: help/topics.py:723 stations/templates/stations/_index_lead.html:6
 #, python-format
 msgid "Name in Climpact for R: %(name)s."
 msgstr ""
@@ -7964,6 +8310,77 @@ msgstr ""
 msgid ""
 "Every workspace you start is listed here. Calculations run in the "
 "background: come back to them, even after closing the page."
+msgstr ""
+
+#: help/views.py:114
+msgid "Search the help."
+msgstr ""
+
+#: help/views.py:139
+msgid "daily maximum temperature"
+msgstr ""
+
+#: help/views.py:140
+msgid "daily minimum"
+msgstr ""
+
+#: help/views.py:141
+msgid "mean of TX and TN"
+msgstr ""
+
+#: help/views.py:143
+msgid "daily precipitation"
+msgstr ""
+
+#: help/views.py:144
+msgid "wet day"
+msgstr ""
+
+#: help/views.py:147
+msgid "the years percentiles come from, 1971–2000 by default"
+msgstr ""
+
+#: help/views.py:159
+msgid "Calculate it"
+msgstr ""
+
+#: help/views.py:160
+#, python-format
+msgid "%(code)s for your own stations, with its trend and chart."
+msgstr ""
+
+#: help/views.py:178
+#, python-format
+msgid ""
+"The %(count)s indices Climpact calculates, as defined by the WMO Expert Team "
+"on Sector-specific Climate Indices (ET-SCI), which include the 27 ETCCDI "
+"indices. Each has a page with its definition, unit, settings and the files "
+"it is written to."
+msgstr ""
+
+#: help/views.py:261
+msgid "Command line: climpact run, batch and gridded"
+msgstr ""
+
+#: help/views.py:298
+msgid ""
+"The files Climpact reads: the station file, the batch metadata file, the "
+"gridded netCDF inputs and the sector data file, each with an example and its "
+"rules."
+msgstr ""
+
+#: help/views.py:319
+msgid "Example"
+msgstr ""
+
+#: help/views.py:334
+msgid "Check a file"
+msgstr ""
+
+#: help/views.py:336
+msgid ""
+"Add it to a workspace: the file is read and every problem listed before "
+"anything is calculated."
 msgstr ""
 
 #: jobs/models.py:19 stations/workspace.py:451
@@ -8128,7 +8545,7 @@ msgstr ""
 msgid "%(m)d min %(s)d s"
 msgstr ""
 
-#: settings.py:171
+#: settings.py:176
 msgid "English"
 msgstr ""
 

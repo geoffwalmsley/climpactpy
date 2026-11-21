@@ -2,7 +2,12 @@
 
 from django.urls import include, path
 
+from climpact_web.help import seo
+
 urlpatterns = [
+    # For search engines (#319): the help is the indexable part of the hosted site.
+    path("robots.txt", seo.robots, name="robots"),
+    path("sitemap.xml", seo.sitemap, name="sitemap"),
     path("i18n/", include("django.conf.urls.i18n")),
     path("jobs/", include("climpact_web.jobs.urls")),
     # Stations and batches (``/station/…``, ``/batch/…``) and the workspaces they belong to

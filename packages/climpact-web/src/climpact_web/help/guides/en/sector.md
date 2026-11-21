@@ -30,7 +30,8 @@ Year,Wheat yield (t/ha)
 1924,1.13
 ```
 
-Your data and the station must have **at least 10 years in common**. Climpact for R's
+Your data and the station must have **at least 10 years in common**. The
+[sector data file format](guide:format-sector-data) page has the specification on its own. Climpact for R's
 sample is yearly wheat yields for New South Wales, 1922 to 1999
 (`wheat_yield_nsw_1922-1999.csv`), which goes with the Sydney sample station. "Use the
 sample data" on the page uses it, and the help home's [Sample data](url:help:index#samples-title) has

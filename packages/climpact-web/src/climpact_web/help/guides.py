@@ -12,7 +12,14 @@ not depend on where the app is mounted:
 - ``guide:<slug>#<anchor>`` for another guide (``guide:#<anchor>`` for the same one);
 - ``url:<url name>#<anchor>`` for a page of the app, e.g. ``url:stations:new`` or
   ``url:help:index#samples-title``; a page that does not exist yet (gridded, #85) leaves
-  the link text without a link.
+  the link text without a link;
+- ``index:<code>`` for an index's page in the index reference (#319), e.g. ``index:wsdid``.
+
+Besides the guides, the help's Reference pages (#319) are Markdown files rendered the same
+way, with their own addresses (``REFERENCE_GUIDES``): the command-line guide, whose option
+tables are generated from the ``climpact`` command's parser (:mod:`.command_line`), and the
+file-format pages. They are not in ``GUIDE_ORDER``: they have no Previous and Next and are
+listed under Reference in the help's contents.
 
 The indices guide has a generated catalogue: the line ``[[index-catalogue]]`` is replaced
 with Markdown built from the core's ``climate.indices.csv`` before rendering, so the
@@ -52,7 +59,40 @@ GUIDE_ORDER = (
     "accessibility",  # the accessibility statement (#83), linked from every page's footer
 )
 
+# The Reference pages written as Markdown (#319): slug -> (URL name, URL arguments).
+REFERENCE_GUIDES = {
+    "command-line": ("help:command_line", ()),
+    "format-station-file": ("help:format", ("station-file",)),
+    "format-batch-metadata": ("help:format", ("batch-metadata",)),
+    "format-gridded-inputs": ("help:format", ("gridded-inputs",)),
+    "format-sector-data": ("help:format", ("sector-data",)),
+}
+FORMAT_PREFIX = "format-"
+
+# Guides whose address is not their slug: the index reference has /help/indices/ (#319),
+# so the guide to the indices moved to /help/about-the-indices/.
+GUIDE_PATHS = {"indices": "about-the-indices"}
+
+
+def guide_slug(path: str) -> str | None:
+    """The guide at ``/help/<path>/``, or None (a Reference page has its own address)."""
+    for slug, moved in GUIDE_PATHS.items():
+        if path == moved:
+            return slug
+    if path in GUIDE_PATHS or path not in GUIDE_ORDER:
+        return None
+    return path
+
+
 CATALOGUE_MARKER = "[[index-catalogue]]"
+
+
+def guide_url(slug: str) -> str:
+    """The address of a guide or a Reference page."""
+    if slug in REFERENCE_GUIDES:
+        name, args = REFERENCE_GUIDES[slug]
+        return reverse(name, args=args or None)
+    return reverse("help:guide", args=[GUIDE_PATHS.get(slug, slug)])
 
 
 @dataclass
@@ -78,7 +118,7 @@ class Guide:
 
     @property
     def url(self) -> str:
-        return reverse("help:guide", args=[self.slug])
+        return guide_url(self.slug)
 
 
 def language_candidates(language: str | None) -> list[str]:
@@ -94,7 +134,7 @@ def language_candidates(language: str | None) -> list[str]:
 
 
 def guide_path(slug: str, language: str | None = None) -> tuple[Path, str] | None:
-    if slug not in GUIDE_ORDER:
+    if slug not in GUIDE_ORDER and slug not in REFERENCE_GUIDES:
         return None
     for code in language_candidates(language):
         path = GUIDES_DIR / code / f"{slug}.md"
@@ -119,6 +159,11 @@ def all_guides(language: str | None = None) -> list[Guide]:
     return [g for g in (get_guide(slug, language) for slug in GUIDE_ORDER) if g]
 
 
+def reference_guides(language: str | None = None) -> list[Guide]:
+    """The Reference pages written as Markdown: the command line and the file formats."""
+    return [g for g in (get_guide(slug, language) for slug in REFERENCE_GUIDES) if g]
+
+
 @lru_cache(maxsize=64)
 def _render(slug: str, language: str, mtime: int, active_language: str) -> Guide:
     """Render once per file version, file language and interface language (the generated
@@ -127,6 +172,10 @@ def _render(slug: str, language: str, mtime: int, active_language: str) -> Guide
     text = path.read_text(encoding="utf-8")
     if CATALOGUE_MARKER in text:
         text = text.replace(CATALOGUE_MARKER, catalogue_markdown())
+    if slug == "command-line":
+        from climpact_web.help.command_line import expand
+
+        text = expand(text)
     md = markdown.Markdown(
         extensions=["meta", "tables", "fenced_code", "attr_list", "def_list", "toc", "sane_lists"],
         extension_configs={"toc": {"toc_depth": "2-3", "permalink": False}},
@@ -150,7 +199,7 @@ def _render(slug: str, language: str, mtime: int, active_language: str) -> Guide
     )
 
 
-_LINK = re.compile(r'href="(guide|url):([^"]*)"')
+_LINK = re.compile(r'href="(guide|url|index):([^"]*)"')
 
 
 def resolve_links(body: str, slug: str) -> str:
@@ -159,7 +208,9 @@ def resolve_links(body: str, slug: str) -> str:
         target, _, anchor = target.partition("#")
         fragment = "#" + anchor if anchor else ""
         if scheme == "guide":
-            return f'href="{reverse("help:guide", args=[target or slug])}{fragment}"'
+            return f'href="{guide_url(target or slug)}{fragment}"'
+        if scheme == "index":
+            return f'href="{reverse("help:index", args=[target.lower()])}{fragment}"'
         try:
             return f'href="{reverse(target)}{fragment}"'
         except NoReverseMatch:
@@ -261,7 +312,11 @@ def search(query: str, language: str | None = None, limit: int = 30) -> list[Res
     if not words:
         return []
     results: list[Result] = []
-    for guide in all_guides(language):
+    for guide in all_guides(language) + reference_guides(language):
+        lead = guide.slug in REFERENCE_GUIDES and guide.summary
+        if lead and all(w in f"{guide.title} {guide.summary}".lower() for w in words):
+            score = sum(3 if w in guide.title.lower() else 1 for w in words) + 1
+            results.append(Result(guide.title, guide.url, guide.summary, guide.title, score))
         for section in guide.sections:
             title, text = section.title.lower(), section.text.lower()
             if all(w in title or w in text for w in words):
@@ -275,6 +330,15 @@ def search(query: str, language: str | None = None, limit: int = 30) -> list[Res
                         score=score,
                     )
                 )
+    from climpact_web.help.reference import search_entries
+
+    for entry in search_entries():
+        title, text = entry["title"], entry["text"]
+        if all(w in title.lower() or w in text.lower() for w in words):
+            score = sum(4 if w in title.lower() else 1 for w in words)
+            results.append(
+                Result(title, entry["url"], excerpt(text, words), gettext("Index reference"), score)
+            )
     for topic in topics().values():
         title, text = str(topic.title), str(topic.text)
         if all(w in title.lower() or w in text.lower() for w in words):

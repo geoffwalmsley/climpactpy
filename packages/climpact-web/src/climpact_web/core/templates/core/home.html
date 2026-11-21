@@ -17,7 +17,7 @@ What you need; and a closing Get started. Context from core.views.home.
 {% block content %}
 {% include "help/_tour.html" %}
 {% translate "Get started" as start_label %}
-{% url 'stations:sample_file' as template_url %}{% url 'help:guide' 'batch' as metadata_guide %}{% url 'help:guide' 'indices' as indices_guide %}
+{% url 'stations:sample_file' as template_url %}{% url 'help:guide' 'batch' as metadata_guide %}
 <div>
   {% if returning %}
   <div class="landing__welcome" role="region" aria-label="{% translate 'Welcome back' %}">

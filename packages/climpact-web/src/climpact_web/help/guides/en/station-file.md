@@ -23,7 +23,8 @@ year month day prcp tmax tmin
 ```
 
 This is the format of Climpact for R and RClimDex, so files prepared for them work
-unchanged. The [sample station file](url:stations:sample_file) is a good template.
+unchanged. The [station file format](guide:format-station-file) page has the
+specification on its own. The [sample station file](url:stations:sample_file) is a good template.
 
 ## Missing values {#missing-values}
 

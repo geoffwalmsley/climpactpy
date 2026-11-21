@@ -22,7 +22,7 @@ from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
 from climpact_web.core.navigation import url_or_none
-from climpact_web.help.guides import GUIDE_ORDER, get_guide
+from climpact_web.help.guides import GUIDE_ORDER, get_guide, guide_url
 from climpact_web.help.indices import catalogue
 
 # Guides listed under More rather than Guides: they are not a step of the work.
@@ -152,7 +152,7 @@ def reference_cards() -> list[dict]:
         url = item.url
         if url is None and item.fallback:
             slug, anchor = item.fallback
-            url = f"{reverse('help:guide', args=[slug])}#{anchor}"
+            url = f"{guide_url(slug)}#{anchor}"
         if url is None:
             continue
         text, hint = CARD_TEXT[item.key]

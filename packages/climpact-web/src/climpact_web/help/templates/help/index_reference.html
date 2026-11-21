@@ -1,0 +1,59 @@
+{% extends "help/frame.html" %}
+{% load i18n static %}{% comment %}
+The index reference (#319, the HelpIndices board): every index by theme (stations.themes),
+each row linking to the index's page. Find and the theme pills are a GET form (?q=,
+?theme=) that js/help-indices.js runs in place. Context from help.views.index_reference.
+{% endcomment %}
+{% block title %}{% blocktranslate with count=total %}Index reference: the {{ count }} ET-SCI climate indices{% endblocktranslate %}{% endblock %}
+{% block breadcrumb %}{% include "help/_crumbs.html" %}{% endblock %}
+{% block page_header %}
+<header class="stack stack--sm">
+  <h1>{% translate "Index reference" %}</h1>
+  <p class="lead">{{ lead }}</p>
+</header>
+<dl class="help-abbreviations">
+  {% for term, meaning in abbreviations %}<div><dt>{{ term }}</dt> <dd>{{ meaning }}</dd></div>{% endfor %}
+</dl>
+{% endblock %}
+{% block page_body %}
+<form class="help-indices-filter" method="get" action="{% url 'help:index_reference' %}" role="search" aria-label="{% translate 'Find an index' %}" data-help-indices>
+  <div class="help-indices-filter__row">
+    <label class="sr-only" for="help-indices-q">{% translate "Find an index" %}</label>
+    <input type="search" id="help-indices-q" name="q" value="{{ query }}" placeholder="{% translate 'Find an index: code, name or word in the definition' %}" autocomplete="off">
+    <button class="button button--secondary button--sm" type="submit" data-help-indices-submit>{% translate "Find" %}</button>
+    <p class="help-indices-filter__count" aria-live="polite" data-help-indices-count data-all="{% blocktranslate with count=total %}Showing all {{ count }}{% endblocktranslate %}" data-some="{% blocktranslate with count=total %}Showing {shown} of {{ count }}{% endblocktranslate %}">{% if shown == total %}{% blocktranslate with count=total %}Showing all {{ count }}{% endblocktranslate %}{% else %}{% blocktranslate with count=total %}Showing {{ shown }} of {{ count }}{% endblocktranslate %}{% endif %}</p>
+    <a class="help-indices-filter__csv" href="{% url 'help:index_csv' %}">{% translate "All definitions as CSV (climate.indices.csv)" %}</a>
+  </div>
+  <div class="help-indices-filter__pills" role="group" aria-label="{% translate 'Theme' %}">
+    {% for pill in pills %}
+    <button type="submit" name="theme" value="{{ pill.key }}" class="theme-pill {{ pill.hue }}" aria-pressed="{% if pill.current %}true{% else %}false{% endif %}" data-theme="{{ pill.key }}">{% if pill.hue %}<span class="hue-dot" aria-hidden="true"></span>{% endif %}{{ pill.label }} <span class="theme-pill__count">{{ pill.count }}</span></button>
+    {% endfor %}
+  </div>
+</form>
+<div class="help-indices" data-help-indices-list>
+  {% for group in groups %}
+  <section class="help-indices__theme {{ group.hue }}" id="{{ group.key }}" data-theme="{{ group.key }}"{% if not group.matches %} hidden{% endif %}>
+    <h2 id="theme-{{ group.key }}"><span class="hue-dot" aria-hidden="true"></span>{{ group.label }} <span class="help-indices__count">{{ group.count }}</span></h2>
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="theme-{{ group.key }}">
+      <table class="table help-indices__table">
+        <thead><tr><th scope="col">{% translate "Code" %}</th><th scope="col">{% translate "Name" %}</th><th scope="col">{% translate "Definition" %}</th><th scope="col">{% translate "Unit" %}</th><th scope="col" class="help-indices__wide">{% translate "Scales" %}</th><th scope="col" class="help-indices__wide">{% translate "Base period" %}</th></tr></thead>
+        <tbody>
+          {% for row in group.rows %}
+          <tr data-search="{{ row.search }}"{% if not row.match %} hidden{% endif %}>
+            <th scope="row" class="help-indices__code"><a href="{{ row.url }}">{{ row.code }}</a></th>
+            <td>{{ row.name }}</td>
+            <td class="help-indices__definition">{{ row.definition }}</td>
+            <td>{{ row.unit }}</td>
+            <td class="help-indices__scales help-indices__wide">{{ row.scales }}</td>
+            <td class="help-indices__wide">{% if row.base_period %}{% translate "Percentiles" %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+  <p class="help-indices__none" data-help-indices-none{% if shown %} hidden{% endif %}>{% translate "No index matches. Try a code, such as TX90p, or a word of the definition." %}</p>
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'climpact_web/js/help-indices.js' %}" defer></script>{% endblock %}

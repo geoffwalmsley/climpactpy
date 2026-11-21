@@ -248,7 +248,7 @@ def test_landing_page(client):
     assert re.search(r"<summary[^>]*>.*Menu.*</summary>", menu, re.S)
     assert re.findall(r'<a href="([^"]+)"', menu) == [
         *re.findall(r'href="([^"]+)"', nav),
-        "/help/indices/#the-indices",
+        "/help/indices/",
     ]
     assert 'aria-label="Main"' in menu
 

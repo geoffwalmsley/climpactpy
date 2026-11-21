@@ -6,7 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>{% block title %}{% translate "Climpact" %}{% endblock %}{% block title_suffix %} &middot; {% translate "Climpact" %}{% endblock %}</title>
-  <link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
+  {# For search engines (#319, help.seo): the help pages' description and canonical address; noindex in local mode and on the help's search and filtered pages. #}
+  {% if page_meta.description %}<meta name="description" content="{{ page_meta.description }}">
+  {% endif %}{% if page_meta.canonical %}<link rel="canonical" href="{{ page_meta.canonical }}">
+  {% endif %}{% if robots_noindex or page_meta.noindex %}<meta name="robots" content="noindex">
+  {% endif %}<link rel="icon" href="{% static 'climpact_web/icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'climpact_web/css/climpact.css' %}">
   {# htmx without eval, inline scripts or the <style> it would inject (the Content Security Policy, #137). #}
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>

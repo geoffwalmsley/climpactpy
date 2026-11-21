@@ -1,0 +1,24 @@
+{% extends "help/frame.html" %}
+{% load i18n %}{% comment %}
+The file formats (#319): a card for each format page, the format's name, its lead and a
+mono line of what it looks like.
+{% endcomment %}
+{% block title %}{% translate "File formats" %}{% endblock %}
+{% block breadcrumb %}{% include "help/_crumbs.html" %}{% endblock %}
+{% block page_header %}
+<header class="stack stack--sm">
+  <h1>{% translate "File formats" %}</h1>
+  <p class="lead">{{ lead }}</p>
+</header>
+{% endblock %}
+{% block page_body %}
+<ul class="help-cards">
+  {% for card in cards %}
+  <li class="card card--link help-card">
+    <h2 class="card__title help-card__title"><a href="{{ card.url }}">{{ card.label }}</a></h2>
+    <p class="card__body help-card__text">{{ card.summary }}</p>
+    <p class="help-card__hint">{{ card.hint }}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

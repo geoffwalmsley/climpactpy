@@ -371,8 +371,9 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # and the workspace header, #197; 71,000 before the colour roles and theme hues, #196;
 # 154,000 before the gridded map and its eight-bin scales, #295; 142,000 before the
 # gridded set-up page and its summary panel, #293; 170,000 before the help frame, #325;
-# 176,000 before the gridded map's diverging scales, #296)
-CSS_BUDGET = 180_000
+# 176,000 before the gridded map's diverging scales, #296; 180,000 before the help's
+# Reference pages, #319)
+CSS_BUDGET = 186_000
 # gzipped: 28,500 before #296 (the map's diverging scales), 27,500 before #325 (the help
 # frame), 27,250 before #294 (a gridded run's stages), 25 KB before #295 (the gridded
 # map), 23.5 KB before #293 (the gridded set-up

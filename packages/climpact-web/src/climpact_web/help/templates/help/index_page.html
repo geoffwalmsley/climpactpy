@@ -1,0 +1,58 @@
+{% extends "help/frame.html" %}
+{% load i18n %}{% comment %}
+One index (#319, the HelpIndex board): the code and name with the theme pill, the lead, At
+a glance (generated), How it is calculated, In the result files, On the command line,
+Related indices, References, and Previous / Next within the theme. Context from
+help.views.index_page (help.reference.page).
+{% endcomment %}
+{% block title %}{% blocktranslate with code=page.code name=page.name %}{{ code }} {{ name }}: definition{% endblocktranslate %}{% endblock %}
+{% block breadcrumb %}{% include "help/_crumbs.html" %}{% endblock %}
+{% block page_header %}
+<header class="stack stack--sm help-index-header {{ page.hue }}">
+  <div class="help-index-header__title">
+    <h1><span class="help-index-header__code">{{ page.code }}</span> {{ page.name }}</h1>
+    {% if page.theme %}<span class="theme-pill theme-pill--static"><span class="hue-dot" aria-hidden="true"></span>{{ page.theme.label }}</span>{% endif %}
+  </div>
+  <div class="lead">{{ page.lead|safe }}</div>
+</header>
+{% endblock %}
+{% block page_body %}
+<article class="help-article help-index">
+  <h2 id="facts" class="sr-only">{% translate "At a glance" %}</h2>
+  <dl class="help-facts">
+    {% for term, value in page.facts %}<dt>{{ term }}</dt><dd>{{ value }}</dd>{% endfor %}
+  </dl>
+
+  <h2 id="calculation">{% translate "How it is calculated" %}</h2>
+  {% for paragraph in page.calculation %}{{ paragraph|safe }}{% endfor %}
+  {% if page.caveat %}<div class="help-caveat"><p class="help-caveat__title">{% translate "Read with care." %}</p>{{ page.caveat|safe }}</div>{% endif %}
+
+  <h2 id="files">{% translate "In the result files" %}</h2>
+  <div class="table-wrap" tabindex="0" role="region" aria-labelledby="files">
+    <table class="table help-files">
+      <tbody>{% for what, name in page.files %}<tr><th scope="row">{{ what }}</th><td><code>{{ name }}</code></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <p>{% blocktranslate with url=files_guide %}The file layout is described in <a href="{{ url }}">The indices: the index files</a>; values that could not be calculated are written as −99.9.{% endblocktranslate %}</p>
+
+  <h2 id="command-line">{% translate "On the command line" %}</h2>
+  <pre class="help-terminal"><code>{% for line in page.command_line %}{% if line.comment %}<span class="help-terminal__comment">{{ line.text }}</span>{% else %}<span class="help-terminal__prompt" aria-hidden="true">{{ line.prompt }}</span>{{ line.text }}{% endif %}
+{% endfor %}</code></pre>
+  {% url 'help:command_line' as cli_url %}
+  <p>{% blocktranslate with url=cli_url %}Every option is in <a href="{{ url }}">Command line</a>.{% endblocktranslate %}</p>
+
+  <h2 id="related">{% translate "Related indices" %}</h2>
+  <ul class="help-related">
+    {% for item in page.related %}<li><a class="theme-pill" href="{{ item.url }}"><span class="help-related__code">{{ item.code }}</span> {{ item.name }}</a></li>{% endfor %}
+  </ul>
+
+  <h2 id="references">{% translate "References" %}</h2>
+  {% for ref in page.references %}<p class="help-reference">{{ ref }}</p>{% endfor %}
+</article>
+{% if page.previous or page.next %}
+<nav class="help-pager" aria-label="{% blocktranslate with theme=page.theme.label %}Other indices in {{ theme }}{% endblocktranslate %}">
+  {% if page.previous %}<a class="help-pager__link" href="{{ page.previous.url }}" rel="prev"><span class="text-sm text-text-muted">{% blocktranslate with theme=page.theme.label %}Previous in {{ theme }}{% endblocktranslate %}</span><span><span class="help-related__code">{{ page.previous.code }}</span> {{ page.previous.name }}</span></a>{% endif %}
+  {% if page.next %}<a class="help-pager__link help-pager__link--next" href="{{ page.next.url }}" rel="next"><span class="text-sm text-text-muted">{% blocktranslate with theme=page.theme.label %}Next in {{ theme }}{% endblocktranslate %}</span><span><span class="help-related__code">{{ page.next.code }}</span> {{ page.next.name }}</span></a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

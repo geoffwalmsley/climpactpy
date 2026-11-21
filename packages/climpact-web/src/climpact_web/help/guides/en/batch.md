@@ -44,7 +44,8 @@ sydney_a.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24
 sydney_b.txt	-33.86	151.21	3	3	18	18	10	3	30	2	24
 ```
 
-The 12 columns, in this order:
+The [batch metadata file format](guide:format-batch-metadata) page has the specification
+on its own. The 12 columns, in this order:
 
 | Column | Meaning |
 | --- | --- |

@@ -274,7 +274,14 @@ def site(chrome, server):
         ("gridded new run", f"/gridded/new/?dir={quote(str(GRIDS))}"),  # #289, #292
         ("help", "/help/"),
         ("help guide", "/help/quality-control/"),
-        ("help indices", "/help/indices/"),
+        ("help indices", "/help/indices/"),  # the index reference (#319)
+        ("help indices filtered", "/help/indices/?theme=drought"),
+        ("help index", "/help/indices/tx90p/"),
+        ("help index caveat", "/help/indices/spi/"),
+        ("help command line", "/help/command-line/"),
+        ("help formats", "/help/formats/"),
+        ("help format", "/help/formats/station-file/"),
+        ("help guide moved", "/help/about-the-indices/"),
         ("help topics", "/help/topics/"),
         ("help search", "/help/search/?q=base+period"),
         ("accessibility statement", "/help/accessibility/"),

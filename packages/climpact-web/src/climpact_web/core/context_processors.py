@@ -15,6 +15,8 @@ def site(request):
         "climpact_web_version": climpact_web.__version__,
         "show_language_switcher": len(settings.LANGUAGES) > 1,
         "is_hosted": settings.IS_HOSTED,
+        # Only the hosted site is for search engines (#319): local mode sends noindex.
+        "robots_noindex": not settings.IS_HOSTED,
         "nav_items": nav_items(request),
         "page_help": page_help(request),
         "index_reference_url": index_reference_url(),

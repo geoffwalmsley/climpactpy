@@ -45,7 +45,7 @@ from climpact_web.batch import check
 from climpact_web.batch.fill import ADDED, JOB_METADATA, JOB_STATIONS, add_stations
 from climpact_web.batch.forms import OptionsForm, cpu_count
 from climpact_web.batch.models import BatchRun
-from climpact_web.core.limits import Refused, disk_required, human_required
+from climpact_web.core.limits import Refused, check_job_quotas, disk_required, human_required
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Job
 from climpact_web.jobs.views import OWNER_KEY, create_job, owner_token
@@ -472,7 +472,10 @@ def _keep_file(station: Station, inspection, file_name: str) -> None:
 
 def add_one(request, run: BatchRun, row) -> Station:
     """One station: a station of the workspace, checked and calculated with its own jobs
-    (Quality opens), as New station did (#201). The waiting files go."""
+    (Quality opens), as New station did (#201). The waiting files go. The hosted limits
+    are checked first, as for several stations (:func:`queue_batch`): a refusal makes no
+    station and the review stays, with its files and what was typed (#351)."""
+    check_job_quotas(request)  # one change for the hosted limits: refused now, nothing made
     space = run.workspace
     inspection = inspect_station_bytes((run.files_dir / row.file).read_bytes())
     sample = row.file == review_module.SAMPLE_FILE and run.report.get("sample")
@@ -495,9 +498,15 @@ def add_one(request, run: BatchRun, row) -> Station:
             # the user's own at once, as a batch's stations are, not speculative.
             station.advance_to(Step.INDICES)
         station.save()
-        run.delete_files()
-        run.delete()
-    calculation.bring_up_to_date(request, station)
+    try:
+        calculation.bring_up_to_date(request, station)
+    except Refused:
+        # Refused after all (two requests at once: the checks are a brake, not a lock).
+        station.delete_files()
+        station.delete()
+        raise
+    run.delete_files()
+    run.delete()
     if several:
         calculation.commit_workspace(request, space)  # the first station, if not yet
     return station

@@ -326,6 +326,48 @@ def test_a_full_queue_refuses_new_jobs(hosted):
 
 
 @pytest.mark.django_db
+def test_a_refused_station_is_not_added_and_its_review_stays(hosted):
+    """A refusal of "Add 1 station and check it" (#351) makes no station, without checks
+    or a run: the review keeps its file and what was typed, to be sent again once there
+    is room, as a refused batch of several stations does."""
+    hosted.MAX_ACTIVE_JOBS_PER_IP = 1
+    client = visitor()
+    assert start_qc(client).status_code == 302
+    stations, jobs = Station.objects.count(), Job.objects.count()
+    review = upload(client)["Location"]
+    response = client.post(review, ADD | {"name-0": "Second"})
+    assert response.status_code == 429
+    assert "Back button" in response.content.decode()
+    assert (Station.objects.count(), Job.objects.count()) == (stations, jobs)
+    page = client.get(review)
+    assert page.status_code == 200
+    assert "stn.txt" in page.content.decode() and 'value="Second"' in page.content.decode()
+    # Once there is room, the same review adds it.
+    for job in Job.objects.all():
+        job.request_cancel()
+    response = client.post(review, ADD | {"name-0": "Second"})
+    assert response.status_code == 302
+    added = Station.objects.get(station_name="Second")
+    assert added.qc_job is not None
+
+
+@pytest.mark.django_db
+def test_a_station_refused_by_its_checks_is_taken_back(hosted, monkeypatch):
+    """Two requests at once may both pass the check made before the station (the checks
+    are a brake, not a lock): the refusal of its checks then takes the station back."""
+    from climpact_web.stations import views_add
+
+    hosted.MAX_ACTIVE_JOBS_PER_IP = 1
+    client = visitor()
+    assert start_qc(client).status_code == 302
+    monkeypatch.setattr(views_add, "check_job_quotas", lambda request: None)
+    review = upload(client)["Location"]
+    assert client.post(review, ADD).status_code == 429
+    assert Station.objects.count() == 1
+    assert client.get(review).status_code == 200
+
+
+@pytest.mark.django_db
 def test_low_disk_refuses_uploads_and_jobs(hosted, monkeypatch, caplog):
     monkeypatch.setattr(limits, "free_disk_bytes", lambda path: 1024**3)  # 1 GB < 2 GB
     client = visitor()

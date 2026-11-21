@@ -253,7 +253,9 @@ def _modules(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Modul
     return selection
 
 
-def _parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:
+    """The ``climpact`` command's parser. The web app's command-line guide builds its
+    option tables from it (``climpact_web.help.cli``), so its help text is user-facing."""
     parser = argparse.ArgumentParser(
         prog="climpact", description="Climpact indices of daily climate extremes."
     )
@@ -271,25 +273,52 @@ def _parser() -> argparse.ArgumentParser:
 
     station = run.add_argument_group("station")
     station.add_argument("--name", help="station name (default: the file name without suffix)")
-    station.add_argument("--lat", type=float, default=0.0, help="latitude (default: %(default)s)")
-    station.add_argument("--lon", type=float, default=0.0, help="longitude (default: %(default)s)")
     station.add_argument(
-        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+        "--lat",
+        type=float,
+        default=0.0,
+        metavar="DEGREES",
+        help="latitude, negative south; decides the hemisphere for GSL and the heatwave "
+        "season (default: %(default)s)",
     )
     station.add_argument(
-        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+        "--lon", type=float, default=0.0, metavar="DEGREES", help="longitude (default: %(default)s)"
+    )
+    station.add_argument(
+        "--base-start",
+        type=int,
+        default=1971,
+        metavar="YEAR",
+        help="first base period year (default: %(default)s)",
+    )
+    station.add_argument(
+        "--base-end",
+        type=int,
+        default=2000,
+        metavar="YEAR",
+        help="last base period year (default: %(default)s)",
     )
 
     params = run.add_argument_group("index parameters")
-    params.add_argument("--wsdi-days", type=int, default=DEFAULTS.wsdi_days, help=_DEFAULT)
-    params.add_argument("--csdi-days", type=int, default=DEFAULTS.csdi_days, help=_DEFAULT)
-    params.add_argument("--rx-days", type=int, default=DEFAULTS.rx_days, help=_DEFAULT)
-    params.add_argument("--txtn-days", type=int, default=DEFAULTS.txtn_days, help=_DEFAULT)
-    params.add_argument("--hdd-base", type=float, default=DEFAULTS.hdd_base, help=_DEFAULT)
-    params.add_argument("--cdd-base", type=float, default=DEFAULTS.cdd_base, help=_DEFAULT)
-    params.add_argument("--gdd-base", type=float, default=DEFAULTS.gdd_base, help=_DEFAULT)
-    params.add_argument("--rnnmm", type=float, default=DEFAULTS.rnnmm, help=_DEFAULT)
-    params.add_argument("--spei-months", type=int, default=DEFAULTS.spei_months, help=_DEFAULT)
+    for flag, attr, kind, metavar, text in (
+        ("--wsdi-days", "wsdi_days", int, "DAYS", "days in a row for WSDId (wsdi<n>)"),
+        ("--csdi-days", "csdi_days", int, "DAYS", "days in a row for CSDId (csdi<n>)"),
+        ("--rx-days", "rx_days", int, "DAYS", "days for Rxdday (rx<n>day)"),
+        ("--txtn-days", "txtn_days", int, "DAYS", "days in a row for TXdTNd and TXbdTNbd"),
+        ("--hdd-base", "hdd_base", float, "DEG_C", "base temperature of HDDheat, in degrees C"),
+        ("--cdd-base", "cdd_base", float, "DEG_C", "base temperature of CDDcold, in degrees C"),
+        ("--gdd-base", "gdd_base", float, "DEG_C", "base temperature of GDDgrow, in degrees C"),
+        ("--rnnmm", "rnnmm", float, "MM", "precipitation amount for Rnnmm, in mm"),
+        ("--spei-months", "spei_months", int, "MONTHS", "extra SPI and SPEI time scale"),
+    ):
+        params.add_argument(
+            flag,
+            dest=attr,
+            type=kind,
+            default=getattr(DEFAULTS, attr),
+            metavar=metavar,
+            help=f"{text}; {_DEFAULT}",
+        )
     custom = params.add_mutually_exclusive_group()
     custom.add_argument(
         "--custom",
@@ -326,15 +355,24 @@ def _parser() -> argparse.ArgumentParser:
     batch.add_argument("data_dir", type=Path, help="folder holding the station files")
     batch.add_argument("--out", type=Path, required=True, help="output folder")
     batch.add_argument(
-        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+        "--base-start",
+        type=int,
+        default=1971,
+        metavar="YEAR",
+        help="first base period year (default: %(default)s)",
     )
     batch.add_argument(
-        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+        "--base-end",
+        type=int,
+        default=2000,
+        metavar="YEAR",
+        help="last base period year (default: %(default)s)",
     )
     batch.add_argument(
         "--workers",
         type=int,
         default=None,
+        metavar="N",
         help="number of stations to run at once (default: one per CPU)",
     )
     batch.add_argument(
@@ -368,15 +406,27 @@ def _parser() -> argparse.ArgumentParser:
     grid.add_argument("--tmin", default="tasmin", help="TN variable name (" + _DEFAULT + ")")
     grid.add_argument("--prec", default="pr", help="precipitation variable name (" + _DEFAULT + ")")
     grid.add_argument(
-        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+        "--base-start",
+        type=int,
+        default=1971,
+        metavar="YEAR",
+        help="first base period year (default: %(default)s)",
     )
     grid.add_argument(
-        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+        "--base-end",
+        type=int,
+        default=2000,
+        metavar="YEAR",
+        help="last base period year (default: %(default)s)",
     )
     grid.add_argument("--institution", default=None, help="author institution (global attribute)")
     grid.add_argument("--institution-id", default=None, help="author institution id")
     grid.add_argument(
-        "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
+        "--workers",
+        type=int,
+        default=1,
+        metavar="N",
+        help="threads computing cells (" + _DEFAULT + ")",
     )
     _add_grid_input_args(grid)
 
@@ -386,7 +436,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Calculate the indices of every cell of a grid of daily TX, TN and "
         "precipitation, and write one netCDF file per index and frequency in the layout "
         "of Climpact's climpact.ncdf.wrapper.r. Temperatures may be in K or degrees_C, "
-        "precipitation in kg m-2 d-1 or kg m-2 s-1. Not yet written: hw, hwEHF, spi, spei.",
+        "precipitation in kg m-2 d-1 or kg m-2 s-1.",
     )
     gi.add_argument("input_files", type=Path, nargs="+", help=_INPUT_FILES_HELP)
     gi.add_argument("--out", type=Path, required=True, help="output directory")
@@ -401,10 +451,18 @@ def _parser() -> argparse.ArgumentParser:
     gi.add_argument("--tmin", default="tasmin", help="TN variable name (" + _DEFAULT + ")")
     gi.add_argument("--prec", default="pr", help="precipitation variable name (" + _DEFAULT + ")")
     gi.add_argument(
-        "--base-start", type=int, default=1971, help="first base period year (default: %(default)s)"
+        "--base-start",
+        type=int,
+        default=1971,
+        metavar="YEAR",
+        help="first base period year (default: %(default)s)",
     )
     gi.add_argument(
-        "--base-end", type=int, default=2000, help="last base period year (default: %(default)s)"
+        "--base-end",
+        type=int,
+        default=2000,
+        metavar="YEAR",
+        help="last base period year (default: %(default)s)",
     )
     gi.add_argument(
         "--indices",
@@ -425,18 +483,23 @@ def _parser() -> argparse.ArgumentParser:
     gi.add_argument("--institution-id", default=None, help="author institution id")
     from climpact.gridded.indices import WRAPPER_PARAMS as W
 
-    for flag, attr, kind, text in (
-        ("--wsdi-days", "wsdi_days", int, "days for wsdi<n> (R's wsdin_n)"),
-        ("--csdi-days", "csdi_days", int, "days for csdi<n> (R's csdin_n)"),
-        ("--rx-days", "rx_days", int, "days for rx<n>day (R's rxnday_n)"),
-        ("--txtn-days", "txtn_days", int, "days for tx<n>tn<n>, txb<n>tnb<n> (ntxntn_n)"),
-        ("--hdd-base", "hdd_base", float, "base temperature of hddheat (hddheatn_n)"),
-        ("--cdd-base", "cdd_base", float, "base temperature of cddcold (cddcoldn_n)"),
-        ("--gdd-base", "gdd_base", float, "base temperature of gddgrow (gddgrown_n)"),
-        ("--rnnmm", "rnnmm", float, "precipitation threshold of r<nn>mm (rnnmm_n)"),
+    for flag, attr, kind, metavar, text in (
+        ("--wsdi-days", "wsdi_days", int, "DAYS", "days for wsdi<n> (R's wsdin_n)"),
+        ("--csdi-days", "csdi_days", int, "DAYS", "days for csdi<n> (R's csdin_n)"),
+        ("--rx-days", "rx_days", int, "DAYS", "days for rx<n>day (R's rxnday_n)"),
+        ("--txtn-days", "txtn_days", int, "DAYS", "days for tx<n>tn<n>, txb<n>tnb<n> (ntxntn_n)"),
+        ("--hdd-base", "hdd_base", float, "DEG_C", "base temperature of hddheat (hddheatn_n)"),
+        ("--cdd-base", "cdd_base", float, "DEG_C", "base temperature of cddcold (cddcoldn_n)"),
+        ("--gdd-base", "gdd_base", float, "DEG_C", "base temperature of gddgrow (gddgrown_n)"),
+        ("--rnnmm", "rnnmm", float, "MM", "precipitation threshold of r<nn>mm (rnnmm_n)"),
     ):
         gi.add_argument(
-            flag, dest=attr, type=kind, default=getattr(W, attr), help=f"{text}; {_DEFAULT}"
+            flag,
+            dest=attr,
+            type=kind,
+            default=getattr(W, attr),
+            metavar=metavar,
+            help=f"{text}; {_DEFAULT}",
         )
     gi.add_argument(
         "--trends",
@@ -446,7 +509,11 @@ def _parser() -> argparse.ArgumentParser:
         "calendar month of every monthly index (R has no counterpart)",
     )
     gi.add_argument(
-        "--workers", type=int, default=1, help="threads computing cells (" + _DEFAULT + ")"
+        "--workers",
+        type=int,
+        default=1,
+        metavar="N",
+        help="threads computing cells (" + _DEFAULT + ")",
     )
     _add_grid_input_args(gi)
 
@@ -813,7 +880,7 @@ def modules_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = _parser()
+    parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "run":
         return run_command(args, parser)

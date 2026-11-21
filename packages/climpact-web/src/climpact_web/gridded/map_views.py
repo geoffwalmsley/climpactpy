@@ -11,9 +11,15 @@ run's ``trends.nc`` (#290, :mod:`climpact.gridded.trends`).
 
 ``trends.nc`` holds the annual series only: every annual file's variables, and SPI and
 SPEI's 12-month scale in December. So the three views are offered for an annual file
-and for SPI and SPEI (at the 12-month scale, in December); not for a monthly file, a
-day-of-year file or a run without ``trends.nc`` (calculated before #290, or with the
-trends turned off), which keep Year and say why (:func:`unavailable`).
+and for SPI and SPEI (at the 12-month scale, in December); not for a day-of-year file or
+a run without ``trends.nc`` (calculated before #290, or with the trends turned off),
+which keep Year and say why (:func:`unavailable`).
+
+A monthly file (#348) has Base mean, Anomaly and the grid mean of the chosen month,
+computed here from the month's values in every year (:func:`month_trends`, with
+:mod:`climpact.gridded.trends`'s functions, so they are what the core would write for
+that series), with or without ``trends.nc``; its Trend is not offered: a month's Sen's
+slope on request takes seconds on a large grid (measured in #348).
 
 The diverging scales (:func:`palette`) have eight bins symmetric about zero, with fixed
 breaks for the file (:func:`symmetric_edges`, round numbers over the values of every
@@ -55,26 +61,32 @@ CACHE_BYTES = 128 * 1024 * 1024
 @dataclass
 class Trends:
     """One index of ``trends.nc``: per cell (the index file's ``(y, x)``) its slope per
-    decade and 95% interval, and its base-period mean; the grid mean per year."""
+    decade and 95% interval, and its base-period mean; the grid mean per year. For a
+    monthly file's ``month`` (:func:`month_trends`) there is no slope (None), and no grid
+    mean where the grid's Y is not latitude."""
 
-    slope: np.ndarray
-    lower: np.ndarray
-    upper: np.ndarray
+    slope: np.ndarray | None
+    lower: np.ndarray | None
+    upper: np.ndarray | None
     base_mean: np.ndarray
-    grid_mean: np.ndarray
+    grid_mean: np.ndarray | None
     years: list[int]
     base: tuple[int, int] | None
     period: tuple[int, int] | None
+    month: int | None = None
 
     @property
     def significant(self) -> np.ndarray:
         """Cells whose 95% interval excludes zero (False where there is no trend)."""
+        if self.lower is None or self.upper is None:
+            return np.zeros(self.base_mean.shape, bool)
         with np.errstate(invalid="ignore"):
             return (self.lower > 0) | (self.upper < 0)
 
     @property
     def nbytes(self) -> int:
-        return sum(a.nbytes for a in (self.slope, self.lower, self.upper, self.base_mean))
+        arrays = (self.slope, self.lower, self.upper, self.base_mean, self.grid_mean)
+        return sum(a.nbytes for a in arrays if a is not None)
 
 
 def trends_path(job) -> Path | None:
@@ -148,13 +160,41 @@ def is_spi(short: str) -> bool:
     return short in ("spi", "spei")
 
 
+def is_monthly(layer: maps.Layer, short: str) -> bool:
+    """A monthly file whose views are computed here (:func:`month_trends`): not SPI and
+    SPEI, whose views are trends.nc's 12-month scale in December."""
+    return layer.freq == "MON" and not is_spi(short)
+
+
+def job_base(job) -> tuple[int, int] | None:
+    """The base period the run's indices job was given, None when it says none."""
+    params = (job.params or {}) if job is not None else {}
+    try:
+        return int(params["base_start"]), int(params["base_end"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def unavailable(job, layer: maps.Layer, short: str, has_annual: bool) -> str:
     """Why Base mean, Anomaly, Trend and the grid mean are not offered for ``layer``; ""
-    when they are (``trends.nc`` has its annual series)."""
+    when they are (``trends.nc`` has its annual series). For a monthly file, why Trend is
+    not (the others are, :func:`month_trends`)."""
     from climpact_web.gridded.stages import has_trends
 
     if layer.freq == "DAY":
         return _("Base mean, Anomaly and Trend are of an index's years, not of its days.")
+    if is_monthly(layer, short):
+        reason = (
+            _("Trend is of the annual series: choose Annual.")
+            if has_annual
+            else _("Trend is of the annual series; this index has none.")
+        )
+        if not layer.y_latitude:
+            reason += " " + _(
+                "The index file holds no latitude of the grid's cells, so a month has no "
+                "mean over the grid."
+            )
+        return reason
     path = trends_path(job)
     if path is None:
         if not has_trends(job):
@@ -166,13 +206,60 @@ def unavailable(job, layer: maps.Layer, short: str, has_annual: bool) -> str:
             "This run has no trends file (trends.nc): it was calculated before Climpact "
             "wrote one. Start it again on Set-up to add one."
         )
-    if layer.freq == "MON" and not is_spi(short):
-        if has_annual:
-            return _("Base mean, Anomaly and Trend are of the annual series: choose Annual.")
-        return _("Base mean, Anomaly and Trend are of the annual series; this index has none.")
     if read_trends(path, layer.variable) is None:
         return _("The run's trends file has no trend of this index.")
     return ""
+
+
+def month_trends(path: Path, layer: maps.Layer, month: int, base: tuple[int, int]) -> Trends:
+    """A monthly file's ``month`` as :class:`Trends` without a slope: each cell's mean of
+    the month over the ``base`` period's years with a value
+    (:func:`climpact.gridded.trends.base_means`) and the mean over the grid of the month
+    in each year, weighted by the cosine of the cells' latitude
+    (:func:`climpact.gridded.trends.grid_means`; None where the grid's Y is not
+    latitude). From the month's values (:func:`maps.month_values`, read holding the
+    netCDF lock), in stripes of rows as :func:`~climpact.gridded.trends.write_grid_trends`
+    reads them, so the numbers are the core's for that series. Kept, as trends.nc's."""
+    from climpact.gridded import trends as core
+
+    key = (*maps._key(path, layer.variable, 0), "month", month, base)
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+    values = maps.month_values(path, layer, month)
+    years = [layer.years[t] for t in maps.month_steps(layer, month)]
+    n, ny, nx = values.shape
+    base_mean = np.full((ny, nx), np.nan)
+    weights = None
+    if layer.y_latitude:
+        weights = core.cell_weights(np.broadcast_to(np.asarray(layer.lat)[:, None], (ny, nx)))
+    total, wsum = np.zeros(n), np.zeros(n)
+    rows = max(1, core.MAX_CELLS // max(nx, 1))
+    for y0 in range(0, ny, rows):
+        ys = slice(y0, min(y0 + rows, ny))
+        cells = values[:, ys, :].reshape(n, -1).T.astype(float)  # (cells, years)
+        base_mean[ys] = core.base_means(cells, years, *base).reshape(-1, nx)
+        if weights is not None:
+            t, w = core._weighted_sums(cells.T, weights[ys].reshape(-1))
+            total += t
+            wsum += w
+    found = Trends(
+        slope=None,
+        lower=None,
+        upper=None,
+        base_mean=base_mean,
+        grid_mean=core._ratio(total, wsum) if weights is not None else None,
+        years=years,
+        base=base,
+        period=None,
+        month=month,
+    )
+    with _cache_lock:
+        _cache[key] = found
+        while len(_cache) > 1 and sum(t.nbytes for t in _cache.values() if t) > CACHE_BYTES:
+            _cache.popitem(last=False)
+    return found
 
 
 # ---- The scales --------------------------------------------------------------------------------
@@ -369,6 +456,8 @@ __all__ = [
     "Field",
     "Trends",
     "field",
+    "is_monthly",
+    "month_trends",
     "palette",
     "read_trends",
     "scale_of",

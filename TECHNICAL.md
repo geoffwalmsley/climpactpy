@@ -21,8 +21,9 @@ variable of all 88 index files R writes per grid, including the heatwave, EHF, S
 SPEI files, bit for bit on all eight reference grids, three of them in the `noleap` and
 `360_day` calendars (#66; see [Gridded data](#gridded-data)). With `--trends` (and always
 in the web app) a gridded run also writes `trends.nc`, each cell's Sen's slope per decade,
-its 95% interval and base-period mean, and the grid mean, of every annual index (#290).
-R's gridded code has no counterpart; each cell's trend equals the station trend file's
+its 95% interval and base-period mean, and the grid mean, of every annual index (#290)
+and of each calendar month of every monthly index (#348). R's gridded code has no
+counterpart; each cell's trend equals the station trend file's
 calculation on that cell's values (see [Gridded trends](#gridded-trends)).
 Every file is also written text-identical to R's on all 16 runs, apart from the `Date_of_calculation` line (on platforms other than glibc
 x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi-and-spei)):
@@ -145,7 +146,8 @@ src/climpact/
                      climdex.spei and the SPEI package's spei() (spei_package), with
                      TLMoments' PWMs and lmom's pelglo, pelgam, cdfglo, cdfgam
     trends.py        trends.nc (#290, not in R): sen_trends() (climpact.trends.sen_trend
-                     vectorised over cells), base_means(), grid_means(), write_grid_trends()
+                     vectorised over cells), base_means(), grid_means(), annual_series(),
+                     monthly_series() (#348), write_grid_trends()
   qc.py              per-value QC checks (duplicates, tmaxmin, toolarge, jumps, flatline,
                      outliers with R's fivenum and boxplot.stats)
   data/
@@ -1151,7 +1153,8 @@ to lmomco's `pargam`, gets `NULL` and stops; Python leaves the month missing.
 R's gridded code writes no trends: `climpact.ncdf.wrapper.r` writes the index files only.
 The gridded map's Base mean, Anomaly and Trend views and its grid mean (#296) need them, so
 `gridded/trends.py` (#290) applies the station trend (`climpact.trends`, see
-[Trend file](#trend-file)) to every cell of the annual index files a run writes.
+[Trend file](#trend-file)) to every cell of the annual index files a run writes, and to
+each calendar month of every cell of the monthly ones (#348).
 `climpact gridded-indices --trends` writes `<out>/trends.nc` after the index files; the
 web app's `gridded-indices` job does so by default (its stage `trends`, "Trends and the
 map", see [Background jobs](#background-jobs)).
@@ -1163,6 +1166,10 @@ index files of one run
        per series, per stripe of rows (max_cells, default 100,000 cells):
                   sen_trends -> slope, lower, upper   batches of 512 cells on worker threads
                   base_means, and the weighted sums of the grid mean
+       monthly_series       the monthly files' series (#348)
+       per series, per stripe of rows (max_cells / 12 cells):
+                  the stripe read once, split into its 12 months' series,
+                  sen_trends of all of them together, base_means, the weighted sums
        trends.nc            written under a temporary name, renamed when complete
 ```
 
@@ -1176,6 +1183,15 @@ SPI and SPEI have only monthly files: their series is the 12-month scale's Decem
 row. `tx95t` (a day-of-year climatology) has none. All series must share the grid and the
 years (`ValueError` otherwise); with no annual series nothing is written (`None`).
 
+**Monthly series** (#348, for the map's Trend of a monthly file). Every index variable of
+each monthly file without a scale dimension (`txx_MON`, `prcptot_MON`: 33 files in a full
+run; `monthly_series`) gives twelve series a cell, one per calendar month, each over the
+annual files' years: the January values, the February values, and so on. A month the file
+lacks in a year (an input starting in March) is a missing value of that month's series; a
+monthly file with a year the annual files lack is refused (`ValueError`). SPI and SPEI keep
+their one annual series (above). The rules, the arithmetic and `x` (whole years) are the
+annual series', so each month's slope is `sen_trend` of that month's values.
+
 **Per cell**, for each series `<name>`:
 
 | Variable | Dimensions | What |
@@ -1184,6 +1200,19 @@ years (`ValueError` otherwise); with no annual series nothing is written (`None`
 | `<name>_lower`, `<name>_upper` | Y, X | its 95% interval (`confint.zyp`), per decade |
 | `<name>_base_mean` | Y, X | the mean of the base-period years that have a value, as the station index page's base-period mean (`index_page.base_mean`); missing when none has |
 | `<name>_grid_mean` | time | the mean over the cells with a value, weighted by the cosine of the cell's latitude (`cell_weights`; the input's `cell_latitude()`, or the files' Y coordinate) |
+| `<name>_MON_slope`, `_lower`, `_upper`, `_base_mean` | month, Y, X | the same of each calendar month's series of a monthly file, float32 (#348) |
+| `<name>_MON_grid_mean` | month, time | the grid mean of each month in each year, float32 |
+
+The monthly variables are named after the monthly files (`txx_MON_…`) because a monthly
+file's variable has its annual file's name (`txx`): `<name>_slope` stays the annual
+series', so readers of #290's layout (the web app's `map_views.read_trends`, #296) see
+the same variables, and the monthly ones sit beside them in the same group, with the
+`month` coordinate, where any netCDF reader finds them (a separate group would need
+`group=` in xarray and is not CF). `tests/test_gridded_trends.py` checks that a run's
+annual variables are the same, values, attributes and layout, with or without monthly
+files; on the `grid_sample` reference grid main's and this layout's `trends.nc` have the
+same annual variables (checked by hand for #348), and differ only in the monthly variables
+and the `trend_method` sentence on them.
 
 The trend rules are the station's: missing unless at least 10 values and 70% of the years
 have one (`min_trend_data`). Missing cells (the fill value in the index file) stay missing.
@@ -1207,12 +1236,18 @@ bound positions outside the slopes (`confint.zyp`'s edge cases) goes to `sen_tre
 bit for bit (series with ties, ties only in float32, heavy ties, constant series, missing
 values, too few values, infinite values, values of very different sizes; with and without
 threads), that `_mean_of_two` is `r_mean`, and that the file holds, per cell, the station
-trend of the values in the index file, with missing cells missing.
+trend of the values in the index file, with missing cells missing; for a monthly file,
+that each cell's slope and interval of each month are `sen_trend` of that month's series
+rounded to float32, and its base and grid means `base_means` and `grid_means` of it.
 
 **Writing.** Dimensions `time` (the years of the annual files, with their `time` values,
 attributes and bounds; the December values' for SPI and SPEI alone), Y and X (the index
-files' coordinates and attributes), `bnds`. Variables are float64 with fill value 1e20,
-compressed; each has `units` (the index's, `<units> per decade` for the slope and its
+files' coordinates and attributes), `bnds`, and `month` (1 to 12, with a coordinate
+variable, when a monthly file has series). The annual variables are float64 with fill
+value 1e20, compressed; the monthly ones float32 (half the size: about 81 MB a monthly
+index on a 700 × 900 grid, where float64 would take about 160 MB), compressed, chunked one
+month of one stripe of rows (`(1, rows, X)`), so each stripe writes whole chunks and a
+month reads alone (0.05–0.1 s on that grid). Each has `units` (the index's, `<units> per decade` for the slope and its
 bounds), `long_name`, `index_file`, and `cell_methods` for the means. Global attributes:
 `title`, `base_period`, `trend_period`, `trend_method`, `source`,
 `climpact_python_version`, `file_created`. See [Performance](#gridded-trends-1) for
@@ -2598,7 +2633,7 @@ exercise only those said to be):
 | Gridded indices: bounds variables of X and Y, a `grid_mapping` variable and two-dimensional coordinate variables named in `coordinates` are copied to every index file | not copied, as for the thresholds; X and Y are float64 |
 | Gridded indices: `create.climdex.cmip5.filenames` names monthly files with years only (it looks for `_mon` in lower case) and needs a six-part template; `rxnday_n = 5` writes `rx5day` twice | the same names; a template with fewer parts is refused; `rx5day` is written once |
 | Gridded indices: `create.ncdf.output.files` gives tx95t's `time` a `calendar` of `365_day`, replaced by the input time's calendar when it has one; its `bounds` attribute names a variable that does not exist | the same |
-| R's gridded code (`climpact.ncdf.wrapper.r`) writes no trends, base-period means or grid means | **Not in R** (#290): `trends.nc` (`gridded/trends.py`, `climpact gridded-indices --trends`, on by default in the web app): each cell's Sen's slope per decade and 95% interval, computed as the station trend file does and equal to `climpact.trends.sen_trend` on the cell's values bit for bit; the base-period mean; the cos-latitude weighted grid mean. The index files are unchanged. No R reference; see [Gridded trends](#gridded-trends) |
+| R's gridded code (`climpact.ncdf.wrapper.r`) writes no trends, base-period means or grid means | **Not in R** (#290): `trends.nc` (`gridded/trends.py`, `climpact gridded-indices --trends`, on by default in the web app): each cell's Sen's slope per decade and 95% interval, computed as the station trend file does and equal to `climpact.trends.sen_trend` on the cell's values bit for bit; the base-period mean; the cos-latitude weighted grid mean; the same for each calendar month of a monthly file, in float32 (#348). The index files are unchanged. No R reference; see [Gridded trends](#gridded-trends) |
 
 ### Quality control
 
@@ -2846,6 +2881,20 @@ values, Apple M-series laptop with other work running:
 `sen_trend` called cell by cell takes about 0.17 ms per series, about 260 s for the ACCESS
 grid's 1.5 million series. Most of the time left is `np.partition` (the four order
 statistics of 1,770 slopes per series); reading and writing take under 10%.
+
+**Monthly series** (#348), on a synthetic 700 x 900 grid of 60 years (an annual and a
+monthly TXx file, float32 to one decimal, chunked `(T, 1, 76)` as the core writes them,
+30% of the cells missing), 4 threads, Apple M-series with other work running:
+
+| `trends.nc` of | Time | Size | Peak memory |
+| --- | --- | --- | --- |
+| the annual file | 4.7 s | 12.9 MB | 0.70 GB |
+| the annual and the monthly file | 55.6 s | 94.2 MB | 0.84 GB |
+
+So a monthly index adds about 51 s (twelve months of Sen's slopes, about 4.2 s each, and
+one read of the file) and 81 MB as float32. Over the 33 monthly files of a full run that
+is about 28 minutes and 2.7 GB more (#357 estimated 30 minutes and 2.5 GB). A month's
+four fields and grid mean read in 0.05–0.07 s.
 
 ## Web front end
 
@@ -3141,8 +3190,9 @@ packages/climpact-web/src/climpact_web/
     map_page.py      the Map tab (#295): the rail's entries, the state from the query
                      string, the toolbar, the map, the legend and the cell pane
     map_views.py     the map's Base mean, Anomaly and Trend views and the grid mean
-                     (#296): trends.nc read and kept, a monthly file's month computed
-                     (#348, `month_trends`), each view's field, breaks and
+                     (#296): trends.nc read and kept, a monthly file's month read from
+                     its monthly variables (#348, `read_month_trends`) or, without them,
+                     computed (`month_trends`), each view's field, breaks and
                      scale, the diverging palettes, the dots on Trend
     stages.py        the Map tab while a run calculates (#294): each job's stages from
                      its stages.json, the stages table, the status line, what to change
@@ -7313,7 +7363,8 @@ files read in place are never touched (`test_gridded_web.py`:
    once for the files as they are, `setup_page.reading`) and Time; then the one Start
    button and a line on what happens next. The estimates are labelled "about": the size
    is that of the values before compression (float32, a day-of-extreme variable where the
-   index has one, three scales for SPI and SPEI, `trends.nc`, and float64 for the
+   index has one, three scales for SPI and SPEI, `trends.nc` with its monthly variables
+   (`MONTHLY_TRENDS_VALUES`, #348), and float64 for the
    thresholds file); the time is 0.015 s per cell and year of data for every index on
    one core (15% less without the heatwaves, SPI and SPEI) and 0.0005 s for a thresholds
    file, divided by the cores, measured on the sample grid tiled to 12 x 16 cells
@@ -7516,8 +7567,9 @@ column.
   mean) and Trend (`<index>_slope`, Sen's slope per decade over the run's years, with a
   dot on each cell whose 95% interval, `_lower` to `_upper`, excludes zero; the legend
   says "Dot: the 95% interval excludes zero (583 of 896 cells)"). `trends.nc` holds the
-  annual series only, so the three views (and the grid mean) are offered for an annual
-  file, and for SPI and SPEI at the 12-month scale in December (choosing one moves the
+  annual series and, since #348, each monthly file's months, so the three views (and the
+  grid mean) are offered for an annual file, for a monthly file's chosen month (below),
+  and for SPI and SPEI at the 12-month scale in December (choosing one moves the
   map there; the other scales are then unavailable and Anomaly steps by year); for a
   day-of-year file, or a run without `trends.nc` (calculated before #290, or with its
   trends turned off, the job's `trends` false) they are shown unavailable,
@@ -7526,24 +7578,43 @@ column.
   `netcdf.LOCK`, as every netCDF read on a request thread) and kept
   (`map_views.CACHE_BYTES`, 128 MB); its base period and trend period come from its
   attributes.
-- *A monthly file's views* (#348). Base mean, Anomaly and the grid mean are of the chosen
-  month, with or without `trends.nc`, computed in the web app from the month's values in
-  every year (`map_views.month_trends`, kept with `trends.nc`'s fields):
-  `climpact.gridded.trends.base_means` over the base period (the job's `base_start` and
-  `base_end`, else the run's), and the cos-latitude weighted mean of each year
-  (`climpact.gridded.trends`' weighted sums, in stripes of rows as `write_grid_trends`
-  reads them), so the numbers are what the core would write for that month's series
-  (`test_a_months_base_mean_and_grid_mean_are_the_cores`). The weights are the Y
-  coordinate's cosine when it is latitude (its standard name or units say so, or its
-  name, `Layer.y_latitude`); the index files hold no other latitude (a projected grid's
-  two-dimensional latitude is in the input), so a month of such a grid has no grid mean,
-  and the note says so. The hint names the month ("Mean of May in 1971–2000."), and the
-  downloads too (`txx_05_base_mean_1971-2000.csv`, `txx_05_grid_mean.csv`). Trend is not
-  offered for a monthly file ("Trend is of the annual series: choose Annual."): a
-  month's Sen's slope on request was measured too slow on a large grid (on a synthetic
-  700 x 900 grid of 60 years, chunked as the core writes it: reading one month 7.5 s,
-  `sen_trends` of its 630,000 cells 4.5 s with 4 threads, 2.7 s with 11, 16.4 s with
-  one), and writing monthly trends into `trends.nc` is left for a decision (#348).
+- *A monthly file's views* (#348). The four views and the grid mean are of the chosen
+  month. Where the run's `trends.nc` has the file's monthly variables
+  (`map_views.has_month_trends`, its variables' names read once), the month's row of
+  `<index>_MON_slope`, `_lower`, `_upper`, `_base_mean` and `_grid_mean` is read
+  (`map_views.read_month_trends`, holding `netcdf.LOCK`, a month at a time, kept with the
+  other fields): Trend, its dots and the pane's slope, interval and base mean are those
+  float32 numbers (`test_a_months_trend_on_the_map_is_trends_nc_and_climpact_trends`
+  checks them against `climpact.trends.sen_trend` of the cell's month series). On a
+  synthetic 700 x 900 grid of 60 years the month's Trend page answers in about 1.0 s on
+  the run's first visit and 0.2 s for another month, its PNG in 0.2 s, as the annual
+  Trend. Base mean and Trend have no stepper: they keep the month chosen on Year or
+  Anomaly, and the hint and legend name it ("Mean of May in 1971–2000.", "Sen's slope
+  per decade of May, 1961–2020.", "TXx, trend May 1961–2020 (°C/decade)"), as do the
+  downloads (`txx_05_base_mean_1971-2000.csv`, `txx_05_trend_1961-2020.csv`,
+  `txx_05_grid_mean.csv`). Without a cell in the address (the PNG, values and CSV) Base
+  mean and Trend take the default cell from their own field, so they never read a step
+  of the index file (a monthly file's step decompresses the whole variable, about 7 s
+  on that grid).
+
+  A run whose `trends.nc` has no monthly variables (calculated before #348) or has no
+  `trends.nc` keeps Base mean, Anomaly and the grid mean, computed in the web app from
+  the month's values in every year (`map_views.month_trends`, kept with `trends.nc`'s
+  fields): `climpact.gridded.trends.base_means` over the base period (the job's
+  `base_start` and `base_end`, else the run's), and the cos-latitude weighted mean of
+  each year (`climpact.gridded.trends`' weighted sums, in stripes of rows as
+  `write_grid_trends` reads them), so the numbers are what the core would write for that
+  month's series (`test_a_months_base_mean_and_grid_mean_are_the_cores`). The weights
+  are the Y coordinate's cosine when it is latitude (its standard name or units say so,
+  or its name, `Layer.y_latitude`); the index files hold no other latitude (a projected
+  grid's two-dimensional latitude is in the input), so a month of such a grid has no
+  grid mean, and the note says so (`trends.nc`'s monthly grid mean uses the input's
+  latitude). Its Trend is unavailable with the reason ("The run's trends file has no
+  monthly trends: it was calculated before Climpact wrote them. Start it again on Set-up
+  to add them.", or the run's lack of `trends.nc`): a month's Sen's slope on request was
+  measured too slow on a large grid (on that grid, reading one month 7.5 s, `sen_trends`
+  of its 630,000 cells 4.5 s with 4 threads, 2.7 s with 11, 16.4 s with one), so the core
+  writes them (#348, see [Gridded trends](#gridded-trends)).
 - *The map.* Every cell, never thinned (the explorer's 2,500-cell cap, `MAX_MAP_CELLS`,
   went with it). `gridded:map_png` (`<id>/map.png`) is the field as an indexed PNG with
   one pixel per cell, north up and west left whatever the order of the file's rows and
@@ -7629,8 +7700,8 @@ column.
   or lowest for TNn, TXn, SPI and SPEI); then the values by year as a table and "This
   series as CSV" (`gridded:series_csv`). Where `trends.nc` has the series (#296), the
   slope, its interval and the base mean are its numbers for the cell, the ones the map
-  shows (`map_page.trends_summary`; for a monthly file the base mean is the month's,
-  #348); otherwise the trend is `climpact.trends.plot_trend`
+  shows (`map_page.trends_summary`; for a monthly file the month's, from `trends.nc`'s
+  monthly variables or, without them, the base mean computed, #348); otherwise the trend is `climpact.trends.plot_trend`
   of the series, computed on request, the function `trends.nc` uses (the end-to-end test
   compares them). The chart's line is always computed on request. When a
   station of the browser's workspaces (the same owner token) lies in the cell, a box
@@ -7756,7 +7827,11 @@ cell's Trend value in the map's values, CSV and pane against `trends.nc` and
 Anomaly against `trends.nc` with the same breaks every year, the grid mean (title, slope,
 CSV against a weighted mean), SPI's views at the 12-month scale in December, a monthly
 file and runs without `trends.nc` or with trends off keeping Year with the reason, and
-the netCDF lock held by every read of the views. In a browser (`test_accessibility.py`):
+the netCDF lock held by every read of the views. Since #348: a monthly file's Trend of a
+month (map values, dots, CSV, PNG name, pane) against `trends.nc`'s monthly variables
+and `climpact.trends.sen_trend` of the month's series, its Base mean and grid mean, no
+step of the index file read for Base mean and Trend without a cell, and a run whose
+`trends.nc` has no monthly trends keeping Trend unavailable with the reason. In a browser (`test_accessibility.py`):
 axe on the Map in both themes, 320px, and the map by keyboard; since #296 also axe on the
 Trend view with the grid mean, and the views and the grid mean by keyboard.
 

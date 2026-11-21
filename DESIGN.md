@@ -510,9 +510,13 @@ strips, worklist and detail pane.
     Annual / Monthly, the year stepper (Year and Anomaly; a month for a monthly file, the
     scale for SPI and SPEI); one line on what is shown, and under it why Base mean,
     Anomaly and Trend are unavailable when they are (they read the run's `trends.nc`: not
-    for a day-of-year file, nor a run without it). A monthly file has Base mean, Anomaly
-    and the grid mean of the chosen month (#348; the hint names it, "Mean of May in
-    1971–2000.") but no Trend yet ("Trend is of the annual series: choose Annual.");
+    for a day-of-year file, nor a run without it). A monthly file has the four views and
+    the grid mean of the chosen month (#348, from `trends.nc`'s monthly variables; Base
+    mean and Trend keep the month chosen on Year or Anomaly, and the hint and legend name
+    it: "Mean of May in 1971–2000.", "Sen's slope per decade of May, 1961–2020.", "TXx,
+    trend May 1961–2020 (°C/decade)"); a run whose `trends.nc` has no monthly trends
+    (calculated before #348) has Base mean, Anomaly and the grid mean computed from the
+    file, and Trend unavailable ("The run's trends file has no monthly trends: …");
     Download ▾ (Map as PNG, Map
     as CSV, the netCDF file), following the view. The map draws every cell (a PNG, one pixel per
     cell, scaled up without smoothing, the cells' aspect from the cosine of the mean

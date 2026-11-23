@@ -12,6 +12,7 @@ produced from when it is queued (``Job.inputs``):
 ``metadata``  the station details: name, latitude, longitude and base period
 ``qc``        the quality-control thresholds, with R's defaults filled in
 ``settings``  a station run's index settings and output options (:func:`settings_of`)
+``breaks``    a ``qc`` job's break detection settings (#365, :func:`.breaks.inputs_of`)
 
 The base period, the thresholds and the index settings are the workspace's (#254,
 ``Workspace``): every station of the workspace has the same, except the index values a
@@ -25,8 +26,11 @@ A section is out of date ("stale") when the inputs its shown job was produced fr
 from the analysis's current ones. The comparison uses only what is stored, never the
 browser session, so it holds in every browser tab open on the analysis and in hosted mode.
 The quality checks depend on the file, the thresholds and the station name (their files
-are named after it); a station run on all four inputs. A station opened from a batch
-(``origin``) shows the batch's results, whose inputs are ``origin["inputs"]``.
+are named after it); a station run on all four inputs. The checks' job also looks for
+breaks (#365): a change to the break detection settings queues it again, and only its
+breaks are out of date meanwhile (:func:`breaks_changes`), not its checks. A station
+opened from a batch (``origin``) shows the batch's results, whose inputs are
+``origin["inputs"]``.
 
 The results of the old inputs stay on the page, marked out of date, while the run of the
 new inputs is queued or running: that run's ``params["replaces"]`` names the finished job
@@ -52,8 +56,11 @@ from climpact_web.stations.models import Station, Step
 # stay on the page, out of date, until this one has finished.
 REPLACES = "replaces"
 
-# The inputs each kind of job depends on, by name (see :func:`differences`).
-QC_INPUTS = ("file", "name", "qc")
+# The inputs each kind of job depends on, by name (see :func:`differences`). A ``qc`` job
+# also looks for breaks (#365): its checks depend on CHECK_INPUTS, its breaks on "breaks"
+# too, and a change to any of QC_INPUTS queues it again.
+CHECK_INPUTS = ("file", "name", "qc")
+QC_INPUTS = (*CHECK_INPUTS, "breaks")
 RUN_INPUTS = ("file", "name", "location", "base_period", "qc", "settings")
 
 
@@ -145,21 +152,26 @@ def current_inputs(analysis: Station) -> dict:
     """The analysis's inputs now: its file (its hash, and what the provenance lines say
     about it) and station details, and its workspace's base period, thresholds and index
     settings (with the station's own values, #254)."""
+    from climpact_web.stations import breaks
+
     return {
         "file": analysis.file_hash,
         "data": file_record(analysis.file_name, analysis.summary),
         "metadata": analysis.metadata,
         "qc": qc_values(analysis),
         "settings": station_settings(analysis),
+        "breaks": breaks.inputs_of(analysis.workspace),
     }
 
 
 def job_inputs(analysis: Station, kind: str, params: dict) -> dict:
     """The inputs to record on a job of ``kind`` queued now with ``params``: a ``qc`` job
-    has no settings, a ``station`` job the settings it was given."""
+    has no settings, a ``station`` job the settings it was given and no break detection
+    (the indices never depend on it, #365)."""
     inputs = current_inputs(analysis)
     if kind == "station":
         inputs["settings"] = settings_of(params)
+        del inputs["breaks"]
     else:
         del inputs["settings"]
     return inputs
@@ -184,6 +196,7 @@ def differences(recorded: dict | None, wanted: dict, names=RUN_INPUTS) -> list[s
         "base_period": ("metadata", lambda d: meta(d, "base_start", "base_end")),
         "qc": ("qc", lambda d: d.get("qc")),
         "settings": ("settings", lambda d: d.get("settings")),
+        "breaks": ("breaks", lambda d: d.get("breaks")),
     }
     found = []
     for name in names:
@@ -290,8 +303,26 @@ def recorded_inputs(analysis: Station, job: Job | None) -> dict:
 
 
 def qc_changes(analysis: Station, job: Job | None) -> list[str]:
-    """The inputs that changed since the checks ``job`` ran."""
-    return differences(recorded_inputs(analysis, job), current_inputs(analysis), QC_INPUTS)
+    """The inputs that changed since the checks ``job`` ran (not the break detection
+    settings, which change only its breaks: :func:`breaks_changes`)."""
+    return differences(recorded_inputs(analysis, job), current_inputs(analysis), CHECK_INPUTS)
+
+
+def breaks_changes(analysis: Station, job: Job | None) -> list[str]:
+    """``["breaks"]`` when the break detection settings changed since the checks ``job``
+    looked for breaks (#365): its breaks are out of date."""
+    return differences(recorded_inputs(analysis, job), current_inputs(analysis), ("breaks",))
+
+
+def checks_replaced(analysis: Station, shown: Job | None, job: Job | None) -> bool:
+    """Whether ``job``, the latest checks asked for, will change the checks ``shown``: not
+    when it was queued for new break detection settings alone (#365)."""
+    if job is None or shown is None or job == shown:
+        return False
+    recorded, wanted = recorded_inputs(analysis, shown), recorded_inputs(analysis, job)
+    if not recorded or not wanted:
+        return True
+    return bool(differences(recorded, wanted, CHECK_INPUTS))
 
 
 def run_changes(analysis: Station, job: Job | None) -> list[str]:

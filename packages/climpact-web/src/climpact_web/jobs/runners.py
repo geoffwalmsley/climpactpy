@@ -20,6 +20,14 @@ Parameters (``Job.params``) of each kind; file names are relative to the job's
     ``station_file``, ``metadata`` as for ``station``, and ``qc``: :class:`QCParams`
     fields (left out: R's defaults). Runs only the QC modules and writes the ``qc/``
     files to ``output/<station>/qc/`` and their zip to ``output/<station>.zip``.
+    Optional ``homogeneity``: the options of the core's homogeneity module ``detect``
+    (#365; ``methods``, ``variables``, ``series``, ``level``, ``min_years``), which then
+    also looks for breaks and writes ``homogeneity/breaks`` and ``homogeneity/tests`` to
+    ``output/<station>/homogeneity/`` (in the zip too), with ``station_history``, a station
+    history file in ``input/``. The yearly series it tested are written beside ``output/``
+    to ``breaks_series.json`` for the Quality page's chart (:func:`break_series`; not a
+    file to download), and a history file that cannot be read is left out, its error in
+    the result's ``history_error``.
 ``batch`` (``climpact batch``)
     ``metadata_file``; ``data_dir`` (a folder in ``input/``, default ``input/`` itself);
     ``base_start``, ``base_end``, ``custom``, ``plots``, ``zip``, ``workers`` (default 1),
@@ -58,6 +66,7 @@ The batch page (#80) creates batch jobs, the gridded pages (#85) the gridded one
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -192,24 +201,92 @@ def run_qc_job(ctx: JobContext) -> dict:
     p = ctx.params
     metadata = station_metadata(p)
     thresholds = qc_params(p.get("qc"))
+    station_file = ctx.input_file(p["station_file"])
+    breaks = p.get("homogeneity")
+    modules, history_error = ModuleSelection(indices=()), ""
+    if breaks is not None:
+        options = {k: breaks[k] for k in BREAK_OPTIONS if k in breaks}
+        if p.get("station_history"):
+            history_error = _history_error(ctx.input_file(p["station_history"]), metadata.name)
+            if not history_error:
+                options["station_history"] = str(ctx.input_file(p["station_history"]))
+        modules = ModuleSelection(
+            indices=(), homogeneity="detect", options={"homogeneity": {"detect": options}}
+        )
     written, _skipped = run_station(
-        ctx.input_file(p["station_file"]),
+        station_file,
         metadata,
         IndexParams(),
         ctx.output_dir,
-        modules=ModuleSelection(indices=()),
+        modules=modules,
         progress=ctx.progress,
         zip=True,
         qc=thresholds,
     )
     archive = written.pop("zip")
-    return {
+    result = {
         "station": metadata.name,
         "files": _relative(written.values(), ctx.output_dir),
         "reports": {key: _relative([path], ctx.output_dir)[0] for key, path in written.items()},
         "zip": _relative([archive], ctx.output_dir)[0],
         "qc": asdict(thresholds),
     }
+    if breaks is not None:
+        history = options.get("station_history")
+        path = ctx.output_dir.parent / BREAK_SERIES_FILE
+        series = break_series(station_file, metadata, thresholds, history)
+        path.write_text(json.dumps(series))
+        result["breaks_series"] = BREAK_SERIES_FILE
+        result["history_error"] = history_error
+    return result
+
+
+# The options of the homogeneity module ``detect`` a ``qc`` job passes on (#365), and the
+# file it writes the yearly series to, for the Quality page's chart.
+BREAK_OPTIONS = ("methods", "variables", "series", "level", "min_years")
+BREAK_SERIES_FILE = "breaks_series.json"
+
+
+def _history_error(path: Path, station: str) -> str:
+    """Why the station history file can't be used, or "" when it can."""
+    from climpact.homogeneity.detect import read_station_history
+
+    try:
+        read_station_history(path, station)
+    except (ValueError, UnicodeDecodeError) as exc:
+        return str(exc).replace(str(path), path.name)
+    return ""
+
+
+def break_series(station_file: Path, metadata, thresholds, history: str | None = None) -> dict:
+    """The yearly series of the break detection, for the Quality page's chart (#365): the
+    yearly mean TX and TN and the yearly PRCP total (mm), under the climdex rules, from the
+    first year of the data (``first``), null where missing (the monthly series' breaks are
+    drawn on the yearly means); and the station's events in the ``history`` file
+    (``{"date", "text"}``, for the triangles under the chart)."""
+    import math
+
+    from climpact.config import IndexParams
+    from climpact.homogeneity.detect import read_station_history
+    from climpact.homogeneity.series import ANNUAL, VARIABLES, build_series
+    from climpact.station import load_station
+
+    run = load_station(station_file, metadata, IndexParams(), thresholds)
+    out: dict = {"first": None, "values": {}, "history": []}
+    if history:
+        out["history"] = [
+            {"date": e.date.isoformat(), "text": e.text}
+            for e in read_station_history(history, metadata.name)
+        ]
+    for variable in VARIABLES:
+        series = build_series(run, variable, ANNUAL)
+        if out["first"] is None and series.years.size:
+            out["first"] = int(series.years[0])
+        values = [float(v) for v in series.values]
+        if variable == "PRCP":
+            values = [math.exp(v) for v in values]
+        out["values"][variable] = [None if math.isnan(v) else round(v, 4) for v in values]
+    return out
 
 
 def station_steps(params, modules, plots: bool, report: bool = False) -> int:

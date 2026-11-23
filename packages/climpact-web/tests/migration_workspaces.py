@@ -109,7 +109,7 @@ def check_settings_move() -> None:
     assert moved.undo == {}
 
 
-BATCH_0002 = [("batch", "0002_workspace"), ("stations", "0007_workspace_settings")]
+BATCH_0002 = [("batch", "0002_workspace")]  # with the stations app's latest migration
 
 
 def check_batch_base_period() -> None:
@@ -120,7 +120,10 @@ def check_batch_base_period() -> None:
     from django.db.migrations.executor import MigrationExecutor
 
     call_command("migrate", "batch", "0002", verbosity=0)
-    old = MigrationExecutor(connection).loader.project_state(BATCH_0002).apps
+    # The stations app stays migrated (0008 added a column, #365): its latest state.
+    loader = MigrationExecutor(connection).loader
+    state = BATCH_0002 + loader.graph.leaf_nodes("stations")
+    old = loader.project_state(state).apps
     Batch, Workspace = old.get_model("batch", "BatchRun"), old.get_model("stations", "Workspace")
     space = Workspace.objects.create(owner="t")
     batch = Batch.objects.create(workspace=space, owner="t", base_start=1981, base_end=2010)
@@ -133,7 +136,7 @@ def check_batch_base_period() -> None:
     assert (moved.base_start, moved.base_end) == (1981, 2010)
     NewWorkspace.objects.filter(pk=space.pk).update(base_start=1991)
     call_command("migrate", "batch", "0002", verbosity=0)
-    back = (MigrationExecutor(connection).loader.project_state(BATCH_0002).apps).get_model(
+    back = (MigrationExecutor(connection).loader.project_state(state).apps).get_model(
         "batch", "BatchRun"
     )
     assert back.objects.get(pk=batch.pk).base_start == 1991

@@ -149,9 +149,14 @@ def test_while_the_checks_run_the_thresholds_are_in_the_inputs_panel(client):
 
 def test_qc_job_writes_the_qc_files_like_r(checked):
     job = checked.qc_job
-    names = sorted(Path(f).name for f in job.result["files"])
+    names = sorted(Path(f).name for f in job.result["files"] if Path(f).parent.name == "qc")
     expected = sorted(p.name for p in STRESS_QC.iterdir())
     assert names == expected
+    # The checks also look for breaks (#365): the homogeneity module's two files.
+    assert sorted(Path(f).name for f in job.result["files"] if Path(f).parent.name != "qc") == [
+        "qc_stress_1961-2020_breaks.csv",
+        "qc_stress_1961-2020_tests.csv",
+    ]
     for name in expected:
         ours = (job.output_dir / "qc_stress_1961-2020" / "qc" / name).read_text().splitlines()
         theirs = (STRESS_QC / name).read_text().splitlines()
@@ -635,13 +640,15 @@ def test_results_page(client, checked):
     # The verdict, the coverage and its table, the worklist and its detail pane, then the
     # charts and distributions (#235). "Your data" is only there while the checks run.
     order = ["qc-verdict-title", "coverage-title", "missing-data", "qc-review", "look-wrong",
-             "worth-a-look", "qc-detail", "details"]  # fmt: skip
+             "worth-a-look", "possible-breaks", "qc-detail", "details"]  # fmt: skip
     assert [page.index(f'id="{i}"') for i in order] == sorted(
         page.index(f'id="{i}"') for i in order
     )
     assert 'class="data-chip"' not in page  # "Your data"'s chips
     items = len(qc_review.review(checked.qc_job, checked.station_file).items)
-    assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items == 3 + 11
+    # Each check, then each series of the break tests (#365): TX and TN annual and
+    # monthly, PRCP annual.
+    assert page.count("data-qc-item=") == page.count("data-qc-detail=") == items + 5 == 3 + 11 + 5
     for name in QC_DEFAULTS:
         assert f'data-help-topic="qcparam.{name}"' in page
     for variable in qc_review.CHART_VARIABLES:
@@ -654,9 +661,12 @@ def test_results_page(client, checked):
     thresholds = without_sheets(page).split('id="thresholds"')[1].split("</p>")[0]
     assert "The checks use R's default thresholds." in thresholds
     assert 'data-sheet-open="sheet-thresholds"' in thresholds and "<input" not in thresholds
-    # The files are in Files, not here (#176): one link under Details, no download.
+    # The files are in Files, not here (#176): one link under Details, no download; only
+    # a series' breaks and tests, by its detail's title (#365, as a check's values).
     job = checked.qc_job
-    assert f"/jobs/{job.pk}/files/" not in page and " download>" not in page
+    linked = re.findall(rf'href="/jobs/{job.pk}/files/([^"]+)"', page)
+    assert {Path(name).parent.name for name in linked} == {"homogeneity"}
+    assert " download>" not in page
     files_link = f'href="{checked.url()}downloads#quality-files"'
     assert page.count(files_link) == 1 and page.index(files_link) > page.index('id="details"')
     files = client.get(f"{checked.url()}downloads").content.decode()
@@ -772,7 +782,9 @@ def test_checks_that_found_nothing_are_one_line(client, checked, monkeypatch):
     monkeypatch.setattr(qc_review, "review", lambda job, path=None: review)
     page = client.get(f"{checked.url()}quality").content.decode()
     assert "8 checks found nothing" in page and 'id="nothing-found"' in page
-    assert 'id="qc-review"' not in page and 'id="look-wrong"' not in page
+    assert 'id="look-wrong"' not in page and 'id="worth-a-look"' not in page
+    # The rail has the possible breaks alone (#365), the first series shown.
+    assert 'id="possible-breaks"' in page and details_shown(page) == ["breaks-tx-annual"]
     assert "Ready to use" in page
     assert_tab_shows_verdict(page, "ready", "Ready", "check-circle", "")
     # Green: "Go to indices" alone; the file is replaced from the Inputs panel (#199).
@@ -1034,6 +1046,7 @@ def test_every_section_has_its_help_and_no_field_has_a_link(client, checked):
     assert re.findall(r'href="/help/sections/([^/"?]+)/', page) == [
         "quality.missing",  # the coverage strip's table (#235)
         "quality.verdict",  # "How the checks work", with every check's topic (#235)
+        "quality.breaks",  # "How the break tests work" (#365)
         "quality.daily",
         "quality.distributions",
     ]

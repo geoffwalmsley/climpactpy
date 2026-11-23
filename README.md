@@ -125,7 +125,11 @@ lists every option.
 Quality control, homogeneity and index calculation are separate modules, and other packages
 can add their own as plugins: `climpact modules` lists those installed, and `--qc`,
 `--homogeneity` and `--indices` select them (see
-[Modules and plugins](TECHNICAL.md#modules-and-plugins)).
+[Modules and plugins](TECHNICAL.md#modules-and-plugins)). Climpact R has no homogeneity
+check; `--homogeneity detect` looks for breaks in the annual and monthly TX and TN and the
+annual PRCP with the Pettitt, SNHT and RHtests (PMF, PMT) tests, and writes them to
+`homogeneity/` without changing the data (see
+[Homogeneity break detection](TECHNICAL.md#homogeneity-break-detection)).
 
 ## Repository layout
 

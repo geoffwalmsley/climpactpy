@@ -104,6 +104,19 @@ $ climpact sector-correlation sydney.txt wheat_yield_nsw_1922-1999.csv --out res
 Lists the quality-control, homogeneity and index modules installed, built in or added by
 a plugin, with the options each takes.
 
+Besides `none`, the default, one homogeneity module is built in: `detect` looks for
+breaks in a station's annual and monthly mean TX and TN and its annual precipitation with
+Pettitt's test, the SNHT and RHtests' PMF and PMT, and writes them to the station's
+`homogeneity` folder. It reports breaks only: the indices are calculated from the data as
+they are. Its options choose the tests, the variables, the series, the confidence level,
+the shortest segment, and a station history file whose events are listed next to the
+breaks near them.
+
+```
+$ climpact run sydney.txt --out results --homogeneity detect
+$ climpact run sydney.txt --out results --homogeneity detect --module-option detect.methods=pmf,pmt
+```
+
 [[cli-command:modules]]
 
 ## Plugins {#plugins}

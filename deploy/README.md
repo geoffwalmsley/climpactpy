@@ -219,9 +219,9 @@ curl -sS https://climpact.app/healthz
 curl -sSI http://climpact.app/ | head -n 3      # a redirect to https://
 ```
 
-In a browser at <https://climpact.app>: start a station analysis with the **sample data**
-(Sydney), run the quality checks, then the indices with plots. Open the results, and
-download one index CSV and the zip. If anything fails, look at the logs on the Droplet:
+In a browser at <https://climpact.app>: start a workspace with the **sample station**
+(Sydney), look at its Quality, then its Indices. Open one index, and download its CSV and
+the station's zip from Files. If anything fails, look at the logs on the Droplet:
 `docker compose logs --tail 100 web worker`.
 
 ## 8. Shut SSH and check the IP answers nothing (about 2 min)
@@ -384,9 +384,11 @@ they change (`.../setup/validate`, `.../settings/validate`). A prefix rule would
 ordinary visitor within 10 seconds of starting a job. `rate-limit.txt` lists only the URLs
 that take an upload or start a job: Add stations (`/add/`, `/add/sample`,
 `/add/sample-batch`, `/w/*/add/` and its review form `/w/*/add/*/`, but not the table's
-check as it is typed, `/w/*/add/*/check`), a station's setup page, the Inputs sheets,
-*continue*, *recalculate*, *sector*, job retry, and gridded upload and sample, which are
-off in hosted mode. Their GETs are page loads. A person filling in the forms makes 2–4 of
+check as it is typed, `/w/*/add/*/check`), Open a workspace file (`/w/open/`), a
+station's setup page, the Inputs sheets, a workspace's settings
+(`/w/*/settings/<key>`, which recalculate every station), Copy station, *continue*,
+*recalculate*, *sector*, job retry, and gridded upload, sample and setup, which are off in
+hosted mode. Their GETs are page loads. A person filling in the forms makes 2–4 of
 these requests in 10 seconds, and at most about 5 while adding stations (the Add stations
 page, a drop and the review page it leads to, then a second drop and the review page
 again); a script making a burst makes many more. Tune the number from
@@ -441,12 +443,12 @@ drops it, so **the progress bar stops moving while the job carries on** on the w
 validation POST that is challenged simply shows no inline message. Reloading the page
 recovers, because a full page load can solve the challenge. To check:
 
-- In the browser, run a station analysis with the sample data (upload → QC → indices →
-  results → downloads) with the developer tools' **Network** tab open, filtered on
+- In the browser, run a station analysis with the sample data (Add stations → Quality →
+  Indices → Files) with the developer tools' **Network** tab open, filtered on
   `progress` and `validate`. Every request should be **200**. A 403 or 429 there is the
   edge, not the app.
-- **Security › Analytics › Events** for the first days: look for events on `/station/`,
-  `/batch/` or `/jobs/` paths from real visitors (service *Bot fight mode*, *Rate limiting
+- **Security › Analytics › Events** for the first days: look for events on `/add/`,
+  `/w/` or `/jobs/` paths from real visitors (service *Bot fight mode*, *Rate limiting
   rules* or *Custom rules*).
 
 If Bot Fight Mode challenges real visitors' htmx requests, turn it **off**. It has no
@@ -480,8 +482,8 @@ CLIMPACT_WEB_TURNSTILE_SECRET_KEY=<secret key>
 
 then `cd /opt/climpact && docker compose up -d --wait` and close SSH. Set both or neither:
 with one alone the app refuses to start. Empty, Turnstile is off and the forms work as
-before. To check: open **https://climpact.app/station/** in a browser. A small Cloudflare
-box appears above **Load the file**; it usually ticks itself without asking anything. Run
+before. To check: open **https://climpact.app/add/** in a browser. A small Cloudflare
+box appears with the drop area's buttons; it usually ticks itself without asking anything. Run
 the sample station through to the results (each step that starts a calculation shows the
 box). A **Not accepted** page saying the check failed means the keys don't match the
 widget, or the hostname isn't on the widget's list.
@@ -741,14 +743,15 @@ requests (the deploys themselves: `journalctl -u climpact-deploy` and `deploy.lo
 
 **Abuse limits** (#125; the settings are in `.env`, each described there): besides
 Turnstile (E9), the app refuses a new job when the visitor (by IP address) already has 2
-waiting or running, or has started 30 in 24 hours; it refuses new jobs for everyone while
+waiting or running, or has started 50 in 24 hours (the jobs of one change to a workspace,
+such as its recalculation, count as one); it refuses new jobs for everyone while
 more than 20 wait or while the disk has less than 2 GB free ("busy, try later", so nothing
 fails halfway); and the worker stops a job that runs longer than 60 minutes. Every
 refusal is logged by `web` with the address and the reason:
 
 ```sh
 docker compose logs web | grep Refused
-# Refused POST /station/<id>/load from 203.0.113.7: active-quota:2
+# Refused POST /w/<id>/add/ from 203.0.113.7: active-quota:2
 ```
 
 The reasons are `turnstile-missing`, `turnstile-failed:<Cloudflare's codes>`,

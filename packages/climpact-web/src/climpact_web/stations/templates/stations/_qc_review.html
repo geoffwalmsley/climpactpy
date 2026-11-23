@@ -7,11 +7,17 @@ and can be linked; the server shows that check's detail, the first by default, a
 other detail is in the page, hidden. With JavaScript (qc.js) a row swaps the detail in
 place and announces its title. Side by side from a 60rem container; narrower the rail
 comes first and the detail after it, with "Back to the list".
+The third section, "Possible breaks" (#365, the QualityBreaks board), after the checks:
+its note is the station's answer in a sentence (breaks.BreaksReview.sentence), then a
+row per series tested, with a timeline of its break dates in place of the month bars and
+their number; each series' detail is stations/_breaks_detail.html, selected as a check's.
 Context: wrong_items, worth_items, items (views.qc_context: item, selected and the
-detail's page, value, when, months, selected_date), review, analysis, month_names.
+detail's page, value, when, months, selected_date), review, analysis, month_names;
+breaks (breaks.BreaksReview), break_entries (series, selected, chart, timeline, lede,
+note), breaks_topics.
 {% endcomment %}
 <div class="qc-work" id="qc-review">
-  <nav class="qc-rail" aria-label="{% translate 'Checks' %}">
+  <nav class="qc-rail" aria-label="{% if breaks %}{% translate 'Checks and break tests' %}{% else %}{% translate 'Checks' %}{% endif %}">
     {% if wrong_items %}
     <section class="qc-rail__section" id="look-wrong" aria-labelledby="look-wrong-title">
       <div class="qc-rail__head">
@@ -30,10 +36,25 @@ detail's page, value, when, months, selected_date), review, analysis, month_name
       <ul class="qc-rail__list">{% for entry in worth_items %}{% include "stations/_qc_rail_item.html" %}{% endfor %}</ul>
     </section>
     {% endif %}
+    {% if breaks %}
+    <section class="qc-rail__section" id="possible-breaks" aria-labelledby="breaks-title">
+      <div class="qc-rail__head">
+        <h2 id="breaks-title">{% translate "Possible breaks" %}{% if breaks.state == "results" %} <span class="qc-rail__total">{{ breaks.with_breaks|length|count }}</span>{% endif %}</h2>
+        <p class="qc-rail__note">{{ breaks.sentence }}</p>
+      </div>
+      {% if break_entries %}<ul class="qc-rail__list">{% for entry in break_entries %}{% include "stations/_breaks_rail_item.html" %}{% endfor %}</ul>{% endif %}
+      {% if breaks.state == "off" %}<p class="qc-rail__foot"><a href="{% url 'stations:workspace_settings' analysis.workspace_id %}">{% translate "Turn it on in Workspace settings" %}</a></p>{% endif %}
+    </section>
+    {% endif %}
+    <div class="qc-rail__help">
     {% translate "How the checks work" as checks_label %}{% section_help "quality.verdict" topics="qc.tmaxmin qc.toolarge qc.duplicates qc.outliers qc.tx_jumps qc.tn_jumps qc.tx_flatline qc.tn_flatline" label=checks_label quiet=True %}
+    {% if breaks %}{% translate "How the break tests work" as breaks_label %}{% section_help "quality.breaks" label=breaks_label quiet=True %}{% endif %}
+    </div>
   </nav>
   <div class="qc-work__detail" id="qc-detail">
     <p class="sr-only" aria-live="polite" data-qc-said></p>
     {% for entry in items %}{% include "stations/_qc_detail.html" with item=entry.item shown=entry.selected %}{% endfor %}
+    {% for entry in break_entries %}{% include "stations/_breaks_detail.html" %}{% endfor %}
+    {% if breaks.state == "off" and not items %}{% include "stations/_breaks_off.html" %}{% endif %}
   </div>
 </div>

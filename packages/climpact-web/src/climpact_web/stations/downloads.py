@@ -115,6 +115,9 @@ QC_FILES = (
     ("tx_flatline", gettext_lazy("Flat runs in TX")),
     ("tn_flatline", gettext_lazy("Flat runs in TN")),
     ("nastatistics", gettext_lazy("Missing values")),
+    # The break tests, when the checks also looked for breaks (#365).
+    ("breaks", gettext_lazy("Possible breaks")),
+    ("tests", gettext_lazy("Break tests")),
 )
 QC_ORDER = {name: i for i, (name, _label) in enumerate(QC_FILES)}
 

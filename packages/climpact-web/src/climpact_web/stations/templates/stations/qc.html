@@ -69,7 +69,7 @@ views.qc_context.
   {% if review %}{% if stale %}<div class="stale-content stack stack--lg">{% endif %}
   {% comment %}"Your data" before #235 (and Data's old address, quality#your-data): the coverage.{% endcomment %}
   {% if review.years %}<div id="your-data" tabindex="-1">{% include "stations/_qc_coverage.html" %}</div>{% endif %}
-  {% if items %}{% include "stations/_qc_review.html" %}{% endif %}
+  {% if items or breaks %}{% include "stations/_qc_review.html" %}{% endif %}
   {% with quiet=review.quiet %}{% if quiet %}
   <p class="qc-quiet" id="nothing-found">{% icon "check-circle" %}<span><strong>{% blocktranslate count counter=quiet|length trimmed %}{{ counter }} check found nothing{% plural %}{{ counter }} checks found nothing{% endblocktranslate %}</strong>
     <span class="text-text-muted">{{ review.quiet_titles }}</span></span></p>

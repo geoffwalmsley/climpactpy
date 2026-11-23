@@ -1,0 +1,12 @@
+{% load i18n ui %}{% comment %}
+One series in the rail's "Possible breaks" (#365, the QualityBreaks board): its name, the
+years of its break dates in mono (or what was found), a timeline of the dates in place of
+a check's month bars (each mark's height and weight by grade: strong, normal, quiet;
+never a status colour) and the number of dates. The selected one has the selected tint
+and an ink edge, as a check's. Each row is a link to ``?show=<id>``.
+Parameters: entry (an item of views.qc_context's break_entries).
+{% endcomment %}{% with s=entry.series t=entry.timeline %}<li><a class="qc-rail__item{% if entry.selected %} is-selected{% endif %}" id="qc-row-{{ s.id }}" href="?show={{ s.id }}#{{ s.anchor }}" data-qc-item="{{ s.id }}"{% if entry.selected %} aria-current="true"{% endif %}>
+  <span class="qc-rail__text"><span class="qc-rail__name">{{ s.title }}</span><span class="qc-rail__var breaks-rail__years">{{ s.rail_text }}</span></span>
+  <svg class="breaks-timeline" viewBox="0 0 60 14" aria-hidden="true" focusable="false"><path class="breaks-timeline__axis" d="M0 13.5H60"/>{% if t.strong %}<path class="break-mark break-mark--strong" d="{{ t.strong }}"/>{% endif %}{% if t.normal %}<path class="break-mark break-mark--normal" d="{{ t.normal }}"/>{% endif %}{% if t.quiet %}<path class="break-mark break-mark--quiet" d="{{ t.quiet }}"/>{% endif %}</svg>
+  <span class="qc-rail__count{% if not s.groups %} qc-rail__count--none{% endif %}"><span class="sr-only">{{ ", " }}</span>{{ s.groups|length|count }}</span>
+</a></li>{% endwith %}

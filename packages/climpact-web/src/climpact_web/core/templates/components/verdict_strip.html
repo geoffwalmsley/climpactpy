@@ -5,12 +5,13 @@ strip's heading), the counts on one mono line under it, and the decision's butto
 end of the row (under the text when the strip is narrow). Parameters: id, level ("ready",
 "usable", "fix": success, warning, danger; anything else is info), title (the level in
 words: "Usable."), sentence, facts (a list, shown with middle dots between them), actions
-(optional, a template with the buttons).
+(optional, a template with the buttons), link (optional, ``{"text", "url"}``: one more
+fact, a link, at the end of the counts line: Quality's possible breaks, #365).
 {% endcomment %}
 <section class="verdict-strip verdict-strip--{{ level }}" aria-labelledby="{{ id }}-title">
   <div class="verdict-strip__text">
     <h2 class="verdict-strip__sentence" id="{{ id }}-title"><b>{{ title }}</b> {{ sentence }}</h2>
-    {% if facts %}<p class="verdict-strip__facts">{% for fact in facts %}{% if not forloop.first %}<span aria-hidden="true"> {{ "·" }} </span>{% endif %}<span>{{ fact }}</span>{% endfor %}</p>{% endif %}
+    {% if facts or link %}<p class="verdict-strip__facts">{% for fact in facts %}{% if not forloop.first %}<span aria-hidden="true"> {{ "·" }} </span>{% endif %}<span>{{ fact }}</span>{% endfor %}{% if link %}{% if facts %}<span aria-hidden="true"> {{ "·" }} </span>{% endif %}<a href="{{ link.url }}">{{ link.text }}</a>{% endif %}</p>{% endif %}
   </div>
   {% if actions %}<div class="verdict-strip__actions">{% include actions %}</div>{% endif %}
 </section>

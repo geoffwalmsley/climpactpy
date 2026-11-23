@@ -42,7 +42,7 @@ from climpact_web.core.limits import human_required
 from climpact_web.jobs.forms import safe_station_name
 from climpact_web.jobs.models import Status
 from climpact_web.jobs.views import OWNER_KEY
-from climpact_web.stations import calculation, preview, workspace
+from climpact_web.stations import breaks, calculation, preview, workspace
 from climpact_web.stations.calculation import queue_qc
 from climpact_web.stations.forms import (
     QC_DEFAULTS,
@@ -547,6 +547,9 @@ def qc_context(request, analysis: Station, **extra) -> dict:
 
     job, shown = analysis.qc_job, workspace.shown_qc(analysis)
     changes = workspace.qc_changes(analysis, shown)
+    # A new job for new break detection settings alone leaves the checks as they are
+    # (#365): only their breaks are out of date until it has finished.
+    replacing = workspace.checks_replaced(analysis, shown, job)
     from climpact_web.stations import qc_review
 
     review = None
@@ -569,9 +572,9 @@ def qc_context(request, analysis: Station, **extra) -> dict:
         # (#179): the banner says so, and the decision waits for the new checks.
         "stale": {
             "changes": workspace.change_sentences(analysis, shown, changes),
-            "replacing": shown is not None and job != shown,
+            "replacing": replacing,
         }
-        if shown is not None and (changes or job != shown)
+        if shown is not None and (changes or replacing)
         else None,
     }
     if job is not None:
@@ -579,17 +582,46 @@ def qc_context(request, analysis: Station, **extra) -> dict:
     if review is not None:
         from climpact_web.stations import qc_plots
 
-        selected = review.item(selected_item(request, review))
+        # The possible breaks (#365): a third section of the rail, each series a detail
+        # as a check is.
+        found = breaks.review(
+            analysis.workspace, shown, job, bool(workspace.breaks_changes(analysis, shown))
+        )
+        show = selected_item(request, review)
+        series = found.get(show)
+        selected = None if series else review.item(show)
+        if selected is None and series is None and found.items:
+            series = found.items[0]
         items = [
             {
                 "item": item,
-                "selected": item.id == selected.id,
+                "selected": selected is not None and item.id == selected.id,
                 **check_detail(review, item.group, *check_state(request, item.check)),
             }
             for item in review.items
         ]
+        break_entries = [
+            {
+                "series": s,
+                "selected": s is series,
+                "chart": found.chart(s),
+                "timeline": s.timeline(found.first, found.last),
+                "lede": s.lede(found.has_history),
+                "note": s.table_note(found.min_years),
+            }
+            for s in found.items
+        ]
+        target = found.first_with_breaks or next(iter(found.items), None)
         context.update(
             review=review,
+            breaks=found,
+            break_entries=break_entries,
+            breaks_link={
+                "text": found.counts_text,
+                "url": f"?show={target.id}#{target.anchor}" if target else "#possible-breaks",
+            }
+            if found.counts_text
+            else None,
             items=items,
             # The rail (#264): "Look wrong", then "Worth a look", each check a row.
             wrong_items=[i for i in items if i["item"].wrong],

@@ -3,8 +3,10 @@ Quality's verdict (#174, decision B; the verdict strip of #235, components/verdi
 green "Ready to use.", amber "Usable." or red "Fix the file first." in bold, one sentence,
 the counts against the values checked on one mono line, and the decision. While the checks
 are out of date (#179, ``stale``) the decision waits for the new checks: no buttons.
-Context: review (review.verdict), analysis, input_urls, stale.
+The counts line ends with the possible breaks (#365), a link to them: they never change
+the level.
+Context: review (review.verdict), analysis, input_urls, stale, breaks_link.
 {% endcomment %}{% with verdict=review.verdict %}
-{% if stale %}{% include "components/verdict_strip.html" with id="qc-verdict" level=verdict.level title=verdict.title sentence=verdict.message facts=verdict.facts actions="" %}
-{% else %}{% include "components/verdict_strip.html" with id="qc-verdict" level=verdict.level title=verdict.title sentence=verdict.message facts=verdict.facts actions="stations/_qc_verdict_actions.html" %}{% endif %}
+{% if stale %}{% include "components/verdict_strip.html" with id="qc-verdict" level=verdict.level title=verdict.title sentence=verdict.message facts=verdict.facts link=breaks_link actions="" %}
+{% else %}{% include "components/verdict_strip.html" with id="qc-verdict" level=verdict.level title=verdict.title sentence=verdict.message facts=verdict.facts link=breaks_link actions="stations/_qc_verdict_actions.html" %}{% endif %}
 {% endwith %}

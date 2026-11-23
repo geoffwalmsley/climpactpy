@@ -3,7 +3,9 @@ the record of how they were made.
 
 - **Everything** (zip): each station's folder in Climpact for R's layout (``<station>/``
   with ``indices/``, ``plots/``, ``trend/``, ``thres/`` and ``qc/``, as R's batch zip), a
-  station that failed as R's ``<station>.errors.txt``, and the workspace files below.
+  station that failed as R's ``<station>.errors.txt``, and the workspace files below. A
+  station's ``homogeneity/`` files (#365: the break tests its checks ran) come from the
+  checks it shows, as in its own zip.
 - **Trends, all stations** (CSV): one row per station and index, the trend the Indices
   show (Sen's slope per decade of the index's main series, its 95% interval, whether the
   interval excludes zero, the years with a value, its units and whether the station's
@@ -43,7 +45,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
-from climpact_web.stations import overview, workspace
+from climpact_web.stations import breaks, overview, workspace
 from climpact_web.stations.models import Station, Workspace, stations_dir
 
 PROVENANCE_FILE = "climpact_run.json"
@@ -248,6 +250,7 @@ def provenance(space: Workspace, items: list[Entry], created: dt.datetime) -> di
         "settings": {
             "quality_thresholds": QCParamsForm.initial_for(space.qc_params),
             "indices": settings["params"],
+            "break_detection": breaks.provenance(space),
         },
         "trend": TREND_METHOD,
         "stations": stations,
@@ -358,11 +361,13 @@ def fingerprint(space: Workspace, items: list[Entry]) -> str:
         str((space.base_start, space.base_end)),
         json.dumps(space.qc_params, sort_keys=True, default=str),
         json.dumps(space.index_settings, sort_keys=True, default=str),
+        json.dumps(space.break_detection, sort_keys=True, default=str),
         workspace.core_version(),
     ]
     for e in items:
         s = e.station
         job = e.job
+        checks = workspace.shown_qc(s)  # the breaks in its zip are its checks' (#365)
         parts.append(
             "|".join(
                 str(p)
@@ -375,6 +380,7 @@ def fingerprint(space: Workspace, items: list[Entry]) -> str:
                     s.longitude,
                     getattr(job, "pk", ""),
                     getattr(job, "finished_at", ""),
+                    getattr(checks, "pk", ""),
                     e.folder,
                     e.out_of_date,
                     e.why,
@@ -397,9 +403,18 @@ def _write(archive: zipfile.ZipFile, path: Path, name: str) -> None:
     archive.write(path, name, zipfile.ZIP_STORED if stored else zipfile.ZIP_DEFLATED)
 
 
+def _break_files(entry: Entry, taken: set[str]) -> list[tuple[Path, str]]:
+    """The ``homogeneity/`` files of the checks the station shows (#365), not ``taken``
+    (names already in the zip: a run that looked for breaks itself)."""
+    return [
+        (p, n) for p, n in breaks.job_files(workspace.shown_qc(entry.station)) if n not in taken
+    ]
+
+
 def _station_zip(entry: Entry, target: Path, record: dict) -> None:
     """R's station zip (the run's own, or the folder zipped as R does) with the
-    provenance file added: one station's ``climpact_run.json``."""
+    provenance file added: one station's ``climpact_run.json``; and the break tests'
+    files of its checks (#365)."""
     from climpact_web.stations.downloads import zip_path
 
     one = {**record, "stations": [s for s in record["stations"] if s.get("folder") == entry.folder]}
@@ -407,10 +422,16 @@ def _station_zip(entry: Entry, target: Path, record: dict) -> None:
     if made is not None and made.is_file():
         shutil.copyfile(made, target)
         with zipfile.ZipFile(target, "a", zipfile.ZIP_DEFLATED) as archive:
+            for path, name in _break_files(entry, set(archive.namelist())):
+                _write(archive, path, name)
             archive.writestr(PROVENANCE_FILE, provenance_text(one))
         return
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+        names = set()
         for path, name in _entries_of(entry.source.station_dir):
+            _write(archive, path, name)
+            names.add(name)
+        for path, name in _break_files(entry, names):
             _write(archive, path, name)
         archive.writestr(PROVENANCE_FILE, provenance_text(one))
 
@@ -421,7 +442,11 @@ def _everything(items: list[Entry], target: Path, texts: dict[str, str]) -> None
             archive.writestr(name, text)
         for entry in items:
             if entry.source is not None:
+                names = set()
                 for path, name in _entries_of(entry.source.station_dir):
+                    _write(archive, path, f"{entry.folder}/{name}")
+                    names.add(name)
+                for path, name in _break_files(entry, names):
                     _write(archive, path, f"{entry.folder}/{name}")
             elif entry.row.indices.state == overview.FAILED:  # as R's batch zip
                 error = entry.row.indices.error or _("The station could not be calculated.")
@@ -587,7 +612,7 @@ def _quality_cells(entry: Entry, labels: dict) -> tuple[Cell, Cell]:
     for d in quality["files"]:
         if Path(d.path).stem.endswith("_nastatistics"):
             missing = d
-        else:
+        elif Path(d.path).parent.name != "homogeneity":  # the break tests' files (#365)
             flags.append(d)
     if missing is not None:
         url = reverse("jobs:file", args=[quality["job"].pk, missing.path])

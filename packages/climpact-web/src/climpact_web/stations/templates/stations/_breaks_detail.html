@@ -1,0 +1,114 @@
+{% load i18n ui %}{% comment %}
+One series' possible breaks on Quality (#365, the QualityBreaks board), in the detail's
+place as a check's (stations/_qc_detail.html), hidden unless it is the one shown. Top to
+bottom: the kicker ("Possible breaks · TX annual · 79 years"), the title and its sentences
+(made from the results: the shifts, how many tests agree, PMT alone, the station history),
+with the two files; "Out of date" while new settings' breaks are looked for; the series
+chart (each year's value in the variable's colour, the mean of each segment between the
+dates as a step, a mark at each date by grade, the station history as triangles under the
+axis) with its read-out (#283, js/chart-readout.js), legend, summary and "Table" (the
+yearly values and the segment each is in; shown under the chart without JavaScript);
+"Which tests agree" (one row per date, a filled dot for yes, an open one for maybe) beside
+"The four tests"; then the breaks table, every test's own dates. Breaks are not a status:
+neutral ink, their strength by weight.
+Parameters: entry (an item of views.qc_context's break_entries: series, selected, chart,
+lede, note), breaks (breaks.BreaksReview), shown (the qc job), analysis.
+{% endcomment %}{% with s=entry.series chart=entry.chart %}
+<section class="qc-detail" id="{{ s.anchor }}" data-qc-detail="{{ s.id }}" aria-labelledby="{{ s.anchor }}-title"{% if not entry.selected %} hidden{% endif %}>
+  <div class="qc-detail__head">
+    <div class="qc-detail__intro">
+      <p class="qc-detail__kicker">{% translate "Possible breaks" %} {{ "·" }} {{ s.title }} {{ "·" }} {{ s.values_text }}</p>
+      <h2 class="qc-detail__title" id="{{ s.anchor }}-title" tabindex="-1">{{ s.headline }}</h2>
+      <p class="qc-detail__lede">{{ entry.lede }}</p>
+    </div>
+    <p class="qc-detail__links">
+      <a href="{% url 'jobs:file' shown.pk breaks.files.breaks %}">{% translate "Breaks (CSV)" %}</a>
+      <a href="{% url 'jobs:file' shown.pk breaks.files.tests %}">{% translate "Tests (CSV)" %}</a>
+    </p>
+  </div>
+  {% if breaks.stale %}<p class="breaks-note"><b>{% translate "Out of date." %}</b> {% blocktranslate with settings=breaks.found_with trimmed %}These breaks come from the earlier settings ({{ settings }}).{% endblocktranslate %}{% if breaks.looking %} {% translate "Looking for breaks with the new settings." %}{% endif %}</p>{% endif %}
+  {% if breaks.history_error %}<p class="breaks-note">{% blocktranslate with error=breaks.history_error trimmed %}The station history file was not used: {{ error }}{% endblocktranslate %}</p>{% endif %}
+
+  {% if chart %}
+  <figure class="qc-fig breaks-fig" data-qc-months>
+    <figcaption class="qc-fig__caption qc-fig__caption--split"><span>{{ chart.caption }} <span class="qc-fig__note">{{ "·" }} {{ chart.note }}</span></span><button type="button" class="qc-fig__toggle" data-qc-js hidden data-qc-months-toggle aria-pressed="false">{% translate "Table" %}</button></figcaption>
+    <svg class="qc-fig__plot breaks-chart breaks-chart--{{ chart.role }}" viewBox="0 0 1000 {{ chart.height }}" role="img" focusable="false" aria-label="{{ chart.aria }}" data-qc-months-chart data-readout='{{ chart.readout }}' data-readout-keys="{{ s.anchor }}-chart-keys" data-readout-role="{% translate 'chart' %}">
+      {% for tick in chart.y_ticks %}<line class="qc-chart__grid" x1="56" y1="{{ tick.y }}" x2="990" y2="{{ tick.y }}"/><text class="qc-chart__tick" x="48" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle">{{ tick.text }}</text>{% endfor %}
+      <text class="qc-chart__tick" x="4" y="14">{{ chart.unit }}</text>
+      <line class="qc-chart__axis" x1="56" y1="200" x2="990" y2="200"/>
+      {% for tick in chart.x_ticks %}<line class="qc-chart__axis" x1="{{ tick.x }}" y1="200" x2="{{ tick.x }}" y2="205"/><text class="qc-chart__tick" x="{{ tick.x }}" y="216" text-anchor="middle">{{ tick.text }}</text>{% endfor %}
+      {% for event in chart.history %}<path class="breaks-chart__event" d="M{{ event.x }} 222l5 9h-10z"><title>{% blocktranslate with date=event.date text=event.text trimmed %}{{ date }}: {{ text }}{% endblocktranslate %}</title></path><text class="breaks-chart__event-label" x="{{ event.x }}" y="244" text-anchor="middle">{{ event.date|slice:":7" }}</text>{% endfor %}
+      {% if chart.marks.strong %}<path class="break-mark break-mark--strong" d="{{ chart.marks.strong }}"/>{% endif %}{% if chart.marks.normal %}<path class="break-mark break-mark--normal" d="{{ chart.marks.normal }}"/>{% endif %}{% if chart.marks.quiet %}<path class="break-mark break-mark--quiet" d="{{ chart.marks.quiet }}"/>{% endif %}
+      {% for label in chart.labels %}<text class="breaks-chart__label breaks-chart__label--{{ label.grade }}" x="{{ label.x }}" y="{{ label.y }}" text-anchor="middle">{{ label.text }}</text>{% endfor %}
+      <path class="breaks-chart__line" d="{{ chart.line }}"/>
+      <path class="breaks-chart__dots" d="{{ chart.dots }}"/>
+      <path class="breaks-chart__steps" d="{{ chart.steps }}"/>
+    </svg>
+    {% include "components/readout.html" with id=s.anchor|add:"-chart" %}
+    <ul class="breaks-legend" aria-label="{% translate 'Key' %}">
+      <li><span class="breaks-legend__dot breaks-chart--{{ chart.role }}" aria-hidden="true"></span>{{ chart.legend_value }}</li>
+      <li><span class="breaks-legend__step" aria-hidden="true"></span>{% translate "mean of each segment" %}</li>
+      <li><svg width="10" height="14" aria-hidden="true" focusable="false"><path class="break-mark break-mark--strong" d="M5 0V14"/></svg>{% translate "break, found by 2+ tests or PMF" %}</li>
+      <li><svg width="10" height="14" aria-hidden="true" focusable="false"><path class="break-mark break-mark--normal" d="M5 0V14"/></svg>{% translate "one test" %}</li>
+      <li><svg width="10" height="14" aria-hidden="true" focusable="false"><path class="break-mark break-mark--quiet" d="M5 0V14"/></svg>{% translate "maybe, or PMT alone" %}</li>
+      {% if chart.history %}<li><svg width="10" height="10" aria-hidden="true" focusable="false"><path class="breaks-chart__event" d="M5 1L9 9H1z"/></svg>{% translate "station history" %}</li>{% endif %}
+    </ul>
+    <p class="breaks-fig__summary">{{ chart.summary }}</p>
+    <div class="table-wrap table-wrap--data breaks-years" role="region" aria-labelledby="{{ s.anchor }}-years" tabindex="0" data-qc-months-table>
+      <table class="table table--data">
+        <caption id="{{ s.anchor }}-years" class="sr-only">{% blocktranslate with title=s.title trimmed %}{{ title }}: each year's value and its segment{% endblocktranslate %}</caption>
+        <thead><tr><th scope="col">{% translate "Year" %}</th><th scope="col" class="num">{{ chart.value_header }}</th><th scope="col">{% translate "Segment" %}</th></tr></thead>
+        <tbody>{% for row in chart.rows %}<tr><td class="code">{{ row.year }}</td><td class="num">{{ row.value }}</td><td class="code">{{ row.segment }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </figure>
+  {% endif %}
+
+  <div class="breaks-agree">
+    <div class="breaks-agree__part breaks-agree__part--dates">
+      <h3 class="breaks-detail__heading">{% translate "Which tests agree" %}</h3>
+      {% if s.groups %}
+      <div class="table-wrap" role="region" aria-labelledby="{{ s.anchor }}-agree" tabindex="0">
+        <table class="table table--data">
+          <caption id="{{ s.anchor }}-agree" class="sr-only">{% blocktranslate with title=s.title trimmed %}{{ title }}: which tests agree on each date{% endblocktranslate %}</caption>
+          <thead><tr><th scope="col">{% translate "Around" %}</th>{% for test in s.tests %}<th scope="col" class="breaks-agree__test">{{ test.test }}</th>{% endfor %}<th scope="col">{% translate "Station history" %}</th></tr></thead>
+          <tbody>{% for row in s.agree %}{% with group=row.group %}<tr class="breaks-grade--{{ group.grade }}">
+            <td><span class="code">{{ "≈" }} {{ group.when }}</span> <span class="breaks-agree__by">{{ group.by }}</span></td>
+            {% for cell in row.cells %}<td class="breaks-agree__test">{% if cell == "untested" %}<span class="breaks-agree__untested">{% translate "not tested" %}</span>{% elif cell == "yes" %}<span class="breaks-dot breaks-dot--yes" aria-hidden="true"></span><span class="sr-only">{% translate "yes" %}</span>{% elif cell == "maybe" %}<span class="breaks-dot breaks-dot--maybe" aria-hidden="true"></span><span class="sr-only">{% translate "maybe" %}</span>{% else %}<span aria-hidden="true">{{ "–" }}</span><span class="sr-only">{% translate "none near" %}</span>{% endif %}</td>{% endfor %}
+            <td class="breaks-agree__history">{% if group.history %}{{ group.history }}{% elif breaks.has_history %}<span class="text-text-muted">{% translate "none within a year" %}</span>{% else %}<span class="text-text-muted">{% translate "no history file" %}</span>{% endif %}</td>
+          </tr>{% endwith %}{% endfor %}</tbody>
+        </table>
+      </div>
+      <p class="breaks-key"><span><span class="breaks-dot breaks-dot--yes" aria-hidden="true"></span> {% translate "yes" %}</span><span><span class="breaks-dot breaks-dot--maybe" aria-hidden="true"></span> {% translate "maybe: needs station history to support it" %}</span><span>{% translate "– none near" %}</span></p>
+      {% else %}
+      <p class="breaks-key">{% translate "No possible breaks to compare." %}</p>
+      {% endif %}
+    </div>
+    <div class="breaks-agree__part breaks-agree__part--tests">
+      <h3 class="breaks-detail__heading">{% if s.tests|length == 4 %}{% translate "The four tests" %}{% else %}{% translate "The tests" %}{% endif %}</h3>
+      <div class="table-wrap" role="region" aria-labelledby="{{ s.anchor }}-tests" tabindex="0">
+        <table class="table table--data">
+          <caption id="{{ s.anchor }}-tests" class="sr-only">{% blocktranslate with title=s.title trimmed %}{{ title }}: each test and its result{% endblocktranslate %}</caption>
+          <thead><tr><th scope="col">{% translate "Test" %}</th><th scope="col" class="num">{% translate "Values" %}</th><th scope="col">{% translate "Result" %}</th></tr></thead>
+          <tbody>{% for test in s.tests %}<tr><td>{{ test.test }}</td><td class="num">{{ test.values|count }}</td><td class="breaks-tests__result{% if not test.tested %} breaks-tests__result--untested{% elif test.found %} breaks-tests__result--found{% endif %}">{{ test.result }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if s.breaks %}
+  <div class="breaks-table">
+    <h3 class="breaks-detail__heading">{% translate "Breaks" %} <span class="breaks-table__count">{% blocktranslate count counter=s.breaks|length with n=s.breaks|length|count trimmed %}{{ n }} row{% plural %}{{ n }} rows{% endblocktranslate %}</span></h3>
+    <div class="table-wrap table-wrap--data" role="region" aria-labelledby="{{ s.anchor }}-breaks" tabindex="0">
+      <table class="table table--data">
+        <caption id="{{ s.anchor }}-breaks" class="sr-only">{% blocktranslate with title=s.title trimmed %}{{ title }}: every break each test found{% endblocktranslate %}</caption>
+        <thead><tr><th scope="col">{% translate "Test" %}</th><th scope="col">{% translate "Last before" %}</th><th scope="col">{% translate "First after" %}</th><th scope="col">{% translate "Significant" %}</th><th scope="col" class="num">{% translate "Statistic" %}</th><th scope="col" class="num">{% translate "Critical value" %}</th><th scope="col" class="num">{{ "p" }}</th><th scope="col" class="num">{% translate "Shift" %}</th><th scope="col" class="breaks-table__history">{% translate "Station history within a year" %}</th></tr></thead>
+        <tbody>{% for b in s.rows %}<tr><td>{{ b.test }}</td><td class="code">{{ b.last_before }}</td><td class="code">{{ b.first_after }}</td><td class="breaks-sig--{{ b.significance }}">{% if b.significance == "yes" %}{% translate "yes" %}{% elif b.significance == "maybe" %}{% translate "maybe" %}{% else %}{% translate "no" %}{% endif %}</td><td class="num">{{ b.statistic_text }}</td><td class="num text-text-muted">{{ b.critical_text }}</td><td class="num">{{ b.p_text }}</td><td class="num">{{ b.shift_text }}</td><td class="breaks-table__history">{{ b.history|default:"–" }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% if entry.note %}<p class="breaks-key">{{ entry.note }}</p>{% endif %}
+  </div>
+  {% endif %}
+  <p class="qc-detail__back"><a href="#qc-row-{{ s.id }}" data-qc-back="{{ s.id }}">{% translate "Back to the list" %}</a></p>
+</section>
+{% endwith %}

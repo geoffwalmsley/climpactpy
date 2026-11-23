@@ -14,7 +14,7 @@
 
 [**Try it at climpact.app**](https://climpact.app) · [Install](#installing) · [Command line](#command-line) · [Technical notes](TECHNICAL.md) · [Changelog](CHANGELOG.md)
 
-<img src="docs/images/results.jpg" alt="The Climpact results page: significant trends for Sydney Observatory Hill, each with a sparkline" width="860">
+<img src="docs/images/workspace.jpg" alt="A workspace of four Australian stations: each station's quality verdict and number of significant trends, and a grid of their trends per decade for eleven indices, coloured where the trend is significant" width="860">
 
 </div>
 
@@ -27,36 +27,43 @@ Climpact work, and adds a modern web app and a scriptable command line.
 ## Highlights
 
 - **The same results as Climpact for R.** Every output file of 15 reference stations is
-  text-identical to R's (1,791 of 1,791), and every variable of the gridded netCDF outputs is
-  bit-identical (3,006 of 3,006), checked on every pull request. See
-  [Parity testing](TECHNICAL.md#parity-testing).
+  text-identical to R's (1,791 of 1,791), and every variable of R's gridded thresholds and
+  index netCDF files is bit-identical on eight reference grids (1,024 of 1,024), checked on
+  every pull request. See [Parity testing](TECHNICAL.md#parity-testing).
 - **All the indices.** 80 ET-SCI indices per station, including Tx90/Tn90 and EHF heatwaves,
   SPI and SPEI, with quality control, base-period thresholds, Sen's-slope trends and sector
   correlation.
-- **A guided web app.** Load a file, review the quality checks on interactive charts, then
-  calculate and explore every index, with help next to each field. It runs offline on your
-  own computer, or hosted for a team.
+- **A workspace for your stations.** Drop one station file or a whole network, check the
+  quality, read every index's trend, and compare the trends across stations. Settings
+  belong to the workspace, so a change recalculates every station at once. It runs offline
+  on your own computer, or hosted.
 - **Fast and scriptable.** An 80-year station takes about 5 seconds. Batches run one station
   per CPU core, and gridded netCDF data are processed cell by cell in bounded memory.
 - **Files that drop into existing workflows.** CSV files in Climpact R's exact layout, R-style
-  plots, a zip in R's folder structure, and a PDF report for each station.
+  plots, a zip in R's folder structure, a PDF report for each station, all-station CSVs of
+  the indices and trends, and a record of what each result was made from.
 - **Accessible.** Built to WCAG 2.1 AA and tested automatically on every page, with light and dark themes and layouts that
   work on a phone.
 
 ## The web app
 
-Use the hosted app at **[climpact.app](https://climpact.app)** (single stations and batches),
-or run it on your own computer with `climpact-web`, which also processes gridded data and
-needs no internet connection. Each step shows its results before you move on.
+Use the hosted app at **[climpact.app](https://climpact.app)**, or run it on your own computer
+with `climpact-web`, which also processes gridded data and needs no internet connection.
+A workspace holds your stations and their settings; each station has its Quality, Indices
+and Files. Save a workspace to a file to keep it or open it on another computer.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/quality-checks.jpg" alt="Quality checks: flagged values circled on the daily series"><br><sub><b>Check quality.</b> Outliers, jumps, flat runs, impossible values and missing data, flagged on the chart and in tables. Your data is never changed.</sub></td>
-    <td width="50%"><img src="docs/images/index-page.jpg" alt="The page of one index: trend, chart and summary statistics"><br><sub><b>Explore every index.</b> Trend per decade with its 95% interval, an interactive chart, anomalies, seasonal trends and downloads.</sub></td>
+    <td width="50%"><img src="docs/images/add-stations.jpg" alt="Add stations: four station files and a metadata file read into a review table of names, coordinates, periods and missing data"><br><sub><b>Add stations.</b> One file or a whole network, with a metadata file or a zip. Check the names and coordinates in a table before anything runs.</sub></td>
+    <td width="50%"><img src="docs/images/quality.jpg" alt="Quality for Sydney Observatory Hill: the verdict Usable, the coverage of each variable by year, and the checks listed with the one selected shown on a chart"><br><sub><b>Check quality.</b> A verdict (Ready, Usable, Fix first), coverage by year, and each check's flagged values on a chart and in a table. Your data is never changed.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/gridded-map.jpg" alt="Gridded results: a map of an index and the time series of one cell"><br><sub><b>Gridded data.</b> One netCDF file per index, a map of any index and year, and the time series of any cell.</sub></td>
-    <td width="50%"><img src="docs/images/dark-theme.jpg" alt="An index page in the dark theme"><br><sub><b>Light and dark themes,</b> keyboard-navigable charts with text summaries and table views.</sub></td>
+    <td width="50%"><img src="docs/images/indices.jpg" alt="Indices for Sydney Observatory Hill: 80 indices in a table sorted by the size of their trend, with themes on the left and the selected index's chart on the right"><br><sub><b>Every index at a glance.</b> 80 indices with their trend per decade, 95% interval and a sparkline, filtered by theme, with the selected one beside the table.</sub></td>
+    <td width="50%"><img src="docs/images/index-page.jpg" alt="The TR Tropical nights page: annual values from 1936 to 2015 with the running mean and Sen's slope, the trend's statistics and the annual values table"><br><sub><b>Explore an index.</b> An interactive chart with the base period, running mean and Sen's slope, anomalies, monthly values, the trend's statistics and downloads.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/overlay-dark.jpg" alt="TXx Hottest day at each of the four stations on one chart, in the dark theme"><br><sub><b>Compare stations.</b> A trend grid across the workspace, and one index's series at every station. Light and dark themes throughout.</sub></td>
+    <td width="50%"><img src="docs/images/gridded-map.jpg" alt="A gridded run's map of TXx in 2010 on the sample grid, with the index list on the left and the selected cell's series and trend on the right"><br><sub><b>Gridded data.</b> A map of any index and year, its base-period mean, anomaly or trend, and the series of any cell or of the whole grid.</sub></td>
   </tr>
 </table>
 
@@ -80,8 +87,9 @@ Start the web app; it opens in your browser:
 climpact-web                      # options: --no-browser, --port, --host, --data-dir
 ```
 
-Press **Try with sample data** to walk through a full run with Climpact's Sydney Observatory
-Hill record.
+Press **See an example** to open Climpact's Sydney Observatory Hill record, already checked
+and calculated, or **Get started** to add your own stations. **Help** has a guide to each
+page, a page per index, the file formats and the command line.
 
 ## Command line
 
@@ -103,6 +111,8 @@ climpact sector-correlation station.txt wheat_yield.csv --out outputs
 # Gridded netCDF data: base-period thresholds, then every index of every cell
 climpact gridded-thresholds tasmax.nc tasmin.nc pr.nc --out thresholds.nc
 climpact gridded-indices tasmax.nc tasmin.nc pr.nc --out indices/ --workers 4
+# ...and trends.nc: each cell's Sen's slope per decade, its 95% interval and base-period mean
+climpact gridded-indices tasmax.nc tasmin.nc pr.nc --out indices/ --trends
 # A variable split by year: give its files, or a quoted pattern; they are joined along time
 climpact gridded-indices 'tasmax_day_*.nc' 'tasmin_day_*.nc' 'pr_day_*.nc' --out indices/
 ```

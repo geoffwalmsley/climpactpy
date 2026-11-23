@@ -3,8 +3,9 @@
 The browser app for [Climpact for Python](https://pypi.org/project/climpact/) (the
 `climpact` package, a Python port of the R
 [Climpact](https://github.com/ARCCSS-extremes/climpact)): calculate the indices of daily
-climate extremes for a station, a batch of stations or gridded data, check the data
-quality and download the results, plots and report. A Django + htmx app. It depends on
+climate extremes for a workspace of stations (one or a whole network) or for gridded data,
+check the data quality, compare the trends across stations and download the results, plots
+and report. A Django + htmx app. It depends on
 `climpact` at exactly the same version; the core never imports it.
 
 ## Running it on your computer
@@ -22,8 +23,10 @@ Python 3.12 or later. In a checkout of the
 migrations, starts a background worker for the calculations, serves the app on
 http://127.0.0.1:8000/ and opens it in the browser. It needs no network connection.
 Options: `--no-browser`, `--port`, `--host`, `--data-dir`, `--threads`, `--no-worker`;
-`climpact-web manage <command>` runs a Django management command. Uploads and results are
-deleted after 7 days (`CLIMPACT_WEB_RETENTION_DAYS`). With `CLIMPACT_WEB_DEBUG=true` (or
+`climpact-web manage <command>` runs a Django management command. On your computer a
+workspace and a gridded run stay until you delete them; hosted, a workspace is deleted 7
+days after its last change (`CLIMPACT_WEB_RETENTION_DAYS`, `CLIMPACT_WEB_WORKSPACE_EXPIRY`),
+so save it to a workspace file to keep it. With `CLIMPACT_WEB_DEBUG=true` (or
 `CLIMPACT_WEB_PATTERN_LIBRARY=true`) the pattern library at `/patterns/` shows every UI
 component.
 
@@ -48,7 +51,8 @@ templates; repeated pieces, and classes built in Python or JavaScript, are compo
 ## Hosted mode
 
 Set `CLIMPACT_WEB_MODE=hosted`, `CLIMPACT_WEB_SECRET_KEY`, `CLIMPACT_WEB_ALLOWED_HOSTS`,
-`CLIMPACT_WEB_STATIC_ROOT` and `DATABASE_URL` (Postgres: install the `postgres` extra),
+`CLIMPACT_WEB_STATIC_ROOT`, `CLIMPACT_WEB_PUBLIC_URL` (the site's address, for the help's
+canonical links and sitemap) and `DATABASE_URL` (Postgres: install the `postgres` extra),
 run `climpact-web manage migrate` and `climpact-web manage collectstatic`, and serve
 `climpact_web.wsgi:application`. Run one or more `climpact-web manage runworker`
 processes for the background jobs. The health check is `/healthz`.

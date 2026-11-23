@@ -136,8 +136,9 @@ def _module_arguments(parser: argparse.ArgumentParser) -> None:
         "--homogeneity",
         default=DEFAULT_HOMOGENEITY,
         metavar="NAME",
-        help="homogeneity module; its adjusted data, if any, is used for the indices "
-        "(default: %(default)s)",
+        help="homogeneity module; its adjusted data, if any, is used for the indices. "
+        "Built in: none, and detect, which reports likely breaks in the series and leaves "
+        "the data unchanged (default: %(default)s)",
     )
     group.add_argument(
         "--indices",
@@ -630,6 +631,11 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         print(f"Wrote the report to {report}")
     if skipped:
         print(f"Not written (no data in any period): {', '.join(skipped)}")
+    if (tests := written.get("homogeneity/tests")) is not None and modules.homogeneity == "detect":
+        from climpact.homogeneity.detect import summary
+        from climpact.io.climpact_csv import read_climpact_csv
+
+        print(f"Homogeneity: {summary(read_climpact_csv(tests).data)} (see {tests.parent})")
     return 0
 
 

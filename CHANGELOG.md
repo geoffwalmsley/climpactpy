@@ -7,6 +7,15 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
+### climpact
+
+- Homogeneity break detection (#34): the built-in homogeneity module `detect`
+  (`--homogeneity detect`) tests the annual and monthly mean TX and TN and the annual PRCP
+  of a station with Pettitt's test, the SNHT and RHtestsV4's PMFred and PMTred, and writes
+  the breaks it finds, with the station history near them, to `homogeneity/`. It reports
+  breaks only and leaves the data unchanged. Climpact R has no homogeneity check; the
+  tests match R's `trend` package and RHtestsV4 on the 14 reference stations.
+
 ## 0.2.0 - 2026-11-23
 
 The web app is redesigned around **workspaces** for people who already know Climpact: a

@@ -43,7 +43,7 @@ x86_64, the SPI and SPEI values agree to 1e-10 relative; see [SPI and SPEI](#spi
 | Other outputs | thresholds file (`thres/thres`), trend file (`trend/trend`), CSV files for all ported outputs, gridded thresholds netCDF, gridded index netCDF files, gridded trends (`trends.nc`, not in R; see [Gridded trends](#gridded-trends)), index plots (PNG) and the combined PDF, zip archive (see [Plots and zip archive](#plots-and-zip-archive)), a PDF report of a station run (not in R; see [PDF report](#pdf-report)), sector correlation tables and plots (`corr/`, see [Sector correlation](#sector-correlation)) | |
 | Running | single station (`climpact run`), batch of stations from R's metadata file (`climpact batch`), gridded thresholds (`climpact gridded-thresholds`), gridded indices (`climpact gridded-indices`), sector correlation after a station run (`climpact sector-correlation`) | |
 | Web app | Django + htmx skeleton (`climpact_web`): `climpact-web` starts it locally and offline, hosted mode reads its settings from the environment, health check; background jobs in a database-backed queue with a worker, progress pages, cancel, retry and retention; the design system (tokens, components, landing page, pattern library); Add stations (#233: one way into a workspace, for one file or many, reviewed in one table, see [Add stations](#add-stations)); the single-station workspace (#179, #198, #199, #201: a New station page with the file and the details and one button that checks and calculates (replaced by Add stations; its page stays as a station's setup page), then Quality, Indices (Results until #236) and Files as tabs beside the Inputs panel ("Your inputs") whose Edit opens a side sheet for each input, the quality thresholds and index settings included, with results kept and marked out of date after a change; the sector comparison as an action on Indices) with the PDF report (#79); the workspace overview (#234: a workspace of several stations, its run status line and Stations table, live as they calculate, Rename and Workspace settings, see [Workspace overview](#workspace-overview)); the workspace's Files (#239: Everything, the trends and indices of all stations as CSV, each station's R files and `climpact_run.json` in every zip, see [Workspace files](#workspace-files)); trends across stations (#238: the trend grid and the selected index's interval plot on the overview and Compare an index; #276: Overlay the series, an index's series at every station on a page of its own, see [Trends across stations](#trends-across-stations)); Copy to workspace… (#241: a station copied to another workspace or a new one, recalculated with its settings, see [Copy to workspace](#copy-to-workspace)); the landing page, Get started and Workspaces (#242: real output and the parity suite's facts on the landing page, every workspace of the browser in one table, Delete, see [Landing page and Workspaces](#landing-page-and-workspaces)); the workspace file (#240: Save file and Open a workspace file rebuild a workspace anywhere, see [Workspace file](#workspace-file)); interactive charts; batch processing of stations; gridded runs (#289: Gridded lists the runs, and a run has its context bar and Map, Files and Set-up tabs; #293: set-up is one page of sections beside a summary panel that is the check, and starting a finished run again keeps its results until the new ones are ready; #294: while a run calculates, or after it failed, its Map tab shows its stages and what to change, and starting again keeps the finished stages, see [Gridded pages](#gridded-pages)); in-app help: guide pages, contextual help topics, search and a first-run tour (see [Web front end](#web-front-end), [Background jobs](#background-jobs), [A station's pages](#a-stations-pages), [Batch page](#batch-page), [Gridded pages](#gridded-pages), [Help](#help) and [Charts](#charts)) | |
-| Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity module `none` (pass-through) | homogeneity detection (#34) and adjustment (#35) |
+| Modules | QC, homogeneity and index module interfaces, third-party modules as plugins, module options (see [Modules and plugins](#modules-and-plugins)); built-in homogeneity modules `none` (pass-through, the default) and `detect` (break detection with Pettitt, SNHT, RHtests PMFred and PMTred, #34; not in R, see [Homogeneity break detection](#homogeneity-break-detection)) | homogeneity adjustment (#35) |
 
 Progress is printed at the end of every test run (see [Parity testing](#parity-testing)).
 
@@ -118,6 +118,17 @@ src/climpact/
   modules.py         QCModule, HomogeneityModule, IndexModule; plugin discovery (entry
                      points); module options (Option); run_pipeline(): QC ->
                      homogeneity -> indices
+  homogeneity/       break detection (#34, not in R; see Homogeneity break detection)
+    detect.py        the built-in homogeneity module `detect` (DETECT, BreakDetection):
+                     detect_breaks(), find_breaks(), the breaks and tests tables, options
+                     (CheckedOption), the station history (read_station_history)
+    series.py        the tested series: station_series(), build_series(), anomalies()
+    pettitt.py       Pettitt's test (trend::pettitt.test)
+    snht.py          the SNHT (trend::snh.test), with R's Monte Carlo p-value
+    segmentation.py  binary segmentation for the single-break tests
+    rhtests.py       RHtestsV4's PMFred (FindU) and PMTred (FindU.wRef): pmf(), pmt()
+    data/            RHtests' critical-value tables (PFmax, PTmax percentiles), extracted
+                     by reference/homogeneity/extract_rhtests_tables.py
   batch.py           batch mode: R's batch metadata file, run_station(), run_batch() process pool
   plots.py           index plots (PNG), the combined PDF and the zip archives (matplotlib,
                      optional: the `plots` extra)
@@ -176,6 +187,8 @@ src/climpact/
   rnumerics.py       exact emulation of R's extended-precision sum, cumsum, mean and var,
                      the sums of moving windows (r_window_sums), and of R's round()
   rdist.py           exact ports of R's qnorm, pnorm, dnorm, pgamma (and glibc's lgamma)
+  rrandom.py         R's random normal numbers: set.seed, Mersenne-Twister, inversion
+                     (rnorm, RNormal), with a vectorised qnorm, for the SNHT p-value
   trends.py          Sen's slope and its 95% bounds (zyp.sen, confint.zyp, Kendall's Var(S)),
                      and the plots' trend: zyp.sen's intercept, Mann-Kendall p-value
 tests/
@@ -201,9 +214,11 @@ reference/
                      R's sector correlation files, detrended/ and raw/
   gridded/           gridded runs (runs.csv), make_grids.py, input grids and R's thresholds
                      and index netCDF files (output/<run>/thresholds.nc, output/<run>/indices/)
-  r/, run_r_reference.sh, run_r_gridded.sh, run_r_sector.sh
-                     Docker setup that produces reference/output (and its sydney/sector/) and
-                     reference/gridded/output
+  homogeneity/       make_series.py and the tested series (series/<run>.csv); R's homogeneity
+                     tests (output/<run>/); extract_rhtests_tables.py
+  r/, run_r_reference.sh, run_r_gridded.sh, run_r_sector.sh, run_r_homogeneity.sh
+                     Docker setup that produces reference/output (and its sydney/sector/),
+                     reference/gridded/output and reference/homogeneity/output
                      (see reference/README.md)
 ```
 
@@ -219,7 +234,8 @@ station text file
        run.rows                     the merged rows the QC checks run on
   -> outputs.build_all(run)         modules.run_pipeline: {"indices/fd_ANN": DataFrame, ...}
        QC modules                   built-in "climpact": the qc/ files, on the input data
-       homogeneity module           built-in "none": no tables, data unchanged
+       homogeneity module           built-in "none" (default): no tables, data unchanged;
+                                    "detect": the homogeneity/ tables, data unchanged
        index modules                built-in "climpact": the products below, then the
                                     derived products (the trend file), on the data
                                     the homogeneity module returned
@@ -398,7 +414,7 @@ input (StationRun) -> QC modules -> homogeneity module -> index modules -> write
 | Kind | Interface | Built in | Entry point group |
 | --- | --- | --- | --- |
 | QC | `QCModule.build(run, tables) -> {key: table}` | `climpact`: R's `qc/` files | `climpact.qc` |
-| Homogeneity | `HomogeneityModule.homogenise(run, tables) -> HomogeneityResult` | `none`: pass-through | `climpact.homogeneity` |
+| Homogeneity | `HomogeneityModule.homogenise(run, tables) -> HomogeneityResult` | `none`: pass-through (the default); `detect`: break detection (see [Homogeneity break detection](#homogeneity-break-detection)) | `climpact.homogeneity` |
 | Index | `IndexModule.build(run, tables) -> {key: table}` | `climpact`: R's `indices/`, `thres/` and `trend/` files | `climpact.indices` |
 
 The interfaces are `typing.Protocol` classes: a module is any object with a `name` and
@@ -437,7 +453,7 @@ attribute, a sequence of `Option(name, type, default, help, choices, required)`;
 is `str`, `int`, `float` or `bool`. A module that declares options gets them as the
 keyword argument `options` of `build` or `homogenise`: a dict with a value for every
 declared option (the user's, else the default). Modules without an `options` attribute
-are called as before; the built-in modules take none.
+are called as before; of the built-in modules, only `detect` takes options.
 
 - **Choosing them.** `ModuleSelection.options` is `{kind: {module name: {option:
   value}}}`, plain values, so batch workers receive it with the names. On the command
@@ -473,6 +489,138 @@ before any station runs.
 
 Not yet supported: trend rows for plugin indices (the trend file covers the built-in
 indices only).
+
+## Homogeneity break detection
+
+Climpact R has no homogeneity check. The built-in homogeneity module `detect`
+(`climpact.homogeneity.detect`, #34) looks for likely breaks (artificial shifts, for
+example from a station move or a new instrument) in a station's series and reports them
+next to the other outputs. It does **not** adjust the data (decided 2026-11-13, #27;
+adjustment is #35), so the indices are calculated from the data as it is and
+`PipelineResult.adjusted` is false. It is opt-in: `climpact run ... --homogeneity detect`
+(or `climpact batch`), `ModuleSelection(homogeneity="detect")`; the default homogeneity
+module is still `none`, so a default run writes exactly R's files.
+
+**Series** (`homogeneity/series.py`, `station_series`): annual and monthly mean TX and
+TN, and the natural log of the annual PRCP total (every day's precipitation, not
+PRCPTOT's wet days; a shift in the log is a ratio of the totals), one value per period
+from the first to the last year of the data. A period is missing under the climdex rules
+(see [Missing data](#missing-data)), so the means are Climpact's TXm and TNm (R's `mean`,
+`r_mean`); a year with a total of zero has no log and is missing. Monthly PRCP is not
+tested. Pettitt and SNHT test monthly series as anomalies from each calendar month's mean
+(`anomalies`); RHtests is given the monthly means and removes the annual cycle itself.
+Missing periods are skipped: Pettitt and SNHT test the values in order, RHtests keeps
+their place in its time index.
+
+**Methods** (option `methods`):
+
+| Method | Port of | Breaks | Significance |
+| --- | --- | --- | --- |
+| `pettitt` | R `trend::pettitt.test` (trend 1.1.8), `homogeneity/pettitt.py` | one per test; several by binary segmentation | Pettitt's approximate p-value at most `1 - level` |
+| `snht` | R `trend::snh.test`, absolute form, `homogeneity/snht.py` | one per test; several by binary segmentation | Monte Carlo p-value (20,000 simulated series) at most `1 - level` |
+| `pmf` | RHtestsV4 `FindU`: PMFred, the penalised maximal F test with a common linear trend and lag-1 autocorrelation, no reference series (`homogeneity/rhtests.py`) | RHtests' own search: changepoints added one at a time, then the insignificant ones removed | RHtests' label: `Yes` at the upper bound of the critical value's 95% interval for the autocorrelation, `?` between the bounds (significant only if the station history supports it), `No` below |
+| `pmt` | RHtestsV4 `FindU.wRef`: PMTred, the penalised maximal t test, run with a reference series of zeros, so it tests the series' anomalies and assumes no trend (`homogeneity/rhtests.py`) | as `pmf` | as `pmf` |
+
+Without a reference series PMT treats a trend as a shift, so on warming stations it finds
+breaks that PMF, which fits the trend, does not (Potsdam's annual TX: PMT reports 1998/99
+and 2013/14 as `?`; PMF finds none). Relative tests against neighbouring stations are out
+of scope (#35).
+
+**Binary segmentation** (`homogeneity/segmentation.py`, `binary_segmentation`), for
+Pettitt and SNHT: the test runs on the whole series; a significant break that leaves at
+least `min_years` years of values on each side (option `min_years`, default 5: 5 values
+for annual series, 60 for monthly) splits the series there, and each part is tested the
+same way. A part with fewer than `2 * min_years` years of values is not tested. RHtests
+keeps its own minimum lengths (10 values for PMF, 5 for PMT).
+
+**SNHT p-values with R's random numbers.** `trend::snh.test` gets its p-value from a
+Monte Carlo simulation in Fortran (`mcsnht`) that draws R's normal random numbers. The
+port draws the same numbers (`climpact.rrandom`: R's `set.seed`, Mersenne-Twister and
+inversion normals, with R's `qnorm` vectorised), seeded with 1 before each test as the
+reference does, so its p-values are R's after `set.seed(1)` exactly, not within Monte
+Carlo error. The simulated null distribution depends only on the length, so it is
+computed once per length and process (about 0.1 s for 60 values and 1 s for 720).
+
+**Options** (`--module-option detect.NAME=VALUE`, or a `[homogeneity.detect]` table in
+`--module-options`): `methods` (comma-separated, default `pettitt,snht,pmf,pmt`),
+`variables` (`TX,TN,PRCP`), `series` (`annual,monthly`), `level` (0.95; one of 0.75,
+0.8, 0.9, 0.95, 0.99, 0.9999, the levels RHtests has critical values for), `min_years`
+(5) and `station_history` (a file, below). Bad values (an unknown method, an empty list,
+a level RHtests has no table for, `min_years` below 1) are rejected by `resolve()` before
+any station runs (`CheckedOption`, an `Option` whose value also passes a check).
+
+**Station history.** Option `station_history` names a CSV file with the columns `date`
+(`YYYY-MM-DD`, `YYYY-MM` or `YYYY`) and `event`, and optionally `station` (then only the
+rows with the run's station name are used, so one file can serve a batch). Events within
+366 days of the start of the first period after a break are listed in its
+`station_history` column (`read_station_history`). Field values are not quoted in the
+output files, so commas in an event become semicolons.
+
+**Outputs**, in `<out>/<station>/homogeneity/`, with Climpact's metadata header block,
+`,`-separated, `NA` for a missing value:
+
+| File | One row per | Columns |
+| --- | --- | --- |
+| `<station>_breaks.csv` (`homogeneity/breaks`) | break | `variable` (TX, TN, PRCP), `series` (annual, monthly), `method`, `last_before` and `first_after` (the last period with a value before the break and the first after it, `1987` or `1987-08`), `significance` (`yes`; RHtests also `maybe` for `?` and `no`), `statistic` (U*, T0, PFmax, PTmax), `critical_value` (Pettitt: the U* of p = 1 - level; SNHT: the simulated T0 that p = 1 - level needs; RHtests: CV95 at the estimated autocorrelation), `p_value` (Pettitt, SNHT; `NA` for RHtests), `shift` (the change of the mean across the break: degC, or % of the PRCP total; Pettitt and SNHT between the means of the adjacent segments, RHtests its step size), `units`, `station_history` |
+| `<station>_tests.csv` (`homogeneity/tests`) | series and method | `variable`, `series`, `method`, `first`, `last` (the first and last periods with a value), `values`, `breaks` (significant), `possible` (RHtests' `?`), `status` (`breaks found`, `no breaks found` or `not tested`), `note` (why a series was not tested: too few values, or RHtests' message) |
+
+The tests table is the run's flag: `breaks_found(tables)` is true when any row says
+`breaks found`, and `climpact run` prints a line saying which tests found breaks
+(`summary`). Showing the breaks in the web app is a separate ticket.
+
+**Validation** (`tests/test_homogeneity_parity.py`, `tests/test_homogeneity_rhtests.py`,
+`tests/test_homogeneity.py`, `tests/test_rrandom.py`): see
+[Reference outputs](#reference-outputs) for the R reference.
+
+- R's `set.seed(1); rnorm(10)` bit for bit; the vectorised `qnorm` equals `rdist.qnorm`.
+- The committed series files are what `station_series` builds from the station files.
+- Pettitt and SNHT on all 14 stations' series: every test of the segmentation (segment,
+  change point, decision) exactly as R's; Pettitt's statistic and p-value bit for bit;
+  SNHT's statistic within 1e-12 relative (R sums the standardised values in extended
+  precision) and its p-value exactly.
+- PMF and PMT on the same series (135 series, 270 cases): the same changepoints, labels,
+  `Nseg` and number of changepoints as RHtests (324 changepoints: 188 `Yes`, 132 `?`, 4
+  `No`), and every number RHtests prints (statistic, critical values, probabilities, step
+  size, to 4 decimals) within 5e-5; the 11 cases RHtests refuses (below) raise
+  `RHtestsError` in Python too. RHtests' penalty vectors (`pk_pmt`, `pk_pmft`) and
+  critical values match R to 1e-12.
+- Synthetic series (`tests/test_homogeneity.py`; counts at the 95% level, `yes` breaks
+  only):
+
+  | Series | Pettitt | SNHT | PMF | PMT |
+  | --- | --- | --- | --- | --- |
+  | Annual, 1 °C step in 1991, noise sd 0.25 °C: break at 1991 exactly (of 50) | 48 | 47 | 48 | 47 |
+  | Annual, 1 °C step, noise sd 0.5 °C: break within a year of 1991 (of 50) | 46 | 43 | 27 | 42 |
+  | Monthly with an annual cycle, 1 °C step, noise sd 1 °C: break within 12 months of January 1991 (of 20) | 20 | 20 | 20 | 20 |
+  | Annual white noise, sd 0.5 °C: series with a break (of 400) | 12 (3.0%) | 15 (3.75%) | 26 (6.5%) | 46 (11.5%) |
+
+  PMF fits a linear trend as well as the step, which takes up part of a step in the
+  middle of a noisy series, so it finds fewer there. Pettitt, SNHT and PMF have false
+  alarms at the nominal 5% (within three binomial standard errors; Pettitt's
+  approximation is conservative). **PMT's rate is about twice the nominal one, and that
+  is RHtests' own behaviour**: its search adds changepoints at the lower critical value
+  and labels each on the segment between its neighbours, which raises the rate above
+  that of a single test. R's `FindU.wRef` gives the same changepoints as the port on the
+  40 white-noise series of the synthetic reference run (3 with a `Yes`, 1 for PMF), so
+  the port is not the cause. A PMT break on its own is weaker evidence than a PMF one.
+
+**Series RHtests refuses.** RHtests stops on these series, often with an R error that does
+not say why; Python raises `RHtestsError` with the reason, and the series is `not tested`
+in the tests table. The reference stations have 11 such cases (Nairobi and New Delhi):
+
+| Case | R | Python's reason |
+| --- | --- | --- |
+| No values at all (Nairobi TX and TN annual, New Delhi TN annual: no year passes the climdex rule) | PMF: "missing value where TRUE/FALSE needed"; PMT: "attempt to set 'colnames' ..." | the series has no values |
+| PMT: a calendar month with fewer than 5 values (Nairobi TX and TN monthly, New Delhi TN monthly) | `Read.wRef` returns an error that `FindU.wRef` does not check, then "object 'Y0' not found" | input data too few at the month |
+| PMF: fewer than 10 pairs of consecutive values (Nairobi TN monthly, New Delhi PRCP annual) | `Read` returns -1 ("Too many missing values ... to estimate autocorrelation") | the same |
+| PMF with fewer than 20 values; PMT with fewer than 11 (no reference series) | R runs, but its scan for the first changepoint goes from position 10 *down* to N - 10, with critical values interpolated towards 0 below the table | too few values |
+
+**Performance.** RHtests' tests take under 0.1 s on every reference series (monthly
+included; the scans for a changepoint are vectorised with cumulative sums, and
+positions within 1e-9 of the maximum are recomputed as R computes them, so R's choice of
+the first maximum is kept). SNHT's null distribution is simulated once per series length
+and process. A `climpact run` of Sydney (80 years) with QC and `detect`, no indices,
+takes about 8 s.
 
 ## Batch processing
 
@@ -1461,6 +1609,23 @@ in memory and requires each file to equal R's line for line, apart from the detr
 sector column, compared at `CLOSE` (see [Sector correlation](#sector-correlation-1)): 6 of
 the 10 files are text-identical, and the four detrended scatter files differ in one value
 (1994) in the 15th significant digit.
+
+**Homogeneity tests.** `reference/run_r_homogeneity.sh` runs the R implementations of the
+`detect` module's tests (`reference/r/run_homogeneity.R`, see `reference/README.md`) on the
+series `reference/homogeneity/make_series.py` writes: the five series of `sydney` and the 13
+GHCN runs (`series/<run>.csv`), and 65 synthetic series (`series/synthetic.csv`: 40 of
+white noise, 20 annual and 5 monthly with a 1 °C step). R's `trend` 1.1.8 (Pettitt and
+SNHT, with the same binary segmentation, every test logged to `output/<run>/tests.csv`)
+and RHtestsV4 (`FindU`, and `FindU.wRef` with a reference of zeros, parsed from its
+`_1Cs.txt` and `_Ustat.txt` into `rhtests.csv` and `rhtests_series.csv`) are installed in
+the image in layers after the others. `tests/test_homogeneity_parity.py` checks that the
+station series files are what `station_series` builds and that the synthetic ones follow
+their recipes, and compares the 712 Pettitt and SNHT tests (`EXACT` for segments, change
+points and decisions; Pettitt's statistic and p-value and SNHT's p-value exactly, SNHT's
+statistic within 1e-12 relative); `tests/test_homogeneity_rhtests.py` compares the 270
+RHtests cases (changepoints, labels, `Nseg` and counts `EXACT`, RHtests' printed numbers
+within 5e-5, the half unit of their last decimal). These files have no Climpact R
+counterpart and are not part of the R parity summary.
 
 `qc_stress` (`source` `synthetic` in `stations.csv`) exists because none of the real stations
 has a duplicated date and several QC checks fire at only a few of them.
@@ -2605,6 +2770,32 @@ file must be text-identical.
 | `Year` must be the first column's name (`filter(Year %in% ...)` fails otherwise, with an R error) | same requirement, with a clear message | none |
 | When an index has no year in common with the sector data, R stops after writing the four scatter files | the error is raised before anything is written | no partial `corr/` folder |
 | The plots are drawn with ggplot2 (red points, black line, equation in the plot) | drawn with matplotlib in the style of the index plots, under R's file names; the equation and R² (rounded to 2 decimals, as R) under the plot | look only |
+
+### Homogeneity tests
+
+Climpact R has no homogeneity check, so these are differences from the R implementations
+the `detect` module ports (see [Homogeneity break detection](#homogeneity-break-detection)).
+
+| R behaviour | Python | Effect |
+| --- | --- | --- |
+| `trend::snh.test` standardises the observed statistic with `sd()` (divisor n - 1) but its Monte Carlo null distribution (`mcsnht.f`) with the population standard deviation (divisor n), so its p-values are slightly larger than a consistent definition would give | kept (`homogeneity/snht.py`) | p-values identical to R's |
+| `snh.test`'s p-value depends on R's random number state, which it does not set: two calls give different p-values (by Monte Carlo error, about 0.0015 at p = 0.05) | the simulation draws R's random numbers after `set.seed(1)` (`climpact.rrandom`), as `run_homogeneity.R` does before each test; the null distribution is kept per length | identical to R's p-values after `set.seed(1)`, and the same on every run |
+| `snh.test` sums the standardised values with R's `sum` (extended precision) | numpy's cumulative sums | statistics within 1e-12 relative; no decision changes on the reference series |
+| `pettitt.test` and `snh.test` return every `k` at which the maximum is reached (`K <- k[Uka == U]`) | the first, as `run_homogeneity.R` takes `K[1]` | none |
+| `trend`'s tests find one break; it has no segmentation | binary segmentation (`homogeneity/segmentation.py`), which `run_homogeneity.R` implements with the same rule | the R reference tests the same segments |
+| RHtests' `getPFx95` finds the autocorrelation's interval with strict comparisons (`cor>phi[i]&cor<phi[i+1]`), so an autocorrelation exactly on an interior grid value finds none and R errors (or uses a stale global) | the tabulated value at that grid point, as `getPTx95` gives | an answer where R has none; no reference series is affected |
+| RHtests stops with R errors that do not give the reason on series with no values, on a PMT series with a month of fewer than 5 values (`FindU.wRef` does not check `Read.wRef`'s error and fails with "object 'Y0' not found"), and on a PMF series with fewer than 10 consecutive pairs | `RHtestsError` with the reason; the series is `not tested` | the same 11 reference cases are refused (see [Homogeneity break detection](#homogeneity-break-detection)) |
+| RHtests runs PMF on fewer than 20 values and PMT on fewer than 11, though its scan for the first changepoint then runs backwards and its critical values are interpolated towards 0 below its tables; a missing (NaN) autocorrelation makes R error | `RHtestsError` | none of the reference series is that short |
+
+RHtests' other quirks are reproduced, each marked "R quirk" in `homogeneity/rhtests.py`:
+`Rphi` uses each value's own consecutive-values flag where `LSmultipleRed` uses the
+previous one's; `FindU`'s final lower and upper probabilities are `pf()` of the prewhitened
+F rather than of the F of the bounds; PMT's searches use the critical value for `Nseg - 1`
+and its labels the one for `Nseg`; `Read.wRef`'s check for 10 values per month counts
+two matrix elements per value (5 values in effect) and its check for 10 pairs counts
+adjacent rows, not consecutive periods; `Read` takes the calendar months from the rows
+with values and `Read.wRef` from all rows; `LSmultiRedCycle` re-estimates the annual cycle
+up to 20 times; ties go to the first maximum.
 
 ### Gridded data
 

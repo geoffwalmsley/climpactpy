@@ -10,7 +10,8 @@ A station run goes through three stages::
   returns tables (for example a breaks table) and, optionally, adjusted data. When it
   returns adjusted data, the index modules use it. The QC tables and the returned
   :class:`PipelineResult` keep the original. At most one homogeneity module runs. The
-  built-in ``none`` passes the data through.
+  built-in ``none`` (the default) passes the data through; the built-in ``detect``
+  (:mod:`climpact.homogeneity.detect`) reports likely breaks and does not change the data.
 - An **index module** (:class:`IndexModule`) calculates indices. The built-in one,
   ``climpact``, writes R's ``indices/``, ``thres/`` and ``trend/`` files.
 
@@ -33,8 +34,8 @@ attribute, and its ``build`` (or ``homogenise``) then takes a keyword argument
 ``options``, a dict holding a value for every option it declares (the user's value, else
 the default). Options are chosen per module in :attr:`ModuleSelection.options` and are
 checked by :func:`resolve` (:class:`ModuleOptionError`), so a bad option fails before
-any station runs. Modules without an ``options`` attribute take none; the built-in
-modules take none.
+any station runs. Modules without an ``options`` attribute take none; of the built-in
+modules, only ``detect`` takes options.
 
 Third-party modules are found through the entry point groups ``climpact.qc``,
 ``climpact.homogeneity`` and ``climpact.indices``. An entry point names a module object,
@@ -266,7 +267,9 @@ def _builtin(kind: Kind) -> dict[str, object]:
 
         return {CLIMPACT_QC.name: CLIMPACT_QC}
     if kind == "homogeneity":
-        return {PASS_THROUGH.name: PASS_THROUGH}
+        from climpact.homogeneity.detect import DETECT
+
+        return {PASS_THROUGH.name: PASS_THROUGH, DETECT.name: DETECT}
     from climpact.outputs import CLIMPACT_INDICES
 
     return {CLIMPACT_INDICES.name: CLIMPACT_INDICES}

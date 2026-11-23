@@ -1,0 +1,11 @@
+variable,series,method,breaks,error
+TX,annual,pmf,NA,missing value where TRUE/FALSE needed
+TX,annual,pmt,NA,attempt to set 'colnames' on an object with less than two dimensions
+TX,monthly,pmf,0,
+TX,monthly,pmt,NA,object 'Y0' not found
+TN,annual,pmf,NA,missing value where TRUE/FALSE needed
+TN,annual,pmt,NA,attempt to set 'colnames' on an object with less than two dimensions
+TN,monthly,pmf,NA,NA[1] -1
+TN,monthly,pmt,NA,object 'Y0' not found
+PRCP,annual,pmf,0,
+PRCP,annual,pmt,0,

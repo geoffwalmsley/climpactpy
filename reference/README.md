@@ -145,6 +145,40 @@ gitignored. The R files carry no date, so a re-run with the same inputs reproduc
 The scatter plots need ggplot2, which the image installs from the same CRAN snapshot in a
 layer after the station and gridded packages, so those are unchanged.
 
+## Homogeneity reference
+
+The break detection of `climpact.homogeneity` (#34) has no Climpact counterpart; it is
+checked against the R implementations of its tests by
+
+```sh
+./reference/run_r_homogeneity.sh                 # every station
+./reference/run_r_homogeneity.sh potsdam sydney  # only the named runs
+```
+
+It first writes the tested series of each station with the Python code
+(`homogeneity/make_series.py`: `sydney` and the 13 GHCN runs of `stations.csv`; `lat0` is
+the same data and `qc_stress` synthetic) to `homogeneity/series/<run>.csv`: annual and
+monthly mean TX and TN and the log of annual PRCP, one row per period, empty when the
+climdex rules make the period missing, with 17 significant digits. Then
+`r/run_homogeneity.R` runs, at the 95% level:
+
+- `trend::pettitt.test` and `trend::snh.test` (trend 1.1.8, from the same CRAN snapshot;
+  `set.seed(1)` before each SNHT, 20,000 simulations) with binary segmentation (segments of
+  at least 5 years; monthly series as anomalies from each calendar month's mean), logging
+  every test to `homogeneity/output/<run>/tests.csv`;
+- RHtestsV4 (`RHtestsV4_20190301.r` from ECCC's repository at commit `827b2b2`, LGPL-2.1,
+  checked by its SHA-256): `FindU` (PMFred) on each series, and `FindU.wRef` (PMTred) with
+  a reference series of zeros, so that it tests the series' anomalies. The changepoints of
+  its `_1Cs.txt` and `_Ustat.txt` files go to `rhtests.csv`, and the number found per
+  series (or RHtests' error) to `rhtests_series.csv`;
+- `set.seed(1); rnorm(10)`, to `rnorm.csv`, for the port of R's random numbers.
+
+`homogeneity/output/` also holds `r-package-versions.csv` and `rhtests-commit.txt`. The
+files carry no date, so a re-run with the same inputs reproduces them. trend and RHtests
+are installed in layers after the others, so the packages the other references use are
+unchanged. `homogeneity/extract_rhtests_tables.py` copies RHtests' critical-value tables
+(PTmax and PFmax percentiles) into the package (`climpact/homogeneity/data/`).
+
 ## Synthetic QC station
 
 `qc_stress_1961-2020.txt` is Potsdam's input with faults planted for every per-value QC

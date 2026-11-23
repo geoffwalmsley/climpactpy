@@ -91,7 +91,7 @@ def run(station_file):
 
 def test_builtin_modules_without_plugins():
     assert modules.available("qc") == {"climpact": "built-in"}
-    assert modules.available("homogeneity") == {"none": "built-in"}
+    assert modules.available("homogeneity") == {"none": "built-in", "detect": "built-in"}
     assert modules.available("indices") == {"climpact": "built-in"}
     with pytest.raises(UnknownModuleError, match="example_qc.*available: climpact"):
         resolve(WITH_PLUGINS)

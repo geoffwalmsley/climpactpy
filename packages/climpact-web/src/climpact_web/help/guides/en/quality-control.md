@@ -111,6 +111,67 @@ A file with nothing to report says so, for example "NO DUPLICATE DATES FOUND".
 
 The checks look at single values. They do not test **homogeneity**: steps in a series
 caused by a station move, a new instrument, a change of observing time or growth of a town
-around the station. These can create false trends in the indices. If you are working with
-observations, test and adjust for them with tools made for the purpose (for example
-RHtests) before calculating indices, and use station history records where you have them.
+around the station. These can create false trends in the indices. The break tests below
+look for them; Climpact does not adjust the data for them. To adjust a series, use a tool
+made for the purpose (for example RHtests, with neighbouring stations) before calculating
+indices, and use station history records where you have them.
+
+## How the break tests work {#possible-breaks}
+
+Under **Possible breaks** on the Quality page, four tests look for sudden shifts in each
+station's series: the yearly and monthly means of TX and TN, and the yearly PRCP total.
+A shift like this is what a station move, a new instrument or a new screen leaves. The
+tests only report: the data are not changed, and the indices are calculated from them as
+they are. The tests, the series, the significance level (95% by default) and the station
+history file are the workspace's settings.
+
+Each series has its own row in the list. Its detail shows the yearly values with the mean
+of each segment between the breaks, a mark at each break, and the station history under
+the axis. Breaks within about a year of each other are one date, and **Which tests
+agree** shows which tests found it. Trust a date more when several tests find it, when
+PMF finds it, and when the station history explains it. A solid mark is a date found by
+two tests or more, or by PMF; a thinner one, by one test; a dashed one, only a "maybe" or
+PMT alone.
+
+A series with too few values is not tested, and the detail says why: Pettitt and SNHT
+need at least twice the shortest segment (10 years by default), PMF at least 20 values.
+No break found does not prove that a series is homogeneous: a shift smaller than the
+year-to-year variation can go unseen.
+
+The breaks are in the `homogeneity` folder of the results zip: `<station>_breaks.csv`
+(one row per break each test found) and `<station>_tests.csv` (one row per series and
+test).
+
+### Pettitt {#pettitt}
+
+A rank test for one change in the median, with no assumption about the distribution, so
+it is robust to outliers. When it finds a break, Climpact tests each side again, down to
+the shortest segment (5 years by default), to find several.
+
+### SNHT {#snht}
+
+The standard normal homogeneity test looks for one shift in the mean of a series assumed
+normal. It is most sensitive to breaks near the ends of the series. Climpact repeats it on
+each part, as for Pettitt. Its p-value is simulated, as R's `trend` package does.
+
+### PMF {#pmf}
+
+RHtests' penalised maximal F test fits a straight-line trend to the series as well as the
+shifts, and allows for the correlation of one year with the next. A trend is therefore not
+taken for a break. It needs no neighbouring station. It can miss a break in the middle of
+a noisy series, where the trend takes up part of the step.
+
+### PMT {#pmt}
+
+RHtests' penalised maximal t test is run on the series alone. It **assumes there is no
+trend**, so a warming station's trend can look like a break, and it flags more than PMF:
+on series with no break it gives about twice as many false alarms as the significance
+level says. A break that PMT alone finds is weak evidence. Look for it in PMF, in the
+other tests and in the station history before acting on it.
+
+### Maybe {#maybe}
+
+RHtests labels each break **yes** or **maybe**. A maybe has a statistic between the
+bounds of its critical value: it counts as a break only if the station history supports
+it, for example a move or a new instrument at that time. Without a station history file,
+treat a maybe as a question to ask of the station's records.

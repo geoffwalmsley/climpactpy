@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 06:03+0000\n"
+"POT-Creation-Date: 2026-11-23 16:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -264,7 +264,7 @@ msgstr ""
 #: charts/data.py:86 core/views.py:349 gridded/setup_page.py:37
 #: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:17
-#: stations/templates/stations/_summary.html:38 stations/workspace.py:808
+#: stations/templates/stations/_summary.html:38 stations/workspace.py:839
 msgid "TX"
 msgstr ""
 
@@ -276,7 +276,7 @@ msgstr ""
 #: charts/data.py:93 core/templates/core/patterns.html:300 core/views.py:350
 #: gridded/setup_page.py:38 stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:18
-#: stations/templates/stations/_summary.html:39 stations/workspace.py:808
+#: stations/templates/stations/_summary.html:39 stations/workspace.py:839
 msgid "TN"
 msgstr ""
 
@@ -291,7 +291,7 @@ msgstr ""
 #: core/templates/core/patterns.html:305 core/views.py:348
 #: stations/qc_review.py:74 stations/qc_review.py:505
 #: stations/templates/stations/_qc_missing_table.html:16
-#: stations/templates/stations/_summary.html:37 stations/workspace.py:808
+#: stations/templates/stations/_summary.html:37 stations/workspace.py:839
 msgid "PR"
 msgstr ""
 
@@ -346,7 +346,7 @@ msgstr ""
 msgid "Diurnal temperature range (°C)"
 msgstr ""
 
-#: charts/data.py:228 help/topics.py:247
+#: charts/data.py:228 help/topics.py:249
 #: stations/templates/stations/_summary.html:56
 #: stations/templates/stations/_summary.html:65
 msgid "Daily series"
@@ -502,6 +502,7 @@ msgstr ""
 #: charts/templatetags/charts.py:48 core/views.py:318 gridded/map_page.py:50
 #: gridded/templates/gridded/_cell_pane.html:64
 #: gridded/templates/gridded/_map.html:63
+#: stations/templates/stations/_breaks_detail.html:60
 #: stations/templates/stations/_overlay_chart.html:66
 #: stations/templates/stations/_qc_missing_table.html:15
 #: stations/templates/stations/_sector_results.html:80
@@ -590,7 +591,7 @@ msgstr ""
 msgid "Least squares"
 msgstr ""
 
-#: core/forms.py:28 gridded/map_page.py:857 help/topics.py:437
+#: core/forms.py:28 gridded/map_page.py:857 help/topics.py:496
 #: stations/templates/stations/result.html:75
 msgid "Sen's slope"
 msgstr ""
@@ -867,6 +868,7 @@ msgstr ""
 
 #: core/templates/components/chart_frame.html:27
 #: gridded/templates/gridded/_cell_pane.html:45
+#: stations/templates/stations/_breaks_detail.html:35
 #: stations/templates/stations/_index_chart_tools.html:7
 #: stations/templates/stations/_index_detail.html:23
 #: stations/templates/stations/_overlay_chart.html:49
@@ -1232,6 +1234,7 @@ msgid "95%% interval"
 msgstr ""
 
 #: core/templates/core/home.html:69 core/views.py:681 gridded/map_page.py:866
+#: stations/templates/stations/_breaks_detail.html:105
 #: stations/templates/stations/_index_detail.html:41
 #: stations/templates/stations/_overview.html:46
 #: stations/templates/stations/result.html:77 stations/views_indices.py:400
@@ -1244,11 +1247,15 @@ msgid "percentage points"
 msgstr ""
 
 #: core/templates/core/home.html:77
+#: stations/templates/stations/_breaks_detail.html:77
+#: stations/templates/stations/_breaks_detail.html:82
+#: stations/templates/stations/_breaks_detail.html:106
 #: stations/templates/stations/_indices.html:74
 msgid "yes"
 msgstr ""
 
 #: core/templates/core/home.html:77
+#: stations/templates/stations/_breaks_detail.html:106
 #: stations/templates/stations/_indices.html:74
 msgid "no"
 msgstr ""
@@ -1412,7 +1419,7 @@ msgid ""
 "sector comparison."
 msgstr ""
 
-#: core/templates/core/home.html:155 help/topics.py:77
+#: core/templates/core/home.html:155 help/topics.py:79
 msgid "Gridded data"
 msgstr ""
 
@@ -1558,9 +1565,9 @@ msgstr ""
 #: core/views.py:384 gridded/forms.py:154 gridded/setup_page.py:763
 #: gridded/stages.py:353 gridded/stages.py:740 gridded/stages.py:747
 #: gridded/templates/gridded/_map.html:17
-#: gridded/templates/gridded/setup.html:117 help/topics.py:73
+#: gridded/templates/gridded/setup.html:117 help/topics.py:75
 #: stations/templates/stations/_overview.html:45 stations/views_indices.py:686
-#: stations/workspace.py:465
+#: stations/workspace.py:496
 msgid "Indices"
 msgstr ""
 
@@ -1772,7 +1779,7 @@ msgstr ""
 msgid "Your file"
 msgstr ""
 
-#: core/templates/core/patterns.html:190 help/sections.py:69 help/topics.py:68
+#: core/templates/core/patterns.html:190 help/sections.py:69 help/topics.py:69
 #: stations/templates/stations/new.html:46
 msgid "Station details"
 msgstr ""
@@ -1980,6 +1987,7 @@ msgid "Values or anomalies"
 msgstr ""
 
 #: core/templates/core/patterns.html:277
+#: stations/templates/stations/_breaks_detail.html:92
 #: stations/templates/stations/_qc_box_plot.html:14
 #: stations/templates/stations/_qc_values.html:19 stations/views_indices.py:719
 msgid "Values"
@@ -2057,19 +2065,19 @@ msgid "every year passes the annual completeness rule"
 msgstr ""
 
 #: core/templates/core/patterns.html:295
-#: stations/templates/stations/_qc_review.html:14
+#: stations/templates/stations/_qc_review.html:20
 msgid "Checks"
 msgstr ""
 
 #: core/templates/core/patterns.html:297 core/templates/core/patterns.html:305
-#: core/templates/core/patterns.html:525 help/sections.py:114
+#: core/templates/core/patterns.html:525 help/sections.py:147
 #: stations/templates/stations/_qc_detail.html:19
-#: stations/templates/stations/_qc_review.html:18
+#: stations/templates/stations/_qc_review.html:24
 msgid "Look wrong"
 msgstr ""
 
 #: core/templates/core/patterns.html:297
-#: stations/templates/stations/_qc_review.html:19
+#: stations/templates/stations/_qc_review.html:25
 msgid "Almost always typing errors or swapped columns"
 msgstr ""
 
@@ -2165,6 +2173,7 @@ msgid "2 indices, 21 KB"
 msgstr ""
 
 #: core/templates/core/patterns.html:363 core/views.py:313
+#: stations/templates/stations/_breaks_detail.html:34
 #: stations/templates/stations/_qc_detail.html:44
 #: stations/templates/stations/downloads.html:135
 msgid "Table"
@@ -2224,7 +2233,7 @@ msgid ""
 msgstr ""
 
 #: core/templates/core/patterns.html:400 core/views.py:732
-#: stations/templates/stations/results.html:39 stations/workspace.py:1027
+#: stations/templates/stations/results.html:39 stations/workspace.py:1058
 msgid "Recalculating"
 msgstr ""
 
@@ -2380,7 +2389,7 @@ msgid "22 of 80 indices changed significantly since 1936."
 msgstr ""
 
 #: core/templates/core/patterns.html:492 jobs/stages.py:16
-#: stations/workspace.py:1027
+#: stations/workspace.py:1058
 msgid "Calculating the indices"
 msgstr ""
 
@@ -2438,7 +2447,7 @@ msgstr ""
 msgid "Almost always typing errors or swapped columns."
 msgstr ""
 
-#: core/templates/core/patterns.html:526 help/topics.py:216
+#: core/templates/core/patterns.html:526 help/topics.py:218
 msgid "Missing days per year"
 msgstr ""
 
@@ -2447,7 +2456,7 @@ msgid "How to read this"
 msgstr ""
 
 #: core/templates/core/patterns.html:527 help/reference.py:419
-#: help/sections.py:120
+#: help/sections.py:153
 msgid "Missing data"
 msgstr ""
 
@@ -2573,7 +2582,7 @@ msgstr ""
 msgid "line 1 has 4 values, expected 6 (year month day PR TX TN)"
 msgstr ""
 
-#: core/views.py:134 help/sections.py:100 stations/workspace.py:456
+#: core/views.py:134 help/sections.py:100 stations/workspace.py:487
 msgid "Usable"
 msgstr ""
 
@@ -2586,7 +2595,7 @@ msgid ", 5 values look wrong"
 msgstr ""
 
 #: core/views.py:137 gridded/stages.py:225 help/templates/help/_tour.html:15
-#: stations/overview.py:165 stations/workspace.py:446
+#: stations/overview.py:165 stations/workspace.py:477
 msgid "Done"
 msgstr ""
 
@@ -2602,7 +2611,7 @@ msgstr ""
 msgid "Nowra RAN Air Station"
 msgstr ""
 
-#: core/views.py:140 core/views.py:148 stations/workspace.py:455
+#: core/views.py:140 core/views.py:148 stations/workspace.py:486
 msgid "Ready"
 msgstr ""
 
@@ -2626,7 +2635,7 @@ msgstr ""
 msgid "Port Macquarie"
 msgstr ""
 
-#: core/views.py:146 stations/workspace.py:452
+#: core/views.py:146 stations/workspace.py:483
 msgid "Checking…"
 msgstr ""
 
@@ -2748,7 +2757,7 @@ msgid "Newcastle Nobbys"
 msgstr ""
 
 #: core/views.py:252 stations/templates/stations/_trends.html:78
-#: stations/workspace_files.py:98
+#: stations/workspace_files.py:100
 msgid "failed"
 msgstr ""
 
@@ -2849,13 +2858,13 @@ msgid "Station 1 of 6"
 msgstr ""
 
 #: core/views.py:368 gridded/runs.py:425 stations/views_workspace.py:96
-#: stations/workspace.py:740
+#: stations/workspace.py:771
 #, python-format
 msgid "base %(start)s–%(end)s"
 msgstr ""
 
 #: core/views.py:369 stations/views_add.py:112 stations/views_workspace.py:80
-#: stations/workspace.py:752 stations/workspace_files.py:318
+#: stations/workspace.py:783 stations/workspace_files.py:321
 msgid "ET-SCI defaults"
 msgstr ""
 
@@ -2868,12 +2877,12 @@ msgid "Quality control"
 msgstr ""
 
 #: core/views.py:383 gridded/stages.py:341
-#: gridded/templates/gridded/_runs_table.html:18 help/sections.py:166
+#: gridded/templates/gridded/_runs_table.html:18 help/sections.py:199
 #: stations/downloads.py:104 stations/views_files.py:45
 msgid "Thresholds"
 msgstr ""
 
-#: core/views.py:385 help/topics.py:74 stations/downloads.py:103
+#: core/views.py:385 help/topics.py:76 stations/downloads.py:103
 #: stations/views_files.py:44
 msgid "Trends"
 msgstr ""
@@ -2894,7 +2903,7 @@ msgstr ""
 msgid "Example: fix first"
 msgstr ""
 
-#: core/views.py:448 stations/workspace.py:425
+#: core/views.py:448 stations/workspace.py:456
 #, python-format
 msgid "You changed the base period to %(new)s. These results use %(old)s."
 msgstr ""
@@ -2903,7 +2912,7 @@ msgstr ""
 #: stations/templates/stations/_overview.html:40
 #: stations/templates/stations/_trends.html:66
 #: stations/templates/stations/workspace_files.html:65
-#: stations/workspace.py:825
+#: stations/workspace.py:856
 msgid "Station"
 msgstr ""
 
@@ -2919,7 +2928,7 @@ msgstr ""
 #: help/templates/help/index_reference.html:39
 #: stations/templates/stations/_unit.html:18
 #: stations/templates/stations/_workspaces_table.html:17
-#: stations/views_add.py:107 stations/workspace.py:826
+#: stations/views_add.py:107 stations/workspace.py:857
 msgid "Base period"
 msgstr ""
 
@@ -3039,7 +3048,7 @@ msgstr ""
 #: stations/templates/stations/downloads.html:74
 #: stations/templates/stations/downloads.html:92
 #: stations/templates/stations/downloads.html:117
-#: stations/templates/stations/downloads.html:158 stations/workspace.py:824
+#: stations/templates/stations/downloads.html:158 stations/workspace.py:855
 msgid "File"
 msgstr ""
 
@@ -3048,23 +3057,23 @@ msgid "29,220 days · 3 variables"
 msgstr ""
 
 #: core/views.py:720 stations/templates/stations/_file_card.html:14
-#: stations/workspace.py:1019
+#: stations/workspace.py:1050
 msgid "Replace"
 msgstr ""
 
 #: core/views.py:721 core/views.py:722 core/views.py:723 core/views.py:724
 #: stations/templates/stations/_inputs_bar.html:13
-#: stations/views_workspace.py:450 stations/workspace.py:1019
+#: stations/views_workspace.py:450 stations/workspace.py:1050
 msgid "Edit"
 msgstr ""
 
-#: core/views.py:723 stations/views_add.py:111 stations/workspace.py:827
+#: core/views.py:723 stations/views_add.py:111 stations/workspace.py:858
 msgid "Quality thresholds"
 msgstr ""
 
-#: core/views.py:724 core/views.py:749 help/topics.py:72
+#: core/views.py:724 core/views.py:749 help/topics.py:74
 #: stations/templates/stations/_add_table.html:20 stations/views_add.py:112
-#: stations/workspace.py:828
+#: stations/workspace.py:859
 msgid "Index settings"
 msgstr ""
 
@@ -3224,7 +3233,7 @@ msgid "Minimum temperature (TN)"
 msgstr ""
 
 #: gridded/forms.py:281 gridded/setup_page.py:760
-#: gridded/templates/gridded/setup.html:72 help/sections.py:355
+#: gridded/templates/gridded/setup.html:72 help/sections.py:388
 msgid "What to calculate"
 msgstr ""
 
@@ -3240,7 +3249,7 @@ msgstr ""
 msgid "The full path of a file written by a thresholds run of Climpact."
 msgstr ""
 
-#: gridded/forms.py:300 help/topics.py:621
+#: gridded/forms.py:300 help/topics.py:680
 msgid "Thresholds file"
 msgstr ""
 
@@ -3252,7 +3261,7 @@ msgstr ""
 msgid "Thresholds file name"
 msgstr ""
 
-#: gridded/forms.py:321 help/topics.py:648
+#: gridded/forms.py:321 help/topics.py:707
 msgid "Institution"
 msgstr ""
 
@@ -3268,7 +3277,7 @@ msgstr ""
 msgid "Enter your institution's ID (usually an abbreviation)."
 msgstr ""
 
-#: gridded/forms.py:332 help/topics.py:631
+#: gridded/forms.py:332 help/topics.py:690
 msgid "Indices to calculate"
 msgstr ""
 
@@ -3727,7 +3736,7 @@ msgstr ""
 msgid "trend"
 msgstr ""
 
-#: gridded/map_page.py:591 stations/index_detail.py:173
+#: gridded/map_page.py:591 stations/breaks.py:689 stations/index_detail.py:173
 msgid "no value"
 msgstr ""
 
@@ -3929,7 +3938,7 @@ msgstr ""
 msgid "Not started: %(problem)s"
 msgstr ""
 
-#: gridded/runs.py:190 stations/workspace.py:453
+#: gridded/runs.py:190 stations/workspace.py:484
 msgid "Not started"
 msgstr ""
 
@@ -3995,12 +4004,12 @@ msgstr[1] ""
 msgid "%(cells)s, %(count)s with data"
 msgstr ""
 
-#: gridded/runs.py:429 stations/workspace_files.py:100
+#: gridded/runs.py:429 stations/workspace_files.py:102
 msgid "calculating"
 msgstr ""
 
 #: gridded/runs.py:435 gridded/setup_page.py:623 gridded/setup_page.py:864
-#: gridded/stages.py:746 stations/workspace_files.py:598
+#: gridded/stages.py:746 stations/workspace_files.py:623
 #, python-format
 msgid "%(count)s file"
 msgid_plural "%(count)s files"
@@ -4292,7 +4301,7 @@ msgid "Output files"
 msgstr ""
 
 #: gridded/setup_page.py:768 gridded/stages.py:753
-#: gridded/templates/gridded/setup.html:172 help/sections.py:386
+#: gridded/templates/gridded/setup.html:172 help/sections.py:419
 msgid "Computing"
 msgstr ""
 
@@ -4828,9 +4837,9 @@ msgid "The indices are kept."
 msgstr ""
 
 #: gridded/stages.py:726 gridded/templates/gridded/setup.html:36
-#: gridded/views.py:819 help/sections.py:229 help/sections.py:290
+#: gridded/views.py:819 help/sections.py:262 help/sections.py:323
 #: stations/templates/stations/_settings_fields.html:56
-#: stations/views_workspace.py:123 stations/workspace.py:466
+#: stations/views_workspace.py:123 stations/workspace.py:497
 msgid "Files"
 msgstr ""
 
@@ -5988,11 +5997,11 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: help/command_line.py:168 help/command_line.py:194
+#: help/command_line.py:168 help/command_line.py:199
 msgid "What it does"
 msgstr ""
 
-#: help/command_line.py:194
+#: help/command_line.py:199
 msgid "Command"
 msgstr ""
 
@@ -6009,7 +6018,7 @@ msgstr ""
 msgid "Batch metadata file"
 msgstr ""
 
-#: help/contents.py:70 help/topics.py:590
+#: help/contents.py:70 help/topics.py:649
 msgid "Gridded input files"
 msgstr ""
 
@@ -7008,167 +7017,211 @@ msgid ""
 "Unusual values that may be real are counted. They never change the verdict."
 msgstr ""
 
-#: help/sections.py:116
+#: help/sections.py:114 stations/templates/stations/_breaks_off.html:11
+#: stations/templates/stations/_qc_review.html:51
+msgid "How the break tests work"
+msgstr ""
+
+#: help/sections.py:118
+msgid ""
+"The break tests look for sudden shifts in the yearly and monthly means of TX "
+"and TN, and in the yearly PRCP total: the kind a station move or a new "
+"instrument leaves."
+msgstr ""
+
+#: help/sections.py:122
+msgid "They never change the data. The indices use them as they are."
+msgstr ""
+
+#: help/sections.py:125
+msgid ""
+"Breaks within about a year of each other are one date. A date found by two "
+"tests or more, or by PMF, is drawn solid; one found by one test, thinner; a "
+"maybe, or PMT alone, dashed."
+msgstr ""
+
+#: help/sections.py:129 stations/templates/stations/_breaks_detail.html:69
+msgid "Which tests agree"
+msgstr ""
+
+#: help/sections.py:133
+msgid ""
+"PMF fits a trend; PMT assumes there is none. On a warming station PMT finds "
+"breaks that PMF does not. Trust a break more when PMF or several tests find "
+"it, and when the station history explains it."
+msgstr ""
+
+#: help/sections.py:137
+msgid "PMF and PMT"
+msgstr ""
+
+#: help/sections.py:140
+msgid ""
+"To adjust a series for a break, use a tool made for it, such as RHtests with "
+"neighbouring stations."
+msgstr ""
+
+#: help/sections.py:149
 msgid ""
 "These values are almost always mistakes, such as typing errors or swapped "
 "columns."
 msgstr ""
 
-#: help/sections.py:124
+#: help/sections.py:157
 msgid ""
 "A year marked “no annual value” has its annual indices left missing. Its "
 "monthly indices are missing only for the months concerned."
 msgstr ""
 
-#: help/sections.py:127
+#: help/sections.py:160
 msgid "Years not in the table have no missing days."
 msgstr ""
 
-#: help/sections.py:132 stations/templates/stations/_index_detail.html:38
+#: help/sections.py:165 stations/templates/stations/_index_detail.html:38
 #: stations/templates/stations/_indices.html:72
 #: stations/templates/stations/result.html:25
 msgid "Daily values"
 msgstr ""
 
-#: help/sections.py:135
+#: help/sections.py:168
 msgid ""
 "Flagged values are circled. Click a circle to see the value in the list's "
 "detail."
 msgstr ""
 
-#: help/sections.py:136
+#: help/sections.py:169
 msgid ""
 "“Show on the daily chart” in a finding's detail brings you back to the day "
 "here."
 msgstr ""
 
-#: help/sections.py:137
+#: help/sections.py:170
 msgid "Drag across a chart to zoom in. Double-click to see all of it."
 msgstr ""
 
-#: help/sections.py:142 stations/templates/stations/_qc_details.html:32
+#: help/sections.py:175 stations/templates/stations/_qc_details.html:32
 msgid "Distributions"
 msgstr ""
 
-#: help/sections.py:145
+#: help/sections.py:178
 msgid "These are the plots of the quality checks of Climpact for R."
 msgstr ""
 
-#: help/sections.py:148
+#: help/sections.py:181
 msgid ""
 "One box per calendar month. The box spans the middle half of the values and "
 "the line is the median. The whiskers end at the outlier range set in the "
 "thresholds."
 msgstr ""
 
-#: help/sections.py:152 stations/templates/stations/_qc_distributions.html:11
+#: help/sections.py:185 stations/templates/stations/_qc_distributions.html:11
 #: stations/templates/stations/_qc_distributions.html:18
 msgid "By month"
 msgstr ""
 
-#: help/sections.py:156
+#: help/sections.py:189
 msgid ""
 "One box per year. The whiskers are at 4 interquartile ranges for "
 "precipitation and 3 for temperature. A year that stands out may hold wrong "
 "values or a change at the station."
 msgstr ""
 
-#: help/sections.py:160 stations/templates/stations/_qc_distributions.html:12
+#: help/sections.py:193 stations/templates/stations/_qc_distributions.html:12
 #: stations/templates/stations/_qc_distributions.html:24
 msgid "By year"
 msgstr ""
 
-#: help/sections.py:176
+#: help/sections.py:209
 msgid ""
 "The defaults are those of Climpact for R. Smaller numbers flag more values."
 msgstr ""
 
-#: help/sections.py:177
+#: help/sections.py:210
 msgid ""
 "Change them in Your inputs. The checks run again and the verdict updates."
 msgstr ""
 
-#: help/sections.py:181 help/sections.py:238
+#: help/sections.py:214 help/sections.py:271
 #: stations/templates/stations/_settings_fields.html:14
 #: stations/templates/stations/downloads.html:104
 msgid "Plots"
 msgstr ""
 
-#: help/sections.py:184 stations/templates/stations/_settings_fields.html:19
+#: help/sections.py:217 stations/templates/stations/_settings_fields.html:19
 msgid "Spell lengths"
 msgstr ""
 
-#: help/sections.py:187
+#: help/sections.py:220
 msgid "These set how many days in a row count towards an index."
 msgstr ""
 
-#: help/sections.py:189
+#: help/sections.py:222
 msgid ""
 "The number is part of the index's file name. With 3 days, WSDId is written "
 "as wsdi3 and Rxdday as rx3day."
 msgstr ""
 
-#: help/sections.py:196 stations/templates/stations/_settings_fields.html:29
+#: help/sections.py:229 stations/templates/stations/_settings_fields.html:29
 msgid "Degree days"
 msgstr ""
 
-#: help/sections.py:199
+#: help/sections.py:232
 msgid "These are the base temperatures that degree days are counted from."
 msgstr ""
 
-#: help/sections.py:200
+#: help/sections.py:233
 msgid ""
 "The base is part of the file name. With 18 °C, HDDheat is written as "
 "hddheat18."
 msgstr ""
 
-#: help/sections.py:205 stations/templates/stations/_settings_fields.html:38
+#: help/sections.py:238 stations/templates/stations/_settings_fields.html:38
 msgid "Precipitation and drought"
 msgstr ""
 
-#: help/sections.py:209
+#: help/sections.py:242
 msgid ""
 "The amount and the months are part of the file names. With 30 mm, Rnnmm is "
 "written as r30mm. With 24 months, SPI is written as 24month_spi."
 msgstr ""
 
-#: help/sections.py:214 help/topics.py:425 stations/results.py:49
+#: help/sections.py:247 help/topics.py:484 stations/results.py:49
 #: stations/templates/stations/_settings_fields.html:46 stations/themes.py:71
 msgid "Your own index"
 msgstr ""
 
-#: help/sections.py:217 stations/templates/stations/_settings_fields.html:51
+#: help/sections.py:250 stations/templates/stations/_settings_fields.html:51
 msgid "Heatwave definition"
 msgstr ""
 
-#: help/sections.py:221
+#: help/sections.py:254
 msgid ""
 "Heatwaves are found from the 90th percentiles of TX and TN, and from the "
 "excess heat factor (EHF) of Nairn and Fawcett (2013)."
 msgstr ""
 
-#: help/sections.py:224
+#: help/sections.py:257
 msgid ""
 "Climpact uses this definition for every station. There is nothing to choose."
 msgstr ""
 
-#: help/sections.py:234
+#: help/sections.py:267
 msgid ""
 "A PNG of every index and a PDF of them all, as Climpact for R draws them. "
 "They take about two thirds of the time. The charts on the results page do "
 "not need them."
 msgstr ""
 
-#: help/sections.py:241
+#: help/sections.py:274
 msgid ""
 "Every result file in one download, in the folder layout of Climpact for R."
 msgstr ""
 
-#: help/sections.py:242 help/sections.py:295
+#: help/sections.py:275 help/sections.py:328
 msgid "Zip file"
 msgstr ""
 
-#: help/sections.py:246
+#: help/sections.py:279
 msgid ""
 "One PDF to read, print or send. It has the station and settings, what the "
 "quality checks found, and a page per index with its plot and trends. "
@@ -7176,68 +7229,68 @@ msgid ""
 "the layout of R."
 msgstr ""
 
-#: help/sections.py:251 help/sections.py:297 stations/downloads.py:87
+#: help/sections.py:284 help/sections.py:330 stations/downloads.py:87
 #: stations/templates/stations/downloads.html:55
 msgid "Report"
 msgstr ""
 
-#: help/sections.py:258
+#: help/sections.py:291
 msgid "All indices"
 msgstr ""
 
-#: help/sections.py:262
+#: help/sections.py:295
 msgid ""
 "Each row is an index: its trend per decade (Sen's slope), the 95% interval "
 "of the slope, whether it is significant, its series and its mean."
 msgstr ""
 
-#: help/sections.py:266
+#: help/sections.py:299
 msgid ""
 "Select a code to show the index beside the table: its chart, the years used "
 "and the links to its page and files."
 msgstr ""
 
-#: help/sections.py:270
+#: help/sections.py:303
 msgid ""
 "“Also measured” holds the averages, the growing season and degree days, your "
 "own index and the daily heat and cold factors."
 msgstr ""
 
-#: help/sections.py:274
+#: help/sections.py:307
 msgid ""
 "Select a column header to sort by it, and again to reverse the order. A "
 "trend sorts by its value in the index's own units; indices without a trend "
 "stay last."
 msgstr ""
 
-#: help/sections.py:278
+#: help/sections.py:311
 msgid "Climpact does not write a table whose values are all missing."
 msgstr ""
 
-#: help/sections.py:284
+#: help/sections.py:317
 msgid "This index"
 msgstr ""
 
-#: help/sections.py:294
+#: help/sections.py:327
 msgid "The files of the calculation, in the folder layout of Climpact for R."
 msgstr ""
 
-#: help/sections.py:297
+#: help/sections.py:330
 msgid "The easiest file to read and share. It is not in the zip."
 msgstr ""
 
-#: help/sections.py:300
+#: help/sections.py:333
 msgid ""
 "The rows each check found, and the days missing per year, as CSV. Climpact "
 "for R writes the same files in its qc folder."
 msgstr ""
 
-#: help/sections.py:303 help/topics.py:70
+#: help/sections.py:336 help/topics.py:71
 #: stations/templates/stations/downloads.html:84 stations/views_indices.py:132
 msgid "Quality checks"
 msgstr ""
 
-#: help/sections.py:307
+#: help/sections.py:340
 msgid ""
 "Each index has a table (CSV) and a plot of each series (PNG). The PDF of all "
 "the plots is in the order of Climpact for R. The days of occurrence are "
@@ -7245,70 +7298,70 @@ msgid ""
 "PNG or SVG above its chart."
 msgstr ""
 
-#: help/sections.py:312 stations/templates/stations/downloads.html:127
+#: help/sections.py:345 stations/templates/stations/downloads.html:127
 msgid "Each index"
 msgstr ""
 
-#: help/sections.py:316
+#: help/sections.py:349
 msgid ""
 "The correlation of each index with your sector data, and the scatter plots. "
 "Climpact for R writes the same files in its corr folder."
 msgstr ""
 
-#: help/sections.py:319 stations/templates/stations/downloads.html:111
+#: help/sections.py:352 stations/templates/stations/downloads.html:111
 msgid "Sector comparison"
 msgstr ""
 
-#: help/sections.py:326 help/topics.py:76 stations/sector_plots.py:339
+#: help/sections.py:359 help/topics.py:78 stations/sector_plots.py:339
 #: stations/templates/stations/sector.html:74
 msgid "Sector data"
 msgstr ""
 
-#: help/sections.py:328
+#: help/sections.py:361
 msgid "Climpact correlates yearly sector data with the station's indices."
 msgstr ""
 
-#: help/sections.py:332 stations/templates/stations/sector.html:82
+#: help/sections.py:365 stations/templates/stations/sector.html:82
 msgid "Plot attributes"
 msgstr ""
 
-#: help/sections.py:335
+#: help/sections.py:368
 msgid "Climpact fills in a title and a y-axis label. You can change them."
 msgstr ""
 
-#: help/sections.py:336
+#: help/sections.py:369
 msgid "An empty label uses the file name, up to its first _ or full stop."
 msgstr ""
 
-#: help/sections.py:341 stations/templates/stations/_sector_results.html:28
+#: help/sections.py:374 stations/templates/stations/_sector_results.html:28
 #: stations/templates/stations/_sector_results.html:42
 #: stations/templates/stations/_sector_results.html:49
 msgid "Correlation with each index"
 msgstr ""
 
-#: help/sections.py:345
+#: help/sections.py:378
 msgid ""
 "Missing index values are correlated as the number -99.9, as in Climpact for "
 "R. This can distort the correlation of an index with missing years."
 msgstr ""
 
-#: help/sections.py:348
+#: help/sections.py:381
 msgid "NA means no correlation: a value is missing or does not vary."
 msgstr ""
 
-#: help/sections.py:351 stations/templates/stations/_sector_results.html:66
+#: help/sections.py:384 stations/templates/stations/_sector_results.html:66
 msgid "Your data against the station's temperatures"
 msgstr ""
 
-#: help/sections.py:360
+#: help/sections.py:393
 msgid "Output"
 msgstr ""
 
-#: help/sections.py:365
+#: help/sections.py:398
 msgid "Index parameters"
 msgstr ""
 
-#: help/sections.py:378
+#: help/sections.py:411
 msgid ""
 "Excess Heat Factor: Nairn and Fawcett (2013). Climpact for R's screen also "
 "lists Perkins and Alexander (2013), but its calculation accepts only Nairn "
@@ -7648,629 +7701,694 @@ msgstr ""
 msgid "about %(title)s"
 msgstr ""
 
-#: help/topics.py:69
+#: help/topics.py:70
 msgid "Batch processing"
 msgstr ""
 
-#: help/topics.py:71
+#: help/topics.py:72
 msgid "Quality check settings"
 msgstr ""
 
-#: help/topics.py:75
+#: help/topics.py:73 stations/downloads.py:119
+#: stations/templates/stations/_breaks_detail.html:20
+#: stations/templates/stations/_breaks_off.html:7
+#: stations/templates/stations/_qc_review.html:42
+msgid "Possible breaks"
+msgstr ""
+
+#: help/topics.py:77
 msgid "Results files"
 msgstr ""
 
-#: help/topics.py:84
+#: help/topics.py:86
 msgid "The station file"
 msgstr ""
 
-#: help/topics.py:86
+#: help/topics.py:88
 msgid ""
 "A text file with one row per day and six columns: year, month, day, "
 "precipitation (mm), maximum and minimum temperature (°C). Write missing "
 "values as -99.9."
 msgstr ""
 
-#: help/topics.py:94
+#: help/topics.py:96
 msgid "What the name is used for"
 msgstr ""
 
-#: help/topics.py:96
+#: help/topics.py:98
 msgid ""
 "Used in the names of the result files and on the plots. Letters, digits, "
 "spaces and . ( ) - _ only."
 msgstr ""
 
-#: help/topics.py:104
+#: help/topics.py:106
 msgid "Why the latitude matters"
 msgstr ""
 
-#: help/topics.py:106
+#: help/topics.py:108
 msgid ""
 "The latitude decides the hemisphere, and so the season used for the growing "
 "season length and the Tx90 and Tn90 heatwaves. Latitude 0 counts as the "
 "Southern Hemisphere, as in Climpact for R."
 msgstr ""
 
-#: help/topics.py:115
+#: help/topics.py:117
 msgid "Does the longitude matter?"
 msgstr ""
 
-#: help/topics.py:116
+#: help/topics.py:118
 msgid ""
 "Recorded with the results. It does not change any index. Negative west of "
 "Greenwich."
 msgstr ""
 
-#: help/topics.py:122
+#: help/topics.py:124
 msgid "What is the base period?"
 msgstr ""
 
-#: help/topics.py:124
+#: help/topics.py:126
 msgid ""
 "The years the percentile thresholds are calculated from, for indices such as "
 "TX90p, WSDI and R95p. Choose 30 years with good data if you can: 1961-1990 "
 "for climate change studies, 1991-2020 for monitoring."
 msgstr ""
 
-#: help/topics.py:133 stations/downloads.py:112 stations/qc_review.py:45
+#: help/topics.py:135 stations/downloads.py:112 stations/qc_review.py:45
 msgid "Outliers"
 msgstr ""
 
-#: help/topics.py:135
+#: help/topics.py:137
 msgid ""
 "Values far from the usual range for their calendar month: more than 3 "
 "interquartile ranges beyond the box for temperatures, and 5 for "
 "precipitation (days with rain only)."
 msgstr ""
 
-#: help/topics.py:141
+#: help/topics.py:143
 msgid "What counts as an outlier?"
 msgstr ""
 
-#: help/topics.py:145
+#: help/topics.py:147
 msgid "Minimum at or above maximum"
 msgstr ""
 
-#: help/topics.py:147
+#: help/topics.py:149
 msgid ""
 "Days where the minimum temperature is equal to or higher than the maximum. "
 "Usually a typing error or swapped columns."
 msgstr ""
 
-#: help/topics.py:152
+#: help/topics.py:154
 msgid "Why would the minimum reach the maximum?"
 msgstr ""
 
-#: help/topics.py:156
+#: help/topics.py:158
 msgid "Values too large"
 msgstr ""
 
-#: help/topics.py:158
+#: help/topics.py:160
 msgid ""
 "Precipitation above 200 mm or below 0, and temperatures above 50 °C or below "
 "-50 °C. They may be real, but check them."
 msgstr ""
 
-#: help/topics.py:163
+#: help/topics.py:165
 msgid "What counts as too large?"
 msgstr ""
 
-#: help/topics.py:167 stations/downloads.py:111
+#: help/topics.py:169 stations/downloads.py:111
 msgid "Repeated dates"
 msgstr ""
 
-#: help/topics.py:169
+#: help/topics.py:171
 msgid ""
 "Dates that appear more than once in the file. The indices use the last row "
 "of a repeated date; remove the others."
 msgstr ""
 
-#: help/topics.py:174
+#: help/topics.py:176
 msgid "Which of the repeated rows is used?"
 msgstr ""
 
-#: help/topics.py:178 stations/qc_review.py:46
+#: help/topics.py:180 stations/qc_review.py:46
 msgid "Jumps in maximum temperature"
 msgstr ""
 
-#: help/topics.py:179
+#: help/topics.py:181
 msgid ""
 "Days where the maximum temperature changed by 20 °C or more from the day "
 "before."
 msgstr ""
 
-#: help/topics.py:182 help/topics.py:190
+#: help/topics.py:184 help/topics.py:192
 msgid "What counts as a jump?"
 msgstr ""
 
-#: help/topics.py:186 stations/qc_review.py:47
+#: help/topics.py:188 stations/qc_review.py:47
 msgid "Jumps in minimum temperature"
 msgstr ""
 
-#: help/topics.py:187
+#: help/topics.py:189
 msgid ""
 "Days where the minimum temperature changed by 20 °C or more from the day "
 "before."
 msgstr ""
 
-#: help/topics.py:194 stations/qc_review.py:48
+#: help/topics.py:196 stations/qc_review.py:48
 msgid "Repeated maximum temperatures"
 msgstr ""
 
-#: help/topics.py:196
+#: help/topics.py:198
 msgid ""
 "The same maximum temperature on many days in a row (more than 5 by default), "
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:201 help/topics.py:212
+#: help/topics.py:203 help/topics.py:214
 msgid "How many repeats are flagged?"
 msgstr ""
 
-#: help/topics.py:205 stations/qc_review.py:49
+#: help/topics.py:207 stations/qc_review.py:49
 msgid "Repeated minimum temperatures"
 msgstr ""
 
-#: help/topics.py:207
+#: help/topics.py:209
 msgid ""
 "The same minimum temperature on many days in a row (more than 5 by default), "
 "which often means a value was copied forward."
 msgstr ""
 
-#: help/topics.py:218
+#: help/topics.py:220
 msgid ""
 "The number of missing days in each year for each variable. A year with more "
 "than 15 missing days, or a month with more than 3, gets no index value."
 msgstr ""
 
-#: help/topics.py:223
+#: help/topics.py:225
 msgid "When does a year get no index value?"
 msgstr ""
 
-#: help/topics.py:227 stations/templates/stations/_qc_distributions.html:13
+#: help/topics.py:229 stations/templates/stations/_qc_distributions.html:13
 #: stations/templates/stations/_qc_distributions.html:30
 msgid "Decimal values"
 msgstr ""
 
-#: help/topics.py:229
+#: help/topics.py:231
 msgid ""
 "How often each decimal (.0 to .9) occurs. Too many .0 or .5 values point to "
 "rounding by observers, which affects counts of days above a threshold."
 msgstr ""
 
-#: help/topics.py:237
+#: help/topics.py:239
 msgid "Precipitation histogram"
 msgstr ""
 
-#: help/topics.py:239
+#: help/topics.py:241
 msgid ""
 "How often each amount of daily precipitation of 1 mm or more occurs. Gaps or "
 "spikes can show a change of instrument or reporting."
 msgstr ""
 
-#: help/topics.py:249
+#: help/topics.py:251
 msgid ""
 "The daily values of each variable over the whole record, with missing days "
 "marked, to spot gaps and suspect values by eye."
 msgstr ""
 
-#: help/topics.py:254
+#: help/topics.py:256
 msgid "What should I look for in the daily series?"
 msgstr ""
 
-#: help/topics.py:258 stations/views_indices.py:133
+#: help/topics.py:260 stations/views_indices.py:133
 msgid "Homogeneity"
 msgstr ""
 
-#: help/topics.py:260
+#: help/topics.py:262
 msgid ""
-"The checks do not test homogeneity: shifts caused by a station move or a new "
-"instrument. Check and adjust for those with other tools before calculating "
-"indices."
-msgstr ""
-
-#: help/topics.py:270 stations/forms.py:90
-msgid "Outlier range for temperature"
+"The checks look at single values. Shifts caused by a station move or a new "
+"instrument are what the break tests look for, under Possible breaks. "
+"Climpact does not adjust the data for them: use a tool made for it, such as "
+"RHtests."
 msgstr ""
 
 #: help/topics.py:272
+msgid "Pettitt"
+msgstr ""
+
+#: help/topics.py:274
+msgid ""
+"A rank test for one change in the median. It makes no assumption about the "
+"distribution and is robust to outliers. Climpact repeats it on each part of "
+"the series to find several breaks, down to the shortest segment."
+msgstr ""
+
+#: help/topics.py:283
+msgid "SNHT"
+msgstr ""
+
+#: help/topics.py:285
+msgid ""
+"The standard normal homogeneity test: one shift in the mean, in a series "
+"assumed normal. It is most sensitive to breaks near the ends of the series. "
+"Climpact repeats it on each part, as Pettitt."
+msgstr ""
+
+#: help/topics.py:294
+msgid "PMF"
+msgstr ""
+
+#: help/topics.py:296
+msgid ""
+"RHtests' penalised maximal F test. It fits a linear trend as well as the "
+"shifts, and allows for the correlation of one year with the next, so a trend "
+"is not taken for a break. It needs no neighbouring station."
+msgstr ""
+
+#: help/topics.py:305
+msgid "PMT"
+msgstr ""
+
+#: help/topics.py:307
+msgid ""
+"RHtests' penalised maximal t test, on the series alone. It assumes the "
+"series has no trend, so it takes a trend for a break and flags more than "
+"PMF: about twice as many false alarms on series with no break. A break PMT "
+"alone finds is weak evidence."
+msgstr ""
+
+#: help/topics.py:317
+msgid "Maybe"
+msgstr ""
+
+#: help/topics.py:319
+msgid ""
+"RHtests calls a break “maybe” when its statistic lies between the bounds of "
+"its critical value. It counts as a break only if the station history "
+"supports it: a move, a new instrument or a new observing practice at that "
+"time."
+msgstr ""
+
+#: help/topics.py:329 stations/forms.py:90
+msgid "Outlier range for temperature"
+msgstr ""
+
+#: help/topics.py:331
 msgid ""
 "How many interquartile ranges beyond the box a temperature must be to count "
 "as an outlier. Default 3; a smaller number flags more values."
 msgstr ""
 
-#: help/topics.py:280 stations/forms.py:97
+#: help/topics.py:339 stations/forms.py:97
 msgid "Outlier range for precipitation"
 msgstr ""
 
-#: help/topics.py:282
+#: help/topics.py:341
 msgid ""
 "How many interquartile ranges beyond the box a day's precipitation must be "
 "to count as an outlier. Default 5."
 msgstr ""
 
-#: help/topics.py:290 stations/forms.py:104
+#: help/topics.py:349 stations/forms.py:104
 msgid "Largest daily precipitation"
 msgstr ""
 
-#: help/topics.py:291
+#: help/topics.py:350
 msgid ""
 "Daily precipitation above this amount (mm) is flagged for checking. Default "
 "200."
 msgstr ""
 
-#: help/topics.py:297 stations/forms.py:111
+#: help/topics.py:356 stations/forms.py:111
 msgid "Largest temperature"
 msgstr ""
 
-#: help/topics.py:299
+#: help/topics.py:358
 msgid ""
 "Temperatures above this value, or below its negative (°C), are flagged for "
 "checking. Default 50."
 msgstr ""
 
-#: help/topics.py:307 stations/forms.py:118
+#: help/topics.py:366 stations/forms.py:118
 msgid "Days without change"
 msgstr ""
 
-#: help/topics.py:309
+#: help/topics.py:368
 msgid ""
 "A temperature that stays exactly the same for more than this many days in a "
 "row is flagged. Default 5."
 msgstr ""
 
-#: help/topics.py:317
+#: help/topics.py:376
 msgid "Temperature change"
 msgstr ""
 
-#: help/topics.py:319
+#: help/topics.py:378
 msgid ""
 "A change from one day to the next of this many degrees (°C) or more is "
 "flagged. Default 20."
 msgstr ""
 
-#: help/topics.py:328 help/topics.py:542 stations/forms_indices.py:116
+#: help/topics.py:387 help/topics.py:601 stations/forms_indices.py:116
 msgid "Plot title"
 msgstr ""
 
-#: help/topics.py:329
+#: help/topics.py:388
 msgid ""
 "Printed at the top of every plot. The station name is used if you leave it "
 "empty."
 msgstr ""
 
-#: help/topics.py:335 stations/forms_indices.py:122
+#: help/topics.py:394 stations/forms_indices.py:122
 #: stations/views_indices.py:309
 msgid "Days for WSDId"
 msgstr ""
 
-#: help/topics.py:337
+#: help/topics.py:396
 msgid ""
 "How many days in a row the maximum temperature must be above its 90th "
 "percentile to count towards WSDId. WSDI itself always uses 6. From 1 to 10; "
 "default 1."
 msgstr ""
 
-#: help/topics.py:345 stations/forms_indices.py:129
+#: help/topics.py:404 stations/forms_indices.py:129
 #: stations/views_indices.py:310
 msgid "Days for CSDId"
 msgstr ""
 
-#: help/topics.py:347
+#: help/topics.py:406
 msgid ""
 "How many days in a row the minimum temperature must be below its 10th "
 "percentile to count towards CSDId. CSDI itself always uses 6. From 1 to 10; "
 "default 1."
 msgstr ""
 
-#: help/topics.py:355 stations/forms_indices.py:136
+#: help/topics.py:414 stations/forms_indices.py:136
 #: stations/views_indices.py:311
 msgid "Days for Rxdday"
 msgstr ""
 
-#: help/topics.py:357
+#: help/topics.py:416
 msgid ""
 "The length of the wettest spell Rxdday reports: the largest total over this "
 "many days in a row. Rx1day and Rx5day are always calculated too. Default 3."
 msgstr ""
 
-#: help/topics.py:365 stations/forms_indices.py:142
+#: help/topics.py:424 stations/forms_indices.py:142
 #: stations/views_indices.py:312
 msgid "Days for TXdTNd and TXbdTNbd"
 msgstr ""
 
-#: help/topics.py:367
+#: help/topics.py:426
 msgid ""
 "How many days in a row both the maximum and minimum temperature must be "
 "above their 95th percentile (TXdTNd) or below their 5th (TXbdTNbd). Default "
 "2."
 msgstr ""
 
-#: help/topics.py:375
+#: help/topics.py:434
 msgid "Base temperature for heating degree days"
 msgstr ""
 
-#: help/topics.py:377
+#: help/topics.py:436
 msgid ""
 "HDDheat adds up how far the daily mean temperature falls below this value "
 "(°C). Default 18."
 msgstr ""
 
-#: help/topics.py:385
+#: help/topics.py:444
 msgid "Base temperature for cooling degree days"
 msgstr ""
 
-#: help/topics.py:387
+#: help/topics.py:446
 msgid ""
 "CDDcold adds up how far the daily mean temperature rises above this value "
 "(°C). Default 18."
 msgstr ""
 
-#: help/topics.py:395
+#: help/topics.py:454
 msgid "Base temperature for growing degree days"
 msgstr ""
 
-#: help/topics.py:397
+#: help/topics.py:456
 msgid ""
 "GDDgrow adds up how far the daily mean temperature rises above this value "
 "(°C), the temperature a crop needs to grow. Default 10."
 msgstr ""
 
-#: help/topics.py:405
+#: help/topics.py:464
 msgid "Rain amount for Rnnmm"
 msgstr ""
 
-#: help/topics.py:407
+#: help/topics.py:466
 msgid ""
 "Rnnmm counts the days with at least this much precipitation (mm). R10mm and "
 "R20mm are always calculated too. Default 30."
 msgstr ""
 
-#: help/topics.py:415 stations/forms_indices.py:163
+#: help/topics.py:474 stations/forms_indices.py:163
 #: stations/views_indices.py:317
 msgid "Extra SPI and SPEI time scale"
 msgstr ""
 
-#: help/topics.py:417
+#: help/topics.py:476
 msgid ""
 "SPI and SPEI are always calculated over 3, 6 and 12 months. This adds one "
 "more time scale, in months. Default 24."
 msgstr ""
 
-#: help/topics.py:427
+#: help/topics.py:486
 msgid ""
 "Counts the days a variable (TX, TN, TM, DTR or precipitation) is above or "
 "below a value you choose, for each year and month. TX ≥ 40 is written as "
 "TXge40."
 msgstr ""
 
-#: help/topics.py:439
+#: help/topics.py:498
 msgid ""
 "The trend is the median of the slopes between every pair of years. Unlike a "
 "least-squares line it is hardly affected by a few extreme years. Units are "
 "the index's units per year."
 msgstr ""
 
-#: help/topics.py:448
+#: help/topics.py:507
 msgid "Lower and upper bounds"
 msgstr ""
 
-#: help/topics.py:450
+#: help/topics.py:509
 msgid ""
 "The 95% confidence interval of the slope. If both bounds have the same sign, "
 "the trend is significant at the 5% level."
 msgstr ""
 
-#: help/topics.py:458
+#: help/topics.py:517
 msgid "Is the trend significant?"
 msgstr ""
 
-#: help/topics.py:460
+#: help/topics.py:519
 msgid ""
 "The trend file has no p-value. Read significance from the bounds: when the "
 "interval from lower to upper bound does not include zero, the trend is "
 "significant at the 5% level."
 msgstr ""
 
-#: help/topics.py:469
+#: help/topics.py:528
 msgid "When there is no trend"
 msgstr ""
 
-#: help/topics.py:471
+#: help/topics.py:530
 msgid ""
 "A trend needs at least 10 values and at least 70% of the series present. "
 "Otherwise the bounds and slope are left empty (NA)."
 msgstr ""
 
-#: help/topics.py:479
+#: help/topics.py:538
 msgid "Seasonal trends"
 msgstr ""
 
-#: help/topics.py:481
+#: help/topics.py:540
 msgid ""
 "For monthly indices the trend file also gives trends for December-February, "
 "March-May, June-August and September-November."
 msgstr ""
 
-#: help/topics.py:490
+#: help/topics.py:549
 msgid "Missing values in the results"
 msgstr ""
 
-#: help/topics.py:492
+#: help/topics.py:551
 msgid ""
 "Years and months without enough data are written as -99.9 in the index "
 "files. Remove them before calculating with the values in a spreadsheet."
 msgstr ""
 
-#: help/topics.py:500
+#: help/topics.py:559
 msgid "Standardised values"
 msgstr ""
 
-#: help/topics.py:502
+#: help/topics.py:561
 msgid ""
 "Each value minus the mean of all years, divided by their standard deviation, "
 "so indices with different units can be compared."
 msgstr ""
 
-#: help/topics.py:510
+#: help/topics.py:569
 msgid "Threshold file"
 msgstr ""
 
-#: help/topics.py:512
+#: help/topics.py:571
 msgid ""
 "The percentile thresholds for each day of the year, calculated from the base "
 "period. For interest; the indices have already used them."
 msgstr ""
 
-#: help/topics.py:520
+#: help/topics.py:579
 msgid "What is in the download"
 msgstr ""
 
-#: help/topics.py:522
+#: help/topics.py:581
 msgid ""
 "Folders for the quality checks (qc), index tables (indices), plots, "
 "thresholds (thres), trends (trend) and sector correlation (corr). The PDF "
 "report is a separate download."
 msgstr ""
 
-#: help/topics.py:532
+#: help/topics.py:591
 msgid "The sector data file"
 msgstr ""
 
-#: help/topics.py:534
+#: help/topics.py:593
 msgid ""
 "A CSV file of yearly values, such as crop yields: a first row of column "
 "names, then a year and a value on each row. Write missing values as -99.9."
 msgstr ""
 
-#: help/topics.py:543
+#: help/topics.py:602
 msgid ""
 "Printed on each correlation plot. The station name is used if you leave it "
 "empty."
 msgstr ""
 
-#: help/topics.py:549
+#: help/topics.py:608
 msgid "Label for the y axis"
 msgstr ""
 
-#: help/topics.py:551
+#: help/topics.py:610
 msgid ""
 "The name and units of your sector data, for example Wheat yield (t/ha). "
 "Taken from the file name if you leave it empty."
 msgstr ""
 
-#: help/topics.py:559
+#: help/topics.py:618
 msgid "Detrend the sector data"
 msgstr ""
 
-#: help/topics.py:561
+#: help/topics.py:620
 msgid ""
 "Removes the long-term trend from the sector data before comparing. Without "
 "it, a steady rise in yields from better farming can look like a link with "
 "warming."
 msgstr ""
 
-#: help/topics.py:569
+#: help/topics.py:628
 msgid "Correlation with the indices"
 msgstr ""
 
-#: help/topics.py:571
+#: help/topics.py:630
 msgid ""
 "The correlation coefficient (from -1 to 1) between the sector data and each "
 "index, over the years both have. It shows association, not cause."
 msgstr ""
 
-#: help/topics.py:579
+#: help/topics.py:638
 msgid "Regression on temperature"
 msgstr ""
 
-#: help/topics.py:581
+#: help/topics.py:640
 msgid ""
 "Scatter plots of the sector data against yearly mean maximum, minimum and "
 "mean temperature and days above 30 °C, with a fitted line and R²."
 msgstr ""
 
-#: help/topics.py:592
+#: help/topics.py:651
 msgid ""
 "CF netCDF files with daily maximum and minimum temperature and precipitation "
 "on a shared time axis. A variable may be in one file or split along time "
 "across several (one per year, say), which are joined in time order."
 msgstr ""
 
-#: help/topics.py:601
+#: help/topics.py:660
 msgid "Variable names"
 msgstr ""
 
-#: help/topics.py:603
+#: help/topics.py:662
 msgid ""
 "The names of the maximum temperature, minimum temperature and precipitation "
 "variables in your files, for example tasmax, tasmin and pr."
 msgstr ""
 
-#: help/topics.py:611
+#: help/topics.py:670
 msgid "Base period for a grid"
 msgstr ""
 
-#: help/topics.py:613
+#: help/topics.py:672
 msgid ""
 "The years the percentile thresholds are calculated from in every cell. It "
 "must lie within the files, unless you give a thresholds file."
 msgstr ""
 
-#: help/topics.py:623
+#: help/topics.py:682
 msgid ""
 "Percentile thresholds calculated earlier from another set of files, for "
 "example a historical run, so that a future run uses the same thresholds."
 msgstr ""
 
-#: help/topics.py:632
+#: help/topics.py:691
 msgid ""
 "Choose fewer indices to finish sooner. Every index is calculated by default."
 msgstr ""
 
-#: help/topics.py:638
+#: help/topics.py:697
 msgid "Output file names"
 msgstr ""
 
-#: help/topics.py:640
+#: help/topics.py:699
 msgid ""
 "One netCDF file per index and time scale, named in the CMIP5 style, for "
 "example r20mm_ANN_climpact_historical_NA_1991-2010.nc."
 msgstr ""
 
-#: help/topics.py:649
+#: help/topics.py:708
 msgid ""
 "Your institution's name and id, written into the output files' attributes."
 msgstr ""
 
-#: help/topics.py:655
+#: help/topics.py:714
 msgid "Processor threads"
 msgstr ""
 
-#: help/topics.py:656
+#: help/topics.py:715
 msgid ""
 "How many processor threads calculate cells at once. More is faster, up to "
 "your cores."
 msgstr ""
 
-#: help/topics.py:662
+#: help/topics.py:721
 msgid "Values read at once"
 msgstr ""
 
-#: help/topics.py:664
+#: help/topics.py:723
 msgid ""
 "How many million values are read into memory at a time. Lower it if the "
 "computer runs out of memory. Default 5, or less for a small grid, so that "
 "progress shows in small steps."
 msgstr ""
 
-#: help/topics.py:703
+#: help/topics.py:762
 #, python-format
 msgid "%(definition)s. Units: %(units)s."
 msgstr ""
 
-#: help/topics.py:723 stations/templates/stations/_index_lead.html:6
+#: help/topics.py:782 stations/templates/stations/_index_lead.html:6
 #, python-format
 msgid "Name in Climpact for R: %(name)s."
 msgstr ""
@@ -8383,7 +8501,7 @@ msgid ""
 "anything is calculated."
 msgstr ""
 
-#: jobs/models.py:19 stations/workspace.py:451
+#: jobs/models.py:19 stations/workspace.py:482
 msgid "Running"
 msgstr ""
 
@@ -8555,7 +8673,7 @@ msgid "%(count)d metadata files were added (%(names)s); the last one is used."
 msgstr ""
 
 #: stations/add_stations.py:252 stations/add_stations.py:260
-#: stations/views_add.py:111 stations/workspace.py:958
+#: stations/views_add.py:111 stations/workspace.py:989
 msgid "Defaults"
 msgstr ""
 
@@ -8754,7 +8872,333 @@ msgid_plural "Add %(count)d stations and check them"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/calculation.py:160
+#: stations/breaks.py:125
+#, python-format
+msgid "%(level)s%%, segments of %(years)s+ years"
+msgstr ""
+
+#: stations/breaks.py:194
+#, python-format
+msgid "< %(p)s"
+msgstr ""
+
+#: stations/breaks.py:243
+#, python-format
+msgid "Not tested: %(why)s"
+msgstr ""
+
+#: stations/breaks.py:246
+#, python-format
+msgid "%(n)s break"
+msgid_plural "%(n)s breaks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:249
+#, python-format
+msgid "%(n)s maybe"
+msgid_plural "%(n)s maybes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:251
+msgid "No breaks found"
+msgstr ""
+
+#: stations/breaks.py:317 stations/breaks.py:696
+#: stations/templates/stations/_breaks_detail.html:52
+msgid "one test"
+msgstr ""
+
+#: stations/breaks.py:318
+#, python-format
+msgid "found by %(n)s tests"
+msgstr ""
+
+#: stations/breaks.py:347
+#, python-format
+msgid "%(items)s and %(last)s"
+msgstr ""
+
+#: stations/breaks.py:393
+#, python-format
+msgid "%(variable)s monthly"
+msgstr ""
+
+#: stations/breaks.py:394
+#, python-format
+msgid "%(variable)s annual"
+msgstr ""
+
+#: stations/breaks.py:404 stations/views_indices.py:297
+#, python-format
+msgid "%(n)s month"
+msgid_plural "%(n)s months"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:405
+#, python-format
+msgid "%(n)s year"
+msgid_plural "%(n)s years"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:448
+#, python-format
+msgid "%(n)s not tested"
+msgid_plural "%(n)s not tested"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:451
+#, python-format
+msgid "%(n)s of %(total)s not tested"
+msgstr ""
+
+#: stations/breaks.py:452
+msgid "none found"
+msgstr ""
+
+#: stations/breaks.py:471
+#, python-format
+msgid "%(title)s: not tested"
+msgstr ""
+
+#: stations/breaks.py:473
+#, python-format
+msgid "%(title)s: no breaks found"
+msgstr ""
+
+#: stations/breaks.py:477
+#, python-format
+msgid "%(title)s: one maybe, around %(years)s"
+msgid_plural "%(title)s: %(n)s maybes, around %(years)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:481
+#, python-format
+msgid "%(title)s: possible breaks around %(years)s"
+msgstr ""
+
+#: stations/breaks.py:490
+msgid "None of the tests could run on this series."
+msgstr ""
+
+#: stations/breaks.py:493
+msgid ""
+"None of the tests finds a shift in this series. That is not proof that it is "
+"homogeneous: a shift smaller than the year-to-year variation can go unseen."
+msgstr ""
+
+#: stations/breaks.py:507
+#, python-format
+msgid "Shifts up and down of about %(size)s."
+msgstr ""
+
+#: stations/breaks.py:509
+#, python-format
+msgid "Shifts up of about %(size)s."
+msgstr ""
+
+#: stations/breaks.py:511
+#, python-format
+msgid "Shifts down of about %(size)s."
+msgstr ""
+
+#: stations/breaks.py:516
+#, python-format
+msgid "One date is found by two tests or more, or by PMF."
+msgid_plural "%(n)s dates are found by two tests or more, or by PMF."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:526
+#, python-format
+msgid ""
+"PMT alone finds %(years)s: it assumes no trend, so a trend can look like a "
+"break."
+msgstr ""
+
+#: stations/breaks.py:532
+msgid "A maybe counts only if the station history supports it."
+msgstr ""
+
+#: stations/breaks.py:537
+#, python-format
+msgid "%(near)s of the %(n)s date is near an event in the station history."
+msgid_plural ""
+"%(near)s of the %(n)s dates are near an event in the station history."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:544
+msgid "The breaks of the monthly series are marked at their month."
+msgstr ""
+
+#: stations/breaks.py:545
+msgid "The data are not adjusted: the indices use them as they are."
+msgstr ""
+
+#: stations/breaks.py:552
+msgid ""
+"PRCP is tested as the log of the yearly total; the shift is the change in "
+"the total, in %."
+msgstr ""
+
+#: stations/breaks.py:557
+msgid ""
+"Pettitt and SNHT test monthly series as anomalies from each calendar month's "
+"mean; the shift is in the monthly means."
+msgstr ""
+
+#: stations/breaks.py:561
+#, python-format
+msgid ""
+"Pettitt and SNHT split the series at each break they find, down to segments "
+"of %(years)s years; PMF and PMT find several breaks at once."
+msgstr ""
+
+#: stations/breaks.py:593
+#, python-format
+msgid "%(what)s (%(unit)s)"
+msgstr ""
+
+#: stations/breaks.py:699
+#, python-format
+msgid "%(n)s date with possible breaks: %(dates)s."
+msgid_plural "%(n)s dates with possible breaks: %(dates)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:705
+#, python-format
+msgid "%(n)s found by two tests or more."
+msgid_plural "%(n)s found by two tests or more."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:709
+msgid "None found by two tests."
+msgstr ""
+
+#: stations/breaks.py:712
+msgid "No possible breaks. The segment mean is the mean of the whole series."
+msgstr ""
+
+#: stations/breaks.py:714
+msgid "yearly total, mm"
+msgstr ""
+
+#: stations/breaks.py:714
+msgid "yearly total"
+msgstr ""
+
+#: stations/breaks.py:717
+#, python-format
+msgid ""
+"yearly means of %(variable)s, °C, with the monthly breaks at their month"
+msgstr ""
+
+#: stations/breaks.py:719 stations/breaks.py:721
+msgid "yearly mean"
+msgstr ""
+
+#: stations/breaks.py:721
+msgid "yearly mean, °C"
+msgstr ""
+
+#: stations/breaks.py:737
+#, python-format
+msgid ""
+"%(title)s from %(first)s to %(last)s, with %(n)s possible break dates "
+"marked. The table lists the values."
+msgstr ""
+
+#: stations/breaks.py:815
+#, python-format
+msgid "no possible breaks (%(n)s test)"
+msgid_plural "no possible breaks (%(n)s tests)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:817
+#, python-format
+msgid "possible breaks in %(variables)s"
+msgstr ""
+
+#: stations/breaks.py:819
+#, python-format
+msgid "%(n)s test not run"
+msgid_plural "%(n)s tests not run"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:828
+msgid "Turned off for this workspace."
+msgstr ""
+
+#: stations/breaks.py:831
+msgid "Looking for breaks. They come with the checks."
+msgstr ""
+
+#: stations/breaks.py:832
+msgid "Not looked for: these checks ran before break detection was on."
+msgstr ""
+
+#: stations/breaks.py:834
+msgid "The break tests' files are missing."
+msgstr ""
+
+#: stations/breaks.py:847
+#, python-format
+msgid "Possible breaks around %(years)s in %(variables)s"
+msgstr ""
+
+#: stations/breaks.py:852
+#, python-format
+msgid "%(text)s, near the station history"
+msgstr ""
+
+#: stations/breaks.py:856
+#, python-format
+msgid "one maybe in %(series)s"
+msgid_plural "%(n)s maybes in %(series)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:860
+#, python-format
+msgid "Found by %(found)s of %(tested)s tests."
+msgstr ""
+
+#: stations/breaks.py:867
+#, python-format
+msgid "One possible break, a maybe, in %(series)s."
+msgid_plural "%(n)s possible breaks, all maybes, in %(series)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:876
+#, python-format
+msgid "No breaks found by %(n)s test in the %(s)s series."
+msgid_plural "No breaks found by %(n)s tests in the %(s)s series."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:884
+#, python-format
+msgid "%(n)s test could not run."
+msgid_plural "%(n)s tests could not run."
+msgstr[0] ""
+msgstr[1] ""
+
+#: stations/breaks.py:887
+msgid "The data are not adjusted."
+msgstr ""
+
+#: stations/calculation.py:169
 #, python-format
 msgid "%(name)s: quality checks"
 msgstr ""
@@ -8834,11 +9278,15 @@ msgstr ""
 msgid "Missing values"
 msgstr ""
 
-#: stations/downloads.py:165
+#: stations/downloads.py:120
+msgid "Break tests"
+msgstr ""
+
+#: stations/downloads.py:168
 msgid "Quality-control files"
 msgstr ""
 
-#: stations/downloads.py:236
+#: stations/downloads.py:239
 msgid "Sector comparison (zip)"
 msgstr ""
 
@@ -9351,7 +9799,7 @@ msgstr ""
 msgid "Results and downloads"
 msgstr ""
 
-#: stations/models.py:125
+#: stations/models.py:131
 #, python-format
 msgid "%(count)d station, %(date)s"
 msgid_plural "%(count)d stations, %(date)s"
@@ -9442,12 +9890,12 @@ msgstr ""
 msgid "%(name)s · out of date"
 msgstr ""
 
-#: stations/overview.py:97 stations/workspace.py:489
+#: stations/overview.py:97 stations/workspace.py:520
 #, python-format
 msgid "· %(n)s"
 msgstr ""
 
-#: stations/overview.py:98 stations/workspace.py:494
+#: stations/overview.py:98 stations/workspace.py:525
 #, python-format
 msgid ", %(n)s value looks wrong"
 msgid_plural ", %(n)s values look wrong"
@@ -9458,11 +9906,11 @@ msgstr[1] ""
 msgid "every value is missing"
 msgstr ""
 
-#: stations/overview.py:152 stations/workspace.py:448
+#: stations/overview.py:152 stations/workspace.py:479
 msgid "Out of date"
 msgstr ""
 
-#: stations/overview.py:158 stations/workspace.py:450
+#: stations/overview.py:158 stations/workspace.py:481
 msgid "No indices"
 msgstr ""
 
@@ -9573,7 +10021,7 @@ msgstr[1] ""
 msgid "%(name)s failed:"
 msgstr ""
 
-#: stations/overview.py:417 stations/workspace_files.py:427
+#: stations/overview.py:417 stations/workspace_files.py:452
 msgid "The station could not be calculated."
 msgstr ""
 
@@ -10032,7 +10480,9 @@ msgstr ""
 msgid "%(label)s:"
 msgstr ""
 
-#: stations/qc_review.py:1405 stations/templates/stations/_qc_detail.html:19
+#: stations/qc_review.py:1405
+#: stations/templates/stations/_breaks_detail.html:101
+#: stations/templates/stations/_qc_detail.html:19
 #, python-format
 msgid "%(n)s row"
 msgid_plural "%(n)s rows"
@@ -10172,7 +10622,7 @@ msgid "%(years)s and %(n)s more"
 msgstr ""
 
 #: stations/qc_review.py:1838 stations/views_indices.py:294
-#: stations/workspace.py:810
+#: stations/workspace.py:841
 #, python-format
 msgid "%(n)s day"
 msgid_plural "%(n)s days"
@@ -10624,6 +11074,195 @@ msgstr ""
 msgid "Longitude for %(file)s"
 msgstr ""
 
+#: stations/templates/stations/_breaks_detail.html:25
+msgid "Breaks (CSV)"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:26
+msgid "Tests (CSV)"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:29
+msgid "Out of date."
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:29
+#, python-format
+msgid "These breaks come from the earlier settings (%(settings)s)."
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:29
+msgid "Looking for breaks with the new settings."
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:30
+#, python-format
+msgid "The station history file was not used: %(error)s"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:40
+#, python-format
+msgid "%(date)s: %(text)s"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:48
+#: stations/templates/stations/_trends.html:22
+msgid "Key"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:50
+msgid "mean of each segment"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:51
+msgid "break, found by 2+ tests or PMF"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:53
+msgid "maybe, or PMT alone"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:54
+msgid "station history"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:59
+#, python-format
+msgid "%(title)s: each year's value and its segment"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:60
+msgid "Segment"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:73
+#, python-format
+msgid "%(title)s: which tests agree on each date"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:74
+msgid "Around"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:74
+msgid "Station history"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:77
+msgid "not tested"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:77
+#: stations/templates/stations/_breaks_detail.html:106
+msgid "maybe"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:77
+msgid "none near"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:78
+msgid "none within a year"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:78
+msgid "no history file"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:82
+msgid "maybe: needs station history to support it"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:82
+msgid "– none near"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:84
+msgid "No possible breaks to compare."
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:88
+msgid "The four tests"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:88
+msgid "The tests"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:91
+#, python-format
+msgid "%(title)s: each test and its result"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:92
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Test"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:92
+msgid "Result"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:101
+msgid "Breaks"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:104
+#, python-format
+msgid "%(title)s: every break each test found"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Last before"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "First after"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Statistic"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Critical value"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Shift"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:105
+msgid "Station history within a year"
+msgstr ""
+
+#: stations/templates/stations/_breaks_detail.html:112
+#: stations/templates/stations/_index_detail.html:51
+#: stations/templates/stations/_qc_detail.html:61
+msgid "Back to the list"
+msgstr ""
+
+#: stations/templates/stations/_breaks_off.html:7
+msgid "turned off"
+msgstr ""
+
+#: stations/templates/stations/_breaks_off.html:8
+msgid "Break detection is off for this workspace"
+msgstr ""
+
+#: stations/templates/stations/_breaks_off.html:9
+msgid ""
+"Break detection looks for sudden shifts in the yearly and monthly means of "
+"TX and TN, and in yearly PRCP: the kind a station move or a new instrument "
+"leaves. It reports them next to the checks; it never changes the data or the "
+"indices."
+msgstr ""
+
+#: stations/templates/stations/_breaks_off.html:11
+#: stations/templates/stations/_qc_review.html:46
+msgid "Turn it on in Workspace settings"
+msgstr ""
+
 #: stations/templates/stations/_edit_inputs.html:6
 msgid "Edit inputs"
 msgstr ""
@@ -10700,11 +11339,6 @@ msgstr ""
 #: stations/templates/stations/_index_detail.html:49
 #: stations/views_indices.py:774
 msgid "Monthly values"
-msgstr ""
-
-#: stations/templates/stations/_index_detail.html:51
-#: stations/templates/stations/_qc_detail.html:61
-msgid "Back to the list"
 msgstr ""
 
 #: stations/templates/stations/_index_lead.html:6
@@ -10946,7 +11580,7 @@ msgstr ""
 msgid "Missing"
 msgstr ""
 
-#: stations/templates/stations/_overview.html:44 stations/workspace.py:463
+#: stations/templates/stations/_overview.html:44 stations/workspace.py:494
 msgid "Quality"
 msgstr ""
 
@@ -11041,7 +11675,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: stations/templates/stations/_qc_detail.html:19
-#: stations/templates/stations/_qc_review.html:27
+#: stations/templates/stations/_qc_review.html:33
 msgid "Worth a look"
 msgstr ""
 
@@ -11224,11 +11858,15 @@ msgid ""
 "Climpact yourself, restart it with the climpact-web command."
 msgstr ""
 
-#: stations/templates/stations/_qc_review.html:28
+#: stations/templates/stations/_qc_review.html:20
+msgid "Checks and break tests"
+msgstr ""
+
+#: stations/templates/stations/_qc_review.html:34
 msgid "Unusual values; many are real extremes"
 msgstr ""
 
-#: stations/templates/stations/_qc_review.html:33
+#: stations/templates/stations/_qc_review.html:50
 msgid "How the checks work"
 msgstr ""
 
@@ -11531,7 +12169,7 @@ msgstr ""
 msgid "Workspace sections"
 msgstr ""
 
-#: stations/templates/stations/_space_tabs.html:8 stations/workspace.py:454
+#: stations/templates/stations/_space_tabs.html:8 stations/workspace.py:485
 msgid "Not available yet"
 msgstr ""
 
@@ -11592,10 +12230,6 @@ msgstr ""
 msgid ""
 "Sen's slope per decade. Filled cells: the 95%% interval excludes zero. "
 "Select a column to see it on the right."
-msgstr ""
-
-#: stations/templates/stations/_trends.html:22
-msgid "Key"
 msgstr ""
 
 #: stations/templates/stations/_trends.html:23
@@ -12919,21 +13553,21 @@ msgstr ""
 msgid "The station data were deleted."
 msgstr ""
 
-#: stations/views.py:898
+#: stations/views.py:930
 msgid ""
 "The new file is loaded, but the station details need a change before the "
 "checks can run."
 msgstr ""
 
-#: stations/views.py:904
+#: stations/views.py:936
 msgid "The new file is loaded. The checks and results are updated."
 msgstr ""
 
-#: stations/views.py:972 stations/views_workspace.py:544
+#: stations/views.py:1004 stations/views_workspace.py:544
 msgid "The change was undone. The earlier settings and results are back."
 msgstr ""
 
-#: stations/views.py:978 stations/views_workspace.py:550
+#: stations/views.py:1010 stations/views_workspace.py:550
 msgid ""
 "The recalculation has finished, so the change can no longer be undone. "
 "Change the settings back instead."
@@ -13026,13 +13660,6 @@ msgstr ""
 msgid "Make the zip file"
 msgstr ""
 
-#: stations/views_indices.py:297
-#, python-format
-msgid "%(n)s month"
-msgid_plural "%(n)s months"
-msgstr[0] ""
-msgstr[1] ""
-
 #: stations/views_indices.py:335
 msgid "Climpact's default settings."
 msgstr ""
@@ -13080,8 +13707,8 @@ msgstr ""
 msgid "Write the tables and draw the plots"
 msgstr ""
 
-#: stations/views_workspace.py:82 stations/workspace.py:749
-#: stations/workspace.py:1049
+#: stations/views_workspace.py:82 stations/workspace.py:780
+#: stations/workspace.py:1080
 #, python-format
 msgid "%(count)s setting not the default"
 msgid_plural "%(count)s settings not the default"
@@ -13132,113 +13759,113 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:416
+#: stations/workspace.py:447
 msgid "You loaded a different station file."
 msgstr ""
 
-#: stations/workspace.py:419
+#: stations/workspace.py:450
 #, python-format
 msgid "You changed the station name to %(name)s."
 msgstr ""
 
-#: stations/workspace.py:422
+#: stations/workspace.py:453
 msgid "You changed the latitude or longitude."
 msgstr ""
 
-#: stations/workspace.py:432
+#: stations/workspace.py:463
 msgid "You changed the quality-control thresholds."
 msgstr ""
 
-#: stations/workspace.py:434
+#: stations/workspace.py:465
 msgid "You changed the settings."
 msgstr ""
 
-#: stations/workspace.py:447
+#: stations/workspace.py:478
 msgid "Needs attention"
 msgstr ""
 
-#: stations/workspace.py:457
+#: stations/workspace.py:488
 msgid "Fix first"
 msgstr ""
 
-#: stations/workspace.py:648
+#: stations/workspace.py:679
 #, python-format
 msgid "Station %(n)s of %(count)s"
 msgstr ""
 
-#: stations/workspace.py:712
+#: stations/workspace.py:743
 #, python-format
 msgid "%(first)s–%(last)s · %(years)s yr"
 msgid_plural "%(first)s–%(last)s · %(years)s yr"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:812
+#: stations/workspace.py:843
 #, python-format
 msgid "%(days)s · %(variables)s"
 msgstr ""
 
-#: stations/workspace.py:858
+#: stations/workspace.py:889
 msgid "Updates Quality, Indices and Files."
 msgstr ""
 
-#: stations/workspace.py:860
+#: stations/workspace.py:891
 msgid "Updates Indices and Files. Quality stays as it is."
 msgstr ""
 
-#: stations/workspace.py:861
+#: stations/workspace.py:892
 msgid "Updates Quality and Files. Indices stay as they are."
 msgstr ""
 
-#: stations/workspace.py:876
+#: stations/workspace.py:907
 msgid ""
 "A new station name updates Quality too, as its files are named after it."
 msgstr ""
 
-#: stations/workspace.py:885
+#: stations/workspace.py:916
 #, python-format
 msgid "It applies to the %(count)s station of this workspace."
 msgid_plural "It applies to all %(count)s stations of this workspace."
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:892
+#: stations/workspace.py:923
 msgid "The station details and thresholds are kept."
 msgstr ""
 
-#: stations/workspace.py:894
+#: stations/workspace.py:925
 msgid "About half a minute for 80 years of data."
 msgstr ""
 
-#: stations/workspace.py:895
+#: stations/workspace.py:926
 msgid "What is shown now stays until its replacement is ready."
 msgstr ""
 
-#: stations/workspace.py:897
+#: stations/workspace.py:928
 msgid "You can undo the change until then."
 msgstr ""
 
-#: stations/workspace.py:959
+#: stations/workspace.py:990
 #, python-format
 msgid "%(count)s changed"
 msgid_plural "%(count)s changed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace.py:1001
+#: stations/workspace.py:1032
 #, python-format
 msgid "%(days)s days · %(count)s variables"
 msgstr ""
 
-#: stations/workspace.py:1025
+#: stations/workspace.py:1056
 msgid "Checking quality"
 msgstr ""
 
-#: stations/workspace.py:1052
+#: stations/workspace.py:1083
 msgid "defaults"
 msgstr ""
 
-#: stations/workspace.py:1056
+#: stations/workspace.py:1087
 #, python-format
 msgid "%(input)s changed"
 msgstr ""
@@ -13446,32 +14073,32 @@ msgstr ""
 msgid "This file is larger than %(mb)d MB, the most this site takes."
 msgstr ""
 
-#: stations/workspace_files.py:94 stations/workspace_files.py:580
+#: stations/workspace_files.py:96 stations/workspace_files.py:605
 msgid "checking"
 msgstr ""
 
-#: stations/workspace_files.py:96
+#: stations/workspace_files.py:98
 msgid "not run"
 msgstr ""
 
-#: stations/workspace_files.py:102
+#: stations/workspace_files.py:104
 msgid "waiting"
 msgstr ""
 
-#: stations/workspace_files.py:103
+#: stations/workspace_files.py:105
 msgid "not calculated"
 msgstr ""
 
-#: stations/workspace_files.py:319
+#: stations/workspace_files.py:322
 msgid "the ET-SCI default settings"
 msgstr ""
 
-#: stations/workspace_files.py:321
+#: stations/workspace_files.py:324
 #, python-format
 msgid "%(settings)s (otherwise the ET-SCI defaults)"
 msgstr ""
 
-#: stations/workspace_files.py:323
+#: stations/workspace_files.py:326
 #, python-format
 msgid ""
 "Climate indices for %(count)s station were calculated with climpact "
@@ -13484,7 +14111,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: stations/workspace_files.py:339
+#: stations/workspace_files.py:342
 #, python-format
 msgid ""
 "Trends are Sen's slopes with 95%% confidence intervals (zyp); a trend is "

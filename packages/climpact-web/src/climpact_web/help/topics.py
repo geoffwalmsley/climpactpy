@@ -11,7 +11,8 @@ Id families:
 - ``station.*``: single-station step 1 fields; ``batch.*``: batch page fields;
 - ``qc.*``: one per quality-control check or plot (``qc.<file name>``, as
   ``climpact.products.qc.QC_REPORTS``); ``qcparam.*``: the QC thresholds (``QCParams``
-  field names);
+  field names); ``breaks.*``: the break tests on Quality (#365), one per method of the
+  core's ``detect`` module, and what a "maybe" is;
 - ``param.*``: index parameters (``IndexParams`` field names, plus ``param.custom`` and
   ``param.plot_title``);
 - ``index.<short name>``: one per index of the core's ``climate.indices.csv``, generated
@@ -69,6 +70,7 @@ KINDS = {
     "batch": _("Batch processing"),
     "qc": _("Quality checks"),
     "qcparam": _("Quality check settings"),
+    "breaks": _("Possible breaks"),
     "param": _("Index settings"),
     "index": _("Indices"),
     "trend": _("Trends"),
@@ -257,12 +259,69 @@ HAND_WRITTEN = (
         "qc.homogeneity",
         _("Homogeneity"),
         _(
-            "The checks do not test homogeneity: shifts caused by a station move or a new "
-            "instrument. Check and adjust for those with other tools before calculating "
-            "indices."
+            "The checks look at single values. Shifts caused by a station move or a new "
+            "instrument are what the break tests look for, under Possible breaks. Climpact "
+            "does not adjust the data for them: use a tool made for it, such as RHtests."
         ),
         "quality-control",
         "what-the-checks-do-not-find",
+    ),
+    # ---- Possible breaks (#365): the core's homogeneity module detect -----------------
+    T(
+        "breaks.pettitt",
+        _("Pettitt"),
+        _(
+            "A rank test for one change in the median. It makes no assumption about the "
+            "distribution and is robust to outliers. Climpact repeats it on each part of "
+            "the series to find several breaks, down to the shortest segment."
+        ),
+        "quality-control",
+        "pettitt",
+    ),
+    T(
+        "breaks.snht",
+        _("SNHT"),
+        _(
+            "The standard normal homogeneity test: one shift in the mean, in a series "
+            "assumed normal. It is most sensitive to breaks near the ends of the series. "
+            "Climpact repeats it on each part, as Pettitt."
+        ),
+        "quality-control",
+        "snht",
+    ),
+    T(
+        "breaks.pmf",
+        _("PMF"),
+        _(
+            "RHtests' penalised maximal F test. It fits a linear trend as well as the "
+            "shifts, and allows for the correlation of one year with the next, so a trend "
+            "is not taken for a break. It needs no neighbouring station."
+        ),
+        "quality-control",
+        "pmf",
+    ),
+    T(
+        "breaks.pmt",
+        _("PMT"),
+        _(
+            "RHtests' penalised maximal t test, on the series alone. It assumes the series "
+            "has no trend, so it takes a trend for a break and flags more than PMF: about "
+            "twice as many false alarms on series with no break. A break PMT alone finds "
+            "is weak evidence."
+        ),
+        "quality-control",
+        "pmt",
+    ),
+    T(
+        "breaks.maybe",
+        _("Maybe"),
+        _(
+            "RHtests calls a break “maybe” when its statistic lies between the bounds of "
+            "its critical value. It counts as a break only if the station history supports "
+            "it: a move, a new instrument or a new observing practice at that time."
+        ),
+        "quality-control",
+        "maybe",
     ),
     # ---- QC settings (QCParams) -------------------------------------------------------
     T(

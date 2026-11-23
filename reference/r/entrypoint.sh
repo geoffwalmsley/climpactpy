@@ -13,6 +13,7 @@
 #   gridded-thresholds [args...]        run_gridded_thresholds.R (inputs and output under /out)
 #   gridded-indices [args...]           run_gridded_indices.R
 #   sector-correlation [args...]        run_sector_correlation.R
+#   homogeneity [args...]               run_homogeneity.R (#34)
 set -euo pipefail
 
 STATION=sydney_observatory_hill_1936-2015
@@ -58,6 +59,11 @@ cmd_sector_correlation() {
   Rscript /opt/climpact-ref/run_sector_correlation.R "$@"
 }
 
+cmd_homogeneity() {
+  cd /work
+  Rscript /opt/climpact-ref/run_homogeneity.R "$@"
+}
+
 cmd_compare() {
   Rscript /opt/climpact-ref/compare_summary.R /climpact/tests/output_compare "/out/${STATION}"
 }
@@ -72,6 +78,7 @@ case "$cmd" in
   gridded-thresholds) cmd_gridded_thresholds "$@" ;;
   gridded-indices) cmd_gridded_indices "$@" ;;
   sector-correlation) cmd_sector_correlation "$@" ;;
+  homogeneity) cmd_homogeneity "$@" ;;
   all)      cmd_generate "$@"; status=0; cmd_test || status=$?; cmd_compare; exit $status ;;
   *)        echo "unknown command: $cmd" >&2; exit 2 ;;
 esac

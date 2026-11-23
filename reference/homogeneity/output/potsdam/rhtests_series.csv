@@ -1,0 +1,11 @@
+variable,series,method,breaks,error
+TX,annual,pmf,0,
+TX,annual,pmt,2,
+TX,monthly,pmf,1,
+TX,monthly,pmt,4,
+TN,annual,pmf,0,
+TN,annual,pmt,2,
+TN,monthly,pmf,0,
+TN,monthly,pmt,2,
+PRCP,annual,pmf,0,
+PRCP,annual,pmt,0,

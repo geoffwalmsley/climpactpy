@@ -3844,12 +3844,26 @@ own paths, which take the files dropped or add the stations and queue their jobs
 not `/w/*/add/*/check`, the table's check as it is typed (`add` is a reserved station slug,
 so neither pattern matches a station's pages). A normal Add stations flow makes at most
 about 5 counted requests in any 10 s (the page, the drop and its redirect, a second drop and
-its redirect), and 6 to 8 counted requests in all. A new job-starting URL therefore fails the test until it is added to `rate-limit.txt`. Bot Fight
+its redirect), and 6 to 8 counted requests in all. Since #360 it also counts Open a
+workspace file (`/w/open/`), a workspace's settings (`/w/*/settings/<key>` for its three
+keys, each of which recalculates every station; not the station settings form's
+`.../settings/validate`), Copy station (`/w/*/copy`, that is `/w/<id>/<station>/copy`) and
+the gridded setup form (`/gridded/*/setup/`, but not its `setup/header/<n>/`), which had
+been left out. The list of job-starting views is no longer only kept by hand:
+`human_required` and `disk_required` mark the view they wrap `starts_work` (the mark is
+copied up through the other decorators by `functools.wraps`), and
+`test_every_job_starting_view_is_rate_limited` fails when a marked view is neither in the
+test's `RATE_LIMITED` (checked against `rate-limit.txt`) nor in `KEYED` (the Inputs sheets
+and the workspace's settings, counted per key). A new job-starting URL therefore fails the
+test until it is added to `rate-limit.txt`. Bot Fight
 Mode can't be exempted by any rule. htmx swaps in only 2xx answers, so a challenged poll
 would freeze a progress bar until the page is reloaded; the runbook says how to watch for
 this. Bot Fight Mode is off (see the table). The same test checks
 that `.env.example` and the `compose.yaml` default send HSTS for a year, and keep
-`CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies.
+`CLIMPACT_WEB_MAX_UPLOAD_MB` at or under the free plan's 100 MB request bodies, and that
+`.env.example` and `compose.yaml` name the same `CLIMPACT_WEB_*` settings (Compose passes
+only those it names, so a setting in `.env` alone is ignored; #360 added
+`CLIMPACT_WEB_PUBLIC_URL`, default `https://climpact.app`, to both).
 
 #### Deploy on release
 

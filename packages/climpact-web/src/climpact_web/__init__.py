@@ -4,4 +4,4 @@ Run it locally with the ``climpact-web`` command (``climpact_web.cli``); TECHNIC
 ("Web front end") describes the layout, the two modes and the settings.
 """
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"

@@ -7,44 +7,117 @@ version number ([RELEASING.md](RELEASING.md)). Versions follow
 
 ## Unreleased
 
-- Workspaces (#231, #253): a station or batch now belongs to a workspace, which expires as
-  a whole after its last change. **The upgrade deletes the stations and batches people
-  have open** (decided on #231; their files go after the retention period). New setting
-  `CLIMPACT_WEB_WORKSPACE_EXPIRY`: on when hosted, off locally, where workspaces now stay
-  until deleted. The jobs a station or batch shows are kept as long as it is.
+## 0.2.0 - 2026-11-23
+
+The web app is redesigned around **workspaces** for people who already know Climpact: a
+workspace holds one station or a whole network, with its settings, quality checks, indices,
+comparisons and files together. `climpact` gains gridded trends, multi-file gridded inputs
+and a documented command line.
+
+### Upgrading the hosted site
+
+- **The upgrade deletes the stations and batches people have open** (decided on #231):
+  they don't fit the workspace model, and their files go after the retention period. Its
+  migrations can't be undone by deploying 0.1.3 again, so take a database dump first
+  (`deploy/README.md` › "Backups" › "A dump by hand").
+- **Paste `deploy/cloudflare/rate-limit.txt` into the rate-limiting rule again** (runbook
+  E6): every job-starting address moved (#256, #271, #310, #360). Until then the old rule
+  counts addresses that only redirect, and nothing that starts a job.
+- New settings, with defaults that suit climpact.app: `CLIMPACT_WEB_WORKSPACE_EXPIRY` (on
+  when hosted), `CLIMPACT_WEB_SPECULATIVE_MAX_QUEUED` (3) and `CLIMPACT_WEB_PUBLIC_URL`
+  (`https://climpact.app` in `compose.yaml`). `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` now
+  defaults to 50 (was 30), and the jobs of one change count as one.
+
+### climpact
+
+- Gridded trends (#290, #348): a gridded run can also write `trends.nc` (`--trends` on the
+  command line), each cell's Sen's slope per decade, its 95% interval and base-period
+  mean, and the grid mean, for annual and monthly indices. R's gridded code has no
+  counterpart.
+- A gridded variable split across many files (by year, say) is joined along time (#291).
+- The command line's options have help text and metavars, and `climpact.cli.build_parser`
+  is public, so the web help can document it (#319).
+
+### Web app: workspaces
+
+- Workspaces (#231, #253): a station or batch belongs to a workspace, which expires as a
+  whole after its last change when hosted, and stays until deleted locally. The jobs a
+  station shows are kept as long as it is.
 - Workspace settings (#254): the base period, the quality thresholds and the index
   settings belong to the workspace. A change recalculates every station in it, as one
-  change, and "Undo the change" beside the recalculation puts the settings and the earlier
-  results back while it is still on the way. A station's own values from a batch metadata
-  file stay its own. A change to the index settings now marks the results out of date, as
-  the other inputs do. Hosted limits: the jobs of one change count as one job for the
-  daily quota and the active-job cap, and `CLIMPACT_WEB_MAX_DAILY_JOBS_PER_IP` now
-  defaults to 50 (was 30).
-- A batch fills its workspace (#255): every station of a batch is a station of the
-  batch's workspace from when the run is queued, with its state in the run (waiting,
-  calculating, done, not run, failed and why); a station that failed or was left out has
-  no results. "Open" on the batch results goes to each station that calculated (it was "Open as
-  a single station", which made a separate workspace). The batch's base period and custom
-  index are the workspace's, so a change to the workspace's settings recalculates the
-  batch's stations too. Deleting a batch deletes its stations.
-- Workspace addresses (#256): a workspace is `/w/<id>/`, which opens its station when it
-  has one and shows the batch results otherwise (their only address: the old results
-  links lead there), and a station's pages are under it,
-  `/w/<id>/<station>/quality`, `.../indices` (Results was `.../results`),
-  `.../indices/<index>` and so on; a batch's are `/w/<id>/batch/…`. Old `/station/<id>/…`
-  and `/batch/<id>/…` links redirect to the new address while their station or batch is
-  kept. The New station and batch start pages keep their addresses. A station that failed
-  in a batch says why on its Indices. Hosted: paste
-  `deploy/cloudflare/rate-limit.txt` into the rate-limiting rule again, as its paths moved.
-- The old New station and batch upload forms are gone (#271): Add stations (#233) is the
-  only way to start a station or a batch. `/station/new`, `/station/sample`, `/batch/`
-  and `/batch/sample` redirect to `/add/`, a GET or a POST, and `/w/<id>/batch/` to the
-  files waiting there or the workspace. A station's own setup page stays, for a new file
-  that needs new details. Hosted: paste `deploy/cloudflare/rate-limit.txt` into the
-  rate-limiting rule again, as the retired paths left it.
-- Turnstile (#169): the texts of the "checking that you are a person" line moved from
-  `data-wait`/`-slow`/`-failed`/`-retry` to `data-text-*` on the widget, since Turnstile
-  reads `data-retry` as its own setting and warned in the console on every form page.
+  change, and "Undo the change" puts the settings and the earlier results back while the
+  recalculation is on the way. A station's own values from a metadata file stay its own.
+- Add stations (#233, #271, #351): one page takes one station file, many, a
+  metadata file or a zip, shows a review table checked in one pass, and adds them. It
+  replaces the old New station and batch forms, whose addresses redirect to `/add/`. A
+  quota refusal on one station makes nothing.
+- A batch fills its workspace (#255, #311): every station of a batch is a station of the
+  workspace, with its state (waiting, calculating, done, not run, failed and why).
+- Addresses (#256): a workspace is `/w/<id>/` and a station's pages are under it
+  (`/w/<id>/<station>/quality`, `.../indices`, `.../indices/<index>`). Old
+  `/station/<id>/…` and `/batch/<id>/…` links redirect while their station is kept.
+- The landing page, Get started and Workspaces, which lists every workspace of this
+  browser, replace "Your calculations" (#242). A workspace's overview lists its stations
+  and their verdicts, and a workspace with one station opens straight on it (#234, #298).
+- Compare trends across stations in a trend grid, and overlay one index's series at every
+  station (#238, #276, #279, #315).
+- Files (#239, #269, #274, #307): one place for every download, with all-station CSVs and
+  `climpact_run.json`, a record of what the results were made from. Hosted, a workspace
+  can be kept 7 more days or deleted there.
+- Save a workspace to a file and open it again, on this computer or another (#240). Copy
+  a station to another workspace (#241).
+
+### Web app: the station pages
+
+- Quality is a short worklist with a verdict (Ready, Usable, Fix first), shown as list and
+  detail with charts and per-check columns (#174, #202, #222, #235, #264, #308).
+- Indices is one dense table across the whole window, with short names beside the codes,
+  a detail pane, and a page per index with axes, the interval band and the annual values
+  (#175, #200, #218, #236, #237, #263, #286).
+- Calculation starts with the defaults while you look at the quality checks, and settings
+  are adjusted and recalculated rather than resetting the station (#178, #179). Out-of-date
+  results say so, and their header and downloads match what is shown (#223); a run that made
+  no index table says there is nothing to show (#268).
+- Inputs (the file, the station's details, the base period, the thresholds and the index
+  settings) are one panel of sheets, and a new station has one setup page (#198, #199,
+  #201).
+- The charts are interactive again (#283); the read-out rounds an anomaly once (#349).
+- Fixes: the web app labels TMge10 "TM of at least 10 °C" (R's catalogue says TX, but
+  it counts TM days; #217); Enter in Add stations' review
+  form checks the table and never adds (#318).
+
+### Web app: look and help
+
+- A new design for experts (`DESIGN.md`, #172, #232): colour tokens in light and dark,
+  section headers with Help, a site header that stays in view, a phone layout, and one way
+  of writing numbers and units (minus signs, decimals, coordinates) everywhere (#173,
+  #189, #196, #197, #203, #226, #227, #284).
+- The help is documentation (#177, #319, #325, #337, #342): a help frame with contents,
+  a page per index, the command line and the file formats, which search engines may index
+  on the hosted site (`/sitemap.xml`, `/robots.txt`); the guides follow Add stations and the
+  workspace.
+- Gridded runs (#289–#296, #301, #320, #321, #330): a list of runs and a run page with Map,
+  Files and Set-up; a set-up page with a summary panel that chooses files from a folder
+  listing; a map with an index rail, every cell, a coastline and a cell pane, with Base
+  mean, Anomaly and Trend views and the grid mean, for annual and monthly files; the run's
+  stages while it calculates and what to change when it fails. Local runs stay until
+  forgotten. Gridded runs stay off on the hosted site.
+- The English message catalogue is kept current (#205).
+
+### Hosting
+
+- The Cloudflare rate limit counts the new job-starting addresses (#310, #360), and a test
+  fails when a job-starting view isn't counted. `compose.yaml` and `.env.example` name the
+  same settings, which a test checks.
+- Turnstile (#169): the "checking that you are a person" texts moved to `data-text-*`,
+  since Turnstile reads `data-retry` as its own setting.
+
+### Development
+
+- The tests run in parallel with pytest-xdist (#181), and the browser accessibility checks
+  are left out of the default run and faster (#180, #182).
+- Pull requests that change the web app's look show screenshots, published to the
+  `pr-screenshots` branch (`scripts/pr-screenshots.sh`).
 
 ## 0.1.3 - 2026-11-16
 

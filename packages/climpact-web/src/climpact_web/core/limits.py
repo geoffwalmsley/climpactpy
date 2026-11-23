@@ -337,6 +337,7 @@ def human_required(view):
             check_disk()
         return view(request, *args, **kwargs)
 
+    wrapped.starts_work = True  # rate-limited at the edge (test_deploy_files.py)
     return wrapped
 
 
@@ -350,4 +351,5 @@ def disk_required(view):
             check_disk()
         return view(request, *args, **kwargs)
 
+    wrapped.starts_work = True  # rate-limited at the edge (test_deploy_files.py)
     return wrapped

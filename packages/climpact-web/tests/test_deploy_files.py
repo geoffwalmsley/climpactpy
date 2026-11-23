@@ -44,19 +44,30 @@ SAMPLES = {
 # must leave out the htmx polls (`.../progress`) and the htmx POSTs sent as a form is
 # filled in (`.../validate`, `gridded/<id>/checks`, Add stations' `.../check`). Add
 # stations' pages take the files dropped and add the stations, queueing their jobs (#310).
+# Every view behind `human_required` or `disk_required` must be here (or in KEYED), which
+# `test_every_job_starting_view_is_rate_limited` checks, so a new one can't be missed (#360).
 RATE_LIMITED = {
     "stations:add",
     "stations:add_sample",
     "stations:add_sample_batch",
     "stations:add_to",
     "stations:add_review",
+    "stations:workspace_open",
     "stations:setup",
+    "stations:copy",
     "stations:qc_continue",
     "stations:recalculate",
     "stations:sector",
     "jobs:retry",
     "gridded:upload",
     "gridded:sample",
+    "gridded:setup",
+}
+# Views counted for each of their keys, not for any value of the URL's `<slug:key>`: the
+# Inputs panel's sheets on a station and the workspace's settings (#198, #254).
+KEYED = {
+    "stations:edit_input": ("file", "station", "base-period", "thresholds", "settings"),
+    "stations:workspace_setting": ("base-period", "thresholds", "settings"),
 }
 
 
@@ -83,8 +94,9 @@ def cloudflare_rule(name: str):
     )
 
 
-def app_paths() -> dict[str, str]:
-    """Every URL pattern of the app, as a sample path, by its `namespace:name`."""
+def app_paths(callbacks: bool = False) -> dict:
+    """Every URL pattern of the app, as a sample path, by its `namespace:name`; with
+    `callbacks`, its view instead."""
 
     def fill(route: str) -> str:
         return re.sub(r"<(\w+):\w+>", lambda m: SAMPLES[m.group(1)], route)
@@ -97,7 +109,8 @@ def app_paths() -> dict[str, str]:
             if isinstance(p, URLResolver):
                 walk(p.url_patterns, route, p.namespace or namespace)
             elif isinstance(p, URLPattern) and p.name:
-                out[f"{namespace}:{p.name}" if namespace else p.name] = "/" + route
+                key = f"{namespace}:{p.name}" if namespace else p.name
+                out[key] = p.callback if callbacks else "/" + route
 
     walk(get_resolver().url_patterns, "", None)
     return out
@@ -118,15 +131,35 @@ def test_rate_limit_counts_only_job_starting_paths():
     assert counted == RATE_LIMITED
     # The Inputs panel's sheets start jobs when applied (#198, #199); their progress does not.
     base = f"/w/{SAMPLE_UUID}/sydney/inputs/"
-    for key in ("file", "station", "base-period", "thresholds", "settings"):
+    for key in KEYED["stations:edit_input"]:
         assert rule(base + key), key
     assert not rule(base + "progress")
     assert not rule(paths["stations:qc_progress"])
     assert not rule(paths["stations:validate"])
+    # The workspace's settings recalculate every station when applied (#254); the station's
+    # settings form's check as it is typed is not counted.
+    for key in KEYED["stations:workspace_setting"]:
+        assert rule(f"/w/{SAMPLE_UUID}/settings/{key}"), key
+    assert not rule(paths["stations:indices_validate"])
+    assert not rule(paths["gridded:file_header"])
     assert not rule(paths["jobs:file"])
     # Add stations' table is checked as it is typed (#310); its review page is counted.
     assert not rule(paths["stations:add_check"])
     assert rule(f"/w/{SAMPLE_UUID}/add/{SAMPLE_UUID}/")
+
+
+def test_every_job_starting_view_is_rate_limited():
+    """A view whose POST uploads a file or starts a job is behind `human_required` or
+    `disk_required` (core/limits.py), which mark it `starts_work`. Each one must be counted
+    by the rate limit: RATE_LIMITED is checked against rate-limit.txt above, and KEYED's
+    views for each key."""
+    views = app_paths(callbacks=True)
+    starting = {name for name, view in views.items() if getattr(view, "starts_work", False)}
+    assert "stations:add" in starting  # the mark reaches through the other decorators
+    missing = starting - RATE_LIMITED - set(KEYED)
+    assert not missing, f"job-starting views missing from rate-limit.txt: {sorted(missing)}"
+    for name in KEYED:
+        assert name in starting, name
 
 
 def test_waf_rules_leave_the_app_alone():
@@ -287,3 +320,15 @@ def test_uptime_check_reaches_healthz():
         for method in ("GET", "HEAD"):
             assert not cloudflare_rule(rule)(healthz, method), rule
     assert cloudflare_rule("cache-bypass")(healthz)
+
+
+def test_env_example_and_compose_name_the_same_settings():
+    """compose.yaml passes only the settings it names, so one in .env.example but not in
+    compose.yaml is silently ignored on the Droplet, and one in compose.yaml alone can't be
+    found by whoever edits .env (#360: CLIMPACT_WEB_PUBLIC_URL was in neither)."""
+    env = set(re.findall(r"^(CLIMPACT_WEB_\w+)=", (DEPLOY / ".env.example").read_text(), re.M))
+    compose = set(
+        re.findall(r"^ +(CLIMPACT_WEB_\w+): ", (DEPLOY / "compose.yaml").read_text(), re.M)
+    )
+    assert env == compose
+    assert "CLIMPACT_WEB_PUBLIC_URL" in env

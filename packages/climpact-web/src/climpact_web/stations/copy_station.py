@@ -98,15 +98,23 @@ class CopyForm(forms.Form):
 
 
 def new_workspace(station: Station) -> Workspace:
-    """A workspace for the copy, with the settings of the station's workspace."""
+    """A workspace for the copy, with the settings of the station's workspace: break
+    detection's too, with its station history file (#367)."""
+    from climpact_web.stations import break_settings, breaks
+
     source = station.workspace
-    return Workspace.objects.create(
+    space = Workspace.objects.create(
         owner=station.owner,
         base_start=source.base_start,
         base_end=source.base_end,
         qc_params=dict(source.qc_params or {}),
         index_settings=dict(source.index_settings or {}),
+        break_detection=dict(source.break_detection or {}),
     )
+    path = breaks.history_path(source)
+    if path is not None and path.is_file():
+        break_settings.store_history(space, path.read_bytes())
+    return space
 
 
 def copy_to(request, station: Station, target: Workspace | None) -> Station:

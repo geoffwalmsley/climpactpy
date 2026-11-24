@@ -426,7 +426,15 @@
       <h2 id="stations-table-title">{% translate "Run status line and Stations table" %}</h2>
       <p class="text-sm text-text-muted">{% translate "A workspace's overview: one line above the table, neutral with a bar while stations calculate, quiet when they have finished and red only when one failed; then a row a station, with its verdict, its indices state as it goes and its fix, and how many indices have a significant trend." %}</p>
       <div class="pattern__demo">
-        {% include "stations/_overview.html" with rows=overview_rows status=overview_status polling=False %}
+        {% include "stations/_overview.html" with rows=overview_rows status=overview_status polling=False breaks_on=True %}
+      </div>
+    </section>
+
+    <section class="pattern" id="settings-list" aria-labelledby="settings-list-title">
+      <h2 id="settings-list-title">{% translate "Settings list" %}</h2>
+      <p class="text-sm text-text-muted">{% translate "Workspace settings: one framed list, each setting's title, its one-line summary and Edit, which opens its form on a page of its own." %}</p>
+      <div class="pattern__demo max-w-prose">
+        {% include "stations/_settings_list.html" with inputs=settings_demo %}
       </div>
     </section>
 

@@ -8,5 +8,5 @@ Context: analysis.
     <h2 class="qc-detail__title" id="breaks-off-title" tabindex="-1">{% translate "Break detection is off for this workspace" %}</h2>
     <p class="qc-detail__lede">{% translate "Break detection looks for sudden shifts in the yearly and monthly means of TX and TN, and in yearly PRCP: the kind a station move or a new instrument leaves. It reports them next to the checks; it never changes the data or the indices." %}</p>
   </div>
-  <div class="breaks-off__actions">{% url 'stations:workspace_settings' analysis.workspace_id as settings_url %}{% translate "Turn it on in Workspace settings" as on_label %}{% include "components/button.html" with href=settings_url label=on_label variant="secondary" %}{% translate "How the break tests work" as breaks_label %}{% section_help "quality.breaks" label=breaks_label quiet=True %}</div>
+  <div class="breaks-off__actions">{% url 'stations:workspace_setting' analysis.workspace_id 'breaks' as settings_url %}{% translate "Turn it on in Workspace settings" as on_label %}{% include "components/button.html" with href=settings_url label=on_label variant="secondary" %}{% translate "How the break tests work" as breaks_label %}{% section_help "quality.breaks" label=breaks_label quiet=True %}</div>
 </section>

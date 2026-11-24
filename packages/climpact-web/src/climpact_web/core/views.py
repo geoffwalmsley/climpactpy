@@ -112,12 +112,13 @@ def add_review():
 
 def overview_demo() -> dict:
     """The run status line and the Stations table of a workspace overview (#234), as on
-    the Calculate board while its stations calculate: one row in each state."""
+    the Calculate board while its stations calculate: one row in each state, with each
+    station's possible breaks (#367, the Workspace board's ``breaks`` tweak)."""
     from types import SimpleNamespace
 
     from climpact_web.stations import overview as ov
 
-    def row(slug, name, ll, period, missing, quality, indices, significant=("–", "")):
+    def row(slug, name, ll, period, missing, quality, indices, significant=("–", ""), found=None):
         return ov.Row(
             station=SimpleNamespace(slug=slug),
             name=name,
@@ -129,21 +130,33 @@ def overview_demo() -> dict:
             indices=indices,
             significant=significant[0],
             significant_label=significant[1],
+            breaks=found or ov.Breaks("unknown", "–"),
         )
 
+    found = ov.Breaks(
+        "found",
+        "TX TN PRCP",
+        url="#stations-table",
+        title=_(
+            "Possible breaks in TX TN PRCP, found by 13 of 20 tests. The data are not adjusted."
+        ),
+        label=_(", found by 13 of 20 tests"),
+    )
     usable = ov.Quality("usable", _("Usable"), _("· 5"), _(", 5 values look wrong"))
     rows = [
         row("sydney", _("Sydney Observatory Hill"), "33.86° S 151.21° E", "1936–2015", "0.1%",
             usable, ov.Indices("done", _("Done")),
-            (_("22 of 80"), _("22 of 80 indices with a significant trend"))),
+            (_("22 of 80"), _("22 of 80 indices with a significant trend")), found),
         row("nowra", _("Nowra RAN Air Station"), "34.95° S 150.54° E", "1955–2015", "3.2%",
             ov.Quality("ready", _("Ready")), ov.Indices("calculating", _("Calculating · 40%"),
-                                                        percent=40)),
+                                                        percent=40),
+            found=ov.Breaks("none", _("none"), note=_(" · 3 not tested"))),
         row("moruya", _("Moruya Heads"), "35.91° S 150.15° E", "1910–2015", "6.9%",
             ov.Quality("locked", "–"), ov.Indices("not_run", _("Not run"),
                                                   fix_label=_("Fix the file"), fix_url="#")),
         row("port", _("Port Macquarie"), "31.43° S 152.87° E", "1995–2015", "0.0%",
-            ov.Quality("checking", _("Checking…")), ov.Indices("waiting", _("Waiting"))),
+            ov.Quality("checking", _("Checking…")), ov.Indices("waiting", _("Waiting")),
+            found=ov.Breaks("checking", _("Checking…"))),
         row("late", _("Late Start"), "30.00° S 140.00° E", "2000–2020", "0.3%",
             ov.Quality("ready", _("Ready")),
             ov.Indices("failed", _("Failed"), error=_("No data in the base period."),
@@ -156,7 +169,21 @@ def overview_demo() -> dict:
         35,
         [ov.Link(_("Cancel"), "#stations-table", post=True)],
     )
-    return {"overview_rows": rows, "overview_status": status}
+    settings = [
+        SimpleNamespace(
+            key=key, label=label, value=value, edit_url="#settings-list", edit_label=_("Edit")
+        )
+        for key, label, value in (
+            ("base-period", _("Base period"), "1971–2000"),
+            ("thresholds", _("Quality thresholds"), _("Defaults")),
+            ("settings", _("Index settings"), _("Defaults")),
+            ("breaks", _("Break detection"), _(
+                "On · Pettitt, SNHT, PMF, PMT · TX TN PRCP · annual and monthly · 95% · "
+                "segments of 5+ years · history: 12 events for 3 stations."
+            )),
+        )
+    ]  # fmt: skip
+    return {"overview_rows": rows, "overview_status": status, "settings_demo": settings}
 
 
 def workspaces_demo() -> dict:

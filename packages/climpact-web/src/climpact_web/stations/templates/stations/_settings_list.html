@@ -1,0 +1,12 @@
+{% comment %}
+Workspace settings' list (#367, the BreakSettings board): each setting's title, its
+one-line summary and Edit. Context: inputs (views_workspace.settings_items).
+{% endcomment %}<dl class="settings-list">
+  {% for item in inputs %}
+  <div class="settings-list__item" data-setting="{{ item.key }}">
+    <dt class="settings-list__title">{{ item.label }}</dt>
+    <dd class="settings-list__summary">{{ item.value }}</dd>
+    <dd class="settings-list__edit"><a href="{{ item.edit_url }}">{{ item.edit_label }}<span class="sr-only"> {{ item.label|lower }}</span></a></dd>
+  </div>
+  {% endfor %}
+</dl>

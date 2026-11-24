@@ -12,8 +12,11 @@ coordinates, years and missing values, its Quality verdict with its count, its i
 state (``batch.fill.run_states``: Done, or Out of date when the results shown are from
 before a change, or No indices when the run made no index table; Calculating with its
 percentage, Waiting, Not run, Failed, each with its fix) and how many of its indices have
-a significant trend.
-:func:`status_line` sums them up in one line above the table.
+a significant trend; with break detection on, its possible breaks (#367, :class:`Breaks`):
+the variables with breaks as a link to them, "none", or "Checking…" while its checks run,
+kept apart from the verdict.
+:func:`status_line` sums them up in one line above the table: while a change to break
+detection alone reruns the checks, "Looking for breaks" with Undo.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from django.utils.translation import ngettext
 from climpact_web.batch.fill import CALCULATING, DONE, FAILED, NOT_RUN, WAITING, run_states
 from climpact_web.core import numbers
 from climpact_web.jobs.views import format_duration
-from climpact_web.stations import workspace
+from climpact_web.stations import breaks, workspace
 from climpact_web.stations.models import Station, Workspace
 
 # The Quality column: a verdict pill in its tint, else the state in words (#222).
@@ -74,6 +77,20 @@ class Indices:
 
 
 @dataclass
+class Breaks:
+    """The Possible breaks column (#367, the Workspace board's ``breaks`` tweak): ``state``
+    is ``checking``, ``found`` (``text`` the variables with breaks, a link to the first
+    series with them), ``none`` or ``unknown`` (no checks, or checks that did not look)."""
+
+    state: str
+    text: str
+    url: str = ""
+    title: str = ""
+    label: str = ""  # after the link, for screen readers: ", found by 13 of 20 tests"
+    note: str = ""  # muted after it: "· 3 not tested", "· out of date"
+
+
+@dataclass
 class Row:
     station: Station
     name: str
@@ -86,6 +103,7 @@ class Row:
     significant: str = ""
     significant_label: str = ""
     copy_url: str = ""  # Copy to workspace… (#241), once the station is set up
+    breaks: Breaks | None = None  # None when break detection is off (#367)
 
 
 def _quality(station: Station, state: str) -> Quality:
@@ -102,6 +120,46 @@ def _quality(station: Station, state: str) -> Quality:
     if state == "locked":  # no checks: a station without a usable file
         return Quality(state, "–")
     return Quality(state, str(workspace.STATES[state][0]))
+
+
+def _breaks(station: Station, quality: Quality) -> Breaks:
+    """The station's Possible breaks cell: what the checks shown found (``breaks.flag``),
+    "Checking…" while checks run, whether for the data or for break detection alone."""
+    if quality.state == "checking" or workspace._active(station.qc_job):
+        return Breaks("checking", str(workspace.STATES["checking"][0]))
+    shown = workspace.shown_qc(station)
+    found = breaks.flag(shown)
+    if found is None:
+        return Breaks("unknown", "–")
+    notes = []
+    if found.untested:
+        notes.append(
+            ngettext("%(n)s not tested", "%(n)s not tested", found.untested)
+            % {"n": numbers.grouped(found.untested)}
+        )
+    if workspace.breaks_changes(station, shown):
+        notes.append(_("out of date"))
+    note = "".join(f" · {n}" for n in notes)
+    if not found.variables:
+        return Breaks("none", _("none"), note=note)
+    variables = " ".join(found.variables)
+    values = {
+        "variables": variables,
+        "found": numbers.grouped(found.found_by),
+        "tested": numbers.grouped(found.tested),
+    }
+    return Breaks(
+        "found",
+        variables,
+        url=f"{station.url('qc')}?show={found.first}#{found.anchor}",
+        title=_(
+            "Possible breaks in %(variables)s, found by %(found)s of %(tested)s tests. The "
+            "data are not adjusted."
+        )
+        % values,
+        label=_(", found by %(found)s of %(tested)s tests") % values,
+        note=note,
+    )
 
 
 def _sentence(text: str) -> str:
@@ -231,6 +289,7 @@ def _missing(summary: dict) -> str:
 def rows(space: Workspace, owner: str) -> list[Row]:
     stations = list(ordered(space, owner).select_related("qc_job", "indices_job", "workspace"))
     states = run_states(stations)
+    looking = breaks.settings_of(space)["on"]
     out = []
     for station in stations:
         summary = station.summary or {}
@@ -260,6 +319,7 @@ def rows(space: Workspace, owner: str) -> list[Row]:
                 significant=significant,
                 significant_label=significant_label,
                 copy_url=station.url("copy") if workspace.set_up(station) else "",
+                breaks=_breaks(station, quality) if looking else None,
             )
         )
     return out
@@ -337,6 +397,33 @@ def _no_indices_sentence(empty: list[Row]) -> str:
     ) % {"count": len(empty)}
 
 
+def _looking_for_breaks(space: Workspace, table: list[Row]) -> StatusLine | None:
+    """While a change to break detection alone reruns the stations' checks (#367), and no
+    index is being calculated: "Looking for breaks: 4 of 6 stations done." with Undo."""
+    from climpact_web.stations import break_settings
+
+    if any(r.indices.state in RUNNING for r in table):
+        return None
+    if not break_settings.breaks_change(space):
+        return None
+    change = workspace.change_state(space)
+    if change is None or not change.total or change.finished:
+        return None
+    finished = change.done + change.failed + change.cancelled
+    head = ngettext(
+        "Looking for breaks: %(done)s of %(total)s station done.",
+        "Looking for breaks: %(done)s of %(total)s stations done.",
+        change.total,
+    ) % {"done": finished, "total": change.total}
+    links = []
+    if change.can_undo:
+        links.append(
+            Link(_("Undo the change"), reverse("stations:workspace_undo", args=[space.pk]), True)
+        )
+    percent = int(100 * finished / change.total)
+    return StatusLine("running", head, _("The indices don't change."), percent, links)
+
+
 def status_line(
     space: Workspace, table: list[Row], batch=None, page: str = ""
 ) -> StatusLine | None:
@@ -345,6 +432,8 @@ def status_line(
     and Cancel; ``page`` the overview's address, where Cancel and Undo return."""
     run = [r for r in table if r.indices.state in (*RUNNING, DONE, FAILED)]
     not_run = [r for r in table if r.indices.state == NOT_RUN]
+    if line := _looking_for_breaks(space, table):
+        return line
     if not run:
         return None
     now = timezone.now()
@@ -468,4 +557,9 @@ def status_line(
 
 def active(table: list[Row]) -> bool:
     """Whether something is still on the way, so the page polls: a run, or checks."""
-    return any(r.indices.state in RUNNING or r.quality.state == "checking" for r in table)
+    return any(
+        r.indices.state in RUNNING
+        or r.quality.state == "checking"
+        or (r.breaks is not None and r.breaks.state == "checking")
+        for r in table
+    )

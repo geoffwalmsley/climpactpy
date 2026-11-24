@@ -585,22 +585,27 @@ def section_states(analysis: Station) -> dict[str, str]:
     """Each section's state: done, attention (needs the user), stale (out of date),
     running, todo (not started) or locked (its input does not exist yet). Quality's is
     instead "checking" while the checks run, and once they have finished the verdict:
-    ready, usable or fix (#222). Indices' is "empty" when the run shown made no index
-    table (#298)."""
+    ready, usable or fix (#222), kept while checks queued for break detection alone run
+    (#367). Indices' is "empty" when the run shown made no index table (#298)."""
     states = {}
     qc_job, qc_shown = analysis.qc_job, shown_qc(analysis)
     qc_ready = (
         analysis.reached(Step.QC) and analysis.metadata_complete and analysis.station_file.is_file()
     )
+    # Checks queued for new break detection settings alone leave the checks shown as they
+    # are (#365): their verdict stays, and only the breaks are being looked for (#367).
+    breaks_only = (
+        _active(qc_job) and qc_shown is not None and not checks_replaced(analysis, qc_shown, qc_job)
+    )
     if not qc_ready:
         states["quality"] = "locked"
     elif qc_shown is not None and qc_changes(analysis, qc_shown):
         states["quality"] = "stale"
-    elif _active(qc_job):
+    elif _active(qc_job) and not breaks_only:
         states["quality"] = "checking"
     elif qc_job is None:
         states["quality"] = "todo"
-    elif qc_shown is None or qc_shown != qc_job:
+    elif qc_shown is None or (qc_shown != qc_job and not breaks_only):
         states["quality"] = "attention"  # the checks failed or were stopped
     else:
         verdict = qc_verdict(analysis, qc_shown)
@@ -1053,7 +1058,12 @@ def inputs_panel(analysis: Station, path: str = "") -> dict:
         )
     runs = []
     if _active(analysis.qc_job):
-        runs.append(PanelRun("qc", _("Checking quality"), analysis.qc_job))
+        # Checks queued for break detection alone leave the checks as they are (#367).
+        shown = shown_qc(analysis)
+        if shown is not None and not checks_replaced(analysis, shown, analysis.qc_job):
+            runs.append(PanelRun("qc", _("Looking for breaks"), analysis.qc_job))
+        else:
+            runs.append(PanelRun("qc", _("Checking quality"), analysis.qc_job))
     if committed(analysis) and _active(analysis.indices_job):
         label = _("Recalculating") if shown_run(analysis) else _("Calculating the indices")
         runs.append(PanelRun("run", label, analysis.indices_job))

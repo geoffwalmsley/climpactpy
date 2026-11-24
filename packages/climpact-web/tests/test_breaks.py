@@ -40,8 +40,10 @@ def change(client, station, **settings):
     return Workspace.objects.get(pk=station.workspace_id)
 
 
-def write_history(station, text: str) -> None:
-    path = breaks.history_path(station.workspace)
+def write_history(station, text: str, sha256: str) -> None:
+    """Keep ``text`` as the workspace's station history file ``sha256`` (#367: each file
+    under its SHA-256)."""
+    path = breaks.history_path(station.workspace, sha256)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
 
@@ -117,6 +119,7 @@ def test_a_change_to_the_settings_reruns_the_checks_job_only(client):
         "date,event,station\n1956-12,Screen moved 20 m east,sydney_observatory_hill_1936-2015\n"
         "2000-01-01,Electronic sensors,sydney_observatory_hill_1936-2015\n"
         "1990,Another station's event,Elsewhere\n",
+        "abc",
     )
     history = {"name": "nsw_history.csv", "sha256": "abc"}
     settings = {"methods": ["pettitt", "pmf"], "variables": ["TX"], "series": ["annual"]}
@@ -193,7 +196,7 @@ def test_checks_from_before_break_detection(client):
 
 def test_a_history_file_that_cannot_be_read_is_left_out(client):
     station, _qc, _run = in_use(client)
-    write_history(station, "date,event\n1956-12,Moved\n1997/06,New screen\n")
+    write_history(station, "date,event\n1956-12,Moved\n1997/06,New screen\n", "bad")
     change(client, station, history={"name": "bad.csv", "sha256": "bad"})
     job = run_next()
     assert job.status == Status.SUCCEEDED, job.error

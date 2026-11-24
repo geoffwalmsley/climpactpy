@@ -71,6 +71,7 @@ def settings_of(space) -> tuple:
         space.base_end,
         space.qc_params,
         workspace.workspace_settings(space),
+        space.break_detection,
     )
 
 
@@ -101,7 +102,9 @@ def test_save_then_open_gives_the_same_stations_settings_and_results(client):
         "stations/c.txt",
     }
     record = json.loads(files["workspace.json"])
-    assert record["format"] == "climpact-workspace" and record["format_version"] == 1
+    assert record["format"] == "climpact-workspace" and record["format_version"] == 2
+    assert record["settings"]["break_detection"]["on"] is True  # #367
+    assert record["settings"]["break_detection"]["station_history"] is None
     assert record["name"] == "NSW coast"
     assert record["settings"]["base_period"] == [2000, 2001]
     assert record["settings"]["quality_thresholds"] == QC_DEFAULTS
@@ -341,9 +344,9 @@ def test_malformed_json_is_refused(client, good):
 def test_a_file_of_another_format_or_a_newer_version_is_refused(client, good):
     other = with_manifest(good, lambda r: r.update(format="something-else"))
     assert "names no workspace format" in refused(client, other)
-    newer = with_manifest(good, lambda r: r.update(format_version=2))
+    newer = with_manifest(good, lambda r: r.update(format_version=3))
     message = refused(client, newer)
-    assert "saved by a newer version of Climpact (format 2; this one reads format 1)" in message
+    assert "saved by a newer version of Climpact (format 3; this one reads format 2)" in message
     missing = with_manifest(good, lambda r: r.pop("format_version"))
     assert "has no format version" in refused(client, missing)
 

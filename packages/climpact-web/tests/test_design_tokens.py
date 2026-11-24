@@ -372,9 +372,11 @@ def test_compiled_css_is_up_to_date(tmp_path):
 # 154,000 before the gridded map and its eight-bin scales, #295; 142,000 before the
 # gridded set-up page and its summary panel, #293; 170,000 before the help frame, #325;
 # 176,000 before the gridded map's diverging scales, #296; 180,000 before the help's
-# Reference pages, #319; 186,000 before Quality's possible breaks, #365)
-CSS_BUDGET = 190_000
-# gzipped: 29,500 before #365 (Quality's possible breaks), 28,500 before #296 (the
+# Reference pages, #319; 186,000 before Quality's possible breaks, #365; 190,000 before
+# break detection's settings and the framed settings list, #367)
+CSS_BUDGET = 194_000
+# gzipped: 30,500 before #367 (break detection's settings), 29,500 before #365 (Quality's
+# possible breaks), 28,500 before #296 (the
 # map's diverging scales), 27,500 before #325 (the help
 # frame), 27,250 before #294 (a gridded run's stages), 25 KB before #295 (the gridded
 # map), 23.5 KB before #293 (the gridded set-up
@@ -383,7 +385,7 @@ CSS_BUDGET = 190_000
 # #237, 17.5 KB before #236, 17 KB before #235, 16.25 KB before #227, 15.5 KB before #203, 15 KB
 # before #202, 14.75 KB before #201, 14 KB before #198, 13.5 KB before #197, 13 KB before
 # #196
-CSS_GZIP_BUDGET = 30_500
+CSS_GZIP_BUDGET = 31_250
 JS_BUDGET = 14_500  # ui.js, uncompressed (12 KB before #83, 14 KB before #174)
 
 

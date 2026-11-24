@@ -67,7 +67,7 @@ RATE_LIMITED = {
 # Inputs panel's sheets on a station and the workspace's settings (#198, #254).
 KEYED = {
     "stations:edit_input": ("file", "station", "base-period", "thresholds", "settings"),
-    "stations:workspace_setting": ("base-period", "thresholds", "settings"),
+    "stations:workspace_setting": ("base-period", "thresholds", "settings", "breaks"),
 }
 
 
@@ -140,6 +140,9 @@ def test_rate_limit_counts_only_job_starting_paths():
     # settings form's check as it is typed is not counted.
     for key in KEYED["stations:workspace_setting"]:
         assert rule(f"/w/{SAMPLE_UUID}/settings/{key}"), key
+    # Break detection's history file read when chosen, and its change's progress (#367).
+    assert not rule(paths["stations:workspace_break_history"])
+    assert not rule(paths["stations:workspace_settings_progress"])
     assert not rule(paths["stations:indices_validate"])
     assert not rule(paths["gridded:file_header"])
     assert not rule(paths["jobs:file"])

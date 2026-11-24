@@ -431,6 +431,7 @@ def site(chrome, server):
     pages["workspace overview"] = here(c).split("#")[0]
     pages["workspace settings"] = pages["workspace overview"] + "settings/"
     pages["workspace setting"] = pages["workspace overview"] + "settings/base-period"
+    pages["workspace break detection"] = pages["workspace overview"] + "settings/breaks"  # #367
     pages["workspace rename"] = pages["workspace overview"] + "rename"
     pages["workspace files"] = pages["workspace overview"] + "files/"  # #239
     pages["workspace delete"] = pages["workspace overview"] + "delete?from=files"  # #274
@@ -1295,6 +1296,56 @@ def test_possible_breaks_fit_beside_the_rail(chrome, site):
             c.navigate(site["station quality, possible breaks"])
             assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
             assert c.evaluate(wide) == 0, width
+    finally:
+        c.viewport(1280, 900)
+
+
+def test_station_history_read_when_chosen(chrome, site):
+    """#367: Break detection's station history file input is a Tab stop that shows its
+    focus on its button and opens the file chooser; a file chosen is read at once (htmx)
+    and shown, or refused with the line that is wrong, without axe violations or sideways
+    scroll at 1280 and 375 px. Nothing is applied."""
+    c = chrome
+    choose = (
+        "(function (text) { const input = document.getElementById('id_history');"
+        " const files = new DataTransfer();"
+        " files.items.add(new File([text], 'nsw_history.csv', {type: 'text/csv'}));"
+        " input.files = files.files;"
+        " input.dispatchEvent(new Event('change', {bubbles: true})); })(%s)"
+    )
+    try:
+        c.navigate(site["workspace break detection"])
+        c.evaluate("document.getElementById('id_history').focus()")
+        c.press("Tab", shift=True)
+        c.press("Tab")
+        assert c.evaluate("document.activeElement.id") == "id_history"
+        ring = "getComputedStyle(document.querySelector('.breaks-history__pick')).outlineStyle"
+        assert c.evaluate(ring) != "none", "the file button shows no focus"
+        c.send("Page.setInterceptFileChooserDialog", enabled=True)
+        try:
+            c.events.clear()
+            c.press(" ")
+            c.wait_event("Page.fileChooserOpened", timeout=5)
+        finally:
+            c.send("Page.setInterceptFileChooserDialog", enabled=False)
+        good = "date,event\n1940-06,Screen moved 20 m east\n1998-01-15,Electronic sensors\n"
+        c.evaluate(choose % json.dumps(good))
+        wait_for(c, "!!document.querySelector('.breaks-history__box')", timeout=20, what="preview")
+        assert "2 events for every station" in c.evaluate("document.body.textContent")
+        assert c.evaluate("document.getElementById('id_history').files.length") == 1
+        assert not run_axe(c)
+        for width in (1280, 375):
+            c.viewport(width, 900)
+            assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
+        c.viewport(1280, 900)
+        c.evaluate(choose % json.dumps("date,event\n1940-06,Moved\n1997/06,New screen\n"))
+        wait_for(c, "!!document.querySelector('.breaks-history__box--error')", timeout=20,
+                 what="the refusal")  # fmt: skip
+        alert = c.evaluate(
+            "document.querySelector('.breaks-history__box [role=alert]').textContent"
+        )
+        assert alert == "Line 3: date 1997/06 is not YYYY-MM-DD, YYYY-MM or YYYY.", alert
+        assert not run_axe(c)
     finally:
         c.viewport(1280, 900)
 

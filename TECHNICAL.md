@@ -580,8 +580,14 @@ calculation until the user asks; and a change to the break detection settings mu
 recalculate the indices. `test_homogeneity.py` checks that a run with `detect` has every
 table of a run without it, identical, the indices included. The options are the
 workspace's (`Workspace.break_detection`, `stations/breaks.py`, see
-[A station's pages](#a-stations-pages), "Possible breaks"); setting them, and the station
-history file, from Workspace settings is #367.
+[A station's pages](#a-stations-pages), "Possible breaks"), set with the station history
+file on Workspace settings' Break detection form (#367, `stations/break_settings.py`, see
+[Workspace overview](#workspace-overview)). The web server reads a history file when it is
+chosen without importing the core, which takes about 2 s to load
+(`break_settings.read_history`, by `read_station_history`'s rules and in its words,
+checked against it by `test_break_settings.py`); it checks every line, not only those of
+the workspace's stations, and counts lines as the file has them (blank lines too), where
+the core counts rows.
 
 **Validation** (`tests/test_homogeneity_parity.py`, `tests/test_homogeneity_rhtests.py`,
 `tests/test_homogeneity.py`, `tests/test_rrandom.py`): see
@@ -3248,8 +3254,14 @@ packages/climpact-web/src/climpact_web/
     breaks.py        Quality's possible breaks (#365): the workspace's break detection
                      settings (settings_of, job_params, inputs_of, history_path), the
                      qc job's homogeneity files read back (review: BreaksReview,
-                     SeriesBreaks, Group, Break, Test), the series chart (chart) and the
+                     SeriesBreaks, Group, Break, Test), a station's in short for the
+                     Stations table (flag: Flag, #367), the series chart (chart) and the
                      files for the zips (job_files)
+    break_settings.py  Break detection's settings (#367): its form
+                     (BreakDetectionForm), the station history file read when chosen
+                     (read_history: History) and kept under its SHA-256 (store_history,
+                     prune_history), its one-line summary (summary), the impact line
+                     and Workspace settings' line of the change (change_line)
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
     calculation.py   queueing the station run (#178): the speculative run with the
@@ -3320,7 +3332,10 @@ packages/climpact-web/src/climpact_web/
                      /w/<id>/compare/, and the grid's CSV, `compare_csv`, #238), Overlay
                      the series (`overlay_page`, /w/<id>/compare/<code>/overlay, and its
                      CSV, `overlay_csv`, #276), Rename,
-                     Workspace settings (a page and one page a setting) and Undo
+                     Workspace settings (a page and one page a setting; Break detection's,
+                     `break_detection`, with its history file read when chosen,
+                     `break_history`, and its change's progress, `settings_progress`,
+                     #367) and Undo
     views_indices.py Indices: progress, the table and detail pane (with a recalculation's progress
                      above it), the settings sheet's htmx field checks, "Recalculate", the
                      old Calculate address, each index's page, anomalies JSON
@@ -4059,7 +4074,8 @@ about 5 counted requests in any 10 s (the page, the drop and its redirect, a sec
 its redirect), and 6 to 8 counted requests in all. Since #360 it also counts Open a
 workspace file (`/w/open/`), a workspace's settings (`/w/*/settings/<key>` for its three
 keys, each of which recalculates every station; not the station settings form's
-`.../settings/validate`), Copy station (`/w/*/copy`, that is `/w/<id>/<station>/copy`) and
+`.../settings/validate`; since #367 also `breaks`, which reruns every station's checks),
+Copy station (`/w/*/copy`, that is `/w/<id>/<station>/copy`) and
 the gridded setup form (`/gridded/*/setup/`, but not its `setup/header/<n>/`), which had
 been left out. The list of job-starting views is no longer only kept by hand:
 `human_required` and `disk_required` mark the view they wrap `starts_work` (the mark is
@@ -5480,8 +5496,9 @@ values, which `nastatistics.csv` and the QC files do not hold.
 **Settings belong to the workspace (#254, `calculation.change_settings`).** The Base period,
 Quality thresholds and Index settings sheets change the workspace's settings, from any of
 its stations' pages. Break detection (#365, `Workspace.break_detection`) is one of them
-(`SETTINGS_FIELDS`), changed through `change_settings` and undone as the others; its form
-is #367. `change_settings` checks the hosted limits once (`check_job_quotas`:
+(`SETTINGS_FIELDS`), changed through `change_settings` and undone as the others, from its
+form on Workspace settings (#367). The undo record names the fields the change changed
+(`fields`), so Workspace settings can tell a change to break detection alone. `change_settings` checks the hosted limits once (`check_job_quotas`:
 a refusal changes nothing), keeps what it changes for undo, saves the new settings, and
 brings every station of the workspace up to date (`calculation.refresh`: `settle`, then the
 checks where the thresholds changed and the run where its inputs changed, each replacing
@@ -5988,8 +6005,13 @@ without errors; the user corrects the file outside the app and loads it again.
     table (Test, Last before, First after, Significant, Statistic, Critical value, p, Shift
     with its unit, Station history within a year; every test's own dates) and how the
     series was tested. Off for the workspace: the section's note "Turned off for this
-    workspace." with "Turn it on in Workspace settings"; with no check to show, its detail
-    says what break detection is. Checks that ran without it: "Not looked for: these checks
+    workspace." with "Turn it on in Workspace settings" (Break detection's form, #367);
+    with no check to show, its detail says what break detection is. While checks queued
+    for break detection alone run (#367), the checks and their verdict stay: no progress
+    panel (`breaks_only`: `_qc_progress.html` polls without one, and the page reloads when
+    they have finished), the Quality tab and the Stations table keep the verdict
+    (`workspace.section_states`), the Inputs bar says "Looking for breaks", and each
+    series' detail says its breaks are out of date. Checks that ran without it: "Not looked for: these checks
     ran before break detection was on." "How the break tests work" under "How the checks
     work" opens the section help `quality.breaks`.
   - *Checks that found nothing*: one line ("4 checks found nothing: ...").
@@ -6800,6 +6822,10 @@ the batch steps.
   The batch's zip is no longer offered here (#239): Export ▾ and Files have the
   workspace's files, made from whatever each station shows.
   Red when one failed: it is named with its error, and Workspace settings is offered.
+  While a change to break detection alone reruns the stations' checks and no index is
+  being calculated (#367, `overview._looking_for_breaks`, `break_settings.breaks_change`):
+  "Looking for breaks: 4 of 6 stations done. The indices don't change." with its bar and
+  "Undo the change".
   Stations not run (`not_run`, their batch job cancelled) are not counted in the total. A station
   whose run made no index table (#298) has finished but is not counted as calculated:
   "1 of 2 stations calculated in 16 s. Empty Hill has no indices: every value is
@@ -6809,7 +6835,13 @@ the batch steps.
   (`overview.ordered`: `created_at`, then name): the name (a link to the station's
   furthest section, `workspace.home_url`), coordinates, years, the share of all values
   missing over PR, TX and TN, the Quality verdict with its count (`workspace.qc_verdict`;
-  "Checking…" while the checks run; "–" without checks), the indices state
+  "Checking…" while the checks run; "–" without checks; the verdict stays while checks
+  queued for break detection alone run, #367), with break detection on its possible breaks
+  (#367, `overview.Breaks` from `breaks.flag`, which reads the shown checks' homogeneity
+  files once per job: the variables with breaks as a link to the first series with them,
+  `?show=breaks-tx-annual`, titled with how many tests found them; "none"; "· 3 not
+  tested" and "· out of date" after them; "Checking…" while its checks run, which polls
+  the overview too, `overview.active`; no column when break detection is off), the indices state
   (`batch.fill.run_states`; a station of no batch with no run of its own uses its Indices
   tab's state; a station's own run that is not in use yet, before "Go to indices", is not
   shown, as its Indices are locked: "–", #277; "Out of date" instead of Done when the
@@ -6834,12 +6866,37 @@ the batch steps.
   is announced, at once when the run has finished.
 - **Rename** (`stations:workspace_rename`): a page with the name; empty gives the default
   back ("6 stations, 17 Nov", or the one station's name).
-- **Workspace settings** (`stations:workspace_settings`): the base period, quality
-  thresholds and index settings as the Inputs panel lists them; each Edit opens its form
-  on a page of its own (`stations:workspace_setting`, the Inputs panel's form,
-  `_input_form.html` with `action`), which applies it through
+- **Workspace settings** (`stations:workspace_settings`, the BreakSettings board since
+  #367): the base period, quality thresholds, index settings and break detection as one
+  framed list (`_settings_list.html`), each with its summary in one line and Edit, which
+  opens its form on a page of its own (`stations:workspace_setting`; the first three the
+  Inputs panel's form, `_input_form.html` with `action`), which applies it through
   `calculation.change_settings` with the first station as the change's anchor (it changes
-  every station, as the station's sheets do) and returns to the overview. The base period
+  every station, as the station's sheets do) and returns to the overview.
+- **Break detection** (#367, `stations:workspace_setting` with key `breaks`,
+  `views_workspace.break_detection`, `workspace_breaks.html`,
+  `break_settings.BreakDetectionForm`): on or off (off, the other fields keep their
+  values), the tests, variables and series (one of each at least while on, as the core's
+  `CheckedOption`s require; PRCP alone with monthly alone is refused, as PRCP is tested
+  yearly only), the level (`breaks.LEVELS`), the shortest segment (1 to 50 years) and the
+  station history file. A file chosen is posted at once by htmx
+  (`stations:workspace_break_history`, nothing kept) and shown read
+  (`_breaks_history.html`: its events and stations, the first three rows, each station's
+  count and the workspace's stations with none; or "not used" and the line that is wrong),
+  while the file input keeps it for Apply; Remove is a checkbox. Applying keeps a new file
+  under its SHA-256 (`break_settings.store_history`; a file read when the form was sent
+  with another problem is kept at once and sent again as `history_sha`), changes the
+  settings as one change (`change_settings(break_detection=...)`: every station's checks
+  queued again for the breaks, never the run), deletes the files neither the settings nor
+  the undo record use (`prune_history`) and returns to Workspace settings, which shows the
+  change's line while it runs ("Break detection changed. Looking for breaks in 6
+  stations: 4 of 6 done. The indices don't change.", `break_settings.change_line`, polled
+  from `stations:workspace_settings_progress`) with "Undo the change"
+  (`stations:workspace_undo` with `next`, which returns there). When each station has
+  checks of the new settings already (`workspace.settle` shows them again), nothing is
+  queued and the page says so. The impact line's time is about 1 s per station, at least
+  5 s (`SECONDS_PER_STATION`, `SECONDS_AT_LEAST`: the Sydney sample's checks take 0.3 to
+  0.6 s with the break tests in a worker that has run them, about 5 s the first time). The base period
   is not checked against one station's data here: a station that does not cover it fails
   in its run and is named in red. The index settings start from the workspace's
   (`workspace.workspace_settings`), so a station's own metadata-line values stay its own.
@@ -6875,7 +6932,8 @@ period, and "A new workspace, with this workspace's settings"; Copy and Cancel (
   (`calculation.bring_up_to_date`) with the settings of the workspace it goes to. The
   station copied, its jobs and its workspace are not changed.
 - **A new workspace** starts with the settings of the station's workspace (base period,
-  thresholds, index settings), so the copy gives the same results until they are changed.
+  thresholds, index settings, and break detection with its station history file, #367),
+  so the copy gives the same results until they are changed.
   The copy's run is in use at once if the station's was (`workspace.committed`, "Go to
   indices"); then it opens on its Indices, else on its Quality.
 - **An existing workspace** has several stations after the copy, so the copy's run, and
@@ -6964,14 +7022,18 @@ and belong to one browser; the file keeps one, or moves it to another computer.
 
 - **Save file** (`/w/<id>/workspace.zip`, `stations:workspace_file`, on each row of
   Workspaces) downloads `climpact_workspace.zip`, made in a temporary file and streamed:
-  - `workspace.json`: `format` `climpact-workspace`, `format_version` 1 (`FORMAT_VERSION`),
-    the software, when it was saved, the workspace's name, its settings with every value
-    filled in (`base_period`, `quality_thresholds`, `indices` in `workspace_settings`
-    form), and each station: its name, its entry (`stations/<slug>.txt`), its original
+  - `workspace.json`: `format` `climpact-workspace`, `format_version` 2 (`FORMAT_VERSION`;
+    2 since #367, which added break detection), the software, when it was saved, the
+    workspace's name, its settings with every value filled in (`base_period`,
+    `quality_thresholds`, `indices` in `workspace_settings` form, and `break_detection`:
+    `on`, `methods`, `variables`, `series`, `level`, `min_years` and `station_history`,
+    null or the file's entry, name and SHA-256), and each station: its name, its entry (`stations/<slug>.txt`), its original
     file name, the SHA-256 of the file (`Station.file_hash`), latitude, longitude, years,
     its own index values (`workspace.own_params`), whether it is the sample and whether its
     results were in use (`workspace.committed`).
   - `stations/<slug>.txt`: each station's file as the workspace keeps it.
+  - `station_history.csv`: break detection's station history file, when the workspace
+    has one (#367).
   - `metadata.txt`: the stations in R's batch metadata format (`check.metadata_text`, each
     with every index value it is calculated with), so `stations/` can be run as a batch
     in Climpact for R. Opening ignores it.
@@ -7011,9 +7073,12 @@ and belong to one browser; the file keeps one, or moves it to another computer.
   compressed size past its first megabyte refused as a zip bomb (a header that understates
   a size fails zipfile's CRC check, "cannot be read"); `workspace.json` not UTF-8 JSON
   (`NaN` and `Infinity` refused) or not an object; another `format`, a missing
-  `format_version` or a newer one ("saved by a newer version of Climpact (format 2; this
-  one reads format 1)"); settings the settings pages would refuse (the base period's two
-  years in order, `QCParamsForm`, `IndexParamsForm`, booleans for the output options); no
+  `format_version` or a newer one ("saved by a newer version of Climpact (format 3; this
+  one reads format 2)"); settings the settings pages would refuse (the base period's two
+  years in order, `QCParamsForm`, `IndexParamsForm`, booleans for the output options,
+  `BreakDetectionForm` for break detection, `workspace_file.check_breaks`); a station
+  history file missing, changed since it was saved (its SHA-256), unreadable
+  (`break_settings.read_history`), or there without the settings naming it; no
   stations, more than `check.MAX_FILES`, a station without a name or numeric coordinates,
   own index values that are not `IndexParams` fields with numbers, a station file missing
   or listed twice, a station file whose SHA-256 differs from the saved one, a station file
@@ -7023,7 +7088,9 @@ and belong to one browser; the file keeps one, or moves it to another computer.
   (`safe_file_name`: no folders, letters, digits and `._()- `).
 - `tests/test_workspace_file.py` saves and opens a batch workspace with a failed station
   and compares its stations, settings and trends after both are calculated, and tests
-  each refusal.
+  each refusal. A file of format 1 has no break detection and opens with its defaults;
+  a station history file is kept with the new workspace before its stations' checks are
+  queued (`tests/test_break_settings.py`).
 
 ### Workspace files
 
@@ -8285,6 +8352,9 @@ table.
 #365 (Quality's possible breaks) took `climpact.css` to 29.3 of 29.75 KB (28.75 KB before; raw limit 190,000 bytes, 186,000 before):
 the rail's third section, the series chart, its key and the two tables
 (`components/breaks.css`).
+#367 (break detection's settings) took `climpact.css` to 30.0 of 30.25 KB (29.75 KB
+before; raw 192,197 of 194,000 bytes, 190,000 before): the framed settings list, the
+framed form with its groups and the station history file (`components/settings.css`).
 #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and the sector comparison's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station

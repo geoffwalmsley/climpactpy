@@ -6,12 +6,16 @@ file" (the WorkspaceList board) downloads ``climpact_workspace.zip``, which hold
 ``workspace.json``
     The manifest: the format and its version (:data:`FORMAT`, :data:`FORMAT_VERSION`),
     the software that saved it, the workspace's name and settings (base period, quality
-    thresholds, index settings and output options, all filled in) and its stations, each
+    thresholds, index settings and output options, and break detection since format 2,
+    #367, all filled in) and its stations, each
     with its file in the zip, its file's original name and SHA-256, its name, latitude and
     longitude, its own index values (a batch metadata line's), whether it is the sample and
     whether its results were in use ("Go to indices").
 ``stations/<slug>.txt``
     Each station's input file, as the workspace keeps it.
+``station_history.csv``
+    Break detection's station history file, when the workspace has one (#367; its name
+    and SHA-256 are in the manifest).
 ``metadata.txt``
     The stations in Climpact for R's batch metadata format, so the files can be run in R
     too (``stations/`` is the batch's folder of station files). Opening ignores it.
@@ -35,12 +39,14 @@ symbolic link, an encrypted or unusually compressed entry, a name given twice), 
 than a batch can use or an entry compressed suspiciously well (counted while it is read,
 not taken from the zip's header), a manifest that is not JSON or does not describe a
 workspace, a file from a newer version of the format, settings out of range, a station file
-that changed since it was saved (its SHA-256) or cannot be read.
+or station history file that changed since it was saved (its SHA-256) or cannot be read.
+Format 1 (before #367) has no break detection: it opens with break detection's defaults.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import io
 import json
 import math
@@ -62,15 +68,16 @@ from climpact_web.stations.models import Station, Workspace
 
 FILE_NAME = "climpact_workspace.zip"
 FORMAT = "climpact-workspace"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2  # 2: break detection's settings and station history file (#367)
 MANIFEST = "workspace.json"
+HISTORY = "station_history.csv"
 METADATA = "metadata.txt"
 PROVENANCE = "climpact_run.json"
 STATIONS_DIR = "stations/"
 
 # The limits of a workspace file, within those of a batch on Add stations (batch/check.py).
 MAX_STATIONS = check.MAX_FILES
-MAX_ENTRIES = MAX_STATIONS + 4  # the station files, the three others and stations/
+MAX_ENTRIES = MAX_STATIONS + 5  # the station files, the four others and stations/
 MAX_UNPACKED_BYTES = check.MAX_UNPACKED_BYTES  # every entry, uncompressed
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024  # workspace.json, metadata.txt, climpact_run.json
 MAX_STATION_BYTES = 64 * 1024 * 1024  # one station file: 200 years of days is under 10 MB
@@ -105,12 +112,25 @@ def saved_stations(space: Workspace, owner: str) -> list[Station]:
 
 def settings_record(space: Workspace) -> dict:
     """The workspace's settings, every value filled in (the defaults where it has none)."""
+    from climpact_web.stations import breaks
     from climpact_web.stations.forms import QCParamsForm
 
+    chosen = breaks.settings_of(space)
+    history = chosen.pop("history")
+    path = breaks.history_path(space)
+    if history and path is not None and path.is_file():
+        chosen["station_history"] = {
+            "file": HISTORY,
+            "name": history.get("name") or HISTORY,
+            "sha256": history["sha256"],
+        }
+    else:
+        chosen["station_history"] = None
     return {
         "base_period": [space.base_start, space.base_end],
         "quality_thresholds": QCParamsForm.initial_for(space.qc_params),
         "indices": workspace.workspace_settings(space),
+        "break_detection": chosen,
     }
 
 
@@ -181,6 +201,10 @@ def write(space: Workspace, owner: str, items: list, target) -> int:
         archive.writestr(PROVENANCE, workspace_files.provenance_text(provenance))
         for station in stations:
             archive.write(station.station_file, f"{STATIONS_DIR}{station.slug}.txt")
+        if record["settings"]["break_detection"]["station_history"]:
+            from climpact_web.stations import breaks
+
+            archive.write(breaks.history_path(space), HISTORY)
     return len(stations)
 
 
@@ -218,6 +242,8 @@ class Opened:
     qc_params: dict
     index_settings: dict  # workspace_settings form
     stations: list[SavedStation]
+    break_detection: dict = field(default_factory=dict)  # Workspace.break_detection's form
+    history: bytes | None = None  # its station history file
 
 
 def _damaged(detail: str) -> NotAWorkspaceFile:
@@ -245,7 +271,7 @@ def entry_problem(info: zipfile.ZipInfo) -> str | None:
         return _("%(name)s is compressed in a way workspace files are not.") % {"name": name}
     if name == STATIONS_DIR:
         return None
-    if name in (MANIFEST, METADATA, PROVENANCE) or _STATION_ENTRY.fullmatch(name):
+    if name in (MANIFEST, METADATA, PROVENANCE, HISTORY) or _STATION_ENTRY.fullmatch(name):
         return None
     return _("%(name)s is not part of a workspace file.") % {"name": name}
 
@@ -439,6 +465,73 @@ def check_settings(record) -> tuple[int, int, dict, dict]:
     return period[0], period[1], qc, index_settings
 
 
+def check_breaks(record, files: dict[str, bytes]) -> tuple[dict, bytes | None]:
+    """The saved break detection settings (none in format 1: the defaults), checked as
+    its form checks them, and the station history file they name, checked against its
+    SHA-256 and read: (``Workspace.break_detection``, the file or None)."""
+    from climpact_web.stations import break_settings, breaks
+
+    if record is None:
+        if HISTORY in files:
+            raise _damaged(
+                _("%(name)s is in it, but its settings don't use it.") % {"name": HISTORY}
+            )
+        return {}, None
+    if not isinstance(record, dict) or not isinstance(record.get("on"), bool):
+        raise _damaged(_("its break detection settings are not valid."))
+    lists = {}
+    for key in ("methods", "variables", "series"):
+        value = record.get(key)
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise _damaged(_("its break detection settings are not valid."))
+        lists[key] = value
+    level, years = record.get("level"), record.get("min_years")
+    if not _is_number(level) or not isinstance(years, int) or isinstance(years, bool):
+        raise _damaged(_("its break detection settings are not valid."))
+    data = {**lists, "level": str(float(level)), "min_years": str(years)}
+    if record["on"]:
+        data["on"] = "on"
+    form = break_settings.BreakDetectionForm(data)
+    if not form.is_valid():
+        raise _damaged(_("its break detection settings are out of range."))
+    cleaned = form.cleaned_data
+    chosen = {
+        "on": record["on"],
+        "methods": [m for m in breaks.METHODS if m in cleaned["methods"]],
+        "variables": [v for v in breaks.VARIABLES if v in cleaned["variables"]],
+        "series": [f for f in breaks.FREQUENCIES if f in cleaned["series"]],
+        "level": float(cleaned["level"]),
+        "min_years": int(cleaned["min_years"]),
+        "history": None,
+    }
+    saved = record.get("station_history")
+    data = None
+    if saved is not None:
+        if (
+            not isinstance(saved, dict)
+            or saved.get("file") != HISTORY
+            or not isinstance(saved.get("name"), str)
+            or not isinstance(saved.get("sha256"), str)
+            or not _SHA256.fullmatch(saved["sha256"])
+            or HISTORY not in files
+        ):
+            raise _damaged(_("its station history file is missing."))
+        data = files[HISTORY]
+        if hashlib.sha256(data).hexdigest() != saved["sha256"]:
+            raise _damaged(
+                _("the station history file is not the one saved (its SHA-256 differs).")
+            )
+        history = break_settings.read_history(data, break_settings.safe_name(saved["name"]))
+        if not history.ok:
+            raise _damaged(_("its station history file cannot be read."))
+        chosen["history"] = break_settings.history_record(history, data)
+    elif HISTORY in files:
+        raise _damaged(_("%(name)s is in it, but its settings don't use it.") % {"name": HISTORY})
+    if chosen == {**breaks.DEFAULTS, "history": None}:
+        return {}, None
+    return chosen, data
+
+
 def safe_file_name(name, fallback: str) -> str:
     """A saved station's original file name, safe to name a file on disk with."""
     base = check.plain_name(name) if isinstance(name, str) and name else None
@@ -521,8 +614,11 @@ def read(handle) -> Opened:
     if not isinstance(name, str) or len(name) > 100:
         raise _damaged(_("its name is not valid."))
     base_start, base_end, qc, index_settings = check_settings(record.get("settings"))
+    break_detection, history = check_breaks(record["settings"].get("break_detection"), files)
     stations = check_stations(record.get("stations"), files)
-    return Opened(name.strip(), base_start, base_end, qc, index_settings, stations)
+    return Opened(
+        name.strip(), base_start, base_end, qc, index_settings, stations, break_detection, history
+    )
 
 
 # ---- opening ------------------------------------------------------------------------------
@@ -595,6 +691,7 @@ def new_workspace(opened: Opened, owner: str) -> Workspace:
         index_settings=(
             {} if opened.index_settings == workspace.default_settings() else opened.index_settings
         ),
+        break_detection=opened.break_detection,
     )
 
 
@@ -624,6 +721,10 @@ def open_into(request, opened: Opened) -> Workspace:
         )
     check_job_quotas(request)  # one change for the hosted limits: refused now, nothing made
     space.save()
+    if opened.history is not None:  # before the checks, which use it (#367)
+        from climpact_web.stations import break_settings
+
+        break_settings.store_history(space, opened.history)
     run = None
     try:
         with transaction.atomic():

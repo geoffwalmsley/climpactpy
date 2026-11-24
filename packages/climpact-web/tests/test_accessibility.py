@@ -328,6 +328,8 @@ def site(chrome, server):
     wait_for(c, "!!document.querySelector('form[action$=\"/quality/continue\"]')",
              what="the quality checks", heard=heard)  # fmt: skip
     pages["station quality results"] = here(c)
+    # A series' possible breaks in the detail (#365): its chart, tables and legend.
+    pages["station quality, possible breaks"] = here(c).split("?")[0] + "?show=breaks-tx-annual"
     # "Use this data" opens the results of the run queued with the checks (#178), or its
     # progress until it has finished.
     submit(c, "form[action$='/quality/continue']")
@@ -1278,6 +1280,25 @@ def test_no_overlapping_sticky_elements(chrome, site):
         c.viewport(1280, 900)
 
 
+def test_possible_breaks_fit_beside_the_rail(chrome, site):
+    """#365: a series' possible breaks beside the rail need no sideways scroll at 1280 and
+    1440 px, the page nor any of its tables (DESIGN.md, Layout: nothing on Quality scrolls
+    sideways at 1280px or wider)."""
+    c = chrome
+    wide = (
+        "[...document.querySelectorAll('[data-qc-detail=\"breaks-tx-annual\"] .table-wrap')]"
+        ".filter(t => t.clientWidth && t.scrollWidth > t.clientWidth + 1).length"
+    )
+    try:
+        for width in (1280, 1440):
+            c.viewport(width, 900)
+            c.navigate(site["station quality, possible breaks"])
+            assert c.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
+            assert c.evaluate(wide) == 0, width
+    finally:
+        c.viewport(1280, 900)
+
+
 def test_phone_inputs_bar_opens_the_sheets(chrome, site):
     """#203: on a phone the Inputs panel is one line under the tabs, the base period and
     whether the settings are the defaults. Its Edit (Enter) opens the inputs in a sheet
@@ -2204,8 +2225,12 @@ def test_quality_list_and_detail_by_keyboard(chrome, site):
         wait_for(c, f"{said} === {title}", timeout=5, what=f"the announcement of {i}")
         assert c.evaluate("document.activeElement.dataset.qcItem") == i
         assert f"show={i}" in here(c)
-    # A check's detail has its values table, paged with htmx.
-    group = ids[-1]
+    # A check's detail has its values table, paged with htmx (the last check: the possible
+    # breaks' series come after the checks, #365).
+    group = [i for i in ids if not i.startswith("breaks-")][-1]
+    focus(c, f"[data-qc-item='{group}']")
+    c.press("Enter")
+    assert c.evaluate(shown) == [group]
     assert c.evaluate(f"!!document.querySelector('[data-qc-detail=\"{group}\"] [data-qc-table]')")
     # A value selected by keyboard: in place, focus on its date, its title announced, the
     # When chart's ring on it, its address kept.

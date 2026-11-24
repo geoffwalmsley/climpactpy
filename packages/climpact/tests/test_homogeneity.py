@@ -188,6 +188,19 @@ def test_detect_finds_the_tx_break_and_leaves_the_data(run):
     assert breaks_found(result.tables)
 
 
+def test_the_indices_are_the_same_with_detection_on_and_off():
+    """``detect`` reports breaks and leaves the data alone (#365): every table but its own
+    is identical to a run without it, the indices included."""
+    off = run_pipeline(synthetic_run(), ModuleSelection())
+    on = run_pipeline(synthetic_run(), ModuleSelection(homogeneity="detect"))
+    assert not on.adjusted
+    added = set(on.tables) - set(off.tables)
+    assert added == {"homogeneity/breaks", "homogeneity/tests"}
+    assert any(key.startswith("indices/") for key in off.tables)
+    for key, table in off.tables.items():
+        pd.testing.assert_frame_equal(on.tables[key], table, obj=key)
+
+
 def test_tests_table_has_a_row_per_series_and_method(tables):
     tests = tables["homogeneity/tests"]
     series = [("TX", "annual"), ("TX", "monthly"), ("TN", "annual"), ("TN", "monthly")]

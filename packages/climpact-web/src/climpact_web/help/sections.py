@@ -110,6 +110,39 @@ SECTIONS = (
         ],
     ),
     S(
+        "quality.breaks",
+        _("How the break tests work"),
+        ["breaks.pettitt", "breaks.snht", "breaks.pmf", "breaks.pmt", "breaks.maybe"],
+        [
+            _(
+                "The break tests look for sudden shifts in the yearly and monthly means of "
+                "TX and TN, and in the yearly PRCP total: the kind a station move or a new "
+                "instrument leaves."
+            ),
+            _("They never change the data. The indices use them as they are."),
+            Note(
+                _(
+                    "Breaks within about a year of each other are one date. A date found by "
+                    "two tests or more, or by PMF, is drawn solid; one found by one test, "
+                    "thinner; a maybe, or PMT alone, dashed."
+                ),
+                _("Which tests agree"),
+            ),
+            Note(
+                _(
+                    "PMF fits a trend; PMT assumes there is none. On a warming station PMT "
+                    "finds breaks that PMF does not. Trust a break more when PMF or several "
+                    "tests find it, and when the station history explains it."
+                ),
+                _("PMF and PMT"),
+            ),
+            _(
+                "To adjust a series for a break, use a tool made for it, such as RHtests "
+                "with neighbouring stations."
+            ),
+        ],
+    ),
+    S(
         "quality.wrong",
         _("Look wrong"),
         ["qc.tmaxmin", "qc.toolarge", "qc.duplicates"],

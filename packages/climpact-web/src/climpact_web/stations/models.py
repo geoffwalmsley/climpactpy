@@ -97,6 +97,12 @@ class Workspace(models.Model):
     base_end = models.IntegerField(default=2000)
     qc_params = models.JSONField(default=dict, blank=True)
     index_settings = models.JSONField(default=dict, blank=True)
+    # Break detection (#365): whether each station's checks also look for breaks with the
+    # core's homogeneity module ``detect``, and its options (stations.breaks.settings_of),
+    # empty for the defaults (on, every test, variable and series, 95%, 5 years); with a
+    # station history file, its name and SHA-256 under "history" (the file is kept in the
+    # workspace's folder, breaks.history_path).
+    break_detection = models.JSONField(default=dict, blank=True)
     # The last change to the settings, while it can be undone (#254, workspace.undo): its
     # id (the ``change`` of the jobs it queued), the settings before it, and each station's
     # jobs and own index values before it. Empty when there is nothing to undo.

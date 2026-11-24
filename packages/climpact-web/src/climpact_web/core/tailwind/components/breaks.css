@@ -1,0 +1,233 @@
+/* Possible breaks on Quality (#365, the QualityBreaks board): the rail's third section
+   (stations/_breaks_rail_item.html) and a series' detail (stations/_breaks_detail.html),
+   built on Quality's rail and detail (qc.css). A break is a finding, not a status: neutral
+   ink throughout, its strength shown by weight, never by a status colour. Strong (two
+   tests or more, or PMF): a solid line in the text colour; normal (one test): a thinner
+   muted line; quiet (only "maybe", or PMT alone): a dashed muted line. */
+@layer components {
+  .qc-rail__help {
+    display: flex;
+    flex-direction: column;
+    gap: --spacing(1);
+    align-items: flex-start;
+    padding-inline-start: --spacing(0.5);
+  }
+
+  .qc-rail__foot {
+    margin: 0;
+    padding: 0 --spacing(3) --spacing(2.5);
+    font-size: var(--text-xs);
+  }
+
+  .qc-rail__count--none { color: var(--color-text-muted); }
+
+  /* The marks, on the chart, its key and the rail's timeline. */
+  .break-mark { fill: none; stroke: var(--color-text-muted); }
+
+  .break-mark--normal { stroke-width: 1.2; }
+
+  .break-mark--strong { stroke: var(--color-text); stroke-width: 1.6; }
+
+  .break-mark--quiet { stroke-width: 1; stroke-dasharray: 3 3; }
+
+  .breaks-timeline {
+    display: block;
+    flex: none;
+    inline-size: 3.75rem;
+    block-size: 0.875rem;
+    overflow: visible;
+    direction: ltr;
+  }
+
+  .breaks-timeline__axis { stroke: var(--color-border); stroke-width: 1; }
+
+  .breaks-timeline .break-mark--quiet { stroke-dasharray: none; }
+
+  /* Lines under the detail's lede: out of date, a history file not used. */
+  .breaks-note {
+    margin: 0;
+    padding: --spacing(2) --spacing(3);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-size: var(--text-sm);
+  }
+
+  .breaks-note > b { font-weight: var(--font-weight-semibold); }
+
+  /* The series chart: each year's value in the variable's colour (the quality charts'
+     variable roles), the segments' means as a step in the text colour. */
+  .breaks-chart--tmax { --breaks-role: var(--chart-tmax); }
+
+  .breaks-chart--tmin { --breaks-role: var(--chart-tmin); }
+
+  .breaks-chart--prcp { --breaks-role: var(--chart-prcp); }
+
+  .breaks-chart .qc-chart__tick { font-size: 14px; }
+
+  .breaks-chart__dots { fill: var(--breaks-role); }
+
+  .breaks-chart__line { fill: none; stroke: var(--color-text-muted); stroke-width: 1; opacity: 0.6; }
+
+  .breaks-chart__steps { fill: none; stroke: var(--color-text); stroke-width: 2.4; }
+
+  .breaks-chart__event { fill: var(--color-text-muted); }
+
+  .breaks-chart__event-label,
+  .breaks-chart__label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .breaks-chart__event-label,
+  .breaks-chart__label { fill: var(--color-text-muted); }
+
+  .breaks-chart__label--strong { fill: var(--color-text); font-weight: var(--font-weight-semibold); }
+
+  .breaks-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .breaks-legend > li {
+    display: flex;
+    gap: --spacing(1.5);
+    align-items: center;
+  }
+
+  .breaks-legend__dot {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--breaks-role);
+  }
+
+  .breaks-legend__step { inline-size: 1rem; border-block-start: 2.4px solid var(--color-text); }
+
+  .breaks-fig__summary { margin: --spacing(1) 0 0; font-size: var(--text-sm); }
+
+  .breaks-years { max-block-size: 20rem; overflow-y: auto; }
+
+  @media (scripting: enabled) {
+    .breaks-fig:not(.is-table) [data-qc-months-table],
+    .breaks-fig.is-table [data-qc-months-chart] { display: none; }
+  }
+
+  /* "Which tests agree" beside "The four tests", then the breaks table. */
+  .breaks-agree {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(4) --spacing(6);
+    align-items: flex-start;
+    padding-block-start: --spacing(3.5);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  /* Positioned, so a cell's text for screen readers (sr-only, absolute) stays inside the
+     scrolling region instead of widening the page (as the data table's frame, #234). */
+  .breaks-agree .table-wrap { position: relative; }
+
+  .breaks-agree__part {
+    display: grid;
+    gap: --spacing(2);
+    min-inline-size: 0;
+  }
+
+  .breaks-agree__part--dates { flex: 3 1 28rem; }
+
+  .breaks-agree__part--tests { flex: 2 1 17rem; }
+
+  .breaks-detail__heading {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .table--data .breaks-agree__test { padding-inline: --spacing(1.5); text-align: center; }
+
+  .breaks-agree__by,
+  .breaks-agree__untested { color: var(--color-text-muted); font-size: var(--text-xs); }
+
+  /* The station history's events and a test's result wrap (the data table's rows are
+     one line otherwise), so the tables fit beside each other. */
+  .table--data :is(.breaks-agree__history, .breaks-table__history, .breaks-tests__result) {
+    padding-block: --spacing(1);
+    line-height: var(--leading-tight);
+    white-space: normal;
+  }
+
+  .breaks-agree__history,
+  .breaks-table__history {
+    min-inline-size: 6rem;
+    font-size: var(--text-xs);
+  }
+
+  /* The long header over the history wraps too, so the breaks table fits at 1280px. */
+  .table--data th.breaks-table__history { white-space: normal; }
+
+  /* A series' years in the rail stay on one line, as a check's name does. */
+  .breaks-rail__years {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .breaks-grade--strong .code { font-weight: var(--font-weight-semibold); }
+
+  .breaks-grade--quiet .code { color: var(--color-text-muted); }
+
+  .breaks-dot {
+    display: inline-block;
+    inline-size: 0.5625rem;
+    block-size: 0.5625rem;
+    border-radius: var(--radius-full);
+    vertical-align: middle;
+  }
+
+  .breaks-dot--yes { background: var(--color-text); }
+
+  .breaks-dot--maybe { border: 1.5px solid var(--color-text-muted); }
+
+  .breaks-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(1) --spacing(3.5);
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .breaks-tests__result--found { font-weight: var(--font-weight-medium); }
+
+  .breaks-tests__result--untested { color: var(--color-text-muted); }
+
+  .breaks-table {
+    display: grid;
+    gap: --spacing(2);
+    padding-block-start: --spacing(3.5);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .breaks-table__count {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-weight: var(--font-weight-normal);
+  }
+
+  .breaks-sig--yes { font-weight: var(--font-weight-medium); }
+
+  .breaks-sig--maybe,
+  .breaks-sig--no { color: var(--color-text-muted); }
+
+  .breaks-off__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: --spacing(3);
+    align-items: center;
+  }
+}

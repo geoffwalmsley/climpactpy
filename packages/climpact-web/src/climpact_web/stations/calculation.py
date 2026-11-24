@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from contextlib import ExitStack
 
 from django.core.files import File
 from django.utils.translation import gettext as _
@@ -38,7 +39,7 @@ from django.utils.translation import gettext as _
 from climpact_web.core.limits import Refused
 from climpact_web.jobs.models import Job, Status
 from climpact_web.jobs.views import create_job, promote
-from climpact_web.stations import workspace
+from climpact_web.stations import breaks, workspace
 from climpact_web.stations.forms_indices import IndexParamsForm, initial_from_params
 from climpact_web.stations.models import STATION_FILE, Station, Step, Workspace
 from climpact_web.stations.workspace import REPLACES
@@ -136,10 +137,14 @@ def _create(request, analysis: Station, params: dict, speculative=False, change=
 
 
 def qc_job_params(analysis: Station) -> dict:
+    """The ``qc`` job's parameters: the file, the station details and thresholds, and the
+    workspace's break detection (#365: the ``detect`` module's options and the station
+    history file, :func:`.breaks.job_params`)."""
     return {
         "station_file": STATION_FILE,
         "metadata": analysis.metadata,
         "qc": workspace.qc_values(analysis),
+        **breaks.job_params(analysis.workspace),
     }
 
 
@@ -151,12 +156,16 @@ def queue_qc(request, analysis: Station, change: str = "") -> Job:
     params = qc_job_params(analysis)
     if replaces := workspace.replaces_for(old):
         params[REPLACES] = replaces
-    with analysis.station_file.open("rb") as handle:
+    with ExitStack() as stack:
+        files = {STATION_FILE: File(stack.enter_context(analysis.station_file.open("rb")))}
+        if params.get("station_history"):  # the workspace's station history file (#365)
+            path = breaks.history_path(analysis.workspace)
+            files[breaks.HISTORY_FILE] = File(stack.enter_context(path.open("rb")))
         job = create_job(
             request,
             "qc",
             params,
-            {STATION_FILE: File(handle)},
+            files,
             title=_("%(name)s: quality checks") % {"name": analysis.station_name},
             inputs=workspace.job_inputs(analysis, "qc", params),
             change=change,
@@ -347,7 +356,7 @@ def refresh(request, analysis: Station, change: str) -> tuple[bool, bool]:
 
 # ---- a change to the workspace's settings, and its undo (#254) ---------------------------
 
-SETTINGS_FIELDS = ("base_start", "base_end", "qc_params", "index_settings")
+SETTINGS_FIELDS = ("base_start", "base_end", "qc_params", "index_settings", "break_detection")
 
 
 def forget_undo(space: Workspace) -> None:

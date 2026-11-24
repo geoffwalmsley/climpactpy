@@ -97,8 +97,12 @@
         title.focus({ preventScroll: true });
         title.scrollIntoView({ behavior: behavior, block: "start" });
       } else {
+        /* Beside the rail: its title in sight, under the sticky header and context bar
+           (the page's scroll padding), when it is not. */
         var box = panel.getBoundingClientRect();
-        if (box.top >= window.innerHeight || box.bottom <= 0) panel.scrollIntoView({ behavior: behavior, block: "nearest" });
+        var top = parseFloat(window.getComputedStyle(doc.documentElement).scrollPaddingTop) || 0;
+        if (box.top < top) panel.scrollIntoView({ behavior: behavior, block: "start" });
+        else if (box.top >= window.innerHeight) panel.scrollIntoView({ behavior: behavior, block: "nearest" });
       }
     }
     return panel;

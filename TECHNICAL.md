@@ -566,7 +566,22 @@ output files, so commas in an event become semicolons.
 
 The tests table is the run's flag: `breaks_found(tables)` is true when any row says
 `breaks found`, and `climpact run` prints a line saying which tests found breaks
-(`summary`). Showing the breaks in the web app is a separate ticket.
+(`summary`).
+
+**In the web app (#365).** Each station's `qc` job runs `detect` with the QC module
+(`ModuleSelection(indices=(), homogeneity="detect")`), never the calculation, so the
+breaks come with the checks on Quality and the indices never depend on them. By cost alone
+the calculation would hide them better: on the Sydney sample the `qc` job's work takes
+0.2 s, 0.3 s with `detect` once a worker has run it (about 5 s the first time in a fresh
+process: the imports and the SNHT null distributions, kept per length and process), and
+the calculation about 3 s before its plots and report. But the breaks belong on Quality,
+which shows the `qc` job's results; a station whose verdict is "Fix the file first" has no
+calculation until the user asks; and a change to the break detection settings must not
+recalculate the indices. `test_homogeneity.py` checks that a run with `detect` has every
+table of a run without it, identical, the indices included. The options are the
+workspace's (`Workspace.break_detection`, `stations/breaks.py`, see
+[A station's pages](#a-stations-pages), "Possible breaks"); setting them, and the station
+history file, from Workspace settings is #367.
 
 **Validation** (`tests/test_homogeneity_parity.py`, `tests/test_homogeneity_rhtests.py`,
 `tests/test_homogeneity.py`, `tests/test_rrandom.py`): see
@@ -3193,7 +3208,8 @@ packages/climpact-web/src/climpact_web/
     registry.py      runner registry, JobContext, JobError, JobCancelled, JobTimedOut,
                      JobInterrupted
     runners.py       the built-in runners: station, qc, batch, sector, gridded-thresholds,
-                     gridded-indices (thin wrappers of the core functions)
+                     gridded-indices (thin wrappers of the core functions); qc also runs
+                     the homogeneity module detect when given its options (#365)
     worker.py        claiming, progress writes, heartbeats, dead-worker detection, the
                      worker loop (JobWorker)
     retention.py     purge_expired: old jobs and their folders
@@ -3229,6 +3245,11 @@ packages/climpact-web/src/climpact_web/
                      selected value with the days around it (build_finding), the coverage
                      strip and the flagged values as CSV (flagged_rows, #235, #264)
     qc_plots.py      Quality's distribution plots (R's QC plots) as inline SVG with tables
+    breaks.py        Quality's possible breaks (#365): the workspace's break detection
+                     settings (settings_of, job_params, inputs_of, history_path), the
+                     qc job's homogeneity files read back (review: BreaksReview,
+                     SeriesBreaks, Group, Break, Test), the series chart (chart) and the
+                     files for the zips (job_files)
     forms_indices.py IndexParamsForm (the Index settings sheet, #78, #178, #199): every
                      IndexParams field, checked by the core's validate_params
     calculation.py   queueing the station run (#178): the speculative run with the
@@ -5366,15 +5387,21 @@ which `calculation.queue_qc` and `calculation._create` fill (`workspace.job_inpu
 `workspace.file_record`: its name as uploaded, first and last year, days, and the
 variables with values, from `Station.file_name` and `Station.summary`), `metadata` (name,
 latitude, longitude, base period), `qc` (the thresholds with R's defaults filled in,
-`workspace.qc_values`) and, for a `station` run, `settings` (`workspace.settings_of`: the
-`IndexParams` fields, plot title, plots, zip and report). A batch's `origin["inputs"]`
+`workspace.qc_values`), for a `station` run `settings` (`workspace.settings_of`: the
+`IndexParams` fields, plot title, plots, zip and report), and for a `qc` job `breaks`
+(#365, `breaks.inputs_of`: off, or the `detect` module's options and the station history
+file's SHA-256). A batch's `origin["inputs"]`
 has `data` too, from the file the batch read (`batch.fill.batch_inputs`). `data` is never
 compared (`file` is): it only describes the file. Jobs queued before #269 have no `data`,
 and their lines describe the current file, as before. The workspace's provenance file
 uses the record too (#307, `workspace_files.provenance`, below). `workspace.differences` names what differs between a job's inputs and the
-analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`. The checks depend
-on the file, the thresholds and the name (their files are named after the station); a run
-on all of them. The current `settings` are the station's (`workspace.station_settings`,
+analysis's: `file`, `name`, `location`, `base_period`, `qc`, `settings`, `breaks`. The
+checks depend on the file, the thresholds and the name (their files are named after the
+station, `CHECK_INPUTS`); a run on all of them but `breaks` (`RUN_INPUTS`). A `qc` job is
+queued again when any of `QC_INPUTS` (`CHECK_INPUTS` and `breaks`) changes; a change to
+`breaks` alone leaves its checks current (`qc_changes` compares `CHECK_INPUTS`) and only its
+breaks out of date (`breaks_changes`), and the job replacing it does not mark the checks
+out of date (`checks_replaced`, #365). The current `settings` are the station's (`workspace.station_settings`,
 #254): the workspace's `index_settings` with the defaults filled in
 (`workspace.workspace_settings`, `default_settings`), the station's own values in place of
 the workspace's (`workspace.own_params`). A batch's custom index is its workspace's too
@@ -5452,7 +5479,9 @@ values, which `nastatistics.csv` and the QC files do not hold.
 
 **Settings belong to the workspace (#254, `calculation.change_settings`).** The Base period,
 Quality thresholds and Index settings sheets change the workspace's settings, from any of
-its stations' pages. `change_settings` checks the hosted limits once (`check_job_quotas`:
+its stations' pages. Break detection (#365, `Workspace.break_detection`) is one of them
+(`SETTINGS_FIELDS`), changed through `change_settings` and undone as the others; its form
+is #367. `change_settings` checks the hosted limits once (`check_job_quotas`:
 a refusal changes nothing), keeps what it changes for undo, saves the new settings, and
 brings every station of the workspace up to date (`calculation.refresh`: `settle`, then the
 checks where the thresholds changed and the run where its inputs changed, each replacing
@@ -5842,7 +5871,10 @@ without errors; the user corrects the file outside the app and loads it again.
     values checked (PR, TX and TN present on each date, the row the indices use for a
     repeated date), how many look wrong and their share, how many are worth a look, the
     values missing and their share of all of them (`values_missing`), and the years too
-    incomplete when there are any. The buttons at its end: "Flagged values (CSV)" when
+    incomplete when there are any, and last the possible breaks as a link to the first
+    series with any (#365, `BreaksReview.counts_text`: "possible breaks in TX TN PRCP",
+    "no possible breaks (20 tests)"; the strip's `link`), which never change the level.
+    The buttons at its end: "Flagged values (CSV)" when
     anything was flagged, then one primary button, "Go to indices" (green, amber; "See
     results" from #202), with "Replace file" before it on amber; on red "Replace file" is
     primary, with "Go to indices anyway" before it. "Replace file" opens the panel's File
@@ -5903,7 +5935,9 @@ without errors; the user corrects the file outside the app and loads it again.
     page, the others `hidden`. With JavaScript (`qc.js`) a check shows its detail in place,
     marks it (`aria-current`), puts `?show=` in the address (`replaceState`) and
     announces the detail's title in a polite live region; when the detail is below the
-    rail, focus moves to its title, and "Back to the list" returns it to the check. A
+    rail, focus moves to its title, and "Back to the list" returns it to the check; beside
+    the rail, the page scrolls to the detail's title when it is out of sight under the
+    header (#365: the last row of a longer rail). A
     value's date (or a click anywhere on its row), the sort and the pager swap the values
     fragment in place (htmx, `.../quality/checks/<check>?group=&page=&sort=&date=`,
     `views.qc_table`); the When chart's ring then moves to the selected value
@@ -5914,6 +5948,50 @@ without errors; the user corrects the file outside the app and loads it again.
     Quality has no Inputs panel beside it since #264: "Edit inputs" on the provenance
     line, so the rail and the detail have the width; at 1280 px nothing scrolls sideways
     with the 67 heavy rain days of the QC stress file.
+  - *Possible breaks* (#365, the QualityBreaks board; `stations/breaks.py`,
+    `stations/_breaks_rail_item.html`, `_breaks_detail.html`, `_breaks_off.html`,
+    `components/breaks.css`): the rail's third section, after the checks, from the
+    homogeneity files of the checks shown (`breaks.review`, which reads the job's
+    `homogeneity/tests` and `homogeneity/breaks` and the yearly series the runner wrote
+    beside its `output/`, `breaks_series.json`). Its note is the station's answer
+    (`BreaksReview.sentence`: the dates found by two tests or more, or by PMF, and their
+    variables, "near the station history" when one is, the maybes, how many tests found
+    breaks and could not run, "The data are not adjusted."). A row per series tested (TX
+    annual, TX monthly, TN annual, TN monthly, PRCP annual; `SeriesBreaks`): its name, the
+    years of its dates in mono (or "none found", "4 of 4 not tested"), a 60 x 14 timeline
+    of its dates in place of a check's month bars, and the number of dates. The breaks of
+    a series within 1.2 years of each other are one date (`group_breaks`, `Group`), graded
+    by the evidence (`Group.grade`): *strong* when two tests or more found it with a yes
+    among them, or PMF's yes; *quiet* when only maybes, or PMT alone (it assumes no trend
+    and has about twice the nominal false alarms, see
+    [Homogeneity break detection](#homogeneity-break-detection)); *normal* otherwise.
+    RHtests' `no` is not a break. A break is not a status: the grades are drawn by weight
+    in the text colours (solid, thinner, dashed), never in a status colour. A series'
+    detail, in the check's place and selected the same way (`?show=breaks-tx-annual`, the
+    same `data-qc-item` and `data-qc-detail`, so `qc.js` swaps it in place): the kicker
+    ("Possible breaks · TX annual · 79 years"), the title and sentences made from the
+    results (`SeriesBreaks.headline`, `lede`: the shifts' size and sign, how many dates
+    two tests found, a date PMT alone finds, what a maybe needs, how many dates are near the
+    station history), "Breaks (CSV)" and "Tests (CSV)" (the job's files), a neutral line
+    when the breaks are out of date ("These breaks come from the earlier settings (95%,
+    segments of 5+ years). Looking for breaks with the new settings.") or the history file
+    was not used, the series chart (`breaks.chart`, 1000 x 250, drawn on the server: each
+    year's value in the variable's chart role, the mean of each segment between the dates as
+    a step in the text colour, a mark at each date by grade with its label, the station
+    history's events as triangles under the axis with their dates; monthly series on the
+    yearly means with their breaks at the month; axes and units, a read-out by pointer and
+    keyboard (#283), the key, a text summary, and "Table": each year's value and the
+    segment it is in, shown under the chart without JavaScript), *Which tests agree* (a row
+    per date, a filled dot for yes, an open one for maybe, "not tested", the station history
+    near it, "none within a year" or "no history file") beside *The four tests* (each
+    test's values and result, or "Not tested:" and the core's reason), then the breaks
+    table (Test, Last before, First after, Significant, Statistic, Critical value, p, Shift
+    with its unit, Station history within a year; every test's own dates) and how the
+    series was tested. Off for the workspace: the section's note "Turned off for this
+    workspace." with "Turn it on in Workspace settings"; with no check to show, its detail
+    says what break detection is. Checks that ran without it: "Not looked for: these checks
+    ran before break detection was on." "How the break tests work" under "How the checks
+    work" opens the section help `quality.breaks`.
   - *Checks that found nothing*: one line ("4 checks found nothing: ...").
   - *Daily values, with the flags* and *Distributions*, two disclosures, then one line
     with the thresholds the checks used (a link opens their sheet) and the link to the
@@ -6955,7 +7033,9 @@ A workspace of one station has none: the address leads to its station's Files.
 
 - **The workspace files**, each with its size: *Everything* (`/w/<id>/files/everything.zip`:
   each station's folder in R's batch layout, `<station>/indices/…`, `plots/`, `trend/`,
-  `thres/`, `qc/`, a failed station's `<station>.errors.txt` as R's batch zip writes it,
+  `thres/`, `qc/`, and `homogeneity/` (#365: the break tests of the checks the station
+  shows, `breaks.job_files`, as in its own zip), a failed station's
+  `<station>.errors.txt` as R's batch zip writes it,
   and the three files below at the top; CSV deflated, PNG and PDF stored, as
   `climpact.plots.zip_folder`), *Trends, all stations* (`trends.csv`) and *Indices, all
   stations* (`indices.csv`). They download as `<workspace name>.zip`,
@@ -6982,19 +7062,23 @@ A workspace of one station has none: the address leads to its station's Files.
 - **By station** (`workspace_files.table`): a data table of each station's R files:
   Folder (zip) (the station's zip with its provenance file, below), Report (PDF), All
   plots (PDF), Trends (`<station>_trend.csv`), Thresholds (`<station>_thres.csv`),
-  Missing values (the checks' `nastatistics` file) and Quality flags (how many other files
-  the checks wrote, a link to them on the station's Files). Each is a link with its size
+  Missing values (the checks' `nastatistics` file) and Quality flags (how many other
+  `qc/` files the checks wrote, a link to them on the station's Files; the break tests'
+  files are not counted). Each is a link with its size
   or says why it is missing: "not run", "failed", "calculating", "waiting", "checking",
   or "–" ("none" for screen readers) for a file the run did not make (plots or report
   switched off).
 - **`climpact_run.json`** (`workspace_files.provenance`) in every zip the app offers for
   results: Everything, and each station's zip (R's `<station>.zip` as the run wrote it,
   copied with the file added, or the station's folder zipped when the run made no zip;
+  with the `homogeneity/` files of the checks it shows added, #365;
   `stations:station_zip`, `/w/<id>/<station>/zip`, also the station's Files and the
   Indices' "Download all"). It holds `software` (the climpact version and the Climpact
   version it ports), `created` (UTC), `workspace`, `base_period`, `index_settings` (the
   provenance line's "ET-SCI defaults" or how many settings are not the default),
-  `settings` (the quality thresholds and the index settings in full), `trend` and per
+  `settings` (the quality thresholds, the index settings in full and the break
+  detection, `breaks.provenance`: off, or its options and the history file's name),
+  `trend` and per
   station its name, file name, SHA-256 (`Station.file_hash`, the file as kept), latitude,
   longitude, years and its folder, or why it has no results. A station whose results are
   out of date says so and what changed since (`results`: "out of date: made before a
@@ -7020,9 +7104,10 @@ A workspace of one station has none: the address leads to its station's Files.
 - **Made once, kept until something changes.** The files are made from the results each
   station shows (`workspace.shown_run`, the batch's or its own run) the first time Files,
   a download or a station's zip asks for them (`workspace_files.build`), in a folder named
-  by a fingerprint of what they come from (the workspace's name, base period, thresholds
-  and index settings, the climpact version, and per station its name, file, coordinates,
-  run and whether its results are out of date), written to a temporary folder and renamed,
+  by a fingerprint of what they come from (the workspace's name, base period, thresholds,
+  index settings and break detection, the climpact version, and per station its name,
+  file, coordinates, run, the checks it shows (their break tests are in its zip, #365) and
+  whether its results are out of date), written to a temporary folder and renamed,
   so two requests never see half a folder; older folders are deleted. While a station
   waits or calculates, or says done but its job has not finished (a batch zips after its
   last station), nothing is made: Files says so, Export ▾ says so, and the downloads lead
@@ -7226,7 +7311,7 @@ holds. An unknown section or topic fails as `help_topic` does. The station pages
 | Page | Sections |
 | --- | --- |
 | A station's setup page (New station, #201) | `upload.file` (Your file), `load.details` (Station details) |
-| Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, and `load.data` for "Your data" (#198) |
+| Quality | `quality.verdict`, `quality.wrong`, `quality.worth`, `quality.missing`, `quality.daily`, `quality.distributions`, `quality.thresholds`, `quality.breaks` ("How the break tests work", #365), and `load.data` for "Your data" (#198) |
 | Calculate | `calculate.plots`, `calculate.spells`, `calculate.degree`, `calculate.prcp`, `calculate.custom`, `calculate.ehf`, `calculate.files` |
 | Indices, an index, Files | `results.catalogue`; `result.index` (a quiet "About this index" link, #237); `files.page` |
 | Sector | `sector.data`, `sector.plot`, `sector.correlation`, `sector.scatter` |
@@ -7240,6 +7325,7 @@ sections above and the remaining `{% help_topic %}`s use them.
 | Station file and details (#76, applied) | `station.file`, `station.name`, `station.latitude`, `station.longitude`, `station.base_period` |
 | QC checks and plots (#77, applied): `qc.<file>` as in `QC_REPORTS` | `qc.outliers`, `qc.tmaxmin`, `qc.toolarge`, `qc.duplicates`, `qc.tx_jumps`, `qc.tn_jumps`, `qc.tx_flatline`, `qc.tn_flatline`, `qc.nastatistics`, `qc.rounding` (decimal histograms), `qc.precip_histogram`, `qc.daily_series`, `qc.homogeneity` |
 | QC thresholds (#77, applied): `QCParams` fields | `qcparam.iqr_temp`, `qcparam.iqr_prec`, `qcparam.prec_max`, `qcparam.temp_max`, `qcparam.flatline_days`, `qcparam.jump` |
+| Possible breaks (#365, applied): the `detect` module's methods, and what a "maybe" is | `breaks.pettitt`, `breaks.snht`, `breaks.pmf` (fits a trend), `breaks.pmt` (assumes none, so flags more), `breaks.maybe` (counts only with station history to support it); the guide's "How the break tests work" (`quality-control#possible-breaks`, and `#pettitt`, `#snht`, `#pmf`, `#pmt`, `#maybe`) |
 | Index settings (#78, applied) | `param.plot_title`, `param.wsdi_days`, `param.csdi_days`, `param.rx_days`, `param.txtn_days`, `param.hdd_base`, `param.cdd_base`, `param.gdd_base`, `param.rnnmm`, `param.spei_months`, `param.custom` (variable, operator and threshold) |
 | Indices (#78, applied) | `index.<short name>` for every short name of `climate.indices.csv` (`index.txx`, `index.rxdday`, `index.hw`, `index.hwEHF`, `index.spi` ...); `index_topic_for_output(name)` maps an output name to its id: `rx3day_ANN` to `index.rxdday`, `TX90-HWN_ANN` to `index.hw`, `3month_spi_MON` to `index.spi`, a custom index such as `TXge40` to `param.custom` |
 | Trends and results (#78, #79) | `trend.sen_slope`, `trend.confidence`, `trend.significance`, `trend.minimum_data`, `trend.seasons`, `results.missing_value`, `results.standardised`, `results.thresholds`, `results.files` |
@@ -8196,6 +8282,9 @@ tokens in two themes, the rail, map, legend and pane.
 #276 (Overlay the series) took `climpact.css` to 26.8 of 27 KB (26.75 KB before; raw
 limit 172,000 bytes, 170,000 before): the overlay page, its chart's slots and the values
 table.
+#365 (Quality's possible breaks) took `climpact.css` to 29.3 of 29.75 KB (28.75 KB before; raw limit 190,000 bytes, 186,000 before):
+the rail's third section, the series chart, its key and the two tables
+(`components/breaks.css`).
 #78 added `results.css` (2 KB) and `results.js` (1 KB; 1.5 KB since #113 made the groups collapse; 2.25 KB since #200 added the column sorting, 2.0 KB used); #90 `sector.css` (1.5 KB) and
 `sector.js` (0.75 KB) and the sector comparison's results page (R's sample wheat file against the Sydney
 run: 42 bars, four scatter plots and their tables as inline SVG, no chart code). #79 added the station

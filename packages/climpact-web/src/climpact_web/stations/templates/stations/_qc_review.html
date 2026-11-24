@@ -43,7 +43,7 @@ note), breaks_topics.
         <p class="qc-rail__note">{{ breaks.sentence }}</p>
       </div>
       {% if break_entries %}<ul class="qc-rail__list">{% for entry in break_entries %}{% include "stations/_breaks_rail_item.html" %}{% endfor %}</ul>{% endif %}
-      {% if breaks.state == "off" %}<p class="qc-rail__foot"><a href="{% url 'stations:workspace_settings' analysis.workspace_id %}">{% translate "Turn it on in Workspace settings" %}</a></p>{% endif %}
+      {% if breaks.state == "off" %}<p class="qc-rail__foot"><a href="{% url 'stations:workspace_setting' analysis.workspace_id 'breaks' %}">{% translate "Turn it on in Workspace settings" %}</a></p>{% endif %}
     </section>
     {% endif %}
     <div class="qc-rail__help">

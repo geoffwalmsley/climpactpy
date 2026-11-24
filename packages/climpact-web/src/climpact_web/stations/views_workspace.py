@@ -7,7 +7,9 @@ overview); one of two or more opens its overview (:mod:`.overview`), which repla
 batch results page. Workspace settings are the base period, the quality thresholds and the
 index settings every station shares (#254): each is edited on its own page here (the
 Inputs panel's sheets as pages), and a change recalculates every station, with Undo on the
-overview's run status line until it has finished.
+overview's run status line until it has finished. Break detection (#367,
+:mod:`.break_settings`) is the fourth: applying it reruns the checks' jobs alone, and returns
+to Workspace settings, which shows that change's progress with Undo.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 from climpact_web.core.limits import human_required
 from climpact_web.jobs.views import OWNER_KEY, poll_delay
 from climpact_web.stations import (
+    break_settings,
+    breaks,
     calculation,
     overlay,
     overview,
@@ -192,6 +196,7 @@ def overview_context(request, space: Workspace) -> dict:
         "polling": active,
         "delay": delay,
         "page": page,
+        "breaks_on": breaks.settings_of(space)["on"],  # the Possible breaks column (#367)
         **trends_context(request, space, table, page),
     }
 
@@ -431,6 +436,8 @@ def setting_form(space: Workspace, key: str, data=None):
 
 
 def settings_items(space: Workspace) -> list[workspace.PanelInput]:
+    """The settings Workspace settings lists, each summed up in one line with its Edit:
+    the base period, the quality thresholds, the index settings and break detection."""
     labels = {key: str(label) for key, label, _names in workspace.PANEL_INPUTS}
     values = {
         "base-period": workspace.base_period_text(space),
@@ -441,6 +448,8 @@ def settings_items(space: Workspace) -> list[workspace.PanelInput]:
             workspace.settings_count(workspace.workspace_settings(space))
         ),
     }
+    labels["breaks"] = _("Break detection")
+    values["breaks"] = break_settings.summary(space)
     return [
         workspace.PanelInput(
             key=key,
@@ -450,7 +459,7 @@ def settings_items(space: Workspace) -> list[workspace.PanelInput]:
             edit_label=_("Edit"),
             changed=False,
         )
-        for key in SETTINGS
+        for key in (*SETTINGS, "breaks")
     ]
 
 
@@ -461,12 +470,27 @@ def settings_page(request, workspace_id):
     every station shares, each with Edit."""
     space = get_workspace(request, workspace_id)
     _anchor(request, space)
+    line = break_settings.change_line(space)
     context = {
         **bar_context(request, space, current=""),
         "inputs": settings_items(space),
-        "can_undo": workspace.undo_available(space),
+        "count": space.stations.count(),
+        # A change to break detection shows its progress and Undo here (#367); another
+        # change, on the overview's run status line.
+        "change": line if line is not None and line.tone == "running" else None,
+        "can_undo": workspace.undo_available(space) and line is None,
+        "delay": 2,
     }
     return render(request, "stations/workspace_settings.html", context)
+
+
+@never_cache
+@require_safe
+def settings_progress(request, workspace_id):
+    """Workspace settings' line of a change to break detection, polled while it runs."""
+    space = get_workspace(request, workspace_id)
+    context = {"space": space, "change": break_settings.change_line(space), "delay": 2}
+    return render(request, "stations/_settings_change.html", context)
 
 
 @never_cache
@@ -480,6 +504,8 @@ def setting(request, workspace_id, key):
     from climpact_web.stations.views import INPUT_SHEETS
 
     space = get_workspace(request, workspace_id)
+    if key == "breaks":
+        return break_detection(request, space)
     if key not in SETTINGS:
         raise Http404
     anchor = _anchor(request, space)
@@ -534,11 +560,73 @@ def setting(request, workspace_id, key):
     return render(request, "stations/workspace_setting.html", context)
 
 
+def break_detection(request, space: Workspace):
+    """Break detection's form on its own page (#367, the BreakSettings board): applying
+    it changes the settings as one change, which reruns each station's checks' job alone
+    (``calculation.change_settings``), then back to Workspace settings, which shows its
+    progress and Undo."""
+    from climpact_web.stations.break_settings import BreakDetectionForm
+
+    anchor = _anchor(request, space)
+    if request.method == "POST":
+        form = BreakDetectionForm(request.POST, request.FILES, space=space)
+        if form.is_valid():
+            changed = calculation.change_settings(request, anchor, break_detection=form.settings())
+            break_settings.prune_history(anchor.workspace)
+            if not changed:
+                messages.info(request, _("Break detection is unchanged."))
+            elif not anchor.workspace.undo:  # each station's checks were of these already
+                messages.success(
+                    request,
+                    _(
+                        "Break detection changed. Each station has its breaks for these "
+                        "settings already: they are shown again."
+                    ),
+                )
+            return redirect("stations:workspace_settings", space.pk)
+        history = break_settings.history_state(space, form.history_read, form.history_sha)
+    else:
+        form = BreakDetectionForm(space=space)
+        history = break_settings.history_state(space)
+    context = {
+        **bar_context(request, space, current=""),
+        "form": form,
+        "history": history,
+        "impact": break_settings.impact(space),
+        "tests": [(c, break_settings.TEST_NOTES[c.data["value"]]) for c in form["methods"]],
+        "seconds": break_settings.SECONDS_PER_STATION,
+        "settings_url": reverse("stations:workspace_settings", args=[space.pk]),
+    }
+    return render(request, "stations/workspace_breaks.html", context)
+
+
+@never_cache
+@require_POST
+def break_history(request, workspace_id):
+    """The station history file just chosen on Break detection's form, read (htmx, #367):
+    its events and stations, or the line that is wrong. Nothing is kept: the form sends
+    the file again when it is applied."""
+    space = get_workspace(request, workspace_id)
+    upload = request.FILES.get("history")
+    chosen = None
+    if upload is not None:
+        data = upload.read(break_settings.MAX_HISTORY_BYTES + 1)
+        chosen = break_settings.read_history(data, break_settings.safe_name(upload.name))
+    context = {"history": break_settings.history_state(space, chosen)}
+    return render(request, "stations/_breaks_history.html", context)
+
+
 @require_POST
 def undo(request, workspace_id):
-    """ "Undo the change" on the overview's run status line (#254, #234): as a station's
-    (``stations.views.undo``), then back to the overview."""
+    """ "Undo the change" on the overview's run status line (#254, #234), or on Workspace
+    settings for a change to break detection (#367): as a station's
+    (``stations.views.undo``), then back to the page it was asked from (``next``)."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
     space = get_workspace(request, workspace_id)
+    after = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(after, {request.get_host()}, request.is_secure()):
+        after = space.get_absolute_url()
     if calculation.undo(space):
         messages.success(
             request, _("The change was undone. The earlier settings and results are back.")
@@ -551,7 +639,7 @@ def undo(request, workspace_id):
                 "Change the settings back instead."
             ),
         )
-    return redirect(space.get_absolute_url())
+    return redirect(after or space.get_absolute_url())
 
 
 # ---- Workspaces (#242) -------------------------------------------------------------------

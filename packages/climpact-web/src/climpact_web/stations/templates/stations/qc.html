@@ -41,7 +41,7 @@ views.qc_context.
     {% include "components/stale_banner.html" with id="qc-stale" title=stale_title changes=stale.changes note=stale_note action_href=data_url action_label=data_label %}
     {% endif %}
     {% elif job and not job.is_finished %}
-    {% include "stations/_qc_progress.html" %}
+    {% include "stations/_qc_progress.html" with quiet=breaks_only %}
     {% elif job.status == "failed" %}
     <div class="alert alert--error" role="alert">
       {% icon "error" %}

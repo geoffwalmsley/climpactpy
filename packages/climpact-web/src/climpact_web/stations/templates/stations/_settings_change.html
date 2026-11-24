@@ -1,0 +1,23 @@
+{% load i18n %}{% comment %}
+Workspace settings' line of a change to break detection (#367, the BreakSettings board's
+saved state): "Break detection changed. Looking for breaks in 6 stations: 4 of 6 done. The
+indices don't change." with its bar and Undo, polled by htmx (outerHTML) while it runs
+(views_workspace.settings_progress returns this block alone); once finished, how it went.
+Context: space, change (break_settings.change_line, or None), delay.
+{% endcomment %}<div id="settings-change"{% if change.tone == "running" %} hx-get="{% url 'stations:workspace_settings_progress' space.pk %}"
+  hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
+  data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML"{% endif %}>
+  {% if change %}
+  <div class="run-status run-status--{{ change.tone }}" role="status">
+    <div class="run-status__text">
+      <p class="run-status__line m-0 text-sm" data-announce{% if change.tone != "running" %}="now"{% endif %}><strong>{{ change.head }}</strong> <span>{{ change.rest }}</span></p>
+      {% if change.tone == "running" %}<progress class="meter max-w-prose" max="100" value="{{ change.percent }}" aria-hidden="true"></progress>{% endif %}
+    </div>
+    {% if change.can_undo %}
+    <div class="run-status__links">
+      <form method="post" action="{% url 'stations:workspace_undo' space.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'stations:workspace_settings' space.pk %}"><button type="submit" class="link-button">{% translate "Undo the change" %}</button></form>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

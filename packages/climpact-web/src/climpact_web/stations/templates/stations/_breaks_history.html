@@ -1,0 +1,46 @@
+{% load i18n %}{% comment %}
+The station history file on Break detection's form (#367, the BreakSettings board's
+empty, uploaded and error states), under the file input it describes, which it never
+replaces: the input keeps the file chosen until the form is applied. Also the htmx
+fragment of views_workspace.break_history, which reads a file as soon as it is chosen.
+"Choose file", "Replace" and "Choose another file" are labels of that input; Remove is a
+checkbox, so it works without JavaScript. Context: history (break_settings.HistoryState).
+{% endcomment %}{% with h=history.history %}{% if history.state == "error" %}
+<div class="breaks-history__box breaks-history__box--error">
+  <div class="breaks-history__head">
+    <span><span class="code">{{ h.name }}</span> {{ "·" }} {% translate "not used" %}</span>
+    <label class="button button--secondary button--sm breaks-history__pick" for="id_history">{% translate "Choose another file" %}</label>
+  </div>
+  <p class="field__error" role="alert">{{ h.error }}</p>
+  <p class="field__hint">{% translate "Fix the line and choose the file again. The rest of the form is kept." %}</p>
+</div>
+{% elif history.state == "saved" or history.state == "chosen" %}
+<div class="breaks-history__box">
+  <div class="breaks-history__head">
+    <span><span class="code">{{ h.name }}</span> {{ "·" }} <strong>{{ h.summary }}</strong></span>
+    <span class="breaks-history__actions">
+      <label class="breaks-history__pick link-button" for="id_history">{% translate "Replace" %}</label>
+      <label class="check breaks-history__remove" for="id_remove_history"><input type="checkbox" name="remove_history" id="id_remove_history"> <span>{% translate "Remove" %}</span></label>
+    </span>
+  </div>
+  {% if h.events %}
+  <div class="table-wrap">
+    <table class="table table--data text-xs">
+      <caption class="sr-only">{% blocktranslate with name=h.name %}The first events of {{ name }}{% endblocktranslate %}</caption>
+      <thead><tr><th scope="col">{% translate "Date" %}</th>{% if h.has_station %}<th scope="col">{% translate "Station" %}</th>{% endif %}<th scope="col">{% translate "Event" %}</th></tr></thead>
+      <tbody>
+        {% for event in h.preview %}<tr><td class="code">{{ event.date }}</td>{% if h.has_station %}<td>{{ event.station }}</td>{% endif %}<td class="breaks-history__event">{{ event.text }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if history.rest %}<p class="field__hint">{{ history.rest }}</p>{% endif %}
+  <p class="field__hint breaks-history__removed">{% translate "Removed when you apply the form: the breaks are shown without a station history." %}</p>
+  {% if history.sha256 %}<input type="hidden" name="history_sha" value="{{ history.sha256 }}"><input type="hidden" name="history_name" value="{{ h.name }}">{% endif %}
+</div>
+{% else %}
+<div class="breaks-history__drop">
+  <label class="button button--secondary button--sm breaks-history__pick" for="id_history">{% translate "Choose file" %}</label>
+  <span class="field__hint">{% translate "or drop it here" %} {{ "·" }} {% translate "no file" %}</span>
+</div>
+{% endif %}{% endwith %}

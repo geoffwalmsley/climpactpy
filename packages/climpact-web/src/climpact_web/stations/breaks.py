@@ -25,6 +25,7 @@ The core is not imported here: the web server reads the files the job wrote.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 from dataclasses import dataclass, field
@@ -72,11 +73,22 @@ def settings_of(space) -> dict:
     return out
 
 
-def history_path(space) -> Path:
-    """Where the workspace keeps its station history file (deleted with the workspace)."""
+def history_dir(space) -> Path:
+    """The workspace's folder of station history files (deleted with the workspace)."""
     from climpact_web.stations.models import stations_dir
 
-    return stations_dir() / str(space.pk) / "break_detection" / HISTORY_FILE
+    return stations_dir() / str(space.pk) / "break_detection"
+
+
+def history_path(space, sha256: str | None = None) -> Path | None:
+    """The station history file of the workspace's settings (or the one whose SHA-256 is
+    ``sha256``), or None when it has none. Each file is kept under its SHA-256 (#367), so
+    undoing a change finds the file of the settings it puts back."""
+    if sha256 is None:
+        sha256 = (settings_of(space)["history"] or {}).get("sha256")
+    if not sha256:
+        return None
+    return history_dir(space) / f"{sha256}.csv"
 
 
 def module_options(settings: dict) -> dict:
@@ -98,7 +110,8 @@ def job_params(space) -> dict:
     if not settings["on"]:
         return {}
     params = {"homogeneity": module_options(settings)}
-    if settings["history"] and history_path(space).is_file():
+    path = history_path(space)
+    if path is not None and path.is_file():
         params["station_history"] = HISTORY_FILE
     return params
 
@@ -110,7 +123,8 @@ def inputs_of(space) -> dict:
     settings = settings_of(space)
     if not settings["on"]:
         return {"on": False}
-    history = settings["history"] if history_path(space).is_file() else None
+    path = history_path(space)
+    history = settings["history"] if path is not None and path.is_file() else None
     return {
         "on": True,
         **module_options(settings),
@@ -908,29 +922,58 @@ def has_results(job) -> bool:
     return "homogeneity/tests" in (result.get("reports") or {})
 
 
-def review(space, shown, current=None, changes: bool = False) -> BreaksReview:
-    """The breaks Quality shows: those the checks shown (``shown``, a finished ``qc``
-    job) found, out of date when ``changes`` (their settings differ from the
-    workspace's now); off when the workspace has break detection off; pending when the
-    checks shown did not look for them (``current`` is the latest ``qc`` job, looking for
-    them when it is not finished)."""
-    if not settings_of(space)["on"]:
-        return BreaksReview(OFF)
-    looking = current is not None and current != shown and not current.is_finished
-    if shown is None or not has_results(shown):
-        return BreaksReview(PENDING, looking=looking)
-    result = shown.result or {}
-    output = Path(shown.output_dir)
-    reports = result.get("reports") or {}
+@dataclass(frozen=True)
+class Flag:
+    """A station's possible breaks in short, for its cell of the Stations table (#367):
+    the variables with breaks, the series to link to (the first with breaks) and how many
+    tests found them, of those that ran."""
+
+    variables: tuple[str, ...]
+    first: str  # the series' id, ?show=, or "" for none
+    anchor: str
+    found_by: int
+    tested: int
+    untested: int
+
+
+@functools.lru_cache(maxsize=4096)
+def _flag(output: str, tests: str, rows: str) -> Flag | None:
     try:
-        tests = _read_table(output / reports["homogeneity/tests"])
-        breaks = _read_table(output / reports["homogeneity/breaks"])
+        series = _series_of(Path(output), {"homogeneity/tests": tests, "homogeneity/breaks": rows})
     except (KeyError, OSError):
-        return BreaksReview(MISSING)
-    try:
-        yearly = json.loads((output.parent / result.get("breaks_series", "")).read_text())
-    except (OSError, ValueError):
-        yearly = {}
+        return None
+    found = BreaksReview(RESULTS, series=series)
+    first = found.first_with_breaks
+    return Flag(
+        tuple(found.variables),
+        first.id if first else "",
+        first.anchor if first else "",
+        found.found_by,
+        len(found.tests) - found.untested,
+        found.untested,
+    )
+
+
+def flag(job) -> Flag | None:
+    """The breaks a finished ``qc`` job found, in short (:class:`Flag`); None when it did
+    not look for them or their files are gone. A finished job's files don't change, so
+    each is read once."""
+    if job is None or not has_results(job):
+        return None
+    reports = job.result.get("reports") or {}
+    return _flag(
+        str(job.output_dir),
+        reports.get("homogeneity/tests", ""),
+        reports.get("homogeneity/breaks", ""),
+    )
+
+
+def _series_of(output: Path, reports: dict) -> list[SeriesBreaks]:
+    """Each series a ``qc`` job tested, with its tests and breaks, read from its
+    ``homogeneity/tests`` and ``homogeneity/breaks`` (KeyError or OSError when they are
+    missing)."""
+    tests = _read_table(output / reports["homogeneity/tests"])
+    rows = _read_table(output / reports["homogeneity/breaks"])
     by_series: dict[tuple[str, str], SeriesBreaks] = {}
     for row in tests:
         key = (row.get("variable", ""), row.get("series", ""))
@@ -945,7 +988,7 @@ def review(space, shown, current=None, changes: bool = False) -> BreaksReview:
                 row.get("note", ""),
             )
         )
-    for row in breaks:
+    for row in rows:
         key = (row.get("variable", ""), row.get("series", ""))
         if key not in by_series:
             continue
@@ -965,12 +1008,37 @@ def review(space, shown, current=None, changes: bool = False) -> BreaksReview:
         )
     for item in by_series.values():
         item.groups = group_breaks(item.breaks, item.freq)
+    return list(by_series.values())
+
+
+def review(space, shown, current=None, changes: bool = False) -> BreaksReview:
+    """The breaks Quality shows: those the checks shown (``shown``, a finished ``qc``
+    job) found, out of date when ``changes`` (their settings differ from the
+    workspace's now); off when the workspace has break detection off; pending when the
+    checks shown did not look for them (``current`` is the latest ``qc`` job, looking for
+    them when it is not finished)."""
+    if not settings_of(space)["on"]:
+        return BreaksReview(OFF)
+    looking = current is not None and current != shown and not current.is_finished
+    if shown is None or not has_results(shown):
+        return BreaksReview(PENDING, looking=looking)
+    result = shown.result or {}
+    output = Path(shown.output_dir)
+    reports = result.get("reports") or {}
+    try:
+        series = _series_of(output, reports)
+    except (KeyError, OSError):
+        return BreaksReview(MISSING)
+    try:
+        yearly = json.loads((output.parent / result.get("breaks_series", "")).read_text())
+    except (OSError, ValueError):
+        yearly = {}
     first = yearly.get("first") or 0
     count = max((len(v) for v in (yearly.get("values") or {}).values()), default=0)
     params = shown.params or {}
     return BreaksReview(
         RESULTS,
-        series=list(by_series.values()),
+        series=series,
         first=first,
         last=first + count - 1 if count else first,
         yearly=yearly,

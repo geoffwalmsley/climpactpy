@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% load i18n %}{% comment %}
-Workspace settings (#234): the base period, the quality thresholds and the index settings
-every station of the workspace shares (#254), each with Edit, which opens its form on a
-page of its own (workspace_setting.html). Context from views_workspace.settings_page.
+Workspace settings (#234, the BreakSettings board since #367): the base period, the quality
+thresholds, the index settings (#254) and break detection (#367) every station of the
+workspace shares, one framed list, each summed up in one line with Edit, which opens its
+form on a page of its own (workspace_setting.html, workspace_breaks.html). A change to
+break detection shows its progress and Undo here (stations/_settings_change.html); another
+change, on the overview's run status line. Context from views_workspace.settings_page:
+inputs, count, change, can_undo, delay.
 {% endcomment %}
 {% block title %}{% blocktranslate with name=space_name %}Workspace settings: {{ name }}{% endblocktranslate %}{% endblock %}
 {% block content %}
@@ -10,8 +14,13 @@ page of its own (workspace_setting.html). Context from views_workspace.settings_
   {% include "stations/_space_bar.html" %}
   <div class="stack max-w-prose">
     <h1 class="sheet__title">{% translate "Workspace settings" %}</h1>
-    <p>{% translate "These apply to every station of the workspace. A change recalculates them all; the results shown stay until the new ones are ready, and you can undo the change until then." %}</p>
-    <div class="inputs-panel">{% include "stations/_inputs_list.html" with in_sheet=True %}</div>
+    <p>{% blocktranslate count counter=count trimmed %}
+      Settings for the station of this workspace. Changing one recalculates what depends on it; each change can be undone.
+    {% plural %}
+      Settings for all {{ counter }} stations. Changing one recalculates what depends on it; each change can be undone.
+    {% endblocktranslate %}</p>
+    {% if change %}{% include "stations/_settings_change.html" %}{% endif %}
+    {% include "stations/_settings_list.html" %}
     {% if can_undo %}<p class="text-sm text-text-muted">{% translate "A change is being recalculated. Undo it from the run status line on the overview." %}</p>{% endif %}
     <p><a href="{{ space.get_absolute_url }}">{% translate "Back to the overview" %}</a></p>
   </div>

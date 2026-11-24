@@ -2,7 +2,9 @@
 The overview's run status line and Stations table (#234, the Calculate board), polled by
 htmx (outerHTML swap) while stations are checked or calculated: views_workspace.
 workspace_progress returns this block alone. Context: rows (stations.overview.rows),
-status (overview.status_line, or None), polling, delay, page, space; each row's "Copy…"
+status (overview.status_line, or None), polling, delay, page, space; each row's possible
+breaks after Quality (#367, row.breaks, None when break detection is off: no column);
+each row's "Copy…"
 (Copy to workspace…, #241, row.copy_url) in the last column; and Trends across
 stations (#238, stations/_trends.html: views_workspace.trends_context), which waits while
 a station is calculated and so comes in with the last poll.
@@ -42,6 +44,7 @@ a station is calculated and so comes in with the last poll.
             <th scope="col">{% translate "Period" %}</th>
             <th scope="col" class="num">{% translate "Missing" %}</th>
             <th scope="col">{% translate "Quality" %}</th>
+            {% if breaks_on %}<th scope="col" class="whitespace-nowrap">{% translate "Possible breaks" %}</th>{% endif %}
             <th scope="col" class="stations-table__indices">{% translate "Indices" %}</th>
             <th scope="col" class="num">{% translate "Significant" %}</th>
             <th scope="col" class="stations-table__actions"><span class="sr-only">{% translate "Actions" %}</span></th>
@@ -55,6 +58,7 @@ a station is calculated and so comes in with the last poll.
             <td class="code">{{ row.period }}</td>
             <td class="num">{{ row.missing }}</td>
             <td>{% if row.quality.verdict %}<span class="status-dot status-dot--{{ row.quality.state }}">{{ row.quality.label }}{% if row.quality.count %}<span aria-hidden="true"> {{ row.quality.count }}</span><span class="sr-only">{{ row.quality.count_label }}</span>{% endif %}</span>{% elif row.quality.state == "checking" %}<span class="status-dot status-dot--checking">{{ row.quality.label }}</span>{% else %}<span class="text-text-muted">{{ row.quality.label }}</span>{% endif %}</td>
+            {% if breaks_on %}<td class="whitespace-nowrap" data-breaks="{{ row.breaks.state }}">{% if row.breaks.url %}<a class="code" href="{{ row.breaks.url }}" title="{{ row.breaks.title }}">{{ row.breaks.text }}<span class="sr-only">{{ row.breaks.label }}</span></a>{% else %}<span class="text-text-muted">{{ row.breaks.text }}</span>{% endif %}{% if row.breaks.note %}<span class="text-text-muted">{{ row.breaks.note }}</span>{% endif %}</td>{% endif %}
             <td class="stations-table__indices">
               <span class="run-state run-state--{{ row.indices.mark }}">
                 <span class="run-state__label">{% if row.indices.state == "failed" and row.indices.error %}{% blocktranslate with error=row.indices.error %}Failed: {{ error }}{% endblocktranslate %}{% else %}{{ row.indices.label }}{% endif %}</span>

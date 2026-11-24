@@ -397,6 +397,7 @@ def change_settings(request, analysis: Station, own: dict | None = None, **value
     change = new_change()
     space.undo = {
         "change": change,
+        "fields": sorted(changed),  # what it changed: Workspace settings' line (#367)
         "settings": before,
         "stations": {
             str(station.pk): {

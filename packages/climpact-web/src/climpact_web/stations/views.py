@@ -568,6 +568,12 @@ def qc_context(request, analysis: Station, **extra) -> dict:
         "thresholds_changed": workspace.thresholds_changed(analysis),
         "job": job,
         "shown": shown,
+        # Checks queued for break detection alone (#367): no progress panel, as the checks
+        # stay; only their breaks say they are out of date, and the page polls for them.
+        "breaks_only": shown is not None
+        and job is not None
+        and not job.is_finished
+        and not replacing,
         # The checks shown are not of the current inputs, or newer ones are on the way
         # (#179): the banner says so, and the decision waits for the new checks.
         "stale": {
@@ -676,7 +682,10 @@ def qc_progress(request, workspace_id, slug):
             response["HX-Refresh"] = "true"
             return response
         return redirect(analysis.url("qc"))
-    return render(request, "stations/_qc_progress.html", qc_context(request, analysis))
+    context = qc_context(request, analysis)
+    return render(
+        request, "stations/_qc_progress.html", {**context, "quiet": context["breaks_only"]}
+    )
 
 
 @never_cache

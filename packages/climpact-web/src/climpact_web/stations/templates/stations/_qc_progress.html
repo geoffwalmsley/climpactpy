@@ -1,12 +1,15 @@
 {% load i18n ui %}{% comment %}
 The checks' progress (#77), polled by htmx while the "qc" job is queued or running; the
 progress view answers HX-Refresh once it has finished, so the page shows the results.
-Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing).
+Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing); quiet
+(checks queued for break detection alone, #367): no panel, only the poll, as the checks
+stay and their breaks say they are out of date.
 {% endcomment %}
 <div id="qc-progress" class="stack"
   hx-get="{% url 'stations:qc_progress' analysis.workspace_id analysis.slug %}"
   hx-trigger="load delay:{{ delay }}s, climpact:visible from:document"
   data-poll-hidden hx-sync="this:replace" hx-swap="outerHTML">
+  {% if not quiet %}
   <div class="progress">
     <div class="progress__header">
       <span id="qc-progress-label" data-announce>{% translate "Running the quality checks…" %}</span>
@@ -19,6 +22,7 @@ Context from views.qc_context (job, stage_label, elapsed, delay, worker_missing)
       {% translate "This usually takes a few seconds." %}
     </p>
   </div>
+  {% endif %}
   {% if worker_missing %}
   {% translate "No calculation worker is running, so the checks cannot start yet. If you run Climpact yourself, restart it with the climpact-web command." as worker_message %}
   {% include "components/alert.html" with kind="warning" message=worker_message title="" %}

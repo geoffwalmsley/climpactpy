@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load i18n ui help %}{% comment %}
+Break detection's form on its own page (#367, the BreakSettings board), from Workspace
+settings: what it is in one sentence, the fields in groups divided by hairlines ("Look for
+breaks"; the tests, each in a few words; variables and series; the significance level and
+the shortest segment; the station history file, stations/_breaks_history.html), what
+applying updates in the warning tint, then Apply and Cancel. Sent to
+views_workspace.setting (key "breaks"). Context: the workspace's bar, form
+(break_settings.BreakDetectionForm), tests (each method's choice and its note), history
+(break_settings.HistoryState), impact, seconds, settings_url.
+{% endcomment %}
+{% block title %}{% blocktranslate with name=space_name %}Break detection: {{ name }}{% endblocktranslate %}{% endblock %}
+{% block content %}
+<div class="stack stack--lg station-page">
+  {% include "stations/_space_bar.html" %}
+  <div class="stack break-settings">
+    <div class="stack stack--sm">
+      <nav aria-label="{% translate 'Breadcrumb' %}" class="breadcrumb text-sm"><a href="{{ settings_url }}">{% translate "Workspace settings" %}</a></nav>
+      <h1 class="sheet__title">{% translate "Break detection" %}</h1>
+      <p class="m-0">{% translate "Looks for sudden shifts in each station's series, such as a station move or a new instrument leaves, and lists them on Quality. It does not adjust the data: the indices use them as they are." %} {% translate "How the break tests work" as breaks_label %}{% section_help "quality.breaks" label=breaks_label quiet=True %}</p>
+    </div>
+    {% include "components/form_errors.html" with form=form %}
+    <form method="post" action="{% url 'stations:workspace_setting' space.pk 'breaks' %}" enctype="multipart/form-data" class="settings-form" id="breaks-form" novalidate>
+      {% csrf_token %}
+      <div class="settings-form__group">
+        <label class="check settings-form__switch" for="{{ form.on.id_for_label }}">{{ form.on }} <strong>{{ form.on.label }}</strong></label>
+        <p class="field__hint settings-form__switch-hint" id="{{ form.on.auto_id }}_helptext">{% blocktranslate trimmed %}About {{ seconds }} s per station. Off: Quality says break detection is off, and the zips hold no homogeneity files.{% endblocktranslate %}</p>
+      </div>
+
+      <fieldset class="settings-form__group{% if form.methods.errors %} field--error{% endif %}" aria-describedby="id_methods_helptext{% if form.methods.errors %} id_methods_error{% endif %}">
+        <legend class="settings-form__legend">{{ form.methods.label }}</legend>
+        <p class="field__hint" id="id_methods_helptext">{% translate "At least one." %}</p>
+        {% include "components/field_errors.html" with field=form.methods %}
+        {% for choice, note in tests %}<label class="check" for="{{ choice.id_for_label }}">{{ choice.tag }} <span><strong class="font-medium">{{ choice.choice_label }}</strong> <span>{{ "·" }} {{ note }}</span></span></label>{% endfor %}
+      </fieldset>
+
+      <div class="settings-form__pair">
+        <fieldset class="settings-form__group{% if form.variables.errors %} field--error{% endif %}" aria-describedby="id_variables_helptext{% if form.variables.errors %} id_variables_error{% endif %}">
+          <legend class="settings-form__legend">{{ form.variables.label }}</legend>
+          {% include "components/field_errors.html" with field=form.variables %}
+          <div class="settings-form__choices">{% for choice in form.variables %}<label class="check" for="{{ choice.id_for_label }}">{{ choice.tag }} <span class="code">{{ choice.choice_label }}</span></label>{% endfor %}</div>
+          <p class="field__hint" id="id_variables_helptext">{% translate "PRCP is tested yearly only." %}</p>
+        </fieldset>
+        <fieldset class="settings-form__group{% if form.series.errors %} field--error{% endif %}" aria-describedby="id_series_helptext{% if form.series.errors %} id_series_error{% endif %}">
+          <legend class="settings-form__legend">{{ form.series.label }}</legend>
+          {% include "components/field_errors.html" with field=form.series %}
+          <div class="settings-form__choices">{% for choice in form.series %}<label class="check" for="{{ choice.id_for_label }}">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+          <p class="field__hint" id="id_series_helptext">{% translate "Yearly and monthly means." %}</p>
+        </fieldset>
+      </div>
+
+      <div class="settings-form__pair">
+        <div class="settings-form__group field{% if form.level.errors %} field--error{% endif %}">
+          <label class="settings-form__legend" for="{{ form.level.id_for_label }}">{{ form.level.label }}</label>
+          {% include "components/field_errors.html" with field=form.level %}
+          <div class="settings-form__narrow">{{ form.level }}</div>
+          <p class="field__hint" id="{{ form.level.auto_id }}_helptext">{% translate "The levels RHtests has critical values for." %}</p>
+        </div>
+        <div class="settings-form__group field{% if form.min_years.errors %} field--error{% endif %}">
+          <label class="settings-form__legend" for="{{ form.min_years.id_for_label }}">{{ form.min_years.label }}</label>
+          {% include "components/field_errors.html" with field=form.min_years %}
+          <div class="input-group settings-form__narrow">{{ form.min_years }}<span class="input-group__unit">{% translate "years" %}</span></div>
+          <p class="field__hint" id="{{ form.min_years.auto_id }}_helptext">{% translate "Pettitt and SNHT; PMF and PMT use RHtests' own minimum." %}</p>
+        </div>
+      </div>
+
+      <div class="settings-form__group">
+        <p class="settings-form__legend" id="history-title">{{ form.history.label }} <span class="field__optional">{{ "·" }} {% translate "optional" %}</span></p>
+        <p class="field__hint" id="history-hint">{% blocktranslate trimmed with date="<code>date,event</code>" station="<code>station</code>" %}A CSV file of events, shown next to breaks within a year of them: columns {{ date }}, and {{ station }} to use one file for every station (the names as in this workspace). Dates as YYYY-MM-DD, YYYY-MM or YYYY.{% endblocktranslate %}</p>
+        <div class="breaks-history" data-dropzone>
+          <input type="file" name="history" id="{{ form.history.id_for_label }}" accept=".csv,.txt,text/csv,text/plain" aria-labelledby="history-title" aria-describedby="history-hint"
+            hx-post="{% url 'stations:workspace_break_history' space.pk %}" hx-trigger="change" hx-target="#breaks-history-state" hx-swap="innerHTML" hx-encoding="multipart/form-data" hx-sync="this:replace">
+          <div id="breaks-history-state" aria-live="polite">{% include "stations/_breaks_history.html" %}</div>
+        </div>
+      </div>
+
+      <div class="impact settings-form__impact" id="breaks-form-impact">{% icon "refresh" %}<p>{{ impact }}</p></div>
+      {% turnstile %}
+      <div class="settings-form__foot">
+        {% translate "Apply" as apply_label %}
+        {% include "components/button.html" with label=apply_label type="submit" describedby="breaks-form-impact" %}
+        {% translate "Cancel" as cancel_label %}
+        {% include "components/button.html" with label=cancel_label href=settings_url variant="ghost" %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

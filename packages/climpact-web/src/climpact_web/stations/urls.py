@@ -107,6 +107,18 @@ urlpatterns = [
         views_workspace.settings_page,
         name="workspace_settings",
     ),
+    # A change to break detection's progress, and its station history file read when
+    # chosen (#367); before the settings' own pages, whose key would take "progress".
+    path(
+        "w/<uuid:workspace_id>/settings/progress",
+        views_workspace.settings_progress,
+        name="workspace_settings_progress",
+    ),
+    path(
+        "w/<uuid:workspace_id>/settings/breaks/history",
+        views_workspace.break_history,
+        name="workspace_break_history",
+    ),
     path(
         "w/<uuid:workspace_id>/settings/<slug:key>",
         views_workspace.setting,
